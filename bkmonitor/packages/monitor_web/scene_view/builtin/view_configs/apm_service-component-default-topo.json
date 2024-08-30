@@ -7,37 +7,797 @@
   "panels": [],
   "overview_panels": [
     {
-      "id": "1",
+      "id": 1,
       "title": "Clusters",
       "type": "apm-relation-graph",
       "instant": true,
       "targets": [
         {
-          "datasource": "apm_topo",
+          "datasource": "topo",
           "dataType": "topo",
           "api": "apm_topo.topoView",
           "data": {
-            "query_type": "topo",
             "app_name": "$app_name",
-            "service_name": "$service_name"
-          }
-        },
-        {
-          "datasource": "apm_topo",
-          "dataType": "table",
-          "api": "apm_topo.topoView",
-          "data": {
-            "query_type": "list",
-            "app_name": "$app_name",
-            "service_name": "$service_name"
+            "service_name": "$service_name",
+            "data_type": "$data_type",
+            "edge_data_type": "$edge_data_type",
+            "export_type": "$export_type"
           }
         }
       ],
       "options": {
-        "apm-relation-graph": {
-          "node-detail": [],
-          "node-relation": [],
-          "topo-bar": []
+        "apm_relation_graph": {
+          "service_detail": {
+            "name": "服务概览",
+            "type": "info",
+            "targets": [
+              {
+                "datasource": "info",
+                "dataType": "info",
+                "api": "apm_meta.serviceDetail",
+                "data": {
+                  "app_name": "$app_name",
+                  "service_name": "$service_name"
+                }
+              }
+            ]
+          },
+          "service_alert": {
+            "name": "告警",
+            "type": "alert",
+            "targets": [
+              {
+                "datasource": "alert",
+                "dataType": "alert",
+                "api": "apm_topo.dataTypeBarQuery",
+                "data": {
+                  "app_name": "$app_name",
+                  "service_name": "$service_name",
+                  "data_type": "alert"
+                }
+              }
+            ]
+          },
+          "service_tabs_service": {
+            "name": "服务",
+            "type": "tab",
+            "panels": [
+              {
+                "id": 1,
+                "title": "Apdex",
+                "type": "apdex-chart",
+                "targets": [
+                  {
+                    "datasource": "apdex",
+                    "dataType": "apdex",
+                    "api": "apm_topo.dataTypeBarQuery",
+                    "alias": "Apdex",
+                    "data": {
+                      "app_name": "$app_name",
+                      "service_name": "$service_name",
+                      "data_type": "apdex"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": 2,
+                "title": "请求数",
+                "type": "graph",
+                "alias": "请求数",
+                "targets": [
+                  {
+                    "data_type": "time_series",
+                    "api": "apm_metric.dynamicUnifyQuery",
+                    "datasource": "time_series",
+                    "alias": "总数量",
+                    "data": {
+                      "app_name": "${app_name}",
+                      "service_name": "$service_name",
+                      "unify_query_param": {
+                        "expression": "A",
+                        "query_configs": [
+                          {
+                            "data_source_label": "custom",
+                            "data_type_label": "time_series",
+                            "table": "${table_id}",
+                            "metrics": [
+                              {
+                                "field": "bk_apm_count",
+                                "method": "SUM",
+                                "alias": "A"
+                              }
+                            ],
+                            "group_by": [
+                            ],
+                            "display": true,
+                            "where": [
+                            ],
+                            "interval_unit": "s",
+                            "time_field": "time",
+                            "filter_dict": {
+                              "service_name": "${service_name}"
+                            },
+                            "functions": []
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "data_type": "time_series",
+                    "api": "apm_metric.dynamicUnifyQuery",
+                    "datasource": "time_series",
+                    "alias": "主调数量",
+                    "data": {
+                      "app_name": "${app_name}",
+                      "service_name": "${service_name}",
+                      "unify_query_param": {
+                        "expression": "A",
+                        "query_configs": [
+                          {
+                            "data_source_label": "custom",
+                            "data_type_label": "time_series",
+                            "table": "${table_id}",
+                            "metrics": [
+                              {
+                                "field": "bk_apm_count",
+                                "method": "SUM",
+                                "alias": "A"
+                              }
+                            ],
+                            "group_by": [
+                            ],
+                            "display": true,
+                            "where": [
+                              {
+                                "key": "kind",
+                                "method": "eq",
+                                "value": [
+                                  "3"
+                                ]
+                              },
+                              {
+                                "condition": "or",
+                                "key": "kind",
+                                "method": "eq",
+                                "value": [
+                                  "4"
+                                ]
+                              }
+                            ],
+                            "interval_unit": "s",
+                            "time_field": "time",
+                            "filter_dict": {
+                              "service_name": "${service_name}"
+                            },
+                            "functions": []
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "data_type": "time_series",
+                    "api": "apm_metric.dynamicUnifyQuery",
+                    "datasource": "time_series",
+                    "alias": "被调数量",
+                    "data": {
+                      "app_name": "${app_name}",
+                      "service_name": "${service_name}",
+                      "unify_query_param": {
+                        "expression": "A",
+                        "query_configs": [
+                          {
+                            "data_source_label": "custom",
+                            "data_type_label": "time_series",
+                            "table": "${table_id}",
+                            "metrics": [
+                              {
+                                "field": "bk_apm_count",
+                                "method": "SUM",
+                                "alias": "A"
+                              }
+                            ],
+                            "group_by": [
+                            ],
+                            "display": true,
+                            "where": [
+                              {
+                                "key": "kind",
+                                "method": "eq",
+                                "value": [
+                                  "2"
+                                ]
+                              },
+                              {
+                                "condition": "or",
+                                "key": "kind",
+                                "method": "eq",
+                                "value": [
+                                  "5"
+                                ]
+                              }
+                            ],
+                            "interval_unit": "s",
+                            "time_field": "time",
+                            "filter_dict": {
+                              "service_name": "${service_name}"
+                            },
+                            "functions": []
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "options": {
+                  "time_series": {
+                    "type": "bar"
+                  }
+                }
+              },
+              {
+                "id": 3,
+                "title": "错误数",
+                "type": "graph",
+                "alias": "错误数",
+                "targets": [
+                  {
+                    "data_type": "time_series",
+                    "api": "apm_metric.dynamicUnifyQuery",
+                    "datasource": "time_series",
+                    "alias": null,
+                    "data": {
+                      "app_name": "${app_name}",
+                      "service_name": "${service_name}",
+                      "unify_query_param": {
+                        "type": "range",
+                        "stack": "all",
+                        "expression": "A",
+                        "query_configs": [
+                          {
+                            "data_source_label": "custom",
+                            "data_type_label": "time_series",
+                            "table": "${table_id}",
+                            "metrics": [
+                              {
+                                "field": "bk_apm_count",
+                                "method": "SUM",
+                                "alias": "A"
+                              }
+                            ],
+                            "group_by": [
+                              "http_status_code"
+                            ],
+                            "display": true,
+                            "where": [
+                              {
+                                "key": "status_code",
+                                "method": "eq",
+                                "value": [
+                                  "2"
+                                ],
+                                "condition": "and"
+                              },
+                              {
+                                "key": "http_status_code",
+                                "method": "neq",
+                                "value": [
+                                  ""
+                                ],
+                                "condition": "and"
+                              }
+                            ],
+                            "interval_unit": "s",
+                            "time_field": "time",
+                            "filter_dict": {
+                              "service_name": "${service_name}"
+                            },
+                            "functions": []
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "data_type": "time_series",
+                    "api": "apm_metric.dynamicUnifyQuery",
+                    "datasource": "time_series",
+                    "alias": null,
+                    "data": {
+                      "app_name": "${app_name}",
+                      "service_name": "${service_name}",
+                      "unify_query_param": {
+                        "type": "range",
+                        "stack": "all",
+                        "expression": "A",
+                        "query_configs": [
+                          {
+                            "data_source_label": "custom",
+                            "data_type_label": "time_series",
+                            "table": "${table_id}",
+                            "metrics": [
+                              {
+                                "field": "bk_apm_count",
+                                "method": "SUM",
+                                "alias": "A"
+                              }
+                            ],
+                            "group_by": [
+                              "rpc_grpc_status_code"
+                            ],
+                            "display": true,
+                            "where": [
+                              {
+                                "key": "status_code",
+                                "method": "eq",
+                                "value": [
+                                  "2"
+                                ],
+                                "condition": "and"
+                              },
+                              {
+                                "key": "rpc_grpc_status_code",
+                                "method": "neq",
+                                "value": [
+                                  ""
+                                ],
+                                "condition": "and"
+                              }
+                            ],
+                            "interval_unit": "s",
+                            "time_field": "time",
+                            "filter_dict": {
+                              "service_name": "${service_name}"
+                            },
+                            "functions": []
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "data_type": "time_series",
+                    "api": "apm_metric.dynamicUnifyQuery",
+                    "datasource": "time_series",
+                    "alias": "总数量",
+                    "data": {
+                      "app_name": "${app_name}",
+                      "service_name": "${service_name}",
+                      "unify_query_param": {
+                        "type": "range",
+                        "stack": "all",
+                        "expression": "A",
+                        "query_configs": [
+                          {
+                            "data_source_label": "custom",
+                            "data_type_label": "time_series",
+                            "table": "${table_id}",
+                            "metrics": [
+                              {
+                                "field": "bk_apm_count",
+                                "method": "SUM",
+                                "alias": "A"
+                              }
+                            ],
+                            "group_by": [
+                            ],
+                            "display": true,
+                            "where": [
+                              {
+                                "key": "status_code",
+                                "method": "eq",
+                                "value": [
+                                  "2"
+                                ],
+                                "condition": "and"
+                              }
+                            ],
+                            "interval_unit": "s",
+                            "time_field": "time",
+                            "filter_dict": {
+                              "service_name": "${service_name}"
+                            },
+                            "functions": []
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "options": {
+                  "time_series": {
+                    "type": "bar"
+                  }
+                }
+              },
+              {
+                "id": 4,
+                "title": "响应耗时",
+                "type": "graph",
+                "alias": "响应耗时",
+                "targets": [
+                  {
+                    "data_type": "time_series",
+                    "api": "apm_metric.dynamicUnifyQuery",
+                    "datasource": "time_series",
+                    "alias": "AVG",
+                    "data": {
+                      "app_name": "${app_name}",
+                      "service_name": "${service_name}",
+                      "unit": "ns",
+                      "unify_query_param": {
+                        "expression": "a / b",
+                        "query_configs": [
+                          {
+                            "data_source_label": "custom",
+                            "data_type_label": "time_series",
+                            "metrics": [
+                              {
+                                "field": "bk_apm_duration_sum",
+                                "method": "SUM",
+                                "alias": "a"
+                              }
+                            ],
+                            "table": "${table_id}",
+                            "data_label": "",
+                            "index_set_id": null,
+                            "group_by": [],
+                            "where": [],
+                            "interval_unit": "s",
+                            "time_field": "time",
+                            "filter_dict": {
+                              "service_name": "${service_name}"
+                            },
+                            "functions": [
+                              {
+                                "id": "increase",
+                                "params": [
+                                  {
+                                    "id": "window",
+                                    "value": "2m"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "data_source_label": "custom",
+                            "data_type_label": "time_series",
+                            "metrics": [
+                              {
+                                "field": "bk_apm_total",
+                                "method": "SUM",
+                                "alias": "b"
+                              }
+                            ],
+                            "table": "${table_id}",
+                            "data_label": "",
+                            "index_set_id": null,
+                            "group_by": [],
+                            "where": [],
+                            "interval_unit": "s",
+                            "time_field": null,
+                            "filter_dict": {},
+                            "functions": [
+                              {
+                                "id": "increase",
+                                "params": [
+                                  {
+                                    "id": "window",
+                                    "value": "2m"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "data_type": "time_series",
+                    "api": "apm_metric.dynamicUnifyQuery",
+                    "datasource": "time_series",
+                    "alias": "P50",
+                    "data": {
+                      "app_name": "${app_name}",
+                      "service_name": "${service_name}",
+                      "unify_query_param": {
+                        "expression": "A",
+                        "query_configs": [
+                          {
+                            "data_source_label": "custom",
+                            "data_type_label": "time_series",
+                            "table": "${table_id}",
+                            "metrics": [
+                              {
+                                "field": "bk_apm_duration_bucket",
+                                "method": "SUM",
+                                "alias": "A"
+                              }
+                            ],
+                            "group_by": [
+                              "le"
+                            ],
+                            "display": true,
+                            "where": [
+                            ],
+                            "interval_unit": "s",
+                            "time_field": "time",
+                            "filter_dict": {
+                              "service_name": "${service_name}"
+                            },
+                            "functions": [
+                              {
+                                "id": "rate",
+                                "params": [
+                                  {
+                                    "id": "window",
+                                    "value": "2m"
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "histogram_quantile",
+                                "params": [
+                                  {
+                                    "id": "scalar",
+                                    "value": 0.5
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "data_type": "time_series",
+                    "api": "apm_metric.dynamicUnifyQuery",
+                    "datasource": "time_series",
+                    "alias": "P95",
+                    "data": {
+                      "app_name": "${app_name}",
+                      "service_name": "${service_name}",
+                      "unify_query_param": {
+                        "expression": "A",
+                        "query_configs": [
+                          {
+                            "data_source_label": "custom",
+                            "data_type_label": "time_series",
+                            "table": "${table_id}",
+                            "metrics": [
+                              {
+                                "field": "bk_apm_duration_bucket",
+                                "method": "SUM",
+                                "alias": "A"
+                              }
+                            ],
+                            "group_by": [
+                              "le"
+                            ],
+                            "display": true,
+                            "where": [
+                            ],
+                            "interval_unit": "s",
+                            "time_field": "time",
+                            "filter_dict": {
+                              "service_name": "${service_name}"
+                            },
+                            "functions": [
+                              {
+                                "id": "rate",
+                                "params": [
+                                  {
+                                    "id": "window",
+                                    "value": "2m"
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "histogram_quantile",
+                                "params": [
+                                  {
+                                    "id": "scalar",
+                                    "value": 0.95
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "data_type": "time_series",
+                    "api": "apm_metric.dynamicUnifyQuery",
+                    "datasource": "time_series",
+                    "alias": "P99",
+                    "data": {
+                      "app_name": "${app_name}",
+                      "service_name": "${service_name}",
+                      "unify_query_param": {
+                        "expression": "A",
+                        "query_configs": [
+                          {
+                            "data_source_label": "custom",
+                            "data_type_label": "time_series",
+                            "table": "${table_id}",
+                            "metrics": [
+                              {
+                                "field": "bk_apm_duration_bucket",
+                                "method": "SUM",
+                                "alias": "A"
+                              }
+                            ],
+                            "group_by": [
+                              "le"
+                            ],
+                            "display": true,
+                            "where": [
+                            ],
+                            "interval_unit": "s",
+                            "time_field": "time",
+                            "filter_dict": {
+                              "service_name": "${service_name}"
+                            },
+                            "functions": [
+                              {
+                                "id": "rate",
+                                "params": [
+                                  {
+                                    "id": "window",
+                                    "value": "2m"
+                                  }
+                                ]
+                              },
+                              {
+                                "id": "histogram_quantile",
+                                "params": [
+                                  {
+                                    "id": "scalar",
+                                    "value": 0.99
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "data_type": "time_series",
+                    "api": "apm_metric.dynamicUnifyQuery",
+                    "datasource": "time_series",
+                    "alias": "MAX",
+                    "data": {
+                      "app_name": "${app_name}",
+                      "service_name": "${service_name}",
+                      "unify_query_param": {
+                        "expression": "A",
+                        "query_configs": [
+                          {
+                            "data_source_label": "custom",
+                            "data_type_label": "time_series",
+                            "table": "${table_id}",
+                            "metrics": [
+                              {
+                                "field": "bk_apm_duration_max",
+                                "method": "MAX",
+                                "alias": "A"
+                              }
+                            ],
+                            "group_by": [
+                            ],
+                            "display": true,
+                            "where": [
+                            ],
+                            "interval_unit": "s",
+                            "time_field": "time",
+                            "filter_dict": {
+                              "service_name": "${service_name}"
+                            },
+                            "functions": []
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "data_type": "time_series",
+                    "api": "apm_metric.dynamicUnifyQuery",
+                    "datasource": "time_series",
+                    "alias": "MIN",
+                    "data": {
+                      "app_name": "${app_name}",
+                      "service_name": "${service_name}",
+                      "unify_query_param": {
+                        "expression": "A",
+                        "query_configs": [
+                          {
+                            "data_source_label": "custom",
+                            "data_type_label": "time_series",
+                            "table": "${table_id}",
+                            "metrics": [
+                              {
+                                "field": "bk_apm_duration_min",
+                                "method": "MIN",
+                                "alias": "A"
+                              }
+                            ],
+                            "group_by": [
+                            ],
+                            "display": true,
+                            "where": [
+                            ],
+                            "interval_unit": "s",
+                            "time_field": "time",
+                            "filter_dict": {
+                              "service_name": "${service_name}"
+                            },
+                            "functions": []
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "options": {
+                  "time_series": {
+                    "type": "bar"
+                  }
+                }
+              }
+            ]
+          },
+          "service_tabs_log": {
+            "name": "日志",
+            "type": "tab",
+            "panels": [
+              {
+                "id": 1,
+                "type": "related-log-chart",
+                "targets": [
+                  {
+                    "dataType": "log_predicate",
+                    "api": "apm_log.serviceLogInfo",
+                    "data": {
+                      "app_name": "${app_name}",
+                      "bk_biz_id": "${bk_biz_id}",
+                      "service_name": "${service_name}"
+                    }
+                  },
+                  {
+                    "dataType": "condition",
+                    "api": "apm_log.serviceRelationList",
+                    "data": {
+                      "app_name": "${app_name}",
+                      "bk_biz_id": "${bk_biz_id}",
+                      "service_name": "${service_name}"
+                    }
+                  },
+                  {
+                    "dataType": "time_series",
+                    "api": "scene_view.getIndexSetLogSeries",
+                    "datasource": "time_series",
+                    "alias": "总趋势",
+                    "data": {
+                      "bk_biz_id": "${bk_biz_id}",
+                      "index_set_id": "${index_set_id}",
+                      "start_time": "${start_time}",
+                      "end_time": "${end_time}",
+                      "is_filter_error": "${is_filter_error}"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
         }
       },
       "gridPos": {
