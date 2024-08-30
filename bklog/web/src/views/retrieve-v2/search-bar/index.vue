@@ -212,7 +212,7 @@
           <slot name="trigger">
             <div class="auto-refresh-trigger">
               <span
-                :class="['log-icon', isAutoRefresh ? 'icon-auto-refresh' : 'icon-no-refresh']"
+              :class="['bklog-icon', isAutoRefresh ? 'bklog-auto-refresh' : 'bklog-no-refresh']"
                 data-test-id="retrieve_span_periodicRefresh"
                 @click.stop="handleRefreshDebounce"
               ></span>
@@ -241,14 +241,8 @@
           </template>
         </bk-popover>
         <!-- 手动刷新 -->
-        <span
-          class="search-refresh"
-          v-bk-tooltips="{ content: $t('刷新') }"
-        >
-          <i
-            class="log-icon icon-log-refresh"
-            @click="handleRefresh(true)"
-          ></i>
+        <span class="search-refresh" v-bk-tooltips="{content: $t('刷新')}">
+          <i class="bklog-icon bklog-log-refresh" @click="handleRefresh(true)"></i>
         </span>
       </span>
     </div>

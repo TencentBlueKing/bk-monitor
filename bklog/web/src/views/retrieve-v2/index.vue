@@ -142,9 +142,9 @@
   };
   /** 触发重新查询 */
   const shouldRetrieve = () => {
-    console.log('======= shouldRetrieve');
-  };
-  const activeTab = ref('originalLog');
+    console.log('======= shouldRetrieve')
+  }
+  const activeTab = ref('origin');
 </script>
 <template>
   <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]">
