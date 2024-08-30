@@ -173,7 +173,8 @@ class GetStrategyListV2Resource(Resource):
                 }
                 if target_ips & ips:
                     ip_strategy_ids.add(item.strategy_id)
-            else:
+
+            elif target["field"].endswith("topo_node"):
                 nodes = {(node["bk_obj_id"], node["bk_inst_id"]) for node in target["value"]}
                 if nodes & topo_nodes:
                     ip_strategy_ids.add(item.strategy_id)

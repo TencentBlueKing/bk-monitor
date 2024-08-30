@@ -35,6 +35,7 @@ import DeleteSubtitle from 'monitor-pc/pages/strategy-config/strategy-config-com
 import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 
 import debounce from '../../../common/debounce-decorator';
+import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import setMealAddModule from '../../../store/modules/set-meal-add';
 import OperateOptions from '../components/operate-options';
 import SetMealDetail, { type ISetMealDetail } from '../set-meal-detail/set-meal-detail';
@@ -368,127 +369,131 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
     return (
       <div
         class='fta-set-meal'
-        v-bkloading={{ isLoading: this.loading }}
+        // v-bkloading={{ isLoading: this.loading }}
       >
         {this.headerTitle()}
         <div class='set-table'>
           {this.headerMessage()}
-          <bk-table
-            data={this.tableData}
-            header-border={false}
-            outer-border={false}
-            pagination={this.pagination}
-            on-page-change={this.handlePageChange}
-            on-page-limit-change={this.handlePageLimitChange}
-          >
-            <div slot='empty'>
-              <EmptyStatus
-                type={this.emptyType}
-                onOperation={this.handleEmptyOperation}
+          {this.loading ? (
+            <TableSkeleton type={1}></TableSkeleton>
+          ) : (
+            <bk-table
+              data={this.tableData}
+              header-border={false}
+              outer-border={false}
+              pagination={this.pagination}
+              on-page-change={this.handlePageChange}
+              on-page-limit-change={this.handlePageLimitChange}
+            >
+              <div slot='empty'>
+                <EmptyStatus
+                  type={this.emptyType}
+                  onOperation={this.handleEmptyOperation}
+                />
+              </div>
+              <bk-table-column
+                width={80}
+                formatter={this.idFormatter}
+                label={'ID'}
               />
-            </div>
-            <bk-table-column
-              width={80}
-              formatter={this.idFormatter}
-              label={'ID'}
-            />
-            <bk-table-column
-              width='140'
-              scopedSlots={{
-                default: ({ row: { name, id, plugin_type, bk_biz_id } }) => (
-                  <div class='meal-name-div'>
-                    <div
-                      class='meal-name'
-                      onClick={() => this.handleShowDetail(id, plugin_type)}
-                    >
-                      {name}
-                    </div>
-                    {!bk_biz_id && (
-                      <span
-                        class='default-msg'
-                        v-bk-tooltips={{ content: this.$t('默认策略不允许删除') }}
+              <bk-table-column
+                width='140'
+                scopedSlots={{
+                  default: ({ row: { name, id, plugin_type, bk_biz_id } }) => (
+                    <div class='meal-name-div'>
+                      <div
+                        class='meal-name'
+                        onClick={() => this.handleShowDetail(id, plugin_type)}
                       >
-                        {this.$t('默认')}
-                      </span>
-                    )}
-                  </div>
-                ),
-              }}
-              label={this.$t('套餐名称')}
-              show-overflow-tooltip
-            />
-            <bk-table-column
-              width='110'
-              label={this.$t('套餐类型')}
-              prop='plugin_name'
-              show-overflow-tooltip
-            />
-            <bk-table-column
-              width='110'
-              scopedSlots={{
-                default: ({ row }) => (
-                  <bk-button
-                    class={{ 'is-empty': !row.strategy_count }}
-                    text
-                    onClick={() => this.handleToStrategyList(row)}
-                  >
-                    {row.strategy_count || '--'}
-                  </bk-button>
-                ),
-              }}
-              align='center'
-              label={this.$t('关联策略')}
-            />
-            <bk-table-column
-              width='170'
-              scopedSlots={{
-                default: ({ row }) => (
-                  <bk-button
-                    class={{ 'is-empty': !row.execute_count }}
-                    text
-                    onClick={() => row.execute_count && this.handleToEventCenter(row.id)}
-                  >
-                    {row.execute_count || '--'}
-                  </bk-button>
-                ),
-              }}
-              align='center'
-              label={this.$t('触发次数(近 7 天)')}
-            />
-            <bk-table-column
-              align='left'
-              label={this.$t('最近更新人')}
-              prop='update_user'
-            />
-            <bk-table-column
-              width='180'
-              align='left'
-              label={this.$t('最近更新时间')}
-              prop='update_time'
-            />
-            <bk-table-column
-              width='150'
-              align='left'
-              label={this.$t('配置来源')}
-              scopedSlots={{ default: ({ row }) => row.config_source || '--' }}
-            />
-            <bk-table-column
-              width='160'
-              align='left'
-              label={this.$t('配置分组')}
-              scopedSlots={{ default: ({ row }) => row.app || '--' }}
-            />
-            <bk-table-column
-              align='center'
-              label={this.$t('启/停')}
-              scopedSlots={enableScopedSlots}
-            />
-            <bk-table-column
-              width='150'
-              label={this.$t('操作')}
-              scopedSlots={oprateScopedSlots}
-            />
-          </bk-table>
+                        {name}
+                      </div>
+                      {!bk_biz_id && (
+                        <span
+                          class='default-msg'
+                          v-bk-tooltips={{ content: this.$t('默认策略不允许删除') }}
+                        >
+                          {this.$t('默认')}
+                        </span>
+                      )}
+                    </div>
+                  ),
+                }}
+                label={this.$t('套餐名称')}
+                show-overflow-tooltip
+              />
+              <bk-table-column
+                width='110'
+                label={this.$t('套餐类型')}
+                prop='plugin_name'
+                show-overflow-tooltip
+              />
+              <bk-table-column
+                width='110'
+                scopedSlots={{
+                  default: ({ row }) => (
+                    <bk-button
+                      class={{ 'is-empty': !row.strategy_count }}
+                      text
+                      onClick={() => this.handleToStrategyList(row)}
+                    >
+                      {row.strategy_count || '--'}
+                    </bk-button>
+                  ),
+                }}
+                align='center'
+                label={this.$t('关联策略')}
+              />
+              <bk-table-column
+                width='170'
+                scopedSlots={{
+                  default: ({ row }) => (
+                    <bk-button
+                      class={{ 'is-empty': !row.execute_count }}
+                      text
+                      onClick={() => row.execute_count && this.handleToEventCenter(row.id)}
+                    >
+                      {row.execute_count || '--'}
+                    </bk-button>
+                  ),
+                }}
+                align='center'
+                label={this.$t('触发次数(近 7 天)')}
+              />
+              <bk-table-column
+                align='left'
+                label={this.$t('最近更新人')}
+                prop='update_user'
+              />
+              <bk-table-column
+                width='180'
+                align='left'
+                label={this.$t('最近更新时间')}
+                prop='update_time'
+              />
+              <bk-table-column
+                width='150'
+                align='left'
+                label={this.$t('配置来源')}
+                scopedSlots={{ default: ({ row }) => row.config_source || '--' }}
+              />
+              <bk-table-column
+                width='160'
+                align='left'
+                label={this.$t('配置分组')}
+                scopedSlots={{ default: ({ row }) => row.app || '--' }}
+              />
+              <bk-table-column
+                align='center'
+                label={this.$t('启/停')}
+                scopedSlots={enableScopedSlots}
+              />
+              <bk-table-column
+                width='150'
+                label={this.$t('操作')}
+                scopedSlots={oprateScopedSlots}
+              />
+            </bk-table>
+          )}
         </div>
         <SetMealDetail
           id={this.detailData.id}

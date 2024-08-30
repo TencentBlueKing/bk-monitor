@@ -33,6 +33,7 @@ import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
+import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import DeleteSubtitle from '../../strategy-config/strategy-config-common/delete-subtitle';
 import AlarmGroupDetail from '../alarm-group-detail/alarm-group-detail';
 import * as authorityMap from '../authority-map';
@@ -289,6 +290,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
   cellHandle(row) {
     return [
       <bk-button
+        key='1'
         class='col-btn'
         v-authority={{ active: !this.authority.MANAGE_AUTH }}
         disabled={!row.edit_allowed}
@@ -302,6 +304,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
         {this.$t('button-编辑')}
       </bk-button>,
       <bk-button
+        key='2'
         class='col-btn'
         v-authority={{ active: !this.authority.MANAGE_AUTH }}
         disabled={!row.delete_allowed}
@@ -400,7 +403,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
     }
     this.tableInstance.page = 1;
     this.tableInstance.pageSize = commonPageSizeGet();
-    if (!!this.$route.query?.dutyRule) {
+    if (this.$route.query?.dutyRule) {
       const dutyId = this.$route.query.dutyRule;
       const searchCondition = [
         {
@@ -541,8 +544,11 @@ export default class AlarmGroup extends tsc<IGroupList> {
             allowHTML: false,
           }}
         >
-          {rules.map(item => (
-            <span class='wrap-label'>
+          {rules.map((item, index) => (
+            <span
+              key={index}
+              class='wrap-label'
+            >
               <span class='text-overflow'>{item.name}</span>
             </span>
           ))}
@@ -561,7 +567,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
           <div
             // class={['alarm-group-list-wrap', { pd0: this.isMonitor }]}
             class='alarm-group-list-wrap'
-            v-bkloading={{ isLoading: this.loading }}
+            // v-bkloading={{ isLoading: this.loading }}
           >
             <div class='alarm-group-tool'>
               <bk-button
@@ -606,61 +612,71 @@ export default class AlarmGroup extends tsc<IGroupList> {
             right-icon='bk-icon icon-search'
           ></bk-input> */}
             </div>
-            <bk-table
-              class='alarm-group-table'
-              data={this.tableData}
-              header-border={false}
-              outer-border={false}
-              size={this.tableSize}
-            >
-              <div slot='empty'>
-                <EmptyStatus
-                  type={this.emptyType}
-                  onOperation={this.handleOperation}
-                />
-              </div>
-              {this.tableColumnsList
-                .filter(item => this.selectedColumn.includes(item.prop))
-                .map(item => (
-                  <bk-table-column
-                    key={item.prop}
-                    label={item.label}
-                    prop={item.prop}
-                    {...{ props: item.props }}
-                    width={item.width}
-                    formatter={item.formatter}
-                    min-width={item.minWidth}
-                    show-overflow-tooltip={item.prop !== 'duty_rules'}
-                  />
-                ))}
-              <bk-table-column
-                tippy-options={{ zIndex: 999 }}
-                type='setting'
-              >
-                <bk-table-setting-content
-                  fields={this.settingFields}
-                  selected={this.selectedFields}
+            {this.loading ? (
+              <TableSkeleton class='mt-16' />
+            ) : (
+              [
+                <bk-table
+                  key='alarm-group-table'
+                  class='alarm-group-table'
+                  data={this.tableData}
+                  header-border={false}
+                  outer-border={false}
                   size={this.tableSize}
-                  on-setting-change={this.handleSettingChange}
-                />
-              </bk-table-column>
-            </bk-table>
-            <div class='alarm-group-pagination'>
-              {this.tableInstance ? (
-                <bk-pagination
-                  class='config-pagination list-pagination'
-                  align='right'
-                  count={this.tableInstance.total}
-                  current={this.tableInstance.page}
-                  limit={this.tableInstance.pageSize}
-                  limit-list={this.tableInstance.pageList}
-                  size='small'
-                  show-total-count
-                  on-change={this.handlePageChange}
-                  on-limit-change={this.handleLimitChange}
-                />
-              ) : undefined}
-            </div>
+                >
+                  <div slot='empty'>
+                    <EmptyStatus
+                      type={this.emptyType}
+                      onOperation={this.handleOperation}
+                    />
+                  </div>
+                  {this.tableColumnsList
+                    .filter(item => this.selectedColumn.includes(item.prop))
+                    .map(item => (
+                      <bk-table-column
+                        key={item.prop}
+                        label={item.label}
+                        prop={item.prop}
+                        {...{ props: item.props }}
+                        width={item.width}
+                        formatter={item.formatter}
+                        min-width={item.minWidth}
+                        show-overflow-tooltip={item.prop !== 'duty_rules'}
+                      />
+                    ))}
+                  <bk-table-column
+                    tippy-options={{ zIndex: 999 }}
+                    type='setting'
+                  >
+                    <bk-table-setting-content
+                      fields={this.settingFields}
+                      selected={this.selectedFields}
+                      size={this.tableSize}
+                      on-setting-change={this.handleSettingChange}
+                    />
+                  </bk-table-column>
+                </bk-table>,
+                <div
+                  key={'alarm-group-pagination'}
+                  class='alarm-group-pagination'
+                >
+                  {this.tableInstance ? (
+                    <bk-pagination
+                      class='config-pagination list-pagination'
+                      align='right'
+                      count={this.tableInstance.total}
+                      current={this.tableInstance.page}
+                      limit={this.tableInstance.pageSize}
+                      limit-list={this.tableInstance.pageList}
+                      size='small'
+                      show-total-count
+                      on-change={this.handlePageChange}
+                      on-limit-change={this.handleLimitChange}
+                    />
+                  ) : undefined}
+                </div>,
+              ]
+            )}
           </div>
         </div>
         <AlarmGroupDetail

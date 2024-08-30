@@ -136,7 +136,7 @@
     width: 100%;
     height: calc(100% - 52px);
     overflow-y: auto;
-    background: #F5F7FA;
+    background: #f5f7fa;
 
     .table-wrap {
       padding: 16px;
@@ -153,7 +153,7 @@
 
     .service-overview {
       width: 320px;
-      border-left: 1px solid #DCDEE5;
+      border-left: 1px solid #dcdee5;
 
       .content-wrap {
         height: calc(100% - 52px);
@@ -161,10 +161,16 @@
     }
 
     .source-topo {
+      z-index: 1;
       flex: 1;
     }
 
-    .source-topo, .service-overview {
+    .service-overview {
+      z-index: 2;
+    }
+
+    .source-topo,
+    .service-overview {
       height: 100%;
 
       &.no-border {
@@ -201,6 +207,10 @@
             border-radius: 2px;
           }
         }
+      }
+
+      .content-wrap {
+        height: calc(100% - 52px);
       }
     }
   }

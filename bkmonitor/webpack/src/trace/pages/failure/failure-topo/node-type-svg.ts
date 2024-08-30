@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 
+import Alert from '../../../static/img/failure/icon-alert.svg';
 import NodeHost from '../../../static/img/failure/icon-BCSNode.svg';
 import BcsService from '../../../static/img/failure/icon-BCSService.svg';
+import IdcSvg from '../../../static/img/failure/icon-mc-target-cloud.svg';
 import PodSvg from '../../../static/img/failure/icon-Pod.svg';
 import RackSvg from '../../../static/img/failure/icon-Rack.svg';
-import Alert from '../../../static/img/failure/icon-alert.svg';
-import IdcSvg from '../../../static/img/failure/icon-mc-target-cloud.svg';
 
 export const NODE_TYPE_SVG = {
   Idc: IdcSvg,

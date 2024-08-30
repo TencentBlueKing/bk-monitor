@@ -483,6 +483,9 @@ importers:
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
+      '@blueking/monitor-resource-topo':
+        specifier: 0.0.1-beta.7
+        version: 0.0.1-beta.7(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16)
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.9
         version: 0.0.1-beta.9(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
@@ -2665,6 +2668,16 @@ packages:
 
   /@blueking/login-modal@1.0.5:
     resolution: {integrity: sha512-iTiajeVT+hm0f+X93sfnm98OD1lmr+Q3m4/Hv6vnh126ZWwhNBavgzcCBLnhog9T5mLWeZH9dq8g9ltM4fI3FA==}
+    dev: false
+
+  /@blueking/monitor-resource-topo@0.0.1-beta.7(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16):
+    resolution: {integrity: sha512-PV+8mnVoavRXw9QVF2J4q7dqsu0eQg4rWPMAUwZZdXf2LzC+HFNIuRa+kgzk3EtTQGROVzL2yu7Sp0eRnc07VQ==}
+    peerDependencies:
+      '@blueking/bkui-library': ^0.0.0-beta.4
+      vue: ^3
+    dependencies:
+      '@blueking/bkui-library': 0.0.0-beta.4
+      vue: 2.7.16
     dev: false
 
   /@blueking/notice-component-vue2@2.0.5(dompurify@3.1.6):

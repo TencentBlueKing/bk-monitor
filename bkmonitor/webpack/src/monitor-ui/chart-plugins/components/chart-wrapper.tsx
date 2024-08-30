@@ -53,7 +53,7 @@ import PortStatusChart from '../plugins/port-status-chart/port-status-chart';
 import ProfilinGraph from '../plugins/profiling-graph/profiling-graph';
 import RatioRingChart from '../plugins/ratio-ring-chart/ratio-ring-chart';
 import RelatedLogChart from '../plugins/related-log-chart/related-log-chart';
-import RelationGraph from '../plugins/relation-graph/relation-graph';
+// import RelationGraph from '../plugins/relation-graph/relation-graph';
 import ResourceChart from '../plugins/resource-chart/resource-chart';
 import StatusListChart from '../plugins/status-list-chart/status-list-chart';
 import ChinaMap from '../plugins/status-map/status-map';
@@ -72,7 +72,6 @@ import type { IQueryOption } from 'monitor-pc/pages/performance/performance-type
 import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
 import './chart-wrapper.scss';
-
 interface IChartWrapperProps {
   panel: PanelModel;
   chartChecked?: boolean;
@@ -95,7 +94,11 @@ interface IChartWrapperEvent {
   onChangeHeight?: (height: number) => void;
   onDblClick?: () => void;
 }
-@Component
+@Component({
+  components: {
+    RelationGraph: () => import(/* webpackChunkName: "RelationGraph" */ '../plugins/relation-graph/relation-graph'),
+  },
+})
 export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperEvent> {
   @Prop({ required: true, type: Object }) readonly panel: PanelModel;
   /** 检测算法 */
@@ -412,15 +415,15 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onLoading={this.handleChangeLoading}
           />
         );
-      case 'relation-graph':
-        return (
-          <RelationGraph
-            clearErrorMsg={this.handleClearErrorMsg}
-            panel={this.panel}
-            onErrorMsg={this.handleErrorMsgChange}
-            onLoading={this.handleChangeLoading}
-          />
-        );
+      // case 'relation-graph':
+      //   return (
+      //     <relation-graph
+      //       clearErrorMsg={this.handleClearErrorMsg}
+      //       panel={this.panel}
+      //       onErrorMsg={this.handleErrorMsgChange}
+      //       onLoading={this.handleChangeLoading}
+      //     />
+      //   );
       case 'api_message':
         return (
           <MessageChart
@@ -510,6 +513,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onLoading={this.handleChangeLoading}
           />
         );
+      case 'relation-graph':
       case 'apm-relation-graph':
         return <ApmRelationGraph panel={this.panel} />;
       case 'alarm-event-chart':
@@ -547,7 +551,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         onMouseenter={() => (this.showHeaderMoreTool = true)}
         onMouseleave={() => (this.showHeaderMoreTool = false)}
       >
-        {!!window.graph_watermark && (
+        {window?.graph_watermark && (
           <div
             class='wm'
             v-watermark={{
