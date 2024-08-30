@@ -190,6 +190,9 @@ class SearchHandler(object):
         # 是否包含嵌套字段
         self.include_nested_fields: bool = self.search_dict.get("include_nested_fields", True)
 
+        # track_total_hits,默认不统计总数
+        self.track_total_hits: bool = self.search_dict.get("track_total_hits", False)
+
         # 检索历史记录
         self.addition = copy.deepcopy(search_dict.get("addition", []))
         self.ip_chooser = copy.deepcopy(search_dict.get("ip_chooser", {}))
@@ -600,6 +603,7 @@ class SearchHandler(object):
             "scroll": self.scroll,
             "collapse": self.collapse,
             "include_nested_fields": self.include_nested_fields,
+            "track_total_hits": self.track_total_hits
         }
 
         storage_cluster_record_objs = StorageClusterRecord.objects.none()
