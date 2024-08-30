@@ -146,6 +146,7 @@ MIDDLEWARE = (
     "apps.middleware.user_middleware.BkLogMetricsAfterMiddleware",
     # 项目空间参数注入
     "bkm_space.middleware.ParamInjectMiddleware",
+    "apps.log_audit.middleware.RequestProvider",
 )
 
 # 所有环境的日志级别可以在这里配置

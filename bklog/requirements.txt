@@ -55,6 +55,9 @@ chardet==3.0.4
 curlify==2.2.1
 idna==2.9
 
+# audit
+bk-audit==1.2.1
+
 # qcloud cos
 cos-python-sdk-v5==1.9.6
 
