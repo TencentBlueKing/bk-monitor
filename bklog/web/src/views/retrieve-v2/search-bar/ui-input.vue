@@ -19,6 +19,7 @@
   const refPopInstance = ref(null);
   const queryItem = ref('xxxx');
   const fullTextValue = ref('');
+  const activeIndex = ref(null);
 
   const uninstallInstance = () => {
     if (tippyInstance) {
@@ -83,13 +84,15 @@
     const target = e.target.closest('.search-item');
     queryItem.value = '89898998';
     showTagListItems(target);
+    activeIndex.value = null;
   };
 
-  const handleTagItemClick = (e, item) => {
+  const handleTagItemClick = (e, item, index) => {
     queryItem.value = {};
     Object.assign(queryItem.value, item);
     const target = e.target.closest('.search-item');
     showTagListItems(target);
+    activeIndex.value = index;
   };
 
   const handleDisabledTagItem = item => {
@@ -103,6 +106,11 @@
 
   const handleSaveQueryClick = paylod => {
     tippyInstance.hide();
+    if (activeIndex.value!== null && activeIndex.value >= 0) {
+      Object.assign(modelValue.value[activeIndex.value], paylod);
+      return;
+    }
+
     const focusInputIndex = modelValue.value.findIndex(item => item.is_focus_input);
     if (focusInputIndex === modelValue.value.length - 1) {
       modelValue.value.splice(focusInputIndex - 1, 0, { ...paylod, disabled: false });
@@ -140,13 +148,18 @@
         { disabled: item.disabled, 'is-focus-input': item.is_focus_input, 'tag-item': !item.is_focus_input },
       ]"
       v-for="(item, index) in modelValue"
-      @click.stop="e => handleTagItemClick(e, item)"
+      @click.stop="e => handleTagItemClick(e, item, index)"
     >
       <template v-if="!item.is_focus_input">
         <div class="tag-row match-name">
           {{ item.field }}<span class="symbol">{{ item.operator }}</span>
         </div>
-        <div class="tag-row match-value">{{ item.value }}</div>
+        <div class="tag-row match-value">
+          <span v-for="(child, childInex) in item.value" :key="childInex">
+            <span>{{ child }}</span>
+            <span v-if="childInex < item.value.length - 1">{{ item.relation }}</span>
+          </span>
+        </div>
         <div class="tag-options">
           <span
             :class="['bklog-icon', { 'bklog-eye': !item.disabled, 'bklog-eye-slash': item.disabled }]"

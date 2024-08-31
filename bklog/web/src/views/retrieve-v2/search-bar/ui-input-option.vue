@@ -76,6 +76,27 @@
     refUiValueOperatorInstance = null;
   };
 
+  const restoreFieldAndCondition = () => {
+    const matchedField = indexFieldInfo.value.fields.find(field => field.field_name === props.value.field);
+    Object.assign(activeFieldItem.value, matchedField ?? {});
+    const { operator, relation, isInclude, value } = props.value;
+    Object.assign(condition.value, { operator, relation, isInclude, value });
+
+    let filterIndex =
+      filterFieldList.value.findIndex(
+        field =>
+          field.field_type === activeFieldItem.value.field_type &&
+          field.field_name === activeFieldItem.value.field_name,
+      ) + 1;
+
+    if (filterIndex === 0) {
+      filterIndex = 1;
+      Object.assign(activeFieldItem.value, filterFieldList.value[0]);
+    }
+
+    activeIndex.value = filterIndex;
+  };
+
   watch(
     props,
     () => {
@@ -86,20 +107,7 @@
         return;
       }
 
-      Object.assign(activeFieldItem.value, props.value);
-      let filterIndex =
-        filterFieldList.value.findIndex(
-          field =>
-            field.field_type === activeFieldItem.value.field_type &&
-            field.field_name === activeFieldItem.value.field_name,
-        ) + 1;
-
-      if (filterIndex === 0) {
-        filterIndex = 1;
-        Object.assign(activeFieldItem.value, filterFieldList.value[0]);
-      }
-
-      activeIndex.value = filterIndex;
+      restoreFieldAndCondition();
       scrollActiveItemIntoView();
     },
     { immediate: true, deep: true },
@@ -201,10 +209,10 @@
     scrollActiveItemIntoView();
   };
 
-  const handleUiValueOptionClick = (option) => {
+  const handleUiValueOptionClick = option => {
     condition.value.operator = option.operator;
     refUiValueOperatorInstance?.hide();
-  }
+  };
 
   onMounted(() => {
     document.addEventListener('keydown', handleKeydownClick);
@@ -277,7 +285,9 @@
               <div
                 class="ui-value-operator"
                 ref="refUiValueOperator"
-              >{{ condition.operator }}</div>
+              >
+                {{ condition.operator }}
+              </div>
               <div style="display: none">
                 <div
                   ref="refUiValueOperatorList"
@@ -302,7 +312,12 @@
                 ><bk-checkbox v-model="condition.isInclude">{{ $t('使用通配符') }}</bk-checkbox></span
               >
             </div>
-            <div><bk-tag-input v-model="condition.value" :allow-create="true"></bk-tag-input></div>
+            <div>
+              <bk-tag-input
+                v-model="condition.value"
+                :allow-create="true"
+              ></bk-tag-input>
+            </div>
           </div>
           <div class="ui-value-row">
             <div class="ui-value-label">{{ $t('组间关系') }}</div>
