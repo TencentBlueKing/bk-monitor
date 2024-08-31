@@ -291,7 +291,7 @@ class QueryMultiResourceRange(UnifyQueryAPIResource):
     """查询时间范围内的关联资源实体"""
 
     method = "POST"
-    path = "/relation/multi_resource_query_range"
+    path = "/api/v1/relation/multi_resource_range"
 
     class RequestSerializer(serializers.Serializer):
         class QueryListSerializer(serializers.Serializer):
