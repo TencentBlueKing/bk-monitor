@@ -285,3 +285,21 @@ class GetKubernetesRelationResource(UnifyQueryAPIResource):
             query_list.append({"target_type": "system", "timestamp": data_timestamp, "source_info": source_info})
         request_data["query_list"] = query_list
         return request_data
+
+
+class QueryMultiResourceRange(UnifyQueryAPIResource):
+    """查询时间范围内的关联资源实体"""
+
+    method = "POST"
+    path = "/relation/multi_resource_query_range"
+
+    class RequestSerializer(serializers.Serializer):
+        class QueryListSerializer(serializers.Serializer):
+            start_time = serializers.IntegerField()
+            end_time = serializers.IntegerField()
+            step = serializers.CharField()
+            target_type = serializers.CharField()
+            source_type = serializers.CharField(required=False)
+            source_info = serializers.DictField()
+
+        query_list = serializers.ListField(child=QueryListSerializer(), min_length=1)
