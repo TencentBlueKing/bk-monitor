@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import G6, { type IGroup, type ModelConfig, type Graph, type INode, type IEdge, type IShape } from '@antv/g6';
@@ -32,30 +32,59 @@ import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
 
 import CompareGraphTools from '../../apm-time-series/components/compare-topo-fullscreen/compare-graph-tools';
+import ApmTopoLegend from './apm-topo-legend';
+import {
+  type CategoryEnum,
+  type NodeDisplayTypeMap,
+  type EdgeDataType,
+  NodeDisplayType,
+  nodeIconMap,
+  nodeLanguageMap,
+} from './utils';
 
 import './apm-relation-topo.scss';
+
+interface INodeModel {
+  data: {
+    category: CategoryEnum;
+    display_key: string;
+    name: string;
+    type: NodeDisplayTypeMap;
+    kind: string;
+    id: string;
+    extra_info: Record<string, any>;
+  };
+  request_count: number;
+  color: string;
+  size: number;
+  menu: { name: string; action: string }[];
+  node_tips: { name: string; value: string }[];
+}
+
+type IEdgeModel = {
+  from_name: string;
+  to_name: string;
+  duration_avg?: string;
+  duration_p99?: string;
+  duration_p95?: string;
+  request_count?: number;
+};
+
 type ApmRelationTopoProps = {
-  data: any;
+  data: { nodes: INodeModel[]; edges: IEdgeModel[] };
   activeNode: string[];
   scene: string;
+  edgeType: EdgeDataType;
 };
 
 type ApmRelationTopoEvent = {
   onNodeClick: (id: string) => void;
+  onEdgeTypeChange: (edgeType: EdgeDataType) => void;
 };
 
-interface INodeModelConfig extends ModelConfig {
-  lineDash?: number[];
-  stroke?: string;
-  size?: number;
-  disabled?: boolean;
-}
+type INodeModelConfig = ModelConfig & INodeModel;
 
-interface IEdgeModelConfig extends ModelConfig {
-  lineWidth?: number;
-  stroke?: string;
-  lineDash: number[];
-}
+type IEdgeModelConfig = ModelConfig & IEdgeModel;
 
 // 节点hover阴影宽度
 const HoverCircleWidth = 13;
@@ -65,9 +94,11 @@ const LIMIT_WORKER_ENABLED = 500;
 
 @Component
 export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelationTopoEvent> {
-  @Prop() data: any;
+  @Prop() data: ApmRelationTopoProps['data'];
   @Prop() activeNode: string[];
   @Prop() scene: string;
+  @Prop() edgeType: EdgeDataType;
+
   @Ref('relationGraph') relationGraphRef: HTMLDivElement;
   @Ref('graphToolsPanel') graphToolsPanelRef: HTMLDivElement;
   @Ref('topoGraphContent') topoGraphContentRef: HTMLDivElement;
@@ -75,13 +106,13 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   canvasWidth = 0; // 画布宽度
   canvasHeight = 0; // 画布高度
-  minZoomVal = 0.1; // 缩放滑动条最小值
-  maxZoomVal = 1; // 缩放滑动条最大值
+  minZoomVal = 0.2; // 缩放滑动条最小值
+  maxZoomVal = 2; // 缩放滑动条最大值
   graph: Graph = null; // 拓扑图实例
   toolsPopoverInstance = null; // 工具栏弹窗实例
 
   /** 图表缩放大小 */
-  scaleValue = 100;
+  scaleValue = 1;
   /** 是否显示缩略图 */
   showThumbnail = false;
   /** 是否显示图例 */
@@ -119,34 +150,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     workerEnabled: true, // 可选，开启 web-worker
   };
 
-  legendFilter = {
-    nodeColor: [
-      { color: '#2DCB56', label: '正常', id: 'success' },
-      { color: '#FF9C01', label: '错误率 < 10%', id: 'warning' },
-      { color: '#EA3636', label: '错误率 ≥ 10%', id: 'error' },
-      { color: '#DCDEE5', label: '无数据', id: 'empty' },
-    ],
-    nodeSize: [
-      {
-        id: 'small',
-        label: '请求数 0~200',
-      },
-      {
-        id: 'medium',
-        label: '请求数 200~1k',
-      },
-      {
-        id: 'large',
-        label: '请求数 1k 以上',
-      },
-    ],
-    durationList: [
-      { id: 'average', label: '平均耗时' },
-      { id: 'p99', label: 'P99 耗时' },
-      { id: 'p95', label: 'P95 耗时' },
-    ],
-  };
-
   /** 当前使用的布局 应用概览使用 radial布局、下钻服务使用 dagre 布局 */
   get graphLayout() {
     const curNodeLen = this.data?.nodes?.length || 0;
@@ -157,6 +160,23 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       // 当节点数量大于 LIMIT_WORKER_ENABLED 开启
       workerEnabled: curNodeLen > LIMIT_WORKER_ENABLED,
     });
+  }
+
+  /** 格式化后的数据 */
+  get formatData() {
+    const { nodes = [], edges = [] } = this.data;
+    return {
+      nodes: nodes.map(node => ({
+        ...node,
+        id: node.data.id,
+      })),
+      edges: edges.map((item, index) => ({
+        source: item.from_name,
+        target: item.to_name,
+        label: String(item.duration_avg || item.duration_p95 || item.duration_p99 || item.request_count),
+        lineWidth: this.edgeType === 'request_count' ? 1 + (index / (edges.length - 1)) * 4 : 1,
+      })),
+    };
   }
 
   beforeDestroy() {
@@ -178,6 +198,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     this.graph.changeSize(width, height);
     // 将拓扑图移到画布中心
     this.graph.fitCenter();
+    this.graph.fitView();
   }
 
   @Watch('data')
@@ -185,8 +206,79 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     this.initGraph();
   }
 
+  // 节点自定义tooltips
+  nodeTooltip() {
+    return new G6.Tooltip({
+      offsetX: 4, // x 方向偏移值
+      offsetY: 4, // y 方向偏移值
+      fixToNode: [1, 0.5], // 固定出现在相对于目标节点的某个位置
+      className: 'node-tooltips-container',
+      // 允许出现 tooltip 的 item 类型
+      itemTypes: ['node'],
+      shouldBegin(evt) {
+        // 展开的当前服务返回按钮
+        if (['back-text-shape', 'back-icon-shape'].includes(evt.target?.cfg?.name)) {
+          return false;
+        }
+        if (evt.item) return true;
+        return false;
+      },
+      // 自定义 tooltip 内容
+      getContent: e => this.getTooltipsContent(e),
+    });
+  }
+
+  /**
+   * @description: 定义节点 tooltip 内容
+   * @param { HTMLElement } e
+   */
+  getTooltipsContent(e) {
+    const outDiv = document.createElement('div');
+    const { color, node_tips, data } = e.item.getModel();
+
+    const {
+      id,
+      name,
+      kind,
+      extra_info: { language },
+    } = data;
+
+    const languageIcon = nodeLanguageMap[language] || '';
+
+    const isService = kind === 'service';
+
+    outDiv.innerHTML = `
+        <h3 class='node-label'>
+          <span class='label-mark' style='background-color: ${color}'></span>
+          <div style="min-height:32px;">
+            <div class='node-text'>${name || id}</div>
+            <img
+              class='language-icon'
+              src='${languageIcon}'
+              alt='${language}'
+              style="display: ${languageIcon && isService ? '' : 'none'}" />
+            <span class='language-name' style="display: ${!isService ? 'none' : ''}">${language}</span>
+          </div>
+        </h3>
+        <ul class='node-message'>
+          ${node_tips
+            .map(
+              tip =>
+                `<li><div class='value'>${tip.value}</div><div style='color: rgba(0,0,0,0.60);'>${tip.name}</div></li>`
+            )
+            .join('')}
+        </ul>
+      `;
+    return outDiv;
+  }
+
   // 节点菜单
   contextMenu() {
+    const iconMap = {
+      span_drilling: 'icon-xiazuan',
+      resource_drilling: 'icon-ziyuan',
+    };
+
     return new G6.Menu({
       className: 'node-menu-container',
       trigger: 'contextmenu',
@@ -207,7 +299,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
               .map(
                 target =>
                   `<li id='${JSON.stringify(target)}'>
-                    <span class="icon-monitor node-menu-icon ${target.icon}"></span>
+                    <span class="icon-monitor node-menu-icon ${iconMap[target.action]}"></span>
                     ${target.name}
                    </li>`
               )
@@ -227,122 +319,122 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   initGraph() {
     if (this.graph) {
-      this.graph.destroy();
-      this.graph = null;
-    }
-    setTimeout(() => {
-      const { width, height } = this.relationGraphRef.getBoundingClientRect();
-      this.canvasWidth = width;
-      this.canvasHeight = height - 6;
-      // 自定义节点
-      G6.registerNode(
-        'apm-custom-node',
-        {
-          /**
-           * 绘制节点，包含文本
-           * @param  {Object} cfg 节点的配置项
-           * @param  {G.Group} group 图形分组，节点中图形对象的容器
-           * @return {G.Shape} 返回一个绘制的图形作为 keyShape，通过 node.get('keyShape') 可以获取。
-           */
-          draw: (cfg: INodeModelConfig, group: IGroup) => this.drawNode(cfg, group),
-          /**
-           * 设置节点的状态，主要是交互状态，业务状态请在 draw 方法中实现
-           * 单图形的节点仅考虑 selected、active 状态，有其他状态需求的用户自己复写这个方法
-           * @param  {String} name 状态名称
-           * @param  {Object} value 状态值
-           * @param  {Node} node 节点
-           */
-          setState: (name, value, item: INode) => this.setNodeState(name, value, item),
-        },
-        'circle'
-      );
-      // 自定义边
-      G6.registerEdge(
-        'apm-line-dash',
-        {
-          /**
-           * 绘制边，包含文本
-           * @param  {Object} cfg 边的配置项
-           * @param  {G.Group} group 图形分组，边中的图形对象的容器
-           * @return {G.Shape} 绘制的图形，通过 node.get('keyShape') 可以获取到
-           */
-          afterDraw: (cfg: IEdgeModelConfig, group) => this.afterDrawLine(cfg, group),
-          /**
-           * 设置边的状态，主要是交互状态，业务状态请在 draw 方法中实现
-           * 单图形的边仅考虑 selected、active 状态，有其他状态需求的用户自己复写这个方法
-           * @param  {String} name 状态名称
-           * @param  {Object} value 状态值
-           * @param  {Edge} edge 边
-           */
-          setState: (name, value, item: IEdge) => this.setEdgeState(name, value, item),
-        },
-        'quadratic'
-      );
+      this.graph.read(this.formatData);
+    } else {
+      setTimeout(() => {
+        const { width, height } = this.relationGraphRef.getBoundingClientRect();
+        this.canvasWidth = width;
+        this.canvasHeight = height - 6;
+        // 自定义节点
+        G6.registerNode(
+          'apm-custom-node',
+          {
+            /**
+             * 绘制节点，包含文本
+             * @param  {Object} cfg 节点的配置项
+             * @param  {G.Group} group 图形分组，节点中图形对象的容器
+             * @return {G.Shape} 返回一个绘制的图形作为 keyShape，通过 node.get('keyShape') 可以获取。
+             */
+            draw: (cfg: INodeModelConfig, group: IGroup) => this.drawNode(cfg, group),
+            /**
+             * 设置节点的状态，主要是交互状态，业务状态请在 draw 方法中实现
+             * 单图形的节点仅考虑 selected、active 状态，有其他状态需求的用户自己复写这个方法
+             * @param  {String} name 状态名称
+             * @param  {Object} value 状态值
+             * @param  {Node} node 节点
+             */
+            setState: (name, value, item: INode) => this.setNodeState(name, value, item),
+          },
+          'circle'
+        );
+        // 自定义边
+        G6.registerEdge(
+          'apm-line-dash',
+          {
+            /**
+             * 绘制边，包含文本
+             * @param  {Object} cfg 边的配置项
+             * @param  {G.Group} group 图形分组，边中的图形对象的容器
+             * @return {G.Shape} 绘制的图形，通过 node.get('keyShape') 可以获取到
+             */
+            afterDraw: (cfg: IEdgeModelConfig, group) => this.afterDrawLine(cfg, group),
+            /**
+             * 设置边的状态，主要是交互状态，业务状态请在 draw 方法中实现
+             * 单图形的边仅考虑 selected、active 状态，有其他状态需求的用户自己复写这个方法
+             * @param  {String} name 状态名称
+             * @param  {Object} value 状态值
+             * @param  {Edge} edge 边
+             */
+            setState: (name, value, item: IEdge) => this.setEdgeState(name, value, item),
+          },
+          'quadratic'
+        );
 
-      const minimap = new G6.Minimap({
-        container: this.thumbnailToolRef,
-        size: [236, 146],
-      });
-      const plugins = [
-        minimap,
-        this.contextMenu(), // 节点菜单
-      ];
-      this.graph = new G6.Graph({
-        container: this.relationGraphRef as HTMLElement, // 指定挂载容器
-        width: this.canvasWidth,
-        height: this.canvasHeight,
-        minZoom: this.minZoomVal, // 画布最小缩放比例
-        maxZoom: this.maxZoomVal, // 画布最大缩放比例
-        fitCenter: true, // 图的中心将对齐到画布中心
-        animate: false,
-        groupByTypes: false,
-        modes: {
-          // 设置画布的交互模式
-          default: [
-            'drag-canvas', // 拖拽画布
-            'zoom-canvas', // 缩放画布
-          ],
-        },
-        /** 图布局 */
-        layout: { ...this.graphLayout },
-        defaultEdge: {
-          // 边的配置
-          type: 'apm-line-dash',
-          labelCfg: {
-            autoRotate: true,
-            style: {
-              fontSize: 10,
-              color: '#63656E',
-              background: {
-                fill: '#F0F1F5',
-                padding: [2, 4, 2, 4],
-                radius: 2,
+        const minimap = new G6.Minimap({
+          container: this.thumbnailToolRef,
+          size: [236, 146],
+        });
+        const plugins = [
+          minimap,
+          this.contextMenu(), // 节点菜单
+          this.nodeTooltip(),
+        ];
+        this.graph = new G6.Graph({
+          container: this.relationGraphRef as HTMLElement, // 指定挂载容器
+          width: this.canvasWidth,
+          height: this.canvasHeight,
+          minZoom: this.minZoomVal, // 画布最小缩放比例
+          maxZoom: this.maxZoomVal, // 画布最大缩放比例
+          fitCenter: true, // 图的中心将对齐到画布中心
+          fitView: true, // 将图适配到画布大小，可以防止超出画布或留白太多
+          animate: false,
+          groupByTypes: false,
+          modes: {
+            // 设置画布的交互模式
+            default: [
+              'drag-canvas', // 拖拽画布
+              'zoom-canvas', // 缩放画布
+            ],
+          },
+          /** 图布局 */
+          layout: { ...this.graphLayout },
+          defaultEdge: {
+            // 边的配置
+            type: 'apm-line-dash',
+            labelCfg: {
+              autoRotate: true,
+              style: {
+                fontSize: 10,
+                color: '#63656E',
+                background: {
+                  fill: '#F0F1F5',
+                  padding: [2, 4, 2, 4],
+                  radius: 2,
+                },
               },
             },
           },
-        },
-        defaultNode: {
-          // 节点配置
-          type: 'apm-custom-node',
-        },
-        plugins,
-      });
-      this.bindListener(this.graph); // 图监听事件
-      this.graph.read(this.data); // 读取数据源并渲染
-      const nodes = this.graph.findAll('node', node => this.activeNode.includes(node.getID()));
-      const activeEdge: IEdge[] = nodes.reduce((pre, node: INode) => {
-        node.setState('active', true);
-        pre.push(...node.getEdges());
-        return pre;
-      }, []);
-      for (const edge of activeEdge) {
-        edge.setState('active', true);
-      }
-    }, 30);
+          defaultNode: {
+            // 节点配置
+            type: 'apm-custom-node',
+          },
+          plugins,
+        });
+        this.bindListener(this.graph); // 图监听事件
+        this.graph.read(this.formatData); // 读取数据源并渲染
+      }, 30);
+    }
   }
 
   drawNode(cfg: INodeModelConfig, group: IGroup) {
-    const { size = 36, disabled } = cfg;
+    const { size = 36, color, data } = cfg;
+    const { type, category, name } = data;
+    const [fillType, borderType] = type.split('_');
+
+    // 是否为残影节点
+    const isGhost = fillType === NodeDisplayType.VOID;
+    // 是否为虚线节点
+    const isDashed = borderType === NodeDisplayType.DASHED;
 
     group.addShape('circle', {
       attrs: {
@@ -357,11 +449,11 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     const keyShape = group.addShape('circle', {
       attrs: {
         fill: '#fff', // 填充颜色,
-        stroke: disabled ? '#DCDEE5' : cfg.stroke || '#2DCB56', // 描边颜色
-        lineWidth: disabled ? 2 : 4, // 描边宽度
+        stroke: isGhost ? '#DCDEE5' : color, // 描边颜色
+        lineWidth: isGhost ? 2 : 4, // 描边宽度
         r: size,
         cursor: 'pointer',
-        lineDash: cfg.lineDash || [],
+        lineDash: isDashed ? [4, 4] : [],
       },
       name: 'custom-node-keyShape',
     });
@@ -390,16 +482,17 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       name: 'custom-node-active-circle',
     });
 
-    if (cfg.icon) {
-      group.addShape('image', {
+    if (category) {
+      group.addShape('text', {
         attrs: {
-          x: -12,
-          y: -12,
-          width: 24,
-          height: 24,
-          img: cfg.icon,
+          fontFamily: 'icon-monitor', // 对应css里面的font-family: "iconfont";
+          textAlign: 'center',
+          textBaseline: 'middle',
+          fontSize: Math.floor((size / 36) * 24),
+          text: nodeIconMap[category],
+          fill: '#63656E',
           cursor: 'pointer',
-          opacity: disabled ? 0.4 : 1,
+          opacity: isGhost ? 0.4 : 1,
         },
         name: 'node-icon',
       });
@@ -411,13 +504,13 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         x: 0,
         y: 32,
         textAlign: 'center', // 文本内容的当前对齐方式
-        text: cfg.name, //  文本内容
+        text: name, //  文本内容
         fill: '#313238', // 填充颜色,
         fontSize: 12,
         fontWeight: 700,
         lineHeight: 12,
         cursor: 'pointer',
-        opacity: disabled ? 0.4 : 1,
+        opacity: isGhost ? 0.4 : 1,
       },
       name: 'text-shape',
     });
@@ -470,13 +563,37 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       if (model.disabled) return;
       graph.setItemState(item, 'hover', false);
     });
+
+    graph.on('wheelzoom', () => {
+      this.scaleValue = this.graph.getZoom();
+    });
+
+    graph.on('afterrender', () => {
+      const zoom = this.graph.getZoom();
+      this.scaleValue = zoom;
+      if (zoom >= 1) {
+        this.graph.zoomTo(1);
+        this.scaleValue = 1;
+      }
+      const nodes = this.graph.findAll('node', node => this.activeNode.includes(node.getID()));
+      const activeEdge: IEdge[] = nodes.reduce((pre, node: INode) => {
+        node.setState('active', true);
+        pre.push(...node.getEdges());
+        return pre;
+      }, []);
+      for (const edge of activeEdge) {
+        edge.setState('active', true);
+      }
+    });
   }
 
   setNodeState(name: string, value: boolean | string, item: INode) {
     const group = item.get<IGroup>('group');
     const { size = 36, stroke = '#2DCB56' } = item.getModel() as INodeModelConfig;
     const hoverCircle = group.find(e => e.get('name') === 'custom-node-hover-circle');
+
     if (name === 'hover' && !item.hasState('active')) {
+      const edges = item.getEdges();
       item.toBack();
       if (value) {
         hoverCircle.animate(
@@ -498,6 +615,10 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
           },
           { duration: 300 }
         );
+      }
+
+      for (const edge of edges) {
+        !edge.hasState('active') && this.edgeAnimate(edge, value as boolean);
       }
     }
 
@@ -535,19 +656,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
     if (name === 'active') {
       if (value) {
-        let index = 0; // 边 path 图形的动画
-        // 设置边动画
-        keyShape.animate(
-          () => {
-            index += 0.5;
-            if (index > 8) index = 0;
-            return { lineDash: [4, 4], lineDashOffset: -index };
-          },
-          {
-            repeat: true,
-            duration: 3000,
-          }
-        );
+        this.edgeAnimate(item, true);
         // 设置边属性
         keyShape.attr({
           stroke: '#699DF4',
@@ -559,16 +668,40 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
           },
         });
       } else {
-        keyShape.stopAnimate();
+        this.edgeAnimate(item, false);
         keyShape.attr({
           stroke: '#C4C6CC',
-          lineDashOffset: 0,
         });
         keyShape.attr('endArrow', {
           ...keyShape.attr('endArrow'),
           fill: '#C4C6CC', // 填充颜色
         });
       }
+    }
+  }
+
+  edgeAnimate(edge: IEdge, start: boolean) {
+    const group = edge.get('group');
+    const keyShape: IShape = group.get('children')[0];
+    if (start) {
+      let index = 0; // 边 path 图形的动画
+      // 设置边动画
+      keyShape.animate(
+        () => {
+          index += 0.5;
+          if (index > 8) index = 0;
+          return { lineDash: [4, 4], lineDashOffset: -index };
+        },
+        {
+          repeat: true,
+          duration: 3000,
+        }
+      );
+    } else {
+      keyShape.stopAnimate();
+      keyShape.attr({
+        lineDashOffset: 0,
+      });
     }
   }
 
@@ -585,7 +718,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     if (!this.graph) return;
     this.scaleValue = ratio;
     // 以画布中心为圆心放大/缩小
-    this.graph.zoomTo(ratio / 100);
+    this.graph.zoomTo(ratio);
     this.graph.fitCenter();
   }
 
@@ -650,6 +783,11 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     this.toolsPopoverInstance.show();
   }
 
+  @Emit('edgeTypeChange')
+  handleEdgeTypeChange(type: EdgeDataType) {
+    return type;
+  }
+
   reset() {
     this.showLegend = false;
     this.showThumbnail = false;
@@ -668,6 +806,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
           class='graph-tools-panel'
         >
           <CompareGraphTools
+            maxScale={this.maxZoomVal}
+            minScale={this.minZoomVal}
             scaleValue={this.scaleValue}
             showLegend={this.showLegend}
             showThumbnail={this.showThumbnail}
@@ -694,97 +834,13 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
                 class='topo-graph-thumbnail'
               />
 
-              <div
+              <ApmTopoLegend
                 style={{
                   display: this.showLegend ? 'block' : 'none',
                 }}
-                class='topo-graph-legend'
-              >
-                <div class='filter-category'>
-                  <div class='filter-title'>{this.$t('节点颜色')}</div>
-                  <div class='filter-list node-color'>
-                    {this.legendFilter.nodeColor.map(item => (
-                      <div
-                        key={item.id}
-                        class='color-item'
-                      >
-                        <div
-                          style={{
-                            background: item.color,
-                          }}
-                          class='color-mark'
-                        />
-                        {item.label}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div class='filter-category'>
-                  <div class='filter-title'>{this.$t('节点大小')}</div>
-                  <div class='filter-list node-size'>
-                    {this.legendFilter.nodeSize.map(item => (
-                      <div
-                        key={item.id}
-                        class='node-item'
-                      >
-                        <div class='radio' />
-                        <span>{item.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div class='filter-category'>
-                  <div class='filter-title line'>
-                    {this.$t('连接线')}
-                    <div class='line-type'>
-                      <div class={{ active: this.scene === 'request' }}>{this.$t('请求量')}</div>
-                      <div class={{ active: this.scene === 'duration' }}>{this.$t('耗时')}</div>
-                    </div>
-                  </div>
-                  <div class='filter-list connect-line'>
-                    {this.scene === 'request'
-                      ? [
-                          <div
-                            key='1'
-                            class='request-item'
-                          >
-                            <div class='flow-block'>
-                              {new Array(10).fill(null).map((_, index) => (
-                                <div
-                                  key={index}
-                                  class='seldom'
-                                />
-                              ))}
-                            </div>
-                            {this.$t('请求量少')}
-                          </div>,
-                          <div
-                            key='2'
-                            class='request-item'
-                          >
-                            <div class='flow-block'>
-                              {new Array(7).fill(null).map((_, index) => (
-                                <div
-                                  key={index}
-                                  class='many'
-                                />
-                              ))}
-                            </div>
-                            {this.$t('请求量多')}
-                          </div>,
-                        ]
-                      : this.legendFilter.durationList.map(item => (
-                          <div
-                            key={item.id}
-                            class='duration-item'
-                          >
-                            <div class='radio' />
-                            <span>{item.label}</span>
-                          </div>
-                        ))}
-                  </div>
-                </div>
-              </div>
+                edgeType={this.edgeType}
+                onEdgeTypeChange={this.handleEdgeTypeChange}
+              />
             </div>
           </div>
         </div>

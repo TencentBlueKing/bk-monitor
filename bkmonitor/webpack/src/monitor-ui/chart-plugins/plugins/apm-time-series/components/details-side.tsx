@@ -55,7 +55,7 @@ enum EColumn {
   ServerName = 'service',
 }
 
-enum EOptionKind {
+export enum EOptionKind {
   callee = 'callee',
   caller = 'caller',
 }
@@ -790,7 +790,12 @@ export default class DetailsSide extends tsc<IProps> {
           </div>
 
           <CompareTopoFullscreen
+            callType={this.curType}
+            compareTime={this.compareX}
+            dataType={this.dataType}
             isService={true}
+            referTime={this.referX}
+            secondSelectList={this.selectOptions}
             show={this.compareTopoShow}
             onShowChange={val => {
               this.compareTopoShow = val;

@@ -45,7 +45,7 @@ type CompareGraphToolsEvent = {
 import './compare-graph-tools.scss';
 @Component
 export default class CompareGraphTools extends tsc<CompareGraphToolsProps, CompareGraphToolsEvent> {
-  @Prop({ default: 100 }) scaleValue!: number;
+  @Prop({ default: 1 }) scaleValue!: number;
   @Prop({ default: 100 }) maxScale!: number;
   @Prop({ default: 1 }) minScale!: number;
   @Prop({ default: 10 }) scaleStep!: number;
@@ -116,8 +116,10 @@ export default class CompareGraphTools extends tsc<CompareGraphToolsProps, Compa
           />
           <bk-slider
             class='scale-slider'
-            max-value={100}
-            min-value={1}
+            max-value={this.maxScale}
+            min-value={this.minScale}
+            show-tip={false}
+            step={0.1}
             value={this.scaleValue}
             onInput={this.handleScaleChange}
           />
