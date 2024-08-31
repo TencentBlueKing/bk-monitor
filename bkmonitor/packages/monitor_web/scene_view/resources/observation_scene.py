@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import collections
 import logging
+import random
 import time
 from collections import defaultdict
 from enum import Enum
@@ -127,7 +128,11 @@ class GetObservationSceneStatusList(CacheResource):
     @classmethod
     def check_plugin(cls, bk_biz_id: int, plugin_id: str = None, collect_config_id: int = None) -> bool:
         if plugin_id:
-            plugin = CollectorPluginMeta.objects.filter(bk_biz_id__in=[0, bk_biz_id], plugin_id=plugin_id).first()
+            plugin = (
+                CollectorPluginMeta.objects.filter(bk_biz_id__in=[0, bk_biz_id], plugin_id=plugin_id)
+                .only("plugin_id", "plugin_type")
+                .first()
+            )
             if not plugin:
                 return False
 
@@ -192,10 +197,13 @@ class GetObservationSceneStatusList(CacheResource):
             metrics = [
                 {"field": field["field_name"], "method": "count"} for field in table.fields if field["tag"] == "metric"
             ]
+            if not metrics:
+                continue
             data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
+            # 随机取8个
             data_source = data_source_class(
                 table=f"{db_name.lower()}.{table.table_name}",
-                metrics=metrics,
+                metrics=random.sample(metrics, min(8, len(metrics))),
                 filter_dict=filter_dict,
                 interval=sampling_duration,  # 步长设置为整个时间段，模拟即时查询
             )
