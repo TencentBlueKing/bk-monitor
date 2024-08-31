@@ -185,12 +185,13 @@ class GetStrategyListV2Resource(Resource):
     def filter_strategy_ids_by_id(cls, filter_dict: dict, filter_strategy_ids_set: set):
         """过滤策略ID"""
         if filter_dict["id"]:
-            ids = filter_dict["id"]
-            try:
-                ids = {int(_id) for _id in ids if _id}
-            except (ValueError, TypeError):
-                # 无效的过滤条件，查不出数据
-                ids = set()
+            ids = set()
+            for _id in filter_dict["id"]:
+                try:
+                    ids.add(int(_id.strip()))
+                except (ValueError, TypeError):
+                    # 无效的过滤条件，查不出数据
+                    continue
             filter_strategy_ids_set.intersection_update(ids)
 
     @classmethod
@@ -467,6 +468,9 @@ class GetStrategyListV2Resource(Resource):
             value = condition["value"]
             if not isinstance(value, list):
                 value = [value]
+            if len(value) == 1:
+                # 默认按list传递，多个值用 | 分割
+                value = [i.strip() for i in value[0].split(" | ")]
             filter_dict[key].extend(value)
 
         filter_strategy_ids_set = set(strategies.values_list("id", flat=True).distinct())
