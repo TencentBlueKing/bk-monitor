@@ -53,7 +53,11 @@ from metadata.models.influxdb_cluster import InfluxDBTool
 from metadata.utils import consul_tools, es_tools, go_time, influxdb_tools
 from metadata.utils.redis_tools import RedisTools
 
-from .constants import ES_ALIAS_EXPIRED_DELAY_DAYS, EventGroupStatus
+from .constants import (
+    ES_ALIAS_EXPIRED_DELAY_DAYS,
+    ESNamespacedClientType,
+    EventGroupStatus,
+)
 from .es_snapshot import EsSnapshot, EsSnapshotIndice
 from .influxdb_cluster import (
     InfluxDBClusterInfo,
@@ -2130,22 +2134,30 @@ class ESStorage(models.Model, StorageResultTable):
     def _get_index_infos(self, namespaced: str) -> Tuple[Dict[str, Dict[str, Any]], str]:
         index_version = ""
         client = self.get_client()
-        extra = {"cat": {"format": "json"}, "indices": {}}[namespaced]
-        getdata = {"cat": lambda d: {idx["index"]: idx for idx in d}, "indices": lambda d: d["indices"]}[namespaced]
-        func = {"cat": client.cat.indices, "indices": client.indices.stats}[namespaced]
+        extra = {ESNamespacedClientType.CAT.value: {"format": "json"}, ESNamespacedClientType.INDICES.value: {}}[
+            namespaced
+        ]
+        getdata = {
+            ESNamespacedClientType.CAT.value: lambda d: {idx["index"]: idx for idx in d},
+            ESNamespacedClientType.INDICES.value: lambda d: d["indices"],
+        }[namespaced]
+        func = {
+            ESNamespacedClientType.CAT.value: client.cat.indices,
+            ESNamespacedClientType.INDICES.value: client.indices.stats,
+        }[namespaced]
 
         index_info_map: Dict[str, Dict[str, Any]] = getdata(func(index=self.search_format_v2(), **extra))
         if len(index_info_map) != 0:
             index_version = "v2"
         else:
-            index_info_map: Dict[str, Dict[str, Any]] = getdata(func(index=self.search_format_v2(), **extra))
+            index_info_map: Dict[str, Dict[str, Any]] = getdata(func(index=self.search_format_v1(), **extra))
             if len(index_info_map) != 0:
                 index_version = "v1"
 
         return index_info_map, index_version
 
     def get_index_names(self) -> List[str]:
-        index_info_map, index_version = self._get_index_infos("cat")
+        index_info_map, index_version = self._get_index_infos(ESNamespacedClientType.CAT.value)
         if index_version == "v2":
             index_re = self.index_re_v2
         else:
@@ -2174,7 +2186,7 @@ class ESStorage(models.Model, StorageResultTable):
           }
         }
         """
-        return self._get_index_infos("indices")
+        return self._get_index_infos(ESNamespacedClientType.INDICES.value)
 
     def current_index_info(self):
         """

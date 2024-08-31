@@ -24,6 +24,7 @@ from bkmonitor.data_source.models.query import (
     QueryMixin,
 )
 from bkmonitor.data_source.models.sql import Query
+from bkmonitor.data_source.models.sql.query import get_limit_range
 from bkmonitor.data_source.models.sql.where import WhereNode
 from bkmonitor.data_source.unify_query.query import UnifyQuery
 
@@ -269,7 +270,7 @@ class UnifyQueryConfig:
             self.offset = offset
 
     def set_limits(self, low: Optional[int] = None, high: Optional[int] = None):
-        self.low_mark, self.high_mark = Query.get_limit_range(low, high, self.low_mark, self.high_mark)
+        self.low_mark, self.high_mark = get_limit_range(low, high, self.low_mark, self.high_mark)
 
     def get_limit(self) -> int:
         return (self.high_mark - self.low_mark, 0)[self.high_mark is None]

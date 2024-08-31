@@ -94,6 +94,20 @@ def load_backends(using):
         raise
 
 
+def get_limit_range(low=None, high=None, low_mark=None, high_mark=None):
+    if high is not None:
+        if high_mark is not None:
+            high_mark = min(high_mark, low_mark + high)
+        else:
+            high_mark = low_mark + high
+    if low is not None:
+        if high_mark is not None:
+            low_mark = min(high_mark, low_mark + low)
+        else:
+            low_mark = low_mark + low
+    return low_mark, high_mark
+
+
 class RawQuery(object):
     """
     A single raw SQL query
@@ -134,7 +148,8 @@ class Query(object):
 
         # dsl
         self.index_set_id = None
-        self.group_hits_size = None
+        # -1 表示不需要返回命中的 Top n 原始数据：使用场景是 APM
+        self.group_hits_size = 0
         self.event_group_id = ""
         self.raw_query_string = ""
         self.nested_paths = []
@@ -142,6 +157,9 @@ class Query(object):
         # current/search-aggregations-bucket-composite-aggregation.html#_pagination
         self.search_after_key = None
         self.use_full_index_names = False
+        # 目前 ES 场景下默认都会补 date_histogram，在原始日志/指标计算等场景下非必须
+        # 提供开关用于控制该行为，默认逻辑和之前一致（True）
+        self.enable_date_histogram = True
 
         self.time_field = ""
         self.target_type = "ip"
@@ -174,10 +192,11 @@ class Query(object):
         obj.event_group_id = self.event_group_id
         obj.raw_query_string = self.raw_query_string
         obj.nested_paths = self.nested_paths[:]
-        if obj.search_after_key is not None:
+        if self.search_after_key is not None:
             obj.search_after_key = self.search_after_key.copy()
         obj.group_hits_size = self.group_hits_size
         obj.use_full_index_names = self.use_full_index_names
+        obj.enable_date_histogram = self.enable_date_histogram
 
         return obj
 
@@ -229,22 +248,8 @@ class Query(object):
         if grouping:
             self.group_by.extend([x for x in grouping if x and x.strip()])
 
-    @classmethod
-    def get_limit_range(cls, low=None, high=None, low_mark=None, high_mark=None):
-        if high is not None:
-            if high_mark is not None:
-                high_mark = min(high_mark, low_mark + high)
-            else:
-                high_mark = low_mark + high
-        if low is not None:
-            if high_mark is not None:
-                low_mark = min(high_mark, low_mark + low)
-            else:
-                low_mark = low_mark + low
-        return low_mark, high_mark
-
     def set_limits(self, low=None, high=None):
-        self.low_mark, self.high_mark = self.get_limit_range(low, high, self.low_mark, self.high_mark)
+        self.low_mark, self.high_mark = get_limit_range(low, high, self.low_mark, self.high_mark)
 
     def set_slimit(self, s):
         self.slimit = s

@@ -573,9 +573,6 @@ class ResultTable(models.Model):
         # 0. 尝试直接查询，如果可以命中，则认为符合新的命名规范，直接返回
         query_table_id: str = table_id
 
-        if query_table_id.startswith("apm_global_precalculate_"):
-            table_id = query_table_id.replace("apm_global_", "apm_global.", 1)
-
         try:
             return cls.objects.get(table_id=table_id, is_deleted=False)
         except cls.DoesNotExist:

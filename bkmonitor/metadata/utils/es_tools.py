@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import requests
 from django.conf import settings
@@ -39,16 +39,17 @@ def compose_es_hosts(host: str, port: int) -> List:
 
 
 def get_client_by_datasource_info(datasource_info: Dict[str, Any]):
+    is_ssl_verify: bool = datasource_info.get("is_ssl_verify") or False
     connection_info = {
         "hosts": compose_es_hosts(datasource_info["domain_name"], datasource_info["port"]),
-        "verify_certs": datasource_info["is_ssl_verify"],
-        "use_ssl": datasource_info["is_ssl_verify"],
+        "verify_certs": is_ssl_verify,
+        "use_ssl": is_ssl_verify,
     }
 
     # 如果需要身份验证
-    username = datasource_info["auth_info"]["username"]
-    password = datasource_info["auth_info"]["password"]
-    if username and password:
+    username: Optional[str] = datasource_info["auth_info"].get("username")
+    password: Optional[str] = datasource_info["auth_info"].get("password")
+    if username is not None and password is not None:
         connection_info["http_auth"] = (username, password)
 
     schema = datasource_info.get("schema") or ""
@@ -68,7 +69,8 @@ def get_client_by_datasource_info(datasource_info: Dict[str, Any]):
     timeout = timeout_config.get(datasource_info["domain_name"])
     if not timeout:
         timeout = timeout_config.get("default") or DEFAULT_ES_TIMEOUT
-    # TODO 要确认下这个超时是请求整体超时，还是连接超时
+    # 全局的请求超时时间
+    # Refer：https://elasticsearch-py.readthedocs.io/en/v7.12.0/api.html?highlight=timeout#timeout
     es_client = elastic_client(**connection_info, timeout=timeout)
     return es_client
 
@@ -77,7 +79,7 @@ def get_client(cluster):
     from metadata.models import ClusterInfo
 
     cluster_info = cluster
-    if not isinstance(cluster, ClusterInfo):
+    if isinstance(cluster, int):
         cluster_info = ClusterInfo.objects.get(cluster_id=cluster)
 
     datasource_info = {

@@ -31,7 +31,7 @@ from elasticsearch6 import helpers as helpers_6
 
 from apm.core.handlers.application_hepler import ApplicationHelper
 from apm.models import DataLink
-from apm.utils.base import normalize_rt_id
+from apm.utils.base import rt_id_to_index
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.user import get_global_user
 from constants.apm import PreCalculateSpecificField
@@ -321,6 +321,7 @@ class PrecalculateStorage:
             self.client,
             self.storage_cluster_id,
             self.origin_index_name,
+            self.result_table_id,
         ) = self.select_and_get_storage_client()
 
         self.is_valid = self.storage_cluster_id is not None
@@ -329,15 +330,17 @@ class PrecalculateStorage:
         if not self.hash_ring:
             return None, None, None, None, None
 
-        node = self.hash_ring.select_node(self.bk_biz_id, self.app_name)
-        table_name = node.split('-', 1)[-1].replace('.', '_')
+        node: str = self.hash_ring.select_node(self.bk_biz_id, self.app_name)
+        result_table_id: str = node.split('-', 1)[-1]
+        origin_index_name: str = rt_id_to_index(result_table_id)
 
         return (
-            f"{table_name}*",
-            self.get_index_write_alias(table_name),
+            f"{origin_index_name}*",
+            self.get_index_write_alias(origin_index_name),
             self.node_mapping[node],
             self.id_mapping[node],
-            table_name,
+            origin_index_name,
+            result_table_id,
         )
 
     @cached_property
@@ -420,7 +423,7 @@ class PrecalculateStorage:
     @classmethod
     def fetch_result_table_ids(cls, bk_biz_id: int) -> List[str]:
         cluster_infos: List[Dict[str, Union[int, str]]] = cls.fetch_cluster_simple_infos(bk_biz_id)
-        return [normalize_rt_id(cluster_info["table_name"]) for cluster_info in cluster_infos]
+        return [cluster_info["table_name"] for cluster_info in cluster_infos]
 
     @classmethod
     def list_nodes(

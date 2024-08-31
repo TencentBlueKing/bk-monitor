@@ -731,6 +731,7 @@ class TestBkMonitorLogDataSource:
         ]
         assert mock_get_es_data.call_args[1] == {
             "table_id": "2_bkmonitor_event_1500110",
+            "use_full_index_names": False,
             "query_body": {
                 "aggregations": {
                     "dimensions.bk_target_cloud_id": {
@@ -763,7 +764,7 @@ class TestBkMonitorLogDataSource:
                         }
                     }
                 },
-                "size": 0,
+                "size": 1,
                 "sort": [{"time": "desc"}],
             },
         }
@@ -853,6 +854,7 @@ class TestBkMonitorLogDataSource:
         assert data == [{"event.count": 4, "bk_target_cloud_id": "0", "_time_": 1614334800000}]
         assert mock_get_es_data.call_args[1] == {
             "table_id": "2_bkmonitor_event_1500110",
+            "use_full_index_names": False,
             "query_body": {
                 "aggregations": {
                     "dimensions.bk_target_ip": {
@@ -885,8 +887,7 @@ class TestBkMonitorLogDataSource:
                         }
                     }
                 },
-                # 参考上面的 data，这里其实没有用到 hits 里面的数据，所以 size=0 是符合预期的
-                "size": 0,
+                "size": 1,
                 "sort": [{"time": "desc"}],
             },
         }
@@ -1041,6 +1042,7 @@ class TestBkMonitorLogDataSource:
         ]
         assert mock_get_es_data.call_args[1] == {
             "table_id": "2_bkmonitor_event_1500110",
+            "use_full_index_names": False,
             "query_body": {
                 "aggregations": {
                     "dimensions.bk_target_cloud_id": {
@@ -1073,7 +1075,7 @@ class TestBkMonitorLogDataSource:
                         }
                     }
                 },
-                "size": 0,
+                "size": 1,
                 "sort": [{"time": "desc"}],
             },
         }
@@ -1219,6 +1221,7 @@ class TestBkMonitorLogDataSource:
 
         assert mock_get_es_data.call_args[1] == {
             "table_id": "2_bkmonitor_event_1500110",
+            "use_full_index_names": False,
             "query_body": {
                 "aggregations": {
                     "dimensions.bk_target_cloud_id": {
@@ -1261,7 +1264,7 @@ class TestBkMonitorLogDataSource:
                         }
                     }
                 },
-                "size": 0,
+                "size": 1,
                 "sort": [{"time": "desc"}],
             },
         }
@@ -1357,6 +1360,7 @@ class TestBkMonitorLogDataSource:
         ]
         assert mock_get_es_data.call_args[1] == {
             "table_id": "2_bkmonitor_event_1500110",
+            "use_full_index_names": False,
             "query_body": {
                 "aggregations": {
                     "dimensions.bk_target_cloud_id": {
@@ -1398,7 +1402,7 @@ class TestBkMonitorLogDataSource:
                         }
                     }
                 },
-                "size": 0,
+                "size": 1,
                 "sort": [{"time": "desc"}],
             },
         }
@@ -1469,6 +1473,7 @@ class TestCustomEventDataSource:
 
         assert mock_get_es_data.call_args[1] == {
             "table_id": "2_bkmonitor_event_524629",
+            "use_full_index_names": False,
             "query_body": {
                 "aggregations": {
                     "time": {

@@ -23,15 +23,14 @@ from django.utils.functional import cached_property
 
 from apm import types
 from apm.core.discover.precalculation.storage import PrecalculateStorage
-from apm.core.handlers.ebpf.base import EbpfHandler
 from apm.core.handlers.query.base import FakeQuery
 from apm.core.handlers.query.define import QueryMode, TraceInfoList
-from apm.core.handlers.query.ebpf_query import DeepFlowQuery, EbpfQuery
+from apm.core.handlers.query.ebpf_query import DeepFlowQuery
 from apm.core.handlers.query.origin_trace_query import OriginTraceQuery
 from apm.core.handlers.query.span_query import SpanQuery
 from apm.core.handlers.query.statistics_query import StatisticsQuery
 from apm.core.handlers.query.trace_query import TraceQuery
-from apm.models import ApmApplication, EbpfApplicationConfig
+from apm.models import ApmApplication
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from constants.apm import OtlpKey, TraceWaterFallDisplayKey
 
@@ -76,7 +75,7 @@ class QueryProxy:
             trace_query = TraceQuery(
                 self.bk_biz_id,
                 self.app_name,
-                precalculate.origin_index_name,
+                precalculate.result_table_id,
                 self.application.trace_datasource.retention,
             )
 
@@ -85,25 +84,6 @@ class QueryProxy:
     @cached_property
     def statistics_query(self):
         return StatisticsQuery(self.trace_query, self.span_query)
-
-    @cached_property
-    def ebpf_query(self):
-        config = EbpfApplicationConfig.objects.filter(bk_biz_id=self.bk_biz_id).first()
-        if not config:
-            return FakeQuery()
-
-        app = ApmApplication.objects.filter(id=config.application_id).first()
-        if not app:
-            return FakeQuery()
-
-        if EbpfHandler.is_ebpf_application(self.application):
-            return FakeQuery()
-
-        return EbpfQuery(
-            self.bk_biz_id,
-            self.application.trace_datasource.result_table_id,
-            self.application.trace_datasource.retention,
-        )
 
     @cached_property
     def is_trace_query_valid(self):

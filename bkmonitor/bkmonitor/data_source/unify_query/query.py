@@ -102,14 +102,14 @@ class UnifyQuery:
         return list(dimensions)
 
     @classmethod
-    def init_time_range(cls, start_time: Optional[int], end_time: Optional[int]) -> Tuple[int, int]:
+    def process_time_range(cls, start_time: Optional[int], end_time: Optional[int]) -> Tuple[int, int]:
         if not start_time or not end_time:
             end_time = int(time.time()) * 1000
             start_time = end_time - 60 * 60 * 1000
         return start_time, end_time
 
     @classmethod
-    def add_system_filter_to_data_sources(cls, data_sources: List[DataSource]):
+    def process_data_sources(cls, data_sources: List[DataSource]):
         # 补充特殊网络和磁盘维度过滤
         for data_source in data_sources:
             if data_source._is_system_disk():
@@ -388,11 +388,11 @@ class UnifyQuery:
         if not self.data_sources:
             return []
 
-        self.add_system_filter_to_data_sources(self.data_sources)
+        self.process_data_sources(self.data_sources)
 
         exc = None
         labels: Dict[str, str] = self.get_observe_labels()
-        start_time, end_time = self.init_time_range(start_time, end_time)
+        start_time, end_time = self.process_time_range(start_time, end_time)
 
         # 使用统一查询模块或原始数据源进行查询
         if self.use_unify_query():
@@ -436,7 +436,7 @@ class UnifyQuery:
 
         exc = None
         labels: Dict[str, str] = self.get_observe_labels()
-        start_time, end_time = self.init_time_range(start_time, end_time)
+        start_time, end_time = self.process_time_range(start_time, end_time)
 
         if self.use_unify_query():
             labels["api"] = "unify_query"

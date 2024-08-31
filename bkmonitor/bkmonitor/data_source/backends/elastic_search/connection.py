@@ -40,10 +40,7 @@ class DatabaseConnection(BaseDatabaseConnection):
         self.ops = DatabaseOperations(self)
 
     def execute(self, rt_id, params):
-        extra: Dict[str, Any] = {}
-        use_full_index_names: bool = params.pop("use_full_index_names", False)
-        if use_full_index_names:
-            extra["use_full_index_names"] = True
+        extra: Dict[str, Any] = {"use_full_index_names": params.pop("use_full_index_names", False)}
 
         query_body: str = json.dumps(params)
         logger.info("ES QUERY: rt_id is {}, query body is {}".format(rt_id, query_body))

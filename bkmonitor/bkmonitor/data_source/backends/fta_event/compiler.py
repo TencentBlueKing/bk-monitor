@@ -104,16 +104,16 @@ class SQLCompiler(ElasticSearchSQLCompiler):
         return aggs
 
     @classmethod
-    def handle_middle_bucket(cls, dimension: str, bucket: Dict[str, Any]) -> Dict[str, Any]:
+    def _handle_middle_bucket(cls, dimension: str, bucket: Dict[str, Any]) -> Dict[str, Any]:
         if dimension.startswith(cls.TAGS_FIELD_PREFIX):
             return bucket["_reverse"]
+        return bucket
 
     @classmethod
-    def extract_dimension_buckets(cls, dimension: str, aggs: Dict[str, Any]) -> List[Dict[str, Any]]:
-        try:
-            return aggs[dimension]["buckets"]
-        except KeyError:
-            return []
+    def _extract_dimension_buckets(cls, dimension: str, aggs: Dict[str, Any]) -> List[Dict[str, Any]]:
+        if dimension.startswith(cls.TAGS_FIELD_PREFIX):
+            return aggs[dimension]["key"]["value"]["buckets"]
+        return aggs[dimension]["buckets"]
 
     @staticmethod
     def _operate_eq(and_map, field, values):

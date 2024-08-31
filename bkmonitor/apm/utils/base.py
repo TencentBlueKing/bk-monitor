@@ -53,5 +53,5 @@ def group_by(iterators, get_key):
     return res
 
 
-def normalize_rt_id(rt_id: str) -> str:
+def rt_id_to_index(rt_id: str) -> str:
     return rt_id.replace(".", "_")

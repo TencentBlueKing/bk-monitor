@@ -26,7 +26,6 @@ from django.utils.translation import ugettext_lazy as _
 
 from apm import types
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
-from apm.utils.base import normalize_rt_id
 from bkmonitor.data_source import dict_to_q
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -122,7 +121,7 @@ class BaseQuery:
 
     def __init__(self, bk_biz_id: int, result_table_id: str, retention: int):
         self.bk_biz_id: int = bk_biz_id
-        self.result_table_id: str = normalize_rt_id(result_table_id)
+        self.result_table_id: str = result_table_id
         self.retention: int = retention
 
     @classproperty
@@ -243,8 +242,6 @@ class BaseQuery:
             logger.info("[add_query_string] filter_dict -> %s", filter_dict)
             if filter_dict:
                 return q.filter(dict_to_q(filter_dict))
-        except KeyError:
-            pass
         except Exception:
             logger.exception("[add_query_string] failed to parse dsl -> %s", dsl)
 

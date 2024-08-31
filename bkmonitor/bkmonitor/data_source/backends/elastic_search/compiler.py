@@ -83,9 +83,9 @@ class SQLCompiler(compiler.SQLCompiler):
             if not result:
                 return []
 
-            interval, dimensions = self._get_dimensions()
+            __, dimensions = self._get_dimensions()
             dimensions.reverse()
-            if interval != 0:
+            if self.query.enable_date_histogram and self.query.time_field:
                 dimensions.append(self.query.time_field)
 
             records = []
@@ -233,17 +233,17 @@ class SQLCompiler(compiler.SQLCompiler):
         return return_fields, select_fields
 
     def _get_size(self) -> int:
-        if self.query.group_hits_size is None:
-            # query_log 场景
-            return (self.query.high_mark or 0 - self.query.low_mark, 0)[self.query.high_mark is None]
-        # query_data 场景，一般不需要返回 hits，除非传入 group_hits_size
-        return self.query.group_hits_size
+        if self.query.group_hits_size < 0:
+            return 0
+        if self.query.high_mark is None:
+            return 1
+        return self.query.high_mark - self.query.low_mark
 
     def _get_bucket_size(self) -> int:
         return (min(1440, self.query.high_mark or 0 - self.query.low_mark), 1440)[self.query.high_mark is None]
 
     def _get_dimensions(self) -> Tuple[int, List[str]]:
-        interval = 0
+        second = 60
         group_by_fields = self.query.group_by
         group_by = sorted(set(group_by_fields), key=group_by_fields.index)
 
@@ -251,10 +251,10 @@ class SQLCompiler(compiler.SQLCompiler):
         for idx, dim in enumerate(dimensions):
             time_agg_field = self.TIME_SECOND_AGG_FIELD_RE.match(dim)
             if time_agg_field:
-                interval = time_agg_field.groupdict().get("second") or 0
+                second = time_agg_field.groupdict().get("second")
                 dimensions.pop(idx)
                 break
-        return interval, dimensions
+        return second, dimensions
 
     def _get_agg_method_dict(self, select_fields) -> Dict[str, Dict[str, Any]]:
         agg_method_dict: Dict[str, Dict[str, Any]] = {}
@@ -343,13 +343,13 @@ class SQLCompiler(compiler.SQLCompiler):
 
         aggregations: Dict[str, Dict] = self._get_agg_method_dict(select_fields)
         # 每个分组获取原始数据记录
-        if self.query.group_hits_size:
+        if self.query.group_hits_size > 0:
             aggregations["latest_hits"] = {
                 "top_hits": {"size": self.query.group_hits_size, "sort": [{self.query.time_field: {"order": "desc"}}]}
             }
 
         # metric aggregation
-        if agg_interval != 0:
+        if self.query.enable_date_histogram and self.query.time_field:
             # Deprecated in 7.2. interval field is deprecated
             # https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-datehistogram-aggregation.html
             # use fixed_interval instead
@@ -373,7 +373,7 @@ class SQLCompiler(compiler.SQLCompiler):
         return aggregations
 
     @classmethod
-    def fill_values_to_record(cls, aggs: Dict[str, Any], record: Dict[str, Any], select_fields: List[Dict[str, Any]]):
+    def _fill_values_to_record(cls, aggs: Dict[str, Any], record: Dict[str, Any], select_fields: List[Dict[str, Any]]):
         for field in select_fields:
             alias: str = field["metric_alias"]
             method: str = str(field["agg_method"]).lower()
@@ -389,11 +389,11 @@ class SQLCompiler(compiler.SQLCompiler):
                 record[alias] = aggs.get(alias, {}).get("value")
 
     @classmethod
-    def handle_middle_bucket(cls, dimension: str, bucket: Dict[str, Any]) -> Dict[str, Any]:
+    def _handle_middle_bucket(cls, dimension: str, bucket: Dict[str, Any]) -> Dict[str, Any]:
         return bucket
 
     @classmethod
-    def extract_dimension_buckets(cls, dimension: str, aggs: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _extract_dimension_buckets(cls, dimension: str, aggs: Dict[str, Any]) -> List[Dict[str, Any]]:
         try:
             return aggs[dimension]["buckets"]
         except KeyError:
@@ -421,12 +421,12 @@ class SQLCompiler(compiler.SQLCompiler):
             record = {}
 
         if not dimensions:
-            self.fill_values_to_record(aggs, record, select_fields)
+            self._fill_values_to_record(aggs, record, select_fields)
             records.append(copy.deepcopy(record))
             return
 
         dimension = dimensions[idx]
-        for bucket in self.extract_dimension_buckets(dimension, aggs):
+        for bucket in self._extract_dimension_buckets(dimension, aggs):
             record[dimension] = bucket.get("key")
             if idx + 1 == len(dimensions):
                 # 获取分组最新的一条记录
@@ -436,10 +436,10 @@ class SQLCompiler(compiler.SQLCompiler):
                         record["hits"].append(hit["_source"])
                     record["hits_total"] = bucket["latest_hits"]["hits"]["total"]["value"]
 
-                self.fill_values_to_record(bucket, record, select_fields)
+                self._fill_values_to_record(bucket, record, select_fields)
                 records.append(copy.deepcopy(record))
             else:
-                bucket = self.handle_middle_bucket(dimension, bucket)
+                bucket = self._handle_middle_bucket(dimension, bucket)
                 self._get_agg_buckets(records, dimensions, bucket, select_fields, record, idx + 1)
 
     def _get_composite_buckets(self, records, dimensions, aggs, select_fields):
@@ -447,7 +447,7 @@ class SQLCompiler(compiler.SQLCompiler):
         for bucket in aggs["buckets"]:
             record: Dict[str, Any] = {"_after_key_": aggs["after_key"]}
             record.update({dimension: bucket["key"].get(dimension) for dimension in dimensions})
-            self.fill_values_to_record(bucket, record, select_fields)
+            self._fill_values_to_record(bucket, record, select_fields)
 
             records.append(record)
 

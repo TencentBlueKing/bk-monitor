@@ -16,22 +16,11 @@ We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
 import logging
-from typing import Any, Dict, List
 
-from apm import constants
 from apm.core.deepflow.base import EBPFHandler
-from apm.core.handlers.query.base import BaseQuery
-from apm.core.handlers.query.builder import QueryConfigBuilder
 from apm_ebpf.resource import TraceQueryResource
-from constants.apm import OtlpKey
 
 logger = logging.getLogger("apm")
-
-
-class EbpfQuery(BaseQuery):
-    def query_by_trace_id(self, trace_id: str) -> List[Dict[str, Any]]:
-        q: QueryConfigBuilder = self.q.filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id}).order_by(OtlpKey.START_TIME)
-        return list(self.time_range_queryset().add_query(q).limit(constants.DISCOVER_BATCH_SIZE))
 
 
 class DeepFlowQuery:

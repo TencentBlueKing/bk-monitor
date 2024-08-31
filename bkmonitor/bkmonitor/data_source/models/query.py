@@ -187,6 +187,11 @@ class DslMixin:
             clone.query.search_after_key = search_after_key
         return clone
 
+    def dsl_date_histogram(self, enable: bool):
+        clone = self._clone()
+        clone.query.enable_date_histogram = enable
+        return clone
+
 
 class BaseDataQuery:
 

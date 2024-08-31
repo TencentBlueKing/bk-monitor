@@ -33,8 +33,11 @@ class GetTSDataResource(Resource):
 class GetEsDataResource(Resource):
     class RequestSerializer(serializers.Serializer):
         index_name = serializers.CharField(required=True, label="索引名")
-        full_index_names = serializers.ListSerializer(
-            required=False, label="索引全名列表（不为空优先使用", child=serializers.CharField(required=True, label="索引名")
+        # 可以是具体的索引名，也可以包含通配符号，以下都是符合预期的：
+        # - 具体索引名：2_bkapm_trace_testapp_20240820_0
+        # - 包含通配符：2_bkapm_trace_testapp_*_*
+        index_names = serializers.ListSerializer(
+            required=False, label="索引名列表（不为空优先使用）", child=serializers.CharField(required=True, label="索引名")
         )
         doc_type = serializers.CharField(required=True, label="文档类型")
         query_body = serializers.DictField(required=True, label="查询内容")
@@ -42,7 +45,7 @@ class GetEsDataResource(Resource):
 
     def perform_request(self, validated_request_data):
         try:
-            full_index_names: List[str] = validated_request_data.get("full_index_names") or []
+            full_index_names: List[str] = validated_request_data.get("index_names") or []
             if full_index_names:
                 index: str = ",".join(full_index_names)
             else:
