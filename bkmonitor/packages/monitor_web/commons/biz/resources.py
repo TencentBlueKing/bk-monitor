@@ -34,10 +34,10 @@ logger = logging.getLogger(__name__)
 
 
 cache = caches["default"]
-if settings.USE_DJANGO_CACHE_REDIS:
-    cache = caches["redis"]
-elif "locmem" in settings.CACHES:
-    cache = caches["locmem"]
+for cache_type in ["redis", "locmem"]:
+    if cache_type in settings.CACHES:
+        cache = caches[cache_type]
+        break
 
 
 class BusinessListOptionResource(Resource):
