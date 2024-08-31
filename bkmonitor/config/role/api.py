@@ -179,6 +179,9 @@ MIDDLEWARE = (
     "bkmonitor.middlewares.prometheus.MetricsAfterMiddleware",  # 必须放到最后面
 )
 
+# 后台api服务， 请求的cookie中不会有session id， 因此每次都会创建新的session， 这里只保留1min即可。
+SESSION_COOKIE_AGE = 60
+
 REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": (
         "django_filters.rest_framework.DjangoFilterBackend",

@@ -8,8 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from monitor_web.models.uptime_check import UptimeCheckTask
-
 from api.cmdb import client
 
 # 空间功能控制
@@ -18,6 +16,7 @@ from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceFunction, SpaceTypeEnum
 from core.drf_resource import resource
 from core.errors.api import BKAPIError
+from monitor_web.models.uptime_check import UptimeCheckTask
 
 
 class ControlManager:
@@ -45,7 +44,6 @@ def register_controller(func_name):
 
 
 class BaseController:
-
     func_name = ""
 
     def __init__(self, bk_biz_id=None, space_uid=None, space=None):
@@ -147,13 +145,7 @@ class HCController(BaseController):
 
     @property
     def accessed(self):
-        return (
-            self.related
-            and resource.collecting.collect_config_list(bk_biz_id=self.space.bk_biz_id, limit=1, refresh_status=False)[
-                "total"
-            ]
-            > 0
-        )
+        return self.related and resource.collecting.collect_config_list.exists_by_biz(bk_biz_id=self.space.bk_biz_id)
 
 
 @register_controller(SpaceFunction.CI_BUILDER.value)
