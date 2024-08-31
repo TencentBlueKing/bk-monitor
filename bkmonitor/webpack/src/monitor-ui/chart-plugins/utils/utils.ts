@@ -635,13 +635,24 @@ export const formatTimeUnitAndValue = (value: number, unit: string) => {
 export const createMenuList = (
   menuList: { id: string; name: string }[],
   position: { x: number; y: number },
-  clickHandler: (id: string) => void
+  clickHandler: (id: string) => void,
+  instance: any
 ) => {
   const id = 'contextmenu-list-pop-wrapper';
   const removeEl = () => {
     const remove = document.getElementById(id);
     if (remove) {
       remove.remove();
+      setTimeout(() => {
+        instance?.dispatchAction({
+          type: 'restore',
+        });
+        instance?.dispatchAction({
+          type: 'takeGlobalCursor',
+          key: 'dataZoomSelect',
+          dataZoomSelectActive: true,
+        });
+      }, 500);
     }
   };
   removeEl();

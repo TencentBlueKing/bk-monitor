@@ -361,28 +361,35 @@ export default class ApmTimeSeries extends TimeSeries {
 
   /* 整个图的右键菜单 */
   handleChartContextmenu(event: MouseEvent) {
+    event.preventDefault();
     if (this.enableContextmenu) {
       const { pageX, pageY } = event;
-      createMenuList(this.contextmenuInfo.options, { x: pageX, y: pageY }, (id: string) => {
-        const startTime = (this.$refs.baseChart as any)?.curPoint?.xAxis || 0;
-        let endTime = 0;
-        let i = 0;
-        const datas = this.seriesList[0].data || [];
-        for (const item of datas) {
-          i += 1;
-          if (item?.value?.[0] === startTime || item?.[0] === startTime) {
-            const nextItem = datas[i];
-            endTime = nextItem?.value?.[0] || nextItem?.[0] || 0;
-            break;
+      const instance = (this.$refs.baseChart as any).instance;
+      createMenuList(
+        this.contextmenuInfo.options,
+        { x: pageX, y: pageY },
+        (id: string) => {
+          const startTime = (this.$refs.baseChart as any)?.curPoint?.xAxis || 0;
+          let endTime = 0;
+          let i = 0;
+          const datas = this.seriesList[0].data || [];
+          for (const item of datas) {
+            i += 1;
+            if (item?.value?.[0] === startTime || item?.[0] === startTime) {
+              const nextItem = datas[i];
+              endTime = nextItem?.value?.[0] || nextItem?.[0] || 0;
+              break;
+            }
           }
-        }
-        this.contextmenuInfo = {
-          ...this.contextmenuInfo,
-          sliceStartTime: startTime,
-          sliceEndTime: endTime || startTime + 1000 * 60,
-        };
-        this.handleClickMenuItem(id);
-      });
+          this.contextmenuInfo = {
+            ...this.contextmenuInfo,
+            sliceStartTime: startTime,
+            sliceEndTime: endTime || startTime + 1000 * 60,
+          };
+          this.handleClickMenuItem(id);
+        },
+        instance
+      );
     }
   }
 

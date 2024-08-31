@@ -36,7 +36,16 @@ import BaseEchart, { type IChartEvent, type IChartProps } from './base-echart';
 import type { ICurPoint } from '../typings';
 
 import './base-echart.scss';
-
+interface IBaseEvent extends IChartEvent {
+  onDataZoom: (start_time: string, end_time: string) => void;
+  // 复位事件
+  onRestore: () => void;
+}
+interface IBaseProps extends IChartProps {
+  groupId?: string;
+  showRestore?: boolean;
+  needTooltips?: boolean;
+}
 @Component
 class MonitorBaseEchart extends BaseEchart {
   // echarts图表实例分组id
@@ -332,14 +341,5 @@ class MonitorBaseEchart extends BaseEchart {
     );
   }
 }
-interface IBaseEvent extends IChartEvent {
-  onDataZoom: (start_time: string, end_time: string) => void;
-  // 复位事件
-  onRestore: () => void;
-}
-interface IBaseProps extends IChartProps {
-  groupId?: string;
-  showRestore?: boolean;
-  needTooltips?: boolean;
-}
+
 export default ofType<IBaseProps, IBaseEvent>().convert(MonitorBaseEchart);
