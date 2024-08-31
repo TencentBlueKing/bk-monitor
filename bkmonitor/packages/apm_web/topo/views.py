@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from apm_web.models import Application
 from apm_web.topo.resources import (
     DataTypeBarQueryResource,
+    NodeRelationDetailResource,
     NodeRelationResource,
     TopoViewResource,
 )
@@ -40,4 +41,5 @@ class GlobalViewSet(ResourceViewSet):
         ResourceRoute("GET", DataTypeBarQueryResource, endpoint="bar"),
         ResourceRoute("GET", TopoViewResource, endpoint="topo"),
         ResourceRoute("GET", NodeRelationResource, endpoint="relation"),
+        ResourceRoute("POST", NodeRelationDetailResource, endpoint="relation/detail"),
     ]
