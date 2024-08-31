@@ -1052,7 +1052,7 @@ class TableViewConverter(ViewConverter):
     def columns(cls):
         return [
             {
-                "id": "service_name",
+                "id": "service",
                 "name": "服务名称",
                 "sortable": "custom",
                 "type": "link",
@@ -1060,7 +1060,7 @@ class TableViewConverter(ViewConverter):
             {
                 "id": "type",
                 "name": "调用类型",
-                "type": "relation",
+                "type": "string",
                 "filterable": True,
                 "filter_list": [
                     {"text": "主调", "value": "caller"},
@@ -1068,7 +1068,7 @@ class TableViewConverter(ViewConverter):
                 ],
             },
             {
-                "id": "other_service_name",
+                "id": "other_service",
                 "name": "调用服务",
                 "sortable": "custom",
                 "type": "string",

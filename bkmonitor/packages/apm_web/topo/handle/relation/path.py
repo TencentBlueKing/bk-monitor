@@ -182,9 +182,6 @@ class PathTemplateSidebar:
     bind_source_type: Source = None
     group: SidebarGroup = None
 
-    def __post_init__(self):
-        self.id = self.bind_source_type.name
-
     def combine_and_generate(self, parent_id, nodes: List[Node]):
         """处理(合并或者转换等逻辑)当前侧边栏对应的资源实体的所有节点 返回此层的节点和与上层的连线"""
         # 默认逻辑为直接转换
@@ -238,12 +235,15 @@ class PathTemplateSidebar:
                 other_path_template_sidebar = other_path_template.sidebars[self._sidebar_index]
                 if other_path_template_sidebar.name != self.name and Node.get_depth(self._tree) >= self._sidebar_index:
                     options.append(other_path_template_sidebar.option_info())
+                    # 加上自身
+                    options.append(self.option_info())
 
         return options
 
 
 @dataclass
 class ServiceSidebar(PathTemplateSidebar):
+    id: str = SourceService.name
     name: str = "Service"
     bind_source_type: Source = SourceService
     group: SidebarGroup = ServiceGroup
@@ -251,6 +251,7 @@ class ServiceSidebar(PathTemplateSidebar):
 
 @dataclass
 class ServiceInstanceSidebar(PathTemplateSidebar):
+    id: str = SourceServiceInstance.name
     name: str = "Service Instance"
     bind_source_type: Source = SourceServiceInstance
     group: SidebarGroup = ServiceGroup
@@ -258,6 +259,7 @@ class ServiceInstanceSidebar(PathTemplateSidebar):
 
 @dataclass
 class K8sPodSidebar(PathTemplateSidebar):
+    id: str = SourceK8sPod.name
     name: str = "Pod"
     bind_source_type: Source = SourceK8sPod
     group: SidebarGroup = HostGroup
@@ -265,6 +267,7 @@ class K8sPodSidebar(PathTemplateSidebar):
 
 @dataclass
 class K8sServiceSidebar(PathTemplateSidebar):
+    id: str = SourceK8sService.name
     name: str = "Service"
     bind_source_type: Source = SourceK8sService
     group: SidebarGroup = HostGroup
@@ -272,6 +275,7 @@ class K8sServiceSidebar(PathTemplateSidebar):
 
 @dataclass
 class SystemSidebar(PathTemplateSidebar):
+    id: str = SourceSystem.name
     name: str = "IDC"
     bind_source_type: Source = SourceSystem
     group: SidebarGroup = HostGroup
