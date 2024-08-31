@@ -23,46 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { MonitorTopo, createApp, h as vue3CreateElement } from '@blueking/monitor-resource-topo/vue2';
-
-import './resource-topo.scss';
-import '@blueking/monitor-resource-topo/vue2/vue2.css';
+import './resource-topo-skeleton.scss';
+const list = ['20%', '50%', '30%', '40%', '60%', '70%'];
 @Component
-export default class ResourceTopo extends tsc<undefined> {
-  @Prop() a: number;
-  app = null;
-  unWatchStack = [];
-  created() {
-    // const props = this.$props;
-    // const emit = this.$emit.bind(this);
-    let resourceTopoInstance;
-    this.app = createApp({
-      render() {
-        // eslint-disable-next-line @typescript-eslint/no-this-alias
-        resourceTopoInstance = this;
-        return vue3CreateElement(MonitorTopo, {});
-      },
-    });
-    this.unWatchStack = Object.keys(this.$props).map(k => {
-      return this.$watch(k, v => {
-        resourceTopoInstance[k] = v;
-        resourceTopoInstance.$forceUpdate();
-      });
-    });
-  }
-  mounted() {
-    this.app?.mount(this.$el);
-  }
-  beforeDestroy() {
-    for (const unWatch of this.unWatchStack) {
-      unWatch?.();
-    }
-    this.app?.unmount();
-  }
+export default class ResourceTopoSkeleton extends tsc<undefined> {
   render() {
-    return <div class='apm-resource-topo' />;
+    return (
+      <div class='resource-topo-skeleton'>
+        {list.map((w, index) => (
+          <div
+            key={index}
+            style={{ width: w }}
+            class='resource-topo-skeleton-item skeleton-element'
+          />
+        ))}
+      </div>
+    );
   }
 }
