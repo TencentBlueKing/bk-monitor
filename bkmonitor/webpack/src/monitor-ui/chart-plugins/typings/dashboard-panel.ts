@@ -372,6 +372,7 @@ export interface IResourceChartOption {
 export interface IRelatedLogChartoption {
   related_log_chart?: {
     defaultKeyword: string;
+    isSimpleChart?: boolean; // 是否为精简模式
   };
 }
 

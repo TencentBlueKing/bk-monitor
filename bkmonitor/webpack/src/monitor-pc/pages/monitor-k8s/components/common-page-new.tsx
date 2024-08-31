@@ -139,6 +139,7 @@ interface ICommonPageEvent {
 }
 export const MIN_DASHBOARD_PANEL_WIDTH = '640';
 export type ShowModeType = 'dashboard' | 'default' | 'list';
+const customRouterQueryKeys = ['sliceStartTime', 'sliceEndTime'];
 @Component({
   components: {
     /** 视图设置异步组件 */
@@ -266,8 +267,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   collapseInfo = false;
   // 时间范围缓存用于复位功能
   cacheTimeRange = [];
-  /* 自定义router query */
-  customRouterQuery = {};
   // 特殊的目标字段配置
   get targetFields(): { [propName: string]: string } {
     const panel = this.sceneData?.selectorPanel;
@@ -505,6 +504,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   @ProvideReactive('downSampleRange') downSampleRange: number | string = 'auto';
   /** 图表的告警状态接口是否需要加入$current_target作为请求参数 */
   @ProvideReactive('alertFilterable') alertFilterable = false;
+  /* 自定义router query */
+  @ProvideReactive('customRouteQuery') customRouteQuery = {};
   // 是否展示复位
   @ProvideReactive('showRestore') showRestore = false;
   // 是否开启（框选/复位）全部操作
@@ -535,15 +536,23 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
    * @param customRouterQuery
    */
   @Provide('handlePageTabChange')
-  handleChartToTabChange(id: string, customRouterQuery: Record<string, number | string>) {
+  handleChartToTabChange(id: string, customRouteQuery: Record<string, number | string>) {
     const item = this.tabList.find(item => item.id === id);
     if (item) {
-      this.customRouterQuery = {
-        ...this.customRouterQuery,
-        ...customRouterQuery,
+      this.customRouteQuery = {
+        ...this.customRouteQuery,
+        ...customRouteQuery,
       };
       this.handleMenuTabChange(item);
     }
+  }
+  @Provide('handleCustomRouteQueryChange')
+  handleCustomRouteQueryChange(customRouteQuery: Record<string, number | string>) {
+    this.customRouteQuery = {
+      ...this.customRouteQuery,
+      ...customRouteQuery,
+    };
+    this.handleResetRouteQuery();
   }
   mounted() {
     this.timezone = getDefaultTimezone();
@@ -588,16 +597,18 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   handleSetDefaultParams() {
     const filters: Record<string, any> = {};
     const variables = {};
-    this.defaultViewOptions?.filters &&
-      Object.keys(this.defaultViewOptions.filters).forEach(key => {
+    if (this.defaultViewOptions?.filters) {
+      for (const key in this.defaultViewOptions.filters) {
         filters[key] = this.defaultViewOptions.filters[key];
-      });
-    this.defaultViewOptions?.variables &&
-      Object.keys(this.defaultViewOptions.variables).forEach(key => {
+      }
+    }
+    if (this.defaultViewOptions?.variables) {
+      for (const key in this.defaultViewOptions.variables) {
         variables[key] = this.defaultViewOptions.variables[key];
-      });
+      }
+    }
     this.groups = this.defaultViewOptions?.groups || [];
-    Object.keys(this.$route.query || {}).forEach(key => {
+    for (const key in this.$route.query || {}) {
       const val = this.$route.query[key];
       if (key.match(/^filter-/)) {
         let v = null;
@@ -674,11 +685,13 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
             this.timezone = val as string;
             updateTimezone(val as string);
           }
+        } else if (customRouterQueryKeys.includes(key)) {
+          this.customRouteQuery[key] = val;
         } else {
           this[key] = val;
         }
       }
-    });
+    }
     this.localSceneType = (this.$route.query.sceneType as any) ?? this.sceneType;
     this.method =
       this.defaultViewOptions.method || (this.$route.query.method as string) || this.defalutMethod || DEFAULT_METHOD;
@@ -1254,7 +1267,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       name: this.$route.name,
       query: {
         ...filters,
-        ...this.customRouterQuery,
+        ...this.customRouteQuery,
         method: this.method,
         interval: this.interval.toString(),
         groups: this.groups,

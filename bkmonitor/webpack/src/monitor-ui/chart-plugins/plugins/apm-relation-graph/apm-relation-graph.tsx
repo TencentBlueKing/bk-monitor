@@ -40,7 +40,7 @@ import { CommonSimpleChart } from '../common-simple-chart';
 import StatusTab from '../table-chart/status-tab';
 import ApmRelationGraphContent from './components/apm-relation-graph-content';
 import ApmRelationTopo from './components/apm-relation-topo';
-import BarAlarmChart from './components/bar-alarm-chart';
+import BarAlarmChart, { getSliceTimeRange } from './components/bar-alarm-chart';
 import ResourceTopo from './components/resource-topo/resource-topo';
 import ServiceOverview from './components/service-overview';
 import {
@@ -81,6 +81,10 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     },
   };
 
+  @InjectReactive({ from: 'customRouteQuery', default: () => ({}) }) customRouteQuery: Record<string, number | string>;
+  @Inject('handleCustomRouteQueryChange') handleCustomRouteQueryChange: (
+    customRouterQuery: Record<string, number | string>
+  ) => void;
   /* 概览图、列表图切换 */
   showTypes = [
     {
@@ -157,7 +161,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
       icon: 'icon-mc-overview',
     },
   ];
-  expanded = ['topo', 'overview'];
+  expanded = [];
 
   /* 表格数据 */
   tableColumns: ITableColumn[] = [];
@@ -181,6 +185,8 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   /* 获取头部告警柱状条形图数据方法 */
   getAlarmBarData = null;
 
+  sliceTimeRange = [0, 0];
+
   get appName() {
     return this.viewOptions?.app_name || '';
   }
@@ -199,6 +205,10 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     };
   }
 
+  get serviceOverviewData() {
+    return this.panel.options.apm_relation_graph;
+  }
+
   /**
    * @description: 获取图表数据
    */
@@ -209,6 +219,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
     try {
       this.unregisterOberver();
+      this.getSliceTimeRange();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
@@ -222,7 +233,12 @@ export default class ApmRelationGraph extends CommonSimpleChart {
         const data = await dataTypeBarQuery({
           ...params,
         }).catch(() => ({ series: [] }));
-        setData(alarmBarChartDataTransform(this.dataType, data.series));
+        const result = alarmBarChartDataTransform(this.dataType, data.series);
+        setData(result);
+        /* 默认切片时间 */
+        if (!this.sliceTimeRange.every(t => t)) {
+          this.sliceTimeRange = getSliceTimeRange(result, result[result.length - 1].time);
+        }
       };
     } catch (e) {
       console.error(e);
@@ -329,6 +345,27 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     console.log(nodeId);
     this.activeNode = nodeId;
   }
+  /**
+   * @description 获取路由的切片时间范围
+   */
+  getSliceTimeRange() {
+    const { sliceStartTime, sliceEndTime } = this.customRouteQuery;
+    if (sliceStartTime && sliceEndTime) {
+      this.sliceTimeRange = [+sliceStartTime, +sliceEndTime];
+    }
+  }
+
+  /**
+   * @description 切片时间范围变化
+   * @param timeRange
+   */
+  handleSliceTimeRangeChange(timeRange: [number, number]) {
+    this.sliceTimeRange = JSON.parse(JSON.stringify(timeRange));
+    this.handleCustomRouteQueryChange({
+      sliceStartTime: this.sliceTimeRange[0],
+      sliceEndTime: this.sliceTimeRange[1],
+    });
+  }
 
   render() {
     return (
@@ -365,9 +402,12 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             <BarAlarmChart
               activeItemHeight={24}
               dataType={this.dataType}
+              enableSelect={true}
               getData={this.getAlarmBarData}
               itemHeight={16}
+              sliceTimeRange={this.sliceTimeRange}
               onDataZoom={this.dataZoom as any}
+              onSliceTimeRangeChange={this.handleSliceTimeRangeChange}
             />
           </div>
           <div class='header-search-wrap'>
@@ -470,7 +510,13 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                   </div>
                 </div>
                 <div class='content-wrap'>
-                  <ServiceOverview data={{}} />
+                  <ServiceOverview
+                    appName={this.appName}
+                    data={this.serviceOverviewData}
+                    serviceName={this.serviceName}
+                    show={this.expanded.includes('overview')}
+                    timeRange={this.timeRange}
+                  />
                 </div>
               </div>
             </div>
