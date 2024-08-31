@@ -219,7 +219,7 @@ class UnifyQuery:
 
         # 默认表达式
         if not self.expression:
-            expression = " + ".join([query["reference_name"] for query in query_list])
+            expression = " or ".join([query["reference_name"] for query in query_list])
         else:
             expression = self.expression
 
