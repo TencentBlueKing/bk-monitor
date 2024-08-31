@@ -24,16 +24,26 @@
  * IN THE SOFTWARE.
  */
 
+import Vue from 'vue';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import G6, { type IGroup, type ModelConfig, type Graph, type INode, type IEdge, type IShape } from '@antv/g6';
+import G6, {
+  type IGroup,
+  type ModelConfig,
+  type Graph,
+  type INode,
+  type IEdge,
+  type IShape,
+  type IG6GraphEvent,
+} from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
 import { Debounce } from 'monitor-common/utils/utils';
 
 import CompareGraphTools from '../../apm-time-series/components/compare-topo-fullscreen/compare-graph-tools';
 import ApmTopoLegend from './apm-topo-legend';
+import TopoMenu, { type ITopoMenuItem } from './topo-menu';
 import {
   CategoryEnum,
   type NodeDisplayTypeMap,
@@ -99,7 +109,17 @@ const HoverCircleWidth = 13;
 
 const LIMIT_RADIAL_LAYOUT_COUNT = 700;
 const LIMIT_WORKER_ENABLED = 500;
-
+class CustomMenu extends G6.Menu {
+  onMenuShow(e: IG6GraphEvent): void {
+    super.onMenuShow(e);
+  }
+  onMenuHide() {
+    console.info(this, super.onMenuHide, '====================');
+  }
+  hideMenu() {
+    super.onMenuHide();
+  }
+}
 @Component
 export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelationTopoEvent> {
   @Prop() data: ApmRelationTopoProps['data'];
@@ -157,6 +177,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     maxIteration: 4000,
     workerEnabled: true, // 可选，开启 web-worker
   };
+
+  topoMenu = null;
 
   /** 当前使用的布局 应用概览使用 radial布局、下钻服务使用 dagre 布局 */
   get graphLayout() {
@@ -339,13 +361,9 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   // 节点菜单
   contextMenu() {
-    const iconMap = {
-      span_drilling: 'icon-xiazuan',
-      resource_drilling: 'icon-ziyuan',
-      blank: 'icon-mc-link',
-    };
-
-    const menu = new G6.Menu({
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const that = this;
+    const menu = new CustomMenu({
       className: 'node-menu-container',
       trigger: 'contextmenu',
       // 是否阻止行为发生
@@ -360,17 +378,14 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         const itemType = item.getType();
         const model = item.getModel() as any;
         if (itemType && model) {
-          return `<ul>
-            ${model.menu
-              .map(
-                target =>
-                  `<li id='${JSON.stringify(target)}'>
-                    <span class="icon-monitor node-menu-icon ${iconMap[target.action]}"></span>
-                    ${target.name}
-                   </li>`
-              )
-              .join('')}
-            </ul>`;
+          if (!that.topoMenu) {
+            that.topoMenu = new Vue(TopoMenu);
+            that.topoMenu.menu = model.menu;
+            that.topoMenu.$mount();
+          } else {
+            that.topoMenu.menu = model.menu;
+          }
+          return that.topoMenu.$el as HTMLDivElement;
         }
       },
       handleMenuClick: (target, item: INode) => this.handleNodeMenuClick(target, item),
@@ -381,6 +396,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   /** 节点菜单点击 */
   handleNodeMenuClick(target: HTMLElement, item: INode) {
+    console.info(target, item, '===================');
     if (!target.id || !item) return;
     const { action = '', url } = JSON.parse(target.id);
     // 下钻
