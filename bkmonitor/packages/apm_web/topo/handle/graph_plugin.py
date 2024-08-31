@@ -805,9 +805,9 @@ class NodeSize(PostPlugin):
 
     class Size:
         NO_DATA = 20
-        SMALL = 30
-        MEDIUM = 40
-        LARGE = 50
+        SMALL = 20
+        MEDIUM = 30
+        LARGE = 36
 
     def process(self, data_type, edge_data_type, node_data, graph):
         f_value = node_data.get(BarChartDataType.REQUEST_COUNT.value)

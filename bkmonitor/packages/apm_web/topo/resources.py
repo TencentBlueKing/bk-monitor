@@ -52,5 +52,7 @@ class NodeRelationResource(Resource):
     RequestSerializer = NodeRelationSerializer
 
     def perform_request(self, validated_request_data):
-        entrance = RelationEntrance(validated_request_data.pop("path"), **validated_request_data)
+        entrance = RelationEntrance(
+            validated_request_data.pop("path_type"), validated_request_data.pop("paths", None), **validated_request_data
+        )
         return entrance.export(entrance.relation_tree, export_type="layer")

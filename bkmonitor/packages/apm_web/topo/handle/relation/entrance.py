@@ -10,46 +10,47 @@ specific language governing permissions and limitations under the License.
 """
 from typing import List, Tuple
 
-from apm_web.topo.constants import RelationResourcePath
+from apm_web.topo.constants import RelationResourcePathType
 from apm_web.topo.handle.relation.define import Node, TreeInfo
 from apm_web.topo.handle.relation.path import PathProvider
 
 
 class RelationEntrance:
-    path: RelationResourcePath = RelationResourcePath.DEFAULT
+    path_type: RelationResourcePathType = RelationResourcePathType.DEFAULT
 
-    def __init__(self, path, **kwargs):
-        self.path = path
+    def __init__(self, path_type, paths=None, **kwargs):
+        self.path_type = path_type
+        self.paths = paths
         self._runtime = kwargs
 
         # [!] tree_path / trees_info 会在 default 模式下进行更新
-        self.tree_path = path
+        self.tree_paths = paths
         self.trees_info = []
 
     @property
     def relation_tree(self):
         # 指定路径获取: 不请求其他路径
-        if self.path != RelationResourcePath.DEFAULT.value:
-            return PathProvider(self.path, self._runtime).build_tree()
+        if self.path_type != RelationResourcePathType.DEFAULT.value:
+            return PathProvider(self.paths, self._runtime).build_tree()
 
         # 默认逻辑: 从所有路径获取最完整的树并且返回所有路径的树信息
         trees = []
         tree_infos = []
-        for path in PathProvider.all_path():
-            tree = PathProvider(path, self._runtime).build_tree()
-            trees.append((path, tree))
-            tree_infos.append(self._get_tree_info(path, tree))
+        for paths in PathProvider.all_path():
+            tree = PathProvider(paths, self._runtime).build_tree()
+            trees.append((paths, tree))
+            tree_infos.append(self._get_tree_info(paths, tree))
 
-        best_tree, best_path = self._find_complex(trees)
-        self.tree_path = best_path
+        best_tree, best_paths = self._find_complex(trees)
+        self.tree_paths = best_paths
         self.trees_info = tree_infos
         return best_tree
 
     def export(self, tree, export_type):
         if export_type == "tree":
-            return PathProvider.get_template(self.tree_path).to_tree_json(tree, self.trees_info)
+            return PathProvider.get_template(self.tree_paths).to_tree_json(tree, self.trees_info)
         if export_type == "layer":
-            return PathProvider.get_template(self.tree_path).to_layers_json(tree, self.trees_info)
+            return PathProvider.get_template(self.tree_paths).to_layers_json(tree, self.trees_info)
         raise ValueError(f"[RelationTopo] 不支持以 {export_type} 格式导出关联树")
 
     def _find_complex(self, trees: List[Tuple[str, Node]]):
@@ -60,16 +61,16 @@ class RelationEntrance:
         max_depth = max(PathProvider.get_depth(t[0]) for t in trees)
         the_best = None
         the_best_score = -1
-        the_best_path = None
+        the_best_paths = None
 
         for i in trees:
             score = self._score_tree(i[1], 0, max_depth)
             if score > the_best_score:
                 the_best_score = score
                 the_best = i[1]
-                the_best_path = i[0]
+                the_best_paths = i[0]
 
-        return the_best, the_best_path
+        return the_best, the_best_paths
 
     def _score_tree(self, node, depth, max_depth):
         if depth > max_depth:
@@ -79,9 +80,9 @@ class RelationEntrance:
             score += self._score_tree(c, depth + 1, max_depth)
         return score
 
-    def _get_tree_info(self, path, tree: Node) -> TreeInfo:
+    def _get_tree_info(self, paths, tree: Node) -> TreeInfo:
         """获取树的信息"""
 
-        info = TreeInfo(root_id=tree.id, path=path, is_complete=Node.get_depth(tree) >= PathProvider.get_depth(path))
+        info = TreeInfo(root_id=tree.id, paths=paths, is_complete=Node.get_depth(tree) >= PathProvider.get_depth(paths))
 
         return info

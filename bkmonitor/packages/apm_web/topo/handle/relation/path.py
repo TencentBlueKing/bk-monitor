@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from collections import defaultdict
 from dataclasses import asdict, dataclass
 from typing import List, Type
 
@@ -151,6 +152,24 @@ class PathTemplateNode:
 
 
 @dataclass
+class SidebarGroup:
+    id: str = None
+    name: str = None
+
+
+@dataclass
+class ServiceGroup(SidebarGroup):
+    id: str = "service"
+    name: str = _("服务")
+
+
+@dataclass
+class HostGroup(SidebarGroup):
+    id: str = "host"
+    name: str = _("主机/云平台")
+
+
+@dataclass
 class PathTemplateSidebar:
     # --- runtime attrs
     _sidebar_index: int
@@ -161,6 +180,7 @@ class PathTemplateSidebar:
     id: str = None
     name: str = None
     bind_source_type: Source = None
+    group: SidebarGroup = None
 
     def __post_init__(self):
         self.id = self.bind_source_type.name
@@ -201,6 +221,9 @@ class PathTemplateSidebar:
     def options(self):
         """获取此侧边栏的可选项"""
         options = []
+        if not self._tree_infos:
+            return options
+
         this_tree_info = next(i for i in self._tree_infos if i.root_id == self._tree.id)
         # 可以替换的条件为:
         # 此 sidebar 绑定的 source_type 对应的 layer 在层级模板 layers 中有平替
@@ -209,7 +232,7 @@ class PathTemplateSidebar:
             if t == this_tree_info:
                 continue
 
-            other_path_template = PathProvider.get_template(t.path)
+            other_path_template = PathProvider.get_template(t.paths)
             if len(other_path_template.sidebars) >= self._sidebar_index:
                 other_path_template_sidebar = other_path_template.sidebars[self._sidebar_index]
                 if other_path_template_sidebar.name != self.name and Node.get_depth(self._tree) >= self._sidebar_index:
@@ -222,30 +245,35 @@ class PathTemplateSidebar:
 class ServiceSidebar(PathTemplateSidebar):
     name: str = _("服务")
     bind_source_type: Source = SourceService
+    group: SidebarGroup = ServiceGroup
 
 
 @dataclass
 class ServiceInstanceSidebar(PathTemplateSidebar):
     name: str = _("服务实例")
     bind_source_type: Source = SourceServiceInstance
+    group: SidebarGroup = ServiceGroup
 
 
 @dataclass
 class K8sPodSidebar(PathTemplateSidebar):
     name: str = _("[K8S] Pod")
     bind_source_type: Source = SourceK8sPod
+    group: SidebarGroup = HostGroup
 
 
 @dataclass
 class K8sServiceSidebar(PathTemplateSidebar):
     name: str = _("[K8S] Service")
     bind_source_type: Source = SourceK8sService
+    group: SidebarGroup = HostGroup
 
 
 @dataclass
 class SystemSidebar(PathTemplateSidebar):
     name: str = _("主机")
     bind_source_type: Source = SourceSystem
+    group: SidebarGroup = HostGroup
 
 
 @dataclass
@@ -282,7 +310,20 @@ class PathTemplate:
                 edges += l_edges
             sidebars.append(sidebar_instance)
 
-        return {"edges": edges, "nodes": nodes, "sidebars": [i.info for i in sidebars]}
+        return {"edges": edges, "nodes": nodes, "sidebars": self._group_sidebar(sidebars)}
+
+    @classmethod
+    def _group_sidebar(cls, sidebar_instances: List[PathTemplateSidebar]):
+        """对侧边栏进行分组归类"""
+
+        group_mapping = defaultdict(dict)
+        for i in sidebar_instances:
+            if i.group.id in group_mapping:
+                group_mapping[i.group.id]["list"].append(i.info)
+            else:
+                group_mapping[i.group.id] = {"id": i.group.id, "name": i.group.name, "list": [i.info]}
+
+        return list(group_mapping.values())
 
 
 class PathProvider:
@@ -329,13 +370,19 @@ class PathProvider:
         ),
     }
 
-    def __init__(self, name, runtime):
-        if name not in self.path_mapping:
-            raise ValueError(f"关联拓扑不支持 {name} 路径查询")
+    _CONNECT_CHAR = "_to_"
 
-        self.name = name
+    def __init__(self, paths, runtime):
+        path_name = self._to_path_template_key(paths)
+        if path_name not in self.path_mapping:
+            raise ValueError(f"关联拓扑中没有找到 {paths} 路径")
+
         self.runtime = runtime
-        self.layers = [i(rt=runtime) for i in self.path_mapping[name].layers]
+        self.layers = [i(rt=runtime) for i in self.path_mapping[path_name].layers]
+
+    @classmethod
+    def _to_path_template_key(cls, paths):
+        return cls._CONNECT_CHAR.join(paths)
 
     def build_tree(self):
         # depth = 0
@@ -359,12 +406,12 @@ class PathProvider:
 
     @classmethod
     def all_path(cls):
-        return cls.path_mapping.keys()
+        return [i.split(cls._CONNECT_CHAR) for i in cls.path_mapping.keys()]
 
     @classmethod
-    def get_depth(cls, name):
-        return len(cls.path_mapping[name].layers)
+    def get_depth(cls, paths):
+        return len(cls.path_mapping[cls._to_path_template_key(paths)].layers)
 
     @classmethod
-    def get_template(cls, name):
-        return cls.path_mapping[name]
+    def get_template(cls, paths):
+        return cls.path_mapping[cls._to_path_template_key(paths)]

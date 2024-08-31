@@ -146,6 +146,6 @@ class TreeInfo:
     # 根节点的 Id
     root_id: str
     # tree 的层级模板
-    path: str
+    paths: List[str]
     # 树的层级是否完整 (即根据 layers 判断是否每一层都有节点)
     is_complete: bool

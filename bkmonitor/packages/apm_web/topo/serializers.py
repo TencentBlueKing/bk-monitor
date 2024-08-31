@@ -15,7 +15,7 @@ from apm_web.models import Application
 from apm_web.topo.constants import (
     BarChartDataType,
     GraphViewType,
-    RelationResourcePath,
+    RelationResourcePathType,
     TopoEdgeDataType,
 )
 
@@ -58,4 +58,14 @@ class NodeRelationSerializer(serializers.Serializer):
     service_name = serializers.CharField(label="服务名称")
     start_time = serializers.IntegerField(label="开始时间")
     end_time = serializers.IntegerField(label="结束时间")
-    path_type = serializers.ChoiceField(label="请求路径类型", choices=RelationResourcePath.get_choices())
+    path_type = serializers.ChoiceField(label="请求路径类型", choices=RelationResourcePathType.get_choices())
+    paths = serializers.CharField(label="资源关联路径", required=False)
+
+    @property
+    def validated_data(self):
+        res = super(NodeRelationSerializer, self).validated_data
+        if res["path_type"] == RelationResourcePathType.SPECIFIC.value:
+            if not res.get("paths"):
+                raise ValueError(f"没有传递 path 参数")
+            res["paths"] = res["paths"].split(",")
+        return res
