@@ -255,6 +255,9 @@ class UnifyQuery:
         使用统一查询模块进行查询
         """
         params = self.get_unify_query_params(start_time, end_time, time_alignment)
+        if not params["query_list"]:
+            return []
+
         params.update(dict(down_sample_range=down_sample_range, timezone=timezone.get_current_timezone_name()))
 
         if instant:
