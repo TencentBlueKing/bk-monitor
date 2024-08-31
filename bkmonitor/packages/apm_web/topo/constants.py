@@ -92,6 +92,26 @@ class RelationResourcePathType(ChoicesEnum):
     _choices_labels = ((DEFAULT, _("默认查询")), (SPECIFIC, _("指定路径查询")))
 
 
+class SourceType(ChoicesEnum):
+    """[UnifyQuery] 资源类型"""
+
+    APM_SERVICE = "apm_service"
+    APM_SERVICE_INSTANCE = "apm_service_instance"
+    POD = "pod"
+    NODE = "node"
+    SERVICE = "service"
+    SYSTEM = "system"
+
+    _choices_labels = (
+        (APM_SERVICE, _("APM 应用服务")),
+        (APM_SERVICE_INSTANCE, _("APM 应用服务实例")),
+        (POD, _("[K8S] Pod")),
+        (NODE, _("node")),
+        (SERVICE, _("[K8S] Service")),
+        (SYSTEM, _("Host")),
+    )
+
+
 class RelationResourcePath(ChoicesEnum):
     """关联指标 - 指定查询路径"""
 

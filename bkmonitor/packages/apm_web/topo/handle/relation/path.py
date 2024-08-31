@@ -197,6 +197,7 @@ class PathTemplateSidebar:
                 "target": i.id,
             }
             for i in nodes
+            if i.id != parent_id
         ]
 
     @property
@@ -243,35 +244,35 @@ class PathTemplateSidebar:
 
 @dataclass
 class ServiceSidebar(PathTemplateSidebar):
-    name: str = _("服务")
+    name: str = "Service"
     bind_source_type: Source = SourceService
     group: SidebarGroup = ServiceGroup
 
 
 @dataclass
 class ServiceInstanceSidebar(PathTemplateSidebar):
-    name: str = _("服务实例")
+    name: str = "Service Instance"
     bind_source_type: Source = SourceServiceInstance
     group: SidebarGroup = ServiceGroup
 
 
 @dataclass
 class K8sPodSidebar(PathTemplateSidebar):
-    name: str = _("[K8S] Pod")
+    name: str = "Pod"
     bind_source_type: Source = SourceK8sPod
     group: SidebarGroup = HostGroup
 
 
 @dataclass
 class K8sServiceSidebar(PathTemplateSidebar):
-    name: str = _("[K8S] Service")
+    name: str = "Service"
     bind_source_type: Source = SourceK8sService
     group: SidebarGroup = HostGroup
 
 
 @dataclass
 class SystemSidebar(PathTemplateSidebar):
-    name: str = _("主机")
+    name: str = "IDC"
     bind_source_type: Source = SourceSystem
     group: SidebarGroup = HostGroup
 

@@ -14,6 +14,7 @@ from apm_web.topo.handle.graph_query import GraphQuery
 from apm_web.topo.handle.relation.entrance import RelationEntrance
 from apm_web.topo.serializers import (
     DataTypeBarQueryRequestSerializer,
+    NodeRelationDetailSerializer,
     NodeRelationSerializer,
     TopoQueryRequestSerializer,
 )
@@ -56,3 +57,12 @@ class NodeRelationResource(Resource):
             validated_request_data.pop("path_type"), validated_request_data.pop("paths", None), **validated_request_data
         )
         return entrance.export(entrance.relation_tree, export_type="layer")
+
+
+class NodeRelationDetailResource(Resource):
+    """单个节点资源详情信息"""
+
+    RequestSerializer = NodeRelationDetailSerializer
+
+    def perform_request(self, validated_request_data):
+        pass

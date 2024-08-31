@@ -16,6 +16,7 @@ from apm_web.topo.constants import (
     BarChartDataType,
     GraphViewType,
     RelationResourcePathType,
+    SourceType,
     TopoEdgeDataType,
 )
 
@@ -69,3 +70,14 @@ class NodeRelationSerializer(serializers.Serializer):
                 raise ValueError(f"没有传递 path 参数")
             res["paths"] = res["paths"].split(",")
         return res
+
+
+class NodeRelationDetailSerializer(serializers.Serializer):
+    """节点资源详情请求参数"""
+
+    bk_biz_id = serializers.IntegerField(label="业务 ID")
+    app_name = serializers.CharField(label="应用名称")
+    start_time = serializers.IntegerField(label="开始时间")
+    end_time = serializers.IntegerField(label="结束时间")
+    source_type = serializers.ChoiceField(label="资源类型", choices=SourceType.get_choices())
+    source_info = serializers.DictField(label="资源信息")

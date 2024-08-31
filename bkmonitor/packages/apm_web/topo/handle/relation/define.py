@@ -13,6 +13,8 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass, field, fields
 from typing import List
 
+from apm_web.topo.constants import SourceType
+
 
 @dataclass
 class Source:
@@ -54,7 +56,7 @@ class Source:
 class SourceService(Source):
     apm_application_name: str
     apm_service_name: str
-    name: str = "apm_service"
+    name: str = SourceType.APM_SERVICE.value
 
 
 @dataclass
@@ -62,13 +64,13 @@ class SourceServiceInstance(Source):
     apm_application_name: str
     apm_service_name: str
     apm_service_instance_name: str
-    name: str = "apm_service_instance"
+    name: str = SourceType.APM_SERVICE_INSTANCE.value
 
 
 @dataclass
 class SourceSystem(Source):
     bk_target_ip: str
-    name: str = "system"
+    name: str = SourceType.SYSTEM.value
 
 
 @dataclass
@@ -76,14 +78,14 @@ class SourceK8sPod(Source):
     bcs_cluster_id: str
     namespace: str
     pod: str
-    name: str = "pod"
+    name: str = SourceType.POD.value
 
 
 @dataclass
 class SourceK8sNode(Source):
     bcs_cluster_id: str
     node: str
-    name: str = "node"
+    name: str = SourceType.NODE.value
 
 
 @dataclass
@@ -91,7 +93,7 @@ class SourceK8sService(Source):
     bcs_cluster_id: str
     namespace: str
     service: str
-    name: str = "service"
+    name: str = SourceType.SERVICE.value
 
 
 @dataclass
