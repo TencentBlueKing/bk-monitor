@@ -359,21 +359,24 @@ class GetStrategyListV2Resource(Resource):
         # 过滤插件ID
         if filter_dict["plugin_id"]:
             plugin_id = filter_dict["plugin_id"]
-            plugins = CollectorPluginMeta.objects.filter(plugin_id__in=plugin_id, bk_biz_id__in=[0, bk_biz_id])
-            plugin_table_ids = []
-            for plugin in plugins:
-                version = plugin.current_version
-                for table in version.info.metric_json:
-                    plugin_table_ids.append(version.get_result_table_id(plugin, table["table_name"]).lower())
+            plugins = CollectorPluginMeta.objects.filter(plugin_id__in=plugin_id, bk_biz_id__in=[0, bk_biz_id]).values(
+                "plugin_id"
+            )
+            # plugin_table_ids = []
+            # for plugin in plugins:
+            #     version = plugin.current_version
+            #     for table in version.info.metric_json:
+            #         plugin_table_ids.append(version.get_result_table_id(plugin, table["table_name"]).lower())
 
             plugin_strategy_ids = []
-            if plugin_table_ids:
-                query_configs = QueryConfigModel.objects.filter(strategy_id__in=filter_strategy_ids_set).only(
-                    "config", "strategy_id"
-                )
-                for qc in query_configs:
-                    if qc.config.get("result_table_id") in plugin_table_ids:
+            query_configs = QueryConfigModel.objects.filter(strategy_id__in=filter_strategy_ids_set).only(
+                "config", "strategy_id"
+            )
+            for qc in query_configs:
+                for plugin in plugins:
+                    if f"{plugin['plugin_id']}." in qc.config.get("result_table_id"):
                         plugin_strategy_ids.append(qc.strategy_id)
+                        break
 
             filter_strategy_ids_set.intersection_update(set(plugin_strategy_ids))
 
