@@ -212,6 +212,11 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   handleContextmenu(event) {
     if (this.isContextmenuPreventDefault) {
       event.preventDefault();
+      this.dispatchAction({
+        type: 'takeGlobalCursor',
+        key: 'dataZoomSelect',
+        dataZoomSelectActive: false,
+      });
     }
   }
   render() {

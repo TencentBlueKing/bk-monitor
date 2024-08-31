@@ -122,7 +122,7 @@ export interface ICurVarItem {
 /** 可选值 */
 export interface IOption {
   id: number | string;
-  name: TranslateResult | string;
+  name: string | TranslateResult;
 }
 
 /** 条件 */
@@ -240,7 +240,7 @@ export class BookMarkModel implements IBookMark {
   }
   // 左侧选择栏默认宽度
   get defaultSelectorPanelWidth() {
-    return this.selectorPanel.options?.selector_list?.status_filter ?? false ? 400 : 240;
+    return (this.selectorPanel.options?.selector_list?.status_filter ?? false) ? 400 : 240;
   }
   // 是否可配置group
   get enableGroup() {
@@ -445,6 +445,8 @@ export interface IViewOptions {
   matchFields?: Record<string, any>;
   // 策略id 用于hostIntelligenAnomalyRange接口
   strategy_id?: number | string;
+  app_name?: string;
+  service_name?: string;
 }
 
 // dashboard 仪表盘模式  list: 列表模式 chart: 视图模式

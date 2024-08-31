@@ -27,12 +27,24 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import dayjs from 'dayjs';
+
+import { EOptionKind, EDataType } from '../details-side';
 import CompareTopoGraph from './compare-topo-graph';
 
 import './compare-topo-fullscreen.scss';
 type CompareTopoFullscreenProps = {
   show: boolean;
   isService: boolean;
+  /** 对比时间，时间戳 */
+  compareTime: number;
+  /** 参照时间 */
+  referTime: number;
+  /** 调用类型 */
+  callType: EOptionKind;
+  /** 数据类型 */
+  dataType: EDataType;
+  secondSelectList: { id: string; name: string }[];
 };
 
 type CompareTopoFullscreenEvent = {
@@ -43,11 +55,18 @@ type CompareTopoFullscreenEvent = {
 export default class CompareTopoFullscreen extends tsc<CompareTopoFullscreenProps, CompareTopoFullscreenEvent> {
   @Prop({ default: false }) readonly show!: boolean;
   @Prop({ default: true }) readonly isServer!: boolean;
+  @Prop({ default: 0 }) readonly compareTime!: number;
+  @Prop({ default: 0 }) readonly referTime!: number;
+  @Prop({ default: 'caller' }) callType!: EOptionKind;
+  @Prop({ default: 'request_count' }) dataType!: EDataType;
+  @Prop({ default: [] }) secondSelectList: CompareTopoFullscreenProps['secondSelectList'];
+
   @Ref('compareTopoGraph') compareTopoGraphRef!: CompareTopoGraph;
+
   filterTypeList = Object.freeze([
-    { label: '请求数', value: 'request' },
-    { label: '错误数', value: 'error' },
-    { label: '响应耗时', value: 'response' },
+    { label: '请求数', value: EDataType.requestCount },
+    { label: '错误数', value: EDataType.errorCount },
+    { label: '响应耗时', value: EDataType.avgDuration },
   ]);
   countList = Object.freeze([]);
 
@@ -81,15 +100,31 @@ export default class CompareTopoFullscreen extends tsc<CompareTopoFullscreenProp
     },
   ];
 
-  get showCountSelect() {
-    return this.filterParam.type === 'error' || this.filterParam.type === 'response';
+  get showSecondSelect() {
+    return this.filterParam.type === EDataType.errorCount || this.filterParam.type === EDataType.avgDuration;
+  }
+
+  get formatTime() {
+    return {
+      refer: dayjs(this.referTime).format('YYYY-MM-DD HH:mm'),
+      compare: dayjs(this.compareTime).format('YYYY-MM-DD HH:mm'),
+    };
   }
 
   @Watch('show')
   watchShowChange(val) {
     if (val) {
+      this.initParams();
       this.getGraphData();
     }
+  }
+
+  initParams() {
+    this.filterParam = {
+      type: this.dataType || EDataType.requestCount,
+      count: 200,
+      call: this.callType || EOptionKind.caller,
+    };
   }
 
   getGraphData() {
@@ -226,27 +261,33 @@ export default class CompareTopoFullscreen extends tsc<CompareTopoFullscreenProp
                     />
                   ))}
                 </bk-select>
-                {this.showCountSelect && (
+                {this.showSecondSelect && (
                   <bk-select
                     v-model={this.filterParam.count}
                     clearable={false}
                   >
-                    <bk-option />
+                    {this.secondSelectList.map(item => (
+                      <bk-option
+                        id={item.id}
+                        key={item.id}
+                        name={item.name}
+                      />
+                    ))}
                   </bk-select>
                 )}
                 <div class='bk-button-group'>
                   <bk-button
-                    class={{ 'is-selected': this.filterParam.call === 'main' }}
+                    class={{ 'is-selected': this.filterParam.call === EOptionKind.caller }}
                     onClick={() => {
-                      this.handleCallBtnClick('main');
+                      this.handleCallBtnClick(EOptionKind.caller);
                     }}
                   >
                     {this.$t('主调')}
                   </bk-button>
                   <bk-button
-                    class={{ 'is-selected': this.filterParam.call === 'passive' }}
+                    class={{ 'is-selected': this.filterParam.call === EOptionKind.callee }}
                     onClick={() => {
-                      this.handleCallBtnClick('passive');
+                      this.handleCallBtnClick(EOptionKind.callee);
                     }}
                   >
                     {this.$t('被调')}
@@ -258,14 +299,14 @@ export default class CompareTopoFullscreen extends tsc<CompareTopoFullscreenProp
                   <div class='color-block' />
                   <div class='text'>
                     <span class='name'>{this.$t('参照时间')}:</span>
-                    2024.5.7 17:00
+                    {this.formatTime.refer}
                   </div>
                 </div>
                 <div class='panel-item'>
                   <div class='color-block' />
                   <div class='text'>
                     <span class='name'>{this.$t('对比时间')}:</span>
-                    2024.5.7 17:00
+                    {this.formatTime.compare}
                   </div>
                 </div>
               </div>

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Inject } from 'vue-property-decorator';
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
@@ -36,7 +36,7 @@ import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
-import { reviewInterval } from '../../utils';
+import { createMenuList, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
@@ -45,49 +45,38 @@ import DetailsSide, { type EDataType } from './components/details-side';
 
 import './apm-time-series.scss';
 
-const eventHasId = (event: Event | any, id: string) => {
-  let target = event.target;
-  let has = false;
-  while (target) {
-    if (target.id === id) {
-      has = true;
-      break;
-    }
-    target = target?.parentNode;
-  }
-  return has;
-};
 @Component
 export default class ApmTimeSeries extends TimeSeries {
+  @Inject('handlePageTabChange') handlePageTabChange: (
+    id: string,
+    customRouterQuery: Record<string, number | string>
+  ) => void;
+
   contextmenuInfo = {
-    x: 0,
-    y: 0,
-    show: false,
     options: [
-      { id: 'details', name: window.i18n.t('查看详情') },
-      { id: 'topo', name: window.i18n.t('查看拓扑') },
+      { id: 'details', name: window.i18n.tc('查看详情') },
+      { id: 'topo', name: window.i18n.tc('查看拓扑') },
     ],
-    id: random(10),
-    nearOutRight: false, // 鼠标右侧是否为页面边缘
-    nearOutBottom: false, // 鼠标下方是否为页面边缘
-    seriesIndex: -1, // 当前选中的seriesIndex
-    dataIndex: -1, // 当前选中的dataIndex
+    sliceStartTime: 0, // 当前切片起始时间
+    sliceEndTime: 0,
   };
 
   detailsSideData = {
     show: false,
   };
 
+  needTips = true;
+
   get apmMetric(): EDataType {
     return (this.panel.options?.apm_time_series?.metric || '') as EDataType;
   }
 
   get appName() {
-    return this.panel.options?.apm_time_series?.app_name || '';
+    return this.viewOptions?.app_name || '';
   }
 
   get serviceName() {
-    return this.panel.options?.apm_time_series?.service_name || '';
+    return this.viewOptions?.service_name || '';
   }
 
   /* 是否开启series的右键菜单 */
@@ -370,77 +359,38 @@ export default class ApmTimeSeries extends TimeSeries {
     this.handleLoadingChange(false);
   }
 
-  /**
-   * @description: 处理上下文菜单点击事件
-   * @param params
-   */
-  handleContextmenu(params) {
-    if (this.enableSeriesContextmenu) {
-      const { offsetX, offsetY } = params.event;
-      const { pageX, pageY } = params.event.event;
-      const { clientHeight, clientWidth } = document.documentElement;
-      this.contextmenuInfo = {
-        ...this.contextmenuInfo,
-        x: offsetX + 4,
-        y: offsetY + 4,
-        show: true,
-        nearOutRight: pageX > clientWidth - 120,
-        nearOutBottom: pageY > clientHeight - 80,
-        seriesIndex: params.seriesIndex,
-        dataIndex: params.dataIndex,
-      };
-      document.addEventListener('click', this.handleHideContextmenu);
-    }
-    setTimeout(() => {
-      this.$refs.baseChart?.dispatchAction({
-        type: 'highlight',
-        seriesIndex: params.seriesIndex,
-        dataIndex: params.dataIndex,
-      });
-    }, 200);
-  }
-
   /* 整个图的右键菜单 */
   handleChartContextmenu(event: MouseEvent) {
+    event.preventDefault();
     if (this.enableContextmenu) {
-      const { offsetX, offsetY } = event;
       const { pageX, pageY } = event;
-      const { clientHeight, clientWidth } = document.documentElement;
-      this.contextmenuInfo = {
-        ...this.contextmenuInfo,
-        x: offsetX + 4,
-        y: offsetY + 4,
-        show: true,
-        nearOutRight: pageX > clientWidth - 120,
-        nearOutBottom: pageY > clientHeight - 80,
-        seriesIndex: 0,
-        dataIndex: 0,
-      };
-      document.addEventListener('click', this.handleHideContextmenu);
+      const instance = (this.$refs.baseChart as any).instance;
+      createMenuList(
+        this.contextmenuInfo.options,
+        { x: pageX, y: pageY },
+        (id: string) => {
+          const startTime = (this.$refs.baseChart as any)?.curPoint?.xAxis || 0;
+          let endTime = 0;
+          let i = 0;
+          const datas = this.seriesList[0].data || [];
+          for (const item of datas) {
+            i += 1;
+            if (item?.value?.[0] === startTime || item?.[0] === startTime) {
+              const nextItem = datas[i];
+              endTime = nextItem?.value?.[0] || nextItem?.[0] || 0;
+              break;
+            }
+          }
+          this.contextmenuInfo = {
+            ...this.contextmenuInfo,
+            sliceStartTime: startTime,
+            sliceEndTime: endTime || startTime + 1000 * 60,
+          };
+          this.handleClickMenuItem(id);
+        },
+        instance
+      );
     }
-  }
-
-  /**
-   * @description: 隐藏右键菜单事件
-   * @param event
-   */
-  handleHideContextmenu(event: MouseEvent) {
-    if (!eventHasId(event, this.contextmenuInfo.id)) {
-      this.hideContextmenu();
-    }
-  }
-
-  /**
-   * @description: 隐藏右键菜单
-   */
-  hideContextmenu() {
-    this.contextmenuInfo.show = false;
-    document.removeEventListener('click', this.handleHideContextmenu);
-    this.$refs.baseChart?.dispatchAction({
-      type: 'downplay',
-      seriesIndex: this.contextmenuInfo.seriesIndex,
-      dataIndex: this.contextmenuInfo.dataIndex,
-    });
   }
 
   /**
@@ -449,12 +399,14 @@ export default class ApmTimeSeries extends TimeSeries {
    */
   handleClickMenuItem(id: string) {
     if (id === 'details') {
-      // TODO 详情
       this.detailsSideData.show = true;
     } else if (id === 'topo') {
-      // TODO 拓扑图
+      const { sliceStartTime, sliceEndTime } = this.contextmenuInfo;
+      this.handlePageTabChange('topo', {
+        sliceStartTime,
+        sliceEndTime,
+      });
     }
-    this.hideContextmenu();
   }
 
   handleCloseDetails() {
@@ -514,34 +466,14 @@ export default class ApmTimeSeries extends TimeSeries {
                   groupId={this.panel.dashboardId}
                   hoverAllTooltips={this.hoverAllTooltips}
                   isContextmenuPreventDefault={true}
+                  needTooltips={this.needTips}
                   options={this.options}
                   showRestore={this.showRestore}
-                  // onContextmenu={this.handleContextmenu}
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}
                   onRestore={this.handleRestore}
                 />
               )}
-              <div
-                id={this.contextmenuInfo.id}
-                style={{
-                  left: `${this.contextmenuInfo.x}px`,
-                  top: `${this.contextmenuInfo.y}px`,
-                  display: this.contextmenuInfo.show ? 'block' : 'none',
-                  transform: `translateX(${this.contextmenuInfo.nearOutRight ? '-100%' : '0'}) translateY(${this.contextmenuInfo.nearOutBottom ? '-100%' : '0'})`,
-                }}
-                class='contextmenu-list'
-              >
-                {this.contextmenuInfo.options.map(item => (
-                  <div
-                    key={item.id}
-                    class='contextmenu-list-item'
-                    onClick={() => this.handleClickMenuItem(item.id)}
-                  >
-                    {item.name}
-                  </div>
-                ))}
-              </div>
             </div>
             {legend?.displayMode !== 'hidden' && (
               <div class={`chart-legend ${legend?.placement === 'right' ? 'right-legend' : ''}`}>

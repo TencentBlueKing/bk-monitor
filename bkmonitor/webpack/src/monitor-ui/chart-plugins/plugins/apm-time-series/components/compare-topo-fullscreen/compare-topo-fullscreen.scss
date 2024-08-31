@@ -49,6 +49,7 @@
           .header-tools {
             position: absolute;
             top: 24px;
+            z-index: 9;
             display: flex;
             justify-content: space-between;
             width: 100%;

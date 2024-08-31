@@ -266,6 +266,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   collapseInfo = false;
   // 时间范围缓存用于复位功能
   cacheTimeRange = [];
+  /* 自定义router query */
+  customRouterQuery = {};
   // 特殊的目标字段配置
   get targetFields(): { [propName: string]: string } {
     const panel = this.sceneData?.selectorPanel;
@@ -527,6 +529,22 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.timeRange = JSON.parse(JSON.stringify(this.cacheTimeRange));
     this.showRestore = false;
   }
+  /**
+   * @description 切换视图面板模式 (底层图表事件)
+   * @param id
+   * @param customRouterQuery
+   */
+  @Provide('handlePageTabChange')
+  handleChartToTabChange(id: string, customRouterQuery: Record<string, number | string>) {
+    const item = this.tabList.find(item => item.id === id);
+    if (item) {
+      this.customRouterQuery = {
+        ...this.customRouterQuery,
+        ...customRouterQuery,
+      };
+      this.handleMenuTabChange(item);
+    }
+  }
   mounted() {
     this.timezone = getDefaultTimezone();
     this.initData();
@@ -749,29 +767,29 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       };
     }
     const data: IBookMark = await getSceneView(params).catch(() => ({ id: '', panels: [], name: '' }));
+    /* apm视图特殊处理 */
     for (const item of data?.overview_panels || []) {
-      if (item.type === 'apm-relation-graph') {
-        item.options = {
-          ...item.options,
-          apm_relation_graph: {
-            ...(item.options?.apm_relation_graph || {}),
-            app_name: this.filters.app_name || '',
-            service_name: this.filters.service_name || '',
-          },
-        };
-      }
-      if (item.type === 'apm-timeseries-chart' && item.options?.apm_time_series) {
-        item.options = {
-          ...item.options,
-          apm_time_series: {
-            ...item.options.apm_time_series,
-            app_name: this.filters.app_name || '',
-            service_name: this.filters.service_name || '',
-            enableContextmenu: true,
-          },
-        };
+      if ('apm_application' === this.sceneId) {
+        if (item.type === 'apm-timeseries-chart') {
+          item.options = {
+            ...item.options,
+            apm_time_series: {
+              ...item.options.apm_time_series,
+              enableContextmenu: true,
+            },
+          };
+        }
+        if (item.type === 'apdex-chart') {
+          item.options = {
+            apdex_chart: {
+              ...(item?.options?.apdex_chart || {}),
+              enableContextmenu: true,
+            },
+          };
+        }
       }
     }
+    /* apm视图特殊处理 */
     const oldSelectPanel = this.sceneData?.options?.selector_panel?.targets
       ? JSON.stringify(this.sceneData.options.selector_panel.targets)
       : '';
@@ -1236,6 +1254,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       name: this.$route.name,
       query: {
         ...filters,
+        ...this.customRouterQuery,
         method: this.method,
         interval: this.interval.toString(),
         groups: this.groups,

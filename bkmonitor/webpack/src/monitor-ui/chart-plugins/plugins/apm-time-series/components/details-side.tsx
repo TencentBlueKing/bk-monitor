@@ -30,21 +30,20 @@ import dayjs from 'dayjs';
 import { connect, disconnect } from 'echarts/core';
 import { metricDetailStatistics } from 'monitor-api/modules/apm_metric';
 import { Debounce, random } from 'monitor-common/utils';
+import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import { isEnFn } from 'monitor-pc/utils';
-import { formatTimeUnitAndValue } from '../../../utils/utils';
 
+import { formatTimeUnitAndValue } from '../../../utils/utils';
 import CompareTopoFullscreen from './compare-topo-fullscreen/compare-topo-fullscreen';
 import MiniChart, { EPointType } from './mini-chart';
 
 import type { ITableColumn, ITablePagination, TableRow } from 'monitor-pc/pages/monitor-k8s/typings/table';
 
 import './details-side.scss';
-
-
 
 enum EColumn {
   Chart = 'datapoints',
@@ -56,7 +55,7 @@ enum EColumn {
   ServerName = 'service',
 }
 
-enum EOptionKind {
+export enum EOptionKind {
   callee = 'callee',
   caller = 'caller',
 }
@@ -334,12 +333,8 @@ export default class DetailsSide extends tsc<IProps> {
       const unit = this.unit;
       return {
         [EColumn.Chart]: pointData,
-        [EColumn.CompareCount]: unit
-          ? { value: compareCount, unit }
-          : compareCount,
-        [EColumn.ReferCount]: unit
-          ? { value: referCount, unit }
-          : referCount,
+        [EColumn.CompareCount]: unit ? { value: compareCount, unit } : compareCount,
+        [EColumn.ReferCount]: unit ? { value: referCount, unit } : referCount,
         [EColumn.DiffCount]: diffCount,
       };
     };
@@ -640,68 +635,72 @@ export default class DetailsSide extends tsc<IProps> {
         <div
           class='content-wrap'
           slot='content'
-          v-bkloading={{ isLoading: this.loading }}
+          // v-bkloading={{ isLoading: this.loading }}
         >
           <div class='content-header-wrap'>
-            <div class='left-wrap'>
-              {this.showSelectOptions && (
-                <bk-select
-                  class='theme-select-wrap'
-                  v-model={this.selected}
-                  clearable={false}
-                  onSelected={this.handleSelectedChange}
-                >
-                  {this.selectOptions.map(item => (
-                    <bk-option
-                      id={item.id}
-                      key={item.id}
-                      name={item.name}
-                    />
-                  ))}
-                </bk-select>
-              )}
-              <div class='bk-button-group'>
-                {this.typeOptions.map(item => (
-                  <bk-button
-                    key={item.id}
-                    class={this.curType === item.id ? 'is-selected' : ''}
-                    onClick={() => this.handleTypeChange(item.id)}
+            {this.loading ? (
+              <div class='skeleton-element w-336 h-32' />
+            ) : (
+              <div class='left-wrap'>
+                {this.showSelectOptions && (
+                  <bk-select
+                    class='theme-select-wrap'
+                    v-model={this.selected}
+                    clearable={false}
+                    onSelected={this.handleSelectedChange}
                   >
-                    {item.name}
-                  </bk-button>
-                ))}
-              </div>
-              <div class='compare-switcher'>
-                <bk-switcher
-                  v-model={this.isCompare}
-                  theme='primary'
-                  onChange={this.handleSwitchCompareChange}
-                />
-                <span class='switcher-text'>{this.$t('对比')}</span>
-              </div>
-              {this.isCompare && (
-                <div class='compare-time-wrap'>
-                  {this.compareTimeInfo.map((item, index) => [
-                    index ? (
-                      <div
-                        key={`${item.id}${index}`}
-                        class='split-line'
+                    {this.selectOptions.map(item => (
+                      <bk-option
+                        id={item.id}
+                        key={item.id}
+                        name={item.name}
                       />
-                    ) : undefined,
-                    <div
+                    ))}
+                  </bk-select>
+                )}
+                <div class='bk-button-group'>
+                  {this.typeOptions.map(item => (
+                    <bk-button
                       key={item.id}
-                      class='compare-time-item'
+                      class={this.curType === item.id ? 'is-selected' : ''}
+                      onClick={() => this.handleTypeChange(item.id)}
                     >
-                      <span
-                        style={{ backgroundColor: item.color }}
-                        class='point'
-                      />
-                      <span class='time-text'>{`${item.name}: ${item.time}`}</span>
-                    </div>,
-                  ])}
+                      {item.name}
+                    </bk-button>
+                  ))}
                 </div>
-              )}
-            </div>
+                <div class='compare-switcher'>
+                  <bk-switcher
+                    v-model={this.isCompare}
+                    theme='primary'
+                    onChange={this.handleSwitchCompareChange}
+                  />
+                  <span class='switcher-text'>{this.$t('对比')}</span>
+                </div>
+                {this.isCompare && (
+                  <div class='compare-time-wrap'>
+                    {this.compareTimeInfo.map((item, index) => [
+                      index ? (
+                        <div
+                          key={`${item.id}${index}`}
+                          class='split-line'
+                        />
+                      ) : undefined,
+                      <div
+                        key={item.id}
+                        class='compare-time-item'
+                      >
+                        <span
+                          style={{ backgroundColor: item.color }}
+                          class='point'
+                        />
+                        <span class='time-text'>{`${item.name}: ${item.time}`}</span>
+                      </div>,
+                    ])}
+                  </div>
+                )}
+              </div>
+            )}
             <div class='right-wrap'>
               <bk-input
                 v-model={this.searchValue}
@@ -714,74 +713,89 @@ export default class DetailsSide extends tsc<IProps> {
             </div>
           </div>
           <div class='content-table-wrap'>
-            <CommonTable
-              ref='table'
-              scopedSlots={{
-                [EColumn.DiffCount]: row => {
-                  return row[EColumn.DiffCount] >= 0 ? (
-                    <span class='diff-up-text'>{`+${(row[EColumn.DiffCount] * 100).toFixed(2)}%`}</span>
-                  ) : (
-                    <span class='diff-down-text'>{`${(row[EColumn.DiffCount] * 100).toFixed(2)}%`}</span>
-                  );
-                },
-                [EColumn.Chart]: row => {
-                  return (
-                    <div
-                      key={row.id}
-                      class='chart-wrap'
-                    >
-                      <MiniChart
-                        compareX={this.compareX}
-                        data={row.datapoints}
-                        disableHover={!this.isCompare}
-                        groupId={this.chartGroupId}
-                        pointType={this.pointType}
-                        referX={this.referX}
-                        unit={this.unit}
-                        valueTitle={this.panelTitle}
-                        onCompareXChange={this.handleCompareXChange}
-                        onPointTypeChange={this.handlePointTypeChange}
-                        onReferXChange={this.handleReferXChange}
-                      />
-                    </div>
-                  );
-                },
-                [EColumn.CompareCount]: row => {
-                  const rowItem = row[EColumn.CompareCount];
-                  const timeItem = formatTimeUnitAndValue(rowItem.value, rowItem.unit);
-                  return <span>{`${timeItem.value}${timeItem.unit}`}</span>
-                },
-                [EColumn.ReferCount]: row => {
-                  const rowItem = row[EColumn.ReferCount];
-                  const timeItem = formatTimeUnitAndValue(rowItem.value, rowItem.unit);
-                  return <span>{`${timeItem.value}${timeItem.unit}`}</span>
-                },
-                [EColumn.Operate]: _row => {
-                  return (
-                    <bk-button
-                      type='primary'
-                      text
-                      onClick={this.handleViewTopo}
-                    >
-                      {this.$t('查看拓扑')}
-                    </bk-button>
-                  );
-                },
-              }}
-              checkable={false}
-              columns={this.tableColumns}
-              data={this.tableData}
-              hasColnumSetting={false}
-              pagination={this.pagination}
-              paginationType={'simple'}
-              onLimitChange={this.handleLimitChange}
-              onPageChange={this.handlePageChange}
-              onSortChange={this.handleSortChange}
-            />
+            {this.loading ? (
+              <TableSkeleton type={2} />
+            ) : (
+              <CommonTable
+                ref='table'
+                scopedSlots={{
+                  [EColumn.DiffCount]: row => {
+                    return row[EColumn.DiffCount] >= 0 ? (
+                      <span class='diff-up-text'>{`+${(row[EColumn.DiffCount] * 100).toFixed(2)}%`}</span>
+                    ) : (
+                      <span class='diff-down-text'>{`${(row[EColumn.DiffCount] * 100).toFixed(2)}%`}</span>
+                    );
+                  },
+                  [EColumn.Chart]: row => {
+                    return (
+                      <div
+                        key={row.id}
+                        class='chart-wrap'
+                      >
+                        <MiniChart
+                          compareX={this.compareX}
+                          data={row.datapoints}
+                          disableHover={!this.isCompare}
+                          groupId={this.chartGroupId}
+                          pointType={this.pointType}
+                          referX={this.referX}
+                          unit={this.unit}
+                          valueTitle={this.panelTitle}
+                          onCompareXChange={this.handleCompareXChange}
+                          onPointTypeChange={this.handlePointTypeChange}
+                          onReferXChange={this.handleReferXChange}
+                        />
+                      </div>
+                    );
+                  },
+                  [EColumn.CompareCount]: row => {
+                    if (typeof row[EColumn.CompareCount] === 'object') {
+                      const rowItem = row[EColumn.CompareCount];
+                      const timeItem = formatTimeUnitAndValue(rowItem.value, rowItem.unit);
+                      return <span>{`${timeItem.value}${timeItem.unit}`}</span>;
+                    }
+                    return row[EColumn.CompareCount];
+                  },
+                  [EColumn.ReferCount]: row => {
+                    if (typeof row[EColumn.ReferCount] === 'object') {
+                      const rowItem = row[EColumn.ReferCount];
+                      const timeItem = formatTimeUnitAndValue(rowItem.value, rowItem.unit);
+                      return <span>{`${timeItem.value}${timeItem.unit}`}</span>;
+                    }
+                    return row[EColumn.ReferCount];
+                  },
+                  [EColumn.Operate]: _row => {
+                    return (
+                      <bk-button
+                        type='primary'
+                        text
+                        onClick={this.handleViewTopo}
+                      >
+                        {this.$t('查看拓扑')}
+                      </bk-button>
+                    );
+                  },
+                }}
+                checkable={false}
+                columns={this.tableColumns}
+                data={this.tableData}
+                hasColnumSetting={false}
+                pagination={this.pagination}
+                paginationType={'simple'}
+                onLimitChange={this.handleLimitChange}
+                onPageChange={this.handlePageChange}
+                onSortChange={this.handleSortChange}
+              />
+            )}
           </div>
 
           <CompareTopoFullscreen
+            callType={this.curType}
+            compareTime={this.compareX}
+            dataType={this.dataType}
             isService={true}
+            referTime={this.referX}
+            secondSelectList={this.selectOptions}
             show={this.compareTopoShow}
             onShowChange={val => {
               this.compareTopoShow = val;

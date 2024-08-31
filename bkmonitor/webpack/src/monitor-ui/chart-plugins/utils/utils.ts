@@ -580,55 +580,127 @@ export function padTextToWidth(targetText: string, widthInPx: number): string {
   }
 }
 
-
 /**
  * @description 格式化时间单位和值
- * @param value 
- * @param unit 
- * @returns 
+ * @param value
+ * @param unit
+ * @returns
  */
 export const formatTimeUnitAndValue = (value: number, unit: string) => {
   const units = [
     {
       unit: 'μs',
-      value: 1
+      value: 1,
     },
     {
       unit: 'ms',
-      value: 1000
+      value: 1000,
     },
     {
       unit: 's',
-      value: 1000000
+      value: 1000000,
     },
     {
       unit: 'min',
-      value: 60000000
+      value: 60000000,
     },
     {
       unit: 'hour',
-      value: 3600000000
+      value: 3600000000,
     },
     {
       unit: 'day',
-      value: 86400000000
-    }
+      value: 86400000000,
+    },
   ];
   let curValue = value;
   let curUnit = unit;
-  if(!units.map(item => item.unit).includes(unit)) {
+  if (!units.map(item => item.unit).includes(unit)) {
     return {
       value: curValue,
-      unit: curUnit
-    }
+      unit: curUnit,
+    };
   }
-  while(Math.abs(curValue) >= 1000 && curUnit !== 'day') {
+  while (Math.abs(curValue) >= 1000 && curUnit !== 'day') {
     const index = units.findIndex(item => item.unit === curUnit);
     curValue = value / units[index + 1].value;
     curUnit = units[index + 1].unit;
   }
   return {
     value: curValue.toFixed(2),
-    unit: curUnit
+    unit: curUnit,
   };
-}
+};
+
+export const createMenuList = (
+  menuList: { id: string; name: string }[],
+  position: { x: number; y: number },
+  clickHandler: (id: string) => void,
+  instance: any
+) => {
+  const id = 'contextmenu-list-pop-wrapper';
+  const removeEl = () => {
+    const remove = document.getElementById(id);
+    if (remove) {
+      remove.remove();
+      setTimeout(() => {
+        instance?.dispatchAction({
+          type: 'restore',
+        });
+        instance?.dispatchAction({
+          type: 'takeGlobalCursor',
+          key: 'dataZoomSelect',
+          dataZoomSelectActive: true,
+        });
+      }, 500);
+    }
+  };
+  removeEl();
+  const el = document.createElement('div');
+  el.className = id;
+  el.id = id;
+  el.style.left = `${(() => {
+    const { clientWidth } = document.body;
+    if (position.x + 110 > clientWidth) {
+      return position.x - 110;
+    }
+    return position.x;
+  })()}px`;
+  el.style.top = `${(() => {
+    const { clientHeight } = document.body;
+    if (position.y + 32 * menuList.length > clientHeight) {
+      return position.y - 32 * menuList.length;
+    }
+    return position.y;
+  })()}px`;
+  el.addEventListener('click', (e: any | Event) => {
+    if (e.target.classList.contains('contextmenu-list-item')) {
+      clickHandler?.(e.target.dataset.id);
+      document.removeEventListener('click', removeWrap);
+      removeEl();
+    }
+  });
+  const listEl = menuList
+    .map(item => `<div class="contextmenu-list-item" data-id="${item.id}">${item.name}</div>`)
+    .join('');
+  el.innerHTML = listEl;
+  document.body.appendChild(el);
+  const eventHasId = (event: any | Event, id: string) => {
+    let target = event.target;
+    let has = false;
+    while (target) {
+      if (target.id === id) {
+        has = true;
+        break;
+      }
+      target = target?.parentNode;
+    }
+    return has;
+  };
+  function removeWrap(event: MouseEvent) {
+    if (!eventHasId(event, id)) {
+      removeEl();
+    }
+  }
+  document.addEventListener('click', removeWrap);
+};
