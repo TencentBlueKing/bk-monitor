@@ -32,6 +32,21 @@ import { EAlarmType, type IAlarmDataItem, type EDataType, alarmColorMap, getAlar
 
 import './bar-alarm-chart.scss';
 
+export const getSliceTimeRange = (datas: IAlarmDataItem[], timePoint: number) => {
+  let intervalTime = 60 * 1000;
+  if (datas.length >= 2) {
+    intervalTime = datas[1].time - datas[0].time;
+  }
+  let sliceStartTime = 0;
+  for (const item of datas) {
+    if (item.time === timePoint) {
+      sliceStartTime = item.time;
+      break;
+    }
+  }
+  return [sliceStartTime, sliceStartTime + intervalTime];
+};
+
 type TGetData = (set: (v: IAlarmDataItem[]) => void) => void;
 interface IProps {
   itemHeight?: number;
@@ -39,9 +54,12 @@ interface IProps {
   showXAxis?: boolean;
   showHeader?: boolean;
   isAdaption?: boolean;
-  dataType: EDataType;
+  dataType?: EDataType;
+  sliceTimeRange?: number[];
+  enableSelect?: boolean;
   getData?: TGetData;
-  onDataZoom: () => void;
+  onDataZoom?: () => void;
+  onSliceTimeRangeChange?: (v: number[]) => void;
 }
 
 @Component
@@ -59,6 +77,8 @@ export default class BarAlarmChart extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) isAdaption: boolean;
   /* 数据类型，上层参数 */
   @Prop({ type: String, default: '' }) dataType: EDataType;
+  @Prop({ type: Array, default: () => [] }) sliceTimeRange: number[];
+  @Prop({ type: Boolean, default: false }) enableSelect: boolean;
   @Prop({ type: Function, default: null }) getData: TGetData;
 
   loading = false;
@@ -107,6 +127,20 @@ export default class BarAlarmChart extends tsc<IProps> {
           const end = this.localData[len - 1].time;
           const center = this.localData[Math.floor(len / 2)].time;
           this.xAxis = [dayjs(start).format('HH:mm'), dayjs(center).format('HH:mm'), dayjs(end).format('HH:mm')];
+          if (this.enableSelect) {
+            if (this.curActive <= 0 && this.sliceTimeRange.every(v => v)) {
+              const [sliceStartTime, sliceEndTime] = this.sliceTimeRange;
+              for (const item of this.localData) {
+                if (item.time >= sliceStartTime && item.time < sliceEndTime) {
+                  this.curActive = item.time;
+                  break;
+                }
+              }
+            }
+            if (this.curActive <= 0) {
+              this.curActive = this.localData[this.localData.length - 1].time;
+            }
+          }
         } else {
           this.xAxis = [];
         }
@@ -165,14 +199,16 @@ export default class BarAlarmChart extends tsc<IProps> {
    * @returns
    */
   handleClick(item: IAlarmDataItem) {
-    if (item.type === EAlarmType.gray) {
+    if (item.type === EAlarmType.gray || !this.enableSelect) {
       return;
     }
     if (this.curActive === item.time) {
       this.curActive = -1;
       this.curHover = -1;
+      this.$emit('sliceTimeRangeChange', [0, 0]);
     } else {
       this.curActive = item.time;
+      this.$emit('sliceTimeRangeChange', getSliceTimeRange(this.localData as any, item.time));
     }
   }
 
