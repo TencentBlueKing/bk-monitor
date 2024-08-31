@@ -484,8 +484,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/monitor-resource-topo':
-        specifier: 0.0.1-beta.8
-        version: 0.0.1-beta.8(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16)
+        specifier: 0.0.1-beta.9
+        version: 0.0.1-beta.9(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16)
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.9
         version: 0.0.1-beta.9(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
@@ -2670,8 +2670,8 @@ packages:
     resolution: {integrity: sha512-iTiajeVT+hm0f+X93sfnm98OD1lmr+Q3m4/Hv6vnh126ZWwhNBavgzcCBLnhog9T5mLWeZH9dq8g9ltM4fI3FA==}
     dev: false
 
-  /@blueking/monitor-resource-topo@0.0.1-beta.8(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16):
-    resolution: {integrity: sha512-1MqyNDLudyS9LPvo7/Np2HGOz4/GAOlYI/z9u7gNX+ENDqaYgus5laPL+Tf0unIxteywzFSL2HZ1XEK0OArnPg==}
+  /@blueking/monitor-resource-topo@0.0.1-beta.9(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16):
+    resolution: {integrity: sha512-NQvard4RQN87zEiigq0/75rVxl371szX3WLo7QrHBHRCVjfGmxQbZCdjkZItQ4rKlEiUW3TU2fP1sy6fsUcDVw==}
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3

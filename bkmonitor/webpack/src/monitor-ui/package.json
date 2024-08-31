@@ -16,7 +16,7 @@
   "dependencies": {
     "@antv/g6": "^4.8.24",
     "@blueking/fork-resize-detector": "^0.0.2",
-    "@blueking/monitor-resource-topo": "0.0.1-beta.8",
+    "@blueking/monitor-resource-topo": "0.0.1-beta.9",
     "@blueking/search-select-v3": "0.0.1-beta.9",
     "@toast-ui/editor": "^3.2.2",
     "big.js": "^6.2.1",
