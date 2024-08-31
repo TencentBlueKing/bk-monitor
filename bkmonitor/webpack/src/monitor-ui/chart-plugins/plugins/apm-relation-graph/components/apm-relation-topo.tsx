@@ -30,11 +30,12 @@ import { Component as tsc } from 'vue-tsx-support';
 import G6, { type IGroup, type ModelConfig, type Graph, type INode, type IEdge, type IShape } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
+import { Debounce } from 'monitor-common/utils/utils';
 
 import CompareGraphTools from '../../apm-time-series/components/compare-topo-fullscreen/compare-graph-tools';
 import ApmTopoLegend from './apm-topo-legend';
 import {
-  type CategoryEnum,
+  CategoryEnum,
   type NodeDisplayTypeMap,
   type EdgeDataType,
   NodeDisplayType,
@@ -54,16 +55,18 @@ interface INodeModel {
     id: string;
     extra_info: Record<string, any>;
   };
+  have_data: boolean;
   request_count: number;
   color: string;
   size: number;
-  menu: { name: string; action: string }[];
+  menu: { name: string; action: string; url?: string }[];
   node_tips: { name: string; value: string }[];
 }
 
 type IEdgeModel = {
   from_name: string;
   to_name: string;
+  edge_breadth: number;
   duration_avg?: string;
   duration_p99?: string;
   duration_p95?: string;
@@ -72,13 +75,18 @@ type IEdgeModel = {
 
 type ApmRelationTopoProps = {
   data: { nodes: INodeModel[]; edges: IEdgeModel[] };
-  activeNode: string[];
-  scene: string;
+  activeNode: string;
   edgeType: EdgeDataType;
+  filterCondition: {
+    type: CategoryEnum;
+    showNoData: boolean;
+    searchValue: string;
+  };
 };
 
 type ApmRelationTopoEvent = {
   onNodeClick: (id: string) => void;
+  onResourceDrilling: (id: string) => void;
   onEdgeTypeChange: (edgeType: EdgeDataType) => void;
 };
 
@@ -95,9 +103,9 @@ const LIMIT_WORKER_ENABLED = 500;
 @Component
 export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelationTopoEvent> {
   @Prop() data: ApmRelationTopoProps['data'];
-  @Prop() activeNode: string[];
-  @Prop() scene: string;
+  @Prop() activeNode: string;
   @Prop() edgeType: EdgeDataType;
+  @Prop() filterCondition: ApmRelationTopoProps['filterCondition'];
 
   @Ref('relationGraph') relationGraphRef: HTMLDivElement;
   @Ref('graphToolsPanel') graphToolsPanelRef: HTMLDivElement;
@@ -170,12 +178,33 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         ...node,
         id: node.data.id,
       })),
-      edges: edges.map((item, index) => ({
-        source: item.from_name,
-        target: item.to_name,
-        label: String(item.duration_avg || item.duration_p95 || item.duration_p99 || item.request_count),
-        lineWidth: this.edgeType === 'request_count' ? 1 + (index / (edges.length - 1)) * 4 : 1,
-      })),
+      edges: edges.map(item => {
+        const common = {
+          source: item.from_name,
+          target: item.to_name,
+          label: String(item.duration_avg || item.duration_p95 || item.duration_p99 || item.request_count),
+          style: {
+            lineWidth: item.edge_breadth,
+            stroke: '#C4C6CC',
+            lineDash: [4, 4],
+            endArrow: {
+              path: G6.Arrow.triangle(10, 10, 0), // 路径
+              fill: '#C4C6CC', // 填充颜色
+            },
+          },
+        };
+
+        // if (item.from_name === item.to_name) {
+        //   return {
+        //     type: 'loop',
+        //     ...common,
+        //   };
+        // }
+        return {
+          type: 'apm-line-dash',
+          ...common,
+        };
+      }),
     };
   }
 
@@ -189,6 +218,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     addListener(this.$el as HTMLDivElement, this.handleResize);
   }
 
+  @Debounce(100)
   handleResize() {
     if (!this.graph || this.graph.get('destroyed')) return;
     const { width, height } = (this.relationGraphRef as HTMLDivElement).getBoundingClientRect();
@@ -201,9 +231,44 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     this.graph.fitView();
   }
 
-  @Watch('data')
+  @Watch('data', { immediate: true })
   handleDataChange() {
     this.initGraph();
+  }
+
+  @Watch('filterCondition', { deep: true })
+  handleFilterConditionChange(filter: ApmRelationTopoProps['filterCondition']) {
+    const { type, searchValue, showNoData } = filter;
+    const showAll = type === CategoryEnum.ALL;
+    const targetNodes = []; // 所选分类节点
+    const allEdges = []; // 所有边
+    const allNodes = this.graph.getNodes(); // 所有节点
+    for (const node of allNodes) {
+      const { data, have_data } = node.getModel() as INodeModelConfig;
+      const { category, name, id } = data;
+      // 关键字搜索匹配
+      const isKeywordMatch = name.toLowerCase().includes(searchValue.toLowerCase());
+      // 是否展示无数据节点
+      const isShowNoDataNode = showNoData || have_data;
+      // 图例过滤
+      const isLegendFilter = showAll || category === type;
+      // 高亮当前分类的节点 根据分类、关键字搜索匹配过滤
+      const isDisabled = !isKeywordMatch || !isShowNoDataNode || !isLegendFilter;
+      this.graph.setItemState(node, 'no-select', isDisabled);
+      // 保存高亮节点 用于设置关联边高亮
+      if (!isDisabled) targetNodes.push(id);
+
+      for (const edge of node.getEdges()) {
+        if (!allEdges.includes(edge)) allEdges.push(edge);
+      }
+    }
+
+    for (const edge of allEdges) {
+      const edgeModel = edge.getModel();
+      // source、target均是高亮节点的边
+      const isRelated = [edgeModel.source, edgeModel.target].every(item => targetNodes.includes(item));
+      this.graph.setItemState(edge, 'no-select', !isRelated);
+    }
   }
 
   // 节点自定义tooltips
@@ -277,9 +342,10 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     const iconMap = {
       span_drilling: 'icon-xiazuan',
       resource_drilling: 'icon-ziyuan',
+      blank: 'icon-mc-link',
     };
 
-    return new G6.Menu({
+    const menu = new G6.Menu({
       className: 'node-menu-container',
       trigger: 'contextmenu',
       // 是否阻止行为发生
@@ -307,14 +373,35 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
             </ul>`;
         }
       },
-      handleMenuClick: (target, item) => this.handleNodeMenuClick(target, item),
-      // 在哪些类型的元素上响应 node：节点 | canvas：画布
+      handleMenuClick: (target, item: INode) => this.handleNodeMenuClick(target, item),
       itemTypes: ['node'],
     });
+    return menu;
   }
 
-  handleNodeMenuClick(target, item) {
-    console.log(target, item);
+  /** 节点菜单点击 */
+  handleNodeMenuClick(target: HTMLElement, item: INode) {
+    if (!target.id || !item) return;
+    const { action = '', url } = JSON.parse(target.id);
+    // 下钻
+    if (action === 'span_drilling') {
+      return;
+    }
+    if (action === 'resource_drilling') {
+      // 资源拓扑
+      this.$emit('resourceDrilling', item);
+      for (const node of this.graph.getNodes()) {
+        node.setState('active', item._cfg.id === node._cfg.id);
+      }
+      return;
+    }
+    if (action === 'blank') {
+      if (!url) return;
+      // 查看第三方应用
+      this.$router.push({
+        path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${url}`.replace(/\/\//g, '/'),
+      });
+    }
   }
 
   initGraph() {
@@ -357,7 +444,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
              * @param  {G.Group} group 图形分组，边中的图形对象的容器
              * @return {G.Shape} 绘制的图形，通过 node.get('keyShape') 可以获取到
              */
-            afterDraw: (cfg: IEdgeModelConfig, group) => this.afterDrawLine(cfg, group),
+            // afterDraw: (cfg: IEdgeModelConfig, group) => this.afterDrawLine(cfg, group),
             /**
              * 设置边的状态，主要是交互状态，业务状态请在 draw 方法中实现
              * 单图形的边仅考虑 selected、active 状态，有其他状态需求的用户自己复写这个方法
@@ -519,26 +606,25 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   }
 
   afterDrawLine(cfg: IEdgeModelConfig, group: IGroup) {
-    const { lineWidth = 1, stroke = '#C4C6CC', lineDash = [4, 4] } = cfg;
-    const endArrow = {
-      path: G6.Arrow.triangle(10, 10, 0), // 路径
-      fill: '#C4C6CC', // 填充颜色
-    };
     const shape: IShape = group.get('children')[0];
-
     shape.attr({
-      lineWidth,
-      stroke,
-      lineDash,
-      endArrow,
+      stroke: '#C4C6CC',
+      lineDash: [4, 4],
+      endArrow: {
+        path: G6.Arrow.triangle(10, 10, 0), // 路径
+        fill: '#C4C6CC', // 填充颜色
+      },
     });
   }
 
+  /**
+   * 监听图表事件
+   * @param graph
+   */
   bindListener(graph: Graph) {
     graph.on('node:click', evt => {
       const { item } = evt;
-      const { id, model } = item._cfg;
-      if (model.disabled) return;
+      const { id } = item._cfg;
       for (const node of graph.getNodes()) {
         node.setState('active', item._cfg.id === node._cfg.id);
       }
@@ -552,15 +638,11 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
     graph.on('node:mouseenter', evt => {
       const { item } = evt;
-      const { model } = item._cfg;
-      if (model.disabled) return;
       graph.setItemState(item, 'hover', true);
     });
 
     graph.on('node:mouseleave', evt => {
       const { item } = evt;
-      const { model } = item._cfg;
-      if (model.disabled) return;
       graph.setItemState(item, 'hover', false);
     });
 
@@ -575,18 +657,11 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         this.graph.zoomTo(1);
         this.scaleValue = 1;
       }
-      const nodes = this.graph.findAll('node', node => this.activeNode.includes(node.getID()));
-      const activeEdge: IEdge[] = nodes.reduce((pre, node: INode) => {
-        node.setState('active', true);
-        pre.push(...node.getEdges());
-        return pre;
-      }, []);
-      for (const edge of activeEdge) {
-        edge.setState('active', true);
-      }
+      this.graph.setItemState(this.activeNode, 'active', true);
     });
   }
 
+  /** 设置节点状态 */
   setNodeState(name: string, value: boolean | string, item: INode) {
     const group = item.get<IGroup>('group');
     const { size = 36, stroke = '#2DCB56' } = item.getModel() as INodeModelConfig;
@@ -595,6 +670,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     if (name === 'hover' && !item.hasState('active')) {
       const edges = item.getEdges();
       item.toBack();
+      hoverCircle.stopAnimate();
       if (value) {
         hoverCircle.animate(
           radio => {
@@ -631,9 +707,16 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       for (const shape of activeCircle) {
         value ? shape.show() : shape.hide();
       }
+      if (value) {
+        const allEdges = this.graph.getEdges();
+        const nodeEdges = item.getEdges();
+        for (const edge of allEdges) {
+          edge.setState('active', nodeEdges.includes(edge));
+        }
+      }
     }
 
-    if (name === 'disabled') {
+    if (name === 'no-select') {
       const textShape = group.find(e => e.get('name') === 'text-shape');
       const nodeIcon = group.find(e => e.get('name') === 'node-icon');
       const nodeKeyShape = group.find(e => e.get('name') === 'custom-node-keyShape');
@@ -650,11 +733,13 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     }
   }
 
+  /** 设置边状态 */
   setEdgeState(name: string, value: boolean | string, item: IEdge) {
     const group = item.get('group');
     const keyShape: IShape = group.get('children')[0];
 
     if (name === 'active') {
+      console.log(item, value, name);
       if (value) {
         this.edgeAnimate(item, true);
         // 设置边属性
@@ -678,11 +763,19 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         });
       }
     }
+
+    if (name === 'no-select') {
+      keyShape.attr({
+        opacity: value ? 0.4 : 1,
+      });
+    }
   }
 
+  /** 边滑动动画 */
   edgeAnimate(edge: IEdge, start: boolean) {
     const group = edge.get('group');
     const keyShape: IShape = group.get('children')[0];
+    console.log(edge, keyShape);
     if (start) {
       let index = 0; // 边 path 图形的动画
       // 设置边动画
@@ -705,6 +798,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     }
   }
 
+  /** 下载图片 */
   handleDownloadImage() {
     if (!this.graph) return;
     const name = `${dayjs.tz().format('YYYY-MM-DD HH:mm:ss')}`;
@@ -714,6 +808,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     });
   }
 
+  /** 缩放滑块切换 */
   handleScaleChange(ratio: number) {
     if (!this.graph) return;
     this.scaleValue = ratio;

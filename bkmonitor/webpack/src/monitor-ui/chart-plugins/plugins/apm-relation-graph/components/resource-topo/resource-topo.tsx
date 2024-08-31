@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { Component, Prop } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+// import { Component as tsc } from 'vue-tsx-support';
 
 import { MonitorTopo, createApp, h as vue3CreateElement } from '@blueking/monitor-resource-topo/vue2';
 import { nodeRelation } from 'monitor-api/modules/apm_topo';
-import { Debounce } from 'monitor-common/utils';
+import { Debounce, random } from 'monitor-common/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import { CommonSimpleChart } from '../../../common-simple-chart';
@@ -44,29 +44,31 @@ export default class ResourceTopo extends CommonSimpleChart {
   refreshIntervalInstance = null;
   init = false;
   loading = false;
-  created() {
-    // const props = this.$props;
-    // const emit = this.$emit.bind(this);
-    let resourceTopoInstance;
+  topoEdges = [];
+  topoNodes = [];
+  topoSidebars = [];
+  paths: string[] = [];
+  refreshKey = random(10);
+  created() {}
+  beforeDestroy() {
+    this.app?.unmount();
+  }
+  renderResourceTopoComponent() {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const that = this;
     this.app = createApp({
       render() {
-        // eslint-disable-next-line @typescript-eslint/no-this-alias
-        resourceTopoInstance = this;
-        return vue3CreateElement(MonitorTopo, {});
+        return vue3CreateElement(MonitorTopo, {
+          key: that.refreshKey,
+          topoEdges: that.topoEdges || [],
+          topoNodes: that.topoNodes || [],
+          topoSidebars: that.topoSidebars || [],
+          onClickSidebarOption(paths: string[], rawSidebars) {
+            that.handlePathTypeChange(paths, rawSidebars);
+          },
+        } as any);
       },
     });
-    this.unWatchStack = Object.keys(this.$props).map(k => {
-      return this.$watch(k, v => {
-        resourceTopoInstance[k] = v;
-        resourceTopoInstance.$forceUpdate();
-      });
-    });
-  }
-  beforeDestroy() {
-    for (const unWatch of this.unWatchStack) {
-      unWatch?.();
-    }
-    this.app?.unmount();
   }
   @Debounce(100)
   async getPanelData() {
@@ -78,28 +80,44 @@ export default class ResourceTopo extends CommonSimpleChart {
       end_time: endTime,
       service_name: this.viewOptions?.filters?.service_name || 'alone-only-report-callee',
       app_name: this.viewOptions?.filters?.app_name,
-      path_type: 'default',
-      path: 'default',
+      path_type: this.paths.length ? 'specific' : 'default',
+      paths: this.paths.length ? this.paths.join(',') : 'default',
     };
     if (!params.app_name || !params.service_name) return;
     try {
       this.unregisterOberver();
       this.loading = true;
       const data = await nodeRelation(params);
+      this.loading = false;
       if (data) {
+        this.topoEdges = data.edges;
+        this.topoNodes = data.nodes;
+        if (!this.paths.length) {
+          this.topoSidebars = data.sidebars;
+        }
+        this.renderResourceTopoComponent();
         this.$nextTick(() => {
           this.app?.mount(this.$el.querySelector('.apm-resource-topo__chart'));
         });
       }
-      console.info(data, '=============++++++++++---');
-    } catch {
+    } catch (e) {
+      console.error(e);
     } finally {
       this.loading = false;
     }
   }
+  handlePathTypeChange(paths: string[], topoSidebars) {
+    this.paths = paths;
+    this.topoSidebars = topoSidebars;
+    this.loading = true;
+    this.getPanelData();
+  }
   render() {
     return (
-      <div class='apm-resource-topo'>
+      <div
+        key={this.refreshKey}
+        class='apm-resource-topo'
+      >
         {this.loading ? <ResourceTopoSkeleton /> : <div class='apm-resource-topo__chart' />}
       </div>
     );

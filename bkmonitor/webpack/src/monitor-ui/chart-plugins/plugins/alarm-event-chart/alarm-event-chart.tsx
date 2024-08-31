@@ -70,7 +70,7 @@ class AlarmEventChart
   height = 80;
   width = 300;
 
-  customOptions: MonitorEchartOptions | any = deepmerge(MONITOR_BAR_OPTIONS, {
+  customOptions: any | MonitorEchartOptions = deepmerge(MONITOR_BAR_OPTIONS, {
     backgroundColor: 'transparent',
     yAxis: {
       type: 'value',
@@ -260,7 +260,6 @@ class AlarmEventChart
               count: 10,
             },
           ];
-          console.log(params);
           return `
             <div class="time-text">${time}</div>
             <div class="alarm-title">

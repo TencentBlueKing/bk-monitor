@@ -142,6 +142,34 @@
       padding: 16px;
       margin: 24px;
       background: #fff;
+
+      .call-type-column {
+        display: flex;
+
+        .icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 16px;
+          height: 16px;
+          margin-left: 6px;
+          border-radius: 2px;
+
+          &.caller {
+            background: #fff3e1;
+            border: 1px solid #ffd695;
+          }
+
+          &.callee {
+            background: #e8fff5;
+            border: 1px solid #6fe0b8;
+          }
+        }
+
+        .icon-monitor {
+          font-size: 16px;
+        }
+      }
     }
   }
 
@@ -213,5 +241,13 @@
         height: calc(100% - 52px);
       }
     }
+  }
+
+  .empty-chart {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
   }
 }
