@@ -514,6 +514,8 @@ class ExportConfigFileResource(ExportConfigResource):
 class ExportAllConfigFileResource(ExportConfigFileResource):
     class RequestSerializer(BkBizIdSerializer):
         dashboard_for_external = serializers.BooleanField(label="仪表盘导出", default=False)
+        lock_filename = serializers.BooleanField(label="锁定文件名", default=False)
+        with_id = serializers.BooleanField(label="带上ID", default=False)
 
 
 class ImportConfigFileResource(Resource):
