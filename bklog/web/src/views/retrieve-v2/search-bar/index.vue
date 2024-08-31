@@ -76,13 +76,7 @@
   ];
   const queryType = computed(() => queryTypeList.value[activeIndex.value]);
 
-  const searchItemList = ref([
-    { fieldName: 'log-a', fieldValue: 'natural Home', disabled: false },
-    { fieldName: 'log-b', fieldValue: 'natural Home', disabled: false },
-    { fieldName: 'log-c', fieldValue: 'natural Home natural Home', disabled: false },
-    { fieldName: 'log-d', fieldValue: 'natural Home', disabled: false },
-    { fieldName: 'log-e', fieldValue: 'natural Home natural Home', disabled: false },
-  ]);
+  const searchItemList = ref([]);
 
   const handleQueryTypeChange = index => {
     activeIndex.value = index;

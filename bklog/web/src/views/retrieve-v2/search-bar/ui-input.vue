@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, watch } from 'vue';
+  import { ref, watch, nextTick } from 'vue';
   import tippy from 'tippy.js';
   import UiInputOptions from './ui-input-option.vue';
   import useStore from '@/hooks/use-store';
@@ -14,11 +14,11 @@
 
   const emit = defineEmits(['input', 'change']);
 
-  const store = useStore();
   let tippyInstance = null;
   const modelValue = ref([]);
   const refPopInstance = ref(null);
   const queryItem = ref('xxxx');
+  const fullTextValue = ref('');
 
   const uninstallInstance = () => {
     if (tippyInstance) {
@@ -47,10 +47,29 @@
     tippyInstance.show();
   };
 
+  const setFocusInputItem = (index = -1) => {
+    const oldIndex = modelValue.value.findIndex(item => item?.is_focus_input);
+    if (oldIndex === -1) {
+      modelValue.value.push({ is_focus_input: true });
+      return;
+    }
+
+    if (index >= 0) {
+      if (oldIndex > index) {
+        modelValue.value.splice(oldIndex, 1);
+        modelValue.value.splice(index, 0, { is_focus_input: true });
+      } else {
+        modelValue.value.splice(index, 0, { is_focus_input: true });
+        modelValue.value.splice(oldIndex, 1);
+      }
+    }
+  };
+
   watch(
     props.value,
     val => {
       modelValue.value = val;
+      setFocusInputItem();
     },
     { deep: true, immediate: true },
   );
@@ -66,6 +85,13 @@
     showTagListItems(target);
   };
 
+  const handleTagItemClick = (e, item) => {
+    queryItem.value = {};
+    Object.assign(queryItem.value, item);
+    const target = e.target.closest('.search-item');
+    showTagListItems(target);
+  };
+
   const handleDisabledTagItem = item => {
     item.disabled = !item.disabled;
   };
@@ -75,16 +101,32 @@
     emitChange(modelValue.value);
   };
 
-  const handleSaveQueryClick = () => {
+  const handleSaveQueryClick = paylod => {
     tippyInstance.hide();
+    const focusInputIndex = modelValue.value.findIndex(item => item.is_focus_input);
+    if (focusInputIndex === modelValue.value.length - 1) {
+      modelValue.value.splice(focusInputIndex - 1, 0, { ...paylod, disabled: false });
+      return;
+    }
+    modelValue.value.push({ ...paylod, disabled: false });
   };
 
   const handleCancelClick = () => {
     tippyInstance.hide();
   };
+
+  const handleContainerClick = e => {
+    const input = e.target?.querySelector('.tag-option-focus-input');
+    nextTick(() => {
+      input?.focus();
+    });
+  };
 </script>
 <template>
-  <ul class="search-items">
+  <ul
+    class="search-items"
+    @click.stop="handleContainerClick"
+  >
     <li
       class="search-item btn-add"
       @click.stop="handleAddItem"
@@ -93,21 +135,36 @@
       <div class="tag-text">{{ $t('添加条件') }}</div>
     </li>
     <li
-      :class="['search-item tag-item', { disabled: item.disabled }]"
+      :class="[
+        'search-item',
+        { disabled: item.disabled, 'is-focus-input': item.is_focus_input, 'tag-item': !item.is_focus_input },
+      ]"
       v-for="(item, index) in modelValue"
+      @click.stop="e => handleTagItemClick(e, item)"
     >
-      <div class="tag-row match-name">{{ item.fieldName }}<span class="symbol">=</span></div>
-      <div class="tag-row match-value">{{ item.fieldValue }}</div>
-      <div class="tag-options">
-        <span
-          :class="['bklog-icon', { 'bklog-eye': !item.disabled, 'bklog-eye-slash': item.disabled }]"
-          @click="() => handleDisabledTagItem(item)"
-        ></span>
-        <span
-          class="bk-icon icon-close"
-          @click="() => handleDeleteTagItem(index)"
-        ></span>
-      </div>
+      <template v-if="!item.is_focus_input">
+        <div class="tag-row match-name">
+          {{ item.field }}<span class="symbol">{{ item.operator }}</span>
+        </div>
+        <div class="tag-row match-value">{{ item.value }}</div>
+        <div class="tag-options">
+          <span
+            :class="['bklog-icon', { 'bklog-eye': !item.disabled, 'bklog-eye-slash': item.disabled }]"
+            @click.stop="() => handleDisabledTagItem(item)"
+          ></span>
+          <span
+            class="bk-icon icon-close"
+            @click.stop="() => handleDeleteTagItem(index)"
+          ></span>
+        </div>
+      </template>
+      <template v-else>
+        <input
+          type="text"
+          class="tag-option-focus-input"
+          v-model="fullTextValue"
+        />
+      </template>
     </li>
     <div style="display: none">
       <UiInputOptions

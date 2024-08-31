@@ -1,6 +1,7 @@
 ul.search-items {
   display: inline-flex;
   flex-wrap: wrap;
+  width: 100%;
   max-height: 135px;
   padding: 4px;
   padding-bottom: 0;
@@ -14,11 +15,22 @@ ul.search-items {
     align-content: center;
     justify-content: center;
     height: 40px;
-    padding: 2px 8px;
     margin-right: 4px;
     margin-bottom: 4px;
     cursor: pointer;
     border-radius: 2px;
+
+    &:not(.is-focus-input) {
+      padding: 2px 8px;
+      outline: none;
+    }
+
+
+    .tag-option-focus-input {
+      width: 8px;
+      height: 38px;
+      border: none;
+    }
 
     &.btn-add {
       font-size: 12px;
