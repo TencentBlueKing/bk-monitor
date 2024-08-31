@@ -617,6 +617,19 @@ class TopoNodeKind:
         }.get(key, key)
 
 
+class TopoVirtualServiceKind:
+    """虚拟服务中的分类"""
+
+    # 虚拟主调服务
+    CALLER = "bk_vServiceCaller"
+    # 虚拟被调服务
+    CALLEE = "bk_vServiceCallee"
+
+    @classmethod
+    def all_kinds(cls):
+        return [cls.CALLER, cls.CALLEE]
+
+
 class TraceFilterField:
     """trace检索表头支持获取候选值的字段"""
 

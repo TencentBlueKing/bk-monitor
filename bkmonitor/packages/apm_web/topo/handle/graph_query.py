@@ -138,7 +138,7 @@ class EdgeContainer:
         return
 
     def to_edges_attrs_mapping(self):
-        return {(i.from_name, i.to_name): asdict(i) for i in self._edges}
+        return {(i.from_name, i.to_name): {} for i in self._edges}
 
 
 @dataclass

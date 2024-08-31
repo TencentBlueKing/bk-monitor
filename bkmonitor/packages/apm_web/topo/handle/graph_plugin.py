@@ -15,7 +15,7 @@ from typing import Dict, List, Tuple, Type, Union
 
 from django.utils.translation import ugettext_lazy as _
 
-from apm_web.constants import AlertLevel, Apdex, TopoNodeKind
+from apm_web.constants import AlertLevel, Apdex, TopoNodeKind, TopoVirtualServiceKind
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.metric_handler import (
     ApdexInstance,
@@ -69,7 +69,7 @@ class PostPlugin(Plugin):
 
     _runtime: dict = field(default_factory=dict)
 
-    def process(self, data_type, edge_data_type, node_data, graph):
+    def process(self, data_type, edge_data_type, node_or_edge_data, graph):
         raise NotImplementedError
 
 
@@ -94,7 +94,8 @@ class ValuesPluginMixin:
         mappings = metric.get_instance_values_mapping(ignore_keys=self._ignore_keys())
         res = {}
         for k, v in mappings.items():
-            res[k] = {self.id: self._to_value(v[metric.metric_id])}
+            # 还需要保存原始值 以便后面插件进行处理
+            res[k] = {self.id: self._to_value(v[metric.metric_id]), f"_{self.id}": v[metric.metric_id]}
 
         return res
 
@@ -106,12 +107,11 @@ class ValuesPluginMixin:
         mappings = metric.get_instance_calculate_values_mapping(ignore_keys=self._ignore_keys())
         res = {}
         for k, v in mappings.items():
-            res[k] = {self.id: self._to_value(v[metric.metric_id])}
+            res[k] = {self.id: self._to_value(v[metric.metric_id]), f"_{self.id}": v[metric]}
 
         return res
 
-    @classmethod
-    def _to_value(cls, value):
+    def _to_value(self, value):
         """value 转换"""
         return value
 
@@ -200,12 +200,14 @@ class EdgeAvgDuration(PrePlugin, ValuesPluginMixin):
         group_by=["from_apm_service_name", "to_apm_service_name"],
     )
 
+    def __post_init__(self):
+        self.converter = load_unit("µs")
+
     def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
         return self.get_instance_values_mapping()
 
-    @classmethod
-    def _to_value(cls, value):
-        return "".join([str(i) for i in load_unit("µs").auto_convert(decimal=0, value=value)]) if value else None
+    def _to_value(self, value):
+        return "".join([str(i) for i in self.converter.auto_convert(decimal=2, value=value)]) if value else None
 
 
 @PluginProvider.pre_plugin
@@ -219,12 +221,14 @@ class EdgeDurationP95(PrePlugin, ValuesPluginMixin):
         functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.95"}]}],
     )
 
+    def __post_init__(self):
+        self.converter = load_unit("µs")
+
     def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
         return self.get_instance_values_mapping()
 
-    @classmethod
-    def _to_value(cls, value):
-        return "".join([str(i) for i in load_unit("µs").auto_convert(decimal=0, value=value)]) if value else None
+    def _to_value(self, value):
+        return "".join([str(i) for i in self.converter.auto_convert(decimal=2, value=value)]) if value else None
 
     @classmethod
     def _ignore_keys(cls):
@@ -242,12 +246,14 @@ class EdgeDurationP99(PrePlugin, ValuesPluginMixin):
         functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.99"}]}],
     )
 
+    def __post_init__(self):
+        self.converter = load_unit("µs")
+
     def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
         return self.get_instance_values_mapping()
 
-    @classmethod
-    def _to_value(cls, value):
-        return "".join([str(i) for i in load_unit("µs").auto_convert(decimal=0, value=value)]) if value else None
+    def _to_value(self, value):
+        return "".join([str(i) for i in self.converter.auto_convert(decimal=2, value=value)]) if value else None
 
     @classmethod
     def _ignore_keys(cls):
@@ -720,10 +726,31 @@ class BreadthEdge(PostPlugin):
     id: str = "edge_breadth"
     type: GraphPluginType = GraphPluginType.EDGE_UI
 
-    def process(self, data_type, edge_data_type, node_data, graph):
-        value = node_data.get(edge_data_type, 0)
-        sum_value = sum(attrs.get(edge_data_type, 0) for _, attrs in graph.nodes(data=True))
-        return round(value / sum_value, 2) if sum_value else 0
+    _min_width = 1
+    _max_width = 5
+
+    def process(self, data_type, edge_data_type, edge_data, graph):
+        # 获取原始值进行计算
+        metric_values = []
+        value = edge_data.get(f"_{edge_data_type}", 0)
+        for f, t, attr in graph.edges(data=True):
+            # 虚拟服务不显示在拓扑图上 所以不需要将虚拟服务的边指标纳入计算
+            if all(i not in TopoVirtualServiceKind.all_kinds() for i in [f.split("-")[-1], t.split("-")[-1]]):
+                metric_values.append(attr.get(f"_{edge_data_type}", 0))
+
+        if value in metric_values:
+            edge_data[self.id] = self.calculate_breadth(value, metric_values)
+
+    def calculate_breadth(self, value, metric_values):
+        """根据指标在指标列表中的位置 映射到宽度范围中计算出线条的宽度"""
+        if not value:
+            return self._min_width
+
+        sorted_values = sorted(set(metric_values))
+        position = sorted_values.index(value)
+        total = len(sorted_values)
+
+        return round((self._min_width + (self._max_width - self._min_width) * (position / (total - 1))), 2)
 
 
 @PluginProvider.post_plugin
@@ -790,6 +817,21 @@ class NodeColor(PostPlugin):
             else:
                 color = self.Color.RED
             node_data[self.id] = color
+
+
+@PluginProvider.post_plugin
+@dataclass
+class NodeHaveData(PostPlugin):
+    """
+    判断节点是否有数据
+    """
+
+    id: str = "have_data"
+    type: GraphPluginType = GraphPluginType.NODE_UI
+
+    def process(self, data_type, edge_data_type, node_data, graph):
+        request_count = node_data.get(NodeRequestCount.id)
+        node_data[self.id] = True if request_count else False
 
 
 @PluginProvider.post_plugin
@@ -874,7 +916,7 @@ class NodeTips(PostPlugin):
         实例数量
         """
         # 将节点数据归类在 tips 目录下
-        duration_converter = functools.partial(load_unit("µs").auto_convert, decimal=0)
+        duration_converter = functools.partial(load_unit("µs").auto_convert, decimal=2)
         percent_converter = functools.partial(load_unit("percent").auto_convert, decimal=2)
 
         duration_caller = node_data.pop(BarChartDataType.AVG_DURATION_CALLER.value, None)
@@ -979,6 +1021,7 @@ class TopoViewConverter(ViewConverter):
     _extra_pre_convert_plugins = PluginProvider.Container(
         _plugins=[
             BreadthEdge,
+            NodeHaveData,
             NodeColor,
             NodeSize,
             NodeMenu,
@@ -990,7 +1033,10 @@ class TopoViewConverter(ViewConverter):
     def convert(self, graph):
         nodes, edges = FilterChain.new(self.filter_params).filter(graph)
 
-        return {"nodes": [attrs for _, attrs in nodes], "edges": [attrs for *_, attrs in edges]}
+        return {
+            "nodes": [attrs for _, attrs in nodes],
+            "edges": [{**attrs, "from_name": f, "to_name": t} for f, t, attrs in edges],
+        }
 
 
 class TableViewConverter(ViewConverter):
@@ -1145,7 +1191,8 @@ class GraphToListFilter(Filter):
             nodes.append((node_id, attrs))
 
         for f, t, attrs in graph.edges(data=True):
-            edges.append((f, t, attrs))
+            # 不显示隐藏属性
+            edges.append((f, t, {k: v for k, v in attrs.items() if not k.startswith("_")}))
 
         return nodes, edges
 
