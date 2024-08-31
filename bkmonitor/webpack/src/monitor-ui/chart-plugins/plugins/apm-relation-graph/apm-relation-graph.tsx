@@ -28,6 +28,7 @@ import { Component, Inject, InjectReactive, Ref } from 'vue-property-decorator';
 // import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { CancelToken } from 'monitor-api/index';
 // import type { PanelModel } from '../../typings';
 import { dataTypeBarQuery } from 'monitor-api/modules/apm_topo';
 import { topoView } from 'monitor-api/modules/apm_topo';
@@ -42,21 +43,17 @@ import ApmRelationTopo from './components/apm-relation-topo';
 import BarAlarmChart from './components/bar-alarm-chart';
 import ResourceTopo from './components/resource-topo';
 import ServiceOverview from './components/service-overview';
-import { alarmBarChartDataTransform, DATA_TYPE_LIST, EDataType, type EdgeDataType } from './components/utils';
+import {
+  alarmBarChartDataTransform,
+  CategoryEnum,
+  DATA_TYPE_LIST,
+  EDataType,
+  type EdgeDataType,
+} from './components/utils';
 
 import type { ITableColumn, ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings/table';
 
 import './apm-relation-graph.scss';
-
-enum EColumn {
-  avgTime = 'avg_time',
-  callCount = 'call_count',
-  callService = 'call_service',
-  callType = 'call_type',
-  errorRate = 'error_rate',
-  operate = 'operate',
-  serverName = 'service_name',
-}
 
 const sideTopoMinWidth = 400;
 const sideOverviewMinWidth = 320;
@@ -72,6 +69,18 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   ) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
+
+  callColumn = {
+    caller: {
+      name: window.i18n.t('主调'),
+      icon: 'icon-back-right',
+    },
+    callee: {
+      name: window.i18n.t('被调'),
+      icon: 'icon-back-left',
+    },
+  };
+
   /* 概览图、列表图切换 */
   showTypes = [
     {
@@ -89,45 +98,54 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   edgeDataType: EdgeDataType = 'request_count';
 
+  /** 激活节点, 节点id */
+  activeNode = '';
+
   /* 筛选列表 */
   filterList = [
     {
-      id: 'all',
+      id: CategoryEnum.ALL,
       name: '全部',
       icon: 'icon-gailan',
     },
     {
-      id: 'http',
+      id: CategoryEnum.HTTP,
       name: '网页',
       icon: 'icon-wangye',
     },
     {
-      id: 'rpc',
+      id: CategoryEnum.RPC,
       name: '远程调用',
       icon: 'icon-yuanchengfuwu',
     },
     {
-      id: 'db',
+      id: CategoryEnum.DB,
       name: '数据库',
       icon: 'icon-DB',
     },
     {
-      id: 'messaging',
+      id: CategoryEnum.MESSAGING,
       name: '消息队列',
       icon: 'icon-xiaoxizhongjianjian',
     },
     {
-      id: 'async_backend',
+      id: CategoryEnum.ASYNC_BACKEND,
       name: '后台任务',
       icon: 'icon-renwu',
     },
     {
-      id: 'other',
+      id: CategoryEnum.OTHER,
       name: '其他',
       icon: 'icon-zidingyi',
     },
   ];
-  curFilter = 'all';
+
+  filterCondition = {
+    type: CategoryEnum.ALL,
+    showNoData: true,
+    searchValue: '',
+  };
+
   /* 展开列表 */
   expandList = [
     {
@@ -152,12 +170,13 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     showTotalCount: true,
   };
 
-  searchValue = '';
-
   graphData = {
     nodes: [],
     edges: [],
   };
+  /** 取消拓扑图请求 */
+  topoCancelFn = null;
+  topoLoading = true;
 
   /* 获取头部告警柱状条形图数据方法 */
   getAlarmBarData = null;
@@ -176,48 +195,8 @@ export default class ApmRelationGraph extends CommonSimpleChart {
       app_name: this.appName,
       service_name: this.serviceName,
       data_type: this.dataType,
-      search: this.searchValue,
+      search: this.filterCondition.searchValue,
     };
-  }
-
-  created() {
-    this.tableColumns = [
-      {
-        type: 'link',
-        id: EColumn.serverName,
-        name: window.i18n.tc('服务名称'),
-      },
-      {
-        type: 'scoped_slots',
-        id: EColumn.callType,
-        name: window.i18n.tc('调用类型'),
-      },
-      {
-        type: 'string',
-        id: EColumn.callService,
-        name: window.i18n.tc('调用服务'),
-      },
-      {
-        type: 'number',
-        id: EColumn.callCount,
-        name: window.i18n.tc('调用数'),
-      },
-      {
-        type: 'scoped_slots',
-        id: EColumn.errorRate,
-        name: window.i18n.tc('错误率'),
-      },
-      {
-        type: 'scoped_slots',
-        id: EColumn.avgTime,
-        name: window.i18n.tc('平均响应耗时'),
-      },
-      {
-        type: 'scoped_slots',
-        id: EColumn.operate,
-        name: window.i18n.tc('操作'),
-      },
-    ];
   }
 
   /**
@@ -263,11 +242,38 @@ export default class ApmRelationGraph extends CommonSimpleChart {
         data_type: this.dataType,
       };
     }
-    this.graphData = await topoView({
-      ...res,
-      edge_data_type: this.edgeDataType,
-      export_type: this.showType,
-    }).catch(() => ({ edges: [], nodes: [] }));
+    this.topoCancelFn?.();
+    this.topoLoading = true;
+    const data = await topoView(
+      {
+        ...res,
+        edge_data_type: this.edgeDataType,
+        export_type: this.showType,
+      },
+      {
+        cancelToken: new CancelToken(c => {
+          this.topoCancelFn = c;
+        }),
+      }
+    ).catch(() => {
+      if (this.showType === 'topo') return { edges: [], nodes: [] };
+      return { columns: [], data: [] };
+    });
+    if (this.showType === 'topo') {
+      this.graphData = data;
+    } else {
+      this.tableColumns = data.columns.map(item => {
+        if (item.id === 'type') {
+          return {
+            ...item,
+            type: 'scoped_slots',
+          };
+        }
+        return item;
+      });
+      this.tableData = data.data;
+    }
+    this.topoLoading = false;
   }
 
   handleEdgeTypeChange(edgeType) {
@@ -288,12 +294,18 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     }
   }
 
-  handleFilterChange(id) {
-    this.curFilter = id;
+  handleSearch(v) {
+    this.filterCondition.searchValue = v;
+  }
+
+  handleFilterChange(id: CategoryEnum) {
+    this.filterCondition.type = id;
   }
 
   handleShowTypeChange(item) {
+    if (this.showType === item.id) return;
     this.showType = item.id;
+    this.getTopoData();
   }
 
   handleDataTypeChange() {
@@ -306,6 +318,16 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     } else {
       this.getPanelData(startTime, endTime);
     }
+  }
+
+  handleNodeClick(nodeId: string) {
+    console.log(nodeId);
+    this.activeNode = nodeId;
+  }
+
+  handleResourceDrilling(nodeId: string) {
+    console.log(nodeId);
+    this.activeNode = nodeId;
   }
 
   render() {
@@ -354,17 +376,23 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               needAll={false}
               needExpand={true}
               statusList={this.filterList}
-              value={this.curFilter}
+              value={this.filterCondition.type}
               onChange={this.handleFilterChange}
             />
-            <bk-checkbox class='ml-24'>无数据节点</bk-checkbox>
+            <bk-checkbox
+              class='ml-24'
+              v-model={this.filterCondition.showNoData}
+            >
+              无数据节点
+            </bk-checkbox>
             <bk-input
               class='ml-24'
-              v-model={this.searchValue}
               behavior='simplicity'
               placeholder={'搜索服务、接口'}
               right-icon='bk-icon icon-search'
+              value={this.filterCondition.searchValue}
               clearable
+              onBlur={this.handleSearch}
             />
           </div>
           <div class='header-tool-wrap'>
@@ -386,13 +414,20 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             ref='content-wrap'
             expanded={this.expanded}
           >
-            <ApmRelationTopo
-              activeNode={['node1', 'node2']}
-              data={this.graphData}
-              edgeType={this.edgeDataType}
-              scene='request'
-              onEdgeTypeChange={this.handleEdgeTypeChange}
-            />
+            {!this.topoLoading ? (
+              <ApmRelationTopo
+                activeNode={this.activeNode}
+                data={this.graphData}
+                edgeType={this.edgeDataType}
+                filterCondition={this.filterCondition}
+                onEdgeTypeChange={this.handleEdgeTypeChange}
+                onNodeClick={this.handleNodeClick}
+                onResourceDrilling={this.handleResourceDrilling}
+              />
+            ) : (
+              <div class='empty-chart'>{this.$t('加载中')}</div>
+            )}
+
             <div
               class='side-wrap'
               slot='side'
@@ -444,6 +479,16 @@ export default class ApmRelationGraph extends CommonSimpleChart {
           <div class='apm-relation-graph-table-wrap'>
             <div class='table-wrap'>
               <CommonTable
+                scopedSlots={{
+                  type: row => (
+                    <div class='call-type-column'>
+                      <span>{this.callColumn[row.type]?.name}</span>
+                      <div class={`icon ${row.type}`}>
+                        <i class={`icon-monitor ${this.callColumn[row.type]?.icon}`} />
+                      </div>
+                    </div>
+                  ),
+                }}
                 checkable={false}
                 columns={this.tableColumns}
                 data={this.tableData}
