@@ -402,7 +402,7 @@ export default class ApmTimeSeries extends TimeSeries {
       this.detailsSideData.show = true;
     } else if (id === 'topo') {
       const { sliceStartTime, sliceEndTime } = this.contextmenuInfo;
-      this.handlePageTabChange('topo', {
+      this.handlePageTabChange(this.serviceName ? 'service-default-topo' : 'topo', {
         sliceStartTime,
         sliceEndTime,
       });
