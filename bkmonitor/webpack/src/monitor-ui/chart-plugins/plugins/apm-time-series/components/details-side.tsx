@@ -30,6 +30,7 @@ import dayjs from 'dayjs';
 import { connect, disconnect } from 'echarts/core';
 import { metricDetailStatistics } from 'monitor-api/modules/apm_metric';
 import { Debounce, random } from 'monitor-common/utils';
+import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -156,6 +157,8 @@ export default class DetailsSide extends tsc<IProps> {
     order: '',
   };
 
+  emptyStatus = 'empty';
+
   get showSelectOptions() {
     return this.dataType !== EDataType.requestCount;
   }
@@ -195,6 +198,7 @@ export default class DetailsSide extends tsc<IProps> {
     };
     this.tableColumns = [];
     this.tableData = [];
+    this.emptyStatus = 'empty';
   }
 
   created() {
@@ -251,7 +255,7 @@ export default class DetailsSide extends tsc<IProps> {
       data_type: this.dataType,
       dimension: this.selected,
       service_name: this.serviceName,
-    }).catch(() => ({ data: [] }));
+    }).catch(() => ({ data: [], columns: [] }));
     this.sourceTableData = Object.freeze(
       data.data.map(item => {
         let avgDuration = null;
@@ -478,6 +482,7 @@ export default class DetailsSide extends tsc<IProps> {
 
   @Debounce(300)
   handleSearch() {
+    this.emptyStatus = this.searchValue ? 'search-empty' : 'empty';
     this.pagination.current = 1;
     this.getTableData();
   }
@@ -608,6 +613,15 @@ export default class DetailsSide extends tsc<IProps> {
     this.getTableData();
   }
 
+  handleClearSearch() {
+    this.searchValue = '';
+    this.pagination.current = 1;
+    this.getTableData();
+    this.$nextTick(() => {
+      this.emptyStatus = 'empty';
+    });
+  }
+
   render() {
     return (
       <bk-sideslider
@@ -672,6 +686,7 @@ export default class DetailsSide extends tsc<IProps> {
                 <div class='compare-switcher'>
                   <bk-switcher
                     v-model={this.isCompare}
+                    size='small'
                     theme='primary'
                     onChange={this.handleSwitchCompareChange}
                   />
@@ -785,7 +800,14 @@ export default class DetailsSide extends tsc<IProps> {
                 onLimitChange={this.handleLimitChange}
                 onPageChange={this.handlePageChange}
                 onSortChange={this.handleSortChange}
-              />
+              >
+                <div slot='empty'>
+                  <EmptyStatus
+                    type={this.emptyStatus}
+                    onOperation={this.handleClearSearch}
+                  />
+                </div>
+              </CommonTable>
             )}
           </div>
 

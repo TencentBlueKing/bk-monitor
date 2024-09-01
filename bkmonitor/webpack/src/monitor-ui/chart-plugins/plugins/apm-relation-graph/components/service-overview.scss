@@ -190,9 +190,20 @@
           }
         }
         .related-log-chart-wrap .empty-chart {
-          transform: scale(0.35);
+          .bk-exception {
+            transform: scale(0.35);
+          }
         }
       }
+    }
+  }
+
+  .panel-skeleton {
+    .h-24 {
+      height: 24px;
+    }
+    .mb-6 {
+      margin-bottom: 6px;
     }
   }
 }

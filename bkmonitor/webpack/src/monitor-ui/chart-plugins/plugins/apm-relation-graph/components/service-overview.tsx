@@ -27,8 +27,7 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import deepmerge from 'deepmerge';
-import { deepClone, random } from 'monitor-common/utils';
+import { random } from 'monitor-common/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import TextOverflowCopy from 'monitor-pc/pages/monitor-k8s/components/text-overflow-copy/text-overflow-copy';
 import { echartsConnect, echartsDisconnect } from 'monitor-ui/monitor-echarts/utils';
@@ -48,6 +47,7 @@ type ServiceOverviewProps = {
   appName?: string;
   serviceName?: string;
   timeRange?: TimeRangeType;
+  endpoint?: string;
 };
 
 const apiFn = (api: string) => {
@@ -62,23 +62,18 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({ type: String, default: '' }) appName: string;
   @Prop({ type: String, default: '' }) serviceName: string;
+  @Prop({ type: String, default: '' }) endpoint: string;
   @Prop() data: Record<string, any>;
   @Prop({ type: Array, default: () => [] }) timeRange: TimeRangeType;
-
-  tabs = Object.freeze([
-    { id: 'service', name: window.i18n.tc('服务') },
-    { id: 'log', name: window.i18n.tc('日志') },
-    // { id: 'event', name: window.i18n.tc('事件') },
-  ]);
 
   tabActive = 'service';
   panels = {};
   panel: PanelModel[] = [];
-  /* 服务详情 */
-  serviceDetail = {
+  detailLoading = false;
+  /* 概览详情 */
+  overviewDetail = {
     name: '',
     others: [],
-    loading: false,
   };
   /* 告警数据 */
   serviceAlert = {
@@ -96,6 +91,34 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
     panels: [],
   };
 
+  curType: 'endpoint' | 'service' = 'service';
+
+  get tabs() {
+    if (this.curType === 'endpoint') {
+      return [{ id: 'service', name: window.i18n.tc('服务') }];
+    }
+    return [
+      { id: 'service', name: window.i18n.tc('服务') },
+      { id: 'log', name: window.i18n.tc('日志') },
+    ];
+  }
+
+  @Watch('serviceName')
+  handleWatchServiceName(v) {
+    if (this.show && v) {
+      this.curType = 'service';
+      this.initPanel();
+    }
+  }
+
+  @Watch('endpoint')
+  handleWatchEndpoint(v) {
+    if (this.show && v) {
+      this.curType = 'endpoint';
+      this.initPanel();
+    }
+  }
+
   @Watch('show', { immediate: true })
   handleWatchShow(show: boolean) {
     if (show) {
@@ -106,37 +129,11 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   }
 
   initPanel() {
-    console.log(this.data);
+    this.tabActive = 'service';
     this.getServiceDetail();
     this.getServiceAlert();
     this.getServiceTabData();
     this.getLogTabData();
-    /* this.panel = this.panels[this.tabActive].map(
-      panel =>
-        new PanelModel({
-          ...panel,
-          options: deepmerge(
-            deepClone(panel.options),
-            {
-              logHeader: this.tabActive === 'log',
-              time_series: {
-                echart_option: {
-                  grid: {
-                    bottom: 0,
-                  },
-                  xAxis: {
-                    splitNumber: 3,
-                  },
-                },
-              },
-              legend: {
-                displayMode: this.tabActive === 'log' ? 'hidden' : 'list',
-              },
-            },
-            { arrayMerge: (_, newArr) => newArr }
-          ),
-        })
-    ); */
   }
 
   /**
@@ -144,20 +141,22 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
    */
   async getServiceDetail() {
     try {
-      this.serviceDetail.loading = true;
-      const apiItem = apiFn(this.data.service_detail.targets[0].api);
+      this.detailLoading = true;
+      const typeKey = this.curType === 'endpoint' ? 'endpoint_detail' : 'service_detail';
+      const apiItem = apiFn(this.data[typeKey].targets[0].api);
       const result = await (this as any).$api[apiItem.apiModule]
         [apiItem.apiFunc]({
           app_name: this.appName,
           service_name: this.serviceName,
+          endpoint_name: this.curType === 'endpoint' ? this.endpoint : undefined,
         })
         .catch(() => []);
-      this.serviceDetail.name = result[0].value;
-      this.serviceDetail.others = result.slice(1);
-      this.serviceDetail.loading = false;
+      this.overviewDetail.name = result[0].value;
+      this.overviewDetail.others = result.slice(1);
     } catch (e) {
       console.error(e);
     }
+    this.detailLoading = false;
   }
 
   /**
@@ -167,7 +166,8 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
     try {
       this.serviceAlert.getData = async setData => {
         const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-        const apiItem = apiFn(this.data.service_alert.targets[0].api);
+        const typeKey = this.curType === 'endpoint' ? 'endpoint_alert' : 'service_alert';
+        const apiItem = apiFn(this.data[typeKey].targets[0].api);
         const data = await (this as any).$api[apiItem.apiModule]
           [apiItem.apiFunc]({
             app_name: this.appName,
@@ -175,6 +175,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
             data_type: EDataType.Alert,
             start_time: startTime,
             end_time: endTime,
+            endpoint_name: this.curType === 'endpoint' ? this.endpoint : undefined,
           })
           .catch(() => ({ series: [] }));
         const result = alarmBarChartDataTransform(EDataType.Alert, data.series);
@@ -190,7 +191,9 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
    */
   async getServiceTabData() {
     try {
-      const apdexPanel = this.data.service_tabs_service.panels.find(item => item.type === 'apdex-chart');
+      this.serviceTabData.dashboardId = random(8);
+      const typeKey = this.curType === 'endpoint' ? 'endpoint_tabs_service' : 'service_tabs_service';
+      const apdexPanel = this.data[typeKey].panels.find(item => item.type === 'apdex-chart');
       if (apdexPanel) {
         this.serviceTabData.getApdexData = async setData => {
           const apiItem = apiFn(apdexPanel.targets[0].api);
@@ -202,13 +205,14 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
               service_name: this.serviceName,
               start_time: startTime,
               end_time: endTime,
+              endpoint_name: this.curType === 'endpoint' ? this.endpoint : undefined,
             })
             .catch(() => ({ series: [] }));
           const result = alarmBarChartDataTransform(EDataType.Apdex, data.series);
           setData(result);
         };
       }
-      this.serviceTabData.panels = this.data.service_tabs_service.panels
+      this.serviceTabData.panels = this.data[typeKey].panels
         .filter(panel => panel.type !== 'apdex-chart')
         .map(
           panel =>
@@ -229,19 +233,23 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
    */
   async getLogTabData() {
     try {
-      this.logTabData.panels = this.data.service_tabs_log.panels.map(
-        panel =>
-          new PanelModel({
-            ...panel,
-            options: {
-              ...(panel?.options || {}),
-              related_log_chart: {
-                ...(panel?.options?.related_log_chart || {}),
-                isSimpleChart: true,
+      if (this.curType === 'service') {
+        this.logTabData.panels = this.data.service_tabs_log.panels.map(
+          panel =>
+            new PanelModel({
+              ...panel,
+              options: {
+                ...(panel?.options || {}),
+                related_log_chart: {
+                  ...(panel?.options?.related_log_chart || {}),
+                  isSimpleChart: true,
+                },
               },
-            },
-          })
-      );
+            })
+        );
+      } else {
+        this.logTabData.panels = [];
+      }
     } catch (e) {
       console.error(e);
     }
@@ -259,6 +267,11 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
     this.tabActive = id;
   }
 
+  handleServiceConfig() {
+    const url = `/service-config?app_name=${this.appName}&service_name=${this.serviceName}`;
+    window.open(`${location.origin}${location.pathname}${location.search}#/apm${url}`);
+  }
+
   renderCharts() {
     if (this.tabActive === 'service') {
       return (
@@ -270,6 +283,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
             getData={this.serviceTabData.getApdexData}
             isAdaption={true}
             itemHeight={24}
+            needRestoreEvent={true}
             showHeader={true}
             showXAxis={true}
           >
@@ -315,35 +329,50 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   render() {
     return (
       <div class='service-overview-comp'>
-        <div class='panel-form'>
-          <div class='form-header'>
-            <div class='form-title'>
-              <i class='icon-monitor icon-wangye' />
+        {this.detailLoading ? (
+          <div class='panel-skeleton'>
+            <div class='skeleton-element h-24 mb-6' />
+            <div class='skeleton-element h-24 mb-6' />
+            <div class='skeleton-element h-24 mb-6' />
+          </div>
+        ) : (
+          <div class='panel-form'>
+            <div class='form-header'>
+              {this.overviewDetail.name ? (
+                <div class='form-title'>
+                  <i class='icon-monitor icon-wangye' />
+                  <div
+                    class='title max-w-170'
+                    title={this.overviewDetail.name}
+                  >
+                    <TextOverflowCopy val={this.overviewDetail.name} />
+                  </div>
+                  {/* <div class='status'>{this.$t('正常')}</div> */}
+                </div>
+              ) : (
+                <div class='form-title'>{this.$t('暂无数据')}</div>
+              )}
               <div
-                class='title max-w-170'
-                title={this.serviceDetail.name}
+                class='setting-btn'
+                onClick={this.handleServiceConfig}
               >
-                <TextOverflowCopy val={this.serviceDetail.name} />
+                {this.curType === 'service' && this.$t('服务配置')}
+                <i class='icon-monitor icon-shezhi' />
               </div>
-              {/* <div class='status'>{this.$t('正常')}</div> */}
             </div>
-            <div class='setting-btn'>
-              {this.$t('服务配置')}
-              <i class='icon-monitor icon-shezhi' />
+            <div class='form-content'>
+              {this.overviewDetail.others.map(item => (
+                <div
+                  key={item.name}
+                  class='form-item'
+                >
+                  <div class='item-label'>{item.name}:</div>
+                  <div class='item-value'>{item.value}</div>
+                </div>
+              ))}
             </div>
           </div>
-          <div class='form-content'>
-            {this.serviceDetail.others.map(item => (
-              <div
-                key={item.name}
-                class='form-item'
-              >
-                <div class='item-label'>{item.name}:</div>
-                <div class='item-value'>{item.value}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+        )}
         <div class='alarm-wrap'>
           <BarAlarmChart
             activeItemHeight={32}
@@ -351,6 +380,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
             getData={this.serviceAlert.getData}
             isAdaption={true}
             itemHeight={24}
+            needRestoreEvent={true}
             showHeader={true}
             showXAxis={true}
           >
@@ -376,33 +406,6 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
               ))}
             </div>
             {this.renderCharts()}
-            {/* <div class='tabs-content'>
-              {this.tabActive === 'service' && (
-                <BarAlarmChart
-                  style='margin-bottom: 16px'
-                  activeItemHeight={32}
-                  isAdaption={true}
-                  itemHeight={24}
-                  showHeader={true}
-                  showXAxis={true}
-                >
-                  <div slot='title'>Apdex</div>
-                </BarAlarmChart>
-              )}
-              {this.panel.map(panel => (
-                <div
-                  key={panel.id}
-                  class={['chart-item', `${this.tabActive}-type`]}
-                >
-                  <ChartWrapper
-                    customMenuList={['more', 'fullscreen', 'explore', 'set', 'area', 'drill-down', 'relate-alert']}
-                    panel={panel}
-                    onChartCheck={v => this.handleChartCheck(v, panel)}
-                    onCollectChart={() => this.handleCollectChart(panel)}
-                  />
-                </div>
-              ))}
-            </div> */}
           </div>
         </div>
       </div>
