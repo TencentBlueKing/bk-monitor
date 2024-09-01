@@ -884,6 +884,7 @@ class NodeMenu(PostPlugin):
                 },
                 {
                     "name": _("查看三方应用"),
+                    "type": "link",
                     "action": "blank",
                     "url": ServiceHandler.build_url(self._runtime["application"].app_name, node_name),
                 },
@@ -902,6 +903,7 @@ class NodeMenu(PostPlugin):
                 {
                     "name": _("查看日志"),
                     "action": "self",
+                    "type": "link",
                     "url": f"/service?filter-service_name={node_name}&"
                     f"filter-app_name={self._runtime['application'].app_name}&"
                     f"dashboardId=service-default-log",
@@ -909,6 +911,7 @@ class NodeMenu(PostPlugin):
                 {
                     "name": _("查看服务"),
                     "action": "self",
+                    "type": "link",
                     "url": f"/service?filter-service_name={node_name}&"
                     f"filter-app_name={self._runtime['application'].app_name}&"
                     f"dashboardId=service-default-overview",
