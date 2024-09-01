@@ -1054,7 +1054,6 @@ class TableViewConverter(ViewConverter):
             {
                 "id": "service",
                 "name": "服务名称",
-                "sortable": "custom",
                 "type": "link",
             },
             {
@@ -1070,7 +1069,6 @@ class TableViewConverter(ViewConverter):
             {
                 "id": "other_service",
                 "name": "调用服务",
-                "sortable": "custom",
                 "type": "string",
             },
             {
@@ -1112,6 +1110,9 @@ class TableViewConverter(ViewConverter):
             },
             "type": _type,
             "avg_duration": attrs.get(TopoEdgeDataType.DURATION_AVG.value),
+            "avg_duration_original": round(attrs[f"_{TopoEdgeDataType.DURATION_AVG.value}"], 2)
+            if f"_{TopoEdgeDataType.DURATION_AVG.value}" in attrs
+            else None,
             "request_count": attrs.get(TopoEdgeDataType.REQUEST_COUNT.value),
             "error_rate": attrs.get(TopoEdgeDataType.ERROR_RATE.value),
         }
@@ -1191,8 +1192,7 @@ class GraphToListFilter(Filter):
             nodes.append((node_id, attrs))
 
         for f, t, attrs in graph.edges(data=True):
-            # 不显示隐藏属性
-            edges.append((f, t, {k: v for k, v in attrs.items() if not k.startswith("_")}))
+            edges.append((f, t, {k: v for k, v in attrs.items()}))
 
         return nodes, edges
 

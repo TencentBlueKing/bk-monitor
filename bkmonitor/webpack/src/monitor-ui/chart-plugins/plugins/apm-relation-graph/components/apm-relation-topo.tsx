@@ -35,6 +35,7 @@ import G6, {
   type INode,
   type IEdge,
   type IShape,
+  type Tooltip,
   type IG6GraphEvent,
 } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
@@ -55,7 +56,7 @@ import {
 
 import './apm-relation-topo.scss';
 
-interface INodeModel {
+export interface INodeModel {
   data: {
     category: CategoryEnum;
     display_key: string;
@@ -95,8 +96,8 @@ type ApmRelationTopoProps = {
 };
 
 type ApmRelationTopoEvent = {
-  onNodeClick: (id: string) => void;
-  onResourceDrilling: (id: string) => void;
+  onNodeClick: (node: INodeModel) => void;
+  onResourceDrilling: (node: INodeModel) => void;
   onEdgeTypeChange: (edgeType: EdgeDataType) => void;
 };
 
@@ -109,17 +110,28 @@ const HoverCircleWidth = 13;
 
 const LIMIT_RADIAL_LAYOUT_COUNT = 700;
 const LIMIT_WORKER_ENABLED = 500;
+
 class CustomMenu extends G6.Menu {
+  drilling = false;
+
+  documentClick = (e: Event) => {
+    if (!(e.target as HTMLElement).closest('.topo-menu-container')) this.hideMenu();
+  };
+
   onMenuShow(e: IG6GraphEvent): void {
     super.onMenuShow(e);
+    document.body.addEventListener('click', this.documentClick);
   }
-  onMenuHide() {
-    console.info(this, super.onMenuHide, '====================');
-  }
+
   hideMenu() {
+    document.body.removeEventListener('click', this.documentClick);
+    if (this.drilling) this.drilling = false;
     super.onMenuHide();
   }
+
+  private onMenuHide(): void {}
 }
+
 @Component
 export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelationTopoEvent> {
   @Prop() data: ApmRelationTopoProps['data'];
@@ -139,6 +151,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   graph: Graph = null; // 拓扑图实例
   toolsPopoverInstance = null; // 工具栏弹窗实例
 
+  tooltipsInstance: InstanceType<typeof Tooltip> = null;
   /** 图表缩放大小 */
   scaleValue = 1;
   /** 是否显示缩略图 */
@@ -178,7 +191,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     workerEnabled: true, // 可选，开启 web-worker
   };
 
-  topoMenu = null;
+  nodeMenuCfg = null;
+  menuInstance = null;
 
   /** 当前使用的布局 应用概览使用 radial布局、下钻服务使用 dagre 布局 */
   get graphLayout() {
@@ -295,7 +309,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   // 节点自定义tooltips
   nodeTooltip() {
-    return new G6.Tooltip({
+    this.tooltipsInstance = new G6.Tooltip({
       offsetX: 4, // x 方向偏移值
       offsetY: 4, // y 方向偏移值
       fixToNode: [1, 0.5], // 固定出现在相对于目标节点的某个位置
@@ -313,6 +327,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       // 自定义 tooltip 内容
       getContent: e => this.getTooltipsContent(e),
     });
+    return this.tooltipsInstance;
   }
 
   /**
@@ -361,9 +376,12 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   // 节点菜单
   contextMenu() {
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const that = this;
-    const menu = new CustomMenu({
+    const iconMap = {
+      span_drilling: 'icon-xiazuan',
+      resource_drilling: 'icon-ziyuan',
+      blank: 'icon-mc-link',
+    };
+    this.menuInstance = new CustomMenu({
       className: 'node-menu-container',
       trigger: 'contextmenu',
       // 是否阻止行为发生
@@ -372,40 +390,66 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         return false;
       },
       // 菜单项内容
-      getContent(evt) {
+      getContent: evt => {
+        this.nodeMenuCfg = evt;
         const { item } = evt;
         if (!item) return;
         const itemType = item.getType();
         const model = item.getModel() as any;
         if (itemType && model) {
-          if (!that.topoMenu) {
-            that.topoMenu = new Vue(TopoMenu);
-            that.topoMenu.menu = model.menu;
-            that.topoMenu.$mount();
-          } else {
-            that.topoMenu.menu = model.menu;
+          if (this.menuInstance.drilling) {
+            return `<div class='node-drilling-container topo-menu-container'>
+                      <div class='header'>
+                        <span>web-store</span>
+                        <div class='close-icon topo-menu-action' id='${JSON.stringify({ action: 'close' })}'>
+                          <div class='row-line'></div>
+                        </div>
+                      </div>
+                      <ul class='node-list'>
+                        <li class='node-item topo-menu-action' id='${JSON.stringify({ action: 'node-click' })}'>
+                          <div class='node'>
+                            <i class='icon-monitor icon-wangye'></i>
+                          </div>
+                          <span class='node-text'>function</span>
+                        </li>
+                      </ul>
+            </div>`;
           }
-          return that.topoMenu.$el as HTMLDivElement;
+
+          return `<ul class='topo-menu-list topo-menu-container'>
+            ${model.menu
+              .map(
+                target =>
+                  `<li class='topo-menu-action' id='${JSON.stringify(target)}'>
+                    <span class="icon-monitor node-menu-icon ${iconMap[target.action]}"></span>
+                    ${target.name}
+                   </li>`
+              )
+              .join('')}
+            </ul>`;
         }
       },
+
       handleMenuClick: (target, item: INode) => this.handleNodeMenuClick(target, item),
       itemTypes: ['node'],
     });
-    return menu;
+    return this.menuInstance;
   }
 
   /** 节点菜单点击 */
   handleNodeMenuClick(target: HTMLElement, item: INode) {
-    console.info(target, item, '===================');
-    if (!target.id || !item) return;
-    const { action = '', url } = JSON.parse(target.id);
+    const { action = '', url } = JSON.parse(target.closest('.topo-menu-action')?.id || '{}');
+    if (!action || !item) return;
+    this.menuInstance.hideMenu();
     // 下钻
     if (action === 'span_drilling') {
+      this.menuInstance.drilling = true;
+      this.menuInstance.onMenuShow(this.nodeMenuCfg);
       return;
     }
     if (action === 'resource_drilling') {
       // 资源拓扑
-      this.$emit('resourceDrilling', item);
+      this.$emit('resourceDrilling', item.getModel());
       for (const node of this.graph.getNodes()) {
         node.setState('active', item._cfg.id === node._cfg.id);
       }
@@ -417,6 +461,9 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       this.$router.push({
         path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${url}`.replace(/\/\//g, '/'),
       });
+    }
+
+    if (action === 'node-click') {
     }
   }
 
@@ -640,7 +687,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   bindListener(graph: Graph) {
     graph.on('node:click', evt => {
       const { item } = evt;
-      const { id } = item._cfg;
       for (const node of graph.getNodes()) {
         node.setState('active', item._cfg.id === node._cfg.id);
       }
@@ -649,7 +695,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       for (const edge of allEdges) {
         edge.setState('active', nodeEdges.includes(edge));
       }
-      this.$emit('nodeClick', id);
+      this.$emit('nodeClick', item.getModel());
     });
 
     graph.on('node:mouseenter', evt => {
@@ -682,7 +728,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     const group = item.get<IGroup>('group');
     const { size = 36, stroke = '#2DCB56' } = item.getModel() as INodeModelConfig;
     const hoverCircle = group.find(e => e.get('name') === 'custom-node-hover-circle');
-
     if (name === 'hover' && !item.hasState('active')) {
       const edges = item.getEdges();
       item.toBack();
@@ -755,7 +800,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     const keyShape: IShape = group.get('children')[0];
 
     if (name === 'active') {
-      console.log(item, value, name);
       if (value) {
         this.edgeAnimate(item, true);
         // 设置边属性
@@ -791,7 +835,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   edgeAnimate(edge: IEdge, start: boolean) {
     const group = edge.get('group');
     const keyShape: IShape = group.get('children')[0];
-    console.log(edge, keyShape);
     if (start) {
       let index = 0; // 边 path 图形的动画
       // 设置边动画

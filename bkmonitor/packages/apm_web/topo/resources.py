@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 
 from apm_web.topo.handle.bar_query import BarQuery
 from apm_web.topo.handle.graph_query import GraphQuery
+from apm_web.topo.handle.relation.detail import NodeRelationDetailHandler
 from apm_web.topo.handle.relation.entrance import RelationEntrance
 from apm_web.topo.serializers import (
     DataTypeBarQueryRequestSerializer,
@@ -65,4 +66,4 @@ class NodeRelationDetailResource(Resource):
     RequestSerializer = NodeRelationDetailSerializer
 
     def perform_request(self, validated_request_data):
-        pass
+        return NodeRelationDetailHandler.get_detail(**validated_request_data)
