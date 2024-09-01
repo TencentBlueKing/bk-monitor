@@ -621,6 +621,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                   <ServiceOverview
                     appName={this.appName}
                     data={this.serviceOverviewData}
+                    endpoint={this.selectedEndpoint}
                     serviceName={this.selectedServiceName}
                     show={this.expanded.includes('overview')}
                     timeRange={this.timeRange}
