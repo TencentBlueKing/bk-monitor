@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 // import { Component as tsc } from 'vue-tsx-support';
 
 import { MonitorTopo, createApp, h as vue3CreateElement } from '@blueking/monitor-resource-topo/vue2';
@@ -38,7 +38,7 @@ import './resource-topo.scss';
 import '@blueking/monitor-resource-topo/vue2/vue2.css';
 @Component
 export default class ResourceTopo extends CommonSimpleChart {
-  @Prop() a: number;
+  @Prop() serviceName: string;
   app = null;
   unWatchStack = [];
   refreshIntervalInstance = null;
@@ -50,6 +50,11 @@ export default class ResourceTopo extends CommonSimpleChart {
   paths: string[] = [];
   refreshKey = random(10);
   created() {}
+
+  @Watch('serviceName')
+  handleServiceNameChange() {
+    this.getPanelData();
+  }
   beforeDestroy() {
     this.app?.unmount();
   }
@@ -87,7 +92,7 @@ export default class ResourceTopo extends CommonSimpleChart {
     const params = {
       start_time: startTime,
       end_time: endTime,
-      service_name: this.viewOptions?.filters?.service_name || 'alone-only-report-callee',
+      service_name: this.serviceName || this.viewOptions?.filters?.service_name,
       app_name: this.viewOptions?.filters?.app_name,
       path_type: this.paths.length ? 'specific' : 'default',
       paths: this.paths.length ? this.paths.join(',') : 'default',
