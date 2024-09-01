@@ -27,7 +27,7 @@ import { Component, Prop } from 'vue-property-decorator';
 // import { Component as tsc } from 'vue-tsx-support';
 
 import { MonitorTopo, createApp, h as vue3CreateElement } from '@blueking/monitor-resource-topo/vue2';
-import { nodeRelation } from 'monitor-api/modules/apm_topo';
+import { nodeRelation, nodeRelationDetail } from 'monitor-api/modules/apm_topo';
 import { Debounce, random } from 'monitor-common/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
@@ -63,6 +63,15 @@ export default class ResourceTopo extends CommonSimpleChart {
           topoEdges: that.topoEdges || [],
           topoNodes: that.topoNodes || [],
           topoSidebars: that.topoSidebars || [],
+          getNodeDetails(params) {
+            return that.getNodeDetail(params);
+          },
+          showEventDetail(id: string) {
+            that.showEventDetail(id);
+          },
+          t(key: string) {
+            return that.$t(key);
+          },
           onClickSidebarOption(paths: string[], rawSidebars) {
             that.handlePathTypeChange(paths, rawSidebars);
           },
@@ -105,6 +114,20 @@ export default class ResourceTopo extends CommonSimpleChart {
     } finally {
       this.loading = false;
     }
+  }
+  async getNodeDetail(params) {
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    // await new Promise(r => setTimeout(r, 10000000));
+    return await nodeRelationDetail({
+      app_name: this.viewOptions?.filters?.app_name,
+      start_time: startTime,
+      end_time: endTime,
+      source_type: params.source_type,
+      source_info: params.source_info,
+    }).catch(() => ({}));
+  }
+  showEventDetail(id) {
+    window.__BK_WEWEB_DATA__?.showDetailSlider?.(id);
   }
   handlePathTypeChange(paths: string[], topoSidebars) {
     this.paths = paths;

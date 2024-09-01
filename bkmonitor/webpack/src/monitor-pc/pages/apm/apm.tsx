@@ -27,9 +27,12 @@ import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { activated, deactivated, loadApp } from '@blueking/bk-weweb';
+import EventDetailSlider from 'fta-solutions/pages/event/event-detail/event-detail-slider';
 
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
+
+import type { IShowDetail } from 'fta-solutions/pages/event/event-table';
 
 import './apm.scss';
 
@@ -38,6 +41,13 @@ Component.registerHooks(['beforeRouteLeave']);
 export default class ApmPage extends tsc<object> {
   loading = false;
   appkey = 'apm';
+  // 侧栏详情信息
+  detailInfo: { isShow: boolean; id: string; type: 'eventDetail'; bizId: number } = {
+    isShow: false,
+    id: '',
+    type: 'eventDetail',
+    bizId: +window.bk_biz_id,
+  };
   get apmHost() {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
   }
@@ -80,6 +90,7 @@ export default class ApmPage extends tsc<object> {
         host: this.apmHost,
         baseroute: '/apm/',
         $baseStore: this.$store,
+        showDetailSlider: this.handleShowDetail,
       },
     });
     activated(this.appkey, this.$refs.apmPageWrap as HTMLElement);
@@ -99,6 +110,16 @@ export default class ApmPage extends tsc<object> {
   deactivate() {
     this.$route.name !== 'application-add' && deactivated(this.appkey);
   }
+  /**
+   * @description: 显示详情数据
+   * @param {IShowDetail}
+   * @return {*}
+   */
+  handleShowDetail(data: IShowDetail) {
+    this.detailInfo.id = data.id;
+    this.detailInfo.isShow = true;
+    this.detailInfo.bizId = +window.bk_biz_id;
+  }
   render() {
     if (this.showGuidePage) return <GuidePage guideData={introduce.data['apm-home'].introduce} />;
     return (
@@ -106,6 +127,13 @@ export default class ApmPage extends tsc<object> {
         <div
           ref='apmPageWrap'
           class='apm-wrap-iframe'
+        />
+        <EventDetailSlider
+          bizId={this.detailInfo.bizId}
+          eventId={this.detailInfo.id}
+          isShow={this.detailInfo.isShow}
+          type={this.detailInfo.type}
+          onShowChange={v => (this.detailInfo.isShow = v)}
         />
       </div>
     );
