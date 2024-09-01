@@ -25,21 +25,22 @@
  */
 
 import { Component, Inject, InjectReactive, Ref } from 'vue-property-decorator';
-// import { Component as tsc } from 'vue-tsx-support';
 
+// import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/index';
 // import type { PanelModel } from '../../typings';
 import { dataTypeBarQuery } from 'monitor-api/modules/apm_topo';
 import { topoView } from 'monitor-api/modules/apm_topo';
 import { Debounce } from 'monitor-common/utils';
+import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 
 import { CommonSimpleChart } from '../common-simple-chart';
 import StatusTab from '../table-chart/status-tab';
 import ApmRelationGraphContent from './components/apm-relation-graph-content';
-import ApmRelationTopo from './components/apm-relation-topo';
+import ApmRelationTopo, { type INodeModel } from './components/apm-relation-topo';
 import BarAlarmChart, { getSliceTimeRange } from './components/bar-alarm-chart';
 import ResourceTopo from './components/resource-topo/resource-topo';
 import ServiceOverview from './components/service-overview';
@@ -51,7 +52,7 @@ import {
   type EdgeDataType,
 } from './components/utils';
 
-import type { ITableColumn, ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings/table';
+import type { IFilterDict, ITableColumn, ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings/table';
 
 import './apm-relation-graph.scss';
 
@@ -144,10 +145,20 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     },
   ];
 
+  /** 筛选条件 */
   filterCondition = {
+    /** 筛选类型 */
     type: CategoryEnum.ALL,
+    /** 展示无数据节点 */
     showNoData: true,
+    /** 搜索值 */
     searchValue: '',
+  };
+
+  filterColumn: IFilterDict = {};
+  columnSort = {
+    field: '',
+    order: 'ascending',
   };
 
   /* 展开列表 */
@@ -165,7 +176,9 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   /* 表格数据 */
   tableColumns: ITableColumn[] = [];
+  // 所有的表格数据
   tableData = [];
+
   /** 分页数据 */
   pagination: ITablePagination = {
     current: 1,
@@ -180,12 +193,40 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   };
   /** 取消拓扑图请求 */
   topoCancelFn = null;
-  topoLoading = true;
+  loading = {
+    topo: true,
+    table: true,
+  };
 
   /* 获取头部告警柱状条形图数据方法 */
   getAlarmBarData = null;
 
   sliceTimeRange = [0, 0];
+
+  /** 经过过滤的表格数据 */
+  get filterTableData() {
+    const { searchValue, type } = this.filterCondition;
+    const showAll = type === CategoryEnum.ALL;
+    const filterData = this.tableData.filter(item => {
+      const { other_service, service } = item;
+      // 关键字搜索匹配
+      const isKeywordMatch = service.name.toLowerCase().includes(searchValue.toLowerCase());
+      // 图例过滤
+      const isLegendFilter = showAll || [service.category, other_service.category].includes(type);
+      const columnFilter = Object.keys(this.filterColumn).every(key => {
+        return this.filterColumn[key].includes(item[key]);
+      });
+      return isKeywordMatch && isLegendFilter && columnFilter;
+    });
+    this.sortTable(filterData);
+    return filterData;
+  }
+
+  /** 最终展示的表格数据 */
+  get showTableData() {
+    const { current, limit } = this.pagination;
+    return this.filterTableData.slice((current - 1) * limit, current * limit);
+  }
 
   get appName() {
     return this.viewOptions?.app_name || '';
@@ -248,6 +289,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   async getTopoData(params?) {
     let res = params;
+    this.topoCancelFn?.();
     if (!params) {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       res = {
@@ -258,13 +300,13 @@ export default class ApmRelationGraph extends CommonSimpleChart {
         data_type: this.dataType,
       };
     }
-    this.topoCancelFn?.();
-    this.topoLoading = true;
+    const exportType = this.showType;
+    this.loading[exportType] = true;
     const data = await topoView(
       {
         ...res,
         edge_data_type: this.edgeDataType,
-        export_type: this.showType,
+        export_type: exportType,
       },
       {
         cancelToken: new CancelToken(c => {
@@ -275,6 +317,8 @@ export default class ApmRelationGraph extends CommonSimpleChart {
       if (this.showType === 'topo') return { edges: [], nodes: [] };
       return { columns: [], data: [] };
     });
+
+    this.loading[exportType] = false;
     if (this.showType === 'topo') {
       this.graphData = data;
     } else {
@@ -289,7 +333,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
       });
       this.tableData = data.data;
     }
-    this.topoLoading = false;
   }
 
   handleEdgeTypeChange(edgeType) {
@@ -318,6 +361,44 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.filterCondition.type = id;
   }
 
+  handleTablePageChange(page) {
+    this.pagination.current = page;
+  }
+
+  handleTableLimitChange(pageSize) {
+    this.pagination.limit = pageSize;
+    this.pagination.current = 1;
+  }
+
+  handleTableFilterChange(filters: IFilterDict) {
+    this.filterColumn = { ...filters };
+  }
+
+  handleTableSortChange({ prop, order }) {
+    this.columnSort = {
+      field: prop,
+      order,
+    };
+  }
+
+  sortTable(list) {
+    const { field, order } = this.columnSort;
+    if (!field || !order) return;
+    list.sort((a, b) => {
+      if (field === 'request_count') {
+        return order === 'ascending' ? a[field] - b[field] : b[field] - a[field];
+      }
+      if (field === 'error_rate') {
+        return order === 'ascending' ? a[field].localeCompare(b[field]) : b[field].localeCompare(a[field]);
+      }
+      if (field === 'avg_duration') {
+        return order === 'ascending'
+          ? a.avg_duration_original - b.avg_duration_original
+          : b.avg_duration_original - a.avg_duration_original;
+      }
+    });
+  }
+
   handleShowTypeChange(item) {
     if (this.showType === item.id) return;
     this.showType = item.id;
@@ -336,14 +417,14 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     }
   }
 
-  handleNodeClick(nodeId: string) {
-    console.log(nodeId);
-    this.activeNode = nodeId;
+  handleNodeClick(node: INodeModel) {
+    console.log(node);
+    this.activeNode = node.data.id;
   }
 
-  handleResourceDrilling(nodeId: string) {
-    console.log(nodeId);
-    this.activeNode = nodeId;
+  handleResourceDrilling(node: INodeModel) {
+    console.log(node);
+    this.activeNode = node.data.id;
   }
   /**
    * @description 获取路由的切片时间范围
@@ -454,7 +535,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             ref='content-wrap'
             expanded={this.expanded}
           >
-            {!this.topoLoading ? (
+            {!this.loading.topo ? (
               <ApmRelationTopo
                 activeNode={this.activeNode}
                 data={this.graphData}
@@ -524,23 +605,34 @@ export default class ApmRelationGraph extends CommonSimpleChart {
         ) : (
           <div class='apm-relation-graph-table-wrap'>
             <div class='table-wrap'>
-              <CommonTable
-                scopedSlots={{
-                  type: row => (
-                    <div class='call-type-column'>
-                      <span>{this.callColumn[row.type]?.name}</span>
-                      <div class={`icon ${row.type}`}>
-                        <i class={`icon-monitor ${this.callColumn[row.type]?.icon}`} />
+              {this.loading.table ? (
+                <TableSkeleton type={2} />
+              ) : (
+                <CommonTable
+                  pagination={{
+                    ...this.pagination,
+                    count: this.filterTableData.length,
+                  }}
+                  scopedSlots={{
+                    type: row => (
+                      <div class='call-type-column'>
+                        <span>{this.callColumn[row.type]?.name}</span>
+                        <div class={`icon ${row.type}`}>
+                          <i class={`icon-monitor ${this.callColumn[row.type]?.icon}`} />
+                        </div>
                       </div>
-                    </div>
-                  ),
-                }}
-                checkable={false}
-                columns={this.tableColumns}
-                data={this.tableData}
-                pagination={this.pagination}
-                paginationType={'simple'}
-              />
+                    ),
+                  }}
+                  checkable={false}
+                  columns={this.tableColumns}
+                  data={this.showTableData}
+                  paginationType={'simple'}
+                  onFilterChange={this.handleTableFilterChange}
+                  onLimitChange={this.handleTableLimitChange}
+                  onPageChange={this.handleTablePageChange}
+                  onSortChange={this.handleTableSortChange}
+                />
+              )}
             </div>
           </div>
         )}
