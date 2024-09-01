@@ -126,10 +126,10 @@ class StatisticsQuery(BaseQuery):
         es_dsl: Optional[Dict[str, Any]] = None,
     ):
         logic_fields, filters = self._parse_filters(filters)
-        q: QueryConfigBuilder = self.q.filter(self.build_filters(filters)).order_by(
-            *(self.parse_ordering_from_dsl(es_dsl) or [f"{self.DEFAULT_TIME_FIELD} desc"])
+        q: QueryConfigBuilder = self.q.filter(self._build_filters(filters)).order_by(
+            *(self._parse_ordering_from_dsl(es_dsl) or [f"{self.DEFAULT_TIME_FIELD} desc"])
         )
-        q = self.add_filters_from_dsl(q, es_dsl)
+        q = self._add_filters_from_dsl(q, es_dsl)
         queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time).limit(limit)
 
         k = f"{query_mode}:{queryset.query.start_time}{queryset.query.end_time}{limit}{filters}{es_dsl}"
@@ -188,10 +188,10 @@ class StatisticsQuery(BaseQuery):
         params_key: str,
     ) -> List[Dict[str, Any]]:
         group_fields: List[str] = []
-        field__display_map: Dict[str, str] = {}
+        field_display_map: Dict[str, str] = {}
         for info in self.GROUP_FIELD_CONFIG[query_mode]:
             group_fields.append(info["field"])
-            field__display_map[info["field"]] = info["display"]
+            field_display_map[info["field"]] = info["display"]
 
         q: QueryConfigBuilder = q.group_by(*group_fields)
         histogram_q: QueryConfigBuilder = (
@@ -203,7 +203,7 @@ class StatisticsQuery(BaseQuery):
 
         groups_filter: Q = Q()
         after_key: Optional[Dict[str, Any]] = {}
-        group__bucket_map: Dict[Tuple, Dict[str, Any]] = {}
+        group_bucket_map: Dict[Tuple, Dict[str, Any]] = {}
         for bucket in queryset.add_query(histogram_q):
             group_values: List[str] = []
             group_filter_params: Dict[str, Any] = {}
@@ -212,7 +212,7 @@ class StatisticsQuery(BaseQuery):
                 group_filter_params[f"{group_field}__eq"] = bucket[group_field]
 
                 # 字段翻译
-                bucket[field__display_map[group_field]] = bucket.pop(group_field)
+                bucket[field_display_map[group_field]] = bucket.pop(group_field)
 
             bucket["source"] = "opentelemetry"
             bucket["error_count"] = bucket["error_rate"] = 0
@@ -220,10 +220,10 @@ class StatisticsQuery(BaseQuery):
                 bucket[decimal_field] = round(bucket[decimal_field], 2)
 
             after_key = bucket.pop("_after_key_", None)
-            group__bucket_map[tuple(group_values)] = bucket
+            group_bucket_map[tuple(group_values)] = bucket
             groups_filter = groups_filter | Q(**group_filter_params)
 
-        if not group__bucket_map:
+        if not group_bucket_map:
             return []
 
         if after_key:
@@ -238,9 +238,9 @@ class StatisticsQuery(BaseQuery):
         )
         for err_bucket in queryset.add_query(error_q).after({}):
             group: Tuple = tuple([err_bucket[field] for field in group_fields])
-            bucket: Optional[Dict[str, Any]] = group__bucket_map.get(group)
+            bucket: Optional[Dict[str, Any]] = group_bucket_map.get(group)
             if not bucket:
-                logger.info("StatisticsQuery: %s, %s", err_bucket, group__bucket_map)
+                logger.info("StatisticsQuery: %s, %s", err_bucket, group_bucket_map)
                 logger.warning(
                     "[StatisticsQuery] _query_metric_data failed to add error_count, group -> %s not found", group
                 )
@@ -249,7 +249,7 @@ class StatisticsQuery(BaseQuery):
             bucket["error_count"] = err_bucket["error_count"]
             bucket["error_rate"] = round(err_bucket["error_count"] / bucket["span_count"], 2)
 
-        return list(group__bucket_map.values())
+        return list(group_bucket_map.values())
 
     @classmethod
     def get_after_key_param(cls, offset: int, params_key: str) -> Dict[str, Any]:
@@ -273,15 +273,13 @@ class StatisticsQuery(BaseQuery):
         logic_span_map = self.LOGIC_FILTER_KEY_MAPPING[logic_field]
         for group in groups:
             groups_filter_params: Dict[str, Any] = {
-                f"{logic_span_map[field]}__eq": field_value for field, field_value in group.items()
+                f"{logic_span_map[field]}__eq": value for field, value in group.items()
             }
             groups_filter: Q = groups_filter | Q(**groups_filter_params)
 
-        field_name_of_span_id: str = self.LOGIC_FILTER_KEY_ID_MAPPING[logic_field]
+        span_id_field: str = self.LOGIC_FILTER_KEY_ID_MAPPING[logic_field]
         q: QueryConfigBuilder = (
-            self.trace_query.q.filter(groups_filter)
-            .filter(self.trace_query.build_app_filter())
-            .values(field_name_of_span_id)
+            self.trace_query.q.filter(groups_filter).filter(self.trace_query.build_app_filter()).values(span_id_field)
         )
         queryset: UnifyQuerySet = (
             UnifyQuerySet().add_query(q).start_time(start_time).end_time(end_time).limit(DISCOVER_BATCH_SIZE)
@@ -289,7 +287,7 @@ class StatisticsQuery(BaseQuery):
 
         specific_span_ids: Set[str] = set()
         for trace_info in queryset:
-            specific_span_ids.add(trace_info[field_name_of_span_id])
+            specific_span_ids.add(trace_info[span_id_field])
 
         return list(specific_span_ids)
 

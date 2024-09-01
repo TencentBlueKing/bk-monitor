@@ -142,7 +142,7 @@ class BaseQuery:
         return QueryConfigBuilder(self.USING).table(self.result_table_id).time_field(self.DEFAULT_TIME_FIELD)
 
     def time_range_queryset(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
-        start_time, end_time = self.get_time_range(self.retention, start_time, end_time)
+        start_time, end_time = self._get_time_range(self.retention, start_time, end_time)
         return UnifyQuerySet().start_time(start_time).end_time(end_time)
 
     def _query_option_values(
@@ -197,7 +197,7 @@ class BaseQuery:
         return cls.KEY_REPLACE_FIELDS.get(field) or field
 
     @classmethod
-    def build_filters(cls, filters: Optional[List[types.Filter]]) -> Q:
+    def _build_filters(cls, filters: Optional[List[types.Filter]]) -> Q:
         if not filters:
             return Q()
 
@@ -216,7 +216,7 @@ class BaseQuery:
         return q
 
     @classmethod
-    def get_time_range(
+    def _get_time_range(
         cls, retention: int, start_time: Optional[int] = None, end_time: Optional[int] = None
     ) -> Tuple[int, int]:
         now: int = int(datetime.datetime.now().timestamp())
@@ -235,7 +235,7 @@ class BaseQuery:
         return start_time, end_time
 
     @classmethod
-    def add_filters_from_dsl(cls, q: QueryConfigBuilder, dsl: Dict[str, Any]) -> QueryConfigBuilder:
+    def _add_filters_from_dsl(cls, q: QueryConfigBuilder, dsl: Dict[str, Any]) -> QueryConfigBuilder:
         logger.info("[add_query_string] dsl -> %s", dsl)
         try:
             filter_dict: Dict[str, Any] = dsl_to_filter_dict(dsl["query"])
@@ -245,12 +245,12 @@ class BaseQuery:
         except Exception:
             logger.exception("[add_query_string] failed to parse dsl -> %s", dsl)
 
-        query_string, nested_paths = cls.parse_query_string_from_dsl(dsl)
+        query_string, nested_paths = cls._parse_query_string_from_dsl(dsl)
         logger.info("[add_query_string] query_string -> %s, nested_paths -> %s", query_string, nested_paths)
         return q.query_string(query_string, nested_paths)
 
     @classmethod
-    def parse_query_string_from_dsl(cls, dsl: Dict[str, Any]) -> Tuple[str, List[str]]:
+    def _parse_query_string_from_dsl(cls, dsl: Dict[str, Any]) -> Tuple[str, List[str]]:
         """
         【待废弃】在 dsl 中提取检索关键字，保留该逻辑主要是兼容前端的 lucene 查询，后续兼容不同 DB，该逻辑大概率会下掉
         :param dsl:
@@ -282,7 +282,7 @@ class BaseQuery:
         return query_string, nested_paths
 
     @classmethod
-    def parse_ordering_from_dsl(cls, dsl: Dict[str, Any]) -> List[str]:
+    def _parse_ordering_from_dsl(cls, dsl: Dict[str, Any]) -> List[str]:
         """
         【待废弃】在 dsl 中提取字段排序信息
         :param dsl:

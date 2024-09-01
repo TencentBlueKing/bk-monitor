@@ -48,6 +48,14 @@ class TraceQuery(BaseQuery):
         self.app_name: str = app_name
         super().__init__(bk_biz_id, result_table_id, retention)
 
+    @classmethod
+    def _get_select_fields(cls, exclude_fields: Optional[List[str]]) -> List[str]:
+        all_fields: Set[str] = {field_info["field_name"] for field_info in PrecalculateStorage.TABLE_SCHEMA}
+        select_fields: List[str] = list(
+            all_fields - set(exclude_fields or ["collections", "bk_app_code", "biz_name", "root_span_id"])
+        )
+        return select_fields
+
     def build_app_filter(self) -> Q:
         return Q(biz_id__eq=self.bk_biz_id, app_name__eq=self.app_name)
 
@@ -64,15 +72,12 @@ class TraceQuery(BaseQuery):
         es_dsl: Optional[Dict[str, Any]] = None,
         exclude_fields: Optional[List[str]] = None,
     ) -> Tuple[List[Dict[str, Any]], int]:
-        all_fields: Set[str] = {field_info["field_name"] for field_info in PrecalculateStorage.TABLE_SCHEMA}
-        select_fields: List[str] = list(
-            all_fields - set(exclude_fields or ["collections", "bk_app_code", "biz_name", "root_span_id"])
-        )
+        select_fields: List[str] = self._get_select_fields(exclude_fields)
         queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time)
-        q: QueryConfigBuilder = self.q.filter(self.build_filters(filters) & self.build_app_filter()).order_by(
-            *(self.parse_ordering_from_dsl(es_dsl) or [f"{self.DEFAULT_TIME_FIELD} desc"])
+        q: QueryConfigBuilder = self.q.filter(self._build_filters(filters) & self.build_app_filter()).order_by(
+            *(self._parse_ordering_from_dsl(es_dsl) or [f"{self.DEFAULT_TIME_FIELD} desc"])
         )
-        q = self.add_filters_from_dsl(q, es_dsl)
+        q = self._add_filters_from_dsl(q, es_dsl)
         page_data: types.Page = self._get_data_page(q, queryset, select_fields, OtlpKey.TRACE_ID, offset, limit)
         return page_data["data"], page_data["total"]
 
@@ -80,8 +85,6 @@ class TraceQuery(BaseQuery):
         self, trace_id: str, start_time: Optional[int], end_time: Optional[int]
     ) -> Optional[Dict[str, Any]]:
         """查询此traceId是否有跨应用关联（需要排除此业务下的EBPF应用）"""
-
-        exclude_biz_id: int = self.bk_biz_id
         exclude_app_names: List[str] = [self.app_name]
         ebpf_application: Optional[ApmApplication] = self._get_ebpf_application()
         if ebpf_application:
@@ -90,7 +93,7 @@ class TraceQuery(BaseQuery):
         q: QueryConfigBuilder = (
             self.q.order_by("time desc")
             .filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id})
-            .filter(Q(app_name__neq=exclude_app_names) | Q(biz_id__neq=exclude_biz_id))
+            .filter(Q(app_name__neq=exclude_app_names) | Q(biz_id__neq=self.bk_biz_id))
         )
 
         # 以此TraceId 开始-结束时间为范围 在此时间范围内才为跨应用
@@ -116,9 +119,9 @@ class TraceQuery(BaseQuery):
 
     @classmethod
     def _translate_field(cls, field: str) -> str:
-        for i, prefix in cls.KEY_PREFIX_TRANSLATE_FIELDS.items():
-            if field.startswith(i):
-                return f"{prefix}.{field}"
+        for prefix, translated_prefix in cls.KEY_PREFIX_TRANSLATE_FIELDS.items():
+            if field.startswith(prefix):
+                return f"{translated_prefix}.{field}"
         return super()._translate_field(field)
 
     @classmethod
@@ -145,7 +148,7 @@ class TraceQuery(BaseQuery):
         )
 
         aliases: List[str] = []
-        start_time, end_time = cls.get_time_range(retention, start_time, end_time)
+        start_time, end_time = cls._get_time_range(retention, start_time, end_time)
         queryset: UnifyQuerySet = UnifyQuerySet().start_time(start_time).end_time(end_time)
         for idx, result_table_id in enumerate(result_table_ids):
             alias: str = chr(ord("a") + idx)

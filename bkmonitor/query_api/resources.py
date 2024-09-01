@@ -45,9 +45,9 @@ class GetEsDataResource(Resource):
 
     def perform_request(self, validated_request_data):
         try:
-            full_index_names: List[str] = validated_request_data.get("index_names") or []
-            if full_index_names:
-                index: str = ",".join(full_index_names)
+            index_names: List[str] = validated_request_data.get("index_names") or []
+            if index_names:
+                index: str = ",".join(index_names)
             else:
                 index: str = f"{validated_request_data['index_name']}*"
 
