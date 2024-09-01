@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import Vue from 'vue';
+// import Vue from 'vue';
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -35,7 +35,6 @@ import G6, {
   type INode,
   type IEdge,
   type IShape,
-  type Tooltip,
   type IG6GraphEvent,
 } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
@@ -44,7 +43,7 @@ import { Debounce } from 'monitor-common/utils/utils';
 
 import CompareGraphTools from '../../apm-time-series/components/compare-topo-fullscreen/compare-graph-tools';
 import ApmTopoLegend from './apm-topo-legend';
-import TopoMenu, { type ITopoMenuItem } from './topo-menu';
+// import TopoMenu, { type ITopoMenuItem } from './topo-menu';
 import {
   CategoryEnum,
   type NodeDisplayTypeMap,
@@ -99,11 +98,10 @@ type ApmRelationTopoEvent = {
   onNodeClick: (node: INodeModel) => void;
   onResourceDrilling: (node: INodeModel) => void;
   onEdgeTypeChange: (edgeType: EdgeDataType) => void;
+  onServiceDetail: (node: INodeModel) => void;
 };
 
 type INodeModelConfig = ModelConfig & INodeModel;
-
-type IEdgeModelConfig = ModelConfig & IEdgeModel;
 
 // 节点hover阴影宽度
 const HoverCircleWidth = 13;
@@ -150,8 +148,12 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   maxZoomVal = 2; // 缩放滑动条最大值
   graph: Graph = null; // 拓扑图实例
   toolsPopoverInstance = null; // 工具栏弹窗实例
+  /** 图例筛选 */
+  legendFilter = {
+    status: '',
+    size: '',
+  };
 
-  tooltipsInstance: InstanceType<typeof Tooltip> = null;
   /** 图表缩放大小 */
   scaleValue = 1;
   /** 是否显示缩略图 */
@@ -273,43 +275,13 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   }
 
   @Watch('filterCondition', { deep: true })
-  handleFilterConditionChange(filter: ApmRelationTopoProps['filterCondition']) {
-    const { type, searchValue, showNoData } = filter;
-    const showAll = type === CategoryEnum.ALL;
-    const targetNodes = []; // 所选分类节点
-    const allEdges = []; // 所有边
-    const allNodes = this.graph.getNodes(); // 所有节点
-    for (const node of allNodes) {
-      const { data, have_data } = node.getModel() as INodeModelConfig;
-      const { category, name, id } = data;
-      // 关键字搜索匹配
-      const isKeywordMatch = name.toLowerCase().includes(searchValue.toLowerCase());
-      // 是否展示无数据节点
-      const isShowNoDataNode = showNoData || have_data;
-      // 图例过滤
-      const isLegendFilter = showAll || category === type;
-      // 高亮当前分类的节点 根据分类、关键字搜索匹配过滤
-      const isDisabled = !isKeywordMatch || !isShowNoDataNode || !isLegendFilter;
-      this.graph.setItemState(node, 'no-select', isDisabled);
-      // 保存高亮节点 用于设置关联边高亮
-      if (!isDisabled) targetNodes.push(id);
-
-      for (const edge of node.getEdges()) {
-        if (!allEdges.includes(edge)) allEdges.push(edge);
-      }
-    }
-
-    for (const edge of allEdges) {
-      const edgeModel = edge.getModel();
-      // source、target均是高亮节点的边
-      const isRelated = [edgeModel.source, edgeModel.target].every(item => targetNodes.includes(item));
-      this.graph.setItemState(edge, 'no-select', !isRelated);
-    }
+  handleFilterConditionChange() {
+    this.handleHighlightNode();
   }
 
   // 节点自定义tooltips
   nodeTooltip() {
-    this.tooltipsInstance = new G6.Tooltip({
+    return new G6.Tooltip({
       offsetX: 4, // x 方向偏移值
       offsetY: 4, // y 方向偏移值
       fixToNode: [1, 0.5], // 固定出现在相对于目标节点的某个位置
@@ -327,7 +299,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       // 自定义 tooltip 内容
       getContent: e => this.getTooltipsContent(e),
     });
-    return this.tooltipsInstance;
   }
 
   /**
@@ -376,11 +347,11 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   // 节点菜单
   contextMenu() {
-    const iconMap = {
-      span_drilling: 'icon-xiazuan',
-      resource_drilling: 'icon-ziyuan',
-      blank: 'icon-mc-link',
-    };
+    // const iconMap = {
+    //   span_drilling: 'icon-xiazuan',
+    //   resource_drilling: 'icon-ziyuan',
+    //   blank: 'icon-mc-link',
+    // };
     this.menuInstance = new CustomMenu({
       className: 'node-menu-container',
       trigger: 'contextmenu',
@@ -421,7 +392,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
               .map(
                 target =>
                   `<li class='topo-menu-action' id='${JSON.stringify(target)}'>
-                    <span class="icon-monitor node-menu-icon ${iconMap[target.action]}"></span>
                     ${target.name}
                    </li>`
               )
@@ -438,7 +408,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   /** 节点菜单点击 */
   handleNodeMenuClick(target: HTMLElement, item: INode) {
-    const { action = '', url } = JSON.parse(target.closest('.topo-menu-action')?.id || '{}');
+    const { action = '', type, url } = JSON.parse(target.closest('.topo-menu-action')?.id || '{}');
     if (!action || !item) return;
     this.menuInstance.hideMenu();
     // 下钻
@@ -450,20 +420,19 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     if (action === 'resource_drilling') {
       // 资源拓扑
       this.$emit('resourceDrilling', item.getModel());
-      for (const node of this.graph.getNodes()) {
-        node.setState('active', item._cfg.id === node._cfg.id);
-      }
       return;
     }
-    if (action === 'blank') {
+
+    if (action === 'service_detail') {
+      this.$emit('serviceDetail', item.getModel());
+      return;
+    }
+
+    if (type === 'link') {
       if (!url) return;
-      // 查看第三方应用
       this.$router.push({
         path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${url}`.replace(/\/\//g, '/'),
       });
-    }
-
-    if (action === 'node-click') {
     }
   }
 
@@ -501,13 +470,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         G6.registerEdge(
           'apm-line-dash',
           {
-            /**
-             * 绘制边，包含文本
-             * @param  {Object} cfg 边的配置项
-             * @param  {G.Group} group 图形分组，边中的图形对象的容器
-             * @return {G.Shape} 绘制的图形，通过 node.get('keyShape') 可以获取到
-             */
-            // afterDraw: (cfg: IEdgeModelConfig, group) => this.afterDrawLine(cfg, group),
             /**
              * 设置边的状态，主要是交互状态，业务状态请在 draw 方法中实现
              * 单图形的边仅考虑 selected、active 状态，有其他状态需求的用户自己复写这个方法
@@ -668,18 +630,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     return keyShape;
   }
 
-  afterDrawLine(cfg: IEdgeModelConfig, group: IGroup) {
-    const shape: IShape = group.get('children')[0];
-    shape.attr({
-      stroke: '#C4C6CC',
-      lineDash: [4, 4],
-      endArrow: {
-        path: G6.Arrow.triangle(10, 10, 0), // 路径
-        fill: '#C4C6CC', // 填充颜色
-      },
-    });
-  }
-
   /**
    * 监听图表事件
    * @param graph
@@ -708,6 +658,13 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       graph.setItemState(item, 'hover', false);
     });
 
+    graph.on('contextmenu', evt => {
+      const { item } = evt;
+      for (const node of this.graph.getNodes()) {
+        node.setState('active', item._cfg.id === node._cfg.id);
+      }
+    });
+
     graph.on('wheelzoom', () => {
       this.scaleValue = this.graph.getZoom();
     });
@@ -720,6 +677,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         this.scaleValue = 1;
       }
       this.graph.setItemState(this.activeNode, 'active', true);
+      this.handleHighlightNode();
     });
   }
 
@@ -942,6 +900,80 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     return type;
   }
 
+  handleLegendFilterChange(filter) {
+    this.legendFilter = filter;
+    this.handleHighlightNode();
+  }
+
+  /** 根据筛选条件高亮节点 */
+  handleHighlightNode() {
+    const { type, searchValue, showNoData } = this.filterCondition;
+    const showAll = type === CategoryEnum.ALL;
+    const targetNodes = []; // 所选分类节点
+    const allEdges = []; // 所有边
+    const allNodes = this.graph.getNodes(); // 所有节点
+    for (const node of allNodes) {
+      const { data, have_data, request_count, color } = node.getModel() as INodeModelConfig;
+      const { category, name, id } = data;
+      // 关键字搜索匹配
+      const isKeywordMatch = name.toLowerCase().includes(searchValue.toLowerCase());
+      // 是否展示无数据节点
+      const isShowNoDataNode = showNoData || have_data;
+      // 节点类型过滤
+      const isCategoryFilter = showAll || category === type;
+      // 节点请求数过滤
+      let isSizeFilter = true;
+      if (this.legendFilter.size) {
+        switch (this.legendFilter.size) {
+          case 'small':
+            isSizeFilter = request_count < 200;
+            break;
+          case 'medium':
+            isSizeFilter = request_count >= 200 && request_count < 1000;
+            break;
+          case 'large':
+            isSizeFilter = request_count >= 1000;
+            break;
+        }
+      }
+      let isStatusFilter = true;
+      // 节点颜色过滤
+      if (this.legendFilter.status) {
+        switch (this.legendFilter.status) {
+          case 'success':
+            isStatusFilter = color === '#2DCB56';
+            break;
+          case 'warning':
+            isStatusFilter = color === '#FF9C01';
+            break;
+          case 'error':
+            isStatusFilter = color === '#EA3636';
+            break;
+          case 'empty':
+            isStatusFilter = color === '#DCDEE5';
+            break;
+        }
+      }
+
+      // 高亮当前分类的节点 根据分类、关键字搜索，节点类型匹配过滤
+      const isDisabled = !isKeywordMatch || !isShowNoDataNode || !isCategoryFilter || !isSizeFilter || !isStatusFilter;
+      this.graph.setItemState(node, 'no-select', isDisabled);
+      // 保存高亮节点 用于设置关联边高亮
+      if (!isDisabled) targetNodes.push(id);
+
+      for (const edge of node.getEdges()) {
+        if (!allEdges.includes(edge)) allEdges.push(edge);
+      }
+    }
+
+    for (const edge of allEdges) {
+      const edgeModel = edge.getModel();
+      // source、target均是高亮节点的边
+      const isRelated = [edgeModel.source, edgeModel.target].every(item => targetNodes.includes(item));
+      this.graph.setItemState(edge, 'no-select', !isRelated);
+    }
+  }
+
   reset() {
     this.showLegend = false;
     this.showThumbnail = false;
@@ -993,7 +1025,9 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
                   display: this.showLegend ? 'block' : 'none',
                 }}
                 edgeType={this.edgeType}
+                legendFilter={this.legendFilter}
                 onEdgeTypeChange={this.handleEdgeTypeChange}
+                onLegendFilterChange={this.handleLegendFilterChange}
               />
             </div>
           </div>

@@ -333,7 +333,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
       if (this.showType === 'topo') return { edges: [], nodes: [] };
       return { columns: [], data: [] };
     });
-
     this.loading[exportType] = false;
     if (this.showType === 'topo') {
       this.graphData = data;
@@ -371,10 +370,17 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   handleSearch(v) {
     this.filterCondition.searchValue = v;
+    this.pagination.current = 1;
+  }
+
+  handleShowNoDataChange(val) {
+    this.filterCondition.showNoData = val;
+    this.pagination.current = 1;
   }
 
   handleFilterChange(id: CategoryEnum) {
     this.filterCondition.type = id;
+    this.pagination.current = 1;
   }
 
   handleTablePageChange(page) {
@@ -434,6 +440,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     }
   }
 
+  /** 点击节点 */
   handleNodeClick(node: INodeModel) {
     this.activeNode = node.data.id;
     this.selectedServiceName = node.data.id;
@@ -442,6 +449,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     }
   }
 
+  /** 资源拓扑 */
   handleResourceDrilling(node: INodeModel) {
     this.activeNode = node.data.id;
     this.selectedServiceName = node.data.id;
@@ -449,6 +457,12 @@ export default class ApmRelationGraph extends CommonSimpleChart {
       this.handleExpand('topo');
     }
   }
+
+  /** 资源概览 */
+  handleServiceDetail(node: INodeModel) {
+    this.activeNode = node.data.id;
+  }
+
   /**
    * @description 获取路由的切片时间范围
    */
@@ -525,7 +539,8 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             />
             <bk-checkbox
               class='ml-24'
-              v-model={this.filterCondition.showNoData}
+              value={this.filterCondition.showNoData}
+              onChange={this.handleShowNoDataChange}
             >
               无数据节点
             </bk-checkbox>
@@ -537,6 +552,8 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               value={this.filterCondition.searchValue}
               clearable
               onBlur={this.handleSearch}
+              onClear={this.handleSearch}
+              onEnter={this.handleSearch}
             />
           </div>
           <div class='header-tool-wrap'>
@@ -571,6 +588,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                 onEdgeTypeChange={this.handleEdgeTypeChange}
                 onNodeClick={this.handleNodeClick}
                 onResourceDrilling={this.handleResourceDrilling}
+                onServiceDetail={this.handleServiceDetail}
               />
             ) : (
               <div class='empty-chart'>{this.$t('加载中')}</div>
