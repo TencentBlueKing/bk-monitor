@@ -654,6 +654,7 @@ export const createMenuList = (
         });
       }, 500);
     }
+    document.removeEventListener('wheel', removeWrapWheel);
   };
   removeEl();
   const el = document.createElement('div');
@@ -702,5 +703,11 @@ export const createMenuList = (
       removeEl();
     }
   }
+  function removeWrapWheel(event: WheelEvent) {
+    if (Math.abs(event.deltaY) > 10) {
+      removeEl();
+    }
+  }
   document.addEventListener('click', removeWrap);
+  document.addEventListener('wheel', removeWrapWheel);
 };
