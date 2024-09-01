@@ -32,15 +32,18 @@ import './apm-topo-legend.scss';
 
 interface TopoLegendProps {
   edgeType: EdgeDataType;
+  legendFilter: { status: string; size: string };
 }
 
 interface TopoLegendEvent {
   onEdgeTypeChange(type: EdgeDataType): void;
+  onLegendFilterChange(filter: { status: string; size: string }): void;
 }
 
 @Component
 export default class TopoLegend extends tsc<TopoLegendProps, TopoLegendEvent> {
   @Prop() edgeType: EdgeDataType;
+  @Prop() legendFilter: { status: string; size: string };
 
   nodeColor = [
     { color: '#2DCB56', label: window.i18n.tc('正常'), id: 'success' },
@@ -83,6 +86,20 @@ export default class TopoLegend extends tsc<TopoLegendProps, TopoLegendEvent> {
     return type;
   }
 
+  @Emit('legendFilterChange')
+  handleLegendFilterChange(type: string, val: string) {
+    if (type === 'color') {
+      return {
+        status: val === this.legendFilter.status ? '' : val,
+        size: this.legendFilter.size,
+      };
+    }
+    return {
+      status: this.legendFilter.status,
+      size: val === this.legendFilter.size ? '' : val,
+    };
+  }
+
   render() {
     return (
       <div class='topo-graph-legend'>
@@ -92,11 +109,18 @@ export default class TopoLegend extends tsc<TopoLegendProps, TopoLegendEvent> {
             {this.nodeColor.map(item => (
               <div
                 key={item.id}
-                class='color-item'
+                class={{
+                  'color-item': true,
+                  active: !this.legendFilter.status || this.legendFilter.status === item.id,
+                }}
+                onClick={() => {
+                  this.handleLegendFilterChange('color', item.id);
+                }}
               >
                 <div
                   style={{
-                    background: item.color,
+                    background:
+                      !this.legendFilter.status || this.legendFilter.status === item.id ? item.color : '#c4c6cc',
                   }}
                   class='color-mark'
                 />
@@ -112,8 +136,16 @@ export default class TopoLegend extends tsc<TopoLegendProps, TopoLegendEvent> {
               <div
                 key={item.id}
                 class='node-item'
+                onClick={() => {
+                  this.handleLegendFilterChange('size', item.id);
+                }}
               >
-                <div class='radio' />
+                <div
+                  class={{
+                    radio: true,
+                    active: this.legendFilter.size === item.id,
+                  }}
+                />
                 <span>{item.label}</span>
               </div>
             ))}

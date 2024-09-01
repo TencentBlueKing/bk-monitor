@@ -875,6 +875,7 @@ class NodeMenu(PostPlugin):
 
     def process(self, data_type, edge_data_type, node_data, graph):
         kind = node_data.get("data", {}).get("kind")
+        node_name = node_data["data"]["name"]
         if kind == TopoNodeKind.REMOTE_SERVICE:
             node_data[self.id] = [
                 {
@@ -883,8 +884,9 @@ class NodeMenu(PostPlugin):
                 },
                 {
                     "name": _("查看三方应用"),
+                    "type": "link",
                     "action": "blank",
-                    "url": ServiceHandler.build_url(self._runtime["application"].app_name, node_data["data"]["name"]),
+                    "url": ServiceHandler.build_url(self._runtime["application"].app_name, node_name),
                 },
             ]
         else:
@@ -893,9 +895,26 @@ class NodeMenu(PostPlugin):
                     "name": _("接口下钻"),
                     "action": "span_drilling",
                 },
+                {"name": _("服务概览"), "action": "service_detail"},
                 {
                     "name": _("资源拓扑"),
                     "action": "resource_drilling",
+                },
+                {
+                    "name": _("查看日志"),
+                    "action": "self",
+                    "type": "link",
+                    "url": f"/service?filter-service_name={node_name}&"
+                    f"filter-app_name={self._runtime['application'].app_name}&"
+                    f"dashboardId=service-default-log",
+                },
+                {
+                    "name": _("查看服务"),
+                    "action": "self",
+                    "type": "link",
+                    "url": f"/service?filter-service_name={node_name}&"
+                    f"filter-app_name={self._runtime['application'].app_name}&"
+                    f"dashboardId=service-default-overview",
                 },
             ]
 

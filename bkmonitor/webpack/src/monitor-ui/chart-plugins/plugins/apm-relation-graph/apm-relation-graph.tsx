@@ -200,8 +200,13 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   /* 获取头部告警柱状条形图数据方法 */
   getAlarmBarData = null;
+  isAlarmBarDataZoomed = false;
 
   sliceTimeRange = [0, 0];
+  /* 当前点击的服务 */
+  selectedServiceName = '';
+  /* 当前点击的接口 */
+  selectedEndpoint = '';
 
   /** 经过过滤的表格数据 */
   get filterTableData() {
@@ -250,6 +255,15 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     return this.panel.options.apm_relation_graph;
   }
 
+  /* 右侧按钮禁用状态 */
+  get rightExpandDisable() {
+    return this.showType === 'table' || !(this.selectedServiceName || this.selectedEndpoint);
+  }
+
+  created() {
+    this.getSliceTimeRange();
+  }
+
   /**
    * @description: 获取图表数据
    */
@@ -260,7 +274,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
     try {
       this.unregisterOberver();
-      this.getSliceTimeRange();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
@@ -275,11 +288,14 @@ export default class ApmRelationGraph extends CommonSimpleChart {
           ...params,
         }).catch(() => ({ series: [] }));
         const result = alarmBarChartDataTransform(this.dataType, data.series);
-        setData(result);
         /* 默认切片时间 */
-        if (!this.sliceTimeRange.every(t => t)) {
-          this.sliceTimeRange = getSliceTimeRange(result, result[result.length - 1].time);
+        const lastTime = result[result.length - 1].time;
+        if (!this.sliceTimeRange.every(t => t) || this.sliceTimeRange[0] > lastTime || this.isAlarmBarDataZoomed) {
+          const sliceTimeRange = getSliceTimeRange(result, result[result.length - 1].time);
+          this.handleSliceTimeRangeChange(sliceTimeRange as any);
+          this.isAlarmBarDataZoomed = false;
         }
+        setData(result, this.sliceTimeRange);
       };
     } catch (e) {
       console.error(e);
@@ -317,7 +333,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
       if (this.showType === 'topo') return { edges: [], nodes: [] };
       return { columns: [], data: [] };
     });
-
     this.loading[exportType] = false;
     if (this.showType === 'topo') {
       this.graphData = data;
@@ -355,10 +370,17 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   handleSearch(v) {
     this.filterCondition.searchValue = v;
+    this.pagination.current = 1;
+  }
+
+  handleShowNoDataChange(val) {
+    this.filterCondition.showNoData = val;
+    this.pagination.current = 1;
   }
 
   handleFilterChange(id: CategoryEnum) {
     this.filterCondition.type = id;
+    this.pagination.current = 1;
   }
 
   handleTablePageChange(page) {
@@ -410,6 +432,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   }
 
   dataZoom(startTime: string, endTime: string) {
+    this.isAlarmBarDataZoomed = true;
     if (this.enableSelectionRestoreAll) {
       this.handleChartDataZoom([startTime, endTime]);
     } else {
@@ -417,15 +440,29 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     }
   }
 
+  /** 点击节点 */
   handleNodeClick(node: INodeModel) {
-    console.log(node);
+    this.activeNode = node.data.id;
+    this.selectedServiceName = node.data.id;
+    if (!this.expanded.includes('overview')) {
+      this.handleExpand('overview');
+    }
+  }
+
+  /** 资源拓扑 */
+  handleResourceDrilling(node: INodeModel) {
+    this.activeNode = node.data.id;
+    this.selectedServiceName = node.data.id;
+    if (!this.expanded.includes('topo')) {
+      this.handleExpand('topo');
+    }
+  }
+
+  /** 资源概览 */
+  handleServiceDetail(node: INodeModel) {
     this.activeNode = node.data.id;
   }
 
-  handleResourceDrilling(node: INodeModel) {
-    console.log(node);
-    this.activeNode = node.data.id;
-  }
   /**
    * @description 获取路由的切片时间范围
    */
@@ -502,7 +539,8 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             />
             <bk-checkbox
               class='ml-24'
-              v-model={this.filterCondition.showNoData}
+              value={this.filterCondition.showNoData}
+              onChange={this.handleShowNoDataChange}
             >
               无数据节点
             </bk-checkbox>
@@ -514,6 +552,8 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               value={this.filterCondition.searchValue}
               clearable
               onBlur={this.handleSearch}
+              onClear={this.handleSearch}
+              onEnter={this.handleSearch}
             />
           </div>
           <div class='header-tool-wrap'>
@@ -521,8 +561,12 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               {this.expandList.map(item => (
                 <div
                   key={item.id}
-                  class={['tool-btn', { active: this.expanded.includes(item.id) }]}
-                  onClick={() => this.handleExpand(item.id)}
+                  class={[
+                    'tool-btn',
+                    { disabled: this.rightExpandDisable },
+                    { active: this.expanded.includes(item.id) },
+                  ]}
+                  onClick={() => !this.rightExpandDisable && this.handleExpand(item.id)}
                 >
                   <span class={`icon-monitor ${item.icon}`} />
                 </div>
@@ -544,6 +588,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                 onEdgeTypeChange={this.handleEdgeTypeChange}
                 onNodeClick={this.handleNodeClick}
                 onResourceDrilling={this.handleResourceDrilling}
+                onServiceDetail={this.handleServiceDetail}
               />
             ) : (
               <div class='empty-chart'>{this.$t('加载中')}</div>
@@ -582,7 +627,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                 class={['service-overview', { 'no-border': !this.expanded.includes('topo') }]}
               >
                 <div class='header-wrap'>
-                  <div class='title'>服务概览</div>
+                  <div class='title'>{this.selectedEndpoint ? this.$t('接口概览') : this.$t('服务概览')}</div>
                   <div
                     class='expand-btn'
                     onClick={() => this.handleExpand('overview')}
@@ -594,7 +639,8 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                   <ServiceOverview
                     appName={this.appName}
                     data={this.serviceOverviewData}
-                    serviceName={this.serviceName}
+                    endpoint={this.selectedEndpoint}
+                    serviceName={this.selectedServiceName}
                     show={this.expanded.includes('overview')}
                     timeRange={this.timeRange}
                   />

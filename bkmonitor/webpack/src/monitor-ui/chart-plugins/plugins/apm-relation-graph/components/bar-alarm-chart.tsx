@@ -23,12 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 
 import { EAlarmType, type IAlarmDataItem, type EDataType, alarmColorMap, getAlarmItemStatusTips } from './utils';
+
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './bar-alarm-chart.scss';
 
@@ -47,7 +49,7 @@ export const getSliceTimeRange = (datas: IAlarmDataItem[], timePoint: number) =>
   return [sliceStartTime, sliceStartTime + intervalTime];
 };
 
-type TGetData = (set: (v: IAlarmDataItem[]) => void) => void;
+type TGetData = (set: (v: IAlarmDataItem[], sliceTimeRange?: number[]) => void) => void;
 interface IProps {
   itemHeight?: number;
   activeItemHeight?: number;
@@ -57,6 +59,7 @@ interface IProps {
   dataType?: EDataType;
   sliceTimeRange?: number[];
   enableSelect?: boolean;
+  needRestoreEvent?: boolean;
   getData?: TGetData;
   onDataZoom?: () => void;
   onSliceTimeRangeChange?: (v: number[]) => void;
@@ -80,6 +83,14 @@ export default class BarAlarmChart extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) sliceTimeRange: number[];
   @Prop({ type: Boolean, default: false }) enableSelect: boolean;
   @Prop({ type: Function, default: null }) getData: TGetData;
+  @Prop({ type: Boolean, default: false }) needRestoreEvent: boolean;
+
+  // 图表的数据时间间隔
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
+  // 框选事件范围后需应用到所有图表(包含三个数据 框选方法 是否展示复位  复位方法)
+  @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
+  @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
+  @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
 
   loading = false;
 
@@ -112,13 +123,19 @@ export default class BarAlarmChart extends tsc<IProps> {
     width: 0,
   };
 
-  timeRange = [];
   selectedTimeRange = [];
+
+  @Watch('timeRange')
+  handleWatchTimeRange() {
+    if (this.needRestoreEvent) {
+      this.initData();
+    }
+  }
 
   initData() {
     if (this.getData) {
       this.loading = true;
-      this.getData(data => {
+      this.getData((data, sliceTimeRange?) => {
         this.loading = false;
         this.localData = Object.freeze(data);
         if (this.localData.length) {
@@ -128,10 +145,10 @@ export default class BarAlarmChart extends tsc<IProps> {
           const center = this.localData[Math.floor(len / 2)].time;
           this.xAxis = [dayjs(start).format('HH:mm'), dayjs(center).format('HH:mm'), dayjs(end).format('HH:mm')];
           if (this.enableSelect) {
-            if (this.curActive <= 0 && this.sliceTimeRange.every(v => v)) {
-              const [sliceStartTime, sliceEndTime] = this.sliceTimeRange;
+            if (sliceTimeRange?.every?.(v => !!v)) {
+              const [sliceStartTime] = sliceTimeRange;
               for (const item of this.localData) {
-                if (item.time >= sliceStartTime && item.time < sliceEndTime) {
+                if (item.time >= sliceStartTime) {
                   this.curActive = item.time;
                   break;
                 }
@@ -203,9 +220,9 @@ export default class BarAlarmChart extends tsc<IProps> {
       return;
     }
     if (this.curActive === item.time) {
-      this.curActive = -1;
       this.curHover = -1;
-      this.$emit('sliceTimeRangeChange', [0, 0]);
+      this.curActive = this.localData[this.localData.length - 1].time;
+      this.$emit('sliceTimeRangeChange', getSliceTimeRange(this.localData as any, this.curActive));
     } else {
       this.curActive = item.time;
       this.$emit('sliceTimeRangeChange', getSliceTimeRange(this.localData as any, item.time));
@@ -217,7 +234,7 @@ export default class BarAlarmChart extends tsc<IProps> {
    * @param event
    */
   handleMouseDown(event: MouseEvent) {
-    if (this.loading) {
+    if (this.loading || !this.localData.length) {
       return;
     }
     const target: HTMLDivElement = this.$el.querySelector('.alarm-chart-wrap');
@@ -330,11 +347,16 @@ export default class BarAlarmChart extends tsc<IProps> {
     this.selectedTimeRange = [startTime, endTime];
     const timeFrom = dayjs(+startTime.toFixed(0)).format('YYYY-MM-DD HH:mm:ss');
     const timeTo = dayjs(+endTime.toFixed(0)).format('YYYY-MM-DD HH:mm:ss');
-    this.$emit('dataZoom', timeFrom, timeTo);
+    if (this.needRestoreEvent) {
+      this.handleChartDataZoom([startTime, endTime]);
+    } else {
+      this.$emit('dataZoom', timeFrom, timeTo);
+    }
   }
 
   handleTimeRangeReset() {
     this.selectedTimeRange = [];
+    this.handleRestoreEvent();
   }
 
   alarmListRender(item) {
@@ -374,14 +396,14 @@ export default class BarAlarmChart extends tsc<IProps> {
         {this.showHeader && (
           <div class='alarm-header-wrap'>
             <div class='header-left'>{this.$slots?.title || ''}</div>
-            {!!this.timeRange.length && (
+            {(this.needRestoreEvent ? this.showRestoreInject : this.selectedTimeRange.length) ? (
               <div
                 class='header-center'
                 onClick={() => this.handleTimeRangeReset()}
               >
                 {this.$t('复位')}
               </div>
-            )}
+            ) : undefined}
             <div class='header-right'>{this.$slots?.more || ''}</div>
           </div>
         )}

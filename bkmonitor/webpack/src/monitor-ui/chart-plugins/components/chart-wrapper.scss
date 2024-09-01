@@ -190,7 +190,7 @@
 }
 
 .contextmenu-list-pop-wrapper {
-  position: absolute;
+  position: fixed;
   z-index: 9999;
   min-width: 110px;
   padding: 4px 0;
