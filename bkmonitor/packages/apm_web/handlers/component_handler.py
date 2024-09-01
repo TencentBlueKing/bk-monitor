@@ -83,6 +83,10 @@ class ComponentHandler:
         return name.rsplit("-", 1)[0]
 
     @classmethod
+    def get_component_predicate_value(cls, node):
+        return node.get("extra_data", {}).get("predicate_value")
+
+    @classmethod
     def get_component_instance_query_params(
         cls, bk_biz_id, app_name, kind, category, component_instance_id, exists_where, template, key_generator
     ):

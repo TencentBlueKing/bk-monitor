@@ -72,6 +72,18 @@ class NodeRelationSerializer(serializers.Serializer):
         return res
 
 
+class NodeEndpointTopSerializer(serializers.Serializer):
+    """服务接口 Top 列表请求参数"""
+
+    bk_biz_id = serializers.IntegerField(label="业务 ID")
+    app_name = serializers.CharField(label="应用名称")
+    service_name = serializers.CharField(label="服务名称")
+    start_time = serializers.IntegerField(label="开始时间")
+    end_time = serializers.IntegerField(label="结束时间")
+    data_type = serializers.ChoiceField(label="数据类型", choices=BarChartDataType.get_choices())
+    size = serializers.IntegerField(label="查询数量", default=5, required=False)
+
+
 class NodeRelationDetailSerializer(serializers.Serializer):
     """节点资源详情请求参数"""
 

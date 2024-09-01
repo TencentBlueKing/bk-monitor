@@ -162,6 +162,11 @@ class ServiceHandler:
         return res
 
     @classmethod
+    def generate_remote_service_name(cls, name, category="http"):
+        """将名称变为自定义服务的显示名称"""
+        return f"{category}:{name}"
+
+    @classmethod
     def is_remote_service(cls, bk_biz_id, app_name, node_topo_key) -> bool:
         """判断topo_key是否是远程服务"""
         # 无node_topo_key，直接返回

@@ -170,6 +170,10 @@ class PluginProvider:
         plugin_instance = cls.mappings[GraphPluginType.EDGE][edge_data_type](_runtime=runtime)
         return cls.Container(_plugins=common_plugin_instances + [plugin_instance])
 
+    @classmethod
+    def get_node_plugin(cls, node_data_type, runtime):
+        return cls.mappings[GraphPluginType.NODE][node_data_type](_runtime=runtime)
+
 
 @PluginProvider.pre_plugin
 @dataclass
@@ -552,7 +556,16 @@ class NodeAlert(PrePlugin):
                             {
                                 "nested": {
                                     "path": "event.tags",
-                                    "query": {"bool": {"filter": [{"terms": {"event.tags.key": ["service_name"]}}]}},
+                                    "query": {
+                                        "bool": {
+                                            "should": [
+                                                {"term": {"event.tags.key": "service_name"}},
+                                                {"term": {"event.tags.key": "db_system"}},
+                                                {"term": {"event.tags.key": "messaging_system"}},
+                                                {"term": {"event.tags.key": "peer_service"}},
+                                            ]
+                                        }
+                                    },
                                 }
                             },
                             {"terms": {"event.metric": [f"custom.{self.table_id}.{i}" for i in self._NORMAL_METRICS]}},
@@ -575,10 +588,14 @@ class NodeAlert(PrePlugin):
 
             db_system = mapping.get("db_system")
             messaging_system = mapping.get("messaging_system")
+            peer_service = mapping.get("peer_service")
             if db_system or messaging_system:
                 node = f"{service_name}-{db_system or messaging_system}"
             else:
-                node = service_name
+                if peer_service:
+                    node = ServiceHandler.generate_remote_service_name(peer_service)
+                else:
+                    node = service_name
 
             res[node] += 1
 
@@ -711,6 +728,15 @@ class NodeApdex(PrePlugin):
             if system:
                 # 这里忽略了 topoNode 更变了拼接逻辑带来的影响(正常来说 topoNode 不会更变拼接逻辑)
                 res[f"{service}-{system}"] = v
+
+        # Step3: 计算自定义服务节点的 Apdex
+        custom_service_response = self.metric(
+            **self._runtime, **{"group_by": [OtlpKey.get_metric_dimension_key("attributes.peer.service")]}
+        ).get_instance_calculate_values_mapping(
+            ignore_keys=[OtlpKey.get_metric_dimension_key(OtlpKey.STATUS_CODE), Apdex.DIMENSION_KEY]
+        )
+        for k, v in custom_service_response.items():
+            res[ServiceHandler.generate_remote_service_name(k[0])] = v
 
         return res
 

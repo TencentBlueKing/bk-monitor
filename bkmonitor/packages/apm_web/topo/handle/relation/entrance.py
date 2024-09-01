@@ -10,8 +10,15 @@ specific language governing permissions and limitations under the License.
 """
 from typing import List, Tuple
 
-from apm_web.topo.constants import RelationResourcePathType
+from apm_web.topo.constants import BarChartDataType, RelationResourcePathType
 from apm_web.topo.handle.relation.define import Node, TreeInfo
+from apm_web.topo.handle.relation.endpoint_top import (
+    AlertList,
+    ApdexList,
+    ErrorRateCalleeList,
+    ErrorRateCallerList,
+    ErrorRateList,
+)
 from apm_web.topo.handle.relation.path import PathProvider
 
 
@@ -86,3 +93,29 @@ class RelationEntrance:
         info = TreeInfo(root_id=tree.id, paths=paths, is_complete=Node.get_depth(tree) >= PathProvider.get_depth(paths))
 
         return info
+
+
+class EndpointListEntrance:
+    """拓扑图服务接口"""
+
+    handler_mapping = {
+        BarChartDataType.ErrorRate.value: ErrorRateList,
+        BarChartDataType.ErrorRateCaller.value: ErrorRateCallerList,
+        BarChartDataType.ErrorRateCallee.value: ErrorRateCalleeList,
+        BarChartDataType.Apdex.value: ApdexList,
+        BarChartDataType.Alert.value: AlertList,
+    }
+
+    @classmethod
+    def list_top(cls, bk_biz_id, app_name, data_type, service_name, start_time, end_time, size):
+        if data_type not in cls.handler_mapping:
+            raise ValueError(f"不支持根据 {data_type} 类型获取接口列表")
+
+        return cls.handler_mapping[data_type](
+            bk_biz_id,
+            app_name,
+            start_time,
+            end_time,
+            service_name=service_name,
+            size=size,
+        ).list()

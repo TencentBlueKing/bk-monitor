@@ -12,9 +12,10 @@ specific language governing permissions and limitations under the License.
 from apm_web.topo.handle.bar_query import BarQuery
 from apm_web.topo.handle.graph_query import GraphQuery
 from apm_web.topo.handle.relation.detail import NodeRelationDetailHandler
-from apm_web.topo.handle.relation.entrance import RelationEntrance
+from apm_web.topo.handle.relation.entrance import EndpointListEntrance, RelationEntrance
 from apm_web.topo.serializers import (
     DataTypeBarQueryRequestSerializer,
+    NodeEndpointTopSerializer,
     NodeRelationDetailSerializer,
     NodeRelationSerializer,
     TopoQueryRequestSerializer,
@@ -58,6 +59,15 @@ class NodeRelationResource(Resource):
             validated_request_data.pop("path_type"), validated_request_data.pop("paths", None), **validated_request_data
         )
         return entrance.export(entrance.relation_tree, export_type="layer")
+
+
+class NodeEndpointsTopResource(Resource):
+    """服务节点接口列表"""
+
+    RequestSerializer = NodeEndpointTopSerializer
+
+    def perform_request(self, validated_request_data):
+        return EndpointListEntrance.list_top(**validated_request_data)
 
 
 class NodeRelationDetailResource(Resource):
