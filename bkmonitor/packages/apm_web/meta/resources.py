@@ -1036,7 +1036,7 @@ class ServiceDetailResource(Resource):
                 {
                     "name": self.key_name_map()[TopoNodeKind.COMPONENT][k],
                     "type": "string",
-                    "value": v,
+                    "value": v or "--",
                 }
                 for k, v in {
                     "topo_key": data["service_name"],
@@ -1054,7 +1054,7 @@ class ServiceDetailResource(Resource):
             {
                 "name": self.key_name_map()[TopoNodeKind.SERVICE].get(item, item),
                 "type": "string",
-                "value": self.value_map().get(item, lambda x: str(x))(value),
+                "value": self.value_map().get(item, lambda x: str(x))(value) or "--",
             }
             for item, value in {
                 "topo_key": data["service_name"],
@@ -1111,6 +1111,38 @@ class ServiceDetailResource(Resource):
                     "app_related_app_name": res["relate_app_name"],
                 }
             )
+
+
+class EndpointDetailResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务id")
+        app_name = serializers.CharField(label="应用名称")
+        service_name = serializers.CharField(label="服务名称")
+        endpoint_name = serializers.CharField(label="接口名称")
+
+    def perform_request(self, validated_data):
+        endpoint_info = api.apm_api.query_endpoint(
+            **{
+                "bk_biz_id": validated_data["bk_biz_id"],
+                "app_name": validated_data["app_name"],
+                "service_name": validated_data["service_name"],
+                "filters": {"endpoint_name": validated_data["endpoint_name"]},
+            }
+        )
+        if not endpoint_info:
+            raise ValueError(f"服务: {validated_data['service_name']} 下暂未发现 {validated_data['endpoint_name']} 接口")
+        endpoint_info = endpoint_info[0]
+
+        return [
+            {
+                "name": _("类型"),
+                "type": "string",
+                "value": CategoryEnum.get_label_by_key(endpoint_info.get("category"))
+                if endpoint_info.get("category")
+                else "--",
+            },
+            {"name": _("所属服务"), "type": "string", "value": endpoint_info.get("service_name", "--")},
+        ]
 
 
 class MetricInfoResource(Resource):

@@ -272,7 +272,7 @@ class PathTemplateSidebar:
                 else:
                     color = NodeColor.Color.YELLOW
 
-            status_mapping[color].append(node.info)
+            status_mapping[color].append({**node.info, "color": color})
 
         res = []
         for status, status_nodes in status_mapping.items():
