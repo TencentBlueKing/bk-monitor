@@ -124,3 +124,11 @@ class RelationResourcePath(ChoicesEnum):
         (INSTANCE_TO_POD_TO_SYSTEM, _("实例->K8s Pod->机器")),
         (INSTANCE_TO_SERVICE_TO_SYSTEM, _("实例->K8s Service->机器")),
     )
+
+
+class TopoLinkType(ChoicesEnum):
+    """拓扑图中可供跳转的链接日期"""
+
+    ALERT = "alert"
+
+    _choices_labels = (ALERT, _("跳转到告警中心"))

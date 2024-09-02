@@ -18,6 +18,7 @@ from apm_web.topo.constants import (
     RelationResourcePathType,
     SourceType,
     TopoEdgeDataType,
+    TopoLinkType,
 )
 
 
@@ -101,3 +102,8 @@ class NodeRelationDetailSerializer(serializers.Serializer):
     end_time = serializers.IntegerField(label="结束时间")
     source_type = serializers.ChoiceField(label="资源类型", choices=SourceType.get_choices())
     source_info = serializers.DictField(label="资源信息")
+
+
+class EndpointNameSerializer(TopoBaseRequestSerializer):
+    endpoint_name = serializers.CharField(label="接口名称", required=False)
+    link_type = serializers.ChoiceField(label="需要获取的链接类型", choices=TopoLinkType.get_choices())

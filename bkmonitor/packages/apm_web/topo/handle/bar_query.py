@@ -20,6 +20,7 @@ from apm_web.metric_handler import (
     ServiceFlowErrorRateCallee,
     ServiceFlowErrorRateCaller,
 )
+from apm_web.models import Application
 from apm_web.topo.handle import BaseQuery
 from core.drf_resource import resource
 
@@ -145,3 +146,20 @@ class BarQuery(BaseQuery):
             if self.service_name
             else []
         )
+
+
+class LinkHelper:
+    @classmethod
+    def get_service_alert_link(cls, bk_biz_id, app_name, service_name, start_time, end_time):
+        """获取服务的告警中心链接"""
+        table_id = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get().metric_result_table_id
+        return (
+            f"/?bizId={bk_biz_id}#/event-center?"
+            f"queryString=tags.service_name: {service_name} AND metric: custom.{table_id}.*&"
+            f"from={start_time * 1000}&to={end_time * 1000}"
+        )
+
+    @classmethod
+    def get_endpoint_alert_link(cls):
+        """获取接口得告警中心链接"""
+        pass

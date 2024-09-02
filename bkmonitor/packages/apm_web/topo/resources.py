@@ -8,13 +8,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
-from apm_web.topo.handle.bar_query import BarQuery
+from apm_web.topo.constants import TopoLinkType
+from apm_web.topo.handle.bar_query import BarQuery, LinkHelper
 from apm_web.topo.handle.graph_query import GraphQuery
 from apm_web.topo.handle.relation.detail import NodeRelationDetailHandler
 from apm_web.topo.handle.relation.entrance import EndpointListEntrance, RelationEntrance
 from apm_web.topo.serializers import (
     DataTypeBarQueryRequestSerializer,
+    EndpointNameSerializer,
     NodeEndpointTopSerializer,
     NodeRelationDetailSerializer,
     NodeRelationSerializer,
@@ -39,7 +40,7 @@ class DataTypeBarQueryResource(Resource):
 
 
 class TopoViewResource(Resource):
-    """获取节点拓扑图"""
+    """[拓扑图]获取节点拓扑图"""
 
     RequestSerializer = TopoQueryRequestSerializer
 
@@ -49,20 +50,30 @@ class TopoViewResource(Resource):
         return GraphQuery(**validated_request_data).execute(export_type, edge_data_type)
 
 
-class NodeRelationResource(Resource):
-    """节点资源拓扑信息"""
+class TopoLinkResource(Resource):
+    """[拓扑图]跳转链接获取"""
 
-    RequestSerializer = NodeRelationSerializer
+    RequestSerializer = EndpointNameSerializer
 
     def perform_request(self, validated_request_data):
-        entrance = RelationEntrance(
-            validated_request_data.pop("path_type"), validated_request_data.pop("paths", None), **validated_request_data
-        )
-        return entrance.export(entrance.relation_tree, export_type="layer")
+        params = {
+            "bk_biz_id": validated_request_data["bk_biz_id"],
+            "app_name": validated_request_data["app_name"],
+            "start_time": validated_request_data["start_time"],
+            "end_time": validated_request_data["end_time"],
+        }
+        if validated_request_data["link_type"] == TopoLinkType.ALERT.value:
+            # 获取 服务 or 接口的告警中心跳转链接
+            if validated_request_data.get("service_name"):
+                return LinkHelper.get_service_alert_link(**params, service_name=validated_request_data["service_name"])
+
+            raise ValueError(f"[获取链接]缺少链接类型为: {validated_request_data['link_type']} 的参数")
+
+        raise ValueError(f"不支持获取: {validated_request_data['link_type']}类型的链接")
 
 
 class NodeEndpointsTopResource(Resource):
-    """服务节点接口列表"""
+    """[拓扑图]服务节点接口列表"""
 
     RequestSerializer = NodeEndpointTopSerializer
 
@@ -71,9 +82,21 @@ class NodeEndpointsTopResource(Resource):
 
 
 class NodeRelationDetailResource(Resource):
-    """单个节点资源详情信息"""
+    """[资源拓扑]单个节点资源详情信息"""
 
     RequestSerializer = NodeRelationDetailSerializer
 
     def perform_request(self, validated_request_data):
         return NodeRelationDetailHandler.get_detail(**validated_request_data)
+
+
+class NodeRelationResource(Resource):
+    """[资源拓扑]节点资源拓扑信息"""
+
+    RequestSerializer = NodeRelationSerializer
+
+    def perform_request(self, validated_request_data):
+        entrance = RelationEntrance(
+            validated_request_data.pop("path_type"), validated_request_data.pop("paths", None), **validated_request_data
+        )
+        return entrance.export(entrance.relation_tree, export_type="layer")
