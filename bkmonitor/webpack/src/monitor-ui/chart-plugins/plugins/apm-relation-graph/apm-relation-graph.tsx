@@ -458,9 +458,13 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     }
   }
 
-  /** 资源概览 */
+  /** 服务概览 */
   handleServiceDetail(node: INodeModel) {
     this.activeNode = node.data.id;
+    this.selectedServiceName = node.data.id;
+    if (!this.expanded.includes('overview')) {
+      this.handleExpand('overview');
+    }
   }
 
   /**
@@ -542,7 +546,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               value={this.filterCondition.showNoData}
               onChange={this.handleShowNoDataChange}
             >
-              无数据节点
+              {this.$t('无数据节点')}
             </bk-checkbox>
             <bk-input
               class='ml-24'
@@ -606,7 +610,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                 class='source-topo'
               >
                 <div class='header-wrap'>
-                  <div class='title'>资源拓扑</div>
+                  <div class='title'>{this.$t('资源拓扑')}</div>
                   <div
                     class='expand-btn'
                     onClick={() => this.handleExpand('topo')}
@@ -624,7 +628,11 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                   minWidth: `${sideOverviewMinWidth}px`,
                   display: this.expanded.includes('overview') ? 'block' : 'none',
                 }}
-                class={['service-overview', { 'no-border': !this.expanded.includes('topo') }]}
+                class={[
+                  'service-overview',
+                  { 'no-border': !this.expanded.includes('topo') },
+                  { 'overview-w-auto': this.expanded.length === 1 && this.expanded[0] === 'overview' },
+                ]}
               >
                 <div class='header-wrap'>
                   <div class='title'>{this.selectedEndpoint ? this.$t('接口概览') : this.$t('服务概览')}</div>
@@ -635,7 +643,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                     <span class='icon-monitor icon-zhankai' />
                   </div>
                 </div>
-                <div class='content-wrap'>
+                <div class={'content-wrap'}>
                   <ServiceOverview
                     appName={this.appName}
                     data={this.serviceOverviewData}

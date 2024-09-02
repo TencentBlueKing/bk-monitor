@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { random } from 'monitor-common/utils';
@@ -93,6 +93,14 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
 
   curType: 'endpoint' | 'service' = 'service';
 
+  @ProvideReactive('viewOptions') viewOptions = {
+    variables: {
+      app_name: '',
+      service_name: '',
+      endpoint_name: '',
+    },
+  };
+
   get tabs() {
     if (this.curType === 'endpoint') {
       return [{ id: 'service', name: window.i18n.tc('服务') }];
@@ -130,6 +138,11 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
 
   initPanel() {
     this.tabActive = 'service';
+    this.viewOptions.variables = {
+      app_name: this.appName,
+      service_name: this.serviceName,
+      endpoint_name: this.endpoint,
+    };
     this.getServiceDetail();
     this.getServiceAlert();
     this.getServiceTabData();
@@ -151,8 +164,12 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
           endpoint_name: this.curType === 'endpoint' ? this.endpoint : undefined,
         })
         .catch(() => []);
-      this.overviewDetail.name = result[0].value;
-      this.overviewDetail.others = result.slice(1);
+      if (result.length) {
+        this.overviewDetail.name = result[0].value;
+        this.overviewDetail.others = result.slice(1);
+      } else {
+        this.overviewDetail.name = '';
+      }
     } catch (e) {
       console.error(e);
     }
@@ -220,6 +237,19 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
               ...panel,
               dashboardId: this.serviceTabData.dashboardId,
               type: 'apm-timeseries-chart',
+              targets: panel.targets.map(t => {
+                const queryConfigs = t?.data?.unify_query_param?.query_configs;
+                if (queryConfigs) {
+                  return {
+                    ...t,
+                    data: {
+                      ...t.data,
+                      query_configs: queryConfigs,
+                    },
+                  };
+                }
+                return t;
+              }),
             })
         );
       echartsConnect(this.serviceTabData.dashboardId);
@@ -384,8 +414,11 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
             showHeader={true}
             showXAxis={true}
           >
-            <div slot='title'>告警</div>
-            <div slot='more'>更多</div>
+            <div slot='title'>{this.$t('告警')}</div>
+            <div slot='more'>
+              <span class='mr-4'>{this.$t('更多')}</span>
+              <span class='icon-monitor icon-fenxiang' />
+            </div>
           </BarAlarmChart>
 
           <div class='alarm-category-tabs'>
