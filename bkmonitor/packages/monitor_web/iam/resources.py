@@ -461,23 +461,27 @@ class GetExternalPermissionList(Resource):
         if validated_request_data["bk_biz_id"] != 0:
             permission_qs = permission_qs.filter(bk_biz_id=validated_request_data["bk_biz_id"])
 
+        biz_authorizer_role = {}
+        for permission in permission_qs:
+            # 获取授权人权限
+            if permission.bk_biz_id not in biz_authorizer_role:
+                authorizer = authorizer_map.value.get(str(permission.bk_biz_id))
+                if not authorizer:
+                    biz_authorizer_role[permission.bk_biz_id] = GrafanaRole.Anonymous
+                else:
+                    _, role, _ = DashboardPermission.get_user_permission(authorizer, str(permission.bk_biz_id))
+                    biz_authorizer_role[permission.bk_biz_id] = role
+
         if validated_request_data["view_type"] != "resource":
             serializer = ExternalPermissionSerializer(permission_qs, many=True)
             permission_list = serializer.data
+            for permission, permission_data in zip(permission_qs, permission_list):
+                authorizer_role = biz_authorizer_role[permission.bk_biz_id]
+                permission_data["status"] = permission.get_status(authorizer_role)
         else:
-            biz_authorizer_role = {}
             resource_to_user = defaultdict(lambda: {"authorized_users": []})
             for permission in permission_qs:
                 for resource_id in permission.resources:
-                    # 获取授权人权限
-                    if permission.bk_biz_id not in biz_authorizer_role:
-                        authorizer = authorizer_map.value.get(str(permission.bk_biz_id))
-                        if not authorizer:
-                            biz_authorizer_role[permission.bk_biz_id] = GrafanaRole.Anonymous
-                        else:
-                            _, role, _ = DashboardPermission.get_user_permission(authorizer, str(permission.bk_biz_id))
-                            biz_authorizer_role[permission.bk_biz_id] = role
-
                     # 根据授权人权限判断权限状态
                     authorizer_role = biz_authorizer_role[permission.bk_biz_id]
                     permission_status = permission.get_status(authorizer_role)
