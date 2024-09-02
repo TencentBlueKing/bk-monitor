@@ -209,7 +209,7 @@ class QueryTreeTransformer(BaseTreeTransformer):
                         optimized_keyword.endswith(QueryStringBuilder.WILDCARD_PATTERN),
                     ]
                 ):
-                    optimized_keyword: str = keyword[1:]
+                    optimized_keyword: str = keyword[len(QueryStringBuilder.WILDCARD_PATTERN) :]
 
                 nested_filters.append(Q("nested", path=i, query=Q("query_string", query=optimized_keyword)))
 
