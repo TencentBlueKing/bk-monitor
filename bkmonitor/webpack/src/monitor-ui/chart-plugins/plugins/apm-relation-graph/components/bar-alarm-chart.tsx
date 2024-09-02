@@ -154,9 +154,9 @@ export default class BarAlarmChart extends tsc<IProps> {
                 }
               }
             }
-            if (this.curActive <= 0) {
+            /* if (this.curActive <= 0) {
               this.curActive = this.localData[this.localData.length - 1].time;
-            }
+            } */
           }
         } else {
           this.xAxis = [];
@@ -221,8 +221,8 @@ export default class BarAlarmChart extends tsc<IProps> {
     }
     if (this.curActive === item.time) {
       this.curHover = -1;
-      this.curActive = this.localData[this.localData.length - 1].time;
-      this.$emit('sliceTimeRangeChange', getSliceTimeRange(this.localData as any, this.curActive));
+      // this.curActive = this.localData[this.localData.length - 1].time;
+      this.$emit('sliceTimeRangeChange', [0, 0]);
     } else {
       this.curActive = item.time;
       this.$emit('sliceTimeRangeChange', getSliceTimeRange(this.localData as any, item.time));
@@ -339,7 +339,6 @@ export default class BarAlarmChart extends tsc<IProps> {
         startTime = item.time;
       }
       if (!endTime && w > endX) {
-        console.log(w, endX);
         endTime = item.time;
         break;
       }
@@ -385,6 +384,16 @@ export default class BarAlarmChart extends tsc<IProps> {
     );
   }
 
+  alarmChartWrap() {
+    if (this.loading) {
+      return <div class='skeleton-element bar-loading' />;
+    }
+    if (!this.localData.length) {
+      return <div class='no-data'>{this.$t('暂无数据')}</div>;
+    }
+    return this.localData.map(item => this.alarmListRender(item));
+  }
+
   render() {
     return (
       <div
@@ -414,11 +423,7 @@ export default class BarAlarmChart extends tsc<IProps> {
           class='alarm-chart-wrap'
           onMousedown={this.handleMouseDown}
         >
-          {this.loading ? (
-            <div class='skeleton-element bar-loading' />
-          ) : (
-            this.localData.map(item => this.alarmListRender(item))
-          )}
+          {this.alarmChartWrap()}
         </div>
         {this.showXAxis && (
           <div class='alarm-footer-wrap'>

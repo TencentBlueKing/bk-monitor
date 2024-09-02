@@ -9,6 +9,10 @@
     margin-right: 4px;
   }
 
+  .mr-8 {
+    margin-right: 8px;
+  }
+
   .icon-fenxiang {
     font-size: 12px;
   }
@@ -114,6 +118,7 @@
 
         .tab-item {
           flex: 1;
+          max-width: 50%;
           font-size: 12px;
           line-height: 32px;
           color: #63656e;
@@ -158,10 +163,6 @@
             .chart-wrapper {
               height: 112px;
             }
-          }
-
-          &.event-type {
-
           }
 
           .chart-wrapper {

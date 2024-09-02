@@ -27,6 +27,7 @@
       background: #FFFFFF;
       border: 1px solid #C4C6CC;
       border-radius: 2px;
+      transform: scale(0.9);
     }
 
     .header-right {
@@ -59,6 +60,12 @@
     .bar-loading {
       width: 100%;
       height: 100%;
+    }
+
+    .no-data {
+      display: flex;
+      justify-content: center;
+      width: 100%;
     }
   }
 
