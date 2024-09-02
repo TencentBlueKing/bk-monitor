@@ -136,7 +136,10 @@
         trigger="click"
       >
         <slot name="trigger">
-          <div class="more-operation">
+          <div
+            class="more-operation"
+            id="more-operator"
+          >
             <i class="bk-icon log-icon icon-ellipsis-more"></i>
           </div>
         </slot>
@@ -228,6 +231,10 @@
       },
       timezone: {
         type: String,
+        required: true,
+      },
+      clusteringData: {
+        type: Object,
         required: true,
       },
     },
@@ -349,6 +356,10 @@
             return aiopsBizList ? aiopsBizList.some(item => item.toString() === this.bkBizId) : false;
         }
       },
+      /** 日志聚类开关 */
+      clusterSwitch() {
+        return this.clusteringData?.is_active;
+      },
       iconFavoriteStr() {
         return this.$t('点击{n}收藏', {
           n: !this.isShowCollect
@@ -369,6 +380,14 @@
         immediate: true,
         handler(val) {
           this.setShowLiList(val);
+        },
+      },
+      clusteringData: {
+        immediate: true,
+        handler(val) {
+          this.showSettingMenuList = this.showSettingMenuList.filter(item => {
+            return item.id === 'clustering' ? val?.is_active : true;
+          });
         },
       },
     },
