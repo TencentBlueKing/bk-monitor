@@ -663,4 +663,10 @@ export default {
   '新类告警间隔（天）': 'New alarm interval (days)',
   告警级别: 'Alarm level',
   告警组: 'Alarm group',
+  告警屏蔽时间: 'Alert Suppression Time',
+  日志聚类接入: 'Log Clustering Access',
+  告警配置: 'Alert Configuration',
+  开启新类告警: 'Enable New Class Alert',
+  开启数量突增告警: 'Enable Surge Alert',
+  添加正则: 'Add Regex',
 };

@@ -24,7 +24,7 @@
 * IN THE SOFTWARE.
 -->
 <template>
-  <div>
+  <div class="cluster-table">
     <!-- 聚类规则 -->
     <div class="container-item table-container">
       <p style="height: 32px">{{ $t('聚类规则') }}</p>
@@ -169,72 +169,63 @@
       </div>
     </div>
     <!-- 原始日志 -->
-    <div class="container-item debug-container">
+    <div :class="{ 'debug-container': true, 'is-hidden': !isClickAlertIcon }">
       <div
         class="debug-tool"
         @click="handleClickDebugButton"
       >
+        <i :class="{ 'bk-icon icon-play-shape': true, 'is-active': isClickAlertIcon }"></i>
         <span>{{ $t('调试工具') }}</span>
-        <span :class="['bk-icon', 'icon-angle-double-down', isClickAlertIcon ? 'bk-icon-rotate' : '']"></span>
       </div>
 
-      <bk-alert
-        class="debug-alert"
-        v-show="isClickAlertIcon"
-        :title="$t('调试需要等待1分钟以上，在此区间不可进行其余操作')"
-        type="warning"
-        closable
-      ></bk-alert>
+      <div class="debug-input-box">
+        <bk-alert
+          class="debug-alert"
+          :title="$t('调试需要等待1分钟以上，在此区间不可进行其余操作')"
+          type="warning"
+        />
 
-      <div
-        class="fl-jfsb"
-        v-show="isClickAlertIcon"
-      >
-        <p style="height: 32px">{{ $t('原始日志') }}</p>
-        <bk-button
-          style="min-width: 48px"
-          :class="logOriginal !== '' && rulesList.length !== 0 ? 'btn-hover' : ''"
-          :disabled="!globalEditable || logOriginal === '' || rulesList.length === 0"
-          :loading="debugRequest"
-          size="small"
-          @click="debugging"
-        >
-          {{ $t('调试') }}
-        </bk-button>
-      </div>
+        <div class="fl-jfsb mt18">
+          <p style="height: 32px">{{ $t('原始日志') }}</p>
+          <bk-button
+            style="min-width: 48px"
+            :class="logOriginal !== '' && rulesList.length !== 0 ? 'btn-hover' : ''"
+            :disabled="!globalEditable || logOriginal === '' || rulesList.length === 0"
+            :loading="debugRequest"
+            size="small"
+            @click="debugging"
+          >
+            {{ $t('调试') }}
+          </bk-button>
+        </div>
 
-      <div
-        class="log-style"
-        v-show="isClickAlertIcon"
-      >
-        <bk-input
-          :input-style="{
-            'background-color': '#313238',
-            height: '100px',
-            'line-height': '24px',
-            color: '#C4C6CC',
-            borderRadius: '2px',
-          }"
-          v-model.trim="logOriginal"
-          :disabled="!globalEditable || logOriginalRequest"
-          :rows="3"
-          :type="'textarea'"
-          placeholder=" "
-        >
-        </bk-input>
-      </div>
-    </div>
-    <!-- 效果 -->
-    <div
-      class="container-item"
-      v-show="isClickAlertIcon"
-    >
-      <p style="height: 32px">{{ $t('效果') }}</p>
-      <div
-        class="effect-container"
-        v-bkloading="{ isLoading: debugRequest, size: 'mini' }"
-      >
-        {{ effectOriginal }}
+        <div class="log-style">
+          <bk-input
+            :input-style="{
+              'background-color': '#313238',
+              height: '100px',
+              'line-height': '24px',
+              color: '#C4C6CC',
+              borderRadius: '2px',
+            }"
+            v-model.trim="logOriginal"
+            :disabled="!globalEditable || logOriginalRequest"
+            :rows="3"
+            :type="'textarea'"
+            placeholder=" "
+          >
+          </bk-input>
+        </div>
+        <!-- 效果 -->
+        <div class="mt18">
+          <p style="height: 32px">{{ $t('效果预览') }}</p>
+          <div
+            class="effect-container"
+            v-bkloading="{ isLoading: debugRequest, size: 'mini' }"
+          >
+            {{ effectOriginal }}
+          </div>
+        </div>
       </div>
     </div>
     <!-- 添加规则dialog -->
@@ -735,230 +726,260 @@
 <style lang="scss" scoped>
   @import '@/scss/mixins/flex.scss';
 
-  /* stylelint-disable no-descending-specificity */
-  .container-item {
-    margin-bottom: 40px;
+  .cluster-table {
+    /* stylelint-disable no-descending-specificity */
+    .container-item {
+      margin-bottom: 40px;
 
-    .add-box {
-      min-width: 48px;
+      .add-box {
+        min-width: 48px;
 
-      .bk-icon {
-        left: -3px;
-        width: 10px;
+        .bk-icon {
+          left: -3px;
+          width: 10px;
+        }
+      }
+
+      &.table-container {
+        position: relative;
+      }
+
+      .cluster-table {
+        border: 1px solid #dcdee5;
+        border-bottom: none;
+        border-radius: 2px;
       }
     }
 
-    &.table-container {
-      position: relative;
-    }
-
-    .cluster-table {
-      border: 1px solid #dcdee5;
-      border-bottom: none;
-      border-radius: 2px;
-    }
-
-    .effect-container {
-      height: 100px;
-      padding: 5px 10px;
-      font-size: 12px;
-      line-height: 24px;
-      color: #000;
-      background: #fafbfd;
-      border: 1px solid#DCDEE5;
-      border-radius: 2px;
-    }
-
-    &.debug-container {
-      margin-top: -24px;
+    .debug-container {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      z-index: 999;
+      width: 100%;
+      min-width: 1460px;
+      height: 414px;
+      background: #fff;
+      transition: bottom 0.3s;
 
       .debug-tool {
         display: flex;
         align-items: center;
-        margin-bottom: 4px;
+        width: 100%;
+        height: 40px;
+        padding-left: 26px;
         font-size: 14px;
-        color: #3a84ff;
+        color: #313238;
         cursor: pointer;
+        background: #f0f1f5;
+        box-shadow: 0 -1px 0 0 #dcdee5;
 
-        .bk-icon {
-          display: inline-block;
-          font-size: 24px;
+        .icon-play-shape {
+          margin-right: 4px;
+          font-size: 12px;
+          transition: transform 0.3s;
+          transform: scale(0.8);
         }
 
-        .bk-icon-rotate {
-          transform: rotateZ(180deg);
+        .is-active {
+          transform: scale(0.8) rotateZ(90deg);
         }
       }
 
-      .debug-alert {
-        margin-bottom: 8px;
+      .debug-input-box {
+        max-width: 1020px;
+        padding: 0 40px;
+        margin: 0 auto;
+
+        .debug-alert {
+          margin: 8px 0;
+        }
+      }
+
+      .effect-container {
+        height: 100px;
+        padding: 5px 10px;
+        font-size: 12px;
+        line-height: 24px;
+        color: #000;
+        background: #fafbfd;
+        border: 1px solid#DCDEE5;
+        border-radius: 2px;
+      }
+
+      &.is-hidden {
+        bottom: -374px;
       }
     }
-  }
 
-  .table-row {
-    min-height: 44px;
-    font-size: 12px;
-    background-color: #fafbfd;
-    border-bottom: 1px solid #dcdee5;
+    .table-row {
+      min-height: 44px;
+      font-size: 12px;
+      background-color: #fafbfd;
+      border-bottom: 1px solid #dcdee5;
 
-    .icon {
-      margin: 0 10px 0 4px;
-    }
-
-    .icon-drag-dots {
-      width: 16px;
-      font-size: 14px;
-      color: #979ba5;
-      text-align: left;
-      cursor: move;
-      opacity: 0;
-      transition: opacity 0.2s linear;
-    }
-
-    &.sortable-ghost-class {
-      background: #eaf3ff;
-      transition: background 0.2s linear;
-    }
-
-    &:hover {
-      background: #eaf3ff;
-      transition: background 0.2s linear;
+      .icon {
+        margin: 0 10px 0 4px;
+      }
 
       .icon-drag-dots {
-        opacity: 1;
+        width: 16px;
+        font-size: 14px;
+        color: #979ba5;
+        text-align: left;
+        cursor: move;
+        opacity: 0;
         transition: opacity 0.2s linear;
       }
-    }
 
-    &.table-row-li {
-      background-color: #fff;
-      transition: background 0.3s;
+      &.sortable-ghost-class {
+        background: #eaf3ff;
+        transition: background 0.2s linear;
+      }
 
       &:hover {
-        background-color: #f0f1f5;
-      }
-    }
+        background: #eaf3ff;
+        transition: background 0.2s linear;
 
-    .row-left {
-      display: flex;
-      align-items: center;
-
-      .row-left-index {
-        width: 80px;
-        margin-left: 14px;
+        .icon-drag-dots {
+          opacity: 1;
+          transition: opacity 0.2s linear;
+        }
       }
 
-      .regular-container {
-        width: 600px;
-        padding: 2px 10px 2px 2px;
-        word-break: break-all;
+      &.table-row-li {
+        background-color: #fff;
+        transition: background 0.3s;
 
-        .row-left-regular {
-          cursor: pointer;
+        &:hover {
+          background-color: #f0f1f5;
+        }
+      }
+
+      .row-left {
+        display: flex;
+        align-items: center;
+
+        .row-left-index {
+          width: 80px;
+          margin-left: 14px;
+        }
+
+        .regular-container {
+          width: 600px;
+          padding: 2px 10px 2px 2px;
+          word-break: break-all;
+
+          .row-left-regular {
+            cursor: pointer;
+          }
+        }
+      }
+
+      .row-right > div {
+        width: 100px;
+
+        .row-right-item {
+          display: inline-block;
+          word-break: break-all;
+        }
+
+        .bk-button-text {
+          font-size: 12px;
         }
       }
     }
 
-    .row-right > div {
-      width: 100px;
+    .table-operate {
+      position: absolute;
+      top: 0;
+      right: 0;
 
-      .row-right-item {
-        display: inline-block;
-        word-break: break-all;
+      .bk-button {
+        margin-left: 2px;
+        border-radius: 3px;
       }
 
-      .bk-button-text {
-        font-size: 12px;
-      }
-    }
-  }
-
-  .table-operate {
-    position: absolute;
-    top: 0;
-    right: 0;
-
-    .bk-button {
-      margin-left: 2px;
-      border-radius: 3px;
-    }
-
-    .btn-hover {
-      &:hover {
-        color: #3a84ff;
-        border: 1px solid #3a84ff;
-      }
-    }
-  }
-
-  .no-cluster-rule {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 200px;
-    border-bottom: 1px solid #dcdee5;
-
-    .icon-empty {
-      font-size: 80px;
-      color: #c3cdd7;
-    }
-  }
-
-  .log-style {
-    height: 100px;
-
-    :deep(.bk-form-textarea:focus) {
-      /* stylelint-disable-next-line declaration-no-important */
-      background-color: #313238 !important;
-      border-radius: 2px;
-    }
-
-    :deep(.bk-form-textarea[disabled]) {
-      /* stylelint-disable-next-line declaration-no-important */
-      background-color: #313238 !important;
-      border-radius: 2px;
-    }
-
-    :deep(.bk-textarea-wrapper) {
-      border: none;
-    }
-  }
-
-  .add-rule {
-    .bk-form {
-      width: 560px;
-      margin-left: 15px;
-
-      :deep(.bk-label) {
-        text-align: left;
+      .btn-hover {
+        &:hover {
+          color: #3a84ff;
+          border: 1px solid #3a84ff;
+        }
       }
     }
 
-    .inspection-status {
-      position: relative;
+    .no-cluster-rule {
       display: flex;
-      font-size: 14px;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+      border-bottom: 1px solid #dcdee5;
 
-      .bk-icon {
-        font-size: 18px;
+      .icon-empty {
+        font-size: 80px;
+        color: #c3cdd7;
+      }
+    }
+
+    .log-style {
+      height: 100px;
+
+      :deep(.bk-form-textarea:focus) {
+        /* stylelint-disable-next-line declaration-no-important */
+        background-color: #313238 !important;
+        border-radius: 2px;
       }
 
-      .spin {
-        position: absolute;
-        top: 2px;
+      :deep(.bk-form-textarea[disabled]) {
+        /* stylelint-disable-next-line declaration-no-important */
+        background-color: #313238 !important;
+        border-radius: 2px;
       }
+
+      :deep(.bk-textarea-wrapper) {
+        border: none;
+      }
+    }
+
+    .add-rule {
+      .bk-form {
+        width: 560px;
+        margin-left: 15px;
+
+        :deep(.bk-label) {
+          text-align: left;
+        }
+      }
+    }
+
+    .fl-jfsb {
+      @include flex-justify(space-between);
+    }
+
+    .mt18 {
+      margin-top: 18px;
     }
   }
 
   .flbc {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
 
-  .fl-jfsb {
-    @include flex-justify(space-between);
+  .inspection-status {
+    position: relative;
+    display: flex;
+    font-size: 14px;
+
+    .bk-icon {
+      font-size: 18px;
+    }
+
+    .spin {
+      position: absolute;
+      top: 2px;
+    }
   }
 </style>
