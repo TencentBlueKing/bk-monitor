@@ -245,6 +245,15 @@ class SpaceTableIDRedis:
                 _option = {}
 
             tid_options_map.setdefault(option["table_id"], {}).update(_option)
+
+        # 预先查询所有相关的 ClusterInfo 数据并缓存到字典中
+        storage_cluster_ids = {record["storage_cluster_id"] for record in table_ids if record["storage_cluster_id"]}
+        cluster_info_dict = {
+            cluster_info["cluster_id"]: cluster_info["cluster_type"]
+            for cluster_info in models.ClusterInfo.objects.filter(cluster_id__in=storage_cluster_ids).values(
+                "cluster_id", "cluster_type"
+            )
+        }
         # 组装数据
         # NOTE: 这里针对一段式的追加一个`__default__`
         # 组装需要的数据，字段相同
@@ -253,16 +262,19 @@ class SpaceTableIDRedis:
             source_type = record["source_type"]
             index_set = record["index_set"]
             tid = record["table_id"]
+            storage_id = record.get("storage_cluster_id", 0)
+            storage_type = cluster_info_dict.get(storage_id, models.ClusterInfo.TYPE_BKDATA)
             table_id_db = index_set
 
             # 索引集，直接按照存储进行路由
             data[tid] = json.dumps(
                 {
-                    "storage_id": record.get("storage_cluster_id", 0),
+                    "storage_id": storage_id,
                     "db": table_id_db,
                     "measurement": DEFAULT_MEASUREMENT,
                     "source_type": source_type,
                     "options": tid_options_map.get(tid) or {},
+                    'storage_type': storage_type,
                 }
             )
         return data
