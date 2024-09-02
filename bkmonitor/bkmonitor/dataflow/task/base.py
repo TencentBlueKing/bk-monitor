@@ -58,5 +58,7 @@ class BaseTask(abc.ABC):
         if self.data_flow:
             if consuming_mode is None and self.data_flow.sql_changed:
                 consuming_mode = ConsumingMode.Tail
-            self.data_flow.start(consuming_mode)
+            result = self.data_flow.start(consuming_mode)
             self.flow_status = self.data_flow.flow_status
+            return result
+        return {}
