@@ -453,13 +453,34 @@ class StartResource(Resource):
 
     @atomic
     def perform_request(self, validated_data):
-        if validated_data["type"] == OperateType.TRACING.value:
-            Application.objects.filter(application_id=validated_data["application_id"]).update(is_enabled=True)
-            Application.start_plugin_config(validated_data["application_id"])
-            return api.apm_api.start_application(application_id=validated_data["application_id"], type="tracing")
+        try:
+            application = Application.objects.get(application_id=validated_data["application_id"])
+        except Application.DoesNotExist:
+            raise ValueError(_("应用不存在"))
 
-        Application.objects.filter(application_id=validated_data["application_id"]).update(is_enabled_profiling=True)
-        return api.apm_api.start_application(application_id=validated_data["application_id"], type="profiling")
+        if validated_data["type"] == OperateType.TRACING.value:
+            application.is_enabled = True
+            Application.start_plugin_config(validated_data["application_id"])
+        elif validated_data["type"] == OperateType.PROFILING.value:
+            application.is_enabled_profiling = True
+        else:
+            raise ValueError(_("不支持的data_source: {}").format(validated_data["type"]))
+
+        application.save()
+        switch_on_data_sources = {validated_data["type"]: True}
+        res = api.apm_api.start_application(
+            application_id=validated_data["application_id"], type=validated_data["type"]
+        )
+
+        from apm_web.tasks import APMEvent, report_apm_application_event
+
+        report_apm_application_event.delay(
+            application.bk_biz_id,
+            application.application_id,
+            apm_event=APMEvent.APP_UPDATE,
+            data_sources=switch_on_data_sources,
+        )
+        return res
 
 
 class StopResource(Resource):
@@ -759,24 +780,26 @@ class SetupResource(Resource):
                 else:
                     api.apm_api.stop_application(application_id=validated_data["application_id"], type="profiling")
 
-        if any(list(switch_on_data_sources.values())):
-            from apm_web.tasks import APMEvent, report_apm_application_event
+        Application.objects.filter(application_id=application.application_id).update(update_user=get_global_user())
 
+        # Log-Trace配置更新
+        if application.plugin_id == LOG_TRACE:
+            Application.update_plugin_config(application.application_id, validated_data["plugin_config"])
+        from apm_web.tasks import (
+            APMEvent,
+            report_apm_application_event,
+            update_application_config,
+        )
+
+        update_application_config.delay(application.application_id)
+
+        if any(list(switch_on_data_sources.values())):
             report_apm_application_event.delay(
                 application.bk_biz_id,
                 application.application_id,
                 apm_event=APMEvent.APP_UPDATE,
                 data_sources=switch_on_data_sources,
             )
-
-        Application.objects.filter(application_id=application.application_id).update(update_user=get_global_user())
-
-        # Log-Trace配置更新
-        if application.plugin_id == LOG_TRACE:
-            Application.update_plugin_config(application.application_id, validated_data["plugin_config"])
-        from apm_web.tasks import update_application_config
-
-        update_application_config.delay(application.application_id)
 
 
 class ListApplicationResource(PageListResource):
