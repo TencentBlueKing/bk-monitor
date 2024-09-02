@@ -27,6 +27,7 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 type CompareGraphToolsProps = {
+  originScaleValue?: number;
   scaleValue?: number;
   maxScale?: number;
   minScale?: number;
@@ -45,6 +46,7 @@ type CompareGraphToolsEvent = {
 import './compare-graph-tools.scss';
 @Component
 export default class CompareGraphTools extends tsc<CompareGraphToolsProps, CompareGraphToolsEvent> {
+  @Prop({ default: 50 }) originScaleValue!: number;
   @Prop({ default: 1 }) scaleValue!: number;
   @Prop({ default: 100 }) maxScale!: number;
   @Prop({ default: 1 }) minScale!: number;
@@ -105,7 +107,7 @@ export default class CompareGraphTools extends tsc<CompareGraphToolsProps, Compa
             class='icon-monitor icon-mc-restoration-ratio item-icon'
             v-bk-tooltips={{ content: this.$t('原始大小') }}
             onClick={() => {
-              this.handleScaleChange(100);
+              this.handleScaleChange(this.originScaleValue);
             }}
           />
           <i
