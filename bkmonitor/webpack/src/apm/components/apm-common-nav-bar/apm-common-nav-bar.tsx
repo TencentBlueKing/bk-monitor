@@ -178,6 +178,7 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
               {!item.selectOption?.loading ? (
                 [
                   <span
+                    key='1'
                     class={{
                       'item-name': true,
                       'parent-nav': !!item.id && index < len - 1 && !item.notLink,
@@ -211,10 +212,10 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
                       >
                         <i class='icon-monitor icon-mc-arrow-down' />
                       </div>
-                      {this.sortSelectList(item.selectOption).map(selectItem => (
+                      {this.sortSelectList(item.selectOption).map((selectItem, index) => (
                         <bk-option
                           id={selectItem.id}
-                          key={selectItem.id}
+                          key={`${selectItem.id}_${index}`}
                           class={{ item: true, active: selectItem.id === item.selectOption.value }}
                           name={selectItem.name}
                         >
