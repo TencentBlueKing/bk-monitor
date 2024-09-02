@@ -27,7 +27,7 @@
 import { Component, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { random } from 'monitor-common/utils';
+import { Debounce, random } from 'monitor-common/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import TextOverflowCopy from 'monitor-pc/pages/monitor-k8s/components/text-overflow-copy/text-overflow-copy';
 import { echartsConnect, echartsDisconnect } from 'monitor-ui/monitor-echarts/utils';
@@ -130,12 +130,13 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   @Watch('show', { immediate: true })
   handleWatchShow(show: boolean) {
     if (show) {
+      this.curType = this.endpoint ? 'endpoint' : 'service';
       this.initPanel();
     } else {
       echartsDisconnect(this.serviceTabData.dashboardId);
     }
   }
-
+  @Debounce(200)
   initPanel() {
     this.tabActive = 'service';
     this.viewOptions.variables = {
@@ -210,6 +211,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
     try {
       this.serviceTabData.dashboardId = random(8);
       const typeKey = this.curType === 'endpoint' ? 'endpoint_tabs_service' : 'service_tabs_service';
+      console.log(typeKey);
       const apdexPanel = this.data[typeKey].panels.find(item => item.type === 'apdex-chart');
       if (apdexPanel) {
         this.serviceTabData.getApdexData = async setData => {
@@ -317,7 +319,19 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
             showHeader={true}
             showXAxis={true}
           >
-            <div slot='title'>Apdex</div>
+            <div slot='title'>
+              <span class='mr-8'>Apdex</span>
+              <span
+                class='bk-icon icon-info-circle tips-icon'
+                v-bk-tooltips={{
+                  content: '根据Apdex进行划分，划分范围为：<br>1.红：0~0.25<br>2.黄：0.25~0.75<br>3.绿：0.75以上',
+                  showOnInit: false,
+                  trigger: 'mouseenter',
+                  placements: ['top'],
+                  allowHTML: true,
+                }}
+              />
+            </div>
           </BarAlarmChart>
           {this.serviceTabData.panels.map(panel => (
             <div
