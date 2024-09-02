@@ -24,41 +24,106 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, ModelSync, Watch } from 'vue-property-decorator';
+import { Component, ModelSync, Watch, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Dialog, Table } from 'bk-magic-vue';
+
+import './index.scss';
 
 interface IProps {
   value: boolean;
 }
 
+const { $i18n } = window.mainComponent;
+
 @Component({
   components: { Dialog, Table },
 })
 export default class IndexImportModal extends tsc<IProps> {
-  @ModelSync('value', 'change', { type: Boolean })
-  localIshowValue!: boolean;
+  @ModelSync('value', 'change', { type: Boolean }) localIsShowValue!: boolean;
 
   syncTypeList = [
-    { name: this.$t('同步源日志信息'), id: 'source_log_info' },
-    { name: this.$t('同步字段清洗配置'), id: 'field_clear_config' },
-    { name: this.$t('同步存储配置'), id: 'storage_config' },
-    { name: this.$t('同步采集目标'), id: 'acquisition_target' },
+    { name: $i18n.t('同步源日志信息'), id: 'source_log_info' },
+    { name: $i18n.t('同步字段清洗配置'), id: 'field_clear_config' },
+    { name: $i18n.t('同步存储配置'), id: 'storage_config' },
+    { name: $i18n.t('同步采集目标'), id: 'acquisition_target' },
   ];
   syncType = ['source_log_info'];
   isTableLoading = false;
+  submitLoading = false;
   collectList = [];
-  emptyType = '';
+  emptyType = 'empty';
+  keyword = '';
+  searchKeyword = '';
+  currentCheckImportID = null;
+  pagination = {
+    current: 1,
+    count: 0,
+    limit: 10,
+    limitList: [10, 20, 50],
+  };
 
-  @Watch('localIshowValue')
+  get etlConfigList() {
+    return this.$store.getters['globals/globalsData']?.etl_config || [];
+  }
+
+  get collectShowList() {
+    let collect = this.collectList;
+    if (this.keyword) {
+      collect = collect.filter(item =>
+        item.collector_config_name.toString().toLowerCase().includes(this.keyword.toLowerCase()),
+      );
+    }
+    this.emptyType = this.keyword ? 'search-empty' : 'empty';
+    this.changePagination({ count: collect.length });
+    const { current, limit } = this.pagination;
+
+    const startIndex = (current - 1) * limit;
+    const endIndex = current * limit;
+    return collect.slice(startIndex, endIndex);
+  }
+
+  @Watch('localIsShowValue')
   handleIsShowChange(val) {
     if (val) {
       this.requestData();
     }
   }
 
-  requestData = () => {
+  @Emit('sync-export')
+  handleExport() {
+    this.localIsShowValue = false;
+    return;
+  }
+
+  handleCollectPageChange(current) {
+    this.changePagination({ current });
+  }
+  handleCollectLimitChange(limit) {
+    this.changePagination({ limit, current: 1 });
+  }
+  changePagination(pagination = {}) {
+    Object.assign(this.pagination, pagination);
+  }
+  handleSearchChange(val) {
+    if (val === '') {
+      this.changePagination({ current: 1 });
+      this.keyword = '';
+      this.searchKeyword = '';
+    }
+  }
+  search() {
+    this.keyword = this.searchKeyword;
+    this.emptyType = this.keyword ? 'search-empty' : 'empty';
+  }
+  dialogValueChange(v) {
+    if (!v) {
+      this.syncType = ['source_log_info'];
+      this.currentCheckImportID = null;
+    }
+  }
+  requestData() {
     this.isTableLoading = true;
     const ids = this.$route.query.ids as string; // 根据id来检索
     const collectorIdList = ids ? decodeURIComponent(ids) : [];
@@ -77,8 +142,27 @@ export default class IndexImportModal extends tsc<IProps> {
         const { data } = res;
 
         if (data?.length) {
-          this.collectList.push(...data);
-          console.log('result', this.collectList);
+          this.collectList = data.map(item => {
+            const {
+              collector_config_id,
+              collector_config_name,
+              storage_cluster_name,
+              etl_config,
+              retention,
+              params,
+              bk_data_id,
+            } = item;
+            const { paths } = JSON.parse(this.pythonDictString(params));
+            return {
+              bk_data_id,
+              collector_config_id,
+              collector_config_name: collector_config_name || '--',
+              storage_cluster_name: storage_cluster_name || '--',
+              retention: retention ? `${retention}${$i18n.t('天')}` : '--',
+              paths: paths?.join('; ') ?? '',
+              etl_config: this.etlConfigList.find(item => item.id === etl_config)?.name ?? '--',
+            };
+          });
         }
       })
       .catch(() => {
@@ -87,61 +171,168 @@ export default class IndexImportModal extends tsc<IProps> {
       .finally(() => {
         this.isTableLoading = false;
       });
-  };
+  }
+  pythonDictString(pythonString: string) {
+    return pythonString
+      .replace(/'/g, '"') // 将单引号替换为双引号
+      .replace(/None/g, 'null') // 将 None 替换为 null
+      .replace(/True/g, 'true') // 将 True 替换为 true
+      .replace(/False/g, 'false'); // 将 False 替换为 false
+  }
+  getCheckedStatus(row) {
+    return row.collector_config_id === this.currentCheckImportID;
+  }
+  getSyncDisabled(id) {
+    return this.syncType.length === 1 && this.syncType.includes(id);
+  }
+  handleRowCheckChange(row) {
+    if (this.currentCheckImportID === row.collector_config_id) {
+      this.currentCheckImportID = null;
+      return;
+    }
+    this.currentCheckImportID = row.collector_config_id;
+  }
+  handleConfirmDialog() {
+    if (!this.currentCheckImportID) {
+      this.$bkMessage({
+        theme: 'error',
+        message: $i18n.t('请选择目标索引集'),
+      });
+      return;
+    }
+    this.submitLoading = true;
+    (this as any).$http
+      .request('collect/details', {
+        params: {
+          collector_config_id: this.currentCheckImportID,
+        },
+      })
+      .then(async res => {
+        if (res.data) {
+          const collect = res.data;
+          const isPhysics = collect.environment !== 'container';
+          if (collect.collector_scenario_id !== 'wineventlog' && isPhysics && collect?.params.paths) {
+            collect.params.paths = collect.params.paths.map(item => ({ value: item }));
+          }
+          this.$store.commit('collect/updateExportCollectObj', {
+            collectID: this.currentCheckImportID,
+            syncType: this.syncType,
+            collect,
+          });
+          this.handleExport();
+        }
+      })
+      .catch(err => {
+        console.warn(err);
+      })
+      .finally(() => {
+        this.submitLoading = false;
+      });
+  }
 
   render() {
+    const spanSlot = {
+      default: ({ row, column }) => (
+        <div
+          class='title-overflow'
+          v-bk-overflow-tips
+        >
+          <span>{row[column.property] || '--'}</span>
+        </div>
+      ),
+    };
+    const checkBoxSlot = {
+      default: ({ row }) => (
+        <div class='import-check-box'>
+          <bk-checkbox
+            class='group-check-box'
+            checked={this.getCheckedStatus(row)}
+          ></bk-checkbox>
+        </div>
+      ),
+    };
     return (
       <bk-dialog
         width={1200}
         ext-cls='index-import-modal'
-        v-model={this.localIshowValue}
+        v-model={this.localIsShowValue}
+        confirm-fn={this.handleConfirmDialog}
         header-position='left'
         mask-close={false}
+        render-directive='if'
         theme='primary'
         title={this.$t('索引配置导入')}
+        on-value-change={this.dialogValueChange}
       >
-        <div class='content'>
+        <div
+          class='content'
+          v-bkloading={{ isLoading: this.submitLoading }}
+        >
           <bk-form
             form-type='vertical'
             label-width={200}
           >
             <bk-form-item required={true}>
-              <bk-checkbox-group v-model={this.syncType}>
-                {this.syncTypeList.map(item => (
-                  <bk-checkbox
-                    key={item.id}
-                    style='margin-right: 24px;'
-                    value={item.id}
-                  >
-                    {item.name}
-                  </bk-checkbox>
-                ))}
-              </bk-checkbox-group>
+              <div class='top-sync-select'>
+                <bk-checkbox-group v-model={this.syncType}>
+                  {this.syncTypeList.map(item => (
+                    <bk-checkbox
+                      key={item.id}
+                      style='margin-right: 24px;'
+                      disabled={this.getSyncDisabled(item.id)}
+                      value={item.id}
+                    >
+                      {item.name}
+                    </bk-checkbox>
+                  ))}
+                </bk-checkbox-group>
+                <bk-input
+                  v-model={this.searchKeyword}
+                  placeholder={$i18n.t('搜索名称')}
+                  right-icon='bk-icon icon-search'
+                  on-change={this.handleSearchChange}
+                  on-enter={this.search}
+                ></bk-input>
+              </div>
             </bk-form-item>
             <bk-form-item label={this.$t('请选择目标索引集')}>
               <bk-table
                 v-bkloading={{ isLoading: this.isTableLoading }}
-                data={this.collectList}
+                data={this.collectShowList}
+                limit-list={this.pagination.limitList}
+                pagination={this.pagination}
+                on-page-change={this.handleCollectPageChange}
+                on-page-limit-change={this.handleCollectLimitChange}
+                on-row-click={this.handleRowCheckChange}
               >
+                <bk-table-column
+                  width='60'
+                  label=''
+                  prop=''
+                  scopedSlots={checkBoxSlot}
+                ></bk-table-column>
                 <bk-table-column
                   label='索引集'
                   prop='collector_config_name'
+                  scopedSlots={spanSlot}
                 ></bk-table-column>
                 <bk-table-column
                   label='采集路径'
-                  prop='status'
+                  prop='paths'
+                  scopedSlots={spanSlot}
                 ></bk-table-column>
                 <bk-table-column
                   label='采集模式'
-                  prop='status'
+                  prop='etl_config'
                 ></bk-table-column>
                 <bk-table-column
                   label='存储集群'
-                  prop='status'
+                  prop='storage_cluster_name'
+                  scopedSlots={spanSlot}
                 ></bk-table-column>
                 <bk-table-column
                   label='存储时长'
-                  prop='status'
+                  prop='retention'
                 ></bk-table-column>
               </bk-table>
             </bk-form-item>
