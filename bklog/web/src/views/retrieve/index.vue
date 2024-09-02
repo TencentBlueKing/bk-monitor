@@ -1412,16 +1412,6 @@
           queryObj,
         );
 
-        // this.$router.push({
-        //   name: 'retrieve',
-        //   // 联合查询不需要路由索引集ID
-        //   params: this.isUnionSearch
-        //     ? undefined
-        //     : {
-        //         indexId: this.indexId,
-        //       },
-        //   query: queryObj,
-        // });
         // 接口请求
         try {
           this.tableLoading = true;

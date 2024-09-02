@@ -23,6 +23,8 @@
   const refUiValueOperatorList = ref(null);
   const activeIndex = ref(-1);
   const refSearchResultList = ref(null);
+  const isFocusFieldList = ref(true);
+
   let refUiValueOperatorInstance = null;
 
   const activeFieldItem = ref({
@@ -37,7 +39,7 @@
     operator: '',
     isInclude: true,
     value: [],
-    relation: 'and',
+    relation: 'AND',
   });
 
   const getRegExp = (searchValue, flags = 'ig') => {
@@ -51,6 +53,13 @@
 
   const isFullText = computed(() => fullText.value !== null && fullText.value.length > 0);
 
+  const activeOperator = computed(
+    () =>
+      activeFieldItem.value.field_operator.find(op => op.operator === condition.value.operator) ?? {
+        label: condition.value.operator,
+        operator: condition.value.operator,
+      },
+  );
   const scrollActiveItemIntoView = () => {
     if (activeIndex.value >= 0) {
       const target = refSearchResultList.value?.querySelector(`[data-tab-index="${activeIndex.value}"]`);
@@ -136,11 +145,6 @@
     return fieldTypeMap.value?.[type] ? fieldTypeMap.value?.[type]?.color : '#EAEBF0';
   };
 
-  const handleFieldItemClick = (item, index) => {
-    Object.assign(activeFieldItem.value, item);
-    activeIndex.value = index;
-  };
-
   const resetActiveFieldItem = (ignoreFullText = false) => {
     activeFieldItem.value = {
       field_name: null,
@@ -160,6 +164,16 @@
     activeIndex.value = -1;
     if (!ignoreFullText) {
       fullText.value = null;
+    }
+  };
+
+  const handleFieldItemClick = (item, index) => {
+    resetActiveFieldItem();
+    Object.assign(activeFieldItem.value, item);
+    activeIndex.value = index;
+
+    if (props.value.field === item.field_name) {
+      restoreFieldAndCondition();
     }
   };
 
@@ -184,8 +198,11 @@
   };
 
   const handleKeydownClick = e => {
-    let index = activeIndex.value;
+    if (!isFocusFieldList.value) {
+      return;
+    }
 
+    let index = activeIndex.value;
     if (e.keyCode === 38) {
       const minValue = isFullText.value ? 0 : 1;
       if (activeIndex.value > minValue) {
@@ -214,16 +231,37 @@
     refUiValueOperatorInstance?.hide();
   };
 
-  onMounted(() => {
+  const beforeShowndFn = () => {
     document.addEventListener('keydown', handleKeydownClick);
+  };
+
+  const afterHideFn = () => {
+    document.removeEventListener('keydown', handleKeydownClick);
+  };
+
+  const handleRsultListClick = () => {
+    isFocusFieldList.value = true;
+  }
+
+  const handleResultOutsideClick = () => {
+    isFocusFieldList.value = false;
+  }
+
+  onMounted(() => {
+    beforeShowndFn();
   });
 
   onBeforeUnmount(() => {
-    document.removeEventListener('keydown', handleKeydownClick);
+    afterHideFn();
+  });
+
+  defineExpose({
+    beforeShowndFn,
+    afterHideFn,
   });
 </script>
 <template>
-  <div class="ui-query-options">
+  <div class="ui-query-options" @click.stop="handleResultOutsideClick">
     <div class="ui-query-option-content">
       <div class="field-list">
         <div class="ui-search-input">
@@ -239,6 +277,7 @@
         <div
           class="ui-search-result"
           ref="refSearchResultList"
+          @click.stop="handleRsultListClick"
         >
           <div
             :class="['ui-search-result-row', { active: activeIndex === 0 }]"
@@ -286,7 +325,7 @@
                 class="ui-value-operator"
                 ref="refUiValueOperator"
               >
-                {{ condition.operator }}
+                {{ activeOperator.label }}
               </div>
               <div style="display: none">
                 <div
@@ -324,11 +363,11 @@
             <div>
               <bk-radio-group v-model="condition.relation">
                 <bk-radio
-                  value="and"
+                  value="AND"
                   style="margin-right: 12px"
                   >AND
                 </bk-radio>
-                <bk-radio value="or">OR </bk-radio>
+                <bk-radio value="OR">OR </bk-radio>
               </bk-radio-group>
             </div>
           </div>

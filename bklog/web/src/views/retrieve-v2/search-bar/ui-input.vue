@@ -39,6 +39,12 @@
         placement: 'bottom-start',
         interactive: true,
         maxWidth: 800,
+        onShown: () => {
+          refPopInstance.value?.beforeShowndFn?.();
+        },
+        onHidden: () => {
+          refPopInstance.value?.afterHideFn?.();
+        },
       });
     }
   };
@@ -82,7 +88,7 @@
 
   const handleAddItem = e => {
     const target = e.target.closest('.search-item');
-    queryItem.value = '89898998';
+    queryItem.value = '';
     showTagListItems(target);
     activeIndex.value = null;
   };
@@ -106,7 +112,7 @@
 
   const handleSaveQueryClick = paylod => {
     tippyInstance.hide();
-    if (activeIndex.value!== null && activeIndex.value >= 0) {
+    if (activeIndex.value !== null && activeIndex.value >= 0) {
       Object.assign(modelValue.value[activeIndex.value], paylod);
       return;
     }
@@ -152,12 +158,19 @@
     >
       <template v-if="!item.is_focus_input">
         <div class="tag-row match-name">
-          {{ item.field }}<span class="symbol">{{ item.operator }}</span>
+          {{ item.field }}<span class="symbol" :data-operator="item.operator">{{ item.operator }}</span>
         </div>
         <div class="tag-row match-value">
-          <span v-for="(child, childInex) in item.value" :key="childInex">
+          <span
+            v-for="(child, childInex) in item.value"
+            :key="childInex"
+          >
             <span>{{ child }}</span>
-            <span v-if="childInex < item.value.length - 1">{{ item.relation }}</span>
+            <span
+              v-if="childInex < item.value.length - 1"
+              class="match-value-relation"
+              >{{ item.relation }}</span
+            >
           </span>
         </div>
         <div class="tag-options">

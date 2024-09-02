@@ -25,11 +25,8 @@
   /** 自动刷新规则 */
   const refreshActive = ref(false);
   const emit = defineEmits([
-    'timezone-change',
-    'date-picker-change',
-    'update:date-picker-value',
-    'should-retrieve',
-    'update:datePickerValue',
+    'change',
+    'should-retrieve'
   ]);
   /** props相关 */
   const props = defineProps({});
@@ -82,7 +79,9 @@
     activeIndex.value = index;
   };
 
-  const handleBtnQueryClick = () => {};
+  const handleBtnQueryClick = () => {
+    store.commit('updateIndexItemParams', { addition: searchItemList.value })
+  };
 
   // 自动刷新
   const handleDropdownShow = () => {
@@ -92,17 +91,18 @@
     refreshActive.value = false;
   };
   const handleTimezoneChange = timezone => {
-    emit('timezone-change', timezone);
-    emit('date-picker-change');
+    store.commit('updateIndexItemParams', { timezone });
+    emit('change');
   };
+
   // 日期变化
   const handleTimeRangeChange = val => {
     if (val.every(item => typeof item === 'string')) {
       localStorage.setItem('SEARCH_DEFAULT_TIME', JSON.stringify(val));
     }
-    emit('update:date-picker-value', val);
+    store.commit('updateIndexItemParams', { start_time: val[0], end_time: val[1] });
     setRefreshTime(0);
-    emit('date-picker-change');
+    emit('change');
   };
 
   // 清除定时器，供父组件调用
@@ -146,16 +146,12 @@
 
   const handleRefreshDebounce = debounce(300, handleRefresh);
 
-  const handleDisabledTagItem = item => {
-    item.disabled = !item.disabled;
-  };
+
   const handleSelectRefreshTimeout = timeout => {
     setRefreshTime(timeout);
     autoRefreshPopper.value.instance.hide();
   };
-  const handleDeleteTagItem = index => {
-    searchItemList.value.splice(index, 1);
-  };
+
 
   onMounted(() => {
     document.addEventListener('visibilitychange', handleVisibilityChange);

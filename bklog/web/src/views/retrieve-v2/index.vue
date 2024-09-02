@@ -36,7 +36,7 @@
 
   import CollectFavorites from './collect/collect-index';
   import TabPanel from './tab-panel/index.vue';
-  // import { getDefaultRetrieveParams } from './const';
+  import { getDefaultRetrieveParams } from './const';
   import SearchBar from './search-bar/index.vue';
   import SubBar from './sub-bar/index.vue';
 
@@ -47,13 +47,6 @@
   const showFavorites = ref(false);
   const favoriteRef = ref(null);
   const favoriteWidth = ref(240);
-
-  const datePickerValue = ref(['now-15m', 'now']);
-  const timeZone = ref(dayjs.tz.guess());
-  // const retrieveParams = ref({
-  //   bk_biz_id: store.state.bkBizId,
-  //   ...getDefaultRetrieveParams(),
-  // });
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
@@ -135,15 +128,25 @@
   onMounted(() => {
     initFavoriteState();
   });
+
+  const retrieveParams = computed(() => {
+    const { start_time, end_time, timezone, addition } = indexItem.value;
+    return {
+      bk_biz_id: store.state.bkBizId,
+      ...getDefaultRetrieveParams(),
+      start_time,
+      end_time,
+      timezone,
+      addition,
+    };
+  });
+
   /** 修改时区 */
-  const handleTimezoneChange = timezone => {
+  const handleSearBarChanged = timezone => {
     timezone.value = timezone;
     updateTimezone(timezone);
   };
-  /** 触发重新查询 */
-  const shouldRetrieve = () => {
-    console.log('======= shouldRetrieve')
-  }
+
   const activeTab = ref('origin');
 </script>
 <template>
@@ -186,13 +189,7 @@
         @handle-click-favorite="handleClickFavorite"
       ></CollectFavorites>
       <div :style="{ paddingLeft: `${showFavorites ? favoriteWidth : 0}px` }">
-        <SearchBar
-          :timeZone="timeZone"
-          :datePickerValue="datePickerValue"
-          @update:date-picker-value="value => (datePickerValue = value)"
-          @timezone-change="handleTimezoneChange"
-          @should-retrieve="shouldRetrieve"
-        ></SearchBar>
+        <SearchBar @change="handleSearBarChanged"></SearchBar>
         <div class="result-row">
           <TabPanel v-model="activeTab"></TabPanel>
         </div>

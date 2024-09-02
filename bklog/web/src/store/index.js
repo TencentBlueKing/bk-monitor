@@ -29,17 +29,16 @@
  * @file main store
  * @author  <>
  */
-
-import Vue, { set } from 'vue';
+import Vue from 'vue';
 
 import { unifyObjectStyle } from '@/common/util';
+import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import Vuex from 'vuex';
 
 import collect from './collect';
 import globals from './globals';
 import retrieve from './retrieve';
 import http from '@/api';
-import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
 Vue.use(Vuex);
 
@@ -74,24 +73,27 @@ const store = new Vuex.Store({
       timezone: '',
       ids: [],
       isUnionIndex: false,
+
       items: [],
       selectIsUnionSearch: false,
+      addition: [],
     },
     /** 联合查询ID列表 */
     unionIndexList: [],
     /** 联合查询元素列表 */
     unionIndexItemList: [],
     /** 索引集对应的字段列表信息 */
+    // @ts-ignore
     indexFieldInfo: {
-      "fields": [],
-      "display_fields": [],
-      "sort_list": [],
-      "time_field": "",
-      "time_field_type": "",
-      "time_field_unit": "",
-      "config": [],
-      "config_id": 0
-  },
+      fields: [],
+      display_fields: [],
+      sort_list: [],
+      time_field: '',
+      time_field_type: '',
+      time_field_unit: '',
+      config: [],
+      config_id: 0,
+    },
     traceIndexId: '',
     // 业务Id
     bkBizId: '',
@@ -186,11 +188,15 @@ const store = new Vuex.Store({
   // 公共 mutations
   mutations: {
     updateIndexItem(state, payload) {
-      Object.assign(state.indexItem, payload ?? {})
+      Object.assign(state.indexItem, payload ?? {});
       state.unionIndexList = [];
       if (payload.isUnionIndex) {
         state.unionIndexList = payload.ids;
       }
+    },
+
+    updateIndexItemParams(state, payload) {
+      Object.assign(state.indexItem, payload ?? {});
     },
 
     updateUserMeta(state, payload) {
@@ -494,6 +500,7 @@ const store = new Vuex.Store({
 
     requestIndexSetFieldInfo({ commit, state }) {
       const isUnionIndex = state.indexItem?.isUnionIndex;
+      // @ts-ignore
       const { ids = [], start_time = '', end_time = '' } = state.indexItem;
       const urlStr = isUnionIndex ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
       const tempList = handleTransformToTimestamp([start_time, end_time]);
@@ -508,7 +515,6 @@ const store = new Vuex.Store({
         });
       }
 
-      console.log('requestIndexSetFieldInfo')
       return http
         .request(urlStr, {
           params: { index_set_id: ids[0] },
@@ -520,6 +526,12 @@ const store = new Vuex.Store({
           return res;
         });
     },
+
+    // requestIndexSetQuery({ commit, state }) {
+    //   const { start_time, end_time, isUnionIndex } = state.indexItem;
+    //   const [startTimeStamp, endTimeStamp] = handleTransformToTimestamp([start_time, end_time]);
+
+    // }
   },
 });
 
