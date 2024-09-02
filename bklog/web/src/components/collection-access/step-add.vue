@@ -1833,15 +1833,6 @@
           }
         }
       },
-      removeTargetValue(configs) {
-        if (this.isPhysicsEnvironment) return; // 回填，如果是物理环境，直接不处理
-        const formConfig = this.formData.configs;
-        for (const key in formConfig) {
-          if (Object.prototype.hasOwnProperty.call(formConfig, key)) {
-            const item = formConfig[key];
-          }
-        }
-      },
     },
   };
 </script>
