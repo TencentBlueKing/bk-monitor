@@ -173,7 +173,7 @@ class DataFlow(object):
             # 该flow的状态正常启动，需要去判断是否更新如果节点有更新则重启
             if not self.is_modified:
                 logger.info("dataflow({}({})) has not changed.".format(self.flow_name, self.flow_id))
-                return
+                return {}
             return self.start_or_restart_flow(False, consuming_mode)
         else:
             # 其余状态则全部重启

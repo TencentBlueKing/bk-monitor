@@ -539,14 +539,14 @@ def get_aiops_access_func(algorithm: AlgorithmModel.AlgorithmChoices) -> callabl
 def polling_aiops_strategy_status(
     flow_id: int, task_id: int, base_labels: Dict, callback: callable, query_config: QueryConfig
 ):
-    deploy_data = api.bkdata.get_datflow_deploy_data(flow_id=flow_id)
+    deploy_data = api.bkdata.get_dataflow_deploy_data(flow_id=flow_id)
     deploy_task_data = {item["id"]: item for item in deploy_data}
     current_deploy_data = deploy_task_data.get(task_id, deploy_data[0])
 
-    if current_deploy_data["status"] == "running":
-        # 如果任务启动流程还在执行中，则下一个周期再继续检测
+    if current_deploy_data["status"] in ("running", "pending"):
+        # 如果任务启动流程还在执行中，则下一个周期再继续检
         polling_aiops_strategy_status.apply_async(
-            args=(flow_id, task_id, base_labels, callback), countdown=AIOPS_ACCESS_STATUS_POLLING_INTERVAL
+            args=(flow_id, task_id, base_labels, callback, query_config), countdown=AIOPS_ACCESS_STATUS_POLLING_INTERVAL
         )
     elif current_deploy_data["status"] == "success":
         # 如果任务启动流程已经完成且成功，则认为任务正常启动（内部失败需要在巡检任务通过其他指标检测到）
@@ -571,6 +571,11 @@ def polling_aiops_strategy_status(
             callback.apply_async(args=(base_labels["strategy_id"],))
             query_config.intelligent_detect["status"] = AccessStatus.RUNNING
             query_config.intelligent_detect["retries"] = retries + 1
+            query_config.intelligent_detect["message"] = err_msg
+            query_config.save()
+        else:
+            callback.apply_async(args=(base_labels["strategy_id"],))
+            query_config.intelligent_detect["status"] = AccessStatus.FAILED
             query_config.intelligent_detect["message"] = err_msg
             query_config.save()
 
@@ -726,17 +731,18 @@ def access_aiops_by_strategy_id(strategy_id):
         result = detect_data_flow.start_flow(consuming_mode=ConsumingMode.Current)
         output_table_name = detect_data_flow.output_table_name
 
-        # 6.4 异步轮训接入任务的状态
-        polling_aiops_strategy_status.apply_async(
-            args=(
-                detect_data_flow.data_flow.flow_id,
-                result.get("task_id"),
-                base_labels,
-                access_aiops_by_strategy_id,
-                rt_query_config,
-            ),
-            countdown=AIOPS_ACCESS_STATUS_POLLING_INTERVAL,
-        )
+        # 6.4 异步轮训接入任务的状态，如果没有操作重启和启动flow，则不需要轮训任务状态
+        if result.get("task_id"):
+            polling_aiops_strategy_status.apply_async(
+                args=(
+                    detect_data_flow.data_flow.flow_id,
+                    result["task_id"],
+                    base_labels,
+                    access_aiops_by_strategy_id,
+                    rt_query_config,
+                ),
+                countdown=AIOPS_ACCESS_STATUS_POLLING_INTERVAL,
+            )
     except BaseException as e:  # noqa
         # 6.5 若创建并启动智能检测数据流过程中出现异常，则尝试再次接入智能检测算法
         retries = rt_query_config.intelligent_detect.get("retries", 0)
@@ -794,6 +800,7 @@ def access_aiops_by_strategy_id(strategy_id):
             "agg_dimension": agg_dimension,
             "plan_id": plan_id,
             "agg_method": agg_method,
+            "message": "",
         }
     )
     rt_query_config.save()
@@ -1323,17 +1330,18 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
         result = detect_data_flow.start_flow(consuming_mode=ConsumingMode.Current)
         output_table_name = detect_data_flow.output_table_name
 
-        # 3.4 异步轮训接入任务的状态
-        polling_aiops_strategy_status.apply_async(
-            args=(
-                detect_data_flow.data_flow.flow_id,
-                result.get("task_id"),
-                base_labels,
-                access_host_anomaly_detect_by_strategy_id,
-                rt_query_config,
-            ),
-            countdown=AIOPS_ACCESS_STATUS_POLLING_INTERVAL,
-        )
+        # 3.4 异步轮训接入任务的状态，如果没有操作重启或者启动，则不需要轮训操作状态
+        if result.get("task_id"):
+            polling_aiops_strategy_status.apply_async(
+                args=(
+                    detect_data_flow.data_flow.flow_id,
+                    result["task_id"],
+                    base_labels,
+                    access_host_anomaly_detect_by_strategy_id,
+                    rt_query_config,
+                ),
+                countdown=AIOPS_ACCESS_STATUS_POLLING_INTERVAL,
+            )
 
     except BaseException as e:  # noqa
         # 3.5 若创建并启动主机异常检测数据流过程中出现异常，则尝试再次接入主机异常检测算法
@@ -1386,6 +1394,7 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
         "agg_condition": [],
         "agg_dimension": scene_params.agg_dimensions,
         "plan_id": plan_id,
-        "agg_method": '',
+        "agg_method": "",
+        "message": "",
     }
     rt_query_config.save()
