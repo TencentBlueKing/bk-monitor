@@ -748,9 +748,6 @@
                   }
                 ],
                 "options": {
-                  "time_series": {
-                    "type": "bar"
-                  }
                 }
               }
             ]
@@ -1534,9 +1531,6 @@
                   }
                 ],
                 "options": {
-                  "time_series": {
-                    "type": "bar"
-                  }
                 }
               }
             ]
