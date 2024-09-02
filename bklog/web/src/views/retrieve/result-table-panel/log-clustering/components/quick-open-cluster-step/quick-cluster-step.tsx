@@ -46,9 +46,9 @@ export default class QuickClusterStep extends tsc<IProps> {
   @Prop({ type: Object, required: true }) clusterStepData: object;
 
   stepIndexKeyMappingList = {
-    1: 'data_check',
-    2: 'flow_create',
-    3: 'flow_run',
+    1: 'flow_create',
+    2: 'flow_run',
+    3: 'data_check',
   };
   imgSrcMapping = {
     1: clusterImg1,
@@ -58,6 +58,7 @@ export default class QuickClusterStep extends tsc<IProps> {
   imgSuccessSrcMapping = {
     1: clusterImgGrayed1,
     2: clusterImgGrayed2,
+    3: clusterImg3,
   };
 
   get errorMessage() {
