@@ -14,7 +14,6 @@ from rest_framework import serializers
 from apm_web.models import Application
 from apm_web.topo.constants import (
     BarChartDataType,
-    GraphViewType,
     RelationResourcePathType,
     SourceType,
     TopoEdgeDataType,
@@ -52,7 +51,6 @@ class TopoQueryRequestSerializer(TopoBaseRequestSerializer):
 
     data_type = serializers.ChoiceField(label="数据类型", choices=BarChartDataType.get_choices())
     edge_data_type = serializers.ChoiceField(label="连接线数据类型", choices=TopoEdgeDataType.get_choices())
-    export_type = serializers.ChoiceField(label="数据导出类型", choices=GraphViewType.get_choices())
 
 
 class NodeRelationSerializer(serializers.Serializer):

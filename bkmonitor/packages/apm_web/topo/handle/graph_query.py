@@ -22,7 +22,11 @@ from apm_web.models import ApplicationCustomService
 from apm_web.topo.constants import GraphPluginType
 from apm_web.topo.handle import BaseQuery
 from apm_web.topo.handle import NodeDisplayType as Display
-from apm_web.topo.handle.graph_plugin import PluginProvider, ViewConverter
+from apm_web.topo.handle.graph_plugin import (
+    PluginProvider,
+    TopoViewConverter,
+    ViewConverter,
+)
 from apm_web.utils import merge_dicts
 from bkmonitor.utils.thread_backend import ThreadPool
 
@@ -234,6 +238,14 @@ class Graph:
         return self._graph.edges(data=True)
 
     @property
+    def node_attrs(self):
+        return {k[0]: v for k, v in self._nodes_attrs.items()}
+
+    @property
+    def edge_attrs(self):
+        return [{"from_name": k[0], "to_name": k[1], "attrs": v} for k, v in self._edges_attrs.items()]
+
+    @property
     def node_mapping(self):
         return {node_id: attrs for node_id, attrs in self.nodes}
 
@@ -270,10 +282,28 @@ class GraphQuery(BaseQuery):
             >> converter
         )
 
-    def create_graph(self, with_plugin=False, edge_data_type=None, extra_plugins=None, extra_converter_plugins=None):
+    def execute_plugins(self, edge_data_type):
+
+        graph = self._create_clear_graph(
+            with_plugin=True,
+            edge_data_type=edge_data_type,
+            extra_plugins=TopoViewConverter.extra_pre_plugins(self.common_params),
+        )
+
+        return {"node_attrs": graph.node_attrs, "edge_attrs": graph.edge_attrs}
+
+    def create_graph(self, *args, **kwargs):
         db_nodes = self._list_nodes_from_db()
         flow_nodes, flow_edges = self._list_nodes_and_edges_from_flow()
 
+        graph = self._create_clear_graph(*args, **kwargs)
+        graph << (db_nodes | flow_nodes)
+        graph << flow_edges
+        return graph
+
+    def _create_clear_graph(
+        self, with_plugin=False, edge_data_type=None, extra_plugins=None, extra_converter_plugins=None
+    ):
         plugins = PluginProvider.Container()
         if with_plugin:
             plugins = PluginProvider.node_plugins(self.data_type, self.common_params)
@@ -281,16 +311,12 @@ class GraphQuery(BaseQuery):
                 plugins += PluginProvider.edge_plugins(edge_data_type, self.common_params)
             if extra_plugins:
                 plugins += extra_plugins
-
-        graph = Graph(
+        return Graph(
             plugins=plugins,
             converter_plugins=extra_converter_plugins or PluginProvider.Container(_plugins=[]),
             data_type=self.data_type,
             edge_data_type=edge_data_type,
         )
-        graph << (db_nodes | flow_nodes)
-        graph << flow_edges
-        return graph
 
     def _list_nodes_from_db(self) -> [NodeContainer, EdgeContainer]:
         nodes = NodeContainer()

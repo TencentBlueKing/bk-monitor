@@ -673,7 +673,7 @@ class NodeAlert(PrePlugin):
             for sub_key in all_sub_keys:
                 merged_sub_dict[AlertLevel.get_label(sub_key)] = sub_dict1.get(sub_key, 0) + sub_dict2.get(sub_key, 0)
 
-            merged_dict[key] = merged_sub_dict
+            merged_dict[(key,)] = merged_sub_dict
 
         return merged_dict
 
@@ -1036,11 +1036,13 @@ class ViewConverter:
     def convert(self, graph):
         raise NotImplementedError
 
-    def extra_pre_plugins(self, runtime):
-        return PluginProvider.Container(_plugins=[i(_runtime=runtime) for i in self._extra_pre_plugins])
+    @classmethod
+    def extra_pre_plugins(cls, runtime):
+        return PluginProvider.Container(_plugins=[i(_runtime=runtime) for i in cls._extra_pre_plugins])
 
-    def extra_pre_convert_plugins(self, runtime):
-        return PluginProvider.Container(_plugins=[i(_runtime=runtime) for i in self._extra_pre_convert_plugins])
+    @classmethod
+    def extra_pre_convert_plugins(cls, runtime):
+        return PluginProvider.Container(_plugins=[i(_runtime=runtime) for i in cls._extra_pre_convert_plugins])
 
     @classmethod
     def new(cls, bk_biz_id, app_name, data_type: str, filter_params=None):
