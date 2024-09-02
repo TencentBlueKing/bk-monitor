@@ -1,7 +1,7 @@
 <script setup>
   import { ref, watch, computed } from 'vue';
 
-  import { getOperatorKey } from '@/common/util';
+  import { getOperatorKey, getCharLength } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import tippy from 'tippy.js';
@@ -35,6 +35,7 @@
   let tippyInstance = null;
   const modelValue = ref([]);
   const refPopInstance = ref(null);
+  const refUlRoot = ref(null);
   const queryItem = ref('');
   const fullTextValue = ref('');
   const activeIndex = ref(null);
@@ -47,6 +48,13 @@
       tippyInstance.unmount();
       tippyInstance = null;
     }
+  };
+
+  const handleContainerClick = e => {
+    const input = e.target?.querySelector('.tag-option-focus-input');
+    input?.focus();
+    input?.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
+    return input;
   };
 
   const initInistance = target => {
@@ -99,41 +107,24 @@
     }
   };
 
-  /**
-   * 获取字符长度，汉字两个字节
-   * @param str 需要计算长度的字符
-   * @returns 字符长度
-   */
-  const getCharLength = str => {
-    const len = str.length;
-    let bitLen = 0;
+  const formatModelValueItem = item => {
+    const key = getOperatorKey(item.operator);
+    const label = operatorDictionary.value[key]?.label ?? key;
+    return { ...item, operator_label: label, disabled: false };
+  };
 
-    for (let i = 0; i < len; i++) {
-      if ((str.charCodeAt(i) & 0xff00) !== 0) {
-        bitLen += 1;
-      }
-      bitLen += 1;
-    }
-
-    return bitLen;
+  const setModelValue = val => {
+    modelValue.value = (val ?? []).map(formatModelValueItem);
   };
 
   watch(
     props.value,
     val => {
-      modelValue.value = val;
+      setModelValue(val);
       setFocusInputItem();
     },
     { deep: true, immediate: true },
   );
-
-  const tagRenderList = computed(() => {
-    return modelValue.value.map(item => {
-      const key = getOperatorKey(item.operator);
-      const label = operatorDictionary.value[key]?.label ?? key;
-      return { ...item, operator_label: label };
-    });
-  });
 
   const emitChange = value => {
     emit('input', value);
@@ -152,7 +143,8 @@
     Object.assign(queryItem.value, item);
     const target = e.target.closest('.search-item');
     showTagListItems(target);
-    activeIndex.value = index;
+
+    activeIndex.value = isInputFocus.value ? -1 : index;
   };
 
   const handleDisabledTagItem = item => {
@@ -165,17 +157,25 @@
   };
 
   const handleSaveQueryClick = paylod => {
-    console.log('handleSaveQueryClick');
-    let targetValue = isInputFocus.value
-      ? {
-          field: '',
-          operator: 'contains',
-          isInclude: true,
-          value: [fullTextValue.value],
-          relation: 'AND',
-          disabled: false,
-        }
-      : paylod;
+    let targetValue = formatModelValueItem(
+      isInputFocus.value && paylod === undefined
+        ? {
+            field: '',
+            operator: 'contains',
+            isInclude: true,
+            value: [fullTextValue.value],
+            relation: 'AND',
+            disabled: false,
+          }
+        : paylod,
+    );
+
+    if (isInputFocus.value) {
+      setTimeout(() => {
+        const input = handleContainerClick({ target: refUlRoot.value });
+        showTagListItems(input.parentNode);
+      }, 300);
+    }
 
     tippyInstance?.hide();
 
@@ -186,20 +186,15 @@
 
     const focusInputIndex = modelValue.value.findIndex(item => item.is_focus_input);
     if (focusInputIndex === modelValue.value.length - 1) {
-      modelValue.value.splice(focusInputIndex - 1, 0, { ...targetValue, disabled: false });
+      modelValue.value.splice(focusInputIndex, 0, { ...targetValue, disabled: false });
       return;
     }
+
     modelValue.value.push({ ...targetValue, disabled: false });
   };
 
   const handleCancelClick = () => {
     tippyInstance.hide();
-  };
-
-  const handleContainerClick = e => {
-    const input = e.target?.querySelector('.tag-option-focus-input');
-    input?.focus();
-    input?.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
   };
 
   const handleFulltextInput = e => {
@@ -213,18 +208,6 @@
     e.target?.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
   };
 
-  const handleKeyEnter = e => {
-    handleSaveQueryClick({
-      field: '',
-      operator: 'contains',
-      isInclude: true,
-      value: [fullTextValue.value],
-      relation: 'AND',
-      disabled: false,
-    });
-    handleFullTextInputBlur(e);
-  };
-
   const handleFocusInput = e => {
     isInputFocus.value = true;
     activeIndex.value = -1;
@@ -235,6 +218,7 @@
   <ul
     class="search-items"
     @click.stop="handleContainerClick"
+    ref="refUlRoot"
   >
     <li
       class="search-item btn-add"
@@ -244,7 +228,7 @@
       <div class="tag-text">{{ $t('添加条件') }}</div>
     </li>
     <li
-      v-for="(item, index) in tagRenderList"
+      v-for="(item, index) in modelValue"
       :class="[
         'search-item',
         { disabled: item.disabled, 'is-focus-input': item.is_focus_input, 'tag-item': !item.is_focus_input },
@@ -293,14 +277,13 @@
           @blur="handleFullTextInputBlur"
           @focus.stop="handleFocusInput"
           @input="handleFulltextInput"
-          @keyup.enter="handleKeyEnter"
         />
       </template>
     </li>
     <div style="display: none">
       <UiInputOptions
         ref="refPopInstance"
-        :is-full-text="isInputFocus"
+        :is-input-focus="isInputFocus"
         :value="queryItem"
         @cancel="handleCancelClick"
         @save="handleSaveQueryClick"

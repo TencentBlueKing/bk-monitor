@@ -1135,3 +1135,22 @@ export const contextHighlightColor = [
 ];
 
 export const getOperatorKey = operator => `operator:${operator}`;
+
+/**
+ * 获取字符长度，汉字两个字节
+ * @param str 需要计算长度的字符
+ * @returns 字符长度
+ */
+export const getCharLength = str => {
+  const len = str.length;
+  let bitLen = 0;
+
+  for (let i = 0; i < len; i++) {
+    if ((str.charCodeAt(i) & 0xff00) !== 0) {
+      bitLen += 1;
+    }
+    bitLen += 1;
+  }
+
+  return bitLen;
+};

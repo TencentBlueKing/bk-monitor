@@ -1,7 +1,9 @@
 <script setup>
   import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 
+  import { debounce } from 'lodash';
   import useStore from '@/hooks/use-store';
+  import useLocale from '@/hooks/use-locale';
   import tippy from 'tippy.js';
 
   const props = defineProps({
@@ -10,7 +12,7 @@
       default: '',
       required: true,
     },
-    isFullText: {
+    isInputFocus: {
       type: Boolean,
       default: false,
     },
@@ -22,14 +24,31 @@
   const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
 
   const store = useStore();
+  const { t } = useLocale();
   const searchValue = ref('');
   const refUiValueOperator = ref(null);
   const refUiValueOperatorList = ref(null);
-  const activeIndex = ref(-1);
+  const activeIndex = ref(0);
   const refSearchResultList = ref(null);
   const isFocusFieldList = ref(true);
-
+  const enterStepIndex = ref(0);
+  // 匹配条件值Enter键点击次数
+  // 用于计数当前Enter键是否为切换为提交
+  let conditionValueEnterCount = 0;
   let refUiValueOperatorInstance = null;
+
+  const fullTextField = ref({
+    field_name: '',
+    is_full_text: true,
+    field_alias: t('全文检索'),
+    field_operator: [
+      {
+        operator: 'contains',
+        label: t('包含'),
+        placeholder: t('请选择或直接输入，Enter分隔'),
+      },
+    ],
+  });
 
   const activeFieldItem = ref({
     field_name: null,
@@ -50,9 +69,12 @@
     return new RegExp(`${searchValue}`.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), flags);
   };
 
+  const fieldList = computed(() => [fullTextField.value].concat(indexFieldInfo.value.fields));
+
   const filterFieldList = computed(() => {
     const regExp = getRegExp(searchValue.value);
-    return indexFieldInfo.value.fields.filter(field => regExp.test(field.field_alias) || regExp.test(field.field_name));
+    const filterFn = field => field.is_full_text || regExp.test(field.field_alias) || regExp.test(field.field_name);
+    return fieldList.value.filter(filterFn);
   });
 
   const activeOperator = computed(
@@ -84,48 +106,36 @@
 
   const unInstallOperatorSelect = () => {
     refUiValueOperatorInstance?.unmount();
+    refUiValueOperatorInstance?.destroy();
     refUiValueOperatorInstance = null;
   };
 
   const restoreFieldAndCondition = () => {
-    const matchedField = indexFieldInfo.value.fields.find(field => field.field_name === props.value.field);
+    const matchedField = fieldList.value.find(field => field.field_name === props.value.field);
     Object.assign(activeFieldItem.value, matchedField ?? {});
     const { operator, relation, isInclude, value } = props.value;
     Object.assign(condition.value, { operator, relation, isInclude, value });
 
-    let filterIndex =
-      filterFieldList.value.findIndex(
-        field =>
-          field.field_type === activeFieldItem.value.field_type &&
-          field.field_name === activeFieldItem.value.field_name,
-      ) + 1;
+    let filterIndex = filterFieldList.value.findIndex(
+      field =>
+        field.field_type === activeFieldItem.value.field_type && field.field_name === activeFieldItem.value.field_name,
+    );
 
-    if (filterIndex === 0) {
-      filterIndex = 1;
+    if (filterIndex === -1) {
       Object.assign(activeFieldItem.value, filterFieldList.value[0]);
+      Object.assign(condition.value, { operator: activeFieldItem.value.field_operator[0].operator });
+      filterIndex = 0;
     }
 
     activeIndex.value = filterIndex;
   };
 
-  watch(
-    props,
-    () => {
-      if (typeof props.isFullText) {
-        activeIndex.value = 0;
-        return;
-      }
-
-      restoreFieldAndCondition();
-      scrollActiveItemIntoView();
-    },
-    { immediate: true, deep: true },
-  );
+  const showFulltextMsg = computed(() => activeIndex.value === 0 && props.isInputFocus);
 
   watch(
     activeIndex,
-    value => {
-      if (value > 0) {
+    () => {
+      if (activeIndex.value > 0) {
         nextTick(() => {
           installOperatorSelect();
         });
@@ -168,6 +178,7 @@
     resetActiveFieldItem();
     Object.assign(activeFieldItem.value, item);
     activeIndex.value = index;
+    condition.value.operator = activeFieldItem.value.field_operator[0].operator;
 
     if (props.value.field === item.field_name) {
       restoreFieldAndCondition();
@@ -179,25 +190,52 @@
     emit('cancel');
   };
 
-  const handleEnterFullTextClick = () => {
-    console.log('handleEnterFullTextClick');
-    emit('save', undefined);
-  };
-
   const handelSaveBtnClick = () => {
-    const result = {
-      field: activeFieldItem.value.field_name,
-      ...condition.value,
-    };
+    const isFulltextValue = activeFieldItem.value.field_name === '';
+    const result = isFulltextValue
+      ? undefined
+      : {
+          field: activeFieldItem.value.field_name,
+          ...condition.value,
+        };
 
     resetActiveFieldItem();
     emit('save', result);
   };
 
-  const handleFullTextClick = () => {
-    resetActiveFieldItem(true);
-    activeIndex.value = 0;
-  };
+  const refValueTagInput = ref(null);
+  const keyEnterCallbackFn = computed(() => {
+    return [
+      () => {
+        if (!showFulltextMsg.value) {
+          refValueTagInput.value?.focusInputer();
+          return;
+        }
+
+        handelSaveBtnClick();
+      },
+      () => {
+        handelSaveBtnClick();
+      },
+    ];
+  });
+
+  const debounceSetActiveStep = debounce(() => {
+    // 第二次点击Enter键，自动提交
+    if (enterStepIndex.value === 1) {
+      if (conditionValueEnterCount !== condition.value.value.length) {
+        keyEnterCallbackFn.value[enterStepIndex.value]?.();
+        enterStepIndex.value++;
+      }
+
+      conditionValueEnterCount++;
+      return;
+    }
+
+    // 第一次点击Enter键，切换为条件值选择
+    keyEnterCallbackFn.value[enterStepIndex.value]?.();
+    enterStepIndex.value++;
+  });
 
   const handleKeydownClick = e => {
     if (!isFocusFieldList.value) {
@@ -212,7 +250,7 @@
     if (e.keyCode === 38) {
       stopPropagation = true;
       isUpDownKeyEvent = true;
-      const minValue = props.isFullText ? 0 : 1;
+      const minValue = 0;
       if (activeIndex.value > minValue) {
         index = index - 1;
       }
@@ -229,8 +267,8 @@
 
     // key enter
     if (e.keyCode === 13) {
-      handleEnterFullTextClick();
       stopPropagation = true;
+      debounceSetActiveStep();
     }
 
     if (stopPropagation) {
@@ -240,13 +278,12 @@
     }
 
     if (isUpDownKeyEvent) {
-      if (index > 0) {
-        handleFieldItemClick(filterFieldList.value[index - 1], index);
+      if (index >= 0) {
+        handleFieldItemClick(filterFieldList.value[index], index);
         scrollActiveItemIntoView();
         return;
       }
 
-      handleFullTextClick();
       scrollActiveItemIntoView();
     }
   };
@@ -257,19 +294,36 @@
   };
 
   const beforeShowndFn = () => {
+    isFocusFieldList.value = true;
     document.addEventListener('keydown', handleKeydownClick);
+
+    restoreFieldAndCondition();
+    scrollActiveItemIntoView();
   };
 
   const afterHideFn = () => {
     document.removeEventListener('keydown', handleKeydownClick);
+    handleFieldItemClick(filterFieldList.value[0], 0);
+    enterStepIndex.value = 0;
+    isFocusFieldList.value = false;
   };
 
   const handleRsultListClick = () => {
-    isFocusFieldList.value = true;
+    // isFocusFieldList.value = true;
   };
 
   const handleResultOutsideClick = () => {
-    isFocusFieldList.value = false;
+    // isFocusFieldList.value = false;
+  };
+
+  const setActiveIndex = (index = 0) => {
+    activeIndex.value = index;
+  };
+
+  // 通过计数tag-input选择值的数量和当前键盘enter次数标记当前enter是否为执行提交操作
+  // 当tag-input选择值的数量与当前enter次数不一致时，说明为提交操作
+  const handleValueTagInputChange = tags => {
+    conditionValueEnterCount = tags.length;
   };
 
   onMounted(() => {
@@ -283,6 +337,7 @@
   defineExpose({
     beforeShowndFn,
     afterHideFn,
+    setActiveIndex,
   });
 </script>
 <template>
@@ -308,33 +363,28 @@
           @click.stop="handleRsultListClick"
         >
           <div
-            v-if="isFullText"
-            :class="['ui-search-result-row', { active: activeIndex === 0 }]"
-            data-tab-index="0"
-            @click="handleFullTextClick"
-          >
-            <span class="field-type-icon full-text"></span>
-            <span class="field-alias">{{ $t('全文检索') }}</span>
-            <span class="field-name"></span>
-          </div>
-          <div
             v-for="(item, index) in filterFieldList"
-            :class="['ui-search-result-row', { active: activeIndex === index + 1 }]"
-            :data-tab-index="index + 1"
+            :class="['ui-search-result-row', { active: activeIndex === index }]"
+            :data-tab-index="index"
             :key="item.field_name"
-            @click="() => handleFieldItemClick(item, index + 1)"
+            @click="() => handleFieldItemClick(item, index)"
           >
             <span
-              :style="{ backgroundColor: getFieldIconColor(item.field_type) }"
-              :class="[getFieldIcon(item.field_type), 'field-type-icon']"
-            ></span
-            ><span class="field-alias">{{ item.field_alias || item.field_name }}</span
-            ><span class="field-name">({{ item.field_name }})</span>
+              :style="{ backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type) }"
+              :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
+            >
+            </span>
+            <span class="field-alias">{{ item.field_alias || item.field_name }}</span>
+            <span
+              class="field-name"
+              v-if="!item.is_full_text"
+              >({{ item.field_name }})</span
+            >
           </div>
         </div>
       </div>
-      <div :class="['value-list', { 'is-full-text': activeIndex === 0 }]">
-        <template v-if="activeIndex === 0">
+      <div :class="['value-list', { 'is-full-text': showFulltextMsg }]">
+        <template v-if="showFulltextMsg">
           <div class="full-text-title">{{ $t('全文检索') }}</div>
           <div class="full-text-sub-title">
             <span></span><span>{{ $t('Enter 键') }}</span>
@@ -383,6 +433,8 @@
               <bk-tag-input
                 v-model="condition.value"
                 :allow-create="true"
+                ref="refValueTagInput"
+                @change="handleValueTagInputChange"
               ></bk-tag-input>
             </div>
           </div>
