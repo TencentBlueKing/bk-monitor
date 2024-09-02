@@ -43,6 +43,9 @@ class DataTypeBarQueryRequestSerializer(TopoBaseRequestSerializer):
     # 告警事件参数: 策略 Id
     alert_strategy_id = serializers.IntegerField(label="策略 ID (告警模式下)", required=False)
 
+    # endpoint_name 条件只支持获取 告警 / Apdex
+    endpoint_name = serializers.CharField(label="接口名称", required=False)
+
 
 class TopoQueryRequestSerializer(TopoBaseRequestSerializer):
     """拓扑视图请求参数"""

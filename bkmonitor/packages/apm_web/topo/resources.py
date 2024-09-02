@@ -36,7 +36,8 @@ class DataTypeBarQueryResource(Resource):
     RequestSerializer = DataTypeBarQueryRequestSerializer
 
     def perform_request(self, validated_request_data):
-        return BarQuery(**validated_request_data).execute()
+        extra_params = {"endpoint_name": validated_request_data.pop("endpoint_name", None)}
+        return BarQuery(**validated_request_data, extra_params=extra_params).execute()
 
 
 class TopoViewResource(Resource):
@@ -65,7 +66,16 @@ class TopoLinkResource(Resource):
         if validated_request_data["link_type"] == TopoLinkType.ALERT.value:
             # 获取 服务 or 接口的告警中心跳转链接
             if validated_request_data.get("service_name"):
-                return LinkHelper.get_service_alert_link(**params, service_name=validated_request_data["service_name"])
+                if validated_request_data.get("endpoint_name"):
+                    return LinkHelper.get_endpoint_alert_link(
+                        **params,
+                        service_name=validated_request_data["service_name"],
+                        endpoint_name=validated_request_data["endpoint_name"],
+                    )
+                else:
+                    return LinkHelper.get_service_alert_link(
+                        **params, service_name=validated_request_data["service_name"]
+                    )
 
             raise ValueError(f"[获取链接]缺少链接类型为: {validated_request_data['link_type']} 的参数")
 

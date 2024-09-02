@@ -21,6 +21,7 @@ from apm_web.metric_handler import (
     ServiceFlowErrorRateCaller,
 )
 from apm_web.models import Application
+from apm_web.topo.constants import BarChartDataType
 from apm_web.topo.handle import BaseQuery
 from core.drf_resource import resource
 
@@ -42,11 +43,21 @@ class BarResponse:
 
 class BarQuery(BaseQuery):
     def execute(self) -> dict:
-        if self.application.data_status == DataStatus.NO_DATA:
-            # 如果应用无数据 则柱状图显示为无数据
-            return asdict(BarResponse())
+        if "endpoint_name" not in self.params:
+            if self.application.data_status == DataStatus.NO_DATA and self.data_type != BarChartDataType.Alert.value:
+                # 如果应用无数据 则柱状图显示为无数据
+                return asdict(BarResponse())
 
-        return getattr(self, f"get_{self.data_type}_series")()
+            return getattr(self, f"get_{self.data_type}_series")()
+        else:
+            if not self.service_name:
+                raise ValueError(f"[柱状图] 查询接口: {self.params['endpoint_name']} 的告警数据时需要传递服务名称")
+            if self.data_type == BarChartDataType.Alert.value:
+                return self.get_alert_series()
+            if self.data_type == BarChartDataType.Apdex.value:
+                return self.get_apdex_series()
+
+            raise ValueError(f"[柱状图] 不支持查询接口: {self.params['endpoint_name']} 的 {self.data_type} 数据")
 
     def get_alert_series(self) -> Dict:
         ts_mapping = {AlertLevel.INFO: {}, AlertLevel.WARN: {}, AlertLevel.ERROR: {}}
@@ -61,6 +72,10 @@ class BarQuery(BaseQuery):
         }
         if self.service_name:
             common_params["query_string"] += f' AND tags.service_name: "{self.service_name}"'
+
+        if "endpoint_name" in self.params:
+            endpoint_name = self.params["endpoint_name"]
+            common_params["query_string"] += f' AND tags.span_name: "{endpoint_name}"'
 
         if self.params.get("strategy_ids", []):
             common_params["conditions"].append({"key": "strategy_id", "value": self.params["strategy_ids"]})
@@ -97,10 +112,13 @@ class BarQuery(BaseQuery):
         return asdict(BarResponse(series=[BarSeries(datapoints=[res])]))
 
     def get_apdex_series(self) -> Dict:
+        wheres = self.convert_metric_to_condition()
+        if "endpoint_name" in self.params:
+            wheres.append({"key": "span_name", "method": "eq", "value": [self.params["endpoint_name"]]})
         return self.get_metric(
             ApdexRange,
             interval=self._get_metric_interval(),
-            where=self.convert_metric_to_condition(),
+            where=wheres,
         ).query_range()
 
     def get_error_rate_series(self) -> Dict:
@@ -160,6 +178,13 @@ class LinkHelper:
         )
 
     @classmethod
-    def get_endpoint_alert_link(cls):
+    def get_endpoint_alert_link(cls, bk_biz_id, app_name, service_name, endpoint_name, start_time, end_time):
         """获取接口得告警中心链接"""
-        pass
+        table_id = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get().metric_result_table_id
+        return (
+            f"/?bizId={bk_biz_id}#/event-center?"
+            f"queryString=metric: custom.{table_id}.* "
+            f"AND tags.service_name: {service_name} "
+            f"AND tags.span_name: {endpoint_name}&"
+            f"from={start_time * 1000}&to={end_time * 1000}"
+        )

@@ -23,7 +23,7 @@ class BaseQuery:
         self.end_time = end_time
         self.delta = self.end_time - self.start_time
         self.service_name = service_name
-        self.params = extra_params
+        self.params = extra_params.get("extra_params") if extra_params else {}
 
         self.application = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get()
         self.metrics_table = self.application.metric_result_table_id
