@@ -14,7 +14,9 @@ from typing import List, Type
 
 from django.utils.translation import ugettext_lazy as _
 
+from apm_web.constants import AlertLevel
 from apm_web.topo.constants import RelationResourcePath
+from apm_web.topo.handle.graph_plugin import NodeColor
 from apm_web.topo.handle.relation.define import (
     Node,
     Source,
@@ -26,7 +28,7 @@ from apm_web.topo.handle.relation.define import (
     SourceSystem,
     TreeInfo,
 )
-from core.drf_resource import api
+from core.drf_resource import api, resource
 
 
 @dataclass
@@ -170,6 +172,12 @@ class HostGroup(SidebarGroup):
 
 
 @dataclass
+class DataCenterGroup(SidebarGroup):
+    id: str = "data_center"
+    name: str = _("数据中心")
+
+
+@dataclass
 class PathTemplateSidebar:
     # --- runtime attrs
     _sidebar_index: int
@@ -183,19 +191,125 @@ class PathTemplateSidebar:
     group: SidebarGroup = None
 
     def combine_and_generate(self, parent_id, nodes: List[Node]):
-        """处理(合并或者转换等逻辑)当前侧边栏对应的资源实体的所有节点 返回此层的节点和与上层的连线"""
-        # 默认逻辑为直接转换
-        # TODO 如果需要根据状态合并 nodes
-        #  只需要各自对每个 instance 下面的 nodes 进行合并（也就是这个参数里面的 nodes）可以区分出三种状态
-        #  上层的 instance 有三条线指向下层
-        return [{**i.info, "sidebar_id": self.id, "collapses": []} for i in nodes], [
-            {
-                "source": parent_id,
-                "target": i.id,
-            }
-            for i in nodes
-            if i.id != parent_id
-        ]
+        """
+        处理(合并或者转换等逻辑)当前侧边栏对应的资源实体的所有节点 返回此层的节点和与上层的连线
+        需要根据是否有告警来对此叶子节点划分出三种不同的状态(正常、预警、告警)
+        """
+
+        # 根据告警来区分出节点的状态 适用于: system, pod, service
+        if self.bind_source_type.name == SourceSystem.name:
+            # 检查 system 的告警
+            r_nodes = self._group_by_nodes(
+                "ip",
+                "bk_target_ip",
+                "("
+                + " OR ".join(
+                    [f"ip: {getattr(i.source_info, 'bk_target_ip')}" for i in nodes]
+                    + [f"tags.ip: {getattr(i.source_info, 'bk_target_ip')}" for i in nodes]
+                )
+                + ")",
+                nodes,
+            )
+        elif self.bind_source_type.name == SourceK8sPod.name:
+            r_nodes = self._group_by_nodes(
+                "pod",
+                "pod",
+                "("
+                + " OR ".join(
+                    [
+                        f"("
+                        f"tags.pod: {getattr(i.source_info, 'pod')} "
+                        f"AND tags.bcs_cluster_id: {getattr(i.source_info, 'bcs_cluster_id')} "
+                        f"AND tags.namespace: {getattr(i.source_info, 'namespace')}"
+                        f")"
+                        for i in nodes
+                    ]
+                )
+                + ")",
+                nodes,
+            )
+        elif self.bind_source_type.name == SourceK8sService.name:
+            r_nodes = self._group_by_nodes(
+                "service",
+                "service",
+                "("
+                + " OR ".join(
+                    [
+                        f"("
+                        f"tags.service: {getattr(i.source_info, 'service')} "
+                        f"AND tags.bcs_cluster_id: {getattr(i.source_info, 'bcs_cluster_id')} "
+                        f"AND tags.namespace: {getattr(i.source_info, 'namespace')}"
+                        f")"
+                        for i in nodes
+                    ]
+                )
+                + ")",
+                nodes,
+            )
+        else:
+            r_nodes = [
+                {**i.info, "sidebar_id": self.id, "collapses": [], "color": NodeColor.Color.WHITE} for i in nodes
+            ]
+
+        return r_nodes, [{"source": parent_id, "target": i["id"]} for i in r_nodes if i["id"] != parent_id]
+
+    def _group_by_nodes(self, group_by_key, node_key, query_string, nodes):
+        alerts = self._search_alert(query_string)
+
+        mapping = defaultdict(list)
+        for item in alerts:
+            for i in item["tags"]:
+                if i["key"] in group_by_key:
+                    mapping[i["value"]].append(item.get("severity"))
+
+        status_mapping = defaultdict(list)
+        for node in nodes:
+            v = getattr(node.source_info, node_key, None)
+            color = NodeColor.Color.GREEN
+            if v in mapping:
+                if any(i == AlertLevel.ERROR for i in mapping[v]):
+                    color = NodeColor.Color.RED
+                else:
+                    color = NodeColor.Color.YELLOW
+
+            status_mapping[color].append(node.info)
+
+        res = []
+        for status, status_nodes in status_mapping.items():
+            if len(status_nodes) == 1:
+                # 只有一个 不需要折叠
+                res.append(
+                    {
+                        **status_nodes[0],
+                        "sidebar_id": self.id,
+                        "collapses": [],
+                        "color": status,
+                    }
+                )
+            else:
+                # 发生折叠 节点使用第一个节点的信息
+                res.append(
+                    {
+                        **status_nodes[0],
+                        "sidebar_id": self.id,
+                        "collapses": status_nodes,
+                        "color": status,
+                    }
+                )
+
+        return res
+
+    def _search_alert(self, query_string):
+        this_tree_info = next(i for i in self._tree_infos if i.root_id == self._tree.id)
+        full_query_string = f"{query_string} AND status: ABNORMAL"
+        query_params = {
+            "bk_biz_ids": [this_tree_info.runtime["bk_biz_id"]],
+            "query_string": full_query_string,
+            "start_time": this_tree_info.runtime["start_time"],
+            "end_time": this_tree_info.runtime["end_time"],
+            "page_size": 1000,
+        }
+        return resource.fta_web.alert.search_alert(**query_params).get("alerts", [])
 
     @property
     def info(self):
@@ -278,7 +392,7 @@ class SystemSidebar(PathTemplateSidebar):
     id: str = SourceSystem.name
     name: str = "IDC"
     bind_source_type: Source = SourceSystem
-    group: SidebarGroup = HostGroup
+    group: SidebarGroup = DataCenterGroup
 
 
 @dataclass
@@ -294,6 +408,7 @@ class PathTemplate:
         edges = []
         sidebars = []
 
+        sidebar_count_info = []
         for sidebar_index, sidebar in enumerate(self.sidebars):
             sidebar_instance = sidebar(_sidebar_index=sidebar_index, _tree=tree, _tree_infos=tree_infos)  # noqa
             # 获取侧边栏绑定的资源实体
@@ -309,24 +424,50 @@ class PathTemplate:
                 raise ValueError(f"[PathTemplate] 无法在路径中找到资源实体: {sidebar_instance.bind_source_type.name}")
 
             layer_nodes_mapping = Node.get_relation_mapping(tree, sidebar_layer_index)
+
+            # 统计当前侧边栏的总、异常节点数量
+            sidebar_node_total_count = 0
+            sidebar_node_error_count = 0
             for parent_id, sidebar_nodes in layer_nodes_mapping.items():
                 l_nodes, l_edges = sidebar_instance.combine_and_generate(parent_id, sidebar_nodes)
                 nodes += l_nodes
                 edges += l_edges
+                sidebar_node_total_count += len(l_nodes)
+                sidebar_node_error_count += len(
+                    [i for i in l_nodes if i["color"] not in [NodeColor.Color.WHITE, NodeColor.Color.GREEN]]
+                )
+
+            sidebar_count_info.append((sidebar_node_error_count, sidebar_node_total_count))
             sidebars.append(sidebar_instance)
 
-        return {"edges": edges, "nodes": nodes, "sidebars": self._group_sidebar(sidebars)}
+        return {"edges": edges, "nodes": nodes, "sidebars": self._group_sidebar(sidebars, sidebar_count_info)}
 
     @classmethod
-    def _group_sidebar(cls, sidebar_instances: List[PathTemplateSidebar]):
+    def _group_sidebar(cls, sidebar_instances: List[PathTemplateSidebar], sidebar_count_info):
         """对侧边栏进行分组归类"""
 
         group_mapping = defaultdict(dict)
-        for i in sidebar_instances:
+        for index, i in enumerate(sidebar_instances):
             if i.group.id in group_mapping:
-                group_mapping[i.group.id]["list"].append(i.info)
+                group_mapping[i.group.id]["list"].append(
+                    {
+                        **i.info,
+                        "total_count": sidebar_count_info[index][-1],
+                        "error_count": sidebar_count_info[index][0],
+                    }
+                )
             else:
-                group_mapping[i.group.id] = {"id": i.group.id, "name": i.group.name, "list": [i.info]}
+                group_mapping[i.group.id] = {
+                    "id": i.group.id,
+                    "name": i.group.name,
+                    "list": [
+                        {
+                            **i.info,
+                            "total_count": sidebar_count_info[index][-1],
+                            "error_count": sidebar_count_info[index][0],
+                        }
+                    ],
+                }
 
         return list(group_mapping.values())
 
@@ -378,7 +519,7 @@ class PathProvider:
     _CONNECT_CHAR = "_to_"
 
     def __init__(self, paths, runtime):
-        path_name = self._to_path_template_key(paths)
+        path_name = self.to_path_template_key(paths)
         if path_name not in self.path_mapping:
             raise ValueError(f"关联拓扑中没有找到 {paths} 路径")
 
@@ -386,7 +527,7 @@ class PathProvider:
         self.layers = [i(rt=runtime) for i in self.path_mapping[path_name].layers]
 
     @classmethod
-    def _to_path_template_key(cls, paths):
+    def to_path_template_key(cls, paths):
         return cls._CONNECT_CHAR.join(paths)
 
     def build_tree(self):
@@ -415,8 +556,8 @@ class PathProvider:
 
     @classmethod
     def get_depth(cls, paths):
-        return len(cls.path_mapping[cls._to_path_template_key(paths)].layers)
+        return len(cls.path_mapping[cls.to_path_template_key(paths)].layers)
 
     @classmethod
     def get_template(cls, paths):
-        return cls.path_mapping[cls._to_path_template_key(paths)]
+        return cls.path_mapping[cls.to_path_template_key(paths)]

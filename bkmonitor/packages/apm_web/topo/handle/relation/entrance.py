@@ -38,7 +38,9 @@ class RelationEntrance:
     def relation_tree(self):
         # 指定路径获取: 不请求其他路径
         if self.path_type != RelationResourcePathType.DEFAULT.value:
-            return PathProvider(self.paths, self._runtime).build_tree()
+            tree = PathProvider(self.paths, self._runtime).build_tree()
+            self.trees_info = [self._get_tree_info(self.paths, tree)]
+            return tree
 
         # 默认逻辑: 从所有路径获取最完整的树并且返回所有路径的树信息
         trees = []
@@ -90,7 +92,12 @@ class RelationEntrance:
     def _get_tree_info(self, paths, tree: Node) -> TreeInfo:
         """获取树的信息"""
 
-        info = TreeInfo(root_id=tree.id, paths=paths, is_complete=Node.get_depth(tree) >= PathProvider.get_depth(paths))
+        info = TreeInfo(
+            root_id=tree.id,
+            paths=paths,
+            is_complete=Node.get_depth(tree) >= PathProvider.get_depth(paths),
+            runtime=self._runtime,
+        )
 
         return info
 

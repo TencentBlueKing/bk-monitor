@@ -151,3 +151,4 @@ class TreeInfo:
     paths: List[str]
     # 树的层级是否完整 (即根据 layers 判断是否每一层都有节点)
     is_complete: bool
+    runtime: dict

@@ -38,15 +38,7 @@ class ResourceDetail:
         raise NotImplementedError
 
     def search_and_handle_alert(self, query_string):
-        full_query_string = f"{query_string} AND status: ABNORMAL"
-        query_params = {
-            "bk_biz_ids": [self.bk_biz_id],
-            "query_string": full_query_string,
-            "start_time": self.start_time,
-            "end_time": self.end_time,
-            "page_size": 1000,
-        }
-        alert_infos = resource.fta_web.alert.search_alert(**query_params).get("alerts", [])
+        alert_infos = self.search_alert(query_string)
         if not alert_infos:
             return {}
         return {
@@ -56,6 +48,17 @@ class ResourceDetail:
             },
             "alert_ids": [i["id"] for i in alert_infos],
         }
+
+    def search_alert(self, query_string):
+        full_query_string = f"{query_string} AND status: ABNORMAL"
+        query_params = {
+            "bk_biz_ids": [self.bk_biz_id],
+            "query_string": full_query_string,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "page_size": 1000,
+        }
+        return resource.fta_web.alert.search_alert(**query_params).get("alerts", [])
 
     @classmethod
     def _list_info_raws(cls, infos, columns):
@@ -114,7 +117,7 @@ class SystemDetail(ResourceDetail):
             },
             "resource_link": urljoin(settings.BK_CC_URL, f"#/business/{self.bk_biz_id}/index/host/{bk_host_id}"),
             "raws": self._list_info_raws(host_infos, self._host_info_columns),
-            **self.search_and_handle_alert(f"ip: {ip}"),
+            **self.search_and_handle_alert(f"(ip: {ip} OR tags.ip: {ip})"),
         }
 
     def _list_alert_raws(self, bk_target_ip, alert_infos):
@@ -231,6 +234,10 @@ class K8sServiceDetail(ResourceDetail):
                 f"from={self.start_time}&to={self.end_time}",
             },
             "raws": self._list_info_raws(service_infos, self._service_info_columns),
+            **self.search_and_handle_alert(
+                f'tags.service: "{service}" '
+                f'AND tags.bcs_cluster_id: "{bcs_cluster_id}" AND tags.namespace: "{namespace}"'
+            ),
         }
 
 

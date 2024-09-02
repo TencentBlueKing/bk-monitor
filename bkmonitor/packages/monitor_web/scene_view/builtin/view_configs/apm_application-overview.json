@@ -207,6 +207,9 @@
         "apm_time_series": {
           "metric": "request_count",
           "unit": "number"
+        },
+        "time_series": {
+          "type": "bar"
         }
       }
     },
@@ -382,6 +385,9 @@
         "apm_time_series": {
           "metric": "error_count",
           "unit": "number"
+        },
+        "time_series": {
+          "type": "bar"
         }
       }
     },

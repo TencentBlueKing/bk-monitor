@@ -77,11 +77,19 @@ class NodeEndpointTopSerializer(serializers.Serializer):
 
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     app_name = serializers.CharField(label="应用名称")
-    service_name = serializers.CharField(label="服务名称")
+    node_name = serializers.CharField(label="服务名称")
     start_time = serializers.IntegerField(label="开始时间")
     end_time = serializers.IntegerField(label="结束时间")
     data_type = serializers.ChoiceField(label="数据类型", choices=BarChartDataType.get_choices())
     size = serializers.IntegerField(label="查询数量", default=5, required=False)
+
+    @property
+    def validated_data(self):
+        res = super(NodeEndpointTopSerializer, self).validated_data
+        # 兼容前端参数名称 node_name == service_name
+        res["service_name"] = res.pop("node_name")
+
+        return res
 
 
 class NodeRelationDetailSerializer(serializers.Serializer):
