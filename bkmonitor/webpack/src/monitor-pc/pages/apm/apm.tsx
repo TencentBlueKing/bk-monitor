@@ -112,11 +112,9 @@ export default class ApmPage extends tsc<object> {
   }
   /**
    * @description: 显示详情数据
-   * @param {IShowDetail}
-   * @return {*}
    */
-  handleShowDetail(data: IShowDetail) {
-    this.detailInfo.id = data.id;
+  handleShowDetail(id: string) {
+    this.detailInfo.id = id;
     this.detailInfo.isShow = true;
     this.detailInfo.bizId = +window.bk_biz_id;
   }
