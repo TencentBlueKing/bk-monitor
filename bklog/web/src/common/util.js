@@ -1133,3 +1133,5 @@ export const contextHighlightColor = [
     light: '#E1FCFD',
   },
 ];
+
+export const getOperatorKey = operator => `operator:${operator}`;

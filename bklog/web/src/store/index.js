@@ -31,7 +31,7 @@
  */
 import Vue from 'vue';
 
-import { unifyObjectStyle } from '@/common/util';
+import { unifyObjectStyle, getOperatorKey } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import Vuex from 'vuex';
 
@@ -78,6 +78,7 @@ const store = new Vuex.Store({
       selectIsUnionSearch: false,
       addition: [],
     },
+    operatorDictionary: {},
     /** 联合查询ID列表 */
     unionIndexList: [],
     /** 联合查询元素列表 */
@@ -197,6 +198,18 @@ const store = new Vuex.Store({
 
     updateIndexItemParams(state, payload) {
       Object.assign(state.indexItem, payload ?? {});
+    },
+
+    updataOperatorDictionary(state, payload) {
+      state.operatorDictionary = {};
+      (payload.fields ?? []).forEach(field => {
+        const { field_operator = [] } = field;
+        field_operator.forEach(item => {
+          const { operator } = item;
+          const key = getOperatorKey(operator);
+          Object.assign(state.operatorDictionary, { [key]: item });
+        });
+      });
     },
 
     updateUserMeta(state, payload) {
@@ -523,6 +536,7 @@ const store = new Vuex.Store({
         })
         .then(res => {
           commit('updateIndexFieldInfo', res.data ?? {});
+          commit('updataOperatorDictionary', res.data ?? {});
           return res;
         });
     },

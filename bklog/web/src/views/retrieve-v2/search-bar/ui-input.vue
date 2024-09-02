@@ -1,8 +1,11 @@
 <script setup>
-  import { ref, watch, nextTick } from 'vue';
+  import { ref, watch, computed } from 'vue';
   import tippy from 'tippy.js';
   import UiInputOptions from './ui-input-option.vue';
   import useStore from '@/hooks/use-store';
+  import { getOperatorKey } from '@/common/util';
+
+  const INPUT_MIN_WIDTH = 12;
 
   const props = defineProps({
     value: {
@@ -13,6 +16,8 @@
   });
 
   const emit = defineEmits(['input', 'change']);
+  const store = useStore();
+  const operatorDictionary = computed(() => store.state.operatorDictionary);
 
   let tippyInstance = null;
   const modelValue = ref([]);
@@ -72,6 +77,25 @@
     }
   };
 
+  /**
+   * 获取字符长度，汉字两个字节
+   * @param str 需要计算长度的字符
+   * @returns 字符长度
+   */
+  const getCharLength = str => {
+    const len = str.length;
+    let bitLen = 0;
+
+    for (let i = 0; i < len; i++) {
+      if ((str.charCodeAt(i) & 0xff00) !== 0) {
+        bitLen += 1;
+      }
+      bitLen += 1;
+    }
+
+    return bitLen;
+  };
+
   watch(
     props.value,
     val => {
@@ -80,6 +104,14 @@
     },
     { deep: true, immediate: true },
   );
+
+  const tagRenderList = computed(() => {
+    return modelValue.value.map(item => {
+      const key = getOperatorKey(item.operator);
+      const label = operatorDictionary.value[key]?.label ?? key;
+      return { ...item, operator_label: label };
+    });
+  });
 
   const emitChange = value => {
     emit('input', value);
@@ -131,9 +163,32 @@
 
   const handleContainerClick = e => {
     const input = e.target?.querySelector('.tag-option-focus-input');
-    nextTick(() => {
-      input?.focus();
+    input?.focus();
+    input?.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
+  };
+
+  const handleFulltextInput = e => {
+    const value = e.target.value;
+    const charLen = getCharLength(value);
+    e.target.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
+  };
+
+  const handleFullTextInputBlur = e => {
+    fullTextValue.value = '';
+    e.target?.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
+  };
+
+  const handleKeyEnter = e => {
+    queryItem.value = fullTextValue.value;
+    modelValue.push({
+      field: '',
+      operator: '',
+      isInclude: true,
+      value: [fullTextValue.value],
+      relation: 'AND',
+      disabled: false,
     });
+    handleFullTextInputBlur(e);
   };
 </script>
 <template>
@@ -153,12 +208,17 @@
         'search-item',
         { disabled: item.disabled, 'is-focus-input': item.is_focus_input, 'tag-item': !item.is_focus_input },
       ]"
-      v-for="(item, index) in modelValue"
+      v-for="(item, index) in tagRenderList"
       @click.stop="e => handleTagItemClick(e, item, index)"
     >
       <template v-if="!item.is_focus_input">
         <div class="tag-row match-name">
-          {{ item.field }}<span class="symbol" :data-operator="item.operator">{{ item.operator }}</span>
+          {{ item.field }}
+          <span
+            class="symbol"
+            :data-operator="item.operator"
+            >{{ item.operator_label }}</span
+          >
         </div>
         <div class="tag-row match-value">
           <span
@@ -189,6 +249,9 @@
           type="text"
           class="tag-option-focus-input"
           v-model="fullTextValue"
+          @input="handleFulltextInput"
+          @keyup.enter="handleKeyEnter"
+          @blur="handleFullTextInputBlur"
         />
       </template>
     </li>
