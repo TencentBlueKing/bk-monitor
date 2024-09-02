@@ -127,7 +127,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   canvasWidth = 0; // 画布宽度
   canvasHeight = 0; // 画布高度
-  minZoomVal = 0.2; // 缩放滑动条最小值
+  minZoomVal = 0.1; // 缩放滑动条最小值
   maxZoomVal = 2; // 缩放滑动条最大值
   graph: Graph = null; // 拓扑图实例
   toolsPopoverInstance = null; // 工具栏弹窗实例
@@ -141,6 +141,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   /** 图表缩放大小 */
   scaleValue = 1;
+  /** 图表初始缩放 */
+  initScale = 1;
   /** 是否显示缩略图 */
   showThumbnail = false;
   /** 是否显示图例 */
@@ -224,12 +226,12 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
           },
         };
 
-        // if (item.from_name === item.to_name) {
-        //   return {
-        //     type: 'loop',
-        //     ...common,
-        //   };
-        // }
+        if (item.from_name === item.to_name) {
+          return {
+            type: 'apm-loop-dash',
+            ...common,
+          };
+        }
         return {
           type: 'apm-line-dash',
           ...common,
@@ -241,6 +243,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   beforeDestroy() {
     this.toolsPopoverInstance?.destroy?.();
     this.toolsPopoverInstance = null;
+    // this.graph?.destroy?.();
+    this.hideMenu();
     removeListener(this.$el as HTMLDivElement, this.handleResize);
   }
 
@@ -248,22 +252,19 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     addListener(this.$el as HTMLDivElement, this.handleResize);
   }
 
-  destroyed() {
-    this.graph?.destroy();
-    this.hideMenu();
-  }
-
   @Debounce(100)
   handleResize() {
     if (!this.graph || this.graph.get('destroyed')) return;
     const { width, height } = (this.relationGraphRef as HTMLDivElement).getBoundingClientRect();
+    this.showLegend = false;
+    this.showThumbnail = false;
+    this.toolsPopoverInstance?.hide();
     this.canvasWidth = width;
     this.canvasHeight = height;
     // 修改画布大小
     this.graph.changeSize(width, height);
     // 将拓扑图移到画布中心
     this.graph.fitCenter();
-    this.graph.fitView();
   }
 
   @Watch('data', { immediate: true })
@@ -420,6 +421,20 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
             setState: (name, value, item: IEdge) => this.setEdgeState(name, value, item),
           },
           'quadratic'
+        );
+        G6.registerEdge(
+          'apm-loop-dash',
+          {
+            /**
+             * 设置边的状态，主要是交互状态，业务状态请在 draw 方法中实现
+             * 单图形的边仅考虑 selected、active 状态，有其他状态需求的用户自己复写这个方法
+             * @param  {String} name 状态名称
+             * @param  {Object} value 状态值
+             * @param  {Edge} edge 边
+             */
+            setState: (name, value, item: IEdge) => this.setEdgeState(name, value, item),
+          },
+          'loop'
         );
 
         const minimap = new G6.Minimap({
@@ -619,9 +634,11 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
     graph.on('afterrender', () => {
       const zoom = this.graph.getZoom();
-      this.scaleValue = zoom;
+      this.scaleValue = Number(zoom.toFixed(2));
+      this.initScale = Number(zoom.toFixed(2));
       if (zoom >= 1) {
         this.graph.zoomTo(1);
+        this.initScale = 1;
         this.scaleValue = 1;
       }
       this.graph.setItemState(this.activeNode, 'active', true);
@@ -977,6 +994,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
           <CompareGraphTools
             maxScale={this.maxZoomVal}
             minScale={this.minZoomVal}
+            originScaleValue={this.initScale}
             scaleValue={this.scaleValue}
             showLegend={this.showLegend}
             showThumbnail={this.showThumbnail}

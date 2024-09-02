@@ -1870,4 +1870,8 @@ export default {
   故障链接: 'Fault Link',
   故障内告警: 'Fault Internal Alarm',
   表单: 'Form',
+  节点颜色: 'Node color',
+  节点大小: 'Node size',
+  连接线: 'Connection line',
+  请求量: 'Request volume',
 };

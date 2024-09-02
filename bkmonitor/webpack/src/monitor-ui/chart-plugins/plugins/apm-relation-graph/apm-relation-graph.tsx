@@ -41,7 +41,7 @@ import { CommonSimpleChart } from '../common-simple-chart';
 import StatusTab from '../table-chart/status-tab';
 import ApmRelationGraphContent from './components/apm-relation-graph-content';
 import ApmRelationTopo, { type INodeModel } from './components/apm-relation-topo';
-import BarAlarmChart, { getSliceTimeRange } from './components/bar-alarm-chart';
+import BarAlarmChart from './components/bar-alarm-chart';
 import ResourceTopo from './components/resource-topo/resource-topo';
 import ServiceOverview from './components/service-overview';
 import {
@@ -264,6 +264,10 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.getSliceTimeRange();
   }
 
+  destroyed() {
+    this.topoCancelFn?.();
+  }
+
   /**
    * @description: 获取图表数据
    */
@@ -290,11 +294,17 @@ export default class ApmRelationGraph extends CommonSimpleChart {
         const result = alarmBarChartDataTransform(this.dataType, data.series);
         /* 默认切片时间 */
         const lastTime = result[result.length - 1].time;
-        if (!this.sliceTimeRange.every(t => t) || this.sliceTimeRange[0] > lastTime || this.isAlarmBarDataZoomed) {
+        const firstTime = result[0].time;
+        if (this.sliceTimeRange.every(t => t)) {
+          if (this.sliceTimeRange[0] > lastTime || this.sliceTimeRange[1] < firstTime) {
+            this.handleSliceTimeRangeChange([0, 0] as any);
+          }
+        }
+        /* if (!this.sliceTimeRange.every(t => t) || this.sliceTimeRange[0] > lastTime || this.isAlarmBarDataZoomed) {
           const sliceTimeRange = getSliceTimeRange(result, result[result.length - 1].time);
           this.handleSliceTimeRangeChange(sliceTimeRange as any);
           this.isAlarmBarDataZoomed = false;
-        }
+        } */
         setData(result, this.sliceTimeRange);
       };
     } catch (e) {
@@ -444,6 +454,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   handleNodeClick(node: INodeModel) {
     this.activeNode = node.data.id;
     this.selectedServiceName = node.data.id;
+    this.selectedEndpoint = '';
     if (!this.expanded.includes('overview')) {
       this.handleExpand('overview');
     }
@@ -453,6 +464,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   handleResourceDrilling(node: INodeModel) {
     this.activeNode = node.data.id;
     this.selectedServiceName = node.data.id;
+    this.selectedEndpoint = '';
     if (!this.expanded.includes('topo')) {
       this.handleExpand('topo');
     }
@@ -462,6 +474,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   handleServiceDetail(node: INodeModel) {
     this.activeNode = node.data.id;
     this.selectedServiceName = node.data.id;
+    this.selectedEndpoint = '';
     if (!this.expanded.includes('overview')) {
       this.handleExpand('overview');
     }
