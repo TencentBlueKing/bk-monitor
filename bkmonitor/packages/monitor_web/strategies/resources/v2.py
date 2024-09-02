@@ -473,7 +473,7 @@ class GetStrategyListV2Resource(Resource):
                 value = [value]
             if len(value) == 1:
                 # 默认按list传递，多个值用 | 分割
-                value = [i.strip() for i in value[0].split(" | ")]
+                value = [i.strip() for i in str(value[0]).split(" | ") if i.strip()]
             filter_dict[key].extend(value)
 
         filter_strategy_ids_set = set(strategies.values_list("id", flat=True).distinct())
