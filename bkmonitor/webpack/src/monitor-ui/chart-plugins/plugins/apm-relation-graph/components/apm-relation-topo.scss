@@ -14,112 +14,9 @@
     bottom: 24px;
   }
 
-  .node-menu-container {
-    z-index: 1;
-    min-width: 120px;
-
-    .topo-menu-list {
-      padding: 4px 0px;
-      background: #ffffff;
-      border: 1px solid #dcdee5;
-      border-radius: 2px;
-      box-shadow: 0 2px 6px 0 #0000001a;
-
-      li {
-        display: flex;
-        align-items: center;
-        height: 32px;
-        padding-left: 12px;
-        cursor: pointer;
-
-        .node-menu-icon {
-          margin-right: 4px;
-        }
-
-        &:hover {
-          color: #3a84ff;
-          background: #e1ecff;
-        }
-      }
-    }
-
-    .node-drilling-container {
-      background: #ecedf2;
-      border-radius: 8px;
-
-      .header {
-        position: relative;
-        line-height: 32px;
-        text-align: center;
-        background-color: #dcdee5;
-
-        .title {
-          font-size: 12px;
-          font-weight: 700;
-          color: #313238;
-        }
-
-        .close-icon {
-          position: absolute;
-          top: 0;
-          right: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 17.5px;
-          height: 17.5px;
-          cursor: pointer;
-          background: #979ba5;
-          border-radius: 50%;
-          transform: translate(50%, -50%);
-
-          .row-line {
-            width: 8px;
-            height: 1px;
-            background-color: #ecedf2;
-          }
-        }
-      }
-
-      .node-list {
-        padding: 16px 0 22px 0;
-
-        .node-item {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-
-          & + .node-item {
-            margin-top: 26px;
-          }
-
-          .node {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 40px;
-            height: 40px;
-            cursor: pointer;
-            background: #ffffff;
-            border: 4px solid #2dcb56;
-            border-radius: 50%;
-          }
-
-          .icon-monitor {
-            font-size: 16px;
-          }
-
-          .node-text {
-            transform: translateY(-7px);
-          }
-        }
-      }
-    }
-  }
-
   .node-tooltips-container {
     z-index: 1;
-    user-select: none;
+    // user-select: none;
     background: #fff;
     border: 1px solid #dcdee5;
     border-radius: 2px;
@@ -176,6 +73,115 @@
         margin-bottom: 6px;
         font-size: 18px;
         color: #313238;
+      }
+    }
+  }
+
+  .node-menu-list {
+    position: absolute;
+    min-width: 120px;
+
+    .topo-menu-list {
+      padding: 4px 0px;
+      background: #ffffff;
+      border: 1px solid #dcdee5;
+      border-radius: 2px;
+      box-shadow: 0 2px 6px 0 #0000001a;
+
+      li {
+        display: flex;
+        align-items: center;
+        height: 32px;
+        padding-left: 12px;
+        cursor: pointer;
+
+        .node-menu-icon {
+          margin-right: 4px;
+        }
+
+        &:hover {
+          color: #3a84ff;
+          background: #e1ecff;
+        }
+      }
+    }
+
+    .node-drilling-container {
+      .header {
+        position: relative;
+        line-height: 32px;
+        text-align: center;
+        background-color: #dcdee5;
+        border-radius: 8px 8px 0 0;
+
+        .title {
+          font-size: 12px;
+          font-weight: 700;
+          color: #313238;
+        }
+
+        .close-icon {
+          position: absolute;
+          top: 0;
+          right: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 17.5px;
+          height: 17.5px;
+          cursor: pointer;
+          background: #979ba5;
+          border-radius: 50%;
+          transform: translate(50%, -50%);
+
+          .row-line {
+            width: 8px;
+            height: 1px;
+            background-color: #ecedf2;
+          }
+        }
+      }
+
+      .node-list {
+        padding: 16px 0 22px 0;
+        background: #ecedf2;
+        border-radius: 0 0 8px 8px;
+
+        .node-item {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+
+          & + .node-item {
+            margin-top: 26px;
+          }
+
+          .node {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            background: #ffffff;
+            border: 4px solid #2dcb56;
+            border-radius: 50%;
+          }
+
+          .icon-monitor {
+            font-size: 16px;
+          }
+
+          .node-text {
+            transform: translateY(-7px);
+          }
+        }
+      }
+
+      .drilling-loading {
+        width: 100%;
+        height: 80px;
+        padding: 15px 0;
       }
     }
   }

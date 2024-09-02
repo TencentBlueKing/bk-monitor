@@ -25,21 +25,15 @@
  */
 
 // import Vue from 'vue';
-import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import G6, {
-  type IGroup,
-  type ModelConfig,
-  type Graph,
-  type INode,
-  type IEdge,
-  type IShape,
-  type IG6GraphEvent,
-} from '@antv/g6';
+import G6, { type IGroup, type ModelConfig, type Graph, type INode, type IEdge, type IShape } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
+import { nodeEndpointsTop } from 'monitor-api/modules/apm_topo';
 import { Debounce } from 'monitor-common/utils/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import CompareGraphTools from '../../apm-time-series/components/compare-topo-fullscreen/compare-graph-tools';
 import ApmTopoLegend from './apm-topo-legend';
@@ -52,6 +46,8 @@ import {
   nodeIconMap,
   nodeLanguageMap,
 } from './utils';
+
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './apm-relation-topo.scss';
 
@@ -69,7 +65,7 @@ export interface INodeModel {
   request_count: number;
   color: string;
   size: number;
-  menu: { name: string; action: string; url?: string }[];
+  menu: { name: string; action: string; url?: string; type?: string }[];
   node_tips: { name: string; value: string }[];
 }
 
@@ -87,6 +83,8 @@ type ApmRelationTopoProps = {
   data: { nodes: INodeModel[]; edges: IEdgeModel[] };
   activeNode: string;
   edgeType: EdgeDataType;
+  appName: string;
+  dataType: string;
   filterCondition: {
     type: CategoryEnum;
     showNoData: boolean;
@@ -99,6 +97,7 @@ type ApmRelationTopoEvent = {
   onResourceDrilling: (node: INodeModel) => void;
   onEdgeTypeChange: (edgeType: EdgeDataType) => void;
   onServiceDetail: (node: INodeModel) => void;
+  onDrillingNodeClick: (name: string) => void;
 };
 
 type INodeModelConfig = ModelConfig & INodeModel;
@@ -109,38 +108,22 @@ const HoverCircleWidth = 13;
 const LIMIT_RADIAL_LAYOUT_COUNT = 700;
 const LIMIT_WORKER_ENABLED = 500;
 
-class CustomMenu extends G6.Menu {
-  drilling = false;
-
-  documentClick = (e: Event) => {
-    if (!(e.target as HTMLElement).closest('.topo-menu-container')) this.hideMenu();
-  };
-
-  onMenuShow(e: IG6GraphEvent): void {
-    super.onMenuShow(e);
-    document.body.addEventListener('click', this.documentClick);
-  }
-
-  hideMenu() {
-    document.body.removeEventListener('click', this.documentClick);
-    if (this.drilling) this.drilling = false;
-    super.onMenuHide();
-  }
-
-  private onMenuHide(): void {}
-}
-
 @Component
 export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelationTopoEvent> {
   @Prop() data: ApmRelationTopoProps['data'];
   @Prop() activeNode: string;
   @Prop() edgeType: EdgeDataType;
   @Prop() filterCondition: ApmRelationTopoProps['filterCondition'];
+  @Prop() appName: string;
+  @Prop() dataType: string;
+
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
 
   @Ref('relationGraph') relationGraphRef: HTMLDivElement;
   @Ref('graphToolsPanel') graphToolsPanelRef: HTMLDivElement;
   @Ref('topoGraphContent') topoGraphContentRef: HTMLDivElement;
   @Ref('thumbnailTool') thumbnailToolRef: HTMLDivElement;
+  @Ref('menuList') menuListRef: HTMLDivElement;
 
   canvasWidth = 0; // 画布宽度
   canvasHeight = 0; // 画布高度
@@ -153,6 +136,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     status: '',
     size: '',
   };
+  /** 接口下钻节点列表 */
+  interfaceNodeList = [];
 
   /** 图表缩放大小 */
   scaleValue = 1;
@@ -193,8 +178,15 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     workerEnabled: true, // 可选，开启 web-worker
   };
 
-  nodeMenuCfg = null;
-  menuInstance = null;
+  menuCfg = {
+    x: 0,
+    y: 0,
+    show: false,
+    drillingLoading: true,
+    isDrilling: false,
+    nodeModel: null,
+    drillingList: [],
+  };
 
   /** 当前使用的布局 应用概览使用 radial布局、下钻服务使用 dagre 布局 */
   get graphLayout() {
@@ -256,6 +248,11 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     addListener(this.$el as HTMLDivElement, this.handleResize);
   }
 
+  destroyed() {
+    this.graph?.destroy();
+    this.hideMenu();
+  }
+
   @Debounce(100)
   handleResize() {
     if (!this.graph || this.graph.get('destroyed')) return;
@@ -288,7 +285,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       className: 'node-tooltips-container',
       // 允许出现 tooltip 的 item 类型
       itemTypes: ['node'],
-      shouldBegin(evt) {
+      shouldBegin: evt => {
+        if (this.menuCfg.show) return false;
         // 展开的当前服务返回按钮
         if (['back-text-shape', 'back-icon-shape'].includes(evt.target?.cfg?.name)) {
           return false;
@@ -345,95 +343,37 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     return outDiv;
   }
 
-  // 节点菜单
-  contextMenu() {
-    // const iconMap = {
-    //   span_drilling: 'icon-xiazuan',
-    //   resource_drilling: 'icon-ziyuan',
-    //   blank: 'icon-mc-link',
-    // };
-    this.menuInstance = new CustomMenu({
-      className: 'node-menu-container',
-      trigger: 'contextmenu',
-      // 是否阻止行为发生
-      shouldBegin(evt) {
-        if (evt.item) return true;
-        return false;
-      },
-      // 菜单项内容
-      getContent: evt => {
-        this.nodeMenuCfg = evt;
-        const { item } = evt;
-        if (!item) return;
-        const itemType = item.getType();
-        const model = item.getModel() as any;
-        if (itemType && model) {
-          if (this.menuInstance.drilling) {
-            return `<div class='node-drilling-container topo-menu-container'>
-                      <div class='header'>
-                        <span>web-store</span>
-                        <div class='close-icon topo-menu-action' id='${JSON.stringify({ action: 'close' })}'>
-                          <div class='row-line'></div>
-                        </div>
-                      </div>
-                      <ul class='node-list'>
-                        <li class='node-item topo-menu-action' id='${JSON.stringify({ action: 'node-click' })}'>
-                          <div class='node'>
-                            <i class='icon-monitor icon-wangye'></i>
-                          </div>
-                          <span class='node-text'>function</span>
-                        </li>
-                      </ul>
-            </div>`;
-          }
-
-          return `<ul class='topo-menu-list topo-menu-container'>
-            ${model.menu
-              .map(
-                target =>
-                  `<li class='topo-menu-action' id='${JSON.stringify(target)}'>
-                    ${target.name}
-                   </li>`
-              )
-              .join('')}
-            </ul>`;
-        }
-      },
-
-      handleMenuClick: (target, item: INode) => this.handleNodeMenuClick(target, item),
-      itemTypes: ['node'],
-    });
-    return this.menuInstance;
-  }
-
   /** 节点菜单点击 */
-  handleNodeMenuClick(target: HTMLElement, item: INode) {
-    const { action = '', type, url } = JSON.parse(target.closest('.topo-menu-action')?.id || '{}');
-    if (!action || !item) return;
-    this.menuInstance.hideMenu();
+  handleNodeMenuClick(menu: INodeModel['menu'][0]) {
+    const { name, action = '', type, url } = menu;
+    if (!action || !name) return;
     // 下钻
     if (action === 'span_drilling') {
-      this.menuInstance.drilling = true;
-      this.menuInstance.onMenuShow(this.nodeMenuCfg);
+      this.getNodeDrillingList(this.menuCfg.nodeModel.data.name);
+      this.menuCfg.isDrilling = true;
       return;
     }
+
     if (action === 'resource_drilling') {
       // 资源拓扑
-      this.$emit('resourceDrilling', item.getModel());
-      return;
+      this.$emit('resourceDrilling', this.menuCfg.nodeModel);
     }
-
     if (action === 'service_detail') {
-      this.$emit('serviceDetail', item.getModel());
-      return;
+      /** 服务概览 */
+      this.$emit('serviceDetail', this.menuCfg.nodeModel);
     }
-
     if (type === 'link') {
-      if (!url) return;
       this.$router.push({
         path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${url}`.replace(/\/\//g, '/'),
       });
     }
+
+    this.hideMenu();
+  }
+
+  handleDrillingNodeClick(name: string) {
+    this.$emit('drillingNodeClick', this.menuCfg.nodeModel, name);
+    this.hideMenu();
   }
 
   initGraph() {
@@ -486,11 +426,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
           container: this.thumbnailToolRef,
           size: [236, 146],
         });
-        const plugins = [
-          minimap,
-          this.contextMenu(), // 节点菜单
-          this.nodeTooltip(),
-        ];
+        const plugins = [minimap, this.nodeTooltip()];
         this.graph = new G6.Graph({
           container: this.relationGraphRef as HTMLElement, // 指定挂载容器
           width: this.canvasWidth,
@@ -658,10 +594,22 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       graph.setItemState(item, 'hover', false);
     });
 
-    graph.on('contextmenu', evt => {
-      const { item } = evt;
-      for (const node of this.graph.getNodes()) {
-        node.setState('active', item._cfg.id === node._cfg.id);
+    graph.on('node:mousedown', evt => {
+      const { originalEvent, canvasX, canvasY, item } = evt;
+      if ((originalEvent as MouseEvent).button === 2) {
+        for (const node of this.graph.getNodes()) {
+          node.setState('active', item._cfg.id === node._cfg.id);
+        }
+        this.menuCfg = {
+          show: true,
+          x: canvasX,
+          y: canvasY,
+          drillingLoading: true,
+          nodeModel: item.getModel(),
+          isDrilling: false,
+          drillingList: [],
+        };
+        document.body.addEventListener('click', this.hideMenu);
       }
     });
 
@@ -679,6 +627,20 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       this.graph.setItemState(this.activeNode, 'active', true);
       this.handleHighlightNode();
     });
+  }
+
+  hideMenu(e?: Event) {
+    if (e && this.menuListRef.contains(e.target as HTMLElement)) return;
+    this.menuCfg = {
+      x: 0,
+      y: 0,
+      show: false,
+      nodeModel: null,
+      drillingLoading: true,
+      isDrilling: false,
+      drillingList: [],
+    };
+    document.body.removeEventListener('click', this.hideMenu);
   }
 
   /** 设置节点状态 */
@@ -974,6 +936,21 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     }
   }
 
+  /** 节点下钻列表 */
+  async getNodeDrillingList(nodeName) {
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    this.menuCfg.isDrilling = true;
+    this.menuCfg.drillingLoading = true;
+    this.menuCfg.drillingList = await nodeEndpointsTop({
+      app_name: this.appName,
+      start_time: startTime,
+      end_time: endTime,
+      node_name: nodeName,
+      data_type: this.dataType,
+    }).catch(() => []);
+    this.menuCfg.drillingLoading = false;
+  }
+
   reset() {
     this.showLegend = false;
     this.showThumbnail = false;
@@ -982,7 +959,13 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   render() {
     return (
-      <div class='apm-relation-topo'>
+      <div
+        class='apm-relation-topo'
+        onContextmenu={e => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+      >
         <div
           ref='relationGraph'
           class='graph-wrap'
@@ -1031,6 +1014,71 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
               />
             </div>
           </div>
+        </div>
+
+        <div
+          ref='menuList'
+          style={{
+            display: this.menuCfg.show ? 'block' : 'none',
+            left: `${this.menuCfg.x}px`,
+            top: `${this.menuCfg.y}px`,
+          }}
+          class='node-menu-list'
+        >
+          <div
+            style={{ display: this.menuCfg.isDrilling ? 'block' : 'none' }}
+            class='node-drilling-container'
+          >
+            <div class='header'>
+              <span>{this.menuCfg.nodeModel?.data.name}</span>
+              <div
+                class='close-icon topo-menu-action'
+                onClick={() => this.hideMenu()}
+              >
+                <div class='row-line' />
+              </div>
+            </div>
+            {this.menuCfg.drillingLoading ? (
+              <div
+                class='drilling-loading'
+                v-bkloading={{ isLoading: true, size: 'small', color: '#ecedf2' }}
+              />
+            ) : (
+              <ul class='node-list'>
+                {this.menuCfg.drillingList.map(item => (
+                  <li
+                    key={item.id}
+                    class='node-item topo-menu-action'
+                    onClick={() => this.handleDrillingNodeClick(item.name)}
+                  >
+                    <div
+                      style={{ 'border-color': item.color }}
+                      class='node'
+                    >
+                      <i class='icon-monitor icon-fx' />
+                    </div>
+                    <span class='node-text'>{item.name}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <ul
+            style={{ display: this.menuCfg.isDrilling ? 'none' : 'block' }}
+            class='topo-menu-list'
+          >
+            {this.menuCfg.nodeModel?.menu.map(target => (
+              <li
+                key={target.name}
+                class='topo-menu-action'
+                onClick={() => {
+                  this.handleNodeMenuClick(target);
+                }}
+              >
+                {target.name}
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     );

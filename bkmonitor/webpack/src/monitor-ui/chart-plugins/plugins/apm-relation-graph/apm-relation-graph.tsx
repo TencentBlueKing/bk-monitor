@@ -467,6 +467,16 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     }
   }
 
+  /** 下钻接口节点点击 */
+  handleDrillingNodeClick(node: INodeModel, drillingName: string) {
+    this.activeNode = node.data.id;
+    this.selectedServiceName = node.data.id;
+    this.selectedEndpoint = drillingName;
+    if (!this.expanded.includes('overview')) {
+      this.handleExpand('overview');
+    }
+  }
+
   /**
    * @description 获取路由的切片时间范围
    */
@@ -586,9 +596,12 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             {!this.loading.topo ? (
               <ApmRelationTopo
                 activeNode={this.activeNode}
+                appName={this.appName}
                 data={this.graphData}
+                dataType={this.dataType}
                 edgeType={this.edgeDataType}
                 filterCondition={this.filterCondition}
+                onDrillingNodeClick={this.handleDrillingNodeClick}
                 onEdgeTypeChange={this.handleEdgeTypeChange}
                 onNodeClick={this.handleNodeClick}
                 onResourceDrilling={this.handleResourceDrilling}
