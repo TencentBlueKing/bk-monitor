@@ -255,7 +255,6 @@
 </template>
 
 <script>
-  import { deepClone } from '@/components/monitor-echarts/utils';
   import VueDraggable from 'vuedraggable';
   import { mapGetters } from 'vuex';
 
@@ -266,12 +265,6 @@
       VueDraggable,
     },
     props: {
-      fieldAliasMap: {
-        type: Object,
-        default() {
-          return {};
-        },
-      },
       retrieveParams: {
         type: Object,
         required: true,
@@ -281,9 +274,6 @@
       return {
         isLoading: false,
         showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
-        shadowTotal: [],
-        shadowVisible: [],
-        shadowSort: [],
         shadowAllTotal: [], // 所有字段
         newConfigStr: '', // 新增配置配置名
         isShowAddInput: false, // 是否展示新增配置输入框
@@ -300,12 +290,28 @@
         dragOptions: {
           animation: 150,
           tag: 'ul',
-          handle: '.icon-drag-dots',
+          handle: '.bklog-drag-dots',
           'ghost-class': 'sortable-ghost-class',
         },
       };
     },
     computed: {
+      shadowSort() {
+        return this.$store.state.indexFieldInfo.sort_list;
+      },
+      shadowVisible() {
+        return this.$store.state.indexFieldInfo.display_fields;
+      },
+      shadowTotal() {
+        return this.$store.state.indexFieldInfo.fields;
+      },
+      fieldAliasMap() {
+        let fieldAliasMap = {};
+        this.$store.state.indexFieldInfo.fields.forEach(item => {
+          fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
+        });
+        return fieldAliasMap;
+      },
       toSelectLength() {
         if (this.activeFieldTab === 'visible') {
           return this.shadowTotal.length - this.shadowVisible.length;
@@ -318,6 +324,7 @@
         });
         return totalLength - this.shadowSort.length;
       },
+
       filedSettingConfigID() {
         // 当前索引集的显示字段ID
         return this.$store.state.retrieve.filedSettingConfigID;
@@ -340,37 +347,10 @@
       },
     },
     created() {
-      this.requestFields();
+      this.currentClickConfigID = this.filedSettingConfigID;
+      this.initRequestConfigListShow();
     },
     methods: {
-      /** 请求字段 */
-      async requestFields() {
-        this.isLoading = true;
-        try {
-          const urlStr = this.isUnionSearch ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
-          const queryData = {
-            start_time: this.retrieveParams.start_time,
-            end_time: this.retrieveParams.end_time,
-            is_realtime: 'True',
-          };
-          if (this.isUnionSearch) {
-            Object.assign(queryData, {
-              index_set_ids: this.unionIndexList,
-            });
-          }
-          const res = await this.$http.request(urlStr, {
-            params: { index_set_id: this.$route.params.indexId },
-            query: !this.isUnionSearch ? queryData : undefined,
-            data: this.isUnionSearch ? queryData : undefined,
-          });
-          this.shadowAllTotal = res.data.fields.map(item => ({ ...item, is_display: false }));
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.currentClickConfigID = this.filedSettingConfigID;
-          this.initRequestConfigListShow();
-        }
-      },
       getFiledDisplay(name) {
         const alias = this.fieldAliasMap[name];
         if (alias && alias !== name) {
@@ -630,8 +610,6 @@
       /** 初始化显示字段 */
       initShadowFields() {
         this.activeConfigTab = this.currentClickConfigData.name;
-        this.shadowTotal = deepClone(this.shadowAllTotal);
-        this.shadowSort = deepClone(this.currentClickConfigData.sort_list);
         this.shadowTotal.forEach(fieldInfo => {
           this.shadowSort.forEach(item => {
             if (fieldInfo.field_name === item[0]) {
@@ -838,7 +816,7 @@
           color: #313238;
           border-bottom: 1px solid #dcdee5;
 
-          .icon-info-fill {
+          .bklog-info-fill {
             margin-left: 8px;
             font-size: 14px;
             color: #979ba5;
@@ -867,7 +845,7 @@
             font-size: 12px;
             line-height: 32px;
 
-            .icon-drag-dots {
+            .bklog-drag-dots {
               width: 16px;
               font-size: 14px;
               color: #979ba5;
@@ -886,7 +864,7 @@
               background: #eaf3ff;
               transition: background 0.2s linear;
 
-              .icon-drag-dots {
+              .bklog-drag-dots {
                 opacity: 1;
                 transition: opacity 0.2s linear;
               }
@@ -904,7 +882,7 @@
           white-space: nowrap;
         }
 
-        .icon-filled-right-arrow {
+        .bklog-filled-right-arrow {
           width: 24px;
           font-size: 16px;
           color: #3a84ff;
@@ -916,7 +894,7 @@
           transform-origin: right center;
         }
 
-        &:hover .icon-filled-right-arrow {
+        &:hover .bklog-filled-right-arrow {
           opacity: 1;
           transition: opacity 0.2s linear;
         }
@@ -997,7 +975,7 @@
         justify-content: center;
         width: 35px;
 
-        .icon-double-arrow {
+        .bklog-double-arrow {
           font-size: 12px;
           color: #989ca5;
         }
