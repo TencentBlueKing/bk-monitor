@@ -102,22 +102,22 @@ class UptimeCheckGroupViewSet(_UptimeCheckGroupViewSet):
     def delete(self, request, *args, **kwargs):
         self.kwargs["pk"] = request.data.get("group_id")
         super(UptimeCheckGroupViewSet, self).destroy(request, *args, **kwargs)
-        return Response({"groud_id": self.kwargs["pk"], "result": _("删除成功")})
+        return Response({"group_id": self.kwargs["pk"], "result": _("删除成功")})
 
     @action(methods=["POST"], detail=False)
     def edit(self, request, *args, **kwargs):
-        self.kwargs["pk"] = request.data.get("groud_id")
+        self.kwargs["pk"] = request.data.get("group_id")
         self.kwargs.update({"partial": True})
         return super(UptimeCheckGroupViewSet, self).update(request, *args, **kwargs)
 
     @action(methods=["POST"], detail=False)
     def add_task(self, request, *args, **kwargs):
-        self.kwargs["pk"] = request.data.get("groud_id")
+        self.kwargs["pk"] = request.data.get("group_id")
         return super(UptimeCheckGroupViewSet, self).add_task(request, *args, **kwargs)
 
     @action(methods=["POST"], detail=False)
     def remove_task(self, request, *args, **kwargs):
-        self.kwargs["pk"] = request.data.get("groud_id")
+        self.kwargs["pk"] = request.data.get("group_id")
         return super(UptimeCheckGroupViewSet, self).remove_task(request, *args, **kwargs)
 
 
