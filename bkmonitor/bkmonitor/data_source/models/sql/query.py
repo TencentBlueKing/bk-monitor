@@ -152,7 +152,7 @@ class Query(object):
         self.group_hits_size = 0
         self.event_group_id = ""
         self.raw_query_string = ""
-        self.nested_paths = []
+        self.nested_paths = {}
         # search after: https://www.elastic.co/guide/en/elasticsearch/reference/
         # current/search-aggregations-bucket-composite-aggregation.html#_pagination
         self.search_after_key = None
@@ -191,7 +191,7 @@ class Query(object):
         obj.index_set_id = self.index_set_id
         obj.event_group_id = self.event_group_id
         obj.raw_query_string = self.raw_query_string
-        obj.nested_paths = self.nested_paths[:]
+        obj.nested_paths = self.nested_paths.copy()
         if self.search_after_key is not None:
             obj.search_after_key = self.search_after_key.copy()
         obj.group_hits_size = self.group_hits_size

@@ -121,10 +121,16 @@ class SQLCompiler(compiler.SQLCompiler):
         if self.query.raw_query_string and self.query.raw_query_string != "*":
             query_string_dsl = {"query_string": {"query": self.query.raw_query_string}}
             query_content["must"] = {"bool": {"should": [query_string_dsl], "minimum_should_match": 1}}
-            for nested_path in self.query.nested_paths:
-                query_content["must"]["bool"]["should"].append(
-                    {"nested": {"path": nested_path, "query": query_string_dsl}}
-                )
+
+        if self.query.nested_paths:
+            for nested_path, query_string in self.query.nested_paths.items():
+                if "must" not in query_content:
+                    query_content["must"] = {"bool": {"should": [], "minimum_should_match": 1}}
+                if query_string and query_string != "*":
+                    query_content["must"]["bool"]["should"].append(
+                        {"nested": {"path": nested_path, "query": {"query_string": {"query": query_string}}}}
+                    )
+
         query_content.update(self._parse_agg_condition())
 
         if query_content:
@@ -559,9 +565,14 @@ class SQLCompiler(compiler.SQLCompiler):
 
         if lookup == "qs":
             for value in values:
-                and_map.setdefault("must", []).append(
-                    _nested_query({"query_string": {"query": value, "default_field": field}})
-                )
+                if field == "*":
+                    and_map.setdefault("must", []).append({"query_string": {"query": value}})
+                elif path == "*":
+                    and_map.setdefault("must", []).append({"query_string": {"query": value, "default_field": field}})
+                else:
+                    and_map.setdefault("must", []).append(
+                        _nested_query({"query_string": {"query": value, "default_field": field}})
+                    )
         elif lookup == "eq" or lookup == "include":
             op: str = {"eq": "term", "include": "wildcard"}[lookup]
             for value in values:

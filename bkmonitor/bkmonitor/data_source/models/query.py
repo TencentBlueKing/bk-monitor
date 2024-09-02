@@ -164,7 +164,7 @@ class DslMixin:
             clone.query.use_full_index_names = use_full_index_names
         return clone
 
-    def dsl_raw_query_string(self, query_string: str, nested_paths: Optional[List[str]] = None):
+    def dsl_raw_query_string(self, query_string: str, nested_paths: Optional[Dict[str, str]] = None):
         clone = self._clone()
         clone.query.raw_query_string = query_string
         if nested_paths:

@@ -100,7 +100,7 @@ class QueryConfigBuilder(BaseDataQuery, QueryMixin, DslMixin):
     def time_field(self, field: str) -> "QueryConfigBuilder":
         return super().time_field(field)
 
-    def query_string(self, query_string: str, nested_paths: Optional[List[str]] = None) -> "QueryConfigBuilder":
+    def query_string(self, query_string: str, nested_paths: Optional[Dict[str, str]] = None) -> "QueryConfigBuilder":
         return super().dsl_raw_query_string(query_string, nested_paths)
 
 

@@ -75,8 +75,14 @@ def dsl_to_filter_dict(query: Dict[str, Any], depth=1, width=1) -> Dict[str, Any
 
         if op == "query_string":
             field: str = child_query["default_field"]
-            path, __ = field.split(".", 1)
-            filter_dict[f"{child_query['default_field']}__{path}__{lookup}__nested"] = [child_query["query"]]
+            if field == "*":
+                filter_dict[f"{field}__*__{lookup}__nested"] = [child_query["query"]]
+            else:
+                if "." not in field:
+                    path = "*"
+                else:
+                    path, __ = field.split(".", 1)
+                filter_dict[f"{field}__{path}__{lookup}__nested"] = [child_query["query"]]
         else:
             for field, value in child_query.items():
                 path, __ = field.split(".", 1)
@@ -250,32 +256,31 @@ class BaseQuery:
         return q.query_string(query_string, nested_paths)
 
     @classmethod
-    def _parse_query_string_from_dsl(cls, dsl: Dict[str, Any]) -> Tuple[str, List[str]]:
+    def _parse_query_string_from_dsl(cls, dsl: Dict[str, Any]) -> Tuple[str, Dict[str, str]]:
         """
         【待废弃】在 dsl 中提取检索关键字，保留该逻辑主要是兼容前端的 lucene 查询，后续兼容不同 DB，该逻辑大概率会下掉
         :param dsl:
         :return:
         """
         try:
-            return dsl["query"]["query_string"]["query"], []
+            return dsl["query"]["query_string"]["query"], {}
         except KeyError:
             pass
 
         try:
             should_list: List[Dict[str, Any]] = dsl["query"]["bool"]["should"]
         except KeyError:
-            return "*", []
+            return "*", {}
 
         query_string: str = "*"
-        nested_paths: List[str] = []
+        nested_paths: Dict[str, str] = {}
         for should in should_list:
             try:
-                nested_paths.append(should["nested"]["path"])
-                query_string = should["nested"]["query"]["query_string"]["query"]
+                nested_paths[should["nested"]["path"]] = should["nested"]["query"]["query_string"]["query"]
             except KeyError:
                 try:
                     # handle case: {'should': [{'query_string': {'query': 'ListTrace'}}]}
-                    return should["query_string"]["query"], []
+                    query_string = should["query_string"]["query"]
                 except KeyError:
                     continue
 
