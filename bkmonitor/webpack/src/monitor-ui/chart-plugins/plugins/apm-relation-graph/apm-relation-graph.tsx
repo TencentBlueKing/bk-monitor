@@ -264,6 +264,10 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.getSliceTimeRange();
   }
 
+  destroyed() {
+    this.topoCancelFn?.();
+  }
+
   /**
    * @description: 获取图表数据
    */

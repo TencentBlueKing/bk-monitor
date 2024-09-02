@@ -153,6 +153,16 @@ export default {
   '按 {0} 聚合': 'Aggregate by {0}',
   '告警已失效（{alert_name}）': ' Alarm expired ({alert_name})',
   '告警已恢复（{alert_name}）': 'Alarm restored ({alert_name})',
-  '告警已收敛（共包含{converged_count}个关联的告警事件）': 'Alarm converged (contains {converged_count} related alarm events)',
+  '告警已收敛（共包含{converged_count}个关联的告警事件）':
+    'Alarm converged (contains {converged_count} related alarm events)',
   '一键拉群（{group_name}）': 'One-click group ({group_name})',
+  '错误率 < 10%': 'Error rate < 10%',
+  '错误率 ≥ 10%': 'Error rate ≥ 10%',
+  '请求数 0~200': 'Requests 0~200',
+  '请求数 200~1k': 'Requests 200~1k',
+  '请求数 1k 以上': 'Requests > 1k',
+  'P99 耗时': 'P99 time',
+  'P95 耗时': 'P95 time',
+  请求量少: 'Fewer requests',
+  请求量多: 'More requests',
 };
