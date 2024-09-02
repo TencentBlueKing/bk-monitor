@@ -1,9 +1,12 @@
 <script setup>
   import { ref, watch, computed } from 'vue';
-  import tippy from 'tippy.js';
-  import UiInputOptions from './ui-input-option.vue';
-  import useStore from '@/hooks/use-store';
+
   import { getOperatorKey } from '@/common/util';
+  import useLocale from '@/hooks/use-locale';
+  import useStore from '@/hooks/use-store';
+  import tippy from 'tippy.js';
+
+  import UiInputOptions from './ui-input-option.vue';
 
   const INPUT_MIN_WIDTH = 12;
 
@@ -17,14 +20,26 @@
 
   const emit = defineEmits(['input', 'change']);
   const store = useStore();
-  const operatorDictionary = computed(() => store.state.operatorDictionary);
+  const { $t } = useLocale();
+
+  const operatorDictionary = computed(() => {
+    const defVal = {
+      [getOperatorKey('containes')]: { label: $t('包含'), operator: 'contains' },
+    };
+    return {
+      ...defVal,
+      ...store.state.operatorDictionary,
+    };
+  });
 
   let tippyInstance = null;
   const modelValue = ref([]);
   const refPopInstance = ref(null);
-  const queryItem = ref('xxxx');
+  const queryItem = ref('');
   const fullTextValue = ref('');
   const activeIndex = ref(null);
+  const isInputFocus = ref(false);
+  const isOptionShowing = ref(false);
 
   const uninstallInstance = () => {
     if (tippyInstance) {
@@ -49,12 +64,19 @@
         },
         onHidden: () => {
           refPopInstance.value?.afterHideFn?.();
+          isOptionShowing.value = false;
+          isInputFocus.value = false;
         },
       });
     }
   };
 
   const showTagListItems = target => {
+    if (isOptionShowing.value) {
+      return;
+    }
+
+    isOptionShowing.value = true;
     initInistance(target);
     tippyInstance.show();
   };
@@ -143,18 +165,31 @@
   };
 
   const handleSaveQueryClick = paylod => {
-    tippyInstance.hide();
+    console.log('handleSaveQueryClick');
+    let targetValue = isInputFocus.value
+      ? {
+          field: '',
+          operator: 'contains',
+          isInclude: true,
+          value: [fullTextValue.value],
+          relation: 'AND',
+          disabled: false,
+        }
+      : paylod;
+
+    tippyInstance?.hide();
+
     if (activeIndex.value !== null && activeIndex.value >= 0) {
-      Object.assign(modelValue.value[activeIndex.value], paylod);
+      Object.assign(modelValue.value[activeIndex.value], targetValue);
       return;
     }
 
     const focusInputIndex = modelValue.value.findIndex(item => item.is_focus_input);
     if (focusInputIndex === modelValue.value.length - 1) {
-      modelValue.value.splice(focusInputIndex - 1, 0, { ...paylod, disabled: false });
+      modelValue.value.splice(focusInputIndex - 1, 0, { ...targetValue, disabled: false });
       return;
     }
-    modelValue.value.push({ ...paylod, disabled: false });
+    modelValue.value.push({ ...targetValue, disabled: false });
   };
 
   const handleCancelClick = () => {
@@ -179,16 +214,21 @@
   };
 
   const handleKeyEnter = e => {
-    queryItem.value = fullTextValue.value;
-    modelValue.push({
+    handleSaveQueryClick({
       field: '',
-      operator: '',
+      operator: 'contains',
       isInclude: true,
       value: [fullTextValue.value],
       relation: 'AND',
       disabled: false,
     });
     handleFullTextInputBlur(e);
+  };
+
+  const handleFocusInput = e => {
+    isInputFocus.value = true;
+    activeIndex.value = -1;
+    e.target.parentNode?.click();
   };
 </script>
 <template>
@@ -204,16 +244,17 @@
       <div class="tag-text">{{ $t('添加条件') }}</div>
     </li>
     <li
+      v-for="(item, index) in tagRenderList"
       :class="[
         'search-item',
         { disabled: item.disabled, 'is-focus-input': item.is_focus_input, 'tag-item': !item.is_focus_input },
       ]"
-      v-for="(item, index) in tagRenderList"
+      :key="`${item.field}-${index}`"
       @click.stop="e => handleTagItemClick(e, item, index)"
     >
       <template v-if="!item.is_focus_input">
         <div class="tag-row match-name">
-          {{ item.field }}
+          {{ item.field !== '' ? item.field : $t('全文') }}
           <span
             class="symbol"
             :data-operator="item.operator"
@@ -246,21 +287,23 @@
       </template>
       <template v-else>
         <input
-          type="text"
           class="tag-option-focus-input"
           v-model="fullTextValue"
+          type="text"
+          @blur="handleFullTextInputBlur"
+          @focus.stop="handleFocusInput"
           @input="handleFulltextInput"
           @keyup.enter="handleKeyEnter"
-          @blur="handleFullTextInputBlur"
         />
       </template>
     </li>
     <div style="display: none">
       <UiInputOptions
         ref="refPopInstance"
-        @save="handleSaveQueryClick"
-        @cancel="handleCancelClick"
+        :is-full-text="isInputFocus"
         :value="queryItem"
+        @cancel="handleCancelClick"
+        @save="handleSaveQueryClick"
       ></UiInputOptions>
     </div>
   </ul>

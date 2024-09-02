@@ -1,5 +1,6 @@
 <script setup>
   import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
+
   import useStore from '@/hooks/use-store';
   import tippy from 'tippy.js';
 
@@ -8,6 +9,10 @@
       type: [String, Object],
       default: '',
       required: true,
+    },
+    isFullText: {
+      type: Boolean,
+      default: false,
     },
   });
 
@@ -18,7 +23,6 @@
 
   const store = useStore();
   const searchValue = ref('');
-  const fullText = ref(null);
   const refUiValueOperator = ref(null);
   const refUiValueOperatorList = ref(null);
   const activeIndex = ref(-1);
@@ -50,8 +54,6 @@
     const regExp = getRegExp(searchValue.value);
     return indexFieldInfo.value.fields.filter(field => regExp.test(field.field_alias) || regExp.test(field.field_name));
   });
-
-  const isFullText = computed(() => fullText.value !== null && fullText.value.length > 0);
 
   const activeOperator = computed(
     () =>
@@ -109,9 +111,7 @@
   watch(
     props,
     () => {
-      fullText.value = null;
-      if (typeof props.value === 'string') {
-        fullText.value = props.value;
+      if (typeof props.isFullText) {
         activeIndex.value = 0;
         return;
       }
@@ -145,7 +145,7 @@
     return fieldTypeMap.value?.[type] ? fieldTypeMap.value?.[type]?.color : '#EAEBF0';
   };
 
-  const resetActiveFieldItem = (ignoreFullText = false) => {
+  const resetActiveFieldItem = () => {
     activeFieldItem.value = {
       field_name: null,
       field_type: null,
@@ -162,9 +162,6 @@
     };
 
     activeIndex.value = -1;
-    if (!ignoreFullText) {
-      fullText.value = null;
-    }
   };
 
   const handleFieldItemClick = (item, index) => {
@@ -180,6 +177,11 @@
   const handleCancelBtnClick = () => {
     resetActiveFieldItem();
     emit('cancel');
+  };
+
+  const handleEnterFullTextClick = () => {
+    console.log('handleEnterFullTextClick');
+    emit('save', undefined);
   };
 
   const handelSaveBtnClick = () => {
@@ -202,28 +204,51 @@
       return;
     }
 
+    let stopPropagation = false;
+    let isUpDownKeyEvent = false;
+
     let index = activeIndex.value;
+    // key up
     if (e.keyCode === 38) {
-      const minValue = isFullText.value ? 0 : 1;
+      stopPropagation = true;
+      isUpDownKeyEvent = true;
+      const minValue = props.isFullText ? 0 : 1;
       if (activeIndex.value > minValue) {
         index = index - 1;
       }
     }
 
+    // key down
     if (e.keyCode === 40) {
+      stopPropagation = true;
+      isUpDownKeyEvent = true;
       if (activeIndex.value < filterFieldList.value.length) {
         index = index + 1;
       }
     }
 
-    if (index > 0) {
-      handleFieldItemClick(filterFieldList.value[index - 1], index);
-      scrollActiveItemIntoView();
-      return;
+    // key enter
+    if (e.keyCode === 13) {
+      handleEnterFullTextClick();
+      stopPropagation = true;
     }
 
-    handleFullTextClick();
-    scrollActiveItemIntoView();
+    if (stopPropagation) {
+      e.stopPropagation();
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }
+
+    if (isUpDownKeyEvent) {
+      if (index > 0) {
+        handleFieldItemClick(filterFieldList.value[index - 1], index);
+        scrollActiveItemIntoView();
+        return;
+      }
+
+      handleFullTextClick();
+      scrollActiveItemIntoView();
+    }
   };
 
   const handleUiValueOptionClick = option => {
@@ -241,11 +266,11 @@
 
   const handleRsultListClick = () => {
     isFocusFieldList.value = true;
-  }
+  };
 
   const handleResultOutsideClick = () => {
     isFocusFieldList.value = false;
-  }
+  };
 
   onMounted(() => {
     beforeShowndFn();
@@ -261,29 +286,32 @@
   });
 </script>
 <template>
-  <div class="ui-query-options" @click.stop="handleResultOutsideClick">
+  <div
+    class="ui-query-options"
+    @click.stop="handleResultOutsideClick"
+  >
     <div class="ui-query-option-content">
       <div class="field-list">
         <div class="ui-search-input">
           <bk-input
-            :placeholder="$t('请输入关键字')"
-            v-model="searchValue"
-            left-icon="bk-icon icon-search"
-            behavior="simplicity"
             style="width: 100%"
+            v-model="searchValue"
+            :placeholder="$t('请输入关键字')"
+            behavior="simplicity"
+            left-icon="bk-icon icon-search"
           >
           </bk-input>
         </div>
         <div
-          class="ui-search-result"
           ref="refSearchResultList"
+          class="ui-search-result"
           @click.stop="handleRsultListClick"
         >
           <div
-            :class="['ui-search-result-row', { active: activeIndex === 0 }]"
-            @click="handleFullTextClick"
-            data-tab-index="0"
             v-if="isFullText"
+            :class="['ui-search-result-row', { active: activeIndex === 0 }]"
+            data-tab-index="0"
+            @click="handleFullTextClick"
           >
             <span class="field-type-icon full-text"></span>
             <span class="field-alias">{{ $t('全文检索') }}</span>
@@ -292,13 +320,13 @@
           <div
             v-for="(item, index) in filterFieldList"
             :class="['ui-search-result-row', { active: activeIndex === index + 1 }]"
-            :key="item.field_name"
             :data-tab-index="index + 1"
+            :key="item.field_name"
             @click="() => handleFieldItemClick(item, index + 1)"
           >
             <span
-              :class="[getFieldIcon(item.field_type), 'field-type-icon']"
               :style="{ backgroundColor: getFieldIconColor(item.field_type) }"
+              :class="[getFieldIcon(item.field_type), 'field-type-icon']"
             ></span
             ><span class="field-alias">{{ item.field_alias || item.field_name }}</span
             ><span class="field-name">({{ item.field_name }})</span>
@@ -322,8 +350,8 @@
             <div class="ui-value-label">{{ $t('条件') }}</div>
             <div class="ui-value-component">
               <div
-                class="ui-value-operator"
                 ref="refUiValueOperator"
+                class="ui-value-operator"
               >
                 {{ activeOperator.label }}
               </div>
@@ -333,8 +361,8 @@
                   class="ui-value-select"
                 >
                   <div
-                    :class="['ui-value-option', { active: condition.operator === option.operator }]"
                     v-for="option in activeFieldItem.field_operator"
+                    :class="['ui-value-option', { active: condition.operator === option.operator }]"
                     :key="option.operator"
                     @click="() => handleUiValueOptionClick(option)"
                   >
@@ -363,8 +391,8 @@
             <div>
               <bk-radio-group v-model="condition.relation">
                 <bk-radio
-                  value="AND"
                   style="margin-right: 12px"
+                  value="AND"
                   >AND
                 </bk-radio>
                 <bk-radio value="OR">OR </bk-radio>
@@ -381,8 +409,8 @@
       </div>
       <div class="ui-btn-opts">
         <bk-button
-          theme="primary"
           style="width: 64px; margin-right: 8px"
+          theme="primary"
           @click="handelSaveBtnClick"
           >{{ $t('确定') }}</bk-button
         >
