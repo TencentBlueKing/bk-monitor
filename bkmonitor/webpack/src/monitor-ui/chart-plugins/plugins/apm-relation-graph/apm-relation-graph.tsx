@@ -275,7 +275,8 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   async getPanelData(start_time?: string, end_time?: string) {
     this.beforeGetPanelData(start_time, end_time);
     this.handleLoadingChange(true);
-
+    this.selectedServiceName = '';
+    this.expanded = [];
     try {
       this.unregisterOberver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
