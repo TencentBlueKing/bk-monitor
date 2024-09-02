@@ -468,8 +468,13 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   }
 
   /** 下钻接口节点点击 */
-  handleDrillingNodeClick(name: string) {
-    console.log(name);
+  handleDrillingNodeClick(node: INodeModel, drillingName: string) {
+    this.activeNode = node.data.id;
+    this.selectedServiceName = node.data.id;
+    this.selectedEndpoint = drillingName;
+    if (!this.expanded.includes('overview')) {
+      this.handleExpand('overview');
+    }
   }
 
   /**
