@@ -349,7 +349,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     if (!action || !name) return;
     // 下钻
     if (action === 'span_drilling') {
-      this.getNodeDrillingList(this.menuCfg.nodeModel.name);
+      this.getNodeDrillingList(this.menuCfg.nodeModel.data.name);
       this.menuCfg.isDrilling = true;
       return;
     }
@@ -372,7 +372,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   }
 
   handleDrillingNodeClick(name: string) {
-    this.$emit('drillingNodeClick', name);
+    this.$emit('drillingNodeClick', this.menuCfg.nodeModel, name);
     this.hideMenu();
   }
 
@@ -609,7 +609,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
           isDrilling: false,
           drillingList: [],
         };
-        this.$emit('nodeClick', item.getModel());
         document.body.addEventListener('click', this.hideMenu);
       }
     });
