@@ -11,18 +11,21 @@ specific language governing permissions and limitations under the License.
 
 
 from django.utils.translation import ugettext as _
+from rest_framework.decorators import action
+
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from kernel_api.resource.collecting import CollectConfigInfoResource
 from monitor_api.views import *  # noqa
 from monitor_api.views import Response, viewsets
+from monitor_web.uptime_check.views import (
+    UptimeCheckGroupViewSet as _UptimeCheckGroupViewSet,
+)
 from monitor_web.uptime_check.views import (
     UptimeCheckNodeViewSet as _UptimeCheckNodeModelViewSet,
 )
 from monitor_web.uptime_check.views import (
     UptimeCheckTaskViewSet as _UptimeCheckTaskModelViewSet,
 )
-from rest_framework.decorators import action
-
-from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from kernel_api.resource.collecting import CollectConfigInfoResource
 
 
 class ModelMixin(viewsets.ModelViewSet):
@@ -88,6 +91,34 @@ class UptimeCheckTaskViewSet(_UptimeCheckTaskModelViewSet):
         self.kwargs["pk"] = request.data.get("task_id")
         self.kwargs["status"] = request.data.get("status", "")
         return super(UptimeCheckTaskViewSet, self).change_status(request, *args, **kwargs)
+
+
+class UptimeCheckGroupViewSet(_UptimeCheckGroupViewSet):
+    @action(methods=["POST"], detail=False)
+    def add(self, request, *args, **kwargs):
+        return super(UptimeCheckGroupViewSet, self).create(request, *args, **kwargs)
+
+    @action(methods=["POST"], detail=False)
+    def delete(self, request, *args, **kwargs):
+        self.kwargs["pk"] = request.data.get("group_id")
+        super(UptimeCheckGroupViewSet, self).destroy(request, *args, **kwargs)
+        return Response({"groud_id": self.kwargs["pk"], "result": _("删除成功")})
+
+    @action(methods=["POST"], detail=False)
+    def edit(self, request, *args, **kwargs):
+        self.kwargs["pk"] = request.data.get("groud_id")
+        self.kwargs.update({"partial": True})
+        return super(UptimeCheckGroupViewSet, self).update(request, *args, **kwargs)
+
+    @action(methods=["POST"], detail=False)
+    def add_task(self, request, *args, **kwargs):
+        self.kwargs["pk"] = request.data.get("groud_id")
+        return super(UptimeCheckGroupViewSet, self).add_task(request, *args, **kwargs)
+
+    @action(methods=["POST"], detail=False)
+    def remove_task(self, request, *args, **kwargs):
+        self.kwargs["pk"] = request.data.get("groud_id")
+        return super(UptimeCheckGroupViewSet, self).remove_task(request, *args, **kwargs)
 
 
 class CollectConfigViewSet(ResourceViewSet):
