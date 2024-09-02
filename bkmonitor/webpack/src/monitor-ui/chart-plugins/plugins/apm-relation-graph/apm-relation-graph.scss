@@ -126,6 +126,7 @@
               color: #fff;
             }
           }
+
           &.disabled {
             cursor: not-allowed;
           }
@@ -189,6 +190,10 @@
       .content-wrap {
         height: calc(100% - 52px);
       }
+
+      &.overview-w-auto {
+          flex: 1;
+      }
     }
 
     .source-topo {
@@ -209,19 +214,20 @@
       }
 
       .header-wrap {
+        position: relative;
         display: flex;
         align-items: center;
         height: 52px;
         margin-top: 1px;
         background: #ffffff;
         box-shadow: 0 2px 4px 0 #1919290d;
-        position: relative;
+
         &::before {
-          content: '';
           position: absolute;
+          bottom: 0;
           width: 100%;
           height: 1px;
-          bottom: 0;
+          content: '';
           box-shadow: 0 2px 4px 0 #1919290d;
         }
 

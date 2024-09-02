@@ -5,19 +5,29 @@
   background: #ffffff;
   box-shadow: -1px 0 0 0 #dcdee5;
 
+  .mr-4 {
+    margin-right: 4px;
+  }
+
+  .icon-fenxiang {
+    font-size: 12px;
+  }
+
   .max-w-170 {
     max-width: 170px;
   }
+
   .title {
     font-size: 14px;
     font-weight: 700;
   }
+
   .setting-btn {
-    color: #3a84ff;
-    cursor: pointer;
     display: flex;
     align-items: center;
+    color: #3a84ff;
     white-space: nowrap;
+    cursor: pointer;
 
     .icon-monitor {
       margin-left: 4px;
@@ -189,6 +199,7 @@
             }
           }
         }
+
         .related-log-chart-wrap .empty-chart {
           .bk-exception {
             transform: scale(0.35);
@@ -202,6 +213,7 @@
     .h-24 {
       height: 24px;
     }
+
     .mb-6 {
       margin-bottom: 6px;
     }
