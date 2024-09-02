@@ -210,7 +210,6 @@
             <FieldsSetting
               v-if="isShowFieldsSetting"
               v-on="$listeners"
-              :field-alias-map="$attrs['field-alias-map']"
               :retrieve-params="retrieveParams"
               @cancel="cancelModifyFields"
               @confirm="confirmModifyFields"
