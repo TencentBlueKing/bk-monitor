@@ -81,7 +81,7 @@
               <bk-switcher
                 class="left-word"
                 v-model="fingerSwitch"
-                :disabled="!globalEditable || configData.extra.signature_switch"
+                :disabled="!globalEditable || fingerSwitch"
                 :pre-check="() => false"
                 data-test-id="LogCluster_div_isOpenSignature"
                 size="large"
@@ -446,8 +446,8 @@
           extra: { collector_config_id: configID },
         } = this.cleanConfig;
         this.configID = configID;
-        this.fingerSwitch = extra.signature_switch;
-        this.isShowFingerTips = extra.signature_switch;
+        this.fingerSwitch = true;
+        this.isShowFingerTips = true;
         this.formData.clustering_fields = extra.clustering_fields;
         this.clusterField = this.totalFields
           .filter(item => item.is_analyzed)
@@ -462,9 +462,10 @@
             return { id, name: alias ? `${id}(${alias})` : id };
           });
         // 日志聚类且数据指纹同时打开则不请求默认值
-        if (isActive) {
-          this.requestCluster(false);
-        }
+        this.requestCluster(false);
+        // if (isActive) {
+        //   this.requestCluster(false);
+        // }
       },
       /**
        * @desc: 数据指纹开关

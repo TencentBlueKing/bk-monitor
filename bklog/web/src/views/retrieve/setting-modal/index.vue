@@ -228,7 +228,8 @@
         return this.isShowDialog;
       },
       globalEditable() {
-        return this.showCurrentList.find(el => el.id === this.currentChoice)?.isEditable;
+        return true;
+        // return this.showCurrentList.find(el => el.id === this.currentChoice)?.isEditable;
       },
       isCollector() {
         // 字段提取的索引集来源是否为采集项
