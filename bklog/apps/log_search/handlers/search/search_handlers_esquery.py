@@ -24,14 +24,12 @@ import datetime
 import hashlib
 import json
 import operator
-from collections import namedtuple
 from typing import Any, Dict, List, Union
 
 import arrow
 import pytz
 from django.conf import settings
 from django.core.cache import cache
-from django.test import RequestFactory
 from django.utils.translation import ugettext as _
 
 from apps.api import BcsApi, BkLogApi, MonitorApi
@@ -45,7 +43,8 @@ from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
 from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
-from apps.log_esquery.views.esquery_views import EsQueryViewSet
+from apps.log_esquery.esquery.esquery import EsQuery
+from apps.log_esquery.serializers import EsQuerySearchAttrSerializer
 from apps.log_search.constants import (
     ASYNC_SORTED,
     CHECK_FIELD_LIST,
@@ -113,10 +112,10 @@ from apps.models import model_to_dict
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
 from apps.utils.db import array_group
+from apps.utils.drf import custom_params_valid
 from apps.utils.ipchooser import IPChooser
 from apps.utils.local import (
     get_local_param,
-    get_request,
     get_request_app_code,
     get_request_external_username,
     get_request_username,
@@ -584,20 +583,8 @@ class SearchHandler(object):
 
     @classmethod
     def direct_esquery_search(cls, params):
-        request = get_request()
-
-        # 使用 RequestFactory 创建一个模拟 POST 请求
-        fake_request = RequestFactory().post("/esquery/search/", data=params, content_type="application/json")
-        App = namedtuple("App", ["bk_app_code"])
-        fake_request.app = App(bk_app_code=get_request_app_code())
-        fake_request.user = request.user
-
-        # 实例化 EsQueryViewSet 并设置 request 和 kwargs
-        es_query_viewset = EsQueryViewSet.as_view({"post": "search"})
-        # 调用 search 方法
-        response = es_query_viewset(fake_request)
-        data = response.data
-        return data
+        data = custom_params_valid(EsQuerySearchAttrSerializer, params)
+        return EsQuery(data).search()
 
     def _multi_search(self, once_size: int):
         """
@@ -626,7 +613,7 @@ class SearchHandler(object):
             "scroll": self.scroll,
             "collapse": self.collapse,
             "include_nested_fields": self.include_nested_fields,
-            "track_total_hits": self.track_total_hits
+            "track_total_hits": self.track_total_hits,
         }
 
         storage_cluster_record_objs = StorageClusterRecord.objects.none()
