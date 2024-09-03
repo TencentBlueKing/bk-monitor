@@ -103,7 +103,7 @@
           :retrieve-params="retrieveParams"
           :total-fields="totalFields"
           :date-picker-value="datePickerValue"
-          @cluster-created="startPolling(10000)"
+          @cluster-created="handleClusterCreated"
         />
         <data-fingerprint
           v-else
@@ -375,9 +375,9 @@
           if (newList.length) {
             this.isFieldInit = true;
             // 确认是否需要展示step步骤
-            this.startPolling();
             // 立即执行一次
             await this.clusterPolling();
+            this.startPolling();
             this.isFieldInit = false;
           }
         },
@@ -385,6 +385,9 @@
       fingerSearchState() {
         if (this.exhibitAll) this.requestFinger();
       },
+      isShowClusterStep(v) {
+        this.$store.commit('updateStoreIsShowClusterStep', v);
+      }
     },
     methods: {
       /**
@@ -596,6 +599,10 @@
       },
       watchStrategySubmitStatus(v) {
         this.strategyHaveSubmit = v;
+      },
+      handleClusterCreated() {
+        this.clusterPolling();
+        this.startPolling();
       },
       async clusterPolling() {
         const isActiveCluster = await this.confirmClusterStepStatus();

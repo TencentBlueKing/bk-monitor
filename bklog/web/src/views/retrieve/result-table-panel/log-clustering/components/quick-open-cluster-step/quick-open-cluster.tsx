@@ -222,6 +222,7 @@ export default class QuickOpenCluster extends tsc<IProps> {
   handleOpenDialog(v: boolean) {
     if (v) {
       this.cloneFormData = deepClone(this.formData);
+      this.formData.clustering_fields = this.clusterField[0]?.id || '';
     } else {
       this.formData = this.cloneFormData;
     }

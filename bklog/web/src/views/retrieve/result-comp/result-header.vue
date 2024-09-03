@@ -319,6 +319,7 @@
         detailJumpRouteKey: 'log', // 路由key log采集列表 custom自定义上报 es、bkdata、setIndex 第三方ED or 计算平台 or 索引集
         isFirstCloseCollect: false,
         showSettingMenuList: [],
+        catchSettingMenuList: [],
         showCollectIntroGuide: false,
       };
     },
@@ -327,6 +328,7 @@
         bkBizId: state => state.bkBizId,
         userGuideData: state => state.userGuideData,
         isExternal: state => state.isExternal,
+        storeIsShowClusterStep: state => state.storeIsShowClusterStep,
       }),
       ...mapGetters({
         isShowMaskingTemplate: 'isShowMaskingTemplate',
@@ -384,11 +386,12 @@
       },
       clusteringData: {
         immediate: true,
-        handler(val) {
-          this.showSettingMenuList = this.showSettingMenuList.filter(item => {
-            return item.id === 'clustering' ? val?.is_active : true;
-          });
+        handler() {
+          this.handleShowSettingMenuListChange();
         },
+      },
+      storeIsShowClusterStep() {
+        this.handleShowSettingMenuListChange();
       },
     },
     created() {
@@ -482,6 +485,12 @@
         });
         window.open(href, '_blank');
       },
+      handleShowSettingMenuListChange() {
+        const isShowClusterSet = this.clusteringData?.is_active || this.storeIsShowClusterStep;
+        this.showSettingMenuList = this.catchSettingMenuList.filter(item => {
+          return item.id === 'clustering' ? isShowClusterSet : true;
+        });
+      },
       setShowLiList(setItem) {
         if (JSON.stringify(setItem) === '{}') return;
         if (setItem.scenario_id === 'log') {
@@ -505,7 +514,7 @@
        */
       initJumpRouteList(detailStr, isFilterExtract = false) {
         if (!['log', 'es', 'bkdata', 'custom', 'setIndex'].includes(detailStr)) {
-          this.showSettingMenuList = this.isAiopsToggle ? this.settingMenuList : [];
+          this.catchSettingMenuList = this.isAiopsToggle ? this.settingMenuList : [];
           return;
         }
         // 赋值详情路由的key
@@ -524,7 +533,7 @@
           this.isShowMaskingTemplate ? true : item.id !== 'logMasking',
         );
         // 合并其他
-        this.showSettingMenuList = filterMenuList.concat(accessList);
+        this.catchSettingMenuList = filterMenuList.concat(accessList);
       },
       handleClickResultIcon(type) {
         if (type === 'collect') {

@@ -265,7 +265,7 @@
     >
       <div class="submit-dialog-container">
         <p class="submit-dialog-title">{{ $t('保存待生效') }}</p>
-        <p class="submit-dialog-text">{{ $t('该保存需要1小时生效,请耐心等待') }}</p>
+        <p class="submit-dialog-text">{{ $t('该保存需要10分钟生效, 请耐心等待') }}</p>
         <bk-button
           class="submit-dialog-btn"
           theme="primary"
@@ -742,7 +742,7 @@
       position: sticky;
       bottom: 0;
       padding: 10px 0 50px;
-      background: #FFF;
+      background: #fff;
     }
   }
 
