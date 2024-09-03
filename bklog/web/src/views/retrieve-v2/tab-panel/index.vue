@@ -1,5 +1,6 @@
 <script setup>
   import { defineEmits, defineProps, computed } from 'vue';
+
   import useLocale from '@/hooks/use-locale';
   const { $t } = useLocale();
   const props = defineProps({
@@ -9,7 +10,7 @@
     },
   });
   const emit = defineEmits(['input']);
-  //可切换Tab数组
+  // 可切换Tab数组
   const panelList = computed(() => {
     const list = [
       { name: 'origin', label: $t('原始日志') },
@@ -29,7 +30,7 @@
     const afterList = afterListMap[item.name] || ['chartAnalysis'];
     return afterList.includes(props.value);
   };
-  //是否显示对应的边框
+  // 是否显示对应的边框
   const handleActive = panel => {
     emit('input', panel);
   };

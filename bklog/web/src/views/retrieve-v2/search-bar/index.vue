@@ -1,13 +1,11 @@
 <script setup>
-  import { debounce } from 'throttle-debounce';
-
-  import TimeRange from '../../../components/time-range/time-range';
-
   import { ref, computed, onMounted, onUnmounted } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+  import { debounce } from 'throttle-debounce';
 
+  import TimeRange from '../../../components/time-range/time-range';
   import SelectIndexSet from '../condition-comp/select-index-set.tsx';
   import UiInput from './ui-input';
 
@@ -24,18 +22,18 @@
 
   /** 自动刷新规则 */
   const refreshActive = ref(false);
-  const emit = defineEmits([
-    'change',
-    'should-retrieve'
-  ]);
+  const emit = defineEmits(['change', 'should-retrieve']);
   /** props相关 */
   const props = defineProps({});
   /** 时间选择器绑定的值 */
   const timeRangValue = computed(() => {
-    const { start_time = 'now-15m', end_time = 'now', timezone = '' } = store.state.indexItem;
+    const { start_time = 'now-15m', end_time = 'now' } = store.state.indexItem;
     return [start_time, end_time];
   });
-  const timezone = ref('');
+  const timezone = computed(() => {
+    const { timezone = '' } = store.state.indexItem;
+    return timezone;
+  });
 
   const refreshTimeList = [
     {
@@ -80,7 +78,9 @@
   };
 
   const handleBtnQueryClick = () => {
-    store.commit('updateIndexItemParams', { addition: searchItemList.value.filter(val => !val.disabled && !val.is_focus_input) });
+    store.commit('updateIndexItemParams', {
+      addition: searchItemList.value.filter(val => !val.disabled && !val.is_focus_input),
+    });
     store.dispatch('requestIndexSetQuery');
   };
 
@@ -147,12 +147,10 @@
 
   const handleRefreshDebounce = debounce(300, handleRefresh);
 
-
   const handleSelectRefreshTimeout = timeout => {
     setRefreshTime(timeout);
     autoRefreshPopper.value.instance.hide();
   };
-
 
   onMounted(() => {
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -203,7 +201,7 @@
           <slot name="trigger">
             <div class="auto-refresh-trigger">
               <span
-              :class="['bklog-icon', isAutoRefresh ? 'bklog-auto-refresh' : 'bklog-no-refresh']"
+                :class="['bklog-icon', isAutoRefresh ? 'bklog-auto-refresh' : 'bklog-no-refresh']"
                 data-test-id="retrieve_span_periodicRefresh"
                 @click.stop="handleRefreshDebounce"
               ></span>
@@ -232,13 +230,19 @@
           </template>
         </bk-popover>
         <!-- 手动刷新 -->
-        <span class="search-refresh" v-bk-tooltips="{content: $t('刷新')}">
-          <i class="bklog-icon bklog-log-refresh" @click="handleRefresh(true)"></i>
+        <span
+          class="search-refresh"
+          v-bk-tooltips="{ content: $t('刷新') }"
+        >
+          <i
+            class="bklog-icon bklog-log-refresh"
+            @click="handleRefresh(true)"
+          ></i>
         </span>
       </span>
     </div>
     <div class="search-input">
-      <UiInput v-model="searchItemList" ></UiInput>
+      <UiInput v-model="searchItemList"></UiInput>
       <div class="search-tool items">
         <span class="bklog-icon bklog-brush"></span>
         <span class="bklog-icon bklog-star-line"></span>
