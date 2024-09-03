@@ -80,7 +80,8 @@
   };
 
   const handleBtnQueryClick = () => {
-    store.commit('updateIndexItemParams', { addition: searchItemList.value })
+    store.commit('updateIndexItemParams', { addition: searchItemList.value.filter(val => !val.disabled && !val.is_focus_input) });
+    store.dispatch('requestIndexSetQuery');
   };
 
   // 自动刷新

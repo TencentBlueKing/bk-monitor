@@ -77,10 +77,6 @@
     indexItem.value,
     () => {
       setRouteParams();
-      const { ids = [] } = indexItem.value ?? {};
-      if (ids.length) {
-        store.dispatch('requestIndexSetFieldInfo');
-      }
     },
     { immediate: true, deep: true },
   );
@@ -202,4 +198,3 @@
 <style scoped>
   @import './index.scss';
 </style>
-import dayjs from 'dayjs';

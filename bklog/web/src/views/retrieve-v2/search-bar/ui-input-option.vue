@@ -226,6 +226,7 @@
       if (conditionValueEnterCount !== condition.value.value.length) {
         keyEnterCallbackFn.value[enterStepIndex.value]?.();
         enterStepIndex.value++;
+        document.removeEventListener('keydown', handleKeydownClick);
       }
 
       conditionValueEnterCount++;
@@ -325,10 +326,6 @@
   const handleValueTagInputChange = tags => {
     conditionValueEnterCount = tags.length;
   };
-
-  onMounted(() => {
-    beforeShowndFn();
-  });
 
   onBeforeUnmount(() => {
     afterHideFn();

@@ -31,11 +31,13 @@
  */
 import Vue from 'vue';
 
-import { unifyObjectStyle, getOperatorKey } from '@/common/util';
+import { unifyObjectStyle, getOperatorKey, readBlobRespToJson } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import axios from 'axios';
 import Vuex from 'vuex';
 
 import collect from './collect';
+import { IndexSetQueryResult, IndexFieldInfo, IndexItem, IndexsetItemParams } from './default-values.ts';
 import globals from './globals';
 import retrieve from './retrieve';
 import http from '@/api';
@@ -67,17 +69,7 @@ const store = new Vuex.Store({
     space: {},
     spaceUid: '',
     indexId: '',
-    indexItem: {
-      start_time: 'now-15m',
-      end_time: 'now',
-      timezone: '',
-      ids: [],
-      isUnionIndex: false,
-
-      items: [],
-      selectIsUnionSearch: false,
-      addition: [],
-    },
+    indexItem: { ...IndexItem },
     operatorDictionary: {},
     /** 联合查询ID列表 */
     unionIndexList: [],
@@ -85,37 +77,8 @@ const store = new Vuex.Store({
     unionIndexItemList: [],
     /** 索引集对应的字段列表信息 */
     // @ts-ignore
-    indexFieldInfo: {
-      bk_biz_id: null,
-      category_id: null,
-      collector_config_id: null,
-      collector_scenario_id: null,
-      created_at: null,
-      index_set_id: null,
-      index_set_name: null,
-      indices: [],
-      is_favorite: null,
-      no_data_check_time: null,
-      permission: {},
-      scenario_id: null,
-      scenario_name: null,
-      sort_fields: [],
-      space_uid: '',
-      storage_cluster_id: null,
-      tags: [],
-      target_fields: [],
-      time_field: null,
-      time_field_type: null,
-      time_field_unit: null,
-      fields: [],
-      display_fields: [],
-      sort_list: [],
-      time_field: '',
-      time_field_type: '',
-      time_field_unit: '',
-      config: [],
-      config_id: 0,
-    },
+    indexFieldInfo: { ...IndexFieldInfo },
+    indexSetQueryResult: { ...IndexSetQueryResult },
     traceIndexId: '',
     // 业务Id
     bkBizId: '',
@@ -217,6 +180,24 @@ const store = new Vuex.Store({
       }
     },
 
+    /**
+     * 当切换索引集时，重置请求参数默认值
+     * @param {*} state
+     * @param {*} payload
+     */
+    resetIndexsetItemParams(state, payload) {
+      const defaultValue = { ...IndexsetItemParams };
+      Object.assign(state.indexItem, defaultValue, payload ?? {});
+    },
+
+    resetIndexSetQueryResult(state, payload) {
+      Object.assign(state.indexSetQueryResult, { ...IndexSetQueryResult, ...(payload ?? {}) });
+    },
+
+    updateIndexSetQueryResult(state, payload) {
+      Object.assign(state.indexSetQueryResult, payload ?? {});
+    },
+
     updateIndexItemParams(state, payload) {
       Object.assign(state.indexItem, payload ?? {});
     },
@@ -298,6 +279,7 @@ const store = new Vuex.Store({
     },
     updateUnionIndexList(state, unionIndexList) {
       state.unionIndexList = unionIndexList;
+      state.indexItem.ids = unionIndexList;
     },
     updateUnionIndexItemList(state, unionIndexItemList) {
       state.unionIndexItemList = unionIndexItemList;
@@ -510,11 +492,12 @@ const store = new Vuex.Store({
      * @param {*} param0
      * @param {*} param1
      */
-    updateIndexItemByRoute({ commit }, { route, list }) {
+    updateIndexItemByRoute({ commit, dispatch }, { route, list }) {
       const ids = [];
       let isUnionIndex = false;
       if (route.params.indexId) {
         ids.push(route.params.indexId);
+        commit('updateIndexId', route.params.indexId);
       } else {
         isUnionIndex = true;
         ids.push(...JSON.parse(decodeURIComponent(route.query?.unionList ?? '[]')));
@@ -529,6 +512,7 @@ const store = new Vuex.Store({
         };
 
         commit('updateIndexItem', payload);
+        dispatch('requestIndexSetFieldInfo');
       }
     },
 
@@ -562,11 +546,102 @@ const store = new Vuex.Store({
         });
     },
 
-    // requestIndexSetQuery({ commit, state }) {
-    //   const { start_time, end_time, isUnionIndex } = state.indexItem;
-    //   const [startTimeStamp, endTimeStamp] = handleTransformToTimestamp([start_time, end_time]);
+    /**
+     * 执行查询
+     */
+    requestIndexSetQuery({ commit, state }, payload = { isTablePagination: true, cancelToken: null }) {
+      const {
+        start_time,
+        end_time,
+        isUnionIndex,
+        addition,
+        begin,
+        size,
+        keyword = '*',
+        ip_chooser,
+        host_scopes,
+        interval,
+      } = state.indexItem;
+      const bk_biz_id = state.bkBizId;
+      commit('resetIndexSetQueryResult', { is_loading: true });
 
-    // }
+      const [startTimeStamp, endTimeStamp] = handleTransformToTimestamp([start_time, end_time]);
+      const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
+
+      // 区分联合查询和单选查询
+      const searchUrl = !isUnionIndex
+        ? `/search/index_set/${state.indexId}/search/`
+        : '/search/index_set/union_search/';
+
+      const baseData = {
+        addition,
+        begin,
+        bk_biz_id,
+        end_time: endTimeStamp,
+        host_scopes,
+        interval,
+        ip_chooser,
+        keyword,
+        size,
+        start_time: startTimeStamp,
+      };
+
+      // 更新联合查询的begin
+      const unionConfigs = state.unionIndexList.map(item => ({
+        begin: payload.isTablePagination
+          ? (state.indexItem.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0)
+          : 0,
+        index_set_id: item,
+      }));
+
+      const queryData = Object.assign(
+        baseData,
+        !state.isUnionSearch
+          ? {
+              // 单选检索的begin
+              begin: begin * size,
+            }
+          : {
+              union_configs: unionConfigs,
+            },
+      );
+      const params = {
+        method: 'post',
+        url: searchUrl,
+        cancelToken: payload.cancelToken,
+        withCredentials: true,
+        baseURL: baseUrl,
+        responseType: 'blob',
+        data: queryData,
+      };
+      if (state.isExternal) {
+        params.headers = {
+          'X-Bk-Space-Uid': this.spaceUid,
+        };
+      }
+
+      axios(params).then(res => {
+        const result = readBlobRespToJson(res.data);
+        commit('updateIndexSetQueryResult', { ...(result ?? {}), is_loading: false });
+        return result;
+      });
+    },
+
+    /**
+     * 索引集选择改变事件
+     * 更新索引集相关缓存 & 发起当前索引集所需字段信息请求
+     * @param {*} param0
+     * @param {*} payload
+     */
+    requestIndexSetItemChanged({ commit, dispatch }, payload) {
+      commit('updateIndexItem', payload);
+
+      if (!payload.isUnionIndex) {
+        commit('updateIndexId', payload.ids[0]);
+      }
+
+      dispatch('requestIndexSetFieldInfo');
+    },
   },
 });
 

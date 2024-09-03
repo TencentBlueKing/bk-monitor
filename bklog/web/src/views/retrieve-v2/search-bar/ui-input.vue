@@ -215,16 +215,19 @@
 
     if (activeIndex.value !== null && activeIndex.value >= 0) {
       Object.assign(modelValue.value[activeIndex.value], targetValue);
+      emitChange(modelValue.value);
       return;
     }
 
     const focusInputIndex = modelValue.value.findIndex(item => item.is_focus_input);
     if (focusInputIndex === modelValue.value.length - 1) {
       modelValue.value.splice(focusInputIndex, 0, { ...targetValue, disabled: false });
+      emitChange(modelValue.value);
       return;
     }
 
     modelValue.value.push({ ...targetValue, disabled: false });
+    emitChange(modelValue.value);
   };
 
   const handleCancelClick = () => {

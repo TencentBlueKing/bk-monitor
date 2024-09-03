@@ -333,11 +333,6 @@ export default class QueryStatement extends tsc<object> {
     this.selectTagCatchIDList = !!val.length ? val : this.indexId ? [this.indexId] : [];
   }
 
-  // @Watch('spaceUid', { immediate: true })
-  // handleSpaceUidChange() {
-  //   this.requestIndexSetList();
-  // }
-
   @Emit('selected')
   emitSelected() {
     const ids = this.isAloneType ? this.selectAloneVal : this.selectedItemIDlist;
@@ -345,9 +340,10 @@ export default class QueryStatement extends tsc<object> {
       ids,
       selectIsUnionSearch: !this.isAloneType,
       items: ids.map(val => this.indexSetList.find(item => item.index_set_id === val)),
-      isUnionIndex: !this.isAloneType
+      isUnionIndex: !this.isAloneType,
     };
-    this.$store.commit('updateIndexItem', payload);
+
+    this.$store.dispatch('requestIndexSetItemChanged', payload);
     return payload;
   }
 

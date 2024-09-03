@@ -663,4 +663,7 @@ export default {
   '新类告警间隔（天）': 'New alarm interval (days)',
   告警级别: 'Alarm level',
   告警组: 'Alarm group',
+  条件: 'Condition',
+  组间关系: 'Relation',
+  全文: 'Full Text',
 };

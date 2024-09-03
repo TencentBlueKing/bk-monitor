@@ -852,4 +852,5 @@ export default {
   上下键: 'Up and down keys',
   移动光标: 'Move the cursor',
   确认结果: 'Confirm the result',
+  '请选择或直接输入，Enter分隔': 'Please select or enter directly, Enter to separate',
 };
