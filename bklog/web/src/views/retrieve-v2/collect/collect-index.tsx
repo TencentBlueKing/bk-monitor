@@ -695,7 +695,7 @@ export default class CollectIndex extends tsc<IProps> {
             <div class='search-box fl-jcsb'>
               <Input
                 vModel={this.searchVal}
-                placeholder={this.$t('搜索收藏名')}
+                placeholder={this.$t('请搜索')}
                 right-icon='bk-icon icon-search'
                 on-enter={this.handleSearchFavorite}
                 on-right-icon-click={this.handleSearchFavorite}

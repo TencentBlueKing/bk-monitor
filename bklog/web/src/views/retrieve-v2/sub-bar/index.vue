@@ -6,7 +6,7 @@
   import SettingModal from '../setting-modal';
   import FieldsSetting from '../result-comp/fields-setting';
   // import $http from '@/api';
-  import { computed, ref, watch } from 'vue';
+  import { computed, onMounted, ref, watch } from 'vue';
 
   const { $t } = useLocale();
   const store = useStore();
@@ -79,8 +79,9 @@
    * @param {Boolean} isFilterExtract 是否过滤字段设置
    */
   const initJumpRouteList = (detailStr, isFilterExtract = false) => {
+    console.log('detailStr', detailStr);
     if (!['log', 'es', 'bkdata', 'custom', 'setIndex'].includes(detailStr)) {
-      showSettingMenuList.value.push(...(isAiopsToggle.value ? settingMenuList.value : []));
+      showSettingMenuList.value = isAiopsToggle.value ? settingMenuList.value : [];
       return;
     }
     // 赋值详情路由的key
@@ -96,9 +97,12 @@
       ? settingMenuList.value.filter(item => (isFilterExtract ? item.id !== 'extract' : true))
       : [];
     const filterList = accessList.value.filter(item => (isShowMaskingTemplate.value ? true : item.id !== 'logMasking'));
+    console.log('filterList', filterList);
     // 合并其他
     showSettingMenuList.value.push(...filterMenuList.concat(filterList));
+    console.log('showSettingMenuList', showSettingMenuList.value);
   };
+  const indexSetItem = computed(() => store.state.indexFieldInfo);
 
   const setShowLiList = setItem => {
     if (JSON.stringify(setItem) === '{}') return;
@@ -116,8 +120,15 @@
     // 当scenario_id不为log（采集项，索引集，自定义上报）时，不显示字段设置
     initJumpRouteList(setItem.scenario_id, true);
   };
-
-
+  watch(
+    () => indexSetItem.value,
+    val => {
+      setTimeout(() => {
+        setShowLiList(val);
+      }, 100);
+    },
+    { deep: true, immediate: true },
+  );
   const handleMenuClick = val => {
     // 不属于新开页面的操作
     if (['index', 'extract', 'clustering'].includes(val)) {
@@ -125,8 +136,8 @@
       return;
     }
     const params = {
-      indexSetId: props.indexSetItem?.index_set_id,
-      collectorId: props.indexSetItem?.collector_config_id,
+      indexSetId: indexSetItem.value?.index_set_id,
+      collectorId: indexSetItem.value?.collector_config_id,
     };
     // 判断当前是否是脱敏配置 分别跳不同的路由
     const routeName =
@@ -182,6 +193,10 @@
   const handleUpdateLogFields = () => {
     emit('update-log-fields');
   };
+  onMounted(() => {
+    console.log('onMounted', indexSetItem.value);
+    console.log('isExternal', isExternal.value);
+  });
 </script>
 <template>
   <div class="subbar-container">

@@ -9,6 +9,13 @@
     transform: scale(0.5);
   }
 
+  .bklog-folder-fill{
+    margin: 0px 4px;
+    font-size: 14px;
+    color: #C4C6CC;
+    
+  }
+
   .group-cur {
     display: flex;
     flex-wrap: nowrap;
@@ -50,7 +57,7 @@
       height: 16px;
       line-height: 16px;
       text-align: center;
-      background: #fff;
+      background: #FAFBFD;
       border-radius: 2px;
       transform: translateX(2px);
     }
