@@ -300,18 +300,16 @@ class ClusteringConfigViewSet(APIViewSet):
     @list_route(methods=["POST"], url_path="debug")
     def debug(self, request, *args, **kwargs):
         """
-        @api {post} /clustering_config/preview/ 4_聚类设置-调试
+        @api {post} /clustering_config/debug/ 4_聚类设置-调试
         @apiName preview clustering solution
         @apiGroup log_clustering
-        @apiParam {Str} input 输入日志
+        @apiParam {Str} input_data 输入日志
         @apiParam {Str} predefined_varibles 预先定义的正则表达式
         @apiSuccessExample {json} 成功返回:
         {
             "message":"",
             "code":0,
-            "data": {
-                "output": "1234"
-            },
+            "data": "1234",
             "result":true
         }
         """

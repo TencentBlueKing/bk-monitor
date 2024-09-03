@@ -1591,6 +1591,13 @@ class DataFlowHandler(BaseAiopsHandler):
             es_storage["json_fields"] = [
                 i["field_name"] or i["field_alias"] for i in fields["fields"] if i["field_type"] == "object"
             ]
+            # 这个时候 object 字段很有可能已经被打平，所以要做特殊判断
+            es_storage["json_fields"].extend(
+                [f["field_name"].split(".")[0] for f in fields["fields"] if "." in f["field_name"]]
+            )
+            # 去重
+            es_storage["json_fields"] = list(set(es_storage["json_fields"]))
+
             # 获取storage 中的retention
             collector_config = CollectorConfig.objects.filter(
                 collector_config_id=clustering_config.collector_config_id
