@@ -13,6 +13,7 @@
     }
 
     .main-content {
+      position: relative;
       flex: 1;
       height: 100%;
       overflow: hidden;
@@ -22,8 +23,8 @@
       position: relative;
       box-sizing: content-box;
       height: 100%;
-      border-left: 1px solid #DCDEE5;
-      transition: width .3s;
+      border-left: 1px solid #dcdee5;
+      transition: width 0.3s;
 
       .side-drop-wrap {
         position: absolute;
@@ -48,28 +49,29 @@
             height: 2px;
             margin-top: 2px;
             margin-right: 8px;
-            background: #63656E;
+            background: #63656e;
           }
         }
       }
 
       &.drop-active {
-        border-left: 1px solid #3A84FF;
-        &::after {
-          content: '';
-          position: absolute;
-          left: -2px;
-          top: 0;
-          height: 100%;
-          width: 1px;
-          background: #3A84FF;
-        }
+        border-left: 1px solid #3a84ff;
         transition: width 0s;
+
+        &::after {
+          position: absolute;
+          top: 0;
+          left: -2px;
+          width: 1px;
+          height: 100%;
+          content: '';
+          background: #3a84ff;
+        }
 
         .side-drop-wrap {
           .drop-point {
             .point {
-              background: #3A84FF;
+              background: #3a84ff;
             }
           }
         }

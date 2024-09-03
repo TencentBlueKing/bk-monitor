@@ -215,7 +215,7 @@ export const nodeIconMap = {
   [CategoryEnum.DB]: '\ue6fd',
   [CategoryEnum.MESSAGING]: '\ue702',
   [CategoryEnum.ASYNC_BACKEND]: '\ue703',
-  [CategoryEnum.OTHER]: '\ue6f0',
+  [CategoryEnum.OTHER]: '\ue7a8',
 };
 
 export const nodeIconClass = {
@@ -224,7 +224,7 @@ export const nodeIconClass = {
   [CategoryEnum.DB]: 'icon-shujuku',
   [CategoryEnum.MESSAGING]: 'icon-xiaoxizhongjianjian',
   [CategoryEnum.ASYNC_BACKEND]: 'icon-renwu',
-  [CategoryEnum.OTHER]: 'icon-mc-two-column',
+  [CategoryEnum.OTHER]: 'icon-mc-service-unknown',
 };
 
 export const nodeLanguageMap = {

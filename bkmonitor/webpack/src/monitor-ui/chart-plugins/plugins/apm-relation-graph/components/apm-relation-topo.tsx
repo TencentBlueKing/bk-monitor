@@ -85,6 +85,7 @@ type ApmRelationTopoProps = {
   edgeType: EdgeDataType;
   appName: string;
   dataType: string;
+  saveLayout: boolean;
   filterCondition: {
     type: CategoryEnum;
     showNoData: boolean;
@@ -97,7 +98,7 @@ type ApmRelationTopoEvent = {
   onResourceDrilling: (node: INodeModel) => void;
   onEdgeTypeChange: (edgeType: EdgeDataType) => void;
   onServiceDetail: (node: INodeModel) => void;
-  onDrillingNodeClick: (name: string) => void;
+  onDrillingNodeClick: (node: INodeModel, name: string) => void;
 };
 
 type INodeModelConfig = ModelConfig & INodeModel;
@@ -113,6 +114,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   @Prop() data: ApmRelationTopoProps['data'];
   @Prop() activeNode: string;
   @Prop() edgeType: EdgeDataType;
+  /** 是否需要保留上次布局 */
+  @Prop({ default: false }) saveLayout: boolean;
   @Prop() filterCondition: ApmRelationTopoProps['filterCondition'];
   @Prop() appName: string;
   @Prop() dataType: string;
@@ -131,6 +134,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   maxZoomVal = 2; // 缩放滑动条最大值
   graph: Graph = null; // 拓扑图实例
   toolsPopoverInstance = null; // 工具栏弹窗实例
+  /** 拓扑图是否渲染完成 */
+  isRender = false;
   /** 图例筛选 */
   legendFilter = {
     status: '',
@@ -190,6 +195,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     drillingList: [],
   };
 
+  layout = null;
+
   /** 当前使用的布局 应用概览使用 radial布局、下钻服务使用 dagre 布局 */
   get graphLayout() {
     const curNodeLen = this.data?.nodes?.length || 0;
@@ -243,7 +250,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   beforeDestroy() {
     this.toolsPopoverInstance?.destroy?.();
     this.toolsPopoverInstance = null;
-    // this.graph?.destroy?.();
     this.hideMenu();
     removeListener(this.$el as HTMLDivElement, this.handleResize);
   }
@@ -265,9 +271,18 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     this.graph.changeSize(width, height);
     // 将拓扑图移到画布中心
     this.graph.fitCenter();
+
+    // 节点
+    if (this.menuCfg.show) {
+      const nodeTarget = this.graph.find('node', node => node.getModel().id === this.menuCfg.nodeModel.id);
+      const { x, y } = nodeTarget.getModel(); // 获得该节点的位置，对应 pointX/pointY 坐标
+      const canvasXY = this.graph.getCanvasByPoint(x, y);
+      this.menuCfg.x = canvasXY.x;
+      this.menuCfg.y = canvasXY.y;
+    }
   }
 
-  @Watch('data', { immediate: true })
+  @Watch('data')
   handleDataChange() {
     this.initGraph();
   }
@@ -374,13 +389,21 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   handleDrillingNodeClick(name: string) {
     this.$emit('drillingNodeClick', this.menuCfg.nodeModel, name);
-    this.hideMenu();
   }
 
   initGraph() {
-    if (this.graph) {
-      this.graph.read(this.formatData);
+    if (this.graph && this.saveLayout) {
+      this.graph.destroyLayout();
+      this.graph.changeData(this.formatData);
+      const activeNode = this.graph.findById(this.activeNode);
+      if (activeNode) {
+        activeNode.setState('active', true);
+      }
     } else {
+      if (this.graph) {
+        this.graph.destroy();
+        this.graph = null;
+      }
       setTimeout(() => {
         const { width, height } = this.relationGraphRef.getBoundingClientRect();
         this.canvasWidth = width;
@@ -396,6 +419,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
              * @return {G.Shape} 返回一个绘制的图形作为 keyShape，通过 node.get('keyShape') 可以获取。
              */
             draw: (cfg: INodeModelConfig, group: IGroup) => this.drawNode(cfg, group),
+            update: undefined,
             /**
              * 设置节点的状态，主要是交互状态，业务状态请在 draw 方法中实现
              * 单图形的节点仅考虑 selected、active 状态，有其他状态需求的用户自己复写这个方法
@@ -457,6 +481,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
             default: [
               'drag-canvas', // 拖拽画布
               'zoom-canvas', // 缩放画布
+              'drag-node', // 拖拽节点
             ],
           },
           /** 图布局 */
@@ -557,6 +582,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
           cursor: 'pointer',
           opacity: isGhost ? 0.4 : 1,
         },
+        draggable: true,
         name: 'node-icon',
       });
     }
@@ -575,6 +601,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         cursor: 'pointer',
         opacity: isGhost ? 0.4 : 1,
       },
+      draggable: true,
       name: 'text-shape',
     });
 
@@ -633,6 +660,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     });
 
     graph.on('afterrender', () => {
+      this.isRender = true;
       const zoom = this.graph.getZoom();
       this.scaleValue = Number(zoom.toFixed(2));
       this.initScale = Number(zoom.toFixed(2));
@@ -641,7 +669,10 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         this.initScale = 1;
         this.scaleValue = 1;
       }
-      this.graph.setItemState(this.activeNode, 'active', true);
+      const activeNode = this.graph.findById(this.activeNode);
+      if (activeNode) {
+        activeNode.setState('active', true);
+      }
       this.handleHighlightNode();
     });
   }
