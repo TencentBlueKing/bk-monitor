@@ -148,7 +148,7 @@
           </div>
         </div>
         <div
-          v-if="!isUpdate"
+          v-if="!isFinishCreateStep"
           class="add-collection-import"
         >
           <span @click="handleIndexImportClick">{{ $t('索引配置导入') }}</span>
@@ -1225,6 +1225,7 @@
                 `collect/${this.isUpdate ? 'updateCurCollect' : 'setCurCollect'}`,
                 Object.assign({}, this.formData, params, res.data),
               );
+              this.$emit('update:is-update', true);
               this.setDetail(res.data.collector_config_id);
               // 物理环境编辑情况
               if (this.isFinishCreateStep) {
@@ -1272,6 +1273,7 @@
                 `collect/${this.isUpdate ? 'updateCurCollect' : 'setCurCollect'}`,
                 Object.assign({}, this.formData, params, res.data),
               );
+              this.$emit('update:is-update', true);
               this.setDetail(res.data.collector_config_id);
               // 容器环境没有下发步骤 直接回到列表或者下一步
               if (this.isFinishCreateStep) {

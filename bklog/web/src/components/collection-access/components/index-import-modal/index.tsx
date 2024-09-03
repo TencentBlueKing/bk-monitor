@@ -172,6 +172,10 @@ export default class IndexImportModal extends tsc<IProps> {
         this.isTableLoading = false;
       });
   }
+  beforeCheckType(id: string) {
+    if (this.syncType.length === 1 && this.syncType[0] === id) return false;
+    return true;
+  }
   pythonDictString(pythonString: string) {
     return pythonString
       .replace(/'/g, '"') // 将单引号替换为双引号
@@ -181,9 +185,6 @@ export default class IndexImportModal extends tsc<IProps> {
   }
   getCheckedStatus(row) {
     return row.collector_config_id === this.currentCheckImportID;
-  }
-  getSyncDisabled(id) {
-    return this.syncType.length === 1 && this.syncType.includes(id);
   }
   handleRowCheckChange(row) {
     if (this.currentCheckImportID === row.collector_config_id) {
@@ -256,6 +257,9 @@ export default class IndexImportModal extends tsc<IProps> {
         width={1200}
         ext-cls='index-import-modal'
         v-model={this.localIsShowValue}
+        position={{
+          top: 100,
+        }}
         confirm-fn={this.handleConfirmDialog}
         header-position='left'
         mask-close={false}
@@ -279,7 +283,7 @@ export default class IndexImportModal extends tsc<IProps> {
                     <bk-checkbox
                       key={item.id}
                       style='margin-right: 24px;'
-                      disabled={this.getSyncDisabled(item.id)}
+                      before-change={() => this.beforeCheckType(item.id)}
                       value={item.id}
                     >
                       {item.name}
