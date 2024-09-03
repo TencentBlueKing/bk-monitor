@@ -1,6 +1,7 @@
 <script setup>
-  import { ref, watch, computed } from 'vue';
+  import { ref, watch, computed, onBeforeUnmount } from 'vue';
 
+  import { debounce } from 'lodash';
   import { getOperatorKey, getCharLength } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
@@ -46,6 +47,7 @@
     if (tippyInstance) {
       tippyInstance.hide();
       tippyInstance.unmount();
+      tippyInstance.destroy();
       tippyInstance = null;
     }
   };
@@ -57,6 +59,8 @@
     return input;
   };
 
+  let delayItemClickFn = undefined;
+
   const initInistance = target => {
     uninstallInstance();
     if (tippyInstance === null) {
@@ -67,28 +71,55 @@
         placement: 'bottom-start',
         interactive: true,
         maxWidth: 800,
-        onShown: () => {
+        onShow: () => {
+          isOptionShowing.value = true;
           refPopInstance.value?.beforeShowndFn?.();
         },
         onHidden: () => {
           refPopInstance.value?.afterHideFn?.();
           isOptionShowing.value = false;
           isInputFocus.value = false;
+
+          delayItemClickFn?.();
+          setTimeout(() => {
+            delayItemClickFn = undefined;
+          });
         },
       });
     }
   };
 
+
+  /**
+   * 处理多次点击触发多次请求的事件
+   */
+  const delayShowInstance = debounce((target) => {
+    initInistance(target);
+    tippyInstance.show();
+  })
+
+  /**
+   * 执行点击弹出操作项方法
+   * @param {*} target 目标元素
+   */
   const showTagListItems = target => {
+    // 如果当前实例是弹出状态
+    // 本次弹出操作需要在当前弹出实例收起之后再执行
+    // delayItemClickFn 函数会在实例 onHidden 之后执行
     if (isOptionShowing.value) {
+      delayItemClickFn = () => {
+        delayShowInstance(target);
+      };
       return;
     }
 
-    isOptionShowing.value = true;
-    initInistance(target);
-    tippyInstance.show();
+    delayShowInstance(target);
   };
 
+  /**
+   * 点击操作设置输入框位置
+   * @param {*} index
+   */
   const setFocusInputItem = (index = -1) => {
     const oldIndex = modelValue.value.findIndex(item => item?.is_focus_input);
     if (oldIndex === -1) {
@@ -107,6 +138,10 @@
     }
   };
 
+  /**
+   * 格式化搜索标签渲染格式
+   * @param {*} item
+   */
   const formatModelValueItem = item => {
     const key = getOperatorKey(item.operator);
     const label = operatorDictionary.value[key]?.label ?? key;
@@ -134,17 +169,16 @@
   const handleAddItem = e => {
     const target = e.target.closest('.search-item');
     queryItem.value = '';
-    showTagListItems(target);
     activeIndex.value = null;
+    showTagListItems(target);
   };
 
   const handleTagItemClick = (e, item, index) => {
     queryItem.value = {};
     Object.assign(queryItem.value, item);
     const target = e.target.closest('.search-item');
-    showTagListItems(target);
-
     activeIndex.value = isInputFocus.value ? -1 : index;
+    showTagListItems(target);
   };
 
   const handleDisabledTagItem = item => {
@@ -213,7 +247,12 @@
     activeIndex.value = -1;
     e.target.parentNode?.click();
   };
+
+  onBeforeUnmount(() => {
+    uninstallInstance();
+  });
 </script>
+
 <template>
   <ul
     class="search-items"

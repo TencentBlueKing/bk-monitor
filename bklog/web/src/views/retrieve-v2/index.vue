@@ -192,6 +192,7 @@
         <SearchBar @change="handleSearBarChanged"></SearchBar>
         <div class="result-row">
           <TabPanel v-model="activeTab"></TabPanel>
+
         </div>
         <div class="result-row"></div>
       </div>

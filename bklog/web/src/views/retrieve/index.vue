@@ -1494,7 +1494,6 @@
       },
       // 更新路由参数
       setRouteParams(name = 'retrieve', params, query) {
-        console.log('--setRouteParams', this.isInDestroy);
         if (this.isInDestroy) {
           return;
         }
