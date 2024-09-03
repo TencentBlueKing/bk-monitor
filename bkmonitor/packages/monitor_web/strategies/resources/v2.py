@@ -2063,11 +2063,36 @@ class UpdatePartialStrategyV2Resource(Resource):
 
     @staticmethod
     def update_notice(strategy: Strategy, notice: Dict):
+        """
+        更新告警通知
+
+        ```pyhon
+        notice["append_keys"]: List[str] # 追加逻辑的字段
+        ```
+
+        当 append_keys 有 key 时会将 old_notice[key] 的值添加到 notice[key] 中
+        ```python
+        notice = {
+            append_keys: ["user_groups"],
+            user_groups: [1, 2, 3],
+            ...
+        }
+        old_notice: {
+            append_keys: ["user_groups"],
+            user_groups: [1, 4],
+            ...
+        }
+
+        # 追加后并删除 append_keys
+        notice = {
+            user_groups: [1, 2, 3, 4]
+        }
+        ```
+        """
         old_notice = strategy.notice.to_dict()
-        
+        # 判断是否进行追加操作
         if notice.get("append_keys"):
-            for key in notice.get("append_keys"):
-                notice.get("append_keys")
+            for key in notice.get("append_keys", []):
                 if notice.get(key):
                     if type(notice[key]) is list:
                         [notice[key].append(i) for i in old_notice.get(key) if i not in notice[key]]
