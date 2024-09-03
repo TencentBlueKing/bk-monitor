@@ -53,6 +53,18 @@
     }
   }
 
+  *,
+  :after,
+  :before {
+    box-sizing: initial;
+    border: unset;
+  }
+
+  :host,
+  html {
+    line-height: initial;
+  }
+
   div,
   ul,
   section,

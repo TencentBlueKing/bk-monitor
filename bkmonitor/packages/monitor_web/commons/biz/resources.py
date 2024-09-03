@@ -8,11 +8,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
 import logging
 import re
 from typing import List
 
 from django.conf import settings
+from django.core.cache import caches
 from django.utils.translation import ugettext as _
 
 from bkm_space.api import SpaceApi
@@ -28,9 +30,14 @@ from core.drf_resource.base import Resource
 from core.errors.api import BKAPIError
 from monitor_web.commons.biz.func_control import CM
 
-BK_MONITOR_SITE_URL = "/o/bk_monitorv3/"
-
 logger = logging.getLogger(__name__)
+
+
+cache = caches["default"]
+for cache_type in ["redis", "locmem"]:
+    if cache_type in settings.CACHES:
+        cache = caches[cache_type]
+        break
 
 
 class BusinessListOptionResource(Resource):
@@ -376,6 +383,7 @@ class SpaceIntroduceResource(CacheResource):
                 },
             }
 
+        tag_intro_key = "introduce:{}:{}".format(tag, bk_biz_id)
         func = {
             "performance": performance,
             "uptime-check": uptime_check,
@@ -385,7 +393,15 @@ class SpaceIntroduceResource(CacheResource):
             "collect-config": collect_config,
             "plugin-manager": collect_config,
         }.get(tag, lambda: {})
-        return func()
+        ret_from_cache = cache.get(tag_intro_key)
+        if ret_from_cache:
+            return json.loads(ret_from_cache)
+
+        ret = func()
+        if not ret["is_no_data"] and not ret["is_no_source"]:
+            # 该业务对应场景已经在使用中， 持久化该结果
+            cache.set(tag_intro_key, json.dumps(ret), None)
+        return ret
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]

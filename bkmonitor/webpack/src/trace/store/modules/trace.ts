@@ -323,6 +323,19 @@ export const useTraceStore = defineStore('trace', () => {
     tableSettings[key].checked = checked;
   }
 
+  /** Trace、Span 列表表头设置固定记住用户的选择 */
+  function setTableSetting() {
+    const traceCheckedSettings = window.localStorage.getItem('traceCheckedSettings');
+    const spanCheckedSettings = window.localStorage.getItem('spanCheckedSettings');
+    if (traceCheckedSettings) {
+      tableSettings.value.trace.checked = JSON.parse(traceCheckedSettings);
+    }
+    if (spanCheckedSettings) {
+      tableSettings.value.span.checked = JSON.parse(spanCheckedSettings);
+    }
+  }
+  setTableSetting();
+
   return {
     loading,
     traceLoading,

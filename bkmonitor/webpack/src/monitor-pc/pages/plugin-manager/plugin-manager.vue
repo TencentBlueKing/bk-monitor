@@ -31,7 +31,6 @@
   <div
     v-else
     class="plugin-container"
-    v-monitor-loading="{ isLoading: loading }"
   >
     <div class="plugin-manager">
       <page-tips
@@ -98,220 +97,226 @@
           </li>
           <li class="tab-list-blank" />
         </ul>
-        <bk-table
-          class="plugin-table"
-          v-bkloading="{ isLoading: table.loading }"
-          :data="table.data"
-          :empty-text="table.message"
-          tooltip-effect="dark"
-          @row-mouse-enter="i => (table.hoverIndex = i)"
-          @row-mouse-leave="i => (table.hoverIndex = -1)"
-          @sort-change="handleSortChange"
-        >
-          <!-- <bk-table-column
+        <table-skeleton
+          v-if="loading || table.loading"
+          class="plugin-table-skeleton"
+          :type="2"
+        ></table-skeleton>
+        <template v-else>
+          <bk-table
+            class="plugin-table"
+            :data="table.data"
+            :empty-text="table.message"
+            tooltip-effect="dark"
+            @row-mouse-enter="i => (table.hoverIndex = i)"
+            @row-mouse-leave="i => (table.hoverIndex = -1)"
+            @sort-change="handleSortChange"
+          >
+            <!-- <bk-table-column
                         type="selection"
                         :selectable="handleSelectAble"
                         align="center"
                         width="50">
                     </bk-table-column> -->
-          <div slot="empty">
-            <empty-status
-              :type="emptyType"
-              @operation="handleOperation"
-            />
-          </div>
-          <bk-table-column
-            :label="$t('插件名称')"
-            min-width="250"
-            prop="plugin_id"
-            sortable="custom"
-          >
-            <template slot-scope="scope">
-              <div class="col-name">
-                <div
-                  :style="{
-                    'background-image': scope.row.logo ? `url(data:image/gif;base64,${scope.row.logo})` : 'none',
-                    'background-color': scope.row.logo ? '' : colorMap[scope.row.plugin_type],
-                    borderRadius: scope.row.log ? '2px' : '100%',
-                  }"
-                  class="col-name-icon"
-                >
-                  {{ scope.row.logo ? '' : scope.row.plugin_display_name.slice(0, 1).toLocaleUpperCase() }}
-                </div>
-                <div
-                  class="col-name-desc"
-                  v-authority="{
-                    active: !authority.MANAGE_AUTH && scope.row.status === 'draft',
-                  }"
-                  @click="
-                    getManageAuth(scope.row) && scope.row.status === 'draft'
-                      ? showAuthorityDetail(scope.row)
-                      : showPluginInfo(scope.row)
-                  "
-                >
-                  <div class="desc-alias">
-                    <span
-                      class="desc-alias-title"
-                      v-bk-overflow-tips
-                    >
-                      {{ scope.row.plugin_display_name ? scope.row.plugin_display_name : scope.row.plugin_id }}
-                    </span>
-                    <span
-                      v-if="scope.row.is_official"
-                      class="desc-alias-gov"
-                    >
-                      <span> {{ $t('官方') }} </span>
-                    </span>
+            <div slot="empty">
+              <empty-status
+                :type="emptyType"
+                @operation="handleOperation"
+              />
+            </div>
+            <bk-table-column
+              :label="$t('插件名称')"
+              min-width="250"
+              prop="plugin_id"
+              sortable="custom"
+            >
+              <template slot-scope="scope">
+                <div class="col-name">
+                  <div
+                    :style="{
+                      'background-image': scope.row.logo ? `url(data:image/gif;base64,${scope.row.logo})` : 'none',
+                      'background-color': scope.row.logo ? '' : colorMap[scope.row.plugin_type],
+                      borderRadius: scope.row.log ? '2px' : '100%',
+                    }"
+                    class="col-name-icon"
+                  >
+                    {{ scope.row.logo ? '' : scope.row.plugin_display_name.slice(0, 1).toLocaleUpperCase() }}
                   </div>
-                  <span class="desc-category">{{ scope.row.plugin_id }}</span>
+                  <div
+                    class="col-name-desc"
+                    v-authority="{
+                      active: !authority.MANAGE_AUTH && scope.row.status === 'draft',
+                    }"
+                    @click="
+                      getManageAuth(scope.row) && scope.row.status === 'draft'
+                        ? showAuthorityDetail(scope.row)
+                        : showPluginInfo(scope.row)
+                    "
+                  >
+                    <div class="desc-alias">
+                      <span
+                        class="desc-alias-title"
+                        v-bk-overflow-tips
+                      >
+                        {{ scope.row.plugin_display_name ? scope.row.plugin_display_name : scope.row.plugin_id }}
+                      </span>
+                      <span
+                        v-if="scope.row.is_official"
+                        class="desc-alias-gov"
+                      >
+                        <span> {{ $t('官方') }} </span>
+                      </span>
+                    </div>
+                    <span class="desc-category">{{ scope.row.plugin_id }}</span>
+                  </div>
                 </div>
-              </div>
-            </template>
-          </bk-table-column>
-          <bk-table-column :label="$t('类型')">
-            <template slot-scope="scope">
-              <div>{{ pluginTypeMap[scope.row.plugin_type] }}</div>
-            </template>
-          </bk-table-column>
-          <bk-table-column
-            width="150"
-            :label="$t('分类')"
-            :render-header="renderHeader"
-            class-name="label-title"
-          >
-            <template slot-scope="scope">
-              <div class="col-label">
-                <span v-if="scope.$index !== table.editIndex"
-                  >{{ scope.row.label_info.first_label_name }}/{{ scope.row.label_info.second_label_name }}</span
+              </template>
+            </bk-table-column>
+            <bk-table-column :label="$t('类型')">
+              <template slot-scope="scope">
+                <div>{{ pluginTypeMap[scope.row.plugin_type] }}</div>
+              </template>
+            </bk-table-column>
+            <bk-table-column
+              width="150"
+              :label="$t('分类')"
+              :render-header="renderHeader"
+              class-name="label-title"
+            >
+              <template slot-scope="scope">
+                <div class="col-label">
+                  <span v-if="scope.$index !== table.editIndex"
+                    >{{ scope.row.label_info.first_label_name }}/{{ scope.row.label_info.second_label_name }}</span
+                  >
+                </div>
+              </template>
+            </bk-table-column>
+            <bk-table-column
+              v-if="false"
+              :label="$t('所属')"
+              min-width="120"
+              prop="bk_biz_id"
+              sortable="custom"
+            >
+              <template slot-scope="scope">
+                {{ bizMap[scope.row.bk_biz_id] || '--' }}
+              </template>
+            </bk-table-column>
+            <bk-table-column
+              :label="$t('关联配置')"
+              :width="$store.getters.lang === 'en' ? 160 : 80"
+              align="right"
+            >
+              <template slot-scope="scope">
+                <div
+                  class="col-right"
+                  :class="{ 'col-set': scope.row.related_conf_count > 0 }"
+                  @click="handleToCollectorConfig(scope)"
                 >
-              </div>
-            </template>
-          </bk-table-column>
-          <bk-table-column
-            v-if="false"
-            :label="$t('所属')"
-            min-width="120"
-            prop="bk_biz_id"
-            sortable="custom"
-          >
-            <template slot-scope="scope">
-              {{ bizMap[scope.row.bk_biz_id] || '--' }}
-            </template>
-          </bk-table-column>
-          <bk-table-column
-            :label="$t('关联配置')"
-            :width="$store.getters.lang === 'en' ? 160 : 80"
-            align="right"
-          >
-            <template slot-scope="scope">
-              <div
-                class="col-right"
-                :class="{ 'col-set': scope.row.related_conf_count > 0 }"
-                @click="handleToCollectorConfig(scope)"
-              >
-                {{ scope.row.related_conf_count > 0 ? scope.row.related_conf_count : '--' }}
-              </div>
-            </template>
-          </bk-table-column>
-          <bk-table-column
-            :label="$t('状态')"
-            min-width="100"
-            prop="status"
-            sortable="custom"
-          >
-            <template slot-scope="scope">
-              <div :style="{ color: table.statusMap[scope.row.status].color }">
-                {{ table.statusMap[scope.row.status].desc }}
-              </div>
-            </template>
-          </bk-table-column>
-          <bk-table-column
-            :label="$t('创建记录')"
-            min-width="150"
-            prop="create_time"
-            sortable="custom"
-          >
-            <template slot-scope="scope">
-              <div class="user-time">
-                <div class="col-create">
-                  {{ scope.row.create_user }}
+                  {{ scope.row.related_conf_count > 0 ? scope.row.related_conf_count : '--' }}
                 </div>
-                <div class="col-create">
-                  {{ scope.row.create_time }}
+              </template>
+            </bk-table-column>
+            <bk-table-column
+              :label="$t('状态')"
+              min-width="100"
+              prop="status"
+              sortable="custom"
+            >
+              <template slot-scope="scope">
+                <div :style="{ color: table.statusMap[scope.row.status].color }">
+                  {{ table.statusMap[scope.row.status].desc }}
                 </div>
-              </div>
-            </template>
-          </bk-table-column>
-          <bk-table-column
-            :label="$t('更新记录')"
-            min-width="150"
-            prop="update_time"
-            sortable="custom"
-          >
-            <template slot-scope="scope">
-              <div class="user-time">
-                <div class="col-create">
-                  {{ scope.row.update_user }}
+              </template>
+            </bk-table-column>
+            <bk-table-column
+              :label="$t('创建记录')"
+              min-width="150"
+              prop="create_time"
+              sortable="custom"
+            >
+              <template slot-scope="scope">
+                <div class="user-time">
+                  <div class="col-create">
+                    {{ scope.row.create_user }}
+                  </div>
+                  <div class="col-create">
+                    {{ scope.row.create_time }}
+                  </div>
                 </div>
-                <div class="col-create">
-                  {{ scope.row.update_time }}
+              </template>
+            </bk-table-column>
+            <bk-table-column
+              :label="$t('更新记录')"
+              min-width="150"
+              prop="update_time"
+              sortable="custom"
+            >
+              <template slot-scope="scope">
+                <div class="user-time">
+                  <div class="col-create">
+                    {{ scope.row.update_user }}
+                  </div>
+                  <div class="col-create">
+                    {{ scope.row.update_time }}
+                  </div>
                 </div>
-              </div>
-            </template>
-          </bk-table-column>
-          <bk-table-column
-            width="100"
-            :label="$t('操作')"
-          >
-            <template slot-scope="scope">
-              <div class="col-operate">
-                <bk-button
-                  class="edit-btn"
-                  v-authority="{ active: getManageAuth(scope.row) }"
-                  :disabled="!scope.row.edit_allowed"
-                  :text="true"
-                  type="primary"
-                  @click="
-                    !getManageAuth(scope.row) ? handlePluginEdit(scope.row.plugin_id) : showAuthorityDetail(scope.row)
-                  "
-                >
-                  {{ $t('button-编辑') }}
-                </bk-button>
-                <span
-                  class="col-operator-more"
-                  v-authority="{ active: getManageAuth(scope.row) }"
-                  :class="{ 'operator-active': tablePopover.hover === scope.$index }"
-                  :ref="'operator-' + scope.$index"
-                  data-popover="true"
-                  @click="
-                    !getManageAuth(scope.row)
-                      ? handleOperatorOver(scope.row, $event, scope.$index)
-                      : showAuthorityDetail(scope.row)
-                  "
-                >
-                  <i
-                    class="bk-icon icon-more"
+              </template>
+            </bk-table-column>
+            <bk-table-column
+              width="100"
+              :label="$t('操作')"
+            >
+              <template slot-scope="scope">
+                <div class="col-operate">
+                  <bk-button
+                    class="edit-btn"
+                    v-authority="{ active: getManageAuth(scope.row) }"
+                    :disabled="!scope.row.edit_allowed"
+                    :text="true"
+                    type="primary"
+                    @click="
+                      !getManageAuth(scope.row) ? handlePluginEdit(scope.row.plugin_id) : showAuthorityDetail(scope.row)
+                    "
+                  >
+                    {{ $t('button-编辑') }}
+                  </bk-button>
+                  <span
+                    class="col-operator-more"
+                    v-authority="{ active: getManageAuth(scope.row) }"
+                    :class="{ 'operator-active': tablePopover.hover === scope.$index }"
+                    :ref="'operator-' + scope.$index"
                     data-popover="true"
-                  />
-                </span>
-              </div>
-            </template>
-          </bk-table-column>
-        </bk-table>
-        <bk-pagination
-          class="plugin-pagination list-pagination"
-          v-show="table.data.length"
-          :count="panel.active ? panel.tabs[panel.active].num : pagination.total"
-          :current="pagination.page"
-          :limit="pagination.pageSize"
-          :limit-list="pagination.pageList"
-          align="right"
-          size="small"
-          pagination-able
-          show-total-count
-          @change="handlePageChange"
-          @limit-change="handleLimitChange"
-        />
+                    @click="
+                      !getManageAuth(scope.row)
+                        ? handleOperatorOver(scope.row, $event, scope.$index)
+                        : showAuthorityDetail(scope.row)
+                    "
+                  >
+                    <i
+                      class="bk-icon icon-more"
+                      data-popover="true"
+                    />
+                  </span>
+                </div>
+              </template>
+            </bk-table-column>
+          </bk-table>
+          <bk-pagination
+            class="plugin-pagination list-pagination"
+            v-show="table.data.length"
+            :count="panel.active ? panel.tabs[panel.active].num : pagination.total"
+            :current="pagination.page"
+            :limit="pagination.pageSize"
+            :limit-list="pagination.pageList"
+            align="right"
+            size="small"
+            pagination-able
+            show-total-count
+            @change="handlePageChange"
+            @limit-change="handleLimitChange"
+          />
+        </template>
       </div>
     </div>
     <plugin-dialog-single :dialog="dialog" />
@@ -442,6 +447,7 @@ import introduce from '../../common/introduce';
 import EmptyStatus from '../../components/empty-status/empty-status.tsx';
 import GuidePage from '../../components/guide-page/guide-page';
 import pageTips from '../../components/pageTips/pageTips';
+import TableSkeleton from '../../components/skeleton/table-skeleton.tsx';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import { SET_PLUGIN_CONFIG, SET_PLUGIN_DATA, SET_PLUGIN_ID } from '../../store/modules/plugin-manager';
 import { downFile } from '../../utils/index';
@@ -460,6 +466,7 @@ export default {
     DeleteSubtitle,
     EmptyStatus,
     GuidePage,
+    TableSkeleton,
   },
   mixins: [authorityMixinCreate(pluginManageAuth)],
   beforeRouteEnter(to, from, next) {
@@ -1229,6 +1236,10 @@ export default {
 
 .mr-6 {
   margin-right: 6px;
+}
+
+.plugin-table-skeleton {
+  padding: 16px 16px 0 16px;
 }
 
 .popover-tag {

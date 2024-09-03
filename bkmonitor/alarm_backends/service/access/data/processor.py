@@ -1148,7 +1148,7 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
                     try:
                         records.extend(self.flat(bootstrap_servers, record))
                     except Exception as e:
-                        logger.warning("%s loads alarm(%s) failed", record.topic, record.value, e)
+                        logger.warning("%s loads alarm(%s) failed: %s", record.topic, record.value, e)
 
                 record_list = []
                 for r in records:

@@ -59,11 +59,13 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
   loading = false;
 
   alertName = '';
-
+  init = false;
   get width() {
     return this.type === 'handleDetail' ? 956 : 1280; // 1047;
   }
-
+  mounted() {
+    this.init = true;
+  }
   @Emit('showChange')
   emitIsShow(v: boolean) {
     return v;
@@ -177,7 +179,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
       <bk-sideslider
         ext-cls='event-detail-sideslider'
         // transfer={true}
-        isShow={this.isShow}
+        isShow={this.init && this.isShow}
         {...{ on: { 'update:isShow': this.emitIsShow } }}
         width={this.width}
         quick-close={true}

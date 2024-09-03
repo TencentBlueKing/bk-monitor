@@ -45,8 +45,9 @@ import store from './store/store';
 import 'monitor-pc/common/global-login';
 
 import './static/scss/global.scss';
+import 'monitor-pc/static/css/reset.scss';
 import 'monitor-static/icons/monitor-icons.css';
-import 'monitor-pc/tailwind.css';
+// import 'monitor-pc/tailwind.css';
 Vue.config.devtools = process.env.NODE_ENV === 'development';
 window.source_app = 'fta';
 const spaceUid = getUrlParam('space_uid');

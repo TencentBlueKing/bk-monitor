@@ -219,7 +219,7 @@ class UnifyQuery:
 
         # 默认表达式
         if not self.expression:
-            expression = " + ".join([query["reference_name"] for query in query_list])
+            expression = " or ".join([query["reference_name"] for query in query_list])
         else:
             expression = self.expression
 
@@ -255,6 +255,9 @@ class UnifyQuery:
         使用统一查询模块进行查询
         """
         params = self.get_unify_query_params(start_time, end_time, time_alignment)
+        if not params["query_list"]:
+            return []
+
         params.update(dict(down_sample_range=down_sample_range, timezone=timezone.get_current_timezone_name()))
 
         if instant:
