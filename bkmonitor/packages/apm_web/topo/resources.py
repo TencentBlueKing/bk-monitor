@@ -8,9 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from rest_framework import serializers
 
-from apm_web.topo.constants import GraphViewType, TopoLinkType
+from apm_web.topo.constants import TopoLinkType
 from apm_web.topo.handle.bar_query import BarQuery, LinkHelper
 from apm_web.topo.handle.graph_query import GraphQuery
 from apm_web.topo.handle.relation.detail import NodeRelationDetailHandler
@@ -45,13 +44,45 @@ class DataTypeBarQueryResource(Resource):
 class TopoViewResource(Resource):
     """[拓扑图]获取节点拓扑图"""
 
-    class RequestSerializer(TopoQueryRequestSerializer):
-        export_type = serializers.ChoiceField(label="数据导出类型", choices=GraphViewType.get_choices())
+    RequestSerializer = TopoQueryRequestSerializer
 
-    def perform_request(self, validated_request_data):
-        export_type = validated_request_data.pop("export_type")
-        edge_data_type = validated_request_data.pop("edge_data_type")
-        return GraphQuery(**validated_request_data).execute(export_type, edge_data_type)
+    def perform_request(self, validated_data):
+        params = {
+            "bk_biz_id": validated_data["bk_biz_id"],
+            "app_name": validated_data["app_name"],
+            "service_name": validated_data.get("service_name"),
+            "data_type": validated_data["data_type"],
+        }
+
+        # 时间范围 与 数据时间
+        start_time = validated_data["start_time"]
+        end_time = validated_data["end_time"]
+        metric_start_time = validated_data["metric_start_time"]
+        metric_end_time = validated_data["metric_end_time"]
+
+        # graph 转换器
+        converter = GraphQuery.create_converter(
+            validated_data["bk_biz_id"],
+            validated_data["app_name"],
+            validated_data["export_type"],
+            service_name=validated_data.get("service_name"),
+        )
+
+        graph = GraphQuery(**{**params, "start_time": start_time, "end_time": end_time}).execute(
+            edge_data_type=validated_data["edge_data_type"],
+            converter=converter,
+        )
+        if (metric_start_time == start_time) and (metric_end_time == end_time):
+            # 数据时间和拓扑图时间一致 直接返回
+            return graph >> converter
+
+        # 数据时间和拓扑图时间不一致 需要基于拓扑图时间的 graph 进行对比合并
+        other_graph = GraphQuery(**{**params, "start_time": metric_start_time, "end_time": metric_end_time}).execute(
+            edge_data_type=validated_data["edge_data_type"],
+            converter=converter,
+        )
+
+        return (graph | other_graph) >> converter
 
 
 class TopoLinkResource(Resource):

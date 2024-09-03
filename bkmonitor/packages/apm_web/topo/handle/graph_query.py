@@ -22,11 +22,7 @@ from apm_web.models import ApplicationCustomService
 from apm_web.topo.constants import GraphPluginType
 from apm_web.topo.handle import BaseQuery
 from apm_web.topo.handle import NodeDisplayType as Display
-from apm_web.topo.handle.graph_plugin import (
-    PluginProvider,
-    TopoViewConverter,
-    ViewConverter,
-)
+from apm_web.topo.handle.graph_plugin import PluginProvider, ViewConverter
 from apm_web.utils import merge_dicts
 from bkmonitor.utils.thread_backend import ThreadPool
 
@@ -184,8 +180,18 @@ class Graph:
         self._edges_attrs = edges_attrs
 
     def _refresh(self):
-        self._graph.add_nodes_from(tuple({k[0]: v for k, v in self._node_merge_attrs.items()}.items()))
-        self._graph.add_edges_from(tuple([(*key, value) for key, value in self._edge_merge_attrs.items()]))
+        # 去除没有 data 字段的节点 (这些数据为插件查询时引入 不作为有效节点 有效节点以 DB + Flow 为准)
+        node_attrs = {k[0]: v for k, v in self._node_merge_attrs.items() if "data" in v}
+        self._graph.add_nodes_from(tuple({k: v for k, v in node_attrs.items()}.items()))
+        self._graph.add_edges_from(
+            tuple(
+                [
+                    (*key, value)
+                    for key, value in self._edge_merge_attrs.items()
+                    if key[0] in node_attrs and key[1] in node_attrs
+                ]
+            )
+        )
 
     def __lshift__(self, patch: Union[NodeContainer, EdgeContainer, PluginProvider.Container]):
         if isinstance(patch, NodeContainer):
@@ -263,47 +269,51 @@ class Graph:
         except ImportError:
             pass
 
+    def __or__(self, other: "Graph") -> "Graph":
+        """
+        以自身为基准 非标准合并另一个 Graph
+        非标准合并规则:
+        1. 合并后的 Graph 所有节点和边都来自 Base Graph
+        2. Other Graph 只提供节点和边的指标数据
+        3. Base Graph.nodes - Other Graph.nodes 的差异节点会被转换为无数据节点
+        """
+        other_node_mapping = {k: v for k, v in other.nodes}
+        other_edge_mapping = {(f, t): a for f, t, a in other.edges}
+
+        for base_node, attrs in self.nodes:
+            if base_node in other_node_mapping:
+                self._graph.add_node(base_node, **other_node_mapping[base_node])
+            else:
+                self._graph.add_node(base_node, **{"data": attrs["data"]})
+
+        for from_node, to_node, attrs in self.edges:
+            key = (from_node, to_node)
+            if key in other_edge_mapping:
+                self._graph.add_edge(*key, **other_edge_mapping[key])
+            else:
+                self._graph.remove_edge(*key)
+
+        return self
+
 
 class GraphQuery(BaseQuery):
-    @property
-    def filter_params(self):
-        return {"service_name": self.service_name} if self.service_name else {}
+    @classmethod
+    def create_converter(cls, bk_biz_id, app_name, export_type, service_name=None):
+        filter_params = {"service_name": service_name} if service_name else {}
+        return ViewConverter.new(bk_biz_id, app_name, export_type, filter_params)
 
-    def execute(self, export_type, edge_data_type):
-        converter = ViewConverter.new(self.bk_biz_id, self.app_name, export_type, self.filter_params)
-
-        return (
-            self.create_graph(
-                with_plugin=True,
-                edge_data_type=edge_data_type,
-                extra_plugins=converter.extra_pre_plugins(self.common_params),
-                extra_converter_plugins=converter.extra_pre_convert_plugins(self.common_params),
-            )
-            >> converter
-        )
-
-    def execute_plugins(self, edge_data_type):
-
-        graph = self._create_clear_graph(
+    def execute(self, edge_data_type, converter):
+        return self.create_graph(
             with_plugin=True,
             edge_data_type=edge_data_type,
-            extra_plugins=TopoViewConverter.extra_pre_plugins(self.common_params),
+            extra_plugins=converter.extra_pre_plugins(self.common_params),
+            extra_converter_plugins=converter.extra_pre_convert_plugins(self.common_params),
         )
 
-        return {"node_attrs": graph.node_attrs, "edge_attrs": graph.edge_attrs}
-
-    def create_graph(self, *args, **kwargs):
+    def create_graph(self, with_plugin=False, edge_data_type=None, extra_plugins=None, extra_converter_plugins=None):
         db_nodes = self._list_nodes_from_db()
         flow_nodes, flow_edges = self._list_nodes_and_edges_from_flow()
 
-        graph = self._create_clear_graph(*args, **kwargs)
-        graph << (db_nodes | flow_nodes)
-        graph << flow_edges
-        return graph
-
-    def _create_clear_graph(
-        self, with_plugin=False, edge_data_type=None, extra_plugins=None, extra_converter_plugins=None
-    ):
         plugins = PluginProvider.Container()
         if with_plugin:
             plugins = PluginProvider.node_plugins(self.data_type, self.common_params)
@@ -311,12 +321,15 @@ class GraphQuery(BaseQuery):
                 plugins += PluginProvider.edge_plugins(edge_data_type, self.common_params)
             if extra_plugins:
                 plugins += extra_plugins
-        return Graph(
+        graph = Graph(
             plugins=plugins,
             converter_plugins=extra_converter_plugins or PluginProvider.Container(_plugins=[]),
             data_type=self.data_type,
             edge_data_type=edge_data_type,
         )
+        graph << (db_nodes | flow_nodes)
+        graph << flow_edges
+        return graph
 
     def _list_nodes_from_db(self) -> [NodeContainer, EdgeContainer]:
         nodes = NodeContainer()
