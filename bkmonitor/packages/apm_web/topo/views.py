@@ -15,6 +15,7 @@ from apm_web.topo.resources import (
     NodeRelationDetailResource,
     NodeRelationResource,
     TopoLinkResource,
+    TopoMetricResource,
     TopoViewResource,
 )
 from bkmonitor.iam import ActionEnum, ResourceEnum
@@ -42,6 +43,7 @@ class GlobalViewSet(ResourceViewSet):
     resource_routes = [
         ResourceRoute("GET", DataTypeBarQueryResource, endpoint="bar"),
         ResourceRoute("GET", TopoViewResource, endpoint="topo"),
+        ResourceRoute("GET", TopoMetricResource, endpoint="topo/metrics"),
         ResourceRoute("GET", TopoLinkResource, endpoint="topo/link"),
         ResourceRoute("GET", NodeEndpointsTopResource, endpoint="topo/node/endpoints"),
         ResourceRoute("GET", NodeRelationResource, endpoint="relation"),

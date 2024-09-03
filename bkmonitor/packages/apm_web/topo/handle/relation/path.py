@@ -15,6 +15,7 @@ from typing import List, Type
 from django.utils.translation import ugettext_lazy as _
 
 from apm_web.constants import AlertLevel
+from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.topo.constants import RelationResourcePath
 from apm_web.topo.handle.graph_plugin import NodeColor
 from apm_web.topo.handle.relation.define import (
@@ -246,6 +247,26 @@ class PathTemplateSidebar:
                 + ")",
                 nodes,
             )
+        elif self.bind_source_type.name == SourceService.name:
+            this_tree_info = next(i for i in self._tree_infos if i.root_id == self._tree.id)
+
+            # 如果是服务 需要增加 icon 返回
+            r_nodes = [
+                {
+                    **i.info,
+                    "sidebar_id": self.id,
+                    "collapses": [],
+                    "color": NodeColor.Color.WHITE,
+                    "category": ServiceHandler.get_node(
+                        this_tree_info.runtime["bk_biz_id"],
+                        getattr(i.source_info, "apm_application_name"),
+                        getattr(i.source_info, "apm_service_name"),
+                    )
+                    .get("extra_data", {})
+                    .get("category"),
+                }
+                for i in nodes
+            ]
         else:
             r_nodes = [
                 {**i.info, "sidebar_id": self.id, "collapses": [], "color": NodeColor.Color.WHITE} for i in nodes

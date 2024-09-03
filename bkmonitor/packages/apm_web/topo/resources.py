@@ -8,7 +8,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from apm_web.topo.constants import TopoLinkType
+from rest_framework import serializers
+
+from apm_web.topo.constants import GraphViewType, TopoLinkType
 from apm_web.topo.handle.bar_query import BarQuery, LinkHelper
 from apm_web.topo.handle.graph_query import GraphQuery
 from apm_web.topo.handle.relation.detail import NodeRelationDetailHandler
@@ -43,12 +45,23 @@ class DataTypeBarQueryResource(Resource):
 class TopoViewResource(Resource):
     """[拓扑图]获取节点拓扑图"""
 
-    RequestSerializer = TopoQueryRequestSerializer
+    class RequestSerializer(TopoQueryRequestSerializer):
+        export_type = serializers.ChoiceField(label="数据导出类型", choices=GraphViewType.get_choices())
 
     def perform_request(self, validated_request_data):
         export_type = validated_request_data.pop("export_type")
         edge_data_type = validated_request_data.pop("edge_data_type")
         return GraphQuery(**validated_request_data).execute(export_type, edge_data_type)
+
+
+class TopoMetricResource(Resource):
+    """[拓扑图]获取节点指标数据"""
+
+    RequestSerializer = TopoQueryRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        edge_data_type = validated_request_data.pop("edge_data_type")
+        return GraphQuery(**validated_request_data).execute_plugins(edge_data_type)
 
 
 class TopoLinkResource(Resource):
