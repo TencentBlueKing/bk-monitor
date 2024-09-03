@@ -429,7 +429,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
                 class='setting-btn'
                 onClick={this.handleServiceConfig}
               >
-                {this.curType === 'service' && this.$t('服务配置')}
+                {this.$t('服务配置')}
                 <i class='icon-monitor icon-shezhi' />
               </div>
             </div>
