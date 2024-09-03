@@ -184,6 +184,7 @@ class SpaceTableIDRedis:
             )
         }
         _table_id_detail = {}
+        storage_type = models.RecordRule.STORAGE_TYPE
         for obj in record_rule_objs:
             _table_id_detail[obj["table_id"]] = json.dumps(
                 {
@@ -198,6 +199,7 @@ class SpaceTableIDRedis:
                     "measurement_type": "bk_split_measurement",
                     "bcs_cluster_id": "",
                     "data_label": "",
+                    "storage_type": storage_type,
                     "bk_data_id": None,
                 }
             )
@@ -216,7 +218,7 @@ class SpaceTableIDRedis:
     def _compose_es_table_id_detail(self, table_id_list: Optional[List[str]] = None):
         """组装 es 结果表的详细信息"""
         logger.info("start to compose es table_id detail data")
-
+        storage_type = models.ESStorage.STORAGE_TYPE
         # 这里要过来的结果表不会太多
         if table_id_list:
             table_ids = models.ESStorage.objects.filter(table_id__in=table_id_list).values(
@@ -246,14 +248,6 @@ class SpaceTableIDRedis:
 
             tid_options_map.setdefault(option["table_id"], {}).update(_option)
 
-        # 预先查询所有相关的 ClusterInfo 数据并缓存到字典中
-        storage_cluster_ids = {record["storage_cluster_id"] for record in table_ids if record["storage_cluster_id"]}
-        cluster_info_dict = {
-            cluster_info["cluster_id"]: cluster_info["cluster_type"]
-            for cluster_info in models.ClusterInfo.objects.filter(cluster_id__in=storage_cluster_ids).values(
-                "cluster_id", "cluster_type"
-            )
-        }
         # 组装数据
         # NOTE: 这里针对一段式的追加一个`__default__`
         # 组装需要的数据，字段相同
@@ -263,7 +257,6 @@ class SpaceTableIDRedis:
             index_set = record["index_set"]
             tid = record["table_id"]
             storage_id = record.get("storage_cluster_id", 0)
-            storage_type = cluster_info_dict.get(storage_id, models.ClusterInfo.TYPE_BKDATA)
             table_id_db = index_set
 
             # 索引集，直接按照存储进行路由

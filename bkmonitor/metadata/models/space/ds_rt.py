@@ -79,6 +79,7 @@ def get_table_info_for_influxdb_and_vm(table_id_list: Optional[List] = None) -> 
     table_id_info = {}
     # 进行数据的匹配
     # 处理 influxdb 的数据信息
+    storage_type_influxdb = models.InfluxDBStorage.STORAGE_TYPE
     for table_id, detail in influxdb_table_map.items():
         influxdb_proxy_storage_id = detail["influxdb_proxy_storage_id"]
         storage_clusters = storage_cluster_map.get(influxdb_proxy_storage_id, {})
@@ -92,6 +93,7 @@ def get_table_info_for_influxdb_and_vm(table_id_list: Optional[List] = None) -> 
             "measurement": detail["measurement"],
             "vm_rt": "",
             "tags_key": detail["tags_key"],
+            "storage_type": storage_type_influxdb,
         }
     # 仅有几条记录，查询一次 vm 集群列表，获取到集群ID和名称关系
     vm_cluster_id_name = {
@@ -101,13 +103,21 @@ def get_table_info_for_influxdb_and_vm(table_id_list: Optional[List] = None) -> 
         )
     }
     # 处理 vm 的数据信息
+    storage_type_vm = models.ClusterInfo.TYPE_VM
     for table_id, detail in vm_table_map.items():
         storage_name = vm_cluster_id_name.get(detail["storage_id"], "")
         if table_id in table_id_info:
             table_id_info[table_id].update({"vm_rt": detail["vm_rt"], "storage_name": storage_name})
         else:
             detail.update(
-                {"cluster_name": "", "storage_name": storage_name, "db": "", "measurement": "", "tags_key": []}
+                {
+                    "cluster_name": "",
+                    "storage_name": storage_name,
+                    "db": "",
+                    "measurement": "",
+                    "tags_key": [],
+                    "storage_type": storage_type_vm,
+                }
             )
             table_id_info[table_id] = detail
     return table_id_info

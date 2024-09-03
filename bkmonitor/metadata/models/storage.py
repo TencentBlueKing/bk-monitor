@@ -629,6 +629,11 @@ class StorageResultTable(object):
         """返回一个实际存储的consul配置"""
         pass
 
+    @property
+    def storage_type(self):
+        """返回存储类型"""
+        return self.STORAGE_TYPE
+
     def update_storage(self, **kwargs):
         """更新存储配置"""
         # 遍历获取所有可以更新的字段，逐一更新
