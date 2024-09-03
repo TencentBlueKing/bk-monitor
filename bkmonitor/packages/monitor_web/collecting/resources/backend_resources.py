@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import math
 import time
 import traceback
 from collections import OrderedDict, defaultdict
@@ -48,12 +47,10 @@ from core.errors.collecting import (
     CollectConfigRollbackError,
     CollectingError,
     DeleteCollectConfigError,
-    MetricNotExist,
     SubscriptionStatusError,
     ToggleConfigStatusError,
 )
 from core.errors.plugin import PluginIDNotExist
-from core.unit import load_unit
 from monitor_web.collecting.constant import (
     COLLECT_TYPE_CHOICES,
     COMPLEX_OPETATION_TYPE,
@@ -1316,145 +1313,6 @@ class RollbackDeploymentConfigResource(Resource):
         collect_config.save()
 
         return {"diff_node": result["diff_result"]["nodes"]}
-
-
-class GraphPointResource(Resource):
-    """
-    图表resource
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        class IpListSlz(serializers.Serializer):
-            ip = serializers.CharField(required=True, label="主机IP")
-            bk_cloud_id = serializers.IntegerField(required=True, label="云区域ID")
-
-            def validate_bk_cloud_id(self, value):
-                return str(value)
-
-        metric = serializers.CharField(required=True, label="指标名")
-        method = serializers.ChoiceField(required=True, choices=["SUM", "AVG", "MAX", "MIN"], label="聚合方法")
-        time_range = serializers.CharField(required=False, label="时间范围")
-        id = serializers.IntegerField(required=True, label="采集配置id")
-        host_list = IpListSlz(required=False, many=True, label="主机信息")
-        instance_list = serializers.ListField(required=False, label="实例信息")
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-
-    def __init__(self):
-        super(GraphPointResource, self).__init__()
-        self.config = None
-        self.metric = {}
-        self.group_fields = []
-
-    def _init_data(self, data):
-        self.config = CollectConfigMeta.objects.get(id=data["id"])
-        for table in self.config.deployment_config.metrics:
-            # 在metric_json中查找到相应的指标
-            current_metric = [x for x in table.get("fields", []) if x.get("name") == data["metric"]]
-            if len(current_metric) > 0:
-                self.metric = current_metric[0]
-                self.metric.update(table_name=table["table_name"])
-                dimension_metric = [x for x in table.get("fields", []) if x.get("monitor_type") == "dimension"]
-                for dimension in dimension_metric:
-                    self.group_fields.append(dimension.get("name"))
-                break
-
-        if not self.metric:
-            raise MetricNotExist({"metric": data["metric"]})
-
-    def get_hosts_or_services(self):
-        # 获取采集配置的主机或实例列表
-        if self.config.deployment_config.target_node_type == TargetNodeType.INSTANCE:
-            host_list = [
-                {"bk_target_ip": item["ip"], "bk_target_cloud_id": str(item["bk_cloud_id"])}
-                for item in self.config.deployment_config.target_nodes
-            ]
-            return host_list
-        else:
-            # 拓扑类型，先找到节点包含的所有模块
-            topo_tree = resource.cc.topo_tree(self.config.bk_biz_id)
-            contained_module_ids = topo_tree_tools.get_module_by_node_list(
-                self.config.deployment_config.target_nodes, topo_tree
-            )
-
-            # 请求全量数据，通过模块关系，找到包含的主机/实例
-            if self.config.target_object_type == TargetObjectType.HOST:
-                host_list = api.cmdb.get_host_by_topo_node(
-                    bk_biz_id=self.config.bk_biz_id, topo_nodes={"module": contained_module_ids}
-                )
-                contained_host_list = [
-                    {"bk_target_ip": host.bk_host_innerip, "bk_target_cloud_id": str(host.bk_cloud_id)}
-                    for host in host_list
-                ]
-
-                return contained_host_list
-            else:
-                service_list = api.cmdb.get_service_instance_by_topo_node(bk_biz_id=self.config.bk_biz_id)
-                contained_service_list = [
-                    {"bk_target_service_instance_id": str(service.service_instance_id)}
-                    for service in service_list
-                    if service.bk_module_id in contained_module_ids
-                ]
-                return contained_service_list
-
-    def perform_request(self, validated_request_data):
-        bk_biz_id = validated_request_data.pop("bk_biz_id")
-        # 通过config_id查询出关联的plugin对应的metric_json
-        self._init_data(validated_request_data)
-
-        # 查询条件
-        all_instance = []
-        filter_dict = {"bk_collect_config_id": str(validated_request_data["id"])}
-        if self.config.target_object_type == TargetObjectType.HOST and validated_request_data.get("host_list"):
-            host_list = validated_request_data["host_list"]
-            all_instance = [
-                {"bk_target_ip": host["ip"], "bk_target_cloud_id": str(host["bk_cloud_id"])} for host in host_list
-            ]
-        elif self.config.target_object_type == TargetObjectType.SERVICE and validated_request_data.get("instance_list"):
-            instance_list = validated_request_data["instance_list"]
-            all_instance = [{"bk_target_service_instance_id": str(instance)} for instance in instance_list]
-
-        if all_instance:
-            filter_dict.update(search_list=all_instance)
-
-        period = self.config.deployment_config.params.get("collector", {}).get("period", 0)
-        interval = math.ceil(float(period) / 60.0)
-        data_source_label, data_type_label = self.get_label()
-        unit = load_unit(self.metric.get("unit", ""))
-        result = resource.commons.graph_point(
-            monitor_field=self.metric["name"],
-            method=validated_request_data["method"],
-            result_table_id=self.rt_id,
-            filter_dict=filter_dict,
-            group_by_list=self.group_fields,
-            unit=unit.suffix,
-            time_range=validated_request_data["time_range"],
-            use_short_series_name=True,
-            interval=interval,
-            view_width=6,
-            bk_biz_id=bk_biz_id,
-            data_source_label=data_source_label,
-            data_type_label=data_type_label,
-            null_value_as={DataTypeLabel.LOG: 0}.get(data_type_label),
-        )
-        return result
-
-    @property
-    def rt_id(self):
-        plugin = self.config.plugin
-        if plugin.plugin_type == PluginType.LOG or plugin.plugin_type == PluginType.SNMP_TRAP:
-            name = "{}_{}".format(plugin.plugin_type, plugin.plugin_id)
-            table_id = CustomEventGroup.objects.get(name=name).table_id
-            return table_id
-        else:
-            db_name = ("{}_{}".format(plugin.plugin_type, plugin.plugin_id)).lower()
-            # tsdb_name = "{}_{}".format(plugin.bk_biz_id, db_name) if plugin.bk_biz_id else db_name
-            return "{}.{}".format(db_name, self.metric["table_name"])
-
-    def get_label(self):
-        plugin = self.config.plugin
-        if plugin.plugin_type == PluginType.LOG or plugin.plugin_type == PluginType.SNMP_TRAP:
-            return DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG
-        return "", ""
 
 
 class GetMetricsResource(Resource):

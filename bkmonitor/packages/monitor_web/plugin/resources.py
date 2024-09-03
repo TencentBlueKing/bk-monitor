@@ -247,10 +247,10 @@ class PluginRegisterResource(Resource):
         self.RequestSerializer = PluginRegisterRequestSerializer
         self.plugin_id = None
         self.operator = ""
-        try:
-            self.operator = get_request().user.username
-        except Exception:
-            pass
+
+        request = get_request(peaceful=True)
+        if request:
+            self.operator = request.user.username
 
     def delay(self, request_data=None, **kwargs):
         request_data = request_data or kwargs
@@ -273,7 +273,7 @@ class PluginRegisterResource(Resource):
         self.plugin_manager = PluginManagerFactory.get_manager(plugin=plugin, operator=self.operator)
         self.plugin_manager.version = version
         try:
-            tar_name = self.mack_package()
+            tar_name = self.make_package()
             file_name = self.upload_file(tar_name)
             self.register_package(file_name)
             plugin_info = api.node_man.plugin_info(name=self.plugin_id, version=version.version)
@@ -296,7 +296,7 @@ class PluginRegisterResource(Resource):
         return {"token": token_list}
 
     @step(state="MAKE_PACKAGE", message=_lazy("文件正在打包中..."))
-    def mack_package(self):
+    def make_package(self):
         return self.plugin_manager.make_package()
 
     def get_file_md5(self, file_name):
