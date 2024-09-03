@@ -844,4 +844,12 @@ export default {
   SQL语句: 'SQL statement',
   历史查询: 'History query',
   请输入关键字: 'Please enter keywords',
+  请搜索: 'Please search',
+  '可将想要检索的内容输入至搜索框中，并点击「Enter」键进行检索':
+    'You can enter the content you want to search into the search box and click the "Enter" key to search',
+  '可通过上下键快速切换选择「Key」值': 'You can quickly switch the "Key" value through the up and down keys',
+  'Enter 键': 'Enter key',
+  上下键: 'Up and down keys',
+  移动光标: 'Move the cursor',
+  确认结果: 'Confirm the result',
 };
