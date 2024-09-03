@@ -382,7 +382,7 @@ class BulkAddAlertShieldResource(AddShieldResource):
     def handle_alerts(self, data):
         alert_ids = data["dimension_config"]["alert_ids"]
         # dimension_config.dimensions 标记告警保留需要匹配的屏蔽维度
-        target_dimension_config = data["dimension_config"].get("dimensions")
+        target_dimension_config = data["dimension_config"].get("dimensions", {})
         alerts = AlertDocument.mget(ids=alert_ids)
         dimension_configs = []
 
@@ -403,6 +403,7 @@ class BulkAddAlertShieldResource(AddShieldResource):
                 if target_dimensions is None or dimension_data["key"] in target_dimensions:
                     dimension_config[dimension_data["key"]] = dimension_data["value"]
             dimension_config.update(
+                # 下划线的配置，不参与屏蔽逻辑。
                 {
                     "_alert_id": alert.id,
                     "strategy_id": alert.strategy_id,
