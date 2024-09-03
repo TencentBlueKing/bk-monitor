@@ -69,7 +69,7 @@ import EmptyTable from './empty-table';
 import EventChart from './event-chart';
 import AlarmConfirm from './event-detail/alarm-confirm';
 import AlarmDispatch from './event-detail/alarm-dispatch';
-import EventDetailSlider from './event-detail/event-detail-slider';
+// import EventDetailSlider from './event-detail/event-detail-slider';
 import ManualDebugStatus from './event-detail/manual-debug-status';
 import ManualProcess from './event-detail/manual-process';
 import QuickShield from './event-detail/quick-shield';
@@ -309,6 +309,9 @@ const filterIconMap = {
 };
 @Component({
   name: 'Event',
+  components: {
+    EventDetailSlider: () => import('./event-detail/event-detail-slider'),
+  },
 })
 class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   // 监控左侧栏是否收缩配置 自愈默认未收缩
@@ -620,14 +623,14 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
 
   async mounted() {
     const { contentWrap } = this.$refs as any;
-    (contentWrap as HTMLDivElement).addEventListener('scroll', this.handleDisbaleHover, false);
+    (contentWrap as HTMLDivElement).addEventListener('scroll', this.handleDisableHover, false);
   }
 
   beforeDestroy() {
     this.routeStateKeyList = [];
     window.removeEventListener('popstate', this.handlePopstate);
     const { contentWrap } = this.$refs as any;
-    (contentWrap as HTMLDivElement).removeEventListener('scroll', this.handleDisbaleHover, false);
+    (contentWrap as HTMLDivElement).removeEventListener('scroll', this.handleDisableHover, false);
     window.clearInterval(this.refleshInstance);
   }
   // 拼一个查询语句，然后查询 未恢复的且处理阶段都不满足 的异常通知人数据（显示是通知人为空）
@@ -644,7 +647,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     }
     this.handleQueryStringChange(queryString);
   }
-  handleDisbaleHover() {
+  handleDisableHover() {
     const { contentTable } = this.$refs as any;
     clearTimeout(this.disableHoverTimer);
     if (!contentTable.classList.contains('disable-hover')) {
@@ -832,9 +835,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         !onlyOverview && (this.filterInputStatus = 'success');
         return res.data || {};
       })
-      .catch(({ message, code }) => {
+      .catch(({ error_details, message, code }) => {
         if (code !== grammaticalErrorCode) {
-          this.$bkMessage({ message, theme: 'error' });
+          this.$bkMessage(error_details || { message, theme: 'error' });
         }
         return {
           aggs: [],
@@ -901,9 +904,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         !onlyOverview && (this.filterInputStatus = 'success');
         return res.data || {};
       })
-      .catch(({ message, code }) => {
+      .catch(({ error_details, message, code }) => {
         if (code !== grammaticalErrorCode) {
-          this.$bkMessage({ message, theme: 'error' });
+          this.$bkMessage(error_details || { message, theme: 'error' });
         }
         return {
           aggs: [],
@@ -1015,9 +1018,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         !onlyOverview && (this.filterInputStatus = 'success');
         return res.data || {};
       })
-      .catch(({ message, code }) => {
+      .catch(({ error_details, message, code }) => {
         if (code !== grammaticalErrorCode) {
-          this.$bkMessage({ message, theme: 'error' });
+          this.$bkMessage(error_details || { message, theme: 'error' });
         }
         return {
           aggs: [],
@@ -1412,8 +1415,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           key,
         },
       };
-      this.routeStateKeyList.length === 0 ? this.$router.replace(params) : this.$router.push(params);
-      this.routeStateKeyList.push(key);
+      setTimeout(() => {
+        if (this.$store.getters.paddingRoute?.name.includes('event-center')) {
+          this.routeStateKeyList.length === 0 ? this.$router.replace(params) : this.$router.push(params);
+          this.routeStateKeyList.push(key);
+        }
+      }, 100);
     }
     this.tableLoading = false;
   }
@@ -1512,9 +1519,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     const promiseFn = this.searchType === 'action' ? actionDateHistogram : alertDateHistogram;
     const { unit, series, code } = await promiseFn(params, { needRes: true, needMessage: false })
       .then(res => res.data)
-      .catch(({ code, message }) => {
+      .catch(({ code, message, error_details }) => {
         if (code !== grammaticalErrorCode) {
-          this.$bkMessage({ message, theme: 'error' });
+          this.$bkMessage(error_details || { message, theme: 'error' });
         }
         return {
           series: [],
@@ -1844,8 +1851,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           key,
         },
       };
-      this.$router.replace(params);
-      this.routeStateKeyList.push(key);
+      this.$nextTick(() => {
+        if (this.$route.name.includes('event-center')) {
+          this.$router.replace(params);
+          this.routeStateKeyList.push(key);
+        }
+      });
     }
   }
 
@@ -2696,14 +2707,16 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             />
           ) : undefined}
         </div>
-        <EventDetailSlider
-          activeTab={this.detailInfo.activeTab}
-          bizId={this.detailInfo.bizId}
-          eventId={this.detailInfo.id}
-          isShow={this.detailInfo.isShow}
-          type={this.detailInfo.type}
-          onShowChange={v => (this.detailInfo.isShow = v)}
-        />
+        {this.detailInfo.isShow && (
+          <event-detail-slider
+            activeTab={this.detailInfo.activeTab}
+            bizId={this.detailInfo.bizId}
+            eventId={this.detailInfo.id}
+            isShow={this.detailInfo.isShow}
+            type={this.detailInfo.type}
+            onShowChange={v => (this.detailInfo.isShow = v)}
+          />
+        )}
         {this.getOperateDialogComponent()}
         <ChatGroup
           alarmEventName={this.chatGroupDialog.alertName}
