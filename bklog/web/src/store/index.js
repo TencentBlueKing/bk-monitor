@@ -88,6 +88,7 @@ const store = new Vuex.Store({
     currentMenuItem: {},
     topMenu: [],
     menuList: [],
+    visibleFields: [],
     // 数据接入权限
     menuProject: [],
     errorPage: ['notTraceIndex'],
@@ -357,6 +358,9 @@ const store = new Vuex.Store({
     updateExternalMenu(state, val) {
       state.externalMenu = val;
     },
+    updateVisibleFields(state, val) {
+      state.visibleFields = val;
+    },
     updateIsNotVisibleFieldsShow(state, val) {
       state.isNotVisibleFieldsShow = val;
     },
@@ -542,6 +546,7 @@ const store = new Vuex.Store({
         .then(res => {
           commit('updateIndexFieldInfo', res.data ?? {});
           commit('updataOperatorDictionary', res.data ?? {});
+          commit('updataVisibleFields', res.data?.display_fields ?? []);
           return res;
         });
     },

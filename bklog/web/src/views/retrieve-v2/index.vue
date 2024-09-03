@@ -26,19 +26,20 @@
 
 <script setup>
   import { computed, onMounted, ref, watch, set } from 'vue';
-  import { isEqual } from 'lodash';
 
-  import dayjs from 'dayjs';
-  import { updateTimezone } from '../../language/dayjs';
   // import * as authorityMap from '@/common/authority-map';
   import useStore from '@/hooks/use-store';
+  import dayjs from 'dayjs';
+  import { isEqual } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
 
+  import { updateTimezone } from '../../language/dayjs';
   import CollectFavorites from './collect/collect-index';
-  import TabPanel from './tab-panel/index.vue';
   import { getDefaultRetrieveParams } from './const';
+  import ResultPanel from './result-table-panel-v2/index';
   import SearchBar from './search-bar/index.vue';
   import SubBar from './sub-bar/index.vue';
+  import TabPanel from './tab-panel/index.vue';
 
   const store = useStore();
   const router = useRouter();
@@ -85,7 +86,7 @@
     spaceUid,
     () => {
       const routeQuery = route.query ?? {};
-      if (routeQuery.spaceUid !== spaceUid || routeQuery.bizId !== bkBizId.value) {
+      if (routeQuery.spaceUid !== spaceUid.value || routeQuery.bizId !== bkBizId.value) {
         router.replace({
           query: {
             ...routeQuery,
@@ -149,8 +150,8 @@
   <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]">
     <div class="sub-head">
       <div
-        class="box-favorites"
         :style="{ width: `${showFavorites ? favoriteWidth : 110}px` }"
+        class="box-favorites"
         @click="handleFavoritesClick"
       >
         <div
@@ -178,8 +179,8 @@
     </div>
     <div class="retrieve-body">
       <CollectFavorites
-        class="collect-favorites"
         ref="favoriteRef"
+        class="collect-favorites"
         :is-show.sync="showFavorites"
         :width.sync="favoriteWidth"
         @handle-click-favorite="handleClickFavorite"
@@ -188,7 +189,7 @@
         <SearchBar @change="handleSearBarChanged"></SearchBar>
         <div class="result-row">
           <TabPanel v-model="activeTab"></TabPanel>
-
+          <ResultPanel :active-tab="activeTab"></ResultPanel>
         </div>
         <div class="result-row"></div>
       </div>
