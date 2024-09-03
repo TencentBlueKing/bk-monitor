@@ -1560,6 +1560,10 @@ export default class CommonCondition extends tsc<IProps> {
                   const results = this.curList.filter(
                     item => item.id.indexOf(this.searchValue) > -1 || item.name.indexOf(this.searchValue) > -1
                   );
+                  const isEmptyUsers = this.tagList[this.curIndex[0]]?.condition?.field === 'is_empty_users';
+                  if (isEmptyUsers) {
+                    results.shift();
+                  }
                   return results.length ? (
                     results.map((item, index) => (
                       <div

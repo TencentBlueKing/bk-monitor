@@ -45,7 +45,7 @@ import './related-events.scss';
 const statusMap = {
   RECOVERED: window.i18n.tc('已恢复'),
   ABNORMAL: window.i18n.tc('未恢复'),
-  CLOSED: window.i18n.tc('已关闭'),
+  CLOSED: window.i18n.tc('已失效'),
 };
 
 // 事件级别

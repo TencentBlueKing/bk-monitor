@@ -140,8 +140,8 @@ export default {
   '数据格式需遵循{0},如下': 'The data format needs to follow {0}, as follows',
   本次下发覆盖: 'This Issuance Overwrites',
   监控项为策略配置: 'Monitoring items are alert rules',
-  空间数量指个人有权限的空间数量:
-    'The number of spaces refers to the number of spaces that an individual has access to',
+  '空间数量指个人有权限的空间数量，包含业务、研发项目、容器项目、蓝鲸应用四种类型':
+    'The number of spaces refers to the number of spaces that an individual has permission to use, including business, R&D projects, container projects, and Blue Whale applications',
   联系系统管理员升级至最新版本: 'Contact the system administrator to upgrade to the latest version',
   调整关键词: 'Adjusting keywords',
   配置管理业务: 'Configuration management business',

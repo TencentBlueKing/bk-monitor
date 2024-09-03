@@ -166,7 +166,7 @@ export default defineComponent({
           const { bizId, appName, serviceName, start, end, profileId } = props;
           const data = props.data
             ? props.data
-            : ((
+            : (
                 await query(
                   {
                     bk_biz_id: bizId,
@@ -181,7 +181,7 @@ export default defineComponent({
                     needCancel: true,
                   }
                 ).catch(() => false)
-              )?.flame_data ?? false);
+              )?.flame_data ?? false;
 
           if (data) {
             if (props.diffTraceId) {

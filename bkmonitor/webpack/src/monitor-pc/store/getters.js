@@ -62,6 +62,7 @@ const getters = {
   bizIdChangePedding: state => state.app.bizIdChangePedding,
   spaceUidMap: state => state.app.spaceUidMap,
   bizIdMap: state => state.app.bizIdMap,
+  paddingRoute: state => state.app.paddingRoute,
 };
 
 export default getters;

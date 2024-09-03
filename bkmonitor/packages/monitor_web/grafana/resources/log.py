@@ -198,9 +198,12 @@ class LogQueryResource(ApiAuthResource):
                     ]:
                         dimensions.pop(dimension, None)
 
-                content = record.pop("event")["content"]
+                event = record.pop("event", {})
+                content = event.get("content", "")
+                count = event.get("count", 1)
                 _record.update({f"dimensions.{key}": value for key, value in dimensions.items()})
                 _record["event.content"] = content
+                _record["event.count"] = count
                 _record.update(record)
             elif params["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH and "log" in record:
                 _record["event.content"] = record["log"]

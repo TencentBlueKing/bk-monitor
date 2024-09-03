@@ -50,7 +50,7 @@ export default class TraceRetrieval extends tsc<object> {
   }
   mounted() {
     setTimeout(() => {
-      this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false);
+      this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
     }, 300);
   }
   render() {

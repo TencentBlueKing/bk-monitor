@@ -699,7 +699,7 @@ class GetVariableValue(Resource):
                 interval = 60 * 60
             else:
                 interval = 24 * 60 * 60
-
+        end_time += interval
         # 增加cookies过滤
         cookies_filter = get_cookies_filter()
         if cookies_filter:

@@ -252,6 +252,8 @@ def refresh_kafka_topic_info():
 
 @share_lock(identify="metadata_refreshESStorage", ttl=7200)
 def refresh_es_storage():
+    logger.info("start to refresh es_storage")
+    # 轮转黑名单
     es_blacklist = getattr(settings, "ES_CLUSTER_BLACKLIST", [])
 
     # NOTE: 这是临时处理；如果在白名单中，则按照串行处理
@@ -262,8 +264,8 @@ def refresh_es_storage():
         manage_es_storage.delay(es_storage_data)
     # 设置每100条记录，拆分为一个任务
     start, step = 0, 100
-    # 仅管理日志内建的集群索引
-    es_storages = models.ESStorage.objects.filter(source_type=EsSourceType.LOG.value).exclude(
+    # 仅管理日志内建的集群索引,且只有need_create_index为True的才需要创建索引
+    es_storages = models.ESStorage.objects.filter(source_type=EsSourceType.LOG.value, need_create_index=True).exclude(
         storage_cluster_id__in=(es_cluster_wl + es_blacklist)
     )
     # 添加一步过滤，用以减少任务的数量

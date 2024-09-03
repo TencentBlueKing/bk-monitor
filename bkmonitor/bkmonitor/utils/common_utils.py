@@ -181,7 +181,7 @@ def failed(message="", error_code=None, error_name=None, exc_type=None, popup_ty
             exc_code=error_code,
             overview=message,
             detail=message,
-            popup_message=popup_type if popup_type else "warn",  # 默认均为warn
+            popup_message=popup_type if popup_type else "warning",  # 默认均为warn
         ).to_dict(),
     }
     result.update(**options)

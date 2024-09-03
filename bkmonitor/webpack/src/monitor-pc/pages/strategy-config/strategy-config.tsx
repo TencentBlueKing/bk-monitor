@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Provide, ProvideReactive } from 'vue-property-decorator';
+import { Component, Provide } from 'vue-property-decorator';
 
 import authorityMixinCreate from '../../mixins/authorityMixin';
-import * as alarmGroupAuth from './authority-map';
+import * as strategyAuth from './authority-map';
 import StrategyConfig from './strategy-config-common/strategy-config';
 
 import type { strategyType } from './strategy-config-set-new/typings';
@@ -35,10 +35,7 @@ import './strategy-config.scss';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
-export default class MonitorStrategyConfig extends authorityMixinCreate(alarmGroupAuth) {
-  @ProvideReactive('authority') authority: { [propsName: string]: boolean } = {};
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
-  @Provide('authorityMap') authorityMap = alarmGroupAuth;
+export default class MonitorStrategyConfig extends authorityMixinCreate(strategyAuth) {
   @Provide('strategyType') strategyType: strategyType = 'monitor';
   fromRouteName = '';
   beforeRouteEnter(to, from, next) {

@@ -83,7 +83,7 @@ def create_actions(
     public_labels = {"strategy_id": metrics.TOTAL_TAG, "signal": signal, "run_type": "once", "notice_type": notice_type}
 
     alert_id = alerts[0].id if alerts else alert_ids[0]
-    logger.info("[create actions](%s) for alert(%s)", notice_type, alert_id)
+    logger.info("[create actions(begin)](%s) for alert(%s)", notice_type, alert_id)
 
     try:
         with metrics.ACTION_CREATE_PROCESS_TIME.labels(**public_labels).time():
@@ -100,7 +100,7 @@ def create_actions(
                 is_unshielded,
                 notice_type,
             ).do_create_actions()
-        logger.info("[create actions](%s) end for alert(%s), action count(%s)", notice_type, alert_id, len(actions))
+        logger.info("[create actions(end)](%s) for alert(%s), action count(%s)", notice_type, alert_id, len(actions))
     except BaseException as e:
         exc = e
         logger.exception("create actions for alert(%s) failed: %s", alert_id, e)
@@ -484,7 +484,7 @@ class CreateActionProcessor:
             except BaseException as error:
                 assign_labels.update({"rule_group_id": None})
                 exc = error
-                logger.exception("[alert assign] alert(%s) assign failed, error info %s", alert.id, str(error))
+                logger.exception("[alert assign error] alert(%s) assign failed, error info %s", alert.id, str(error))
             assign_labels["status"] = metrics.StatusEnum.from_exc(exc)
 
         metrics.ALERT_ASSIGN_PROCESS_COUNT.labels(**assign_labels).inc()
@@ -527,7 +527,7 @@ class CreateActionProcessor:
     def do_create_actions(self):
         if not self.alerts:
             logger.info(
-                "create actions failed: empty alerts(%s), strategy_id(%s), signal(%s)",
+                "[create actions] failed: empty alerts(%s), strategy_id(%s), signal(%s)",
                 self.alert_ids,
                 self.strategy_id,
                 self.signal,
@@ -535,7 +535,7 @@ class CreateActionProcessor:
             return []
 
         logger.info(
-            "Ready to create actions strategy_id(%s), signal(%s), alert_ids(%s), severity(%s),"
+            "[create actions]do_create_actions: strategy_id(%s), signal(%s), alert_ids(%s), severity(%s),"
             " execute_times(%s), relation_id(%s)",
             self.strategy_id,
             self.signal,
@@ -552,7 +552,7 @@ class CreateActionProcessor:
 
         if not actions:
             logger.info(
-                "[ignore create action]: empty config for signal(%s), strategy(%s), alerts %s",
+                "[create actions]ignore: empty config for signal(%s), strategy(%s), alerts %s",
                 self.signal,
                 self.strategy_id,
                 self.alert_ids,
@@ -571,15 +571,21 @@ class CreateActionProcessor:
         }
 
         action_instances = []
-        alerts_assignee = {alert.id: alert.to_dict().get("assignee") or [] for alert in self.alerts}
-        alerts_appointee = {alert.id: alert.to_dict().get("appointee") or [] for alert in self.alerts}
-        alerts_supervisor = {alert.id: alert.to_dict().get("supervisor") or [] for alert in self.alerts}
-        alerts_follower = {alert.id: alert.to_dict().get("follower") or [] for alert in self.alerts}
+        alerts_assignee = {}
+        alerts_appointee = {}
+        alerts_supervisor = {}
+        alerts_follower = {}
+
         # 根据用户组信息获取人员
         alert_logs = []
         qos_alerts = []
         current_qos_count = 0
         for alert in self.alerts:
+            alert_dict = alert.to_dict()
+            alerts_assignee[alert.id] = alert_dict.get("assignee") or []
+            alerts_appointee[alert.id] = alert_dict.get("appointee") or []
+            alerts_supervisor[alert.id] = alert_dict.get("supervisor") or []
+            alerts_follower[alert.id] = alert_dict.get("follower") or []
             # 进行告警分派
             if not self.is_alert_status_valid(alert):
                 # 所有的通知，需要判断信号是否为有效状态
@@ -591,6 +597,7 @@ class CreateActionProcessor:
             supervisors = []
             assignees = []
             if not assignee_manager:
+                # 告警分派异常, 搜索日志: [alert assign error]
                 continue
             if not assignee_manager.is_matched and not self.strategy_id:
                 # 第三方告警如果没有适配到的规则，直接忽略
@@ -658,7 +665,7 @@ class CreateActionProcessor:
             )
 
         logger.info(
-            "create actions finished, strategy_id %s, alerts %s, signal %s, created actions(%s) %s",
+            "[create actions]do_create_actions finished, strategy_id %s, alerts %s, signal %s, created actions(%s) %s",
             self.strategy_id,
             self.alert_ids,
             self.signal,
@@ -757,7 +764,7 @@ class CreateActionProcessor:
         if self.is_alert_shielded and not settings.ENABLE_PUSH_SHIELDED_ALERT:
             # 当前告警处于屏蔽状态并且不允许推送屏蔽告警，直接忽略
             logger.info(
-                "Ignore to create message queue action for shielded alert(%s)"
+                "[create actions]ignore push message queue for shielded alert(%s)"
                 " because config[ENABLE_PUSH_SHIELDED_ALERT] is %s",
                 self.alert_ids,
                 settings.ENABLE_PUSH_SHIELDED_ALERT,

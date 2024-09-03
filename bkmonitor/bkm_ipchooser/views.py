@@ -4,10 +4,11 @@ import typing
 from django.utils.translation import ugettext_lazy as _
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.authentication import BasicAuthentication, SessionAuthentication
+from rest_framework.authentication import BasicAuthentication
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
+from bkm_ipchooser.authentication import CsrfExemptSessionAuthentication
 from bkm_ipchooser.handlers import (
     config_handler,
     dynamic_group_handler,
@@ -41,12 +42,6 @@ except ImportError:
 
 
 IP_CHOOSER_VIEW_TAGS = ["ipchooser"]
-
-
-class CsrfExemptSessionAuthentication(SessionAuthentication):
-    def enforce_csrf(self, request):
-        # To not perform the csrf check previously happening
-        return
 
 
 class CommonViewSet(GenericViewSet):

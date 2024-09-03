@@ -24,24 +24,28 @@ import datetime
 import hashlib
 import json
 import operator
+from collections import namedtuple
 from typing import Any, Dict, List, Union
 
 import arrow
 import pytz
 from django.conf import settings
 from django.core.cache import cache
+from django.test import RequestFactory
 from django.utils.translation import ugettext as _
 
 from apps.api import BcsApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.constants import EtlConfig
 from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
 from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
+from apps.log_esquery.views.esquery_views import EsQueryViewSet
 from apps.log_search.constants import (
     ASYNC_SORTED,
     CHECK_FIELD_LIST,
@@ -112,6 +116,7 @@ from apps.utils.db import array_group
 from apps.utils.ipchooser import IPChooser
 from apps.utils.local import (
     get_local_param,
+    get_request,
     get_request_app_code,
     get_request_external_username,
     get_request_username,
@@ -189,6 +194,9 @@ class SearchHandler(object):
             )
         # 是否包含嵌套字段
         self.include_nested_fields: bool = self.search_dict.get("include_nested_fields", True)
+
+        # track_total_hits,默认不统计总数
+        self.track_total_hits: bool = self.search_dict.get("track_total_hits", False)
 
         # 检索历史记录
         self.addition = copy.deepcopy(search_dict.get("addition", []))
@@ -395,7 +403,8 @@ class SearchHandler(object):
         @param field_result:
         @return:
         """
-        result = MappingHandlers.async_export_fields(field_result, self.scenario_id)
+        sort_fields = self.index_set.sort_fields if self.index_set else []
+        result = MappingHandlers.async_export_fields(field_result, self.scenario_id, sort_fields)
         if result["async_export_usable"]:
             return True, {"fields": result["async_export_fields"]}
         return False, {"usable_reason": result["async_export_usable_reason"]}
@@ -573,6 +582,23 @@ class SearchHandler(object):
 
         return result
 
+    @classmethod
+    def direct_esquery_search(cls, params):
+        request = get_request()
+
+        # 使用 RequestFactory 创建一个模拟 POST 请求
+        fake_request = RequestFactory().post("/esquery/search/", data=params, content_type="application/json")
+        App = namedtuple("App", ["bk_app_code"])
+        fake_request.app = App(bk_app_code=get_request_app_code())
+        fake_request.user = request.user
+
+        # 实例化 EsQueryViewSet 并设置 request 和 kwargs
+        es_query_viewset = EsQueryViewSet.as_view({"post": "search"})
+        # 调用 search 方法
+        response = es_query_viewset(fake_request)
+        data = response.data
+        return data
+
     def _multi_search(self, once_size: int):
         """
         根据存储集群切换记录多线程请求 BkLogApi.search
@@ -600,6 +626,7 @@ class SearchHandler(object):
             "scroll": self.scroll,
             "collapse": self.collapse,
             "include_nested_fields": self.include_nested_fields,
+            "track_total_hits": self.track_total_hits
         }
 
         storage_cluster_record_objs = StorageClusterRecord.objects.none()
@@ -617,9 +644,15 @@ class SearchHandler(object):
             except Exception as e:  # pylint: disable=broad-except
                 logger.exception(f"[_multi_search] parse time error -> e: {e}")
 
+        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
+            exec_func = self.direct_esquery_search
+        else:
+            exec_func = BkLogApi.search
+
         if not storage_cluster_record_objs:
             try:
-                return BkLogApi.search(params)
+                data = exec_func(params)
+                return data
             except ApiResultError as e:
                 raise ApiResultError(_("搜索出错，请检查查询语句是否正确") + f" => {e}", code=e.code, errors=e.errors)
 
@@ -634,7 +667,7 @@ class SearchHandler(object):
         params["size"] = once_size + self.start
 
         # 获取当前使用的存储集群数据
-        multi_execute_func.append(result_key=f"multi_search_{multi_num}", func=BkLogApi.search, params=params)
+        multi_execute_func.append(result_key=f"multi_search_{multi_num}", func=exec_func, params=params)
 
         # 获取历史使用的存储集群数据
         for storage_cluster_record_obj in storage_cluster_record_objs:
@@ -642,9 +675,7 @@ class SearchHandler(object):
                 multi_params = copy.deepcopy(params)
                 multi_params["storage_cluster_id"] = storage_cluster_record_obj.storage_cluster_id
                 multi_num += 1
-                multi_execute_func.append(
-                    result_key=f"multi_search_{multi_num}", func=BkLogApi.search, params=multi_params
-                )
+                multi_execute_func.append(result_key=f"multi_search_{multi_num}", func=exec_func, params=multi_params)
                 storage_cluster_ids.add(storage_cluster_record_obj.storage_cluster_id)
 
         multi_result = multi_execute_func.run()
@@ -1397,7 +1428,9 @@ class SearchHandler(object):
             return DslCreateSearchContextBodyScenarioBkData(
                 size=self.size,
                 start=self.start,
-                gseindex=self.gseindex,
+                gse_index=self.gseindex,
+                iteration_idx=self._iteration_idx,
+                dt_event_time_stamp=self.dtEventTimeStamp,
                 path=self.path,
                 ip=self.ip,
                 bk_host_id=self.bk_host_id,
@@ -1411,9 +1444,11 @@ class SearchHandler(object):
             return DslCreateSearchContextBodyScenarioLog(
                 size=self.size,
                 start=self.start,
-                gseIndex=self.gseIndex,
+                gse_index=self.gseIndex,
+                iteration_index=self.iterationIndex,
+                dt_event_time_stamp=self.dtEventTimeStamp,
                 path=self.path,
-                serverIp=self.serverIp,
+                server_ip=self.serverIp,
                 bk_host_id=self.bk_host_id,
                 container_id=self.container_id,
                 logfile=self.logfile,
@@ -2005,7 +2040,6 @@ class SearchHandler(object):
 
         # find the search one
         _index: int = -1
-        _count_start: int = -1
         if self.scenario_id == Scenario.BKDATA and not (target_fields and sort_fields):
             for index, item in enumerate(log_list):
                 gseindex: str = item.get("gseindex")
@@ -2015,10 +2049,6 @@ class SearchHandler(object):
                 container_id: str = item.get("container_id")
                 logfile: str = item.get("logfile")
                 _iteration_idx: str = item.get("_iteration_idx")
-                # find the counting range point
-                if _count_start == -1:
-                    if str(gseindex) == mark_gseindex:
-                        _count_start = index
 
                 if (
                     (
@@ -2050,10 +2080,7 @@ class SearchHandler(object):
                 bk_host_id: int = item.get("bk_host_id")
                 path: str = item.get("path", "")
                 iterationIndex: str = item.get("iterationIndex")  # pylint: disable=invalid-name
-                # find the counting range point
-                if _count_start == -1:
-                    if str(gseIndex) == mark_gseIndex:
-                        _count_start = index
+
                 if (
                     self.gseIndex == str(gseIndex)
                     and self.bk_host_id == bk_host_id
@@ -2070,14 +2097,6 @@ class SearchHandler(object):
 
         elif self.scenario_id in [Scenario.ES, Scenario.BKDATA] and target_fields and sort_fields:
             for index, item in enumerate(log_list):
-                _sort_value = item.get(sort_fields[0])
-                check_value = self.search_dict.get(sort_fields[0])
-                # find the counting range point
-                if _count_start == -1:
-                    _sort_value = item.get(sort_fields[0])
-                    if _sort_value and str(_sort_value) == str(check_value):
-                        _count_start = index
-
                 for field in sort_fields + target_fields:
                     if str(item.get(field)) != str(self.search_dict.get(field)):
                         break
@@ -2085,6 +2104,7 @@ class SearchHandler(object):
                     _index = index
                     break
 
+        _count_start = _index
         return {"list": log_list_reversed, "zero_index": _index, "count_start": _count_start}
 
     def _analyze_empty_log(self, log_list: List[Dict[str, Any]]):

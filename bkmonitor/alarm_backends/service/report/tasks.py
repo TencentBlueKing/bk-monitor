@@ -258,5 +258,22 @@ def report_transfer_operation_data():
     h.report()
 
 
+# 采集周期（小于1min）
+collector_interval = 30
+
+
 def collect_redis_metric():
+    # 这次采完后， 1min内还剩seq次，通过异步任务发送
+    seq = 60 / collector_interval - 1
+    if seq > 0:
+        run_collect_redis_metric.apply_async(kwargs={"seq": seq}, countdown=collector_interval)
+    RedisMetricCollectReport().collect_redis_metric_data()
+
+
+@app.task(ignore_result=True, queue="celery_report_cron")
+def run_collect_redis_metric(seq):
+    # 采集一次后判断是否要继续采集
+    seq -= 1
+    if seq > 0:
+        run_collect_redis_metric.apply_async(kwargs={"seq": seq}, countdown=collector_interval)
     RedisMetricCollectReport().collect_redis_metric_data()

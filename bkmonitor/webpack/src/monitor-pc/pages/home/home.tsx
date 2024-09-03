@@ -99,7 +99,7 @@ export default class Home extends tsc<object> {
         unit: '',
         type: 'num',
         borderRight: true,
-        tip: window.i18n.tc('空间数量指个人有权限的空间数量'),
+        tip: window.i18n.tc('空间数量指个人有权限的空间数量，包含业务、研发项目、容器项目、蓝鲸应用四种类型'),
       },
       {
         id: 'event',

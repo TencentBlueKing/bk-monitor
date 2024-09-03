@@ -61,7 +61,7 @@ export const linkMap = {
   accessRequest: '监控平台/产品白皮书/quickstart/perm.md', // 权限申请文档
 };
 export const handleGotoLink = id => {
-  jumpToDocsLink(id, linkMap, window.docUrlMap);
+  jumpToDocsLink(id, linkMap, window.docUrlMap || {});
 };
 
 // 是否中文

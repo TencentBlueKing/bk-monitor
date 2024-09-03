@@ -72,6 +72,7 @@ import {
   TIME_OFFSET_KEY,
   TIME_RANGE_KEY,
   VIEWOPTIONS_KEY,
+  useIsEnabledProfilingProvider,
 } from '../../plugins/hooks';
 import { DEFAULT_TRACE_DATA } from '../../store/constant';
 import { useSearchStore } from '../../store/modules/search';
@@ -236,6 +237,11 @@ export default defineComponent({
     const isLoading = computed<boolean>(() => store.loading);
     const isPreCalculationMode = computed(() => store.traceListMode === 'pre_calculation');
     const collectCheckValue = ref(queryScopeParams());
+
+    const enableProfiling = computed(
+      () => !!appList.value.find(item => item.app_name === state.app)?.is_enabled_profiling
+    );
+
     const setSelectedTypeByRoute = () => {
       const listType = (route.query.listType as ListType) || 'trace';
       const selectedType = JSON.parse((route.query.selectedType as string) || '[]');
@@ -260,6 +266,8 @@ export default defineComponent({
       }
     };
     setSelectedTypeByRoute();
+
+    useIsEnabledProfilingProvider(enableProfiling);
 
     const handleLeftHiddenAndShow = (val: boolean) => {
       state.showLeft = val;
@@ -1121,21 +1129,28 @@ export default defineComponent({
       >
         <div class='tips-content-title'>
           {t('可输入SQL语句进行快速查询')}
-          <a
+          <span
             class='link'
-            target='_blank'
             onClick={() => handleGotoLink('bkLogQueryString')}
           >
             {t('查看语法')}
             <i class='icon-monitor icon-mc-link' />
-          </a>
+          </span>
         </div>
         <ul class='tips-content-list'>
-          {tipsContentList.map(item => (
-            <li class='tips-content-item'>
+          {tipsContentList.map((item, index) => (
+            <li
+              key={index}
+              class='tips-content-item'
+            >
               <div class='tips-content-item-label'>{item.label}</div>
-              {item.value.map(val => (
-                <div class='tips-content-item-val'>{val}</div>
+              {item.value.map((val, vIndex) => (
+                <div
+                  key={vIndex}
+                  class='tips-content-item-val'
+                >
+                  {val}
+                </div>
               ))}
             </li>
           ))}
@@ -1478,6 +1493,7 @@ export default defineComponent({
         {/* 这里插入 condition 组件 */}
         {conditionList.map((item, index) => (
           <Condition
+            key={index}
             style='margin-bottom: 16px;'
             conditionList={item.conditionList}
             conditionType={item.conditionType}

@@ -43,7 +43,10 @@ class AssignInfoEnricher(BaseAlertEnricher):
             assign_labels["rule_group_id"] = None
             try:
                 assign_manager = AlertAssigneeManager(
-                    alert=alert.to_document(), notice_user_groups=user_groups, assign_mode=assign_mode
+                    alert=alert.to_document(),
+                    notice_user_groups=user_groups,
+                    assign_mode=assign_mode,
+                    new_alert=alert.is_new(),
                 ).match_manager
             except Exception as error:
                 exc = error

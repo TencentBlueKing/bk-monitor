@@ -160,4 +160,4 @@ class BaseAlertProcessor:
                 continue
             check_action_and_composite.delay(alert_key=alert.key, alert_status=alert.status)
 
-        self.logger.info("[send alert signals]: send(%d), blocked(%s)", len(alerts) - blocked, blocked)
+        self.logger.info("[send alert signals to composite]: send(%d), blocked(%s)", len(alerts) - blocked, blocked)

@@ -51,6 +51,7 @@ class Space:
     type_name: Union[None, str]
     bk_biz_id: int
     is_demo: bool = False
+    time_zone: str = "Asia/Shanghai"
 
     @classmethod
     def from_dict(cls, data, cleaned=False):
