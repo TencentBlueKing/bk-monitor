@@ -92,7 +92,7 @@ class CollectorPluginMeta(OperateRecordModelBase):
         return True
 
     @cached_property
-    def release_version(self):
+    def release_version(self) -> Optional["PluginVersionHistory"]:
         """
         最新的发布版本
         """

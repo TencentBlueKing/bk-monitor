@@ -20,16 +20,15 @@ import stat
 import tarfile
 import time
 from functools import partial
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
-import six
 import yaml
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.template import engines
 from django.utils.translation import ugettext as _
-from six.moves import map
 
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.serializers import MetricJsonSerializer
@@ -49,6 +48,7 @@ from monitor_web.commons.data_access import PluginDataAccessor
 from monitor_web.models.plugin import (
     CollectorPluginConfig,
     CollectorPluginInfo,
+    CollectorPluginMeta,
     PluginVersionHistory,
 )
 from monitor_web.plugin.constant import (
@@ -75,7 +75,244 @@ def check_skip_debug(need_debug):
     return need_debug
 
 
-class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
+class BasePluginManager:
+    def __init__(self, plugin: CollectorPluginMeta, operator: str, tmp_path=None):
+        self.plugin = plugin
+        self.operator = operator
+        self.tmp_path = tmp_path
+        self.version: Optional[PluginVersionHistory] = PluginVersionHistory.objects.filter(
+            plugin_id=self.plugin.plugin_id
+        ).last()
+
+    @classmethod
+    def _update_config(cls, update_config_data: Dict[str, Any], version: PluginVersionHistory):
+        """
+        更新插件config字段
+        """
+        for attr, value in update_config_data.items():
+            setattr(version.config, attr, value)
+        version.config.save()
+
+    def _update_info(self, update_info_data, now_info_data, current_version, version):
+        """
+        更新插件info字段
+        """
+        update_logo = update_info_data.pop("logo", "")
+
+        # 如果有更新的字段，则更新
+        for attr, value in update_info_data.items():
+            setattr(version.info, attr, value)
+        version.info.save()
+
+        # 如果有更新logo，则保存logo文件
+        if not update_logo:
+            version.info.logo = ""
+            version.info.save()
+        elif update_logo != now_info_data["logo"] and update_logo:
+            self.save_logo_file(version.info, update_logo)
+        else:
+            version.info.logo = current_version.info.logo
+            version.info.save()
+
+    @staticmethod
+    def _get_new_collector_json(collector_json, diff_value):
+        new_collector_json = copy.deepcopy(collector_json)
+        if diff_value:
+            new_collector_json.update({"diff_fields": diff_value})
+        else:
+            new_collector_json.pop("diff_fields", "")
+        return new_collector_json
+
+    def _get_version(self, config_version, info_version):
+        version = self.plugin.generate_version(config_version, info_version)
+        version.stage = "unregister"
+        return version
+
+    def validate_config_info(self, collector_info: Dict[str, Any], config_info: List[Dict[str, Any]]) -> None:
+        """
+        配置检查
+        """
+
+    def save_logo_file(self, info: CollectorPluginInfo, logo_base64: str) -> None:
+        """
+        保存logo文件
+        """
+        logo_base64 = logo_base64.split(",")[-1]
+        img = ContentFile(base64.b64decode(logo_base64))
+        info.logo.save(f"{self.plugin.plugin_id}.png", img)
+
+    def start_debug(
+        self,
+        config_version: int,
+        info_version: int,
+        param: Dict[str, Any],
+        host_info: Dict[str, Any],
+        target_nodes=None,
+    ) -> Optional[str]:
+        """
+        开始插件调试
+        """
+
+    def stop_debug(self, task_id: str) -> None:
+        """
+        停止插件调试
+        """
+
+    def query_debug(self, task_id: str) -> Dict[str, Any]:
+        """
+        获取调试信息
+        """
+        return {}
+
+    def data_access(self, config_version: int, info_version: int) -> None:
+        """
+        数据接入
+        """
+        current_version = self.plugin.get_version(config_version, info_version)
+
+        try:
+            # 接入数据源
+            PluginDataAccessor(current_version, self.operator).access()
+        except Exception as err:
+            logger.exception("[plugin] data_access error, msg is %s" % str(err))
+            current_version.stage = "unregister"
+            current_version.save()
+            raise err
+
+        try:
+            # 更新指标后，指标缓存同步更新
+            result_table_id_list = [
+                "{}_{}.{}".format(self.plugin.plugin_type.lower(), self.plugin.plugin_id, metric_msg["table_name"])
+                for metric_msg in current_version.info.metric_json
+            ]
+            append_metric_list_cache.delay(result_table_id_list)
+        except Exception as err:
+            logger.error("[update_plugin_metric_cache] error, msg is {}".format(err))
+
+    def update_metric(self, data: Dict[str, Any]) -> Tuple[int, int, bool, bool]:
+        """
+        更新插件指标维度信息
+        """
+        current_version = self.plugin.get_version(data["config_version"], data["info_version"])
+        metric_json = data["metric_json"]
+        info_obj = current_version.info
+        now_info_data = info_obj.info2dict()
+        current_config_version = current_version.config_version
+        current_info_version = current_version.info_version
+        old_metric_md5, new_metric_md5 = list(map(count_md5, [info_obj.metric_json, metric_json]))
+        need_make_package = False
+        is_change = False
+        # metric_json 存在变更或者 切换了黑名单的开启，生成新的 version
+        if (
+            old_metric_md5 != new_metric_md5
+            or current_version.info.enable_field_blacklist != data["enable_field_blacklist"]
+        ):
+            is_change = True
+            current_info_version = current_info_version + 1
+            update_info_data = copy.deepcopy(now_info_data)
+            # 白名单模式下，清除 tag_list 内的值
+            if not data["enable_field_blacklist"]:
+                for metric_data in metric_json:
+                    for field_data in metric_data["fields"]:
+                        field_data["tag_list"] = []
+            update_info_data["metric_json"] = metric_json
+            update_info_data["enable_field_blacklist"] = data["enable_field_blacklist"]
+            config_obj = current_version.config
+            diff_value = PluginVersionHistory.gen_diff_fields(metric_json)
+            old_collector_json = config_obj.collector_json
+            new_collector_json = self._get_new_collector_json(old_collector_json, diff_value)
+            old_collector_md5, new_collector_md5 = list(map(count_md5, [old_collector_json, new_collector_json]))
+            if old_collector_md5 != new_collector_md5:
+                current_config_version = current_config_version + 1
+                need_make_package = True
+            version = self._get_version(current_config_version, current_info_version)
+            update_config_data = config_obj.config2dict()
+            update_config_data["collector_json"] = new_collector_json
+            self._update_config(update_config_data, version)
+            self._update_info(update_info_data, now_info_data, current_version, version)
+            version.stage = "unregister" if need_make_package else "release"
+            version.is_packaged = False
+            version.signature = current_version.signature
+            version.version_log = "update_metric"
+            version.save()
+            if not current_version.info.metric_json:
+                current_version.info.metric_json = metric_json
+                current_version.info.save()
+        return current_config_version, current_info_version, is_change, need_make_package
+
+    @abc.abstractmethod
+    def release(
+        self,
+        config_version: int,
+        info_version: int,
+        token: List[str] = None,
+        debug: bool = True,
+    ) -> PluginVersionHistory:
+        """
+        发布插件包
+        :param config_version: 插件config版本
+        :param info_version: 插件info版本
+        :param token: 插件包文件md5列表
+        :param debug: 是否为调试模式
+        """
+
+    @abc.abstractmethod
+    def create_version(self, data: Dict[str, Any]) -> Tuple[PluginVersionHistory, bool]:
+        """
+        创建新版本
+        """
+
+    @abc.abstractmethod
+    def update_version(
+        self,
+        data: Dict[str, Any],
+        target_config_version: int = None,
+        target_info_version: int = None,
+    ) -> Tuple[PluginVersionHistory, bool]:
+        """
+        更新版本
+        """
+
+    @abc.abstractmethod
+    def make_package(
+        self,
+        add_files: Dict[str, List[Dict[str, str]]] = None,
+        add_dirs: Dict[str, List[Dict[str, str]]] = None,
+        need_tar: bool = True,
+    ) -> Optional[str]:
+        """
+        制作插件包，在tmp_path下制作插件包
+        :param add_files: 是否有额外文件
+        :param add_dirs: 是否有额外目录
+        :param need_tar: 是否需要打包
+        example:
+        add_files: {
+            "linux": [
+                {
+                    "file_name": "xxx.sh",
+                    "file_content": "xxxx",
+                }
+            ],
+        }
+        add_dirs: {
+            "linux": [
+                {
+                    "dir_name": "xxx",
+                    "dir_path": "/x/y/z/"
+                }
+            ]
+        }
+        :return: 如果需要打包，则返回打包后的文件路径，否则返回None
+        """
+
+    @abc.abstractmethod
+    def run_export(self) -> str:
+        """
+        运行exporter
+        """
+
+
+class PluginManager(BasePluginManager):
     """
     插件管理基类
     """
@@ -91,12 +328,9 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
         """
         :param plugin: CollectorPluginMeta Instance
         """
-        self.plugin = plugin
-        self.operator = operator
+        super(PluginManager, self).__init__(plugin, operator, tmp_path)
+
         self.tmp_path: str = os.path.join(settings.MEDIA_ROOT, "plugin", str(uuid4())) if not tmp_path else tmp_path
-        # by default init the latest version
-        latest_version = PluginVersionHistory.objects.filter(plugin_id=self.plugin.plugin_id).last()
-        self.version = latest_version
         self.filename_list = []
         for dir_path, dirname, filename_list in os.walk(self.tmp_path):
             for filename in filename_list:
@@ -315,31 +549,6 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
         }
         api.node_man.release_config(param)
 
-    def _update_plugin_metric_cache(self, current_version):
-        try:
-            # 更新指标后，指标缓存同步更新
-            result_table_id_list = [
-                "{}_{}.{}".format(self.plugin.plugin_type.lower(), self.plugin.plugin_id, metric_msg["table_name"])
-                for metric_msg in current_version.info.metric_json
-            ]
-            append_metric_list_cache.delay(result_table_id_list)
-        except Exception as err:
-            logger.error("[update_plugin_metric_cache] error, msg is {}".format(err))
-
-    @staticmethod
-    def _get_new_collector_json(collector_json, diff_value):
-        new_collector_json = copy.deepcopy(collector_json)
-        if diff_value:
-            new_collector_json.update({"diff_fields": diff_value})
-        else:
-            new_collector_json.pop("diff_fields", "")
-        return new_collector_json
-
-    def _get_version(self, config_version, info_version):
-        version = self.plugin.generate_version(config_version, info_version)
-        version.stage = "unregister"
-        return version
-
     @staticmethod
     def _update_version_params(data, version, current_version, stag=None):
         sig_manager = load_plugin_signature_manager(version)
@@ -362,21 +571,6 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
         if stag:
             version.stage = stag
         version.save()
-
-    def _update_info(self, update_info_data, now_info_data, current_version, version):
-        update_logo = update_info_data.pop("logo", "")
-        for attr, value in list(update_info_data.items()):
-            setattr(version.info, attr, value)
-        version.info.save()
-
-        if not update_logo:
-            version.info.logo = ""
-            version.info.save()
-        elif update_logo != now_info_data["logo"] and update_logo:
-            self.save_logo_file(version.info, update_logo)
-        else:
-            version.info.logo = current_version.info.logo
-            version.info.save()
 
     def _tar_gz_file(self, filename_list):
         t = tarfile.open(os.path.join(self.tmp_path, self.plugin.plugin_id + ".tgz"), "w:gz")
@@ -529,10 +723,6 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
         # load version_log
         self.version.version_log = plugin_params.get("release.md", "")
 
-    def validate_config_info(self, collector_info, config_info):
-        """配置检查"""
-        pass
-
     @abc.abstractmethod
     def get_deploy_steps_params(self, plugin_version, param, target_nodes):
         return []
@@ -552,8 +742,7 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
         task_id = self._run_debug(config_version, config_ids, host_info)
         return task_id
 
-    @staticmethod
-    def stop_debug(task_id):
+    def stop_debug(self, task_id: str):
         """
         停止插件调试
         """
@@ -601,7 +790,7 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
 
         return self.version
 
-    def release(self, config_version, info_version, token, debug=True):
+    def release(self, config_version, info_version, token=None, debug=True):
         """
         发布插件包
 
@@ -639,71 +828,6 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
             self.plugin.rollback_version_status(config_version)
             raise err
         return current_version
-
-    def data_access(self, config_version, info_version):
-        current_version = self.plugin.get_version(config_version, info_version)
-        try:
-            PluginDataAccessor(current_version, self.operator).access()
-            self._update_plugin_metric_cache(current_version)
-        except Exception as err:
-            logger.exception("[plugin] data_access error, msg is %s" % str(err))
-            current_version.stage = "unregister"
-            current_version.save()
-            raise err
-
-    def update_metric(self, data):
-        current_version = self.plugin.get_version(data["config_version"], data["info_version"])
-        metric_json = data["metric_json"]
-        info_obj = current_version.info
-        now_info_data = info_obj.info2dict()
-        current_config_version = current_version.config_version
-        current_info_version = current_version.info_version
-        old_metric_md5, new_metric_md5 = list(map(count_md5, [info_obj.metric_json, metric_json]))
-        need_make_package = False
-        is_change = False
-        # metric_json 存在变更或者 切换了黑名单的开启，生成新的 version
-        if (
-            old_metric_md5 != new_metric_md5
-            or current_version.info.enable_field_blacklist != data["enable_field_blacklist"]
-        ):
-            is_change = True
-            current_info_version = current_info_version + 1
-            update_info_data = copy.deepcopy(now_info_data)
-            # 白名单模式下，清除 tag_list 内的值
-            if not data["enable_field_blacklist"]:
-                for metric_data in metric_json:
-                    for field_data in metric_data["fields"]:
-                        field_data["tag_list"] = []
-            update_info_data["metric_json"] = metric_json
-            update_info_data["enable_field_blacklist"] = data["enable_field_blacklist"]
-            config_obj = current_version.config
-            diff_value = PluginVersionHistory.gen_diff_fields(metric_json)
-            old_collector_json = config_obj.collector_json
-            new_collector_json = self._get_new_collector_json(old_collector_json, diff_value)
-            old_collector_md5, new_collector_md5 = list(map(count_md5, [old_collector_json, new_collector_json]))
-            if old_collector_md5 != new_collector_md5:
-                current_config_version = current_config_version + 1
-                need_make_package = True
-            version = self._get_version(current_config_version, current_info_version)
-            update_config_data = config_obj.config2dict()
-            update_config_data["collector_json"] = new_collector_json
-            self.update_config(update_config_data, version)
-            self._update_info(update_info_data, now_info_data, current_version, version)
-            version.stage = "unregister" if need_make_package else "release"
-            version.is_packaged = False
-            version.signature = current_version.signature
-            version.version_log = "update_metric"
-            version.save()
-            if not current_version.info.metric_json:
-                current_version.info.metric_json = metric_json
-                current_version.info.save()
-        return current_config_version, current_info_version, is_change, need_make_package
-
-    def version_check(self):
-        config_version = self.plugin.release_version.config_version
-        info_version = self.plugin.release_version.info_version
-        is_packaged = self.plugin.release_version.is_packaged
-        return config_version, info_version, is_packaged
 
     def create_version(self, data):
         version = self.plugin.generate_version(data["config_version"], data["info_version"])
@@ -788,7 +912,7 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
                 need_debug = False
             if old_info_md5 != new_info_md5 and current_version.is_release:
                 version = self._get_version(current_config_version, current_info_version)
-                self.update_config(update_config_data, version)
+                self._update_config(update_config_data, version)
                 self._update_info(update_info_data, now_info_data, current_version, version)
                 self._update_version_params(data, version, current_version, stag="release")
             else:
@@ -800,22 +924,11 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
                 version = current_version
         else:
             version = self._get_version(current_config_version, current_info_version)
-            self.update_config(update_config_data, version)
+            self._update_config(update_config_data, version)
             self._update_info(update_info_data, now_info_data, current_version, version)
             self._update_version_params(data, version, current_version)
 
         return version, need_debug
-
-    @classmethod
-    def update_config(cls, update_config_data, version):
-        for attr, value in list(update_config_data.items()):
-            setattr(version.config, attr, value)
-        version.config.save()
-
-    def save_logo_file(self, info, logo_base64):
-        logo_base64 = logo_base64.split(",")[-1]
-        img = ContentFile(base64.b64decode(logo_base64))
-        info.logo.save(self.plugin.plugin_id + ".png", img)
 
     def make_package(self, add_files=None, add_dirs=None, need_tar=True):
         """
@@ -961,4 +1074,4 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
         if not download_url:
             raise ExportPluginTimeout
 
-        return {"download_url": download_url}
+        return download_url
