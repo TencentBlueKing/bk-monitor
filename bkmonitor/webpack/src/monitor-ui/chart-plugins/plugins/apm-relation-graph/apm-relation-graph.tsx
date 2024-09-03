@@ -180,6 +180,8 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   ];
   expanded = [];
 
+  /** 拓扑图和表格数据缓存 */
+  graphAndTableDataCache = new Map();
   /* 表格数据 */
   tableColumns: ITableColumn[] = [];
   // 所有的表格数据
@@ -193,10 +195,13 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     showTotalCount: true,
   };
 
+  saveTopoLayout = false;
+  /** 图表数据 */
   graphData = {
     nodes: [],
     edges: [],
   };
+
   /** 取消拓扑图请求 */
   topoCancelFn = null;
   loading = {
@@ -294,7 +299,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
         service_name: this.serviceName,
         data_type: this.dataType,
       };
-      this.getTopoData(params);
+      this.getTopoData();
       this.getAlarmBarData = async setData => {
         const data = await dataTypeBarQuery({
           ...params,
@@ -325,37 +330,39 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.handleLoadingChange(false);
   }
 
-  async getTopoData(params?) {
-    let res = params;
-    this.topoCancelFn?.();
-    if (!params) {
-      const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-      res = {
-        start_time: startTime,
-        end_time: endTime,
-        app_name: this.appName,
-        service_name: this.serviceName,
-        data_type: this.dataType,
-      };
-    }
+  async getTopoData(saveLayout = false) {
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const exportType = this.showType;
-    this.loading[exportType] = true;
-    const data = await topoView(
-      {
-        ...res,
-        edge_data_type: this.edgeDataType,
-        export_type: exportType,
-      },
-      {
+    const [sliceTimeStart, sliceTimeEnd] = this.sliceTimeRange;
+    this.saveTopoLayout = saveLayout;
+    const params = {
+      start_time: startTime,
+      end_time: endTime,
+      app_name: this.appName,
+      metric_start_time: sliceTimeStart / 1000 || startTime,
+      metric_end_time: sliceTimeEnd / 1000 || endTime,
+      service_name: this.serviceName,
+      data_type: this.dataType,
+      edge_data_type: this.edgeDataType,
+      export_type: exportType,
+    };
+    this.topoCancelFn?.();
+    const cacheKey = JSON.stringify(params);
+    let data = null;
+    if (this.graphAndTableDataCache.has(cacheKey)) {
+      data = this.graphAndTableDataCache.get(cacheKey);
+    } else {
+      this.loading[exportType] = true;
+      data = await topoView(params, {
         cancelToken: new CancelToken(c => {
           this.topoCancelFn = c;
         }),
-      }
-    ).catch(() => {
-      if (this.showType === 'topo') return { edges: [], nodes: [] };
-      return { columns: [], data: [] };
-    });
-    this.loading[exportType] = false;
+      }).catch(() => {
+        if (this.showType === 'topo') return { edges: [], nodes: [] };
+        return { columns: [], data: [] };
+      });
+      this.loading[exportType] = false;
+    }
     if (this.showType === 'topo') {
       this.graphData = data;
     } else {
@@ -526,6 +533,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
       sliceStartTime: this.sliceTimeRange[0],
       sliceEndTime: this.sliceTimeRange[1],
     });
+    this.getTopoData(true);
   }
 
   render() {
@@ -622,23 +630,22 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             ref='content-wrap'
             expanded={this.expanded}
           >
-            {!this.loading.topo ? (
-              <ApmRelationTopo
-                activeNode={this.activeNode}
-                appName={this.appName}
-                data={this.graphData}
-                dataType={this.dataType}
-                edgeType={this.edgeDataType}
-                filterCondition={this.filterCondition}
-                onDrillingNodeClick={this.handleDrillingNodeClick}
-                onEdgeTypeChange={this.handleEdgeTypeChange}
-                onNodeClick={this.handleNodeClick}
-                onResourceDrilling={this.handleResourceDrilling}
-                onServiceDetail={this.handleServiceDetail}
-              />
-            ) : (
-              <div class='empty-chart'>{this.$t('加载中')}</div>
-            )}
+            <ApmRelationTopo
+              activeNode={this.activeNode}
+              appName={this.appName}
+              data={this.graphData}
+              dataType={this.dataType}
+              edgeType={this.edgeDataType}
+              filterCondition={this.filterCondition}
+              saveLayout={this.saveTopoLayout}
+              onDrillingNodeClick={this.handleDrillingNodeClick}
+              onEdgeTypeChange={this.handleEdgeTypeChange}
+              onNodeClick={this.handleNodeClick}
+              onResourceDrilling={this.handleResourceDrilling}
+              onServiceDetail={this.handleServiceDetail}
+            />
+            {this.loading.topo && <div class='empty-chart'>{this.$t('加载中')}</div>}
+
             <div
               class='side-wrap'
               slot='side'
