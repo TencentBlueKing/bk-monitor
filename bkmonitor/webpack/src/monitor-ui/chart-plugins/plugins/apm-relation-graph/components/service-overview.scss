@@ -26,6 +26,10 @@
     font-weight: 700;
   }
 
+  .more-link {
+    cursor: pointer;
+  }
+
   .setting-btn {
     display: flex;
     align-items: center;
@@ -71,7 +75,7 @@
         }
       }
 
-      .icon-wangye {
+      .detail-icon {
         margin-right: 8px;
         font-size: 16px;
       }
@@ -177,6 +181,10 @@
                 min-height: 20px;
                 max-height: 20px;
                 padding-left: 0;
+              }
+
+              .chart-title {
+                padding-right: 0;
               }
 
               .title-name,

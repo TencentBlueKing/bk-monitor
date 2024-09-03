@@ -49,6 +49,7 @@ import {
   CategoryEnum,
   DATA_TYPE_LIST,
   EDataType,
+  nodeIconClass,
   type EdgeDataType,
 } from './components/utils';
 
@@ -212,6 +213,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   selectedServiceName = '';
   /* 当前点击的接口 */
   selectedEndpoint = '';
+  selectedIcon = '';
 
   /** 经过过滤的表格数据 */
   get filterTableData() {
@@ -298,13 +300,17 @@ export default class ApmRelationGraph extends CommonSimpleChart {
           ...params,
         }).catch(() => ({ series: [] }));
         const result = alarmBarChartDataTransform(this.dataType, data.series);
-        /* 默认切片时间 */
-        const lastTime = result[result.length - 1].time;
-        const firstTime = result[0].time;
-        if (this.sliceTimeRange.every(t => t)) {
-          if (this.sliceTimeRange[0] > lastTime || this.sliceTimeRange[1] < firstTime) {
-            this.handleSliceTimeRangeChange([0, 0] as any);
+        if (result.length >= 2) {
+          /* 默认切片时间 */
+          const lastTime = result[result.length - 1].time;
+          const firstTime = result[0].time;
+          if (this.sliceTimeRange.every(t => t)) {
+            if (this.sliceTimeRange[0] > lastTime || this.sliceTimeRange[1] < firstTime) {
+              this.handleSliceTimeRangeChange([0, 0] as any);
+            }
           }
+        } else {
+          this.handleSliceTimeRangeChange([0, 0] as any);
         }
         /* if (!this.sliceTimeRange.every(t => t) || this.sliceTimeRange[0] > lastTime || this.isAlarmBarDataZoomed) {
           const sliceTimeRange = getSliceTimeRange(result, result[result.length - 1].time);
@@ -461,6 +467,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.activeNode = node.data.id;
     this.selectedServiceName = node.data.id;
     this.selectedEndpoint = '';
+    this.selectedIcon = nodeIconClass[node.data.category];
     if (!this.expanded.includes('overview')) {
       this.handleExpand('overview');
     }
@@ -471,6 +478,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.activeNode = node.data.id;
     this.selectedServiceName = node.data.id;
     this.selectedEndpoint = '';
+    this.selectedIcon = nodeIconClass[node.data.category];
     if (!this.expanded.includes('topo')) {
       this.handleExpand('topo');
     }
@@ -480,6 +488,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   handleServiceDetail(node: INodeModel) {
     this.activeNode = node.data.id;
     this.selectedServiceName = node.data.id;
+    this.selectedIcon = nodeIconClass[node.data.category];
     this.selectedEndpoint = '';
     if (!this.expanded.includes('overview')) {
       this.handleExpand('overview');
@@ -491,6 +500,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.activeNode = node.data.id;
     this.selectedServiceName = node.data.id;
     this.selectedEndpoint = drillingName;
+    this.selectedIcon = 'icon-fx';
     if (!this.expanded.includes('overview')) {
       this.handleExpand('overview');
     }
@@ -677,6 +687,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                   <ServiceOverview
                     appName={this.appName}
                     data={this.serviceOverviewData}
+                    detailIcon={this.selectedIcon}
                     endpoint={this.selectedEndpoint}
                     serviceName={this.selectedServiceName}
                     show={this.expanded.includes('overview')}

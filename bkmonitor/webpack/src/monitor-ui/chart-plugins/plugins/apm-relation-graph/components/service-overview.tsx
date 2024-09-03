@@ -27,6 +27,7 @@
 import { Component, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { topoLink } from 'monitor-api/modules/apm_topo';
 import { Debounce, random } from 'monitor-common/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import TextOverflowCopy from 'monitor-pc/pages/monitor-k8s/components/text-overflow-copy/text-overflow-copy';
@@ -48,6 +49,7 @@ type ServiceOverviewProps = {
   serviceName?: string;
   timeRange?: TimeRangeType;
   endpoint?: string;
+  detailIcon?: string;
 };
 
 const apiFn = (api: string) => {
@@ -65,6 +67,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   @Prop({ type: String, default: '' }) endpoint: string;
   @Prop() data: Record<string, any>;
   @Prop({ type: Array, default: () => [] }) timeRange: TimeRangeType;
+  @Prop({ type: String, default: '' }) detailIcon: string;
 
   tabActive = 'service';
   panels = {};
@@ -90,6 +93,8 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   logTabData = {
     panels: [],
   };
+
+  moreLink = '';
 
   curType: 'endpoint' | 'service' = 'service';
 
@@ -121,8 +126,8 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
 
   @Watch('endpoint')
   handleWatchEndpoint(v) {
-    if (this.show && v) {
-      this.curType = 'endpoint';
+    if (this.show) {
+      this.curType = v ? 'endpoint' : 'service';
       this.initPanel();
     }
   }
@@ -134,6 +139,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
       this.initPanel();
     } else {
       echartsDisconnect(this.serviceTabData.dashboardId);
+      this.moreLink = '';
     }
   }
   @Debounce(200)
@@ -148,6 +154,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
     this.getServiceAlert();
     this.getServiceTabData();
     this.getLogTabData();
+    this.getMoreAlertLink();
   }
 
   /**
@@ -287,6 +294,24 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
     }
   }
 
+  /* 获取更多告警链接 */
+  async getMoreAlertLink() {
+    try {
+      const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+      const result = await topoLink({
+        start_time: startTime,
+        end_time: endTime,
+        app_name: this.appName,
+        service_name: this.serviceName,
+        endpoint_name: this.curType === 'endpoint' ? this.endpoint : undefined,
+        link_type: 'alert',
+      }).catch(() => '');
+      this.moreLink = result;
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   handleChartCheck(check: boolean, panel: PanelModel) {
     panel.updateChecked(check);
   }
@@ -302,6 +327,12 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   handleServiceConfig() {
     const url = `/service-config?app_name=${this.appName}&service_name=${this.serviceName}`;
     window.open(`${location.origin}${location.pathname}${location.search}#/apm${url}`);
+  }
+
+  handleMoreLinkClick() {
+    if (this.moreLink) {
+      window.open(`${location.origin}${this.moreLink}`);
+    }
   }
 
   renderCharts() {
@@ -384,7 +415,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
             <div class='form-header'>
               {this.overviewDetail.name ? (
                 <div class='form-title'>
-                  <i class='icon-monitor icon-wangye' />
+                  <i class={`detail-icon icon-monitor ${this.detailIcon || 'icon-wangye'}`} />
                   <div
                     class='title max-w-170'
                     title={this.overviewDetail.name}
@@ -430,8 +461,15 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
           >
             <div slot='title'>{this.$t('告警')}</div>
             <div slot='more'>
-              <span class='mr-4'>{this.$t('更多')}</span>
-              <span class='icon-monitor icon-fenxiang' />
+              {!!this.moreLink && (
+                <div
+                  class='more-link'
+                  onClick={this.handleMoreLinkClick}
+                >
+                  <span class='mr-4'>{this.$t('更多')}</span>
+                  <span class='icon-monitor icon-fenxiang' />
+                </div>
+              )}
             </div>
           </BarAlarmChart>
 
