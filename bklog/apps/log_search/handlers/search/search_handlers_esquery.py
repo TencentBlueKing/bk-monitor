@@ -24,24 +24,28 @@ import datetime
 import hashlib
 import json
 import operator
+from collections import namedtuple
 from typing import Any, Dict, List, Union
 
 import arrow
 import pytz
 from django.conf import settings
 from django.core.cache import cache
+from django.test import RequestFactory
 from django.utils.translation import ugettext as _
 
 from apps.api import BcsApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.constants import EtlConfig
 from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
 from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
+from apps.log_esquery.views.esquery_views import EsQueryViewSet
 from apps.log_search.constants import (
     ASYNC_SORTED,
     CHECK_FIELD_LIST,
@@ -112,6 +116,7 @@ from apps.utils.db import array_group
 from apps.utils.ipchooser import IPChooser
 from apps.utils.local import (
     get_local_param,
+    get_request,
     get_request_app_code,
     get_request_external_username,
     get_request_username,
@@ -574,6 +579,23 @@ class SearchHandler(object):
 
         return result
 
+    @classmethod
+    def direct_esquery_search(cls, params):
+        request = get_request()
+
+        # 使用 RequestFactory 创建一个模拟 POST 请求
+        fake_request = RequestFactory().post("/esquery/search/", data=params, content_type="application/json")
+        App = namedtuple("App", ["bk_app_code"])
+        fake_request.app = App(bk_app_code=get_request_app_code())
+        fake_request.user = request.user
+
+        # 实例化 EsQueryViewSet 并设置 request 和 kwargs
+        es_query_viewset = EsQueryViewSet.as_view({"post": "search"})
+        # 调用 search 方法
+        response = es_query_viewset(fake_request)
+        data = response.data
+        return data
+
     def _multi_search(self, once_size: int):
         """
         根据存储集群切换记录多线程请求 BkLogApi.search
@@ -618,9 +640,15 @@ class SearchHandler(object):
             except Exception as e:  # pylint: disable=broad-except
                 logger.exception(f"[_multi_search] parse time error -> e: {e}")
 
+        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
+            exec_func = self.direct_esquery_search
+        else:
+            exec_func = BkLogApi.search
+
         if not storage_cluster_record_objs:
             try:
-                return BkLogApi.search(params)
+                data = exec_func(params)
+                return data
             except ApiResultError as e:
                 raise ApiResultError(_("搜索出错，请检查查询语句是否正确") + f" => {e}", code=e.code, errors=e.errors)
 
@@ -635,7 +663,7 @@ class SearchHandler(object):
         params["size"] = once_size + self.start
 
         # 获取当前使用的存储集群数据
-        multi_execute_func.append(result_key=f"multi_search_{multi_num}", func=BkLogApi.search, params=params)
+        multi_execute_func.append(result_key=f"multi_search_{multi_num}", func=exec_func, params=params)
 
         # 获取历史使用的存储集群数据
         for storage_cluster_record_obj in storage_cluster_record_objs:
@@ -643,9 +671,7 @@ class SearchHandler(object):
                 multi_params = copy.deepcopy(params)
                 multi_params["storage_cluster_id"] = storage_cluster_record_obj.storage_cluster_id
                 multi_num += 1
-                multi_execute_func.append(
-                    result_key=f"multi_search_{multi_num}", func=BkLogApi.search, params=multi_params
-                )
+                multi_execute_func.append(result_key=f"multi_search_{multi_num}", func=exec_func, params=multi_params)
                 storage_cluster_ids.add(storage_cluster_record_obj.storage_cluster_id)
 
         multi_result = multi_execute_func.run()
