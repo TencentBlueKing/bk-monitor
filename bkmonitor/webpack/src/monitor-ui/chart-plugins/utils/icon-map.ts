@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 export const NODE_TYPE_ICON = {
   // node
   apm_service: 'icon-mc-apm_service',
@@ -38,8 +39,8 @@ export const NODE_TYPE_ICON = {
   db: 'icon-shujuku',
   messaging: 'icon-xiaoxizhongjianjian',
   async_backend: 'icon-renwu',
-  all: 'icon-mc-all',
-  other: 'icon-mc-unknown',
+  all: 'icon-mc-service-all',
+  other: 'icon-mc-service-unknown',
 };
 
 export const getIconByNodeType = (nodeType?: string) => {
