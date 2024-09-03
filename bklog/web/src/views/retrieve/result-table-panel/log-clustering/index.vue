@@ -376,8 +376,8 @@
             this.isFieldInit = true;
             // 确认是否需要展示step步骤
             // 立即执行一次
-            await this.clusterPolling();
             this.startPolling();
+            await this.clusterPolling();
             this.isFieldInit = false;
           }
         },
@@ -387,7 +387,7 @@
       },
       isShowClusterStep(v) {
         this.$store.commit('updateStoreIsShowClusterStep', v);
-      }
+      },
     },
     methods: {
       /**
@@ -601,8 +601,8 @@
         this.strategyHaveSubmit = v;
       },
       handleClusterCreated() {
-        this.clusterPolling();
         this.startPolling();
+        this.clusterPolling();
       },
       async clusterPolling() {
         const isActiveCluster = await this.confirmClusterStepStatus();
