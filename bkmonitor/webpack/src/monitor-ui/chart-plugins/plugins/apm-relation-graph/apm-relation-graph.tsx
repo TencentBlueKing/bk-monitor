@@ -330,11 +330,11 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.handleLoadingChange(false);
   }
 
-  async getTopoData(saveLayout = false) {
+  async getTopoData() {
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const exportType = this.showType;
     const [sliceTimeStart, sliceTimeEnd] = this.sliceTimeRange;
-    this.saveTopoLayout = saveLayout;
+    this.saveTopoLayout = Boolean(sliceTimeEnd && sliceTimeEnd);
     const params = {
       start_time: startTime,
       end_time: endTime,
@@ -644,7 +644,11 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               onResourceDrilling={this.handleResourceDrilling}
               onServiceDetail={this.handleServiceDetail}
             />
-            {this.loading.topo && <div class='empty-chart'>{this.$t('加载中')}</div>}
+            {this.loading.topo && (
+              <div class='empty-chart'>
+                <bk-spin size='large' />
+              </div>
+            )}
 
             <div
               class='side-wrap'

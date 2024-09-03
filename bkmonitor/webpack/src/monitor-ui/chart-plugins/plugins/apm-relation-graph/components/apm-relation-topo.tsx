@@ -900,6 +900,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         interactive: true,
         hideOnClick: false,
         placement: 'top-start',
+        appendTo: 'parent',
       });
     }
     this.toolsPopoverInstance.show();
