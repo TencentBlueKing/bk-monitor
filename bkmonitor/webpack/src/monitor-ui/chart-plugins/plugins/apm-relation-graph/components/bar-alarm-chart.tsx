@@ -220,7 +220,7 @@ export default class BarAlarmChart extends tsc<IProps> {
       return;
     }
     if (this.curActive === item.time) {
-      this.curHover = -1;
+      this.curActive = -1;
       // this.curActive = this.localData[this.localData.length - 1].time;
       this.$emit('sliceTimeRangeChange', [0, 0]);
     } else {

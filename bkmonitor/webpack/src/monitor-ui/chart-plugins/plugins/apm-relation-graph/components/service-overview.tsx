@@ -176,11 +176,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
           endpoint_name: this.curType === 'endpoint' ? this.endpoint : undefined,
         })
         .catch(() => []);
-      if (result.length) {
-        this.overviewDetail.others = result;
-      } else {
-        this.overviewDetail.name = '';
-      }
+      this.overviewDetail.others = result;
     } catch (e) {
       console.error(e);
     }
@@ -221,7 +217,6 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
     try {
       this.serviceTabData.dashboardId = random(8);
       const typeKey = this.curType === 'endpoint' ? 'endpoint_tabs_service' : 'service_tabs_service';
-      console.log(typeKey);
       const apdexPanel = this.data[typeKey].panels.find(item => item.type === 'apdex-chart');
       if (apdexPanel) {
         this.serviceTabData.getApdexData = async setData => {
