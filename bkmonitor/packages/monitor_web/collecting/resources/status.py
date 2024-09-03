@@ -7,7 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
+import logging
 import time
 import traceback
 from collections import OrderedDict, defaultdict
@@ -42,7 +42,7 @@ from monitor_web.plugin.manager import PluginManagerFactory
 from utils import business
 from utils.query_data import TSDataBase
 
-logger = resource.commons.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class BaseCollectTargetStatusResource(Resource):

@@ -12,3 +12,4 @@ from .backend import *  # noqa
 from .frontend import *  # noqa
 from .snmp_trap import *  # noqa
 from .status import *  # noqa
+from .toolkit import *  # noqa
