@@ -255,4 +255,11 @@ export default {
   编辑故障属性: 'Edit Fault Attribute',
   故障负责人: 'Fault Person in Charge',
   故障标签: 'Fault Label',
+  对比拓扑: 'Compare Topo',
+  服务概览: 'Service Overview',
+  三方应用: 'Tripartite application',
+  调用错误率: 'Error Rate',
+  总调用错误率: 'Total Error Rate',
+  对比数据: 'Compare Data',
+  资源拓扑: 'Resource Topo',
 };
