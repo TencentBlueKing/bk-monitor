@@ -723,7 +723,7 @@
       white-space: nowrap;
       cursor: pointer;
 
-      .icon-ellipsis-more {
+      .bklog-ellipsis-more {
         display: flex;
         align-items: center;
         justify-content: center;
