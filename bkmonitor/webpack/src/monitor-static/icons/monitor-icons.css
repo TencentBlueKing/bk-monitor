@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 @font-face {
   font-family: 'icon-monitor'; /* Project id 1185924 */
   src:
@@ -9,18 +10,18 @@
 
 .icon-monitor {
   font-family: 'icon-monitor' !important;
-  font-size: 1em;
+  font-size: 16px;
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-.icon-monitor {
-  font-family: 'icon-monitor' !important;
-  font-size: 16px;
-  font-style: normal;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+.icon-mc-service-all:before {
+  content: '\e700';
+}
+
+.icon-mc-service-unknown:before {
+  content: '\e7a8';
 }
 
 .icon-mc-service_instance:before {
@@ -49,14 +50,6 @@
 
 .icon-tuzeng:before {
   content: '\e7ab';
-}
-
-.icon-guanlian1:before {
-  content: '\e7a8';
-}
-
-.icon-qianru:before {
-  content: '\e7a9';
 }
 
 .icon-paixu:before {
@@ -753,10 +746,6 @@
 
 .icon-yuanchengfuwu:before {
   content: '\e707';
-}
-
-.icon-gailan:before {
-  content: '\e700';
 }
 
 .icon-fx:before {

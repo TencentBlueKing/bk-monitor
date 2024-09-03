@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
-// import { Component as tsc } from 'vue-tsx-support';
+import { ofType } from 'vue-tsx-support';
 
 import { MonitorTopo, createApp, h as vue3CreateElement } from '@blueking/monitor-resource-topo/vue2';
 import { nodeRelation, nodeRelationDetail } from 'monitor-api/modules/apm_topo';
@@ -37,7 +37,7 @@ import ResourceTopoSkeleton from './resource-topo-skeleton';
 import './resource-topo.scss';
 import '@blueking/monitor-resource-topo/vue2/vue2.css';
 @Component
-export default class ResourceTopo extends CommonSimpleChart {
+class ResourceTopo extends CommonSimpleChart {
   @Prop() serviceName: string;
   app = null;
   unWatchStack = [];
@@ -151,3 +151,6 @@ export default class ResourceTopo extends CommonSimpleChart {
     );
   }
 }
+export default ofType<{
+  serviceName: string;
+}>().convert(ResourceTopo);
