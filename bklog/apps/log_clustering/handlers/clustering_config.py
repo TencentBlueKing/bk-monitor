@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import base64
 import json
 import re
 
@@ -37,6 +38,7 @@ from apps.log_clustering.exceptions import (
     BkdataRegexException,
     ClusteringConfigHasExistException,
     ClusteringConfigNotExistException,
+    ClusteringDebugException,
     CollectorEsStorageNotExistException,
     CollectorStorageNotExistException,
 )
@@ -263,7 +265,7 @@ class ClusteringConfigHandler(object):
             except Exception as e:
                 result["data_check"].update(status=self.AccessStatusCode.PENDING, message=_("数据获取失败: {}").format(e))
         else:
-            result["flow_create"].update(status=self.AccessStatusCode.PENDING, message=_("等待执行"))
+            result["data_check"].update(status=self.AccessStatusCode.PENDING, message=_("等待执行"))
 
         # 2. 判断 flow 状态
         if clustering_config.predict_flow_id and clustering_config.log_count_aggregation_flow_id:
@@ -334,18 +336,19 @@ class ClusteringConfigHandler(object):
             "task_detail": task_detail,
         }
 
-    def preview(self, input_data, min_members, predefined_varibles, delimeter, max_log_length, is_case_sensitive):
-        aiops_experiments_debug_result = AiopsModelHandler().aiops_experiments_debug(
-            input_data=input_data,
-            clustering_field=DEFAULT_CLUSTERING_FIELDS,
-            min_members=min_members,
-            max_dist_list=OnlineTaskTrainingArgs.MAX_DIST_LIST,
-            predefined_varibles=predefined_varibles,
-            delimeter=delimeter,
-            max_log_length=max_log_length,
-            is_case_sensitive=is_case_sensitive,
-        )
-        return self._deal_preview(aiops_experiments_debug_result)
+    def debug(self, input_data, predefined_varibles):
+        """
+        正则调试
+        """
+        try:
+            regex_json_str = base64.b64decode(predefined_varibles)
+            regex_str_list = json.loads(regex_json_str)
+            regex_list = [regex.split(":", 1) for regex in regex_str_list]
+        except Exception as e:
+            raise ClusteringDebugException(ClusteringDebugException.MESSAGE.format(e=e))
+        for placeholder, pattern in regex_list:
+            input_data = re.sub(pattern, f'#{placeholder}#', input_data)
+        return input_data
 
     @classmethod
     def _deal_preview(cls, aiops_experiments_debug_result):

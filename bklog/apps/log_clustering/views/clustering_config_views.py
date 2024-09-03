@@ -32,7 +32,7 @@ from apps.log_clustering.exceptions import ClusteringClosedException
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 from apps.log_clustering.serializers import (
     ClusteringConfigSerializer,
-    ClusteringPreviewSerializer,
+    ClusteringDebugSerializer,
 )
 from apps.utils.drf import detail_route, list_route
 from apps.utils.log import logger
@@ -297,51 +297,29 @@ class ClusteringConfigViewSet(APIViewSet):
             FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config.get(CLUSTERING_CONFIG_DEFAULT)
         )
 
-    @list_route(methods=["POST"], url_path="preview")
-    def preview(self, request, *args, **kwargs):
+    @list_route(methods=["POST"], url_path="debug")
+    def debug(self, request, *args, **kwargs):
         """
         @api {post} /clustering_config/preview/ 4_聚类设置-调试
         @apiName preview clustering solution
         @apiGroup log_clustering
-        @apiParam {List} input_data 输入数据
-        @apiParam {Int} input_data.dtEventTimeStamp 时间戳
-        @apiParam {Str} input_data.log 聚类字段原始值
-        @apiParam {Str} input_data.uuid unique_id
-        @apiParam {Int} min_members 最小日志数量
-        @apiParam {Str} max_dist_list 敏感度
+        @apiParam {Str} input 输入日志
         @apiParam {Str} predefined_varibles 预先定义的正则表达式
-        @apiParam {Str} delimeter 分词符
-        @apiParam {Int} max_log_length 最大日志长度
-        @apiParam {Int} is_case_sensitive 是否大小写忽略
         @apiSuccessExample {json} 成功返回:
         {
             "message":"",
             "code":0,
-            "data":[
-                {
-                    "patterns":[
-                        {
-                            "sensitivity":"test",
-                            "pattern":"test [$(TEST)]"
-                        }
-                    ],
-                    "token_with_regex":{
-                        "TEST":"/d"
-                    }
-                }
-            ],
+            "data": {
+                "output": "1234"
+            },
             "result":true
         }
         """
-        params = self.params_valid(ClusteringPreviewSerializer)
+        params = self.params_valid(ClusteringDebugSerializer)
         return Response(
-            ClusteringConfigHandler().preview(
+            ClusteringConfigHandler().debug(
                 input_data=params["input_data"],
-                min_members=1,  # 这里是因为在调试的时候默认只有一条数据
                 predefined_varibles=params["predefined_varibles"],
-                delimeter=params["delimeter"],
-                max_log_length=params["max_log_length"],
-                is_case_sensitive=params["is_case_sensitive"],
             )
         )
 

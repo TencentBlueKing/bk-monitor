@@ -85,18 +85,9 @@ class ClusteringConfigSerializer(serializers.Serializer):
     normal_strategy_enable = serializers.BooleanField(default=False)
 
 
-class InputDataSerializer(serializers.Serializer):
-    dtEventTimeStamp = serializers.IntegerField()
-    log = serializers.CharField()
-
-
-class ClusteringPreviewSerializer(serializers.Serializer):
-    input_data = serializers.ListField(child=InputDataSerializer())
-    min_members = serializers.IntegerField()
+class ClusteringDebugSerializer(serializers.Serializer):
+    input_data = serializers.CharField()
     predefined_varibles = serializers.CharField()
-    delimeter = serializers.CharField()
-    max_log_length = serializers.IntegerField()
-    is_case_sensitive = serializers.IntegerField()
 
 
 class SetRemarkSerializer(serializers.Serializer):
