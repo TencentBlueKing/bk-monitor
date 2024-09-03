@@ -38,8 +38,8 @@ export const NODE_TYPE_ICON = {
   db: 'icon-shujuku',
   messaging: 'icon-xiaoxizhongjianjian',
   async_backend: 'icon-renwu',
-  all: 'icon-mc-all',
-  other: 'icon-mc-unknown',
+  all: 'icon-mc-service-all',
+  other: 'icon-mc-service-unknown',
 };
 
 export const getIconByNodeType = (nodeType?: string) => {

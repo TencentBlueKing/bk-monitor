@@ -51,7 +51,10 @@
     "vuex-module-decorators": "^1.2.0",
     "xlsx": "^0.18.5"
   },
-  "keywords": ["monitor", "pc"],
+  "keywords": [
+    "monitor",
+    "pc"
+  ],
   "author": "bk fe",
   "license": "MIT",
   "devDependencies": {
