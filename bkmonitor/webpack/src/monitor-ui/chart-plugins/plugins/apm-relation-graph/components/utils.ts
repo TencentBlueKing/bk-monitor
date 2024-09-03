@@ -222,7 +222,7 @@ export const nodeIconClass = {
   [CategoryEnum.HTTP]: 'icon-wangye',
   [CategoryEnum.RPC]: 'icon-yuanchengfuwu',
   [CategoryEnum.DB]: 'icon-shujuku',
-  [CategoryEnum.MESSAGING]: 'icon-xiaoxizhongjianjia',
+  [CategoryEnum.MESSAGING]: 'icon-xiaoxizhongjianjian',
   [CategoryEnum.ASYNC_BACKEND]: 'icon-renwu',
   [CategoryEnum.OTHER]: 'icon-mc-two-column',
 };
