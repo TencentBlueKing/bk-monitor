@@ -353,8 +353,36 @@ class AddShieldResource(Resource, EventDimensionMixin):
 
 
 class BulkAddAlertShieldResource(AddShieldResource):
+    """
+    {
+      "bk_biz_id": 2,
+      "category": "alert",
+      "begin_time": "2024-09-03 17:31:48",
+      "end_time": "2024-09-03 18:01:48",
+      "dimension_config": {
+        "alert_ids": [
+          "111", "100"
+        ]
+        # 编辑了维度后， 则将告警对应的剩下的维度的key放进来。 作为字典， key是告警id， value是剩下的维度key列表
+        "dimensions": {"111": ["xxx", "yyy"], "100": ["xxx", "yyy"]
+        },
+      },
+      "shield_notice": false,
+      "description": "test",
+      "cycle_config": {
+        "begin_time": "",
+        "type": 1,
+        "day_list": [],
+        "week_list": [],
+        "end_time": ""
+      }
+    }
+    """
+
     def handle_alerts(self, data):
         alert_ids = data["dimension_config"]["alert_ids"]
+        # dimension_config.dimensions 标记告警保留需要匹配的屏蔽维度
+        target_dimension_config = data["dimension_config"].get("dimensions")
         alerts = AlertDocument.mget(ids=alert_ids)
         dimension_configs = []
 
@@ -362,10 +390,18 @@ class BulkAddAlertShieldResource(AddShieldResource):
         now_time = int(time.time())
 
         for alert in alerts:
+            # 未标记编辑维度， 则 dimension_config.dimensions没有对应告警的信息
+            target_dimensions = None
+            if str(alert.id) in target_dimension_config:
+                # 取需要匹配的维度列表
+                target_dimensions = target_dimension_config[str(alert.id)]
+
             dimension_config = {}
             for dimension in alert.dimensions:
                 dimension_data = dimension.to_dict()
-                dimension_config[dimension_data["key"]] = dimension_data["value"]
+                # 未标记编辑维度， 则所有维度都配置， 编辑了维度， 仅配置保留的维度。
+                if target_dimensions is None or dimension_data["key"] in target_dimensions:
+                    dimension_config[dimension_data["key"]] = dimension_data["value"]
             dimension_config.update(
                 {
                     "_alert_id": alert.id,
