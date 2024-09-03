@@ -38,7 +38,6 @@ from apps.api import BcsApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.models import FeatureToggle
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.constants import EtlConfig
 from apps.log_databus.models import CollectorConfig
@@ -580,17 +579,17 @@ class SearchHandler(object):
         return result
 
     @classmethod
-    def fake_esquery_search(cls, params):
+    def direct_esquery_search(cls, params):
         request = get_request()
 
         # 使用 RequestFactory 创建一个模拟 POST 请求
-        fake_request = RequestFactory().post('/esquery/search/', data=params, content_type="application/json")
+        fake_request = RequestFactory().post("/esquery/search/", data=params, content_type="application/json")
         App = namedtuple("App", ["bk_app_code"])
-        fake_request.app = App(bk_app_code=request.META.get("APP_ID"))
+        fake_request.app = App(bk_app_code=get_request_app_code())
         fake_request.user = request.user
 
         # 实例化 EsQueryViewSet 并设置 request 和 kwargs
-        es_query_viewset = EsQueryViewSet.as_view({'post': 'search'})
+        es_query_viewset = EsQueryViewSet.as_view({"post": "search"})
         # 调用 search 方法
         response = es_query_viewset(fake_request)
         data = response.data
@@ -640,10 +639,8 @@ class SearchHandler(object):
             except Exception as e:  # pylint: disable=broad-except
                 logger.exception(f"[_multi_search] parse time error -> e: {e}")
 
-        feature_toggle_obj = FeatureToggle.objects.filter(name="esquery_search").first()
-        biz_id_white_list = feature_toggle_obj.biz_id_white_list
-        if feature_toggle_obj.status == "on" and self.search_dict.get("bk_biz_id") in biz_id_white_list:
-            exec_func = self.fake_esquery_search
+        if FeatureToggleObject.switch("esquery_search"):
+            exec_func = self.direct_esquery_search
         else:
             exec_func = BkLogApi.search
 
