@@ -305,7 +305,7 @@
       },
       fieldAliasMap() {
         let fieldAliasMap = {};
-        this.$store.state.indexFieldInfo.fields.forEach(item => {
+        this.shadowTotal.forEach(item => {
           fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
         });
         return fieldAliasMap;
