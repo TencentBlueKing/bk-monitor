@@ -2358,7 +2358,7 @@ export default class DataRetrieval extends tsc<object> {
     const tipsMap: { [key in IDataRetrieval.IOption]: string } = {
       copy: `${this.$t('拷贝')}`,
       delete: `${this.$t('删除')}`,
-      enable: `${this.$t(item.enable ? '隐藏' : '展示')}`,
+      enable: `${this.$t(item.enable ? '不看此项' : '显示此项')}`,
       source: `${metricItem.showSource ? 'UI' : this.$t('源码')}`,
     };
     return tipsMap[opt] || '';
