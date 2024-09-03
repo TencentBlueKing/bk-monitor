@@ -601,19 +601,27 @@ class SearchHandler(object):
         else:
             gse_index = iteration_index = ""
 
-        new_sort_list = []
-        if len(self.sort_list) == 1 and gse_index:
-            _field, order = self.sort_list[0]
-            if _field == self.time_field:
-                # 获取拉取字段信息列表
-                field_result, _ = self.get_pull_fields()
-                field_result_list = [i["field_name"] for i in field_result]
+        # 排序字段映射
+        sort_field_mappings = {}
+        for field_list in self.sort_list:
+            sort_field_mappings[field_list[0]] = field_list[1]
 
-                new_sort_list.append([_field, order])
-                if gse_index in field_result_list:
-                    new_sort_list.append([gse_index, order])
-                if iteration_index in field_result_list:
-                    new_sort_list.append([iteration_index, order])
+        new_sort_list = []
+        if self.time_field in sort_field_mappings:
+            for sort_field in self.sort_list:
+                _field, order = sort_field
+                if _field == self.time_field:
+                    # 获取拉取字段信息列表
+                    field_result, _ = self.get_pull_fields()
+                    field_result_list = [i["field_name"] for i in field_result]
+
+                    new_sort_list.append([_field, order])
+                    if gse_index in field_result_list:
+                        new_sort_list.append([gse_index, order])
+                    if iteration_index in field_result_list:
+                        new_sort_list.append([iteration_index, order])
+                elif _field not in [gse_index, iteration_index]:
+                    new_sort_list.append(sort_field)
 
         return new_sort_list
 
