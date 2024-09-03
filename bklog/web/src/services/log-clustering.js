@@ -37,8 +37,8 @@ const getDefaultConfig = {
   method: 'get',
 };
 
-const preview = {
-  url: '/clustering_config/preview/',
+const debug = {
+  url: '/clustering_config/debug/',
   method: 'post',
 };
 
@@ -111,7 +111,7 @@ const updateInitGroup = {
 export {
   getConfig,
   getDefaultConfig,
-  preview,
+  debug,
   clusterSearch,
   closeClean,
   updateStrategies,

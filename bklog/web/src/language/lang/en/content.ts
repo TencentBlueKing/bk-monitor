@@ -353,7 +353,7 @@ export default {
   '微秒（microsecond）': 'Microsecond',
   '检查查询条件是否完整，是否有报错': 'Check if query conditions are complete and if there are errors',
   '当前收藏有更新，点击保存当前修改': 'The current collection has been updated, click Save Current Modifications',
-  '该保存需要1小时生效,请耐心等待': 'This save will take effect in 1 hour. please be patient',
+  '该保存需要10分钟生效, 请耐心等待': 'This save will take effect in 10 minutes. please be patient',
   'include(保留匹配字符串)': 'Include (preserve matching strings)',
   'exclude(过滤匹配字符串)': 'Exclude (filter matching strings)',
   '当前索引集为{n}，确认要删除？': 'The current index set is {n}, confirm to delete it?',
@@ -430,8 +430,6 @@ export default {
     'Editing and deletion are not allowed for default clusters, please contact the administrator',
   '支持拖拽更改顺序，从上向下对应列表列从左到右顺序':
     'Supports drag and drop to change order, corresponding to the list columns from top to bottom and from left to right',
-  '调试需要等待1分钟以上，在此区间不可进行其余操作':
-    'Debugging takes more than 1 minute, and no other operations can be performed during this period',
   '前端忽略数字和所有的常见符号，只保留日志具体内容':
     'The front-end ignores numbers and all common symbols, only retaining the specific contents of the log',
   '已加载完全部数据，如需查看更多查询条件可以{0}':
@@ -865,7 +863,7 @@ export default {
   模型创建: 'Model Creation',
   '系统将创建模型，并将该日志历史数据投入模型中。':
     'The system will create a model and feed the historical log data into it.',
-  模型自动: 'Model Automation',
+  模型启动: 'Model Start Up',
   '模型首次启动准备，该过程应该会持续5-10分钟。':
     'The model is being prepared for its first start, which should take 5-10 minutes.',
   预测准备: 'Prediction Preparation',
@@ -885,5 +883,5 @@ export default {
   '表示某日志模式数量突然异常增长，可能某些模块突发风险':
     'The sudden abnormal increase in the number of a certain log pattern may indicate a sudden risk in some modules.',
   配置项命名空间不能为空: 'Configuration item namespace cannot be empty',
-  '任务启动中，预计等待时长 {0} 分种': 'Task starting, estimated wait time is {0} minutes.',
+  '任务启动中，预计等待时长 {0} 分钟': 'Task starting, estimated wait time is {0} minutes.',
 };
