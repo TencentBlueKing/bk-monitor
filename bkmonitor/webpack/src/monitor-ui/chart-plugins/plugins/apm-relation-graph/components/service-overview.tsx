@@ -116,6 +116,10 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
     ];
   }
 
+  get name() {
+    return this.curType === 'endpoint' ? this.endpoint : this.serviceName;
+  }
+
   @Watch('serviceName')
   handleWatchServiceName(v) {
     if (this.show && v) {
@@ -173,8 +177,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
         })
         .catch(() => []);
       if (result.length) {
-        this.overviewDetail.name = result[0].value;
-        this.overviewDetail.others = result.slice(1);
+        this.overviewDetail.others = result;
       } else {
         this.overviewDetail.name = '';
       }
@@ -413,14 +416,14 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
         ) : (
           <div class='panel-form'>
             <div class='form-header'>
-              {this.overviewDetail.name ? (
+              {this.name ? (
                 <div class='form-title'>
                   <i class={`detail-icon icon-monitor ${this.detailIcon || 'icon-wangye'}`} />
                   <div
                     class='title max-w-170'
-                    title={this.overviewDetail.name}
+                    title={this.name}
                   >
-                    <TextOverflowCopy val={this.overviewDetail.name} />
+                    <TextOverflowCopy val={this.name} />
                   </div>
                   {/* <div class='status'>{this.$t('正常')}</div> */}
                 </div>
