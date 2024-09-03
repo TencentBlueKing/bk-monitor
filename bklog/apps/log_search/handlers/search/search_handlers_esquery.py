@@ -24,14 +24,12 @@ import datetime
 import hashlib
 import json
 import operator
-from collections import namedtuple
 from typing import Any, Dict, List, Union
 
 import arrow
 import pytz
 from django.conf import settings
 from django.core.cache import cache
-from django.test import RequestFactory
 from django.utils.translation import ugettext as _
 
 from apps.api import BcsApi, BkLogApi, MonitorApi
@@ -615,7 +613,7 @@ class SearchHandler(object):
             "scroll": self.scroll,
             "collapse": self.collapse,
             "include_nested_fields": self.include_nested_fields,
-            "track_total_hits": self.track_total_hits
+            "track_total_hits": self.track_total_hits,
         }
 
         storage_cluster_record_objs = StorageClusterRecord.objects.none()
