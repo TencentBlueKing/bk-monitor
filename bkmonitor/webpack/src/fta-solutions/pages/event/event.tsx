@@ -96,6 +96,7 @@ import type { TType as TSliderType } from './event-detail/event-detail-slider';
 import type { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { TranslateResult } from 'vue-i18n';
+import EventModuleStore from '../../store/modules/event';
 
 import './event.scss';
 // 有权限的业务id
@@ -405,7 +406,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       details: [
         {
           severity: 1,
-          dimension: '',
+          dimension: [],
           trigger: '',
           strategy: {
             id: '',
@@ -1800,7 +1801,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           const detail = this.tableData.find(tableitem => tableitem.id === item);
           details.push({
             severity: detail.severity,
-            dimension: detail.dimension_message,
+            dimension: detail.dimensions,
             trigger: detail.description,
             strategy: {
               id: detail.strategy_id,
@@ -1882,7 +1883,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     this.dialog.quickShield.details = [
       {
         severity: v.severity,
-        dimension: v.dimension_message,
+        dimension: v.dimensions,
         trigger: v.description,
         strategy: {
           id: v?.strategy_id as unknown as string,
@@ -1890,6 +1891,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         },
       },
     ];
+    EventModuleStore.setDimensionList(v.dimensions || []);
   }
   /**
    * @description: 手动处理

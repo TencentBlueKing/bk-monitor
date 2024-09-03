@@ -53,6 +53,7 @@ import TabContainer from './tab-container';
 
 import type { IChatGroupDialogOptions } from '../typings/event';
 import type { IDetail } from './type';
+import EventModuleStore from '../../../store/modules/event';
 
 import './event-detail.scss';
 
@@ -486,7 +487,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     const detail = [
       {
         severity: this.basicInfo?.severity,
-        dimension: this.basicInfo?.dimension_message || '--',
+        dimension: this.basicInfo?.dimensions || [],
         trigger: this.basicInfo?.description || '--',
         strategy: {
           id: this.basicInfo?.extra_info?.strategy?.id,
@@ -494,6 +495,8 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
         },
       },
     ];
+    EventModuleStore.setDimensionList(this.basicInfo?.dimensions || []);
+
     return [
       <AlarmConfirm
         key='alarm-confirm'

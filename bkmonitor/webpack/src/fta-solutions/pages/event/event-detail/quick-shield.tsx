@@ -32,6 +32,8 @@ import VerifyInput from 'monitor-pc/components/verify-input/verify-input.vue';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 
 import './quick-shield.scss';
+import EventModuleStore from '../../../store/modules/event';
+import type { IDimensionItem } from '../typings/event';
 
 const { i18n } = window;
 
@@ -45,12 +47,17 @@ interface IQuickShieldProps {
 }
 export interface IDetail {
   severity: number;
-  dimension?: string;
+  dimension?: IDimensionItem[];
   trigger?: string;
   strategy?: {
     name?: string;
     id?: number;
   };
+}
+
+interface DimensionConfig {
+  alert_ids: string[];
+  dimensions?: { [key: string]: string[] };
 }
 
 @Component({
@@ -179,6 +186,12 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
       tims.forEach(item => {
         toTime = toTime.replace(item[0], item[1]);
       });
+      // 当修改维度信息时，调整入参
+      if (EventModuleStore.isModified) {
+        (params.dimension_config as DimensionConfig).dimensions = {
+          [this.ids[0]]: EventModuleStore.dimensionKeys,
+        }
+      }
       bulkAddAlertShield(params)
         .then(() => {
           this.handleSucces(true);
@@ -224,9 +237,24 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
     window.open(url);
   }
 
+  get dimensionList() {
+    return EventModuleStore.dimensionList;
+  }
+
+  // 删除维度信息
+  handleTagClose(key) {
+    EventModuleStore.removeDimensionItem(key);
+  }
+
+  // 点击重置icon
+  handleReset() {
+    EventModuleStore.resetDimensionList();
+  }
+
+
   getInfoCompnent() {
-    return this.details.map(detail => (
-      <div class='item-content'>
+    return this.details.map((detail, idx) => (
+      <div class='item-content' key={idx}>
         {!!detail.strategy?.id && (
           <div class='column-item'>
             <div class='column-label'> {`${this.$t('策略名称')}：`} </div>
@@ -245,7 +273,27 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
         </div>
         <div class='column-item'>
           <div class='column-label'> {`${this.$t('维度信息')}：`} </div>
-          <div class='column-content'>{detail.dimension}</div>
+          <div class='column-content'>
+            {this.dimensionList.map((dem, idx) => (
+              <bk-tag
+                key={dem.key + idx}
+                type='stroke'
+                closable
+                ext-cls='tag-theme'
+                on-close={() => this.handleTagClose(idx)}
+              >
+                {`${dem.display_key || dem.key}(${dem.display_value || dem.value})`}
+              </bk-tag>
+            ))}
+                {EventModuleStore.isModified && (
+                  <span
+                  class='reset'
+                  v-bk-tooltips={{content: `${this.$t('重置')}`}}
+                  onClick={this.handleReset}>
+                    <i class='icon-monitor icon-zhongzhi1' />
+                    </span>
+                  )}
+          </div>
         </div>
         <div
           style='margin-bottom: 18px'
