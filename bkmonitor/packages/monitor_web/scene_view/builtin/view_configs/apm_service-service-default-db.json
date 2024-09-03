@@ -64,6 +64,41 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": []
+              }
+            ],
             "unify_query_param": {
               "expression": "A",
               "query_configs": [
@@ -131,6 +166,58 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "http_status_code"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "status_code",
+                    "method": "eq",
+                    "value": [
+                      "2"
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "http_status_code",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": []
+              }
+            ],
             "unify_query_param": {
               "type": "range",
               "stack": "all",
@@ -199,6 +286,58 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "rpc_grpc_status_code"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "status_code",
+                    "method": "eq",
+                    "value": [
+                      "2"
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "rpc_grpc_status_code",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": []
+              }
+            ],
             "unify_query_param": {
               "type": "range",
               "stack": "all",
@@ -267,6 +406,49 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "status_code",
+                    "method": "eq",
+                    "value": [
+                      "2"
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": []
+              }
+            ],
             "unify_query_param": {
               "stack": "all",
               "expression": "A",
@@ -344,6 +526,77 @@
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
             "unit": "ns",
+            "expression": "a / b",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_sum",
+                    "method": "SUM",
+                    "alias": "a"
+                  }
+                ],
+                "table": "${table_id}",
+                "data_label": "",
+                "index_set_id": null,
+                "group_by": [],
+                "where": [],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": [
+                  {
+                    "id": "increase",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_total",
+                    "method": "SUM",
+                    "alias": "b"
+                  }
+                ],
+                "table": "${table_id}",
+                "data_label": "",
+                "index_set_id": null,
+                "group_by": [],
+                "where": [],
+                "interval_unit": "s",
+                "time_field": null,
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": [
+                  {
+                    "id": "increase",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
             "unify_query_param": {
               "expression": "a / b",
               "query_configs": [
@@ -428,6 +681,61 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_bucket",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "le"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": [
+                  {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "histogram_quantile",
+                    "params": [
+                      {
+                        "id": "scalar",
+                        "value": 0.5
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
             "unify_query_param": {
               "expression": "A",
               "query_configs": [
@@ -497,6 +805,61 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "table": "${table_id}",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_bucket",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "le"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": [
+                  {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "histogram_quantile",
+                    "params": [
+                      {
+                        "id": "scalar",
+                        "value": 0.95
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
             "unify_query_param": {
               "expression": "A",
               "query_configs": [
@@ -566,6 +929,61 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_bucket",
+                    "method": "SUM",
+                    "alias": "B"
+                  }
+                ],
+                "group_by": [
+                  "le"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": [
+                  {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "histogram_quantile",
+                    "params": [
+                      {
+                        "id": "scalar",
+                        "value": 0.99
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
             "unify_query_param": {
               "expression": "B",
               "query_configs": [
@@ -635,6 +1053,41 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_max",
+                    "method": "MAX",
+                    "alias": "C"
+                  }
+                ],
+                "group_by": [
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": []
+              }
+            ],
             "unify_query_param": {
               "expression": "C",
               "query_configs": [
@@ -684,6 +1137,41 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_min",
+                    "method": "MIN",
+                    "alias": "C"
+                  }
+                ],
+                "group_by": [
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": []
+              }
+            ],
             "unify_query_param": {
               "expression": "C",
               "query_configs": [
@@ -859,6 +1347,41 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": []
+              }
+            ],
             "unify_query_param": {
               "expression": "A",
               "query_configs": [
@@ -926,6 +1449,58 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "http_status_code"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "status_code",
+                    "method": "eq",
+                    "value": [
+                      "2"
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "http_status_code",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": []
+              }
+            ],
             "unify_query_param": {
               "type": "range",
               "stack": "all",
@@ -994,6 +1569,58 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "rpc_grpc_status_code"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "status_code",
+                    "method": "eq",
+                    "value": [
+                      "2"
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "rpc_grpc_status_code",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": []
+              }
+            ],
             "unify_query_param": {
               "type": "range",
               "stack": "all",
@@ -1062,6 +1689,49 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "status_code",
+                    "method": "eq",
+                    "value": [
+                      "2"
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": []
+              }
+            ],
             "unify_query_param": {
               "stack": "all",
               "expression": "A",
@@ -1139,6 +1809,86 @@
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
             "unit": "ns",
+            "expression": "a / b",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_sum",
+                    "method": "SUM",
+                    "alias": "a"
+                  }
+                ],
+                "table": "${table_id}",
+                "data_label": "",
+                "index_set_id": null,
+                "group_by": [],
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": [
+                  {
+                    "id": "increase",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_total",
+                    "method": "SUM",
+                    "alias": "b"
+                  }
+                ],
+                "table": "${table_id}",
+                "data_label": "",
+                "index_set_id": null,
+                "group_by": [],
+                "where": [],
+                "interval_unit": "s",
+                "time_field": null,
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": [
+                  {
+                    "id": "increase",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
             "unify_query_param": {
               "expression": "a / b",
               "query_configs": [
@@ -1232,6 +1982,61 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_bucket",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "le"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": [
+                  {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "histogram_quantile",
+                    "params": [
+                      {
+                        "id": "scalar",
+                        "value": 0.5
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
             "unify_query_param": {
               "expression": "A",
               "query_configs": [
@@ -1301,6 +2106,61 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "table": "${table_id}",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_bucket",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "le"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": [
+                  {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "histogram_quantile",
+                    "params": [
+                      {
+                        "id": "scalar",
+                        "value": 0.95
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
             "unify_query_param": {
               "expression": "A",
               "query_configs": [
@@ -1370,6 +2230,61 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_bucket",
+                    "method": "SUM",
+                    "alias": "B"
+                  }
+                ],
+                "group_by": [
+                  "le"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": [
+                  {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "histogram_quantile",
+                    "params": [
+                      {
+                        "id": "scalar",
+                        "value": 0.99
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
             "unify_query_param": {
               "expression": "B",
               "query_configs": [
@@ -1439,6 +2354,41 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_max",
+                    "method": "MAX",
+                    "alias": "C"
+                  }
+                ],
+                "group_by": [
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": []
+              }
+            ],
             "unify_query_param": {
               "expression": "C",
               "query_configs": [
@@ -1488,6 +2438,41 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_min",
+                    "method": "MIN",
+                    "alias": "C"
+                  }
+                ],
+                "group_by": [
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": []
+              }
+            ],
             "unify_query_param": {
               "expression": "C",
               "query_configs": [
