@@ -31,9 +31,9 @@ import { bulkAddAlertShield } from 'monitor-api/modules/shield';
 import VerifyInput from 'monitor-pc/components/verify-input/verify-input.vue';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 
-import './quick-shield.scss';
-import EventModuleStore from '../../../store/modules/event';
 import type { IDimensionItem } from '../typings/event';
+
+import './quick-shield.scss';
 
 const { i18n } = window;
 
@@ -49,6 +49,8 @@ export interface IDetail {
   severity: number;
   dimension?: IDimensionItem[];
   trigger?: string;
+  isModified?: boolean;
+  alertId: string;
   strategy?: {
     name?: string;
     id?: number;
@@ -63,7 +65,7 @@ interface DimensionConfig {
 @Component({
   name: 'QuickShield',
 })
-export default class MyComponent extends tsc<IQuickShieldProps> {
+export default class EventQuickShield extends tsc<IQuickShieldProps> {
   @Prop({ type: Object, default: () => ({}) }) authority: IQuickShieldProps['authority'];
   @Prop({ type: Function, default: null }) handleShowAuthorityDetail: IQuickShieldProps['handleShowAuthorityDetail'];
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -72,18 +74,18 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
   /* 事件中心暂不允许跨业务操作， 此数组只有一个业务 */
   @Prop({ type: Array, default: () => [] }) bizIds: number[];
 
-  public loading = false;
-  public rule = { customTime: false };
-  public timeList = [
+  loading = false;
+  rule = { customTime: false };
+  timeList = [
     { name: `0.5${i18n.t('小时')}`, id: 18 },
     { name: `1${i18n.t('小时')}`, id: 36 },
     { name: `12${i18n.t('小时')}`, id: 432 },
     { name: `1${i18n.t('天')}`, id: 864 },
     { name: `7${i18n.t('天')}`, id: 6048 },
   ];
-  public timeValue = 18;
-  public customTime: any = ['', ''];
-  public options = {
+  timeValue = 18;
+  customTime: any = ['', ''];
+  options = {
     disabledDate(date) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -94,14 +96,26 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
       return date.getTime() < today.getTime() || date.getTime() > today.getTime() + 8.64e7 * 181; // 限制用户只能选择半年以内的日期
     },
   };
-  public levelMap = ['', i18n.t('致命'), i18n.t('提醒'), i18n.t('预警')];
-  public desc = '';
+  levelMap = ['', i18n.t('致命'), i18n.t('提醒'), i18n.t('预警')];
+  desc = '';
 
-  @Watch('ids', { immediate: true })
+  backupDetails: IDetail[] = [];
+
+  @Watch('ids', { immediate: true, deep: true })
   handleShow(newIds, oldIds) {
     if (`${JSON.stringify(newIds)}` !== `${JSON.stringify(oldIds)}`) {
       this.handleDialogShow();
     }
+  }
+  @Watch('details', { immediate: true, deep: true })
+  handleDetailsChange() {
+    const data = structuredClone(this.details || []);
+    this.backupDetails = data.map(detail => {
+      return {
+        ...detail,
+        modified: false,
+      };
+    });
   }
 
   handleDialogShow() {
@@ -187,10 +201,16 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
         toTime = toTime.replace(item[0], item[1]);
       });
       // 当修改维度信息时，调整入参
-      if (EventModuleStore.isModified) {
-        (params.dimension_config as DimensionConfig).dimensions = {
-          [this.ids[0]]: EventModuleStore.dimensionKeys,
-        }
+      const changedDetails = this.backupDetails.filter(item => item.isModified);
+      if (changedDetails.length) {
+        (params.dimension_config as DimensionConfig).dimensions = changedDetails.reduce((pre, item) => {
+          if (item.isModified) {
+            pre[item.alertId] = item.dimension
+              .filter(dim => dim.key && (dim.display_value || dim.value))
+              .map(dim => dim.key);
+          }
+          return pre;
+        }, {});
       }
       bulkAddAlertShield(params)
         .then(() => {
@@ -237,24 +257,28 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
     window.open(url);
   }
 
-  get dimensionList() {
-    return EventModuleStore.dimensionList;
-  }
-
   // 删除维度信息
-  handleTagClose(key) {
-    EventModuleStore.removeDimensionItem(key);
+  handleTagClose(detail: IDetail, index: number) {
+    detail.dimension.splice(index, 1);
+    detail.isModified = true;
   }
 
   // 点击重置icon
-  handleReset() {
-    EventModuleStore.resetDimensionList();
+  handleReset(detailIndex: number) {
+    const resetDetail = structuredClone(this.details[detailIndex]);
+    debugger;
+    this.backupDetails.splice(detailIndex, 1, {
+      ...resetDetail,
+      isModified: false,
+    });
   }
 
-
   getInfoCompnent() {
-    return this.details.map((detail, idx) => (
-      <div class='item-content' key={idx}>
+    return this.backupDetails.map((detail, idx) => (
+      <div
+        key={idx}
+        class='item-content'
+      >
         {!!detail.strategy?.id && (
           <div class='column-item'>
             <div class='column-label'> {`${this.$t('策略名称')}：`} </div>
@@ -274,25 +298,26 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
         <div class='column-item'>
           <div class='column-label'> {`${this.$t('维度信息')}：`} </div>
           <div class='column-content'>
-            {this.dimensionList.map((dem, idx) => (
+            {detail.dimension?.map((dem, dimensionIndex) => (
               <bk-tag
-                key={dem.key + idx}
+                key={dem.key + dimensionIndex}
+                ext-cls='tag-theme'
                 type='stroke'
                 closable
-                ext-cls='tag-theme'
-                on-close={() => this.handleTagClose(idx)}
+                on-close={() => this.handleTagClose(detail, dimensionIndex)}
               >
                 {`${dem.display_key || dem.key}(${dem.display_value || dem.value})`}
               </bk-tag>
-            ))}
-                {EventModuleStore.isModified && (
-                  <span
-                  class='reset'
-                  v-bk-tooltips={{content: `${this.$t('重置')}`}}
-                  onClick={this.handleReset}>
-                    <i class='icon-monitor icon-zhongzhi1' />
-                    </span>
-                  )}
+            )) || '--'}
+            {detail.isModified && (
+              <span
+                class='reset'
+                v-bk-tooltips={{ content: `${this.$t('重置')}` }}
+                onClick={() => this.handleReset(idx)}
+              >
+                <i class='icon-monitor icon-zhongzhi1' />
+              </span>
+            )}
           </div>
         </div>
         <div
