@@ -1,0 +1,132 @@
+---
+# Source: qcloud-exporter/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ release_name }}-qcloud-exporter
+  labels:
+    app.kubernetes.io/name: qcloud-exporter
+    app.kubernetes.io/instance: {{ release_name }}
+    app.kubernetes.io/version: "{{ version }}"
+    app.kubernetes.io/managed-by: bk-monitor
+automountServiceAccountToken: true
+---
+# Source: qcloud-exporter/templates/config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ release_name }}-qcloud-exporter
+  labels:
+    app.kubernetes.io/name: qcloud-exporter
+    app.kubernetes.io/instance: {{ release_name }}
+    app.kubernetes.io/version: "{{ version }}"
+    app.kubernetes.io/managed-by: bk-monitor
+data:
+  config.yaml: |
+    {{ config | to_yaml | safe }}
+---
+# Source: qcloud-exporter/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ release_name }}-qcloud-exporter
+  labels:
+    app.kubernetes.io/name: qcloud-exporter
+    app.kubernetes.io/instance: {{ release_name }}
+    app.kubernetes.io/version: "{{ version }}"
+    app.kubernetes.io/managed-by: bk-monitor
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: qcloud-exporter
+    app.kubernetes.io/instance: {{ release_name }}
+---
+# Source: qcloud-exporter/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ release_name }}-qcloud-exporter
+  labels:
+    app.kubernetes.io/name: qcloud-exporter
+    app.kubernetes.io/instance: {{ release_name }}
+    app.kubernetes.io/version: "{{ version }}"
+    app.kubernetes.io/managed-by: bk-monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: qcloud-exporter
+      app.kubernetes.io/instance: {{ release_name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: qcloud-exporter
+        app.kubernetes.io/instance: {{ release_name }}
+        app.kubernetes.io/version: "{{ version }}"
+        app.kubernetes.io/managed-by: bk-monitor
+    spec:
+      serviceAccountName: {{ release_name }}-qcloud-exporter
+      securityContext:
+        {}
+      containers:
+        - name: qcloud-exporter
+          securityContext:
+            {}
+          image: {{ image }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - qcloud-exporter
+            - --config.file="/app/config.yaml"
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            limits:
+              cpu: {{ cpu.limits }}
+              memory: {{ memory.limits }}
+            requests:
+              cpu: {{ cpu.requests }}
+              memory: {{ memory.requests }}
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.yaml
+              readOnly: true
+---
+# Source: qcloud-exporter/templates/servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ release_name }}-qcloud-exporter
+  labels:
+    app.kubernetes.io/name: qcloud-exporter
+    app.kubernetes.io/instance: {{ release_name }}
+    app.kubernetes.io/version: "{{ version }}"
+    app.kubernetes.io/managed-by: bk-monitor
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: qcloud-exporter
+      app.kubernetes.io/instance: {{ release_name }}
+  endpoints:
+    - port: http
+      path: /metrics/
+      interval: 60s
+      scrapeTimeout: 30s
+      honorLabels: false
+  namespaceSelector:
+    matchNames:
+    - {{ namespace }}

@@ -21,13 +21,13 @@ class BuiltInPluginManager(PluginManager):
     def make_package(self, **kwargs):
         return ""
 
-    def get_debug_config_context(self, config_version, info_version, param, target_nodes):
+    def _get_debug_config_context(self, config_version, info_version, param, target_nodes):
         pass
 
-    def get_remote_stage(self, meta_dict):
+    def _get_remote_stage(self, meta_dict):
         return True
 
-    def get_collector_json(self, plugin_params):
+    def _get_collector_json(self, plugin_params):
         return {}
 
     def get_deploy_steps_params(self, plugin_version, param, target_nodes):
