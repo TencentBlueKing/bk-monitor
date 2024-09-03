@@ -54,16 +54,6 @@ class TopoViewResource(Resource):
         return GraphQuery(**validated_request_data).execute(export_type, edge_data_type)
 
 
-class TopoMetricResource(Resource):
-    """[拓扑图]获取节点指标数据"""
-
-    RequestSerializer = TopoQueryRequestSerializer
-
-    def perform_request(self, validated_request_data):
-        edge_data_type = validated_request_data.pop("edge_data_type")
-        return GraphQuery(**validated_request_data).execute_plugins(edge_data_type)
-
-
 class TopoLinkResource(Resource):
     """[拓扑图]跳转链接获取"""
 

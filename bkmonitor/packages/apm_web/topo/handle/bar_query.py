@@ -43,7 +43,7 @@ class BarResponse:
 
 class BarQuery(BaseQuery):
     def execute(self) -> dict:
-        if "endpoint_name" not in self.params:
+        if not self.params.get("endpoint_name"):
             if self.application.data_status == DataStatus.NO_DATA and self.data_type != BarChartDataType.Alert.value:
                 # 如果应用无数据 则柱状图显示为无数据
                 return asdict(BarResponse())
