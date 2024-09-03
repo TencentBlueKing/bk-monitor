@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import './resource-topo-skeleton.scss';
 const list = ['20%', '50%', '30%', '40%', '60%', '70%'];
 @Component
-export default class ResourceTopoSkeleton extends tsc<undefined> {
+export default class ResourceTopoSkeleton extends tsc<object> {
   render() {
     return (
       <div class='resource-topo-skeleton'>

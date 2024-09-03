@@ -42,7 +42,7 @@ import StatusTab from '../table-chart/status-tab';
 import ApmRelationGraphContent from './components/apm-relation-graph-content';
 import ApmRelationTopo, { type INodeModel } from './components/apm-relation-topo';
 import BarAlarmChart from './components/bar-alarm-chart';
-import ResourceTopo from './components/resource-topo/resource-topo';
+// import ResourceTopo from './components/resource-topo/resource-topo';
 import ServiceOverview from './components/service-overview';
 import {
   alarmBarChartDataTransform,
@@ -59,7 +59,12 @@ import './apm-relation-graph.scss';
 const sideTopoMinWidth = 400;
 const sideOverviewMinWidth = 320;
 
-@Component
+@Component({
+  name: 'ApmRelationGraph',
+  components: {
+    ResourceTopo: () => import('./components/resource-topo/resource-topo'),
+  },
+})
 export default class ApmRelationGraph extends CommonSimpleChart {
   @Ref('content-wrap') contentWrap: ApmRelationGraphContent;
 
@@ -624,7 +629,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             ) : (
               <div class='empty-chart'>{this.$t('加载中')}</div>
             )}
-
             <div
               class='side-wrap'
               slot='side'
@@ -646,10 +650,9 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                   </div>
                 </div>
                 <div class='content-wrap'>
-                  <ResourceTopo serviceName={this.selectedServiceName} />
+                  <resource-topo serviceName={this.selectedServiceName} />
                 </div>
               </div>
-
               <div
                 style={{
                   minWidth: `${sideOverviewMinWidth}px`,
