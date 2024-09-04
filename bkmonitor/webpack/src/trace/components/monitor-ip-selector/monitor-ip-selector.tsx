@@ -223,7 +223,20 @@ export default defineComponent({
         scope_list: scopeList,
         ...(search_content ? params : p),
       };
-      return await queryHostIdInfosIpChooserTopo(data).catch(() => []);
+      return await queryHostIdInfosIpChooserTopo(data).then(list => {
+        return {
+          ...list,
+          data:
+            list?.data?.map(item => {
+              return {
+                cloud_area: {
+                  id: item.cloud_id,
+                },
+                ...item,
+              };
+            }) || [],
+        };
+      });
     }
     /**
      * @description 用于获取主机的详细信息
