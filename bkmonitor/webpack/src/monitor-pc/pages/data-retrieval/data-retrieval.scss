@@ -172,7 +172,7 @@
               height: 20px;
               overflow: hidden;
               font-size: 16px;
-              // margin-right: 8px;
+              // margin-right: 8px;margin-right
               cursor: pointer;
               transition: all .3s ease-in-out;
               transform-origin: center;
@@ -283,7 +283,7 @@
                 display: inline-block;
                 flex: 1;
                 height: 100%;
-                // cursor: move;
+                // cursor: move;cursor
               }
 
               .title-right {
@@ -312,6 +312,10 @@
                 .disabled {
                   color: #c4c6cc;
                   cursor: not-allowed;
+
+                  &:hover {
+                    color: #c4c6cc;
+                  }
                 }
               }
             }
@@ -438,7 +442,7 @@
         }
 
         .handle-btn-group {
-          // padding: 30px 24px 0;
+          // padding: 30px 24px 0;padding
           display: flex;
 
           .bk-button {
