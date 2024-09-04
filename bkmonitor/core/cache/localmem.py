@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import copy
 
 """
 0.253 __call__  django/utils/deprecation.py:110
@@ -64,11 +65,11 @@ from django.core.cache.backends import locmem
 class DummyPickle(object):
     @staticmethod
     def dumps(value, *args, **kwargs):
-        return value
+        return copy.deepcopy(value)
 
     @staticmethod
     def loads(value, *args, **kwargs):
-        return value
+        return copy.deepcopy(value)
 
 
 locmem.pickle = DummyPickle()
