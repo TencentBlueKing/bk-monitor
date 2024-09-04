@@ -347,6 +347,7 @@ class SearchHandler(object):
             self.time_field,
             start_time=self.start_time,
             end_time=self.end_time,
+            bk_biz_id=self.search_dict.get("bk_biz_id"),
         )
         field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(
             scope=scope, is_union_search=is_union_search
@@ -1267,7 +1268,12 @@ class SearchHandler(object):
     def verify_sort_list_item(self, sort_list):
         # field_result, _ = self._get_all_fields_by_index_id()
         mapping_handlers = MappingHandlers(
-            self.origin_indices, self.index_set_id, self.origin_scenario_id, self.storage_cluster_id, self.time_field
+            self.origin_indices,
+            self.index_set_id,
+            self.origin_scenario_id,
+            self.storage_cluster_id,
+            self.time_field,
+            self.search_dict.get("bk_biz_id"),
         )
         field_result, _ = mapping_handlers.get_all_fields_by_index_id()
         field_dict = dict()
@@ -1631,6 +1637,8 @@ class SearchHandler(object):
             indices=self.origin_indices,
             scenario_id=self.origin_scenario_id,
             storage_cluster_id=self.storage_cluster_id,
+            bk_biz_id=self.search_dict.get("bk_biz_id"),
+            only_search=True,
         )
         # 获取各个字段类型
         final_fields_list, __ = mapping_handlers.get_all_fields_by_index_id()
