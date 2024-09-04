@@ -140,6 +140,7 @@ export default class BarAlarmChart extends tsc<IProps> {
       this.getData((data, sliceTimeRange?) => {
         this.loading = false;
         this.localData = Object.freeze(data);
+        this.curActive = -1;
         if (this.localData.length) {
           const len = this.localData.length;
           const start = this.localData[0].time;
