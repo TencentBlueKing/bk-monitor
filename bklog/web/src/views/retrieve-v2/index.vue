@@ -30,11 +30,13 @@
   import useStore from '@/hooks/use-store';
   import { isEqual } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
+
   import CollectFavorites from './collect/collect-index';
-  import ResultPanel from './result-table-panel-v2/index';
+  import SearchResultPanel from './search-result-panel/index.vue';
+  import SearchResultTab from './search-result-tab/index.vue';
+
   import SearchBar from './search-bar/index.vue';
   import SubBar from './sub-bar/index.vue';
-  import TabPanel from './tab-panel/index.vue';
 
   const store = useStore();
   const router = useRouter();
@@ -169,8 +171,8 @@
       <div :style="{ paddingLeft: `${showFavorites ? favoriteWidth : 0}px` }">
         <SearchBar></SearchBar>
         <div class="result-row">
-          <TabPanel v-model="activeTab"></TabPanel>
-          <ResultPanel :active-tab="activeTab"></ResultPanel>
+          <SearchResultTab v-model="activeTab"></SearchResultTab>
+          <SearchResultPanel :active-tab="activeTab"></SearchResultPanel>
         </div>
       </div>
     </div>

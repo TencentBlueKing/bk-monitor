@@ -1,0 +1,10 @@
+.search-result-panel {
+  display: flex;
+
+  .search-result-content {
+    width: calc(100% - 330px);
+    min-height: 400px;
+    margin: 16px;
+
+  }
+}

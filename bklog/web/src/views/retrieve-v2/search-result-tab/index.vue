@@ -30,7 +30,7 @@
     const afterList = afterListMap[item.name] || ['chartAnalysis'];
     return afterList.includes(props.value);
   };
-  // 是否显示对应的边框
+
   const handleActive = panel => {
     emit('input', panel);
   };

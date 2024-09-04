@@ -150,7 +150,7 @@
 </script>
 
 <template>
-  <div class="result-table-panel-filter">
+  <div class="search-field-filter">
     <!-- 字段过滤 -->
     <div class="tab-item-title field-filter-title">
       {{ $t('查询结果统计') }}
@@ -173,4 +173,16 @@
   </div>
 </template>
 
-<!-- <style scoped></style> -->
+<style scoped>
+  .search-field-filter {
+    width: 330px;
+    padding: 16px;
+    background: #ffffff;
+    box-shadow: 1px 0 0 0 #eaebf0;
+
+    .field-filter-title {
+      font-size: 12px;
+      color: #313238;
+    }
+  }
+</style>
