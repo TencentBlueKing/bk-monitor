@@ -107,7 +107,8 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
       this.handleDialogShow();
     }
   }
-  @Watch('details', { immediate: true, deep: true })
+
+  @Watch('details', { immediate: true })
   handleDetailsChange() {
     const data = structuredClone(this.details || []);
     this.backupDetails = data.map(detail => {
@@ -266,7 +267,6 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
   // 点击重置icon
   handleReset(detailIndex: number) {
     const resetDetail = structuredClone(this.details[detailIndex]);
-    debugger;
     this.backupDetails.splice(detailIndex, 1, {
       ...resetDetail,
       isModified: false,
