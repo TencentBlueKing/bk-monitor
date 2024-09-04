@@ -256,7 +256,7 @@ class MappingHandlers(object):
         ]
         fields_list = self.add_clustered_fields(fields_list)
         fields_list = self.virtual_fields(fields_list)
-        if self.only_search:
+        if not self.only_search:
             fields_list = self._combine_description_field(fields_list)
         fields_list = self._combine_fields(fields_list)
 
