@@ -45,6 +45,7 @@ interface IBaseProps extends IChartProps {
   groupId?: string;
   showRestore?: boolean;
   needTooltips?: boolean;
+  tooltipsContentLastItemFn?: (v: any) => string;
 }
 @Component
 class MonitorBaseEchart extends BaseEchart {
@@ -53,6 +54,8 @@ class MonitorBaseEchart extends BaseEchart {
   @Prop({ type: Boolean, default: false }) showRestore: boolean;
   @Prop({ type: Boolean, default: false }) hoverAllTooltips: boolean;
   @Prop({ type: Boolean, default: true }) needTooltips: boolean;
+  /* tooltips内容最后一项格式化函数 */
+  @Prop({ type: Function, default: null }) tooltipsContentLastItemFn: (v: any) => string;
   // hover视图上 当前对应最近点数据
   curPoint: ICurPoint = { xAxis: '', yAxis: '', dataIndex: -1, color: '', name: '', seriesIndex: -1 };
   // tooltips大小 [width, height]
@@ -235,6 +238,7 @@ class MonitorBaseEchart extends BaseEchart {
   }
   // 设置tooltip
   handleSetTooltip(params) {
+    console.log(params);
     if (!this.needTooltips) {
       return undefined;
     }
@@ -308,12 +312,14 @@ class MonitorBaseEchart extends BaseEchart {
         ulStyle = `display:flex; flex-wrap:wrap; width: ${Math.min(5 + cols * this.tableToolSize, window.innerWidth / 1.33)}px;`;
       }
     }
+    const lastItem = this.tooltipsContentLastItemFn?.(params);
     return `<div class="monitor-chart-tooltips">
             <p class="tooltips-header">
                 ${pointTime}
             </p>
             <ul class="tooltips-content" style="${ulStyle}">
                 ${liHtmls?.join('')}
+                ${lastItem || ''}
             </ul>
             </div>`;
   }

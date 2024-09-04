@@ -41,7 +41,7 @@ import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
 import TimeSeries from '../time-series/time-series';
-import DetailsSide, { type EDataType } from './components/details-side';
+import DetailsSide, { EDataType } from './components/details-side';
 
 import './apm-time-series.scss';
 
@@ -99,6 +99,29 @@ export default class ApmTimeSeries extends TimeSeries {
   /* 禁用框选 */
   get disableZoom() {
     return !!this.panel.options?.apm_time_series?.disableZoom;
+  }
+
+  tooltipsContentLastItem(params) {
+    if (
+      this.panel.options?.apm_time_series?.sceneType === 'overview' &&
+      [EDataType.requestCount, EDataType.errorCount].includes(this.apmMetric)
+    ) {
+      try {
+        let count = 0;
+        for (const p of params) {
+          count += p.value[1];
+        }
+        return `<li class="tooltips-content-item">
+                    <span class="item-name" style="color: #fafbfd;">${this.$t('总数量')}:</span>
+                    <span class="item-value" style="color: #fafbfd;">
+                    ${count}</span>
+                    </li>`;
+      } catch (e) {
+        console.error(e);
+        return '';
+      }
+    }
+    return '';
   }
 
   /**
@@ -490,6 +513,7 @@ export default class ApmTimeSeries extends TimeSeries {
                   needTooltips={this.needTips}
                   options={this.options}
                   showRestore={this.showRestore}
+                  tooltipsContentLastItemFn={this.tooltipsContentLastItem}
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}
                   onRestore={this.handleRestore}
