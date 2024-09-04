@@ -26,46 +26,7 @@ from apps.utils.task import high_priority_task
 
 
 @high_priority_task(ignore_result=True)
-def update_filter_rules(index_set_id):
-    logger.info(f"update filter rules beginning: index_set_id -> {index_set_id}")
-    DataFlowHandler().update_filter_rules(index_set_id=index_set_id)
-    logger.info(f"update filter rules success: index_set_id -> {index_set_id}")
-
-
-@high_priority_task(ignore_result=True)
 def update_clustering_clean(index_set_id):
     logger.info(f"update flow beginning: index_set_id -> {index_set_id}")
     DataFlowHandler().update_flow(index_set_id=index_set_id)
     logger.info(f"update flow success: index_set_id -> {index_set_id}")
-
-
-@high_priority_task(ignore_result=True)
-def update_predict_clustering_clean(index_set_id):
-    logger.info(f"update predict flow beginning: index_set_id -> {index_set_id}")
-    DataFlowHandler().update_predict_flow(index_set_id=index_set_id)
-    logger.info(f"update predict flow success: index_set_id -> {index_set_id}")
-
-
-@high_priority_task(ignore_result=True)
-def update_predict_flow_filter_rules(index_set_id):
-    logger.info(f"update predict flow filter rules beginning: index_set_id -> {index_set_id}")
-    DataFlowHandler().update_predict_flow_filter_rules(index_set_id=index_set_id)
-    logger.info(f"update predict flow filter rules success: index_set_id -> {index_set_id}")
-
-
-# 更新预测 flow中的预测节点
-@high_priority_task(ignore_result=True)
-def update_predict_nodes_and_online_task(index_set_id):
-    logger.info(f"update predict flow nodes and online task beginning: index_set_id -> {index_set_id}")
-    DataFlowHandler().update_predict_nodes_and_online_tasks(index_set_id=index_set_id)
-    logger.info(f"update predict flow nodes and online task success: index_set_id -> {index_set_id}")
-
-
-@high_priority_task(ignore_result=True)
-def update_log_count_aggregation_flow(index_set_id):
-    """
-    更新聚合flow
-    """
-    logger.info(f"update agg flow nodes beginning: index_set_id -> {index_set_id}")
-    DataFlowHandler().update_log_count_aggregation_flow(index_set_id=index_set_id)
-    logger.info(f"update agg flow nodes success: index_set_id -> {index_set_id}")

@@ -81,11 +81,32 @@
       .column-content {
         word-wrap: break-word;
         word-break: break-all;
+        .tag-theme {
+          margin: 2px 6px 2px 0;
+          background-color: #fff;
+        }
         .icon-mc-wailian {
           &:hover {
             color: #3a84ff;
             cursor: pointer;
           }
+        }
+        .reset {
+          border: 1px solid #C4C6CC;
+          background: #FFFFFF;
+          border-radius: 2px;
+          box-sizing: border-box;
+          display: inline-block;
+          width: 22px;
+          height: 22px;
+          text-align: center;
+          padding: 2px 0;
+        }
+        .icon-zhongzhi1 {
+          display: inline-block;
+          width: 16px;
+          height: 16px;
+          line-height: 16px;
         }
       }
     }

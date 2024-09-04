@@ -405,8 +405,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       details: [
         {
           severity: 1,
-          dimension: '',
+          dimension: [],
           trigger: '',
+          alertId: '',
           strategy: {
             id: '',
             name: '',
@@ -1796,12 +1797,13 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         this.dialog.quickShield.show = true;
         this.dialog.quickShield.ids = this.selectedList;
         const details = [];
-        this.selectedList.forEach(item => {
-          const detail = this.tableData.find(tableitem => tableitem.id === item);
+        this.selectedList.forEach(alertId => {
+          const detail = this.tableData.find(tableitem => tableitem.id === alertId);
           details.push({
             severity: detail.severity,
-            dimension: detail.dimension_message,
+            dimension: detail.dimensions,
             trigger: detail.description,
+            alertId: alertId,
             strategy: {
               id: detail.strategy_id,
               name: detail.strategy_name,
@@ -1882,14 +1884,16 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     this.dialog.quickShield.details = [
       {
         severity: v.severity,
-        dimension: v.dimension_message,
+        dimension: v.dimensions,
         trigger: v.description,
+        alertId: v.id,
         strategy: {
           id: v?.strategy_id as unknown as string,
           name: v?.strategy_name,
         },
       },
     ];
+    // EventModuleStore.setDimensionList(v.dimensions || []);
   }
   /**
    * @description: 手动处理
