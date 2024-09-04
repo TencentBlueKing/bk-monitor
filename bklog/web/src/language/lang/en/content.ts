@@ -839,4 +839,9 @@ export default {
   新类对应日志触发告警的条数: 'The number of alarms triggered by logs corresponding to the new category',
   请先新建新类告警策略: 'Please create a new category strategy first',
   配置项命名空间不能为空: 'Configuration item namespace cannot be empty',
+  搜索名称: 'Search for name',
+  '导入的集群已被删除，请手动选择集群。': 'Imported cluster has been deleted, please manually select a cluster.',
+  '为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成':
+    'To reduce transmission and storage costs, some content can be filtered out. More complex operations can be completed in the "Cleaning" feature.',
+  请选择需要同步的配置: 'Please select the configuration to be synchronized',
 };
