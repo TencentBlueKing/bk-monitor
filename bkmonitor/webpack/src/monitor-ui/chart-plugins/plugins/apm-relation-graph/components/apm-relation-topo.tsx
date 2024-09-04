@@ -85,7 +85,7 @@ type ApmRelationTopoProps = {
   edgeType: EdgeDataType;
   appName: string;
   dataType: string;
-  saveLayout: boolean;
+  refreshTopoLayout: boolean;
   filterCondition: {
     type: CategoryEnum;
     showNoData: boolean;
@@ -114,8 +114,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   @Prop() data: ApmRelationTopoProps['data'];
   @Prop() activeNode: string;
   @Prop() edgeType: EdgeDataType;
-  /** 是否需要保留上次布局 */
-  @Prop({ default: false }) saveLayout: boolean;
+  @Prop({ default: true }) refreshTopoLayout: boolean;
   @Prop() filterCondition: ApmRelationTopoProps['filterCondition'];
   @Prop() appName: string;
   @Prop() dataType: string;
@@ -392,7 +391,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   }
 
   initGraph() {
-    if (this.graph && this.saveLayout) {
+    if (this.graph && !this.refreshTopoLayout) {
       this.graph.destroyLayout();
       this.graph.changeData(this.formatData);
       const activeNode = this.graph.findById(this.activeNode);
@@ -576,7 +575,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
           fontFamily: 'icon-monitor', // 对应css里面的font-family: "iconfont";
           textAlign: 'center',
           textBaseline: 'middle',
-          fontSize: Math.floor((size / 36) * 24),
+          fontSize: size >= 36 ? 24 : 16,
           text: nodeIconMap[category],
           fill: '#63656E',
           cursor: 'pointer',
@@ -694,7 +693,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   /** 设置节点状态 */
   setNodeState(name: string, value: boolean | string, item: INode) {
     const group = item.get<IGroup>('group');
-    const { size = 36, stroke = '#2DCB56' } = item.getModel() as INodeModelConfig;
+    const { size = 36, color = '#2DCB56' } = item.getModel() as INodeModelConfig;
     const hoverCircle = group.find(e => e.get('name') === 'custom-node-hover-circle');
     if (name === 'hover' && !item.hasState('active')) {
       const edges = item.getEdges();
@@ -749,16 +748,10 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       const textShape = group.find(e => e.get('name') === 'text-shape');
       const nodeIcon = group.find(e => e.get('name') === 'node-icon');
       const nodeKeyShape = group.find(e => e.get('name') === 'custom-node-keyShape');
-      textShape.attr({
-        opacity: value ? 0.4 : 1,
-      });
-      nodeIcon.attr({
-        opacity: value ? 0.4 : 1,
-      });
-      nodeKeyShape.attr({
-        stroke: value ? '#DCDEE5' : stroke,
-        lineWidth: value ? 2 : 4,
-      });
+      textShape.attr('opacity', value ? 0.4 : 1);
+      nodeIcon.attr('opacity', value ? 0.4 : 1);
+      nodeKeyShape.attr('stroke', value ? '#DCDEE5' : color);
+      nodeKeyShape.attr('lineWidth', value ? 2 : 4);
     }
   }
 
@@ -901,6 +894,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         hideOnClick: false,
         placement: 'top-start',
         appendTo: 'parent',
+        zIndex: '1001',
       });
     }
     this.toolsPopoverInstance.show();

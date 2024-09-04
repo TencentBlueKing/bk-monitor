@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Inject, InjectReactive, Ref } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive, Ref, Watch } from 'vue-property-decorator';
 
 // import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
@@ -180,6 +180,8 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   ];
   expanded = [];
 
+  /** 是否需要缓存 */
+  needCache = true;
   /** 拓扑图和表格数据缓存 */
   graphAndTableDataCache = new Map();
   /* 表格数据 */
@@ -195,7 +197,8 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     showTotalCount: true,
   };
 
-  saveTopoLayout = false;
+  /** topo图是否需要重新布局 */
+  refreshTopoLayout = true;
   /** 图表数据 */
   graphData = {
     nodes: [],
@@ -204,6 +207,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   /** 取消拓扑图请求 */
   topoCancelFn = null;
+  requestId = 0;
   loading = {
     topo: true,
     table: true,
@@ -280,6 +284,40 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.topoCancelFn?.();
   }
 
+  @Watch('timeRange')
+  // 数据时间间隔
+  handleTimeRangeChange() {
+    this.refreshTopoLayout = true;
+    this.graphData = {
+      nodes: [],
+      edges: [],
+    };
+    this.getPanelData();
+  }
+
+  @Watch('refleshInterval')
+  // 数据刷新间隔
+  handleRefleshIntervalChange(v: number) {
+    if (this.refleshIntervalInstance) {
+      window.clearInterval(this.refleshIntervalInstance);
+    }
+    if (v <= 0) return;
+    this.refleshIntervalInstance = window.setInterval(() => {
+      if (this.inited) {
+        this.needCache = false;
+        this.getPanelData();
+      }
+    }, this.refleshInterval);
+  }
+  @Watch('refleshImmediate')
+  // 立刻刷新
+  handleRefleshImmediateChange(v: string) {
+    if (v) {
+      this.needCache = false;
+      this.getPanelData();
+    }
+  }
+
   /**
    * @description: 获取图表数据
    */
@@ -311,11 +349,11 @@ export default class ApmRelationGraph extends CommonSimpleChart {
           const firstTime = result[0].time;
           if (this.sliceTimeRange.every(t => t)) {
             if (this.sliceTimeRange[0] > lastTime || this.sliceTimeRange[1] < firstTime) {
-              this.handleSliceTimeRangeChange([0, 0] as any);
+              this.handleSliceTimeRangeChange([0, 0], true);
             }
           }
         } else {
-          this.handleSliceTimeRangeChange([0, 0] as any);
+          this.handleSliceTimeRangeChange([0, 0], true);
         }
         /* if (!this.sliceTimeRange.every(t => t) || this.sliceTimeRange[0] > lastTime || this.isAlarmBarDataZoomed) {
           const sliceTimeRange = getSliceTimeRange(result, result[result.length - 1].time);
@@ -331,10 +369,11 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   }
 
   async getTopoData() {
+    this.requestId += 1;
+    const requestId = this.requestId;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const exportType = this.showType;
     const [sliceTimeStart, sliceTimeEnd] = this.sliceTimeRange;
-    this.saveTopoLayout = Boolean(sliceTimeEnd && sliceTimeEnd);
     const params = {
       start_time: startTime,
       end_time: endTime,
@@ -347,12 +386,16 @@ export default class ApmRelationGraph extends CommonSimpleChart {
       export_type: exportType,
     };
     this.topoCancelFn?.();
-    const cacheKey = JSON.stringify(params);
+    const cacheKey = JSON.stringify({
+      ...params,
+      start_time: this.timeRange[0],
+      end_time: [1],
+    });
     let data = null;
-    if (this.graphAndTableDataCache.has(cacheKey)) {
+    this.loading[exportType] = true;
+    if (this.needCache && this.graphAndTableDataCache.has(cacheKey)) {
       data = this.graphAndTableDataCache.get(cacheKey);
     } else {
-      this.loading[exportType] = true;
       data = await topoView(params, {
         cancelToken: new CancelToken(c => {
           this.topoCancelFn = c;
@@ -361,9 +404,15 @@ export default class ApmRelationGraph extends CommonSimpleChart {
         if (this.showType === 'topo') return { edges: [], nodes: [] };
         return { columns: [], data: [] };
       });
-      this.loading[exportType] = false;
+      this.graphAndTableDataCache.set(cacheKey, data);
+      this.needCache = true;
     }
+
+    /** 两个请求ID不一样， 说明是取消请求， 不关闭loading */
+    if (this.requestId !== requestId) return;
+    this.loading[exportType] = false;
     if (this.showType === 'topo') {
+      this.refreshTopoLayout = !this.graphData.nodes.length && !this.graphData.edges.length;
       this.graphData = data;
     } else {
       this.tableColumns = data.columns.map(item => {
@@ -381,6 +430,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   handleEdgeTypeChange(edgeType) {
     this.edgeDataType = edgeType;
+    this.refreshTopoLayout = false;
     this.getTopoData();
   }
 
@@ -453,6 +503,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   handleShowTypeChange(item) {
     if (this.showType === item.id) return;
     this.showType = item.id;
+    this.refreshTopoLayout = false;
     this.getTopoData();
   }
 
@@ -527,13 +578,14 @@ export default class ApmRelationGraph extends CommonSimpleChart {
    * @description 切片时间范围变化
    * @param timeRange
    */
-  handleSliceTimeRangeChange(timeRange: [number, number]) {
+  handleSliceTimeRangeChange(timeRange: [number, number], refreshLayout = false) {
     this.sliceTimeRange = JSON.parse(JSON.stringify(timeRange));
     this.handleCustomRouteQueryChange({
       sliceStartTime: this.sliceTimeRange[0],
       sliceEndTime: this.sliceTimeRange[1],
     });
-    this.getTopoData(true);
+    this.refreshTopoLayout = refreshLayout;
+    this.getTopoData();
   }
 
   render() {
@@ -626,122 +678,128 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             </div>
           </div>
         </div>
-        {this.showType === 'topo' ? (
-          <ApmRelationGraphContent
-            ref='content-wrap'
-            expanded={this.expanded}
+        <ApmRelationGraphContent
+          ref='content-wrap'
+          style={{
+            display: this.showType === 'topo' ? 'block' : 'none',
+          }}
+          expanded={this.expanded}
+        >
+          <ApmRelationTopo
+            activeNode={this.activeNode}
+            appName={this.appName}
+            data={this.graphData}
+            dataType={this.dataType}
+            edgeType={this.edgeDataType}
+            filterCondition={this.filterCondition}
+            refreshTopoLayout={this.refreshTopoLayout}
+            onDrillingNodeClick={this.handleDrillingNodeClick}
+            onEdgeTypeChange={this.handleEdgeTypeChange}
+            onNodeClick={this.handleNodeClick}
+            onResourceDrilling={this.handleResourceDrilling}
+            onServiceDetail={this.handleServiceDetail}
+          />
+          {this.loading.topo && (
+            <div class={{ 'apm-topo-empty-chart': true, 'all-loading': this.refreshTopoLayout }}>
+              {this.refreshTopoLayout ? <div class='chart-skeleton' /> : <bk-spin spinning />}
+            </div>
+          )}
+
+          <div
+            class='side-wrap'
+            slot='side'
           >
-            <ApmRelationTopo
-              activeNode={this.activeNode}
-              appName={this.appName}
-              data={this.graphData}
-              dataType={this.dataType}
-              edgeType={this.edgeDataType}
-              filterCondition={this.filterCondition}
-              saveLayout={this.saveTopoLayout}
-              onDrillingNodeClick={this.handleDrillingNodeClick}
-              onEdgeTypeChange={this.handleEdgeTypeChange}
-              onNodeClick={this.handleNodeClick}
-              onResourceDrilling={this.handleResourceDrilling}
-              onServiceDetail={this.handleServiceDetail}
-            />
-            {this.loading.topo && (
-              <div class='apm-topo-empty-chart'>
-                <div class='chart-skeleton' />
-              </div>
-            )}
             <div
-              class='side-wrap'
-              slot='side'
+              style={{
+                minWidth: `${sideTopoMinWidth}px`,
+                display: this.expanded.includes('topo') ? 'block' : 'none',
+              }}
+              class='source-topo'
             >
-              <div
-                style={{
-                  minWidth: `${sideTopoMinWidth}px`,
-                  display: this.expanded.includes('topo') ? 'block' : 'none',
-                }}
-                class='source-topo'
-              >
-                <div class='header-wrap'>
-                  <div class='title'>{this.$t('资源拓扑')}</div>
-                  <div
-                    class='expand-btn'
-                    onClick={() => this.handleExpand('topo')}
-                  >
-                    <span class='icon-monitor icon-zhankai' />
-                  </div>
-                </div>
-                <div class='content-wrap'>
-                  <resource-topo serviceName={this.selectedServiceName} />
+              <div class='header-wrap'>
+                <div class='title'>{this.$t('资源拓扑')}</div>
+                <div
+                  class='expand-btn'
+                  onClick={() => this.handleExpand('topo')}
+                >
+                  <span class='icon-monitor icon-zhankai' />
                 </div>
               </div>
-              <div
-                style={{
-                  minWidth: `${sideOverviewMinWidth}px`,
-                  display: this.expanded.includes('overview') ? 'block' : 'none',
-                }}
-                class={[
-                  'service-overview',
-                  { 'no-border': !this.expanded.includes('topo') },
-                  { 'overview-w-auto': this.expanded.length === 1 && this.expanded[0] === 'overview' },
-                ]}
-              >
-                <div class='header-wrap'>
-                  <div class='title'>{this.selectedEndpoint ? this.$t('接口概览') : this.$t('服务概览')}</div>
-                  <div
-                    class='expand-btn'
-                    onClick={() => this.handleExpand('overview')}
-                  >
-                    <span class='icon-monitor icon-zhankai' />
-                  </div>
-                </div>
-                <div class={'content-wrap'}>
-                  <ServiceOverview
-                    appName={this.appName}
-                    data={this.serviceOverviewData}
-                    detailIcon={this.selectedIcon}
-                    endpoint={this.selectedEndpoint}
-                    serviceName={this.selectedServiceName}
-                    show={this.expanded.includes('overview')}
-                    timeRange={this.timeRange}
-                  />
-                </div>
+              <div class='content-wrap'>
+                <resource-topo serviceName={this.selectedServiceName} />
               </div>
             </div>
-          </ApmRelationGraphContent>
-        ) : (
-          <div class='apm-relation-graph-table-wrap'>
-            <div class='table-wrap'>
-              {this.loading.table ? (
-                <TableSkeleton type={2} />
-              ) : (
-                <CommonTable
-                  pagination={{
-                    ...this.pagination,
-                    count: this.filterTableData.length,
-                  }}
-                  scopedSlots={{
-                    type: row => (
-                      <div class='call-type-column'>
-                        <span>{this.callColumn[row.type]?.name}</span>
-                        <div class={`icon ${row.type}`}>
-                          <i class={`icon-monitor ${this.callColumn[row.type]?.icon}`} />
-                        </div>
-                      </div>
-                    ),
-                  }}
-                  checkable={false}
-                  columns={this.tableColumns}
-                  data={this.showTableData}
-                  paginationType={'simple'}
-                  onFilterChange={this.handleTableFilterChange}
-                  onLimitChange={this.handleTableLimitChange}
-                  onPageChange={this.handleTablePageChange}
-                  onSortChange={this.handleTableSortChange}
+            <div
+              style={{
+                minWidth: `${sideOverviewMinWidth}px`,
+                display: this.expanded.includes('overview') ? 'block' : 'none',
+              }}
+              class={[
+                'service-overview',
+                { 'no-border': !this.expanded.includes('topo') },
+                { 'overview-w-auto': this.expanded.length === 1 && this.expanded[0] === 'overview' },
+              ]}
+            >
+              <div class='header-wrap'>
+                <div class='title'>{this.selectedEndpoint ? this.$t('接口概览') : this.$t('服务概览')}</div>
+                <div
+                  class='expand-btn'
+                  onClick={() => this.handleExpand('overview')}
+                >
+                  <span class='icon-monitor icon-zhankai' />
+                </div>
+              </div>
+              <div class={'content-wrap'}>
+                <ServiceOverview
+                  appName={this.appName}
+                  data={this.serviceOverviewData}
+                  detailIcon={this.selectedIcon}
+                  endpoint={this.selectedEndpoint}
+                  serviceName={this.selectedServiceName}
+                  show={this.expanded.includes('overview')}
+                  timeRange={this.timeRange}
                 />
-              )}
+              </div>
             </div>
           </div>
-        )}
+        </ApmRelationGraphContent>
+        <div
+          style={{
+            display: this.showType !== 'topo' ? 'block' : 'none',
+          }}
+          class='apm-relation-graph-table-wrap'
+        >
+          <div class='table-wrap'>
+            {this.loading.table ? (
+              <TableSkeleton type={2} />
+            ) : (
+              <CommonTable
+                pagination={{
+                  ...this.pagination,
+                  count: this.filterTableData.length,
+                }}
+                scopedSlots={{
+                  type: row => (
+                    <div class='call-type-column'>
+                      <span>{this.callColumn[row.type]?.name}</span>
+                      <div class={`icon ${row.type}`}>
+                        <i class={`icon-monitor ${this.callColumn[row.type]?.icon}`} />
+                      </div>
+                    </div>
+                  ),
+                }}
+                checkable={false}
+                columns={this.tableColumns}
+                data={this.showTableData}
+                paginationType={'simple'}
+                onFilterChange={this.handleTableFilterChange}
+                onLimitChange={this.handleTableLimitChange}
+                onPageChange={this.handleTablePageChange}
+                onSortChange={this.handleTableSortChange}
+              />
+            )}
+          </div>
+        </div>
       </div>
     );
   }
