@@ -37,6 +37,7 @@
         :retrieve-params="retrieveParams"
         :show-retrieve-condition="showRetrieveCondition"
         :timezone="timezone"
+        :clustering-data="clusteringData"
         @close-retrieve-condition="closeRetrieveCondition"
         @date-picker-change="retrieveWhenDateChange"
         @open="openRetrieveCondition"
@@ -406,7 +407,7 @@
         clusteringData: {
           // 日志聚类参数
           name: '',
-          is_active: true,
+          is_active: false,
           extra: {
             collector_config_id: null,
             signature_switch: false,

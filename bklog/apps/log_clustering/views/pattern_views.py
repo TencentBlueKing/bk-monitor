@@ -18,7 +18,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
 from rest_framework import serializers
 from rest_framework.response import Response
 
@@ -26,6 +25,7 @@ from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import InstanceActionPermission
 from apps.log_clustering.handlers.pattern import PatternHandler
+from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.serializers import (
     DeleteRemarkSerializer,
     PatternSearchSerlaizer,
@@ -120,6 +120,12 @@ class PatternViewSet(APIViewSet):
             "result": true
         }
         """
+        if index_set_id.startswith("flow-"):
+            # 通过 dataflow id 查询 pattern
+            flow_id = index_set_id[len("flow-") :]
+            clustering_config = ClusteringConfig.get_by_flow_id(flow_id)
+            index_set_id = clustering_config.index_set_id
+
         query_data = self.params_valid(PatternSearchSerlaizer)
         return Response(PatternHandler(index_set_id, query_data).pattern_search())
 

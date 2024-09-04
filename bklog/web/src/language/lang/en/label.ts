@@ -669,4 +669,10 @@ export default {
   同步存储配置: 'Storage Configuration',
   同步采集目标: 'Acquisition Target',
   请选择目标索引集: 'Please select a target index set',
+  告警屏蔽时间: 'Alert Suppression Time',
+  日志聚类接入: 'Log Clustering Access',
+  告警配置: 'Alert Configuration',
+  开启新类告警: 'Enable New Class Alert',
+  开启数量突增告警: 'Enable Surge Alert',
+  添加正则: 'Add Regex',
 };
