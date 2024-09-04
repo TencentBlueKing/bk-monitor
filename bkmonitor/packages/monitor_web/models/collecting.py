@@ -74,6 +74,7 @@ class CollectConfigMeta(OperateRecordModelBase):
     TARGET_OBJECT_TYPE_CHOICES = (
         (TargetObjectType.SERVICE, _lazy("服务")),
         (TargetObjectType.HOST, _lazy("主机")),
+        (TargetObjectType.CLUSTER, _lazy("集群")),
     )
 
     bk_biz_id = models.IntegerField("业务ID", db_index=True)
@@ -550,6 +551,7 @@ class DeploymentConfigVersion(OperateRecordModelBase):
         (TargetNodeType.INSTANCE, _lazy("实例")),
         (TargetNodeType.SERVICE_TEMPLATE, _lazy("服务模板")),
         (TargetNodeType.SET_TEMPLATE, _lazy("集群模板")),
+        (TargetNodeType.CLUSTER, _lazy("集群")),
     )
 
     plugin_version = models.ForeignKey(

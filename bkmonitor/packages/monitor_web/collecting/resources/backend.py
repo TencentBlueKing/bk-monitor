@@ -879,7 +879,8 @@ class SaveCollectConfigResource(Resource):
         def validate(self, attrs):
             # 校验采集对象类型和采集目标类型搭配是否正确，且不同类型的节点列表字段正确
             # 校验业务拓扑和服务拓扑
-            if (attrs["target_object_type"], attrs["target_node_type"]) in [
+            target_type = (attrs["target_object_type"], attrs["target_node_type"])
+            if target_type in [
                 (TargetObjectType.HOST, TargetNodeType.TOPO),
                 (TargetObjectType.SERVICE, TargetNodeType.TOPO),
             ]:
@@ -887,15 +888,12 @@ class SaveCollectConfigResource(Resource):
                     if not ("bk_inst_id" in node and "bk_obj_id" in node):
                         raise serializers.ValidationError("target_nodes needs bk_inst_id and bk_obj_id")
             # 校验主机实例
-            elif (attrs["target_object_type"], attrs["target_node_type"]) == (
-                TargetObjectType.HOST,
-                TargetNodeType.INSTANCE,
-            ):
+            elif target_type == (TargetObjectType.HOST, TargetNodeType.INSTANCE):
                 for node in attrs["target_nodes"]:
                     if not ("ip" in node and "bk_cloud_id" in node) and "bk_host_id" not in node:
                         raise serializers.ValidationError("target_nodes needs ip, bk_cloud_id or bk_host_id")
             # 校验服务模板、集群模板
-            elif (attrs["target_object_type"], attrs["target_node_type"]) in [
+            elif target_type in [
                 (TargetObjectType.HOST, TargetNodeType.SERVICE_TEMPLATE),
                 (TargetObjectType.HOST, TargetNodeType.SET_TEMPLATE),
                 (TargetObjectType.SERVICE, TargetNodeType.SET_TEMPLATE),
@@ -904,6 +902,10 @@ class SaveCollectConfigResource(Resource):
                 for node in attrs["target_nodes"]:
                     if not ("bk_inst_id" in node and "bk_obj_id" in node):
                         raise serializers.ValidationError("target_nodes needs bk_inst_id, bk_obj_id")
+            elif target_type == (TargetObjectType.CLUSTER, TargetNodeType.CLUSTER):
+                for node in attrs["target_nodes"]:
+                    if "bcs_cluster_id" not in node:
+                        raise serializers.ValidationError("target_nodes needs bcs_cluster_id")
             else:
                 raise serializers.ValidationError(
                     "{} {} is not supported".format(attrs["target_object_type"], attrs["target_node_type"])
