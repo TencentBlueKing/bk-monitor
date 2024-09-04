@@ -84,7 +84,15 @@ TRACE_SCOPE = ["trace", "trace_detail", "trace_detail_log"]
 
 class MappingHandlers(object):
     def __init__(
-        self, indices, index_set_id, scenario_id, storage_cluster_id, time_field="", start_time="", end_time=""
+        self,
+        indices,
+        index_set_id,
+        scenario_id,
+        storage_cluster_id,
+        only_search=False,
+        time_field="",
+        start_time="",
+        end_time="",
     ):
         self.indices = indices
         self.index_set_id = index_set_id
@@ -96,6 +104,9 @@ class MappingHandlers(object):
         self.time_zone: str = get_local_param("time_zone")
         # 最终字段
         self._final_fields = None
+
+        # 仅查询使用
+        self.only_search = only_search
 
     def check_fields_not_conflict(self, raise_exception=True):
         """
@@ -245,7 +256,8 @@ class MappingHandlers(object):
         ]
         fields_list = self.add_clustered_fields(fields_list)
         fields_list = self.virtual_fields(fields_list)
-        fields_list = self._combine_description_field(fields_list)
+        if self.only_search:
+            fields_list = self._combine_description_field(fields_list)
         fields_list = self._combine_fields(fields_list)
 
         for field in fields_list:
@@ -1053,8 +1065,7 @@ class MappingHandlers(object):
         return None
 
     @classmethod
-    def async_export_fields(cls, final_fields_list: List[Dict[str, Any]], scenario_id: str,
-                            sort_fields: list) -> dict:
+    def async_export_fields(cls, final_fields_list: List[Dict[str, Any]], scenario_id: str, sort_fields: list) -> dict:
         """
         判断是否可以支持大额导出
         """

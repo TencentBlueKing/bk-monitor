@@ -1631,6 +1631,7 @@ class SearchHandler(object):
             indices=self.origin_indices,
             scenario_id=self.origin_scenario_id,
             storage_cluster_id=self.storage_cluster_id,
+            only_search=True,
         )
         # 获取各个字段类型
         final_fields_list, __ = mapping_handlers.get_all_fields_by_index_id()
