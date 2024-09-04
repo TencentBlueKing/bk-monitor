@@ -13,9 +13,9 @@
   const store = useStore();
   const isExternal = computed(() => store.state.isExternal);
   const spaceUid = computed(() => store.state.spaceUid);
-  const indexSetItem = computed(() => store.state.indexFieldInfo);
-  const indexParams = computed(() => [indexSetItem.value.scenario_id, indexSetItem.value.collector_scenario_id]);
-
+  const indexSetItem = computed(() => store.state.indexItem);
+  const items = computed(() => indexSetItem.value.items[0]);
+  const indexParams = computed(() => [items.value.scenario_id, items.value.collector_scenario_id]);
   const isUnionSearch = computed(() => store.isUnionSearch);
   const isShowRetrieveSetting = computed(() => !isExternal.value && !isUnionSearch.value);
   const isShowMaskingTemplate = computed(() => store.getters.isShowMaskingTemplate);
@@ -92,7 +92,7 @@
       : [];
     const filterList = accessList.value.filter(item => (isShowMaskingTemplate.value ? true : item.id !== 'logMasking'));
     // 合并其他
-    showSettingMenuList.value.push(...filterMenuList.concat(filterList));
+    showSettingMenuList.value = filterMenuList.concat(filterList);
   };
 
   const setShowLiList = setItem => {
@@ -118,8 +118,8 @@
       return;
     }
     const params = {
-      indexSetId: indexSetItem.value?.index_set_id,
-      collectorId: indexSetItem.value?.collector_config_id,
+      indexSetId: items.value.index_set_id,
+      collectorId: items.value.collector_config_id,
     };
     // 判断当前是否是脱敏配置 分别跳不同的路由
     const routeName =
@@ -137,13 +137,14 @@
     });
     window.open(href, '_blank');
   };
-
   watch(
-    indexParams,
-    val => {
-      setTimeout(() => {
-        setShowLiList({ scenario_id: val?.[0], collector_scenario_id: val?.[1] });
-      }, 100);
+    indexSetItem.value,
+    () => {
+      if (!items) return;
+      setShowLiList({
+        scenario_id:indexParams.value[0],
+        collector_scenario_id: indexParams.value[1],
+      });
     },
     { deep: true, immediate: true },
   );
