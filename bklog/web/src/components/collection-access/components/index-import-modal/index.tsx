@@ -121,6 +121,9 @@ export default class IndexImportModal extends tsc<IProps> {
     if (!v) {
       this.syncType = ['source_log_info'];
       this.currentCheckImportID = null;
+      this.emptyType = 'empty';
+      this.keyword = '';
+      this.searchKeyword = '';
     }
   }
   requestData() {
@@ -172,10 +175,6 @@ export default class IndexImportModal extends tsc<IProps> {
         this.isTableLoading = false;
       });
   }
-  beforeCheckType(id: string) {
-    if (this.syncType.length === 1 && this.syncType[0] === id) return false;
-    return true;
-  }
   pythonDictString(pythonString: string) {
     return pythonString
       .replace(/'/g, '"') // 将单引号替换为双引号
@@ -194,11 +193,21 @@ export default class IndexImportModal extends tsc<IProps> {
     this.currentCheckImportID = row.collector_config_id;
   }
   handleConfirmDialog() {
-    if (!this.currentCheckImportID) {
-      this.$bkMessage({
-        theme: 'error',
-        message: $i18n.t('请选择目标索引集'),
-      });
+    if (!this.currentCheckImportID || !this.syncType.length) {
+      if (!this.currentCheckImportID) {
+        this.$bkMessage({
+          theme: 'error',
+          message: $i18n.t('请选择目标索引集'),
+        });
+      }
+      if (!this.syncType.length) {
+        setTimeout(() => {
+          this.$bkMessage({
+            theme: 'error',
+            message: $i18n.t('请选择需要同步的配置'),
+          });
+        }, 100);
+      }
       return;
     }
     this.submitLoading = true;
@@ -283,7 +292,6 @@ export default class IndexImportModal extends tsc<IProps> {
                     <bk-checkbox
                       key={item.id}
                       style='margin-right: 24px;'
-                      before-change={() => this.beforeCheckType(item.id)}
                       value={item.id}
                     >
                       {item.name}
