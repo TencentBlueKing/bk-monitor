@@ -35,8 +35,6 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
 from apps.log_clustering.handlers.dataflow.constants import PATTERN_SEARCH_FIELDS
 from apps.log_clustering.models import ClusteringConfig
-from apps.log_esquery.esquery.esquery import EsQuery
-from apps.log_esquery.serializers import EsQueryMappingAttrSerializer
 from apps.log_search.constants import (
     BKDATA_ASYNC_CONTAINER_FIELDS,
     BKDATA_ASYNC_FIELDS,
@@ -454,11 +452,17 @@ class MappingHandlers(object):
         end_time_format = end_time.ceil("hour").strftime("%Y-%m-%d %H:%M:%S")
 
         return self._get_latest_mapping(
-            index_set_id=self.index_set_id, start_time=start_time_format, end_time=end_time_format
+            index_set_id=self.index_set_id,
+            start_time=start_time_format,
+            end_time=end_time_format,
+            only_search=self.only_search,
         )
 
-    @cache_one_minute("latest_mapping_key_{index_set_id}_{start_time}_{end_time}")
-    def _get_latest_mapping(self, index_set_id, start_time, end_time):  # noqa
+    @cache_one_minute("latest_mapping_key_{index_set_id}_{start_time}_{end_time}_{only_search}")
+    def _get_latest_mapping(self, index_set_id, start_time, end_time, only_search=False):  # noqa
+        from apps.log_esquery.esquery.esquery import EsQuery
+        from apps.log_esquery.serializers import EsQueryMappingAttrSerializer
+
         params = {
             "indices": self.indices,
             "scenario_id": self.scenario_id,
@@ -466,7 +470,7 @@ class MappingHandlers(object):
             "time_zone": self.time_zone,
             "start_time": start_time,
             "end_time": end_time,
-            "add_settings_details": True,
+            "add_settings_details": False if only_search else True,
         }
         if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.bk_biz_id):
             data = custom_params_valid(EsQueryMappingAttrSerializer, params)
