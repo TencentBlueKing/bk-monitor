@@ -293,7 +293,20 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       scope_list: this.scopeList,
       ...(search_content ? params : p),
     };
-    return await queryHostIdInfosIpChooserTopo(data).catch(() => []);
+    return await queryHostIdInfosIpChooserTopo(data).then(list => {
+      return {
+        ...list,
+        data:
+          list?.data?.map(item => {
+            return {
+              cloud_area: {
+                id: item.cloud_id,
+              },
+              ...item,
+            };
+          }) || [],
+      };
+    });
   }
 
   // 动态拓扑 - 勾选节点(查询多个节点拓扑路径)
