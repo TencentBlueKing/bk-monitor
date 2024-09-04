@@ -92,6 +92,10 @@ export default class ApmTimeSeries extends TimeSeries {
     return this.panel.options?.apm_time_series?.unit || '';
   }
 
+  get xAxisSplitNumber() {
+    return this.panel.options?.apm_time_series?.xAxisSplitNumber;
+  }
+
   /**
    * @description: 获取图表数据
    * @param {*}
@@ -197,7 +201,7 @@ export default class ApmTimeSeries extends TimeSeries {
       await Promise.all(promiseList).catch(() => false);
       this.metrics = metrics || [];
       if (series.length) {
-        const maxXInterval = getSeriesMaxInterval(series);
+        const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
         /* 派出图表数据包含的维度*/
         this.emitDimensions(series);
         this.series = Object.freeze(series) as any;
@@ -288,7 +292,7 @@ export default class ApmTimeSeries extends TimeSeries {
           { arrayMerge: (_, newArr) => newArr }
         );
         const isBar = this.panel.options?.time_series?.type === 'bar';
-        const xInterval = getTimeSeriesXInterval(maxXInterval, this.width);
+        const xInterval = getTimeSeriesXInterval(maxXInterval, this.width, maxSeriesCount);
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
@@ -322,6 +326,7 @@ export default class ApmTimeSeries extends TimeSeries {
                 formatter: formatterFunc || '{value}',
               },
               ...xInterval,
+              ...(this.xAxisSplitNumber ? { splitNumber: this.xAxisSplitNumber } : {}),
             },
             series: seriesList,
             tooltip: this.handleSetTooltip(),

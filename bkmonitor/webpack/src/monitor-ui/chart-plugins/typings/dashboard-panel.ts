@@ -384,6 +384,7 @@ export interface IApmTimeSeriesOption {
     service_name?: string;
     enableSeriesContextmenu?: boolean; // 是否开启series的右键菜单
     enableContextmenu?: boolean; // 是否开启全局的右键菜单
+    xAxisSplitNumber?: number;
   };
 }
 

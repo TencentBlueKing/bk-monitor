@@ -644,7 +644,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               onResourceDrilling={this.handleResourceDrilling}
               onServiceDetail={this.handleServiceDetail}
             />
-            {this.loading.topo && <div class='empty-chart'>{this.$t('加载中')}</div>}
+            {this.loading.topo && <div class='apm-topo-empty-chart'>{this.$t('加载中')}</div>}
 
             <div
               class='side-wrap'
