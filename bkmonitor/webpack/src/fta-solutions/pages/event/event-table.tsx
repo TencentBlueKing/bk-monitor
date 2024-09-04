@@ -657,7 +657,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
       CLOSED: {
         color: '#63656E',
         bgColor: '#F0F1F5',
-        name: this.$t('已关闭'),
+        name: this.$t('已失效'),
       },
     };
     this.extendInfoMap = {

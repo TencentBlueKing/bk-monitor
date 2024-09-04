@@ -2499,6 +2499,7 @@ class CollectorHandler(object):
             "is_display": is_display,
         }
 
+        _collector_config_name = self.data.collector_config_name
         bk_data_name = build_bk_data_name(
             bk_biz_id=self.data.get_bk_biz_id(), collector_config_name_en=self.data.collector_config_name_en
         )
@@ -2520,7 +2521,7 @@ class CollectorHandler(object):
             raise CollectorConfigNameDuplicateException()
 
         # collector_config_name更改后更新索引集名称
-        if collector_config_name != self.data.collector_config_name and self.data.index_set_id:
+        if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
             index_set_name = _("[采集项]") + self.data.collector_config_name
             LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).update(index_set_name=index_set_name)
 
@@ -2862,6 +2863,7 @@ class CollectorHandler(object):
                     namespace_list=config["namespaces"],
                 )
 
+        _collector_config_name = self.data.collector_config_name
         for key, value in collector_config_update.items():
             setattr(self.data, key, value)
 
@@ -2872,7 +2874,7 @@ class CollectorHandler(object):
             raise CollectorConfigNameDuplicateException()
 
         # collector_config_name更改后更新索引集名称
-        if data["collector_config_name"] != self.data.collector_config_name and self.data.index_set_id:
+        if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
             index_set_name = _("[采集项]") + self.data.collector_config_name
             LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).update(index_set_name=index_set_name)
 

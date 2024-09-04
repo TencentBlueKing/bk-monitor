@@ -32,6 +32,7 @@ from django.utils.translation import ugettext as _
 
 from apps.api import BkDataStorekitApi, BkLogApi, TransferApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
 from apps.log_clustering.handlers.dataflow.constants import PATTERN_SEARCH_FIELDS
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_search.constants import (
@@ -59,6 +60,7 @@ from apps.log_search.models import (
 )
 from apps.utils.cache import cache_one_minute, cache_ten_minute
 from apps.utils.codecs import unicode_str_encode
+from apps.utils.drf import custom_params_valid
 from apps.utils.local import (
     get_local_param,
     get_request_app_code,
@@ -84,10 +86,20 @@ TRACE_SCOPE = ["trace", "trace_detail", "trace_detail_log"]
 
 class MappingHandlers(object):
     def __init__(
-        self, indices, index_set_id, scenario_id, storage_cluster_id, time_field="", start_time="", end_time=""
+        self,
+        indices,
+        index_set_id,
+        scenario_id,
+        storage_cluster_id,
+        time_field="",
+        start_time="",
+        end_time="",
+        bk_biz_id=None,
+        only_search=False,
     ):
         self.indices = indices
         self.index_set_id = index_set_id
+        self.bk_biz_id = bk_biz_id
         self.scenario_id = scenario_id
         self.storage_cluster_id = storage_cluster_id
         self.time_field = time_field
@@ -96,6 +108,9 @@ class MappingHandlers(object):
         self.time_zone: str = get_local_param("time_zone")
         # 最终字段
         self._final_fields = None
+
+        # 仅查询使用
+        self.only_search = only_search
 
     def check_fields_not_conflict(self, raise_exception=True):
         """
@@ -245,7 +260,8 @@ class MappingHandlers(object):
         ]
         fields_list = self.add_clustered_fields(fields_list)
         fields_list = self.virtual_fields(fields_list)
-        fields_list = self._combine_description_field(fields_list)
+        if not self.only_search:
+            fields_list = self._combine_description_field(fields_list)
         fields_list = self._combine_fields(fields_list)
 
         for field in fields_list:
@@ -436,22 +452,31 @@ class MappingHandlers(object):
         end_time_format = end_time.ceil("hour").strftime("%Y-%m-%d %H:%M:%S")
 
         return self._get_latest_mapping(
-            index_set_id=self.index_set_id, start_time=start_time_format, end_time=end_time_format
+            index_set_id=self.index_set_id,
+            start_time=start_time_format,
+            end_time=end_time_format,
+            only_search=self.only_search,
         )
 
-    @cache_one_minute("latest_mapping_key_{index_set_id}_{start_time}_{end_time}")
-    def _get_latest_mapping(self, index_set_id, start_time, end_time):  # noqa
-        latest_mapping = BkLogApi.mapping(
-            {
-                "indices": self.indices,
-                "scenario_id": self.scenario_id,
-                "storage_cluster_id": self.storage_cluster_id,
-                "time_zone": self.time_zone,
-                "start_time": start_time,
-                "end_time": end_time,
-                "add_settings_details": True,
-            }
-        )
+    @cache_one_minute("latest_mapping_key_{index_set_id}_{start_time}_{end_time}_{only_search}")
+    def _get_latest_mapping(self, index_set_id, start_time, end_time, only_search=False):  # noqa
+        from apps.log_esquery.esquery.esquery import EsQuery
+        from apps.log_esquery.serializers import EsQueryMappingAttrSerializer
+
+        params = {
+            "indices": self.indices,
+            "scenario_id": self.scenario_id,
+            "storage_cluster_id": self.storage_cluster_id,
+            "time_zone": self.time_zone,
+            "start_time": start_time,
+            "end_time": end_time,
+            "add_settings_details": False if only_search else True,
+        }
+        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.bk_biz_id):
+            data = custom_params_valid(EsQueryMappingAttrSerializer, params)
+            latest_mapping = EsQuery(data).mapping()
+        else:
+            latest_mapping = BkLogApi.mapping(params)
         return latest_mapping
 
     @staticmethod
@@ -1053,7 +1078,7 @@ class MappingHandlers(object):
         return None
 
     @classmethod
-    def async_export_fields(cls, final_fields_list: List[Dict[str, Any]], scenario_id: str) -> dict:
+    def async_export_fields(cls, final_fields_list: List[Dict[str, Any]], scenario_id: str, sort_fields: list) -> dict:
         """
         判断是否可以支持大额导出
         """
@@ -1063,6 +1088,8 @@ class MappingHandlers(object):
         if not FeatureToggleObject.switch(FEATURE_ASYNC_EXPORT_COMMON):
             result["async_export_usable_reason"] = _("【异步导出功能尚未开放】")
             return result
+        if sort_fields and fields.issuperset(set(sort_fields)):
+            return cls._judge_missing_agg_field(result, agg_fields, sort_fields)
 
         if scenario_id == Scenario.BKDATA and fields.issuperset(set(BKDATA_ASYNC_FIELDS)):
             return cls._judge_missing_agg_field(result, agg_fields, BKDATA_ASYNC_FIELDS)

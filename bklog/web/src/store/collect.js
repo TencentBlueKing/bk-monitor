@@ -32,9 +32,15 @@ export default {
     curCollect: {},
     curIndexSet: {},
     scenarioMap: null,
+    exportCollectObj: {
+      collectID: null,
+      syncType: [],
+      collect: {},
+    },
   },
   getters: {
     curCollect: state => state.curCollect,
+    exportCollectObj: state => state.exportCollectObj,
   },
   mutations: {
     setCurCollect(state, collect) {
@@ -54,6 +60,9 @@ export default {
     },
     updateScenarioMap(state, payload) {
       state.scenarioMap = payload;
+    },
+    updateExportCollectObj(state, payload) {
+      state.exportCollectObj = payload;
     },
   },
   actions: {},

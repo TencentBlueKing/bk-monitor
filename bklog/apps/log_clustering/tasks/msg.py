@@ -35,7 +35,7 @@ from apps.utils.task import high_priority_task
 
 
 @high_priority_task(ignore_result=True)
-def send(index_set_id):
+def access_clustering(index_set_id):
     clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
     log_index_set = LogIndexSet.objects.get(index_set_id=index_set_id)
     doc_count = get_doc_count(index_set_id=index_set_id, bk_biz_id=clustering_config.bk_biz_id)

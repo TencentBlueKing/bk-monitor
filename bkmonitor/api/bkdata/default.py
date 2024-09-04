@@ -829,6 +829,18 @@ class DeleteDataFlowNode(DataAccessAPIResource):
         confirm = serializers.BooleanField(default=True, required=False)
 
 
+class GetDataflowDeployData(DataAccessAPIResource):
+    """
+    获取DataFlow的最近部署信息
+    """
+
+    action = "/v3/dataflow/flow/flows/{flow_id}/deploy_data/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        flow_id = serializers.IntegerField(required=True, label="DataFlow的ID")
+
+
 class GetLatestDeployDataFlow(DataAccessAPIResource):
     """
     获取DataFlow的最近部署信息

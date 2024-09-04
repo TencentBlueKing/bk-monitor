@@ -9,10 +9,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import inspect
 import logging
+from typing import Optional
 
 from django.http import Http404
 from django.utils.translation import ugettext_lazy as _lazy
+from opentelemetry.trace.span import Span
+from opentelemetry.util import types
 from rest_framework import status
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
@@ -101,7 +105,7 @@ def custom_exception_handler(exc, context):
                 exc_code=HTTP404Error.code,
                 overview=msg,
                 detail=msg,
-                popup_message="danger",  # 红框
+                popup_message="error",  # 红框
             ).to_dict(),
         }
 
@@ -122,3 +126,49 @@ def custom_exception_handler(exc, context):
         setattr(response, "exception_instance", exc)
 
     return response
+
+
+def record_exception(
+    span: Span,
+    exception: Exception,
+    attributes: types.Attributes = None,
+    timestamp: Optional[int] = None,
+    escaped: bool = False,
+    out_limit: int = None,
+) -> None:
+    """Records an exception as a span event."""
+    try:
+        row = [
+            "Traceback (most recent call last):\n",
+        ]
+        tb = exception.__traceback__
+        out_frames = inspect.getouterframes(tb.tb_frame)[1:]
+        if out_limit and out_limit > 0:
+            out_frames = out_frames[:out_limit]
+        for item in reversed(out_frames):
+            row.append('  File "{}", line {}, in {}\n'.format(item.filename, item.lineno, item.function))
+            for line in item.code_context:
+                if line:
+                    row.append('    {}\n'.format(line.strip()))
+
+        for item in inspect.getinnerframes(tb):
+            row.append('  File "{}", line {}, in {}\n'.format(item.filename, item.lineno, item.function))
+            for line in item.code_context:
+                if line:
+                    row.append('    {}\n'.format(line.strip()))
+
+        stacktrace = ''.join(row)
+    except Exception:  # pylint: disable=broad-except
+        # workaround for python 3.4, format_exc can raise
+        # an AttributeError if the __context__ on
+        # an exception is None
+        stacktrace = "Exception occurred on stacktrace formatting"
+    _attributes = {
+        "exception.type": exception.__class__.__name__,
+        "exception.message": str(exception),
+        "exception.stacktrace": stacktrace,
+        "exception.escaped": str(escaped),
+    }
+    if attributes:
+        _attributes.update(attributes)
+    span.add_event(name="exception", attributes=_attributes, timestamp=timestamp)

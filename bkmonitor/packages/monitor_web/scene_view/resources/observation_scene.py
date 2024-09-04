@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import collections
 import logging
+import random
 import time
 from collections import defaultdict
 from enum import Enum
@@ -127,7 +128,11 @@ class GetObservationSceneStatusList(CacheResource):
     @classmethod
     def check_plugin(cls, bk_biz_id: int, plugin_id: str = None, collect_config_id: int = None) -> bool:
         if plugin_id:
-            plugin = CollectorPluginMeta.objects.filter(bk_biz_id__in=[0, bk_biz_id], plugin_id=plugin_id).first()
+            plugin = (
+                CollectorPluginMeta.objects.filter(bk_biz_id__in=[0, bk_biz_id], plugin_id=plugin_id)
+                .only("plugin_id", "plugin_type")
+                .first()
+            )
             if not plugin:
                 return False
 
@@ -192,10 +197,13 @@ class GetObservationSceneStatusList(CacheResource):
             metrics = [
                 {"field": field["field_name"], "method": "count"} for field in table.fields if field["tag"] == "metric"
             ]
+            if not metrics:
+                continue
             data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
+            # 随机取8个
             data_source = data_source_class(
                 table=f"{db_name.lower()}.{table.table_name}",
-                metrics=metrics,
+                metrics=random.sample(metrics, min(8, len(metrics))),
                 filter_dict=filter_dict,
                 interval=sampling_duration,  # 步长设置为整个时间段，模拟即时查询
             )
@@ -294,21 +302,24 @@ class GetObservationSceneList(Resource):
 
     @classmethod
     def get_collect_plugin_list(cls, bk_biz_id: int) -> List[Dict[str, Any]]:
-        plugins: List[CollectorPluginMeta] = list(
-            CollectorPluginMeta.objects.filter(bk_biz_id__in=[0, bk_biz_id]).exclude(
-                plugin_type__in=[PluginType.SNMP_TRAP, PluginType.LOG]
-            )
+        plugins: List[CollectorPluginMeta] = (
+            CollectorPluginMeta.objects.filter(bk_biz_id__in=[0, bk_biz_id])
+            .exclude(plugin_type__in=[PluginType.SNMP_TRAP, PluginType.LOG])
+            .only("plugin_id", "label", "plugin_type")
         )
-        plugin_ids: List[str] = list({plugin.plugin_id for plugin in plugins})
+
+        plugin_ids: List[str] = [plugin.plugin_id for plugin in plugins]
         table_counter: Dict[str, int] = cls.strategy_count_group_by_table(bk_biz_id)
         collect_config_counter: Dict[str, int] = cls.collect_config_count_group_by_biz_plugin(bk_biz_id, plugin_ids)
 
-        plugin_versions: List[PluginVersionHistory] = PluginVersionHistory.objects.filter(
-            id__in=CollectorPluginMeta.fetch_id__current_version_id_map(plugin_ids).values()
-        ).select_related("info")
-        plugin_id__current_version_map: Dict[str, PluginVersionHistory] = {
-            plugin_version.plugin_id: plugin_version for plugin_version in plugin_versions
-        }
+        plugin_versions: List[PluginVersionHistory] = (
+            PluginVersionHistory.objects.filter(
+                id__in=CollectorPluginMeta.fetch_id__current_version_id_map(plugin_ids).values()
+            )
+            .select_related("info")
+            .only("plugin_id", "info__plugin_display_name")
+        )
+        plugin_id__current_version_map = {pv.plugin_id: pv for pv in plugin_versions}
 
         collect_plugin_list: List[Dict[str, Any]] = []
         for plugin in plugins:
@@ -322,12 +333,15 @@ class GetObservationSceneList(Resource):
             except KeyError:
                 version: PluginVersionHistory = plugin.generate_version(config_version=1, info_version=1)
 
-            table_ids: List[str] = []
-            for table in version.info.metric_json:
-                table_ids.append(version.get_result_table_id(plugin, table["table_name"]).lower())
+            # table_ids: List[str] = []
+            # for table in version.info.metric_json:
+            #     table_ids.append(version.get_result_table_id(plugin, table["table_name"]).lower())
 
             # 基于插件进行策略统计
-            strategy_count: int = sum([table_counter.get(table_id, 0) for table_id in table_ids])
+            strategy_count: int = 0
+            for table_id in table_counter.keys():
+                if f"{plugin.plugin_id}." in table_id:
+                    strategy_count += table_counter[table_id]
 
             collect_plugin_list.append(
                 {
@@ -407,7 +421,9 @@ class GetObservationSceneList(Resource):
     def get_custom_event_list(cls, bk_biz_id: int):
         from monitor_web.custom_report.resources import QueryCustomEventGroup
 
-        tables = CustomEventGroup.objects.filter(bk_biz_id=bk_biz_id, type=EVENT_TYPE.CUSTOM_EVENT)
+        tables = CustomEventGroup.objects.filter(bk_biz_id=bk_biz_id, type=EVENT_TYPE.CUSTOM_EVENT).only(
+            "table_id", "bk_event_group_id", "name", "data_label", "bk_data_id", "scenario"
+        )
         strategy_counts = QueryCustomEventGroup.get_strategy_count_for_each_group([table.table_id for table in tables])
         return [
             {

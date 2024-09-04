@@ -25,28 +25,28 @@
 -->
 <template>
   <div
-    v-monitor-loading="{ isLoading: loading }"
     class="node-page-container"
+    v-monitor-loading="{ isLoading: loading }"
   >
     <div v-show="!showCreateCard">
       <div class="header">
         <div class="create-node">
           <bk-button
+            class="mc-btn-add"
             v-authority="{
               active: !authority.MANAGE_AUTH,
             }"
             theme="primary"
-            class="mc-btn-add"
             @click="authority.MANAGE_AUTH ? addNode() : handleShowAuthorityDetail(uptimeAuth.MANAGE_AUTH)"
           >
             {{ $t('新建') }}
           </bk-button>
         </div>
         <bk-input
-          :placeholder="$t('节点名称/IP')"
-          right-icon="bk-icon icon-search"
-          :value="searchWord"
           style="width: 320px"
+          :placeholder="$t('节点名称/IP')"
+          :value="searchWord"
+          right-icon="bk-icon icon-search"
           clearable
           @change="search"
         />
@@ -102,8 +102,8 @@
           >
             <template slot-scope="scope">
               <div
-                class="task-num"
                 :style="{ color: scope.row.task_num > 0 ? '#3A84FF' : '#C4C6CC' }"
+                class="task-num"
                 @click="scope.row.task_num > 0 && handleToCheckTask(scope.row.name)"
               >
                 {{ scope.row.task_num || 0 }}
@@ -133,10 +133,10 @@
               <div>
                 <bk-button
                   v-authority="{ active: !authority.MANAGE_AUTH }"
-                  theme="primary"
-                  text
                   :class="[canEdit(scope.row) ? '' : 'not-allowed']"
                   :disabled="!canEdit(scope.row)"
+                  theme="primary"
+                  text
                   @click="
                     authority.MANAGE_AUTH ? handleEdit(scope.row) : handleShowAuthorityDetail(uptimeAuth.MANAGE_AUTH)
                   "
@@ -145,9 +145,9 @@
                 </bk-button>
                 <bk-button
                   v-authority="{ active: !authority.MANAGE_AUTH }"
-                  text
                   :class="[canEdit(scope.row) ? '' : 'not-allowed']"
                   :disabled="!canEdit(scope.row)"
+                  text
                   @click="
                     authority.MANAGE_AUTH
                       ? handleRemove(scope.row.id, scope.row.name)
@@ -161,16 +161,16 @@
           </bk-table-column>
         </bk-table>
         <div
-          v-show="table.total"
           class="uptime-check-node-footer"
+          v-show="table.total"
         >
           <bk-pagination
             class="list-pagination"
-            align="right"
+            :count="table.total"
             :current.sync="table.page"
             :limit="table.pageSize"
-            :count="table.total"
             :limit-list="table.pageList"
+            align="right"
             show-total-count
             @change="handlePageChange"
             @limit-change="handleLimitChange"
@@ -179,8 +179,8 @@
       </div>
     </div>
     <div
-      v-show="showCreateCard"
       class="not-nodes"
+      v-show="showCreateCard"
     >
       <div class="desc">
         {{ $t('暂无拨测节点') }}
@@ -193,10 +193,10 @@
           {{ $t('创建一个私有或云拨测节点，用于探测服务的质量与可用性') }}
         </div>
         <span
+          class="create-btn"
           v-authority="{
             active: !authority.MANAGE_AUTH,
           }"
-          class="create-btn"
           @click="authority.MANAGE_AUTH ? addNode() : handleShowAuthorityDetail(uptimeAuth.MANAGE_AUTH)"
         >
           {{ $t('立即新建') }}
@@ -242,8 +242,8 @@
       <delete-subtitle
         ref="deleteSubTitle"
         :key="delSubTitle.name"
-        :title="delSubTitle.title"
         :name="delSubTitle.name"
+        :title="delSubTitle.title"
       />
     </div>
   </div>
