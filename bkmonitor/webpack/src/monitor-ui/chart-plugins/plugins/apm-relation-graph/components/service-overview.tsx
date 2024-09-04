@@ -99,11 +99,9 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   curType: 'endpoint' | 'service' = 'service';
 
   @ProvideReactive('viewOptions') viewOptions = {
-    variables: {
-      app_name: '',
-      service_name: '',
-      endpoint_name: '',
-    },
+    app_name: '',
+    service_name: '',
+    endpoint_name: '',
   };
 
   get tabs() {
@@ -149,7 +147,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   @Debounce(200)
   initPanel() {
     this.tabActive = 'service';
-    this.viewOptions.variables = {
+    this.viewOptions = {
       app_name: this.appName,
       service_name: this.serviceName,
       endpoint_name: this.endpoint,
@@ -242,6 +240,13 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
           panel =>
             new PanelModel({
               ...panel,
+              options: {
+                ...(panel?.options || {}),
+                apm_time_series: {
+                  ...(panel?.options?.apm_time_series || {}),
+                  xAxisSplitNumber: 3,
+                },
+              },
               dashboardId: this.serviceTabData.dashboardId,
               type: 'apm-timeseries-chart',
               targets: panel.targets.map(t => {
@@ -429,7 +434,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
                 class='setting-btn'
                 onClick={this.handleServiceConfig}
               >
-                {this.curType === 'service' && this.$t('服务配置')}
+                {this.$t('服务配置')}
                 <i class='icon-monitor icon-shezhi' />
               </div>
             </div>

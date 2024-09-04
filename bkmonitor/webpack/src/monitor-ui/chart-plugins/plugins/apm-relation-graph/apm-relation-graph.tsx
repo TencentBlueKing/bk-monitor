@@ -645,11 +645,10 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               onServiceDetail={this.handleServiceDetail}
             />
             {this.loading.topo && (
-              <div class='empty-chart'>
+              <div class='apm-topo-empty-chart'>
                 <bk-spin size='large' />
               </div>
             )}
-
             <div
               class='side-wrap'
               slot='side'
