@@ -456,6 +456,13 @@ export default class DataRetrieval extends tsc<object> {
     return this.favCheckedValue === null;
   }
 
+  get tabActiveName() {
+    return {
+      monitor: 'route-指标检索',
+      event: 'route-事件检索',
+    };
+  }
+
   get selectFavoriteName() {
     return this.favCheckedValue?.name || '--';
   }
@@ -3100,7 +3107,9 @@ export default class DataRetrieval extends tsc<object> {
           onChange={this.handleChangeBizId} /> */}
         <div class='title-main'>
           <div class='title-edit'>
-            <span class='title-text'>{this.isFavoriteNewSearch ? this.$t('新检索') : this.selectFavoriteName}</span>
+            <span class='title-text'>
+              {this.isFavoriteNewSearch ? this.$t(this.tabActiveName[this.tabActive]) : this.selectFavoriteName}
+            </span>
             {!this.isFavoriteNewSearch ? (
               <span
                 class='edit icon-monitor icon-bianji'
