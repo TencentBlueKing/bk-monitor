@@ -23,55 +23,38 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-export const getDefaultRetrieveParams = () => {
-  return {
-    keyword: '*',
-    host_scopes: { modules: [], ips: '', target_nodes: [], target_node_type: '' },
-    ip_chooser: {},
-    addition: [],
-    begin: 0,
-    size: 50,
-    interval: '1d',
-    timezone: 'Asia/Shanghai',
-  };
-};
-
-export const DEFAULT_RETRIEVE_PARAMS = getDefaultRetrieveParams();
-
-export const IndexSetQueryResult = {
-  is_loading: false,
-  aggregations: {},
-  _shards: {},
-  total: 0,
-  took: 0,
-  list: [],
-  origin_log_list: [],
-  aggs: {},
-  fields: [],
-};
-
-export const IndexFieldInfo = {
-  is_loading: false,
-  fields: [],
-  display_fields: [],
-  sort_list: [],
-  time_field: '',
-  time_field_type: '',
-  time_field_unit: '',
-  config: [],
-  config_id: 0,
-};
-
-export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
-
-export const IndexItem = {
-  start_time: 'now-15m',
-  end_time: 'now',
-  ids: [],
-  isUnionIndex: false,
-  items: [],
-  catchUnionBeginList: [],
-  selectIsUnionSearch: false,
-  ...IndexsetItemParams,
-};
+// @ts-ignore
+export const Time_Range_List = [
+  {
+    id: 0,
+    name: `off 关闭`,
+  },
+  {
+    id: 60000,
+    name: '1m',
+  },
+  {
+    id: 300000,
+    name: '5m',
+  },
+  {
+    id: 900000,
+    name: '15m',
+  },
+  {
+    id: 1800000,
+    name: '30m',
+  },
+  {
+    id: 3600000,
+    name: '1h',
+  },
+  {
+    id: 7200000,
+    name: '2h',
+  },
+  {
+    id: 86400000,
+    name: '1d',
+  },
+];

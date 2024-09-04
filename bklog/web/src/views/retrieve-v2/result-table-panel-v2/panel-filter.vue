@@ -4,7 +4,7 @@
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
 
-  import FieldFilter from '../../retrieve/field-filter-comp';
+  import FieldFilter from '../field-filter-comp';
   const store = useStore();
   const { $t } = useLocale();
   /** 时间选择器绑定的值 */
@@ -68,12 +68,13 @@
       tableLoading,
     };
   });
+
   const operatorConfig = ref({
     /** 当前日志来源是否展示  用于字段更新后还保持显示状态 */
     isShowSourceField: false,
   });
   const showFieldAlias = ref(localStorage.getItem('showFieldAlias') === 'true');
-  const visibleFields = computed(() => store.state.visibleFields);
+  const visibleFields = computed(() => store.state.visibleFields ?? []);
 
   // 接口中获取的字段
   const statisticalFieldsData = ref({});
@@ -83,7 +84,6 @@
    * @param {Array<str>} displayFieldNames 显示字段
    */
   const initVisibleFields = displayFieldNames => {
-    console.log(displayFieldNames, 'displayFieldNames');
     const displayFields = displayFieldNames
       .map(displayName => {
         for (const field of totalFields.value) {
@@ -94,8 +94,8 @@
       })
       .filter(Boolean);
     showShowUnionSource(true);
-    store.dispatch('updateIsNotVisibleFieldsShow', !displayFields.length);
-    store.dispatch('updateVisibleFields', !displayFields.length);
+    store.commit('updateIsNotVisibleFieldsShow', !displayFields.length);
+    // store.commit('updateVisibleFields', !displayFields.length);
   };
   const showShowUnionSource = (keepLastTime = false) => {
     // 非联合查询 或者清空了所有字段 不走逻辑
@@ -113,7 +113,7 @@
     }
     const visibleFields = isExist ? visibleFields.value.shift() : visibleFields.value.unshift(this.logSourceField);
     if (visibleFields) {
-      store.dispatch('updateVisibleFields', visibleFields);
+      store.commit('updateVisibleFields', visibleFields);
     }
   };
   /**
@@ -143,7 +143,6 @@
   watch(
     store.state.indexFieldInfo,
     () => {
-      console.log(store.state.indexFieldInfo, 'store.state.indexFieldInfo');
       initVisibleFields(store.state.indexFieldInfo.display_fields);
     },
     { deep: true, immediate: true },

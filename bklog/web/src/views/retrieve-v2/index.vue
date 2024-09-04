@@ -27,15 +27,10 @@
 <script setup>
   import { computed, onMounted, ref, watch, set } from 'vue';
 
-  // import * as authorityMap from '@/common/authority-map';
   import useStore from '@/hooks/use-store';
-  import dayjs from 'dayjs';
   import { isEqual } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
-
-  import { updateTimezone } from '../../language/dayjs';
   import CollectFavorites from './collect/collect-index';
-  import { getDefaultRetrieveParams } from './const';
   import ResultPanel from './result-table-panel-v2/index';
   import SearchBar from './search-bar/index.vue';
   import SubBar from './sub-bar/index.vue';
@@ -53,8 +48,12 @@
   const bkBizId = computed(() => store.state.bkBizId);
   const indexItem = computed(() => store.state.indexItem ?? {});
 
+  /**
+   * 拉取索引集列表
+   */
   const getIndexSetList = () => {
     store.dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value }).then(resp => {
+      // 拉取完毕根据当前路由参数回填默认选中索引集
       store.dispatch('updateIndexItemByRoute', { route, list: resp[1] });
     });
   };
@@ -126,24 +125,6 @@
     initFavoriteState();
   });
 
-  const retrieveParams = computed(() => {
-    const { start_time, end_time, timezone, addition } = indexItem.value;
-    return {
-      bk_biz_id: store.state.bkBizId,
-      ...getDefaultRetrieveParams(),
-      start_time,
-      end_time,
-      timezone,
-      addition,
-    };
-  });
-
-  /** 修改时区 */
-  const handleSearBarChanged = timezone => {
-    timezone.value = timezone;
-    updateTimezone(timezone);
-  };
-
   const activeTab = ref('origin');
 </script>
 <template>
@@ -186,12 +167,11 @@
         @handle-click-favorite="handleClickFavorite"
       ></CollectFavorites>
       <div :style="{ paddingLeft: `${showFavorites ? favoriteWidth : 0}px` }">
-        <SearchBar @change="handleSearBarChanged"></SearchBar>
+        <SearchBar></SearchBar>
         <div class="result-row">
           <TabPanel v-model="activeTab"></TabPanel>
           <ResultPanel :active-tab="activeTab"></ResultPanel>
         </div>
-        <div class="result-row"></div>
       </div>
     </div>
   </div>

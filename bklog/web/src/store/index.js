@@ -31,7 +31,7 @@
  */
 import Vue from 'vue';
 
-import { unifyObjectStyle, getOperatorKey, readBlobRespToJson } from '@/common/util';
+import { unifyObjectStyle, getOperatorKey, readBlobRespToJson, parseBigNumberList } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import axios from 'axios';
 import Vuex from 'vuex';
@@ -39,6 +39,7 @@ import Vuex from 'vuex';
 import collect from './collect';
 import { IndexSetQueryResult, IndexFieldInfo, IndexItem, IndexsetItemParams } from './default-values.ts';
 import globals from './globals';
+import RequestPool from './request-pool';
 import retrieve from './retrieve';
 import http from '@/api';
 
@@ -170,6 +171,34 @@ const store = new Vuex.Store({
     isShowMaskingTemplate: state =>
       state.maskingToggle.toggleString === 'on' || state.maskingToggle.toggleList.includes(Number(state.bkBizId)),
     isLimitExpandView: state => state.isLimitExpandView,
+    // @ts-ignore
+    retrieveParams: state => {
+      const {
+        start_time,
+        end_time,
+        isUnionIndex,
+        addition,
+        begin,
+        size,
+        keyword = '*',
+        ip_chooser,
+        host_scopes,
+        interval,
+      } = state.indexItem;
+
+      return {
+        start_time,
+        end_time,
+        isUnionIndex,
+        addition,
+        begin,
+        size,
+        keyword,
+        ip_chooser,
+        host_scopes,
+        interval,
+      };
+    },
   },
   // 公共 mutations
   mutations: {
@@ -192,7 +221,7 @@ const store = new Vuex.Store({
     },
 
     resetIndexSetQueryResult(state, payload) {
-      Object.assign(state.indexSetQueryResult, { ...IndexSetQueryResult, ...(payload ?? {}) });
+      Object.assign(state.indexSetQueryResult, IndexSetQueryResult, payload ?? {});
     },
 
     updateIndexSetQueryResult(state, payload) {
@@ -374,6 +403,10 @@ const store = new Vuex.Store({
     updateIndexFieldInfo(state, payload) {
       Object.assign(state.indexFieldInfo, payload ?? {});
     },
+    resetIndexFieldInfo(state, payload) {
+      const defValue = { ...IndexFieldInfo };
+      state.indexFieldInfo = Object.assign(defValue, payload ?? {});
+    },
   },
   actions: {
     /**
@@ -502,9 +535,16 @@ const store = new Vuex.Store({
       if (route.params.indexId) {
         ids.push(route.params.indexId);
         commit('updateIndexId', route.params.indexId);
-      } else {
+      }
+
+      if ((route.query?.unionList?.length ?? 0) > 0) {
         isUnionIndex = true;
         ids.push(...JSON.parse(decodeURIComponent(route.query?.unionList ?? '[]')));
+      }
+
+      if (!isUnionIndex && !ids.length && list?.length) {
+        commit('updateIndexId', list[0].index_set_id);
+        ids.push(list[0].index_set_id);
       }
 
       if (ids.length) {
@@ -521,6 +561,10 @@ const store = new Vuex.Store({
     },
 
     requestIndexSetFieldInfo({ commit, state }) {
+      commit('resetIndexFieldInfo', { is_loading: true });
+      commit('updataOperatorDictionary', {});
+      commit('updateVisibleFields', []);
+
       const isUnionIndex = state.indexItem?.isUnionIndex;
       // @ts-ignore
       const { ids = [], start_time = '', end_time = '' } = state.indexItem;
@@ -546,8 +590,11 @@ const store = new Vuex.Store({
         .then(res => {
           commit('updateIndexFieldInfo', res.data ?? {});
           commit('updataOperatorDictionary', res.data ?? {});
-          commit('updataVisibleFields', res.data?.display_fields ?? []);
+          commit('updateVisibleFields', res.data?.display_fields ?? []);
           return res;
+        })
+        .finally(() => {
+          commit('updateIndexFieldInfo', { is_loading: false });
         });
     },
 
@@ -566,12 +613,16 @@ const store = new Vuex.Store({
         ip_chooser,
         host_scopes,
         interval,
+        timezone,
       } = state.indexItem;
       const bk_biz_id = state.bkBizId;
       commit('resetIndexSetQueryResult', { is_loading: true });
 
       const [startTimeStamp, endTimeStamp] = handleTransformToTimestamp([start_time, end_time]);
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
+      const cancelTokenKey = 'requestIndexSetQueryCancelToken';
+      RequestPool.execCanceToken(cancelTokenKey);
+      const requestCancelToken = payload.cancelToken ?? RequestPool.getCancelToken(cancelTokenKey);
 
       // 区分联合查询和单选查询
       const searchUrl = !isUnionIndex
@@ -589,6 +640,7 @@ const store = new Vuex.Store({
         keyword,
         size,
         start_time: startTimeStamp,
+        timezone,
       };
 
       // 更新联合查询的begin
@@ -613,7 +665,7 @@ const store = new Vuex.Store({
       const params = {
         method: 'post',
         url: searchUrl,
-        cancelToken: payload.cancelToken,
+        cancelToken: requestCancelToken,
         withCredentials: true,
         baseURL: baseUrl,
         responseType: 'blob',
@@ -625,11 +677,26 @@ const store = new Vuex.Store({
         };
       }
 
-      axios(params).then(res => {
-        const result = readBlobRespToJson(res.data);
-        commit('updateIndexSetQueryResult', { ...(result ?? {}), is_loading: false });
-        return result;
-      });
+      return axios(params)
+        .then(({ code, data, message, result }) => {
+          if (result) {
+            const rsolvedData = readBlobRespToJson(res.data);
+            const catchUnionBeginList = parseBigNumberList(data?.union_configs || []);
+            commit('updateIndexItem', { catchUnionBeginList, begin: begin + 1 });
+            commit('updateIndexSetQueryResult', rsolvedData ?? {});
+            return {
+              code,
+              data: rsolvedData,
+              message,
+              result,
+            };
+          }
+
+          return { code, data, message, result };
+        })
+        .finally(() => {
+          commit('updateIndexSetQueryResult', { is_loading: false });
+        });
     },
 
     /**

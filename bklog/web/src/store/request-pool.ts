@@ -23,55 +23,30 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import axios from 'axios';
 
-export const getDefaultRetrieveParams = () => {
-  return {
-    keyword: '*',
-    host_scopes: { modules: [], ips: '', target_nodes: [], target_node_type: '' },
-    ip_chooser: {},
-    addition: [],
-    begin: 0,
-    size: 50,
-    interval: '1d',
-    timezone: 'Asia/Shanghai',
-  };
-};
+class RequestPool {
+  cancelStore = null;
+  constructor() {
+    this.cancelStore = new Map();
+  }
 
-export const DEFAULT_RETRIEVE_PARAMS = getDefaultRetrieveParams();
+  getCancelToken(key: string) {
+    return new axios.CancelToken(c => {
+      this.setCancelToken(key, c);
+    });
+  }
 
-export const IndexSetQueryResult = {
-  is_loading: false,
-  aggregations: {},
-  _shards: {},
-  total: 0,
-  took: 0,
-  list: [],
-  origin_log_list: [],
-  aggs: {},
-  fields: [],
-};
+  setCancelToken(key: string, fn: () => void) {
+    this.cancelStore.set(key, fn);
+  }
 
-export const IndexFieldInfo = {
-  is_loading: false,
-  fields: [],
-  display_fields: [],
-  sort_list: [],
-  time_field: '',
-  time_field_type: '',
-  time_field_unit: '',
-  config: [],
-  config_id: 0,
-};
+  execCanceToken(key: string) {
+    if (this.cancelStore.has(key)) {
+      this.cancelStore.get(key)?.();
+      this.cancelStore.delete(key);
+    }
+  }
+}
 
-export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
-
-export const IndexItem = {
-  start_time: 'now-15m',
-  end_time: 'now',
-  ids: [],
-  isUnionIndex: false,
-  items: [],
-  catchUnionBeginList: [],
-  selectIsUnionSearch: false,
-  ...IndexsetItemParams,
-};
+export default new RequestPool();
