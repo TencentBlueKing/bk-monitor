@@ -843,4 +843,5 @@ export default {
   '导入的集群已被删除，请手动选择集群。': 'Imported cluster has been deleted, please manually select a cluster.',
   '为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成':
     'To reduce transmission and storage costs, some content can be filtered out. More complex operations can be completed in the "Cleaning" feature.',
+  请选择需要同步的配置: 'Please select the configuration to be synchronized',
 };
