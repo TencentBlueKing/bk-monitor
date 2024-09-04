@@ -808,9 +808,9 @@ class SearchViewSet(APIViewSet):
         if scope is not None and scope not in SearchScopeEnum.get_keys():
             raise ValidationError(_("scope取值范围：default、search_context"))
 
-        start_time = request.GET.get("start_time", "")
-        end_time = request.GET.get("end_time", "")
-
+        # 将日期中的&nbsp;替换为标准空格
+        start_time = request.GET.get("start_time", "").replace('&nbsp;', ' ')
+        end_time = request.GET.get("end_time", "").replace('&nbsp;', ' ')
         if scope == SearchScopeEnum.DEFAULT.value and not is_realtime and not start_time and not end_time:
             # 使用缓存
             fields = self.get_object().get_fields(use_snapshot=True)
