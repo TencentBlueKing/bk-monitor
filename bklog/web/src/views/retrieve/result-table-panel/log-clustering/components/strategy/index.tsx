@@ -372,6 +372,8 @@ export default class Strategy extends tsc<object> {
         >
           <bk-form-item
             v-show={this.isAlarmType}
+            desc={$i18n.t('表示近一段时间内新增日志模式。可自定义新类判定的时间区间。如：近30天内新增')}
+            desc-type={'icon'}
             label={$i18n.t('新类告警间隔（天）')}
             property='interval'
             required
@@ -385,6 +387,8 @@ export default class Strategy extends tsc<object> {
           </bk-form-item>
           <bk-form-item
             v-show={this.isAlarmType}
+            desc={$i18n.t('表示某日志模式数量突然异常增长，可能某些模块突发风险')}
+            desc-type={'icon'}
             label={$i18n.t('新类告警阈值')}
             property='threshold'
             required

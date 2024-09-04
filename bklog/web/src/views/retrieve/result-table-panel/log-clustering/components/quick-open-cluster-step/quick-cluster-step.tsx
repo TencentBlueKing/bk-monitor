@@ -63,10 +63,7 @@ export default class QuickClusterStep extends tsc<IProps> {
 
   get errorMessage() {
     const clusterDataList = Object.entries(this.clusterStepData).reduce((acc, [key, val]) => {
-      if (Object.values(this.stepIndexKeyMappingList).includes(key)) {
-        val._stepName_ = key;
-        acc.push(val);
-      }
+      if (Object.values(this.stepIndexKeyMappingList).includes(key)) acc.push(val);
       return acc;
     }, []);
     const failedObj = clusterDataList.find(item => item.status === 'FAILED');
@@ -101,14 +98,24 @@ export default class QuickClusterStep extends tsc<IProps> {
             {this.errorMessage ? (
               <div class='time-str'>
                 <i class='bk-icon icon-close icon-error'></i>
-                <span class='time-tips'>{$i18n.t('任务启动失败，请重试')}</span>
+                <span class='time-tips'>{$i18n.t('聚类启动失败')}</span>
               </div>
             ) : (
               <div class='time-str'>
-                <i class='log-icon icon-log-loading'></i>
+                <i
+                  class='rotate-icon'
+                  v-bkloading={{
+                    isLoading: true,
+                    opacity: 1,
+                    zIndex: 10,
+                    theme: 'primary',
+                    mode: 'spin',
+                    size: 'small',
+                  }}
+                ></i>
                 <i18n
                   class='time-tips'
-                  path='任务启动中，预计等待时长 {0} 分种'
+                  path='任务启动中，预计等待时长 {0} 分钟'
                 >
                   <span class='time'>10 - 30</span>
                 </i18n>
@@ -126,7 +133,7 @@ export default class QuickClusterStep extends tsc<IProps> {
             {this.errorMessage && (
               <span class='error-message'>
                 <span class='error-reason'>{$i18n.t('失败原因')}: </span>
-                <span>{this.errorMessage}</span>
+                <span class='error'>{this.errorMessage}</span>
               </span>
             )}
           </div>
@@ -153,7 +160,7 @@ export default class QuickClusterStep extends tsc<IProps> {
               <div class='step-description'>
                 <div class='title-box'>
                   <div class='num-div'>{this.getNumHTMLShow(2)}</div>
-                  <span class={this.getStepStyleClass(2, 'title')}>{$i18n.t('模型自动')}</span>
+                  <span class={this.getStepStyleClass(2, 'title')}>{$i18n.t('模型启动')}</span>
                 </div>
                 <span class={this.getStepStyleClass(2, 'description-text')}>
                   {$i18n.t('模型首次启动准备，该过程应该会持续5-10分钟。')}

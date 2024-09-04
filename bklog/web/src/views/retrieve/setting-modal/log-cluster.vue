@@ -81,7 +81,7 @@
               <bk-switcher
                 class="left-word"
                 v-model="fingerSwitch"
-                :disabled="!globalEditable || configData.extra.signature_switch"
+                :disabled="!globalEditable || fingerSwitch"
                 :pre-check="() => false"
                 data-test-id="LogCluster_div_isOpenSignature"
                 size="large"
@@ -265,7 +265,7 @@
     >
       <div class="submit-dialog-container">
         <p class="submit-dialog-title">{{ $t('保存待生效') }}</p>
-        <p class="submit-dialog-text">{{ $t('该保存需要1小时生效,请耐心等待') }}</p>
+        <p class="submit-dialog-text">{{ $t('该保存需要10分钟生效, 请耐心等待') }}</p>
         <bk-button
           class="submit-dialog-btn"
           theme="primary"
@@ -446,8 +446,8 @@
           extra: { collector_config_id: configID },
         } = this.cleanConfig;
         this.configID = configID;
-        this.fingerSwitch = extra.signature_switch;
-        this.isShowFingerTips = extra.signature_switch;
+        this.fingerSwitch = true;
+        this.isShowFingerTips = true;
         this.formData.clustering_fields = extra.clustering_fields;
         this.clusterField = this.totalFields
           .filter(item => item.is_analyzed)
@@ -462,9 +462,10 @@
             return { id, name: alias ? `${id}(${alias})` : id };
           });
         // 日志聚类且数据指纹同时打开则不请求默认值
-        if (isActive) {
-          this.requestCluster(false);
-        }
+        this.requestCluster(false);
+        // if (isActive) {
+        //   this.requestCluster(false);
+        // }
       },
       /**
        * @desc: 数据指纹开关
@@ -742,7 +743,7 @@
       position: sticky;
       bottom: 0;
       padding: 10px 0 50px;
-      background: #FFF;
+      background: #fff;
     }
   }
 

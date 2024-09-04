@@ -113,12 +113,7 @@
                         :placement="'top'"
                         @event-click="operation => handleMenuClick(operation, item)"
                       >
-                        <span
-                          :style="`color:${item._isHighlight_ ? '#FE5376' : '#63656E'}`"
-                          class="row-left-regular"
-                        >
-                          {{ Object.values(item)[0] }}</span
-                        >
+                        <span class="row-left-regular"> {{ Object.values(item)[0] }}</span>
                       </cluster-event-popover>
                     </register-column>
                   </div>
@@ -179,12 +174,6 @@
       </div>
 
       <div class="debug-input-box">
-        <bk-alert
-          class="debug-alert"
-          :title="$t('调试需要等待1分钟以上，在此区间不可进行其余操作')"
-          type="warning"
-        />
-
         <div class="fl-jfsb mt18">
           <p style="height: 32px">{{ $t('原始日志') }}</p>
           <bk-button
@@ -223,7 +212,13 @@
             class="effect-container"
             v-bkloading="{ isLoading: debugRequest, size: 'mini' }"
           >
-            {{ effectOriginal }}
+            <text-highlight
+              style="word-break: break-all;"
+              class="monospace-text"
+              :queries="getHeightLightList(effectOriginal)"
+            >
+              {{ effectOriginal }}
+            </text-highlight>
           </div>
         </div>
       </div>
@@ -312,6 +307,7 @@
   import EmptyStatus from '@/components/empty-status';
   import RegisterColumn from '@/views/retrieve/result-comp/register-column';
   import ClusterEventPopover from '@/views/retrieve/result-table-panel/log-clustering/components/cluster-event-popover';
+  import TextHighlight from 'vue-text-highlight';
   import VueDraggable from 'vuedraggable';
 
   export default {
@@ -320,6 +316,7 @@
       ClusterEventPopover,
       RegisterColumn,
       EmptyStatus,
+      TextHighlight,
     },
     props: {
       globalEditable: {
@@ -493,7 +490,6 @@
             const key = cur.substring(0, matchVal.index);
             itemObj[key] = matchVal[1];
             itemObj.__Index__ = index;
-            itemObj._isHighlight_ = false;
             pre.push(itemObj);
             return pre;
           }, []);
@@ -521,47 +517,24 @@
       debugging() {
         this.debugRequest = true;
         this.effectOriginal = '';
-        const inputData = {
-          dtEventTimeStamp: Date.parse(new Date()) / 1000,
-          log: this.logOriginal,
-          uuid: this.generationUUID(),
-        };
-        const { min_members, delimeter, max_log_length, is_case_sensitive } = this.defaultData;
-        const predefinedVaribles = this.ruleArrToBase64(this.rulesList);
+        // const inputData = {
+        //   dtEventTimeStamp: Date.parse(new Date()) / 1000,
+        //   log: this.logOriginal,
+        //   uuid: this.generationUUID(),
+        // };
+        const predefinedVariables = this.ruleArrToBase64(this.rulesList);
         const query = {
-          min_members,
-          delimeter,
-          max_log_length,
-          is_case_sensitive,
-          input_data: [inputData],
-          max_dist_list: 0.5,
-          predefined_varibles: predefinedVaribles,
+          input_data: this.logOriginal,
+          predefined_varibles: predefinedVariables,
         };
         this.$http
-          .request('/logClustering/preview', { data: { ...query } })
+          .request('/logClustering/debug', { data: { ...query } })
           .then(res => {
-            const { patterns, token_with_regex } = res.data[0];
-            this.effectOriginal = patterns[0].pattern;
-            this.highlightPredefined(token_with_regex);
+            this.effectOriginal = res.data;
           })
           .finally(() => {
             this.debugRequest = false;
           });
-      },
-      /**
-       * @desc: 调试返回值占位符和正则都匹配则高亮
-       */
-      highlightPredefined(tokenRegex = {}) {
-        Object.entries(tokenRegex).forEach(regexItem => {
-          this.rulesList.forEach(listItem => {
-            listItem._isHighlight_ = false;
-            const [regexKey, regexVal] = regexItem;
-            const [listKey, listVal] = Object.entries(listItem)[0];
-            if (regexKey === listKey && regexVal === listVal) {
-              listItem._isHighlight_ = true;
-            }
-          });
-        });
       },
       /**
        * @desc: 检测规则和占位符是否重复
@@ -629,12 +602,6 @@
       handleMenuClick(option, item) {
         copyMessage(Object.values(item)[0]);
       },
-      generationUUID() {
-        const tempUrl = URL.createObjectURL(new Blob());
-        const uuid = tempUrl.toString();
-        URL.revokeObjectURL(tempUrl);
-        return uuid.substr(uuid.lastIndexOf('/') + 1);
-      },
       resetDetection() {
         this.isDetection = false;
         this.isClickSubmit = false;
@@ -694,6 +661,9 @@
         inputDocument.addEventListener('change', this.inputFileEvent);
         this.inputDocument = inputDocument;
       },
+      getHeightLightList(str) {
+        return str.match(/#.*?#/g) || [];
+      },
       inputFileEvent() {
         // 检查文件是否选择:
         if (!this.inputDocument.value) return;
@@ -706,7 +676,6 @@
               if (!item.placeholder || !String(item.rule)) throw new Error('无效的json');
               return {
                 [item.placeholder]: String([item.rule]),
-                _isHighlight_: false,
                 __Index__: index,
               };
             });
@@ -788,7 +757,7 @@
 
       .debug-input-box {
         max-width: 1020px;
-        padding: 0 40px;
+        padding: 25px 40px;
         margin: 0 auto;
 
         .debug-alert {
@@ -963,10 +932,10 @@
   }
 
   .flbc {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
 
   .inspection-status {
     position: relative;
