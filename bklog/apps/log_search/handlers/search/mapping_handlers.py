@@ -32,8 +32,11 @@ from django.utils.translation import ugettext as _
 
 from apps.api import BkDataStorekitApi, BkLogApi, TransferApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
 from apps.log_clustering.handlers.dataflow.constants import PATTERN_SEARCH_FIELDS
 from apps.log_clustering.models import ClusteringConfig
+from apps.log_esquery.esquery.esquery import EsQuery
+from apps.log_esquery.serializers import EsQueryMappingAttrSerializer
 from apps.log_search.constants import (
     BKDATA_ASYNC_CONTAINER_FIELDS,
     BKDATA_ASYNC_FIELDS,
@@ -59,6 +62,7 @@ from apps.log_search.models import (
 )
 from apps.utils.cache import cache_one_minute, cache_ten_minute
 from apps.utils.codecs import unicode_str_encode
+from apps.utils.drf import custom_params_valid
 from apps.utils.local import (
     get_local_param,
     get_request_app_code,
@@ -89,13 +93,15 @@ class MappingHandlers(object):
         index_set_id,
         scenario_id,
         storage_cluster_id,
-        only_search=False,
         time_field="",
         start_time="",
         end_time="",
+        bk_biz_id=None,
+        only_search=False,
     ):
         self.indices = indices
         self.index_set_id = index_set_id
+        self.bk_biz_id = bk_biz_id
         self.scenario_id = scenario_id
         self.storage_cluster_id = storage_cluster_id
         self.time_field = time_field
@@ -453,17 +459,20 @@ class MappingHandlers(object):
 
     @cache_one_minute("latest_mapping_key_{index_set_id}_{start_time}_{end_time}")
     def _get_latest_mapping(self, index_set_id, start_time, end_time):  # noqa
-        latest_mapping = BkLogApi.mapping(
-            {
-                "indices": self.indices,
-                "scenario_id": self.scenario_id,
-                "storage_cluster_id": self.storage_cluster_id,
-                "time_zone": self.time_zone,
-                "start_time": start_time,
-                "end_time": end_time,
-                "add_settings_details": True,
-            }
-        )
+        params = {
+            "indices": self.indices,
+            "scenario_id": self.scenario_id,
+            "storage_cluster_id": self.storage_cluster_id,
+            "time_zone": self.time_zone,
+            "start_time": start_time,
+            "end_time": end_time,
+            "add_settings_details": True,
+        }
+        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.bk_biz_id):
+            data = custom_params_valid(EsQueryMappingAttrSerializer, params)
+            latest_mapping = EsQuery(data).mapping()
+        else:
+            latest_mapping = BkLogApi.mapping(params)
         return latest_mapping
 
     @staticmethod
