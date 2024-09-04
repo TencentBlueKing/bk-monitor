@@ -647,7 +647,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             />
             {this.loading.topo && (
               <div class='apm-topo-empty-chart'>
-                <bk-spin size='large' />
+                <div class='chart-skeleton' />
               </div>
             )}
             <div
