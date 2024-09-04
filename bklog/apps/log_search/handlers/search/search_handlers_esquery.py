@@ -339,19 +339,8 @@ class SearchHandler(object):
 
     def fields(self, scope="default"):
         is_union_search = self.search_dict.get("is_union_search", False)
-        mapping_handlers = MappingHandlers(
-            self.origin_indices,
-            self.index_set_id,
-            self.origin_scenario_id,
-            self.storage_cluster_id,
-            self.time_field,
-            start_time=self.start_time,
-            end_time=self.end_time,
-            bk_biz_id=self.search_dict.get("bk_biz_id"),
-        )
-        field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(
-            scope=scope, is_union_search=is_union_search
-        )
+        field_result, display_fields = self.get_pull_fields(scope, is_union_search)
+
         if not is_union_search:
             sort_list: list = MappingHandlers.get_sort_list_by_index_id(index_set_id=self.index_set_id, scope=scope)
         else:
@@ -553,6 +542,11 @@ class SearchHandler(object):
         if self.size > MAX_RESULT_WINDOW:
             once_size = MAX_RESULT_WINDOW
 
+        # 把time_field,gseIndex,iterationIndex做为一个排序组
+        new_sort_list = self.get_sort_group()
+        if new_sort_list:
+            self.sort_list = new_sort_list
+
         result = self._multi_search(once_size=once_size)
 
         # 需要scroll滚动查询：is_scroll为True，size超出单次最大查询限制，total大于MAX_RESULT_WINDOW
@@ -581,6 +575,64 @@ class SearchHandler(object):
             result.update({"scroll_id": _scroll_id})
 
         return result
+
+    def get_pull_fields(self, scope="default", is_union_search=False):
+        """
+        获取拉取的字段信息
+        """
+        mapping_handlers = MappingHandlers(
+            self.origin_indices,
+            self.index_set_id,
+            self.origin_scenario_id,
+            self.storage_cluster_id,
+            self.time_field,
+            start_time=self.start_time,
+            end_time=self.end_time,
+        )
+        field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(
+            scope=scope, is_union_search=is_union_search
+        )
+        return field_result, display_fields
+
+    def get_sort_group(self):
+        """
+        排序字段是self.time_field时,那么补充上gseIndex/gseindex, iterationIndex/_iteration_idx
+        """
+        target_fields = self.index_set_obj.target_fields
+        sort_fields = self.index_set_obj.sort_fields
+        # 根据不同情景为排序组字段赋予不同的名称
+        if self.scenario_id == Scenario.LOG:
+            gse_index = "gseIndex"
+            iteration_index = "iterationIndex"
+        elif self.scenario_id == Scenario.BKDATA and not (target_fields and sort_fields):
+            gse_index = "gseindex"
+            iteration_index = "_iteration_idx"
+        else:
+            gse_index = iteration_index = ""
+
+        # 排序字段映射
+        sort_field_mappings = {}
+        for field_list in self.sort_list:
+            sort_field_mappings[field_list[0]] = field_list[1]
+
+        new_sort_list = []
+        if self.time_field in sort_field_mappings:
+            for sort_field in self.sort_list:
+                _field, order = sort_field
+                if _field == self.time_field:
+                    # 获取拉取字段信息列表
+                    field_result, _ = self.get_pull_fields()
+                    field_result_list = [i["field_name"] for i in field_result]
+
+                    new_sort_list.append([_field, order])
+                    if gse_index in field_result_list:
+                        new_sort_list.append([gse_index, order])
+                    if iteration_index in field_result_list:
+                        new_sort_list.append([iteration_index, order])
+                elif _field not in [gse_index, iteration_index]:
+                    new_sort_list.append(sort_field)
+
+        return new_sort_list
 
     @classmethod
     def direct_esquery_search(cls, params):
