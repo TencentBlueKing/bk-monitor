@@ -36,7 +36,7 @@ from django.utils.translation import ugettext as _
 
 from apps.api import BcsApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
-from apps.exceptions import ApiRequestError, ApiResultError
+from apps.exceptions import ApiRequestError, ApiResultError, DirectEsquerySearchError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
 from apps.log_clustering.models import ClusteringConfig
@@ -596,8 +596,20 @@ class SearchHandler(object):
         es_query_viewset = EsQueryViewSet.as_view({"post": "search"})
         # 调用 search 方法
         response = es_query_viewset(fake_request)
-        data = response.data
-        return data
+        try:
+            result_data = response.data
+            if result_data["result"] is False:
+                raise DirectEsquerySearchError(
+                    _("esquery_search查询失败"), code=result_data["code"], errors=result_data["message"]
+                )
+            return result_data.get("data", {})
+
+        except AttributeError:
+            result_content = json.loads(response.content)
+            if result_content["result"] is False:
+                code = result_content["code"]
+                message = result_content["message"]
+                raise DirectEsquerySearchError(_("esquery_search查询失败"), code=code, errors=message)
 
     def _multi_search(self, once_size: int):
         """
@@ -626,7 +638,7 @@ class SearchHandler(object):
             "scroll": self.scroll,
             "collapse": self.collapse,
             "include_nested_fields": self.include_nested_fields,
-            "track_total_hits": self.track_total_hits
+            "track_total_hits": self.track_total_hits,
         }
 
         storage_cluster_record_objs = StorageClusterRecord.objects.none()

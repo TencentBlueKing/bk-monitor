@@ -81,6 +81,10 @@ class ApiError(BaseException):
     pass
 
 
+class DirectEsquerySearchError(BaseException):
+    MESSAGE = _("EsquerySearch查询异常")
+
+
 class ValidationError(BaseException):
     MESSAGE = _("参数验证失败")
     ERROR_CODE = "001"
