@@ -857,7 +857,7 @@ export default {
   '左键框选字段，可提取并生成正则表达式':
     'Left-click and drag to select fields, which can be extracted and used to generate regex.',
   正则表达式: 'Regular Expression',
-  '任务启动失败，请重试': 'Task start failed, please try again',
+  聚类启动失败: 'Cluster start failed',
   重新接入: 'Reconnect',
   失败原因: 'Failure Reason',
   模型创建: 'Model Creation',

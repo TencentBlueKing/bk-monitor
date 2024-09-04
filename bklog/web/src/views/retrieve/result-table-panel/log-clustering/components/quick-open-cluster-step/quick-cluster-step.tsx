@@ -98,7 +98,7 @@ export default class QuickClusterStep extends tsc<IProps> {
             {this.errorMessage ? (
               <div class='time-str'>
                 <i class='bk-icon icon-close icon-error'></i>
-                <span class='time-tips'>{$i18n.t('任务启动失败，请重试')}</span>
+                <span class='time-tips'>{$i18n.t('聚类启动失败')}</span>
               </div>
             ) : (
               <div class='time-str'>
