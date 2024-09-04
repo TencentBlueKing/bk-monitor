@@ -19,7 +19,7 @@
   const handleDropdownShow = () => {
     isShowFieldsSetting.value = true;
   };
-
+  const fieldsSettingPopper = ref();
   const closeDropdown = () => {
     isShowFieldsSetting.value = false;
     fieldsSettingPopper.value?.instance.hide();

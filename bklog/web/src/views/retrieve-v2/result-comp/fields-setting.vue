@@ -110,7 +110,7 @@
             </div>
             <ul class="select-list">
               <li
-                v-for="item in shadowTotal"
+                v-for="item in shadowTotalList"
                 style="cursor: pointer"
                 class="select-item"
                 v-show="activeFieldTab === 'visible' ? !item.is_display : !item.isSorted && item.es_doc_values"
@@ -137,7 +137,7 @@
           >
             <div class="title">
               <!-- 已选项列表 -->
-              <span>{{ $t('已选项列表') + '(' + shadowVisible.length + ')' }}</span>
+              <span>{{ $t('已选项列表') + '(' + shadowVisibleList.length + ')' }}</span>
               <span
                 class="icon bklog-icon bklog-info-fill"
                 v-bk-tooltips="$t('支持拖拽更改顺序，从上向下对应列表列从左到右顺序')"
@@ -151,11 +151,11 @@
             <vue-draggable
               v-bind="dragOptions"
               class="select-list"
-              v-model="shadowVisible"
+              v-model="shadowVisibleList"
             >
               <transition-group>
                 <li
-                  v-for="(item, index) in shadowVisible"
+                  v-for="(item, index) in shadowVisibleList"
                   class="select-item"
                   :key="item"
                 >
@@ -180,7 +180,7 @@
           >
             <div class="title">
               <!-- 已选项列表 -->
-              <span>{{ $t('已选项列表') + '(' + shadowSort.length + ')' }}</span>
+              <span>{{ $t('已选项列表') + '(' + shadowSortList.length + ')' }}</span>
               <span
                 class="icon bklog-icon bklog-info-fill"
                 v-bk-tooltips="$t('支持拖拽更改顺序，排在上面的拥有更高的排序权重')"
@@ -194,11 +194,11 @@
             <vue-draggable
               v-bind="dragOptions"
               class="select-list"
-              v-model="shadowSort"
+              v-model="shadowSortList"
             >
               <transition-group>
                 <li
-                  v-for="(item, index) in shadowSort"
+                  v-for="(item, index) in shadowSortList"
                   class="select-item"
                   :key="item[0]"
                 >
@@ -257,7 +257,7 @@
 <script>
   import VueDraggable from 'vuedraggable';
   import { mapGetters } from 'vuex';
-
+  import store from '@/store'; // 注意修改路径以符合你的项目结构
   import fieldsSettingOperate from './fields-setting-operate';
 
   export default {
@@ -275,6 +275,9 @@
         isLoading: false,
         showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
         shadowAllTotal: [], // 所有字段
+        shadowSortList: [], // 排序字段列表
+        shadowVisibleList: [], // 显示字段列表
+        shadowTotalList: [], // 所有字段列表
         newConfigStr: '', // 新增配置配置名
         isShowAddInput: false, // 是否展示新增配置输入框
         currentClickConfigID: 0, // 当前配置项ID
@@ -307,22 +310,22 @@
       },
       fieldAliasMap() {
         let fieldAliasMap = {};
-        this.$store.state.indexFieldInfo.fields.forEach(item => {
+        this.shadowTotalList.forEach(item => {
           fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
         });
         return fieldAliasMap;
       },
       toSelectLength() {
         if (this.activeFieldTab === 'visible') {
-          return this.shadowTotal.length - this.shadowVisible.length;
+          return this.shadowTotalList.length - this.shadowVisibleList.length;
         }
         let totalLength = 0;
-        this.shadowTotal.forEach(fieldInfo => {
+        this.shadowTotalList.forEach(fieldInfo => {
           if (fieldInfo.es_doc_values) {
             totalLength += 1;
           }
         });
-        return totalLength - this.shadowSort.length;
+        return totalLength - this.shadowSortList.length;
       },
 
       filedSettingConfigID() {
@@ -345,6 +348,24 @@
       newConfigStr() {
         this.isInputError = false;
       },
+      '$store.state.indexFieldInfo.sort_list': {
+        handler(newValue) {
+          this.shadowSortList = newValue;
+        },
+        immediate: true, // 立即执行一次
+      },
+      '$store.state.indexFieldInfo.display_fields': {
+        handler(newValue) {
+          this.shadowVisibleList = newValue;
+        },
+        immediate: true, // 立即执行一次
+      },
+      '$store.state.indexFieldInfo.fields': {
+        handler(newValue) {
+          this.shadowTotalList = newValue;
+        },
+        immediate: true, // 立即执行一次
+      },
     },
     created() {
       this.currentClickConfigID = this.filedSettingConfigID;
@@ -365,15 +386,15 @@
       },
       /** 保存或应用 */
       async confirmModifyFields() {
-        if (this.shadowVisible.length === 0) {
+        if (this.shadowVisibleList.length === 0) {
           this.messageWarn(this.$t('显示字段不能为空'));
           return;
         }
         try {
           const confirmConfigData = {
             editStr: this.currentClickConfigData.name,
-            sort_list: this.shadowSort,
-            display_fields: this.shadowVisible,
+            sort_list: this.shadowSortList,
+            display_fields: this.shadowVisibleList,
             id: this.currentClickConfigData.id,
           };
           this.isConfirmSubmit = true;
@@ -383,7 +404,7 @@
             await this.submitFieldsSet(this.currentClickConfigID);
           }
           this.$store.commit('updateClearTableWidth', 1);
-          this.$emit('confirm', this.shadowVisible, this.showFieldAlias);
+          this.$emit('confirm', this.shadowVisibleList, this.showFieldAlias);
         } catch (error) {
           console.warn(error);
         } finally {
@@ -398,8 +419,8 @@
               index_set_id: this.$route.params.indexId,
               index_set_ids: this.unionIndexList,
               index_set_type: this.isUnionSearch ? 'union' : 'single',
-              display_fields: this.shadowVisible,
-              sort_list: this.shadowSort,
+              display_fields: this.shadowVisibleList,
+              sort_list: this.shadowSortList,
               config_id: configID,
             },
           })
@@ -431,16 +452,16 @@
       addField(fieldInfo) {
         if (this.activeFieldTab === 'visible') {
           fieldInfo.is_display = true;
-          this.shadowVisible.push(fieldInfo.field_name);
+          this.shadowVisibleList.push(fieldInfo.field_name);
         } else {
           fieldInfo.isSorted = true;
-          this.shadowSort.push([fieldInfo.field_name, 'asc']);
+          this.shadowSortList.push([fieldInfo.field_name, 'asc']);
         }
       },
       deleteField(fieldName, index) {
-        const arr = this.shadowTotal;
+        const arr = this.shadowTotalList;
         if (this.activeFieldTab === 'visible') {
-          this.shadowVisible.splice(index, 1);
+          this.shadowVisibleList.splice(index, 1);
           for (let i = 0; i < arr.length; i++) {
             if (arr[i].field_name === fieldName) {
               arr[i].is_display = false;
@@ -448,7 +469,7 @@
             }
           }
         } else {
-          this.shadowSort.splice(index, 1);
+          this.shadowSortList.splice(index, 1);
           for (let i = 0; i < arr.length; i++) {
             if (arr[i].field_name === fieldName) {
               arr[i].isSorted = false;
@@ -459,31 +480,31 @@
       },
       addAllField() {
         if (this.activeFieldTab === 'visible') {
-          this.shadowTotal.forEach(fieldInfo => {
+          this.shadowTotalList.forEach(fieldInfo => {
             if (!fieldInfo.is_display) {
               fieldInfo.is_display = true;
-              this.shadowVisible.push(fieldInfo.field_name);
+              this.shadowVisibleList.push(fieldInfo.field_name);
             }
           });
         } else {
-          this.shadowTotal.forEach(fieldInfo => {
+          this.shadowTotalList.forEach(fieldInfo => {
             if (!fieldInfo.isSorted && fieldInfo.es_doc_values) {
               fieldInfo.isSorted = true;
-              this.shadowSort.push([fieldInfo.field_name, 'asc']);
+              this.shadowSortList.push([fieldInfo.field_name, 'asc']);
             }
           });
         }
       },
       deleteAllField() {
         if (this.activeFieldTab === 'visible') {
-          this.shadowTotal.forEach(fieldInfo => {
+          this.shadowTotalList.forEach(fieldInfo => {
             fieldInfo.is_display = false;
-            this.shadowVisible.splice(0, this.shadowVisible.length);
+            this.shadowVisibleList.splice(0, this.shadowVisibleList.length);
           });
         } else {
-          this.shadowTotal.forEach(fieldInfo => {
+          this.shadowTotalList.forEach(fieldInfo => {
             fieldInfo.isSorted = false;
-            this.shadowSort.splice(0, this.shadowSort.length);
+            this.shadowSortList.splice(0, this.shadowSortList.length);
           });
         }
       },
@@ -610,17 +631,17 @@
       /** 初始化显示字段 */
       initShadowFields() {
         this.activeConfigTab = this.currentClickConfigData.name;
-        this.shadowTotal.forEach(fieldInfo => {
-          this.shadowSort.forEach(item => {
+        this.shadowTotalList.forEach(fieldInfo => {
+          this.shadowSortList.forEach(item => {
             if (fieldInfo.field_name === item[0]) {
               fieldInfo.isSorted = true;
             }
           });
         });
         // 后台给的 display_fields 可能有无效字段 所以进行过滤，获得排序后的字段
-        this.shadowVisible = this.currentClickConfigData.display_fields
+        this.shadowVisibleList = this.currentClickConfigData.display_fields
           .map(displayName => {
-            for (const field of this.shadowTotal) {
+            for (const field of this.shadowTotalList) {
               if (field.field_name === displayName) {
                 field.is_display = true;
                 return displayName;
