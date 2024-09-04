@@ -486,14 +486,17 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     const detail = [
       {
         severity: this.basicInfo?.severity,
-        dimension: this.basicInfo?.dimension_message || '--',
+        dimension: this.basicInfo?.dimensions || [],
         trigger: this.basicInfo?.description || '--',
+        alertId: this.basicInfo.id,
         strategy: {
           id: this.basicInfo?.extra_info?.strategy?.id,
           name: this.basicInfo?.extra_info?.strategy?.name,
         },
       },
     ];
+    // EventModuleStore.setDimensionList(this.basicInfo?.dimensions || []);
+
     return [
       <AlarmConfirm
         key='alarm-confirm'
