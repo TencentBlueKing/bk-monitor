@@ -204,7 +204,7 @@ class DesensitizeHandler(object):
         """
 
         def is_overlap(item1, item2):
-            return not (item1["start"] >= item2["end"] or item1["end"] < item2["start"])
+            return not (item1["start"] >= item2["end"] or item1["end"] <= item2["start"])
 
         result = first.copy()
 

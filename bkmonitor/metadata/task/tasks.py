@@ -183,6 +183,7 @@ def _manage_es_storage(es_storage):
         # 先预创建各个时间段的index，
         # 1. 同时判断各个预创建好的index是否字段与数据库的一致
         # 2. 也判断各个创建的index是否有大小需要切片的需要
+        logger.info("table_id->[%s] start to create index", es_storage.table_id)
 
         # 如果index_settings和mapping_settings为空，则说明对应配置信息有误，记录日志并触发告警
         if not es_storage.index_settings or es_storage.index_settings == '{}':
@@ -209,6 +210,7 @@ def _manage_es_storage(es_storage):
         # 重新分配索引数据
         es_storage.reallocate_index()
 
+        logger.info("table_id->[%s] create index successfully", es_storage.table_id)
         logger.debug("es_storage->[{}] cron task success.".format(es_storage.table_id))
     except Exception as e:  # pylint: disable=broad-except
         # 记录异常集群的信息

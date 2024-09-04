@@ -502,6 +502,7 @@
         globalsData: 'globals/globalsData',
         accessUserManage: 'accessUserManage',
         isShowMaskingTemplate: 'isShowMaskingTemplate',
+        exportCollectObj: 'collect/exportCollectObj',
       }),
       collectProject() {
         return projectManages(this.$store.state.topMenu, 'collection-item');
@@ -528,29 +529,26 @@
       },
     },
     async mounted() {
-      this.getStorage();
       this.operateType === 'add' && (this.isChangeSelect = true);
+      await this.getStorage();
+      await this.getCleanStash();
+      this.getDetail();
+      this.exportStorage();
     },
     created() {
       this.curCollect.environment !== 'container' && this.getHostNumber();
     },
     methods: {
       // 获取采集项清洗基础配置缓存 用于存储入库提交
-      getCleanStash() {
-        this.$http
-          .request('clean/getCleanStash', {
+      async getCleanStash() {
+        try {
+          const res = await this.$http.request('clean/getCleanStash', {
             params: {
               collector_config_id: this.curCollect.collector_config_id,
             },
-          })
-          .then(res => {
-            if (res.data) {
-              this.stashCleanConf = res.data;
-            }
-          })
-          .finally(() => {
-            this.getDetail();
           });
+          if (res.data) this.stashCleanConf = res.data;
+        } catch (error) {}
       },
       // 存储入库
       fieldCollection(callback) {
@@ -609,7 +607,7 @@
       finish(callback) {
         const isCanSubmit = this.getSubmitAuthority();
         if (!isCanSubmit) {
-          callback(false);
+          callback?.(false);
           return;
         }
         const promises = [this.checkStore()];
@@ -736,9 +734,6 @@
         this.formData.storage_cluster_id =
           this.formData.storage_cluster_id === null ? tsStorageId : this.formData.storage_cluster_id;
         this.basicLoading = false;
-        this.$nextTick(() => {
-          this.editComparedData = this.getSubmitData();
-        });
       },
       cancel() {
         if (this.isFinishCreateStep) {
@@ -889,6 +884,34 @@
       },
       checkEsShards() {
         return this.formData.es_shards <= this.shardsMax;
+      },
+      exportStorage() {
+        const { syncType, collect } = this.exportCollectObj;
+        // 必须是有存储集群的值，而不是未完成的才可以采集配置导入
+        const isSyncExport = syncType.includes('storage_config') && !!collect.storage_cluster_id;
+        // 这里分两步赋值时因为mixins里有个watch storage_cluster_id的监听函数，会修改其他值
+        if (isSyncExport) {
+          if (this.storageList.some(item => item.storage_cluster_id === collect.storage_cluster_id)) {
+            this.formData.storage_cluster_id = collect.storage_cluster_id;
+          } else {
+            this.formData.storage_cluster_id = '';
+            this.$bkInfo({
+              type: 'warning',
+              title: this.$t('导入的集群已被删除，请手动选择集群。'),
+            });
+          }
+        }
+        this.$nextTick(() => {
+          if (isSyncExport) {
+            const { retention, storage_replies, storage_shards_nums } = collect;
+            Object.assign(this.formData, {
+              storage_replies,
+              es_shards: storage_shards_nums,
+              retention,
+            });
+          }
+          this.editComparedData = this.getSubmitData();
+        });
       },
     },
   };

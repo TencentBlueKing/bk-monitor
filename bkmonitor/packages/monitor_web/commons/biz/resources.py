@@ -179,7 +179,11 @@ class ListSpacesResource(Resource):
 
 class ListStickySpacesResource(Resource):
     def perform_request(self, validated_request_data):
-        return api.metadata.list_sticky_spaces(validated_request_data)
+        username = validated_request_data.get("username") or get_request_username()
+        try:
+            return SpaceApi.list_sticky_spaces(username=username)
+        except Exception:
+            return api.metadata.list_sticky_spaces(validated_request_data)
 
 
 class StickSpaceResource(Resource):

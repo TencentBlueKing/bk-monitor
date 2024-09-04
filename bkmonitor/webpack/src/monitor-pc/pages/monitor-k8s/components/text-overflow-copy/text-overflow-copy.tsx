@@ -34,10 +34,12 @@ import './text-overflow-copy.scss';
 
 interface IProps {
   val: ITableItem<'string'>;
+  isEveryCopy: boolean;
 }
 @Component
-export default class TextOverflowCopy extends tsc<IProps, {}> {
+export default class TextOverflowCopy extends tsc<IProps> {
   @Prop({ default: '' }) val: ITableItem<'string'>;
+  @Prop({ default: false }) isEveryCopy: boolean;
   @Ref('wrapRef') wrapRef: HTMLDivElement;
 
   hasCopy = false;
@@ -58,7 +60,8 @@ export default class TextOverflowCopy extends tsc<IProps, {}> {
     });
   }
 
-  handleCopy() {
+  handleCopy(e) {
+    e.stopPropagation();
     copyText(this.text, msg => {
       this.$bkMessage({
         message: msg,
@@ -76,7 +79,7 @@ export default class TextOverflowCopy extends tsc<IProps, {}> {
     return (
       <div
         ref='wrapRef'
-        class={{ 'text-overflow-copy-comp': true, 'has-copy': this.hasCopy }}
+        class={{ 'text-overflow-copy-comp': true, 'has-copy': this.hasCopy || this.isEveryCopy }}
       >
         {this.val.icon &&
           (this.val.icon.length > 30 ? (
@@ -88,7 +91,7 @@ export default class TextOverflowCopy extends tsc<IProps, {}> {
             <i class={['icon-monitor', 'string-icon', this.val.icon]} />
           ))}
         {this.text}
-        {this.hasCopy && (
+        {(this.isEveryCopy || this.hasCopy) && (
           <span
             class='icon-monitor icon-mc-copy'
             onClick={this.handleCopy}

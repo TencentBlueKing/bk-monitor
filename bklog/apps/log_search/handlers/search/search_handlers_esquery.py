@@ -36,12 +36,15 @@ from apps.api import BcsApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.constants import EtlConfig
 from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
 from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
+from apps.log_esquery.esquery.esquery import EsQuery
+from apps.log_esquery.serializers import EsQuerySearchAttrSerializer
 from apps.log_search.constants import (
     ASYNC_SORTED,
     CHECK_FIELD_LIST,
@@ -109,6 +112,7 @@ from apps.models import model_to_dict
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
 from apps.utils.db import array_group
+from apps.utils.drf import custom_params_valid
 from apps.utils.ipchooser import IPChooser
 from apps.utils.local import (
     get_local_param,
@@ -190,6 +194,9 @@ class SearchHandler(object):
         # 是否包含嵌套字段
         self.include_nested_fields: bool = self.search_dict.get("include_nested_fields", True)
 
+        # track_total_hits,默认不统计总数
+        self.track_total_hits: bool = self.search_dict.get("track_total_hits", False)
+
         # 检索历史记录
         self.addition = copy.deepcopy(search_dict.get("addition", []))
         self.ip_chooser = copy.deepcopy(search_dict.get("ip_chooser", {}))
@@ -242,6 +249,10 @@ class SearchHandler(object):
 
         # 透传filter. 初始化为None,表示filter还没有被初始化
         self._filter = None
+
+        # 字段信息列表. 初始化为None,表示final_fields_list还没有被初始化
+        self._mapping_handlers = None
+        self._final_fields_list = None
 
         # 构建排序list
         self.sort_list: list = self._init_sort()
@@ -332,18 +343,10 @@ class SearchHandler(object):
 
     def fields(self, scope="default"):
         is_union_search = self.search_dict.get("is_union_search", False)
-        mapping_handlers = MappingHandlers(
-            self.origin_indices,
-            self.index_set_id,
-            self.origin_scenario_id,
-            self.storage_cluster_id,
-            self.time_field,
-            start_time=self.start_time,
-            end_time=self.end_time,
-        )
-        field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(
+        field_result, display_fields = self.mapping_handlers.get_all_fields_by_index_id(
             scope=scope, is_union_search=is_union_search
         )
+
         if not is_union_search:
             sort_list: list = MappingHandlers.get_sort_list_by_index_id(index_set_id=self.index_set_id, scope=scope)
         else:
@@ -433,7 +436,7 @@ class SearchHandler(object):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id, raise_exception=False)
         if clustering_config:
             return (
-                True,
+                clustering_config.signature_enable,
                 {
                     "collector_config_id": self.index_set.collector_config_id,
                     "signature_switch": clustering_config.signature_enable,
@@ -545,6 +548,11 @@ class SearchHandler(object):
         if self.size > MAX_RESULT_WINDOW:
             once_size = MAX_RESULT_WINDOW
 
+        # 把time_field,gseIndex,iterationIndex做为一个排序组
+        new_sort_list = self.get_sort_group()
+        if new_sort_list:
+            self.sort_list = new_sort_list
+
         result = self._multi_search(once_size=once_size)
 
         # 需要scroll滚动查询：is_scroll为True，size超出单次最大查询限制，total大于MAX_RESULT_WINDOW
@@ -574,6 +582,50 @@ class SearchHandler(object):
 
         return result
 
+    def get_sort_group(self):
+        """
+        排序字段是self.time_field时,那么补充上gseIndex/gseindex, iterationIndex/_iteration_idx
+        """
+        target_fields = self.index_set_obj.target_fields
+        sort_fields = self.index_set_obj.sort_fields
+        # 根据不同情景为排序组字段赋予不同的名称
+        if self.scenario_id == Scenario.LOG:
+            gse_index = "gseIndex"
+            iteration_index = "iterationIndex"
+        elif self.scenario_id == Scenario.BKDATA and not (target_fields and sort_fields):
+            gse_index = "gseindex"
+            iteration_index = "_iteration_idx"
+        else:
+            gse_index = iteration_index = ""
+
+        # 排序字段映射
+        sort_field_mappings = {}
+        for field_list in self.sort_list:
+            sort_field_mappings[field_list[0]] = field_list[1]
+
+        new_sort_list = []
+        if self.time_field in sort_field_mappings:
+            for sort_field in self.sort_list:
+                _field, order = sort_field
+                if _field == self.time_field:
+                    # 获取拉取字段信息列表
+                    field_result_list = [i["field_name"] for i in self.final_fields_list]
+
+                    new_sort_list.append([_field, order])
+                    if gse_index in field_result_list:
+                        new_sort_list.append([gse_index, order])
+                    if iteration_index in field_result_list:
+                        new_sort_list.append([iteration_index, order])
+                elif _field not in [gse_index, iteration_index]:
+                    new_sort_list.append(sort_field)
+
+        return new_sort_list
+
+    @classmethod
+    def direct_esquery_search(cls, params):
+        data = custom_params_valid(EsQuerySearchAttrSerializer, params)
+        return EsQuery(data).search()
+
     def _multi_search(self, once_size: int):
         """
         根据存储集群切换记录多线程请求 BkLogApi.search
@@ -601,6 +653,7 @@ class SearchHandler(object):
             "scroll": self.scroll,
             "collapse": self.collapse,
             "include_nested_fields": self.include_nested_fields,
+            "track_total_hits": self.track_total_hits,
         }
 
         storage_cluster_record_objs = StorageClusterRecord.objects.none()
@@ -618,9 +671,15 @@ class SearchHandler(object):
             except Exception as e:  # pylint: disable=broad-except
                 logger.exception(f"[_multi_search] parse time error -> e: {e}")
 
+        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
+            exec_func = self.direct_esquery_search
+        else:
+            exec_func = BkLogApi.search
+
         if not storage_cluster_record_objs:
             try:
-                return BkLogApi.search(params)
+                data = exec_func(params)
+                return data
             except ApiResultError as e:
                 raise ApiResultError(_("搜索出错，请检查查询语句是否正确") + f" => {e}", code=e.code, errors=e.errors)
 
@@ -635,7 +694,7 @@ class SearchHandler(object):
         params["size"] = once_size + self.start
 
         # 获取当前使用的存储集群数据
-        multi_execute_func.append(result_key=f"multi_search_{multi_num}", func=BkLogApi.search, params=params)
+        multi_execute_func.append(result_key=f"multi_search_{multi_num}", func=exec_func, params=params)
 
         # 获取历史使用的存储集群数据
         for storage_cluster_record_obj in storage_cluster_record_objs:
@@ -643,9 +702,7 @@ class SearchHandler(object):
                 multi_params = copy.deepcopy(params)
                 multi_params["storage_cluster_id"] = storage_cluster_record_obj.storage_cluster_id
                 multi_num += 1
-                multi_execute_func.append(
-                    result_key=f"multi_search_{multi_num}", func=BkLogApi.search, params=multi_params
-                )
+                multi_execute_func.append(result_key=f"multi_search_{multi_num}", func=exec_func, params=multi_params)
                 storage_cluster_ids.add(storage_cluster_record_obj.storage_cluster_id)
 
         multi_result = multi_execute_func.run()
@@ -1250,7 +1307,12 @@ class SearchHandler(object):
     def verify_sort_list_item(self, sort_list):
         # field_result, _ = self._get_all_fields_by_index_id()
         mapping_handlers = MappingHandlers(
-            self.origin_indices, self.index_set_id, self.origin_scenario_id, self.storage_cluster_id, self.time_field
+            self.origin_indices,
+            self.index_set_id,
+            self.origin_scenario_id,
+            self.storage_cluster_id,
+            self.time_field,
+            self.search_dict.get("bk_biz_id"),
         )
         field_result, _ = mapping_handlers.get_all_fields_by_index_id()
         field_dict = dict()
@@ -1399,7 +1461,7 @@ class SearchHandler(object):
                 size=self.size,
                 start=self.start,
                 gse_index=self.gseindex,
-                iteration_idx=self.iterationIdx,
+                iteration_idx=self._iteration_idx,
                 dt_event_time_stamp=self.dtEventTimeStamp,
                 path=self.path,
                 ip=self.ip,
@@ -1607,17 +1669,29 @@ class SearchHandler(object):
             self._filter = self._init_filter()
         return self._filter
 
+    @property
+    def mapping_handlers(self) -> MappingHandlers:
+        if self._mapping_handlers is None:
+            self._mapping_handlers = MappingHandlers(
+                index_set_id=self.index_set_id,
+                indices=self.origin_indices,
+                scenario_id=self.origin_scenario_id,
+                storage_cluster_id=self.storage_cluster_id,
+                bk_biz_id=self.search_dict.get("bk_biz_id"),
+                only_search=True,
+            )
+        return self._mapping_handlers
+
+    @property
+    def final_fields_list(self) -> list:
+        if self._final_fields_list is None:
+            # 获取各个字段类型
+            self._final_fields_list, __ = self.mapping_handlers.get_all_fields_by_index_id()
+        return self._final_fields_list
+
     # 过滤filter
     def _init_filter(self):
-        mapping_handlers = MappingHandlers(
-            index_set_id=self.index_set_id,
-            indices=self.origin_indices,
-            scenario_id=self.origin_scenario_id,
-            storage_cluster_id=self.storage_cluster_id,
-        )
-        # 获取各个字段类型
-        final_fields_list, __ = mapping_handlers.get_all_fields_by_index_id()
-        field_type_map = {i["field_name"]: i["field_type"] for i in final_fields_list}
+        field_type_map = {i["field_name"]: i["field_type"] for i in self.final_fields_list}
         # 如果历史索引不包含bk_host_id, 则不需要进行bk_host_id的过滤
         include_bk_host_id = "bk_host_id" in field_type_map.keys() and settings.ENABLE_DHCP
         new_attrs: dict = self._combine_addition_ip_chooser(
@@ -1628,7 +1702,7 @@ class SearchHandler(object):
         for item in filter_list:
             field: str = item.get("key") if item.get("key") else item.get("field")
             _type = "field"
-            if mapping_handlers.is_nested_field(field):
+            if self.mapping_handlers.is_nested_field(field):
                 _type = FieldDataTypeEnum.NESTED.value
             value = item.get("value")
             # value 校验逻辑
@@ -2010,7 +2084,6 @@ class SearchHandler(object):
 
         # find the search one
         _index: int = -1
-        _count_start: int = -1
         if self.scenario_id == Scenario.BKDATA and not (target_fields and sort_fields):
             for index, item in enumerate(log_list):
                 gseindex: str = item.get("gseindex")
@@ -2020,10 +2093,6 @@ class SearchHandler(object):
                 container_id: str = item.get("container_id")
                 logfile: str = item.get("logfile")
                 _iteration_idx: str = item.get("_iteration_idx")
-                # find the counting range point
-                if _count_start == -1:
-                    if str(gseindex) == mark_gseindex:
-                        _count_start = index
 
                 if (
                     (
@@ -2055,10 +2124,7 @@ class SearchHandler(object):
                 bk_host_id: int = item.get("bk_host_id")
                 path: str = item.get("path", "")
                 iterationIndex: str = item.get("iterationIndex")  # pylint: disable=invalid-name
-                # find the counting range point
-                if _count_start == -1:
-                    if str(gseIndex) == mark_gseIndex:
-                        _count_start = index
+
                 if (
                     self.gseIndex == str(gseIndex)
                     and self.bk_host_id == bk_host_id
@@ -2075,14 +2141,6 @@ class SearchHandler(object):
 
         elif self.scenario_id in [Scenario.ES, Scenario.BKDATA] and target_fields and sort_fields:
             for index, item in enumerate(log_list):
-                _sort_value = item.get(sort_fields[0])
-                check_value = self.search_dict.get(sort_fields[0])
-                # find the counting range point
-                if _count_start == -1:
-                    _sort_value = item.get(sort_fields[0])
-                    if _sort_value and str(_sort_value) == str(check_value):
-                        _count_start = index
-
                 for field in sort_fields + target_fields:
                     if str(item.get(field)) != str(self.search_dict.get(field)):
                         break
@@ -2090,6 +2148,7 @@ class SearchHandler(object):
                     _index = index
                     break
 
+        _count_start = _index
         return {"list": log_list_reversed, "zero_index": _index, "count_start": _count_start}
 
     def _analyze_empty_log(self, log_list: List[Dict[str, Any]]):

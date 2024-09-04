@@ -497,7 +497,7 @@ IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER = True
 
 # 监控内置可观测数据上报Redis Key TODO：联调时赋予默认值，后续更改
 BUILTIN_DATA_RT_REDIS_KEY = os.getenv(
-    "BKAPP_BUILTIN_DATA_RT_REDIS_KEY", "bkmonitorv3:spaces:build_in_result_table_detail"
+    "BKAPP_BUILTIN_DATA_RT_REDIS_KEY", "bkmonitorv3:spaces:built_in_result_table_detail"
 )
 
 # APM config
