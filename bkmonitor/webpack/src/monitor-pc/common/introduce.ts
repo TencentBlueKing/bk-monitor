@@ -107,8 +107,9 @@ class IntroduceStore {
           if (toNavId === tag) {
             this.getIntroduce(tag as IntroduceRouteKey);
           } else {
-            this.data[tag].loading = true;
             setTimeout(() => {
+              if (this.data[tag].introduce || this.data[tag].loading) return;
+              this.data[tag].loading = true;
               spaceIntroduce({ tag })
                 .then(data => {
                   this.data[tag].introduce = data;
