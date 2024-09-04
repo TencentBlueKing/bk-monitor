@@ -250,6 +250,10 @@ class SearchHandler(object):
         # 透传filter. 初始化为None,表示filter还没有被初始化
         self._filter = None
 
+        # 字段信息列表. 初始化为None,表示final_fields_list还没有被初始化
+        self._mapping_handlers = None
+        self._final_fields_list = None
+
         # 构建排序list
         self.sort_list: list = self._init_sort()
 
@@ -339,7 +343,9 @@ class SearchHandler(object):
 
     def fields(self, scope="default"):
         is_union_search = self.search_dict.get("is_union_search", False)
-        field_result, display_fields = self.get_pull_fields(scope, is_union_search)
+        field_result, display_fields = self.mapping_handlers.get_all_fields_by_index_id(
+            scope=scope, is_union_search=is_union_search
+        )
 
         if not is_union_search:
             sort_list: list = MappingHandlers.get_sort_list_by_index_id(index_set_id=self.index_set_id, scope=scope)
@@ -576,24 +582,6 @@ class SearchHandler(object):
 
         return result
 
-    def get_pull_fields(self, scope="default", is_union_search=False):
-        """
-        获取拉取的字段信息
-        """
-        mapping_handlers = MappingHandlers(
-            self.origin_indices,
-            self.index_set_id,
-            self.origin_scenario_id,
-            self.storage_cluster_id,
-            self.time_field,
-            start_time=self.start_time,
-            end_time=self.end_time,
-        )
-        field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(
-            scope=scope, is_union_search=is_union_search
-        )
-        return field_result, display_fields
-
     def get_sort_group(self):
         """
         排序字段是self.time_field时,那么补充上gseIndex/gseindex, iterationIndex/_iteration_idx
@@ -621,8 +609,7 @@ class SearchHandler(object):
                 _field, order = sort_field
                 if _field == self.time_field:
                     # 获取拉取字段信息列表
-                    field_result, _ = self.get_pull_fields()
-                    field_result_list = [i["field_name"] for i in field_result]
+                    field_result_list = [i["field_name"] for i in self.final_fields_list]
 
                     new_sort_list.append([_field, order])
                     if gse_index in field_result_list:
@@ -1682,19 +1669,29 @@ class SearchHandler(object):
             self._filter = self._init_filter()
         return self._filter
 
+    @property
+    def mapping_handlers(self) -> MappingHandlers:
+        if self._mapping_handlers is None:
+            self._mapping_handlers = MappingHandlers(
+                index_set_id=self.index_set_id,
+                indices=self.origin_indices,
+                scenario_id=self.origin_scenario_id,
+                storage_cluster_id=self.storage_cluster_id,
+                bk_biz_id=self.search_dict.get("bk_biz_id"),
+                only_search=True,
+            )
+        return self._mapping_handlers
+
+    @property
+    def final_fields_list(self) -> list:
+        if self._final_fields_list is None:
+            # 获取各个字段类型
+            self._final_fields_list, __ = self.mapping_handlers.get_all_fields_by_index_id()
+        return self._final_fields_list
+
     # 过滤filter
     def _init_filter(self):
-        mapping_handlers = MappingHandlers(
-            index_set_id=self.index_set_id,
-            indices=self.origin_indices,
-            scenario_id=self.origin_scenario_id,
-            storage_cluster_id=self.storage_cluster_id,
-            bk_biz_id=self.search_dict.get("bk_biz_id"),
-            only_search=True,
-        )
-        # 获取各个字段类型
-        final_fields_list, __ = mapping_handlers.get_all_fields_by_index_id()
-        field_type_map = {i["field_name"]: i["field_type"] for i in final_fields_list}
+        field_type_map = {i["field_name"]: i["field_type"] for i in self.final_fields_list}
         # 如果历史索引不包含bk_host_id, 则不需要进行bk_host_id的过滤
         include_bk_host_id = "bk_host_id" in field_type_map.keys() and settings.ENABLE_DHCP
         new_attrs: dict = self._combine_addition_ip_chooser(
@@ -1705,7 +1702,7 @@ class SearchHandler(object):
         for item in filter_list:
             field: str = item.get("key") if item.get("key") else item.get("field")
             _type = "field"
-            if mapping_handlers.is_nested_field(field):
+            if self.mapping_handlers.is_nested_field(field):
                 _type = FieldDataTypeEnum.NESTED.value
             value = item.get("value")
             # value 校验逻辑
