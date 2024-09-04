@@ -124,7 +124,9 @@ class IncidentBaseResource(Resource):
                             in (EventStatus.RECOVERED, EventStatus.CLOSED),
                             alert_ids,
                         )
-                    ),
+                    )
+                    if alert_ids
+                    else False,
                     "bk_biz_id": bk_biz_id,
                     "bk_biz_name": bk_biz_name,
                     "alert_ids": alert_ids,

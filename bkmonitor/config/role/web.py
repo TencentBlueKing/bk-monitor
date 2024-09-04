@@ -331,8 +331,8 @@ CELERYBEAT_SCHEDULE = {
         "schedule": crontab(minute="*/10"),
         "enabled": True,
     },
-    "monitor_web.tasks.update_aiops_dataflow_status": {
-        "task": "monitor_web.tasks.update_aiops_dataflow_status",
+    "monitor_web.tasks.maintain_aiops_strategies": {
+        "task": "monitor_web.tasks.maintain_aiops_strategies",
         "schedule": crontab(minute="*/10"),
         "enabled": False,
     },
