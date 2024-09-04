@@ -694,6 +694,7 @@ class UserIndexSetSearchHistory(SoftDeleteModel):
     index_set_id = models.IntegerField(_("索引集ID"), null=True, default=None)
     params = JsonField(_("检索条件"), null=True, default=None)
     search_type = models.CharField(_("检索类型"), max_length=32, default="default")
+    search_mode = models.CharField(_("检索模式"), max_length=32, default="ui")
     duration = models.FloatField(_("查询耗时"), null=True, default=None)
     rank = models.IntegerField(_("排序"), default=0)
     index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)

@@ -37,6 +37,7 @@ from apps.log_search.constants import (
     FavoriteVisibleType,
     IndexSetType,
     InstanceTypeEnum,
+    SearchMode,
     SearchScopeEnum,
     TagColor,
     TemplateType,
@@ -275,6 +276,9 @@ class KeywordSerializer(serializers.Serializer):
 
 class SearchAttrSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False, default=None)
+    search_mode = serializers.ChoiceField(
+        label=_("查询模式"), required=False, choices=SearchMode.get_choices(), default=SearchMode.UI.value
+    )
     ip_chooser = serializers.DictField(default={}, required=False)
     addition = serializers.ListField(allow_empty=True, required=False, default="")
 
