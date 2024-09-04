@@ -883,5 +883,10 @@ export default {
   '表示某日志模式数量突然异常增长，可能某些模块突发风险':
     'The sudden abnormal increase in the number of a certain log pattern may indicate a sudden risk in some modules.',
   配置项命名空间不能为空: 'Configuration item namespace cannot be empty',
+  搜索名称: 'Search for name',
+  '导入的集群已被删除，请手动选择集群。': 'Imported cluster has been deleted, please manually select a cluster.',
+  '为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成':
+    'To reduce transmission and storage costs, some content can be filtered out. More complex operations can be completed in the "Cleaning" feature.',
+  请选择需要同步的配置: 'Please select the configuration to be synchronized',
   '任务启动中，预计等待时长 {0} 分钟': 'Task starting, estimated wait time is {0} minutes.',
 };

@@ -173,7 +173,8 @@ class GetStrategyListV2Resource(Resource):
                 }
                 if target_ips & ips:
                     ip_strategy_ids.add(item.strategy_id)
-            else:
+
+            elif target["field"].endswith("topo_node"):
                 nodes = {(node["bk_obj_id"], node["bk_inst_id"]) for node in target["value"]}
                 if nodes & topo_nodes:
                     ip_strategy_ids.add(item.strategy_id)
@@ -184,12 +185,13 @@ class GetStrategyListV2Resource(Resource):
     def filter_strategy_ids_by_id(cls, filter_dict: dict, filter_strategy_ids_set: set):
         """过滤策略ID"""
         if filter_dict["id"]:
-            ids = filter_dict["id"]
-            try:
-                ids = {int(_id) for _id in ids if _id}
-            except (ValueError, TypeError):
-                # 无效的过滤条件，查不出数据
-                ids = set()
+            ids = set()
+            for _id in filter_dict["id"]:
+                try:
+                    ids.add(int(_id.strip()))
+                except (ValueError, TypeError):
+                    # 无效的过滤条件，查不出数据
+                    continue
             filter_strategy_ids_set.intersection_update(ids)
 
     @classmethod
@@ -357,21 +359,24 @@ class GetStrategyListV2Resource(Resource):
         # 过滤插件ID
         if filter_dict["plugin_id"]:
             plugin_id = filter_dict["plugin_id"]
-            plugins = CollectorPluginMeta.objects.filter(plugin_id__in=plugin_id, bk_biz_id__in=[0, bk_biz_id])
-            plugin_table_ids = []
-            for plugin in plugins:
-                version = plugin.current_version
-                for table in version.info.metric_json:
-                    plugin_table_ids.append(version.get_result_table_id(plugin, table["table_name"]).lower())
+            plugins = CollectorPluginMeta.objects.filter(plugin_id__in=plugin_id, bk_biz_id__in=[0, bk_biz_id]).values(
+                "plugin_id"
+            )
+            # plugin_table_ids = []
+            # for plugin in plugins:
+            #     version = plugin.current_version
+            #     for table in version.info.metric_json:
+            #         plugin_table_ids.append(version.get_result_table_id(plugin, table["table_name"]).lower())
 
             plugin_strategy_ids = []
-            if plugin_table_ids:
-                query_configs = QueryConfigModel.objects.filter(strategy_id__in=filter_strategy_ids_set).only(
-                    "config", "strategy_id"
-                )
-                for qc in query_configs:
-                    if qc.config.get("result_table_id") in plugin_table_ids:
+            query_configs = QueryConfigModel.objects.filter(strategy_id__in=filter_strategy_ids_set).only(
+                "config", "strategy_id"
+            )
+            for qc in query_configs:
+                for plugin in plugins:
+                    if f"{plugin['plugin_id']}." in qc.config.get("result_table_id"):
                         plugin_strategy_ids.append(qc.strategy_id)
+                        break
 
             filter_strategy_ids_set.intersection_update(set(plugin_strategy_ids))
 
@@ -466,6 +471,9 @@ class GetStrategyListV2Resource(Resource):
             value = condition["value"]
             if not isinstance(value, list):
                 value = [value]
+            if len(value) == 1:
+                # 默认按list传递，多个值用 | 分割
+                value = [i.strip() for i in str(value[0]).split(" | ") if i.strip()]
             filter_dict[key].extend(value)
 
         filter_strategy_ids_set = set(strategies.values_list("id", flat=True).distinct())
@@ -1237,6 +1245,51 @@ class GetStrategyV2Resource(Resource):
         # 补充告警组配置
         Strategy.fill_user_groups([config])
         return config
+
+
+class PlainStrategyListV2Resource(Resource):
+    """获取轻量的策略列表"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+
+    @staticmethod
+    def get_label_msg(scenario: str, labels: list) -> dict:
+        for first_label in labels:
+            for second_label in first_label["children"]:
+                if second_label["id"] != scenario:
+                    continue
+                return {
+                    "first_label": first_label["id"],
+                    "first_label_name": first_label["name"],
+                    "second_label": second_label["id"],
+                    "second_label_name": second_label["name"],
+                }
+
+        return {
+            "first_label": scenario,
+            "first_label_name": scenario,
+            "second_label": scenario,
+            "second_label_name": scenario,
+        }
+
+    def perform_request(self, validated_request_data):
+        # 获取指定业务下启用的策略
+        bk_biz_id = validated_request_data.get("bk_biz_id")
+        strategies = (
+            StrategyModel.objects.filter(bk_biz_id=bk_biz_id, is_enabled=True)
+            .values("id", "name", "scenario")
+            .order_by("-update_time")
+        )
+        # 获取分类标签
+        labels = resource.commons.get_label()
+
+        strategy_list = []
+        for strategy in strategies:
+            label_msg = self.get_label_msg(strategy["scenario"], labels)
+            strategy.update(label_msg)
+            strategy_list.append(strategy)
+        return strategy_list
 
 
 class DeleteStrategyV2Resource(Resource):
