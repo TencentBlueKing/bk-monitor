@@ -156,7 +156,6 @@ class SearchHandler(object):
         export_fields=None,
         export_log: bool = False,
         only_for_agg: bool = False,
-        only_search: bool = False,
     ):
         # 请求用户名
         self.request_username = get_request_external_username() or get_request_username()
@@ -166,9 +165,6 @@ class SearchHandler(object):
 
         # 是否只用于聚合，可以简化某些查询语句
         self.only_for_agg = only_for_agg
-
-        # 是否仅用于查询，可以简化字段查询描述信息
-        self.only_search = only_search
 
         # 透传查询类型
         self.index_set_id = index_set_id
@@ -347,7 +343,16 @@ class SearchHandler(object):
 
     def fields(self, scope="default"):
         is_union_search = self.search_dict.get("is_union_search", False)
-        field_result, display_fields = self.mapping_handlers.get_all_fields_by_index_id(
+        mapping_handlers = MappingHandlers(
+            self.origin_indices,
+            self.index_set_id,
+            self.origin_scenario_id,
+            self.storage_cluster_id,
+            self.time_field,
+            start_time=self.start_time,
+            end_time=self.end_time,
+        )
+        field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(
             scope=scope, is_union_search=is_union_search
         )
 
@@ -1682,7 +1687,7 @@ class SearchHandler(object):
                 scenario_id=self.origin_scenario_id,
                 storage_cluster_id=self.storage_cluster_id,
                 bk_biz_id=self.search_dict.get("bk_biz_id"),
-                only_search=self.only_search,
+                only_search=True,
             )
         return self._mapping_handlers
 
