@@ -195,12 +195,27 @@ class QueryTreeTransformer(BaseTreeTransformer):
 
         if isinstance(query_tree, Word):
             # 纯文本搜索需要加上嵌套字段作为or条件
-            keyword_filter = Q("query_string", query=str(query_tree))
+            keyword: str = str(query_tree)
             nested_filters = []
             for i in self.NESTED_KV_FIELDS.values():
-                nested_filters.append(Q("nested", path=i, query=keyword_filter))
+                # 全文关键字检索场景，对嵌套字段仅支持前缀匹配
+                # 为什么做这个处理？数据量稍微大一点的应用，全模糊检索会超时
+                # 此处优化是在查询体验和性能上做的一个折衷，大概的优化效果（4w（1分钟）span 上报的应用）：
+                # 1h ~ 48h 范围检索：2.93 ～ 3.2s
+                optimized_keyword: str = keyword
+                if all(
+                    [
+                        optimized_keyword.startswith(QueryStringBuilder.WILDCARD_PATTERN),
+                        optimized_keyword.endswith(QueryStringBuilder.WILDCARD_PATTERN),
+                    ]
+                ):
+                    optimized_keyword: str = keyword[len(QueryStringBuilder.WILDCARD_PATTERN) :]
 
-            origin_search_object = origin_search_object.query("bool", should=[keyword_filter] + nested_filters)
+                nested_filters.append(Q("nested", path=i, query=Q("query_string", query=optimized_keyword)))
+
+            origin_search_object = origin_search_object.query(
+                "bool", should=[Q("query_string", query=keyword)] + nested_filters
+            )
         else:
             origin_search_object = origin_search_object.query("query_string", query=str(query_tree))
 

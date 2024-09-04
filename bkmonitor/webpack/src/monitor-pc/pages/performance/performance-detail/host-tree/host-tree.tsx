@@ -371,7 +371,6 @@ export default class HostTree extends tsc<IProps, IEvents> {
       .then(data => {
         this.emptyStatusType = 'empty';
         const treeData = Object.freeze((typeTools.isObject(data) ? data.data : data) as TreeNodeItem[]);
-        console.info(treeData, '=============');
         this.conditionList = transformConditionSearchList(data.condition_list || []);
         this.searchCondition = updateBkSearchSelectName(this.conditionList, this.searchCondition);
         this.hostTreeData = Object.freeze(treeData) as TreeNodeItem[];

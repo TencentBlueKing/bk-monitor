@@ -242,6 +242,8 @@ DEFAULT_CRONTAB += [
     ("metadata.task.sync_space.sync_bkcc_space", "*/10 * * * *", "global"),
     ("metadata.task.sync_space.sync_bcs_space", "*/10 * * * *", "global"),
     ("metadata.task.sync_space.refresh_bcs_project_biz", "*/10 * * * *", "global"),
+    # 关联协议数据同步--cmdb_relation
+    ("metadata.task.sync_cmdb_relation.sync_relation_redis_data", "0 * * * *", "global"),
 ]
 # 耗时任务单独队列处理
 LONG_TASK_CRONTAB = [

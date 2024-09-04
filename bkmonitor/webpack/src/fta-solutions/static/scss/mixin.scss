@@ -5,7 +5,7 @@
   bottom: 0;
   left: 0;
   padding: 1rem;
-  background-color: rgba(0, 0, 0, .1);
+  background-color: rgba(0, 0, 0, 0.1);
 }
 @mixin ellipsis {
   overflow: hidden;
@@ -55,14 +55,14 @@
     &:hover {
       color: #3a84ff;
       cursor: pointer;
-      background-color: rgba(163,197,253,.30);
+      background-color: rgba(163, 197, 253, 0.3);
     }
   }
 }
 @mixin text-ellipsis {
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap
+  white-space: nowrap;
 }
 
 @mixin simple-class-style($prop, $value) {

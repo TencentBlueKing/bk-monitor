@@ -160,7 +160,12 @@ class QueryClientLog(QueryClientTemplate):  # pylint: disable=invalid-name
             # 2_bklog_bkesb_container*
             # 2_bklog.bkesb_container_*
             # 2_bklog_bkesb_container_*
-            tmp_index: str = _index.replace("_%s_" % settings.TABLE_ID_PREFIX, "_%s." % settings.TABLE_ID_PREFIX)
+            # 2_bklog_test_bklog_277*
+            # 2_bklog.test_bklog_277*
+            if "_%s." % settings.TABLE_ID_PREFIX in _index:
+                tmp_index = _index
+            else:
+                tmp_index: str = _index.replace("_%s_" % settings.TABLE_ID_PREFIX, "_%s." % settings.TABLE_ID_PREFIX, 1)
             tmp_index = tmp_index.rstrip("_*")
             # 如果suffix是个日期，需要去掉后缀
             new_index, no_use, suffix = tmp_index.rpartition("_")  # pylint: disable=unused-variable
