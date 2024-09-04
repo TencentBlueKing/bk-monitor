@@ -33,11 +33,15 @@
       <keep-alive>
         <component
           :is="`${showOriginal ? 'OriginalList' : 'TableList'}`"
-          v-bind="$attrs"
+          :table-list="tableList"
+          :totalFields="totalFields"
+          :originTableList="originLogList"
+          :operatorConfig="indexSetOperatorConfig"
           v-on="$listeners"
           :handle-click-tools="handleClickTools"
           :retrieve-params="retrieveParams"
-          :table-list="tableList"
+          :tableLoading="isContentLoading"
+          :visibleFields="visibleFields"
         ></component>
       </keep-alive>
 
@@ -140,10 +144,22 @@
     computed: {
       ...mapState({
         bkBizId: state => state.bkBizId,
+        indexFieldInfo: 'indexFieldInfo',
+        indexSetQueryResult: 'indexSetQueryResult',
+        visibleFields: 'visibleFields',
+        indexSetOperatorConfig: 'indexSetOperatorConfig'
       }),
       ...mapState('globals', ['fieldTypeMap']),
+      totalFields() {
+        return this.indexFieldInfo.fields ?? [];
+      },
+      originLogList() {
+        return this.indexSetQueryResult.origin_log_list ?? [];
+      },
+      isContentLoading() {
+        return this.indexSetQueryResult.is_loading;
+      }
     },
-    inject: ['changeShowUnionSource'],
     methods: {
       // 滚动到顶部
       scrollToTop() {
@@ -228,7 +244,7 @@
           }
           this.openLogDialog(dialogNewParams, event);
         } else if (event === 'webConsole') this.openWebConsole(row);
-        else if (event === 'logSource') this.changeShowUnionSource();
+        else if (event === 'logSource') this.$store.dispatch('changeShowUnionSource');
       },
       // 关闭实时日志或上下文弹窗后的回调
       hideDialog() {

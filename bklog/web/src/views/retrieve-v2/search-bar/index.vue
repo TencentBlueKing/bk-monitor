@@ -35,6 +35,10 @@
 
     store.dispatch('requestIndexSetQuery');
   };
+
+  const handleIndexSetSelected = payload => {
+    store.dispatch('requestIndexSetItemChanged', payload);
+  }
 </script>
 <template>
   <div class="search-bar-container">
@@ -49,7 +53,7 @@
         >
       </div>
 
-      <SelectIndexSet style="width: 200px; margin: 0 12px"></SelectIndexSet>
+      <SelectIndexSet style="width: 200px; margin: 0 12px" @selected="handleIndexSetSelected"></SelectIndexSet>
       <QueryHistory></QueryHistory>
       <TimeSetting></TimeSetting>
     </div>

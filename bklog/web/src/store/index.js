@@ -37,7 +37,13 @@ import axios from 'axios';
 import Vuex from 'vuex';
 
 import collect from './collect';
-import { IndexSetQueryResult, IndexFieldInfo, IndexItem, IndexsetItemParams } from './default-values.ts';
+import {
+  IndexSetQueryResult,
+  IndexFieldInfo,
+  IndexItem,
+  IndexsetItemParams,
+  logSourceField,
+} from './default-values.ts';
 import globals from './globals';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
@@ -80,6 +86,14 @@ const store = new Vuex.Store({
     // @ts-ignore
     indexFieldInfo: { ...IndexFieldInfo },
     indexSetQueryResult: { ...IndexSetQueryResult },
+    indexSetFieldConfigList: {
+      is_loading: false,
+      data: [],
+    },
+    indexSetOperatorConfig: {
+      /** 当前日志来源是否展示  用于字段更新后还保持显示状态 */
+      isShowSourceField: false,
+    },
     traceIndexId: '',
     // 业务Id
     bkBizId: '',
@@ -184,6 +198,7 @@ const store = new Vuex.Store({
         ip_chooser,
         host_scopes,
         interval,
+        ids,
       } = state.indexItem;
 
       return {
@@ -197,6 +212,7 @@ const store = new Vuex.Store({
         ip_chooser,
         host_scopes,
         interval,
+        ids,
       };
     },
   },
@@ -208,6 +224,10 @@ const store = new Vuex.Store({
       if (payload.isUnionIndex) {
         state.unionIndexList = payload.ids;
       }
+    },
+
+    updateIndexSetOperatorConfig(state, payload) {
+      Object.assign(state.indexSetOperatorConfig, payload ?? {});
     },
 
     /**
@@ -230,6 +250,17 @@ const store = new Vuex.Store({
 
     updateIndexItemParams(state, payload) {
       Object.assign(state.indexItem, payload ?? {});
+    },
+
+    updateIndexSetFieldConfigList() {
+      if (payload.is_loading !== undefined) {
+        state.indexSetFieldConfigList.is_loading = payload.is_loading;
+      }
+
+      if (payload.data) {
+        state.indexSetFieldConfigList.data.length = 0;
+        state.indexSetFieldConfigList.data.push(...(payload ?? []));
+      }
     },
 
     updataOperatorDictionary(state, payload) {
@@ -532,6 +563,8 @@ const store = new Vuex.Store({
     updateIndexItemByRoute({ commit, dispatch }, { route, list }) {
       const ids = [];
       let isUnionIndex = false;
+      commit('resetIndexSetQueryResult', { search_count: 0 });
+
       if (route.params.indexId) {
         ids.push(route.params.indexId);
         commit('updateIndexId', route.params.indexId);
@@ -601,7 +634,10 @@ const store = new Vuex.Store({
     /**
      * 执行查询
      */
-    requestIndexSetQuery({ commit, state }, payload = { isTablePagination: true, cancelToken: null }) {
+    requestIndexSetQuery(
+      { commit, state },
+      payload = { isTablePagination: true, cancelToken: null, searchCount: undefined },
+    ) {
       const {
         start_time,
         end_time,
@@ -616,7 +652,8 @@ const store = new Vuex.Store({
         timezone,
       } = state.indexItem;
       const bk_biz_id = state.bkBizId;
-      commit('resetIndexSetQueryResult', { is_loading: true });
+      const searchCount = payload.searchCount ?? state.indexSetQueryResult.search_count + 1;
+      commit('resetIndexSetQueryResult', { is_loading: true, search_count: searchCount });
 
       const [startTimeStamp, endTimeStamp] = handleTransformToTimestamp([start_time, end_time]);
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
@@ -678,24 +715,63 @@ const store = new Vuex.Store({
       }
 
       return axios(params)
-        .then(({ code, data, message, result }) => {
-          if (result) {
-            const rsolvedData = readBlobRespToJson(res.data);
-            const catchUnionBeginList = parseBigNumberList(data?.union_configs || []);
-            commit('updateIndexItem', { catchUnionBeginList, begin: begin + 1 });
-            commit('updateIndexSetQueryResult', rsolvedData ?? {});
-            return {
-              code,
-              data: rsolvedData,
-              message,
-              result,
-            };
+        .then(resp => {
+          if (resp.data && !resp.message) {
+            return readBlobRespToJson(resp.data).then(({ code, data, result, message }) => {
+              const rsolvedData = data;
+              rsolvedData.list = parseBigNumberList(rsolvedData.list);
+              rsolvedData.origin_log_list = parseBigNumberList(rsolvedData.origin_log_list);
+
+              const catchUnionBeginList = parseBigNumberList(rsolvedData?.union_configs || []);
+              commit('updateIndexItem', { catchUnionBeginList, begin: begin + 1 });
+              commit('updateIndexSetQueryResult', rsolvedData ?? {});
+              return {
+                data: rsolvedData,
+                message,
+                code,
+                result,
+              };
+            });
           }
 
-          return { code, data, message, result };
+          return { data, message, result: false };
         })
         .finally(() => {
           commit('updateIndexSetQueryResult', { is_loading: false });
+        });
+    },
+
+    requestFieldConfigList({ state, commit }, payload) {
+      const cancelTokenKey = 'requestFieldConfigCancelToken';
+      RequestPool.execCanceToken(cancelTokenKey);
+      const requestCancelToken = payload.cancelToken ?? RequestPool.getCancelToken(cancelTokenKey);
+      commit('updateIndexSetFieldConfigList', {
+        data: [],
+        is_loading: true,
+      });
+      return http
+        .request(
+          'retrieve/getFieldsListConfig',
+          {
+            data: {
+              ...(state.isUnionSearch ? { index_set_ids: state.unionIndexList } : { index_set_id: state.indexId }),
+              scope: 'default',
+              index_set_type: state.isUnionSearch ? 'union' : 'single',
+            },
+          },
+          {
+            cancelToken: requestCancelToken,
+          },
+        )
+        .then(resp => {
+          commit('updateIndexSetFieldConfigList', {
+            data: resp.data ?? [],
+          });
+        })
+        .finally(() => {
+          commit('updateIndexSetFieldConfigList', {
+            is_loading: false,
+          });
         });
     },
 
@@ -707,12 +783,37 @@ const store = new Vuex.Store({
      */
     requestIndexSetItemChanged({ commit, dispatch }, payload) {
       commit('updateIndexItem', payload);
+      commit('resetIndexSetQueryResult', { search_count: 0 });
 
       if (!payload.isUnionIndex) {
         commit('updateIndexId', payload.ids[0]);
       }
 
       dispatch('requestIndexSetFieldInfo');
+    },
+
+    changeShowUnionSource({ commit, dispatch, state }) {
+      commit('updateIndexSetOperatorConfig', { isShowSourceField: !state.indexSetOperatorConfig.isShowSourceField });
+      dispatch('showShowUnionSource', { keepLastTime: false });
+    },
+
+    /** 日志来源显隐操作 */
+    showShowUnionSource({ state }, { keepLastTime = false }) {
+      // 非联合查询 或者清空了所有字段 不走逻辑
+      if (!state.isUnionSearch || !state.visibleFields.length) return;
+      const isExist = state.visibleFields.some(item => item.tag === 'union-source');
+      // 保持之前的逻辑
+      if (keepLastTime) {
+        const isShowSourceField = state.indexSetOperatorConfig.isShowSourceField;
+        if (isExist) {
+          !isShowSourceField && state.visibleFields.shift();
+        } else {
+          isShowSourceField && state.visibleFields.unshift(logSourceField());
+        }
+        return;
+      }
+
+      isExist ? state.visibleFields.shift() : state.visibleFields.unshift(logSourceField());
     },
   },
 });

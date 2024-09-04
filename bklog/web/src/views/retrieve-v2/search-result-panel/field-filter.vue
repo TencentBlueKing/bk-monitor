@@ -4,7 +4,7 @@
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
 
-  import FieldFilter from '../field-filter-comp';
+  import FieldFilterComp from '../field-filter-comp';
   const store = useStore();
   const { $t } = useLocale();
   /** 时间选择器绑定的值 */
@@ -16,22 +16,7 @@
   const indexSetItem = computed(() => {
     return store.state.indexItem;
   });
-  const logSourceField = {
-    description: null,
-    es_doc_values: false,
-    field_alias: '',
-    field_name: $t('日志来源'),
-    field_operator: [],
-    field_type: 'union',
-    filterExpand: false,
-    filterVisible: false,
-    is_analyzed: false,
-    is_display: false,
-    is_editable: false,
-    minWidth: 0,
-    tag: 'union-source',
-    width: 230,
-  };
+
   const sortList = computed(() => {
     return store.state.indexFieldInfo.sort_list;
   });
@@ -69,10 +54,6 @@
     };
   });
 
-  const operatorConfig = ref({
-    /** 当前日志来源是否展示  用于字段更新后还保持显示状态 */
-    isShowSourceField: false,
-  });
   const showFieldAlias = ref(localStorage.getItem('showFieldAlias') === 'true');
   const visibleFields = computed(() => store.state.visibleFields ?? []);
 
@@ -93,29 +74,11 @@
         }
       })
       .filter(Boolean);
-    showShowUnionSource(true);
     store.commit('updateIsNotVisibleFieldsShow', !displayFields.length);
-    // store.commit('updateVisibleFields', !displayFields.length);
+    store.commit('updateVisibleFields', displayFields);
+    store.dispatch('showShowUnionSource', { keepLastTime: true });
   };
-  const showShowUnionSource = (keepLastTime = false) => {
-    // 非联合查询 或者清空了所有字段 不走逻辑
-    if (!store.state.isUnionSearch || !visibleFields.value.length) return;
-    const isExist = visibleFields.value.some(item => item.tag === 'union-source');
-    // 保持之前的逻辑
-    if (keepLastTime) {
-      const isShowSourceField = operatorConfig.value.isShowSourceField;
-      if (isExist) {
-        !isShowSourceField && visibleFields.value.shift();
-      } else {
-        isShowSourceField && visibleFields.value.unshift(logSourceField.value);
-      }
-      return;
-    }
-    const visibleFields = isExist ? visibleFields.value.shift() : visibleFields.value.unshift(this.logSourceField);
-    if (visibleFields) {
-      store.commit('updateVisibleFields', visibleFields);
-    }
-  };
+
   /**
    * @desc: 字段设置更新了
    * @param {Array} displayFieldNames 展示字段
@@ -155,7 +118,7 @@
     <div class="tab-item-title field-filter-title">
       {{ $t('查询结果统计') }}
     </div>
-    <FieldFilter
+    <FieldFilterComp
       ref="fieldFilterRef"
       :date-picker-value="datePickerValue"
       :field-alias-map="fieldAliasMap"

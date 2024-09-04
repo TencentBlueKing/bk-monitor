@@ -44,41 +44,6 @@
             {{ $t('原始') }}
           </bk-button>
         </div>
-        <div class="field-select">
-          <img
-            class="icon-field-config"
-            :src="require('@/images/icons/field-config.svg')"
-          />
-          <bk-select
-            ref="configSelectRef"
-            :clearable="false"
-            :disabled="fieldConfigIsLoading"
-            :popover-min-width="240"
-            :value="filedSettingConfigID"
-            size="small"
-            searchable
-            @selected="handleSelectFieldConfig"
-          >
-            <bk-option
-              v-for="option in fieldsConfigList"
-              :id="option.id"
-              :key="option.id"
-              :name="option.name"
-            >
-            </bk-option>
-            <template #extension>
-              <div>
-                <span
-                  class="extension-add-new-config"
-                  @click="handleAddNewConfig"
-                >
-                  <span class="bk-icon icon-close-circle"></span>
-                  <span>{{ $t('查看配置') }}</span>
-                </span>
-              </div>
-            </template>
-          </bk-select>
-        </div>
       </div>
       <div class="tools-more">
         <div style="margin-right: 12px">
@@ -96,10 +61,9 @@
             theme="primary"
           ></bk-switcher>
         </div>
-        <!-- <time-formatter v-show="!showOriginalLog" /> -->
         <div class="operation-icons">
           <export-log
-            v-bind="$attrs"
+            :index-set-list="indexSetList"
             :async-export-usable="asyncExportUsable"
             :async-export-usable-reason="asyncExportUsableReason"
             :queue-status="queueStatus"
@@ -107,14 +71,43 @@
             :total-count="totalCount"
           >
           </export-log>
-
+          <bk-popover
+            ref="fieldsSettingPopper"
+            :distance="15"
+            :offset="0"
+            :on-hide="handleDropdownHide"
+            :on-show="handleDropdownShow"
+            animation="slide-toggle"
+            placement="bottom-end"
+            theme="light bk-select-dropdown"
+            trigger="click"
+          >
+            <slot name="trigger">
+              <div class="operation-icon">
+                <span class="icon bklog-icon bklog-set-icon"></span>
+              </div>
+            </slot>
+            <template #content>
+              <div class="fields-setting-container">
+                <fields-setting
+                  v-if="showFieldsSetting"
+                  v-on="$listeners"
+                  :field-alias-map="fieldAliasMap"
+                  :retrieve-params="retrieveParams"
+                  @cancel="cancelModifyFields"
+                  @confirm="confirmModifyFields"
+                  @modify-fields="modifyFields"
+                  @set-popper-instance="setPopperInstance"
+                />
+              </div>
+            </template>
+          </bk-popover>
         </div>
       </div>
     </div>
 
     <table-log
-      v-bind="$attrs"
-      v-on="$listeners"
+      :table-list="tableList"
       :is-wrap="isWrap"
       :retrieve-params="retrieveParams"
       :show-original="showOriginalLog"
@@ -123,13 +116,11 @@
 </template>
 
 <script>
-  import axios from 'axios';
-  import { mapGetters } from 'vuex';
+  import { mapGetters, mapState } from 'vuex';
 
   import ExportLog from '../../result-comp/export-log.vue';
   import FieldsSetting from '../../result-comp/fields-setting';
   import TableLog from './table-log.vue';
-  const CancelToken = axios.CancelToken;
 
   export default {
     components: {
@@ -151,10 +142,6 @@
         type: Boolean,
         default: true,
       },
-      configWatchBool: {
-        type: Boolean,
-        default: false,
-      },
     },
     data() {
       return {
@@ -163,8 +150,6 @@
         showFieldsSetting: false,
         showAsyncExport: false, // 异步下载弹窗
         exportLoading: false,
-        fieldsConfigList: [],
-        fieldConfigIsLoading: false,
         expandTextView: false,
       };
     },
@@ -186,22 +171,28 @@
         unionIndexList: 'unionIndexList',
         isUnionSearch: 'isUnionSearch',
       }),
-      watchQueryIndexValue() {
-        return `${this.routeIndexSet}_${this.configWatchBool}`;
-      },
+      ...mapState({
+        indexSetList: state => state.retrieve?.indexSetList ?? [],
+        indexSetQueryResult: 'indexSetQueryResult',
+        indexFieldInfo: 'indexFieldInfo',
+      }),
+
       routeIndexSet() {
         return this.$route.params.indexId;
       },
-    },
-    watch: {
-      watchQueryIndexValue: {
-        handler() {
-          if ((!this.isUnionSearch && this.routeIndexSet) || (this.isUnionSearch && this.unionIndexList?.length)) {
-            this.requestFiledConfig();
-          }
-        },
+
+      tableList() {
+        return this.indexSetQueryResult.list ?? [];
+      },
+
+      fieldAliasMap() {
+        return (this.indexFieldInfo.fields ?? []).reduce(
+          (out, field) => ({ ...out, [field.field_name]: field.field_alias || field.field_name }),
+          {},
+        );
       },
     },
+
     created() {
       this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
       const expandStr = localStorage.getItem('EXPAND_SEARCH_VIEW');
@@ -215,7 +206,6 @@
       },
       handleDropdownHide() {
         this.showFieldsSetting = false;
-        this.requestFiledConfig();
       },
       confirmModifyFields(displayFieldNames, showFieldAlias) {
         this.modifyFields(displayFieldNames, showFieldAlias);
@@ -239,31 +229,7 @@
           hideOnClick: status,
         });
       },
-      async requestFiledConfig() {
-        /** 获取配置列表 */
-        this.fieldConfigIsLoading = true;
-        try {
-          const res = await this.$http.request(
-            'retrieve/getFieldsListConfig',
-            {
-              data: {
-                ...(this.isUnionSearch ? { index_set_ids: this.unionIndexList } : { index_set_id: this.routeIndexSet }),
-                scope: 'default',
-                index_set_type: this.isUnionSearch ? 'union' : 'single',
-              },
-            },
-            {
-              cancelToken: new CancelToken(c => {
-                this.getFieldsConfigCancelFn = c;
-              }),
-            },
-          );
-          this.fieldsConfigList = res.data;
-        } catch (error) {
-        } finally {
-          this.fieldConfigIsLoading = false;
-        }
-      },
+
       getFieldsConfigCancelFn() {},
       async handleSelectFieldConfig(configID, option) {
         const { display_fields: displayFields, sort_list: sortList } = option;

@@ -110,19 +110,9 @@
 </template>
 
 <script>
-  import { mapGetters } from 'vuex';
+  import { mapGetters, mapState } from 'vuex';
   export default {
     inheritAttrs: false,
-    props: {
-      retrieveSearchNumber: {
-        type: Number,
-        require: true,
-      },
-      indexSetItem: {
-        type: Object,
-        require: true,
-      },
-    },
     data() {
       return {
         grammarMap: [
@@ -161,17 +151,29 @@
         detailJumpRouteKey: 'log',
       };
     },
+
     computed: {
       ...mapGetters({
         indexId: 'indexId',
         spaceUid: 'spaceUid',
       }),
+      ...mapState({
+        indexSetItem: 'indexFieldInfo',
+        indexSetQueryResult: 'indexSetQueryResult'
+      }),
+      indexParams() {
+        const { scenario_id, collector_scenario_id, index_set_id } = this.indexSetItem;
+        return this.indexSetItem ? { scenario_id, collector_scenario_id, index_set_id } : {};
+      },
+      retrieveSearchNumber() {
+        return this.indexSetQueryResult.search_count;
+      },
       isFirstSearch() {
-        return this.retrieveSearchNumber <= 1;
+        return this.retrieveSearchNumber < 1;
       },
     },
     watch: {
-      indexSetItem: {
+      indexParams: {
         handler(nVal) {
           if (JSON.stringify(nVal) === '{}') return;
           if (nVal.scenario_id === 'log') {
@@ -208,7 +210,7 @@
           case 'indexConfig':
             {
               // 索引配置
-              if (JSON.stringify(this.indexSetItem) === '{}') {
+              if (JSON.stringify(this.indexParams) === '{}') {
                 this.$bkMessage({
                   theme: 'error',
                   message: this.$t('未找到对应的采集项'),
@@ -217,9 +219,9 @@
               }
               const params = {};
               if (['manage', 'indexManage'].includes(this.detailJumpRouteKey)) {
-                params.indexSetId = this.indexSetItem?.index_set_id;
+                params.indexSetId = this.indexParams?.index_set_id;
               } else {
-                params.collectorId = this.indexSetItem?.collector_config_id;
+                params.collectorId = this.indexParams?.collector_config_id;
               }
               const { href } = this.$router.resolve({
                 name: this.routeNameList[this.detailJumpRouteKey],

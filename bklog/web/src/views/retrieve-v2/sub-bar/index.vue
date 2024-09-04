@@ -2,12 +2,15 @@
   import BizMenuSelect from '@/components/biz-menu';
   import FieldSetting from './field-setting.vue';
   import RetrieveSetting from './retrieve-setting.vue';
+
 </script>
 <template>
   <div class="subbar-container">
-    <div class="box-biz-select"><BizMenuSelect theme="light"></BizMenuSelect></div>
+    <div class="box-biz-select">
+      <BizMenuSelect theme="light"></BizMenuSelect>
+    </div>
     <div class="box-right-option">
-      <FieldSetting></FieldSetting>
+      <!-- <FieldSetting></FieldSetting> -->
       <div class="more-setting">
         <RetrieveSetting></RetrieveSetting>
       </div>

@@ -46,7 +46,7 @@ import jsCookie from 'js-cookie';
 import $http from '../../../api';
 import { deepClone, random, utcFormatDate } from '../../../common/util';
 import EmptyStatus from '../../../components/empty-status/index.vue';
-import FingerSelectColumn from '../result-table-panel/log-clustering/components/finger-select-column.vue';
+import FingerSelectColumn from '../search-result-panel/log-clustering/components/finger-select-column.vue';
 import ManageInput from './component/manage-input';
 
 import './manage-group-dialog.scss';

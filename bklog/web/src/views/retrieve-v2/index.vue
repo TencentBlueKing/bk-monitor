@@ -48,7 +48,7 @@
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
-  const indexItem = computed(() => store.state.indexItem ?? {});
+  const indexSetParams = computed(() => store.getters.retrieveParams); // commit('retrieve/updateChartKey');
 
   /**
    * 拉取索引集列表
@@ -61,7 +61,7 @@
   };
 
   const setRouteParams = () => {
-    const { ids, isUnionIndex } = indexItem.value;
+    const { ids, isUnionIndex } = indexSetParams.value;
     const params = isUnionIndex ? route.params : { ...route.params, indexId: ids?.[0] };
     const query = isUnionIndex
       ? { ...route.query, unionList: encodeURIComponent(JSON.stringify(ids.map(item => String(item)))) }
@@ -76,9 +76,10 @@
   };
 
   watch(
-    indexItem.value,
+    indexSetParams,
     () => {
       setRouteParams();
+      store.commit('retrieve/updateChartKey');
     },
     { immediate: true, deep: true },
   );
@@ -89,10 +90,14 @@
       const routeQuery = route.query ?? {};
       if (routeQuery.spaceUid !== spaceUid.value || routeQuery.bizId !== bkBizId.value) {
         router.replace({
+          params: {
+            indexId: undefined,
+          },
           query: {
             ...routeQuery,
             spaceUid: spaceUid.value,
             bizId: bkBizId.value,
+            unionList: undefined
           },
         });
       }

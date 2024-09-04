@@ -343,7 +343,6 @@ export default class QueryStatement extends tsc<object> {
       isUnionIndex: !this.isAloneType,
     };
 
-    this.$store.dispatch('requestIndexSetItemChanged', payload);
     return payload;
   }
 

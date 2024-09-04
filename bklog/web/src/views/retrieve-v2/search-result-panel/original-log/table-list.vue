@@ -44,7 +44,7 @@
     >
       <template #default="{ $index }">
         <expand-view
-          v-bind="$attrs"
+          :kv-show-fields-list="kvShowFieldsList"
           :data="originTableList[$index]"
           :list-data="tableList[$index]"
           :retrieve-params="retrieveParams"
@@ -140,10 +140,7 @@
       v-else
       #empty
     >
-      <empty-view
-        v-bind="$attrs"
-        v-on="$listeners"
-      />
+      <empty-view/>
     </template>
     <!-- 下拉刷新骨架屏loading -->
     <template
@@ -161,7 +158,7 @@
 </template>
 
 <script>
-  import resultTableMixin from '@/mixins/result-table-mixin';
+  import resultTableMixin from '../../mixins/result-table-mixin';
 
   export default {
     name: 'TableList',

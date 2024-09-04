@@ -32,7 +32,7 @@ export const getDefaultRetrieveParams = () => {
     addition: [],
     begin: 0,
     size: 50,
-    interval: '1d',
+    interval: 'auto',
     timezone: 'Asia/Shanghai',
   };
 };
@@ -41,6 +41,7 @@ export const DEFAULT_RETRIEVE_PARAMS = getDefaultRetrieveParams();
 
 export const IndexSetQueryResult = {
   is_loading: false,
+  search_count: 0,
   aggregations: {},
   _shards: {},
   total: 0,
@@ -74,4 +75,23 @@ export const IndexItem = {
   catchUnionBeginList: [],
   selectIsUnionSearch: false,
   ...IndexsetItemParams,
+};
+
+export const logSourceField = () => {
+  return {
+    description: null,
+    es_doc_values: false,
+    field_alias: '',
+    field_name: (window as any).$t('日志来源'),
+    field_operator: [],
+    field_type: 'union',
+    filterExpand: false,
+    filterVisible: false,
+    is_analyzed: false,
+    is_display: false,
+    is_editable: false,
+    minWidth: 0,
+    tag: 'union-source',
+    width: 230,
+  };
 };

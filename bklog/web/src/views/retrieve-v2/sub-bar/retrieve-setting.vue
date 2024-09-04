@@ -139,7 +139,7 @@
   };
 
   watch(
-    indexParams.value,
+    indexParams,
     val => {
       setTimeout(() => {
         setShowLiList({ scenario_id: val?.[0], collector_scenario_id: val?.[1] });

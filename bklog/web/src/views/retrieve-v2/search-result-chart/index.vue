@@ -26,7 +26,7 @@
 
 <template>
   <div
-    v-bkloading="{ isLoading: false }"
+    v-bkloading="{ isLoading: isLoading }"
     :class="['monitor-echarts-container', { 'is-fold': isFold }]"
     data-test-id="retrieve_div_generalTrendEcharts"
   >
@@ -168,11 +168,11 @@
       };
     },
     computed: {
-      retrieveParams(){
-        return this.$store.state.indexItem;
-      },
       indexSetItem() {
         return this.$store.state.indexItem.items[0];
+      },
+      datePickerValue() {
+        return [this.$store.state.indexItem.start_time, this.$store.state.indexItem.end_time];
       },
       chartKey() {
         this.getInterval();
@@ -182,6 +182,7 @@
         unionIndexList: 'unionIndexList',
         isUnionSearch: 'isUnionSearch',
         bkBizId: 'bkBizId',
+        retrieveParams: 'retrieveParams'
       }),
       totalNumShow() {
         if (!this.infoTotalNumLoading && !this.infoTotalNumError && !this.isFrontStatistics && this.infoTotal > 0)

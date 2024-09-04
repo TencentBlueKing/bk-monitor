@@ -273,6 +273,7 @@
     data() {
       return {
         isLoading: false,
+        shadowVisible: [],
         showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
         shadowAllTotal: [], // 所有字段
         newConfigStr: '', // 新增配置配置名
@@ -298,9 +299,6 @@
     computed: {
       shadowSort() {
         return this.$store.state.indexFieldInfo.sort_list;
-      },
-      shadowVisible() {
-        return this.$store.state.indexFieldInfo.display_fields;
       },
       shadowTotal() {
         return this.$store.state.indexFieldInfo.fields;
