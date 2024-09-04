@@ -60,6 +60,7 @@ interface IProps {
   sliceTimeRange?: number[];
   enableSelect?: boolean;
   needRestoreEvent?: boolean;
+  enableZoom?: boolean;
   getData?: TGetData;
   onDataZoom?: () => void;
   onSliceTimeRangeChange?: (v: number[]) => void;
@@ -84,6 +85,7 @@ export default class BarAlarmChart extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) enableSelect: boolean;
   @Prop({ type: Function, default: null }) getData: TGetData;
   @Prop({ type: Boolean, default: false }) needRestoreEvent: boolean;
+  @Prop({ type: Boolean, default: false }) enableZoom: boolean;
 
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
@@ -234,7 +236,7 @@ export default class BarAlarmChart extends tsc<IProps> {
    * @param event
    */
   handleMouseDown(event: MouseEvent) {
-    if (this.loading || !this.localData.length) {
+    if (this.loading || !this.localData.length || !this.enableZoom) {
       return;
     }
     const target: HTMLDivElement = this.$el.querySelector('.alarm-chart-wrap');

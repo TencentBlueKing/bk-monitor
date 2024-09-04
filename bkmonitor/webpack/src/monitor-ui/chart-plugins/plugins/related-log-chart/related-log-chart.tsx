@@ -306,6 +306,13 @@ class RelatedLogChart extends CommonSimpleChart {
                             show: false,
                           },
                         },
+                        toolbox: {
+                          feature: {
+                            dataZoom: {
+                              show: false,
+                            },
+                          },
+                        },
                         tooltip: {
                           className: 'log-chart-simple-chart-tooltip',
                           show: true,
@@ -507,12 +514,12 @@ class RelatedLogChart extends CommonSimpleChart {
               <span class='icon-monitor icon-fenxiang' />
             </div>
             <div class='right'>
-              <bk-checkbox
+              {/* <bk-checkbox
                 v-model={this.isFilterError}
                 onChange={this.handleIsFilterError}
               >
                 Error
-              </bk-checkbox>
+              </bk-checkbox> */}
             </div>
           </div>
           {!this.emptyChart ? (
@@ -530,7 +537,7 @@ class RelatedLogChart extends CommonSimpleChart {
               />
             </div>
           ) : (
-            <div class='empty-chart'>{this.$t('查无数据')}</div>
+            <div class='empty-chart empty-chart-text'>{this.$t('查无数据')}</div>
           )}
         </div>
       );
@@ -618,7 +625,7 @@ class RelatedLogChart extends CommonSimpleChart {
                       />
                     </div>
                   ) : (
-                    <div class='empty-chart'>{this.$t('查无数据')}</div>
+                    <div class='empty-chart empty-chart-text'>{this.$t('查无数据')}</div>
                   )}
                 </div>
               </div>

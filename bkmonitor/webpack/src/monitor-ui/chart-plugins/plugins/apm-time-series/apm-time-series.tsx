@@ -96,6 +96,11 @@ export default class ApmTimeSeries extends TimeSeries {
     return this.panel.options?.apm_time_series?.xAxisSplitNumber;
   }
 
+  /* 禁用框选 */
+  get disableZoom() {
+    return !!this.panel.options?.apm_time_series?.disableZoom;
+  }
+
   /**
    * @description: 获取图表数据
    * @param {*}
@@ -285,7 +290,18 @@ export default class ApmTimeSeries extends TimeSeries {
         const formatterFunc = this.handleSetFormatterFunc(seriesList[0].data);
         const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
 
-        const chartBaseOptions = MONITOR_LINE_OPTIONS;
+        let chartBaseOptions = MONITOR_LINE_OPTIONS;
+        if (this.disableZoom) {
+          chartBaseOptions = deepmerge(MONITOR_LINE_OPTIONS, {
+            toolbox: {
+              feature: {
+                dataZoom: {
+                  show: false,
+                },
+              },
+            },
+          });
+        }
         const echartOptions = deepmerge(
           deepClone(chartBaseOptions),
           this.panel.options?.time_series?.echart_option || {},
