@@ -50,6 +50,7 @@ from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandl
 from apps.log_clustering.handlers.pipline_service.constants import OperatorServiceEnum
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.tasks.msg import access_clustering
+from apps.log_clustering.utils import pattern
 from apps.log_databus.constants import EtlConfig
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
@@ -341,14 +342,9 @@ class ClusteringConfigHandler(object):
         正则调试
         """
         try:
-            regex_json_str = base64.b64decode(predefined_varibles)
-            regex_str_list = json.loads(regex_json_str)
-            regex_list = [regex.split(":", 1) for regex in regex_str_list]
+            return pattern.debug(log=input_data, predefined_variables=predefined_varibles)
         except Exception as e:
             raise ClusteringDebugException(ClusteringDebugException.MESSAGE.format(e=e))
-        for placeholder, pattern in regex_list:
-            input_data = re.sub(pattern, f'#{placeholder}#', input_data)
-        return input_data
 
     @classmethod
     def _deal_preview(cls, aiops_experiments_debug_result):
