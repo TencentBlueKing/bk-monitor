@@ -292,7 +292,7 @@ class SearchViewSet(APIViewSet):
             auth_info = Permission.get_auth_info(self.request, raise_exception=False)
             if not auth_info or auth_info["bk_app_code"] not in settings.ESQUERY_WHITE_LIST:
                 data["is_desensitize"] = True
-        search_handler = SearchHandlerEsquery(index_set_id, data)
+        search_handler = SearchHandlerEsquery(index_set_id, data, only_search=True)
         if data.get("is_scroll_search"):
             return Response(search_handler.scroll_search())
         return Response(search_handler.search())
