@@ -572,6 +572,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               activeItemHeight={24}
               dataType={this.dataType}
               enableSelect={true}
+              enableZoom={true}
               getData={this.getAlarmBarData}
               itemHeight={16}
               sliceTimeRange={this.sliceTimeRange}

@@ -98,6 +98,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
 
   curType: 'endpoint' | 'service' = 'service';
 
+  @ProvideReactive('showRestore') readonly showRestore = false;
   @ProvideReactive('viewOptions') viewOptions = {
     app_name: '',
     service_name: '',
@@ -245,6 +246,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
                 apm_time_series: {
                   ...(panel?.options?.apm_time_series || {}),
                   xAxisSplitNumber: 3,
+                  disableZoom: true,
                 },
               },
               dashboardId: this.serviceTabData.dashboardId,
@@ -349,7 +351,6 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
             getData={this.serviceTabData.getApdexData}
             isAdaption={true}
             itemHeight={24}
-            needRestoreEvent={true}
             showHeader={true}
             showXAxis={true}
           >
@@ -458,7 +459,6 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
             getData={this.serviceAlert.getData}
             isAdaption={true}
             itemHeight={24}
-            needRestoreEvent={true}
             showHeader={true}
             showXAxis={true}
           >
