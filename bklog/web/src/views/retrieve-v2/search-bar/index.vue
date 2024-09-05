@@ -32,7 +32,9 @@
 
   const handleIndexSetSelected = payload => {
     store.dispatch('requestIndexSetItemChanged', payload);
-  };
+  }
+  const updateSearchParam= (keyword,addition,ip_chooser) => {}
+  const retrieve = () => {}
 </script>
 <template>
   <div class="search-bar-container">
@@ -47,11 +49,8 @@
         >
       </div>
 
-      <SelectIndexSet
-        style="width: 200px; margin: 0 12px"
-        @selected="handleIndexSetSelected"
-      ></SelectIndexSet>
-      <QueryHistory></QueryHistory>
+      <SelectIndexSet style="width: 200px; margin: 0 12px" @selected="handleIndexSetSelected"></SelectIndexSet>
+      <QueryHistory @updateSearchParam="updateSearchParam" @retrieve='retrieve'></QueryHistory>
       <TimeSetting></TimeSetting>
     </div>
     <div class="search-input">
