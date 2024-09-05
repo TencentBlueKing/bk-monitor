@@ -109,9 +109,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   edgeDataType: EdgeDataType = 'request_count';
 
-  /** 激活节点, 节点id */
-  activeNode = '';
-
   /* 筛选列表 */
   filterList = [
     {
@@ -288,10 +285,9 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   // 数据时间间隔
   handleTimeRangeChange() {
     this.refreshTopoLayout = true;
-    this.graphData = {
-      nodes: [],
-      edges: [],
-    };
+    this.needCache = false;
+    this.selectedServiceName = '';
+    this.expanded = [];
     this.getPanelData();
   }
 
@@ -304,7 +300,10 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     if (v <= 0) return;
     this.refleshIntervalInstance = window.setInterval(() => {
       if (this.inited) {
+        this.refreshTopoLayout = false;
         this.needCache = false;
+        this.selectedServiceName = '';
+        this.expanded = [];
         this.getPanelData();
       }
     }, this.refleshInterval);
@@ -313,7 +312,10 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   // 立刻刷新
   handleRefleshImmediateChange(v: string) {
     if (v) {
+      this.refreshTopoLayout = false;
       this.needCache = false;
+      this.selectedServiceName = '';
+      this.expanded = [];
       this.getPanelData();
     }
   }
@@ -325,8 +327,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   async getPanelData(start_time?: string, end_time?: string) {
     this.beforeGetPanelData(start_time, end_time);
     this.handleLoadingChange(true);
-    this.selectedServiceName = '';
-    this.expanded = [];
     try {
       this.unregisterOberver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
@@ -393,26 +393,26 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     });
     let data = null;
     this.loading[exportType] = true;
+    this.refreshTopoLayout = this.refreshTopoLayout || (!this.graphData.nodes.length && !this.graphData.edges.length);
     if (this.needCache && this.graphAndTableDataCache.has(cacheKey)) {
       data = this.graphAndTableDataCache.get(cacheKey);
+      this.loading[exportType] = false;
     } else {
       data = await topoView(params, {
         cancelToken: new CancelToken(c => {
           this.topoCancelFn = c;
         }),
       }).catch(() => {
-        if (this.showType === 'topo') return { edges: [], nodes: [] };
+        if (exportType === 'topo') return { edges: [], nodes: [] };
         return { columns: [], data: [] };
       });
-      this.graphAndTableDataCache.set(cacheKey, data);
       this.needCache = true;
+      /** 两个请求ID不一样， 说明是取消请求， 不关闭loading */
+      if (this.requestId !== requestId) return;
+      this.graphAndTableDataCache.set(cacheKey, data);
+      this.loading[exportType] = false;
     }
-
-    /** 两个请求ID不一样， 说明是取消请求， 不关闭loading */
-    if (this.requestId !== requestId) return;
-    this.loading[exportType] = false;
     if (this.showType === 'topo') {
-      this.refreshTopoLayout = !this.graphData.nodes.length && !this.graphData.edges.length;
       this.graphData = data;
     } else {
       this.tableColumns = data.columns.map(item => {
@@ -508,11 +508,13 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   }
 
   handleDataTypeChange() {
+    this.refreshTopoLayout = false;
     this.getPanelData();
   }
 
   dataZoom(startTime: string, endTime: string) {
     this.isAlarmBarDataZoomed = true;
+    this.refreshTopoLayout = true;
     if (this.enableSelectionRestoreAll) {
       this.handleChartDataZoom([startTime, endTime]);
     } else {
@@ -522,7 +524,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   /** 点击节点 */
   handleNodeClick(node: INodeModel) {
-    this.activeNode = node.data.id;
     this.selectedServiceName = node.data.id;
     this.selectedEndpoint = '';
     this.selectedIcon = nodeIconClass[node.data.category];
@@ -533,7 +534,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   /** 资源拓扑 */
   handleResourceDrilling(node: INodeModel) {
-    this.activeNode = node.data.id;
     this.selectedServiceName = node.data.id;
     this.selectedEndpoint = '';
     this.selectedIcon = nodeIconClass[node.data.category];
@@ -544,7 +544,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   /** 服务概览 */
   handleServiceDetail(node: INodeModel) {
-    this.activeNode = node.data.id;
     this.selectedServiceName = node.data.id;
     this.selectedIcon = nodeIconClass[node.data.category];
     this.selectedEndpoint = '';
@@ -555,7 +554,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   /** 下钻接口节点点击 */
   handleDrillingNodeClick(node: INodeModel, drillingName: string) {
-    this.activeNode = node.data.id;
     this.selectedServiceName = node.data.id;
     this.selectedEndpoint = drillingName;
     this.selectedIcon = 'icon-fx';
@@ -686,7 +684,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
           expanded={this.expanded}
         >
           <ApmRelationTopo
-            activeNode={this.activeNode}
+            activeNode={this.selectedServiceName}
             appName={this.appName}
             data={this.graphData}
             dataType={this.dataType}
