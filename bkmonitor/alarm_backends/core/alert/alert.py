@@ -716,7 +716,7 @@ class Alert:
         }
 
         # 补全维度信息
-        data["extra_info"]["agg_dimensions"] = [key for key in event.dedupe_keys if key.startswith("tags.")]
+        data["extra_info"]["agg_dimensions"] = [key[5:] for key in event.dedupe_keys if key.startswith("tags.")]
 
         alert = cls(data)
         alert.update_data_id_info(event)
