@@ -71,7 +71,7 @@ class AllowedBizIdsField(serializers.ListField):
 
 
 class AlertSearchSerializer(serializers.Serializer):
-    bk_biz_ids = serializers.ListField(label="业务ID", default=None, allow_null=True)
+    bk_biz_ids = serializers.ListField(label="业务ID", default=None, allow_null=True, child=serializers.IntegerField())
     status = serializers.ListField(label="状态", required=False, child=serializers.CharField())
     conditions = SearchConditionSerializer(label="搜索条件", many=True, default=[])
     query_string = serializers.CharField(label="查询字符串", default="", allow_blank=True)
