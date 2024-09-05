@@ -411,70 +411,71 @@ export default class FieldFilterComp extends tsc<object> {
             )}
           </div>
         )}
+        <div class='field-filter-roll'>
+          {!!this.indexSetFields.length && (
+            <div class='fields-container not-selected'>
+              <div class='title'>{this.$t('索引字段')}</div>
+              <ul class='filed-list'>
+                {this.showIndexSetFields.map(item => (
+                  <FieldItem
+                    v-show={item.filterVisible}
+                    date-picker-value={this.datePickerValue}
+                    field-alias-map={this.fieldAliasMap}
+                    field-item={item}
+                    filed-count-array={this.filedCountArray}
+                    is-front-statistics={this.isFrontStatistics}
+                    retrieve-params={this.retrieveParams}
+                    retrieve-search-number={this.retrieveSearchNumber}
+                    show-field-alias={this.showFieldAlias}
+                    statistical-field-data={this.statisticalFieldsData[item.field_name]}
+                    type='hidden'
+                    onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
+                  />
+                ))}
+                {this.getIsShowIndexSetExpand && (
+                  <div
+                    class='expand-all'
+                    onClick={() => (this.isShowAllIndexSet = !this.isShowAllIndexSet)}
+                  >
+                    {!this.isShowAllIndexSet ? this.$t('展开全部') : this.$t('收起')}
+                  </div>
+                )}
+              </ul>
+            </div>
+          )}
 
-        {!!this.indexSetFields.length && (
-          <div class='fields-container not-selected'>
-            <div class='title'>{this.$t('索引字段')}</div>
-            <ul class='filed-list'>
-              {this.showIndexSetFields.map(item => (
-                <FieldItem
-                  v-show={item.filterVisible}
-                  date-picker-value={this.datePickerValue}
-                  field-alias-map={this.fieldAliasMap}
-                  field-item={item}
-                  filed-count-array={this.filedCountArray}
-                  is-front-statistics={this.isFrontStatistics}
-                  retrieve-params={this.retrieveParams}
-                  retrieve-search-number={this.retrieveSearchNumber}
-                  show-field-alias={this.showFieldAlias}
-                  statistical-field-data={this.statisticalFieldsData[item.field_name]}
-                  type='hidden'
-                  onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
-                />
-              ))}
-              {this.getIsShowIndexSetExpand && (
-                <div
-                  class='expand-all'
-                  onClick={() => (this.isShowAllIndexSet = !this.isShowAllIndexSet)}
-                >
-                  {!this.isShowAllIndexSet ? this.$t('展开全部') : this.$t('收起')}
-                </div>
-              )}
-            </ul>
-          </div>
-        )}
-
-        {!!this.builtInFields.length && (
-          <div class='fields-container not-selected'>
-            <div class='title'>{(this.$t('label-内置字段') as string).replace('label-', '')}</div>
-            <ul class='filed-list'>
-              {this.builtInFieldsShowObj.builtInShowFields.map(item => (
-                <FieldItem
-                  v-show={item.filterVisible}
-                  date-picker-value={this.datePickerValue}
-                  field-alias-map={this.fieldAliasMap}
-                  field-item={item}
-                  filed-count-array={this.filedCountArray}
-                  is-front-statistics={this.isFrontStatistics}
-                  retrieve-params={this.retrieveParams}
-                  retrieve-search-number={this.retrieveSearchNumber}
-                  show-field-alias={this.showFieldAlias}
-                  statistical-field-data={this.statisticalFieldsData[item.field_name]}
-                  type='hidden'
-                  onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
-                />
-              ))}
-              {this.builtInFieldsShowObj.isShowBuiltExpandBtn && (
-                <div
-                  class='expand-all'
-                  onClick={() => (this.isShowAllBuiltIn = !this.isShowAllBuiltIn)}
-                >
-                  {!this.isShowAllBuiltIn ? this.$t('展开全部') : this.$t('收起')}
-                </div>
-              )}
-            </ul>
-          </div>
-        )}
+          {!!this.builtInFields.length && (
+            <div class='fields-container not-selected'>
+              <div class='title'>{(this.$t('label-内置字段') as string).replace('label-', '')}</div>
+              <ul class='filed-list'>
+                {this.builtInFieldsShowObj.builtInShowFields.map(item => (
+                  <FieldItem
+                    v-show={item.filterVisible}
+                    date-picker-value={this.datePickerValue}
+                    field-alias-map={this.fieldAliasMap}
+                    field-item={item}
+                    filed-count-array={this.filedCountArray}
+                    is-front-statistics={this.isFrontStatistics}
+                    retrieve-params={this.retrieveParams}
+                    retrieve-search-number={this.retrieveSearchNumber}
+                    show-field-alias={this.showFieldAlias}
+                    statistical-field-data={this.statisticalFieldsData[item.field_name]}
+                    type='hidden'
+                    onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
+                  />
+                ))}
+                {this.builtInFieldsShowObj.isShowBuiltExpandBtn && (
+                  <div
+                    class='expand-all'
+                    onClick={() => (this.isShowAllBuiltIn = !this.isShowAllBuiltIn)}
+                  >
+                    {!this.isShowAllBuiltIn ? this.$t('展开全部') : this.$t('收起')}
+                  </div>
+                )}
+              </ul>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
