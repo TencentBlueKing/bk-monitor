@@ -366,7 +366,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
     @classmethod
     def get_dashboard_id(cls, bk_biz_id, app_name, service_name, tab_name, views):
         """获取前端跳转链接里面的 dashboardId (服务页面)"""
-        node = ServiceHandler.get_node(bk_biz_id, app_name, service_name)
+        try:
+            node = ServiceHandler.get_node(bk_biz_id, app_name, service_name)
+        except Exception:  # noqa
+            return None
+
         default_key = f"service-default-{tab_name}"
         if ComponentHandler.is_component_by_node(node):
             default_key = f"{node['extra_data']['kind']}-default-{tab_name}"

@@ -528,7 +528,7 @@
                           "functions": []
                         }
                       ],
-                      "stack": "all",,
+                      "stack": "all",
                       "unify_query_param": {
                         "type": "range",
                         "stack": "all",

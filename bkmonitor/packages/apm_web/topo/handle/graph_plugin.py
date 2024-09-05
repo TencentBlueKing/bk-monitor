@@ -901,6 +901,11 @@ class NodeMenu(PostPlugin):
     id: str = "menu"
     type: GraphPluginType = GraphPluginType.NODE_UI
 
+    def __post_init__(self):
+        self.views = SceneViewModel.objects.filter(
+            bk_biz_id=self._runtime["application"].bk_biz_id, scene_id="apm_service"
+        )
+
     def process(self, data_type, edge_data_type, node_data, graph):
         kind = node_data.get("data", {}).get("kind")
         node_name = node_data["data"]["name"]
@@ -932,17 +937,27 @@ class NodeMenu(PostPlugin):
                     "name": _("查看日志"),
                     "action": "self",
                     "type": "link",
-                    "url": f"/service?filter-service_name={node_name}&"
-                    f"filter-app_name={self._runtime['application'].app_name}&"
-                    f"dashboardId=service-default-log",
+                    "url": LinkHelper.get_service_log_tab_link(
+                        self._runtime["application"].bk_biz_id,
+                        self._runtime["application"].app_name,
+                        node_name,
+                        self._runtime["start_time"],
+                        self._runtime["end_time"],
+                        views=self.views,
+                    ),
                 },
                 {
                     "name": _("查看服务"),
                     "action": "self",
                     "type": "link",
-                    "url": f"/service?filter-service_name={node_name}&"
-                    f"filter-app_name={self._runtime['application'].app_name}&"
-                    f"dashboardId=service-default-overview",
+                    "url": LinkHelper.get_service_overview_tab_link(
+                        self._runtime["application"].bk_biz_id,
+                        self._runtime["application"].app_name,
+                        node_name,
+                        self._runtime["start_time"],
+                        self._runtime["end_time"],
+                        views=self.views,
+                    ),
                 },
             ]
 

@@ -186,8 +186,8 @@ class LinkHelper:
         return (
             f"/?bizId={bk_biz_id}#/event-center?"
             f"queryString=metric: custom.{table_id}.* "
-            f"AND tags.service_name: {service_name} "
-            f"AND tags.span_name: {endpoint_name}&"
+            f'AND tags.service_name: "{service_name}" '
+            f'AND tags.span_name: "{endpoint_name}"&'
             f"from={start_time * 1000}&to={end_time * 1000}"
         )
 
