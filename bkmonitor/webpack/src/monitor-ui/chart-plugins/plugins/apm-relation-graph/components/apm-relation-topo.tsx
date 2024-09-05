@@ -122,8 +122,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
 
   @Ref('relationGraph') relationGraphRef: HTMLDivElement;
-  @Ref('graphToolsPanel') graphToolsPanelRef: HTMLDivElement;
-  @Ref('topoGraphContent') topoGraphContentRef: HTMLDivElement;
+  @Ref('topoToolsPanel') topoToolsPanelRef: HTMLDivElement;
+  @Ref('topoToolsPopover') topoToolsPopoverRef: HTMLDivElement;
   @Ref('thumbnailTool') thumbnailToolRef: HTMLDivElement;
   @Ref('menuList') menuListRef: HTMLDivElement;
 
@@ -147,6 +147,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   scaleValue = 1;
   /** 图表初始缩放 */
   initScale = 1;
+  /** 上一次展示的图 */
+  lastShowImage = '';
   /** 是否显示缩略图 */
   showThumbnail = false;
   /** 是否显示图例 */
@@ -641,16 +643,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         for (const node of this.graph.getNodes()) {
           node.setState('active', item._cfg.id === node._cfg.id);
         }
-        this.menuCfg = {
-          show: true,
-          x: canvasX,
-          y: canvasY,
-          drillingLoading: true,
-          nodeModel: item.getModel(),
-          isDrilling: false,
-          drillingList: [],
-        };
-        document.body.addEventListener('click', this.hideMenu);
+        this.showMenu(canvasX, canvasY, item as INode);
       }
     });
 
@@ -674,6 +667,27 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       }
       this.handleHighlightNode();
     });
+  }
+
+  showMenu(x: number, y: number, item: INode) {
+    this.menuCfg = {
+      show: true,
+      x,
+      y,
+      drillingLoading: true,
+      nodeModel: item.getModel(),
+      isDrilling: false,
+      drillingList: [],
+    };
+    this.$nextTick(() => {
+      const { width: graphWidth } = this.relationGraphRef.getBoundingClientRect();
+      const { width, left } = this.menuListRef.getBoundingClientRect();
+      // 超出画布宽度，则调整菜单位置
+      if (width + left > graphWidth) {
+        this.menuCfg.x = x - width;
+      }
+    });
+    document.body.addEventListener('click', this.hideMenu);
   }
 
   hideMenu(e?: Event) {
@@ -848,7 +862,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         width: 416,
         height: 237,
       };
-      this.initToolsPopover();
+      this.initToolsPopover(this.lastShowImage !== 'legend');
+      this.lastShowImage = 'legend';
     } else {
       this.toolsPopoverInstance?.hide();
     }
@@ -860,16 +875,17 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   handleShowThumbnail() {
     if (!this.graph) return;
     this.showThumbnail = !this.showThumbnail;
+    this.showLegend = false;
     if (this.showThumbnail) {
       this.graphToolsRect = {
         width: 240,
         height: 148,
       };
-      this.initToolsPopover();
+      this.initToolsPopover(this.lastShowImage !== 'thumbnail');
+      this.lastShowImage = 'thumbnail';
     } else {
       this.toolsPopoverInstance?.hide();
     }
-    this.showLegend = false;
   }
 
   /**
@@ -883,16 +899,18 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   /**
    * 初始化工具栏弹窗
    */
-  initToolsPopover() {
-    if (!this.toolsPopoverInstance) {
-      this.toolsPopoverInstance = this.$bkPopover(this.graphToolsPanelRef, {
-        content: this.topoGraphContentRef,
+  initToolsPopover(init = false) {
+    if (!this.toolsPopoverInstance || init) {
+      this.toolsPopoverInstance?.destroy?.();
+      this.toolsPopoverInstance = null;
+      this.toolsPopoverInstance = this.$bkPopover(this.topoToolsPanelRef, {
+        content: this.topoToolsPopoverRef,
         arrow: false,
         trigger: 'manual',
-        theme: 'light',
+        theme: 'light apm-topo-tools-popover',
         interactive: true,
         hideOnClick: false,
-        placement: 'top-start',
+        placement: this.showLegend ? 'top-end' : 'top-start',
         appendTo: 'parent',
         zIndex: '1001',
       });
@@ -1014,7 +1032,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
           class='graph-wrap'
         />
         <div
-          ref='graphToolsPanel'
+          ref='topoToolsPanel'
           class='graph-tools-panel'
         >
           <CompareGraphTools
@@ -1032,10 +1050,10 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
           />
           <div style='display: none;'>
             <div
-              ref='topoGraphContent'
+              ref='topoToolsPopover'
               style={{
-                width: `${this.graphToolsRect.width}px`,
-                height: `${this.graphToolsRect.height}px`,
+                'min-width': `${this.graphToolsRect.width}px`,
+                'min-height': `${this.graphToolsRect.height}px`,
               }}
               class='topo-graph-content'
             >
