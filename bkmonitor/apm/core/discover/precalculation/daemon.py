@@ -16,6 +16,7 @@ We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
 import logging
+import random
 from collections import defaultdict
 
 from django.conf import settings
@@ -331,7 +332,8 @@ class DaemonTaskHandler:
         start_time, end_time = get_datetime_range("minute", 10)
         start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
 
-        applications = ApmApplication.objects.filter(is_enabled=True)
+        applications = list(ApmApplication.objects.filter(is_enabled=True))
+        random.shuffle(applications)
         for i in applications:
             if i.metric_datasource:
                 try:
