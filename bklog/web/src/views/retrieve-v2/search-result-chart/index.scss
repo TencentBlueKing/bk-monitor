@@ -4,6 +4,37 @@
   overflow: hidden;
   background-color: #fff;
 
+  .chart-title {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 14px 10px 0px 0px;
+    cursor: pointer;
+
+    .chart-text {
+      font-size: 12px;
+      color: #313238;
+    }
+
+    .field-filter-icon {
+      display: inline-block;
+      font-size: 22px;
+      color: #979ba5;
+      transform: rotate(90deg);
+    }
+  }
+
+  .chart-title::before { 
+    position: absolute; 
+    top: calc(50% - 5px); 
+    right: -8px; 
+    bottom: 0; 
+    width: 1px; 
+    height: 22px;
+    content: '';
+    background-color: #DDDFE6; 
+  }
+
   &.is-fold {
     height: 60px;
   }
@@ -16,7 +47,6 @@
   .converge-cycle {
     position: absolute;
     top: 17px;
-    left: 80px;
     display: inline-block;
     margin-left: 24px;
     font-size: 12px;

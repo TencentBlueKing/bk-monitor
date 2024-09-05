@@ -1,5 +1,5 @@
 <script setup>
-  import { computed, ref, nextTick, watch } from 'vue';
+  import { computed, ref, nextTick, watch,defineEmits } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
@@ -103,6 +103,11 @@
       // this.requestFields(); // 该接口具体逻辑待确定
     }
   };
+  const emit = defineEmits(['retract']);
+  const handleRetract = () => {
+    emit('retract',false)
+  }
+
   watch(
     store.state.indexFieldInfo,
     () => {
@@ -115,8 +120,12 @@
 <template>
   <div class="search-field-filter">
     <!-- 字段过滤 -->
-    <div class="tab-item-title field-filter-title">
-      {{ $t('查询结果统计') }}
+    <div class="tab-item-title">
+      <span class="field-filter-title"> {{ $t('查询结果统计') }}</span>
+      <div class="tab-item-right" @click="handleRetract">
+        <span class="field-filter-text"> {{ $t('收起') }}</span>
+        <span class="bklog-icon bklog-collapse-small field-filter-icon"></span>
+      </div>
     </div>
     <FieldFilterComp
       ref="fieldFilterRef"
@@ -137,15 +146,5 @@
 </template>
 
 <style scoped>
-  .search-field-filter {
-    width: 330px;
-    padding: 16px;
-    background: #ffffff;
-    box-shadow: 1px 0 0 0 #eaebf0;
-
-    .field-filter-title {
-      font-size: 12px;
-      color: #313238;
-    }
-  }
+  @import './field-filter.scss';
 </style>

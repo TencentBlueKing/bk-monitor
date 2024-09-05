@@ -1,0 +1,35 @@
+.search-field-filter {
+  width: 330px;
+  padding: 16px;
+  background: #ffffff;
+  box-shadow: 1px 0 0 0 #eaebf0;
+
+  .tab-item-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .field-filter-title {
+      font-size: 12px;
+      color: #313238;
+    }
+
+    .tab-item-right {
+      display: flex;
+      align-items: center;
+      margin-left: auto;
+      cursor: pointer;
+
+      .field-filter-text {
+        font-size: 12px;
+        color: #63656e;
+      }
+
+      .field-filter-icon {
+        font-size: 22px;
+        color: #979ba5;
+        transform: rotate(-90deg);
+      }
+    }
+  }
+}
