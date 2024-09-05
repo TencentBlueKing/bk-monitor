@@ -23,6 +23,9 @@
   const totalFields = computed(() => {
     return store.state.indexFieldInfo.fields;
   });
+  const indexId = computed(() => {
+    return store.state.indexId;
+  });
   const fieldAliasMap = computed(() => {
     const fieldAliasMap = {};
     store.state.indexFieldInfo.fields.forEach(item => {
@@ -74,11 +77,14 @@
         }
       })
       .filter(Boolean);
-    store.commit('updateIsNotVisibleFieldsShow', !displayFields.length);
     store.commit('updateVisibleFields', displayFields);
     store.dispatch('showShowUnionSource', { keepLastTime: true });
   };
-
+  const sessionShowFieldObj = () => {
+    // 显示字段缓存
+    const showFieldStr = sessionStorage.getItem('showFieldSession');
+    return !showFieldStr ? {} : JSON.parse(showFieldStr);
+  };
   /**
    * @desc: 字段设置更新了
    * @param {Array} displayFieldNames 展示字段
@@ -86,10 +92,10 @@
    * @param {Boolean} isRequestFields 是否请求字段
    */
   const handleFieldsUpdated = async (displayFieldNames, showFieldAlias, isRequestFields = true) => {
-    store.dispatch('updateClearTableWidth', 1);
+    store.commit('updateClearTableWidth', 1);
     // 缓存展示字段
-    const showFieldObj = this.sessionShowFieldObj();
-    Object.assign(showFieldObj, { [this.indexId]: displayFieldNames });
+    const showFieldObj = sessionShowFieldObj();
+    Object.assign(showFieldObj, { [indexId.value]: displayFieldNames });
     sessionStorage.setItem('showFieldSession', JSON.stringify(showFieldObj));
     if (showFieldAlias !== undefined) {
       showFieldAlias.value = showFieldAlias;
@@ -99,10 +105,11 @@
     if (!isRequestFields) {
       initVisibleFields(displayFieldNames);
     } else {
-      isSetDefaultTableColumn.value = false;
+      // isSetDefaultTableColumn.value = false;
       // this.requestFields(); // 该接口具体逻辑待确定
     }
   };
+  const handleCloseFilterTitle = () => {};
   watch(
     store.state.indexFieldInfo,
     () => {
@@ -116,7 +123,16 @@
   <div class="search-field-filter">
     <!-- 字段过滤 -->
     <div class="tab-item-title field-filter-title">
-      {{ $t('查询结果统计') }}
+      <div class="left-title">
+        {{ $t('查询结果统计') }}
+      </div>
+      <div class="close-total">
+        <span class="collect-title">{{ $t('收起') }}</span>
+        <span
+          class="bklog-icon bklog-collapse-small"
+          @click="handleCloseFilterTitle"
+        ></span>
+      </div>
     </div>
     <FieldFilterComp
       ref="fieldFilterRef"
@@ -137,15 +153,5 @@
 </template>
 
 <style scoped>
-  .search-field-filter {
-    width: 330px;
-    padding: 16px;
-    background: #ffffff;
-    box-shadow: 1px 0 0 0 #eaebf0;
-
-    .field-filter-title {
-      font-size: 12px;
-      color: #313238;
-    }
-  }
+  @import './field-filter.scss';
 </style>

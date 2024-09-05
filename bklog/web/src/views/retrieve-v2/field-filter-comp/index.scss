@@ -5,14 +5,16 @@
   color: #63656e;
 
   .is-selected {
+    padding-bottom: 20px;
     border-bottom: 1px solid #e1ecff;
   }
 
   .form-container {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     height: 32px;
-    margin-top: 15px;
+    margin: 16px 0;
 
     .king-input {
       width: 100%;
@@ -32,9 +34,10 @@
 
     .filter-popover-trigger {
       display: flex;
+      flex: 1;
       align-items: center;
       height: 32px;
-      margin-left: 16px;
+      margin-left: 12px;
       font-size: 12px;
       line-height: 18px;
       color: #3a84ff;
@@ -49,8 +52,8 @@
       }
 
       .text {
-        min-width: 65px;
         margin: 0 4px 0 2px;
+        text-wrap: nowrap;
       }
 
       .count {
@@ -66,24 +69,23 @@
   .field-filter-roll{
     max-height: 540px;
     overflow-y: scroll;
-
-    .fields-container {
-      margin-top: 20px;
-  
-      .all-field-item {
-        display: inline-block;
-        height: 26px;
-        margin: 0 0 7px 20px;
-        line-height: 26px;
-        color: #63656e;
-      }
-  
-      .expand-all {
-        margin-left: 22px;
-        color: #3a84ff;
-        cursor: pointer;
-      }
-    }
   }
 
+  .fields-container {
+    margin-top: 20px;
+
+    .all-field-item {
+      display: inline-block;
+      height: 26px;
+      margin: 0 0 7px 20px;
+      line-height: 26px;
+      color: #63656e;
+    }
+
+    .expand-all {
+      margin-left: 22px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
 }

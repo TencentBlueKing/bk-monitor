@@ -57,9 +57,9 @@ export default class FieldFilterComp extends tsc<object> {
   polymerizable = '0'; // 聚合
   fieldType = 'any'; // 字段类型
   dragOptions = {
-    animation: 150,
+    animation: '150',
     tag: 'ul',
-    handle: '.icon-drag-dots',
+    handle: '.bklog-drag-dots',
     'ghost-class': 'sortable-ghost-class',
   };
   dragVisibleFields = [];
@@ -380,9 +380,8 @@ export default class FieldFilterComp extends tsc<object> {
               <VueDraggable
                 class='filed-list'
                 v-model={this.dragVisibleFields}
-                v-bind={this.dragOptions}
+                {...{ props: this.dragOptions }}
                 animation='150'
-                handle='.icon-drag-dots'
                 on-end={this.handleVisibleMoveEnd}
               >
                 <transition-group>
@@ -393,7 +392,6 @@ export default class FieldFilterComp extends tsc<object> {
                       date-picker-value={this.datePickerValue}
                       field-alias-map={this.fieldAliasMap}
                       field-item={item}
-                      filed-count-array={this.filedCountArray}
                       is-front-statistics={this.isFrontStatistics}
                       retrieve-params={this.retrieveParams}
                       retrieve-search-number={this.retrieveSearchNumber}
@@ -422,7 +420,6 @@ export default class FieldFilterComp extends tsc<object> {
                     date-picker-value={this.datePickerValue}
                     field-alias-map={this.fieldAliasMap}
                     field-item={item}
-                    filed-count-array={this.filedCountArray}
                     is-front-statistics={this.isFrontStatistics}
                     retrieve-params={this.retrieveParams}
                     retrieve-search-number={this.retrieveSearchNumber}
@@ -454,7 +451,6 @@ export default class FieldFilterComp extends tsc<object> {
                     date-picker-value={this.datePickerValue}
                     field-alias-map={this.fieldAliasMap}
                     field-item={item}
-                    filed-count-array={this.filedCountArray}
                     is-front-statistics={this.isFrontStatistics}
                     retrieve-params={this.retrieveParams}
                     retrieve-search-number={this.retrieveSearchNumber}

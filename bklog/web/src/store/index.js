@@ -152,6 +152,7 @@ const store = new Vuex.Store({
     space: state => state.space,
     spaceUid: state => state.spaceUid,
     indexId: state => state.indexId,
+    visibleFields: state => state.visibleFields,
     /** 是否是联合查询 */
     isUnionSearch: state => !!state.unionIndexList.length,
     /** 联合查询索引集ID数组 */
@@ -623,7 +624,10 @@ const store = new Vuex.Store({
         .then(res => {
           commit('updateIndexFieldInfo', res.data ?? {});
           commit('updataOperatorDictionary', res.data ?? {});
-          commit('updateVisibleFields', res.data?.display_fields ?? []);
+          commit(
+            'updateVisibleFields',
+            res.data?.fields.filter(item => res.data.display_fields.includes(item.field_name)) ?? [],
+          );
           return res;
         })
         .finally(() => {
