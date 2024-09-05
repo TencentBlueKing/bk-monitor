@@ -800,7 +800,7 @@ class DataFlowHandler(BaseAiopsHandler):
         @return:
         """
         return BkDataDataFlowApi.get_latest_deploy_data(
-            params={"flow_id": flow_id, "bk_username": self.conf.get("bk_username")},
+            params={"flow_id": flow_id, "bk_username": self.conf.get("bk_username"), "no_request": True},
             data_api_retry_cls=DataApiRetryClass.create_retry_obj(
                 fail_check_functions=[check_result_is_true], stop_max_attempt_number=MAX_FAILED_REQUEST_RETRY
             ),
@@ -813,7 +813,7 @@ class DataFlowHandler(BaseAiopsHandler):
         @return:
         """
         return BkDataDataFlowApi.get_dataflow(
-            params={"flow_id": flow_id, "bk_username": self.conf.get("bk_username")},
+            params={"flow_id": flow_id, "bk_username": self.conf.get("bk_username"), "no_request": True},
             data_api_retry_cls=DataApiRetryClass.create_retry_obj(
                 fail_check_functions=[check_result_is_true], stop_max_attempt_number=MAX_FAILED_REQUEST_RETRY
             ),
