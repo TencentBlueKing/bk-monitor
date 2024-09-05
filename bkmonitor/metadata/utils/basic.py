@@ -47,15 +47,11 @@ def get_biz_id_by_space_uid(space_uid):
         if space_type == SpaceTypes.BKCC.value:
             return int(space_id)
         bk_biz_id = (
-            (
-                SpaceResource.objects.filter(
-                    space_type_id=space_type, space_id=space_id, resource_type=SpaceTypes.BKCC.value
-                )
-                .first()
-                .resource_id
+            SpaceResource.objects.filter(
+                space_type_id=space_type, space_id=space_id, resource_type=SpaceTypes.BKCC.value
             )
-            if space_type != SpaceTypes.BKCC.value
-            else SpaceResource.space_id
+            .first()
+            .resource_id
         )
         return int(bk_biz_id)
     except Exception as e:  # pylint: disable=broad-except
