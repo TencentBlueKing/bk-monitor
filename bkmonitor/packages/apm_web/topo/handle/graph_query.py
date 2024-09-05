@@ -286,12 +286,17 @@ class Graph:
             else:
                 self._graph.add_node(base_node, **{"data": attrs["data"]})
 
+        remove_edges = []
+
         for from_node, to_node, attrs in self.edges:
             key = (from_node, to_node)
             if key in other_edge_mapping:
                 self._graph.add_edge(*key, **other_edge_mapping[key])
             else:
-                self._graph.remove_edge(*key)
+                remove_edges.append(key)
+
+        for key in remove_edges:
+            self._graph.remove_edge(*key)
 
         return self
 
