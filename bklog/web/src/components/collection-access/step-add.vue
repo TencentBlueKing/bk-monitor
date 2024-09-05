@@ -596,7 +596,7 @@
             winlog_event_id: [], // windows事件id
           },
           environment: 'linux', // 容器环境
-          bcs_cluster_id: null, // 集群ID
+          bcs_cluster_id: '', // 集群ID
           add_pod_label: false, // 是否自动添加Pod中的labels
           extra_labels: [
             // 附加日志标签
@@ -898,6 +898,7 @@
         this.formData.environment = nVal;
       },
       'formData.bcs_cluster_id'(nVal, oVal) {
+        if (!nVal && !oVal) return;
         this.$nextTick(() => {
           this.$refs?.configsSelectRef?.getNameSpaceList(nVal, oVal === '');
         });

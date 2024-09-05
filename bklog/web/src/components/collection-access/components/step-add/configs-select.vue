@@ -284,7 +284,7 @@
             ref="containerConfigRef"
             :config-data="conItem"
             :config-length="formData.configs.length"
-            :config-init="configChangeLength"
+            :config-change-length="configChangeLength"
             :current-environment="currentEnvironment"
             :is-clone-or-update="isCloneOrUpdate"
             :scenario-id="formData.collector_scenario_id"
@@ -391,27 +391,6 @@
       ...mapGetters({
         bkBizId: 'bkBizId',
       }),
-    },
-    watch: {
-      isShowDialog(val) {
-        if (val) {
-          this.loading = true;
-          this.$http
-            .request('container/getLabelHitView', {
-              data: this.viewQueryParams,
-            })
-            .then(res => {
-              this.viewList = res.data.map(item => ({ ...item, isShowTarget: true }));
-            })
-            .finally(() => {
-              this.loading = false;
-            });
-        } else {
-          setTimeout(() => {
-            this.viewList = [];
-          }, 1000);
-        }
-      },
     },
     mounted() {
       // 容器环境
@@ -555,7 +534,7 @@
             bcs_cluster_id: this.formData.bcs_cluster_id,
             type,
             [namespacesKey]: namespaces,
-            label_selector: this.getLabelSelectorQueryParams(config.labelSelector, true),
+            label_selector: this.getLabelSelectorQueryParams(config.labelSelector),
             container: {
               workload_type: workloadType,
               workload_name: workloadName,
@@ -564,6 +543,28 @@
           };
         }
         dialogType === 'label' ? (this.isShowLabelTargetDialog = true) : (this.isShowViewDialog = true);
+      },
+      /**
+       * @desc: 展示用的标签格式转化成存储或传参的标签格式
+       * @param {Object} labelSelector 主页展示用的label_selector
+       * @returns {Object} 返回传参用的label_selector
+       */
+      getLabelSelectorQueryParams(labelSelector) {
+        return labelSelector.reduce(
+          (pre, cur) => {
+            const value = ['NotIn', 'In'].includes(cur.operator) ? `(${cur.value})` : cur.value;
+            pre[cur.type].push({
+              key: cur.key,
+              operator: cur.operator,
+              value,
+            });
+            return pre;
+          },
+          {
+            match_labels: [],
+            match_expressions: [],
+          },
+        );
       },
       // 是否展示对应操作范围模块
       isShowScopeItem(conIndex, scope) {
