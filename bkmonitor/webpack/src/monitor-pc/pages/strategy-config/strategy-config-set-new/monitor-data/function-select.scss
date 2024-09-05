@@ -1,7 +1,7 @@
 .function-select-wrap {
   display: flex;
   flex-wrap: wrap;
-  // padding-left: 1px;
+  align-items: center;
   .func-label {
     display: inline-block;
     height: 32px;
@@ -20,7 +20,6 @@
     display: inline-block;
     height: 32px;
     min-width: 50px;
-    margin-bottom: 2px;
     margin-left: -1px;
     cursor: pointer;
 
@@ -54,6 +53,13 @@
     margin-bottom: 2px;
     margin-left: -1px;
 
+    .clear-icon {
+      color: #c4c6cc;
+      font-size: 14px;
+      &:hover {
+        color: #979ba5;
+      }
+    }
     .func-name {
       display: inline-block;
       height: 100%;
