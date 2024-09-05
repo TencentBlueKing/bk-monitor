@@ -39,13 +39,17 @@
           v-model="bizList.value"
           :clearable="false"
           :disabled="isPublicPlugin || data.isEdit || ccBizId !== 0"
+          :list="bizList.list"
+          display-key="text"
+          id-key="id"
+          enable-virtual-scroll
         >
-          <bk-option
+          <!-- <bk-option
             v-for="(biz, index) in bizList.list"
             :id="biz.id"
             :key="index"
             :name="biz.text"
-          />
+          /> -->
         </bk-select>
         <div class="plugin-logo">
           <logo :logo.sync="pluginBasicInfo.logo" />
