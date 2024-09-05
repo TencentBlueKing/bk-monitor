@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Inject, Prop } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -35,6 +35,7 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import { getValueFormat } from '../../../monitor-echarts/valueFormats';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST_BAR, MONITOR_BAR_OPTIONS } from '../../constants';
+import { createMenuList } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
 import { LineChart } from '../time-series/time-series';
@@ -63,6 +64,22 @@ interface IApdexChartEvent {
 @Component
 export class ApdexChart extends LineChart {
   @Prop({ type: Number, default: 0 }) splitNumber: number;
+
+  @Inject('handlePageTabChange') handlePageTabChange: (
+    id: string,
+    customRouterQuery: Record<string, number | string>
+  ) => void;
+
+  contextmenuInfo = {
+    options: [{ id: 'topo', name: window.i18n.tc('查看拓扑') }],
+    sliceStartTime: 0, // 当前切片起始时间
+    sliceEndTime: 0,
+  };
+
+  /* 是否开启全局的右键菜单 */
+  get enableContextmenu() {
+    return !!this.panel.options?.apdex_chart?.enableContextmenu;
+  }
 
   empty = true; // 是否为空
   emptyText = ''; // 空文案
@@ -287,6 +304,48 @@ export class ApdexChart extends LineChart {
       color: '#2DCB56',
     };
   }
+
+  /* 整个图的右键菜单 */
+  handleChartContextmenu(event: MouseEvent) {
+    if (this.enableContextmenu) {
+      const { pageX, pageY } = event;
+      createMenuList(this.contextmenuInfo.options, { x: pageX, y: pageY }, (id: string) => {
+        const startTime = (this.$refs.baseChart as any)?.curPoint?.xAxis || 0;
+        let endTime = 0;
+        let i = 0;
+        const datas = this.options?.series?.[0]?.data || [];
+        for (const item of datas) {
+          i += 1;
+          if (item?.value?.[0] === startTime || item?.[0] === startTime) {
+            const nextItem = datas[i];
+            endTime = nextItem?.value?.[0] || nextItem?.[0] || 0;
+            break;
+          }
+        }
+        this.contextmenuInfo = {
+          ...this.contextmenuInfo,
+          sliceStartTime: startTime,
+          sliceEndTime: endTime || startTime + 1000 * 60,
+        };
+        this.handleClickMenuItem(id);
+      });
+    }
+  }
+
+  /**
+   * @description: 处理右键菜单点击事件
+   * @param id
+   */
+  handleClickMenuItem(id: string) {
+    if (id === 'topo') {
+      const { sliceStartTime, sliceEndTime } = this.contextmenuInfo;
+      this.handlePageTabChange('topo', {
+        sliceStartTime,
+        sliceEndTime,
+      });
+    }
+  }
+
   render() {
     const { legend } = this.panel?.options || {};
     return (
@@ -310,6 +369,7 @@ export class ApdexChart extends LineChart {
             <div
               ref='chart'
               class='chart-instance'
+              onContextmenu={this.handleChartContextmenu}
             >
               {this.inited && (
                 <BaseEchart
@@ -317,6 +377,7 @@ export class ApdexChart extends LineChart {
                   width={this.width}
                   height={this.height}
                   groupId={this.panel.dashboardId}
+                  isContextmenuPreventDefault={this.enableContextmenu}
                   options={this.options}
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}

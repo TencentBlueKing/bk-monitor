@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-const webpack = require('webpack');
-const path = require('node:path');
-const fs = require('node:fs');
-const { transformAppDir, transformDistDir } = require('./webpack/utils');
 const CopyPlugin = require('copy-webpack-plugin');
+const fs = require('node:fs');
+const path = require('node:path');
+const webpack = require('webpack');
+
 const MonitorWebpackPlugin = require('./webpack/monitor-webpack-plugin');
+const { transformAppDir, transformDistDir } = require('./webpack/utils');
 
 const devProxyUrl = 'http://appdev.bktencent.com:9002';
 const devHost = 'appdev.bktencent.com';
@@ -65,6 +66,9 @@ module.exports = async (baseConfig, { production, app }) => {
       ],
       client: {
         overlay: false,
+      },
+      headers: {
+        'Access-Control-Allow-Origin': '*',
       },
       open: false,
       static: [],

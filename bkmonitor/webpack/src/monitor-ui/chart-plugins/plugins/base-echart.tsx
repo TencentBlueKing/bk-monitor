@@ -40,20 +40,34 @@ export interface IChartProps {
   options: MonitorEchartOptions;
   // hover是显示所有图标tooltips
   hoverAllTooltips?: boolean;
+  // 禁用右键菜单默认事件
+  isContextmenuPreventDefault?: boolean;
 }
 export interface IChartEvent {
   // mouseover 事件
-  onMouseover: void;
+  onMouseover: () => void;
   // mouseout 事件
-  onMouseout: void;
+  onMouseout: () => void;
   // dblclick 事件
   onDblClick: MouseEvent;
   /** mousemove事件  */
   onMousemove: MouseEvent;
   // click 事件
   onClick: MouseEvent;
+  // contextmenu 事件
+  onContextmenu?: (v: any) => void;
 }
-const MOUSE_EVENTS = ['click', 'dblclick', 'mouseover', 'mousemove', 'mouseout', 'mousedown', 'mouseup', 'globalout'];
+const MOUSE_EVENTS = [
+  'click',
+  'dblclick',
+  'mouseover',
+  'mousemove',
+  'mouseout',
+  'mousedown',
+  'mouseup',
+  'globalout',
+  'contextmenu',
+];
 @Component
 export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   @Ref('chartInstance') chartRef: HTMLDivElement;
@@ -63,6 +77,8 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   @Prop({ required: true }) height: number;
   // 视图宽度 默认撑满父级
   @Prop() width: number;
+  // 禁用右键菜单默认事件
+  @Prop({ default: false }) isContextmenuPreventDefault: boolean;
   // 当前图表配置
   // curChartOption: MonitorEchartOptions = null;
   // // echarts 实例
@@ -163,11 +179,12 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
     });
   }
   initChartEvent() {
-    MOUSE_EVENTS.forEach(event => {
+    this.chartRef.addEventListener('contextmenu', this.handleContextmenu);
+    for (const event of MOUSE_EVENTS) {
       (this as any).instance.on(event, params => {
         this.$emit(event, params);
       });
-    });
+    }
   }
   // echarts 实例销毁
   destroy() {
@@ -191,6 +208,16 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   }
   handleMouseleave() {
     this.isMouseOver = false;
+  }
+  handleContextmenu(event) {
+    if (this.isContextmenuPreventDefault) {
+      event.preventDefault();
+      this.dispatchAction({
+        type: 'takeGlobalCursor',
+        key: 'dataZoomSelect',
+        dataZoomSelectActive: false,
+      });
+    }
   }
   render() {
     return (

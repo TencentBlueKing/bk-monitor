@@ -10,7 +10,7 @@
   border-radius: 2px;
 
   &.hover-style {
-    box-shadow: 0px 2px 4px 0px rgba(25,25,41,.05); 
+    box-shadow: 0px 2px 4px 0px rgba(25, 25, 41, 0.05);
   }
 
   .loading-icon {
@@ -22,7 +22,7 @@
     width: 20px;
     height: 20px;
   }
-  
+
   &.is-collapsed {
     background: transparent !important;
     border: 1px solid transparent !important;
@@ -31,7 +31,9 @@
 
   &.hover-style {
     &:hover {
-      box-shadow: 0px 2px 4px 0px rgba(25,25,41,.05), 0px 2px 4px 0px rgba(0,0,0,.10);
+      box-shadow:
+        0px 2px 4px 0px rgba(25, 25, 41, 0.05),
+        0px 2px 4px 0px rgba(0, 0, 0, 0.1);
 
       &.is-collapsed {
         background: transparent;
@@ -41,7 +43,7 @@
       // &.grafana-check {
       //   border-color: #3a84ff !important;
       // }
-      .check-mark {
+      & > .check-mark {
         display: block;
       }
     }
@@ -49,7 +51,7 @@
 
   &.is-checked {
     // border-color: #3a84ff !important;
-    .check-mark {;
+    .check-mark {
       display: block;
       border-color: #3a84ff #3a84ff transparent transparent !important;
     }
@@ -68,7 +70,7 @@
 
     &:hover {
       cursor: pointer;
-      border-color: rgba(58,132,255,.6) rgba(58,132,255,.6) transparent transparent;
+      border-color: rgba(58, 132, 255, 0.6) rgba(58, 132, 255, 0.6) transparent transparent;
     }
 
     &::after {
@@ -183,6 +185,41 @@
 
     .tippy-arrow {
       border-top: 8px solid #e0226e !important;
+    }
+  }
+}
+
+.contextmenu-list-pop-wrapper {
+  position: fixed;
+  z-index: 9999;
+  min-width: 110px;
+  padding: 4px 0;
+  background: #ffffff;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+  box-shadow: 0 2px 6px 0 #0000001a;
+
+  &::after {
+    position: absolute;
+    top: -20px;
+    left: -20px;
+    z-index: 8;
+    width: calc(100% + 40px);
+    height: calc(100% + 40px);
+    content: '';
+  }
+
+  .contextmenu-list-item {
+    position: relative;
+    z-index: 9;
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 12px;
+    cursor: pointer;
+
+    &:hover {
+      background: #f5f7fa;
     }
   }
 }

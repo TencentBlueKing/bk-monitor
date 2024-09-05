@@ -851,6 +851,7 @@ class QueryEndpointResource(Resource):
         category_kind_value = serializers.CharField(required=False, label="类型具体值", default="")
         service_name = serializers.CharField(required=False, label="服务名称", allow_blank=True, default="")
         bk_instance_id = serializers.CharField(required=False, label="实例id", allow_blank=True, default="")
+        filters = serializers.DictField(label="查询条件", required=False)
 
     def perform_request(self, data):
         filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
@@ -869,6 +870,9 @@ class QueryEndpointResource(Resource):
                 app_name=data["app_name"],
             ).first()
             endpoints = endpoints.filter(service_name=instance.topo_node_key)
+        if data.get("filters"):
+            endpoints = endpoints.filter(**data["filters"])
+
         return [
             {
                 "endpoint_name": endpoint.endpoint_name,

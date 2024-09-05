@@ -65,7 +65,8 @@ class RelationDiscover(DiscoverBase):
 
         return res
 
-    def find_relation_by_single_span(self, component_rules, from_key, from_span, relation_kind):
+    def find_relation_by_single_span(self, component_rules, from_key, from_span, kind):
+        relation_kind = TopoRelation.KIND_MAPPING[kind]
         found_keys = set()
         if exists_field((OtlpKey.ATTRIBUTES, SpanAttributes.PEER_SERVICE), from_span):
             kind, _ = TraceDataSource.get_category_kind(from_span[OtlpKey.ATTRIBUTES])
@@ -89,20 +90,46 @@ class RelationDiscover(DiscoverBase):
                 )
 
         else:
+            # 组件类
             match_rule = next((r for r in component_rules if exists_field(r.predicate_key, from_span)), None)
             if match_rule:
                 to_key = get_topo_instance_key(
-                    match_rule.instance_keys, match_rule.topo_kind, match_rule.category_id, from_span
+                    match_rule.instance_keys,
+                    match_rule.topo_kind,
+                    match_rule.category_id,
+                    from_span,
+                    component_predicate_key=match_rule.predicate_key,
                 )
-                found_keys.add(
-                    (
-                        from_key,
-                        to_key,
-                        relation_kind,
-                        match_rule.topo_kind,
-                        match_rule.category_id,
+                to_key = f"{self.get_service_name(from_span)}-{to_key}"
+
+                if kind in [SpanKind.SPAN_KIND_CLIENT, SpanKind.SPAN_KIND_PRODUCER]:
+                    found_keys.add(
+                        (
+                            from_key,
+                            to_key,
+                            relation_kind,
+                            match_rule.topo_kind,
+                            match_rule.category_id,
+                        )
                     )
-                )
+                elif kind in [SpanKind.SPAN_KIND_SERVER, SpanKind.SPAN_KIND_CONSUMER]:
+                    topo_node = TopoNode.objects.filter(
+                        bk_biz_id=self.bk_biz_id, app_name=self.app_name, topo_key=self.get_service_name(from_span)
+                    ).first()
+                    kind = ApmTopoDiscoverRule.TOPO_SERVICE
+                    category = ApmTopoDiscoverRule.APM_TOPO_CATEGORY_HTTP
+                    if topo_node:
+                        kind = topo_node.extra_data.get("kind", ApmTopoDiscoverRule.TOPO_SERVICE)
+                        category = topo_node.extra_data.get("category", ApmTopoDiscoverRule.APM_TOPO_CATEGORY_HTTP)
+                    found_keys.add(
+                        (
+                            to_key,
+                            from_key,
+                            relation_kind,
+                            kind,
+                            category,
+                        )
+                    )
 
         return found_keys
 
@@ -119,8 +146,15 @@ class RelationDiscover(DiscoverBase):
 
         # find if exists middleware
         middleware_to_key = get_topo_instance_key(
-            match_rule.instance_keys, match_rule.topo_kind, match_rule.category_id, from_span
+            match_rule.instance_keys,
+            match_rule.topo_kind,
+            match_rule.category_id,
+            from_span,
+            component_predicate_key=match_rule.predicate_key,
         )
+        if match_rule.topo_kind == ApmTopoDiscoverRule.TOPO_COMPONENT:
+            middleware_to_key = f"{self.get_service_name(from_span)}-{middleware_to_key}"
+
         found_keys.add(
             (
                 from_key,
@@ -134,8 +168,15 @@ class RelationDiscover(DiscoverBase):
         for t in to_spans:
             to_span_match_rule = self.get_match_rule(t, rules, other_rules)
             middleware_key = get_topo_instance_key(
-                to_span_match_rule.instance_keys, to_span_match_rule.topo_kind, to_span_match_rule.category_id, t
+                to_span_match_rule.instance_keys,
+                to_span_match_rule.topo_kind,
+                to_span_match_rule.category_id,
+                t,
+                component_predicate_key=to_span_match_rule.predicate_key,
             )
+            if to_span_match_rule.topo_kind == ApmTopoDiscoverRule.TOPO_COMPONENT:
+                middleware_key = f"{self.get_service_name(t)}-{middleware_key}"
+
             if middleware_to_key == middleware_key:
                 messaging_service_name = self.get_service_name(t)
                 messaging_service_kind = ApmTopoDiscoverRule.TOPO_SERVICE
@@ -145,8 +186,10 @@ class RelationDiscover(DiscoverBase):
                 ).first()
                 # topo_node 存在则更新
                 if topo_node:
-                    messaging_service_category = topo_node.extra_data.get("category", ApmTopoDiscoverRule.TOPO_SERVICE)
-                    messaging_service_kind = topo_node.extra_data.get("kind", ApmTopoDiscoverRule.APM_TOPO_CATEGORY_HTTP)
+                    messaging_service_category = topo_node.extra_data.get(
+                        "category", ApmTopoDiscoverRule.APM_TOPO_CATEGORY_HTTP
+                    )
+                    messaging_service_kind = topo_node.extra_data.get("kind", ApmTopoDiscoverRule.TOPO_SERVICE)
                 # 针对异步调用中消息队列，messaging --> 服务时， 目标节点类型为service， 目标节点分类为 http
                 found_keys.add(
                     (
@@ -175,15 +218,20 @@ class RelationDiscover(DiscoverBase):
 
         for t in to_spans:
             to_span_match_rule = self.get_match_rule(t, rules, other_rules)
+            topo_key = get_topo_instance_key(
+                to_span_match_rule.instance_keys,
+                to_span_match_rule.topo_kind,
+                to_span_match_rule.category_id,
+                t,
+                component_predicate_key=to_span_match_rule.predicate_key,
+            )
+            if to_span_match_rule.topo_kind == ApmTopoDiscoverRule.TOPO_COMPONENT:
+                topo_key = f"{self.get_service_name(t)}-{topo_key}"
+
             found_keys.add(
                 (
                     from_key,
-                    get_topo_instance_key(
-                        to_span_match_rule.instance_keys,
-                        to_span_match_rule.topo_kind,
-                        to_span_match_rule.category_id,
-                        t,
-                    ),
+                    topo_key,
                     kind,
                     to_span_match_rule.topo_kind,
                     to_span_match_rule.category_id,
@@ -202,6 +250,15 @@ class RelationDiscover(DiscoverBase):
         need_update_relation_ids = set()
         need_create_relations = set()
 
+        for span in origin_data:
+            from_key = self.get_service_name(span)
+            found_keys = self.find_relation_by_single_span(component_rules, from_key, span, span["kind"])
+            for found_key in found_keys:
+                if found_key in exist_relations:
+                    need_update_relation_ids |= exist_relations[found_key]
+                else:
+                    need_create_relations.add(found_key)
+
         for relation in relation_mapping.values():
 
             if not relation["to"] and not relation["from"]:
@@ -212,9 +269,6 @@ class RelationDiscover(DiscoverBase):
             kind = relation["kind"]
 
             found_keys = set()
-
-            if not relation["to"]:
-                found_keys |= self.find_relation_by_single_span(component_rules, from_key, from_span, kind)
 
             if kind == TopoRelation.RELATION_KIND_ASYNC and self.is_match_component_rule(component_rules, from_span):
                 found_keys |= self.find_async_relation(rules, other_rule, from_key, from_span, relation["to"], kind)
