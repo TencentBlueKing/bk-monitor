@@ -30,6 +30,7 @@ from core.errors.api import BKAPIError
 from metadata import config
 from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
 from metadata.utils import consul_tools, hash_util
+from utils.basic import get_biz_id_by_space_uid
 
 from .common import Label, OptionBase
 from .constants import (
@@ -221,7 +222,7 @@ class DataSource(models.Model):
         # 添加集群信息
         mq_config.update(self.mq_cluster.consul_config)
         mq_config["cluster_config"].pop("last_modify_time")
-
+        bk_biz_id = get_biz_id_by_space_uid(self.space_uid) or 0
         result_config = {
             "bk_data_id": self.bk_data_id,
             "data_id": self.bk_data_id,
@@ -236,6 +237,7 @@ class DataSource(models.Model):
             "is_platform_data_id": self.is_platform_data_id,
             "space_type_id": self.space_type_id,
             "space_uid": self.space_uid,
+            "bk_biz_id": bk_biz_id,
         }
 
         if with_rt_info:
