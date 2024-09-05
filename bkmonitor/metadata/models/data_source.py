@@ -30,7 +30,7 @@ from core.errors.api import BKAPIError
 from metadata import config
 from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
 from metadata.utils import consul_tools, hash_util
-from utils.basic import get_biz_id_by_space_uid
+from metadata.utils.basic import get_biz_id_by_space_uid
 
 from .common import Label, OptionBase
 from .constants import (
