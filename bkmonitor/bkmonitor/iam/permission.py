@@ -471,10 +471,9 @@ class Permission(object):
             return []
 
         op = policies["op"]
-        value = policies["value"]
         if op == OP.ANY:
             return space_list
-        if op == OP.IN:
+        elif op == OP.IN:
             value = policies["value"]
             return list(filter(lambda x: str(x["bk_biz_id"]) in value, space_list))
 
