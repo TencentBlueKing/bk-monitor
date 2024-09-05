@@ -77,6 +77,7 @@
         }
       })
       .filter(Boolean);
+    store.commit('updateIsNotVisibleFieldsShow', !displayFields.length);
     store.commit('updateVisibleFields', displayFields);
     store.dispatch('showShowUnionSource', { keepLastTime: true });
   };
