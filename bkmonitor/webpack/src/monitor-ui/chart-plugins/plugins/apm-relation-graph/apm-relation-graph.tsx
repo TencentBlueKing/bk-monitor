@@ -57,9 +57,6 @@ import type { IFilterDict, ITableColumn, ITablePagination } from 'monitor-pc/pag
 
 import './apm-relation-graph.scss';
 
-const sideTopoMinWidth = 400;
-const sideOverviewMinWidth = 320;
-
 @Component({
   name: 'ApmRelationGraph',
   components: {
@@ -220,6 +217,8 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   /* 当前点击的接口 */
   selectedEndpoint = '';
   selectedIcon = '';
+
+  nodeTipsMap = new Map();
 
   /** 经过过滤的表格数据 */
   get filterTableData() {
@@ -524,6 +523,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   /** 点击节点 */
   handleNodeClick(node: INodeModel) {
+    this.nodeTipsMap.set(node.data.id, node.node_tips);
     this.selectedServiceName = node.data.id;
     this.selectedEndpoint = '';
     this.selectedIcon = nodeIconClass[node.data.category];
@@ -534,6 +534,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   /** 资源拓扑 */
   handleResourceDrilling(node: INodeModel) {
+    this.nodeTipsMap.set(node.data.id, node.node_tips);
     this.selectedServiceName = node.data.id;
     this.selectedEndpoint = '';
     this.selectedIcon = nodeIconClass[node.data.category];
@@ -544,6 +545,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   /** 服务概览 */
   handleServiceDetail(node: INodeModel) {
+    this.nodeTipsMap.set(node.data.id, node.node_tips);
     this.selectedServiceName = node.data.id;
     this.selectedIcon = nodeIconClass[node.data.category];
     this.selectedEndpoint = '';
@@ -554,6 +556,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   /** 下钻接口节点点击 */
   handleDrillingNodeClick(node: INodeModel, drillingName: string) {
+    this.nodeTipsMap.set(node.data.id, node.node_tips);
     this.selectedServiceName = node.data.id;
     this.selectedEndpoint = drillingName;
     this.selectedIcon = 'icon-fx';
@@ -703,63 +706,43 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             </div>
           )}
 
-          <div
-            class='side-wrap'
-            slot='side'
-          >
-            <div
-              style={{
-                minWidth: `${sideTopoMinWidth}px`,
-                display: this.expanded.includes('topo') ? 'block' : 'none',
-              }}
-              class='source-topo'
-            >
-              <div class='header-wrap'>
-                <div class='title'>{this.$t('资源拓扑')}</div>
-                <div
-                  class='expand-btn'
-                  onClick={() => this.handleExpand('topo')}
-                >
-                  <span class='icon-monitor icon-zhankai' />
-                </div>
-              </div>
-              <div class='content-wrap'>
-                <resource-topo serviceName={this.selectedServiceName} />
+          <template slot='side1'>
+            <div class='header-wrap'>
+              <div class='title'>{this.$t('资源拓扑')}</div>
+              <div
+                class='expand-btn'
+                onClick={() => this.handleExpand('topo')}
+              >
+                <span class='icon-monitor icon-zhankai' />
               </div>
             </div>
-            <div
-              style={{
-                minWidth: `${sideOverviewMinWidth}px`,
-                display: this.expanded.includes('overview') ? 'block' : 'none',
-              }}
-              class={[
-                'service-overview',
-                { 'no-border': !this.expanded.includes('topo') },
-                { 'overview-w-auto': this.expanded.length === 1 && this.expanded[0] === 'overview' },
-              ]}
-            >
-              <div class='header-wrap'>
-                <div class='title'>{this.selectedEndpoint ? this.$t('接口概览') : this.$t('服务概览')}</div>
-                <div
-                  class='expand-btn'
-                  onClick={() => this.handleExpand('overview')}
-                >
-                  <span class='icon-monitor icon-zhankai' />
-                </div>
-              </div>
-              <div class={'content-wrap'}>
-                <ServiceOverview
-                  appName={this.appName}
-                  data={this.serviceOverviewData}
-                  detailIcon={this.selectedIcon}
-                  endpoint={this.selectedEndpoint}
-                  serviceName={this.selectedServiceName}
-                  show={this.expanded.includes('overview')}
-                  timeRange={this.timeRange}
-                />
+            <div class='content-wrap'>
+              <resource-topo serviceName={this.selectedServiceName} />
+            </div>
+          </template>
+          <template slot='side2'>
+            <div class='header-wrap'>
+              <div class='title'>{this.selectedEndpoint ? this.$t('接口概览') : this.$t('服务概览')}</div>
+              <div
+                class='expand-btn'
+                onClick={() => this.handleExpand('overview')}
+              >
+                <span class='icon-monitor icon-zhankai' />
               </div>
             </div>
-          </div>
+            <div class={'content-wrap'}>
+              <ServiceOverview
+                appName={this.appName}
+                data={this.serviceOverviewData}
+                detailIcon={this.selectedIcon}
+                endpoint={this.selectedEndpoint}
+                nodeTipsMap={this.nodeTipsMap}
+                serviceName={this.selectedServiceName}
+                show={this.expanded.includes('overview')}
+                timeRange={this.timeRange}
+              />
+            </div>
+          </template>
         </ApmRelationGraphContent>
         <div
           style={{
