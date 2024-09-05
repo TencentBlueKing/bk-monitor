@@ -368,7 +368,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         """获取前端跳转链接里面的 dashboardId (服务页面)"""
         try:
             node = ServiceHandler.get_node(bk_biz_id, app_name, service_name)
-        except Exception:  # noqa
+        except Exception:  # pylint: disable=broad-except
             return None
 
         default_key = f"service-default-{tab_name}"
