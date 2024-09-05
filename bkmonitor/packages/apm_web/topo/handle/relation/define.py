@@ -9,9 +9,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import hashlib
-from collections import defaultdict
 from dataclasses import asdict, dataclass, field, fields
-from typing import List
+from typing import List, Tuple
 
 from apm_web.topo.constants import SourceType
 
@@ -107,23 +106,18 @@ class Node:
         self.id = f"{self.source_type}-{self.source_info.id}"
 
     @classmethod
-    def get_relation_mapping(cls, node: "Node", level, current_level=0):
-        """从 node 节点开始 获取树的第 level 层的所有节点 并且按照上层节点进行分组"""
+    def list_nodes_by_level(cls, node: "Node", level, current_level=0):
+        """从 node 节点开始 获取树的第 level 层的所有节点 返回列表"""
         if level == 0:
             # 返回自身关联
-            return {node.id: [node]}
+            return [node]
 
         if current_level == level - 1:
-            res = defaultdict(list)
-            for c in node.children:
-                res[node.id].append(c)
-            return res
+            return node.children
 
-        res = defaultdict(list)
+        res = []
         for c in node.children:
-            c_res = cls.get_relation_mapping(c, level, current_level + 1)
-            for parent_id, children in c_res.items():
-                res[parent_id].extend(children)
+            res.extend(cls.list_nodes_by_level(c, level, current_level + 1))
         return res
 
     @classmethod
@@ -142,6 +136,18 @@ class Node:
             "source_info": asdict(self.source_info),
         }
 
+    @classmethod
+    def get_all_edges(cls, node, parent_id=None) -> List[Tuple[str, str]]:
+        """返回以此 node 往下的所有边"""
+        res = []
+        if parent_id is not None:
+            res.append((parent_id, node.id))
+
+        for c in node.children:
+            res.extend(cls.get_all_edges(c, node.id))
+
+        return res
+
 
 @dataclass
 class TreeInfo:
@@ -152,3 +158,4 @@ class TreeInfo:
     # 树的层级是否完整 (即根据 layers 判断是否每一层都有节点)
     is_complete: bool
     runtime: dict
+    layers_have_data: List[bool]

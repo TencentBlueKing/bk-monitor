@@ -97,6 +97,10 @@ class RelationEntrance:
             paths=paths,
             is_complete=Node.get_depth(tree) >= PathProvider.get_depth(paths),
             runtime=self._runtime,
+            layers_have_data=[
+                bool(Node.list_nodes_by_level(tree, layer_index))
+                for layer_index in range(len(PathProvider.get_template(paths).layers))
+            ],
         )
 
         return info

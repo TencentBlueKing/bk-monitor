@@ -12,9 +12,6 @@ import logging
 from functools import reduce
 from typing import Any, Dict, List, Union
 
-from metadata.models import SpaceResource
-from metadata.models.space.constants import SpaceTypes
-
 logger = logging.getLogger("metadata")
 
 
@@ -42,9 +39,13 @@ def get_biz_id_by_space_uid(space_uid):
     """
     根据space_uid查询归属的业务ID
     """
-    space_type, space_id = space_uid.split("__")
-    bk_biz_id = None
+    from metadata.models.space import SpaceResource
+    from metadata.models.space.constants import SpaceTypes
+
     try:
+        space_type, space_id = space_uid.split("__")
+        if space_type == SpaceTypes.BKCC.value:
+            return int(space_id)
         bk_biz_id = (
             SpaceResource.objects.filter(
                 space_type_id=space_type, space_id=space_id, resource_type=SpaceTypes.BKCC.value
@@ -52,7 +53,8 @@ def get_biz_id_by_space_uid(space_uid):
             .first()
             .resource_id
         )
+        return int(bk_biz_id)
     except Exception as e:  # pylint: disable=broad-except
         logger.error("get_biz_id_by_space_uid failed,space_uid->{}".format(space_uid))
         logger.exception(e)
-    return int(bk_biz_id)
+        return

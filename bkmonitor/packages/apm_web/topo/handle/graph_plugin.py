@@ -995,32 +995,34 @@ class NodeTips(PostPlugin):
 
         node_data[self.id] = [
             {
+                "group": "request_count",
                 "name": _("主调调用量"),
                 "value": node_data.pop(BarChartDataType.REQUEST_COUNT_CALLER.value, "--"),
             },
             {
+                "group": "duration",
                 "name": _("主调平均耗时"),
                 "value": _join(duration_converter(value=duration_caller)) if duration_caller else "--",
             },
             {
+                "group": "error",
                 "name": _("主调错误率"),
                 "value": _join(percent_converter(value=error_rate_caller * 100)) if error_rate_caller else "--",
             },
             {
+                "group": "request_count",
                 "name": _("被调调用量"),
                 "value": node_data.pop(BarChartDataType.REQUEST_COUNT_CALLEE.value, "--"),
             },
             {
+                "group": "duration",
                 "name": _("被调平均耗时"),
                 "value": _join(duration_converter(value=duration_callee)) if duration_callee else "--",
             },
             {
+                "group": "error",
                 "name": _("被调错误率"),
                 "value": _join(percent_converter(value=error_rate_callee * 100)) if error_rate_callee else "--",
-            },
-            {
-                "name": _("实例数量"),
-                "value": node_data.pop(BarChartDataType.INSTANCE_COUNT.value, "--"),
             },
         ]
 
