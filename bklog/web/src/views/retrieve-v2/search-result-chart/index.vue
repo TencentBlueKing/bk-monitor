@@ -30,16 +30,28 @@
     :class="['monitor-echarts-container', { 'is-fold': isFold }]"
     data-test-id="retrieve_div_generalTrendEcharts"
   >
-    <chart-title
-      ref="chartTitle"
-      :is-fold="isFold"
-      :loading="isLoading || !finishPolling"
-      :menu-list="chartOptions.tool.list"
-      :title="$t('总趋势')"
-      @menu-click="handleMoreToolItemSet"
-      @toggle-expand="toggleExpand"
-    >
-    </chart-title>
+    <div style="display: flex">
+      <div
+        class="chart-title"
+        @click="handleOpen"
+        v-if="!isOpen"
+      >
+        <span class="chart-text">
+          {{ $t('查询结果统计') }}
+        </span>
+        <span class="bklog-icon bklog-collapse-small field-filter-icon"></span>
+      </div>
+      <chart-title
+        ref="chartTitle"
+        :is-fold="isFold"
+        :loading="isLoading || !finishPolling"
+        :menu-list="chartOptions.tool.list"
+        :title="$t('总趋势')"
+        @menu-click="handleMoreToolItemSet"
+        @toggle-expand="toggleExpand"
+      />
+    </div>
+
     <MonitorEcharts
       v-if="isRenderChart"
       ref="chartRef"
@@ -75,6 +87,7 @@
       v-if="!isEmptyChart && !isFold"
       v-en-style="'left: 110px'"
       class="converge-cycle"
+      :style="{ left: isOpen ? '80px' : '180px' }"
     >
       <span>{{ $t('汇聚周期') }}</span>
       <bk-select
@@ -105,12 +118,17 @@
   import indexSetSearchMixin from '@/mixins/indexSet-search-mixin';
   import axios from 'axios';
   import { debounce } from 'throttle-debounce';
-// import { nextTick } from 'vue';
   import { mapGetters } from 'vuex';
 
   const CancelToken = axios.CancelToken;
 
   export default {
+    props: {
+      isOpen: {
+        type: Boolean,
+        request: true,
+      },
+    },
     components: {
       MonitorEcharts,
       ChartTitle,
@@ -122,7 +140,7 @@
         timer: null,
         isFold: localStorage.getItem('chartIsFold'),
         intervalArr: [
-          { id: 'auto', name: 'auto' },
+          { id: 'auto', name: 'Auto' },
           { id: '1m', name: '1 min' },
           { id: '5m', name: '5 min' },
           { id: '1h', name: '1 h' },
@@ -183,7 +201,7 @@
         unionIndexList: 'unionIndexList',
         isUnionSearch: 'isUnionSearch',
         bkBizId: 'bkBizId',
-        retrieveParams: 'retrieveParams'
+        retrieveParams: 'retrieveParams',
       }),
       totalNumShow() {
         if (!this.infoTotalNumLoading && !this.infoTotalNumError && !this.isFrontStatistics && this.infoTotal > 0)
@@ -252,6 +270,9 @@
       window.bus.$on('openChartLoading', this.openChartLoading);
     },
     methods: {
+      handleOpen() {
+        this.$emit('toggle-change', true);
+      },
       /** 图表请求中断函数 */
       logChartCancel() {},
       /** info数据中断函数 */

@@ -1,5 +1,5 @@
 <script setup>
-  import { computed, ref, nextTick, watch } from 'vue';
+  import { computed, ref, nextTick, watch,defineEmits } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
@@ -110,7 +110,11 @@
       // this.requestFields(); // 该接口具体逻辑待确定
     }
   };
-  const handleCloseFilterTitle = () => {};
+  const emit = defineEmits(['retract']);
+  const handleRetract = () => {
+    emit('toggle-change',false)
+  }
+
   watch(
     store.state.indexFieldInfo,
     () => {
@@ -123,16 +127,11 @@
 <template>
   <div class="search-field-filter">
     <!-- 字段过滤 -->
-    <div class="tab-item-title field-filter-title">
-      <div class="left-title">
-        {{ $t('查询结果统计') }}
-      </div>
-      <div class="close-total">
-        <span class="collect-title">{{ $t('收起') }}</span>
-        <span
-          class="bklog-icon bklog-collapse-small"
-          @click="handleCloseFilterTitle"
-        ></span>
+    <div class="tab-item-title">
+      <span class="field-filter-title"> {{ $t('查询结果统计') }}</span>
+      <div class="tab-item-right" @click="handleRetract">
+        <span class="field-filter-text"> {{ $t('收起') }}</span>
+        <span class="bklog-icon bklog-collapse-small field-filter-icon"></span>
       </div>
     </div>
     <FieldFilterComp
