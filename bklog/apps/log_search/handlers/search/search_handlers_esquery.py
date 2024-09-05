@@ -343,7 +343,16 @@ class SearchHandler(object):
 
     def fields(self, scope="default"):
         is_union_search = self.search_dict.get("is_union_search", False)
-        field_result, display_fields = self.mapping_handlers.get_all_fields_by_index_id(
+        mapping_handlers = MappingHandlers(
+            self.origin_indices,
+            self.index_set_id,
+            self.origin_scenario_id,
+            self.storage_cluster_id,
+            self.time_field,
+            start_time=self.start_time,
+            end_time=self.end_time,
+        )
+        field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(
             scope=scope, is_union_search=is_union_search
         )
 
