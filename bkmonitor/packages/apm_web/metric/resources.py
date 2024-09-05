@@ -165,6 +165,7 @@ class DynamicUnifyQueryResource(Resource):
             validate_data["bk_biz_id"],
             validate_data["app_name"],
             validate_data["service_name"],
+            raise_exception=False,
         )
         if not node:
             return self.fill_unit(resource.grafana.graph_unify_query(unify_query_params), validate_data.get("unit"))

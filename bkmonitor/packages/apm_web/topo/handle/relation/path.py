@@ -15,6 +15,7 @@ from typing import List, Type
 
 from django.utils.translation import ugettext_lazy as _
 
+from apm_web.constants import CategoryEnum
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.topo.constants import RelationResourcePath
 from apm_web.topo.handle.graph_plugin import NodeColor
@@ -250,22 +251,23 @@ class PathTemplateSidebar:
             )
         elif self.bind_source_type.name == SourceService.name:
             # 如果是服务 需要增加 icon 返回 并且不需要合并
-            r_nodes = [
-                {
-                    **i.info,
-                    "sidebar_id": self.id,
-                    "collapses": [],
-                    "color": NodeColor.Color.WHITE,
-                    "category": ServiceHandler.get_node(
-                        self._tree_info.runtime["bk_biz_id"],
-                        getattr(i.source_info, "apm_application_name"),
-                        getattr(i.source_info, "apm_service_name"),
-                    )
-                    .get("extra_data", {})
-                    .get("category"),
-                }
-                for i in nodes
-            ]
+            r_nodes = []
+            for i in nodes:
+                node = ServiceHandler.get_node(
+                    self._tree_info.runtime["bk_biz_id"],
+                    getattr(i.source_info, "apm_application_name"),
+                    getattr(i.source_info, "apm_service_name"),
+                    raise_exception=False,
+                )
+                r_nodes.append(
+                    {
+                        **i.info,
+                        "sidebar_id": self.id,
+                        "collapses": [],
+                        "color": NodeColor.Color.WHITE,
+                        "category": node.get("extra_data", {}).get("category") if node else CategoryEnum.OTHER,
+                    }
+                )
             error_count = 0
         else:
             # 其他类型不需要进行合并
@@ -325,6 +327,9 @@ class PathTemplateSidebar:
         return res, len(error_nodes)
 
     def _search_alert(self, query_string):
+        if query_string == "()":
+            return []
+
         full_query_string = f"{query_string} AND status: ABNORMAL"
         query_params = {
             "bk_biz_ids": [self._tree_info.runtime["bk_biz_id"]],
