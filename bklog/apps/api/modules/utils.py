@@ -194,6 +194,9 @@ else:
             if auth_info["bk_app_code"] in settings.ESQUERY_WHITE_LIST:
                 # 在白名单内的 app 使用超级权限
                 params = update_bkdata_auth_info(params)
+        elif not settings.BKAPP_IS_BKLOG_API:
+            # saas直查已通过日志鉴权逻辑，默认使用超级权限
+            params = update_bkdata_auth_info(params)
 
         params = add_esb_info_before_request(params)
         params = add_app_info_before_request(params)
