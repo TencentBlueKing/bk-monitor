@@ -1,13 +1,14 @@
 <script setup>
-  import { ref, watch, computed, onBeforeUnmount } from 'vue';
+  import { ref, computed, onBeforeUnmount } from 'vue';
 
-  import { debounce } from 'lodash';
   import { getOperatorKey, getCharLength } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+  import { debounce } from 'lodash';
   import tippy from 'tippy.js';
 
   import UiInputOptions from './ui-input-option.vue';
+  import useFocusInput from './use-focus-input';
 
   const INPUT_MIN_WIDTH = 12;
 
@@ -19,6 +20,17 @@
     },
   });
 
+  /**
+   * 格式化搜索标签渲染格式
+   * @param {*} item
+   */
+  const formatModelValueItem = item => {
+    const key = getOperatorKey(item.operator);
+    const label = operatorDictionary.value[key]?.label ?? key;
+    return { ...item, operator_label: label, disabled: false };
+  };
+
+  const { modelValue } = useFocusInput(props, formatModelValueItem);
   const emit = defineEmits(['input', 'change']);
   const store = useStore();
   const { $t } = useLocale();
@@ -34,7 +46,6 @@
   });
 
   let tippyInstance = null;
-  const modelValue = ref([]);
   const refPopInstance = ref(null);
   const refUlRoot = ref(null);
   const queryItem = ref('');
@@ -89,14 +100,13 @@
     }
   };
 
-
   /**
    * 处理多次点击触发多次请求的事件
    */
-  const delayShowInstance = debounce((target) => {
+  const delayShowInstance = debounce(target => {
     initInistance(target);
     tippyInstance.show();
-  })
+  });
 
   /**
    * 执行点击弹出操作项方法
@@ -115,51 +125,6 @@
 
     delayShowInstance(target);
   };
-
-  /**
-   * 点击操作设置输入框位置
-   * @param {*} index
-   */
-  const setFocusInputItem = (index = -1) => {
-    const oldIndex = modelValue.value.findIndex(item => item?.is_focus_input);
-    if (oldIndex === -1) {
-      modelValue.value.push({ is_focus_input: true });
-      return;
-    }
-
-    if (index >= 0) {
-      if (oldIndex > index) {
-        modelValue.value.splice(oldIndex, 1);
-        modelValue.value.splice(index, 0, { is_focus_input: true });
-      } else {
-        modelValue.value.splice(index, 0, { is_focus_input: true });
-        modelValue.value.splice(oldIndex, 1);
-      }
-    }
-  };
-
-  /**
-   * 格式化搜索标签渲染格式
-   * @param {*} item
-   */
-  const formatModelValueItem = item => {
-    const key = getOperatorKey(item.operator);
-    const label = operatorDictionary.value[key]?.label ?? key;
-    return { ...item, operator_label: label, disabled: false };
-  };
-
-  const setModelValue = val => {
-    modelValue.value = (val ?? []).map(formatModelValueItem);
-  };
-
-  watch(
-    props.value,
-    val => {
-      setModelValue(val);
-      setFocusInputItem();
-    },
-    { deep: true, immediate: true },
-  );
 
   const emitChange = value => {
     emit('input', value);
@@ -258,9 +223,9 @@
 
 <template>
   <ul
+    ref="refUlRoot"
     class="search-items"
     @click.stop="handleContainerClick"
-    ref="refUlRoot"
   >
     <li
       class="search-item btn-add"

@@ -1,12 +1,12 @@
 <script setup>
-  import axios from 'axios';
+  import { ref } from 'vue';
 
-  import { ref, computed } from 'vue';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
 
   import SelectIndexSet from '../condition-comp/select-index-set.tsx';
   import QueryHistory from './query-history';
+  import SqlQuery from './sql-query';
   import TimeSetting from './time-setting';
   import UiInput from './ui-input';
 
@@ -16,12 +16,6 @@
   const btnQuery = $t('查询');
   const activeIndex = ref(0);
 
-
-  const emit = defineEmits(['change', 'should-retrieve']);
-  /** props相关 */
-  const props = defineProps({});
-
-  const queryType = computed(() => queryTypeList.value[activeIndex.value]);
   const searchItemList = ref([]);
 
   const handleQueryTypeChange = index => {
@@ -38,7 +32,7 @@
 
   const handleIndexSetSelected = payload => {
     store.dispatch('requestIndexSetItemChanged', payload);
-  }
+  };
 </script>
 <template>
   <div class="search-bar-container">
@@ -53,16 +47,26 @@
         >
       </div>
 
-      <SelectIndexSet style="width: 200px; margin: 0 12px" @selected="handleIndexSetSelected"></SelectIndexSet>
+      <SelectIndexSet
+        style="width: 200px; margin: 0 12px"
+        @selected="handleIndexSetSelected"
+      ></SelectIndexSet>
       <QueryHistory></QueryHistory>
       <TimeSetting></TimeSetting>
     </div>
     <div class="search-input">
-      <UiInput v-model="searchItemList"></UiInput>
+      <UiInput
+        v-if="activeIndex === 0"
+        v-model="searchItemList"
+      ></UiInput>
+      <SqlQuery
+        v-if="activeIndex === 1"
+        v-model="searchItemList"
+      ></SqlQuery>
       <div class="search-tool items">
         <span class="bklog-icon bklog-brush"></span>
         <span class="bklog-icon bklog-star-line"></span>
-        <span class="bklog-icon bklog-set-icon"></span>
+        <span class="disabled bklog-icon bklog-set-icon"></span>
       </div>
       <div
         class="search-tool search-btn"
