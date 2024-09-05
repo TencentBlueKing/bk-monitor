@@ -12,9 +12,8 @@ import logging
 from functools import reduce
 from typing import Any, Dict, List, Union
 
-from models.space.constants import SpaceTypes
-
 from metadata.models import SpaceResource
+from metadata.models.space.constants import SpaceTypes
 
 logger = logging.getLogger("metadata")
 
