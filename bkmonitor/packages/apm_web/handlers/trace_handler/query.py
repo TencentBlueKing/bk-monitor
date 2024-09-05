@@ -65,7 +65,7 @@ class QueryStringBuilder:
     def special_check(self, query_string: str) -> str:
         """特殊字符检查"""
         _query_string: str
-        regx: Any = re.compile(r"[+\-=&|><!(){}\[\]^\"~*?:/]|AND|OR|TO|NOT")
+        regx: Any = re.compile(r"[+\-=&|><!(){}\[\]^\"~*?:/]|AND|OR|TO|NOT|^\d+$")
         if query_string.strip() == "":
             return self.WILDCARD_PATTERN
         if regx.search(query_string):

@@ -42,8 +42,10 @@ def get_biz_id_by_space_uid(space_uid):
     from metadata.models.space import SpaceResource
     from metadata.models.space.constants import SpaceTypes
 
-    space_type, space_id = space_uid.split("__")
     try:
+        space_type, space_id = space_uid.split("__")
+        if space_type == SpaceTypes.BKCC.value:
+            return int(space_id)
         bk_biz_id = (
             SpaceResource.objects.filter(
                 space_type_id=space_type, space_id=space_id, resource_type=SpaceTypes.BKCC.value
