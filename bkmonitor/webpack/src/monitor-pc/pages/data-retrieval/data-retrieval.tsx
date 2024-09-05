@@ -553,6 +553,7 @@ export default class DataRetrieval extends tsc<object> {
       updateTimezone(timezone as string);
     }
     if (targets) {
+      debugger;
       try {
         targetsList = JSON.parse(decodeURIComponent(targets as string));
       } catch (error) {
@@ -2752,7 +2753,7 @@ export default class DataRetrieval extends tsc<object> {
    */
   handleTimeRangeChange(timeRange: EventRetrievalViewType.IEvent['onTimeRangeChange']) {
     timeRange && (this.eventChartTimeRange = timeRange);
-    if (!!timeRange) {
+    if (timeRange) {
       const targetTime = timestampTransformStr(timeRange);
       this.eventSelectTimeRange = targetTime;
     }
@@ -3085,7 +3086,7 @@ export default class DataRetrieval extends tsc<object> {
               onChange={data => this.handleExpressionValueChange(data, index)}
             />
           )}
-          {!!item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
+          {item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
         </div>
       );
     };
@@ -3335,7 +3336,7 @@ export default class DataRetrieval extends tsc<object> {
                           </div>
                         </bk-input>
                       </span>
-                      {!!item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
+                      {item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
                     </div>
                   ),
                 }}

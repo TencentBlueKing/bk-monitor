@@ -267,9 +267,9 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
     return data?.[id];
   }
 
-  handleBuildLegend(alia, compareData = {}) {
-    if (!alia) return alia;
-    let alias = alia;
+  handleBuildLegend(name, compareData = {}) {
+    if (!name) return name;
+    let alias = name;
     Object.keys(compareData).forEach(key => {
       const val = compareData[key] || {};
       if (key === 'time_offset') {
@@ -516,11 +516,11 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
   /** 跳转数据检索 */
   handleToDataRetrieval() {
     const targets = this.detail.graph_panel?.targets;
-    if (!!targets) {
+    if (targets) {
       const { bizId } = this.$store.getters;
       const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
         this.detail.bk_biz_id || bizId
-      }#/data-retrieval/?targets=${JSON.stringify(targets)}`;
+      }#/data-retrieval/?targets=${encodeURIComponent(JSON.stringify(targets))}`;
       window.open(url, '_blank');
     }
   }
