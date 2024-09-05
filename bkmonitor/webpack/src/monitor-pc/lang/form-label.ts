@@ -846,6 +846,8 @@ export default {
   拷贝: 'Copy',
   隐藏: 'Hide',
   展示: 'Display',
+  不看此项: 'Do not check this',
+  显示此项: 'Show this',
   源码: 'Source code',
   条件: 'Condition',
   索引: 'Index',

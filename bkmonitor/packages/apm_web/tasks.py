@@ -9,10 +9,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import time
+from enum import Enum
 
 from celery.schedules import crontab
 from celery.task import periodic_task, task
 from django.conf import settings
+from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 
 from apm_web.handlers.service_handler import ServiceHandler
@@ -27,8 +29,33 @@ from common.log import logger
 from core.drf_resource import api
 
 
-def build_event_body(app: Application, bk_biz_id: int):
-    event_body_map = {"event_name": _("监控平台新APM应用创建")}
+class APMEvent(Enum):
+    APP_CREATE = "app_create"
+    APP_UPDATE = "app_update"
+
+    @cached_property
+    def event_name(self):
+        return {"app_create": _("新APM应用创建"), "app_update": _("APM应用更新")}.get(self.value)
+
+    def event_template(self, data_sources: dict = None):
+        data_sources_template = _("开启了以下datasource上报: {}").format(
+            ", ".join([key for key, enabled in data_sources.items() if enabled]) or "None"
+        )
+        body_template = {
+            "app_create": _(
+                "有新APM应用创建，请关注！应用名称：{app_name}, 应用别名：{app_alias}, "
+                "业务ID：{bk_biz_id}, 业务名称：{bk_biz_name}, 创建者：{operator}，创建时间：{operate_time}"
+            ),
+            "app_update": _(
+                "有APM应用更新，请关注！应用名称：{app_name}, 应用别名：{app_alias}, "
+                "业务ID：{bk_biz_id}, 业务名称：{bk_biz_name}, 更新者：{operator}，更新时间：{operate_time}"
+            ),
+        }.get(self.value)
+        return body_template + "\n" + data_sources_template
+
+
+def build_event_body(app: Application, bk_biz_id: int, apm_event: APMEvent, data_sources: dict = None):
+    event_body_map = {"event_name": _("监控平台{}").format(apm_event.event_name)}
     response_biz_data = api.cmdb.get_business(bk_biz_ids=[bk_biz_id])
     if response_biz_data:
         biz_data = response_biz_data[0]
@@ -39,9 +66,17 @@ def build_event_body(app: Application, bk_biz_id: int):
     event_body_map["target"] = get_local_ip()
     event_body_map["timestamp"] = int(round(time.time() * 1000))
     event_body_map["dimension"] = {"bk_biz_id": bk_biz_id, "bk_biz_name": bk_biz_name}
-    content = _("有新APM应用创建，请关注！应用名称：{}, 应用别名：{}, 业务ID：{}, 业务名称：{}, 创建者：{}，创建时间：{}").format(
-        app.app_name, app.app_alias, bk_biz_id, bk_biz_name, app.create_user, strftime_local(app.create_time)
-    )
+    event_body_params = {
+        "app_name": app.app_name,
+        "app_alias": app.app_alias,
+        "bk_biz_id": bk_biz_id,
+        "bk_biz_name": bk_biz_name,
+        "operator": app.create_user if apm_event is APMEvent.APP_CREATE else app.update_user,
+        "operate_time": strftime_local(app.create_time)
+        if apm_event is APMEvent.APP_CREATE
+        else strftime_local(app.update_time),
+    }
+    content = apm_event.event_template(data_sources).format(**event_body_params)
     event_body_map["event"] = {"content": content}
     return [event_body_map]
 
@@ -74,11 +109,11 @@ def refresh_application():
 
 
 @task(ignore_result=True)
-def report_apm_application_event(bk_biz_id, application_id):
+def report_apm_application_event(bk_biz_id, application_id, apm_event: APMEvent, data_sources: dict = None):
     logger.info(f"[report_apm_application_event] task start, bk_biz_id({bk_biz_id}), application_id({application_id})")
 
     application = Application.objects.get(application_id=application_id)
-    data = build_event_body(application, bk_biz_id)
+    data = build_event_body(application, bk_biz_id, apm_event, data_sources)
     config_info = settings.APM_CUSTOM_EVENT_REPORT_CONFIG
     data_id = config_info.get("data_id", "")
     token = config_info.get("token", "")

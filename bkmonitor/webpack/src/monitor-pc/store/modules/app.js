@@ -46,6 +46,7 @@ export const SET_NAV_ROUTE_LIST = 'SET_NAV_ROUTE_LIST';
 export const SET_BIZ_BGCOLOR = 'SET_BIZ_BGCOLOR';
 // 切换业务id全局标识
 export const SET_BIZ_CHANGE_PEDDING = 'SET_BIZ_CHANGE_PEDDING';
+export const SET_PADDING_ROUTE = 'SET_PADDING_ROUTE';
 
 const state = {
   title: '',
@@ -80,9 +81,13 @@ const state = {
   bizIdChangePedding: '', // 业务id是否切换
   spaceUidMap: new Map(),
   bizIdMap: new Map(),
+  paddingRoute: null,
 };
 
 const mutations = {
+  [SET_PADDING_ROUTE](state, route) {
+    state.paddingRoute = route;
+  },
   [SET_TITLE](state, title) {
     state.title = title;
   },

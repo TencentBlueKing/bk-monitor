@@ -67,43 +67,37 @@ export default {
      * @desc: 获取存储集群
      * @param { String } environment ['storage','customize'] // 当前页
      */
-    getStorage() {
+    async getStorage() {
       const queryData = { bk_biz_id: this.bkBizId };
       if (this.curCollect?.data_link_id) {
         queryData.data_link_id = this.curCollect.data_link_id;
       }
-      this.$http
-        .request('collect/getStorage', {
+      try {
+        const res = await this.$http.request('collect/getStorage', {
           query: queryData,
-        })
-        .then(async res => {
-          if (res.data) {
-            // 根据权限排序
-            const s1 = [];
-            const s2 = [];
-            for (const item of res.data) {
-              if (item.permission?.[authorityMap.MANAGE_ES_SOURCE_AUTH]) {
-                s1.push(item);
-              } else {
-                s2.push(item);
-              }
-            }
-            this.storageList = s1.concat(s2);
-            this.storageList.forEach(item =>
-              item.is_platform ? this.clusterList.push(item) : this.exclusiveList.push(item),
-            );
-            const notPerformList = ['custom-report-create', 'custom-report-edit'];
-            if (!notPerformList.includes(this.$route.name)) {
-              this.getCleanStash();
+        });
+        if (res.data) {
+          // 根据权限排序
+          const s1 = [];
+          const s2 = [];
+          for (const item of res.data) {
+            if (item.permission?.[authorityMap.MANAGE_ES_SOURCE_AUTH]) {
+              s1.push(item);
+            } else {
+              s2.push(item);
             }
           }
-        })
-        .catch(res => {
-          this.$bkMessage({
-            theme: 'error',
-            message: res.message,
-          });
+          this.storageList = s1.concat(s2);
+          this.storageList.forEach(item =>
+            item.is_platform ? this.clusterList.push(item) : this.exclusiveList.push(item),
+          );
+        }
+      } catch (error) {
+        this.$bkMessage({
+          theme: 'error',
+          message: error.message,
         });
+      }
     },
     // 输入自定义过期天数、冷热集群存储期限
     enterCustomDay(val, type) {

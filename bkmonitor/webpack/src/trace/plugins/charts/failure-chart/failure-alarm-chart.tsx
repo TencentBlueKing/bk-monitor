@@ -41,7 +41,7 @@ export const createAutoTimerange = (
   const INTERVAL_1440 = 1440 * interval * 1000;
   const INTERVAL_60 = 60 * interval * 1000;
   let newStartTime = startTime * 1000;
-  let newEndTime = !!endTime ? endTime * 1000 : +new Date();
+  let newEndTime = endTime ? endTime * 1000 : +new Date();
   newEndTime = Math.min(newEndTime + INTERVAL_5, newStartTime + INTERVAL_1440);
   let diff = INTERVAL_1440 - (newEndTime - newStartTime);
   if (diff < INTERVAL_5) {
@@ -366,10 +366,10 @@ export default defineComponent({
     /** 跳转数据检索 */
     const handleToDataRetrieval = () => {
       const targets = props.detail.graph_panel?.targets;
-      if (!!targets) {
+      if (targets) {
         const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
           props.detail.bk_biz_id
-        }#/data-retrieval/?targets=${JSON.stringify(targets)}`;
+        }#/data-retrieval/?targets=${encodeURIComponent(JSON.stringify(targets))}`;
         window.open(url, '__blank');
       }
     };
