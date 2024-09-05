@@ -31,10 +31,12 @@ from apm_web.topo.constants import (
     GraphViewType,
     TopoEdgeDataType,
 )
+from apm_web.topo.handle.bar_query import LinkHelper
 from constants.apm import OtlpKey
 from core.drf_resource import api
 from core.unit import load_unit
 from fta_web.alert.handlers.alert import AlertQueryHandler
+from monitor_web.models.scene_view import SceneViewModel
 
 
 @dataclass
@@ -449,9 +451,9 @@ class NodeErrorRateFull(PrePlugin, ValuesPluginMixin):
         res = defaultdict(lambda: defaultdict(int))
         for k, attrs in values_mapping.items():
             if k[3] == "true":
-                res[k[1]][self.id] += attrs[self.metric.metric_id]
+                res[(k[1],)][self.id] += attrs[self.metric.metric_id]
             if k[2] == "true":
-                res[k[0]][self.id] += attrs[self.metric.metric_id]
+                res[(k[0],)][self.id] += attrs[self.metric.metric_id]
         return res
 
 
@@ -1028,10 +1030,11 @@ class ViewConverter:
     _extra_pre_plugins = PluginProvider.Container(_plugins=[])
     _extra_pre_convert_plugins = PluginProvider.Container(_plugins=[])
 
-    def __init__(self, bk_biz_id, app_name, filter_params=None):
+    def __init__(self, bk_biz_id, app_name, runtime, filter_params=None):
         self.filter_params = filter_params or {}
         self.bk_biz_id = bk_biz_id
         self.app_name = app_name
+        self.runtime = runtime
 
     def convert(self, graph):
         raise NotImplementedError
@@ -1045,11 +1048,11 @@ class ViewConverter:
         return PluginProvider.Container(_plugins=[i(_runtime=runtime) for i in cls._extra_pre_convert_plugins])
 
     @classmethod
-    def new(cls, bk_biz_id, app_name, data_type: str, filter_params=None):
+    def new(cls, bk_biz_id, app_name, data_type: str, runtime, filter_params=None):
         if data_type == GraphViewType.TOPO.value:
-            return TopoViewConverter(bk_biz_id, app_name, filter_params=filter_params)
+            return TopoViewConverter(bk_biz_id, app_name, runtime, filter_params=filter_params)
         elif data_type == GraphViewType.TABLE.value:
-            return TableViewConverter(bk_biz_id, app_name, filter_params=filter_params)
+            return TableViewConverter(bk_biz_id, app_name, runtime, filter_params=filter_params)
         raise ValueError(f"Unsupported dataType: {data_type}")
 
 
@@ -1136,14 +1139,59 @@ class TableViewConverter(ViewConverter):
                 "sortable": "custom",
                 "type": "number",
             },
+            {"id": "operators", "name": "操作", "type": "more_operate"},
         ]
 
     def __init__(self, *args, **kwargs):
         super(TableViewConverter, self).__init__(*args, **kwargs)
         self.time_convert = load_unit("µs")
         self.percent_convert = load_unit("percent")
+        self.views = SceneViewModel.objects.filter(bk_biz_id=self.bk_biz_id, scene_id="apm_service")
 
     def create_row(self, s, s_category, o_s, o_s_category, _type, attrs):
+        # 组件类服务没有日志 tab 不显示此菜单
+        operators = [
+            {
+                "value": _("查看告警"),
+                "target": "blank",
+                "url": LinkHelper.get_service_alert_link(
+                    self.bk_biz_id,
+                    self.app_name,
+                    s,
+                    self.runtime["start_time"],
+                    self.runtime["end_time"],
+                ),
+            },
+            {
+                "value": _("查看指标"),
+                "target": "blank",
+                "url": LinkHelper.get_service_overview_tab_link(
+                    self.bk_biz_id,
+                    self.app_name,
+                    s,
+                    self.runtime["start_time"],
+                    self.runtime["end_time"],
+                    views=self.views,
+                ),
+            },
+        ]
+        log_link = LinkHelper.get_service_log_tab_link(
+            self.bk_biz_id,
+            self.app_name,
+            s,
+            self.runtime["start_time"],
+            self.runtime["end_time"],
+            views=self.views,
+        )
+        if log_link:
+            operators.append(
+                {
+                    "value": _("查看日志"),
+                    "target": "blank",
+                    "url": log_link,
+                }
+            )
+
         return {
             "service": {
                 "name": s,
@@ -1162,6 +1210,7 @@ class TableViewConverter(ViewConverter):
             else None,
             "request_count": attrs.get(TopoEdgeDataType.REQUEST_COUNT.value),
             "error_rate": attrs.get(TopoEdgeDataType.ERROR_RATE.value),
+            "operators": operators,
         }
 
     def convert(self, graph):

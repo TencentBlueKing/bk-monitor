@@ -1011,11 +1011,6 @@ class ServiceDetailResource(Resource):
             },
         }
 
-    def value_map(self):
-        return {
-            "category": lambda x: CategoryEnum.get_label_by_key(x),
-        }
-
     def perform_request(self, data):
         node_info = ServiceHandler.get_node(data["bk_biz_id"], data["app_name"], data["service_name"])
         if not node_info:
@@ -1054,7 +1049,7 @@ class ServiceDetailResource(Resource):
             {
                 "name": self.key_name_map()[TopoNodeKind.SERVICE].get(item, item),
                 "type": "string",
-                "value": self.value_map().get(item, lambda x: str(x))(value) or "--",
+                "value": str(value) if value else "--",
             }
             for item, value in {
                 "topo_key": data["service_name"],

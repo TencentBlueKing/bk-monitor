@@ -24,6 +24,8 @@ from apm_web.models import Application
 from apm_web.topo.constants import BarChartDataType
 from apm_web.topo.handle import BaseQuery
 from core.drf_resource import resource
+from monitor_web.models.scene_view import SceneViewModel
+from monitor_web.scene_view.builtin.apm import ApmBuiltinProcessor
 
 
 @dataclass
@@ -73,7 +75,7 @@ class BarQuery(BaseQuery):
         if self.service_name:
             common_params["query_string"] += f' AND tags.service_name: "{self.service_name}"'
 
-        if "endpoint_name" in self.params:
+        if self.params.get("endpoint_name"):
             endpoint_name = self.params["endpoint_name"]
             common_params["query_string"] += f' AND tags.span_name: "{endpoint_name}"'
 
@@ -113,7 +115,7 @@ class BarQuery(BaseQuery):
 
     def get_apdex_series(self) -> Dict:
         wheres = self.convert_metric_to_condition()
-        if "endpoint_name" in self.params:
+        if self.params.get("endpoint_name"):
             wheres.append({"key": "span_name", "method": "eq", "value": [self.params["endpoint_name"]]})
         return self.get_metric(
             ApdexRange,
@@ -187,4 +189,42 @@ class LinkHelper:
             f"AND tags.service_name: {service_name} "
             f"AND tags.span_name: {endpoint_name}&"
             f"from={start_time * 1000}&to={end_time * 1000}"
+        )
+
+    @classmethod
+    def get_service_log_tab_link(cls, bk_biz_id, app_name, service_name, start_time, end_time, views=None):
+        """获取服务的日志 tab 页面链接"""
+        if not views:
+            views = SceneViewModel.objects.filter(bk_biz_id=bk_biz_id, scene_id="apm_service")
+
+        dashboard_id = ApmBuiltinProcessor.get_dashboard_id(bk_biz_id, app_name, service_name, "log", views)
+        if not dashboard_id:
+            return None
+
+        return (
+            f"/?bizId={bk_biz_id}#/apm/service?"
+            f"filter-service_name={service_name}&"
+            f"filter-app_name={app_name}&"
+            f"from={start_time}&"
+            f"to={end_time}&"
+            f"dashboardId={dashboard_id}"
+        )
+
+    @classmethod
+    def get_service_overview_tab_link(cls, bk_biz_id, app_name, service_name, start_time, end_time, views=None):
+        """获取服务的概览 tab 页面链接"""
+        if not views:
+            views = SceneViewModel.objects.filter(bk_biz_id=bk_biz_id, scene_id="apm_service")
+
+        dashboard_id = ApmBuiltinProcessor.get_dashboard_id(bk_biz_id, app_name, service_name, "overview", views)
+        if not dashboard_id:
+            return None
+
+        return (
+            f"/?bizId={bk_biz_id}#/apm/service?"
+            f"filter-service_name={service_name}&"
+            f"filter-app_name={app_name}&"
+            f"from={start_time}&"
+            f"to={end_time}&"
+            f"dashboardId={dashboard_id}"
         )

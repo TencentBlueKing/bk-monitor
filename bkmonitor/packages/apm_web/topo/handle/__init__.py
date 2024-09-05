@@ -32,10 +32,6 @@ class BaseQuery:
         """转换为 APM 内置指标的 where 条件"""
         return [{"key": "service_name", "method": "eq", "value": [self.service_name]}] if self.service_name else []
 
-    def convert_flow_metric_to_condition(self):
-        """转换为 APM Flow 指标的 where 条件"""
-        raise NotImplementedError
-
     def get_metric(self, metric_clz: Type[MetricHandler], **kwargs):
         return metric_clz(**self.common_params, **kwargs)
 

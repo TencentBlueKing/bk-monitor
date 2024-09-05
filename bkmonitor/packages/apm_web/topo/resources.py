@@ -65,6 +65,8 @@ class TopoViewResource(Resource):
             validated_data["bk_biz_id"],
             validated_data["app_name"],
             validated_data["export_type"],
+            start_time,
+            end_time,
             service_name=validated_data.get("service_name"),
         )
 

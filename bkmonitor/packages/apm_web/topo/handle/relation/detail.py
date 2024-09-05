@@ -113,7 +113,7 @@ class SystemDetail(ResourceDetail):
         return {
             "title": {
                 "name": ip,
-                "url": f"/performance/detail/{bk_host_id}?from={self.start_time}&to={self.end_time}",
+                "url": f"/performance/detail/{bk_host_id}?from={self.start_time * 1000}&to={self.end_time * 1000}",
             },
             "resource_link": urljoin(settings.BK_CC_URL, f"#/business/{self.bk_biz_id}/index/host/{bk_host_id}"),
             "raws": self._list_info_raws(host_infos, self._host_info_columns),
@@ -128,7 +128,8 @@ class SystemDetail(ResourceDetail):
                 "value": {
                     "total": len(alert_infos),
                     "alert_ids": [i["id"] for i in alert_infos],
-                    "url": f'/event-center?queryString="ip: {bk_target_ip}"&from={self.start_time}&to={self.end_time}',
+                    "url": f'/event-center?queryString="ip: {bk_target_ip}"&'
+                    f'from={self.start_time * 1000}&to={self.end_time * 1000}',
                 },
             }
         ]

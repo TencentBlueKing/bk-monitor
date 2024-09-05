@@ -364,6 +364,22 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         return res
 
     @classmethod
+    def get_dashboard_id(cls, bk_biz_id, app_name, service_name, tab_name, views):
+        """获取前端跳转链接里面的 dashboardId (服务页面)"""
+        node = ServiceHandler.get_node(bk_biz_id, app_name, service_name)
+        default_key = f"service-default-{tab_name}"
+        if ComponentHandler.is_component_by_node(node):
+            default_key = f"{node['extra_data']['kind']}-default-{tab_name}"
+
+        specific_key = f"{node['extra_data']['kind']}-{node['extra_data']['category']}-{tab_name}"
+
+        specific_view = next((i for i in views if i.id.startswith(specific_key)), None)
+        if specific_view:
+            return specific_view.id
+
+        return next((i.id for i in views if i.id.startswith(default_key)), None)
+
+    @classmethod
     def is_custom_sort(cls, scene_id) -> bool:
         """
         是否需要自定义视图列表的排序

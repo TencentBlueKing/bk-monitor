@@ -298,9 +298,15 @@ class Graph:
 
 class GraphQuery(BaseQuery):
     @classmethod
-    def create_converter(cls, bk_biz_id, app_name, export_type, service_name=None):
+    def create_converter(cls, bk_biz_id, app_name, export_type, start_time, end_time, service_name=None):
         filter_params = {"service_name": service_name} if service_name else {}
-        return ViewConverter.new(bk_biz_id, app_name, export_type, filter_params)
+        return ViewConverter.new(
+            bk_biz_id,
+            app_name,
+            export_type,
+            runtime={"start_time": start_time, "end_time": end_time},
+            filter_params=filter_params,
+        )
 
     def execute(self, edge_data_type, converter):
         return self.create_graph(
