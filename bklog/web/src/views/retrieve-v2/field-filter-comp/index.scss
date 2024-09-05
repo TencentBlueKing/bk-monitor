@@ -63,21 +63,27 @@
     }
   }
 
-  .fields-container {
-    margin-top: 20px;
+  .field-filter-roll{
+    max-height: 540px;
+    overflow-y: scroll;
 
-    .all-field-item {
-      display: inline-block;
-      height: 26px;
-      margin: 0 0 7px 20px;
-      line-height: 26px;
-      color: #63656e;
-    }
-
-    .expand-all {
-      margin-left: 22px;
-      color: #3a84ff;
-      cursor: pointer;
+    .fields-container {
+      margin-top: 20px;
+  
+      .all-field-item {
+        display: inline-block;
+        height: 26px;
+        margin: 0 0 7px 20px;
+        line-height: 26px;
+        color: #63656e;
+      }
+  
+      .expand-all {
+        margin-left: 22px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
     }
   }
+
 }
