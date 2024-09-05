@@ -188,7 +188,7 @@ class GetStrategyListV2Resource(Resource):
             ids = set()
             for _id in filter_dict["id"]:
                 try:
-                    ids.add(int(_id.strip()))
+                    ids.add(int(_id))
                 except (ValueError, TypeError):
                     # 无效的过滤条件，查不出数据
                     continue
