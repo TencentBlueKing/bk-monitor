@@ -846,6 +846,8 @@ export default {
   拷贝: 'Copy',
   隐藏: 'Hide',
   展示: 'Display',
+  不看此项: 'Do not check this',
+  显示此项: 'Show this',
   源码: 'Source code',
   条件: 'Condition',
   索引: 'Index',
@@ -1870,4 +1872,8 @@ export default {
   故障链接: 'Fault Link',
   故障内告警: 'Fault Internal Alarm',
   表单: 'Form',
+  节点颜色: 'Node color',
+  节点大小: 'Node size',
+  连接线: 'Connection line',
+  请求量: 'Request volume',
 };

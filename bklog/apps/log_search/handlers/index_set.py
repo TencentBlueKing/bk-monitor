@@ -1369,11 +1369,12 @@ class BaseIndexSetHandler(object):
                                     else TimeFieldUnitEnum.MILLISECOND.value,
                                 }
                             ),
-                        }, {
+                        },
+                        {
                             "name": "need_add_time",
                             "value_type": "bool",
                             "value": json.dumps(index_set.scenario_id != Scenario.ES),
-                        }
+                        },
                     ],
                 }
             )

@@ -45,7 +45,8 @@ import 'monitor-pc/common/global-login';
 
 import './static/scss/global.scss';
 import 'monitor-static/icons/monitor-icons.css';
-import 'monitor-pc/tailwind.css';
+import 'monitor-pc/static/css/reset.scss';
+// import 'monitor-pc/tailwind.css';
 window.source_app = 'trace';
 const spaceUid = getUrlParam('space_uid');
 const bizId = getUrlParam('bizId')?.replace(/\//gim, '');

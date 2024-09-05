@@ -822,7 +822,6 @@ export default class MonitorEcharts extends Vue {
         if (this.chartOption.grid) {
           optionData.options.grid.bottom = this.chartOption.grid.bottom;
         }
-        debugger;
         setTimeout(() => {
           if (this.chart) {
             let options = deepMerge(optionData.options, this.defaultOptions);

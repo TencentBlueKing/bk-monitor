@@ -166,9 +166,7 @@ class ServiceInfoResource(Resource):
             },
         }
         pool = ThreadPool()
-        topo_node_res = pool.apply_async(
-            api.apm_api.query_topo_node, kwds={"bk_biz_id": bk_biz_id, "app_name": app_name}
-        )
+        topo_node_res = pool.apply_async(ServiceHandler.list_nodes, kwds={"bk_biz_id": bk_biz_id, "app_name": app_name})
         instance_res = pool.apply_async(api.apm_api.query_instance, kwds=query_instance_param)
         app_relation = pool.apply_async(self.get_app_relation_info, args=(bk_biz_id, app_name, service_name))
         log_relation = pool.apply_async(self.get_log_relation_info, args=(bk_biz_id, app_name, service_name))

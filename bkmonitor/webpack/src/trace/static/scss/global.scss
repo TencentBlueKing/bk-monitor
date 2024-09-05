@@ -204,3 +204,38 @@ body {
   /* stylelint-disable-next-line declaration-no-important */
   padding: 0 !important;
 }
+
+.skeleton-element {
+  position: relative;
+  display: flex;
+  width: 100%;
+  overflow: hidden;
+
+  &:after {
+    position: absolute;
+    inset-inline-start: -150%;
+    inset-inline-end: -150%;
+    top: 0;
+    bottom: 0;
+    content: '';
+    background: linear-gradient(90deg, rgba(0, 0, 0, .06) 25%, rgba(0, 0, 0, .15) 37%, rgba(0, 0, 0, .06) 63%);
+    animation-name: skeleton-loading;
+    animation-duration: 1.4s;
+    animation-timing-function: ease;
+    animation-iteration-count: infinite;
+  }
+
+  &.skeleton-element-lg {
+    border-radius: 50%;
+  }
+}
+
+@keyframes skeleton-loading {
+  0% {
+    transform: translateX(-37.5%);
+  }
+
+  100% {
+    transform: translateX(37.5%);
+  }
+}
