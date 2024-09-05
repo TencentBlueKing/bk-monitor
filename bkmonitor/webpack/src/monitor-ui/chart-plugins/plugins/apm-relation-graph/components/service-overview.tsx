@@ -243,6 +243,10 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
               ...panel,
               options: {
                 ...(panel?.options || {}),
+                time_series: {
+                  ...(panel?.options?.time_series || {}),
+                  hoverAllTooltips: true,
+                },
                 apm_time_series: {
                   ...(panel?.options?.apm_time_series || {}),
                   xAxisSplitNumber: 3,

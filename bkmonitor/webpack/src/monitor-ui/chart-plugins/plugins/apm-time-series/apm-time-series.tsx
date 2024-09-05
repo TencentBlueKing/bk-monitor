@@ -112,6 +112,9 @@ export default class ApmTimeSeries extends TimeSeries {
           count += p.value[1];
         }
         return `<li class="tooltips-content-item">
+                    <span class="item-series"
+                    style="background-color:transparent;">
+                    </span>
                     <span class="item-name" style="color: #fafbfd;">${this.$t('总数量')}:</span>
                     <span class="item-value" style="color: #fafbfd;">
                     ${count}</span>
