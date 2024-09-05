@@ -484,8 +484,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/monitor-resource-topo':
-        specifier: 0.0.1-beta.15
-        version: 0.0.1-beta.15(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16)
+        specifier: 0.0.1-beta.18
+        version: 0.0.1-beta.18(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16)
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.9
         version: 0.0.1-beta.9(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
@@ -2565,7 +2565,7 @@ packages:
   /@blueking/bkui-library@0.0.0-beta.4:
     resolution: {integrity: sha512-FjrSj+tglFjpy17NvTZidzbtgm3l7nEn5Jyi1pB7lCK6eBkXam66IF+zZYDFE1XeyEeZfTAFUHV/Kil+Q6DmLg==}
     dependencies:
-      '@vue/runtime-dom': 3.4.38
+      '@vue/runtime-dom': 3.5.0
     dev: false
 
   /@blueking/bkui-library@0.0.0-beta.6:
@@ -2670,8 +2670,8 @@ packages:
     resolution: {integrity: sha512-iTiajeVT+hm0f+X93sfnm98OD1lmr+Q3m4/Hv6vnh126ZWwhNBavgzcCBLnhog9T5mLWeZH9dq8g9ltM4fI3FA==}
     dev: false
 
-  /@blueking/monitor-resource-topo@0.0.1-beta.15(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16):
-    resolution: {integrity: sha512-MLmAJA3lzKc1ubhuae/ZPxqPfyZyLQHA/oxK8OtGUCnW1HP9BFiC8lN2qWyYsQpJydlGPQ2mG+mZ79MNPTb/Ng==}
+  /@blueking/monitor-resource-topo@0.0.1-beta.18(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16):
+    resolution: {integrity: sha512-zpCs5q5J34ZT3Kxc5gNHSNFuH5oIE1oQTc2r5c4w20FCY3lkNz16IJE/zG44Dqd+hLHi49cNT/zi+Ktq8RqUFw==}
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
@@ -4658,6 +4658,12 @@ packages:
       '@vue/shared': 3.4.38
     dev: false
 
+  /@vue/reactivity@3.5.0:
+    resolution: {integrity: sha512-Ew3F5riP3B3ZDGjD3ZKb9uZylTTPSqt8hAf4sGbvbjrjDjrFb3Jm15Tk1/w7WwTE5GbQ2Qhwxx1moc9hr8A/OQ==}
+    dependencies:
+      '@vue/shared': 3.5.0
+    dev: false
+
   /@vue/runtime-core@3.4.31:
     resolution: {integrity: sha512-LDkztxeUPazxG/p8c5JDDKPfkCDBkkiNLVNf7XZIUnJ+66GVGkP+TIh34+8LtPisZ+HMWl2zqhIw0xN5MwU1cw==}
     dependencies:
@@ -4670,6 +4676,13 @@ packages:
     dependencies:
       '@vue/reactivity': 3.4.38
       '@vue/shared': 3.4.38
+    dev: false
+
+  /@vue/runtime-core@3.5.0:
+    resolution: {integrity: sha512-mQyW0F9FaNRdt8ghkAs+BMG3iQ7LGgWKOpkzUzR5AI5swPNydHGL5hvVTqFaeMzwecF1g0c86H4yFQsSxJhH1w==}
+    dependencies:
+      '@vue/reactivity': 3.5.0
+      '@vue/shared': 3.5.0
     dev: false
 
   /@vue/runtime-dom@3.4.31:
@@ -4687,6 +4700,15 @@ packages:
       '@vue/reactivity': 3.4.38
       '@vue/runtime-core': 3.4.38
       '@vue/shared': 3.4.38
+      csstype: 3.1.3
+    dev: false
+
+  /@vue/runtime-dom@3.5.0:
+    resolution: {integrity: sha512-NQQXjpdXgyYVJ2M56FJ+lSJgZiecgQ2HhxhnQBN95FymXegRNY/N2htI7vOTwpP75pfxhIeYOJ8mE8sW8KAW6A==}
+    dependencies:
+      '@vue/reactivity': 3.5.0
+      '@vue/runtime-core': 3.5.0
+      '@vue/shared': 3.5.0
       csstype: 3.1.3
     dev: false
 
@@ -4718,6 +4740,10 @@ packages:
 
   /@vue/shared@3.4.38:
     resolution: {integrity: sha512-q0xCiLkuWWQLzVrecPb0RMsNWyxICOjPrcrwxTUEHb1fsnvni4dcuyG7RT/Ie7VPTvnjzIaWzRMUBsrqNj/hhw==}
+
+  /@vue/shared@3.5.0:
+    resolution: {integrity: sha512-m9IgiteBpCkFaMNwCOBkFksA7z8QiKc30ooRuoXWUFRDu0mGyNPlFHmbncF0/Kra1RlX8QrmBbRaIxVvikaR0Q==}
+    dev: false
 
   /@vueuse/core@10.11.0(vue@3.4.31):
     resolution: {integrity: sha512-x3sD4Mkm7PJ+pcq3HX8PLPBadXCAlSDR/waK87dz0gQE+qJnaaFhc/dZVfJz+IUYzTMVGum2QlR7ImiJQN4s6g==}

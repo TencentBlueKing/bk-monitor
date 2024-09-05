@@ -98,12 +98,11 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
 
   curType: 'endpoint' | 'service' = 'service';
 
+  @ProvideReactive('showRestore') readonly showRestore = false;
   @ProvideReactive('viewOptions') viewOptions = {
-    variables: {
-      app_name: '',
-      service_name: '',
-      endpoint_name: '',
-    },
+    app_name: '',
+    service_name: '',
+    endpoint_name: '',
   };
 
   get tabs() {
@@ -149,7 +148,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   @Debounce(200)
   initPanel() {
     this.tabActive = 'service';
-    this.viewOptions.variables = {
+    this.viewOptions = {
       app_name: this.appName,
       service_name: this.serviceName,
       endpoint_name: this.endpoint,
@@ -176,11 +175,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
           endpoint_name: this.curType === 'endpoint' ? this.endpoint : undefined,
         })
         .catch(() => []);
-      if (result.length) {
-        this.overviewDetail.others = result;
-      } else {
-        this.overviewDetail.name = '';
-      }
+      this.overviewDetail.others = result;
     } catch (e) {
       console.error(e);
     }
@@ -221,7 +216,6 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
     try {
       this.serviceTabData.dashboardId = random(8);
       const typeKey = this.curType === 'endpoint' ? 'endpoint_tabs_service' : 'service_tabs_service';
-      console.log(typeKey);
       const apdexPanel = this.data[typeKey].panels.find(item => item.type === 'apdex-chart');
       if (apdexPanel) {
         this.serviceTabData.getApdexData = async setData => {
@@ -247,6 +241,14 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
           panel =>
             new PanelModel({
               ...panel,
+              options: {
+                ...(panel?.options || {}),
+                apm_time_series: {
+                  ...(panel?.options?.apm_time_series || {}),
+                  xAxisSplitNumber: 3,
+                  disableZoom: true,
+                },
+              },
               dashboardId: this.serviceTabData.dashboardId,
               type: 'apm-timeseries-chart',
               targets: panel.targets.map(t => {
@@ -349,7 +351,6 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
             getData={this.serviceTabData.getApdexData}
             isAdaption={true}
             itemHeight={24}
-            needRestoreEvent={true}
             showHeader={true}
             showXAxis={true}
           >
@@ -434,7 +435,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
                 class='setting-btn'
                 onClick={this.handleServiceConfig}
               >
-                {this.curType === 'service' && this.$t('服务配置')}
+                {this.$t('服务配置')}
                 <i class='icon-monitor icon-shezhi' />
               </div>
             </div>
@@ -458,7 +459,6 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
             getData={this.serviceAlert.getData}
             isAdaption={true}
             itemHeight={24}
-            needRestoreEvent={true}
             showHeader={true}
             showXAxis={true}
           >

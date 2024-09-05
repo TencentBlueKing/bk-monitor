@@ -27,6 +27,7 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import { MonitorTopo, createApp, h as vue3CreateElement } from '@blueking/monitor-resource-topo/vue2';
+import { CancelToken } from 'monitor-api/index';
 import { nodeRelation, nodeRelationDetail } from 'monitor-api/modules/apm_topo';
 import { Debounce, random } from 'monitor-common/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -49,7 +50,7 @@ class ResourceTopo extends CommonSimpleChart {
   topoSidebars = [];
   paths: string[] = [];
   refreshKey = random(10);
-  created() {}
+  cancelFn = null;
 
   @Watch('serviceName')
   handleServiceNameChange() {
@@ -98,26 +99,40 @@ class ResourceTopo extends CommonSimpleChart {
       paths: this.paths.length ? this.paths.join(',') : 'default',
     };
     if (!params.app_name || !params.service_name) return;
-    try {
-      this.unregisterOberver();
-      this.loading = true;
-      const data = await nodeRelation(params);
-      this.loading = false;
-      if (data) {
-        this.topoEdges = data.edges;
-        this.topoNodes = data.nodes;
-        if (!this.paths.length) {
-          this.topoSidebars = data.sidebars;
+    this.unregisterOberver();
+    this.cancelFn?.();
+    this.loading = true;
+    const data = await nodeRelation(params, {
+      cancelToken: new CancelToken(cb => {
+        this.cancelFn = cb;
+      }),
+    })
+      .then(data => {
+        this.cancelFn = null;
+        this.loading = false;
+        return data;
+      })
+      .catch(e => {
+        if (e.code) {
+          this.cancelFn = null;
+          this.loading = false;
         }
-        this.renderResourceTopoComponent();
-        this.$nextTick(() => {
-          this.app?.mount(this.$el.querySelector('.apm-resource-topo__chart'));
-        });
+        return {
+          edges: [],
+          nodes: [],
+          sidebars: [],
+        };
+      });
+    if (data) {
+      this.topoEdges = data.edges;
+      this.topoNodes = data.nodes;
+      if (!this.paths.length) {
+        this.topoSidebars = data.sidebars;
       }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      this.loading = false;
+      this.renderResourceTopoComponent();
+      this.$nextTick(() => {
+        this.app?.mount(this.$el.querySelector('.apm-resource-topo__chart'));
+      });
     }
   }
   async getNodeDetail(params) {
@@ -141,6 +156,14 @@ class ResourceTopo extends CommonSimpleChart {
     this.getPanelData();
   }
   render() {
+    if (!this.loading && !this.topoNodes?.length)
+      return (
+        <bk-exception
+          style={{ marginTop: '60px' }}
+          scene='part'
+          type='empty'
+        />
+      );
     return (
       <div
         key={this.refreshKey}

@@ -202,6 +202,7 @@
               margin-top: 4px;
 
               .common-legend {
+                flex-wrap: wrap;
                 justify-content: start;
                 height: 100%;
               }
@@ -209,9 +210,15 @@
           }
         }
 
-        .related-log-chart-wrap .empty-chart {
-          .bk-exception {
-            transform: scale(0.35);
+        .related-log-chart-wrap {
+          .empty-chart {
+            .bk-exception {
+              transform: scale(0.35);
+            }
+          }
+          .empty-chart-text {
+            position: relative;
+            top: 30px;
           }
         }
       }
