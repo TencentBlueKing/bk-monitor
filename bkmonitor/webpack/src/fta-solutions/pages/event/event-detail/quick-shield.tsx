@@ -175,7 +175,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
         category: 'alert',
         begin_time: time.begin,
         end_time: time.end,
-        dimension_config: { alert_ids: this.ids },
+        dimension_config: { alert_ids: this.ids?.map(id => id.toString()) },
         shield_notice: false,
         description: this.desc,
         cycle_config: {
@@ -206,7 +206,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
       if (changedDetails.length) {
         (params.dimension_config as DimensionConfig).dimensions = changedDetails.reduce((pre, item) => {
           if (item.isModified) {
-            pre[item.alertId] = item.dimension
+            pre[item.alertId.toString()] = item.dimension
               .filter(dim => dim.key && (dim.display_value || dim.value))
               .map(dim => dim.key);
           }
