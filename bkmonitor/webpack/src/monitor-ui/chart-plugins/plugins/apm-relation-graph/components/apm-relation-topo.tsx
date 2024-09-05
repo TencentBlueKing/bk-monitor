@@ -291,29 +291,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     this.handleHighlightNode();
   }
 
-  // 节点自定义tooltips
-  nodeTooltip() {
-    return new G6.Tooltip({
-      offsetX: 4, // x 方向偏移值
-      offsetY: 4, // y 方向偏移值
-      fixToNode: [1, 0.5], // 固定出现在相对于目标节点的某个位置
-      className: 'node-tooltips-container',
-      // 允许出现 tooltip 的 item 类型
-      itemTypes: ['node'],
-      shouldBegin: evt => {
-        if (this.menuCfg.show) return false;
-        // 展开的当前服务返回按钮
-        if (['back-text-shape', 'back-icon-shape'].includes(evt.target?.cfg?.name)) {
-          return false;
-        }
-        if (evt.item) return true;
-        return false;
-      },
-      // 自定义 tooltip 内容
-      getContent: e => this.getTooltipsContent(e),
-    });
-  }
-
   /**
    * @description: 定义节点 tooltip 内容
    * @param { HTMLElement } e
@@ -464,7 +441,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
           container: this.thumbnailToolRef,
           size: [236, 146],
         });
-        const plugins = [minimap, this.nodeTooltip()];
+        const plugins = [minimap];
         this.graph = new G6.Graph({
           container: this.relationGraphRef as HTMLElement, // 指定挂载容器
           width: this.canvasWidth,
