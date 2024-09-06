@@ -74,8 +74,6 @@ export const IndexItem = {
   items: [],
   catchUnionBeginList: [],
   selectIsUnionSearch: false,
-  /** 数据指纹是否请求布尔值 */
-  fingerSearchState: false,
   ...IndexsetItemParams,
 };
 

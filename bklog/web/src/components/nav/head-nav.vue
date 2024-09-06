@@ -341,7 +341,7 @@
       },
       isShowGlobalSetIcon() {
         return !this.welcomeData && !this.isExternal;
-      }
+      },
     },
     watch: {
       $route() {
@@ -353,6 +353,7 @@
       this.language = jsCookie.get('blueking_language') || 'zh-cn';
       this.$store.commit('updateMenuList', menuArr);
       setTimeout(() => this.requestMySpaceList(), 10);
+      this.getGlobalsData();
       this.getUserInfo();
       window.bus.$on('showGlobalDialog', this.handleGoToMyReport);
     },
@@ -375,6 +376,18 @@
         } finally {
           this.usernameRequested = true;
         }
+      },
+      // 获取全局数据和 判断是否可以保存 已有的日志聚类
+      getGlobalsData() {
+        if (Object.keys(this.globalsData).length) return;
+        this.$http
+          .request('collect/globals')
+          .then(res => {
+            this.$store.commit('globals/setGlobalsData', res.data);
+          })
+          .catch(e => {
+            console.warn(e);
+          });
       },
       jumpToHome() {
         this.$store.commit('updateIsShowGlobalDialog', false);

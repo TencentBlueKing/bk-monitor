@@ -604,7 +604,6 @@ const store = new Vuex.Store({
           selectIsUnionSearch: isUnionIndex,
           items: ids.map(val => (list || []).find(item => item.index_set_id === val)),
           isUnionIndex,
-          fingerSearchState: false,
         };
 
         commit('updateIndexItem', payload);
@@ -749,7 +748,6 @@ const store = new Vuex.Store({
               commit('updateIndexItem', {
                 catchUnionBeginList,
                 begin: begin + 1,
-                fingerSearchState: !state.indexItem.fingerSearchState,
               });
               commit('updateIndexSetQueryResult', rsolvedData ?? {});
               return {

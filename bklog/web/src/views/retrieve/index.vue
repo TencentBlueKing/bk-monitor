@@ -574,9 +574,6 @@
         },
       },
     },
-    created() {
-      this.getGlobalsData();
-    },
     mounted() {
       window.bus.$on('retrieveWhenChartChange', this.retrieveWhenChartChange);
     },
@@ -1719,7 +1716,7 @@
           // 更新联合查询的begin
           const unionConfigs = this.unionIndexList.map(item => ({
             begin: this.isTablePagination
-              ? this.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0
+              ? (this.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0)
               : 0,
             index_set_id: item,
           }));
@@ -1944,18 +1941,6 @@
           this.activeFavoriteID = -1;
           this.isSqlSearchType = true;
         }
-      },
-      // 获取全局数据和 判断是否可以保存 已有的日志聚类
-      getGlobalsData() {
-        if (Object.keys(this.globalsData).length) return;
-        this.$http
-          .request('collect/globals')
-          .then(res => {
-            this.$store.commit('globals/setGlobalsData', res.data);
-          })
-          .catch(e => {
-            console.warn(e);
-          });
       },
       initToolTipsMessage(config) {
         const { contextAndRealtime, bcsWebConsole } = config;
@@ -2393,4 +2378,5 @@
       padding: 0;
     }
   }
-</style>./condition-comp/select-index-set
+</style>
+./condition-comp/select-index-set

@@ -29,7 +29,7 @@
 
   const handleToggleChange = isShow => {
     isTrendChartShow.value = isShow;
-  }
+  };
 </script>
 
 <template>
@@ -51,6 +51,7 @@
         />
         <LogClustering
           v-if="activeTab === 'clustering'"
+          :retrieveParams="retrieveParams"
           ref="logClusteringRef"
         />
       </keep-alive>
