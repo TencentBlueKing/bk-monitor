@@ -84,6 +84,7 @@ type ApmRelationTopoProps = {
   activeNode: string;
   edgeType: EdgeDataType;
   appName: string;
+  showType: string;
   dataType: string;
   refreshTopoLayout: boolean;
   filterCondition: {
@@ -116,6 +117,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   @Prop() edgeType: EdgeDataType;
   @Prop({ default: true }) refreshTopoLayout: boolean;
   @Prop() filterCondition: ApmRelationTopoProps['filterCondition'];
+  @Prop() showType: string;
   @Prop() appName: string;
   @Prop() dataType: string;
 
@@ -290,7 +292,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   @Watch('filterCondition', { deep: true })
   handleFilterConditionChange() {
-    this.handleHighlightNode();
+    if (this.showType === 'topo') this.handleHighlightNode();
   }
 
   /**
@@ -907,6 +909,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   /** 根据筛选条件高亮节点 */
   handleHighlightNode() {
+    if (!this.graph) return;
     const { type, searchValue, showNoData } = this.filterCondition;
     const showAll = type === CategoryEnum.ALL;
     const targetNodes = []; // 所选分类节点

@@ -691,6 +691,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             edgeType={this.edgeDataType}
             filterCondition={this.filterCondition}
             refreshTopoLayout={this.refreshTopoLayout}
+            showType={this.showType}
             onDrillingNodeClick={this.handleDrillingNodeClick}
             onEdgeTypeChange={this.handleEdgeTypeChange}
             onNodeClick={this.handleNodeClick}
