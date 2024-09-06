@@ -22,7 +22,14 @@ from bkm_space.define import Space as SpaceDefine
 from bkm_space.define import SpaceTypeEnum
 from core.drf_resource import api
 
-local_mem = caches["locmem"]
+local_mem = caches["space"]
+
+
+class Empty:
+    pass
+
+
+miss_cache = Empty()
 
 
 class InjectSpaceApi(space_api.AbstractSpaceApi):
@@ -55,8 +62,8 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         using_cache = params.get("space_uid", "").startswith("bkcc") or bk_biz_id > 0
         if using_cache:
             # 尝试从缓存获取, 解决 bkcc 业务层面快速获取空间信息的场景
-            ret: List[SpaceDefine] = local_mem.get("metadata:spaces_map", None)
-            if ret is not None:
+            ret = local_mem.get("metadata:spaces_map", miss_cache)
+            if ret is not miss_cache:
                 space = ret.get(params["space_uid"])
                 if space is not None:
                     return space
@@ -68,8 +75,8 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         """
         查询空间列表
         """
-        ret: List[SpaceDefine] = local_mem.get("metadata:list_spaces", None)
-        if ret is None or refresh:
+        ret: List[SpaceDefine] = local_mem.get("metadata:list_spaces", miss_cache)
+        if ret is miss_cache or refresh:
             ret: List[SpaceDefine] = [
                 SpaceDefine.from_dict(space_dict, cleaned=True)
                 for space_dict in cls.list_spaces_dict(using_cache=False)
@@ -83,9 +90,12 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         """
         告警性能版本获取空间列表
         """
-        ret: List[dict] = local_mem.get("metadata:list_spaces_dict", None)
-        if ret is not None and using_cache:
+        ret = miss_cache
+        if using_cache:
+            ret = local_mem.get("metadata:list_spaces_dict", miss_cache)
+        if ret is not miss_cache:
             return ret
+
         with connections["monitor_api"].cursor() as cursor:
             sql = """
                 SELECT s.id,

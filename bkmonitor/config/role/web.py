@@ -207,7 +207,8 @@ CACHES = {
     },
     "login_db": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "account_cache"},
     "dummy": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"},
-    "locmem": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    "locmem": {"BACKEND": "core.cache.localmem.LocalMemCache"},
+    "space": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "space"},
 }
 CACHES["default"] = CACHES["db"]
 
