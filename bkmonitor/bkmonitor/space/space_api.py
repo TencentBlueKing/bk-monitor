@@ -22,7 +22,25 @@ from bkm_space.define import Space as SpaceDefine
 from bkm_space.define import SpaceTypeEnum
 from core.drf_resource import api
 
-local_mem = caches["locmem"]
+local_mem = caches["space"]
+
+
+class Empty:
+    pass
+
+
+miss_cache = Empty()
+
+
+def enrich_space_display_name(space_dict):
+    # display_name
+    # [cc-auto]配置发现
+    display_name = f"[{space_dict['space_id']}]{space_dict['space_name']}"
+    if space_dict['space_type_id'] == SpaceTypeEnum.BKCC.value:
+        # [2]蓝鲸
+        display_name = f"[{space_dict['space_id']}]{space_dict['space_name']}"
+    space_dict["display_name"] = display_name + f" ({space_dict['type_name']})"
+    return
 
 
 class InjectSpaceApi(space_api.AbstractSpaceApi):
@@ -33,6 +51,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         for st in space_type_list:
             if st["type_id"] == space_dict["space_type_id"]:
                 space_dict.update(st)
+        enrich_space_display_name(space_dict)
         return SpaceDefine.from_dict(space_dict)
 
     @classmethod
@@ -51,15 +70,15 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             params.update({"space_uid": space_uid})
         else:
             raise ValidationError(_("参数[space_uid]、和[id]不能同时为空"))
-        # cmdb业务尝试用缓存
-        using_cache = params.get("space_uid", "").startswith("bkcc") or bk_biz_id > 0
+
+        cache_key = params.get("space_uid", "")
+        using_cache = cache_key or bk_biz_id > 0
         if using_cache:
             # 尝试从缓存获取, 解决 bkcc 业务层面快速获取空间信息的场景
-            ret: List[SpaceDefine] = local_mem.get("metadata:spaces_map", None)
-            if ret is not None:
-                space = ret.get(params["space_uid"])
-                if space is not None:
-                    return space
+            space = local_mem.get(f"metadata:spaces_map:{cache_key}", miss_cache)
+            if space is not miss_cache:
+                return SpaceDefine.from_dict(space)
+
         space_info = api.metadata.get_space_detail(**params)
         return cls._init_space(space_info)
 
@@ -68,14 +87,13 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         """
         查询空间列表
         """
-        ret: List[SpaceDefine] = local_mem.get("metadata:list_spaces", None)
-        if ret is None or refresh:
+        ret: List[SpaceDefine] = local_mem.get("metadata:list_spaces", miss_cache)
+        if ret is miss_cache or refresh:
             ret: List[SpaceDefine] = [
                 SpaceDefine.from_dict(space_dict, cleaned=True)
                 for space_dict in cls.list_spaces_dict(using_cache=False)
             ]
             local_mem.set("metadata:list_spaces", ret, timeout=600)
-            local_mem.set("metadata:spaces_map", {space.space_uid: space for space in ret}, timeout=600)
         return ret
 
     @classmethod
@@ -83,9 +101,12 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         """
         告警性能版本获取空间列表
         """
-        ret: List[dict] = local_mem.get("metadata:list_spaces_dict", None)
-        if ret is not None and using_cache:
+        ret = miss_cache
+        if using_cache:
+            ret = local_mem.get("metadata:list_spaces_dict", miss_cache)
+        if ret is not miss_cache:
             return ret
+
         with connections["monitor_api"].cursor() as cursor:
             sql = """
                 SELECT s.id,
@@ -122,14 +143,9 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                 space["bk_biz_id"] = int(space["space_id"])
             # is_demo
             space["is_demo"] = space["bk_biz_id"] == int(settings.DEMO_BIZ_ID or 0)
-            # display_name
-            # [cc-auto]配置发现
-            display_name = f"[{space['space_id']}]{space['space_name']}"
-            if space['space_type_id'] == SpaceTypeEnum.BKCC.value:
-                # [2]蓝鲸
-                display_name = f"[{space['space_id']}]{space['space_name']}"
-            space["display_name"] = display_name + f" ({space['type_name']})"
+            enrich_space_display_name(space)
 
+            local_mem.set(f"metadata:spaces_map:{space['space_uid']}", space, timeout=600)
         # 10min
         local_mem.set("metadata:list_spaces_dict", spaces, 600)
         return spaces

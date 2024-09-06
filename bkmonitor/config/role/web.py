@@ -207,7 +207,16 @@ CACHES = {
     },
     "login_db": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "account_cache"},
     "dummy": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"},
-    "locmem": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    "locmem": {"BACKEND": "core.cache.localmem.LocalMemCache"},
+    "space": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "space",
+        'OPTIONS': {
+            # 5w空间支持
+            'MAX_ENTRIES': 50000,
+            'CULL_FREQUENCY': 0,
+        },
+    },
 }
 CACHES["default"] = CACHES["db"]
 
