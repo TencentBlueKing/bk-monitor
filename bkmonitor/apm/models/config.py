@@ -250,6 +250,8 @@ class ApmMetricDimension(models.Model):
         OtlpKey.get_resource_key(ResourceAttributes.TELEMETRY_SDK_NAME),
         OtlpKey.get_resource_key(ResourceAttributes.TELEMETRY_SDK_VERSION),
         OtlpKey.get_resource_key(ResourceAttributes.TELEMETRY_SDK_LANGUAGE),
+        OtlpKey.get_resource_key(ResourceAttributes.K8S_NAMESPACE_NAME),
+        OtlpKey.get_resource_key("k8s.bcs.cluster.id"),
         OtlpKey.get_attributes_key(SpanAttributes.PEER_SERVICE),
         OtlpKey.get_attributes_key(OtlpKey.APDEX_TYPE),
     ]
