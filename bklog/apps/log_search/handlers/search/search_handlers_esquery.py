@@ -1707,6 +1707,11 @@ class SearchHandler(object):
         new_filter_list: list = []
         for item in filter_list:
             field: str = item.get("key") if item.get("key") else item.get("field")
+            # 全文检索key & 存量query_string转换
+            if field in ["*", "__query_string__"] and not self.query_string:
+                self.query_string = item.get("value")
+                continue
+
             _type = "field"
             if self.mapping_handlers.is_nested_field(field):
                 _type = FieldDataTypeEnum.NESTED.value
