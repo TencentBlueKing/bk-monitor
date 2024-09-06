@@ -4,24 +4,31 @@
   background: #ffffff;
   box-shadow: 1px 0 0 0 #eaebf0;
 
-  .field-filter-title {
+  .tab-item-title {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 12px;
-    color: #313238;
 
-    .close-total {
+    .field-filter-title {
+      font-size: 12px;
+      color: #313238;
+    }
+
+    .tab-item-right {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      margin-left: auto;
       cursor: pointer;
 
-      .bklog-collapse-small {
-        display: inline-block;
-        font-size: 24px;
+      .field-filter-text {
+        font-size: 12px;
+        color: #63656e;
+      }
+
+      .field-filter-icon {
+        font-size: 22px;
         color: #979ba5;
-        transform: rotateZ(-90deg);
+        transform: rotate(-90deg);
       }
     }
   }
