@@ -394,9 +394,10 @@ class SearchHandler(object):
         ]:
             result_dict["config"].append(fields_config)
         # 将用户当前使用的配置id传递给前端
-        result_dict["config_id"] = UserIndexSetFieldsConfig.get_config(
+        config_obj = UserIndexSetFieldsConfig.get_config(
             index_set_id=self.index_set_id, username=self.request_username, scope=scope
-        ).id
+        )
+        result_dict["config_id"] = config_obj.id if config_obj else ""
 
         return result_dict
 
