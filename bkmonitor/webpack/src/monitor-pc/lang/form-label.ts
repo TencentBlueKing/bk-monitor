@@ -1422,6 +1422,7 @@ export default {
   移至分组: 'Move to Group',
   DNS查询模式: 'DNS Mode',
   基于CMDB添加: 'Based on CMDB',
+  CMDB属性: 'CMDB',
   外网: 'Extranet',
   条件查询: 'Conditional query',
   开启主机监控: 'Enable Host Monitoring',
