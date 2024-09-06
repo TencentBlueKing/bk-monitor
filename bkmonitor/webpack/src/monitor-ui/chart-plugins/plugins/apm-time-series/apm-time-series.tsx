@@ -69,6 +69,9 @@ export default class ApmTimeSeries extends TimeSeries {
 
   needTips = true;
 
+  /* 错误数图表维度分类 */
+  errorCountCategory: Record<string, string> = {};
+
   get apmMetric(): EDataType {
     return (this.panel.options?.apm_time_series?.metric || '') as EDataType;
   }
@@ -211,13 +214,19 @@ export default class ApmTimeSeries extends TimeSeries {
               this.$emit('seriesData', res);
               res.metrics && metrics.push(...res.metrics);
               series.push(
-                ...res.series.map(set => ({
-                  ...set,
-                  stack,
-                  name: `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
+                ...res.series.map(set => {
+                  const name = `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
                     this.handleSeriesName(item, set) || set.target
-                  }`,
-                }))
+                  }`;
+                  if (this.apmMetric === EDataType.errorCount) {
+                    this.errorCountCategory[name] = (item as any)?.apm_time_series_category || '';
+                  }
+                  return {
+                    ...set,
+                    stack,
+                    name: name,
+                  };
+                })
               );
               this.clearErrorMsg();
               return true;
@@ -548,6 +557,7 @@ export default class ApmTimeSeries extends TimeSeries {
             appName={this.appName}
             dataType={this.apmMetric}
             dimensions={this.legendData?.map?.(item => item.name) || []}
+            errorCountCategory={this.errorCountCategory}
             panelTitle={this.panel.title}
             pointValueUnit={this.detailsUnit}
             serviceName={this.serviceName}
