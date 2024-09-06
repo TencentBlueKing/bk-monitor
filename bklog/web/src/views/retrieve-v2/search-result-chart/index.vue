@@ -118,6 +118,7 @@
   import indexSetSearchMixin from '@/mixins/indexSet-search-mixin';
   import axios from 'axios';
   import { debounce } from 'throttle-debounce';
+// import { nextTick } from 'vue';
   import { mapGetters } from 'vuex';
 
   const CancelToken = axios.CancelToken;
