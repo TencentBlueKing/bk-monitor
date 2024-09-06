@@ -810,7 +810,12 @@ class NodeColor(PostPlugin):
             value = node_data.get(data_type)
 
             if value is None:
-                node_data[self.id] = self.Color.WHITE
+                # 为 None 有两种情况 一种为无数据 一种为无异常
+                request_count = node_data.get(NodeRequestCount.id)
+                if request_count:
+                    node_data[self.id] = self.Color.GREEN
+                else:
+                    node_data[self.id] = self.Color.WHITE
             elif value == 0:
                 node_data[self.id] = self.Color.GREEN
             elif value < 0.1:
@@ -1156,7 +1161,7 @@ class TableViewConverter(ViewConverter):
                 "sortable": "custom",
                 "type": "number",
             },
-            {"id": "operators", "name": "操作", "type": "more_operate"},
+            {"id": "operators", "name": "操作", "type": "more_operate", "width": 80},
         ]
 
     def __init__(self, *args, **kwargs):

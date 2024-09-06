@@ -15,6 +15,7 @@ from typing import List, Type
 
 from django.utils.translation import ugettext_lazy as _
 
+from apm_web.constants import CategoryEnum
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.topo.constants import RelationResourcePath
 from apm_web.topo.handle.graph_plugin import NodeColor
@@ -54,7 +55,7 @@ class Layer:
             "start_time": self._runtime["start_time"],
             "end_time": self._runtime["end_time"],
             # + 1s 使接口能够完全覆盖 start_time 和 end_time 保持只返回一个元素
-            "step": f"{self._runtime['end_time'] - self._runtime['start_time'] + 1}s",
+            "step": f"{self._runtime['end_time'] - self._runtime['start_time']}s",
             "source_type": self.source_type.name,
             "target_type": self.target_type.name,
         }
@@ -95,20 +96,19 @@ class ResourceLayer(Layer):
             if item.get("code") != 200 or (self.source_path and item.get("path") != self.source_path):
                 continue
 
-            res.append(
-                Relation(
-                    parent_id=Source.calculate_id_from_dict(item["source_info"]),
-                    nodes=[
-                        Node(
-                            source_type=self.target_type.name,
-                            source_info=self.target_type.create(i),
-                        )
-                        for i in item["target_list"][0].get("items", [])
-                    ]
-                    if item.get("target_list")
-                    else [],
-                )
-            )
+            source_info_id = Source.calculate_id_from_dict(item["source_info"])
+            target_nodes = []
+            node_ids = []
+
+            for i in item.get("target_list", []):
+                for j in i.get("items", []):
+                    source_instance = self.target_type.create(j)
+                    if source_instance.id in node_ids:
+                        continue
+                    node_ids.append(source_instance.id)
+                    target_nodes.append(Node(source_type=self.target_type.name, source_info=source_instance))
+
+            res.append(Relation(parent_id=source_info_id, nodes=target_nodes))
 
         return res
 
@@ -184,6 +184,9 @@ class PathTemplateSidebar:
     _sidebar_index: int
     _tree: Node
     _tree_infos: List[TreeInfo]
+    _tree_info: TreeInfo
+    # 此侧边栏是否有节点数据
+    have_data: bool = False
     # ---
 
     id: str = None
@@ -250,22 +253,23 @@ class PathTemplateSidebar:
             )
         elif self.bind_source_type.name == SourceService.name:
             # 如果是服务 需要增加 icon 返回 并且不需要合并
-            r_nodes = [
-                {
-                    **i.info,
-                    "sidebar_id": self.id,
-                    "collapses": [],
-                    "color": NodeColor.Color.WHITE,
-                    "category": ServiceHandler.get_node(
-                        self._tree_info.runtime["bk_biz_id"],
-                        getattr(i.source_info, "apm_application_name"),
-                        getattr(i.source_info, "apm_service_name"),
-                    )
-                    .get("extra_data", {})
-                    .get("category"),
-                }
-                for i in nodes
-            ]
+            r_nodes = []
+            for i in nodes:
+                node = ServiceHandler.get_node(
+                    self._tree_info.runtime["bk_biz_id"],
+                    getattr(i.source_info, "apm_application_name"),
+                    getattr(i.source_info, "apm_service_name"),
+                    raise_exception=False,
+                )
+                r_nodes.append(
+                    {
+                        **i.info,
+                        "sidebar_id": self.id,
+                        "collapses": [],
+                        "color": NodeColor.Color.WHITE,
+                        "category": node.get("extra_data", {}).get("category") if node else CategoryEnum.OTHER,
+                    }
+                )
             error_count = 0
         else:
             # 其他类型不需要进行合并
@@ -325,13 +329,15 @@ class PathTemplateSidebar:
         return res, len(error_nodes)
 
     def _search_alert(self, query_string):
-        this_tree_info = next(i for i in self._tree_infos if i.root_id == self._tree.id)
+        if query_string == "()":
+            return []
+
         full_query_string = f"{query_string} AND status: ABNORMAL"
         query_params = {
-            "bk_biz_ids": [this_tree_info.runtime["bk_biz_id"]],
+            "bk_biz_ids": [self._tree_info.runtime["bk_biz_id"]],
             "query_string": full_query_string,
-            "start_time": this_tree_info.runtime["start_time"],
-            "end_time": this_tree_info.runtime["end_time"],
+            "start_time": self._tree_info.runtime["start_time"],
+            "end_time": self._tree_info.runtime["end_time"],
             "page_size": 1000,
         }
         return resource.fta_web.alert.search_alert(**query_params).get("alerts", [])
@@ -361,18 +367,17 @@ class PathTemplateSidebar:
         if not self._tree_infos:
             return options
 
-        this_tree_info = next(i for i in self._tree_infos if i.root_id == self._tree.id)
         # 可以替换的条件为:
         # 此 sidebar 绑定的 source_type 对应的 layer 在层级模板 layers 中有平替
         # (即 layer 在某个 pathTemplate 中层级和 layer 在此 tree 的 pathTemplate 中处于索引的位置一致并且有数据)
         for t in self._tree_infos:
-            if t == this_tree_info:
+            if t == self._tree_info:
                 continue
 
             other_path_template = PathProvider.get_template(t.paths)
             # TODO 这里其实还需要判断截止至 self._sidebar_index 前的元素绑定的资源是否都一致
             # TODO 现在只根据层级判断有问题 但是我们现在页面上层级是固定的所以不需要考虑这个问题
-            if len(other_path_template.sidebars) >= self._sidebar_index:
+            if len(other_path_template.sidebars) > self._sidebar_index:
                 other_path_template_sidebar = other_path_template.sidebars[self._sidebar_index]
                 if other_path_template_sidebar.name != self.name and Node.get_depth(self._tree) >= self._sidebar_index:
                     if t.layers_have_data[self._sidebar_index]:
@@ -382,10 +387,6 @@ class PathTemplateSidebar:
                         options.append(self.option_info())
 
         return options
-
-    @property
-    def _tree_info(self):
-        return next(i for i in self._tree_infos if i.root_id == self._tree.id)
 
 
 @dataclass
@@ -436,7 +437,7 @@ class PathTemplate:
     def to_tree_json(self, tree: Node, _):
         return asdict(tree)
 
-    def to_layers_json(self, tree: Node, tree_infos: List[TreeInfo]):
+    def to_layers_json(self, tree: Node, tree_info, tree_infos: List[TreeInfo]):
         sidebars = []
 
         # Step1: 先获取 tree 的所有边
@@ -445,7 +446,9 @@ class PathTemplate:
 
         sidebar_count_info = []
         for sidebar_index, sidebar in enumerate(self.sidebars):
-            sidebar_instance = sidebar(_sidebar_index=sidebar_index, _tree=tree, _tree_infos=tree_infos)  # noqa
+            sidebar_instance = sidebar(
+                _sidebar_index=sidebar_index, _tree=tree, _tree_infos=tree_infos, _tree_info=tree_info  # noqa
+            )
             # 获取侧边栏绑定的资源实体
             sidebar_layer_index = next(
                 (
@@ -460,6 +463,8 @@ class PathTemplate:
 
             # layer 层级与 layer_nodes 列表下标索引一致
             layer_nodes = Node.list_nodes_by_level(tree, sidebar_layer_index)
+            if layer_nodes:
+                sidebar_instance.have_data = True
             combine_layer_nodes, layer_error_count = sidebar_instance.combine_nodes(layer_nodes)
 
             all_layer_nodes.append(combine_layer_nodes)
@@ -492,12 +497,17 @@ class PathTemplate:
 
             if from_node_merged != to_node_merged:
                 merged_edge = (from_node_merged, to_node_merged)
-                merged_edges_mapping[merged_edge].append(edge)
+                merged_edges_mapping[merged_edge].append(
+                    {
+                        "source": from_node,
+                        "target": to_node,
+                    }
+                )
 
         return [
             {
-                "from": e[0],
-                "to": e[1],
+                "source": e[0],
+                "target": e[1],
                 "original": original_edges if len(original_edges) > 1 else [],
             }
             for e, original_edges in merged_edges_mapping.items()
@@ -509,6 +519,9 @@ class PathTemplate:
 
         group_mapping = defaultdict(dict)
         for index, i in enumerate(sidebar_instances):
+            if not i.have_data:
+                # 无数据时 不显示此侧边栏
+                continue
             if i.group.id in group_mapping:
                 group_mapping[i.group.id]["list"].append(
                     {
