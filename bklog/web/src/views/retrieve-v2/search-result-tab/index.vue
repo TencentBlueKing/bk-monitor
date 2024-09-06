@@ -15,7 +15,7 @@
     const list = [
       { name: 'origin', label: $t('原始日志') },
       { name: 'clustering', label: $t('日志聚类') },
-      // { name: 'chartAnalysis', label: $t('图表分析') },
+      { name: 'chartAnalysis', label: $t('图表分析') },
     ];
     return list;
   });
@@ -39,7 +39,7 @@
   <div class="retrieve-tab">
     <span
       v-for="item in panelList"
-      :class="['retrieve-panel', { activeClass: value === item.name }]"
+      :class="['retrieve-panel', { 'retrieve-after': isAfter(item) }, { activeClass: value === item.name }]"
       @click="handleActive(item.name)"
       >{{ item.label }}</span
     >
