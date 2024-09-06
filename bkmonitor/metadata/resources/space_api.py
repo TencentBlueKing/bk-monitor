@@ -64,7 +64,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             # 尝试从缓存获取, 解决 bkcc 业务层面快速获取空间信息的场景
             space = local_mem.get(f"metadata:spaces_map:{cache_key}", miss_cache)
             if space is not miss_cache:
-                return space
+                return SpaceDefine.from_dict(space)
 
         space_info = api.metadata.get_space_detail(**params)
         return cls._init_space(space_info)
@@ -81,8 +81,6 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                 for space_dict in cls.list_spaces_dict(using_cache=False)
             ]
             local_mem.set("metadata:list_spaces", ret, timeout=600)
-            for space in ret:
-                local_mem.set(f"metadata:spaces_map:{space.space_uid}", space, timeout=600)
         return ret
 
     @classmethod
@@ -140,6 +138,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                 display_name = f"[{space['space_id']}]{space['space_name']}"
             space["display_name"] = display_name + f" ({space['type_name']})"
 
+            local_mem.set(f"metadata:spaces_map:{space['space_uid']}", space, timeout=600)
         # 10min
         local_mem.set("metadata:list_spaces_dict", spaces, 600)
         return spaces
