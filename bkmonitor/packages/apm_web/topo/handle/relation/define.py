@@ -50,12 +50,21 @@ class Source:
         combined_string = '-'.join(f"{key}:{info[key]}" for key in sorted(info.keys()))
         return hashlib.md5(combined_string.encode()).hexdigest()
 
+    @property
+    def display_name(self):
+        """在页面上显示此资源时的显示名称"""
+        raise NotImplementedError
+
 
 @dataclass
 class SourceService(Source):
     apm_application_name: str
     apm_service_name: str
     name: str = SourceType.APM_SERVICE.value
+
+    @property
+    def display_name(self):
+        return self.apm_service_name
 
 
 @dataclass
@@ -65,11 +74,19 @@ class SourceServiceInstance(Source):
     apm_service_instance_name: str
     name: str = SourceType.APM_SERVICE_INSTANCE.value
 
+    @property
+    def display_name(self):
+        return self.apm_service_instance_name
+
 
 @dataclass
 class SourceSystem(Source):
     bk_target_ip: str
     name: str = SourceType.SYSTEM.value
+
+    @property
+    def display_name(self):
+        return self.bk_target_ip
 
 
 @dataclass
@@ -79,12 +96,20 @@ class SourceK8sPod(Source):
     pod: str
     name: str = SourceType.POD.value
 
+    @property
+    def display_name(self):
+        return self.pod
+
 
 @dataclass
 class SourceK8sNode(Source):
     bcs_cluster_id: str
     node: str
     name: str = SourceType.NODE.value
+
+    @property
+    def display_name(self):
+        return self.node
 
 
 @dataclass
@@ -93,6 +118,10 @@ class SourceK8sService(Source):
     namespace: str
     service: str
     name: str = SourceType.SERVICE.value
+
+    @property
+    def display_name(self):
+        return self.service
 
 
 @dataclass
@@ -134,6 +163,7 @@ class Node:
             "id": self.id,
             "source_type": self.source_type,
             "source_info": asdict(self.source_info),
+            "display_name": self.source_info.display_name,
         }
 
     @classmethod

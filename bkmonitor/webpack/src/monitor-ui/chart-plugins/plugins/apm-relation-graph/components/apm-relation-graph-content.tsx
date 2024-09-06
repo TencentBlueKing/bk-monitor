@@ -28,6 +28,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './apm-relation-graph-content.scss';
 
+const sideTopoMinWidth = 400;
+const sideOverviewMinWidth = 320;
+
 interface IProps {
   expanded?: string[];
 }
@@ -41,6 +44,11 @@ export default class ApmRelationGraphContent extends tsc<IProps> {
   isMouseenter = false;
   isDrop = false;
   downPageX = 0;
+  initialDivide = 0;
+
+  get onlyOverview() {
+    return this.expanded.length === 1 && this.expanded[0] === 'overview';
+  }
 
   @Watch('expanded', { immediate: true })
   handleWatchExpanded(newVal: string[]) {
@@ -59,25 +67,13 @@ export default class ApmRelationGraphContent extends tsc<IProps> {
     } else {
       this.width = 0;
     }
+    this.initialDivide = this.expanded.includes('overview') ? sideOverviewMinWidth : 0;
   }
 
   /* 侧栏拖转 ---start----- */
-  handleSideMouseenter() {
-    this.isMouseenter = true;
-  }
-  handleSideMouseleave() {
-    if (!this.isDrop) {
-      this.isMouseenter = false;
-    }
-  }
   handleContentMouseleave() {
     this.isMouseenter = false;
     this.isDrop = false;
-  }
-  handleSideMouseDown(event) {
-    this.isDrop = true;
-    this.downPageX = event.pageX;
-    this.oldWidth = this.width;
   }
   handleSideMousemove(event) {
     if (this.isDrop) {
@@ -102,7 +98,20 @@ export default class ApmRelationGraphContent extends tsc<IProps> {
     this.minWidth = width;
   }
 
-  /* 侧栏拖转 ---end----- */
+  handleSideMouseenter() {
+    this.isMouseenter = true;
+  }
+  handleSideMouseleave() {
+    if (!this.isDrop) {
+      this.isMouseenter = false;
+    }
+  }
+  handleSideMouseDown(event) {
+    this.isDrop = true;
+    this.downPageX = event.pageX;
+    this.oldWidth = this.width;
+  }
+
   render() {
     return (
       <div class='apm-relation-graph-content'>
@@ -135,7 +144,76 @@ export default class ApmRelationGraphContent extends tsc<IProps> {
                   ))}
                 </div>
               </div>
-              {this.$slots?.side}
+              <div
+                style={{
+                  display: this.expanded.length >= 2 ? 'flex' : 'none',
+                }}
+                class='side-wrap'
+              >
+                <bk-resize-layout
+                  initial-divide={this.initialDivide}
+                  min={sideOverviewMinWidth}
+                  placement='right'
+                >
+                  <div
+                    style={{
+                      minWidth: `${sideTopoMinWidth}px`,
+                      display: this.expanded.includes('topo') ? 'block' : 'none',
+                    }}
+                    class='source-topo side1___'
+                    slot='main'
+                  >
+                    {this.$slots?.side1}
+                  </div>
+                  <div
+                    style={{
+                      minWidth: `${sideOverviewMinWidth}px`,
+                      display: this.expanded.includes('overview') ? 'block' : 'none',
+                      // width: this.side2Width ? `${this.side2Width}px` : 'auto',
+                    }}
+                    class={[
+                      'service-overview side2___',
+                      'overview-w-auto',
+                      { 'no-border': !this.expanded.includes('topo') },
+                    ]}
+                    slot='aside'
+                  >
+                    {this.$slots?.side2}
+                  </div>
+                </bk-resize-layout>
+              </div>
+              <div
+                style={{
+                  display: !(this.expanded.length >= 2) ? 'flex' : 'none',
+                }}
+                class='side-wrap'
+              >
+                <div
+                  key={'01'}
+                  style={{
+                    minWidth: `${sideTopoMinWidth}px`,
+                    display: this.expanded.includes('topo') ? 'block' : 'none',
+                  }}
+                  class='source-topo side1___'
+                >
+                  {this.$slots?.side1}
+                </div>
+                <div
+                  key={'02'}
+                  style={{
+                    minWidth: `${sideOverviewMinWidth}px`,
+                    display: this.expanded.includes('overview') ? 'block' : 'none',
+                  }}
+                  class={[
+                    'service-overview side2___',
+                    { 'no-border': !this.expanded.includes('topo') },
+                    { 'overview-w-auto': this.onlyOverview },
+                  ]}
+                  slot='side2'
+                >
+                  {this.$slots?.side2}
+                </div>
+              </div>
             </div>
           )}
         </div>

@@ -231,7 +231,8 @@
                 }
               ]
             }
-          }
+          },
+          "apm_time_series_category": "http"
         },
         {
           "data_type": "time_series",
@@ -283,6 +284,7 @@
                 "functions": []
               }
             ],
+            "stack": "all",
             "unify_query_param": {
               "type": "range",
               "stack": "all",
@@ -330,7 +332,8 @@
                 }
               ]
             }
-          }
+          },
+          "apm_time_series_category": "rpc"
         },
         {
           "data_type": "time_series",
@@ -373,6 +376,7 @@
                 "functions": []
               }
             ],
+            "stack": "all",
             "unify_query_param": {
               "stack": "all",
               "expression": "A",

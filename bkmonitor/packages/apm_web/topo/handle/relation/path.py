@@ -185,6 +185,8 @@ class PathTemplateSidebar:
     _tree: Node
     _tree_infos: List[TreeInfo]
     _tree_info: TreeInfo
+    # 此侧边栏是否有节点数据
+    have_data: bool = False
     # ---
 
     id: str = None
@@ -461,6 +463,8 @@ class PathTemplate:
 
             # layer 层级与 layer_nodes 列表下标索引一致
             layer_nodes = Node.list_nodes_by_level(tree, sidebar_layer_index)
+            if layer_nodes:
+                sidebar_instance.have_data = True
             combine_layer_nodes, layer_error_count = sidebar_instance.combine_nodes(layer_nodes)
 
             all_layer_nodes.append(combine_layer_nodes)
@@ -493,7 +497,12 @@ class PathTemplate:
 
             if from_node_merged != to_node_merged:
                 merged_edge = (from_node_merged, to_node_merged)
-                merged_edges_mapping[merged_edge].append(edge)
+                merged_edges_mapping[merged_edge].append(
+                    {
+                        "source": from_node,
+                        "target": to_node,
+                    }
+                )
 
         return [
             {
@@ -510,6 +519,9 @@ class PathTemplate:
 
         group_mapping = defaultdict(dict)
         for index, i in enumerate(sidebar_instances):
+            if not i.have_data:
+                # 无数据时 不显示此侧边栏
+                continue
             if i.group.id in group_mapping:
                 group_mapping[i.group.id]["list"].append(
                     {
