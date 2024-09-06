@@ -130,5 +130,11 @@ class TopoLinkType(ChoicesEnum):
     """拓扑图中可供跳转的链接日期"""
 
     ALERT = "alert"
+    TOPO_SOURCE = "topo_source"
 
-    _choices_labels = (ALERT, _("跳转到告警中心"))
+    _choices_labels = (
+        ALERT,
+        _("跳转到告警中心"),
+        TOPO_SOURCE,
+        _("资源拓扑链接跳转处理"),
+    )

@@ -9,9 +9,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from apm_web.topo.constants import TopoLinkType
+from apm_web.topo.constants import SourceType, TopoLinkType
 from apm_web.topo.handle.bar_query import BarQuery, LinkHelper
 from apm_web.topo.handle.graph_query import GraphQuery
+from apm_web.topo.handle.relation.define import SourceSystem
 from apm_web.topo.handle.relation.detail import NodeRelationDetailHandler
 from apm_web.topo.handle.relation.entrance import EndpointListEntrance, RelationEntrance
 from apm_web.topo.serializers import (
@@ -37,8 +38,10 @@ class DataTypeBarQueryResource(Resource):
     RequestSerializer = DataTypeBarQueryRequestSerializer
 
     def perform_request(self, validated_request_data):
-        extra_params = {"endpoint_name": validated_request_data.pop("endpoint_name", None)}
-        return BarQuery(**validated_request_data, extra_params=extra_params).execute()
+        return BarQuery(
+            **validated_request_data,
+            endpoint_name=validated_request_data.pop("endpoint_name", None),
+        ).execute()
 
 
 class TopoViewResource(Resource):
@@ -101,19 +104,44 @@ class TopoLinkResource(Resource):
         }
         if validated_request_data["link_type"] == TopoLinkType.ALERT.value:
             # 获取 服务 or 接口的告警中心跳转链接
-            if validated_request_data.get("service_name"):
-                if validated_request_data.get("endpoint_name"):
-                    return LinkHelper.get_endpoint_alert_link(
-                        **params,
-                        service_name=validated_request_data["service_name"],
-                        endpoint_name=validated_request_data["endpoint_name"],
-                    )
-                else:
-                    return LinkHelper.get_service_alert_link(
-                        **params, service_name=validated_request_data["service_name"]
-                    )
+            if validated_request_data.get("endpoint_name"):
+                return LinkHelper.get_endpoint_alert_link(
+                    **params,
+                    service_name=validated_request_data["service_name"],
+                    endpoint_name=validated_request_data["endpoint_name"],
+                )
+            else:
+                return LinkHelper.get_service_alert_link(**params, service_name=validated_request_data["service_name"])
 
-            raise ValueError(f"[获取链接]缺少链接类型为: {validated_request_data['link_type']} 的参数")
+        elif validated_request_data["link_type"] == TopoLinkType.TOPO_SOURCE.value:
+            # 根据资源类型获取不同的跳转链接
+            source_type = validated_request_data["source_type"]
+            if source_type == SourceType.SERVICE.value:
+                return LinkHelper.get_service_monitor_link(
+                    validated_request_data["source_info"]["bcs_cluster_id"],
+                    validated_request_data["source_info"]["namespace"],
+                    validated_request_data["source_info"]["service"],
+                    validated_request_data["start_time"],
+                    validated_request_data["end_time"],
+                )
+            elif source_type == SourceType.POD.value:
+                return LinkHelper.get_service_monitor_link(
+                    validated_request_data["source_info"]["bcs_cluster_id"],
+                    validated_request_data["source_info"]["namespace"],
+                    validated_request_data["source_info"]["pod"],
+                    validated_request_data["start_time"],
+                    validated_request_data["end_time"],
+                )
+            elif source_type == SourceType.SYSTEM.value:
+                bk_host_id = SourceSystem.get_bk_host_id(
+                    validated_request_data["bk_biz_id"],
+                    validated_request_data["source_info"]["bk_target_ip"],
+                )
+                return LinkHelper.get_host_monitor_link(
+                    bk_host_id,
+                    validated_request_data["start_time"],
+                    validated_request_data["end_time"],
+                )
 
         raise ValueError(f"不支持获取: {validated_request_data['link_type']}类型的链接")
 
