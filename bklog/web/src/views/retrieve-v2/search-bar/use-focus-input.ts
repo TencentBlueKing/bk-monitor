@@ -23,10 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted, getCurrentInstance, onUnmounted } from 'vue';
+
+import { getCharLength } from '@/common/util';
+
 export default (props, formatModelValueItem: (val, index) => object) => {
   const modelValue = ref([]);
-
+  const inputValue = ref('');
+  const INPUT_MIN_WIDTH = 12;
   /**
    * 点击操作设置输入框位置
    * @param {*} index
@@ -53,6 +57,45 @@ export default (props, formatModelValueItem: (val, index) => object) => {
     modelValue.value = (val ?? []).map(formatModelValueItem);
   };
 
+  let instance = undefined;
+
+  const getTargetInput = () => {
+    const target = instance?.proxy?.$el;
+    const input = target?.querySelector('.tag-option-focus-input');
+    return input as HTMLInputElement;
+  };
+
+  const getRoot = () => {
+    return instance?.proxy?.$el;
+  };
+
+  const handleContainerClick = e => {
+    const root = getRoot();
+    if (root !== undefined && root === e.target) {
+      const input = root.querySelector('.tag-option-focus-input');
+      input?.focus();
+      input?.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
+      return input;
+    }
+  };
+
+  const handleFulltextInput = e => {
+    const input = getTargetInput();
+    if (input !== undefined && e.target === input) {
+      const value = input.value;
+      const charLen = getCharLength(value);
+      input.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
+    }
+  };
+
+  const handleInputBlur = e => {
+    const input = getTargetInput();
+    if (input !== undefined && e.target === input) {
+      input.value = '';
+      input?.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
+    }
+  };
+
   watch(
     props.value,
     val => {
@@ -62,5 +105,17 @@ export default (props, formatModelValueItem: (val, index) => object) => {
     { deep: true, immediate: true },
   );
 
-  return { modelValue, props };
+  onMounted(() => {
+    instance = getCurrentInstance();
+
+    document?.addEventListener('click', handleContainerClick);
+    document?.addEventListener('input', handleFulltextInput);
+  });
+
+  onUnmounted(() => {
+    document?.removeEventListener('click', handleContainerClick);
+    document?.removeEventListener('input', handleFulltextInput);
+  });
+
+  return { modelValue, inputValue, handleContainerClick, handleInputBlur };
 };

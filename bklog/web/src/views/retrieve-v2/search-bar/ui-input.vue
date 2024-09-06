@@ -30,7 +30,7 @@
     return { ...item, operator_label: label, disabled: false };
   };
 
-  const { modelValue } = useFocusInput(props, formatModelValueItem);
+  const { modelValue, inputValue, handleContainerClick, handleInputBlur } = useFocusInput(props, formatModelValueItem);
   const emit = defineEmits(['input', 'change']);
   const store = useStore();
   const { $t } = useLocale();
@@ -49,7 +49,6 @@
   const refPopInstance = ref(null);
   const refUlRoot = ref(null);
   const queryItem = ref('');
-  const fullTextValue = ref('');
   const activeIndex = ref(null);
   const isInputFocus = ref(false);
   const isOptionShowing = ref(false);
@@ -63,12 +62,6 @@
     }
   };
 
-  const handleContainerClick = e => {
-    const input = e.target?.querySelector('.tag-option-focus-input');
-    input?.focus();
-    input?.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
-    return input;
-  };
 
   let delayItemClickFn = undefined;
 
@@ -162,7 +155,7 @@
             field: '',
             operator: 'contains',
             isInclude: true,
-            value: [fullTextValue.value],
+            value: [inputValue.value],
             relation: 'AND',
             disabled: false,
           }
@@ -195,19 +188,13 @@
     emitChange(modelValue.value);
   };
 
+  const handleFullTextInputBlur = e => {
+    inputValue.value = '';
+    handleInputBlur(e);
+  }
+
   const handleCancelClick = () => {
     tippyInstance.hide();
-  };
-
-  const handleFulltextInput = e => {
-    const value = e.target.value;
-    const charLen = getCharLength(value);
-    e.target.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
-  };
-
-  const handleFullTextInputBlur = e => {
-    fullTextValue.value = '';
-    e.target?.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
   };
 
   const handleFocusInput = e => {
@@ -225,7 +212,6 @@
   <ul
     ref="refUlRoot"
     class="search-items"
-    @click.stop="handleContainerClick"
   >
     <li
       class="search-item btn-add"
@@ -279,11 +265,10 @@
       <template v-else>
         <input
           class="tag-option-focus-input"
-          v-model="fullTextValue"
+          v-model="inputValue"
           type="text"
-          @blur="handleFullTextInputBlur"
           @focus.stop="handleFocusInput"
-          @input="handleFulltextInput"
+          @blur="handleFullTextInputBlur"
         />
       </template>
     </li>
