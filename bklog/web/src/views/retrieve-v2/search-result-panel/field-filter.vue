@@ -112,7 +112,7 @@
   };
   const emit = defineEmits(['retract']);
   const handleRetract = () => {
-    emit('toggle-change',false)
+    emit('isOpen-change',false)
   }
 
   watch(

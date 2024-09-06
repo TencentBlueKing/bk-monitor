@@ -33,13 +33,18 @@
     <div style="display: flex">
       <div
         class="chart-title"
-        @click="handleOpen"
         v-if="!isOpen"
       >
-        <span class="chart-text">
+        <span
+          class="chart-text"
+          @click="handleOpen"
+        >
           {{ $t('查询结果统计') }}
         </span>
-        <span class="bklog-icon bklog-collapse-small field-filter-icon"></span>
+        <span
+          @click="handleOpen"
+          class="bklog-icon bklog-collapse-small"
+        ></span>
       </div>
       <chart-title
         ref="chartTitle"
@@ -118,7 +123,7 @@
   import indexSetSearchMixin from '@/mixins/indexSet-search-mixin';
   import axios from 'axios';
   import { debounce } from 'throttle-debounce';
-// import { nextTick } from 'vue';
+  // import { nextTick } from 'vue';
   import { mapGetters } from 'vuex';
 
   const CancelToken = axios.CancelToken;
@@ -272,7 +277,7 @@
     },
     methods: {
       handleOpen() {
-        this.$emit('toggle-change', true);
+        this.$emit('isOpen-change', true);
       },
       /** 图表请求中断函数 */
       logChartCancel() {},

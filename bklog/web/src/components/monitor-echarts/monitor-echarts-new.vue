@@ -491,7 +491,7 @@
       this.needObserver = false;
       try {
         const isRange = startTime && startTime.length > 0 && endTime && endTime.length > 0;
-        let data = await this.getSeriesData(startTime, endTime, isRange).catch(() => ({ series: [] }));
+        const data = await this.getSeriesData(startTime, endTime, isRange).catch(() => ({ series: [] }));
         this.isFinish = data ? data[0]?.isFinish : true;
         !this.chart && this.initChart();
         if (

@@ -28,6 +28,7 @@
   };
   const isOpen = ref(true);
   const changeState = val => {
+    console.log(val);
     isOpen.value = val;
   };
 </script>
@@ -37,14 +38,14 @@
     <FieldFilter
       v-if="isOpen"
       v-bkloading="{ isLoading: isFilterLoading }"
-      @toggle-change="changeState"
+      @isOpen-change="changeState"
     ></FieldFilter>
-    <div :class="['search-result-content', { 'is-trend-chart-show': isTrendChartShow }]">
+    <div :class="['search-result-content', { 'is-trend-chart-show': isTrendChartShow }]" :style="{width:isOpen?'calc(100% - 330px)':'100%'}">
       <SearchResultChart
         :isOpen="isOpen"
         @change-queue-res="changeQueueRes"
         @change-total-count="changeTotalCount"
-        @toggle-change="changeState"
+        @isOpen-change="changeState"
       ></SearchResultChart>
       <div class="split-line"></div>
       <keep-alive>
