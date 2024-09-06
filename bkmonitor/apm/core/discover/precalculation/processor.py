@@ -51,15 +51,11 @@ class PrecalculateProcessor:
         self.app_name = app_name
         self.storage = storage
         self.application = ApmApplication.get_application(bk_biz_id=bk_biz_id, app_name=app_name)
-        space_info = {i.bk_biz_id: i for i in SpaceApi.list_spaces()}
-        if bk_biz_id in space_info:
-            bk_biz_name = space_info[bk_biz_id].space_name
-        else:
-            bk_biz_name = bk_biz_id
+        space = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
+        bk_biz_name = space.space_name
         self.bk_biz_name = bk_biz_name
 
     def handle(self, all_span):
-
         trace_mapping = group_by(all_span, operator.itemgetter(OtlpKey.TRACE_ID))
 
         logger.info(f"[PrecalculateProcessor] group by total {len(trace_mapping)} trace")
@@ -80,7 +76,6 @@ class PrecalculateProcessor:
         self.storage.save(data)
 
     def get_status_code(self, span):
-
         for i in [SpanAttributes.HTTP_STATUS_CODE, SpanAttributes.RPC_GRPC_STATUS_CODE]:
             if i in span[OtlpKey.ATTRIBUTES]:
                 return span[OtlpKey.ATTRIBUTES][i]
@@ -252,7 +247,6 @@ class PrecalculateProcessor:
         return res
 
     def collect(self, collections, span):
-
         for f in SpanStandardField.COMMON_STANDARD_FIELDS:
             v = span[f.source]
             if isinstance(v, dict):

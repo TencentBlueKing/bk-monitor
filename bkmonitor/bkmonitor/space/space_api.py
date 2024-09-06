@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
 from typing import List, Union
 
 from django.conf import settings
@@ -31,6 +32,17 @@ class Empty:
 miss_cache = Empty()
 
 
+def enrich_space_display_name(space_dict):
+    # display_name
+    # [cc-auto]配置发现
+    display_name = f"[{space_dict['space_id']}]{space_dict['space_name']}"
+    if space_dict['space_type_id'] == SpaceTypeEnum.BKCC.value:
+        # [2]蓝鲸
+        display_name = f"[{space_dict['space_id']}]{space_dict['space_name']}"
+    space_dict["display_name"] = display_name + f" ({space_dict['type_name']})"
+    return
+
+
 class InjectSpaceApi(space_api.AbstractSpaceApi):
     @classmethod
     def _init_space(cls, space_dict: dict) -> SpaceDefine:
@@ -39,6 +51,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         for st in space_type_list:
             if st["type_id"] == space_dict["space_type_id"]:
                 space_dict.update(st)
+        enrich_space_display_name(space_dict)
         return SpaceDefine.from_dict(space_dict)
 
     @classmethod
@@ -130,15 +143,22 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                 space["bk_biz_id"] = int(space["space_id"])
             # is_demo
             space["is_demo"] = space["bk_biz_id"] == int(settings.DEMO_BIZ_ID or 0)
-            # display_name
-            # [cc-auto]配置发现
-            display_name = f"[{space['space_id']}]{space['space_name']}"
-            if space['space_type_id'] == SpaceTypeEnum.BKCC.value:
-                # [2]蓝鲸
-                display_name = f"[{space['space_id']}]{space['space_name']}"
-            space["display_name"] = display_name + f" ({space['type_name']})"
+            enrich_space_display_name(space)
 
             local_mem.set(f"metadata:spaces_map:{space['space_uid']}", space, timeout=600)
         # 10min
         local_mem.set("metadata:list_spaces_dict", spaces, 600)
         return spaces
+
+    @classmethod
+    def list_sticky_spaces(cls, username):
+        sql = """SELECT `metadata_spacestickyinfo`.`space_uid_list`
+        FROM `metadata_spacestickyinfo`
+        WHERE `metadata_spacestickyinfo`.`username` = %s
+        """
+        with connections["monitor_api"].cursor() as cursor:
+            cursor.execute(sql, (username,))
+            sticky_spaces = cursor.fetchone() or []
+            if sticky_spaces:
+                sticky_spaces = json.loads(sticky_spaces[0])
+            return sticky_spaces
