@@ -726,7 +726,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               </div>
             </div>
             <div class='content-wrap'>
-              <resource-topo serviceName={this.selectedServiceName} />
+              <resource-topo serviceName={this.expanded.includes('topo') ? this.selectedServiceName : ''} />
             </div>
           </template>
           <template slot='side2'>
