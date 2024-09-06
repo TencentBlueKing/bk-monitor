@@ -76,6 +76,7 @@ interface IProps {
   panelTitle?: string;
   dimensions?: string[];
   pointValueUnit?: string;
+  errorCountCategory?: Record<string, string>;
   onClose?: () => void;
 }
 
@@ -94,6 +95,7 @@ export default class DetailsSide extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) dimensions: string[];
   @Prop({ type: String, default: '' }) panelTitle: string;
   @Prop({ type: String, default: '' }) pointValueUnit: string;
+  @Prop({ type: Object, default: () => ({}) }) errorCountCategory: Record<string, string>;
 
   loading = false;
   sourceTableData = [];
@@ -247,6 +249,8 @@ export default class DetailsSide extends tsc<IProps> {
     this.loading = true;
     this.tableKey = random(8);
     const [startTime, endTime] = handleTransformToTimestamp(this.localTimeRange);
+    const dimensionCategory =
+      this.dataType === EDataType.errorCount ? this.errorCountCategory?.[this.selected] || '' : '';
     const data = await metricDetailStatistics({
       app_name: this.appName,
       start_time: startTime,
@@ -255,6 +259,7 @@ export default class DetailsSide extends tsc<IProps> {
       data_type: this.dataType,
       dimension: this.selected,
       service_name: this.serviceName,
+      dimension_category: dimensionCategory || undefined,
     }).catch(() => ({ data: [], columns: [] }));
     this.sourceTableData = Object.freeze(
       data.data.map(item => {

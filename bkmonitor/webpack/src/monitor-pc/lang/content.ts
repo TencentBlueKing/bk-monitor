@@ -262,4 +262,5 @@ export default {
   总调用错误率: 'Total Error Rate',
   对比数据: 'Compare Data',
   资源拓扑: 'Resource Topo',
+  总数量: 'Total',
 };
