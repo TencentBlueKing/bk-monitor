@@ -262,6 +262,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
                   ...(panel?.options?.apm_time_series || {}),
                   xAxisSplitNumber: 3,
                   disableZoom: true,
+                  sceneType: 'overview',
                 },
               },
               dashboardId: this.serviceTabData.dashboardId,
