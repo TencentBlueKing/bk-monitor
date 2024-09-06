@@ -45,6 +45,7 @@ import type { ITagInfoType } from './types';
 
 const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
 import './failure.scss';
+
 export const commonAlertFieldMap = {
   status: [
     {
