@@ -74,7 +74,7 @@ class DataSource(models.Model):
 
     bk_data_id = models.AutoField("数据源ID", primary_key=True)
     # data_source的token, 用于供各个自定义上报对data_id进行校验，防止恶意上报, 但是对于已有的data_id由于不是自定义，不做处理
-    token = models.CharField("上报校验token", max_length=32, default="")
+    token = models.CharField("上报校验token", max_length=256, default="")
     data_name = models.CharField("数据源名称", max_length=128, db_index=True, unique=True)
     data_description = models.TextField("数据源描述")
     # 对应StorageCluster 记录ID

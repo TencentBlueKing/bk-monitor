@@ -20,7 +20,6 @@ from bkmonitor.utils.cipher import transform_data_id_to_token
 from metadata.models import (
     ClusterInfo,
     DataSource,
-    DataSourceResultTable,
     Label,
     ResultTable,
     Space,
@@ -46,9 +45,9 @@ def sync_relation_redis_data():
         key = field.decode('utf-8')
         space_type, space_id = key.split('__')  # 分割出space_type和space_id
         biz_id = space_id if space_type == "bkcc" else Space.objects.get_biz_id_by_space(space_type, space_id)
-        # bkmonitor_{space_type}_{space_id}_built_in_time_series.__default__
-        data_name = "bkmonitor_{}_{}_built_in_time_series".format(space_type, space_id)
-        table_id = "bkmonitor_{}_{}_built_in_time_series.__default__".format(space_type, space_id)
+        # {space_type}_{space_id}_built_in_time_series.__default__
+        data_name = "{}_{}_built_in_time_series".format(space_id, space_type)
+        table_id = "{}_{}_built_in_time_series.__default__".format(space_id, space_type)
         token = value_dict.get('token')
         modify_time = value_dict.get('modifyTime')  # noqa
         logger.info("Start sync builtin redis data, field={}".format(key))
@@ -58,8 +57,8 @@ def sync_relation_redis_data():
             if not token:
                 try:
                     logger.info("Field {} RT exist but token is empty,start generate token".format(key))
-                    dsrt = DataSourceResultTable.objects.get(table_id=table_id)  # 根据RT查询data_id
-                    data_id = dsrt.bk_data_id
+                    ds = DataSource.objects.get(data_name=data_name)
+                    data_id = ds.bk_data_id
                     new_modify_time = str(int(time.time()))
                     generated_token = transform_data_id_to_token(
                         metric_data_id=data_id, bk_biz_id=biz_id, app_name=data_name
@@ -67,7 +66,7 @@ def sync_relation_redis_data():
                     # 更新Redis中的Token和modifyTime
                     value_dict['token'] = generated_token
                     # DS中的Token也需要更新
-                    ds = DataSource.objects.get(bk_data_id=dsrt.bk_data_id)
+                    ds = DataSource.objects.get(bk_data_id=data_id)
                     ds.token = generated_token
                     ds.save()
                     value_dict['modifyTime'] = new_modify_time
