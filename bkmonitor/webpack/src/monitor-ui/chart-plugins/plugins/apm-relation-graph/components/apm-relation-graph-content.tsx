@@ -38,13 +38,14 @@ interface IProps {
 export default class ApmRelationGraphContent extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) expanded: string[];
   /* 侧栏拖拽 */
-  minWidth = 720;
-  width = 720;
-  oldWidth = 720;
+  oldWidth = 0;
   isMouseenter = false;
   isDrop = false;
   downPageX = 0;
-  initialDivide = 0;
+  sideTopoWidth = sideTopoMinWidth;
+  sideOverviewWidth = sideOverviewMinWidth;
+  dropType = '';
+  hoverType = '';
 
   get onlyOverview() {
     return this.expanded.length === 1 && this.expanded[0] === 'overview';
@@ -52,22 +53,8 @@ export default class ApmRelationGraphContent extends tsc<IProps> {
 
   @Watch('expanded', { immediate: true })
   handleWatchExpanded(newVal: string[]) {
-    if (newVal.length) {
-      let width = 0;
-      for (const key of newVal) {
-        if (key === 'overview') {
-          width += 320;
-        }
-        if (key === 'topo') {
-          width += 400;
-        }
-      }
-      this.width = width;
-      this.minWidth = width;
-    } else {
-      this.width = 0;
-    }
-    this.initialDivide = this.expanded.includes('overview') ? sideOverviewMinWidth : 0;
+    this.sideOverviewWidth = newVal.includes('overview') ? this.sideOverviewWidth || sideOverviewMinWidth : 0;
+    this.sideTopoWidth = newVal.includes('topo') ? this.sideTopoWidth || sideTopoMinWidth : 0;
   }
 
   /* 侧栏拖转 ---start----- */
@@ -78,38 +65,46 @@ export default class ApmRelationGraphContent extends tsc<IProps> {
   handleSideMousemove(event) {
     if (this.isDrop) {
       const width = this.oldWidth + (this.downPageX - event.pageX);
-      if (width < this.minWidth) {
-        this.width = this.minWidth;
-      } else {
-        this.width = this.oldWidth + (this.downPageX - event.pageX);
+      if (this.dropType === 'overview') {
+        if (width < sideOverviewMinWidth) {
+          this.sideOverviewWidth = sideOverviewMinWidth;
+        }
+        this.sideOverviewWidth = width;
+      }
+      if (this.dropType === 'topo') {
+        if (width < sideTopoMinWidth) {
+          this.sideTopoWidth = sideTopoMinWidth;
+        }
+        this.sideTopoWidth = width;
       }
     }
   }
   handleSideMouseup() {
+    this.dropType = '';
     this.isDrop = false;
     this.isMouseenter = false;
     this.downPageX = 0;
   }
 
-  setWidth(width) {
-    this.width = width;
-  }
-  setMinWidth(width) {
-    this.minWidth = width;
-  }
-
-  handleSideMouseenter() {
+  handleSideMouseenter(type) {
     this.isMouseenter = true;
+    this.hoverType = type;
   }
   handleSideMouseleave() {
     if (!this.isDrop) {
       this.isMouseenter = false;
     }
+    this.hoverType = '';
   }
-  handleSideMouseDown(event) {
+  handleSideMouseDown(event, type) {
+    this.dropType = type;
     this.isDrop = true;
     this.downPageX = event.pageX;
-    this.oldWidth = this.width;
+    if (type === 'topo') {
+      this.oldWidth = this.$el.querySelector('.side1______').clientWidth;
+    } else {
+      this.oldWidth = this.$el.querySelector('.side2______').clientWidth;
+    }
   }
 
   render() {
@@ -122,100 +117,62 @@ export default class ApmRelationGraphContent extends tsc<IProps> {
           onMouseup={this.handleSideMouseup}
         >
           <div class='main-content'>{this.$slots?.default}</div>
-          {!!this.width && (
+          <div
+            style={{
+              'min-width': `${sideTopoMinWidth}px`,
+              width: `${this.sideTopoWidth}px`,
+              display: this.sideTopoWidth ? 'block' : 'none',
+            }}
+            class={[
+              'side-topo side-content side1______',
+              { 'drop-active': (this.isMouseenter && this.dropType === 'topo') || this.hoverType === 'topo' },
+            ]}
+          >
             <div
-              style={{
-                width: `${this.width}px`,
-              }}
-              class={['side-content', { 'drop-active': this.isMouseenter }]}
+              class='side-drop-wrap'
+              onMousedown={e => this.handleSideMouseDown(e, 'topo')}
+              onMouseenter={() => this.handleSideMouseenter('topo')}
+              onMouseleave={this.handleSideMouseleave}
             >
-              <div
-                class='side-drop-wrap'
-                onMousedown={this.handleSideMouseDown}
-                onMouseenter={this.handleSideMouseenter}
-                onMouseleave={this.handleSideMouseleave}
-              >
-                <div class='drop-point'>
-                  {new Array(5).fill(null).map((_, index) => (
-                    <div
-                      key={index}
-                      class='point'
-                    />
-                  ))}
-                </div>
-              </div>
-              <div
-                style={{
-                  display: this.expanded.length >= 2 ? 'flex' : 'none',
-                }}
-                class='side-wrap'
-              >
-                <bk-resize-layout
-                  initial-divide={this.initialDivide}
-                  min={sideOverviewMinWidth}
-                  placement='right'
-                >
+              <div class='drop-point'>
+                {new Array(5).fill(null).map((_, index) => (
                   <div
-                    style={{
-                      minWidth: `${sideTopoMinWidth}px`,
-                      display: this.expanded.includes('topo') ? 'block' : 'none',
-                    }}
-                    class='source-topo side1___'
-                    slot='main'
-                  >
-                    {this.$slots?.side1}
-                  </div>
-                  <div
-                    style={{
-                      minWidth: `${sideOverviewMinWidth}px`,
-                      display: this.expanded.includes('overview') ? 'block' : 'none',
-                      // width: this.side2Width ? `${this.side2Width}px` : 'auto',
-                    }}
-                    class={[
-                      'service-overview side2___',
-                      'overview-w-auto',
-                      { 'no-border': !this.expanded.includes('topo') },
-                    ]}
-                    slot='aside'
-                  >
-                    {this.$slots?.side2}
-                  </div>
-                </bk-resize-layout>
-              </div>
-              <div
-                style={{
-                  display: !(this.expanded.length >= 2) ? 'flex' : 'none',
-                }}
-                class='side-wrap'
-              >
-                <div
-                  key={'01'}
-                  style={{
-                    minWidth: `${sideTopoMinWidth}px`,
-                    display: this.expanded.includes('topo') ? 'block' : 'none',
-                  }}
-                  class='source-topo side1___'
-                >
-                  {this.$slots?.side1}
-                </div>
-                <div
-                  key={'02'}
-                  style={{
-                    minWidth: `${sideOverviewMinWidth}px`,
-                    display: this.expanded.includes('overview') ? 'block' : 'none',
-                  }}
-                  class={[
-                    'service-overview side2___',
-                    { 'no-border': !this.expanded.includes('topo') },
-                    { 'overview-w-auto': this.onlyOverview },
-                  ]}
-                  slot='side2'
-                >
-                  {this.$slots?.side2}
-                </div>
+                    key={index}
+                    class='point'
+                  />
+                ))}
               </div>
             </div>
-          )}
+            {this.$slots?.side1}
+          </div>
+          <div
+            style={{
+              'min-width': `${sideOverviewMinWidth}px`,
+              width: `${this.sideOverviewWidth}px`,
+              display: this.sideOverviewWidth ? 'block' : 'none',
+            }}
+            class={[
+              'side-overview side-content side2______',
+              { 'drop-active': (this.isMouseenter && this.dropType === 'overview') || this.hoverType === 'overview' },
+            ]}
+          >
+            <div
+              class='side-drop-wrap'
+              onMousedown={e => this.handleSideMouseDown(e, 'overview')}
+              onMouseenter={() => this.handleSideMouseenter('overview')}
+              onMouseleave={this.handleSideMouseleave}
+            >
+              <div class='drop-point'>
+                {new Array(5).fill(null).map((_, index) => (
+                  <div
+                    key={index}
+                    class='point'
+                  />
+                ))}
+              </div>
+            </div>
+            {this.$slots?.side2}
+          </div>
         </div>
       </div>
     );
