@@ -52,7 +52,7 @@ class PrecalculateProcessor:
         self.storage = storage
         self.application = ApmApplication.get_application(bk_biz_id=bk_biz_id, app_name=app_name)
         space = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
-        bk_biz_name = space.space_name
+        bk_biz_name = space.display_name
         self.bk_biz_name = bk_biz_name
 
     def handle(self, all_span):
