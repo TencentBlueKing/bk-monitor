@@ -1161,7 +1161,7 @@ class TableViewConverter(ViewConverter):
                 "sortable": "custom",
                 "type": "number",
             },
-            {"id": "operators", "name": "操作", "type": "more_operate"},
+            {"id": "operators", "name": "操作", "type": "more_operate", "width": 80},
         ]
 
     def __init__(self, *args, **kwargs):

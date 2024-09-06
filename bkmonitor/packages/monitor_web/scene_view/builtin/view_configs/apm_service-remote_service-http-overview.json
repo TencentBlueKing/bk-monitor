@@ -283,6 +283,7 @@
                 "functions": []
               }
             ],
+            "stack": "all",
             "unify_query_param": {
               "type": "range",
               "stack": "all",
@@ -373,6 +374,7 @@
                 "functions": []
               }
             ],
+            "stack": "all",
             "unify_query_param": {
               "stack": "all",
               "expression": "A",
