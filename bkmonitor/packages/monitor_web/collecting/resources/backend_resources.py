@@ -262,6 +262,24 @@ class CollectConfigListResource(Resource):
                 logger.error(str(e))
         return status
 
+    def exists_by_biz(self, bk_biz_id):
+        config_list = CollectConfigMeta.objects.select_related("plugin")
+
+        space = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
+        data_sources = api.metadata.query_data_source_by_space_uid(
+            space_uid_list=[space.space_uid], is_platform_data_id=True
+        )
+        data_names = [ds["data_name"] for ds in data_sources]
+        plugin_ids = []
+        global_plugins = CollectorPluginMeta.objects.filter(bk_biz_id=0).values("plugin_type", "plugin_id")
+        for plugin in global_plugins:
+            data_name = f"{plugin['plugin_type']}_{plugin['plugin_id']}".lower()
+            if data_name in data_names:
+                plugin_ids.append(plugin['plugin_id'])
+
+        filter_condition = Q(plugin_id__in=plugin_ids) | Q(bk_biz_id=bk_biz_id)
+        return config_list.filter(filter_condition).exists()
+
     def perform_request(self, validated_request_data):
         try:
             bk_biz_id = validated_request_data.get("bk_biz_id")
@@ -312,6 +330,7 @@ class CollectConfigListResource(Resource):
 
                 filter_condition = Q(plugin_id__in=plugin_ids) | Q(bk_biz_id=bk_biz_id)
             else:
+                # 全业务场景 to be legacy
                 plugin_ids = []
                 user_biz_ids = resource.space.get_bk_biz_ids_by_user(get_request().user)
                 space_uid_set = set()
@@ -334,6 +353,9 @@ class CollectConfigListResource(Resource):
             config_list = config_list.filter(filter_condition)
 
             total = len(config_list)
+            if total == 0:
+                return {"type_list": [], "config_list": [], "total": 0}
+
             if validated_request_data["page"] != -1:
                 paginator = Paginator(config_list, validated_request_data["limit"])
                 config_data_list = list(paginator.page(validated_request_data["page"]))

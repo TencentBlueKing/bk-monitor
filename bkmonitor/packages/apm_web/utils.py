@@ -97,14 +97,40 @@ def get_interval(start_time, end_time, interval="auto"):
         hour_interval = (end_time - start_time) // 3600
         if hour_interval <= 1:
             interval = "1m"
-        elif hour_interval <= 6:
+        elif hour_interval <= 3:
             interval = "5m"
+        elif hour_interval <= 5:
+            interval = "10m"
+        elif hour_interval <= 7:
+            interval = "15m"
         elif hour_interval <= 72:
             interval = "1h"
         else:
             interval = "1d"
 
     return interval
+
+
+def get_interval_number(start_time, end_time, interval="auto"):
+    """计算出适合的时间间隔返回 int"""
+    if not interval or interval == "auto":
+        hour_interval = (end_time - start_time) // 3600
+        if hour_interval <= 1:
+            interval = 60
+        elif hour_interval <= 3:
+            interval = 60 * 5
+        elif hour_interval <= 5:
+            interval = 60 * 10
+        elif hour_interval <= 7:
+            interval = 60 * 15
+        elif hour_interval <= 72:
+            interval = 60 * 60
+        else:
+            interval = 60 * 60 * 24
+
+        return interval
+
+    return 60 if not isinstance(interval, int) else interval
 
 
 def split_by_interval(start_time, end_time, interval):
@@ -148,3 +174,18 @@ def divide_biscuit(iterator, interval):
     """分段"""
     for i in range(0, len(iterator), interval):
         yield iterator[i : i + interval]
+
+
+def merge_dicts(d1, d2):
+    """递归合并字典"""
+    merged = d1.copy()
+    for key, value in d2.items():
+        if key in merged:
+            if isinstance(merged[key], dict) and isinstance(value, dict):
+                merged[key] = merge_dicts(merged[key], value)
+            else:
+                # 如果不是字典 直接覆盖
+                merged[key] = value
+        else:
+            merged[key] = value
+    return merged

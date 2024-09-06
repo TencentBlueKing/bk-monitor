@@ -192,4 +192,5 @@ export default {
   测试发送: 'Test Send',
   分隔符: 'Separator',
   字段配置: 'Field Config',
+  接入日志聚类: '',
 };

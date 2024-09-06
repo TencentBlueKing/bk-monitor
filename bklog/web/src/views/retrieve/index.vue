@@ -37,6 +37,7 @@
         :retrieve-params="retrieveParams"
         :show-retrieve-condition="showRetrieveCondition"
         :timezone="timezone"
+        :clustering-data="clusteringData"
         @close-retrieve-condition="closeRetrieveCondition"
         @date-picker-change="retrieveWhenDateChange"
         @open="openRetrieveCondition"
@@ -405,7 +406,7 @@
         clusteringData: {
           // 日志聚类参数
           name: '',
-          is_active: true,
+          is_active: false,
           extra: {
             collector_config_id: null,
             signature_switch: false,
@@ -1718,7 +1719,7 @@
           // 更新联合查询的begin
           const unionConfigs = this.unionIndexList.map(item => ({
             begin: this.isTablePagination
-              ? (this.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0)
+              ? this.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0
               : 0,
             index_set_id: item,
           }));

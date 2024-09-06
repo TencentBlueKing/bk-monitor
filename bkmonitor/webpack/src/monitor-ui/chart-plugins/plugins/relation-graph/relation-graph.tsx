@@ -510,7 +510,7 @@ export class RelationGraph extends CommonSimpleChart {
           default: [
             'drag-canvas', // 拖拽画布
             'zoom-canvas', // 缩放画布
-            !!this.serviceName ? '' : 'drag-node', // 拖拽节点 服务拓扑不可拖拽节点
+            this.serviceName ? '' : 'drag-node', // 拖拽节点 服务拓扑不可拖拽节点
           ],
         },
         /** 图布局 */
@@ -1293,6 +1293,7 @@ export class RelationGraph extends CommonSimpleChart {
           isFullScreen={this.isFullScreen}
           isOverview={this.isOverview}
           showNoData={this.showNoData}
+          onbackToCenter={this.handlebackToCenter}
           onClearFilter={this.handleClearFilter}
           onConditionChange={this.handleConditionChange}
           onFilterChange={this.handleFilterChange}
@@ -1300,7 +1301,6 @@ export class RelationGraph extends CommonSimpleChart {
           onOverview={this.handleOverview}
           onSearchChange={this.handleSearchChange}
           onShowNodata={this.handleShowNodata}
-          onbackToCenter={this.handlebackToCenter}
         />
         {this.isOverview ? (
           <div class='graph-main'>

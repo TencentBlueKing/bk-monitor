@@ -146,6 +146,7 @@ const store = new Vuex.Store({
     isNotVisibleFieldsShow: false,
     showAlert: false, // 是否展示跑马灯
     isLimitExpandView: false,
+    storeIsShowClusterStep: false,
   },
   // 公共 getters
   getters: {
@@ -218,6 +219,7 @@ const store = new Vuex.Store({
         ids,
       };
     },
+    storeIsShowClusterStep: state => state.storeIsShowClusterStep,
   },
   // 公共 mutations
   mutations: {
@@ -450,6 +452,9 @@ const store = new Vuex.Store({
     resetIndexFieldInfo(state, payload) {
       const defValue = { ...IndexFieldInfo };
       state.indexFieldInfo = Object.assign(defValue, payload ?? {});
+    },
+    updateStoreIsShowClusterStep(state, val) {
+      state.storeIsShowClusterStep = val;
     },
   },
   actions: {

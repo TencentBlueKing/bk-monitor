@@ -24,17 +24,23 @@ NODATA_ERROR_STRATEGY_CONFIG_KEY = "nodata_error_strategy_id"
 
 DEFAULT_APM_APP_QPS = 500
 
-APDEX_VIEW_ITEM_LEN = 24
 OTLP_JAEGER_SPAN_KIND = {2: "server", 3: "client", 4: "producer", 5: "consumer", 1: "internal", 0: "unset"}
 IDENTIFY_KEYS = ["db.system", "http.target", "messaging.system", "rpc.system"]
 
 DEFAULT_DIFF_TRACE_MAX_NUM = 5
 
-# 随组件类型变化的where条件 用于指标值查询
+# 随组件类型变化的where条件 用于指标值查询 (如果 where 里面有 or 连接符的话不能使用这个因为不能设置优先级)
 component_where_mapping = {
     "db": {"key": "db_system", "method": "eq", "value": ["{predicate_value}"], "condition": "and"},
     "messaging": {"key": "messaging_system", "method": "eq", "value": ["{predicate_value}"], "condition": "and"},
 }
+
+# 随组件类型变化的where条件 用于指标值查询
+component_filter_mapping = {
+    "db": {"db_system": "{predicate_value}"},
+    "messaging": {"messaging_system": "{predicate_value}"},
+}
+
 
 COLUMN_KEY_PROFILING_DATA_COUNT = "profiling_data_count"
 COLUMN_KEY_PROFILING_DATA_STATUS = "profiling_data_status"
@@ -189,6 +195,13 @@ class CalculationMethod:
     # 健康度
     APDEX = "apdex"
 
+    # 服务间调用错误率
+    SERVICE_FLOW_ERROR_RATE = "service_flow_error_rate"
+    # 服务间请求数
+    SERVICE_FLOW_COUNT = "service_flow_request_count"
+    # 服务间耗时
+    SERVICE_FLOW_DURATION = "service_flow_duration"
+
 
 class ApdexColor:
     GRAY = 1
@@ -331,6 +344,14 @@ class AlertLevel:
     WARN = 2
     # 提醒
     INFO = 3
+
+    @classmethod
+    def get_label(cls, key):
+        return {
+            cls.ERROR: "error",
+            cls.WARN: "warn",
+            cls.INFO: "info",
+        }.get(key, key)
 
 
 class AlertStatus:
@@ -582,6 +603,31 @@ class TopoNodeKind:
     SERVICE = "service"
     COMPONENT = "component"
     REMOTE_SERVICE = "remote_service"
+
+    # 虚拟服务 (Flow 指标处)
+    VIRTUAL_SERVICE = "virtualService"
+
+    @classmethod
+    def get_label_by_key(cls, key: str):
+        return {
+            cls.SERVICE: _("服务"),
+            cls.COMPONENT: _("服务组件"),
+            cls.REMOTE_SERVICE: _("自定义服务"),
+            cls.VIRTUAL_SERVICE: _("虚拟服务"),
+        }.get(key, key)
+
+
+class TopoVirtualServiceKind:
+    """虚拟服务中的分类"""
+
+    # 虚拟主调服务
+    CALLER = "bk_vServiceCaller"
+    # 虚拟被调服务
+    CALLEE = "bk_vServiceCallee"
+
+    @classmethod
+    def all_kinds(cls):
+        return [cls.CALLER, cls.CALLEE]
 
 
 class TraceFilterField:

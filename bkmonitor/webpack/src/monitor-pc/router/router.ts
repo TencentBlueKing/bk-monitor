@@ -52,6 +52,7 @@ import emailSubscriptionsRoutes from './dashboard/email-subscriptions';
 
 // import spaceData from './space';
 import { isInCommonRoute, setLocalStoreRoute } from './router-config';
+import { getAuthById, setAuthById } from '../common/auth-store';
 
 const EmailSubscriptionsName = 'email-subscriptions';
 Vue.use(VueRouter);
@@ -101,8 +102,11 @@ const specialReportRouteList = [
   'grafana-datasource',
 ];
 router.beforeEach(async (to, from, next) => {
+  store.commit('app/SET_PADDING_ROUTE', to);
   // 空闲初始化introduce数据
-  store.getters.bizList?.length && introduce.initIntroduce(to);
+  if (store.getters.bizList?.length) {
+    introduce.initIntroduce(to);
+  }
   if (
     !window.__BK_WEWEB_DATA__?.token &&
     !['no-business', 'event-center', 'event-center-detail', 'event-center-action-detail', 'share'].includes(to.name) &&
@@ -163,17 +167,20 @@ router.beforeEach(async (to, from, next) => {
       'share',
     ].includes(to.name)
   ) {
-    store.commit('app/SET_ROUTE_CHANGE_LOADNG', true);
-    hasAuthority = await isAuthority(authority?.page)
-      .catch(() => false)
-      .finally(() => {
-        if (to.meta.noChangeLoading) return;
-        setTimeout(() => store.commit('app/SET_ROUTE_CHANGE_LOADNG', false), 20);
-      });
+    if (!getAuthById(authority.page)) {
+      store.commit('app/SET_ROUTE_CHANGE_LOADING', true);
+      hasAuthority = await isAuthority(authority?.page)
+        .catch(() => false)
+        .finally(() => {
+          if (to.meta.noChangeLoading) return;
+          setTimeout(() => store.commit('app/SET_ROUTE_CHANGE_LOADING', false), 20);
+        });
+      setAuthById(Array.isArray(authority.page) ? authority.page[0] : authority.page, hasAuthority);
+    }
     if (hasAuthority) {
       next();
     } else {
-      window.requestIdleCallback(() => store.commit('app/SET_ROUTE_CHANGE_LOADNG', false));
+      window.requestIdleCallback(() => store.commit('app/SET_ROUTE_CHANGE_LOADING', false));
       next({
         params: {
           title: '无权限',
@@ -192,6 +199,7 @@ router.beforeEach(async (to, from, next) => {
   }
 });
 router.afterEach(to => {
+  store.commit('app/SET_PADDING_ROUTE', to);
   store.commit('app/SET_NAV_TITLE', to.params.title || to.meta.title);
   if (['error-exception', 'no-business'].includes(to.name)) return;
   reportLogStore.reportRouteLog({

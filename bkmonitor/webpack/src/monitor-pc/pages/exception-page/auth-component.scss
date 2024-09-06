@@ -1,0 +1,29 @@
+@import '../../theme/mixin.scss';
+
+.exception-page {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  height: 100%;
+
+  @include permission-fix;
+
+  .exception-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 15px;
+    font-size: 14px;
+  }
+
+  &-img {
+    position: absolute;
+    top: 40%;
+    max-width: 800px;
+    transform: translateY(-50%);
+
+    .exception-btn {
+      margin-left: 10px;
+    }
+  }
+}

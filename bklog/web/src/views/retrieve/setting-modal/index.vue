@@ -55,7 +55,7 @@
       </div>
 
       <div class="setting-main">
-        <div class="setting-left">
+        <!-- <div class="setting-left">
           <div
             v-for="item of showCurrentList"
             :class="['setting-option', currentChoice === item.id ? 'current-color' : '']"
@@ -77,7 +77,7 @@
               </bk-switcher>
             </div>
           </div>
-        </div>
+        </div> -->
 
         <div class="setting-right">
           <div class="more-details">
@@ -228,7 +228,8 @@
         return this.isShowDialog;
       },
       globalEditable() {
-        return this.showCurrentList.find(el => el.id === this.currentChoice)?.isEditable;
+        return true;
+        // return this.showCurrentList.find(el => el.id === this.currentChoice)?.isEditable;
       },
       isCollector() {
         // 字段提取的索引集来源是否为采集项
@@ -480,7 +481,6 @@
 
       .setting-right {
         max-width: 1020px;
-        margin-left: 20px;
 
         .more-details {
           display: flex;
@@ -522,7 +522,7 @@
 
         .operation-container {
           min-height: 770px;
-          padding: 24px 20px 100px;
+          padding: 24px 20px 50px;
           margin-top: 20px;
 
           @include container-shadow;

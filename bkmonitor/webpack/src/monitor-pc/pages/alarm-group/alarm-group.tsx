@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Provide, ProvideReactive } from 'vue-property-decorator';
+import { Component, Mixins } from 'vue-property-decorator';
 
 import { random } from 'monitor-common/utils/utils';
 
@@ -38,10 +38,6 @@ Component.registerHooks(['beforeRouteEnter']);
   name: 'AlarmGroupListMonitor',
 })
 export default class AlarmGroupListMonitor extends Mixins(authorityMixinCreate(authorityMap)) {
-  @ProvideReactive('authority') authority: Record<string, boolean> = {};
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
-  @Provide('authorityMap') authorityMap;
-
   fromRouterName = '';
 
   needReflesh = false;

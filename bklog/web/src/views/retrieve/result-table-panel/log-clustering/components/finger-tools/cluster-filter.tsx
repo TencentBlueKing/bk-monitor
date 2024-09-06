@@ -46,7 +46,7 @@ interface ISelectOption {
 }
 
 @Component
-export default class TimeFormatterSwitcher extends tsc<IProps> {
+export default class ClusterFilter extends tsc<IProps> {
   @Prop({ type: String, required: true }) title: string;
   @Prop({ type: Boolean, default: true }) searchable: boolean;
   @Prop({ type: Number, default: 200 }) popoverMinWidth: number;

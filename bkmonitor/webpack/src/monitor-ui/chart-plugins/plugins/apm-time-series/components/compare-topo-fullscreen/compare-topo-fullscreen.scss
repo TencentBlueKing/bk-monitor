@@ -1,0 +1,239 @@
+.compare-topo-fullscreen-dialog.bk-dialog-wrapper {
+  .bk-dialog.bk-dialog-fullscreen.bk-dialog-fullscreen-no-header {
+    .bk-dialog-close {
+      top: 15px;
+      right: 25px;
+      width: 22px;
+      height: 22px;
+      color: #63656e;
+    }
+
+    .bk-dialog-tool {
+      z-index: 1;
+
+      .dialog-header {
+        height: 52px;
+        font-size: 16px;
+        line-height: 52px;
+        color: #313238;
+        text-align: center;
+        box-shadow:
+          0 1px 0 0 #dcdee5,
+          0 3px 4px 0 #4070cb0f;
+      }
+    }
+
+    .title {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .bk-dialog-body {
+      top: 52px;
+      padding: 0;
+      background-color: #f5f7fa;
+
+      .dialog-content {
+        display: flex;
+        height: 100%;
+
+        .bk-resize-layout-aside::after {
+          left: -5px;
+        }
+
+        .topo-chart {
+          position: relative;
+          flex: 1;
+          height: 100%;
+
+          .header-tools {
+            position: absolute;
+            top: 24px;
+            z-index: 9;
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            height: 40px;
+            padding: 0 21px 0 24px;
+
+            .filter-wrap {
+              display: flex;
+              height: 40px;
+
+              .bk-select {
+                width: 120px;
+                height: 40px;
+                margin-right: 16px;
+                line-height: 38px;
+                background-color: #fff;
+
+                .bk-select-name {
+                  height: 38px;
+                }
+
+                .bk-select-angle {
+                  top: 8px;
+                }
+              }
+
+              .bk-button {
+                height: 40px;
+                line-height: 38px;
+              }
+            }
+
+            .compare-time-panel {
+              display: flex;
+              padding: 10px 12px 10px 16px;
+              background: #ffffff;
+              border-radius: 2px;
+              box-shadow: 0 1px 6px 0 #0000001f;
+
+              .panel-item {
+                display: flex;
+                align-items: center;
+
+                &:first-child {
+                  margin-right: 24px;
+
+                  .color-block {
+                    background-color: #ff9c01;
+                  }
+                }
+
+                .name {
+                  margin-right: 5px;
+                  font-weight: 700;
+                  color: #313238;
+                }
+
+                .color-block {
+                  width: 10px;
+                  height: 10px;
+                  margin-right: 4px;
+                  background-color: #7b29ff;
+                }
+              }
+            }
+          }
+        }
+
+        .service-overview-panel {
+          width: 100%;
+          height: 100%;
+          background: #ffffff;
+          box-shadow: -1px 0 0 0 #dcdee5;
+
+          .panel-title {
+            height: 52px;
+            padding-left: 20px;
+            line-height: 52px;
+            color: #313238;
+            box-shadow: 0 2px 4px 0 #1919290d;
+          }
+
+          .panel-content {
+            padding: 16px;
+
+            .panel-form {
+              padding-bottom: 9px;
+              border-bottom: 1px solid #eaebf0;
+
+              .form-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                height: 22px;
+
+                .form-title {
+                  display: flex;
+                  align-items: center;
+                  color: #313238;
+                }
+
+                .icon-wangye {
+                  margin-right: 8px;
+                  font-size: 16px;
+                }
+
+                .setting-btn {
+                  font-size: 12px;
+                  color: #3a84ff;
+                  cursor: pointer;
+
+                  .icon-shezhi {
+                    margin-left: 4px;
+                    font-size: 14px;
+                  }
+                }
+              }
+
+              .form-content {
+                display: flex;
+                flex-wrap: wrap;
+                margin-top: 8px;
+
+                .form-item {
+                  display: flex;
+                  margin-right: 20px;
+                  font-size: 12px;
+                  line-height: 32px;
+
+                  .item-label {
+                    color: #63656e;
+                  }
+
+                  .item-value {
+                    margin-left: 8px;
+                    color: #313238;
+                  }
+
+                  .icon-fenxiang {
+                    margin-left: 6px;
+                    font-size: 10px;
+                    color: #3a84ff;
+                    cursor: pointer;
+                  }
+                }
+              }
+            }
+
+            .panel-table {
+              margin-top: 16px;
+
+              .cell {
+                padding-right: 0px;
+                padding-left: 11px;
+              }
+
+              .bk-table-caret-wrapper {
+                flex: 14px 0 0;
+              }
+
+              td:first-child {
+                color: #313238;
+                border-right: 1px solid #dcdee5; /* 第一列右边框 */
+              }
+
+              th:first-child {
+                border-right: 1px solid #dcdee5; /* 第一列表头右边框 */
+              }
+
+              tbody tr:last-child td {
+                border-bottom: none;
+              }
+
+              .up {
+                color: #ff5656;
+              }
+
+              .down {
+                color: #2dcb56;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
