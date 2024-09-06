@@ -191,5 +191,5 @@ export default {
   查看配置: 'View Configuration',
   测试发送: 'Test Send',
   分隔符: 'Separator',
-  接入日志聚类: '',
+  接入日志聚类: 'Access Log Cluster',
 };
