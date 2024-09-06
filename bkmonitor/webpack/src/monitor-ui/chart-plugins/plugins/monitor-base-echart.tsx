@@ -238,7 +238,6 @@ class MonitorBaseEchart extends BaseEchart {
   }
   // 设置tooltip
   handleSetTooltip(params) {
-    console.log(params);
     if (!this.needTooltips) {
       return undefined;
     }
