@@ -27,7 +27,7 @@
 import { Component, Prop, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
+import { TABLE_LOG_FIELDS_SORT_REGULAR, Debounce } from '@/common/util';
 import VueDraggable from 'vuedraggable';
 
 import FieldFilterPopover from './field-filter-popover';
@@ -50,9 +50,9 @@ export default class FieldFilterComp extends tsc<object> {
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldsData: object;
   @Prop({ type: Object, default: () => ({}) }) indexSetItem: any;
   @Ref('filterPopover') readonly filterPopoverRef!: HTMLDivElement;
+  @Ref('fieldFilter') readonly fieldFilterRef!: HTMLDivElement;
 
   showFilterPopover = false; // 字段类型过滤 popover 显示状态
-  searchTimer = null;
   searchKeyword = '';
   polymerizable = '0'; // 聚合
   fieldType = 'any'; // 字段类型
@@ -77,6 +77,7 @@ export default class FieldFilterComp extends tsc<object> {
   ];
   isShowAllBuiltIn = false;
   isShowAllIndexSet = false;
+  fieldContainerHeight = 400;
 
   /** 可选字段 */
   get hiddenFields() {
@@ -229,17 +230,24 @@ export default class FieldFilterComp extends tsc<object> {
   }
 
   mounted() {
+    window.addEventListener('resize', this.updateContainerHeight);
     document.getElementById('app').addEventListener('click', this.closePopoverIfOpened);
+    this.updateContainerHeight();
   }
 
   beforeDestroy() {
+    window.removeEventListener('resize', this.updateContainerHeight);
     document.getElementById('app').removeEventListener('click', this.closePopoverIfOpened);
   }
 
-  handleSearch() {
-    this.searchTimer && clearTimeout(this.searchTimer);
-    this.searchTimer = setTimeout(this.filterListByCondition, 300);
+  @Debounce(200)
+  updateContainerHeight() {
+    this.$nextTick(() => {
+      const height = Math.floor(window.innerHeight - this.fieldFilterRef?.getBoundingClientRect().top);
+      this.fieldContainerHeight = height >= 150 ? height : 150;
+    });
   }
+
   // 字段类型过滤：可聚合、字段类型
   handleFilter({ polymerizable, fieldType }) {
     this.polymerizable = polymerizable;
@@ -330,7 +338,7 @@ export default class FieldFilterComp extends tsc<object> {
 
   render() {
     return (
-      <div class='field-filter-container'>
+      <div class='field-filter-box'>
         <div class='form-container'>
           <bk-input
             class='king-input'
@@ -339,7 +347,7 @@ export default class FieldFilterComp extends tsc<object> {
             placeholder={this.$t('搜索字段名')}
             right-icon='icon-search'
             clearable
-            onChange={() => this.handleSearch}
+            onChange={() => this.filterListByCondition()}
           ></bk-input>
           <bk-popover
             ref='filterPopover'
@@ -372,22 +380,54 @@ export default class FieldFilterComp extends tsc<object> {
             />
           </bk-popover>
         </div>
-
-        {!!this.totalFields.length && (
-          <div class='fields-container is-selected'>
-            <div class='title'>{this.$t('已添加字段')}</div>
-            {!!this.visibleFields.length ? (
-              <VueDraggable
-                class='filed-list'
-                v-model={this.dragVisibleFields}
-                {...{ props: this.dragOptions }}
-                animation='150'
-                on-end={this.handleVisibleMoveEnd}
-              >
-                <transition-group>
-                  {this.visibleFields.map(item => (
+        <div
+          ref='fieldFilter'
+          style={{ height: `${this.fieldContainerHeight}px` }}
+          class='field-filter-container'
+        >
+          {!!this.totalFields.length && (
+            <div class='fields-container is-selected'>
+              <div class='title'>{this.$t('已添加字段')}</div>
+              {!!this.visibleFields.length ? (
+                <VueDraggable
+                  class='filed-list'
+                  v-model={this.dragVisibleFields}
+                  {...{ props: this.dragOptions }}
+                  animation='150'
+                  on-end={this.handleVisibleMoveEnd}
+                >
+                  <transition-group>
+                    {this.visibleFields.map(item => (
+                      <FieldItem
+                        key={item.field_name}
+                        v-show={item.filterVisible}
+                        date-picker-value={this.datePickerValue}
+                        field-alias-map={this.fieldAliasMap}
+                        field-item={item}
+                        is-front-statistics={this.isFrontStatistics}
+                        retrieve-params={this.retrieveParams}
+                        retrieve-search-number={this.retrieveSearchNumber}
+                        show-field-alias={this.showFieldAlias}
+                        statistical-field-data={this.statisticalFieldsData[item.field_name]}
+                        type='visible'
+                        visible-fields={this.visibleFields}
+                        onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
+                      />
+                    ))}
+                  </transition-group>
+                </VueDraggable>
+              ) : (
+                <span class='all-field-item'>{this.$t('当前显示全部字段')}</span>
+              )}
+            </div>
+          )}
+          <div class='field-filter-roll'>
+            {!!this.indexSetFields.length && (
+              <div class='fields-container not-selected'>
+                <div class='title'>{this.$t('索引字段')}</div>
+                <ul class='filed-list'>
+                  {this.showIndexSetFields.map(item => (
                     <FieldItem
-                      key={item.field_name}
                       v-show={item.filterVisible}
                       date-picker-value={this.datePickerValue}
                       field-alias-map={this.fieldAliasMap}
@@ -397,80 +437,53 @@ export default class FieldFilterComp extends tsc<object> {
                       retrieve-search-number={this.retrieveSearchNumber}
                       show-field-alias={this.showFieldAlias}
                       statistical-field-data={this.statisticalFieldsData[item.field_name]}
-                      type='visible'
-                      visible-fields={this.visibleFields}
+                      type='hidden'
                       onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
                     />
                   ))}
-                </transition-group>
-              </VueDraggable>
-            ) : (
-              <span class='all-field-item'>{this.$t('当前显示全部字段')}</span>
+                  {this.getIsShowIndexSetExpand && (
+                    <div
+                      class='expand-all'
+                      onClick={() => (this.isShowAllIndexSet = !this.isShowAllIndexSet)}
+                    >
+                      {!this.isShowAllIndexSet ? this.$t('展开全部') : this.$t('收起')}
+                    </div>
+                  )}
+                </ul>
+              </div>
+            )}
+
+            {!!this.builtInFields.length && (
+              <div class='fields-container not-selected'>
+                <div class='title'>{(this.$t('label-内置字段') as string).replace('label-', '')}</div>
+                <ul class='filed-list'>
+                  {this.builtInFieldsShowObj.builtInShowFields.map(item => (
+                    <FieldItem
+                      v-show={item.filterVisible}
+                      date-picker-value={this.datePickerValue}
+                      field-alias-map={this.fieldAliasMap}
+                      field-item={item}
+                      is-front-statistics={this.isFrontStatistics}
+                      retrieve-params={this.retrieveParams}
+                      retrieve-search-number={this.retrieveSearchNumber}
+                      show-field-alias={this.showFieldAlias}
+                      statistical-field-data={this.statisticalFieldsData[item.field_name]}
+                      type='hidden'
+                      onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
+                    />
+                  ))}
+                  {this.builtInFieldsShowObj.isShowBuiltExpandBtn && (
+                    <div
+                      class='expand-all'
+                      onClick={() => (this.isShowAllBuiltIn = !this.isShowAllBuiltIn)}
+                    >
+                      {!this.isShowAllBuiltIn ? this.$t('展开全部') : this.$t('收起')}
+                    </div>
+                  )}
+                </ul>
+              </div>
             )}
           </div>
-        )}
-        <div class='field-filter-roll'>
-          {!!this.indexSetFields.length && (
-            <div class='fields-container not-selected'>
-              <div class='title'>{this.$t('索引字段')}</div>
-              <ul class='filed-list'>
-                {this.showIndexSetFields.map(item => (
-                  <FieldItem
-                    v-show={item.filterVisible}
-                    date-picker-value={this.datePickerValue}
-                    field-alias-map={this.fieldAliasMap}
-                    field-item={item}
-                    is-front-statistics={this.isFrontStatistics}
-                    retrieve-params={this.retrieveParams}
-                    retrieve-search-number={this.retrieveSearchNumber}
-                    show-field-alias={this.showFieldAlias}
-                    statistical-field-data={this.statisticalFieldsData[item.field_name]}
-                    type='hidden'
-                    onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
-                  />
-                ))}
-                {this.getIsShowIndexSetExpand && (
-                  <div
-                    class='expand-all'
-                    onClick={() => (this.isShowAllIndexSet = !this.isShowAllIndexSet)}
-                  >
-                    {!this.isShowAllIndexSet ? this.$t('展开全部') : this.$t('收起')}
-                  </div>
-                )}
-              </ul>
-            </div>
-          )}
-
-          {!!this.builtInFields.length && (
-            <div class='fields-container not-selected'>
-              <div class='title'>{(this.$t('label-内置字段') as string).replace('label-', '')}</div>
-              <ul class='filed-list'>
-                {this.builtInFieldsShowObj.builtInShowFields.map(item => (
-                  <FieldItem
-                    v-show={item.filterVisible}
-                    date-picker-value={this.datePickerValue}
-                    field-alias-map={this.fieldAliasMap}
-                    field-item={item}
-                    is-front-statistics={this.isFrontStatistics}
-                    retrieve-params={this.retrieveParams}
-                    retrieve-search-number={this.retrieveSearchNumber}
-                    show-field-alias={this.showFieldAlias}
-                    statistical-field-data={this.statisticalFieldsData[item.field_name]}
-                    type='hidden'
-                    onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
-                  />
-                ))}
-                {this.builtInFieldsShowObj.isShowBuiltExpandBtn && (
-                  <div
-                    class='expand-all'
-                    onClick={() => (this.isShowAllBuiltIn = !this.isShowAllBuiltIn)}
-                  >
-                    {!this.isShowAllBuiltIn ? this.$t('展开全部') : this.$t('收起')}
-                  </div>
-                )}
-              </ul>
-            </div>
-          )}
         </div>
       </div>
     );
