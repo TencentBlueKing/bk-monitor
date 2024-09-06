@@ -232,7 +232,7 @@ export default defineComponent({
     const traceColumnFilters = ref<Record<string, string[]>>({});
     const interfaceListCanLoadMore = ref<boolean>(false);
     const serviceListCanLoadMore = ref<boolean>(false);
-    const spanDetails = ref<Span | null>(null);
+    const spanDetails = ref<null | Span>(null);
 
     const isLoading = computed<boolean>(() => store.loading);
     const isPreCalculationMode = computed(() => store.traceListMode === 'pre_calculation');
@@ -1564,7 +1564,7 @@ export default defineComponent({
         >
           <div class={['inquire-left-main', { 'scope-inquire': state.searchType === 'scope' }]}>
             <div class='left-top'>
-              <div class='left-title'>{t('新检索')}</div>
+              <div class='left-title'>{t('route-Tracing 检索')}</div>
               <div class='left-title-operate'>
                 <span
                   class='icon-monitor icon-double-down'

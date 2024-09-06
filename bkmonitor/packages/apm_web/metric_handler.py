@@ -8,6 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
+import logging
 from collections import defaultdict
 
 from django.conf import settings
@@ -17,9 +19,10 @@ from apm_web.calculation import (
     ApdexCalculation,
     Calculation,
     ErrorRateCalculation,
-    ErrorRateOriginCalculation,
+    FlowMetricErrorRateCalculation,
 )
 from apm_web.constants import Apdex, CalculationMethod
+from apm_web.utils import get_interval_number
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
@@ -27,8 +30,20 @@ from bkmonitor.utils.time_tools import get_datetime_range
 from constants.apm import OtlpKey
 from core.drf_resource import resource
 
+logger = logging.getLogger("apm")
+
 
 class MetricHandler:
+    """
+    继承此类以定义指标, 指标支持以下两种查询方式
+    Range 查询：（返回多个点）
+        方法一：通过 GraphUnifyQuery 接口进行查询
+        方法二：通过 Datasource 进行查询
+            !!! 建议仅在使用了 promql 查询时使用 DataSource 方法来查询 Range ，否则会增加 convert 耗时
+    Instance 查询: （返回一个点）
+        只能通过 Datasource 进行查询
+    """
+
     default_where = []
     aggs_method = "AVG"
     default_group_by = []
@@ -38,6 +53,7 @@ class MetricHandler:
     dimension_field = ""
     metric_field = "bk_apm_duration"
     data_source_label = "custom"
+    datasource_query = False
 
     def __init__(
         self,
@@ -50,16 +66,18 @@ class MetricHandler:
         filter_dict=None,
         interval=None,
         result_map=lambda x: x,
+        functions=None,
     ):
         self.application = application
         self.start_time = start_time
         self.end_time = end_time
         self.where = [*self.default_where, *(where or [])]
         self.aggs_method = aggs_method or self.aggs_method
-        self.group_by = [*self.default_group_by, *(group_by or [])]
+        self.group_by = [*(group_by or []), *self.default_group_by]
         self.filter_dict = filter_dict or {}
         self.interval = interval
         self.result_map = result_map
+        self.functions = functions or []
 
     def _get_app_attr(self, item):
         """
@@ -71,12 +89,11 @@ class MetricHandler:
         except AttributeError:
             return self.application[item]
 
-    def _unify_query_param(self, is_instance: bool = False, dimension_field=""):
+    def _unify_query_params(self):
+        """获取 GraphUnifyQuery 接口查询参数"""
         interval = self.interval
         database_name, _ = self._get_app_attr("metric_result_table_id").split(".")
 
-        if is_instance:
-            interval = self.end_time - self.start_time
         extra_param = {}
         if interval:
             extra_param["interval"] = interval
@@ -86,7 +103,7 @@ class MetricHandler:
             "display": True,
             "start_time": self.start_time,
             "end_time": self.end_time,
-            "dimension_field": dimension_field,
+            "dimension_field": "",
             "query_configs": [
                 {
                     "data_source_label": "custom",
@@ -107,7 +124,7 @@ class MetricHandler:
                     "filter_dict": {
                         **self.filter_dict,
                     },
-                    "functions": [],
+                    "functions": self.functions,
                     **extra_param,
                 }
             ],
@@ -115,17 +132,14 @@ class MetricHandler:
             "bk_biz_id": str(self._get_app_attr("bk_biz_id")),
         }
 
-    def _get_interval(self):
-        interval = self.interval
-        if not interval:
-            interval = self.end_time - self.start_time
-        return interval
-
-    def _get_instance_unify_query_params(self):
+    def _datasource_query_params(self, instant):
+        """获取 DataSource 查询参数"""
         database_name, _ = self._get_app_attr("metric_result_table_id").split(".")
 
         extra_param = {}
-        extra_param["interval"] = self._get_interval()
+        if instant:
+            # Instant 计算只返回一个点
+            extra_param["interval"] = self.end_time - self.start_time
         return {
             "data_source_label": "custom",
             "data_type_label": "time_series",
@@ -145,14 +159,13 @@ class MetricHandler:
             "filter_dict": {
                 **self.filter_dict,
             },
-            "functions": [],
+            "functions": self.functions,
+            "instant": instant,
             **extra_param,
         }
 
-    def instance_unify_query(self, params):
-        """
-        自定义时许数据: 对于获取近一小时、近三小时等等时间范围的数据之和 不适用于图表查询的graph_unify_query接口
-        """
+    def query_by_datasource(self, params):
+        logger.info(f"[MetricQuery - DataSource] queryParams: \n----\n{json.dumps(params)}\n----")
         data_source_class = load_data_source(self.data_source_label, "time_series")
         data_sources = [data_source_class(bk_biz_id=self._get_app_attr("bk_biz_id"), **params)]
 
@@ -169,35 +182,51 @@ class MetricHandler:
             limit=settings.SQL_MAX_LIMIT,
             slimit=settings.SQL_MAX_LIMIT,
             time_alignment=False,
-            instant=params.get("instant"),
+            instant=params.get("instant", False),
         )
 
         return points
 
+    def query_by_unify_query(self, params):
+        logger.info(f"[MetricQuery - GraphUnifyQuery] queryParams: \n----\n{json.dumps(params)}\n----")
+        return resource.grafana.graph_unify_query(params)
+
     def query(self):
         if self.query_type == "instance":
+            # instance 查询都使用
             return self.result_map(self.query_instance())
-        if self.query_type == "range":
+        elif self.query_type == "range":
             return self.result_map(self.query_range())
-        return self.result_map(self.query_dimension_count(self.dimension_field))
 
-    def _query(self, is_instance: bool):
-        return resource.grafana.graph_unify_query(self._unify_query_param(is_instance))
+        raise ValueError(f"不支持的查询类型: {self.query_type}")
 
     def query_instance(self):
-        return self.calculation.instance_cal(self.instance_unify_query(self._get_instance_unify_query_params()))
+        """Instance 查询 & 处理值"""
+        return self.calculation.instance_cal(self.query_by_datasource(self._datasource_query_params(instant=True)))
 
     def query_range(self):
-        return self.calculation.range_cal(self._query(False))
+        """Range 类型查询 + 范围值计算"""
+        if self.datasource_query:
+            return self.calculation.range_cal(
+                self._convert_to_series(self.query_by_datasource(self._datasource_query_params(instant=False)))
+            )
+        else:
+            return self.calculation.range_cal(self.query_by_unify_query(self._unify_query_params()))
 
-    def query_dimension_count(self, dimension_field: str):
-        return resource.grafana.dimension_count_unify_query(self._unify_query_param(False, dimension_field))
+    def origin_query_range(self):
+        """Range 查询 & 不处理值"""
+        if self.datasource_query:
+            return self._convert_to_series(self.query_by_datasource(self._datasource_query_params(instant=False)))
+        else:
+            return self.query_by_unify_query(self._unify_query_params())
 
     def origin_query_instance(self):
-        return self.instance_unify_query(self._get_instance_unify_query_params())
+        """Instant 查询 & 不处理值"""
+        return self.query_by_datasource(self._datasource_query_params(instant=True))
 
     def group_query(self, *group_key: str):
-        result = self.instance_unify_query(self._get_instance_unify_query_params())
+        """按照维度汇总返回"""
+        result = self.origin_query_instance()
         group_map = defaultdict(list)
         for serie in result:
             g_key = "|".join([serie.get(key, "") for key in group_key])
@@ -207,38 +236,122 @@ class MetricHandler:
             result[key][self.metric_id] = self.result_map(self.calculation.instance_cal(series))
         return result
 
-    def get_dimension_value(self):
-        """获取维度出现过的值"""
-        res = set()
-        result = self.instance_unify_query(self._get_instance_unify_query_params())
+    def get_dimension_values_mapping(self):
+        """获取维度出现过的值 返回[{"dimension1": "dimension1-value1"}]"""
+        res = []
+        keys = []
+        result = self.origin_query_instance()
         for i in result:
+            info = {}
+            key = ""
             for g in self.group_by:
                 if g in i:
-                    res.add(i[g])
+                    info[g] = i[g]
+                    key += i[g]
+            if len(info) != len(self.group_by):
+                continue
+            # 只有全部 group_key 都有值才可以作为有效数据
+            if key not in keys:
+                keys.append(key)
+                res.append(info)
+
         return res
 
+    def get_instance_values_mapping(self, ignore_keys=None):
+        """获取实例维度-值映射 返回
+        {
+            (*group_by): {"<metric>": <metric_value>}
+        }
+        """
+        if not ignore_keys:
+            ignore_keys = []
+        response = self.origin_query_instance()
+        res = defaultdict(lambda: defaultdict(int))
+        for item in response:
+            res[tuple(item[i] for i in self.group_by if i not in ignore_keys)][self.metric_id] += item["_result_"]
+        return res
 
-class AvgDurationInstance(MetricHandler):
+    def get_instance_calculate_values_mapping(self, ignore_keys=None):
+        """获取实例维度-值映射(值经过计算) 返回
+        {
+            (*group_by): {"<metric>": <calculate_value>}
+        }
+        """
+        if not ignore_keys:
+            ignore_keys = []
+
+        response = self.origin_query_instance()
+        group_values = defaultdict(list)
+        for item in response:
+            group_values[tuple(item.get(i, "") for i in self.group_by if i not in ignore_keys)].append(item)
+
+        res = defaultdict(lambda: defaultdict(int))
+        for k, v in group_values.items():
+            res[k][self.metric_id] = self.calculation.instance_cal(v)
+
+        return res
+
+    def get_range_values_mapping(self, ignore_keys=None):
+        """获取范围-值映射 返回
+        {
+            (*group_by): [[10, timestamp], [20, timestamp]]
+        }
+        """
+        if not ignore_keys:
+            ignore_keys = []
+
+        response = self.origin_query_range()
+        res = defaultdict(list)
+        for series in response.get("series", []):
+            res[tuple(series.get("dimensions", {}).get(i) for i in self.group_by if i not in ignore_keys)].extend(
+                series["datapoints"]
+            )
+
+        return res
+
+    def _convert_to_series(self, datasource_range_response):
+        """将使用 DataSource 查询的 range 数据转换为使用 GraphUnifyQuery 得到的 range 数据"""
+        series_mapping = defaultdict(list)
+        for i in datasource_range_response:
+            dimensions = tuple(i.get(j) for j in self.group_by)
+            series_mapping[dimensions].append([i["_result_"], i["_time_"]])
+
+        series = []
+        for k, v in series_mapping.items():
+            series.append(
+                {
+                    "alias": "_result_",
+                    "datapoints": v,
+                    "dimensions": {i: k[index] for index, i in enumerate(self.group_by)},
+                    "metric_field": "_result_",
+                }
+            )
+
+        return {"metrics": [], "series": series}
+
+
+class PromqlInstanceQueryMixin(MetricHandler):
     """
-    平均耗时为promql实现 不查询指标
+    使用 Instance 查询的 Promql 工具类
+    只适用于使用 instance 查询 不使用 range 查询
     """
 
-    metric_id = CalculationMethod.AVG_DURATION
+    datasource_query = True
+    promql_format = ""
     data_source_label = "prometheus"
 
-    promql_format = (
-        'sum(increase('
-        '{{__name__="bkmonitor:{table_id}:__default__:bk_apm_duration_sum"{where}}}[{interval}s])) '
-        '{group_by} '
-        '/ sum(increase('
-        '{{__name__="bkmonitor:{table_id}:__default__:bk_apm_total"{where}}}[{interval}s])) '
-        '{group_by}'
-    )
+    def _datasource_query_params(self, instant):
+        if instant:
+            interval = self.end_time - self.start_time
+        else:
+            interval = get_interval_number(self.start_time, self.end_time)
+        return {
+            "promql": self._build_promql(interval),
+            "interval": interval,
+            "instant": True,
+        }
 
-    def query(self):
-        return self.result_map(self.query_instance())
-
-    def _get_instance_unify_query_params(self):
+    def _build_promql(self, interval):
         table_id, _ = self._get_app_attr("metric_result_table_id").split(".")
 
         group_by = ""
@@ -252,16 +365,29 @@ class AvgDurationInstance(MetricHandler):
         for k, v in self.filter_dict.items():
             where.append(f'{k}="{v}"')
 
-        interval = self._get_interval()
-        return {
-            "promql": self.promql_format.format(
-                table_id=table_id,
-                group_by=group_by,
-                interval=interval,
-                where=f", {','.join(where)}" if where else "",
-            ),
-            "interval": interval,
-        }
+        return self.promql_format.format(
+            table_id=table_id,
+            group_by=group_by,
+            interval=interval,
+            where=f"{{{','.join(where)}}}" if where else "",
+        )
+
+
+class AvgDurationInstance(PromqlInstanceQueryMixin):
+    """
+    平均耗时为promql实现
+    此类只用作进行实例查询
+    """
+
+    metric_id = CalculationMethod.AVG_DURATION
+    query_type = "instance"
+    promql_format = (
+        'sum {group_by} (increase('
+        'custom:{table_id}:__default__:bk_apm_duration_sum{where}[{interval}s])) '
+        '/ sum {group_by} (increase('
+        'custom:{table_id}:__default__:bk_apm_total{where}[{interval}s])) '
+        ''
+    )
 
 
 class RequestCountInstance(MetricHandler):
@@ -285,10 +411,6 @@ class ErrorRateInstance(MetricHandler):
     calculation = ErrorRateCalculation
 
 
-class ErrorRateOriginInstance(ErrorRateInstance):
-    calculation = ErrorRateOriginCalculation
-
-
 class ApdexInstance(MetricHandler):
     metric_id = CalculationMethod.APDEX
     aggs_method = "SUM"
@@ -303,6 +425,82 @@ class ApdexRange(MetricHandler):
     default_group_by = [OtlpKey.get_metric_dimension_key(OtlpKey.STATUS_CODE), Apdex.DIMENSION_KEY]
     calculation = ApdexCalculation
     metric_field = "bk_apm_count"
+
+
+class ServiceFlowErrorRate(MetricHandler):
+    """服务总错误率(预计算指标)"""
+
+    metric_id = CalculationMethod.SERVICE_FLOW_ERROR_RATE
+    aggs_method = "SUM"
+    default_group_by = ["from_span_error", "to_span_error"]
+    calculation = FlowMetricErrorRateCalculation("full")
+    metric_field = "apm_service_to_apm_service_flow_count"
+
+
+class ServiceFlowErrorRateCaller(MetricHandler):
+    """服务主调调用错误率(预计算指标)"""
+
+    metric_id = CalculationMethod.SERVICE_FLOW_ERROR_RATE
+    aggs_method = "SUM"
+    default_group_by = ["from_span_error", "to_span_error"]
+    calculation = FlowMetricErrorRateCalculation("caller")
+    metric_field = "apm_service_to_apm_service_flow_count"
+
+
+class ServiceFlowErrorRateCallee(MetricHandler):
+    """服务被调调用错误率(预计算指标)"""
+
+    metric_id = CalculationMethod.SERVICE_FLOW_ERROR_RATE
+    aggs_method = "SUM"
+    default_group_by = ["from_span_error", "to_span_error"]
+    calculation = FlowMetricErrorRateCalculation("callee")
+    metric_field = "apm_service_to_apm_service_flow_count"
+
+
+class ServiceFlowCount(MetricHandler):
+    """[自定义逻辑] 服务间调用量(预计算指标)"""
+
+    metric_id = CalculationMethod.SERVICE_FLOW_COUNT
+    aggs_method = "SUM"
+    metric_field = "apm_service_to_apm_service_flow_count"
+
+
+class ServiceFlowAvgDuration(PromqlInstanceQueryMixin):
+    """服务间调用耗时(预计算指标)"""
+
+    metric_id = CalculationMethod.SERVICE_FLOW_DURATION
+    promql_format = (
+        "sum {group_by} "
+        "(sum_over_time(custom:{table_id}:__default__:apm_service_to_apm_service_flow_sum{where}[{interval}s])) "
+        "/ "
+        "sum {group_by} "
+        "(sum_over_time(custom:{table_id}:__default__:apm_service_to_apm_service_flow_count{where}[{interval}s]))"
+    )
+
+
+class ServiceFlowDurationBucket(MetricHandler):
+    """[自定义逻辑] 服务间调用耗时 bucket(预计算指标)"""
+
+    metric_id = CalculationMethod.SERVICE_FLOW_DURATION
+    aggs_method = "SUM"
+    metric_field = "apm_service_to_apm_service_flow_bucket"
+    default_group_by = ["le"]
+
+
+class ServiceFlowDurationMax(MetricHandler):
+    """服务间调用耗时 MAX(预计算指标)"""
+
+    metric_id = CalculationMethod.SERVICE_FLOW_DURATION
+    aggs_method = "MAX"
+    metric_field = "apm_service_to_apm_service_flow_max"
+
+
+class ServiceFlowDurationMin(MetricHandler):
+    """服务间调用耗时 MIN(预计算指标)"""
+
+    metric_id = CalculationMethod.SERVICE_FLOW_DURATION
+    aggs_method = "MIN"
+    metric_field = "apm_service_to_apm_service_flow_min"
 
 
 @using_cache(CacheType.APM(60 * 15))

@@ -63,18 +63,19 @@ const removePendingRequest = (method, url) => {
     pendingRequest.delete(requestKey);
   }
 };
-
-export const request = function (method, url) {
-  return function (id, params, config = {}) {
+export const request = (method, url) => {
+  return (id, params, config = {}) => {
     let newUrl = url;
     let data = {};
     const hasBizId = !(window.cc_biz_id === -1 || !window.cc_biz_id);
     if (typeof id === 'number' || typeof id === 'string') {
       newUrl = url.replace('{pk}', id);
       data = params || {};
+      // biome-ignore lint/style/noParameterAssign:0
       config = Object.assign({}, defaultConfig, config || {});
     } else {
       data = id || {};
+      // biome-ignore lint/style/noParameterAssign:0
       config = Object.assign({}, defaultConfig, params || {});
     }
     const methodType = method.toLocaleLowerCase() || 'get';
@@ -115,21 +116,21 @@ export const request = function (method, url) {
           return Promise.resolve(res.data);
         })
         .catch(err => {
-          const message = makeMessage(err.message, traceparent, config.needTraceId);
-          if (config.needMessage && err.message) {
+          const message = makeMessage(err.error_details || err.message, traceparent, config.needTraceId);
+          if (config.needMessage) {
             bkMessage(message);
           }
-          err.message && (err.message = message);
+          // !err.error_details && err.message && (err.message = message);
           return Promise.reject(err);
         });
     }
-    Object.keys(data).forEach(key => {
-      const type = String(data[key]);
+    for (const value of Object.values(data)) {
+      const type = String(value);
       if (type === '[object FileList]' || type === '[object File]') {
         const formData = new FormData();
-        Object.keys(data).forEach(key => {
-          formData.append(key, data[key]);
-        });
+        for (const [key, val] of Object.entries(data)) {
+          formData.append(key, val);
+        }
         data = formData;
         config.headers = {
           ...config.headers,
@@ -137,7 +138,7 @@ export const request = function (method, url) {
           productionTip: true,
         };
       }
-    });
+    }
     if (config.needBiz && !Object.prototype.hasOwnProperty.call(data, 'bk_biz_id')) {
       if (data instanceof FormData) {
         if (hasBizId) {
@@ -166,11 +167,11 @@ export const request = function (method, url) {
         return Promise.resolve(res.data);
       })
       .catch(err => {
-        const message = makeMessage(err.message || '', traceparent, config.needTraceId);
-        if (config.needMessage && !noMessageCode.includes(err.code) && err.message) {
+        const message = makeMessage(err.error_details || err.message || '', traceparent, config.needTraceId);
+        if (config.needMessage && !noMessageCode.includes(err.code)) {
           bkMessage(message);
         }
-        err.message && (err.message = message);
+        // !err.error_details && err.message && (err.message = message);
         return Promise.reject(err);
       });
   };

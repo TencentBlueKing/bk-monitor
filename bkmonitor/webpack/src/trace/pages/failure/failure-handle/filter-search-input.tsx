@@ -49,8 +49,8 @@ export const commonAlertFieldMap = {
       name: window.i18n.tc('已恢复'),
     },
     {
-      id: isEn ? 'CLOSED' : '已关闭',
-      name: window.i18n.tc('已关闭'),
+      id: isEn ? 'CLOSED' : '已失效',
+      name: window.i18n.tc('已失效'),
     },
   ],
   severity: [
@@ -453,7 +453,7 @@ export default defineComponent({
       return Boolean(!inputValue.value.length);
     });
     const fieldList = computed(() => {
-      let list = alertFieldList.value;
+      const list = alertFieldList.value;
       // switch (props.searchType) {
       //   case 'alert':
       //     list = alertFieldList.value;

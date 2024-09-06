@@ -16,6 +16,9 @@ from collections import defaultdict
 from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import ugettext_lazy as _
+from elasticsearch_dsl import Q
+from opentelemetry.semconv.resource import ResourceAttributes
+from opentelemetry.semconv.trace import SpanAttributes
 
 from apm_web.constants import (
     APM_APPLICATION_DEFAULT_METRIC,
@@ -29,8 +32,11 @@ from apm_web.constants import (
 from apm_web.metrics import APPLICATION_LIST
 from apm_web.models import ApdexServiceRelation, ApplicationCustomService
 from apm_web.utils import group_by
+from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
+from constants.apm import OtlpKey
 from core.drf_resource import api
+from core.errors.api import BKAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -92,13 +98,9 @@ class ServiceHandler:
             app_name = application.app_name
             is_enabled_profiling = application.is_enabled_profiling
 
-        resp = api.apm_api.query_topo_node({"bk_biz_id": bk_biz_id, "app_name": app_name})
+        trace_services = cls.list_nodes(bk_biz_id, app_name)
 
         # step1: 获取已发现的服务
-        trace_services = [item for item in resp if item["extra_data"]["kind"] in ["service", "remote_service"]]
-        for r in trace_services:
-            r["from_service"] = r["topo_key"]
-
         found_service_names = [i["topo_key"] for i in trace_services if i["extra_data"]["kind"] == "remote_service"]
         # step2: 额外补充手动配置的自定义服务
         custom_services = ApplicationCustomService.objects.filter(
@@ -119,12 +121,10 @@ class ServiceHandler:
                         "service_language": "",
                         "instance": {},
                     },
-                    "from_service": topo_key,
                 }
             )
 
         # step3: 计算服务下组件
-        trace_services += cls.list_service_components(bk_biz_id, app_name, resp)
 
         # step4: 获取 Profile 服务
         profile_services = []
@@ -162,64 +162,9 @@ class ServiceHandler:
         return res
 
     @classmethod
-    def list_service_components(cls, bk_biz_id, app_name, services):
-        topo_keys = [i["topo_key"] for i in services]
-        service_components = api.apm_api.query_topo_relation(
-            bk_biz_id=bk_biz_id,
-            app_name=app_name,
-            filters={"from_topo_key__in": topo_keys, "to_topo_key_kind": TopoNodeKind.COMPONENT},
-        )
-
-        # 根据service_name分类 相同的category合为一类展示
-        from_keys_mapping = group_by(service_components, operator.itemgetter("from_topo_key"))
-
-        service_component_mappings = {}
-        for from_topo_key, to_components in from_keys_mapping.items():
-            predicate_value_mappings = {}
-            for to_component in to_components:
-                to_topo_key = to_component["to_topo_key"]
-                to_topo_kind = to_component["to_topo_key_kind"]
-                to_topo_category = to_component["to_topo_key_category"]
-
-                key_composition = to_topo_key.split(":")
-                # 兼容旧版topo_relation中间件发现逻辑生成了无:拼接的数据
-                if len(key_composition) <= 1:
-                    continue
-
-                predicate_value = key_composition[1]
-                predicate_value_mappings.setdefault(predicate_value, []).append(
-                    {
-                        "topo_key": to_topo_key,
-                        "extra_data": {
-                            "category": to_topo_category,
-                            "kind": to_topo_kind,
-                            "predicate_value": predicate_value,
-                            "service_language": "",
-                            "instance": {},
-                        },
-                    }
-                )
-
-            service_component_mappings[from_topo_key] = predicate_value_mappings
-
-        res = []
-        for from_service, component_mappings in service_component_mappings.items():
-            for predicate_value, items in component_mappings.items():
-                res.append(
-                    {
-                        "topo_key": f"{from_service}-{predicate_value}",
-                        "extra_data": {
-                            "category": items[0]["extra_data"]["category"],
-                            "kind": items[0]["extra_data"]["kind"],
-                            "predicate_value": predicate_value,
-                            "service_language": "",
-                            "instance": {},
-                        },
-                        "from_service": from_service,
-                    }
-                )
-
-        return res
+    def generate_remote_service_name(cls, name, category="http"):
+        """将名称变为自定义服务的显示名称"""
+        return f"{category}:{name}"
 
     @classmethod
     def is_remote_service(cls, bk_biz_id, app_name, node_topo_key) -> bool:
@@ -228,22 +173,59 @@ class ServiceHandler:
         if not node_topo_key:
             return False
 
-        nodes = api.apm_api.query_topo_node(bk_biz_id=bk_biz_id, app_name=app_name, topo_key=node_topo_key)
-
-        if nodes:
-            return nodes[0]["extra_data"]["kind"] == TopoNodeKind.REMOTE_SERVICE
-
-        return False
+        node = cls.get_node(bk_biz_id, app_name, node_topo_key)
+        return cls.is_remote_service_by_node(node)
 
     @classmethod
-    def get_service_node_detail(cls, bk_biz_id, app_name, node_topo_key):
-        """获取服务详细信息"""
-        nodes = api.apm_api.query_topo_node(bk_biz_id=bk_biz_id, app_name=app_name, topo_key=node_topo_key)
+    def is_remote_service_by_node(cls, node):
+        if not node:
+            return False
+        return node.get("extra_data", {}).get("kind") == TopoNodeKind.REMOTE_SERVICE
 
-        if nodes:
-            return nodes[0]
+    @classmethod
+    def get_remote_service_origin_name(cls, remote_service_name):
+        """获取自定义服务的原始名称 http:xxx -> xxx"""
+        return remote_service_name.split(":", 1)[-1]
 
-        return None
+    @classmethod
+    def build_remote_service_filter_params(cls, service_name, filter_params):
+        """
+        获取自定义服务过滤条件
+        """
+        filter_params.append(
+            {
+                "key": OtlpKey.get_attributes_key(SpanAttributes.PEER_SERVICE),
+                "op": "=",
+                "value": [cls.get_remote_service_origin_name(service_name)],
+            }
+        )
+        # 去除 service_name
+        index = None
+        for item in filter_params:
+            if item["key"] == OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME):
+                index = filter_params.index(item)
+
+        if index is not None:
+            del filter_params[index]
+        return filter_params
+
+    @classmethod
+    def build_remote_service_es_query_dict(cls, query, service_name, filter_params):
+        filter_params = cls.build_remote_service_filter_params(service_name, filter_params)
+        for f in filter_params:
+            query = query.query("bool", filter=[Q("terms", **{f["key"]: f["value"]})])
+
+        return query
+
+    @classmethod
+    def build_service_es_query_dict(cls, query, service_name, filter_params):
+        query = query.query(
+            "bool", filter=[Q("terms", **{OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME): [service_name]})]
+        )
+        for f in filter_params:
+            query = query.query("bool", filter=[Q("terms", **{f["key"]: f["value"]})])
+
+        return query
 
     @classmethod
     def get_apdex_relation_info(cls, bk_biz_id, app_name, service_name, nodes=None):
@@ -251,7 +233,7 @@ class ServiceHandler:
         获取服务apdex配置
         """
         if not nodes:
-            nodes = api.apm_api.query_topo_node(bk_biz_id=bk_biz_id, app_name=app_name)
+            nodes = cls.list_nodes(bk_biz_id, app_name)
 
         instance = ApdexServiceRelation.objects.filter(
             bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
@@ -277,7 +259,7 @@ class ServiceHandler:
     @classmethod
     def get_service_apdex_key(cls, bk_biz_id, app_name, service_name, nodes=None, raise_exception=True):
         if not nodes:
-            nodes = api.apm_api.query_topo_node(bk_biz_id=bk_biz_id, app_name=app_name)
+            nodes = cls.list_nodes(bk_biz_id, app_name)
 
         node = next((i for i in nodes if i["topo_key"] == service_name), None)
         if not node:
@@ -288,3 +270,40 @@ class ServiceHandler:
 
         category = node["extra_data"]["category"]
         return ApdexCategoryMapping.get_apdex_by_category(category)
+
+    @classmethod
+    @using_cache(CacheType.APM(60 * 10))
+    def get_node(cls, bk_biz_id, app_name, service_name):
+        """获取 topoNode 节点信息"""
+        params = {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+            "topo_key": service_name,
+        }
+
+        try:
+            response = api.apm_api.query_topo_node(**params)
+            if not response:
+                raise ValueError(f"[ServiceHandler] 拓扑节点: {service_name} 不存在，请检查上报数据是否包含此服务")
+            return response[0]
+        except BKAPIError as e:
+            raise ValueError(f"[ServiceHandler] 查询拓扑节点信息失败，错误: {e}")
+
+    @classmethod
+    def list_nodes(cls, bk_biz_id, app_name):
+        """获取 topoNode 节点信息列表"""
+        params = {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+        }
+
+        try:
+            response = api.apm_api.query_topo_node(**params)
+            return response
+        except BKAPIError as e:
+            raise ValueError(f"[ServiceHandler] 查询拓扑节点列表失败， 错误: {e}")
+
+    @classmethod
+    def build_url(cls, app_name, service_name):
+        """构建服务页面跳转 url"""
+        return f"/service/?filter-service_name={service_name}&filter-app_name={app_name}"

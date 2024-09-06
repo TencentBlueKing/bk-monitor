@@ -39,6 +39,5 @@ class StrategySnapshotEnricher(BaseAlertEnricher):
             raise StrategyNotExist("strategy(%s) not exist", alert.strategy_id)
 
         alert.update_extra_info(key="strategy", value=strategy)
-        alert.update_agg_dimensions(strategy)
         alert.update_labels(strategy.get("labels", []))
         return alert

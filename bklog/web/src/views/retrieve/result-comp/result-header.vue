@@ -136,8 +136,11 @@
         trigger="click"
       >
         <slot name="trigger">
-          <div class="more-operation">
-            <i class="bk-icon bklog-icon bklog-ellipsis-more"></i>
+          <div
+            class="more-operation"
+            id="more-operator"
+          >
+            <i class="bk-icon log-icon icon-ellipsis-more"></i>
           </div>
         </slot>
         <template #content>
@@ -230,6 +233,10 @@
         type: String,
         required: true,
       },
+      clusteringData: {
+        type: Object,
+        required: true,
+      },
     },
     data() {
       return {
@@ -312,6 +319,7 @@
         detailJumpRouteKey: 'log', // 路由key log采集列表 custom自定义上报 es、bkdata、setIndex 第三方ED or 计算平台 or 索引集
         isFirstCloseCollect: false,
         showSettingMenuList: [],
+        catchSettingMenuList: [],
         showCollectIntroGuide: false,
       };
     },
@@ -320,6 +328,7 @@
         bkBizId: state => state.bkBizId,
         userGuideData: state => state.userGuideData,
         isExternal: state => state.isExternal,
+        storeIsShowClusterStep: state => state.storeIsShowClusterStep,
       }),
       ...mapGetters({
         isShowMaskingTemplate: 'isShowMaskingTemplate',
@@ -349,6 +358,10 @@
             return aiopsBizList ? aiopsBizList.some(item => item.toString() === this.bkBizId) : false;
         }
       },
+      /** 日志聚类开关 */
+      clusterSwitch() {
+        return this.clusteringData?.is_active;
+      },
       iconFavoriteStr() {
         return this.$t('点击{n}收藏', {
           n: !this.isShowCollect
@@ -370,6 +383,15 @@
         handler(val) {
           this.setShowLiList(val);
         },
+      },
+      clusteringData: {
+        immediate: true,
+        handler() {
+          this.handleShowSettingMenuListChange();
+        },
+      },
+      storeIsShowClusterStep() {
+        this.handleShowSettingMenuListChange();
       },
     },
     created() {
@@ -463,6 +485,12 @@
         });
         window.open(href, '_blank');
       },
+      handleShowSettingMenuListChange() {
+        const isShowClusterSet = this.clusteringData?.is_active || this.storeIsShowClusterStep;
+        this.showSettingMenuList = this.catchSettingMenuList.filter(item => {
+          return item.id === 'clustering' ? isShowClusterSet : true;
+        });
+      },
       setShowLiList(setItem) {
         if (JSON.stringify(setItem) === '{}') return;
         if (setItem.scenario_id === 'log') {
@@ -486,7 +514,7 @@
        */
       initJumpRouteList(detailStr, isFilterExtract = false) {
         if (!['log', 'es', 'bkdata', 'custom', 'setIndex'].includes(detailStr)) {
-          this.showSettingMenuList = this.isAiopsToggle ? this.settingMenuList : [];
+          this.catchSettingMenuList = this.isAiopsToggle ? this.settingMenuList : [];
           return;
         }
         // 赋值详情路由的key
@@ -505,7 +533,7 @@
           this.isShowMaskingTemplate ? true : item.id !== 'logMasking',
         );
         // 合并其他
-        this.showSettingMenuList = filterMenuList.concat(accessList);
+        this.catchSettingMenuList = filterMenuList.concat(accessList);
       },
       handleClickResultIcon(type) {
         if (type === 'collect') {

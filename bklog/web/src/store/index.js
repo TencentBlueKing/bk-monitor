@@ -146,6 +146,7 @@ const store = new Vuex.Store({
     isNotVisibleFieldsShow: false,
     showAlert: false, // 是否展示跑马灯
     isLimitExpandView: false,
+    storeIsShowClusterStep: false,
   },
   // 公共 getters
   getters: {
@@ -218,6 +219,7 @@ const store = new Vuex.Store({
         ids,
       };
     },
+    storeIsShowClusterStep: state => state.storeIsShowClusterStep,
   },
   // 公共 mutations
   mutations: {
@@ -451,6 +453,9 @@ const store = new Vuex.Store({
       const defValue = { ...IndexFieldInfo };
       state.indexFieldInfo = Object.assign(defValue, payload ?? {});
     },
+    updateStoreIsShowClusterStep(state, val) {
+      state.storeIsShowClusterStep = val;
+    },
   },
   actions: {
     /**
@@ -599,7 +604,6 @@ const store = new Vuex.Store({
           selectIsUnionSearch: isUnionIndex,
           items: ids.map(val => (list || []).find(item => item.index_set_id === val)),
           isUnionIndex,
-          fingerSearchState: false,
         };
 
         commit('updateIndexItem', payload);
@@ -744,7 +748,6 @@ const store = new Vuex.Store({
               commit('updateIndexItem', {
                 catchUnionBeginList,
                 begin: begin + 1,
-                fingerSearchState: !state.indexItem.fingerSearchState,
               });
               commit('updateIndexSetQueryResult', rsolvedData ?? {});
               return {

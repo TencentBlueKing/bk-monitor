@@ -60,7 +60,7 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
   drag = {
     active: -1,
   };
-
+  isCreateNewTab = true;
   get pageNameList() {
     return this.bookMarkData.map(data => data.name);
   }
@@ -87,7 +87,7 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
   handleBookMarkDataChange(val) {
     this.localTabData = deepClone(val);
     this.tabActive && this.updateCurTabFormLocal(this.tabActive);
-    if (this.needAutoAdd) {
+    if (this.needAutoAdd && this.isCreateNewTab) {
       this.addTab();
     }
   }
@@ -124,7 +124,7 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
       this.tabActive = this.localTabData[0].id;
       this.curTabForm = {
         id: `custom_${new Date().getTime()}`,
-        name: '新页签',
+        name: '',
         show_panel_count: true,
       };
     };
@@ -234,14 +234,25 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
 
   handleFiledChange(data) {
     this.curTabForm = data;
+    this.localTabData.forEach(item => {
+      if (item.id === this.tabActive) {
+        item.show_panel_count = data.show_panel_count;
+      }
+    });
   }
 
   /**
    * @description: 保存页签
    */
   @Emit('save')
-  handleSave(): SettingsTabType.IEvents['onSave'] {
-    const data = { ...this.curTabForm, view_order: [] };
+  handleSave(isCreateNewTab: boolean): SettingsTabType.IEvents['onSave'] {
+    this.isCreateNewTab = isCreateNewTab;
+    const data = {
+      id: this.tabActive,
+      name: this.curTabForm.name,
+      show_panel_count: this.curTabForm.show_panel_count,
+      view_order: [],
+    };
     if (this.tabSortIsDiff) {
       const tabOrder = this.localTabData.map(tab => tab.id);
       data.view_order = tabOrder;
@@ -275,6 +286,7 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
         }
       },
     });
+    this.isCreateNewTab = false;
   }
 
   render() {
@@ -325,6 +337,7 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
           bookMarkData={this.bookMarkData}
           canAddTab={this.canAddTab}
           formData={this.curTabForm}
+          needAutoAdd={this.needAutoAdd}
           onChange={this.handleFiledChange}
           // onReset={this.handleReset}
           onDelete={this.handleDelete}

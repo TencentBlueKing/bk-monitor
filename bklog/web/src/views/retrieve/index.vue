@@ -37,6 +37,7 @@
         :retrieve-params="retrieveParams"
         :show-retrieve-condition="showRetrieveCondition"
         :timezone="timezone"
+        :clustering-data="clusteringData"
         @close-retrieve-condition="closeRetrieveCondition"
         @date-picker-change="retrieveWhenDateChange"
         @open="openRetrieveCondition"
@@ -405,7 +406,7 @@
         clusteringData: {
           // 日志聚类参数
           name: '',
-          is_active: true,
+          is_active: false,
           extra: {
             collector_config_id: null,
             signature_switch: false,
@@ -572,9 +573,6 @@
           this.$store.commit('updateUnionIndexItemList', filterIndexSetList);
         },
       },
-    },
-    created() {
-      this.getGlobalsData();
     },
     mounted() {
       window.bus.$on('retrieveWhenChartChange', this.retrieveWhenChartChange);
@@ -1944,18 +1942,6 @@
           this.isSqlSearchType = true;
         }
       },
-      // 获取全局数据和 判断是否可以保存 已有的日志聚类
-      getGlobalsData() {
-        if (Object.keys(this.globalsData).length) return;
-        this.$http
-          .request('collect/globals')
-          .then(res => {
-            this.$store.commit('globals/setGlobalsData', res.data);
-          })
-          .catch(e => {
-            console.warn(e);
-          });
-      },
       initToolTipsMessage(config) {
         const { contextAndRealtime, bcsWebConsole } = config;
         return {
@@ -2392,4 +2378,5 @@
       padding: 0;
     }
   }
-</style>./condition-comp/select-index-set
+</style>
+./condition-comp/select-index-set

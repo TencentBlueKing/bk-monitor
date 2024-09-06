@@ -51,7 +51,7 @@ const inputLogStyle = {
 
 @Component
 export default class LogFilter extends tsc<object> {
-  @Prop({ type: Object, required: true }) conditions: object;
+  @Prop({ type: Object, default: () => ({}) }) conditions: object;
   @Prop({ type: Boolean, default: false }) isCloneOrUpdate: boolean;
 
   /** 日志过滤开关 */
@@ -119,9 +119,6 @@ export default class LogFilter extends tsc<object> {
     return this.getSubmitConditionsData();
   }
 
-  mounted() {
-    this.initContainerData();
-  }
   /** 初始化日志过滤table表格 */
   initContainerData() {
     const {

@@ -56,6 +56,45 @@ class AccessStatus:
     FAILED = "failed"
 
 
+class AccessErrorType:
+    """
+    数据接入异常类型
+    """
+
+    # 接入数据源异常
+    ACCESS_DATAID = "access_dataid"
+
+    # 指标不支持
+    METRIC_NOT_SUPPORT = "metric_not_support"
+
+    # 创建计算平台FLow异常
+    CREATE_FLOW = "create_flow"
+
+    # 启动计算平台Flow异常
+    START_FLOW = "start_flow"
+
+
+class CheckErrorType:
+    """
+    策略任务巡检异常类型
+    """
+
+    # 接入失败
+    ACCESS_ERROR = "access_error"
+
+    # 任务没有在正常运行中
+    NOT_RUNNING = "not_running"
+
+    # 任务运行异常
+    RUNNING_FAILURE = "running_failure"
+
+    # 任务没有输出
+    NO_OUTPUT = "no_output"
+
+    # 任务没有埋点
+    NO_RUNTIME_METRICS = "no_runtime_metrics"
+
+
 class RTAccessBkDataStatus:
     # 等待中
     PENDING = "pending"

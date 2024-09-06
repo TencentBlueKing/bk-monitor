@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
 from typing import List, Union
 
 from django.conf import settings
@@ -50,12 +51,15 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             params.update({"space_uid": space_uid})
         else:
             raise ValidationError(_("参数[space_uid]、和[id]不能同时为空"))
-        # 尝试从缓存获取, 解决 bkcc 业务层面快速获取空间信息的场景
-        ret: List[SpaceDefine] = local_mem.get("metadata:spaces_map", None)
-        if ret is not None and "space_uid" in params:
-            space = ret.get(params["space_uid"])
-            if space is not None:
-                return space
+        # cmdb业务尝试用缓存
+        using_cache = params.get("space_uid", "").startswith("bkcc") or bk_biz_id > 0
+        if using_cache:
+            # 尝试从缓存获取, 解决 bkcc 业务层面快速获取空间信息的场景
+            ret: List[SpaceDefine] = local_mem.get("metadata:spaces_map", None)
+            if ret is not None:
+                space = ret.get(params["space_uid"])
+                if space is not None:
+                    return space
         space_info = api.metadata.get_space_detail(**params)
         return cls._init_space(space_info)
 
@@ -129,3 +133,16 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         # 10min
         local_mem.set("metadata:list_spaces_dict", spaces, 600)
         return spaces
+
+    @classmethod
+    def list_sticky_spaces(cls, username):
+        sql = """SELECT `metadata_spacestickyinfo`.`space_uid_list`
+        FROM `metadata_spacestickyinfo`
+        WHERE `metadata_spacestickyinfo`.`username` = %s
+        """
+        with connections["monitor_api"].cursor() as cursor:
+            cursor.execute(sql, (username,))
+            sticky_spaces = cursor.fetchone() or []
+            if sticky_spaces:
+                sticky_spaces = json.loads(sticky_spaces[0])
+            return sticky_spaces

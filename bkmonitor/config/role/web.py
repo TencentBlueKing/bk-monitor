@@ -24,6 +24,7 @@ from ..tools.environment import (
     IS_CONTAINER_MODE,
     NEW_ENV,
     PAAS_VERSION,
+    ROLE,
 )
 
 # fmt: off
@@ -246,7 +247,7 @@ if USE_DJANGO_CACHE_REDIS:
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_PATH = SITE_URL
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
-if USE_DJANGO_CACHE_REDIS:
+if USE_DJANGO_CACHE_REDIS and ROLE == "web":
     # 配置redis缓存后， 使用缓存存session
     SESSION_ENGINE = "django.contrib.sessions.backends.cache"
     SESSION_CACHE_ALIAS = "redis"
@@ -330,8 +331,8 @@ CELERYBEAT_SCHEDULE = {
         "schedule": crontab(minute="*/10"),
         "enabled": True,
     },
-    "monitor_web.tasks.update_aiops_dataflow_status": {
-        "task": "monitor_web.tasks.update_aiops_dataflow_status",
+    "monitor_web.tasks.maintain_aiops_strategies": {
+        "task": "monitor_web.tasks.maintain_aiops_strategies",
         "schedule": crontab(minute="*/10"),
         "enabled": False,
     },

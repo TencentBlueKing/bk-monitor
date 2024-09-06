@@ -1058,4 +1058,38 @@ API_FAILED_REQUESTS_TOTAL = Gauge(
     labelnames=("action", "module", "code", "role", "exception", "user_name"),
 )
 
+AIOPS_ACCESS_TASK_COUNT = Gauge(
+    name="bkmonitor_aiops_access_task_count",
+    documentation="智能监控接入任务执行",
+    labelnames=(
+        "bk_biz_id",
+        "strategy_id",
+        "algorithm",
+        "data_source_label",
+        "data_type_label",
+        "metric_id",
+        "task_id",
+        "result",
+        "retries",
+        "exception",
+        "exc_type",
+    ),
+)
+
+AIOPS_STRATEGY_CHECK = Gauge(
+    name="bkmonitor_aiops_strategy_check",
+    documentation="智能监控策略巡检",
+    labelnames=(
+        "bk_biz_id",
+        "strategy_id",
+        "algorithm",
+        "data_source_label",
+        "data_type_label",
+        "metric_id",
+        "status",
+        "exception",
+        "exc_type",
+    ),
+)
+
 TOTAL_TAG = "__total__"

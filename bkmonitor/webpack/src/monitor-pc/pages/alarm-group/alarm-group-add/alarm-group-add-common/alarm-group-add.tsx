@@ -526,7 +526,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
   }
 
   // 校验
-  validate(): Promise<ErrorList | boolean> {
+  validate(): Promise<boolean | ErrorList> {
     return new Promise((resolve, reject) => {
       const valueMap: ValidateSource = {};
       const newRules = {
@@ -881,13 +881,15 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
               placeholder={this.$t('输入所属空间')}
               readonly
             >
-              {this.bizIdLIst.map(opt => (
-                <bk-option
-                  id={opt.id}
-                  key={opt.id}
-                  name={opt.text}
-                />
-              ))}
+              {this.bizIdLIst
+                .filter(item => item.id === this.formData.bizId)
+                .map(opt => (
+                  <bk-option
+                    id={opt.id}
+                    key={opt.id}
+                    name={opt.text}
+                  />
+                ))}
             </bk-select>
           </bk-form-item>
           <bk-form-item

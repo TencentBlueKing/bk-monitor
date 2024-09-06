@@ -26,6 +26,7 @@
   const changeQueueRes = status => {
     queueStatus.value = status;
   };
+  
   const isOpen = ref(true);
   const changeState = val => {
     console.log(val);
@@ -57,6 +58,7 @@
         />
         <LogClustering
           v-if="activeTab === 'clustering'"
+          :retrieveParams="retrieveParams"
           ref="logClusteringRef"
         />
       </keep-alive>

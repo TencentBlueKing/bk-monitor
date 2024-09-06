@@ -741,7 +741,7 @@ TIMEOUT_ACTION_KEY_LOCK = register_key_with_config(
         "label": "[action]超时设置周期任务",
         "key_type": "string",
         "key_tpl": "fta_action.timeout.process.lock",
-        "ttl": 2 * CONST_MINUTES,
+        "ttl": 60 * CONST_MINUTES,
         "backend": "service",
     }
 )

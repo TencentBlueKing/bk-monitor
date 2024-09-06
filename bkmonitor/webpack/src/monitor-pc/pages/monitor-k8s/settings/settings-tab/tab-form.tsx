@@ -32,14 +32,18 @@ import './tab-form.scss';
 
 interface ITabFormProps {
   canAddTab: boolean;
+  needAutoAdd: boolean;
   formData: SettingsTabType.ITabForm;
   bookMarkData: IBookMark[];
 }
 
 interface ITabFormEvents {
+  // biome-ignore lint/suspicious/noConfusingVoidType: <explanation>
   onChange: void;
+  // biome-ignore lint/suspicious/noConfusingVoidType: <explanation>
   onSave: void;
   onDelete: string;
+  // biome-ignore lint/suspicious/noConfusingVoidType: <explanation>
   onReset: void;
 }
 
@@ -48,7 +52,11 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
   @Prop({ default: () => [], type: Array }) bookMarkData: IBookMark[];
   @Prop() formData: SettingsTabType.ITabForm;
   @Prop({ default: false, type: Boolean }) canAddTab: boolean;
+  @Prop({ default: false, type: Boolean }) needAutoAdd: boolean;
   @Ref('tabForm') refForm;
+  @Ref() myInput: {
+    focus: () => void;
+  };
 
   /** 表单数据 */
   localForm: SettingsTabType.ITabForm = {
@@ -102,10 +110,16 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
   /**
    * @description: 保存页签
    */
-  handleSave() {
-    this.refForm.validate().then(() => {
-      this.$emit('save');
+  handleSave(isAddNewTab = true) {
+    this.refForm?.validate().then(() => {
+      this.$emit('save', isAddNewTab);
     });
+  }
+
+  mounted() {
+    setTimeout(() => {
+      this.myInput?.focus();
+    }, 300);
   }
 
   // /**
@@ -141,6 +155,7 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
             property='name'
           >
             <bk-input
+              ref='myInput'
               class='input-title'
               v-model={this.localForm.name}
               onBlur={this.handleValueChange}
@@ -169,11 +184,20 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
               <bk-button
                 class='handle-btn'
                 theme='primary'
-                onClick={this.handleSave}
+                onClick={() => this.handleSave(false)}
               >
                 {this.$t('保存')}
               </bk-button>
               {/* <bk-button class="handle-btn" onClick={this.handleReset}>{ this.$t('重置') }</bk-button> */}
+              {this.needAutoAdd && (
+                <bk-button
+                  class='handle-btn'
+                  theme='primary'
+                  onClick={this.handleSave}
+                >
+                  {this.$t('保存并继续创建')}
+                </bk-button>
+              )}
               {this.canAddTab && (
                 <bk-button
                   class='handle-btn'

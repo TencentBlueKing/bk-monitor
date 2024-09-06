@@ -267,6 +267,7 @@
     created() {
       this.handleLogChartCancel = debounce(300, this.logChartCancel);
       localStorage.setItem('chartIsFold', true);
+      this.$emit('toggle-change', false);
     },
     mounted() {
       window.bus.$on('openChartLoading', this.openChartLoading);

@@ -44,11 +44,16 @@ def no_data_check():
 
 
 def index_set_no_data_check(index_set_id):
-    result = SearchHandler(index_set_id=index_set_id, search_dict={"time_range": "1d", "size": 1}).search(
-        search_type=None
-    )
-    if result["total"] == 0:
+    try:
+        result = SearchHandler(index_set_id=index_set_id, search_dict={"time_range": "1d", "size": 1}).search(
+            search_type=None
+        )
+        if result["total"] == 0:
+            LogIndexSet.set_tag(index_set_id, InnerTag.NO_DATA.value)
+            logger.warning(f"[no data check] index_set_id => [{index_set_id}] no have data")
+            return
+    except Exception as e:  # pylint: disable=broad-except
         LogIndexSet.set_tag(index_set_id, InnerTag.NO_DATA.value)
-        logger.warning(f"[no data check] index_set_id => [{index_set_id}] no have data")
+        logger.warning(f"[no data check] index_set_id => [{index_set_id}] check failed: {e}")
         return
     LogIndexSet.delete_tag_by_name(index_set_id, InnerTag.NO_DATA.value)

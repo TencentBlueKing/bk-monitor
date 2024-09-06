@@ -865,6 +865,7 @@
         spaceUid: 'spaceUid',
         curCollect: 'collect/curCollect',
         globalsData: 'globals/globalsData',
+        exportCollectObj: 'collect/exportCollectObj',
       }),
       authorityMap() {
         return authorityMap;
@@ -999,10 +1000,15 @@
 
       // 采集项编辑进入
       this.getDetail();
-      const isClone = this.$route.query?.type === 'clone';
-      const collectorID = isClone
-        ? this.$route.query?.collectorId || this.curCollect.collector_config_id
-        : this.curCollect.collector_config_id;
+      let collectorID;
+      if (this.exportCollectObj.syncType.includes('field_clear_config')) {
+        collectorID = this.exportCollectObj.collectID;
+      } else {
+        const { type, collectorId } = this.$route.query;
+        const { collector_config_id: curConfigID } = this.curCollect;
+        const cloneCollectorID = collectorId || curConfigID;
+        collectorID = type === 'clone' ? cloneCollectorID : curConfigID;
+      }
       await this.getCleanStash(collectorID);
       this.getDataLog('init');
     },
