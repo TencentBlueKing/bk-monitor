@@ -105,8 +105,6 @@
         <div v-else>
           <ignore-table
             v-if="active === 'ignoreNumbers' || active === 'ignoreSymbol'"
-            v-bind="$attrs"
-            v-on="$listeners"
             :active="active"
             :clustering-field="clusteringField"
             :origin-table-list="originTableList"
@@ -115,9 +113,7 @@
           />
           <data-fingerprint
             v-if="isFingerNav"
-            v-bind="$attrs"
             ref="fingerTableRef"
-            v-on="$listeners"
             :all-finger-list="allFingerList"
             :cluster-switch="clusterSwitch"
             :config-data="configData"
@@ -213,10 +209,6 @@
         type: Boolean,
         required: true,
       },
-      fingerSearchState: {
-        type: Boolean,
-        required: true,
-      },
     },
     data() {
       return {
@@ -291,9 +283,13 @@
       }),
       ...mapState({
         indexSetItem: 'indexFieldInfo',
+        indexItem: 'indexItem',
         indexSetQueryResult: 'indexSetQueryResult',
         indexSetFieldConfig: 'indexSetFieldConfig'
       }),
+      fingerSearchState() {
+        return this.indexItem.fingerSearchState;
+      },
       totalFields() {
         return this.indexSetItem.fields ?? [];
       },
