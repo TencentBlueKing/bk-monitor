@@ -105,6 +105,7 @@
   import indexSetSearchMixin from '@/mixins/indexSet-search-mixin';
   import axios from 'axios';
   import { debounce } from 'throttle-debounce';
+// import { nextTick } from 'vue';
   import { mapGetters } from 'vuex';
 
   const CancelToken = axios.CancelToken;
@@ -119,7 +120,7 @@
       return {
         timeRange: [],
         timer: null,
-        isFold: localStorage.getItem('chartIsFold') === 'true',
+        isFold: localStorage.getItem('chartIsFold'),
         intervalArr: [
           { id: 'auto', name: 'auto' },
           { id: '1m', name: '1 min' },
@@ -241,6 +242,7 @@
     },
     created() {
       this.handleLogChartCancel = debounce(300, this.logChartCancel);
+      localStorage.setItem('chartIsFold', true);
     },
     mounted() {
       window.bus.$on('openChartLoading', this.openChartLoading);
