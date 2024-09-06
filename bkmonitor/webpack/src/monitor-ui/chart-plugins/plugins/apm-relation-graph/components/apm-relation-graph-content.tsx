@@ -144,68 +144,75 @@ export default class ApmRelationGraphContent extends tsc<IProps> {
                   ))}
                 </div>
               </div>
-              <div class='side-wrap'>
-                {this.expanded.length >= 2 ? (
-                  <bk-resize-layout
-                    initial-divide={this.initialDivide}
-                    min={sideOverviewMinWidth}
-                    placement='right'
+              <div
+                style={{
+                  display: this.expanded.length >= 2 ? 'flex' : 'none',
+                }}
+                class='side-wrap'
+              >
+                <bk-resize-layout
+                  initial-divide={this.initialDivide}
+                  min={sideOverviewMinWidth}
+                  placement='right'
+                >
+                  <div
+                    style={{
+                      minWidth: `${sideTopoMinWidth}px`,
+                      display: this.expanded.includes('topo') ? 'block' : 'none',
+                    }}
+                    class='source-topo side1___'
+                    slot='main'
                   >
-                    <div
-                      style={{
-                        minWidth: `${sideTopoMinWidth}px`,
-                        display: this.expanded.includes('topo') ? 'block' : 'none',
-                      }}
-                      class='source-topo side1___'
-                      slot='main'
-                    >
-                      {this.$slots?.side1}
-                    </div>
-                    <div
-                      style={{
-                        minWidth: `${sideOverviewMinWidth}px`,
-                        display: this.expanded.includes('overview') ? 'block' : 'none',
-                        // width: this.side2Width ? `${this.side2Width}px` : 'auto',
-                      }}
-                      class={[
-                        'service-overview side2___',
-                        'overview-w-auto',
-                        { 'no-border': !this.expanded.includes('topo') },
-                      ]}
-                      slot='aside'
-                    >
-                      {this.$slots?.side2}
-                    </div>
-                  </bk-resize-layout>
-                ) : (
-                  [
-                    <div
-                      key={'01'}
-                      style={{
-                        minWidth: `${sideTopoMinWidth}px`,
-                        display: this.expanded.includes('topo') ? 'block' : 'none',
-                      }}
-                      class='source-topo side1___'
-                    >
-                      {this.$slots?.side1}
-                    </div>,
-                    <div
-                      key={'02'}
-                      style={{
-                        minWidth: `${sideOverviewMinWidth}px`,
-                        display: this.expanded.includes('overview') ? 'block' : 'none',
-                      }}
-                      class={[
-                        'service-overview side2___',
-                        { 'no-border': !this.expanded.includes('topo') },
-                        { 'overview-w-auto': this.onlyOverview },
-                      ]}
-                      slot='side2'
-                    >
-                      {this.$slots?.side2}
-                    </div>,
-                  ]
-                )}
+                    {this.$slots?.side1}
+                  </div>
+                  <div
+                    style={{
+                      minWidth: `${sideOverviewMinWidth}px`,
+                      display: this.expanded.includes('overview') ? 'block' : 'none',
+                      // width: this.side2Width ? `${this.side2Width}px` : 'auto',
+                    }}
+                    class={[
+                      'service-overview side2___',
+                      'overview-w-auto',
+                      { 'no-border': !this.expanded.includes('topo') },
+                    ]}
+                    slot='aside'
+                  >
+                    {this.$slots?.side2}
+                  </div>
+                </bk-resize-layout>
+              </div>
+              <div
+                style={{
+                  display: !(this.expanded.length >= 2) ? 'flex' : 'none',
+                }}
+                class='side-wrap'
+              >
+                <div
+                  key={'01'}
+                  style={{
+                    minWidth: `${sideTopoMinWidth}px`,
+                    display: this.expanded.includes('topo') ? 'block' : 'none',
+                  }}
+                  class='source-topo side1___'
+                >
+                  {this.$slots?.side1}
+                </div>
+                <div
+                  key={'02'}
+                  style={{
+                    minWidth: `${sideOverviewMinWidth}px`,
+                    display: this.expanded.includes('overview') ? 'block' : 'none',
+                  }}
+                  class={[
+                    'service-overview side2___',
+                    { 'no-border': !this.expanded.includes('topo') },
+                    { 'overview-w-auto': this.onlyOverview },
+                  ]}
+                  slot='side2'
+                >
+                  {this.$slots?.side2}
+                </div>
               </div>
             </div>
           )}

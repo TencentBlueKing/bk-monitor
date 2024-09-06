@@ -268,8 +268,11 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   }
 
   /* 右侧按钮禁用状态 */
-  get rightExpandDisable() {
-    return this.showType === 'table' || !(this.selectedServiceName || this.selectedEndpoint);
+  get overviewDisable() {
+    return this.showType === 'table' || !this.selectedServiceName;
+  }
+  get resourceDisable() {
+    return this.showType === 'table' || !!this.selectedEndpoint;
   }
 
   created() {
@@ -560,6 +563,9 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.selectedServiceName = node.data.id;
     this.selectedEndpoint = drillingName;
     this.selectedIcon = 'icon-fx';
+    if (this.expanded.includes('topo')) {
+      this.handleExpand('topo');
+    }
     if (!this.expanded.includes('overview')) {
       this.handleExpand('overview');
     }
@@ -668,10 +674,12 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                   key={item.id}
                   class={[
                     'tool-btn',
-                    { disabled: this.rightExpandDisable },
+                    { disabled: item.id === 'topo' ? this.resourceDisable : this.overviewDisable },
                     { active: this.expanded.includes(item.id) },
                   ]}
-                  onClick={() => !this.rightExpandDisable && this.handleExpand(item.id)}
+                  onClick={() =>
+                    !(item.id === 'topo' ? this.resourceDisable : this.overviewDisable) && this.handleExpand(item.id)
+                  }
                 >
                   <span class={`icon-monitor ${item.icon}`} />
                 </div>
