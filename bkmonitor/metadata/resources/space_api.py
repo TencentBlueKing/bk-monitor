@@ -8,7 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import json
 from typing import List, Union
 
 from django.conf import settings
@@ -58,15 +57,15 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             params.update({"space_uid": space_uid})
         else:
             raise ValidationError(_("参数[space_uid]、和[id]不能同时为空"))
-        # cmdb业务尝试用缓存
-        using_cache = params.get("space_uid", "").startswith("bkcc") or bk_biz_id > 0
+
+        cache_key = params.get("space_uid", "")
+        using_cache = cache_key or bk_biz_id > 0
         if using_cache:
             # 尝试从缓存获取, 解决 bkcc 业务层面快速获取空间信息的场景
-            ret = local_mem.get("metadata:spaces_map", miss_cache)
-            if ret is not miss_cache:
-                space = ret.get(params["space_uid"])
-                if space is not None:
-                    return space
+            space = local_mem.get(f"metadata:spaces_map:{cache_key}", miss_cache)
+            if space is not miss_cache:
+                return space
+
         space_info = api.metadata.get_space_detail(**params)
         return cls._init_space(space_info)
 
@@ -82,7 +81,8 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                 for space_dict in cls.list_spaces_dict(using_cache=False)
             ]
             local_mem.set("metadata:list_spaces", ret, timeout=600)
-            local_mem.set("metadata:spaces_map", {space.space_uid: space for space in ret}, timeout=600)
+            for space in ret:
+                local_mem.set(f"metadata:spaces_map:{space.space_uid}", space, timeout=600)
         return ret
 
     @classmethod
@@ -143,16 +143,3 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         # 10min
         local_mem.set("metadata:list_spaces_dict", spaces, 600)
         return spaces
-
-    @classmethod
-    def list_sticky_spaces(cls, username):
-        sql = """SELECT `metadata_spacestickyinfo`.`space_uid_list`
-        FROM `metadata_spacestickyinfo`
-        WHERE `metadata_spacestickyinfo`.`username` = %s
-        """
-        with connections["monitor_api"].cursor() as cursor:
-            cursor.execute(sql, (username,))
-            sticky_spaces = cursor.fetchone() or []
-            if sticky_spaces:
-                sticky_spaces = json.loads(sticky_spaces[0])
-            return sticky_spaces

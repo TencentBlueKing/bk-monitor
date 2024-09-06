@@ -58,15 +58,15 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             params.update({"space_uid": space_uid})
         else:
             raise ValidationError(_("参数[space_uid]、和[id]不能同时为空"))
-        # cmdb业务尝试用缓存
-        using_cache = params.get("space_uid", "").startswith("bkcc") or bk_biz_id > 0
+
+        cache_key = params.get("space_uid", "")
+        using_cache = cache_key or bk_biz_id > 0
         if using_cache:
             # 尝试从缓存获取, 解决 bkcc 业务层面快速获取空间信息的场景
-            ret = local_mem.get("metadata:spaces_map", miss_cache)
-            if ret is not miss_cache:
-                space = ret.get(params["space_uid"])
-                if space is not None:
-                    return space
+            space = local_mem.get(f"metadata:spaces_map:{cache_key}", miss_cache)
+            if space is not miss_cache:
+                return space
+
         space_info = api.metadata.get_space_detail(**params)
         return cls._init_space(space_info)
 
@@ -82,7 +82,8 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                 for space_dict in cls.list_spaces_dict(using_cache=False)
             ]
             local_mem.set("metadata:list_spaces", ret, timeout=600)
-            local_mem.set("metadata:spaces_map", {space.space_uid: space for space in ret}, timeout=600)
+            for space in ret:
+                local_mem.set(f"metadata:spaces_map:{space.space_uid}", space, timeout=600)
         return ret
 
     @classmethod
