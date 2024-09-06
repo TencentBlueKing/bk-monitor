@@ -187,7 +187,7 @@
 <script>
   import EmptyStatus from '@/components/empty-status';
   import ClusteringLoader from '@/skeleton/clustering-loader';
-  import { mapGetters } from 'vuex';
+  import { mapGetters, mapState } from 'vuex';
 
   import FingerOperate from './components/finger-operate';
   import DataFingerprint from './data-fingerprint';
@@ -205,30 +205,6 @@
     },
     inheritAttrs: false,
     props: {
-      retrieveParams: {
-        type: Object,
-        required: true,
-      },
-      configData: {
-        type: Object,
-        require: true,
-      },
-      cleanConfig: {
-        type: Object,
-        require: true,
-      },
-      totalFields: {
-        type: Array,
-        require: true,
-      },
-      originTableList: {
-        type: Array,
-        required: true,
-      },
-      indexSetItem: {
-        type: Object,
-        required: true,
-      },
       clusterRouteParams: {
         type: Object,
         required: true,
@@ -311,7 +287,25 @@
     computed: {
       ...mapGetters({
         globalsData: 'globals/globalsData',
+        retrieveParams: 'retrieveParams'
       }),
+      ...mapState({
+        indexSetItem: 'indexFieldInfo',
+        indexSetQueryResult: 'indexSetQueryResult',
+        indexSetFieldConfig: 'indexSetFieldConfig'
+      }),
+      totalFields() {
+        return this.indexSetItem.fields ?? [];
+      },
+      originLogList() {
+        return this.indexSetQueryResult.origin_log_list ?? [];
+      },
+      configData() {
+        return this.indexSetFieldConfig.clustering_config;
+      },
+      cleanConfig() {
+        return this.indexSetFieldConfig.clean_config;
+      },
       smallLoaderWidthList() {
         if (!this.isFingerNav) return this.loadingWidthList.ignore;
         return this.requestData.year_on_year_hour > 0

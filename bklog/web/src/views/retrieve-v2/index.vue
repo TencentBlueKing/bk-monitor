@@ -173,7 +173,7 @@
         :width.sync="favoriteWidth"
         @handle-click-favorite="handleClickFavorite"
       ></CollectFavorites>
-      <div :style="{ paddingLeft: `${showFavorites ? favoriteWidth : 0}px` }">
+      <div :style="{ paddingLeft: `${showFavorites ? favoriteWidth : 0}px` }" class="retrieve-context">
         <SearchBar></SearchBar>
         <div class="result-row">
           <SearchResultTab v-model="activeTab"></SearchResultTab>

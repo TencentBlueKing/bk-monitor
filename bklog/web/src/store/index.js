@@ -43,6 +43,7 @@ import {
   IndexItem,
   IndexsetItemParams,
   logSourceField,
+  indexSetClusteringData,
 } from './default-values.ts';
 import globals from './globals';
 import RequestPool from './request-pool';
@@ -86,6 +87,7 @@ const store = new Vuex.Store({
     // @ts-ignore
     indexFieldInfo: { ...IndexFieldInfo },
     indexSetQueryResult: { ...IndexSetQueryResult },
+    indexSetFieldConfig: { clustering_config: { ...indexSetClusteringData } },
     indexSetFieldConfigList: {
       is_loading: false,
       data: [],
@@ -239,6 +241,16 @@ const store = new Vuex.Store({
     resetIndexsetItemParams(state, payload) {
       const defaultValue = { ...IndexsetItemParams };
       Object.assign(state.indexItem, defaultValue, payload ?? {});
+    },
+
+    updateIndexSetFieldConfig(state, payload) {
+      const defVal = { ...indexSetClusteringData };
+      const { config } = payload ?? { config: [] };
+      const result = (config ?? []).reduce((output, item) => Object.assign(output, { [item.name]: { ...item } }), {
+        clustering_config: defVal,
+      });
+
+      Object.assign(state.indexSetFieldConfig, result ?? {});
     },
 
     resetIndexSetQueryResult(state, payload) {
@@ -628,6 +640,7 @@ const store = new Vuex.Store({
             'updateVisibleFields',
             res.data?.fields.filter(item => res.data.display_fields.includes(item.field_name)) ?? [],
           );
+          commit('updateIndexSetFieldConfig', res.data ?? {});
           return res;
         })
         .finally(() => {

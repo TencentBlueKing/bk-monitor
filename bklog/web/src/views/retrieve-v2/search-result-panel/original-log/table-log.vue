@@ -34,14 +34,15 @@
         <component
           :is="`${showOriginal ? 'OriginalList' : 'TableList'}`"
           :table-list="tableList"
-          :totalFields="totalFields"
-          :originTableList="originLogList"
-          :operatorConfig="indexSetOperatorConfig"
+          :total-fields="totalFields"
+          :origin-table-list="originLogList"
+          :operator-config="indexSetOperatorConfig"
+          :time-field="timeField"
           v-on="$listeners"
           :handle-click-tools="handleClickTools"
           :retrieve-params="retrieveParams"
-          :tableLoading="isContentLoading"
-          :visibleFields="visibleFields"
+          :table-loading="isContentLoading"
+          :visible-fields="visibleFields"
         ></component>
       </keep-alive>
 
@@ -147,9 +148,12 @@
         indexFieldInfo: 'indexFieldInfo',
         indexSetQueryResult: 'indexSetQueryResult',
         visibleFields: 'visibleFields',
-        indexSetOperatorConfig: 'indexSetOperatorConfig'
+        indexSetOperatorConfig: 'indexSetOperatorConfig',
       }),
       ...mapState('globals', ['fieldTypeMap']),
+      timeField() {
+        return this.indexFieldInfo.time_field;
+      },
       totalFields() {
         return this.indexFieldInfo.fields ?? [];
       },

@@ -95,3 +95,14 @@ export const logSourceField = () => {
     width: 230,
   };
 };
+
+export const indexSetClusteringData = {
+  // 日志聚类参数
+  name: '',
+  is_active: true,
+  extra: {
+    collector_config_id: null,
+    signature_switch: false,
+    clustering_field: '',
+  },
+};
