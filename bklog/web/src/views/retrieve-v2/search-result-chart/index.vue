@@ -412,7 +412,8 @@
       toggleExpand(isFold) {
         this.isFold = isFold;
         localStorage.setItem('chartIsFold', isFold);
-        this.$refs.chartRef.handleToggleExpand(isFold);
+        this.$refs.chartRef?.handleToggleExpand(isFold);
+        this.$emit('toggle-change', !isFold);
       },
       handleMoreToolItemSet(event) {
         this.$refs.chartRef.handleMoreToolItemSet(event);

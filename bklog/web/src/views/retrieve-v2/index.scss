@@ -91,7 +91,7 @@
 
   .retrieve-body {
     width: 100%;
-    height: calc(100% - 52px);
+    height: calc(100vh - 104px);
     padding: 16px 24px;
     background: #F5F7FA;
 
@@ -100,12 +100,28 @@
 
       .result-row {
         width: 100%;
-        height: calc(100% - 100px);
+        height: calc(100vh - 204px);
         min-height: 120px;
         margin-top: 16px;
         background: #FFFFFF;
         border-radius: 2px;
         box-shadow: 0 2px 4px 0 #1919290d;
+
+        .search-result-panel {
+          .search-result-content {
+            .result-table-container {
+              height: calc(100vh - 430px);
+              overflow: auto;
+            }
+
+            &.is-trend-chart-show {
+              .result-table-container {
+                height: calc(100vh - 520px);
+                overflow: auto;
+              }
+            }
+          }
+        }
       }
     }
 
