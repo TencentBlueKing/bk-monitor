@@ -363,7 +363,8 @@
                 }
               ]
             }
-          }
+          },
+          "apm_time_series_category": "http"
         },
         {
           "data_type": "time_series",
@@ -460,7 +461,8 @@
                 }
               ]
             }
-          }
+          },
+          "apm_time_series_category": "rpc"
         },
         {
           "data_type": "time_series",
