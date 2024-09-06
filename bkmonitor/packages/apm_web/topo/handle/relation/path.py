@@ -497,8 +497,8 @@ class PathTemplate:
 
         return [
             {
-                "from": e[0],
-                "to": e[1],
+                "source": e[0],
+                "target": e[1],
                 "original": original_edges if len(original_edges) > 1 else [],
             }
             for e, original_edges in merged_edges_mapping.items()
