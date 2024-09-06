@@ -1,20 +1,11 @@
-.field-filter-container {
-  min-height: 400px;
-  font-size: 12px;
-  line-height: 20px;
-  color: #63656e;
-
-  .is-selected {
-    padding-bottom: 20px;
-    border-bottom: 1px solid #e1ecff;
-  }
-
+.field-filter-box {
   .form-container {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    width: 100%;
     height: 32px;
-    margin: 16px 0;
+    margin: 16px 0 10px 0;
 
     .king-input {
       width: 100%;
@@ -66,26 +57,37 @@
     }
   }
 
-  .field-filter-roll{
-    max-height: 540px;
-    overflow-y: scroll;
-  }
-
-  .fields-container {
-    margin-top: 20px;
-
-    .all-field-item {
-      display: inline-block;
-      height: 26px;
-      margin: 0 0 7px 20px;
-      line-height: 26px;
-      color: #63656e;
+  .field-filter-container {
+    overflow-y: auto;
+    font-size: 12px;
+    line-height: 20px;
+    color: #63656e;
+  
+    .is-selected {
+      border-bottom: 1px solid #e1ecff;
     }
-
-    .expand-all {
-      margin-left: 22px;
-      color: #3a84ff;
-      cursor: pointer;
+  
+    .field-filter-roll{
+      overflow-y: auto;
+    }
+  
+    .fields-container {
+      margin-bottom: 20px;
+  
+      .all-field-item {
+        display: inline-block;
+        height: 26px;
+        margin: 0 0 7px 20px;
+        line-height: 26px;
+        color: #63656e;
+      }
+  
+      .expand-all {
+        margin-left: 22px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
     }
   }
 }
+
