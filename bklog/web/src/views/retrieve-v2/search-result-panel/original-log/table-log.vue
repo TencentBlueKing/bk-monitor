@@ -284,8 +284,6 @@
     }
 
     .king-table {
-      margin-top: 12px;
-
       td {
         vertical-align: top;
       }

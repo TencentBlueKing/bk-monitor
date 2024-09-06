@@ -114,14 +114,14 @@
       ref="groupPopover"
       width="400"
       ext-cls="popover-content"
-      :disabled="!fingerOperateData.signatureSwitch"
+      :disabled="!clusterSwitch"
       :on-show="handleShowMorePopover"
       :tippy-options="tippyOptions"
       placement="bottom-start"
     >
       <div
         v-bk-tooltips="$t('更多')"
-        :class="{ 'operation-icon': true, 'disabled-icon': !fingerOperateData.signatureSwitch }"
+        :class="{ 'operation-icon': true, 'disabled-icon': !clusterSwitch }"
         @click="handleClickGroupPopover"
       >
         <span class="bk-icon icon-more"></span>
@@ -285,6 +285,10 @@
       totalFields: {
         type: Array,
         require: true,
+      },
+      clusterSwitch: {
+        type: Boolean,
+        default: false,
       },
       strategyHaveSubmit: {
         type: Boolean,
@@ -713,3 +717,4 @@
     }
   }
 </style>
+./quick-create-subscription-drawer/quick-create-subscription.jsx

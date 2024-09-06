@@ -109,13 +109,14 @@
 
         .search-result-panel {
           .search-result-content {
-            .result-table-container {
+            .result-table-container, .finger-container {
               height: calc(100vh - 430px);
+              margin-top: 12px;
               overflow: auto;
             }
 
             &.is-trend-chart-show {
-              .result-table-container {
+              .result-table-container, finger-container {
                 height: calc(100vh - 520px);
                 overflow: auto;
               }

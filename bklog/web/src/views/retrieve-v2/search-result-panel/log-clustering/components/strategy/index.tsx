@@ -44,7 +44,7 @@ export default class Strategy extends tsc<object> {
   /** 策略状态更新函数 */
   @Prop({ type: Function }) strategySubmitStatus: (v: boolean) => boolean;
   /** 日志聚类总开关 */
-  @Prop({ type: Boolean, default: false }) signatureSwitch: boolean;
+  @Prop({ type: Boolean, default: false }) clusterSwitch: boolean;
 
   isShowDialog = false;
   formLoading = false;
@@ -372,6 +372,8 @@ export default class Strategy extends tsc<object> {
         >
           <bk-form-item
             v-show={this.isAlarmType}
+            desc={$i18n.t('表示近一段时间内新增日志模式。可自定义新类判定的时间区间。如：近30天内新增')}
+            desc-type={'icon'}
             label={$i18n.t('新类告警间隔（天）')}
             property='interval'
             required
@@ -385,6 +387,8 @@ export default class Strategy extends tsc<object> {
           </bk-form-item>
           <bk-form-item
             v-show={this.isAlarmType}
+            desc={$i18n.t('表示某日志模式数量突然异常增长，可能某些模块突发风险')}
+            desc-type={'icon'}
             label={$i18n.t('新类告警阈值')}
             property='threshold'
             required
@@ -465,11 +469,14 @@ export default class Strategy extends tsc<object> {
     const popoverSlot = (type: FormType = 'alarm') => (
       <bk-popover
         ext-cls='strategy-popover'
-        disabled={!this.signatureSwitch}
+        disabled={!this.clusterSwitch}
         placement='top'
         theme='light'
       >
-        <div class={['edit-strategy-box', type]}>
+        <div
+          class={['edit-strategy-box', type]}
+          onClick={() => this.editStrategy(type)}
+        >
           <i class={['bk-icon log-icon', type === 'alarm' ? 'icon-new-alarm' : 'icon-sudden-increase']}></i>
           {/* <span class='num'>1</span> */}
         </div>
@@ -496,12 +503,12 @@ export default class Strategy extends tsc<object> {
         <div class='new-built-container'>
           <div
             v-bk-tooltips={{
-              content: this.$t('请先删除策略'),
+              content: this.$t('聚类告警已开启，请点击右侧入口编辑策略'),
               disabled: !this.addBtnIsDisabled,
             }}
           >
             <bk-button
-              disabled={this.addBtnIsDisabled || !this.signatureSwitch}
+              disabled={this.addBtnIsDisabled || !this.clusterSwitch}
               icon='plus'
               size='small'
               onClick={this.handleAddNewStrategy}
