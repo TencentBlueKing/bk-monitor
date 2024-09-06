@@ -1778,6 +1778,7 @@ export default defineComponent({
       if (graph?.zoomTo) {
         graph.zoomTo(value / 10);
         localStorage.setItem('failure-topo-zoom', String(value));
+        zoomValue.value = value;
       }
     };
     const handleUpdateZoom = val => {
@@ -1961,7 +1962,7 @@ export default defineComponent({
                           <li class='node-type-title'>{this.$t('节点图例')}</li>
                           {NODE_TYPE.map(node => {
                             return (
-                              <li>
+                              <li key={node.status}>
                                 <span class='circle-wrap'>
                                   <span class={['circle', node.status]}>
                                     {'error' === node.status && <i class='icon-monitor icon-mc-pod' />}
@@ -1977,7 +1978,7 @@ export default defineComponent({
                           <li class='node-type-title'>{this.$t('标签图例')}</li>
                           {TAG_TYPE.map(node => {
                             return (
-                              <li>
+                              <li key={node.status}>
                                 <span class='circle-wrap'>
                                   <span class={['circle', node.status]}>
                                     {['notRestored', 'restored'].includes(node.status) && (
