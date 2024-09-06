@@ -483,6 +483,7 @@
     @Debounce(30)
     // 获取seriesData
     async handleSeriesData(startTime?: string, endTime?: string) {
+      if (this.isFold) return;
       if (this.isFinish) this.loading = true;
 
       this.intersectionObserver && this.intersectionObserver.unobserve(this.$el);
@@ -500,7 +501,7 @@
         ) {
           // await this.handleSetChartData(data)
           this.chartData.splice(0, this.chartData.length, ...data);
-          if (!this.isFold) this.handleSetChartData(this.chartData);
+          if (!this.isFold) await this.handleSetChartData(this.chartData);
         } else if (this.isFinish) {
           this.noData = true;
         }

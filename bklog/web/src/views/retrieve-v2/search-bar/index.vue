@@ -63,9 +63,9 @@
         v-model="searchItemList"
       ></SqlQuery>
       <div class="search-tool items">
-        <span class="bklog-icon bklog-brush"></span>
-        <span class="bklog-icon bklog-star-line"></span>
-        <span class="disabled bklog-icon bklog-set-icon"></span>
+        <span  class="disabled bklog-icon bklog-brush"></span>
+        <span  class="disabled bklog-icon bklog-star-line"></span>
+        <span  class="disabled bklog-icon bklog-set-icon"></span>
       </div>
       <div
         class="search-tool search-btn"
