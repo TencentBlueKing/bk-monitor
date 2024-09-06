@@ -26,20 +26,27 @@
   const changeQueueRes = status => {
     queueStatus.value = status;
   };
-
-  const handleToggleChange = isShow => {
-    isTrendChartShow.value = isShow;
+  
+  const isOpen = ref(true);
+  const changeState = val => {
+    console.log(val);
+    isOpen.value = val;
   };
 </script>
 
 <template>
   <div class="search-result-panel">
-    <FieldFilter v-bkloading="{ isLoading: isFilterLoading }"></FieldFilter>
-    <div :class="['search-result-content', { 'is-trend-chart-show': isTrendChartShow }]">
+    <FieldFilter
+      v-if="isOpen"
+      v-bkloading="{ isLoading: isFilterLoading }"
+      @isOpen-change="changeState"
+    ></FieldFilter>
+    <div :class="['search-result-content', { 'is-trend-chart-show': isTrendChartShow }]" :style="{width:isOpen?'calc(100% - 330px)':'100%'}">
       <SearchResultChart
+        :isOpen="isOpen"
         @change-queue-res="changeQueueRes"
         @change-total-count="changeTotalCount"
-        @toggle-change="handleToggleChange"
+        @isOpen-change="changeState"
       ></SearchResultChart>
       <div class="split-line"></div>
       <keep-alive>
