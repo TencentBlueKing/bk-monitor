@@ -173,6 +173,10 @@ class DslCreateSearchContextBodyScenarioLog(object):
         path = kwargs.get("path")
         server_ip = kwargs.get("server_ip")
         bk_host_id = kwargs.get("bk_host_id")
+        container_id = kwargs.get("container_id", "")
+        logfile = kwargs.get("logfile", "")
+        # 日志链路容器字段
+        ext_container_id = kwargs.get("__ext", {}).get("container_id", "")
         order = kwargs.get("order")
 
         self._body = None
@@ -224,6 +228,40 @@ class DslCreateSearchContextBodyScenarioLog(object):
                         "path": {
                             "query": path,
                             # "type": "phrase"
+                            "operator": "and",
+                        }
+                    }
+                }
+            )
+
+        if container_id and logfile:  # 这个是容器
+            body_data["query"]["bool"]["must"] = [
+                {
+                    "match": {
+                        "container_id": {
+                            "query": container_id,
+                            # "type": "phrase"
+                            "operator": "and",
+                        }
+                    }
+                },
+                {
+                    "match": {
+                        "logfile": {
+                            "query": logfile,
+                            # "type": "phrase"
+                            "operator": "and",
+                        }
+                    }
+                },
+            ]
+
+        if ext_container_id:
+            body_data["query"]["bool"]["must"].append(
+                {
+                    "match": {
+                        "__ext.container_id": {
+                            "query": ext_container_id,
                             "operator": "and",
                         }
                     }
