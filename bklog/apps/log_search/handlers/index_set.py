@@ -737,6 +737,7 @@ class IndexSetHandler(APIModel):
                             "index_set_id": self.index_set_id,
                             "field_name": field_name,
                             "rule_id": 0,
+                            "match_pattern": rule.get("match_pattern"),
                             "operator": rule.get("operator"),
                             "params": rule.get("params"),
                             "sort_index": sort_index,
