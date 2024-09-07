@@ -16,27 +16,7 @@ from bkmonitor.utils.k8s_metric import get_built_in_k8s_metrics
 from metadata import models
 
 # 这里添加需要更新的指标名
-TARGET_METRIC_NAME_LIST = (
-    []
-    or """kubelet_cgroup_manager_duration_seconds_sum
-kubelet_pleg_relist_duration_seconds_sum
-kubelet_pleg_relist_interval_seconds_count
-kubelet_pleg_relist_interval_seconds_sum
-kubelet_pod_start_duration_seconds_sum
-kubelet_pod_start_duration_seconds_count
-kubelet_pod_worker_duration_seconds_sum
-kubelet_runtime_operations_duration_seconds_sum
-kubelet_runtime_operations_duration_seconds_count
-rest_client_request_duration_seconds_count
-rest_client_request_duration_seconds_sum
-kubelet_pod_start_sli_duration_seconds_sum
-kubelet_pod_start_sli_duration_seconds_count
-kubelet_pod_status_sync_duration_seconds_sum
-kubelet_pod_status_sync_duration_seconds_count
-scheduler_schedule_attempts_total""".split(
-        "\n"
-    )
-)
+TARGET_METRIC_NAME_LIST = [] or """""".split("\n")
 
 IGNORE_DIMENSIONS = ["bk_instance", "bk_job"]
 
