@@ -486,7 +486,7 @@ CACHES = {
     },
     "login_db": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "account_cache"},
     "locmem": {
-        "BACKEND": "core.cache.localmem.LocalMemCache",
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
         'OPTIONS': {
             'MAX_ENTRIES': 10000,
             'CULL_FREQUENCY': 0,
