@@ -458,12 +458,12 @@ class TransferCountSeriesResource(BaseStatusResource):
                 __name__=~"bkmonitor:{table_id}:.*",
                 bk_collect_config_id="{collect_config_id}"}}[{interval}{unit}])) or vector(0)
             """.format(
-                table_id=table["table_id"],
+                table_id=table,
                 collect_config_id=self.collect_config_id,
                 interval=interval,
                 unit=interval_unit,
             )
-            for table in self.get_metrics_json()
+            for table in {t["table_id"] for t in self.get_metrics_json()}
         ]
 
         # 没有指标配置，返回空序列
@@ -499,14 +499,13 @@ class TransferLatestMsgResource(BaseStatusResource):
     def perform_request(self, validated_request_data):
         self.init_data(validated_request_data["collect_config_id"])
         messages = []
-        for table in self.get_metrics_json():
-            for metric_name in table["metric_names"]:
-                messages.extend(self.query_latest_metric_msg(table["table_id"], metric_name))
-                if len(messages) > 10:
-                    return messages[:10]
+        for table in {t["table_id"] for t in self.get_metrics_json()}:
+            messages.extend(self.query_latest_metric_msg(table))
+            if len(messages) > 10:
+                return messages[:10]
         return messages
 
-    def query_latest_metric_msg(self, table_id: str, metric_name: str, time_range: int = 600) -> List[str]:
+    def query_latest_metric_msg(self, table_id: str, time_range: int = 600) -> List[str]:
         """查询一个指标最近10分钟的最新数据"""
         start_time, end_time = int(time.time() - time_range), int(time.time())
         query_params = {
@@ -515,10 +514,10 @@ class TransferLatestMsgResource(BaseStatusResource):
                 {
                     "data_source_label": "prometheus",
                     "data_type_label": "time_series",
-                    "promql": "bkmonitor:{table}:{metric}{{{conds}}}[1m]".format(
-                        table=table_id.replace('.', ':'),
-                        metric=metric_name,
-                        conds=f"bk_collect_config_id=\"{self.collect_config_id}\"",
+                    "promql": """
+                    topk(10, {{__name__=~"bkmonitor:{table_id}:.*",
+                     bk_collect_config_id="{bk_collect_config_id}"}})""".format(
+                        table_id=table_id.replace('.', ':'), bk_collect_config_id=self.collect_config_id
                     ),
                     "interval": 60,
                     "alias": "a",
@@ -534,6 +533,7 @@ class TransferLatestMsgResource(BaseStatusResource):
         series = resource.grafana.graph_unify_query(query_params)["series"]
         msgs = []
         for s in series:
+            metric_name = s["dimensions"]["__name__"]
             val = s["datapoints"][-1][0]
             ts = s["datapoints"][-1][1]
             target = s["target"]
