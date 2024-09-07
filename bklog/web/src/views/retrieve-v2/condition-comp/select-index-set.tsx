@@ -46,6 +46,7 @@ import {
 import $http from '../../../api';
 import * as authorityMap from '../../../common/authority-map';
 import EmptyStatus from '../../../components/empty-status/index.vue';
+import { DEFAULT_RETRIEVE_PARAMS } from '../../../store/default-values';
 import SelectIndexSetInput from './select-index-set-input';
 
 import './select-index-set.scss';
@@ -323,6 +324,10 @@ export default class QueryStatement extends tsc<object> {
     return this.$store.getters.isUnionSearch;
   }
 
+  get indexItem() {
+    return this.$store.state.indexItem;
+  }
+
   get isOverSelect() {
     return this.selectTagCatchIDList.length >= MAX_UNION_INDEXSET_LIMIT;
   }
@@ -336,7 +341,12 @@ export default class QueryStatement extends tsc<object> {
   @Emit('selected')
   emitSelected() {
     const ids = this.isAloneType ? this.selectAloneVal : this.selectedItemIDlist;
+    const { start_time, end_time, timezone } = this.indexItem;
     const payload = {
+      ...DEFAULT_RETRIEVE_PARAMS,
+      start_time,
+      end_time,
+      timezone,
       ids,
       selectIsUnionSearch: !this.isAloneType,
       items: ids.map(val => this.indexSetList.find(item => item.index_set_id === val)),
