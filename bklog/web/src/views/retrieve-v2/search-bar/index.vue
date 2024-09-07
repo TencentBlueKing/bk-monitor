@@ -26,6 +26,7 @@
   const handleBtnQueryClick = () => {
     store.commit('updateIndexItemParams', {
       addition: searchItemList.value.filter(val => !val.disabled && !val.is_focus_input),
+      keyword: sqlQueryValue[0] ?? '*'
     });
 
     store.dispatch('requestIndexSetQuery');
@@ -38,6 +39,14 @@
   }
   const updateSearchParam= (keyword,addition,ip_chooser) => {}
   const retrieve = () => {}
+
+  const handleSqlRetrieve = value => {
+    store.commit('updateIndexItemParams', {
+      keyword: value,
+    });
+
+    store.dispatch('requestIndexSetQuery');
+  }
 </script>
 <template>
   <div class="search-bar-container">
@@ -64,6 +73,7 @@
       <SqlQuery
         v-if="activeIndex === 1"
         v-model="sqlQueryValue"
+        @retrieve="handleSqlRetrieve"
       ></SqlQuery>
       <div class="search-tool items">
         <span  class="disabled bklog-icon bklog-brush"></span>

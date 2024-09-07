@@ -64,7 +64,7 @@
   );
 
   const activeType = ref([]);
-  const separator = /AND|OR|and|or/; // 区分查询语句条件
+  const separator = /\s(AND|OR)\s/i; // 区分查询语句条件
   const fieldList = ref([]);
   const valueList = ref([]);
 
@@ -142,7 +142,7 @@
   const showColonOperator = inputField => {
     const showVal = [OptionItemType.Colon];
 
-    if (isNumTypeField(inputField.trim())) {
+    if (isNumTypeField(inputField?.trim())) {
       showVal.push(OptionItemType.Operator);
     }
     // 完全匹配字段同时和 : :* 选项
@@ -160,7 +160,7 @@
 
     const value = props.value;
     const trimValue = value.trim();
-    const lastFragments = value.split(separator.value);
+    const lastFragments = value.split(separator);
     const lastFragment = lastFragments[lastFragments.length - 1];
     // 以 name:"arman" OR age:18 为例，还没开始输入字段
     if (
@@ -242,7 +242,7 @@
     if (!trimValue || trimValue === '*') {
       emits('change', `${field} `);
     } else {
-      const fragments = currentValue.split(separator.value);
+      const fragments = currentValue.split(separator);
       if (!fragments[fragments.length - 1].trim()) {
         // 可能的情况 【name:"arman" AND \s】
         emits('change', `${currentValue}${field} `);
@@ -374,6 +374,9 @@
     props,
     () => {
       calculateDropdown();
+      nextTick(() => {
+        setOptionActive();
+      })
     },
     { immediate: true },
   );

@@ -30,7 +30,10 @@ import { getCharLength } from '@/common/util';
 import { debounce } from 'lodash';
 import tippy from 'tippy.js';
 
-export default (props, { formatModelValueItem, refContent, onShowFn, onHiddenFn, arrow = true }) => {
+export default (
+  props,
+  { formatModelValueItem, refContent, onShowFn, onHiddenFn, arrow = true, newInstance = true, tippyOptions = {} },
+) => {
   const modelValue = ref([]);
   const inputValue = ref('');
   const INPUT_MIN_WIDTH = 12;
@@ -46,7 +49,10 @@ export default (props, { formatModelValueItem, refContent, onShowFn, onHiddenFn,
   };
 
   const initInistance = target => {
-    uninstallInstance();
+    if (newInstance) {
+      uninstallInstance();
+    }
+
     if (tippyInstance === null) {
       tippyInstance = tippy(target, {
         arrow,
@@ -56,8 +62,9 @@ export default (props, { formatModelValueItem, refContent, onShowFn, onHiddenFn,
         placement: 'bottom-start',
         interactive: true,
         maxWidth: 800,
-        onShow: () => onShowFn?.(),
+        onShow: () => onShowFn?.(tippyInstance),
         onHidden: () => onHiddenFn?.(),
+        ...(tippyOptions ?? {}),
       });
     }
   };
@@ -110,7 +117,7 @@ export default (props, { formatModelValueItem, refContent, onShowFn, onHiddenFn,
 
   const handleContainerClick = e => {
     const root = getRoot();
-    if (root !== undefined && root === e.target) {
+    if (root !== undefined && (e === undefined || root === e?.target)) {
       const input = root.querySelector('.tag-option-focus-input');
       input?.focus();
       input?.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);

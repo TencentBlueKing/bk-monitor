@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, computed } from 'vue';
+  import { ref, computed, nextTick } from 'vue';
 
   import { getOperatorKey } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
@@ -58,12 +58,9 @@
       onHiddenFn: () => {
         refPopInstance.value?.afterHideFn?.();
         isOptionShowing.value = false;
-        isInputFocus.value = false;
 
         delayItemClickFn?.();
-        setTimeout(() => {
-          delayItemClickFn = undefined;
-        });
+        delayItemClickFn = undefined;
       },
     });
 
@@ -91,6 +88,7 @@
   };
 
   const handleAddItem = e => {
+    isInputFocus.value = false;
     const target = e.target.closest('.search-item');
     queryItem.value = '';
     activeIndex.value = null;
@@ -99,6 +97,7 @@
 
   const handleTagItemClick = (e, item, index) => {
     queryItem.value = {};
+    isInputFocus.value = false;
     Object.assign(queryItem.value, item);
     const target = e.target.closest('.search-item');
     activeIndex.value = isInputFocus.value ? -1 : index;

@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, nextTick, getCurrentInstance } from 'vue';
+  import { ref, nextTick, getCurrentInstance, computed } from 'vue';
   import useFocusInput from './use-focus-input';
   import SqlQueryOptions from './sql-query-options';
 
@@ -11,30 +11,71 @@
     },
   });
 
+  const emit = defineEmits(['retrieve', 'input']);
+
   const refSqlQueryOption = ref(null);
   const isInputFocus = ref(false);
   const refUlRoot = ref(null);
+  const separator = /\s(AND|OR)\s/i; // 区分查询语句条件
 
   const formatModelValueItem = item => {
     return item;
   };
-  const { modelValue, inputValue, handleInputBlur, delayShowInstance, getTippyInstance } = useFocusInput(props, {
-    formatModelValueItem,
-    refContent: refSqlQueryOption,
-    arrow: false,
-    onShowFn: () => {
-      refSqlQueryOption.value?.beforeShowndFn?.();
-    },
-    onHiddenFn: () => {
-      refSqlQueryOption.value?.beforeHideFn?.();
-    },
+
+  const { modelValue, inputValue, handleInputBlur, delayShowInstance, getTippyInstance, handleContainerClick } =
+    useFocusInput(props, {
+      formatModelValueItem,
+      refContent: refSqlQueryOption,
+      arrow: false,
+      newInstance: false,
+      tippyOptions: {
+        maxWidth: 'none',
+        distance: 0,
+      },
+      onShowFn: instance => {
+        refSqlQueryOption.value?.beforeShowndFn?.();
+        instance.popper?.style.setProperty('width', '100%');
+      },
+      onHiddenFn: () => {
+        refSqlQueryOption.value?.beforeHideFn?.();
+      },
+    });
+
+  const sqlQueryString = computed(() => {
+    return `${modelValue.value.filter(val => !val.is_focus_input).join('')}${inputValue.value}`;
+  });
+
+  const sqlQueryItemList = computed(() => {
+    return modelValue.value
+      .map(value => {
+        if (typeof value === 'string') {
+          return value
+            .split(separator)
+            .filter(Boolean)
+            .map(val => {
+              if (/^\s*(AND|OR)\s*$/i.test(val)) {
+                return {
+                  text: val,
+                  operator: val,
+                };
+              }
+
+              return {
+                text: val,
+                operator: undefined,
+              };
+            });
+        }
+
+        return value;
+      })
+      .flat();
   });
 
   const handleTextInputBlur = e => {
     isInputFocus.value = false;
     inputValue.value = '';
     handleInputBlur(e);
-    getTippyInstance()?.hide();
   };
 
   const handleFocusInput = e => {
@@ -45,11 +86,51 @@
   };
 
   const handleQueryChange = value => {
-    console.log('handleQueryChange', value)
-    modelValue.value.push(value);
+    while (modelValue.value.length > 1) {
+      modelValue.value.shift();
+    }
+
+    modelValue.value.unshift(value);
+    emit('input', [modelValue.value[0]]);
+    inputValue.value = '';
+    nextTick(() => {
+      handleContainerClick();
+    });
+  };
+
+  const getSqlValue = () => {
+    if (modelValue.value.length === 2) {
+      return modelValue.value[0];
+    }
+
+    return '*';
   }
-  const handleCancel = () => {}
-  const hadnleRetrieve = () => {}
+
+  const handleInputKeydown = e => {
+    // delete
+    if (e.keyCode === 8) {
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      e.preventDefault();
+
+      if (!inputValue.value.length && modelValue.value.length === 2) {
+        const result = modelValue.value[0].slice(0, -1);
+        modelValue.value.splice(0, 1, result);
+        emit('input', [modelValue.value[0]]);
+      }
+    }
+
+    // if (e.keyCode === 13) {
+    //   if (!inputValue.value.length) {
+    //     emit('retrieve', getSqlValue());
+    //   }
+    // }
+  };
+  const handleCancel = () => {
+    getTippyInstance()?.hide();
+    handleContainerClick();
+  };
+  const hadnleRetrieve = () => {};
 </script>
 <template>
   <ul
@@ -57,8 +138,8 @@
     ref="refUlRoot"
   >
     <li
-      class="search-result-item"
-      v-for="(item, index) in modelValue"
+      class="search-sql-item"
+      v-for="(item, index) in sqlQueryItemList"
       :key="`${item.field}-${index}`"
     >
       <template v-if="item.is_focus_input">
@@ -68,16 +149,17 @@
           v-model="inputValue"
           @focus.stop="handleFocusInput"
           @blur="handleTextInputBlur"
+          @keydown="handleInputKeydown"
         />
       </template>
       <template v-else>
-        <span>{{ item }}</span>
+        <span :data-operator="item.operator">{{ item?.text }}</span>
       </template>
     </li>
     <div style="display: none">
       <SqlQueryOptions
         ref="refSqlQueryOption"
-        :value="inputValue"
+        :value="sqlQueryString"
         @change="handleQueryChange"
         @cancel="handleCancel"
         @retrieve="hadnleRetrieve"
@@ -89,6 +171,7 @@
   .search-sql-query {
     display: inline-flex;
     flex-wrap: wrap;
+    align-items: center;
     width: 100%;
     max-height: 135px;
     padding: 4px 16px;
@@ -97,12 +180,35 @@
     overflow: auto;
 
     li {
+
+      display: inline-flex;
+      flex-direction: column;
+      align-content: center;
+      justify-content: center;
+      height: 20px;
+      margin-right: 4px;
+      margin-bottom: 4px;
+
+      font-size: 12px;
+      color: #63656e;
+      cursor: pointer;
+      border-radius: 2px;
+
       input.tag-option-focus-input {
         width: 8px;
         height: 38px;
         font-size: 12px;
         color: #63656e;
         border: none;
+      }
+
+      span {
+        &[data-operator] {
+          padding: 0 2px;
+          color: #ff9c01;
+          background: #fff3e1;
+          border-radius: 2px;
+        }
       }
     }
   }

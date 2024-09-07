@@ -122,6 +122,12 @@
         line-height: 20px;
         color: #63656e;
         letter-spacing: 0;
+
+        img {
+          width: 24px;
+          height: 24px;
+          margin-right: 8px;
+        }
       }
 
       .full-text-content {
@@ -189,7 +195,7 @@
         color: #63656e;
         letter-spacing: 0;
 
-        i {
+        img {
           display: inline-flex;
           width: 16px;
           height: 16px;

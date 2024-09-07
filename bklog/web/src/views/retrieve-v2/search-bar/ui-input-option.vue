@@ -5,6 +5,8 @@
   import useStore from '@/hooks/use-store';
   import useLocale from '@/hooks/use-locale';
   import tippy from 'tippy.js';
+  import imgUpDownKey from '@/images/icons/up-down-key.svg';
+  import imgEnterKey from '@/images/icons/enter-key.svg';
 
   const props = defineProps({
     value: {
@@ -22,6 +24,8 @@
 
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
   const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
+
+  const svgImg = ref({ imgUpDownKey, imgEnterKey });
 
   const store = useStore();
   const { t } = useLocale();
@@ -384,11 +388,11 @@
         <template v-if="showFulltextMsg">
           <div class="full-text-title">{{ $t('全文检索') }}</div>
           <div class="full-text-sub-title">
-            <span></span><span>{{ $t('Enter 键') }}</span>
+            <img :src="svgImg.imgEnterKey"></img><span>{{ $t('Enter 键') }}</span>
           </div>
           <div class="full-text-content">{{ $t('可将想要检索的内容输入至搜索框中，并点击「Enter」键进行检索') }}</div>
           <div class="full-text-sub-title">
-            <span></span><span>{{ $t('上下键') }}</span>
+            <img :src="svgImg.imgUpDownKey"></img><span>{{ $t('上下键') }}</span>
           </div>
           <div class="full-text-content">{{ $t('可通过上下键快速切换选择「Key」值') }}</div>
         </template>
@@ -453,8 +457,8 @@
     </div>
     <div class="ui-query-option-footer">
       <div class="ui-shortcut-key">
-        <span><i></i>{{ $t('移动光标') }}</span>
-        <span><i></i>{{ $t('确认结果') }}</span>
+        <span><img :src="svgImg.imgUpDownKey"></img>{{ $t('移动光标') }}</span>
+        <span><img :src="svgImg.imgEnterKey"></img>{{ $t('确认结果') }}</span>
       </div>
       <div class="ui-btn-opts">
         <bk-button
