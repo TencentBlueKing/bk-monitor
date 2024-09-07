@@ -1,8 +1,48 @@
 .search-field-filter {
+  position: relative;
   width: 330px;
   padding: 16px;
   background: #ffffff;
   box-shadow: 1px 0 0 0 #eaebf0;
+
+  &.is-close {
+    /* stylelint-disable-next-line declaration-no-important */
+    position: absolute !important;
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    width: 144px;
+    padding: 16px 0 0 16px;
+    box-shadow: none;
+
+    .field-filter-title {
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      line-height: 20px;
+      color: #313238;
+
+      .close-total {
+        position: relative;
+        cursor: pointer;
+
+        &::after {
+          position: absolute;
+          right: -16px;
+          display: inline-block;
+          font-size: 16px;
+          color: #DCDEE5;
+          pointer-events: none;
+          content: '|';
+        }
+      }
+
+      .bklog-collapse-small {
+          /* stylelint-disable-next-line declaration-no-important */
+        transform: rotateZ(90deg) !important;
+      } 
+    }
+  }
 
   .field-filter-title {
     display: flex;

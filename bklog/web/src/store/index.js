@@ -149,6 +149,7 @@ const store = new Vuex.Store({
     storeIsShowClusterStep: false,
     retrieveDropdownData: {},
     notTextTypeFields: [],
+    tableLineIsWarp: true,
   },
   // 公共 getters
   getters: {
@@ -508,6 +509,9 @@ const store = new Vuex.Store({
         ...(payload.fields ?? []).filter(field => field.field_type !== 'text').map(item => item.field_name),
       );
     },
+    updateTableLineIsWarp(state, payload) {
+      state.tableLineIsWarp = payload;
+    },
   },
   actions: {
     /**
@@ -797,7 +801,7 @@ const store = new Vuex.Store({
               rsolvedData.origin_log_list = parseBigNumberList(rsolvedData.origin_log_list);
               const catchUnionBeginList = parseBigNumberList(rsolvedData?.union_configs || []);
 
-              commit('updateSqlQueryFieldList', rsolvedData.list);
+              // commit('updateSqlQueryFieldList', rsolvedData.list);
               commit('updateIndexItem', { catchUnionBeginList, begin: begin + 1 });
               commit('updateIndexSetQueryResult', rsolvedData ?? {});
 
