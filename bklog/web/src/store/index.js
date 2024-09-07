@@ -147,6 +147,8 @@ const store = new Vuex.Store({
     showAlert: false, // 是否展示跑马灯
     isLimitExpandView: false,
     storeIsShowClusterStep: false,
+    retrieveDropdownData: {},
+    notTextTypeFields: [],
   },
   // 公共 getters
   getters: {
@@ -456,6 +458,58 @@ const store = new Vuex.Store({
     updateStoreIsShowClusterStep(state, val) {
       state.storeIsShowClusterStep = val;
     },
+    updateSqlQueryFieldList(state, payload) {
+      const recursiveIncreaseData = (dataItem, prefixFieldKey = '') => {
+        dataItem &&
+          Object.entries(dataItem).forEach(([field, value]) => {
+            if (typeof value === 'object') {
+              recursiveIncreaseData(value, `${prefixFieldKey + field}.`);
+            } else {
+              const fullFieldKey = prefixFieldKey ? prefixFieldKey + field : field;
+              if (value || value === 0) {
+                let fieldData = state.retrieveDropdownData[fullFieldKey];
+                if (!fieldData) {
+                  Object.assign(
+                    state.retrieveDropdownData,
+                    fullFieldKey,
+                    Object.defineProperties(
+                      {},
+                      {
+                        __fieldType: {
+                          // 该字段下的值的数据类型，可能是数值、字符串、布尔值
+                          value: typeof value,
+                        },
+                      },
+                    ),
+                  );
+                  fieldData = state.retrieveDropdownData[fullFieldKey];
+                }
+                if (state.notTextTypeFields.includes(field) && !fieldData[value]) {
+                  // 非 text 类型字段统计可选值，text 则由用户手动输入
+                  fieldData[value] = 1;
+                }
+              }
+            }
+          });
+      };
+
+      // 更新下拉字段可选值信息
+      const computeRetrieveDropdownData = listData => {
+        listData.forEach(dataItem => {
+          recursiveIncreaseData(dataItem);
+        });
+      };
+
+      computeRetrieveDropdownData(payload ?? []);
+    },
+    updateNotTextTypeFields(state, payload) {
+      state.notTextTypeFields.length = [];
+      state.notTextTypeFields = [];
+
+      state.notTextTypeFields.push(
+        ...(payload.fields ?? []).filter(field => field.field_type !== 'text').map(item => item.field_name),
+      );
+    },
   },
   actions: {
     /**
@@ -641,10 +695,10 @@ const store = new Vuex.Store({
         .then(res => {
           commit('updateIndexFieldInfo', res.data ?? {});
           commit('updataOperatorDictionary', res.data ?? {});
-          commit(
-            'updateVisibleFields',
-            res.data?.fields.filter(item => res.data.display_fields.includes(item.field_name)) ?? [],
-          );
+          commit('updateNotTextTypeFields', res.data ?? {});
+          const visibleFields =
+            res.data?.fields.filter(item => res.data.display_fields.includes(item.field_name)) ?? [];
+          commit('updateVisibleFields', visibleFields);
           commit('updateIndexSetFieldConfig', res.data ?? {});
           return res;
         })
@@ -743,13 +797,12 @@ const store = new Vuex.Store({
               const rsolvedData = data;
               rsolvedData.list = parseBigNumberList(rsolvedData.list);
               rsolvedData.origin_log_list = parseBigNumberList(rsolvedData.origin_log_list);
-
               const catchUnionBeginList = parseBigNumberList(rsolvedData?.union_configs || []);
-              commit('updateIndexItem', {
-                catchUnionBeginList,
-                begin: begin + 1,
-              });
+
+              commit('updateSqlQueryFieldList', rsolvedData.list);
+              commit('updateIndexItem', { catchUnionBeginList, begin: begin + 1 });
               commit('updateIndexSetQueryResult', rsolvedData ?? {});
+
               return {
                 data: rsolvedData,
                 message,

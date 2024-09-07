@@ -1,7 +1,7 @@
 <script setup>
   import { ref, computed, onBeforeUnmount } from 'vue';
 
-  import { getOperatorKey, getCharLength } from '@/common/util';
+  import { getOperatorKey } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { debounce } from 'lodash';
@@ -9,8 +9,6 @@
 
   import UiInputOptions from './ui-input-option.vue';
   import useFocusInput from './use-focus-input';
-
-  const INPUT_MIN_WIDTH = 12;
 
   const props = defineProps({
     value: {
