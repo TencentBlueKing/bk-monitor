@@ -117,13 +117,6 @@
   const handleCloseFilterTitle = () => {
     emit('update:is-show-field-statistics', !props.isShowFieldStatistics);
   };
-  watch(
-    store.state.indexFieldInfo,
-    () => {
-      initVisibleFields(store.state.indexFieldInfo.display_fields);
-    },
-    { deep: true, immediate: true },
-  );
 </script>
 
 <template>

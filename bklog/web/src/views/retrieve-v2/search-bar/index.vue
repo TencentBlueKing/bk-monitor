@@ -26,7 +26,7 @@
   const handleBtnQueryClick = () => {
     store.commit('updateIndexItemParams', {
       addition: searchItemList.value.filter(val => !val.disabled && !val.is_focus_input),
-      keyword: sqlQueryValue[0] ?? '*'
+      keyword: sqlQueryValue.value[0] ?? '*',
     });
 
     store.dispatch('requestIndexSetQuery');
@@ -36,9 +36,9 @@
     store.dispatch('requestIndexSetItemChanged', payload).then(() => {
       store.dispatch('requestIndexSetQuery');
     });
-  }
-  const updateSearchParam= (keyword,addition,ip_chooser) => {}
-  const retrieve = () => {}
+  };
+  const updateSearchParam = (keyword, addition, ip_chooser) => {};
+  const retrieve = () => {};
 
   const handleSqlRetrieve = value => {
     store.commit('updateIndexItemParams', {
@@ -46,7 +46,7 @@
     });
 
     store.dispatch('requestIndexSetQuery');
-  }
+  };
 </script>
 <template>
   <div class="search-bar-container">
@@ -61,8 +61,14 @@
         >
       </div>
 
-      <SelectIndexSet style="width: 200px; margin: 0 12px" @selected="handleIndexSetSelected"></SelectIndexSet>
-      <QueryHistory @updateSearchParam="updateSearchParam" @retrieve='retrieve'></QueryHistory>
+      <SelectIndexSet
+        style="width: 200px; margin: 0 12px"
+        @selected="handleIndexSetSelected"
+      ></SelectIndexSet>
+      <QueryHistory
+        @updateSearchParam="updateSearchParam"
+        @retrieve="retrieve"
+      ></QueryHistory>
       <TimeSetting></TimeSetting>
     </div>
     <div class="search-input">
@@ -76,9 +82,9 @@
         @retrieve="handleSqlRetrieve"
       ></SqlQuery>
       <div class="search-tool items">
-        <span  class="disabled bklog-icon bklog-brush"></span>
-        <span  class="disabled bklog-icon bklog-star-line"></span>
-        <span  class="disabled bklog-icon bklog-set-icon"></span>
+        <span class="disabled bklog-icon bklog-brush"></span>
+        <span class="disabled bklog-icon bklog-star-line"></span>
+        <span class="disabled bklog-icon bklog-set-icon"></span>
       </div>
       <div
         class="search-tool search-btn"

@@ -88,12 +88,15 @@
         return new Array(this.loaderLen).fill('');
       },
       columnField() {
+        const visibleTable = !this.visibleFields.length
+          ? Array(3).fill({ width: '', minWidth: 0 })
+          : this.visibleFields;
         return this.isOriginalField
           ? [
               { width: 160, minWidth: 0, field_name: 'time' },
               { width: '', minWidth: 0, field_name: 'log' },
             ]
-          : this.visibleFields;
+          : visibleTable;
       },
     },
     mounted() {

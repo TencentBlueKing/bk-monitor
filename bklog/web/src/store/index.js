@@ -663,7 +663,7 @@ const store = new Vuex.Store({
         };
 
         commit('updateIndexItem', payload);
-        dispatch('requestIndexSetFieldInfo');
+        return dispatch('requestIndexSetFieldInfo');
       }
     },
 
@@ -701,6 +701,7 @@ const store = new Vuex.Store({
           const visibleFields =
             res.data?.fields.filter(item => res.data.display_fields.includes(item.field_name)) ?? [];
           commit('updateVisibleFields', visibleFields);
+          commit('updateIsNotVisibleFieldsShow', !visibleFields.length);
           commit('updateIndexSetFieldConfig', res.data ?? {});
           return res;
         })
@@ -863,7 +864,7 @@ const store = new Vuex.Store({
      */
     requestIndexSetItemChanged({ commit, dispatch }, payload) {
       commit('updateIndexItem', payload);
-      commit('resetIndexSetQueryResult', { search_count: 0 });
+      commit('resetIndexSetQueryResult', { search_count: 0, is_loading: true });
 
       if (!payload.isUnionIndex) {
         commit('updateIndexId', payload.ids[0]);

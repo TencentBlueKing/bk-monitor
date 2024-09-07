@@ -8,6 +8,7 @@
       <ul
         ref="historyUlRef"
         class="retrieve-history-list"
+        v-bkloading="{ isLoading: historyLoading, size: 'mini' }"
       >
         <template v-if="isHistoryRecords">
           <li
@@ -33,6 +34,7 @@
   export default {
     data() {
       return {
+        historyLoading: false,
         isHistoryRecords: true,
         popoverInstance: null,
         historyRecords: [],
@@ -53,7 +55,8 @@
       },
     },
     methods: {
-      handleClickHistoryButton(e) {
+      async handleClickHistoryButton(e) {
+        await this.requestSearchHistory();
         const popoverWidth = '300px';
         this.popoverInstance = this.$bkPopover(e.target, {
           content: this.$refs.historyUlRef,
@@ -67,6 +70,8 @@
           placement: 'bottom',
           extCls: 'retrieve-history-popover',
           onHidden: () => {
+            this.historyRecords = [];
+            this.isHistoryRecords = true;
             this.popoverInstance?.destroy();
             this.popoverInstance = null;
           },
@@ -74,13 +79,19 @@
         this.popoverInstance.show();
       },
       handleClickHistory(item) {
-        this.$emit('updateSearchParam', item.params.keyword, item.params.addition, item.params.ip_chooser);
-        this.$nextTick(() => {
-          this.$emit('retrieve');
-          this.popoverInstance?.destroy();
+        const { keyword, addition, ip_chooser } = item.params;
+        this.$store.commit('updateIndexItemParams', {
+          keyword,
+          addition,
+          ip_chooser,
+          begin: 0,
         });
+
+        this.$store.dispatch('requestIndexSetQuery');
+        this.popoverInstance.hide();
       },
       requestSearchHistory() {
+        this.historyLoading = true;
         const queryUrl = this.isUnionSearch ? 'unionSearch/unionSearchHistory' : 'retrieve/getSearchHistory';
         const params = this.isUnionSearch
           ? {
@@ -96,20 +107,12 @@
           .then(res => {
             this.historyRecords = res.data;
             this.isHistoryRecords = !!this.historyRecords.length;
+          })
+          .finally(() => {
+            this.historyLoading = false;
           });
       },
     },
-    watch: {
-      unionIndexList: {
-        handler() {
-          setTimeout(() => {
-            console.log('indexId', this.indexId);
-            this.requestSearchHistory();
-          }, 0);
-        },
-      },
-    },
-    created() {},
   };
 </script>
 
