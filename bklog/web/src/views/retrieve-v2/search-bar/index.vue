@@ -1,5 +1,6 @@
 <script setup>
-  import { ref } from 'vue';
+  import { ref, computed } from 'vue';
+  import { isEqual } from 'lodash';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
@@ -19,6 +20,8 @@
   const searchItemList = ref([]);
   const sqlQueryValue = ref([]);
 
+  const indexItem = computed(() => store.state.indexItem);
+
   const handleQueryTypeChange = index => {
     activeIndex.value = index;
   };
@@ -33,9 +36,11 @@
   };
 
   const handleIndexSetSelected = payload => {
-    store.dispatch('requestIndexSetItemChanged', payload).then(() => {
-      store.dispatch('requestIndexSetQuery');
-    });
+    if (!isEqual(indexItem.value.ids, payload.ids) || indexItem.value.isUnionIndex !== payload.isUnionIndex) {
+      store.dispatch('requestIndexSetItemChanged', payload).then(() => {
+        store.dispatch('requestIndexSetQuery');
+      });
+    }
   };
   const updateSearchParam = (keyword, addition, ip_chooser) => {};
   const retrieve = () => {};
@@ -62,7 +67,7 @@
       </div>
 
       <SelectIndexSet
-        style="width: 200px; margin: 0 12px"
+        style="width: 500px; margin: 0 12px"
         @selected="handleIndexSetSelected"
       ></SelectIndexSet>
       <QueryHistory

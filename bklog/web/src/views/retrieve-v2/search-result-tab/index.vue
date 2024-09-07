@@ -15,7 +15,7 @@
     const list = [
       { name: 'origin', label: $t('原始日志') },
       { name: 'clustering', label: $t('日志聚类') },
-      { name: 'chartAnalysis', label: $t('图表分析') },
+      // { name: 'chartAnalysis', label: $t('图表分析') },
     ];
     return list;
   });
