@@ -151,7 +151,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
 
         _space_transform.clear()
         for space in spaces:
-            cc_space = space["space_type_id"] = SpaceTypeEnum.BKCC.value
+            cc_space = space["space_type_id"] == SpaceTypeEnum.BKCC.value
             # bk_biz_id
             if not cc_space:
                 space["bk_biz_id"] = -space["id"]
