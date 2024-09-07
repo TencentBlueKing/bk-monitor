@@ -30,6 +30,7 @@ class Empty:
 
 
 miss_cache = Empty()
+_space_transform = {}
 
 
 def enrich_space_display_name(space_dict):
@@ -46,11 +47,12 @@ def enrich_space_display_name(space_dict):
 class InjectSpaceApi(space_api.AbstractSpaceApi):
     @classmethod
     def _init_space(cls, space_dict: dict) -> SpaceDefine:
-        # 补充 space_type 描述
-        space_type_list = api.metadata.list_space_types()
-        for st in space_type_list:
-            if st["type_id"] == space_dict["space_type_id"]:
-                space_dict.update(st)
+        if not space_dict.get("type_name"):
+            # 补充 space_type 描述
+            space_type_list = api.metadata.list_space_types()
+            for st in space_type_list:
+                if st["type_id"] == space_dict["space_type_id"]:
+                    space_dict.update(st)
         enrich_space_display_name(space_dict)
         return SpaceDefine.from_dict(space_dict)
 
@@ -62,11 +64,20 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         :param id: 空间自增ID
         """
         params = {}
+        # 0. 尝试优先使用 space_uid， 使用local_men的数据基于 space_uid 设计
         if bk_biz_id < 0:
-            params.update({"id": abs(bk_biz_id)})
+            # 1. 非cmdb空间
+            if bk_biz_id in _space_transform:
+                # 1.1 尝试从映射表中获取space_uid
+                params["space_uid"] = _space_transform[bk_biz_id]
+            else:
+                # 1.2内存中没有业务id信息， 智能尝试用id 查询api
+                params["id"] = abs(bk_biz_id)
         elif bk_biz_id > 0:
-            params.update({"space_uid": f"bkcc__{bk_biz_id}"})
+            # 2. cmdb空间, 直接生成space_uid
+            params.update({"space_uid": f"{SpaceTypeEnum.BKCC.value}__{bk_biz_id}"})
         elif space_uid:
+            # 3. 指定 space_uid
             params.update({"space_uid": space_uid})
         else:
             raise ValidationError(_("参数[space_uid]、和[id]不能同时为空"))
@@ -74,12 +85,14 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         cache_key = params.get("space_uid", "")
         using_cache = cache_key or bk_biz_id > 0
         if using_cache:
-            # 尝试从缓存获取, 解决 bkcc 业务层面快速获取空间信息的场景
+            # 尝试从缓存获取, 解决 bkcc 业务层面快速获取空间信息的场景， 非 bkcc 空间，没有预先缓存，通过api获取后再更新
             space = local_mem.get(f"metadata:spaces_map:{cache_key}", miss_cache)
             if space is not miss_cache:
                 return SpaceDefine.from_dict(space)
 
         space_info = api.metadata.get_space_detail(**params)
+        # 补充miss 的 space_uid 信息（非cmdb 空间）
+        local_mem.set(f"metadata:spaces_map:{space_info['space_uid']}", space_info, timeout=3600)
         return cls._init_space(space_info)
 
     @classmethod
@@ -93,7 +106,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                 SpaceDefine.from_dict(space_dict, cleaned=True)
                 for space_dict in cls.list_spaces_dict(using_cache=False)
             ]
-            local_mem.set("metadata:list_spaces", ret, timeout=600)
+            local_mem.set("metadata:list_spaces", ret, timeout=3600)
         return ret
 
     @classmethod
@@ -135,19 +148,26 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                 "未成功初始化metadata空间数据，请执行"
                 "env DJANGO_CONF_MODULE=conf.worker.development.enterprise python manage.py init_space_data"
             )
+
+        _space_transform.clear()
         for space in spaces:
+            cc_space = space["space_type_id"] = SpaceTypeEnum.BKCC.value
             # bk_biz_id
-            if space["space_type_id"] != SpaceTypeEnum.BKCC.value:
+            if not cc_space:
                 space["bk_biz_id"] = -space["id"]
             else:
                 space["bk_biz_id"] = int(space["space_id"])
             # is_demo
             space["is_demo"] = space["bk_biz_id"] == int(settings.DEMO_BIZ_ID or 0)
             enrich_space_display_name(space)
-
-            local_mem.set(f"metadata:spaces_map:{space['space_uid']}", space, timeout=600)
+            if cc_space:
+                # 仅针对cmdb空间，进行缓存， 非cc空间，需要额外resource信息，走api丰富。
+                local_mem.set(f"metadata:spaces_map:{space['space_uid']}", space, timeout=3600)
+            else:
+                # 非cmdb 空间，内存暂存一份bk_biz_id -> space_uid 的映射
+                _space_transform[space["bk_biz_id"]] = space["space_uid"]
         # 10min
-        local_mem.set("metadata:list_spaces_dict", spaces, 600)
+        local_mem.set("metadata:list_spaces_dict", spaces, timeout=3600)
         return spaces
 
     @classmethod
