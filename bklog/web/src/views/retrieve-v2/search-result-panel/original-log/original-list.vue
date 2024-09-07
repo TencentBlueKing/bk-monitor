@@ -29,7 +29,7 @@
   <div>
     <bk-table
       ref="resultTable"
-      :class="['king-table original-table', { 'is-wrap': isWrap }]"
+      :class="['king-table original-table', { 'is-wrap': tableLineIsWarp }]"
       :data="tableList"
       :outer-border="false"
       :show-header="false"
@@ -64,20 +64,19 @@
           <template #default="{ row }">
             <span
               class="time-field"
-              :title="isWrap ? '' : formatDate(Number(row[timeField]))"
+              :title="tableLineIsWarp ? '' : formatDate(Number(row[timeField]))"
             >
               {{ formatDate(Number(row[timeField]) || '') }}
             </span>
           </template>
         </bk-table-column>
-        <bk-table-column :class-name="`original-str${isWrap ? ' is-wrap' : ''}`">
+        <bk-table-column :class-name="`original-str${tableLineIsWarp ? ' is-wrap' : ''}`">
           <!-- eslint-disable-next-line -->
           <template slot-scope="{ row, column, $index }">
             <div :class="['str-content', 'origin-str', { 'is-limit': getLimitState($index) }]">
               <!-- eslint-disable-next-line vue/no-v-html -->
               <!-- <span>{{ JSON.stringify(row) }}</span> -->
               <original-light-height
-                :is-wrap="isWrap"
                 :operator-config="operatorConfig"
                 :origin-json="row"
                 :visible-fields="getShowTableVisibleFields"

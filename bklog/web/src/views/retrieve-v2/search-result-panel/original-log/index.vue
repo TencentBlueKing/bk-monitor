@@ -59,6 +59,7 @@
           <bk-switcher
             v-model="isWrap"
             theme="primary"
+            @change="handleChangeIsWarp"
           ></bk-switcher>
         </div>
         <div class="operation-icons">
@@ -108,7 +109,6 @@
 
     <table-log
       :table-list="tableList"
-      :is-wrap="isWrap"
       :retrieve-params="retrieveParams"
       :show-original="showOriginalLog"
     />
@@ -261,6 +261,9 @@
       handleChangeExpandView(val) {
         this.$store.commit('updateIsLimitExpandView', val);
       },
+      handleChangeIsWarp(val) {
+        this.$store.commit('updateTableLineIsWarp', val);
+      }
     },
   };
 </script>

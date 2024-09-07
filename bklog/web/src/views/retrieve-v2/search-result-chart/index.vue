@@ -33,6 +33,7 @@
     <chart-title
       ref="chartTitle"
       :is-fold="isFold"
+      :is-empty-chart="isEmptyChart"
       :loading="isLoading || !finishPolling"
       :menu-list="chartOptions.tool.list"
       :title="$t('总趋势')"
@@ -71,31 +72,6 @@
       </svg>
       <span class="text">{{ $t('暂无数据') }}</span>
     </div>
-    <div
-      v-if="!isEmptyChart && !isFold"
-      v-en-style="'left: 110px'"
-      class="converge-cycle"
-    >
-      <span>{{ $t('汇聚周期') }}</span>
-      <bk-select
-        style="width: 80px"
-        ext-cls="select-custom"
-        v-model="chartInterval"
-        :clearable="false"
-        behavior="simplicity"
-        data-test-id="generalTrendEcharts_div_selectCycle"
-        size="small"
-        @change="handleIntervalChange"
-      >
-        <bk-option
-          v-for="option in intervalArr"
-          :id="option.id"
-          :key="option.id"
-          :name="option.name"
-        >
-        </bk-option>
-      </bk-select>
-    </div>
   </div>
 </template>
 
@@ -105,7 +81,7 @@
   import indexSetSearchMixin from '@/mixins/indexSet-search-mixin';
   import axios from 'axios';
   import { debounce } from 'throttle-debounce';
-// import { nextTick } from 'vue';
+  // import { nextTick } from 'vue';
   import { mapGetters } from 'vuex';
 
   const CancelToken = axios.CancelToken;
@@ -183,7 +159,7 @@
         unionIndexList: 'unionIndexList',
         isUnionSearch: 'isUnionSearch',
         bkBizId: 'bkBizId',
-        retrieveParams: 'retrieveParams'
+        retrieveParams: 'retrieveParams',
       }),
       totalNumShow() {
         if (!this.infoTotalNumLoading && !this.infoTotalNumError && !this.isFrontStatistics && this.infoTotal > 0)
@@ -222,7 +198,7 @@
           this.handleLogChartCancel();
           this.localAddition = this.retrieveParams.addition;
           this.$refs.chartRef?.handleCloseTimer();
-          !this.isFrontStatistics && this.getInfoTotalNum();
+          // !this.isFrontStatistics && this.getInfoTotalNum();
           this.totalCount = 0;
           this.isRenderChart = true;
           this.isLoading = false;
@@ -236,9 +212,6 @@
       finishPolling(newVal) {
         this.$emit('change-queue-res', newVal);
       },
-      'retrieveParams.interval'(newVal) {
-        this.chartInterval = newVal;
-      },
     },
     created() {
       this.handleLogChartCancel = debounce(300, this.logChartCancel);
@@ -247,7 +220,6 @@
     },
     mounted() {
       window.bus.$on('openChartLoading', this.openChartLoading);
-      this.chartInterval = this.retrieveParams.interval;
     },
     beforeUnmount() {
       window.bus.$on('openChartLoading', this.openChartLoading);
@@ -260,26 +232,13 @@
       openChartLoading() {
         this.isLoading = true;
       },
-      // 汇聚周期改变
-      handleIntervalChange() {
-        // this.getInterval();
-        // this.finishPolling = true;
-        // this.$refs.chartRef.handleCloseTimer();
-        // this.totalCount = 0;
-        // setTimeout(() => {
-        //   this.finishPolling = false;
-        //   this.isStart = false;
-        //   this.$refs.chartRef.handleChangeInterval();
-        // }, 500);
-        this.$store.commit('retrieve/updateChartKey');
-      },
       // 需要更新图表数据
       async getSeriesData(startTime, endTime) {
         if (startTime && endTime) {
           this.timeRange = [startTime, endTime];
           this.finishPolling = false;
           this.isStart = false;
-          !this.isFrontStatistics && this.getInfoTotalNum();
+          // !this.isFrontStatistics && this.getInfoTotalNum();
           this.totalCount = 0;
           // 框选时间范围
           window.bus.$emit('changeTimeByChart', [startTime, endTime], 'customized');
@@ -402,7 +361,7 @@
             window.bus.$emit('changeTimeByChart', cacheDatePickerValue, cacheTimeRange);
             this.finishPolling = true;
             this.totalCount = 0;
-            !this.isFrontStatistics && this.getInfoTotalNum();
+            // !this.isFrontStatistics && this.getInfoTotalNum();
             this.$refs.chartRef.handleCloseTimer();
             setTimeout(() => {
               this.finishPolling = false;

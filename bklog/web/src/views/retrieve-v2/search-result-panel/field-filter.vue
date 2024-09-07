@@ -7,6 +7,10 @@
   import FieldFilterComp from '../field-filter-comp';
   const store = useStore();
   const { $t } = useLocale();
+  const props = defineProps({
+    isShowFieldStatistics: { type: Boolean, default: true },
+  });
+  const emit = defineEmits(['update:is-show-field-statistics']);
   /** 时间选择器绑定的值 */
   const datePickerValue = computed(() => {
     const { start_time = 'now-15m', end_time = 'now' } = store.state.indexItem;
@@ -110,7 +114,9 @@
       // this.requestFields(); // 该接口具体逻辑待确定
     }
   };
-  const handleCloseFilterTitle = () => {};
+  const handleCloseFilterTitle = () => {
+    emit('update:is-show-field-statistics', !props.isShowFieldStatistics);
+  };
   watch(
     store.state.indexFieldInfo,
     () => {
@@ -121,22 +127,28 @@
 </script>
 
 <template>
-  <div class="search-field-filter">
+  <div :class="['search-field-filter', { 'is-close': !isShowFieldStatistics }]">
     <!-- 字段过滤 -->
     <div class="tab-item-title field-filter-title">
       <div class="left-title">
         {{ $t('查询结果统计') }}
       </div>
-      <div class="close-total">
-        <span class="collect-title">{{ $t('收起') }}</span>
+      <div
+        class="close-total"
+        @click="handleCloseFilterTitle"
+      >
         <span
-          class="bklog-icon bklog-collapse-small"
-          @click="handleCloseFilterTitle"
-        ></span>
+          v-show="isShowFieldStatistics"
+          class="collect-title"
+        >
+          {{ $t('收起') }}
+        </span>
+        <span class="bklog-icon bklog-collapse-small"></span>
       </div>
     </div>
     <FieldFilterComp
       ref="fieldFilterRef"
+      v-show="isShowFieldStatistics"
       :date-picker-value="datePickerValue"
       :field-alias-map="fieldAliasMap"
       :index-set-item="indexSetItem"

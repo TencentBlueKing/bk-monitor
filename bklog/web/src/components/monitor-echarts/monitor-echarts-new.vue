@@ -35,8 +35,8 @@
         ref="charWrapRef"
         :style="{
           flexDirection: !chartOption.legend.toTheRight ? 'column' : 'row',
-          minHeight: height - (chartTitle ? 36 : 0) + 'px',
-          maxHeight: height - (chartTitle ? 36 : 0) + 'px',
+          minHeight: height - (chartTitle ? 46 : 0) + 'px',
+          maxHeight: height - (chartTitle ? 46 : 0) + 'px',
         }"
         class="chart-wrapper"
         tabindex="-1"
@@ -115,7 +115,6 @@
   import { Debounce } from '../../common/util';
   import ChartAnnotation from './components/chart-annotation.vue';
   import ChartLegend from './components/chart-legend.vue';
-  import ChartTitle from './components/chart-title-new.vue';
   import ChartTools from './components/chart-tools.vue';
   import StatusChart from './components/status-chart.vue';
   import TextChart from './components/text-chart.vue';
@@ -151,7 +150,6 @@
       ChartAnnotation,
       StatusChart,
       TextChart,
-      ChartTitle,
     },
   })
   export default class MonitorEcharts extends Vue {
@@ -967,7 +965,7 @@
     position: relative;
     width: 100%;
     height: 100%;
-    padding: 18px 24px 24px;
+    padding-top: 18px;
     color: #63656e;
     background-color: #fff;
     background-repeat: repeat;
@@ -1013,7 +1011,7 @@
 
     .echart-content {
       position: absolute;
-      top: 36px;
+      top: -20px;
       right: 1px;
       bottom: 1px;
       left: 1px;

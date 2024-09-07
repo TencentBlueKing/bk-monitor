@@ -26,7 +26,7 @@
 
 <template>
   <div
-    :class="['td-log-container', { 'is-wrap': isWrap }]"
+    :class="['td-log-container', { 'is-wrap': tableLineIsWarp }]"
     @click.stop
   >
     <!-- eslint-disable vue/no-v-html -->
@@ -52,10 +52,6 @@
       TextSegmentation,
     },
     props: {
-      isWrap: {
-        type: Boolean,
-        default: false,
-      },
       content: {
         type: [String, Number, Boolean],
         required: true,
@@ -73,6 +69,11 @@
       return {
         isInViewPort: false,
       };
+    },
+    computed: {
+      tableLineIsWarp() {
+        return this.$store.state.tableLineIsWarp;
+      },
     },
     mounted() {
       setTimeout(this.registerObserver, 20);

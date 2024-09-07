@@ -30,7 +30,6 @@
       ref="chartTitle"
       class="chart-title"
       tabindex="0"
-      @blur="showMenu = false"
       @click.stop="handleShowMenu"
     >
       <div class="main-title">
@@ -39,6 +38,31 @@
           :class="{ 'is-flip': isFold }"
         ></span>
         <div class="title-name">{{ title }}</div>
+        <div
+          v-if="!isEmptyChart && !isFold"
+          class="converge-cycle"
+          @click.stop
+        >
+          <span>{{ $t('汇聚周期') }}</span>
+          <bk-select
+            style="width: 80px"
+            ext-cls="select-custom"
+            v-model="chartInterval"
+            :clearable="false"
+            behavior="simplicity"
+            data-test-id="generalTrendEcharts_div_selectCycle"
+            size="small"
+            @change="handleIntervalChange"
+          >
+            <bk-option
+              v-for="option in intervalArr"
+              :id="option.id"
+              :key="option.id"
+              :name="option.name"
+            >
+            </bk-option>
+          </bk-select>
+        </div>
       </div>
       <div
         v-if="subtitle"
@@ -72,7 +96,7 @@
 </template>
 
 <script lang="ts">
-  import { Component, Vue, Prop, Ref } from 'vue-property-decorator';
+  import { Component, Vue, Prop, Ref, Watch } from 'vue-property-decorator';
 
   import ChartMenu from './chart-menu.vue';
 
@@ -88,9 +112,27 @@
     @Prop({ default: () => [] }) menuList: string[];
     @Prop({ default: localStorage.getItem('chartIsFold') === 'true' }) isFold: boolean;
     @Prop({ default: true }) loading: boolean;
+    @Prop({ default: true }) isEmptyChart: boolean;
     @Ref('chartTitle') chartTitleRef: HTMLDivElement;
-    private showMenu = false;
-    private menuLeft = 0;
+
+    chartInterval = 'auto';
+    intervalArr = [
+      { id: 'auto', name: 'auto' },
+      { id: '1m', name: '1 min' },
+      { id: '5m', name: '5 min' },
+      { id: '1h', name: '1 h' },
+      { id: '1d', name: '1d' },
+    ];
+
+    get retrieveParams() {
+      return this.$store.state.retrieveParams;
+    }
+
+    @Watch('retrieveParams.interval')
+    watchChangeChartInterval(newVal) {
+      this.chartInterval = newVal;
+    }
+
     handleShowMenu(e: MouseEvent) {
       this.$emit('toggle-expand', !this.isFold);
 
@@ -99,8 +141,11 @@
       // this.menuLeft = rect.width  - 185 < e.layerX ? rect.width  - 185 : e.layerX
     }
     handleMenuClick(item) {
-      this.showMenu = false;
       this.$emit('menu-click', item);
+    }
+    // 汇聚周期改变
+    handleIntervalChange() {
+      this.$store.commit('retrieve/updateChartKey');
     }
   }
 </script>
@@ -110,8 +155,23 @@
     flex: 1;
     width: 100%;
 
+    .converge-cycle {
+      display: flex;
+      align-items: center;
+      margin-left: 24px;
+      font-size: 12px;
+      font-weight: normal;
+      color: #63656e;
+
+      .select-custom {
+        display: inline-block;
+        margin-left: 5px;
+        vertical-align: middle;
+      }
+    }
+
     .chart-title {
-      padding: 4px 10px;
+      padding: 0 10px;
       margin-left: -10px;
       font-size: 12px;
       color: #63656e;
@@ -130,6 +190,7 @@
         display: flex;
         flex-wrap: nowrap;
         align-items: center;
+        height: 24px;
         font-weight: 700;
 
         .title-name {
@@ -177,7 +238,7 @@
 
     .menu-list {
       position: absolute;
-      top: 16px;
+      top: 0;
       right: 36px;
 
       .bklog-icon {
