@@ -50,13 +50,19 @@
   const bkBizId = computed(() => store.state.bkBizId);
   const indexSetParams = computed(() => store.getters.retrieveParams); // commit('retrieve/updateChartKey');
 
+  store.dispatch('updateIndexItemByRoute', { route, list: [] });
+
   /**
    * 拉取索引集列表
    */
   const getIndexSetList = () => {
     store.dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value }).then(resp => {
       // 拉取完毕根据当前路由参数回填默认选中索引集
-      store.dispatch('updateIndexItemByRoute', { route, list: resp[1] });
+      store.dispatch('updateIndexItemByRoute', { route, list: resp[1] }).then(() => {
+        setTimeout(() => {
+          store.dispatch('requestIndexSetQuery');
+        });
+      });
     });
   };
 
@@ -81,7 +87,7 @@
       setRouteParams();
       store.commit('retrieve/updateChartKey');
     },
-    { immediate: true, deep: true },
+    { deep: true },
   );
 
   watch(
@@ -97,7 +103,7 @@
             ...routeQuery,
             spaceUid: spaceUid.value,
             bizId: bkBizId.value,
-            unionList: undefined
+            unionList: undefined,
           },
         });
       }
@@ -173,7 +179,10 @@
         :width.sync="favoriteWidth"
         @handle-click-favorite="handleClickFavorite"
       ></CollectFavorites>
-      <div :style="{ paddingLeft: `${showFavorites ? favoriteWidth : 0}px` }" class="retrieve-context">
+      <div
+        :style="{ paddingLeft: `${showFavorites ? favoriteWidth : 0}px` }"
+        class="retrieve-context"
+      >
         <SearchBar></SearchBar>
         <div class="result-row">
           <SearchResultTab v-model="activeTab"></SearchResultTab>

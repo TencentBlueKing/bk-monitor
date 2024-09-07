@@ -1,7 +1,8 @@
-<script setup>
-  import { computed, ref } from 'vue';
+<script lang="ts" setup>
+  import { computed, ref, watch, nextTick } from 'vue';
+  import { debounce } from 'lodash';
   import useStore from '@/hooks/use-store';
-
+  import useLocale from '@/hooks/use-locale';
   const props = defineProps({
     value: {
       type: String,
@@ -10,7 +11,29 @@
     },
   });
 
+  const emits = defineEmits(['change', 'cancel', 'retrieve']);
+
   const store = useStore();
+  const { $t } = useLocale();
+
+  enum OptionItemType {
+    Fields = 'Fields',
+    Value = 'Value',
+    Colon = 'Colon',
+    Continue = 'Continue',
+    Operator = 'Operator',
+  }
+
+  const showOption = computed(() => {
+    return Object.values(OptionItemType).reduce(
+      (output, key) => ({
+        ...output,
+        [`show${key}`]: activeType.value.includes(key),
+      }),
+      {},
+    );
+  });
+
   const retrieveDropdownData = computed(() => store.state.retrieveDropdownData);
   const totalFields = computed(() => store.state.indexFieldInfo.fields ?? []);
 
@@ -32,7 +55,7 @@
 
   /** 所有字段的字段名 */
   const totalFieldsNameList = computed(() => {
-    return this.totalFields.map(item => item.field_name);
+    return totalFields.value.map(item => item.field_name);
   });
 
   // 检索后的日志数据如果字段在字段接口找不到则不展示联想的key
@@ -40,20 +63,90 @@
     Object.keys(retrieveDropdownData.value).filter(v => totalFieldsNameList.value.includes(v)),
   );
 
-  const types = ['Fields', 'Value', 'Colon', 'Continue'];
-  const activeType = ref('');
+  const activeType = ref([]);
   const separator = /AND|OR|and|or/; // 区分查询语句条件
   const fieldList = ref([]);
   const valueList = ref([]);
 
-  const handleClickField = item => {};
+  const refDropdownEl = ref(null);
+  const activeIndex = ref(0);
+
+  const handleRetrieve = debounce(() => emits('retrieve'));
+
+  const operatorSelectList = ref([
+    {
+      operator: '>',
+      label: $t('大于'),
+    },
+    {
+      operator: '<',
+      label: $t('小于'),
+    },
+    {
+      operator: '>=',
+      label: $t('大于或等于'),
+    },
+    {
+      operator: '<=',
+      label: $t('小于或等于'),
+    },
+  ]);
+
+  const setOptionActive = () => {
+    const dropdownList = refDropdownEl?.value?.querySelectorAll('.list-item');
+    refDropdownEl?.value?.querySelector('.list-item.active')?.classList.remove('active');
+    dropdownList?.[activeIndex.value]?.classList.add('active');
+  };
 
   /**
    * 显示哪个下拉列表
    * @param {String} [param]
    */
   const showWhichDropdown = param => {
-    activeType.value = param;
+    activeType.value.length = 0;
+    activeType.value = [];
+    if (typeof param === 'string') {
+      activeType.value.push(param);
+    }
+
+    if (Array.isArray(param)) {
+      activeType.value.push(...param);
+    }
+
+    activeIndex.value = 0;
+  };
+
+  /**
+   * 获取某个字段可选的值列表
+   * @param {Object} valueMap
+   * @return {string[]}
+   */
+  const getValueList = valueMap => {
+    let valueMapList = Object.keys(valueMap);
+    if (valueMap.__fieldType === 'string') {
+      valueMapList = valueMapList // 清除mark标签
+        .map(item => `"${item.replace(/<mark>/g, '').replace(/<\/mark>/g, '')}"`);
+    }
+    return [...new Set(valueMapList)]; // 清除重复的字段
+  };
+
+  /**
+   * @desc: 当前是否是数字类型字段
+   * @param {string} fieldStr 字段名
+   * @returns {boolean}
+   */
+  const isNumTypeField = (fieldStr = '') => {
+    return getNumTypeFieldList.value.includes(fieldStr);
+  };
+
+  const showColonOperator = inputField => {
+    const showVal = [OptionItemType.Colon];
+
+    if (isNumTypeField(inputField.trim())) {
+      showVal.push(OptionItemType.Operator);
+    }
+    // 完全匹配字段同时和 : :* 选项
+    showWhichDropdown(showVal);
   };
 
   // 根据当前输入关键字计算提示内容
@@ -67,7 +160,7 @@
 
     const value = props.value;
     const trimValue = value.trim();
-    const lastFragments = value.split(this.separator);
+    const lastFragments = value.split(separator.value);
     const lastFragment = lastFragments[lastFragments.length - 1];
     // 以 name:"arman" OR age:18 为例，还没开始输入字段
     if (
@@ -88,32 +181,29 @@
       fieldList.value = originFieldList.value.filter(item => {
         if (item.includes(inputField)) {
           if (item === inputField) {
-            // 完全匹配字段同时和 : :* 选项
-            this.showColon = true;
-            this.showOperator = this.isNumTypeField(inputField.trim());
+            showColonOperator(inputField);
           }
           return true;
         }
       });
-      showWhichDropdown(fieldList.value.length ? 'Fields' : undefined);
+      showWhichDropdown(fieldList.value.length ? OptionItemType.Fields : undefined);
       return;
     }
     // 字段输入完毕【name 】
     if (/^\s*(?<field>[\w.]+)\s*$/.test(lastFragment)) {
-      showWhichDropdown('Colon');
-      showOperator = this.isNumTypeField(lastFragment.trim());
+      showColonOperator(inputField);
       return;
     }
     // 准备输入值【name:】
     const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups.field;
     if (confirmField) {
-      const valueMap = this.dropdownData[confirmField];
+      const valueMap = retrieveDropdownData.value[confirmField];
       if (valueMap) {
-        this.showWhichDropdown('Value');
-        this.valueList = this.getValueList(valueMap);
+        showWhichDropdown(OptionItemType.Value);
+        valueList.value = getValueList(valueMap);
       } else {
-        this.showWhichDropdown();
-        this.valueList.splice(0);
+        showWhichDropdown();
+        valueList.value.splice(0);
       }
       return;
     }
@@ -121,31 +211,181 @@
     const valueResult = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>[\S]+)$/.exec(lastFragment);
     if (valueResult) {
       const confirmField = valueResult.groups.field;
-      const valueMap = this.dropdownData[confirmField];
+      const valueMap = retrieveDropdownData.value[confirmField];
       if (valueMap) {
         const inputValue = valueResult.groups.value;
-        valueList = this.getValueList(valueMap).filter(item => item.includes(inputValue));
-        showWhichDropdown(this.valueList.length ? 'Value' : undefined);
+        valueList.value = getValueList(valueMap).filter(item => item.includes(inputValue));
+        showWhichDropdown(valueList.value.length ? OptionItemType.Value : undefined);
       } else {
         showWhichDropdown();
-        valueList.splice(0);
+        valueList.value.splice(0);
       }
       return;
     }
     // 一组条件输入完毕【age:18 】提示继续增加条件 AND OR
     if (/^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>[\S]+)\s+$/.test(lastFragment)) {
-      showWhichDropdown('Continue');
+      showWhichDropdown(OptionItemType.Continue);
       return;
     }
 
     showWhichDropdown();
   };
+
+  /**
+   * 选择某个可选字段
+   * @param {string} field
+   */
+  const handleClickField = field => {
+    valueList.value = getValueList(retrieveDropdownData.value[field]);
+    const currentValue = props.value;
+    const trimValue = currentValue.trim();
+    if (!trimValue || trimValue === '*') {
+      emits('change', `${field} `);
+    } else {
+      const fragments = currentValue.split(separator.value);
+      if (!fragments[fragments.length - 1].trim()) {
+        // 可能的情况 【name:"arman" AND \s】
+        emits('change', `${currentValue}${field} `);
+      } else {
+        // 可能的情况【name:"arman" AND ag】【name】
+        emits('change', currentValue.replace(/\s*[\w.]+$/, ` ${field} `));
+      }
+    }
+    showColonOperator(field);
+    nextTick(() => {
+      activeIndex.value = 0;
+      setOptionActive();
+    });
+  };
+
+  /**
+   * 选择 : 或者 :*
+   * @param {string} type
+   */
+  const handleClickColon = type => {
+    emits('change', `${props.value + type} `);
+    calculateDropdown();
+    nextTick(() => {
+      activeIndex.value = 0;
+      setOptionActive();
+    });
+  };
+
+  /**
+   * 选择某个字段可选值
+   * @param {string} value
+   */
+  const handleClickValue = value => {
+    // 当前输入值可能的情况 【name:"a】【age:】
+    emits(
+      'change',
+      props.value.replace(/(:|>=|<=|>|<)\s*[\S]*$/, (match1, matchOperator) => {
+        return `${matchOperator} ${value} `;
+      }),
+    );
+    showWhichDropdown(OptionItemType.Continue);
+    nextTick(() => {
+      activeIndex.value = 0;
+      setOptionActive();
+    });
+  };
+
+  /**
+   * 选择 AND 或者 OR
+   * @param {string} type
+   */
+  const handleClickContinue = type => {
+    emits('change', `${props.value + type} `);
+    showWhichDropdown(OptionItemType.Fields);
+    fieldList.value = [...originFieldList.value];
+    nextTick(() => {
+      activeIndex.value = 0;
+      setOptionActive();
+    });
+  };
+
+  const scrollActiveItemIntoView = () => {
+    if (activeIndex.value >= 0) {
+      const target = refDropdownEl.value.querySelector('.list-item.active');
+      target?.scrollIntoView({ block: 'nearest' });
+    }
+  };
+
+  const handleKeydown = e => {
+    const { code } = e;
+    if (code === 'Escape') {
+      emits('cancel');
+      return;
+    }
+
+    const dropdownEl = refDropdownEl.value;
+    if (!dropdownEl) {
+      return;
+    }
+
+    const dropdownList = dropdownEl.querySelectorAll('.list-item');
+    if (code === 'NumpadEnter' || code === 'Enter') {
+      e.preventDefault();
+      if (activeIndex.value !== null && dropdownList[activeIndex.value] !== undefined) {
+        // enter 选中下拉选项
+        dropdownList[activeIndex.value].click();
+      } else {
+        emits('change', props.value);
+        nextTick(() => {
+          handleRetrieve();
+        });
+      }
+    }
+
+    if (code === 'ArrowUp') {
+      if (activeIndex.value) {
+        activeIndex.value -= 1;
+      } else {
+        activeIndex.value = dropdownList.length - 1;
+      }
+    }
+
+    if (code === 'ArrowDown') {
+      if (activeIndex.value === null || activeIndex.value === dropdownList.length - 1) {
+        activeIndex.value = 0;
+      } else {
+        activeIndex.value += 1;
+      }
+    }
+
+    setOptionActive();
+    scrollActiveItemIntoView();
+  };
+
+  const beforeShowndFn = () => {
+    document.addEventListener('keydown', handleKeydown);
+  };
+
+  const beforeHideFn = () => {
+    document.removeEventListener('keydown', handleKeydown);
+  };
+
+  defineExpose({
+    beforeShowndFn,
+    beforeHideFn,
+  });
+
+  watch(
+    props,
+    () => {
+      calculateDropdown();
+    },
+    { immediate: true },
+  );
 </script>
 <template>
   <!-- 搜索提示 -->
-  <ul class="sql-query-options">
+  <ul
+    class="sql-query-options"
+    ref="refDropdownEl"
+  >
     <!-- 字段列表 -->
-    <template v-if="showFields">
+    <template v-if="showOption.showFields">
       <li
         v-for="item in fieldList"
         class="list-item field-list-item"
@@ -164,7 +404,7 @@
       </li>
     </template>
     <!-- 字段对应值 -->
-    <template v-if="showValue">
+    <template v-if="showOption.showValue">
       <li
         v-for="item in valueList"
         class="list-item value-list-item"
@@ -183,7 +423,7 @@
       </li>
     </template>
     <!-- : :* -->
-    <template v-if="showColon">
+    <template v-if="showOption.showColon">
       <li
         class="list-item colon-list-item"
         @click="handleClickColon(':')"
@@ -218,7 +458,7 @@
           </i18n>
         </div>
       </li>
-      <template v-if="showOperator">
+      <template v-if="showOption.showOperator">
         <template>
           <li
             v-for="(item, key) in operatorSelectList"
@@ -243,7 +483,7 @@
       </template>
     </template>
     <!-- AND OR -->
-    <template v-if="showContinue">
+    <template v-if="showOption.showContinue">
       <li
         class="list-item continue-list-item"
         @click="handleClickContinue('AND')"

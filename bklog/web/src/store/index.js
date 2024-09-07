@@ -469,10 +469,8 @@ const store = new Vuex.Store({
               if (value || value === 0) {
                 let fieldData = state.retrieveDropdownData[fullFieldKey];
                 if (!fieldData) {
-                  Object.assign(
-                    state.retrieveDropdownData,
-                    fullFieldKey,
-                    Object.defineProperties(
+                  Object.assign(state.retrieveDropdownData, {
+                    [fullFieldKey]: Object.defineProperties(
                       {},
                       {
                         __fieldType: {
@@ -481,10 +479,10 @@ const store = new Vuex.Store({
                         },
                       },
                     ),
-                  );
+                  });
                   fieldData = state.retrieveDropdownData[fullFieldKey];
                 }
-                if (state.notTextTypeFields.includes(field) && !fieldData[value]) {
+                if (state.notTextTypeFields.includes(field) && !fieldData?.[value]) {
                   // 非 text 类型字段统计可选值，text 则由用户手动输入
                   fieldData[value] = 1;
                 }
@@ -867,7 +865,7 @@ const store = new Vuex.Store({
         commit('updateIndexId', payload.ids[0]);
       }
 
-      dispatch('requestIndexSetFieldInfo');
+      return dispatch('requestIndexSetFieldInfo');
     },
 
     changeShowUnionSource({ commit, dispatch, state }) {

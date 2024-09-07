@@ -25,12 +25,51 @@
  */
 import { ref, watch, onMounted, getCurrentInstance, onUnmounted } from 'vue';
 
+// @ts-ignore
 import { getCharLength } from '@/common/util';
+import { debounce } from 'lodash';
+import tippy from 'tippy.js';
 
-export default (props, formatModelValueItem: (val, index) => object) => {
+export default (props, { formatModelValueItem, refContent, onShowFn, onHiddenFn, arrow = true }) => {
   const modelValue = ref([]);
   const inputValue = ref('');
   const INPUT_MIN_WIDTH = 12;
+  let tippyInstance = null;
+
+  const uninstallInstance = () => {
+    if (tippyInstance) {
+      tippyInstance.hide();
+      tippyInstance.unmount();
+      tippyInstance.destroy();
+      tippyInstance = null;
+    }
+  };
+
+  const initInistance = target => {
+    uninstallInstance();
+    if (tippyInstance === null) {
+      tippyInstance = tippy(target, {
+        arrow,
+        content: refContent.value.$el,
+        trigger: 'manual',
+        theme: 'log-light',
+        placement: 'bottom-start',
+        interactive: true,
+        maxWidth: 800,
+        onShow: () => onShowFn?.(),
+        onHidden: () => onHiddenFn?.(),
+      });
+    }
+  };
+
+  /**
+   * 处理多次点击触发多次请求的事件
+   */
+  const delayShowInstance = debounce(target => {
+    initInistance(target);
+    tippyInstance.show();
+  });
+
   /**
    * 点击操作设置输入框位置
    * @param {*} index
@@ -96,6 +135,8 @@ export default (props, formatModelValueItem: (val, index) => object) => {
     }
   };
 
+  const getTippyInstance = () => tippyInstance;
+
   watch(
     props.value,
     val => {
@@ -113,9 +154,10 @@ export default (props, formatModelValueItem: (val, index) => object) => {
   });
 
   onUnmounted(() => {
+    uninstallInstance();
     document?.removeEventListener('click', handleContainerClick);
     document?.removeEventListener('input', handleFulltextInput);
   });
 
-  return { modelValue, inputValue, handleContainerClick, handleInputBlur };
+  return { modelValue, inputValue, getTippyInstance, handleContainerClick, handleInputBlur, delayShowInstance };
 };

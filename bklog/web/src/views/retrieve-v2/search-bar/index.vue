@@ -17,6 +17,7 @@
   const activeIndex = ref(0);
 
   const searchItemList = ref([]);
+  const sqlQueryValue = ref([]);
 
   const handleQueryTypeChange = index => {
     activeIndex.value = index;
@@ -31,7 +32,9 @@
   };
 
   const handleIndexSetSelected = payload => {
-    store.dispatch('requestIndexSetItemChanged', payload);
+    store.dispatch('requestIndexSetItemChanged', payload).then(() => {
+      store.dispatch('requestIndexSetQuery');
+    });
   }
   const updateSearchParam= (keyword,addition,ip_chooser) => {}
   const retrieve = () => {}
@@ -60,7 +63,7 @@
       ></UiInput>
       <SqlQuery
         v-if="activeIndex === 1"
-        v-model="searchItemList"
+        v-model="sqlQueryValue"
       ></SqlQuery>
       <div class="search-tool items">
         <span  class="disabled bklog-icon bklog-brush"></span>

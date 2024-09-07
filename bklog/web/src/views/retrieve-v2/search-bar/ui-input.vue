@@ -1,12 +1,9 @@
 <script setup>
-  import { ref, computed, onBeforeUnmount } from 'vue';
+  import { ref, computed } from 'vue';
 
   import { getOperatorKey } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import { debounce } from 'lodash';
-  import tippy from 'tippy.js';
-
   import UiInputOptions from './ui-input-option.vue';
   import useFocusInput from './use-focus-input';
 
@@ -28,7 +25,6 @@
     return { ...item, operator_label: label, disabled: false };
   };
 
-  const { modelValue, inputValue, handleContainerClick, handleInputBlur } = useFocusInput(props, formatModelValueItem);
   const emit = defineEmits(['input', 'change']);
   const store = useStore();
   const { $t } = useLocale();
@@ -43,61 +39,33 @@
     };
   });
 
-  let tippyInstance = null;
   const refPopInstance = ref(null);
   const refUlRoot = ref(null);
   const queryItem = ref('');
   const activeIndex = ref(null);
   const isInputFocus = ref(false);
   const isOptionShowing = ref(false);
-
-  const uninstallInstance = () => {
-    if (tippyInstance) {
-      tippyInstance.hide();
-      tippyInstance.unmount();
-      tippyInstance.destroy();
-      tippyInstance = null;
-    }
-  };
-
-
   let delayItemClickFn = undefined;
 
-  const initInistance = target => {
-    uninstallInstance();
-    if (tippyInstance === null) {
-      tippyInstance = tippy(target, {
-        content: refPopInstance.value.$el,
-        trigger: 'manual',
-        theme: 'log-light',
-        placement: 'bottom-start',
-        interactive: true,
-        maxWidth: 800,
-        onShow: () => {
-          isOptionShowing.value = true;
-          refPopInstance.value?.beforeShowndFn?.();
-        },
-        onHidden: () => {
-          refPopInstance.value?.afterHideFn?.();
-          isOptionShowing.value = false;
-          isInputFocus.value = false;
+  const { modelValue, inputValue, getTippyInstance, handleContainerClick, handleInputBlur, delayShowInstance } =
+    useFocusInput(props, {
+      formatModelValueItem,
+      refContent: refPopInstance,
+      onShowFn: () => {
+        isOptionShowing.value = true;
+        refPopInstance.value?.beforeShowndFn?.();
+      },
+      onHiddenFn: () => {
+        refPopInstance.value?.afterHideFn?.();
+        isOptionShowing.value = false;
+        isInputFocus.value = false;
 
-          delayItemClickFn?.();
-          setTimeout(() => {
-            delayItemClickFn = undefined;
-          });
-        },
-      });
-    }
-  };
-
-  /**
-   * 处理多次点击触发多次请求的事件
-   */
-  const delayShowInstance = debounce(target => {
-    initInistance(target);
-    tippyInstance.show();
-  });
+        delayItemClickFn?.();
+        setTimeout(() => {
+          delayItemClickFn = undefined;
+        });
+      },
+    });
 
   /**
    * 执行点击弹出操作项方法
@@ -160,14 +128,13 @@
         : paylod,
     );
 
+    getTippyInstance()?.hide();
+
     if (isInputFocus.value) {
       setTimeout(() => {
-        const input = handleContainerClick({ target: refUlRoot.value });
-        showTagListItems(input.parentNode);
+        handleContainerClick({ target: refUlRoot.value });
       }, 300);
     }
-
-    tippyInstance?.hide();
 
     if (activeIndex.value !== null && activeIndex.value >= 0) {
       Object.assign(modelValue.value[activeIndex.value], targetValue);
@@ -189,21 +156,19 @@
   const handleFullTextInputBlur = e => {
     inputValue.value = '';
     handleInputBlur(e);
-  }
+  };
 
   const handleCancelClick = () => {
-    tippyInstance.hide();
+    getTippyInstance()?.hide();
   };
 
   const handleFocusInput = e => {
     isInputFocus.value = true;
     activeIndex.value = -1;
-    e.target.parentNode?.click();
+    queryItem.value = {};
+    const target = e.target.closest('.search-item');
+    showTagListItems(target);
   };
-
-  onBeforeUnmount(() => {
-    uninstallInstance();
-  });
 </script>
 
 <template>
