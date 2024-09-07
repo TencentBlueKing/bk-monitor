@@ -35,7 +35,6 @@ import './original-light-height.scss';
 interface IProps {
   originJson: object;
   visibleFields: Array<any>;
-  isWrap: boolean;
   operatorConfig: object;
 }
 @Component
@@ -43,7 +42,6 @@ export default class QueryStatement extends tsc<IProps> {
   /** 原始日志 */
   @Prop({ type: Object, required: true }) originJson;
   @Prop({ type: Array<any>, required: true }) visibleFields;
-  @Prop({ type: Boolean, required: true }) isWrap;
   @Prop({ type: Object, required: true }) operatorConfig;
 
   get visibleFieldsNameList() {
@@ -80,6 +78,10 @@ export default class QueryStatement extends tsc<IProps> {
     return sortObject;
   }
 
+  get tableLineIsWarp() {
+    return this.$store.state.tableLineIsWarp;
+  }
+
   @Emit('menu-click')
   handleEmitMenuClick(type, content, key, isLink) {
     const option = { fieldName: key, operation: type === 'not' ? 'is not' : type, value: content };
@@ -95,7 +97,7 @@ export default class QueryStatement extends tsc<IProps> {
     return (
       <span
         class='origin-content'
-        title={this.isWrap ? '' : this.strOriginJson}
+        title={this.tableLineIsWarp ? '' : this.strOriginJson}
       >
         {Object.entries(this.fieldMapDataObj).map(([key, value]) => {
           return (

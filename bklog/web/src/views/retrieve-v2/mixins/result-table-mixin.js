@@ -131,7 +131,7 @@ export default {
   },
   computed: {
     ...mapState('globals', ['fieldTypeMap']),
-    ...mapState(['isNotVisibleFieldsShow', 'clearTableWidth', 'indexSetQueryResult']),
+    ...mapState(['isNotVisibleFieldsShow', 'clearTableWidth', 'indexSetQueryResult', 'tableLineIsWarp']),
     ...mapGetters({
       isUnionSearch: 'isUnionSearch',
       unionIndexList: 'unionIndexList',

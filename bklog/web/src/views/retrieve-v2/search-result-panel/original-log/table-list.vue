@@ -29,7 +29,7 @@
   <!-- :empty-text="$t('未查询到数据')" -->
   <bk-table
     ref="resultTable"
-    :class="['king-table', { 'is-wrap': isWrap, 'is-hidden-table-header': tableLoading }]"
+    :class="['king-table', { 'is-wrap': tableLineIsWarp, 'is-hidden-table-header': tableLoading }]"
     :data="tableList"
     :key="tableRandomKey"
     @header-dragend="handleHeaderDragend"
@@ -59,7 +59,7 @@
     <template>
       <bk-table-column
         v-for="(field, index) in getShowTableVisibleFields"
-        :class-name="`visiable-field${isWrap ? ' is-wrap' : ''}`"
+        :class-name="`visiable-field${tableLineIsWarp ? ' is-wrap' : ''}`"
         :column-key="field.field_name"
         :index="index"
         :key="field.field_name"
@@ -74,12 +74,12 @@
           <keep-alive>
             <div
               :class="['str-content', { 'is-limit': getLimitState($index) }]"
-              :title="isWrap ? '' : tableRowDeepView(row, field.field_name, field.field_type)"
+              :title="tableLineIsWarp ? '' : tableRowDeepView(row, field.field_name, field.field_type)"
             >
               <table-column
                 :content="getTableColumnContent(row, field)"
                 :field="field"
-                :is-wrap="isWrap"
+                :is-wrap="tableLineIsWarp"
                 @computed-height="handleOverColumn(field.field_name)"
                 @icon-click="(type, content, isLink) => handleIconClick(type, content, field, row, isLink)"
               />

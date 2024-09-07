@@ -19,6 +19,7 @@
   const totalCount = ref(0);
   const queueStatus = ref(false);
   const isTrendChartShow = ref(true);
+  const isShowFieldStatistics = ref(true);
 
   const changeTotalCount = count => {
     totalCount.value = count;
@@ -34,8 +35,16 @@
 
 <template>
   <div class="search-result-panel">
-    <FieldFilter v-bkloading="{ isLoading: isFilterLoading }"></FieldFilter>
-    <div :class="['search-result-content', { 'is-trend-chart-show': isTrendChartShow }]">
+    <FieldFilter
+      v-bkloading="{ isLoading: isFilterLoading }"
+      :is-show-field-statistics.sync="isShowFieldStatistics"
+    ></FieldFilter>
+    <div
+      :class="[
+        'search-result-content',
+        { 'is-trend-chart-show': isTrendChartShow, 'is-show-field-statistics': isShowFieldStatistics },
+      ]"
+    >
       <SearchResultChart
         @change-queue-res="changeQueueRes"
         @change-total-count="changeTotalCount"
@@ -52,7 +61,6 @@
         <LogClustering
           v-if="activeTab === 'clustering'"
           :retrieveParams="retrieveParams"
-          ref="logClusteringRef"
         />
       </keep-alive>
     </div>
