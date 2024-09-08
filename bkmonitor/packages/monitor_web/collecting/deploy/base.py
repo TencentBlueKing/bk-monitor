@@ -8,7 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import abc
-from typing import Union
+from typing import Dict, List, Union
 
 from monitor_web.models import CollectConfigMeta, DeploymentConfigVersion
 
@@ -23,7 +23,7 @@ class BaseInstaller(abc.ABC):
         self.plugin = collect_config.plugin
 
     @abc.abstractmethod
-    def install(self):
+    def install(self, install_config: Dict):
         """
         部署
         """
@@ -35,21 +35,9 @@ class BaseInstaller(abc.ABC):
         """
 
     @abc.abstractmethod
-    def upgrade(self):
-        """
-        升级
-        """
-
-    @abc.abstractmethod
     def rollback(self, deployment_config_version: Union[int, DeploymentConfigVersion, None] = None):
         """
         回滚到某个版本，默认回滚到上一个版本
-        """
-
-    @abc.abstractmethod
-    def retry_instances(self, instances):
-        """
-        重试实例
         """
 
     @abc.abstractmethod
@@ -65,13 +53,19 @@ class BaseInstaller(abc.ABC):
         """
 
     @abc.abstractmethod
-    def instance_status(self):
+    def retry(self, instance_ids: List[str] = None):
         """
-        实例状态
+        重试实例
         """
 
     @abc.abstractmethod
-    def instance_diff(self):
+    def revoke(self, instance_ids: List[int] = None):
         """
-        实例差异
+        终止实例
+        """
+
+    @abc.abstractmethod
+    def status(self, *args, **kwargs):
+        """
+        实例状态
         """

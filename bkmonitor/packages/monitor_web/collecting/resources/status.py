@@ -653,14 +653,6 @@ class CollectTargetStatusResource(BaseCollectTargetStatusResource):
         return result_data
 
 
-class CollectNodeStatusResource(CollectTargetStatusResource):
-    """
-    特意为前端提供的接口，对于前端来说获取主机实例的下发状态和获取topo节点的下发状态是2个接口
-    """
-
-    pass
-
-
 class CollectTargetStatusTopoResource(BaseCollectTargetStatusResource):
     """
     获取检查视图左侧数据（ip列表或topo树）的接口

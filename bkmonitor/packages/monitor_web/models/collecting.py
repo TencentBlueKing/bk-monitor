@@ -620,6 +620,8 @@ class DeploymentConfigVersion(OperateRecordModelBase):
         """
         上一次部署历史
         """
+        if not self.parent_id:
+            return None
         return DeploymentConfigVersion.objects.filter(pk=self.parent_id).first()
 
     @property
