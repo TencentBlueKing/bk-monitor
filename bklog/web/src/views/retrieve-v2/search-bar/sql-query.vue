@@ -11,7 +11,10 @@
     },
   });
 
-  const emit = defineEmits(['retrieve', 'input']);
+  const emit = defineEmits(['retrieve', 'input', 'height-change']);
+  const handleHeightChange = height => {
+    emit('height-change', height);
+  };
 
   const refSqlQueryOption = ref(null);
   const isInputFocus = ref(false);
@@ -24,6 +27,7 @@
 
   const { modelValue, inputValue, handleInputBlur, delayShowInstance, getTippyInstance, handleContainerClick } =
     useFocusInput(props, {
+      onHeightChange: handleHeightChange,
       formatModelValueItem,
       refContent: refSqlQueryOption,
       arrow: false,
@@ -78,10 +82,11 @@
     handleInputBlur(e);
   };
 
-  const handleFocusInput = e => {
+  const handleFocusInput = () => {
     isInputFocus.value = true;
     nextTick(() => {
       delayShowInstance(refUlRoot.value);
+      console.log('delayShowInstance');
     });
   };
 
@@ -98,34 +103,14 @@
     });
   };
 
-  const getSqlValue = () => {
-    if (modelValue.value.length === 2) {
-      return modelValue.value[0];
+  const handleInputDelete = () => {
+    if (!inputValue.value.length && modelValue.value.length === 2) {
+      const result = modelValue.value[0].slice(0, -1);
+      modelValue.value.splice(0, 1, result);
+      emit('input', [modelValue.value[0]]);
     }
-
-    return '*';
-  }
-
-  const handleInputKeydown = e => {
-    // delete
-    if (e.keyCode === 8) {
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      e.preventDefault();
-
-      if (!inputValue.value.length && modelValue.value.length === 2) {
-        const result = modelValue.value[0].slice(0, -1);
-        modelValue.value.splice(0, 1, result);
-        emit('input', [modelValue.value[0]]);
-      }
-    }
-
-    // if (e.keyCode === 13) {
-    //   if (!inputValue.value.length) {
-    //     emit('retrieve', getSqlValue());
-    //   }
-    // }
   };
+
   const handleCancel = () => {
     getTippyInstance()?.hide();
     handleContainerClick();
@@ -149,7 +134,7 @@
           v-model="inputValue"
           @focus.stop="handleFocusInput"
           @blur="handleTextInputBlur"
-          @keydown="handleInputKeydown"
+          @keyup.delete="handleInputDelete"
         />
       </template>
       <template v-else>
@@ -180,7 +165,6 @@
     overflow: auto;
 
     li {
-
       display: inline-flex;
       flex-direction: column;
       align-content: center;

@@ -32,10 +32,22 @@ import tippy from 'tippy.js';
 
 export default (
   props,
-  { formatModelValueItem, refContent, onShowFn, onHiddenFn, arrow = true, newInstance = true, tippyOptions = {} },
+  {
+    formatModelValueItem,
+    refContent,
+    onShowFn,
+    onHiddenFn,
+    arrow = true,
+    newInstance = true,
+    tippyOptions = {},
+    onHeightChange,
+  },
 ) => {
   const modelValue = ref([]);
   const inputValue = ref('');
+  const sectionHeight = ref(0);
+
+  let resizeObserver = null;
   const INPUT_MIN_WIDTH = 12;
   let tippyInstance = null;
 
@@ -62,19 +74,25 @@ export default (
         placement: 'bottom-start',
         interactive: true,
         maxWidth: 800,
-        onShow: () => onShowFn?.(tippyInstance),
-        onHidden: () => onHiddenFn?.(),
+        onShow: () => {
+          onShowFn?.(tippyInstance);
+        },
+        onHidden: () => {
+          onHiddenFn?.();
+        },
         ...(tippyOptions ?? {}),
       });
     }
   };
+
+  const getTippyInstance = () => tippyInstance;
 
   /**
    * 处理多次点击触发多次请求的事件
    */
   const delayShowInstance = debounce(target => {
     initInistance(target);
-    tippyInstance.show();
+    getTippyInstance()?.show();
   });
 
   /**
@@ -115,13 +133,19 @@ export default (
     return instance?.proxy?.$el;
   };
 
-  const handleContainerClick = e => {
+  const handleContainerClick = (e?) => {
     const root = getRoot();
     if (root !== undefined && (e === undefined || root === e?.target)) {
       const input = root.querySelector('.tag-option-focus-input');
       input?.focus();
       input?.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
       return input;
+    }
+  };
+
+  const repositionTippyInstance = () => {
+    if (!newInstance && tippyInstance?.state.isShown) {
+      tippyInstance?.popperInstance?.update();
     }
   };
 
@@ -142,7 +166,32 @@ export default (
     }
   };
 
-  const getTippyInstance = () => tippyInstance;
+  const hideTippyInstance = () => {
+    getTippyInstance()?.hide();
+  };
+
+  const resizeHeightObserver = target => {
+    if (!target) {
+      return;
+    }
+
+    // 创建一个 ResizeObserver 实例
+    resizeObserver = new ResizeObserver(entries => {
+      for (let entry of entries) {
+        // 获取元素的新高度
+        const newHeight = entry.contentRect.height;
+
+        if (newHeight !== sectionHeight.value) {
+          sectionHeight.value = newHeight;
+          repositionTippyInstance();
+          onHeightChange?.(newHeight);
+        }
+      }
+    });
+
+    // 开始监听元素
+    resizeObserver.observe(target);
+  };
 
   watch(
     props.value,
@@ -158,13 +207,23 @@ export default (
 
     document?.addEventListener('click', handleContainerClick);
     document?.addEventListener('input', handleFulltextInput);
+    resizeHeightObserver(instance?.proxy?.$el);
   });
 
   onUnmounted(() => {
     uninstallInstance();
     document?.removeEventListener('click', handleContainerClick);
     document?.removeEventListener('input', handleFulltextInput);
+    resizeObserver?.disconnect();
   });
 
-  return { modelValue, inputValue, getTippyInstance, handleContainerClick, handleInputBlur, delayShowInstance };
+  return {
+    modelValue,
+    inputValue,
+    hideTippyInstance,
+    getTippyInstance,
+    handleContainerClick,
+    handleInputBlur,
+    delayShowInstance,
+  };
 };

@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, computed, nextTick } from 'vue';
+  import { ref, computed } from 'vue';
 
   import { getOperatorKey } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
@@ -25,9 +25,13 @@
     return { ...item, operator_label: label, disabled: false };
   };
 
-  const emit = defineEmits(['input', 'change']);
+  const emit = defineEmits(['input', 'change', 'height-change']);
   const store = useStore();
   const { $t } = useLocale();
+
+  const handleHeightChange = height => {
+    emit('height-change', height);
+  }
 
   const operatorDictionary = computed(() => {
     const defVal = {
@@ -47,8 +51,9 @@
   const isOptionShowing = ref(false);
   let delayItemClickFn = undefined;
 
-  const { modelValue, inputValue, getTippyInstance, handleContainerClick, handleInputBlur, delayShowInstance } =
+  const { modelValue, inputValue, hideTippyInstance, getTippyInstance, handleContainerClick, handleInputBlur, delayShowInstance } =
     useFocusInput(props, {
+      onHeightChange: handleHeightChange,
       formatModelValueItem,
       refContent: refPopInstance,
       onShowFn: () => {
@@ -106,6 +111,7 @@
 
   const handleDisabledTagItem = item => {
     item.disabled = !item.disabled;
+    emitChange(modelValue.value);
   };
 
   const handleDeleteTagItem = index => {
@@ -113,9 +119,17 @@
     emitChange(modelValue.value);
   };
 
-  const handleSaveQueryClick = paylod => {
+  const handleSaveQueryClick = payload => {
+    const isPayloadValueEmpty = !(payload?.value?.length ?? 0);
+
+    // 如果是全文检索，未输入任何内容就点击回车
+    // 此时提交无任何意义，禁止后续逻辑
+    if (isInputFocus.value && isPayloadValueEmpty && !inputValue.value) {
+      return;
+    }
+
     let targetValue = formatModelValueItem(
-      isInputFocus.value && paylod === undefined
+      isInputFocus.value && isPayloadValueEmpty
         ? {
             field: '',
             operator: 'contains',
@@ -124,7 +138,7 @@
             relation: 'AND',
             disabled: false,
           }
-        : paylod,
+        : payload,
     );
 
     getTippyInstance()?.hide();
@@ -137,19 +151,19 @@
 
     if (activeIndex.value !== null && activeIndex.value >= 0) {
       Object.assign(modelValue.value[activeIndex.value], targetValue);
-      emitChange(modelValue.value);
+      emit('input', modelValue.value);
       return;
     }
 
     const focusInputIndex = modelValue.value.findIndex(item => item.is_focus_input);
     if (focusInputIndex === modelValue.value.length - 1) {
       modelValue.value.splice(focusInputIndex, 0, { ...targetValue, disabled: false });
-      emitChange(modelValue.value);
+      emit('input', modelValue.value);
       return;
     }
 
     modelValue.value.push({ ...targetValue, disabled: false });
-    emitChange(modelValue.value);
+    emit('input', modelValue.value);
   };
 
   const handleFullTextInputBlur = e => {
@@ -168,6 +182,18 @@
     const target = e.target.closest('.search-item');
     showTagListItems(target);
   };
+
+  const handleDeleteItem = e => {
+    if (!e.target.value) {
+      if(modelValue.value.length > 1) {
+        modelValue.value.splice(-2, 1);
+        hideTippyInstance();
+        setTimeout(() => {
+          handleContainerClick();
+        }, 300);
+      }
+    }
+  }
 </script>
 
 <template>
@@ -229,6 +255,7 @@
           class="tag-option-focus-input"
           v-model="inputValue"
           type="text"
+          @keyup.delete="handleDeleteItem"
           @focus.stop="handleFocusInput"
           @blur="handleFullTextInputBlur"
         />

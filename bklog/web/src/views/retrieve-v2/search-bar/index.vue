@@ -21,6 +21,9 @@
   const sqlQueryValue = ref([]);
 
   const indexItem = computed(() => store.state.indexItem);
+  const indexFieldInfo = computed(() => store.state.indexFieldInfo);
+  const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
+  const isInputLoading = computed(() => indexFieldInfo.value.is_loading || indexSetQueryResult.value.is_loading);
 
   const handleQueryTypeChange = index => {
     activeIndex.value = index;
@@ -52,6 +55,16 @@
 
     store.dispatch('requestIndexSetQuery');
   };
+
+  const handleClearBtnClick = () => {
+    sqlQueryValue.value.splice(0);
+    searchItemList.value.splice(0);
+    handleBtnQueryClick();
+  }
+
+  const handleQueryChange = () => {
+    handleBtnQueryClick();
+  }
 </script>
 <template>
   <div class="search-bar-container">
@@ -76,10 +89,11 @@
       ></QueryHistory>
       <TimeSetting></TimeSetting>
     </div>
-    <div class="search-input">
+    <div class="search-input" v-bkloading="{ isLoading: isInputLoading, size: 'mini' }">
       <UiInput
         v-if="activeIndex === 0"
         v-model="searchItemList"
+        @change="handleQueryChange"
       ></UiInput>
       <SqlQuery
         v-if="activeIndex === 1"
@@ -87,7 +101,7 @@
         @retrieve="handleSqlRetrieve"
       ></SqlQuery>
       <div class="search-tool items">
-        <span class="disabled bklog-icon bklog-brush"></span>
+        <span class="bklog-icon bklog-brush" @click="handleClearBtnClick"></span>
         <span class="disabled bklog-icon bklog-star-line"></span>
         <span class="disabled bklog-icon bklog-set-icon"></span>
       </div>

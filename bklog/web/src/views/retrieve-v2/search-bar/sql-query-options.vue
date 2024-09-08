@@ -1,7 +1,9 @@
 <script lang="ts" setup>
-  import { computed, ref, watch, nextTick } from 'vue';
+  import { computed, ref, watch, nextTick, ComputedRef } from 'vue';
   import { debounce } from 'lodash';
+  //@ts-ignore
   import useStore from '@/hooks/use-store';
+  //@ts-ignore
   import useLocale from '@/hooks/use-locale';
   const props = defineProps({
     value: {
@@ -24,13 +26,18 @@
     Operator = 'Operator',
   }
 
+  // 定义一个类型来表示生成对象的类型
+type ShowOptionValueType = {
+  [K in keyof typeof OptionItemType as `show${typeof OptionItemType[K]}`]: boolean;
+};
+
   const showOption = computed(() => {
     return Object.values(OptionItemType).reduce(
       (output, key) => ({
         ...output,
         [`show${key}`]: activeType.value.includes(key),
       }),
-      {},
+      {} as ShowOptionValueType,
     );
   });
 
@@ -102,7 +109,7 @@
    * 显示哪个下拉列表
    * @param {String} [param]
    */
-  const showWhichDropdown = param => {
+  const showWhichDropdown = (param?) => {
     activeType.value.length = 0;
     activeType.value = [];
     if (typeof param === 'string') {

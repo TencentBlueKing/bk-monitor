@@ -1,5 +1,5 @@
 <script setup>
-  import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
+  import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue';
 
   import { debounce } from 'lodash';
   import useStore from '@/hooks/use-store';
@@ -175,7 +175,7 @@
       relation: 'and',
     };
 
-    activeIndex.value = -1;
+    activeIndex.value = 0;
   };
 
   const handleFieldItemClick = (item, index) => {
@@ -211,14 +211,20 @@
   const keyEnterCallbackFn = computed(() => {
     return [
       () => {
+        // 如果不是Input键入内容进行全文检索
+        // 执行自动focus Vue选择框
         if (!showFulltextMsg.value) {
+          enterStepIndex.value++;
           refValueTagInput.value?.focusInputer();
           return;
         }
 
+        // 如果当前为input focus自动弹出全文检索
+        // 回车执行保存动作，不做后续vue focus动作
         handelSaveBtnClick();
       },
       () => {
+        enterStepIndex.value++;
         handelSaveBtnClick();
       },
     ];
@@ -229,7 +235,6 @@
     if (enterStepIndex.value === 1) {
       if (conditionValueEnterCount !== condition.value.value.length) {
         keyEnterCallbackFn.value[enterStepIndex.value]?.();
-        enterStepIndex.value++;
         document.removeEventListener('keydown', handleKeydownClick);
       }
 
@@ -239,7 +244,6 @@
 
     // 第一次点击Enter键，切换为条件值选择
     keyEnterCallbackFn.value[enterStepIndex.value]?.();
-    enterStepIndex.value++;
   });
 
   const handleKeydownClick = e => {
