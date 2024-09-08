@@ -132,7 +132,24 @@
     e.stopPropagation();
     favoriteRef.value.isShowManageDialog = true;
   };
-  const handleClickFavorite = v => {};
+
+  const handleClickFavorite = v => {
+    if (!v) {
+      return;
+    }
+    store.commit('resetIndexsetItemParams');
+    store.commit('updateIndexId', v.index_set_id);
+    const isUnionIndex =  v.index_set_ids.length > 0;
+
+    store.commit('updateIndexItem', {
+      ...v.params,
+      index_set_id: v.index_set_id,
+      ids: isUnionIndex ? v.index_set_ids : [v.index_set_id],
+      isUnionIndex,
+    });
+
+    store.dispatch('requestIndexSetFieldInfo');
+  };
 
   onMounted(() => {
     initFavoriteState();

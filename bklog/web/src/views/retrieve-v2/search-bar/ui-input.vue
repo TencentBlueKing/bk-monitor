@@ -21,7 +21,7 @@
    */
   const formatModelValueItem = item => {
     const key = getOperatorKey(item.operator);
-    const label = operatorDictionary.value[key]?.label ?? key;
+    const label = operatorDictionary.value[key]?.label ?? item.operator;
     return { ...item, operator_label: label, disabled: false };
   };
 
@@ -31,7 +31,7 @@
 
   const handleHeightChange = height => {
     emit('height-change', height);
-  }
+  };
 
   const operatorDictionary = computed(() => {
     const defVal = {
@@ -51,23 +51,30 @@
   const isOptionShowing = ref(false);
   let delayItemClickFn = undefined;
 
-  const { modelValue, inputValue, hideTippyInstance, getTippyInstance, handleContainerClick, handleInputBlur, delayShowInstance } =
-    useFocusInput(props, {
-      onHeightChange: handleHeightChange,
-      formatModelValueItem,
-      refContent: refPopInstance,
-      onShowFn: () => {
-        isOptionShowing.value = true;
-        refPopInstance.value?.beforeShowndFn?.();
-      },
-      onHiddenFn: () => {
-        refPopInstance.value?.afterHideFn?.();
-        isOptionShowing.value = false;
+  const {
+    modelValue,
+    inputValue,
+    hideTippyInstance,
+    getTippyInstance,
+    handleContainerClick,
+    handleInputBlur,
+    delayShowInstance,
+  } = useFocusInput(props, {
+    onHeightChange: handleHeightChange,
+    formatModelValueItem,
+    refContent: refPopInstance,
+    onShowFn: () => {
+      isOptionShowing.value = true;
+      refPopInstance.value?.beforeShowndFn?.();
+    },
+    onHiddenFn: () => {
+      refPopInstance.value?.afterHideFn?.();
+      isOptionShowing.value = false;
 
-        delayItemClickFn?.();
-        delayItemClickFn = undefined;
-      },
-    });
+      delayItemClickFn?.();
+      delayItemClickFn = undefined;
+    },
+  });
 
   /**
    * 执行点击弹出操作项方法
@@ -185,7 +192,7 @@
 
   const handleDeleteItem = e => {
     if (!e.target.value) {
-      if(modelValue.value.length > 1) {
+      if (modelValue.value.length > 1) {
         modelValue.value.splice(-2, 1);
         hideTippyInstance();
         setTimeout(() => {
@@ -193,7 +200,7 @@
         }, 300);
       }
     }
-  }
+  };
 </script>
 
 <template>
@@ -205,7 +212,7 @@
       class="search-item btn-add"
       @click.stop="handleAddItem"
     >
-      <div class="tag-add"><i class="bklog-icon bklog-plus"></i></div>
+      <div class="tag-add">+</div>
       <div class="tag-text">{{ $t('添加条件') }}</div>
     </li>
     <li
@@ -227,17 +234,22 @@
           >
         </div>
         <div class="tag-row match-value">
-          <span
-            v-for="(child, childInex) in item.value"
-            :key="childInex"
-          >
-            <span>{{ child }}</span>
+          <template v-if="Array.isArray(item.value)">
             <span
-              v-if="childInex < item.value.length - 1"
-              class="match-value-relation"
-              >{{ item.relation }}</span
+              v-for="(child, childInex) in item.value"
+              :key="childInex"
             >
-          </span>
+              <span>{{ child }}</span>
+              <span
+                v-if="childInex < item.value.length - 1"
+                class="match-value-relation"
+                >{{ item.relation }}</span
+              >
+            </span>
+          </template>
+          <template v-else>
+            <span>{{ item.value }}</span>
+          </template>
         </div>
         <div class="tag-options">
           <span

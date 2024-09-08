@@ -746,7 +746,7 @@ const store = new Vuex.Store({
         : '/search/index_set/union_search/';
 
       const baseData = {
-        addition,
+        addition: (addition ?? []).filter(item => !item.disabled),
         begin,
         bk_biz_id,
         end_time: endTimeStamp,

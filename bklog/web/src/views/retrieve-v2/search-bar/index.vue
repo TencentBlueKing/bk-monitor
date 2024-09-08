@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, computed } from 'vue';
+  import { ref, computed, watch } from 'vue';
   import { isEqual } from 'lodash';
 
   import useLocale from '@/hooks/use-locale';
@@ -24,6 +24,26 @@
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
   const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
   const isInputLoading = computed(() => indexFieldInfo.value.is_loading || indexSetQueryResult.value.is_loading);
+  const keyword = computed(() => indexItem.value.keyword);
+  const addition = computed(() => indexItem.value.addition);
+
+  watch(
+    keyword,
+    () => {
+      sqlQueryValue.value.splice(0);
+      sqlQueryValue.value.push(keyword.value);
+    },
+    { immediate: true },
+  );
+
+  watch(
+    addition,
+    () => {
+      searchItemList.value.splice(0);
+      searchItemList.value.push(...addition.value);
+    },
+    { immediate: true, deep: true },
+  );
 
   const handleQueryTypeChange = index => {
     activeIndex.value = index;
@@ -31,7 +51,7 @@
 
   const handleBtnQueryClick = () => {
     store.commit('updateIndexItemParams', {
-      addition: searchItemList.value.filter(val => !val.disabled && !val.is_focus_input),
+      addition: searchItemList.value.filter(val => !val.is_focus_input),
       keyword: sqlQueryValue.value[0] ?? '*',
     });
 
@@ -60,11 +80,11 @@
     sqlQueryValue.value.splice(0);
     searchItemList.value.splice(0);
     handleBtnQueryClick();
-  }
+  };
 
   const handleQueryChange = () => {
     handleBtnQueryClick();
-  }
+  };
 </script>
 <template>
   <div class="search-bar-container">
@@ -89,7 +109,10 @@
       ></QueryHistory>
       <TimeSetting></TimeSetting>
     </div>
-    <div class="search-input" v-bkloading="{ isLoading: isInputLoading, size: 'mini' }">
+    <div
+      class="search-input"
+      v-bkloading="{ isLoading: isInputLoading, size: 'mini' }"
+    >
       <UiInput
         v-if="activeIndex === 0"
         v-model="searchItemList"
@@ -101,7 +124,10 @@
         @retrieve="handleSqlRetrieve"
       ></SqlQuery>
       <div class="search-tool items">
-        <span class="bklog-icon bklog-brush" @click="handleClearBtnClick"></span>
+        <span
+          class="bklog-icon bklog-brush"
+          @click="handleClearBtnClick"
+        ></span>
         <span class="disabled bklog-icon bklog-star-line"></span>
         <span class="disabled bklog-icon bklog-set-icon"></span>
       </div>
