@@ -26,6 +26,11 @@ for _setting in dir(_module):
     if _setting == _setting.upper():
         locals()[_setting] = getattr(_module, _setting)
 
+# 复用worker CACHES
+from config.role import worker
+
+CACHES = worker.CACHES
+
 # 覆盖默认配置
 RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_VHOST, RABBITMQ_USER, RABBITMQ_PASS, _ = get_rabbitmq_settings(
     app_code=APP_CODE, backend=True
