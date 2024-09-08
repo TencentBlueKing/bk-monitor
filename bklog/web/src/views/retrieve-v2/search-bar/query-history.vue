@@ -80,14 +80,7 @@
       },
       handleClickHistory(item) {
         const { keyword, addition, ip_chooser } = item.params;
-        this.$store.commit('updateIndexItemParams', {
-          keyword,
-          addition,
-          ip_chooser,
-          begin: 0,
-        });
-
-        this.$store.dispatch('requestIndexSetQuery');
+        this.$emit('change', { keyword, addition, ip_chooser });
         this.popoverInstance.hide();
       },
       requestSearchHistory() {

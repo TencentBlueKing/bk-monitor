@@ -65,8 +65,25 @@
       });
     }
   };
-  const updateSearchParam = (keyword, addition, ip_chooser) => {};
-  const retrieve = () => {};
+  const updateSearchParam = (payload) => {
+    const { keyword, addition, ip_chooser } = payload;
+    store.commit('updateIndexItemParams', {
+      keyword,
+      addition,
+      ip_chooser,
+      begin: 0,
+    });
+
+    if (addition?.length) {
+      activeIndex.value = 0;
+    }
+
+    if (keyword?.length) {
+      activeIndex.value = 1;
+    }
+
+    store.dispatch('requestIndexSetQuery');
+  };
 
   const handleSqlRetrieve = value => {
     store.commit('updateIndexItemParams', {
@@ -103,10 +120,7 @@
         style="width: 500px; margin: 0 12px"
         @selected="handleIndexSetSelected"
       ></SelectIndexSet>
-      <QueryHistory
-        @updateSearchParam="updateSearchParam"
-        @retrieve="retrieve"
-      ></QueryHistory>
+      <QueryHistory @change="updateSearchParam"></QueryHistory>
       <TimeSetting></TimeSetting>
     </div>
     <div
