@@ -37,13 +37,8 @@ const getDefaultConfig = {
   method: 'get',
 };
 
-const changeConfig = {
-  url: '/clustering_config/:index_set_id/create_or_update/',
-  method: 'post',
-};
-
-const preview = {
-  url: '/clustering_config/preview/',
+const debug = {
+  url: '/clustering_config/debug/',
   method: 'post',
 };
 
@@ -116,8 +111,7 @@ const updateInitGroup = {
 export {
   getConfig,
   getDefaultConfig,
-  changeConfig,
-  preview,
+  debug,
   clusterSearch,
   closeClean,
   updateStrategies,

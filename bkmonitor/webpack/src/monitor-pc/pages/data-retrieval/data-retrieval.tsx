@@ -456,6 +456,13 @@ export default class DataRetrieval extends tsc<object> {
     return this.favCheckedValue === null;
   }
 
+  get tabActiveName() {
+    return {
+      monitor: 'route-指标检索',
+      event: 'route-事件检索',
+    };
+  }
+
   get selectFavoriteName() {
     return this.favCheckedValue?.name || '--';
   }
@@ -553,6 +560,7 @@ export default class DataRetrieval extends tsc<object> {
       updateTimezone(timezone as string);
     }
     if (targets) {
+      debugger;
       try {
         targetsList = JSON.parse(decodeURIComponent(targets as string));
       } catch (error) {
@@ -899,11 +907,7 @@ export default class DataRetrieval extends tsc<object> {
    * @param {number} index
    */
   handleDeleteItem(index: number) {
-    const item = this.localValue[index];
-    if (item.isMetric) {
-      const child = item as DataRetrievalQueryItem;
-      if (this.localValue.length === 1 && child.isNullMetric) return;
-    }
+    if (this.localValue.length === 1) return;
     this.localValue.splice(index, 1);
     if (!this.localValue.length) {
       this.handleAddQuery();
@@ -2358,7 +2362,7 @@ export default class DataRetrieval extends tsc<object> {
     const tipsMap: { [key in IDataRetrieval.IOption]: string } = {
       copy: `${this.$t('拷贝')}`,
       delete: `${this.$t('删除')}`,
-      enable: `${this.$t(item.enable ? '隐藏' : '展示')}`,
+      enable: `${this.$t(item.enable ? '不看此项' : '显示此项')}`,
       source: `${metricItem.showSource ? 'UI' : this.$t('源码')}`,
     };
     return tipsMap[opt] || '';
@@ -2756,7 +2760,7 @@ export default class DataRetrieval extends tsc<object> {
    */
   handleTimeRangeChange(timeRange: EventRetrievalViewType.IEvent['onTimeRangeChange']) {
     timeRange && (this.eventChartTimeRange = timeRange);
-    if (!!timeRange) {
+    if (timeRange) {
       const targetTime = timestampTransformStr(timeRange);
       this.eventSelectTimeRange = targetTime;
     }
@@ -3030,7 +3034,13 @@ export default class DataRetrieval extends tsc<object> {
             return (
               <i
                 key={opt}
-                class={['icon-monitor', iconName, sourceAcitve, display]}
+                class={[
+                  'icon-monitor',
+                  { disabled: opt === 'delete' && this.localValue.length === 1 },
+                  iconName,
+                  sourceAcitve,
+                  display,
+                ]}
                 v-bk-tooltips_top={this.handleTitleTips(opt, item)}
                 onClick={evt => evt.stopPropagation()}
                 onMousedown={evt => this.handleOptionProxy(evt, opt, item, index)}
@@ -3083,7 +3093,7 @@ export default class DataRetrieval extends tsc<object> {
               onChange={data => this.handleExpressionValueChange(data, index)}
             />
           )}
-          {!!item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
+          {item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
         </div>
       );
     };
@@ -3098,7 +3108,9 @@ export default class DataRetrieval extends tsc<object> {
           onChange={this.handleChangeBizId} /> */}
         <div class='title-main'>
           <div class='title-edit'>
-            <span class='title-text'>{this.isFavoriteNewSearch ? this.$t('新检索') : this.selectFavoriteName}</span>
+            <span class='title-text'>
+              {this.isFavoriteNewSearch ? this.$t(this.tabActiveName[this.tabActive]) : this.selectFavoriteName}
+            </span>
             {!this.isFavoriteNewSearch ? (
               <span
                 class='edit icon-monitor icon-bianji'
@@ -3333,7 +3345,7 @@ export default class DataRetrieval extends tsc<object> {
                           </div>
                         </bk-input>
                       </span>
-                      {!!item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
+                      {item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
                     </div>
                   ),
                 }}

@@ -99,7 +99,7 @@ class BluekingInstrumentor(BaseInstrumentor):
             "bk.data.token": os.getenv("BKAPP_OTLP_BK_DATA_TOKEN", ""),
             "service.environment": settings.ENVIRONMENT,
         }
-        if os.getenv("BKAPP_OTLP_BCS_CLUSTER_ID"):
+        if settings.IS_CONTAINER_MODE and os.getenv("BKAPP_OTLP_BCS_CLUSTER_ID"):
             resource_info.update(
                 {
                     "k8s.bcs.cluster.id": os.getenv("BKAPP_OTLP_BCS_CLUSTER_ID", ""),

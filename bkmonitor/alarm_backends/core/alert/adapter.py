@@ -184,6 +184,13 @@ class MonitorEventAdapter:
             for key, value in data_dimensions.items()
             if key in agg_dimensions or key == NO_DATA_TAG_DIMENSION
         }
+        to_be_pop = []
+        for key in data_dimensions:
+            if key.startswith("tags."):
+                to_be_pop.append(key)
+
+        for key in to_be_pop:
+            data_dimensions[key[5:]] = data_dimensions.pop(key)
 
         try:
             if data_dimensions.get("bk_host_id"):

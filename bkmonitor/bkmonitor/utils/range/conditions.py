@@ -156,3 +156,10 @@ class RegularCondition(SimpleCondition):
 class NotRegularCondition(RegularCondition):
     def _is_match(self, data_field):
         return not super(NotRegularCondition, self)._is_match(data_field)
+
+
+class IsSuperSetCondition(SimpleCondition):
+    def _is_match(self, data_field):
+        data_value = data_field.to_str_list()
+        cond_value = self.cond_field.to_str_list()
+        return set(data_value).issuperset(set(cond_value))

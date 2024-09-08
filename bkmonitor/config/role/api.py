@@ -224,8 +224,5 @@ AES_TOKEN_KEY = os.environ.get("AK_AES_TOKEN_KEY", "ALERT_RESULT")
 
 INGESTER_CONSUL = os.environ.get("INGESTER_CONSUL", "")
 
-# 项目空间API类模块路径
-BKM_SPACE_API_CLASS = "metadata.resources.space_api.InjectSpaceApi"
-
 # api 进程禁用ssl
 SECURE_SSL_REDIRECT = False

@@ -102,6 +102,7 @@ const specialReportRouteList = [
   'grafana-datasource',
 ];
 router.beforeEach(async (to, from, next) => {
+  store.commit('app/SET_PADDING_ROUTE', to);
   // 空闲初始化introduce数据
   if (store.getters.bizList?.length) {
     introduce.initIntroduce(to);
@@ -198,6 +199,7 @@ router.beforeEach(async (to, from, next) => {
   }
 });
 router.afterEach(to => {
+  store.commit('app/SET_PADDING_ROUTE', to);
   store.commit('app/SET_NAV_TITLE', to.params.title || to.meta.title);
   if (['error-exception', 'no-business'].includes(to.name)) return;
   reportLogStore.reportRouteLog({

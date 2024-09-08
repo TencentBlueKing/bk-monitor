@@ -298,11 +298,11 @@ class PatternHandler:
         start_time, end_time = generate_time_range(
             NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
         )
-        if self._clustering_config.log_count_agg_rt:
+        if self._clustering_config.new_cls_strategy_output:
             select_fields = NEW_CLASS_QUERY_FIELDS + self._clustering_config.group_fields
             # 新类异常检测逻辑适配
             new_classes = (
-                BkData(self._clustering_config.log_count_agg_rt)
+                BkData(self._clustering_config.new_cls_strategy_output)
                 .select(*select_fields)
                 .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
                 .where(IS_NEW_PATTERN_PREFIX, "=", 1)

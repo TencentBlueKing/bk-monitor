@@ -74,12 +74,12 @@ interface IEventTableProps {
 interface IEventStatusMap {
   color: string;
   bgColor: string;
-  name: TranslateResult | string;
+  name: string | TranslateResult;
   icon: string;
 }
 interface IColumnItem {
   id: string;
-  name: TranslateResult | string;
+  name: string | TranslateResult;
   disabled: boolean;
   checked: boolean;
   props?: {
@@ -143,7 +143,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   selectedCount = 0;
   tableToolList: {
     id: string;
-    name: TranslateResult | string;
+    name: string | TranslateResult;
   }[];
   /* 状态栏更多操作按钮 */
   popoperOperateInstance: any = null;
@@ -485,7 +485,10 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
         window.open(
           `${origin}${location.pathname
             .toString()
-            .replace('fta/', '')}?bizId=${bizId}#/data-retrieval/?targets=${JSON.stringify(targets)}`,
+            .replace(
+              'fta/',
+              ''
+            )}?bizId=${bizId}#/data-retrieval/?targets=${encodeURIComponent(JSON.stringify(targets))}`,
           '__blank'
         );
         return;
