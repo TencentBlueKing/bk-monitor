@@ -201,7 +201,7 @@ class SearchHandler(object):
         self.addition = copy.deepcopy(search_dict.get("addition", []))
         self.ip_chooser = copy.deepcopy(search_dict.get("ip_chooser", {}))
         self.from_favorite_id = self.search_dict.get("from_favorite_id", 0)
-        # 查询模式
+        # 检索模式
         self.search_mode = self.search_dict.get("search_mode", "ui")
 
         self.use_time_range = search_dict.get("use_time_range", True)
@@ -1229,7 +1229,7 @@ class SearchHandler(object):
                         index_set_type=IndexSetType.SINGLE.value,
                     )
                     .order_by("-rank", "-created_at")[:10]
-                    .values("id", "params")
+                    .values("id", "params", "search_mode")
                 )
             else:
                 history_obj = (
@@ -1240,7 +1240,7 @@ class SearchHandler(object):
                         index_set_type=IndexSetType.SINGLE.value,
                     )
                     .order_by("created_by", "-created_at")
-                    .values("id", "params", "created_by", "created_at")
+                    .values("id", "params", "search_mode", "created_by", "created_at")
                 )
         else:
             history_obj = (
@@ -1251,7 +1251,7 @@ class SearchHandler(object):
                     index_set_type=IndexSetType.UNION.value,
                 )
                 .order_by("-rank", "-created_at")[:10]
-                .values("id", "params", "created_by", "created_at")
+                .values("id", "params", "search_mode", "created_by", "created_at")
             )
         history_obj = SearchHandler._deal_repeat_history(history_obj)
         return_data = []
