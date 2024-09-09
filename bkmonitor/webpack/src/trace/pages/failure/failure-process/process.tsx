@@ -272,7 +272,8 @@ export const renderMap = reactive({
     );
   },
   incident_close: () => {
-    return <span>{typeTextMap.incident_close}</span>;
+    const { t } = useI18n();
+    return <span>{t(typeTextMap.incident_close)}</span>;
   },
   group_gather: ({ extra_info }) => {
     return (
