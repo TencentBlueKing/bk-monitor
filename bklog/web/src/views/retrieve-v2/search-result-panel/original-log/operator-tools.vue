@@ -32,7 +32,7 @@
         v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html', delay: 500 }"
       >
         <span
-          :class="`icon bklog-icon bklog-handle icon-time ${!isActiveLog && 'is-disable'}`"
+          :class="`icon bklog-icon bklog-handle bklog-time ${!isActiveLog && 'is-disable'}`"
           @click.stop="handleCheckClick('realTimeLog', isActiveLog)"
         >
         </span>
@@ -42,7 +42,7 @@
         v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500 }"
       >
         <span
-          :class="`icon bklog-icon bklog-handle icon-document ${!isActiveLog && 'is-disable'}`"
+          :class="`icon bklog-icon bklog-handle bklog-document ${!isActiveLog && 'is-disable'}`"
           @click.stop="handleCheckClick('contextLog', isActiveLog)"
         >
         </span>
@@ -53,7 +53,7 @@
         v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html', delay: 500 }"
       >
         <span
-          :class="`icon icon-handle bklog-icon bklog-teminal ${!isCanClickWebConsole && 'is-disable'}`"
+          :class="`icon bklog-handle bklog-icon bklog-teminal ${!isCanClickWebConsole && 'is-disable'}`"
           @click.stop="handleCheckClick('webConsole', isCanClickWebConsole)"
         ></span>
       </span>
@@ -113,7 +113,7 @@
         "
         @click.stop="handleClick('logSource')"
       >
-        <i :class="['bk-icon icon-handle', `${!isShowSourceField ? 'icon-eye' : 'icon-eye-slash'}`]"></i>
+        <i :class="['bk-icon bklog-handle', `${!isShowSourceField ? 'icon-eye' : 'icon-eye-slash'}`]"></i>
       </span>
     </template>
   </div>
@@ -247,5 +247,15 @@
 
   .union-icon {
     margin-right: 8px;
+  }
+
+  .bklog-handle {
+    font-size: 14px;
+    color: #979ba5;
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+    }
   }
 </style>

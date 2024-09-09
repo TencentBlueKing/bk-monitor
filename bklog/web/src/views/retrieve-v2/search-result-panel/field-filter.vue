@@ -47,17 +47,9 @@
   const retrieveParams = computed(() => {
     return {
       bk_biz_id: store.state.bkBizId,
-      ...store.state.retrieveParams,
+      ...store.getters.retrieveParams,
       start_time: datePickerValue.value[0],
       end_time: datePickerValue.value[1],
-    };
-  });
-
-  const retrieveOption = computed(() => {
-    const { retrieveSearchNumber = 0, tableLoading = false } = store.state;
-    return {
-      retrieveSearchNumber,
-      tableLoading,
     };
   });
 
@@ -66,25 +58,6 @@
 
   // 接口中获取的字段
   const statisticalFieldsData = ref({});
-
-  /**
-   * @desc: 初始化展示字段
-   * @param {Array<str>} displayFieldNames 显示字段
-   */
-  const initVisibleFields = displayFieldNames => {
-    const displayFields = displayFieldNames
-      .map(displayName => {
-        for (const field of totalFields.value) {
-          if (field.field_name === displayName) {
-            return field;
-          }
-        }
-      })
-      .filter(Boolean);
-    store.commit('updateIsNotVisibleFieldsShow', !displayFields.length);
-    store.commit('updateVisibleFields', displayFields);
-    store.dispatch('showShowUnionSource', { keepLastTime: true });
-  };
   const sessionShowFieldObj = () => {
     // 显示字段缓存
     const showFieldStr = sessionStorage.getItem('showFieldSession');
@@ -108,10 +81,10 @@
     }
     await nextTick();
     if (!isRequestFields) {
-      initVisibleFields(displayFieldNames);
+      store.commit('resetVisibleFields', displayFieldNames);
     } else {
       // isSetDefaultTableColumn.value = false;
-      // this.requestFields(); // 该接口具体逻辑待确定
+      store.dispatch('requestIndexSetFieldInfo');
     }
   };
   const handleCloseFilterTitle = () => {
@@ -124,7 +97,7 @@
     <!-- 字段过滤 -->
     <div class="tab-item-title field-filter-title">
       <div class="left-title">
-        {{ $t('查询结果统计') }}
+        {{ $t('字段列表') }}
       </div>
       <div
         class="close-total"
@@ -145,12 +118,9 @@
       :date-picker-value="datePickerValue"
       :field-alias-map="fieldAliasMap"
       :index-set-item="indexSetItem"
-      :parent-loading="retrieveOption.tableLoading"
       :retrieve-params="retrieveParams"
-      :retrieve-search-number="retrieveOption.retrieveSearchNumber"
       :show-field-alias="showFieldAlias"
       :sort-list="sortList"
-      :statistical-fields-data="statisticalFieldsData"
       :total-fields="totalFields"
       :visible-fields="visibleFields"
       @fields-updated="handleFieldsUpdated"

@@ -95,10 +95,6 @@ export default {
       type: String,
       default: '',
     },
-    operatorConfig: {
-      type: Object,
-      required: true,
-    },
     handleClickTools: Function,
   },
   data() {
@@ -131,13 +127,22 @@ export default {
   },
   computed: {
     ...mapState('globals', ['fieldTypeMap']),
-    ...mapState(['isNotVisibleFieldsShow', 'clearTableWidth', 'indexSetQueryResult', 'tableLineIsWarp']),
+    ...mapState([
+      'isNotVisibleFieldsShow',
+      'clearTableWidth',
+      'indexSetQueryResult',
+      'tableLineIsWarp',
+      'indexSetOperatorConfig',
+    ]),
     ...mapGetters({
       isUnionSearch: 'isUnionSearch',
       unionIndexList: 'unionIndexList',
       unionIndexItemList: 'unionIndexItemList',
       isLimitExpandView: 'isLimitExpandView',
     }),
+    operatorConfig() {
+      return this.indexSetOperatorConfig;
+    },
     kvShowFieldsList() {
       return Object.keys(this.indexSetQueryResult?.fields ?? {}) || [];
     },
