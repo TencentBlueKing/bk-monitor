@@ -35,7 +35,6 @@
       newInstance: false,
       tippyOptions: {
         maxWidth: 'none',
-        distance: 0,
       },
       onShowFn: instance => {
         refSqlQueryOption.value?.beforeShowndFn?.();

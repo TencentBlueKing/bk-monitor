@@ -60,9 +60,8 @@
   });
 
   // 检索后的日志数据如果字段在字段接口找不到则不展示联想的key
-  const originFieldList = computed(() =>
-    Object.keys(retrieveDropdownData.value).filter(v => totalFieldsNameList.value.includes(v)),
-  );
+  const originFieldList = () =>
+    Object.keys(retrieveDropdownData.value).filter(v => totalFieldsNameList.value.includes(v));
 
   const activeType: Ref<string[]> = ref([]);
   const separator = /\s(AND|OR)\s/i; // 区分查询语句条件
@@ -152,7 +151,7 @@
 
   // 根据当前输入关键字计算提示内容
   const calculateDropdown = () => {
-    if (!originFieldList.value.length) {
+    if (!originFieldList().length) {
       return;
     }
 
@@ -173,13 +172,13 @@
       /\s+or\s+$/.test(value)
     ) {
       showWhichDropdown('Fields');
-      fieldList.value.push(...originFieldList.value);
+      fieldList.value.push(...originFieldList());
       return;
     }
     // 开始输入字段【nam】
     const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
     if (inputField) {
-      fieldList.value = originFieldList.value.filter(item => {
+      fieldList.value = originFieldList().filter(item => {
         if (item.includes(inputField)) {
           if (item === inputField) {
             showColonOperator(inputField);
@@ -298,7 +297,7 @@
   const handleClickContinue = type => {
     emits('change', `${props.value + type} `);
     showWhichDropdown(OptionItemType.Fields);
-    fieldList.value = [...originFieldList.value];
+    fieldList.value = [...originFieldList()];
     nextTick(() => {
       activeIndex.value = 0;
       setOptionActive();
@@ -384,7 +383,7 @@
         setOptionActive();
       });
     },
-    { immediate: true },
+    { immediate: true, deep: true },
   );
 </script>
 <template>
