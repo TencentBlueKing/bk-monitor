@@ -449,13 +449,13 @@
                 class="mt8"
                 v-model="formData.add_pod_label"
               >
-                {{ $t('自动添加Pod中的{0}', { n: 'label' }) }}
+                {{ $t('自动添加Pod中的{n}', { n: 'label' }) }}
               </bk-checkbox>
               <bk-checkbox
                 class="mt8 ml10"
                 v-model="formData.add_pod_annotation"
               >
-                {{ $t('自动添加Pod中的{0}', { n: 'annotation' }) }}
+                {{ $t('自动添加Pod中的{n}', { n: 'annotation' }) }}
               </bk-checkbox>
             </bk-form-item>
           </div>
@@ -774,11 +774,6 @@
             ],
           },
         ],
-        baseLabelSelector: {
-          // 指定标签或表达式
-          match_labels: [],
-          match_expressions: [],
-        },
         isRequestCluster: false, // 集群列表是否正在请求
         // isConfigConflict: false, // 配置项是否有冲突
         conflictList: [], // 冲突列表
@@ -1369,7 +1364,10 @@
             const cloneNamespaces = deepClone(item.namespaces);
             delete item.namespaces;
             item[namespacesKey] = cloneNamespaces;
-            item.label_selector = this.getSelectorQueryParams(item.labelSelector, this.baseLabelSelector);
+            item.label_selector = this.getSelectorQueryParams(item.labelSelector, {
+              match_labels: [],
+              match_expressions: [],
+            });
             item.annotation_selector = this.getSelectorQueryParams(item.annotationSelector, { match_annotations: [] });
 
             item.container = {
