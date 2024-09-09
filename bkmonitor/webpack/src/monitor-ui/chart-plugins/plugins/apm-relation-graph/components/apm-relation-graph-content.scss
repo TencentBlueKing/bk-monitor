@@ -79,15 +79,13 @@
       }
     }
 
-    .side-topo {
-      .content-wrap {
-        height: calc(100% - 52px);
-      }
-    }
-
     .side-overview,
     .side-topo {
       height: 100%;
+
+      .content-wrap {
+        height: calc(100% - 52px);
+      }
 
       &.no-border {
         border-left: none;
