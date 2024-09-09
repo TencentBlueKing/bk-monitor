@@ -134,15 +134,18 @@ export default {
   关闭目标: 'Close target',
 
   // 故障
-  故障拓扑: 'Fault Topology',
+  故障拓扑: 'Incident Topology',
   聚合规则: 'Aggregation Rules',
   时间轴: 'Timeline',
   最后更新: 'Last update time',
-  故障时序: 'Fault sequence',
+  故障时序: 'Incident sequence',
   视图: 'View',
+  明细: 'Details',
   测试执行: 'Test execution',
   配置选择: 'Configuration selection',
   流程指引: 'Process guidance',
   关联设置: 'Related settings',
   URI规则设置: 'URI rule settings',
+  检测到蓝鲸监控版本更新: 'Detected Blue Whale monitoring version update',
+  '请点击“确定”刷新页面，保证数据准确性。': 'Please click "OK" to refresh the page to ensure data accuracy.',
 };

@@ -30,6 +30,7 @@ from core.errors.api import BKAPIError
 from metadata import config
 from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
 from metadata.utils import consul_tools, hash_util
+from metadata.utils.basic import get_biz_id_by_space_uid
 
 from .common import Label, OptionBase
 from .constants import (
@@ -221,7 +222,7 @@ class DataSource(models.Model):
         # 添加集群信息
         mq_config.update(self.mq_cluster.consul_config)
         mq_config["cluster_config"].pop("last_modify_time")
-
+        bk_biz_id = get_biz_id_by_space_uid(self.space_uid) or 0
         result_config = {
             "bk_data_id": self.bk_data_id,
             "data_id": self.bk_data_id,
@@ -236,6 +237,7 @@ class DataSource(models.Model):
             "is_platform_data_id": self.is_platform_data_id,
             "space_type_id": self.space_type_id,
             "space_uid": self.space_uid,
+            "bk_biz_id": bk_biz_id,
         }
 
         if with_rt_info:
@@ -417,6 +419,7 @@ class DataSource(models.Model):
         authorized_spaces=None,
         space_uid=None,
         created_from=DataIdCreatedFromSystem.BKGSE.value,
+        bcs_cluster_id=None,
     ):
         """
         创建一个新的数据源, 如果创建过程失败则会抛出异常
@@ -441,6 +444,7 @@ class DataSource(models.Model):
         :param authorized_spaces: 授权使用的空间ID
         :param space_uid: 空间 UID
         :param created_from: 数据源 ID 来源
+        :param bcs_cluster_id: bcs 集群 ID
         :return: DataSource instance | raise Exception
         """
         # 判断两个使用到的标签是否存在
@@ -477,8 +481,13 @@ class DataSource(models.Model):
         if bk_data_id is None and settings.IS_ASSIGN_DATAID_BY_GSE:
             # 如果由GSE来分配DataID的话，那么从GSE获取data_id，而不是走数据库的自增id
             # 现阶段仅支持指标的数据，因为现阶段指标的数据都为单指标单标
+            # 添加过滤条件，只接入时序数据到bkdata
             if settings.ENABLE_V2_BKDATA_GSE_RESOURCE and type_label == "time_series":
+                logger.info(
+                    "apply for data id from bkdata,type_label->{},etl_config->{}".format(type_label, etl_config)
+                )
                 bk_data_id = cls.apply_for_data_id_from_bkdata(data_name)
+                created_from = DataIdCreatedFromSystem.BKDATA.value
             else:
                 bk_data_id = cls.apply_for_data_id_from_gse(operator)
 

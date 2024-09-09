@@ -88,7 +88,7 @@ class FrontendShieldListResource(Resource):
             if page and page_size:
                 shields = shields[(page - 1) * page_size : page * page_size]
 
-        return {"count": len(shields), "shield_list": shields}
+        return {"count": result["count"], "shield_list": shields}
 
     @staticmethod
     def search(search_terms: Set[str], shields: list, is_active: bool) -> list:
@@ -106,6 +106,9 @@ class FrontendShieldListResource(Resource):
         return [shield for shield in shields if match(shield)]
 
     def enrich_shields(self, bk_biz_id: Optional[int], shields: list) -> list:
+        if not shields:
+            return []
+
         """补充屏蔽记录的数据便于展示。"""
         manager = ShieldDisplayManager(bk_biz_id)
         # 获取关联策略名
@@ -194,6 +197,10 @@ class FrontendShieldDetailResource(Resource):
                     self.bk_biz_id, shield["dimension_config"].get("bk_topo_node")
                 )
                 target = ["/".join(item) for item in target]
+            elif shield["scope_type"] == ScopeType.DYNAMIC_GROUP:
+                target = shield_display_manager.get_dynamic_group_name_list(
+                    self.bk_biz_id, shield["dimension_config"].get("dynamic_group") or []
+                )
             else:
                 business = shield_display_manager.get_business_name(shield["bk_biz_id"])
                 target = [business]

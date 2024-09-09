@@ -101,10 +101,12 @@ export default class HandleBtn extends tsc<object> {
     if (this.tableLoading) return false;
     const { params: retrieveParams } = this.getRetrieveFavoriteData();
     const { params } = this.activeFavorite;
+    const additions = params?.addition || [];
+    const favAddition = additions.map(item => ({ ...item, value: this.getAdditionValue(item.value) }));
     const favoriteParams = {
-      ip_chooser: params?.ip_chooser,
-      addition: params?.addition,
-      keyword: params?.keyword,
+      ip_chooser: params?.ip_chooser ?? {},
+      addition: favAddition,
+      keyword: params?.keyword ?? '*',
     };
     return !deepEqual(favoriteParams, retrieveParams, ['meta']);
   }
@@ -116,7 +118,7 @@ export default class HandleBtn extends tsc<object> {
       .map(item => ({
         field: item.id,
         operator: item.operator,
-        value: item.value.join(','),
+        value: this.getAdditionValue(item.value),
       }));
   }
 
@@ -232,6 +234,10 @@ export default class HandleBtn extends tsc<object> {
       this.handleUserOperate('getFavoriteList', null, true);
       this.favoriteUpdateLoading = false;
     }
+  }
+  /** 获取过滤条件中的值 如果是字符串就变成数组 */
+  getAdditionValue(value: Array<string> | string) {
+    return Array.isArray(value) ? value : value.split(',');
   }
 
   render() {

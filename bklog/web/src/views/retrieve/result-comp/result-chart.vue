@@ -132,6 +132,7 @@
     data() {
       return {
         timeRange: [],
+        timer: null,
         isFold: localStorage.getItem('chartIsFold') === 'true',
         intervalArr: [
           { id: 'auto', name: 'auto' },
@@ -189,10 +190,10 @@
         unionIndexList: 'unionIndexList',
         isUnionSearch: 'isUnionSearch',
         bkBizId: 'bkBizId',
-        indexId: 'indexId',
       }),
       totalNumShow() {
-        if (!this.infoTotalNumLoading && !this.infoTotalNumError && this.infoTotal > 0) return this.infoTotal;
+        if (!this.infoTotalNumLoading && !this.infoTotalNumError && !this.isFrontStatistics && this.infoTotal > 0)
+          return this.infoTotal;
         return this.totalCount;
       },
       /** 未开启白名单时 是否由前端来统计总数 */
@@ -438,7 +439,7 @@
               {
                 data: {
                   ...this.retrieveParams,
-                  index_set_ids: this.isUnionSearch ? this.unionIndexList : [this.indexId],
+                  index_set_ids: this.isUnionSearch ? this.unionIndexList : [this.$route.params.indexId],
                 },
               },
               {

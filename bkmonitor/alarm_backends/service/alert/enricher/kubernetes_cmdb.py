@@ -14,9 +14,9 @@ from collections import defaultdict
 from itertools import chain
 from typing import Dict, List, Optional, Set
 
+from django.conf import settings
 from django.utils.translation import ugettext as _
 
-import settings
 from alarm_backends.core.alert import Alert
 from alarm_backends.core.cache.cmdb import HostIPManager, HostManager
 from alarm_backends.service.alert.enricher.base import BaseAlertEnricher
@@ -63,7 +63,6 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
             )
 
     def refresh_host_by_increment(self):
-
         total_host_keys: Set[str] = set(self.hosts_cache.keys())
         to_be_refresh_ips_gby_biz_id: Dict[int, Set[str]] = defaultdict(set)
         for alert in self.alerts:
@@ -94,7 +93,6 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
         )
 
         for bk_biz_id, to_be_refresh_ips in to_be_refresh_ips_gby_biz_id.items():
-
             try:
                 partial_hosts: List = api.cmdb.get_host_by_ip(
                     ips=[{"ip": ip} for ip in to_be_refresh_ips], bk_biz_id=bk_biz_id
@@ -296,7 +294,6 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
         """
         host = None
         for h in self.get_host_by_ip(ip):
-
             # 1. 如果提供了业务ID，且主机的业务ID跟事件提供的业务ID相同，则匹配成功
             if int(alert.bk_biz_id) > 0 and h.bk_biz_id != alert.bk_biz_id:
                 # 告警的业务ID 与 主机的业务ID 不一致，忽略

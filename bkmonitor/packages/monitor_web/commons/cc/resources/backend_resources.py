@@ -15,8 +15,6 @@ from typing import Dict, List
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
-from monitor_web.commons.cc.utils import ServiceCategorySearcher, topo_tree_tools
-from monitor_web.commons.cc.utils.cmdb import CmdbUtil
 
 from api.cmdb.define import Host
 from bkmonitor.strategy.new_strategy import Item
@@ -27,6 +25,8 @@ from constants.cmdb import TargetNodeType, TargetObjectType
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.drf_resource.contrib.cache import CacheResource
+from monitor_web.commons.cc.utils import ServiceCategorySearcher, topo_tree_tools
+from monitor_web.commons.cc.utils.cmdb import CmdbUtil
 
 logger = logging.getLogger(__name__)
 
@@ -219,7 +219,11 @@ class GetHostInstanceByIpResource(CacheResource):
             host_list = api.cmdb.get_host_by_ip(ips=ip_list, bk_biz_id=data["bk_biz_id"], search_outer_ip=True)
 
         # 组合不同业务主机的agent状态
-        agent_status_dict = resource.cc.get_agent_status(data["bk_biz_id"], host_list)
+        try:
+            agent_status_dict = resource.cc.get_agent_status(data["bk_biz_id"], host_list)
+        except Exception as e:
+            logger.warning(f"get_agent_status error: {e}")
+            agent_status_dict = {}
 
         agent_status_display = {
             -1: "abnormal",  # 异常(未知)
@@ -652,3 +656,30 @@ class GetBusinessTargetDetailResource(Resource):
         target = validated_request_data["target"]
 
         return CmdbUtil.get_target_detail(bk_biz_id, target)
+
+
+class GetDynamicGroupInstanceResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        dynamic_group_ids = serializers.ListField(label="动态分组ID", child=serializers.CharField())
+
+    def perform_request(self, params):
+        dynamic_groups = api.cmdb.search_dynamic_group(
+            bk_biz_id=params["bk_biz_id"],
+            bk_obj_id="host",
+            dynamic_group_ids=params["dynamic_group_ids"],
+            with_count=True,
+            with_instance_id=True,
+        )
+
+        result = []
+        for dynamic_group in dynamic_groups:
+            result.append(
+                {
+                    "name": dynamic_group["name"],
+                    "dynamic_group_id": dynamic_group["id"],
+                    "count": dynamic_group["count"],
+                    "all_host": dynamic_group["instance_ids"],
+                }
+            )
+        return result

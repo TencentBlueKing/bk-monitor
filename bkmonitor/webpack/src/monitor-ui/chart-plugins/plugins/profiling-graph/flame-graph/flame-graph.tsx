@@ -539,6 +539,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                   class='menu-item'
                   onClick={() => this.handleContextMenuClick(item)}
                 >
+                  <i class={`menu-item-icon icon-monitor ${item.icon}`} />
                   <span class='menu-item-text'>{item.name}</span>
                 </li>
               ))}

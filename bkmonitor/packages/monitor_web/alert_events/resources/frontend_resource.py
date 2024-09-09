@@ -1511,7 +1511,7 @@ class ListSearchItemResource(EventPermissionResource):
                     {"id": EventStatus.ABNORMAL, "name": _("未恢复")},
                     {"id": EventStatus.RECOVERED, "name": _("已恢复")},
                     {"id": EventStatus.ABNORMAL_ACK, "name": _("未恢复(已确认)")},
-                    {"id": EventStatus.CLOSED, "name": _("已关闭")},
+                    {"id": EventStatus.CLOSED, "name": _("已失效")},
                 ],
             },
             {

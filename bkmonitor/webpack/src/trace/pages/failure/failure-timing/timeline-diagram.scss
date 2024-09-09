@@ -246,7 +246,7 @@
         .tips-type {
             display: inline-block;
             margin: 3px 0;
-            color: #313238;
+            color: #000000;
         }
 
         .link {
@@ -470,9 +470,10 @@
 
             .tool-label {
                 display: inline-block;
-                width: 90px;
+                width: auto;
                 color: #6c6d71;
                 text-align: right;
+                white-space: nowrap;
             }
         }
     }

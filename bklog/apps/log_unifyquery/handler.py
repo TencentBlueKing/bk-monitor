@@ -193,7 +193,8 @@ class UnifyQueryHandler(object):
                     {
                         "field_name": addition["field"],
                         "op": BASE_OP_MAP[addition["operator"]],
-                        "value": [addition["value"]],
+                        "value": addition["value"] if isinstance(addition["value"], list)
+                        else addition["value"].split(","),
                     }
                 )
             else:

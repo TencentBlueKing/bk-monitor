@@ -399,10 +399,10 @@ def escape_markdown(value):
         if not value or re.match(r"^\*\*.*\*\*", value):
             return value
 
+        value = value.replace("\\", r"\\")
         value = value.replace("*", r"\*")
         value = value.replace("`", r"\`")
         value = value.replace(" _", r" \_")
-        value = value.replace("\\", r"\\")
 
     return Markup(value)
 

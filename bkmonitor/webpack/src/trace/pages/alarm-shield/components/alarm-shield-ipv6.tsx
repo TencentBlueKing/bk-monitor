@@ -81,6 +81,7 @@ export default defineComponent({
       if (v === 'instance') return ['serviceInstance'];
       if (v === 'ip') return ['staticTopo', 'manualInput'];
       if (v === 'node') return ['dynamicTopo'];
+      if (v === 'dynamic_group') return ['dynamicGroup'];
       return [];
     }
     function clearMask() {

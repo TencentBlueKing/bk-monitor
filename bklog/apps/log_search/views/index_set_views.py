@@ -329,6 +329,7 @@ class IndexSetViewSet(ModelViewSet):
                         index_set_id, index_set["collector_config_id"], index_set["indexes"]
                     ),
                     "space_uid": index_set["space_uid"],
+                    "need_create_index": True if index_set["collector_config_id"] else False,
                     "options": [
                         {
                             "name": "time_field",

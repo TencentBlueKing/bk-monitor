@@ -34,11 +34,11 @@ import Vue from 'vue';
 
 import { messageError } from '@/common/bkmagic';
 import { bus } from '@/common/bus';
-import { makeMessage, random } from '@/common/util';
+import { makeMessage } from '@/common/util';
 import i18n from '@/language/i18n';
 import serviceList from '@/services/index.js';
 import { showLoginModal } from '@blueking/login-modal';
-// import { context, trace } from '@opentelemetry/api';
+import { context, trace } from '@opentelemetry/api';
 import axios from 'axios';
 
 import HttpRequst from './_httpRequest';
@@ -160,15 +160,17 @@ async function getPromise(method, url, data, userConfig = {}) {
   //   });
 
   promise = new Promise(async (resolve, reject) => {
-    try {
-      const axiosRequest = http.$request.request(url, data, config);
-      const response = await axiosRequest;
-      Object.assign(config, response.config || {});
-      handleResponse({ config, response, resolve, reject });
-    } catch (error) {
-      Object.assign(config, error.config);
-      reject(error);
-    }
+    context.with(trace.setSpan(context.active(), config.span), async () => {
+      try {
+        const axiosRequest = http.$request.request(url, data, config);
+        const response = await axiosRequest;
+        Object.assign(config, response.config || {});
+        handleResponse({ config, response, resolve, reject });
+      } catch (error) {
+        Object.assign(config, error.config);
+        reject(error);
+      }
+    });
   })
     .catch(error => handleReject(error, config))
     .finally(() => {
@@ -222,7 +224,7 @@ function handleReject(error, config) {
   // const service = getHttpService(url, serviceList);
   // const ajaxUrl = service ? service.url : '';
   // console.error('Request error UrlPath：', ajaxUrl);
-  const traceparent = config.headers.traceparent;
+  const traceparent = config.span._spanContext.traceId;
 
   http.queue.delete(config.requestId);
 
@@ -300,12 +302,12 @@ function handleReject(error, config) {
  * @return {Promise} 本次 http 请求的 Promise
  */
 function initConfig(method, url, userConfig) {
-  const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
-  const copyUserConfig = Object.assign({}, userConfig ?? {});
-  copyUserConfig.headers = {
-    ...(userConfig.headers ?? {}),
-    traceparent,
-  };
+  // const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
+  // const copyUserConfig = Object.assign({}, userConfig ?? {});
+  // copyUserConfig.headers = {
+  //   ...(userConfig.headers ?? {}),
+  //   traceparent,
+  // };
 
   const defaultConfig = {
     ...getCancelToken(),
@@ -325,9 +327,9 @@ function initConfig(method, url, userConfig) {
     cancelPrevious: true,
     // 接口报错是否弹bkMessage弹窗
     catchIsShowMessage: true,
-    // span: trace.getTracer('bk-log').startSpan('api'),
+    span: trace.getTracer('bk-log').startSpan('api'),
   };
-  return Object.assign(defaultConfig, copyUserConfig);
+  return Object.assign(defaultConfig, userConfig);
 }
 
 /**

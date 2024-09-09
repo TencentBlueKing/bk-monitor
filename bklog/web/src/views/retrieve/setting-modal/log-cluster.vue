@@ -70,41 +70,28 @@
           </span>
         </div>
       </bk-form-item>
-
-      <div class="setting-item">
-        <span class="left-word">{{ $t('忽略数字') }}</span>
-        <span style="color: #979ba5">{{ $t('前端忽略所有的数字') }}</span>
-      </div>
-      <div class="setting-item">
-        <span class="left-word">{{ $t('忽略字符') }}</span>
-        <span style="color: #979ba5">{{ $t('前端忽略数字和所有的常见符号，只保留日志具体内容') }}</span>
-      </div>
-      <div class="setting-item">
-        <span class="left-word">{{ $t('数据指纹') }}</span>
-        <div @click="handleChangeFinger">
-          <span
-            class="top-middle"
-            v-bk-tooltips="$t('暂时未开放聚类关闭功能，如有关闭需求，可联系平台管理员')"
-            :disabled="!isShowFingerTips"
-          >
-            <bk-switcher
-              class="left-word"
-              v-model="fingerSwitch"
-              :disabled="!globalEditable || configData.extra.signature_switch"
-              :pre-check="() => false"
-              data-test-id="LogCluster_div_isOpenSignature"
-              size="large"
-              theme="primary"
+      <bk-form-item :label="$t('是否启用')">
+        <div class="setting-item">
+          <div @click="handleChangeFinger">
+            <span
+              class="top-middle"
+              v-bk-tooltips="$t('暂时未开放聚类关闭功能，如有关闭需求，可联系平台管理员')"
+              :disabled="!isShowFingerTips"
             >
-            </bk-switcher>
-          </span>
+              <bk-switcher
+                class="left-word"
+                v-model="fingerSwitch"
+                :disabled="!globalEditable || fingerSwitch"
+                :pre-check="() => false"
+                data-test-id="LogCluster_div_isOpenSignature"
+                size="large"
+                theme="primary"
+              >
+              </bk-switcher>
+            </span>
+          </div>
         </div>
-        <bk-alert
-          style="width: 800px"
-          :title="$t('通过AI学习能力，提取日志的数据指纹实现日志聚类，注意训练时间越久效果越好，存储将增加10%')"
-          type="info"
-        ></bk-alert>
-      </div>
+      </bk-form-item>
 
       <!-- 字段长度 -->
       <div class="rule-container">
@@ -244,30 +231,29 @@
           :global-editable="globalEditable"
           :table-str="defaultData.predefined_varibles"
         />
-
-        <bk-form-item>
-          <bk-button
-            :disabled="!globalEditable"
-            :loading="isHandle"
-            :title="$t('保存')"
-            data-test-id="LogCluster_button_submit"
-            theme="primary"
-            @click.stop.prevent="handleSubmit"
-          >
-            {{ $t('保存') }}
-          </bk-button>
-          <bk-button
-            style="margin-left: 8px"
-            :disabled="!globalEditable"
-            :title="$t('重置')"
-            data-test-id="LogCluster_button_reset"
-            @click="resetPage"
-          >
-            {{ $t('重置') }}
-          </bk-button>
-        </bk-form-item>
       </div>
     </bk-form>
+    <div class="submit-div">
+      <bk-button
+        :disabled="!globalEditable"
+        :loading="isHandle"
+        :title="$t('保存')"
+        data-test-id="LogCluster_button_submit"
+        theme="primary"
+        @click.stop.prevent="handleSubmit"
+      >
+        {{ $t('保存') }}
+      </bk-button>
+      <bk-button
+        style="margin-left: 8px"
+        :disabled="!globalEditable"
+        :title="$t('重置')"
+        data-test-id="LogCluster_button_reset"
+        @click="resetPage"
+      >
+        {{ $t('重置') }}
+      </bk-button>
+    </div>
     <!-- 保存dialog -->
     <bk-dialog
       width="360"
@@ -279,11 +265,11 @@
     >
       <div class="submit-dialog-container">
         <p class="submit-dialog-title">{{ $t('保存待生效') }}</p>
-        <p class="submit-dialog-text">{{ $t('该保存需要1小时生效,请耐心等待') }}</p>
+        <p class="submit-dialog-text">{{ $t('该保存需要10分钟生效, 请耐心等待') }}</p>
         <bk-button
           class="submit-dialog-btn"
           theme="primary"
-          @click="isShowSubmitDialog = false"
+          @click="closeKnowDialog"
         >
           {{ $t('我知道了') }}</bk-button
         >
@@ -361,12 +347,9 @@
           ],
         },
         formData: {
-          min_members: 0, // 最小日志数量
           max_dist_list: '', // 敏感度
           predefined_varibles: '', //	预先定义的正则表达式
-          delimeter: '', // 分词符
           max_log_length: 1, // 最大日志长度
-          is_case_sensitive: 1, // 是否大小写忽略
           clustering_fields: '', // 聚类字段
           filter_rules: [], // 过滤规则
           signature_enable: false,
@@ -423,13 +406,9 @@
           const requestUrl = `${baseUrl}${requestBehindUrl}`;
           const res = await this.$http.request(requestUrl, !isDefault && { params, data });
           const {
-            collector_config_name_en: collectorConfigNameEn,
-            min_members,
             max_dist_list,
             predefined_varibles,
-            delimeter,
             max_log_length,
-            is_case_sensitive,
             clustering_fields,
             filter_rules: filterRules,
           } = res.data;
@@ -439,13 +418,9 @@
             value: [item.value],
           }));
           const assignObj = {
-            collector_config_name_en: collectorConfigNameEn || '',
-            min_members,
             max_dist_list,
             predefined_varibles,
-            delimeter,
             max_log_length,
-            is_case_sensitive,
             clustering_fields,
             filter_rules: newFilterRules || [],
           };
@@ -471,8 +446,8 @@
           extra: { collector_config_id: configID },
         } = this.cleanConfig;
         this.configID = configID;
-        this.fingerSwitch = extra.signature_switch;
-        this.isShowFingerTips = extra.signature_switch;
+        this.fingerSwitch = true;
+        this.isShowFingerTips = true;
         this.formData.clustering_fields = extra.clustering_fields;
         this.clusterField = this.totalFields
           .filter(item => item.is_analyzed)
@@ -487,9 +462,10 @@
             return { id, name: alias ? `${id}(${alias})` : id };
           });
         // 日志聚类且数据指纹同时打开则不请求默认值
-        if (isActive) {
-          this.requestCluster(false);
-        }
+        this.requestCluster(false);
+        // if (isActive) {
+        //   this.requestCluster(false);
+        // }
       },
       /**
        * @desc: 数据指纹开关
@@ -546,8 +522,6 @@
             this.isHandle = true;
             const { index_set_id, bk_biz_id } = this.indexSetItem;
             const {
-              collector_config_name_en,
-              min_members,
               max_dist_list,
               predefined_varibles,
               delimeter,
@@ -557,8 +531,6 @@
               filter_rules,
             } = this.formData;
             const paramsData = {
-              collector_config_name_en,
-              min_members,
               max_dist_list,
               predefined_varibles,
               delimeter,
@@ -577,7 +549,7 @@
               value: item.value?.length ? item.value[0] : '',
             }));
             this.$http
-              .request('/logClustering/changeConfig', {
+              .request('retrieve/updateClusteringConfig', {
                 params: {
                   index_set_id,
                 },
@@ -590,7 +562,6 @@
                 },
               })
               .then(() => {
-                this.$emit('update-log-fields');
                 this.isShowSubmitDialog = true;
               })
               .finally(() => {
@@ -666,25 +637,27 @@
       resetPage() {
         this.$emit('reset-page');
       },
+      closeKnowDialog() {
+        this.isShowSubmitDialog = false;
+        this.$emit('update-log-fields');
+      },
     },
   };
 </script>
 
 <style lang="scss" scoped>
   .setting-log-cluster {
+    position: relative;
     padding: 0 20px;
+
+    .rule-container {
+      margin-top: 16px;
+    }
 
     .setting-item {
       display: flex;
       align-items: center;
       margin-bottom: 25px;
-
-      .left-word {
-        flex-shrink: 0;
-        margin-right: 16px;
-        font-size: 14px;
-        font-weight: 700;
-      }
 
       .bk-icon {
         margin-left: 8px;
@@ -764,6 +737,13 @@
         /* stylelint-disable-next-line declaration-no-important */
         border-color: #ff5656 !important;
       }
+    }
+
+    .submit-div {
+      position: sticky;
+      bottom: 0;
+      padding: 10px 0 50px;
+      background: #fff;
     }
   }
 

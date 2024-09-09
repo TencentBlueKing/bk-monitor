@@ -24,6 +24,7 @@ from django.db.models import sql
 from django.db.transaction import atomic, on_commit
 from django.utils.translation import ugettext as _
 
+from core.drf_resource import api
 from metadata import config
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE
 from metadata.utils.basic import getitems
@@ -91,6 +92,7 @@ class ResultTable(models.Model):
     label = models.CharField(verbose_name="结果表标签", max_length=128, default=Label.RESULT_TABLE_LABEL_OTHER)
     # 数据标签
     data_label = models.CharField("数据标签", max_length=128, default="", null=True, blank=True)
+    is_builtin = models.BooleanField("是否内置", default=False)
 
     class Meta:
         verbose_name = "逻辑结果表"
@@ -278,6 +280,7 @@ class ResultTable(models.Model):
         time_option=None,
         create_storage=True,
         data_label: Optional[str] = None,
+        is_builtin=False,
     ):
         """
         创建一个结果表
@@ -302,6 +305,7 @@ class ResultTable(models.Model):
         :param time_option: 时间字段的配置内容
         :param create_storage: 是否创建存储，默认为 True
         :param data_label: 数据标签
+        :param is_builtin: 是否为系统内置的结果表
         :return: result_table instance | raise Exception
         """
         # 判断label是否真实存在的配置
@@ -424,6 +428,7 @@ class ResultTable(models.Model):
             bk_biz_id=bk_biz_id,
             label=label,
             data_label=data_label,
+            is_builtin=is_builtin,
         )
 
         # 创建结果表的option内容如果option为非空
@@ -1171,8 +1176,46 @@ class ResultTable(models.Model):
         except Exception as e:
             logger.error("push and publish redis error, table_id: %s, %s", self.table_id, e)
 
-        self.refresh_etl_config()
+        # 刷新清洗配置，减少冗余DB操作
+        data_source_ins = self.data_source
+        if data_source_ins.can_refresh_consul_and_gse():
+            data_source_ins.refresh_consul_config()
+            logger.info("table_id->[%s] refresh etl config success." % self.table_id)
+        elif self.default_storage == ClusterInfo.TYPE_ES:
+            # Note: 临时方案，ES相关配置变更后，需手动通知计算平台
+            data_id = data_source_ins.bk_data_id
+            try:
+                self.notify_log_data_id_changed(data_id)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(
+                    "notify_log_data_id_changed error, table_id->{},data_id->{}".format(self.table_id, data_id)
+                )
+                logger.exception(e)
+
         logger.info("table_id->[%s] updated success." % self.table_id)
+
+    def notify_log_data_id_changed(self, data_id, max_retries=3, wait_second=1):
+        """
+        通知计算平台，ES相关配置变更
+        """
+        for attempt in range(1, max_retries + 1):
+            try:
+                api.bkdata.notify_log_data_id_changed(data_id)
+                logger.info(
+                    "notify_log_data_id_changed table_id->{},data_id ->{},notify es config changed success.".format(
+                        self.table_id, data_id
+                    )
+                )
+                return  # 成功时返回
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(
+                    f"notify_log_data_id_changed Attempt {attempt}: Notification error for data_id->{data_id}, {e}"
+                )
+                if attempt < max_retries:
+                    time.sleep(wait_second)
+                else:
+                    logger.error(f"notify_log_data_id_changed All attempts failed data_id->{data_id}, stop retrying")
+                    raise
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def upgrade_result_table(self, operator):

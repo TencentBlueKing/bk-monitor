@@ -248,10 +248,8 @@ class GraphsListByBizResource(Resource):
         bk_biz_id = serializers.IntegerField(required=True)
 
     def perform_request(self, validated_request_data):
-        request = get_request()
-        is_superuser = get_request().user.is_superuser
-        user_bizs = [biz.id for biz in resource.cc.get_app_by_user(request.user)]
-        if not is_superuser and str(validated_request_data["bk_biz_id"]) not in user_bizs:
+        user_bizs = resource.space.get_bk_biz_ids_by_user(get_request().user)
+        if validated_request_data["bk_biz_id"] not in user_bizs:
             raise PermissionError(_("您无权限访问此业务的图表列表接口"))
         return {validated_request_data["bk_biz_id"]: fetch_biz_panels(validated_request_data["bk_biz_id"])}
 

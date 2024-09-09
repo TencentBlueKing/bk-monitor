@@ -345,7 +345,7 @@ export default class SearchComp extends tsc<IProps> {
     Object.assign(filterQuery, retrieveParams);
     const newQueryObj = { addition: this.getFiledAdditionStr(linkAdditionList) }; // 新的query对象
     const { ipChooser } = retrieveParams;
-    const newIPChooser = Object.keys(ipChooser || {}).length ? ipChooser : query.ip_chooser;
+    const newIPChooser = Object.keys(ipChooser || {}).length ? ipChooser : ip_chooser;
 
     if (newIPChooser && Object.keys(newIPChooser).length) {
       // ip值更新
@@ -385,7 +385,7 @@ export default class SearchComp extends tsc<IProps> {
     const stringifyList = filterAddition.map(item => ({
       field: item.id,
       operator: item.operator,
-      value: item.value.join(','),
+      value: item.value,
       isInclude: item.isInclude,
     }));
     if (linkAdditionList?.length) {
@@ -579,7 +579,7 @@ export default class SearchComp extends tsc<IProps> {
       .map(item => ({
         field: item.id,
         operator: item.operator,
-        value: item.value.join(','),
+        value: item.value,
       }));
     this.handleSearchAddChange(addition, isQuery, isForceQuery);
   }

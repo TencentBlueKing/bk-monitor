@@ -21,7 +21,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from django.core.exceptions import EmptyResultSet
 from django.db.models import Count, Q
-from django.db.models.aggregates import Sum
+from django.db.models.aggregates import Avg, Sum
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
@@ -1615,9 +1615,9 @@ class GetKubernetesClusterList(KubernetesResource):
             bk_biz_id,
             {
                 "node_count": Sum("node_count"),
-                "cpu_usage_ratio": Sum("cpu_usage_ratio"),
-                "memory_usage_ratio": Sum("memory_usage_ratio"),
-                "disk_usage_ratio": Sum("disk_usage_ratio"),
+                "cpu_usage_ratio": Avg("cpu_usage_ratio"),
+                "memory_usage_ratio": Avg("memory_usage_ratio"),
+                "disk_usage_ratio": Avg("disk_usage_ratio"),
             },
         )
         summary["cpu_usage_ratio"] = get_progress_value(summary["cpu_usage_ratio"])

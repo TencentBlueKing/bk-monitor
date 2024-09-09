@@ -27,7 +27,13 @@ import type { PropType, VNode } from 'vue';
 
 export type CommomParams = Record<string, any>;
 export type IObjectType = 'HOST' | 'SERVICE';
-export type INodeType = 'INSTANCE' | 'SERVICE_INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE' | 'TOPO';
+export type INodeType =
+  | 'DYNAMIC_GROUP'
+  | 'INSTANCE'
+  | 'SERVICE_INSTANCE'
+  | 'SERVICE_TEMPLATE'
+  | 'SET_TEMPLATE'
+  | 'TOPO';
 export type CoutIntanceName = 'host' | 'service_instance';
 export interface IScopeItme {
   scope_type: string;
@@ -61,6 +67,7 @@ export interface ITarget {
   bk_inst_id?: number;
   bk_host_id?: number;
   biz_inst_id?: string;
+  dynamic_group_id?: string;
   path?: string;
   children?: ITarget[];
   meta?: IMeta;

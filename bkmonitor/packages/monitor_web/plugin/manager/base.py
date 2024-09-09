@@ -940,7 +940,7 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
         self.plugin.tag = meta_dict.get("tag") if meta_dict.get("tag") else ""
         self.plugin.label = meta_dict.get("label", "other_rt")
         self.version.config.is_support_remote = self.get_remote_stage(meta_dict)
-        self.version.info.plugin_display_name = meta_dict.get("plugin_display_name", "")
+        self.version.info.plugin_display_name = meta_dict.get("plugin_display_name") or self.plugin.plugin_id
 
     def get_remote_stage(self, meta_dict):
         if meta_dict.get("is_support_remote") is True:

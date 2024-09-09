@@ -528,16 +528,6 @@ ALERT_FIRST_HANDLE_RECORD = register_key_with_config(
     }
 )
 
-ALERT_CONTENT_KEY = register_key_with_config(
-    {
-        "label": "[alert]当前正在产生的告警内容",
-        "key_type": "string",
-        "key_tpl": "alert.builder.{dedupe_md5}.content",
-        "ttl": 2 * CONST_ONE_HOUR,
-        "backend": "service",
-    }
-)
-
 ALERT_DEDUPE_CONTENT_KEY = register_key_with_config(
     {
         "label": "[alert]当前正在产生的告警内容",
@@ -751,7 +741,7 @@ TIMEOUT_ACTION_KEY_LOCK = register_key_with_config(
         "label": "[action]超时设置周期任务",
         "key_type": "string",
         "key_tpl": "fta_action.timeout.process.lock",
-        "ttl": 2 * CONST_MINUTES,
+        "ttl": 60 * CONST_MINUTES,
         "backend": "service",
     }
 )

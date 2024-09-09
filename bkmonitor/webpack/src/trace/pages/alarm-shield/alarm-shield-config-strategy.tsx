@@ -503,7 +503,7 @@ export default defineComponent({
           )}
           {!!this.isShowDetail && (
             <AlarmShieldConfigScope
-              filterTypes={['ip', 'node']}
+              filterTypes={['ip', 'node', 'dynamic_group']}
               isEdit={this.isEdit}
               require={false}
               show={true}

@@ -589,6 +589,7 @@ class TimeSeriesGroup(CustomGroupBase):
         metric_info_list=None,
         table_id=None,
         is_split_measurement=True,
+        is_builtin=False,
         default_storage_config=None,
         additional_options: Optional[dict] = None,
         data_label: Optional[str] = None,
@@ -603,6 +604,7 @@ class TimeSeriesGroup(CustomGroupBase):
         :param metric_info_list: metric列表
         :param table_id: 需要制定的table_id，否则通过默认规则创建得到
         :param is_split_measurement: 是否启动自动分表逻辑
+        :param is_builtin: 是否内置
         :param default_storage_config: 默认存储配置
         :param additional_options: 附带创建的 ResultTableOption
         :param data_label: 数据标签
@@ -617,6 +619,7 @@ class TimeSeriesGroup(CustomGroupBase):
             operator=operator,
             metric_info_list=metric_info_list,
             table_id=table_id,
+            is_builtin=is_builtin,
             is_split_measurement=is_split_measurement,
             default_storage_config=default_storage_config,
             additional_options=additional_options,

@@ -33,4 +33,5 @@ export default {
   期望响应内容: 'Expected response content',
   单点可用率: 'Single point availability rate',
   错误: 'Error',
+  被停用: 'Disabled',
 };

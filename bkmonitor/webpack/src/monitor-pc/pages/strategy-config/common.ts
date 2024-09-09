@@ -42,17 +42,18 @@ export const handleSetTargetDesc = (
     const len = nodeCount || targetList.length;
     let count = 0;
     let instanceCount = 0;
-    if (['TOPO', 'SERVICE_TEMPLATE', 'SET_TEMPLATE'].includes(bkTargetType)) {
-      targetList.forEach(item => {
+    if (['TOPO', 'SERVICE_TEMPLATE', 'SET_TEMPLATE', 'DYNAMIC_GROUP'].includes(bkTargetType)) {
+      for (const item of targetList) {
         item?.all_host?.forEach(id => allHost.add(id));
         count = allHost.size;
         instanceCount += item?.instances_count || 0;
-      });
+      }
       count = instance_count || instanceCount || count;
       const textMap = {
         TOPO: '{0}个拓扑节点',
         SERVICE_TEMPLATE: '{0}个服务模板',
         SET_TEMPLATE: '{0}个集群模板',
+        DYNAMIC_GROUP: '{0}个动态分组',
       };
       targetResult.message = i18n.t(textMap[bkTargetType], [len]) as string;
       const subText = objectType === 'SERVICE' ? '{0}个实例' : '{0}台主机';

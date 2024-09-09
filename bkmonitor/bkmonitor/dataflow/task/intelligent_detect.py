@@ -28,7 +28,7 @@ from bkmonitor.dataflow.node.processor import (
 from bkmonitor.dataflow.node.source import StreamSourceNode
 from bkmonitor.dataflow.node.storage import HDFSStorageNode, TSpiderStorageNode
 from bkmonitor.dataflow.task.base import BaseTask
-from constants.aiops import SceneSet
+from constants.aiops import SCENE_NAME_MAPPING, SceneSet
 from core.drf_resource import api
 
 
@@ -194,8 +194,6 @@ class MultivariateAnomalyAggIntelligentModelDetectTask(BaseTask):
 class MultivariateAnomalyIntelligentModelDetectTask(BaseTask):
     FLOW_NAME_KEY = _("多指标异常检测")
 
-    SCENE_NAME_MAPPING = {SceneSet.HOST: _("主机场景")}
-
     def __init__(
         self,
         access_bk_biz_id,
@@ -274,7 +272,7 @@ class MultivariateAnomalyIntelligentModelDetectTask(BaseTask):
     @property
     def flow_name(self):
         # 模型名称如果有变更，需要同步修改维护dataflow的定时任务逻辑
-        return self.build_flow_name(self.access_bk_biz_id, self.SCENE_NAME_MAPPING[self.scene_name])
+        return self.build_flow_name(self.access_bk_biz_id, SCENE_NAME_MAPPING[self.scene_name])
 
     @classmethod
     def build_flow_name(cls, access_bk_biz_id, scene_name):

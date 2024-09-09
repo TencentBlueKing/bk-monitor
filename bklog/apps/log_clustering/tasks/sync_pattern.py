@@ -41,7 +41,7 @@ from apps.utils.task import high_priority_task
 
 @periodic_task(run_every=crontab(minute="*/10"))
 def sync_pattern():
-    clustering_configs = ClusteringConfig.objects.filter(signature_enable=True).values(
+    clustering_configs = ClusteringConfig.objects.filter(signature_enable=True, signature_pattern_rt="").values(
         "model_id", "model_output_rt", "index_set_id"
     )
     index_set_ids = set()

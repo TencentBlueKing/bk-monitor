@@ -829,6 +829,18 @@ class DeleteDataFlowNode(DataAccessAPIResource):
         confirm = serializers.BooleanField(default=True, required=False)
 
 
+class GetDataflowDeployData(DataAccessAPIResource):
+    """
+    获取DataFlow的所有部署信息
+    """
+
+    action = "/v3/dataflow/flow/flows/{flow_id}/deploy_data/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        flow_id = serializers.IntegerField(required=True, label="DataFlow的ID")
+
+
 class GetLatestDeployDataFlow(DataAccessAPIResource):
     """
     获取DataFlow的最近部署信息
@@ -839,6 +851,27 @@ class GetLatestDeployDataFlow(DataAccessAPIResource):
 
     class RequestSerializer(CommonRequestSerializer):
         flow_id = serializers.IntegerField(required=True, label="DataFlow的ID")
+
+
+class GetDataFlowRunningInfo(DataAccessAPIResource):
+    """
+    获取DataFlow的运行状况详情
+    """
+
+    action = "/v3/dataflow/flow/flows/{flow_id}/versions/draft/?add_node_running_info=1"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        flow_id = serializers.IntegerField(required=True, label="DataFlow的ID")
+
+
+class GetDataMonitorMetrics(DataAccessAPIResource):
+    """
+    获取DataMonitor的埋点指标
+    """
+
+    action = "/v3/datamanage/dmonitor/metrics/output_count/"
+    method = "GET"
 
 
 ################################################################
@@ -1074,6 +1107,14 @@ class GetDataLink(DataAccessAPIResource):
         kind = serializers.CharField(label="资源类型")
         namespace = serializers.CharField(label="命名空间")
         name = serializers.CharField(label="资源名称")
+
+
+class NotifyLogDataIdChanged(DataAccessAPIResource):
+    action = "/v4/tmp/notify_log_dataid_changed/"
+    method = "PUT"
+
+    class RequestSerializer(serializers.Serializer):
+        data_id = serializers.IntegerField(label="数据ID")
 
 
 class ApplyDataFlow(DataAccessAPIResource):

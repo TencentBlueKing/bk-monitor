@@ -476,7 +476,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       /* 已关闭 */
       iconName = 'icon-mc-close-fill';
       iconColor = '#dcdee5';
-      iconText = `${this.$t('已关闭')}`;
+      iconText = `${this.$t('已失效')}`;
       operateDom = null;
     }
     return (

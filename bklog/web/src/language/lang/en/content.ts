@@ -98,7 +98,7 @@ export default {
   设置显示字段: 'Set display fields',
   暂未进行检索: 'No search yet',
   优化查询语句: 'Optimize query statements',
-  近24H新增: 'Added in the last 24 hours',
+  仅查看新类: 'Just view new class strategy',
   批量使用告警: 'Batch use alerts',
   批量停用告警: 'Batch disable alerts',
   查询显示字段: 'Query display fields',
@@ -326,7 +326,7 @@ export default {
   '字段名匹配(*代表通配符)：': 'Field name matching (* stands for wildcard):',
   '当前业务没有接入调用链日志，': 'The current business has not accessed the trace logs,',
   '文本类型不支持 {n} 操作': 'Text type does not support {n} operation',
-  当前索引集不支持字段提取设置: 'The current index set does not support field extraction settings',
+  当前索引集不支持日志聚类设置: 'The current index set does not support log cluster settings',
   '{n}不规范, 包含特殊符号': '{n} is not standard, contains special characters',
   查询命中pattern的日志: 'Query logs that hit the pattern',
   日志数据已进入数据平台或ES: 'The log data has entered the data platform or es',
@@ -341,7 +341,6 @@ export default {
   '当前可能是手动查询，请 {0}': 'It may be a manual query, please {0}',
   您可以按照以下方式优化检索结果: 'You can optimize search results in the following ways',
   '当前日志聚类未启用，请前往设置': 'The current log clustering is not enabled, please go to settings',
-  '当前数据指纹未启用，请前往设置': 'Current data fingerprint is not enabled, please go to settings',
   '私有的只支持默认的“个人收藏”': "Private only supports default 'personal collection'",
   '{n}不规范, 包含特殊符号.': '{n} is not standard, contains special characters.',
   '需要采集日志，请先创建采集任务': 'Log collection is required, please create a collection task first',
@@ -354,7 +353,7 @@ export default {
   '微秒（microsecond）': 'Microsecond',
   '检查查询条件是否完整，是否有报错': 'Check if query conditions are complete and if there are errors',
   '当前收藏有更新，点击保存当前修改': 'The current collection has been updated, click Save Current Modifications',
-  '该保存需要1小时生效,请耐心等待': 'This save will take effect in 1 hour. please be patient',
+  '该保存需要10分钟生效, 请耐心等待': 'This save will take effect in 10 minutes. please be patient',
   'include(保留匹配字符串)': 'Include (preserve matching strings)',
   'exclude(过滤匹配字符串)': 'Exclude (filter matching strings)',
   '当前索引集为{n}，确认要删除？': 'The current index set is {n}, confirm to delete it?',
@@ -431,8 +430,6 @@ export default {
     'Editing and deletion are not allowed for default clusters, please contact the administrator',
   '支持拖拽更改顺序，从上向下对应列表列从左到右顺序':
     'Supports drag and drop to change order, corresponding to the list columns from top to bottom and from left to right',
-  '调试需要等待1分钟以上，在此区间不可进行其余操作':
-    'Debugging takes more than 1 minute, and no other operations can be performed during this period',
   '前端忽略数字和所有的常见符号，只保留日志具体内容':
     'The front-end ignores numbers and all common symbols, only retaining the specific contents of the log',
   '已加载完全部数据，如需查看更多查询条件可以{0}':
@@ -818,4 +815,78 @@ export default {
   '第{n}行': '{n} line',
   '支持正则匹配，如18*123': 'Support regular matching, such as 18*123',
   分隔符匹配: 'Delimiter match',
+  默认定位: 'Default target',
+  上下文命中: 'Context hit',
+  高亮: 'Highlight',
+  '当前页面提供快速配置，如需完整配置，请前往{0}':
+    'The current page provides quick configuration. For complete configuration, please go to {0}',
+  新建完整策略: 'Create a new complete strategy',
+  低: 'Low',
+  高: 'High',
+  致命: 'Fatal',
+  预警: 'Warning',
+  提醒: 'Remind',
+  变化敏感度: 'Change sensitivity',
+  数量突增告警策略: 'Volume surge strategy',
+  '策略：': 'Strategy: ',
+  '是否删除该策略？': 'Has this policy been deleted?',
+  '聚类告警已开启，请点击右侧入口编辑策略':
+    'Clustering alarms have been enabled. Please click the entry on the right to edit the policy.',
+  '每隔 n（整数）天数，再次产生的日志模式将视为新类':
+    'Every n (integer) days, the log pattern generated again will be treated as a new class.',
+  新类对应日志触发告警的条数: 'The number of alarms triggered by logs corresponding to the new category',
+  请先新建新类告警策略: 'Please create a new category strategy first',
+  '大量的日志会导致聚类结果过多，建议使用过滤规则将重要日志进行聚类；如：仅聚类 warn 日志':
+    'A large number of logs can lead to excessive clustering results. It is recommended to use filtering rules to cluster important logs; for example, cluster only warn logs.',
+  '此为系统默认告警屏蔽时间，以防止聚类初期的告警风暴':
+    'This is the system default alert suppression time to prevent an alert storm in the early stages of clustering.',
+  接入日志聚类: 'Log Clustering Access',
+  效果预览: 'Effect Preview',
+  '可在更多操作中管理日志聚类，包含以下能力：':
+    'More operations are available to manage log clustering, including the following capabilities:',
+  启用或停用日志聚类: 'Enable or Disable Log Clustering',
+  正则管理: 'Regex Management',
+  '模型首次启动准备，该过程应该会持续5-10分钟':
+    'The model is being prepared for its first start, which should take 5-10 minutes.',
+  '任务启动中，预计等待时长 {0} 分钟': 'Task is starting, estimated wait time is {0} minutes.',
+  问题反馈: 'Feedback',
+  请输入反馈问题: 'Please enter your feedback',
+  存在冲突匹配结果: 'conflicting Match Results Exist',
+  确认提取: 'Confirm Extraction',
+  日志样例: 'Log Sample',
+  '左键框选字段，可提取并生成正则表达式':
+    'Left-click and drag to select fields, which can be extracted and used to generate regex.',
+  正则表达式: 'Regular Expression',
+  聚类启动失败: 'Cluster start failed',
+  重新接入: 'Reconnect',
+  失败原因: 'Failure Reason',
+  模型创建: 'Model Creation',
+  '系统将创建模型，并将该日志历史数据投入模型中。':
+    'The system will create a model and feed the historical log data into it.',
+  模型启动: 'Model Start Up',
+  '模型首次启动准备，该过程应该会持续5-10分钟。':
+    'The model is being prepared for its first start, which should take 5-10 minutes.',
+  预测准备: 'Prediction Preparation',
+  '针对已投入数据进行在线与离线分析，分析结束后，页面将展示聚类结果。':
+    'Online and offline analysis will be performed on the ingested data. After the analysis is complete, the clustering results will be displayed on the page.',
+  快速开启日志聚类: 'Quickly Enable Log Clustering',
+  '日志聚类可以通过智能分析算法，将相似度高的日志进行快速的汇聚分析，提取日志 Pattern 并进行展示':
+    'Log clustering can use intelligent analysis algorithms to quickly aggregate and analyze logs with high similarity, extract log patterns, and display them.',
+  日志聚类的优势: 'Advantages of Log Clustering',
+  '有利于发现日志中的规律和共性问题，方便从海量日志中排查问题，定位故障':
+    'Helps discover patterns and common issues in logs, making it easier to troubleshoot and identify faults from a large volume of logs.',
+  '可从海量日志中，提取共性部分同时保留独立信息以便于减少存储成本，最多可减少 10% 的存储成本':
+    'Can extract common parts from a large volume of logs while retaining individual information to reduce storage costs, potentially reducing storage costs by up to 10%.',
+  '当版本变更时，可快速定位变更后新增问题': 'Can quickly identify new issues introduced after a version change.',
+  '表示近一段时间内新增日志模式。可自定义新类判定的时间区间。如：近30天内新增':
+    'Indicates new log patterns within a recent period. The time interval for determining new categories can be customized. For example, new patterns added within the last 30 days.',
+  '表示某日志模式数量突然异常增长，可能某些模块突发风险':
+    'The sudden abnormal increase in the number of a certain log pattern may indicate a sudden risk in some modules.',
+  配置项命名空间不能为空: 'Configuration item namespace cannot be empty',
+  搜索名称: 'Search for name',
+  '导入的集群已被删除，请手动选择集群。': 'Imported cluster has been deleted, please manually select a cluster.',
+  '为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成':
+    'To reduce transmission and storage costs, some content can be filtered out. More complex operations can be completed in the "Cleaning" feature.',
+  请选择需要同步的配置: 'Please select the configuration to be synchronized',
+  '任务启动中，预计等待时长 {0} 分钟': 'Task starting, estimated wait time is {0} minutes.',
 };

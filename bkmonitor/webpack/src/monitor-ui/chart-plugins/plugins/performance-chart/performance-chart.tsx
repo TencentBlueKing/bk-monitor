@@ -141,7 +141,7 @@ export default class PerformanceChart extends TimeSeries {
       });
       await Promise.all(promiseList).catch(() => false);
       if (series.length) {
-        const maxXInterval = getSeriesMaxInterval(series);
+        const { maxXInterval, maxSeriesCount } = getSeriesMaxInterval(series);
         /* 派出图表数据包含的维度*/
         const emitDimensions = () => {
           const dimensionSet = new Set();
@@ -187,6 +187,7 @@ export default class PerformanceChart extends TimeSeries {
             return {
               name: item.name,
               cursor: 'auto',
+              // biome-ignore lint/style/noCommaOperator: <explanation>
               data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
               stack: item.stack || random(10),
               unit: item.unit,
@@ -250,7 +251,7 @@ export default class PerformanceChart extends TimeSeries {
           this.panel.options?.time_series?.echart_option || {},
           { arrayMerge: (_, newArr) => newArr }
         );
-        const xInterval = getTimeSeriesXInterval(maxXInterval, this.width);
+        const xInterval = getTimeSeriesXInterval(maxXInterval, this.width, maxSeriesCount);
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
@@ -287,6 +288,7 @@ export default class PerformanceChart extends TimeSeries {
             customData: {
               // customData 自定义的一些配置 用户后面echarts实例化后的配置
               maxXInterval,
+              maxSeriesCount,
             },
           })
         );

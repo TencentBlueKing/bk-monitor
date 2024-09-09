@@ -200,11 +200,11 @@ class CloseStatusChecker(BaseChecker):
             # 如果从缓存中获取到了数据信息，并且缓存中的告警ID与当前告警ID不一致，则认为是存在更新的告警
             # 如果正在发生的事件ID与当前事件ID不一致，则说明事件已经过期，直接关闭
             logger.info(
-                "[close 处理结果] (closed) alert({}), strategy({}) 当前维度存在更新的告警事件({})，告警已关闭".format(
+                "[close 处理结果] (closed) alert({}), strategy({}) 当前维度存在更新的告警事件({})，告警已失效".format(
                     alert.id, alert.strategy_id, current_alert.id
                 )
             )
-            self.close(alert, _("当前维度存在更新的告警事件({})，告警已关闭").format(current_alert.id))
+            self.close(alert, _("当前维度存在更新的告警事件({})，告警已失效").format(current_alert.id))
             return True
         # 如果一致的话，表示是同一个告警，则认为告警在持续
         return False
@@ -260,7 +260,7 @@ class CloseStatusChecker(BaseChecker):
 
         if int(last_check_timestamp) + nodata_tolerance_time < now_timestamp:
             # 如果最近上报时间距离当前时间超过了一个触发窗口的大小，则认为无数据上报，告警关闭
-            self.close(alert, _("在恢复检测周期内无数据上报，告警已关闭"))
+            self.close(alert, _("在恢复检测周期内无数据上报，告警已失效"))
             logger.info(
                 "[close 处理结果] (closed) alert({}), strategy({}), last_check_timestamp({}), now_timestamp({}),"
                 "在恢复检测周期内无数据上报，进行事件关闭".format(alert.id, alert.strategy_id, last_check_timestamp, now_timestamp)
@@ -278,7 +278,7 @@ class CloseStatusChecker(BaseChecker):
         current_time = int(time.time())
         if current_time - latest_time > settings.NO_DATA_ALERT_EXPIRED_TIMEDELTA:
             self.close(
-                alert, _("在恢复检测周期内，已经有 %s 没有产生无数据关联事件，告警已关闭") % hms_string(settings.NO_DATA_ALERT_EXPIRED_TIMEDELTA)
+                alert, _("在恢复检测周期内，已经有 %s 没有产生无数据关联事件，告警已失效") % hms_string(settings.NO_DATA_ALERT_EXPIRED_TIMEDELTA)
             )
             return True
         return False

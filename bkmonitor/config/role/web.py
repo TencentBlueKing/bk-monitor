@@ -24,6 +24,7 @@ from ..tools.environment import (
     IS_CONTAINER_MODE,
     NEW_ENV,
     PAAS_VERSION,
+    ROLE,
 )
 
 # fmt: off
@@ -77,6 +78,13 @@ INSTALLED_APPS += (
     'bk_notice_sdk',
 )
 
+
+# 切换session的backend后， 需要设置该中间件，确保新的 csrftoken 被设置到新的session中
+ensure_csrf_cookie = "django.views.decorators.csrf._EnsureCsrfCookie"
+# 切换backend一段时候后， 再使用如下配置进行csrf保护
+csrf_protect = "django.middleware.csrf.CsrfViewMiddleware"
+
+
 MIDDLEWARE = (
     "bkmonitor.middlewares.pyinstrument.ProfilerMiddleware",
     "bkmonitor.middlewares.prometheus.MetricsBeforeMiddleware",  # 必须放到最前面
@@ -85,7 +93,8 @@ MIDDLEWARE = (
     "bkmonitor.middlewares.request_middlewares.RequestProvider",
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
+    # "django.middleware.csrf.CsrfViewMiddleware",
+    ensure_csrf_cookie,
     "weixin.core.middlewares.WeixinProxyPatchMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -99,7 +108,6 @@ MIDDLEWARE = (
     # 用户登录验证middleware
     "bkmonitor.middlewares.authentication.ApiTokenAuthenticationMiddleware",
     # 应用流控保护，放在用户登录验证之后
-    "bkmonitor.middlewares.application_protection.ProtectionMiddleware",
     "blueapps.middleware.xss.middlewares.CheckXssMiddleware",
     # APIGW JWT验证中间件
     "bkmonitor.middlewares.authentication.ApiGatewayJWTExternalMiddleware",
@@ -200,6 +208,15 @@ CACHES = {
     "login_db": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "account_cache"},
     "dummy": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"},
     "locmem": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    "space": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "space",
+        'OPTIONS': {
+            # 5w空间支持
+            'MAX_ENTRIES': 50000,
+            'CULL_FREQUENCY': 0,
+        },
+    },
 }
 CACHES["default"] = CACHES["db"]
 
@@ -239,6 +256,10 @@ if USE_DJANGO_CACHE_REDIS:
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_PATH = SITE_URL
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
+if USE_DJANGO_CACHE_REDIS and ROLE == "web":
+    # 配置redis缓存后， 使用缓存存session
+    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+    SESSION_CACHE_ALIAS = "redis"
 SESSION_COOKIE_NAME = APP_CODE + "_sessionid"
 
 #
@@ -319,8 +340,8 @@ CELERYBEAT_SCHEDULE = {
         "schedule": crontab(minute="*/10"),
         "enabled": True,
     },
-    "monitor_web.tasks.update_aiops_dataflow_status": {
-        "task": "monitor_web.tasks.update_aiops_dataflow_status",
+    "monitor_web.tasks.maintain_aiops_strategies": {
+        "task": "monitor_web.tasks.maintain_aiops_strategies",
         "schedule": crontab(minute="*/10"),
         "enabled": False,
     },
@@ -380,6 +401,11 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "monitor_api.pagination.MonitorAPIPagination",
     "PAGE_SIZE": 20,
     "DEFAULT_PERMISSION_CLASSES": ("monitor_web.permissions.BusinessViewPermission",),
+    # CSRF 豁免期， drf同样豁免
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework.authentication.BasicAuthentication",
+        "bkm_ipchooser.authentication.CsrfExemptSessionAuthentication",
+    ),
 }
 
 #

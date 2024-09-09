@@ -312,11 +312,15 @@ export default class DataRetrieval extends tsc<object> {
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
   @Debounce(200)
   @Provide('handleChartDataZoom')
-  handleChartDataZoom(value: TimeRangeType) {
+  handleChartDataZoom(value: TimeRangeType, immediateQuery = false) {
     if (JSON.stringify(this.compareValue.tools.timeRange) !== JSON.stringify(value)) {
       this.cacheTimeRange = JSON.parse(JSON.stringify(this.compareValue.tools.timeRange));
       this.compareValue.tools.timeRange = value;
       this.showRestore = true;
+      if (immediateQuery) {
+        this.handleQuery();
+        return;
+      }
       this.handleQueryProxy();
     }
   }
@@ -335,7 +339,9 @@ export default class DataRetrieval extends tsc<object> {
 
   @Watch('loading')
   loadingChange(val: boolean) {
-    setTimeout(() => (this.delayLoading = val ? this.loading : false), 200);
+    setTimeout(() => {
+      this.delayLoading = val ? this.loading : false;
+    }, 200);
   }
 
   @Watch('queryResult')
@@ -450,6 +456,13 @@ export default class DataRetrieval extends tsc<object> {
     return this.favCheckedValue === null;
   }
 
+  get tabActiveName() {
+    return {
+      monitor: 'route-指标检索',
+      event: 'route-事件检索',
+    };
+  }
+
   get selectFavoriteName() {
     return this.favCheckedValue?.name || '--';
   }
@@ -477,13 +490,13 @@ export default class DataRetrieval extends tsc<object> {
   get canToPromql() {
     if (this.editMode === 'UI') {
       return this.localValue
-        .filter(item => !!item.metric_id)
+        .filter(item => item.metric_id)
         .every(item => ['custom', 'bk_monitor', 'bk_data'].includes(item.data_source_label));
     }
     return true;
   }
 
-  beforeRouteEnter(to: Route, from: Route, next: (to?: ((vm: any) => any) | RawLocation | false | void) => void) {
+  beforeRouteEnter(to: Route, from: Route, next: (to?: ((vm: any) => any) | false | RawLocation) => void) {
     next((vm: DataRetrieval) => {
       const { targets, type } = vm.$route.query.targets ? vm.$route.query : vm.$route.params;
       let targetsList = [];
@@ -547,6 +560,7 @@ export default class DataRetrieval extends tsc<object> {
       updateTimezone(timezone as string);
     }
     if (targets) {
+      debugger;
       try {
         targetsList = JSON.parse(decodeURIComponent(targets as string));
       } catch (error) {
@@ -666,7 +680,7 @@ export default class DataRetrieval extends tsc<object> {
           const urlFavoriteID = this.$route.query.favorite_id;
           for (const gItem of res) {
             const favorite = gItem.favorites.find(item => String(item.id) === urlFavoriteID);
-            if (!!favorite) {
+            if (favorite) {
               this.handleSelectFavProxy(favorite);
               break;
             }
@@ -684,7 +698,7 @@ export default class DataRetrieval extends tsc<object> {
           let isFindCheckValue = false; // 是否从列表中找到匹配当前收藏的id
           for (const gItem of this.favList[this.tabActive]) {
             const findFavorites = gItem.favorites.find(item => item.id === this.favCheckedValue.id);
-            if (!!findFavorites) {
+            if (findFavorites) {
               isFindCheckValue = true; // 找到 中断循环
               break;
             }
@@ -893,11 +907,7 @@ export default class DataRetrieval extends tsc<object> {
    * @param {number} index
    */
   handleDeleteItem(index: number) {
-    const item = this.localValue[index];
-    if (item.isMetric) {
-      const child = item as DataRetrievalQueryItem;
-      if (this.localValue.length === 1 && child.isNullMetric) return;
-    }
+    if (this.localValue.length === 1) return;
     this.localValue.splice(index, 1);
     if (!this.localValue.length) {
       this.handleAddQuery();
@@ -978,7 +988,7 @@ export default class DataRetrieval extends tsc<object> {
   handleShowMetricSelector(val: boolean, index?: number) {
     if (val) {
       const curItem = this.localValue[index] as DataRetrievalQueryItem;
-      this.metricData = !!curItem.metric_id ? [curItem] : [];
+      this.metricData = curItem.metric_id ? [curItem] : [];
       this.curLocalValueIndex = index;
       this.metricSelectorMetricId = curItem.metric_id;
     }
@@ -1162,6 +1172,8 @@ export default class DataRetrieval extends tsc<object> {
         .filter(item => item);
       const str = list.map(item => `${item.count} ${item.name}`).join('、');
       targetDes = this.$t('已选择 {n}', { n: str }) as string;
+    } else if ('dynamic_group_id' in cloneTarget[0]) {
+      targetDes = this.$t('已选择 {n} 个动态分组', { n: cloneTarget.length }) as string;
     } else {
       // 静态目标
       targetDes = this.$t('已选择 {n} 个主机', { n: cloneTarget.length }) as string;
@@ -1475,7 +1487,7 @@ export default class DataRetrieval extends tsc<object> {
   async handleSubmitFavorite({ value, hideCallback, isEdit }) {
     const type = this.tabActive === 'event' ? 'event' : 'metric';
     const { group_id, name, id } = value;
-    let config;
+    let config = undefined;
     // 若是当前是编辑收藏, 且非更新收藏config的情况下 不改变config
     if (this.isUpdateFavoriteConfig) {
       if (this.tabActive === 'event') {
@@ -1536,7 +1548,7 @@ export default class DataRetrieval extends tsc<object> {
    */
   getFavoriteDialogKeywords(replaceData?: any) {
     let currentFavoriteKeywordsData: any;
-    if (!!replaceData) {
+    if (replaceData) {
       currentFavoriteKeywordsData = replaceData;
     } else {
       if (this.tabActive === 'event') {
@@ -1684,7 +1696,7 @@ export default class DataRetrieval extends tsc<object> {
       this.localValue.forEach((item: DataRetrievalQueryItem) => {
         // 指标
         if (item.isMetric && !item.isNullMetric && !item.sourceCodeError) {
-          const queryConfigItem: IDataRetrieval.queryConfigsParams | any = {
+          const queryConfigItem: any | IDataRetrieval.queryConfigsParams = {
             metric: item.metric_field,
             method: item.agg_method,
             alias: item.alias,
@@ -1921,19 +1933,27 @@ export default class DataRetrieval extends tsc<object> {
       TOPO: 'host_topo_node',
       SERVICE_TEMPLATE: 'host_template_node',
       SET_TEMPLATE: 'host_template_node',
+      DYNAMIC_GROUP: 'dynamic_group',
     };
-    const value =
-      this.target.targetType === 'INSTANCE'
-        ? this.target.value.map((item: any) => ({
-            ip: item.ip,
-            bk_cloud_id: item.bk_cloud_id,
-            bk_host_id: item.bk_host_id,
-            bk_supplier_id: item.bk_supplier_id,
-          }))
-        : this.target.value.map((item: any) => ({
-            bk_inst_id: item.bk_inst_id,
-            bk_obj_id: item.bk_obj_id,
-          }));
+    let value = [];
+    if (this.target.targetType === 'DYNAMIC_GROUP') {
+      value = this.target.value.map((item: any) => ({
+        dynamic_group_id: item.dynamic_group_id || item.id,
+      }));
+    } else {
+      value =
+        this.target.targetType === 'INSTANCE'
+          ? this.target.value.map((item: any) => ({
+              ip: item.ip,
+              bk_cloud_id: item.bk_cloud_id,
+              bk_host_id: item.bk_host_id,
+              bk_supplier_id: item.bk_supplier_id,
+            }))
+          : this.target.value.map((item: any) => ({
+              bk_inst_id: item.bk_inst_id,
+              bk_obj_id: item.bk_obj_id,
+            }));
+    }
     // 监控目标格式转换
     const targets = [
       [
@@ -2195,7 +2215,7 @@ export default class DataRetrieval extends tsc<object> {
         /** 去除单指标时重复的表达式a查询 */
         if (expression) {
           // display为grafana的隐藏展示参数 如果为单指标跳转不展示表达式的图
-          const enable = isMultipleMetric ? targets[index].data.display ?? true : expression !== 'a';
+          const enable = isMultipleMetric ? (targets[index].data.display ?? true) : expression !== 'a';
           const expItem: IDataRetrieval.IExpressionItem = {
             alias: '',
             enable,
@@ -2342,7 +2362,7 @@ export default class DataRetrieval extends tsc<object> {
     const tipsMap: { [key in IDataRetrieval.IOption]: string } = {
       copy: `${this.$t('拷贝')}`,
       delete: `${this.$t('删除')}`,
-      enable: `${this.$t(item.enable ? '隐藏' : '展示')}`,
+      enable: `${this.$t(item.enable ? '不看此项' : '显示此项')}`,
       source: `${metricItem.showSource ? 'UI' : this.$t('源码')}`,
     };
     return tipsMap[opt] || '';
@@ -2740,7 +2760,7 @@ export default class DataRetrieval extends tsc<object> {
    */
   handleTimeRangeChange(timeRange: EventRetrievalViewType.IEvent['onTimeRangeChange']) {
     timeRange && (this.eventChartTimeRange = timeRange);
-    if (!!timeRange) {
+    if (timeRange) {
       const targetTime = timestampTransformStr(timeRange);
       this.eventSelectTimeRange = targetTime;
     }
@@ -3014,7 +3034,13 @@ export default class DataRetrieval extends tsc<object> {
             return (
               <i
                 key={opt}
-                class={['icon-monitor', iconName, sourceAcitve, display]}
+                class={[
+                  'icon-monitor',
+                  { disabled: opt === 'delete' && this.localValue.length === 1 },
+                  iconName,
+                  sourceAcitve,
+                  display,
+                ]}
                 v-bk-tooltips_top={this.handleTitleTips(opt, item)}
                 onClick={evt => evt.stopPropagation()}
                 onMousedown={evt => this.handleOptionProxy(evt, opt, item, index)}
@@ -3067,7 +3093,7 @@ export default class DataRetrieval extends tsc<object> {
               onChange={data => this.handleExpressionValueChange(data, index)}
             />
           )}
-          {!!item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
+          {item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
         </div>
       );
     };
@@ -3082,7 +3108,9 @@ export default class DataRetrieval extends tsc<object> {
           onChange={this.handleChangeBizId} /> */}
         <div class='title-main'>
           <div class='title-edit'>
-            <span class='title-text'>{this.isFavoriteNewSearch ? this.$t('新检索') : this.selectFavoriteName}</span>
+            <span class='title-text'>
+              {this.isFavoriteNewSearch ? this.$t(this.tabActiveName[this.tabActive]) : this.selectFavoriteName}
+            </span>
             {!this.isFavoriteNewSearch ? (
               <span
                 class='edit icon-monitor icon-bianji'
@@ -3103,7 +3131,7 @@ export default class DataRetrieval extends tsc<object> {
                 onClick={this.handleEditModeChange}
               >
                 <span class='icon-monitor icon-switch' />
-                <span>{this.editMode === 'PromQL' ? 'UI' : 'PromQL'}</span>
+                <span>{this.editMode === 'PromQL' ? this.$t('表单') : 'PromQL'}</span>
               </span>
             )}
             {this.tabActive === 'monitor' && (
@@ -3139,7 +3167,15 @@ export default class DataRetrieval extends tsc<object> {
               class='target-add-btn-content'
               onClick={this.handleShowTargetSelector}
             >
-              {this.target.desc ? this.target.desc : [<i class='icon-monitor icon-plus-line' />, this.$t('IP目标')]}
+              {this.target.desc
+                ? this.target.desc
+                : [
+                    <i
+                      key={1}
+                      class='icon-monitor icon-plus-line'
+                    />,
+                    this.$t('IP目标'),
+                  ]}
             </span>
           </div>
         )}
@@ -3147,6 +3183,7 @@ export default class DataRetrieval extends tsc<object> {
     );
     const metricRetrieval = () => [
       <bk-collapse
+        key={1}
         class='collapse-wrap collapse-wrap-data'
         vModel={this.expandedData}
       >
@@ -3178,7 +3215,10 @@ export default class DataRetrieval extends tsc<object> {
           ))}
         </transition-group>
       </bk-collapse>,
-      <div class='query-add-btn-wrap'>
+      <div
+        key={2}
+        class='query-add-btn-wrap'
+      >
         <span
           class='query-add-btn'
           onClick={this.handleAddQuery}
@@ -3195,6 +3235,7 @@ export default class DataRetrieval extends tsc<object> {
         </span>
       </div>,
       <HandleBtn
+        key={3}
         class='search-group'
         autoQuery={this.autoQuery}
         canQuery={this.canQuery && !this.loading}
@@ -3304,7 +3345,7 @@ export default class DataRetrieval extends tsc<object> {
                           </div>
                         </bk-input>
                       </span>
-                      {!!item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
+                      {item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
                     </div>
                   ),
                 }}
@@ -3557,8 +3598,8 @@ export default class DataRetrieval extends tsc<object> {
               <AddCollectDialog
                 v-model={this.isShowAddFavoriteDialog}
                 editFavoriteData={this.editFavoriteData}
-                favStrList={this.favStrList}
                 favoriteSearchType={this.favoriteSearchType}
+                favStrList={this.favStrList}
                 keyword={this.favoriteKeywordsData}
                 onCancel={() => (this.editFavoriteData = null)}
                 onSubmit={value => this.handleSubmitFavorite(value)}

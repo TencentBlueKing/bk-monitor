@@ -114,7 +114,7 @@ export default {
                 if (beforeMatch) {
                   tempResultArray.push({ str: beforeMatch, style: null });
                 }
-                tempResultArray.push({ str: matchedText, style: style });
+                tempResultArray.push({ str: matchedText, style: style, isHighLight: true });
                 matchIndex = match.index + matchedText.length;
               }
 
@@ -147,7 +147,15 @@ export default {
               </span>
             )}
             {item.val.map(item => {
-              if (item.style) return <span style={item.style}>{item.str}</span>;
+              if (item.style)
+                return (
+                  <span
+                    style={item.style}
+                    data-index={item?.isHighLight ? 'light' : 'filter'}
+                  >
+                    {item.str}
+                  </span>
+                );
               return item.str;
             })}
             &nbsp;

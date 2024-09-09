@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import logging
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from django.conf import settings
 from django.db import models
@@ -29,6 +29,7 @@ class DataLinkResource(BaseModelWithTime):
     vm_table_id_name = models.CharField("结果表名称", max_length=64, null=True, blank=True)
     vm_binding_name = models.CharField("vm 存储绑定名称", max_length=64, null=True, blank=True)
     data_bus_name = models.CharField("数据总线名称", max_length=64, null=True, blank=True)
+    conditional_sink_name = models.CharField("条件节点名称", max_length=64, null=True, blank=True)
 
     class Meta:
         verbose_name = "数据链路资源"
@@ -162,11 +163,37 @@ class DataLinkResourceConfig(BaseModelWithTime):
         )
 
     @classmethod
+    def compose_conditional_sink_config(cls, name: str, conditions: List) -> Dict:
+        """组装条件处理配置"""
+        tpl = """
+        {
+            "kind": "ConditionalSink",
+            "metadata": {
+                "namespace": "{{namespace}}",
+                "name": "{{name}}"
+            },
+            "spec": {
+                "conditions": {{conditions}}
+            }
+        }
+        """
+        return utils.compose_config(
+            tpl=tpl,
+            render_params={
+                "name": name,
+                "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+                "conditions": json.dumps(conditions),
+            },
+            err_msg_prefix="compose vm conditional sink config",
+        )
+
+    @classmethod
     def compose_vm_data_bus_config(
         cls,
         name: str,
-        vm_binding_name: str,
+        sink_name: str,
         data_id_name: str,
+        sinks: List,
         transform_kind: Optional[str] = constants.DEFAULT_METRIC_TRANSFORMER_KIND,
         transform_name: Optional[str] = constants.DEFAULT_METRIC_TRANSFORMER,
         transform_format: Optional[str] = constants.DEFAULT_METRIC_TRANSFORMER_FORMAT,
@@ -181,13 +208,7 @@ class DataLinkResourceConfig(BaseModelWithTime):
             },
             "spec": {
                 "maintainers": {{maintainers}},
-                "sinks": [
-                    {
-                        "kind": "VmStorageBinding",
-                        "name": "{{vm_binding_name}}",
-                        "namespace": "{{namespace}}"
-                    }
-                ],
+                "sinks": {{sinks}},
                 "sources": [
                     {
                         "kind": "DataId",
@@ -211,7 +232,8 @@ class DataLinkResourceConfig(BaseModelWithTime):
             render_params={
                 "name": name,
                 "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-                "vm_binding_name": vm_binding_name,
+                "sinks": json.dumps(sinks),
+                "sink_name": sink_name,
                 "data_id_name": data_id_name,
                 "transform_kind": transform_kind,
                 "transform_name": transform_name,

@@ -21,15 +21,19 @@ class BaseTreeTransformer(TreeTransformer):
     def visit_word(self, node, context):
         if context.get("ignore_word"):
             yield from self.generic_visit(node, context)
+
         else:
             # 获取搜索字段的名字
             search_field_name = context.get("search_field_name")
-            if search_field_name in self.VALUE_TRANSLATE_FIELDS:
-                for value, display in self.VALUE_TRANSLATE_FIELDS[search_field_name]:
-                    # 尝试将匹配翻译值，并转换回原值
-                    if display == node.value:
-                        node.value = str(value)
-            elif not search_field_name:
+            if search_field_name:
+                if search_field_name in self.VALUE_TRANSLATE_FIELDS:
+                    for value, display in self.VALUE_TRANSLATE_FIELDS[search_field_name]:
+                        # 尝试将匹配翻译值，并转换回原值
+                        if display == node.value:
+                            node.value = str(value)
+                else:
+                    node.value = self.transform_value_with_search_field(node.value)
+            else:
                 for key, choices in self.VALUE_TRANSLATE_FIELDS.items():
                     origin_value = None
                     for value, display in choices:
@@ -43,9 +47,17 @@ class BaseTreeTransformer(TreeTransformer):
                         context = {"ignore_search_field": True, "ignore_word": True}
                         break
                 else:
-                    node.value = f'"{node.value}"'
+                    node.value = self.transform_value_without_search_field(node.value)
 
             yield from self.generic_visit(node, context)
+
+    @classmethod
+    def transform_value_with_search_field(cls, value: str) -> str:
+        return value
+
+    @classmethod
+    def transform_value_without_search_field(cls, value: str) -> str:
+        return f'"{value}"'
 
     @classmethod
     def transform_condition_fields(cls, conditions: List):

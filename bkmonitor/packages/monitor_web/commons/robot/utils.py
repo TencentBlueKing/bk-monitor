@@ -211,7 +211,7 @@ def robot_module_result_build(robot_modules):
         level_list.append(robot_module.level)
         notice_list.append(robot_module.is_notice)
 
-    robot_level = min(*level_list)
+    robot_level = min(*level_list) if len(level_list) > 1 else level_list[0]
     robot_is_notice = any(notice_list)
 
     return {"need_notice": robot_is_notice, "robot_level": robot_level, **result}

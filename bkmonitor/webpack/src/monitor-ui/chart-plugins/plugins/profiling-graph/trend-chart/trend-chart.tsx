@@ -71,7 +71,7 @@ export default class TrendChart extends tsc<ITrendChartProps> {
     let targetApi = undefined;
     let targetData = undefined;
     if (this.chartType === 'all') {
-      type = 'bar';
+      type = 'line';
       targetApi = 'apm_profile.query';
       targetData = {
         ...this.queryParams,

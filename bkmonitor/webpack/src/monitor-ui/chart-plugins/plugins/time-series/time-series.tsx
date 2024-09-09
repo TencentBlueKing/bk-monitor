@@ -426,7 +426,7 @@ export class LineChart
       await Promise.all(promiseList).catch(() => false);
       this.metrics = metrics || [];
       if (series.length) {
-        const maxXInterval = getSeriesMaxInterval(series);
+        const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
         /* 派出图表数据包含的维度*/
         this.emitDimensions(series);
         this.series = Object.freeze(series) as any;
@@ -515,7 +515,7 @@ export class LineChart
           { arrayMerge: (_, newArr) => newArr }
         );
         const isBar = this.panel.options?.time_series?.type === 'bar';
-        const xInterval = getTimeSeriesXInterval(maxXInterval, this.width);
+        const xInterval = getTimeSeriesXInterval(maxXInterval, this.width, maxSeriesCount);
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
@@ -555,6 +555,7 @@ export class LineChart
             customData: {
               // customData 自定义的一些配置 用户后面echarts实例化后的配置
               maxXInterval,
+              maxSeriesCount,
             },
           })
         );
@@ -779,7 +780,7 @@ export class LineChart
         if (onlyBeginEnd && v > minX && v < maxX) {
           return '';
         }
-        if (duration < 59 * 60) {
+        if (duration < 1 * 60) {
           return dayjs.tz(v).format('mm:ss');
         }
         if (duration < 60 * 60 * 24 * 1) {

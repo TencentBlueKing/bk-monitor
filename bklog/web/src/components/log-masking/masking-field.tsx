@@ -32,7 +32,7 @@ import { Dialog, Tag, Input, Switcher, Table, TableColumn, Button, Popover, Side
 import VueDraggable from 'vuedraggable';
 
 import $http from '../../api';
-import { formatDate, getFlatObjValues } from '../../common/util';
+import { getFlatObjValues } from '../../common/util';
 import { fieldTypeMap } from '../../store/constant';
 import EmptyStatus from '../empty-status/index.vue';
 import { deepClone } from '../monitor-echarts/utils';
@@ -824,8 +824,8 @@ export default class MaskingField extends tsc<IProps> {
   async getFieldType() {
     try {
       const currentTime = Date.now();
-      const startTime = formatDate(currentTime - 15 * 60 * 1000);
-      const endTime = formatDate(currentTime);
+      const startTime = Math.floor((currentTime - 15 * 60 * 1000) / 1000);
+      const endTime = Math.floor(currentTime / 1000);
       const res = await $http.request('retrieve/getLogTableHead', {
         params: { index_set_id: this.collectData?.index_set_id },
         query: {

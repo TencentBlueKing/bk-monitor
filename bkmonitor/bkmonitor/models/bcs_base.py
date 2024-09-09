@@ -182,6 +182,7 @@ class BCSBase(models.Model):
                 "checked": True,
                 "sortable": True,
                 "sortable_type": "progress",
+                "header_pre_icon": "icon-avg",
             },
             {
                 "id": "request_memory_usage_ratio",
@@ -200,6 +201,7 @@ class BCSBase(models.Model):
                 "checked": True,
                 "sortable": True,
                 "sortable_type": "progress",
+                "header_pre_icon": "icon-avg",
             },
         ]
 

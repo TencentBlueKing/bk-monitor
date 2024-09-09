@@ -89,7 +89,9 @@ class AlertAssigneeManager:
         upgrade_config=None,
         notice_type=None,
         user_type=UserGroupType.MAIN,
+        new_alert=False,
     ):
+        self._is_new = new_alert
         self.alert = alert
         self.assign_mode = assign_mode or [AssignMode.ONLY_NOTICE]
         self.notice_type = notice_type
@@ -100,11 +102,12 @@ class AlertAssigneeManager:
             # 如果是升级通知，采用升级通知里的配置
             self.origin_notice_users_object = self.get_origin_supervisor_object()
         else:
-            self.origin_notice_users_object = self.get_origin_notice_users_object(notice_user_groups)
+            self.origin_notice_users_object = self.get_origin_notice_users_object(notice_user_groups or [])
         self.matched_group = None
         self.is_matched = False
         self.match_manager = self.get_match_manager()
         self.notice_appointees_object = self.get_notice_appointees_object()
+        self._is_new = new_alert
 
     def get_match_manager(self):
         """
@@ -132,10 +135,14 @@ class AlertAssigneeManager:
             self.is_matched = True
         self.matched_group = manager.matched_group_info.get("group_id")
         logger.info(
-            "[assign match] finished: alert(%s), matched_rule(%s), assign results(%s)",
+            "[%s assign match] finished: alert(%s), strategy(%s), matched_rule(%s), "
+            "assign_rule_id(%s), assign_mode(%s)",
+            "alert.builder" if self._is_new else "create actions",
             self.alert.id,
+            str(self.alert.strategy["id"]) if self.alert.strategy else 0,
             len(manager.matched_rules),
             self.matched_group,
+            self.assign_mode,
         )
         return manager
 

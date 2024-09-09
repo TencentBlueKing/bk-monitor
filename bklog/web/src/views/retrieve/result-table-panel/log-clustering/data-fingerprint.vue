@@ -176,11 +176,7 @@
         <template slot-scope="{ row, $index }">
           <div class="pattern">
             <div :class="['pattern-content', { 'is-limit': getLimitState($index) }]">
-              <cluster-event-popover
-                :context="row.pattern"
-                :tippy-options="{ distance: 10, placement: 'bottom', boundary: scrollContent }"
-                @event-click="(option, isLink) => handleMenuClick(option, row, isLink)"
-              >
+              <cluster-event-popover @event-click="(option, isLink) => handleMenuClick(option, row, isLink)">
                 <text-highlight
                   style="word-break: break-all; white-space: pre-line"
                   class="monospace-text"
@@ -292,25 +288,24 @@
       </template>
 
       <template #empty>
-        <div>
-          <empty-status
-            :show-text="false"
-            empty-type="empty"
+        <empty-status
+          :show-text="false"
+          empty-type="empty"
+        >
+          <div
+            v-if="!configData.extra.signature_switch"
+            class="empty-text"
           >
-            <div
-              v-if="!clusterSwitch || !configData.extra.signature_switch"
-              class="empty-text"
+            <p>{{ $t('当前日志聚类未启用，请前往设置') }}</p>
+            <span
+              class="empty-leave"
+              @click="handleLeaveCurrent"
             >
-              <p>{{ getLeaveText }}</p>
-              <span
-                class="empty-leave"
-                @click="handleLeaveCurrent"
-                >{{ $t('去设置') }}</span
-              >
-            </div>
-            <p v-if="!fingerList.length && configData.extra.signature_switch">{{ $t('暂无数据') }}</p>
-          </empty-status>
-        </div>
+              {{ $t('去设置') }}
+            </span>
+          </div>
+          <p v-else>{{ $t('暂无数据') }}</p>
+        </empty-status>
       </template>
     </bk-table>
 
@@ -378,7 +373,7 @@
         :model="verifyData"
         :rules="rules"
       >
-        <bk-form-item property="labelRuels">
+        <bk-form-item property="labelRules">
           <bk-input
             v-model="verifyData.textInputStr"
             :maxlength="100"
@@ -401,10 +396,9 @@
   import ClusteringLoader from '@/skeleton/clustering-loader';
   import BkUserSelector from '@blueking/user-selector';
 
-  import ClusterEventPopover from './components/cluster-event-popover';
-  import ClusterFilter from './components/cluster-filter';
+  import ClusterEventPopover from './components/finger-tools/cluster-popover.tsx';
+  import ClusterFilter from './components/finger-tools/cluster-filter';
   import fingerSelectColumn from './components/finger-select-column';
-
   export default {
     components: {
       ClusterEventPopover,
@@ -418,10 +412,6 @@
     props: {
       fingerList: {
         type: Array,
-        require: true,
-      },
-      clusterSwitch: {
-        type: Boolean,
         require: true,
       },
       requestData: {
@@ -460,7 +450,7 @@
           textInputStr: '',
         },
         rules: {
-          labelRuels: [
+          labelRules: [
             {
               validator: this.checkName,
               message: this.$t('{n}不规范, 包含特殊符号.', { n: this.$t('备注') }),
@@ -531,11 +521,6 @@
       },
       isShowBottomTips() {
         return this.fingerList.length >= 50 && this.fingerList.length === this.allFingerList.length;
-      },
-      getLeaveText() {
-        return !this.clusterSwitch
-          ? this.$t('当前日志聚类未启用，请前往设置')
-          : this.$t('当前数据指纹未启用，请前往设置');
       },
       getTableWidth() {
         return this.$store.getters.isEnLanguage ? this.enTableWidth : this.cnTableWidth;

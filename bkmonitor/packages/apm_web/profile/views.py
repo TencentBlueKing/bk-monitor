@@ -21,8 +21,10 @@ from django.utils.translation import ugettext_lazy as _
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.status import HTTP_200_OK
 from rest_framework.viewsets import ViewSet
 
+from apm_web.decorators import user_visit_record
 from apm_web.models import Application, ProfileUploadRecord, UploadedFileStatus
 from apm_web.profile.constants import (
     BUILTIN_APP_NAME,
@@ -85,6 +87,7 @@ class ProfileBaseViewSet(ViewSet):
 
 class ProfileUploadViewSet(ProfileBaseViewSet):
     @action(methods=["POST"], detail=False, url_path="upload")
+    @user_visit_record
     def upload(self, request: Request):
         """上传 profiling 文件"""
         uploaded = request.FILES.get("file")
@@ -140,6 +143,7 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
         return Response(data=ProfileUploadRecordSLZ(record).data)
 
     @action(methods=["GET"], detail=False, url_path="records")
+    @user_visit_record
     def records(self, request: Request):
         serializer = ProfileListFileSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
@@ -247,7 +251,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         )
         r = q.execute(retry_if_empty_handler=retry_handler)
         if r is None:
-            raise ValueError(_("未查询到有效数据"))
+            return {}
 
         if not converter:
             return r
@@ -295,6 +299,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         }
 
     @action(methods=["POST", "GET"], detail=False, url_path="samples")
+    @user_visit_record
     def samples(self, request: Request):
         """查询 profiling samples 数据"""
         serializer = ProfileQuerySerializer(data=request.data or request.query_params)
@@ -363,8 +368,8 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                         f"异常信息：{record.content}"
                     )
 
-        if tree_converter.empty():
-            return Response(data={})
+        if not tree_converter or tree_converter.empty():
+            return Response(_("未查询到有效数据"), status=HTTP_200_OK)
 
         diagram_types = data["diagram_types"]
         options = {"sort": data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
@@ -382,8 +387,8 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 converter=ConverterType.Tree,
                 extra_params=extra_params,
             )
-            if diff_tree_converter.empty():
-                raise ValueError(_("当前对比项的查询条件未查询到有效数据，请调整后再试"))
+            if not diff_tree_converter or diff_tree_converter.empty():
+                return Response(_("当前对比项的查询条件未查询到有效数据，请调整后再试"), status=HTTP_200_OK)
 
             diff_diagram_dicts = (
                 get_diagrammer(d_type).diff(tree_converter, diff_tree_converter, **options) for d_type in diagram_types
@@ -435,7 +440,8 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
     ):
         """获取时序表数据"""
 
-        if end - start <= 60000:
+        if end - start <= 5 * 60 * 1000:
+            # 5 分钟内向秒取整
             # 向秒取整
             dimension = "FLOOR(dtEventTimeStamp / 1000) * 1000"
         else:
@@ -549,7 +555,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         )
 
         label_keys = set(
-            itertools.chain(*[list(json.loads(i["labels"]).keys()) for i in results["list"] if i.get("labels")])
+            itertools.chain(*[list(json.loads(i["labels"]).keys()) for i in results.get("list", {}) if i.get("labels")])
         )
 
         return Response(data={"label_keys": label_keys})
@@ -583,9 +589,12 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             end=end,
         )
 
-        return Response(data={"label_values": [i["label_value"] for i in results["list"] if i.get("label_value")]})
+        return Response(
+            data={"label_values": [i["label_value"] for i in results.get("list", {}) if i.get("label_value")]}
+        )
 
     @action(methods=["GET"], detail=False, url_path="export")
+    @user_visit_record
     def export(self, request: Request):
         serializer = ProfileQueryExportSerializer(data=request.data or request.query_params)
         serializer.is_valid(raise_exception=True)
@@ -621,8 +630,12 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         file_name = PROFILE_EXPORT_FILE_NAME.format(
             app_name=app_name, data_type=validated_data["data_type"], time=now_str, format=export_format
         )
-        serialized_data = doris_converter.profile.SerializeToString()
-        compressed_data = gzip.compress(serialized_data)
+
+        if not doris_converter:
+            compressed_data = b''
+        else:
+            serialized_data = doris_converter.profile.SerializeToString()
+            compressed_data = gzip.compress(serialized_data)
 
         response = HttpResponse(compressed_data, content_type="application/octet-stream")
         response["Content-Encoding"] = "gzip"
@@ -648,7 +661,21 @@ class ResourceQueryViewSet(ResourceViewSet):
         ]
 
     resource_routes = [
-        ResourceRoute("GET", ListApplicationServicesResource, endpoint="services"),
+        ResourceRoute(
+            "GET",
+            ListApplicationServicesResource,
+            endpoint="services",
+            decorators=[
+                user_visit_record,
+            ],
+        ),
         ResourceRoute("POST", QueryProfileBarGraphResource, endpoint="services_trace_bar"),
-        ResourceRoute("GET", QueryServicesDetailResource, endpoint="services_detail"),
+        ResourceRoute(
+            "GET",
+            QueryServicesDetailResource,
+            endpoint="services_detail",
+            decorators=[
+                user_visit_record,
+            ],
+        ),
     ]

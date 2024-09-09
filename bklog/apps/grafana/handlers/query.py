@@ -314,7 +314,7 @@ class GrafanaQueryHandler:
                 {
                     "field": cond["key"],
                     "operator": cond["method"],
-                    "value": ",".join(cond["value"]) if isinstance(cond["value"], list) else cond["value"],
+                    "value": cond["value"],
                     "condition": cond.get("condition", "and"),
                 }
                 for cond in query_dict.get("where", [])
@@ -359,7 +359,7 @@ class GrafanaQueryHandler:
                 {
                     "field": cond["key"],
                     "operator": cond["method"],
-                    "value": ",".join(cond["value"]) if isinstance(cond["value"], list) else cond["value"],
+                    "value": cond["value"],
                     "condition": cond.get("condition", "and"),
                 }
                 for cond in query_dict.get("where", [])
@@ -450,7 +450,7 @@ class GrafanaQueryHandler:
 
             for field_info in fields.get("fields", []):
                 field_id = field_description = field_info["field_name"]
-                if field_info["description"]:
+                if field_info.get("description"):
                     field_description = field_info["description"]
 
                 if field_info["es_doc_values"] and field_info.get("field_type") != "date":
@@ -742,7 +742,7 @@ class GrafanaQueryHandler:
                 {
                     "field": cond["key"],
                     "operator": cond["method"],
-                    "value": ",".join(cond["value"]) if isinstance(cond["value"], list) else cond["value"],
+                    "value": cond["value"],
                     "condition": cond.get("condition", "and"),
                 }
                 for cond in where_conditions

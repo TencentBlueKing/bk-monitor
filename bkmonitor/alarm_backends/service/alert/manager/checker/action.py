@@ -36,7 +36,7 @@ class ActionHandleChecker(BaseChecker):
 
         if not alert.strategy:
             # step 2: 如果没有策略，表示是第三方告警或者策略已关闭或者删除，不做检测
-            logger.info("[ignore check action] alert(%s) no strategy", alert.id)
+            # logger.info("[ignore check action] alert(%s) no strategy", alert.id)
             return
 
         notice_relation = alert.strategy.get("notice", {})

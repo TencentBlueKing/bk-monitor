@@ -588,17 +588,6 @@ class Alert:
         self._refresh_db = True
         self.data.setdefault("extra_info", {})[key] = value
 
-    def update_agg_dimensions(self, strategy):
-        """
-        更新dimension的维度排序
-        """
-        agg_dimensions = []
-        for item in strategy.get("items", []):
-            for query_config in item["query_configs"]:
-                if len(query_config.get("agg_dimension", [])) > len(agg_dimensions):
-                    agg_dimensions = query_config["agg_dimension"]
-        self.update_extra_info("agg_dimensions", agg_dimensions)
-
     def update_severity_source(self, source=""):
         self.update_extra_info("severity_source", source)
 
@@ -721,9 +710,13 @@ class Alert:
             "strategy_id": event.strategy_id,
             "labels": event.extra_info.get("strategy", {}).get("labels", []),
             "dimensions": [],
+            # extra_info 和 event["extra_info"] 一样
             "extra_info": event.extra_info or {},
             "is_blocked": False,
         }
+
+        # 补全维度信息
+        data["extra_info"]["agg_dimensions"] = [key[5:] for key in event.dedupe_keys if key.startswith("tags.")]
 
         alert = cls(data)
         alert.update_data_id_info(event)
@@ -1012,6 +1005,7 @@ class AlertUIDManager:
 
 
 class AlertCache:
+    # todo 下面两个可以合并
     @staticmethod
     def save_alert_to_cache(alerts: List[Alert]):
         alerts_to_saved = {}
@@ -1029,7 +1023,7 @@ class AlertCache:
         pipeline = ALERT_DEDUPE_CONTENT_KEY.client.pipeline(transaction=False)
         for alert in alerts_to_saved.values():
             key = ALERT_DEDUPE_CONTENT_KEY.get_key(strategy_id=alert.strategy_id or 0, dedupe_md5=alert.dedupe_md5)
-            if not alert.is_abnormal():
+            if alert.is_end():
                 # 如果告警已经结束，不做删除，更新告警内容
                 finished_count += 1
             else:

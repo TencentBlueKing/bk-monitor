@@ -35,13 +35,21 @@ CMDB_IP_SEARCH_MAX_SIZE = 100
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshBCSMonitorInfo")
 def refresh_bcs_monitor_info():
+    try:
+        fed_clusters = api.bcs.get_federation_clusters()
+        fed_cluster_id_list = list(fed_clusters.keys())
+    except Exception as e:  # pylint: disable=broad-except
+        fed_cluster_id_list = []
+        logger.error("get federation clusters failed: {}".format(e))
+
     # 拉取所有cluster，遍历刷新monitorinfo信息
     for cluster in BCSClusterInfo.objects.filter(
         status__in=[models.BCSClusterInfo.CLUSTER_STATUS_RUNNING, models.BCSClusterInfo.CLUSTER_RAW_STATUS_RUNNING],
     ):
         try:
+            is_fed_cluster = cluster.cluster_id in fed_cluster_id_list
             # 刷新集群内置公共dataid resource
-            cluster.refresh_common_resource()
+            cluster.refresh_common_resource(is_fed_cluster=is_fed_cluster)
             logger.debug("refresh bcs common resource in cluster:{} done".format(cluster.cluster_id))
 
             # 查找新的monitor info并记录到数据库，删除已不存在的
@@ -56,7 +64,7 @@ def refresh_bcs_monitor_info():
             PodMonitorInfo.refresh_custom_resource(cluster_id=cluster.cluster_id)
             logger.debug("refresh bcs pod monitor custom resource in cluster:{} done".format(cluster.cluster_id))
         except Exception:  # noqa
-            logger.exception("refresh bcs monitor info error, cluster_id(%s)", cluster.cluster_id)
+            logger.exception("refresh bcs monitor info failed, cluster_id(%s)", cluster.cluster_id)
 
 
 @app.task(ignore_result=True, queue="celery_cron")
@@ -126,10 +134,24 @@ def discover_bcs_clusters():
     周期刷新bcs集群列表，将未注册进metadata的集群注册进来
     """
     # BCS 接口仅返回非 DELETED 状态的集群信息
-    bcs_clusters = api.kubernetes.fetch_k8s_cluster_list()
+    logger.info("start to discover bcs clusters")
+    try:
+        bcs_clusters = api.kubernetes.fetch_k8s_cluster_list()
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error("get bcs clusters failed, error:{}".format(e))
+        return
     cluster_list = []
+    # 获取所有联邦集群 ID
+    try:
+        fed_clusters = api.bcs.get_federation_clusters()
+        fed_cluster_id_list = list(fed_clusters.keys())
+    except Exception as e:  # pylint: disable=broad-except
+        fed_cluster_id_list = []
+        logger.error("get federation clusters failed, error:{}".format(e))
+
     # bcs 集群中的正常状态
     for bcs_cluster in bcs_clusters:
+        logger.info("get bcs cluster:{},start to register".format(bcs_cluster["cluster_id"]))
         project_id = bcs_cluster["project_id"]
         bk_biz_id = bcs_cluster["bk_biz_id"]
         cluster_id = bcs_cluster["cluster_id"]
@@ -163,8 +185,13 @@ def discover_bcs_clusters():
             logger.debug("cluster_id:{},project_id:{} already exists,skip create it".format(cluster_id, project_id))
             continue
 
+        is_fed_cluster = cluster_id in fed_cluster_id_list
         cluster = BCSClusterInfo.register_cluster(
-            bk_biz_id=bk_biz_id, cluster_id=cluster_id, project_id=project_id, creator="admin"
+            bk_biz_id=bk_biz_id,
+            cluster_id=cluster_id,
+            project_id=project_id,
+            creator="admin",
+            is_fed_cluster=is_fed_cluster,
         )
         logger.info(
             "cluster_id:{},project_id:{},bk_biz_id:{} registered".format(
@@ -172,7 +199,20 @@ def discover_bcs_clusters():
             )
         )
 
-        cluster.init_resource()
+        try:
+            logger.info(
+                "cluster_id:{},project_id:{},bk_biz_id:{} start to init resource".format(
+                    cluster.cluster_id, cluster.project_id, cluster.bk_biz_id
+                )
+            )
+            cluster.init_resource(is_fed_cluster=is_fed_cluster)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                "cluster_id:{},project_id:{},bk_biz_id:{} init resource failed, error:{}".format(
+                    cluster.cluster_id, cluster.project_id, cluster.bk_biz_id, e
+                )
+            )
+            return
 
         # 更新云区域ID
         update_bcs_cluster_cloud_id_config(bk_biz_id, cluster_id)

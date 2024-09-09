@@ -18,7 +18,7 @@ from elasticsearch.helpers import BulkIndexError
 
 from alarm_backends.core.alert import Alert, Event
 from alarm_backends.core.alert.alert import AlertCache
-from alarm_backends.core.cache.key import ALERT_CONTENT_KEY, ALERT_DEDUPE_CONTENT_KEY
+from alarm_backends.core.cache.key import ALERT_DEDUPE_CONTENT_KEY
 from alarm_backends.service.composite.tasks import check_action_and_composite
 from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.documents.base import BulkActionType
@@ -32,34 +32,6 @@ class BaseAlertProcessor:
 
     def __init__(self):
         self.logger = logging.getLogger("alert")
-
-    def list_alerts_from_cache(self, dedupe_md5_list: List[str]) -> List[Alert]:
-        """
-        根据 dedupe_md5 从 Redis 缓存中批量获取
-        :param dedupe_md5_list:
-        :return:
-        """
-        # 注意： 这个函数是为了切换过程中，旧的数据保存在原来的redis key里，需要通过这种方式来获取，避免产生新的告警
-        if not dedupe_md5_list:
-            return []
-
-        alert_data = ALERT_CONTENT_KEY.client.mget(
-            [ALERT_CONTENT_KEY.get_key(dedupe_md5=md5) for md5 in dedupe_md5_list]
-        )
-
-        alerts = []
-
-        # 对告警内容进行解析，记录在 mapping 中
-        for index, alert in enumerate(alert_data):
-            if not alert:
-                continue
-            dedupe_md5 = dedupe_md5_list[index]
-            try:
-                alert = json.loads(alert)
-                alerts.append(Alert(alert))
-            except Exception as e:
-                self.logger.warning("dedupe_md5(%s) loads alert failed: %s, origin data: %s", dedupe_md5, e, alert)
-        return alerts
 
     def list_alerts_content_from_cache(self, events: List[Event]) -> List[Alert]:
         """
@@ -86,23 +58,15 @@ class BaseAlertProcessor:
         alerts = []
 
         # 对告警内容进行解析，记录在 mapping 中
-        not_existed_dedupe_md5_list = []
         for index, alert in enumerate(alert_data):
             if not alert:
-                # 不存在的先记录下
-                not_existed_dedupe_md5_list.append(dedupe_md5_list[index])
                 continue
-
             dedupe_md5 = dedupe_md5_list[index]
             try:
                 alert = json.loads(alert)
                 alerts.append(Alert(alert))
             except Exception as e:
                 self.logger.warning("dedupe_md5(%s) loads alert failed: %s, origin data: %s", dedupe_md5, e, alert)
-        if not_existed_dedupe_md5_list:
-            # 对于无法找到的告警列表，则通过原来的key进行检索
-            # 这种情况主要是针对切换过程中，旧的数据保存在原来的redis key里
-            alerts.extend(self.list_alerts_from_cache(not_existed_dedupe_md5_list))
         return alerts
 
     def update_alert_cache(self, alerts: List[Alert]):
@@ -196,4 +160,4 @@ class BaseAlertProcessor:
                 continue
             check_action_and_composite.delay(alert_key=alert.key, alert_status=alert.status)
 
-        self.logger.info("[send alert signals]: send(%d), blocked(%s)", len(alerts) - blocked, blocked)
+        self.logger.info("[send alert signals to composite]: send(%d), blocked(%s)", len(alerts) - blocked, blocked)

@@ -86,7 +86,7 @@ from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.handlers.alert_log import AlertLogHandler
 from fta_web.alert.handlers.base import BaseQueryHandler
 from fta_web.alert.handlers.event import EventQueryHandler
-from fta_web.alert.handlers.translator import BizTranslator, PluginTranslator
+from fta_web.alert.handlers.translator import PluginTranslator
 from fta_web.alert.serializers import (
     ActionIDField,
     ActionSearchSerializer,
@@ -255,8 +255,8 @@ class ListAllowedBizResource(Resource):
 
     def perform_request(self, validated_request_data):
         permission = Permission()
-        biz_list = permission.filter_business_list_by_action(validated_request_data["action_id"])
-        return [{"id": biz.bk_biz_id, "name": biz.bk_biz_name} for biz in biz_list]
+        spaces = permission.filter_space_list_by_action(validated_request_data["action_id"])
+        return [{"id": s["bk_biz_id"], "name": s["bk_biz_name"]} for s in spaces]
 
 
 class ListSearchHistoryResource(Resource):
@@ -1643,9 +1643,6 @@ class AlertTopNResource(Resource):
             authorized_bizs, unauthorized_bizs = self.handler_cls.parse_biz_item(validated_request_data["bk_biz_ids"])
             validated_request_data["authorized_bizs"] = authorized_bizs
             validated_request_data["unauthorized_bizs"] = unauthorized_bizs
-        # 并发前提前获取
-        if len(validated_request_data["authorized_bizs"]) > 1:
-            BizTranslator.biz_map_cache = resource.cc.get_biz_map()
 
         results = resource.alert.alert_top_n_result.bulk_request(
             [

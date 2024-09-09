@@ -141,7 +141,11 @@
       getViewLightList() {
         const list = [];
         if (!!this.filterKey) {
-          list.push({ str: this.filterKey, style: 'color: #FF5656; font-size: 16px; font-weight: 700;', isUnique: true });
+          list.push({
+            str: this.filterKey,
+            style: 'color: #FF5656; font-size: 16px; font-weight: 700;',
+            isUnique: true,
+          });
         }
         list.push(
           ...this.lightList.map(item => ({ str: item.heightKey, style: this.getLineColor(item), isUnique: false })),
@@ -295,7 +299,7 @@
         }
       },
       getLineColor(item) {
-        return `background: ${item.color.dark}; color: #FFFFFF; padding: 0 4px; border-radius: 2px; height: 32px; display: inline-block; line-height: 32px; font-weight: 700;`;
+        return `background: ${item.color.dark}; color: #FFFFFF; padding: 0 4px; border-radius: 2px; height: 32px; display: inline-block; line-height: 32px; font-weight: 700; opacity: 0.5`;
       },
     },
   };

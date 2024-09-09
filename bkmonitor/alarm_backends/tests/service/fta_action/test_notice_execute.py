@@ -2439,18 +2439,21 @@ class TestActionProcessor(TransactionTestCase):
         action_config_patch.start()
 
         event = EventDocument(**{"bk_biz_id": 2, "ip": "127.0.0.1", "bk_cloud_id": 0})
-        alert = AlertDocument(**{"event": event, "severity": 1, "id": 1})
+        alert = AlertDocument(**{"event": event, "severity": 1, "id": 1, "dedupe_md5": "xxx", "status": "ABNORMAL"})
 
         mget_alert_patch = patch("bkmonitor.documents.AlertDocument.mget", MagicMock(return_value=[alert]))
         get_alert_patch = patch("bkmonitor.documents.AlertDocument.get", MagicMock(return_value=alert))
+        refresh_duration = patch("alarm_backends.core.alert.alert.Alert.refresh_duration", MagicMock(return_value=None))
         mget_alert_patch.start()
         get_alert_patch.start()
+        refresh_duration.start()
 
         create_actions(1, "abnormal", alerts=[alert])
         self.assertEqual(ActionInstance.objects.all().count(), 0)
         mget_alert_patch.stop()
         get_alert_patch.stop()
         action_config_patch.stop()
+        refresh_duration.stop()
 
     def test_notice_collect(self):
         """
@@ -3721,6 +3724,53 @@ class TestActionProcessor(TransactionTestCase):
         shield_obj = AlertShieldObj(shield_config)
         self.assertFalse(shield_obj.is_match(test_strategy_alert))
 
+    def test_alert_shield_by_dynamic_group(self):
+        get_dynamic_group_patch = patch(
+            "alarm_backends.core.cache.cmdb.dynamic_group.DynamicGroupManager.multi_get",
+            return_value=[{"bk_obj_id": "host", "bk_inst_ids": [1, 2, 3], "id": "xxx"}],
+        )
+
+        get_dynamic_group_patch.start()
+
+        group = self.create_shield_group()
+        strategy_dict = get_strategy_dict(group.id)
+        test_strategy_alert = AlertDocument(
+            **{
+                "id": 1,
+                "severity": 1,
+                "begin_time": int(time.time()),
+                "create_time": int(time.time()),
+                "latest_time": int(time.time()),
+                "duration": 60,
+                "common_dimensions": {},
+                "dimensions": [
+                    AttrDict({"key": "bk_target_ip", "value": "127.0.0.1"}),
+                    AttrDict({"key": "bk_target_cloud_id", "value": "2"}),
+                    AttrDict({"key": "bk_host_id", "value": "1"}),
+                ],
+                "extra_info": {"strategy": strategy_dict},
+                "status": EventStatus.ABNORMAL,
+            }
+        )
+        # 策略屏蔽支持维度屏蔽
+        shield_config = {
+            "id": 123,
+            "is_enabled": True,
+            "is_deleted": False,
+            "bk_biz_id": 2,
+            "category": "strategy",
+            "scope_type": "dynamic_group",
+            "content": "",
+            "begin_time": datetime.now(tz=timezone.utc),
+            "end_time": datetime.now(tz=timezone.utc) + timedelta(hours=1),
+            "dimension_config": {"level": [1], "dynamic_group": [{"dynamic_group_id": "xxx"}]},
+            "cycle_config": {"type": 1, "week_list": [], "day_list": [], "begin_time": "", "end_time": ""},
+        }
+        shield_obj = AlertShieldObj(shield_config)
+        self.assertTrue(shield_obj.is_match(test_strategy_alert))
+
+        get_dynamic_group_patch.stop()
+
     def test_notice_global_shield(self):
         """
         测试通知屏蔽
@@ -4029,7 +4079,7 @@ class TestActionProcessor(TransactionTestCase):
         alert.update_extra_info("need_unshield_notice", True)
         checker = ShieldStatusChecker(alerts=[alert])
         checker.check_all()
-        self.assertFalse(alert.data["extra_info"]["need_unshield_notice"])
+        self.assertFalse(alert.data["extra_info"].get("need_unshield_notice", False))
         mget_alert_patch.stop()
         get_alert_patch.stop()
         action_config_patch.stop()

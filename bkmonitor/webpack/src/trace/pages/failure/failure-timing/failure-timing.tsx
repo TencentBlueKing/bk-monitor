@@ -50,7 +50,7 @@ export default defineComponent({
       default: () => ({}),
     },
   },
-  emits: ['goAlertDetail', 'refresh'],
+  emits: ['goAlertDetail', 'refresh', 'changeTab'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const operationsLoading = inject<Ref>('operationsLoading');
@@ -60,11 +60,15 @@ export default defineComponent({
     const refresh = () => {
       emit('refresh');
     };
+    const changeTab = () => {
+      emit('changeTab');
+    };
     return {
       t,
       operationsLoading,
       goAlertDetail,
       refresh,
+      changeTab
     };
   },
   render() {
@@ -84,6 +88,7 @@ export default defineComponent({
             scrollTop={this.$props.scrollTop}
             onGoAlertDetail={this.goAlertDetail}
             onRefresh={this.refresh}
+            onChangeTab={this.changeTab}
           />
         </Loading>
       </div>

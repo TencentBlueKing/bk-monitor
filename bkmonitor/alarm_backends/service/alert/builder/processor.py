@@ -18,6 +18,7 @@ from elasticsearch.helpers import BulkIndexError
 from alarm_backends.constants import CONST_MINUTES
 from alarm_backends.core.alert import Alert, Event
 from alarm_backends.core.alert.alert import AlertUIDManager
+from alarm_backends.core.cache.assign import AssignCacheManager
 from alarm_backends.core.cache.key import ALERT_UPDATE_LOCK
 from alarm_backends.core.lock.service_lock import multi_service_lock
 from alarm_backends.service.alert.enricher import AlertEnrichFactory, EventEnrichFactory
@@ -195,6 +196,7 @@ class AlertBuilder(BaseAlertProcessor):
 
         factory = AlertEnrichFactory(alerts)
         alerts = factory.enrich()
+        AssignCacheManager.clear()
 
         self.logger.info(
             "[alert.builder enrich alerts] finished, total(%s), elapsed(%.3f)", len(alerts), time.time() - start_time
@@ -267,7 +269,8 @@ class AlertBuilder(BaseAlertProcessor):
         created_events_count = len(event_documents) - len(error_uids)
 
         self.logger.info(
-            "[alert.builder save events] finished: " "total(%d), created(%d), duplicate(%d), failed(%d), cost: %.3f",
+            "[alert.builder save event to ES] finished: "
+            "total(%d), created(%d), duplicate(%d), failed(%d), cost: %.3f",
             len(events),
             created_events_count,
             conflict_error_events_count,
@@ -309,9 +312,12 @@ class AlertBuilder(BaseAlertProcessor):
         # 对事件进行遍历，逐个更新告警内容
         for event in events:
             alert: Alert = current_alerts.get(event.dedupe_md5)
-            if alert and not alert.is_end():
+            if alert and alert.is_abnormal():
+                # 当前事件已经关联了告警， 且告警处于未恢复状态
+                # qos判定，如果判定qos解除， 则alert的状态变更为CLOSED
                 alert = self.alert_qos_handle(alert)
                 if alert.status == EventStatus.CLOSED:
+                    # qos状态解除，创建新告警
                     new_alerts[alert.id] = alert
                     alert = Alert.from_event(event)
                 else:
@@ -357,7 +363,7 @@ class AlertBuilder(BaseAlertProcessor):
 
         alerts = list(new_alerts.values())
 
-        # 对于新创建的告警，需要对UID进行初始化
+        # 对于新创建的告警，需要对UID进行初始化【没啥意义，已经初始化过了】
         alerts_to_init = [alert for alert in alerts if alert.is_new()]
         AlertUIDManager.preload_pool(len(alerts_to_init))
         for alert in alerts_to_init:

@@ -14,12 +14,7 @@
           "api": "apm_metric.instanceList",
           "data": {
             "app_name": "$app_name",
-            "service_name": "$service_name",
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
-            }
+            "service_name": "$service_name"
           },
           "fields": {
             "id": "bk_instance_id"
@@ -31,7 +26,7 @@
   "overview_panels": [
     {
       "id": 1,
-      "title": "错误信息",
+      "title": "错误详情",
       "type": "api_message",
       "targets": [
         {
@@ -39,11 +34,6 @@
             "app_name": "$app_name",
             "filter_params": {
               "resource.service.name": "$service_name"
-            },
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
             },
             "component_instance_id": "$bk_instance_id"
           },
@@ -80,11 +70,6 @@
             "filter_params": {
               "resource.service.name": "$service_name"
             },
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
-            },
             "component_instance_id": "$bk_instance_id"
           }
         }
@@ -111,11 +96,6 @@
             "app_name": "$app_name",
             "filter_params": {
               "resource.service.name": "$service_name"
-            },
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
             },
             "component_instance_id": "$bk_instance_id"
           },
@@ -137,7 +117,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "错误信息",
+      "title": "错误详情",
       "type": "api_message",
       "targets": [
         {
@@ -148,11 +128,6 @@
               "span_name": "$endpoint"
             },
             "exception_type": "$exception_type",
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
-            },
             "component_instance_id": "$bk_instance_id"
           },
           "dataType": "table",
@@ -190,11 +165,6 @@
               "resource.service.name": "$service_name",
               "span_name": "$endpoint"
             },
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
-            },
             "component_instance_id": "$bk_instance_id"
           }
         }
@@ -224,11 +194,6 @@
               "span_name": "$endpoint"
             },
             "exception_type": "$exception_type",
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
-            },
             "component_instance_id": "$bk_instance_id"
           },
           "dataType": "list",
@@ -273,21 +238,13 @@
           "api": "apm_metric.errorList",
           "data": {
             "app_name": "$app_name",
-            "service_name": "$service_name",
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
-            }
+            "service_name": "$service_name"
           },
           "fields": {
             "endpoint": "endpoint",
             "app_name": "app_name",
             "exception_type": "exception_type",
-            "service_name": "component_service_name",
-            "category": "component_category",
-            "kind": "component_kind",
-            "predicate_value": "component_predicate_value"
+            "service_name": "service_name"
           }
         }
       ]

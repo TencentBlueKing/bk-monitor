@@ -45,6 +45,7 @@ export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreat
   fromRouteName = '';
   refreshKey = random(10);
   isActivated = false;
+  showCancel = false;
   @ProvideReactive('authority') authority: Record<string, boolean> = {};
   @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Provide('authorityMap') authorityMap;

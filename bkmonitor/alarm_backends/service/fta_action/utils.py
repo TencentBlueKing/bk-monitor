@@ -55,14 +55,14 @@ class PushActionProcessor:
         """推送处理事件至收敛队列"""
         if not alerts:
             logger.info(
-                "[push_actions_to_queue]skip to create sub action for generate_uuid(%s) because of no alert",
+                "[create actions]skip to create sub action for generate_uuid(%s) because of no alert",
                 generate_uuid,
             )
             return []
 
         if is_shielded or need_noise_reduce:
             logger.info(
-                "[push_actions_to_queue]current alert(%s) is shielded(%s) or need_noise_reduce(%s), "
+                "[create actions]alert(%s) is shielded(%s) or need_noise_reduce(%s), "
                 "skip to create sub action for generate_uuid(%s)",
                 alerts[0].id,
                 is_shielded,
@@ -75,7 +75,7 @@ class PushActionProcessor:
                 # 有父任务的事件，先需要创建对应的子任务
                 sub_actions = action_instance.create_sub_actions()
                 logger.info(
-                    "create sub notice actions %s for parent action %s, exclude_notice_ways(%s)",
+                    "[create actions]create sub notice actions %s for parent action(%s), exclude_notice_ways(%s)",
                     len(sub_actions),
                     action_instance.id,
                     "|".join(action_instance.inputs.get("exlude_notice_ways") or []),
@@ -102,9 +102,10 @@ class PushActionProcessor:
                 # 从策略中匹配防御规则
                 # TODO 当没有策略的情况下的告警推送
                 strategy = action_instance.strategy
-                for action in strategy.get("actions", []) + [strategy.get("notice")]:
-                    if action and action["id"] == action_instance.strategy_relation_id:
-                        converge_config = action["options"].get("converge_config")
+                if strategy:
+                    for action in strategy.get("actions", []) + [strategy.get("notice")]:
+                        if action and action["id"] == action_instance.strategy_relation_id:
+                            converge_config = action["options"].get("converge_config")
 
                 if (
                     not converge_config
@@ -165,11 +166,11 @@ class PushActionProcessor:
         else:
             task_id = run_action.apply_async((plugin_type, action_info), countdown=countdown)
         logger.info(
-            "[push_action_to_queue] $%s push fta action %s_%s to rabbitmq, alerts(%s)",
+            "[create actions]push queue(execute): action(%s) (%s), alerts(%s), task_id(%s)",
             action_instance.id,
             plugin_type,
-            task_id,
             action_instance.alerts,
+            task_id,
         )
 
 
@@ -491,7 +492,7 @@ class AlertAssignee:
                         group_users.append(user["id"])
             if is_rule_matched:
                 # 适配到了对应的轮值规则，中止
-                logger.info("user group (%s) matched duty rule(%s) for alert(%s)", group.id, rule_id)
+                logger.info("user group (%s) matched duty rule(%s) for alert(%s)", group.id, rule_id, self.alert.id)
                 return
 
     def get_assignee_by_user_groups(self, by_group=False, user_type=UserGroupType.MAIN):

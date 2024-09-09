@@ -114,7 +114,7 @@ class ShieldStatusChecker(BaseChecker):
                 if alert.get_extra_info("need_unshield_notice"):
                     # 2.2.1 被要求通知，则发送一次通知。之后，不再发送。(recover 模块设置的标记)
                     self.add_unshield_action(alert, notice_relation)
-                    alert.extra_info.poop("need_unshield_notice", False)
+                    alert.extra_info.pop("need_unshield_notice", False)
 
         # 获取剩余屏蔽时间和屏蔽ID列表
         shield_left_time = shield_obj.get_shield_left_time()

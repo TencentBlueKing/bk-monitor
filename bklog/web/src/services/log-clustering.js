@@ -37,13 +37,8 @@ const getDefaultConfig = {
   method: 'get',
 };
 
-const changeConfig = {
-  url: '/clustering_config/:index_set_id/create_or_update/',
-  method: 'post',
-};
-
-const preview = {
-  url: '/clustering_config/preview/',
+const debug = {
+  url: '/clustering_config/debug/',
   method: 'post',
 };
 
@@ -65,11 +60,6 @@ const updateStrategies = {
 const getFingerLabels = {
   url: '/pattern/:index_set_id/labels/',
   method: 'post',
-};
-
-const getNewClsStrategy = {
-  url: '/clustering_monitor/:index_set_id/get_new_cls_strategy/',
-  method: 'get',
 };
 
 const updateNewClsStrategy = {
@@ -121,13 +111,11 @@ const updateInitGroup = {
 export {
   getConfig,
   getDefaultConfig,
-  changeConfig,
-  preview,
+  debug,
   clusterSearch,
   closeClean,
   updateStrategies,
   getFingerLabels,
-  getNewClsStrategy,
   updateNewClsStrategy,
   checkRegexp,
   setRemark,

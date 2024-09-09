@@ -42,6 +42,7 @@ export interface IStrategyConfigProps {
   actionName?: string;
   keywords?: string[];
   resultTableId?: string;
+  strategyLabels?: string;
 }
 export interface IHeader {
   value?: number;

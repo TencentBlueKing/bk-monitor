@@ -36,6 +36,7 @@ import {
 } from 'vue';
 
 import dayjs from 'dayjs';
+import { getTimeSeriesXInterval } from 'monitor-ui/chart-plugins/utils/axis';
 import { type MonitorEchartOptions, echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import './base-echart.scss';
@@ -157,10 +158,18 @@ export default defineComponent({
     watch(
       () => props.width,
       width => {
+        const w = instance.value?.getWidth() || 0;
+        if (!w || Math.abs(w - width) < 1) return;
+        const { maxXInterval, maxSeriesCount } =
+          instance.value?.getOption()?.customData ||
+          ({
+            maxXInterval: 0,
+            maxSeriesCount: 0,
+          } as any);
+        const xInterval = getTimeSeriesXInterval(maxXInterval, width, maxSeriesCount);
         instance.value?.setOption({
           xAxis: {
-            splitNumber: Math.ceil(Number(width) / 150),
-            min: 'dataMin',
+            ...xInterval,
           },
         });
         instance.value?.resize({

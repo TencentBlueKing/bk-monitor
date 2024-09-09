@@ -82,7 +82,7 @@ export default defineComponent({
                 <i class='icon-monitor icon-menu-set trigger-icon' />
                 {this.$t('聚合规则')}
               </div>
-            ),
+            ), 
             content: () => (
               <div class='aggregation-select-content'>
                 <div class='panel-header'>
@@ -126,6 +126,7 @@ export default defineComponent({
                     showChildNodes: false,
                   }}
                   checked={this.checkedIds}
+                  // biome-ignore lint/correctness/noChildrenProp: <explanation>
                   children={'children'}
                   data={this.treeData}
                   expandAll={true}
@@ -135,6 +136,7 @@ export default defineComponent({
                   nodeKey='id'
                   showCheckbox={true}
                   showNodeTypeIcon={false}
+                  empty-text={this.$t('没有数据')}
                   onNodeChecked={this.handleNodeCheck}
                 />
               </div>

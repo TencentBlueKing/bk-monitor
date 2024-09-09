@@ -18,9 +18,10 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.deprecation import MiddlewareMixin
 
-from bkmonitor.utils.common_utils import fetch_biz_id_from_request
+from bkm_space.api import SpaceApi
+from bkmonitor.utils.common_utils import fetch_biz_id_from_request, safe_int
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
-from monitor_web.tasks import active_business, cache_space_data, record_login_user
+from monitor_web.tasks import active_business, record_login_user
 
 logger = logging.getLogger(__name__)
 
@@ -31,17 +32,14 @@ class TimeZoneMiddleware(MiddlewareMixin):
     """
 
     def process_view(self, request, view_func, view_args, view_kwargs):
-
         timezone_exempt: bool = getattr(view_func, "timezone_exempt", False)
         if timezone_exempt:
             return
 
-        biz_id: int = fetch_biz_id_from_request(request, view_kwargs)
+        biz_id: int = safe_int(fetch_biz_id_from_request(request, view_kwargs))
         if biz_id:
             try:
-                from core.drf_resource import resource
-
-                tz_name = resource.cc.get_app_by_id(biz_id)["TimeZone"]
+                tz_name = SpaceApi.get_space_detail(bk_biz_id=biz_id).time_zone
             except Exception:
                 tz_name = settings.TIME_ZONE
             request.session[settings.TIMEZONE_SESSION_KEY] = tz_name
@@ -79,7 +77,6 @@ class TrackSiteVisitMiddleware(MiddlewareMixin):
                 logger.exception("[TrackSiteVisitMiddleware] failed to run task: task -> %s", _task)
 
         th_list: List[InheritParentThread] = [
-            InheritParentThread(target=_run_task, args=(cache_space_data, base_params)),
             InheritParentThread(target=_run_task, args=(active_business, base_params)),
             InheritParentThread(
                 target=_run_task,

@@ -38,6 +38,7 @@ class AuthType(object):
     Event = "event"
     Dashboard = "dashboard"
     Apm = "apm"
+    API = "api"
 
 
 class ApiAuthToken(AbstractRecordModel):
@@ -48,6 +49,7 @@ class ApiAuthToken(AbstractRecordModel):
     AUTH_TYPE_CHOICES = (
         (AuthType.AsCode, "AsCode"),
         (AuthType.Grafana, "Grafana"),
+        (AuthType.API, "API"),
         (AuthType.UptimeCheck, "UptimeCheck"),
         (AuthType.Host, "Host"),
         (AuthType.Collect, "Collect"),

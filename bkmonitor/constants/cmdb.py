@@ -31,3 +31,4 @@ class TargetNodeType(object):
     INSTANCE = "INSTANCE"  # 静态实例
     SERVICE_TEMPLATE = "SERVICE_TEMPLATE"  # 服务模板
     SET_TEMPLATE = "SET_TEMPLATE"  # 集群模板
+    DYNAMIC_GROUP = "DYNAMIC_GROUP"  # 动态分组
