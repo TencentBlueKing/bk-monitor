@@ -157,6 +157,9 @@ def discover_bcs_clusters():
         fed_cluster_id_list = []
         logger.error("get federation clusters failed, error:{}".format(e))
 
+    # 联邦集群顺序调整到前面，因为创建链路时依赖联邦关系记录
+    bcs_clusters = sorted(bcs_clusters, key=lambda x: x["cluster_id"] not in fed_cluster_id_list)
+
     # bcs 集群中的正常状态
     for bcs_cluster in bcs_clusters:
         logger.info("get bcs cluster:{},start to register".format(bcs_cluster["cluster_id"]))
@@ -201,6 +204,12 @@ def discover_bcs_clusters():
             creator="admin",
             is_fed_cluster=is_fed_cluster,
         )
+        if is_fed_cluster:
+            # 创建联邦集群记录
+            try:
+                sync_federation_clusters(fed_clusters)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error("sync_federation_clusters failed, error:{}".format(e))
         logger.info(
             "cluster_id:{},project_id:{},bk_biz_id:{} registered".format(
                 cluster.cluster_id, cluster.project_id, cluster.bk_biz_id
@@ -221,12 +230,6 @@ def discover_bcs_clusters():
                 )
             )
             return
-
-        # 创建联邦集群记录
-        try:
-            sync_federation_clusters(fed_clusters)
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("sync_federation_clusters failed, error:{}".format(e))
 
         # 更新云区域ID
         update_bcs_cluster_cloud_id_config(bk_biz_id, cluster_id)

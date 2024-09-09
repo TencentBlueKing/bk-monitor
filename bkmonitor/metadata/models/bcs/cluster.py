@@ -211,8 +211,6 @@ class BCSClusterInfo(models.Model):
 
         # 3. 注册6个必要的data_id和自定义事件及自定义时序上报内容
         for usage, register_info in cluster.DATASOURCE_REGISTER_INFO.items():
-            if is_fed_cluster and usage != cls.DATA_TYPE_CUSTOM_METRIC:
-                continue
             # 注册data_id
             data_source = cluster.create_datasource(
                 usage=usage,
