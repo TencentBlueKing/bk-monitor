@@ -108,7 +108,7 @@
           theme="light navigation-message"
         >
           <div class="header-help is-left">
-            <span class="help-icon icon-monitor icon-mc-help-fill" />
+            <span class="help-icon icon-monitor icon-bangzhuwendang" />
           </div>
           <template slot="content">
             <ul class="monitor-navigation-help">

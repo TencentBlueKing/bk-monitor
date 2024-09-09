@@ -153,7 +153,7 @@ class NavTools extends DocumentLinkMixin {
 
   handleShowSetting(key: string) {
     const item = this.setList.find(item => item.id === key);
-    if (!!item) {
+    if (item) {
       this.handleSet(item);
     }
   }
@@ -402,7 +402,7 @@ class NavTools extends DocumentLinkMixin {
             theme='light common-monitor'
           >
             <div class='header-help'>
-              <span class='help-icon icon-monitor icon-mc-help-fill' />
+              <span class='help-icon icon-monitor icon-bangzhuwendang' />
             </div>
             <template slot='content'>
               <ul class='monitor-navigation-help'>
@@ -485,6 +485,7 @@ class NavTools extends DocumentLinkMixin {
           // #if APP !== 'external'
           [
             <SettingModal
+              key='setting-modal'
               activeMenu={this.activeSetting}
               menuList={this.setList}
               show={this.show}
@@ -495,7 +496,7 @@ class NavTools extends DocumentLinkMixin {
             >
               {this.show && this.createAsyncComponent()}
             </SettingModal>,
-            <keep-alive>
+            <keep-alive key='keep-alive'>
               {this.globalSearchShow && (
                 <GlobalSearchModal
                   ref='globalSearchModal'
