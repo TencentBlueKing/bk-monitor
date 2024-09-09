@@ -43,7 +43,7 @@ from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.icon import get_icon
-from apm_web.metric.constants import StatisticsMetric
+from apm_web.metric.constants import ErrorMetricCategory, StatisticsMetric
 from apm_web.metric.handler.statistics import ServiceMetricStatistics
 from apm_web.metric.handler.top_n import get_top_n_query_type, load_top_n_handler
 from apm_web.metric_handler import (
@@ -542,7 +542,6 @@ class ServiceListResource(PageListResource):
         )
         service_alert_status_mapping = defaultdict(int)
         for strategy_id, items in strategy_map.items():
-
             # Step1: 处理策略条件中配置的服务 将数量作为服务的策略数
             service_names = self.get_condition_service_names(items["info"])
             for name in service_names:
@@ -684,8 +683,12 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             elif service["extra_data"]["kind"] == TopoNodeKind.SERVICE:
                 metric_info = service_metric_info.get(service_name, {})
             elif service["extra_data"]["kind"] == TopoNodeKind.COMPONENT:
-                origin_service, predicate_value = service_name.rsplit("-", 1)
-                metric_info = component_metric_info.get(origin_service, {}).get(predicate_value, {})
+                info = service_name.rsplit("-", 1)
+                if len(info) == 2:
+                    origin_service, predicate_value = info
+                    metric_info = component_metric_info.get(origin_service, {}).get(predicate_value, {})
+                else:
+                    metric_info = {}
 
             if service["topo_key"] in profiling_metric_info:
                 # 补充 profiling 数据
@@ -2467,13 +2470,19 @@ class MetricDetailStatisticsResource(Resource):
         data_type = serializers.ChoiceField(label="指标类型", choices=StatisticsMetric.get_choices())
         # 请求数无维度 错误数维度为 总数量+状态码 响应耗时维度为 平均耗时+MAX/MIN/P90/...
         dimension = serializers.CharField(label="下拉框维度", required=False, default="default")
+        dimension_category = serializers.ChoiceField(
+            label="下拉框维度分类",
+            choices=ErrorMetricCategory.get_choices(),
+            required=False,
+        )
 
     def perform_request(self, validated_data):
         template = ServiceMetricStatistics.get_template(
             validated_data["data_type"],
-            validated_data.pop("option_kind"),
+            validated_data.get("option_kind"),
             validated_data.pop("dimension"),
             validated_data.get("service_name"),
+            validated_data.get("dimension_category"),
         )
         s = ServiceMetricStatistics(**validated_data)
         return s.list(template)

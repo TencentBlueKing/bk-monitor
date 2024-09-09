@@ -245,7 +245,7 @@ class CreateSpaceResource(Resource):
         validated_request_data["username"] = username
         space_info = api.metadata.create_space(validated_request_data)
         # 刷新全量空间列表
-        SpaceApi.list_spaces(refresh=True)
+        SpaceApi.list_spaces_dict(using_cache=False)
         # 主动创建的空间都是负数，只有cmdb业务类型空间和cmdb业务id一致为正数
         bk_biz_id = -space_info["id"]
         # iam 授权

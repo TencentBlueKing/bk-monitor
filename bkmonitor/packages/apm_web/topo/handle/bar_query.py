@@ -228,3 +228,28 @@ class LinkHelper:
             f"to={end_time}&"
             f"dashboardId={dashboard_id}"
         )
+
+    @classmethod
+    def get_host_monitor_link(cls, bk_host_id, start_time, end_time):
+        """获取某主机的主机监控地址"""
+        return f"/performance/detail/{bk_host_id}?from={start_time * 1000}&to={end_time * 1000}"
+
+    @classmethod
+    def get_pod_monitor_link(cls, bcs_cluster_id, namespace, pod, start_time, end_time):
+        """获取某 Pod 的 K8S 监控地址"""
+        return (
+            f"/k8s?filter-bcs_cluster_id={bcs_cluster_id}&"
+            f"filter-namespace={namespace}&"
+            f"filter-pod_name={pod}&"
+            f"from={start_time * 1000}&to={end_time * 1000}"
+        )
+
+    @classmethod
+    def get_service_monitor_link(cls, bcs_cluster_id, namespace, service, start_time, end_time):
+        """获取某 Service 的 K8S 监控地址"""
+        return (
+            f"/k8s?filter-bcs_cluster_id={bcs_cluster_id}&"
+            f"filter-namespace={namespace}&"
+            f"filter-service_name={service}&"
+            f"from={start_time * 1000}&to={end_time * 1000}"
+        )

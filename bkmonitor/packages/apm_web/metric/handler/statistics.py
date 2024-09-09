@@ -17,7 +17,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from apm_web.constants import TopoNodeKind
 from apm_web.handlers.service_handler import ServiceHandler
-from apm_web.metric.constants import StatisticsMetric
+from apm_web.metric.constants import ErrorMetricCategory, StatisticsMetric
 from apm_web.metric_handler import (
     MetricHandler,
     ServiceFlowAvgDuration,
@@ -86,6 +86,7 @@ class Template:
     other_service_field_index: int = 1
     unit: Callable = None
     dimension: str = None
+    dimension_category: str = None
     filter_dict: dict = field(default_factory=dict)
 
     @classmethod
@@ -266,7 +267,7 @@ class ServiceMetricStatistics(BaseQuery):
     virtual_service_name = _("其他服务")
 
     @classmethod
-    def get_template(cls, metric_name, kind, dimension, service_name=None):
+    def get_template(cls, metric_name, kind, dimension, service_name=None, dimension_category=None):
 
         dimension_metric = cls.template_mapping.get(metric_name, {}).get(dimension)
         if not dimension_metric:
@@ -280,6 +281,7 @@ class ServiceMetricStatistics(BaseQuery):
         res.dimension = dimension
         if service_name:
             res.filter_dict.update(res.get_filter_dict(service_name, kind))
+        res.dimension_category = dimension_category
         return res
 
     def __init__(self, *args, **kwargs):
@@ -299,16 +301,27 @@ class ServiceMetricStatistics(BaseQuery):
             ).get_range_values_mapping(ignore_keys=template.ignore_keys)
         elif self.data_type == StatisticsMetric.ERROR_COUNT.value:
             # 错误数的维度是错误码
+            if template.dimension_category not in ErrorMetricCategory.get_dict_choices():
+                raise ValueError(f"[指标统计] 查询错误码为: {template.dimension} 时需要指定来源类型 (Http / Rpc)")
+
+            if template.dimension_category == ErrorMetricCategory.HTTP.value:
+                if self.params.get("option_kind") == "caller":
+                    wheres = [{"key": "from_span_http_status_code", "method": "eq", "value": template.dimension}]
+                else:
+                    wheres = [{"key": "to_span_http_status_code", "method": "eq", "value": template.dimension}]
+            else:
+                if self.params.get("option_kind") == "caller":
+                    wheres = [{"key": "from_span_grpc_status_code", "method": "eq", "value": template.dimension}]
+                else:
+                    wheres = [{"key": "to_span_grpc_status_code", "method": "eq", "value": template.dimension}]
+
             values_mapping = template.metric(
                 self.application,
                 self.start_time,
                 self.end_time,
                 filter_dict=template.filter_dict,
                 group_by=template.table_group_by,
-                where=[
-                    {"key": "http_status_code", "method": "eq", "value": template.dimension},
-                    {"key": "rpc_grpc_status_code", "method": "eq", "value": template.dimension, "condition": "or"},
-                ],
+                where=wheres,
                 interval=get_interval_number(self.start_time, self.end_time),
             ).get_range_values_mapping(ignore_keys=template.ignore_keys)
         else:

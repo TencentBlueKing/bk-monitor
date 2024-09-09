@@ -110,5 +110,22 @@ class NodeRelationDetailSerializer(serializers.Serializer):
 
 
 class EndpointNameSerializer(TopoBaseRequestSerializer):
-    endpoint_name = serializers.CharField(label="接口名称", required=False)
     link_type = serializers.ChoiceField(label="需要获取的链接类型", choices=TopoLinkType.get_choices())
+    # endpoint_name 链接: alert
+    endpoint_name = serializers.CharField(label="接口名称", required=False)
+
+    # 资源拓扑图的链接获取
+    source_type = serializers.ChoiceField(label="资源类型", choices=SourceType.get_choices(), required=False)
+    source_info = serializers.DictField(label="资源信息", required=False)
+
+    def validate(self, attrs):
+        res = super(EndpointNameSerializer, self).validate(attrs)
+        if attrs["link_type"] == TopoLinkType.ALERT.value:
+            if attrs.get("service_name"):
+                raise ValueError(f"[获取链接]获取告警中心链接需要 endpoint_name 参数")
+
+        elif attrs["link_type"] == TopoLinkType.TOPO_SOURCE.value:
+            if not attrs.get("source_type") or not attrs.get("source_info"):
+                raise ValueError(f"[获取链接]获取资源拓扑链接需要 source_type / source_info 参数")
+
+        return res

@@ -204,7 +204,7 @@ class PathTemplateSidebar:
         # 根据告警来区分出节点的状态 适用于: system, pod, service
         if self.bind_source_type.name == SourceSystem.name:
             # 检查 system 的告警
-            r_nodes, error_count = self._group_by_alert(
+            r_nodes = self._group_by_alert(
                 "ip",
                 "bk_target_ip",
                 "("
@@ -216,7 +216,7 @@ class PathTemplateSidebar:
                 nodes,
             )
         elif self.bind_source_type.name == SourceK8sPod.name:
-            r_nodes, error_count = self._group_by_alert(
+            r_nodes = self._group_by_alert(
                 "pod",
                 "pod",
                 "("
@@ -234,7 +234,7 @@ class PathTemplateSidebar:
                 nodes,
             )
         elif self.bind_source_type.name == SourceK8sService.name:
-            r_nodes, error_count = self._group_by_alert(
+            r_nodes = self._group_by_alert(
                 "service",
                 "service",
                 "("
@@ -268,17 +268,17 @@ class PathTemplateSidebar:
                         "collapses": [],
                         "color": NodeColor.Color.WHITE,
                         "category": node.get("extra_data", {}).get("category") if node else CategoryEnum.OTHER,
+                        "status": "normal",
                     }
                 )
-            error_count = 0
         else:
             # 其他类型不需要进行合并
             r_nodes = [
-                {**i.info, "sidebar_id": self.id, "collapses": [], "color": NodeColor.Color.WHITE} for i in nodes
+                {**i.info, "sidebar_id": self.id, "collapses": [], "color": NodeColor.Color.WHITE, "status": "normal"}
+                for i in nodes
             ]
-            error_count = 0
 
-        return r_nodes, error_count
+        return r_nodes
 
     def _group_by_alert(self, group_by_key, node_key, query_string, nodes: List[Node]):
         """根据告警状态来聚合节点"""
@@ -304,12 +304,7 @@ class PathTemplateSidebar:
         # 异常节点不需要折叠
         for n in error_nodes:
             res.append(
-                {
-                    **n.info,
-                    "sidebar_id": self.id,
-                    "collapses": [],
-                    "color": NodeColor.Color.RED,
-                }
+                {**n.info, "sidebar_id": self.id, "collapses": [], "color": NodeColor.Color.RED, "status": "abnormal"}
             )
         # 正常节点折叠
         if normal_nodes:
@@ -319,14 +314,15 @@ class PathTemplateSidebar:
                 {
                     **first.info,
                     "sidebar_id": self.id,
-                    "collapses": [{**n.info, "color": NodeColor.Color.GREEN} for n in normal_nodes]
+                    "collapses": [{**n.info, "color": NodeColor.Color.GREEN, "status": "normal"} for n in normal_nodes]
                     if len(normal_nodes) > 1
                     else [],
                     "color": NodeColor.Color.GREEN,
+                    "status": "normal",
                 }
             )
 
-        return res, len(error_nodes)
+        return res
 
     def _search_alert(self, query_string):
         if query_string == "()":
@@ -444,7 +440,6 @@ class PathTemplate:
         all_edges = Node.get_all_edges(tree)
         all_layer_nodes = []
 
-        sidebar_count_info = []
         for sidebar_index, sidebar in enumerate(self.sidebars):
             sidebar_instance = sidebar(
                 _sidebar_index=sidebar_index, _tree=tree, _tree_infos=tree_infos, _tree_info=tree_info  # noqa
@@ -465,16 +460,15 @@ class PathTemplate:
             layer_nodes = Node.list_nodes_by_level(tree, sidebar_layer_index)
             if layer_nodes:
                 sidebar_instance.have_data = True
-            combine_layer_nodes, layer_error_count = sidebar_instance.combine_nodes(layer_nodes)
+            combine_layer_nodes = sidebar_instance.combine_nodes(layer_nodes)
 
             all_layer_nodes.append(combine_layer_nodes)
-            sidebar_count_info.append((layer_error_count, len(layer_nodes)))
             sidebars.append(sidebar_instance)
 
         return {
             "edges": self._process_edges(all_edges, all_layer_nodes),
             "nodes": list(itertools.chain(*all_layer_nodes)),
-            "sidebars": self._group_sidebar(sidebars, sidebar_count_info),
+            "sidebars": self._group_sidebar(sidebars),
         }
 
     @classmethod
@@ -514,7 +508,7 @@ class PathTemplate:
         ]
 
     @classmethod
-    def _group_sidebar(cls, sidebar_instances: List[PathTemplateSidebar], sidebar_count_info):
+    def _group_sidebar(cls, sidebar_instances: List[PathTemplateSidebar]):
         """对侧边栏进行分组归类"""
 
         group_mapping = defaultdict(dict)
@@ -523,24 +517,12 @@ class PathTemplate:
                 # 无数据时 不显示此侧边栏
                 continue
             if i.group.id in group_mapping:
-                group_mapping[i.group.id]["list"].append(
-                    {
-                        **i.info,
-                        "total_count": sidebar_count_info[index][-1],
-                        "error_count": sidebar_count_info[index][0],
-                    }
-                )
+                group_mapping[i.group.id]["list"].append(i.info)
             else:
                 group_mapping[i.group.id] = {
                     "id": i.group.id,
                     "name": i.group.name,
-                    "list": [
-                        {
-                            **i.info,
-                            "total_count": sidebar_count_info[index][-1],
-                            "error_count": sidebar_count_info[index][0],
-                        }
-                    ],
+                    "list": [i.info],
                 }
 
         return list(group_mapping.values())

@@ -283,9 +283,14 @@ class MappingHandlers(object):
         #     return self._get_context_fields(final_fields_list)
 
         # 其它情况
-        default_config = self.get_or_create_default_config(scope=scope)
+        if final_fields_list:
+            # mapping拉取到数据时才创建配置
+            default_config = self.get_or_create_default_config(scope=scope)
+            display_fields = default_config.display_fields
+        else:
+            display_fields = []
         if is_union_search:
-            return final_fields_list, default_config.display_fields
+            return final_fields_list, display_fields
 
         username = get_request_external_username() or get_request_username()
         user_index_set_config_obj = UserIndexSetFieldsConfig.get_config(
@@ -314,7 +319,7 @@ class MappingHandlers(object):
                     final_field["is_display"] = True
             return final_fields_list, display_fields_list
 
-        return final_fields_list, default_config.display_fields
+        return final_fields_list, display_fields
 
     def get_or_create_default_config(self, scope=SearchScopeEnum.DEFAULT.value):
         """获取默认配置"""

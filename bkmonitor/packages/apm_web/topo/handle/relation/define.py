@@ -9,10 +9,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import hashlib
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import dataclass, field, fields
 from typing import List, Tuple
 
 from apm_web.topo.constants import SourceType
+from bkmonitor.utils.cache import CacheType, using_cache
+from core.drf_resource import api
 
 
 @dataclass
@@ -29,6 +31,8 @@ class Source:
     def to_source_info(self):
         res = {}
         for f in fields(self):
+            if f.name in self._ignore_fields:
+                continue
             res[f.name] = getattr(self, f.name)
 
         return res
@@ -87,6 +91,22 @@ class SourceSystem(Source):
     @property
     def display_name(self):
         return self.bk_target_ip
+
+    @classmethod
+    @using_cache(CacheType.APM(60 * 60 * 24 * 7))
+    def get_bk_host_id(cls, bk_biz_id, bk_target_ip, raise_exception=False):
+        response = api.cmdb.get_host_by_ip(
+            # TODO 等待关联接口增加 bk_cloud_id 后 再增加查询条件
+            ips=[{"ip": bk_target_ip}],
+            bk_biz_id=bk_biz_id,
+            search_outer_ip=True,
+        )
+        if not response:
+            if raise_exception:
+                raise ValueError(f"没有从 CMDB 中找到主机 IP: {bk_target_ip} 的信息，原因可能是此 IP 为历史快照数据不存在于当前 CMDB 中")
+            else:
+                return None
+        return response[0].bk_host_id
 
 
 @dataclass
@@ -162,7 +182,7 @@ class Node:
         return {
             "id": self.id,
             "source_type": self.source_type,
-            "source_info": asdict(self.source_info),
+            "source_info": self.source_info.to_source_info(),
             "display_name": self.source_info.display_name,
         }
 

@@ -23,3 +23,19 @@ class StatisticsMetric(ChoicesEnum):
         (ERROR_COUNT, "错误数"),
         (AVG_DURATION, "平均耗时"),
     )
+
+
+class ErrorMetricCategory(ChoicesEnum):
+    """
+    错误数状态码分类
+    (在概览页面指标详情时勾选了某个错误码时需要传入此错误码来自于是 http 还是 grpc 用于进行不同查询条件的查询)
+    对应图表配置字段: apm_time_series_category
+    """
+
+    HTTP = "http"
+    GRPC = "grpc"
+
+    _choices_labels = (
+        (HTTP, "http 错误码"),
+        (GRPC, "错误数"),
+    )
