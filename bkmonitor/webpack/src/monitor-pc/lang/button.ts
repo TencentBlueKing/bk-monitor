@@ -473,16 +473,16 @@ export default {
   故障已解决: 'The issue has been solved',
   查看操作指引: 'View operation instructions',
 
-  '故障已恢复，才可以标记已解决': 'The fault can be marked as resolved only after it has been restored',
-  '故障持续时间：': 'Fault duration:',
-  故障群: 'Fault Group',
-  故障处理: 'Fault Handle',
-  故障流转: 'Fault Flow',
+  '故障已恢复，才可以标记已解决': 'The incident can be marked as resolved only after it has been restored',
+  '故障持续时间：': 'Incident duration:',
+  故障群: 'Incident Group',
+  故障处理: 'Incident Handle',
+  故障流转: 'Incident Flow',
   我处理: 'I handled ',
 
   // 故障流转
-  修改故障属性: 'Modify Fault Attribute',
+  修改故障属性: 'Modify Incident Attribute',
   '反馈/取消反馈根因': 'Feedback/Cancel feedback root cause',
-  故障生成: 'Generate Fault',
+  故障生成: 'Generate Incident',
   人工操作: 'Manual Operation',
 };

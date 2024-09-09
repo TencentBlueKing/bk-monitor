@@ -485,7 +485,22 @@ CACHES = {
         "OPTIONS": {"MAX_ENTRIES": 100000, "CULL_FREQUENCY": 10},
     },
     "login_db": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "account_cache"},
-    "locmem": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    "locmem": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        'OPTIONS': {
+            'MAX_ENTRIES': 10000,
+            'CULL_FREQUENCY': 0,
+        },
+    },
+    "space": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "space",
+        'OPTIONS': {
+            # 5w空间支持
+            'MAX_ENTRIES': 50000,
+            'CULL_FREQUENCY': 0,
+        },
+    },
 }
 
 # django cache backend using redis
