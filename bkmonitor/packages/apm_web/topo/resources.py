@@ -8,8 +8,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import datetime
 
-from apm_web.topo.constants import SourceType, TopoLinkType
+from apm_web.topo.constants import GraphViewType, SourceType, TopoLinkType
 from apm_web.topo.handle.bar_query import BarQuery, LinkHelper
 from apm_web.topo.handle.graph_query import GraphQuery
 from apm_web.topo.handle.relation.define import SourceSystem
@@ -18,6 +19,7 @@ from apm_web.topo.handle.relation.entrance import EndpointListEntrance, Relation
 from apm_web.topo.serializers import (
     DataTypeBarQueryRequestSerializer,
     EndpointNameSerializer,
+    GraphDiffSerializer,
     NodeEndpointTopSerializer,
     NodeRelationDetailSerializer,
     NodeRelationSerializer,
@@ -68,9 +70,8 @@ class TopoViewResource(Resource):
             validated_data["bk_biz_id"],
             validated_data["app_name"],
             validated_data["export_type"],
-            start_time,
-            end_time,
             service_name=validated_data.get("service_name"),
+            runtime={"start_time": start_time, "end_time": end_time},
         )
 
         graph = GraphQuery(**{**params, "start_time": start_time, "end_time": end_time}).execute(
@@ -174,3 +175,50 @@ class NodeRelationResource(Resource):
             validated_request_data.pop("path_type"), validated_request_data.pop("paths", None), **validated_request_data
         )
         return entrance.export(entrance.relation_tree, export_type="layer")
+
+
+class GraphDiffResource(Resource):
+    """[拓扑图]拓扑图对比"""
+
+    RequestSerializer = GraphDiffSerializer
+
+    def perform_request(self, validated_data):
+        base_time = validated_data.pop("base_time")
+        diff_time = validated_data.pop("diff_time")
+
+        converter = GraphQuery.create_converter(
+            validated_data["bk_biz_id"],
+            validated_data["app_name"],
+            export_type=GraphViewType.TOPO_DIFF.value,
+            service_name=validated_data.get("service_name"),
+            runtime={"option_kind": validated_data["option_kind"]},
+        )
+
+        base_graph_query = GraphQuery(
+            **{
+                **validated_data,
+                **self.enlarge_time(base_time),
+            }
+        )
+        base_graph = base_graph_query.create_graph(
+            extra_plugins=converter.extra_pre_plugins(base_graph_query.common_params())
+        )
+
+        diff_graph_query = GraphQuery(
+            **{
+                **validated_data,
+                **self.enlarge_time(diff_time),
+            }
+        )
+        diff_graph = diff_graph_query.create_graph(
+            extra_plugins=converter.extra_pre_plugins(diff_graph_query.common_params())
+        )
+
+        return (base_graph & diff_graph) >> converter
+
+    def enlarge_time(self, timestamp):
+        """将时间戳转为时间范围 (间隔一分钟)"""
+        start = datetime.datetime.fromtimestamp(timestamp)
+        end = start + datetime.timedelta(minutes=1)
+
+        return {"start_time": int(start.timestamp()), "end_time": int(end.timestamp())}

@@ -300,38 +300,62 @@ class Graph:
 
         return self
 
+    def __and__(self, other: "Graph") -> "Graph":
+        """
+        以自身为基准 对比另一个 Graph 的节点数据 计算出差异并返回
+        """
+        other_node_mapping = {k: v for k, v in other.nodes}
+
+        for base_node, attrs in self.nodes:
+            for p in self.plugins:
+                if p.type != GraphPluginType.NODE:
+                    continue
+                # 只对节点插件计算出的指标进行对比
+                if hasattr(p, "diff"):
+                    diff = p.diff(attrs, other_node_mapping.get(base_node))
+                    self._graph.add_node(base_node, **{"data": attrs["data"], **diff})
+
+        return self
+
 
 class GraphQuery(BaseQuery):
     @classmethod
-    def create_converter(cls, bk_biz_id, app_name, export_type, start_time, end_time, service_name=None):
+    def create_converter(cls, bk_biz_id, app_name, export_type, service_name=None, runtime=None):
         filter_params = {"service_name": service_name} if service_name else {}
         return ViewConverter.new(
             bk_biz_id,
             app_name,
             export_type,
-            runtime={"start_time": start_time, "end_time": end_time},
+            runtime=runtime or {},
             filter_params=filter_params,
         )
 
     def execute(self, edge_data_type, converter):
         return self.create_graph(
-            with_plugin=True,
+            with_data_type_plugin=True,
             edge_data_type=edge_data_type,
-            extra_plugins=converter.extra_pre_plugins(self.common_params),
-            extra_converter_plugins=converter.extra_pre_convert_plugins(self.common_params),
+            extra_plugins=converter.extra_pre_plugins(self.common_params()),
+            extra_converter_plugins=converter.extra_pre_convert_plugins(self.common_params()),
         )
 
-    def create_graph(self, with_plugin=False, edge_data_type=None, extra_plugins=None, extra_converter_plugins=None):
+    def create_graph(
+        self,
+        with_data_type_plugin=False,
+        edge_data_type=None,
+        extra_plugins=None,
+        extra_converter_plugins=None,
+    ):
         db_nodes = self._list_nodes_from_db()
         flow_nodes, flow_edges = self._list_nodes_and_edges_from_flow()
 
         plugins = PluginProvider.Container()
-        if with_plugin:
-            plugins = PluginProvider.node_plugins(self.data_type, self.common_params)
-            if edge_data_type:
-                plugins += PluginProvider.edge_plugins(edge_data_type, self.common_params)
-            if extra_plugins:
-                plugins += extra_plugins
+        if with_data_type_plugin:
+            plugins += PluginProvider.node_plugins(self.data_type, self.common_params())
+        if edge_data_type:
+            plugins += PluginProvider.edge_plugins(edge_data_type, self.common_params())
+        if extra_plugins:
+            plugins += extra_plugins
+
         graph = Graph(
             plugins=plugins,
             converter_plugins=extra_converter_plugins or PluginProvider.Container(_plugins=[]),

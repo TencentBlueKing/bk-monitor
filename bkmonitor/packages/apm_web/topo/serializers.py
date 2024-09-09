@@ -129,3 +129,13 @@ class EndpointNameSerializer(TopoBaseRequestSerializer):
                 raise ValueError(f"[获取链接]获取资源拓扑链接需要 source_type / source_info 参数")
 
         return res
+
+
+class GraphDiffSerializer(serializers.Serializer):
+
+    bk_biz_id = serializers.IntegerField(label="业务 ID")
+    app_name = serializers.CharField(label="应用名称")
+    service_name = serializers.CharField(label="服务名称", required=False)
+    base_time = serializers.IntegerField(label="参照时间")
+    diff_time = serializers.IntegerField(label="对比时间")
+    option_kind = serializers.CharField(label="选项主调/被调")
