@@ -1,12 +1,12 @@
 <script setup>
   import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue';
 
-  import { debounce } from 'lodash';
-  import useStore from '@/hooks/use-store';
   import useLocale from '@/hooks/use-locale';
-  import tippy from 'tippy.js';
-  import imgUpDownKey from '@/images/icons/up-down-key.svg';
+  import useStore from '@/hooks/use-store';
   import imgEnterKey from '@/images/icons/enter-key.svg';
+  import imgUpDownKey from '@/images/icons/up-down-key.svg';
+  import { debounce } from 'lodash';
+  import tippy from 'tippy.js';
 
   const props = defineProps({
     value: {
@@ -317,14 +317,6 @@
     isFocusFieldList.value = false;
   };
 
-  const handleRsultListClick = () => {
-    // isFocusFieldList.value = true;
-  };
-
-  const handleResultOutsideClick = () => {
-    // isFocusFieldList.value = false;
-  };
-
   const setActiveIndex = (index = 0) => {
     activeIndex.value = index;
   };
@@ -381,8 +373,8 @@
             </span>
             <span class="field-alias">{{ item.field_alias || item.field_name }}</span>
             <span
-              class="field-name"
               v-if="!item.is_full_text"
+              class="field-name"
               >({{ item.field_name }})</span
             >
           </div>
@@ -392,11 +384,11 @@
         <template v-if="showFulltextMsg">
           <div class="full-text-title">{{ $t('全文检索') }}</div>
           <div class="full-text-sub-title">
-            <img :src="svgImg.imgEnterKey"></img><span>{{ $t('Enter 键') }}</span>
+            <img :src="svgImg.imgEnterKey" /><span>{{ $t('Enter 键') }}</span>
           </div>
           <div class="full-text-content">{{ $t('可将想要检索的内容输入至搜索框中，并点击「Enter」键进行检索') }}</div>
           <div class="full-text-sub-title">
-            <img :src="svgImg.imgUpDownKey"></img><span>{{ $t('上下键') }}</span>
+            <img :src="svgImg.imgUpDownKey" /><span>{{ $t('上下键') }}</span>
           </div>
           <div class="full-text-content">{{ $t('可通过上下键快速切换选择「Key」值') }}</div>
         </template>
@@ -436,9 +428,9 @@
             </div>
             <div>
               <bk-tag-input
+                ref="refValueTagInput"
                 v-model="condition.value"
                 :allow-create="true"
-                ref="refValueTagInput"
                 @change="handleValueTagInputChange"
               ></bk-tag-input>
             </div>
@@ -461,8 +453,8 @@
     </div>
     <div class="ui-query-option-footer">
       <div class="ui-shortcut-key">
-        <span><img :src="svgImg.imgUpDownKey"></img>{{ $t('移动光标') }}</span>
-        <span><img :src="svgImg.imgEnterKey"></img>{{ $t('确认结果') }}</span>
+        <span><img :src="svgImg.imgUpDownKey" />{{ $t('移动光标') }}</span>
+        <span><img :src="svgImg.imgEnterKey" />{{ $t('确认结果') }}</span>
       </div>
       <div class="ui-btn-opts">
         <bk-button

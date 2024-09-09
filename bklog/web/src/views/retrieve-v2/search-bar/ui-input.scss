@@ -22,6 +22,7 @@ ul.search-items {
 
       &:not(.is-focus-input) {
         padding: 2px 8px;
+        padding-right: 48px;
         outline: none;
       }
     }
@@ -39,6 +40,10 @@ ul.search-items {
       color: #3A84FF;
       letter-spacing: 0;
       background: #F0F5FF;
+
+      &:not(.is-focus-input) {
+        padding-right: 8px;
+      }
 
       &:hover {
         background: #E1ECFF;
@@ -64,7 +69,6 @@ ul.search-items {
 
     &.tag-item {
       position: relative;
-      padding-right: 48px;
       background: #F0F5FF;
 
       &.disabled {

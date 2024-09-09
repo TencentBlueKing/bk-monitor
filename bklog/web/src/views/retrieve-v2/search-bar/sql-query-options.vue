@@ -1,10 +1,12 @@
 <script lang="ts" setup>
-  import { computed, ref, watch, nextTick, ComputedRef } from 'vue';
-  import { debounce } from 'lodash';
-  //@ts-ignore
-  import useStore from '@/hooks/use-store';
-  //@ts-ignore
+  import { computed, ref, watch, nextTick, Ref } from 'vue';
+
+  // @ts-ignore
   import useLocale from '@/hooks/use-locale';
+  // @ts-ignore
+  import useStore from '@/hooks/use-store';
+  // @ts-ignore
+  import { debounce } from 'lodash';
   const props = defineProps({
     value: {
       type: String,
@@ -19,25 +21,26 @@
   const { $t } = useLocale();
 
   enum OptionItemType {
-    Fields = 'Fields',
-    Value = 'Value',
     Colon = 'Colon',
     Continue = 'Continue',
+    Fields = 'Fields',
     Operator = 'Operator',
+    Value = 'Value',
   }
 
   // 定义一个类型来表示生成对象的类型
-type ShowOptionValueType = {
-  [K in keyof typeof OptionItemType as `show${typeof OptionItemType[K]}`]: boolean;
-};
+  type ShowOptionValueType = {
+    [K in keyof typeof OptionItemType as `show${(typeof OptionItemType)[K]}`]: boolean;
+  };
 
+  const defShowOptionValueType: Partial<ShowOptionValueType> = {};
   const showOption = computed(() => {
     return Object.values(OptionItemType).reduce(
       (output, key) => ({
         ...output,
         [`show${key}`]: activeType.value.includes(key),
       }),
-      {} as ShowOptionValueType,
+      defShowOptionValueType,
     );
   });
 
@@ -51,15 +54,6 @@ type ShowOptionValueType = {
       .map(item => item.field_name);
   });
 
-  /** 语法检查需要的字段信息 */
-  const getCheckKeywordsFields = computed(() => {
-    return totalFields.value.map(item => ({
-      field_name: item.field_name,
-      is_analyzed: item.is_analyzed,
-      field_type: item.field_type,
-    }));
-  });
-
   /** 所有字段的字段名 */
   const totalFieldsNameList = computed(() => {
     return totalFields.value.map(item => item.field_name);
@@ -70,12 +64,12 @@ type ShowOptionValueType = {
     Object.keys(retrieveDropdownData.value).filter(v => totalFieldsNameList.value.includes(v)),
   );
 
-  const activeType = ref([]);
+  const activeType: Ref<string[]> = ref([]);
   const separator = /\s(AND|OR)\s/i; // 区分查询语句条件
-  const fieldList = ref([]);
-  const valueList = ref([]);
+  const fieldList: Ref<string[]> = ref([]);
+  const valueList: Ref<string[]> = ref([]);
 
-  const refDropdownEl = ref(null);
+  const refDropdownEl: Ref<HTMLElement | null> = ref(null);
   const activeIndex = ref(0);
 
   const handleRetrieve = debounce(() => emits('retrieve'));
@@ -183,7 +177,7 @@ type ShowOptionValueType = {
       return;
     }
     // 开始输入字段【nam】
-    const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups.field;
+    const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
     if (inputField) {
       fieldList.value = originFieldList.value.filter(item => {
         if (item.includes(inputField)) {
@@ -202,7 +196,7 @@ type ShowOptionValueType = {
       return;
     }
     // 准备输入值【name:】
-    const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups.field;
+    const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups?.field;
     if (confirmField) {
       const valueMap = retrieveDropdownData.value[confirmField];
       if (valueMap) {
@@ -217,10 +211,10 @@ type ShowOptionValueType = {
     // 正在输入值【age:1】注意后面没有空格，匹配字段对应值
     const valueResult = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>[\S]+)$/.exec(lastFragment);
     if (valueResult) {
-      const confirmField = valueResult.groups.field;
+      const confirmField = valueResult.groups?.field;
       const valueMap = retrieveDropdownData.value[confirmField];
       if (valueMap) {
-        const inputValue = valueResult.groups.value;
+        const inputValue = valueResult.groups?.value ?? '';
         valueList.value = getValueList(valueMap).filter(item => item.includes(inputValue));
         showWhichDropdown(valueList.value.length ? OptionItemType.Value : undefined);
       } else {
@@ -313,7 +307,7 @@ type ShowOptionValueType = {
 
   const scrollActiveItemIntoView = () => {
     if (activeIndex.value >= 0) {
-      const target = refDropdownEl.value.querySelector('.list-item.active');
+      const target = refDropdownEl.value?.querySelector('.list-item.active');
       target?.scrollIntoView({ block: 'nearest' });
     }
   };
@@ -335,9 +329,9 @@ type ShowOptionValueType = {
       e.preventDefault();
       if (activeIndex.value !== null && dropdownList[activeIndex.value] !== undefined) {
         // enter 选中下拉选项
-        dropdownList[activeIndex.value].click();
+        (dropdownList[activeIndex.value] as HTMLElement).click();
       } else {
-        emits('change', props.value);
+        emits('change', `${props.value} `);
         nextTick(() => {
           handleRetrieve();
         });
@@ -383,7 +377,7 @@ type ShowOptionValueType = {
       calculateDropdown();
       nextTick(() => {
         setOptionActive();
-      })
+      });
     },
     { immediate: true },
   );
@@ -391,8 +385,8 @@ type ShowOptionValueType = {
 <template>
   <!-- 搜索提示 -->
   <ul
-    class="sql-query-options"
     ref="refDropdownEl"
+    class="sql-query-options"
   >
     <!-- 字段列表 -->
     <template v-if="showOption.showFields">
@@ -469,27 +463,25 @@ type ShowOptionValueType = {
         </div>
       </li>
       <template v-if="showOption.showOperator">
-        <template>
-          <li
-            v-for="(item, key) in operatorSelectList"
-            class="list-item continue-list-item"
-            :key="key"
-            @click="handleClickColon(item.operator)"
+        <li
+          v-for="(item, key) in operatorSelectList"
+          class="list-item continue-list-item"
+          :key="key"
+          @click="handleClickColon(item.operator)"
+        >
+          <div class="item-type-icon">
+            <span class="bklog-icon bklog-equal"></span>
+          </div>
+          <div class="item-text">{{ item.operator }}</div>
+          <div
+            class="item-description text-overflow-hidden"
+            v-bk-overflow-tips="{ placement: 'right' }"
           >
-            <div class="item-type-icon">
-              <span class="bklog-icon bklog-equal"></span>
-            </div>
-            <div class="item-text">{{ item.operator }}</div>
-            <div
-              class="item-description text-overflow-hidden"
-              v-bk-overflow-tips="{ placement: 'right' }"
-            >
-              <i18n path="{0}某一值">
-                <span class="item-callout">{{ item.label }}</span>
-              </i18n>
-            </div>
-          </li>
-        </template>
+            <i18n path="{0}某一值">
+              <span class="item-callout">{{ item.label }}</span>
+            </i18n>
+          </div>
+        </li>
       </template>
     </template>
     <!-- AND OR -->

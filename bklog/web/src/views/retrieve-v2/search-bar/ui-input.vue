@@ -1,9 +1,10 @@
 <script setup>
-  import { ref, computed } from 'vue';
+  import { ref, computed, nextTick } from 'vue';
 
   import { getOperatorKey } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+
   import UiInputOptions from './ui-input-option.vue';
   import useFocusInput from './use-focus-input';
 
@@ -45,6 +46,7 @@
 
   const refPopInstance = ref(null);
   const refUlRoot = ref(null);
+  const refSearchInput = ref(null);
   const queryItem = ref('');
   const activeIndex = ref(null);
   const isInputFocus = ref(false);
@@ -112,7 +114,7 @@
     isInputFocus.value = false;
     Object.assign(queryItem.value, item);
     const target = e.target.closest('.search-item');
-    activeIndex.value = isInputFocus.value ? -1 : index;
+    activeIndex.value = isInputFocus.value ? null : index;
     showTagListItems(target);
   };
 
@@ -151,20 +153,16 @@
     getTippyInstance()?.hide();
 
     if (isInputFocus.value) {
-      setTimeout(() => {
-        handleContainerClick({ target: refUlRoot.value });
-      }, 300);
+      inputValue.value = '';
+
+      nextTick(() => {
+        refSearchInput.value?.focus();
+        handleFocusInput({ target: refSearchInput.value });
+      });
     }
 
     if (activeIndex.value !== null && activeIndex.value >= 0) {
       Object.assign(modelValue.value[activeIndex.value], targetValue);
-      emit('input', modelValue.value);
-      return;
-    }
-
-    const focusInputIndex = modelValue.value.findIndex(item => item.is_focus_input);
-    if (focusInputIndex === modelValue.value.length - 1) {
-      modelValue.value.splice(focusInputIndex, 0, { ...targetValue, disabled: false });
       emit('input', modelValue.value);
       return;
     }
@@ -184,16 +182,16 @@
 
   const handleFocusInput = e => {
     isInputFocus.value = true;
-    activeIndex.value = -1;
-    queryItem.value = {};
+    activeIndex.value = null;
+    queryItem.value = '';
     const target = e.target.closest('.search-item');
     showTagListItems(target);
   };
 
   const handleDeleteItem = e => {
     if (!e.target.value) {
-      if (modelValue.value.length > 1) {
-        modelValue.value.splice(-2, 1);
+      if (modelValue.value.length >= 1) {
+        modelValue.value.splice(-1, 1);
         hideTippyInstance();
         setTimeout(() => {
           handleContainerClick();
@@ -217,61 +215,57 @@
     </li>
     <li
       v-for="(item, index) in modelValue"
-      :class="[
-        'search-item',
-        { disabled: item.disabled, 'is-focus-input': item.is_focus_input, 'tag-item': !item.is_focus_input },
-      ]"
+      :class="['search-item', 'tag-item', { disabled: item.disabled }]"
       :key="`${item.field}-${index}`"
       @click.stop="e => handleTagItemClick(e, item, index)"
     >
-      <template v-if="!item.is_focus_input">
-        <div class="tag-row match-name">
-          {{ item.field !== '' ? item.field : $t('全文') }}
+      <div class="tag-row match-name">
+        {{ item.field !== '' ? item.field : $t('全文') }}
+        <span
+          class="symbol"
+          :data-operator="item.operator"
+          >{{ item.operator_label }}</span
+        >
+      </div>
+      <div class="tag-row match-value">
+        <template v-if="Array.isArray(item.value)">
           <span
-            class="symbol"
-            :data-operator="item.operator"
-            >{{ item.operator_label }}</span
+            v-for="(child, childInex) in item.value"
+            :key="childInex"
           >
-        </div>
-        <div class="tag-row match-value">
-          <template v-if="Array.isArray(item.value)">
+            <span>{{ child }}</span>
             <span
-              v-for="(child, childInex) in item.value"
-              :key="childInex"
+              v-if="childInex < item.value.length - 1"
+              class="match-value-relation"
+              >{{ item.relation }}</span
             >
-              <span>{{ child }}</span>
-              <span
-                v-if="childInex < item.value.length - 1"
-                class="match-value-relation"
-                >{{ item.relation }}</span
-              >
-            </span>
-          </template>
-          <template v-else>
-            <span>{{ item.value }}</span>
-          </template>
-        </div>
-        <div class="tag-options">
-          <span
-            :class="['bklog-icon', { 'bklog-eye': !item.disabled, 'bklog-eye-slash': item.disabled }]"
-            @click.stop="() => handleDisabledTagItem(item)"
-          ></span>
-          <span
-            class="bk-icon icon-close"
-            @click.stop="() => handleDeleteTagItem(index)"
-          ></span>
-        </div>
-      </template>
-      <template v-else>
-        <input
-          class="tag-option-focus-input"
-          v-model="inputValue"
-          type="text"
-          @keyup.delete="handleDeleteItem"
-          @focus.stop="handleFocusInput"
-          @blur="handleFullTextInputBlur"
-        />
-      </template>
+          </span>
+        </template>
+        <template v-else>
+          <span>{{ item.value }}</span>
+        </template>
+      </div>
+      <div class="tag-options">
+        <span
+          :class="['bklog-icon', { 'bklog-eye': !item.disabled, 'bklog-eye-slash': item.disabled }]"
+          @click.stop="() => handleDisabledTagItem(item)"
+        ></span>
+        <span
+          class="bk-icon icon-close"
+          @click.stop="() => handleDeleteTagItem(index)"
+        ></span>
+      </div>
+    </li>
+    <li class="search-item is-focus-input">
+      <input
+        ref="refSearchInput"
+        class="tag-option-focus-input"
+        v-model="inputValue"
+        type="text"
+        @blur="handleFullTextInputBlur"
+        @focus.stop="handleFocusInput"
+        @keyup.delete="handleDeleteItem"
+      />
     </li>
     <div style="display: none">
       <UiInputOptions
