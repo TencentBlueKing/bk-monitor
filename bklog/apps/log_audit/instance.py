@@ -89,7 +89,7 @@ def push_event(request):
     """
     基于request对象，自动上报审计日志
     """
-    key_params = ["user", "biz_id"]
+    key_params = ["user"]
     # request 合法性验证
     for key in key_params:
         if not hasattr(request, key):
