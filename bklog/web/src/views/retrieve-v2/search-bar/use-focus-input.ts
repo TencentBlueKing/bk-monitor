@@ -95,28 +95,6 @@ export default (
     getTippyInstance()?.show();
   });
 
-  /**
-   * 点击操作设置输入框位置
-   * @param {*} index
-   */
-  const setFocusInputItem = (index = -1) => {
-    const oldIndex = modelValue.value.findIndex(item => item?.is_focus_input);
-    if (oldIndex === -1) {
-      modelValue.value.push({ is_focus_input: true });
-      return;
-    }
-
-    if (index >= 0) {
-      if (oldIndex > index) {
-        modelValue.value.splice(oldIndex, 1);
-        modelValue.value.splice(index, 0, { is_focus_input: true });
-      } else {
-        modelValue.value.splice(index, 0, { is_focus_input: true });
-        modelValue.value.splice(oldIndex, 1);
-      }
-    }
-  };
-
   const setModelValue = val => {
     modelValue.value = (val ?? []).map(formatModelValueItem);
   };
@@ -137,6 +115,7 @@ export default (
     const root = getRoot();
     if (root !== undefined && (e === undefined || root === e?.target)) {
       const input = root.querySelector('.tag-option-focus-input');
+
       input?.focus();
       input?.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
       return input;
@@ -197,7 +176,7 @@ export default (
     props.value,
     val => {
       setModelValue(val);
-      setFocusInputItem();
+      // setFocusInputItem();
     },
     { deep: true, immediate: true },
   );

@@ -1,7 +1,8 @@
 <script setup>
-  import { ref, nextTick, getCurrentInstance, computed } from 'vue';
-  import useFocusInput from './use-focus-input';
+  import { ref, nextTick, computed } from 'vue';
+
   import SqlQueryOptions from './sql-query-options';
+  import useFocusInput from './use-focus-input';
 
   const props = defineProps({
     value: {
@@ -22,7 +23,7 @@
   const separator = /\s(AND|OR)\s/i; // 区分查询语句条件
 
   const formatModelValueItem = item => {
-    return item;
+    return item.replace(/^\s*\*\s*$/, '');
   };
 
   const { modelValue, inputValue, handleInputBlur, delayShowInstance, getTippyInstance, handleContainerClick } =
@@ -119,34 +120,32 @@
 </script>
 <template>
   <ul
-    class="search-sql-query"
     ref="refUlRoot"
+    class="search-sql-query"
   >
     <li
-      class="search-sql-item"
       v-for="(item, index) in sqlQueryItemList"
+      class="search-sql-item"
       :key="`${item.field}-${index}`"
     >
-      <template v-if="item.is_focus_input">
-        <input
-          class="tag-option-focus-input"
-          type="text"
-          v-model="inputValue"
-          @focus.stop="handleFocusInput"
-          @blur="handleTextInputBlur"
-          @keyup.delete="handleInputDelete"
-        />
-      </template>
-      <template v-else>
-        <span :data-operator="item.operator">{{ item?.text }}</span>
-      </template>
+      <span :data-operator="item.operator">{{ item?.text }}</span>
+    </li>
+    <li class="search-sql-item">
+      <input
+        class="tag-option-focus-input"
+        v-model="inputValue"
+        type="text"
+        @blur="handleTextInputBlur"
+        @focus.stop="handleFocusInput"
+        @keyup.delete="handleInputDelete"
+      />
     </li>
     <div style="display: none">
       <SqlQueryOptions
         ref="refSqlQueryOption"
         :value="sqlQueryString"
-        @change="handleQueryChange"
         @cancel="handleCancel"
+        @change="handleQueryChange"
         @retrieve="hadnleRetrieve"
       ></SqlQueryOptions>
     </div>
