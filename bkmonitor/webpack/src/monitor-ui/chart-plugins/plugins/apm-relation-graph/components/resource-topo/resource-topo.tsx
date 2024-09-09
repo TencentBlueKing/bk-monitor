@@ -96,7 +96,7 @@ class ResourceTopo extends CommonSimpleChart {
     const params = {
       start_time: startTime,
       end_time: endTime,
-      service_name: 'DaemonSetApp-Summer' || this.serviceName || this.viewOptions?.filters?.service_name,
+      service_name: this.serviceName || this.viewOptions?.filters?.service_name,
       app_name: this.viewOptions?.filters?.app_name,
       path_type: this.paths.length ? 'specific' : 'default',
       paths: this.paths.length ? this.paths.join(',') : 'default',
