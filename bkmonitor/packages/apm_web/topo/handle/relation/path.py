@@ -287,8 +287,8 @@ class PathTemplateSidebar:
 
         mapping = defaultdict(list)
         for item in alerts:
-            for i in item["tags"]:
-                if i["key"] in group_by_key:
+            for i in item["dimensions"]:
+                if group_by_key in i["key"]:
                     mapping[i["value"]].append(item.get("severity"))
 
         normal_nodes = []

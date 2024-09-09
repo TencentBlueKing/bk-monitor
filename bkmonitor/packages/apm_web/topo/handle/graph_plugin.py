@@ -265,7 +265,7 @@ class EdgeDurationP95(DurationUnitMixin, ValuesPluginMixin, PrePlugin):
 
 @PluginProvider.pre_plugin
 @dataclass
-class EdgeDurationP99(ValuesPluginMixin, PrePlugin):
+class EdgeDurationP99(DurationUnitMixin, ValuesPluginMixin, PrePlugin):
     id: str = TopoEdgeDataType.DURATION_P99.value
     type: GraphPluginType = GraphPluginType.EDGE
     metric: Type[MetricHandler] = functools.partial(
@@ -1004,8 +1004,7 @@ class NodeApdex(PrePlugin):
         ).get_instance_calculate_values_mapping(
             ignore_keys=[OtlpKey.get_metric_dimension_key(OtlpKey.STATUS_CODE), Apdex.DIMENSION_KEY]
         )
-        for k, v in response.items():
-            res[k[0]] = v
+        res.update(response)
 
         # Step2: 计算组件节点的 Apdex
         component_response = self.metric(
@@ -1030,7 +1029,7 @@ class NodeApdex(PrePlugin):
             system = k[1] or k[2]
             if system:
                 # 这里忽略了 topoNode 更变了拼接逻辑带来的影响(正常来说 topoNode 不会更变拼接逻辑)
-                res[f"{service}-{system}"] = v
+                res[(f"{service}-{system}",)] = v
 
         # Step3: 计算自定义服务节点的 Apdex
         custom_service_response = self.metric(
@@ -1039,7 +1038,8 @@ class NodeApdex(PrePlugin):
             ignore_keys=[OtlpKey.get_metric_dimension_key(OtlpKey.STATUS_CODE), Apdex.DIMENSION_KEY]
         )
         for k, v in custom_service_response.items():
-            res[ServiceHandler.generate_remote_service_name(k[0])] = v
+            if k[0]:
+                res[(ServiceHandler.generate_remote_service_name(k[0]),)] = v
 
         return res
 
@@ -1390,6 +1390,7 @@ class TopoViewConverter(ViewConverter):
             NodeAvgDurationCallee,
             NodeErrorRateCaller,
             NodeErrorRateCallee,
+            NodeApdex,
         ]
     )
     _extra_pre_convert_plugins = PluginProvider.Container(
@@ -1469,6 +1470,7 @@ class TableViewConverter(ViewConverter):
                 "id": "service",
                 "name": "服务名称",
                 "type": "link",
+                "disabled": True,
             },
             {
                 "id": "type",
@@ -1479,11 +1481,13 @@ class TableViewConverter(ViewConverter):
                     {"text": "主调", "value": "caller"},
                     {"text": "被调", "value": "callee"},
                 ],
+                "disabled": True,
             },
             {
                 "id": "other_service",
                 "name": "调用服务",
                 "type": "string",
+                "disabled": True,
             },
             {
                 "id": "request_count",
@@ -1503,7 +1507,7 @@ class TableViewConverter(ViewConverter):
                 "sortable": "custom",
                 "type": "number",
             },
-            {"id": "operators", "name": "操作", "type": "more_operate", "width": 80},
+            {"id": "operators", "name": "操作", "type": "more_operate", "width": 80, "disabled": True},
         ]
 
     def __init__(self, *args, **kwargs):

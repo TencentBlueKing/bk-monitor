@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 """
 import copy
 import itertools
+import json
+import urllib.parse
 from dataclasses import asdict, dataclass, field
 from typing import Dict, List
 
@@ -237,19 +239,39 @@ class LinkHelper:
     @classmethod
     def get_pod_monitor_link(cls, bcs_cluster_id, namespace, pod, start_time, end_time):
         """获取某 Pod 的 K8S 监控地址"""
+        query_data = {
+            "selectorSearch": [
+                {
+                    "keyword": pod,
+                }
+            ]
+        }
+        encode_query = urllib.parse.quote(json.dumps(query_data))
+
         return (
             f"/k8s?filter-bcs_cluster_id={bcs_cluster_id}&"
             f"filter-namespace={namespace}&"
-            f"filter-pod_name={pod}&"
-            f"from={start_time * 1000}&to={end_time * 1000}"
+            f"filter-pod_name={pod}&dashboardId=pod&sceneId=kubernetes&sceneType=detail&"
+            f"from={start_time * 1000}&to={end_time * 1000}&"
+            f"queryData={encode_query}"
         )
 
     @classmethod
     def get_service_monitor_link(cls, bcs_cluster_id, namespace, service, start_time, end_time):
         """获取某 Service 的 K8S 监控地址"""
+        query_data = {
+            "selectorSearch": [
+                {
+                    "keyword": service,
+                }
+            ]
+        }
+        encode_query = urllib.parse.quote(json.dumps(query_data))
+
         return (
             f"/k8s?filter-bcs_cluster_id={bcs_cluster_id}&"
             f"filter-namespace={namespace}&"
             f"filter-service_name={service}&"
-            f"from={start_time * 1000}&to={end_time * 1000}"
+            f"from={start_time * 1000}&to={end_time * 1000}&"
+            f"dashboardId=service&sceneId=kubernetes&sceneType=detail&queryData={encode_query}"
         )

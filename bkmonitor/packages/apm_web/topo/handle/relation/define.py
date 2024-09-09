@@ -103,7 +103,7 @@ class SourceSystem(Source):
         )
         if not response:
             if raise_exception:
-                raise ValueError(f"没有从 CMDB 中找到主机 IP: {bk_target_ip} 的信息，原因可能是此 IP 为历史快照数据不存在于当前 CMDB 中")
+                raise ValueError(f"没有从本业务 CMDB 主机列表中找到 IP: {bk_target_ip} 的信息，" f"原因可能是此 IP 为历史快照数据或者不存在于本业务下")
             else:
                 return None
         return response[0].bk_host_id

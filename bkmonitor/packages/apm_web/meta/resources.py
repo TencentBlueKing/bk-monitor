@@ -1183,7 +1183,7 @@ class EndpointDetailResource(Resource):
 
         return [
             {
-                "name": _("类型"),
+                "name": _("接口类型"),
                 "type": "string",
                 "value": CategoryEnum.get_label_by_key(endpoint_info.get("category"))
                 if endpoint_info.get("category")

@@ -72,6 +72,8 @@ class ResourceDetail:
             v = i["value"]
             if isinstance(v, dict):
                 v = v.get("value")
+            if isinstance(v, list):
+                v = "\n".join(v)
             res.append(
                 {
                     "name": i["name"],
@@ -98,7 +100,18 @@ class SystemDetail(ResourceDetail):
     def detail(self):
         ip = self.source_info["bk_target_ip"]
         # 获取主机 bk_host_id
-        bk_host_id = SourceSystem.get_bk_host_id(self.bk_biz_id, ip)
+        try:
+            bk_host_id = SourceSystem.get_bk_host_id(self.bk_biz_id, ip, raise_exception=True)
+        except ValueError as e:
+            return {
+                "title": ip,
+                "raws": [
+                    {
+                        "name": _("错误信息"),
+                        "value": str(e),
+                    }
+                ],
+            }
 
         # 获取主机基础信息
         host_infos = resource.scene_view.get_host_or_topo_node_detail.get_host_info(self.bk_biz_id, bk_host_id)
@@ -169,10 +182,6 @@ class K8sPodDetail(ResourceDetail):
                 "name": pod,
                 "url": LinkHelper.get_pod_monitor_link(bcs_cluster_id, namespace, pod, self.start_time, self.end_time),
             },
-            "resource_link": urljoin(
-                settings.BK_BCS_HOST,
-                f"bcs/projects/bkce/clusters/{bcs_cluster_id}/workloads/pods/namespaces/{namespace}/{pod}?kind=Pod",
-            ),
             "raws": self._list_info_raws(pod_infos, self._pod_info_columns),
             **self.search_and_handle_alert(
                 f'tags.pod: "{pod}" AND tags.bcs_cluster_id: "{bcs_cluster_id}" AND tags.namespace: "{namespace}"'
