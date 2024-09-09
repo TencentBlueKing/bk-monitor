@@ -15,7 +15,7 @@
   const { $t } = useLocale();
   const queryTypeList = ref([$t('UI语句'), $t('SQL语句')]);
   const btnQuery = $t('查询');
-  const activeIndex = ref(0);
+  const activeIndex = ref(1);
 
   const searchItemList = ref([]);
   const sqlQueryValue = ref([]);
@@ -45,6 +45,15 @@
     { immediate: true, deep: true },
   );
 
+  watch(
+    activeIndex,
+    () => {
+      const params = ['sql', 'ui'];
+      store.commit('updateIndexItemParams', { search_mode: params[activeIndex.value] });
+    },
+    { immediate: true, deep: true },
+  );
+
   const handleQueryTypeChange = index => {
     activeIndex.value = index;
   };
@@ -65,7 +74,7 @@
       });
     }
   };
-  const updateSearchParam = (payload) => {
+  const updateSearchParam = payload => {
     const { keyword, addition, ip_chooser } = payload;
     store.commit('updateIndexItemParams', {
       keyword,

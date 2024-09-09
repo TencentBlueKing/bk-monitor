@@ -89,9 +89,11 @@
         const params = this.isUnionSearch
           ? {
               index_set_ids: this.unionIndexList,
+              search_mode: this.indexItem.search_mode
             }
           : {
               index_set_id: this.indexId,
+              search_mode: this.indexItem.search_mode
             };
         this.$http
           .request(queryUrl, {

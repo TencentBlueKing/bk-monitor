@@ -34,6 +34,7 @@ export const getDefaultRetrieveParams = () => {
     size: 50,
     interval: 'auto',
     timezone: 'Asia/Shanghai',
+    search_mode: 'sql',
   };
 };
 

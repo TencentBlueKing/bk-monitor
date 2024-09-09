@@ -705,6 +705,9 @@ const store = new Vuex.Store({
           commit('updateIndexSetFieldConfig', res.data ?? {});
           return res;
         })
+        .catch(() => {
+          commit('updateIndexFieldInfo', { is_loading: false });
+        })
         .finally(() => {
           commit('updateIndexFieldInfo', { is_loading: false });
         });
@@ -729,6 +732,7 @@ const store = new Vuex.Store({
         host_scopes,
         interval,
         timezone,
+        search_mode,
       } = state.indexItem;
       const bk_biz_id = state.bkBizId;
       const searchCount = payload.searchCount ?? state.indexSetQueryResult.search_count + 1;
@@ -757,6 +761,7 @@ const store = new Vuex.Store({
         size,
         start_time: startTimeStamp,
         timezone,
+        search_mode,
       };
 
       // 更新联合查询的begin
@@ -804,7 +809,7 @@ const store = new Vuex.Store({
 
               commit('updateSqlQueryFieldList', rsolvedData.list);
               commit('updateIndexItem', { catchUnionBeginList, begin: begin + 1 });
-              commit('updateIndexSetQueryResult', rsolvedData ?? {});
+              commit('updateIndexSetQueryResult', rsolvedData);
 
               return {
                 data: rsolvedData,
@@ -816,6 +821,10 @@ const store = new Vuex.Store({
           }
 
           return { data, message, result: false };
+        })
+        .catch(() => {
+          commit('updateSqlQueryFieldList', []);
+          commit('updateIndexSetQueryResult', []);
         })
         .finally(() => {
           commit('updateIndexSetQueryResult', { is_loading: false });

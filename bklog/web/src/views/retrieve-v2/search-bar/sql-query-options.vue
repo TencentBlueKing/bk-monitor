@@ -360,6 +360,11 @@
 
   const beforeShowndFn = () => {
     document.addEventListener('keydown', handleKeydown);
+
+    calculateDropdown();
+    nextTick(() => {
+      setOptionActive();
+    });
   };
 
   const beforeHideFn = () => {

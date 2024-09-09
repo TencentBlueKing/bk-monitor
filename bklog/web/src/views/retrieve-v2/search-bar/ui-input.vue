@@ -188,15 +188,25 @@
     showTagListItems(target);
   };
 
+  const needDeleteItem = ref(false);
   const handleDeleteItem = e => {
+    if (e.target.value) {
+      needDeleteItem.value = false;
+    }
+
     if (!e.target.value) {
-      if (modelValue.value.length >= 1) {
-        modelValue.value.splice(-1, 1);
-        hideTippyInstance();
-        setTimeout(() => {
-          handleContainerClick();
-        }, 300);
+      if (needDeleteItem.value) {
+        if (modelValue.value.length >= 1) {
+          modelValue.value.splice(-1, 1);
+          hideTippyInstance();
+          setTimeout(() => {
+            refSearchInput.value?.focus();
+            handleFocusInput({ target: refSearchInput.value });
+          }, 300);
+        }
       }
+
+      needDeleteItem.value = true;
     }
   };
 </script>
