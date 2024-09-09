@@ -839,7 +839,7 @@ class SearchHandler(object):
             result=result,
         )
 
-    @cache_five_minute("search_history_{username}_{index_set_id}_{search_type}_{params}", need_md5=True)
+    @cache_five_minute("search_history_{username}_{index_set_id}_{search_type}_{params}_{search_mode}", need_md5=True)
     def _cache_history(self, *, username, index_set_id, params, search_type, search_mode, result):  # noqa
         history_params = copy.deepcopy(params)
         history_params.update({"start_time": self.start_time, "end_time": self.end_time, "time_range": self.time_range})
@@ -1252,7 +1252,6 @@ class SearchHandler(object):
     @staticmethod
     def _build_query_string(history):
         history["query_string"] = generate_query_string(history["params"])
-        history["search_mode"] = history["params"].get("search_mode")
         return history
 
     @staticmethod
