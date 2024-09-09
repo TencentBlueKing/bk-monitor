@@ -438,14 +438,14 @@ export default class DetailsSide extends tsc<IProps> {
         tableColumns.push(column);
       }
     }
-    if (this.pointType === EPointType.end) {
+    /* if (this.pointType === EPointType.end) {
       tableColumns.push({
         id: EColumn.Operate,
         name: window.i18n.t('操作'),
         type: 'scoped_slots',
         min_width: 80,
       });
-    }
+    } */
     this.tableColumns = tableColumns;
   }
 
