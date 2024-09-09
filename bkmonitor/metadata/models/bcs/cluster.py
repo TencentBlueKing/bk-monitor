@@ -481,8 +481,8 @@ class BcsFederalClusterInfo(common.BaseModelWithTime):
     host_cluster_id = models.CharField("HOST 集群 ID", max_length=32)
     sub_cluster_id = models.CharField("子集群 ID", max_length=32)
     fed_namespaces = JsonField("命名空间列表", default=[])
-    fed_buildin_metric_table_id = models.CharField("内置指标结果表", max_length=128, null=True, blank=True)
-    fed_buildin_event_table_id = models.CharField("内置指标结果表", max_length=128, null=True, blank=True)
+    fed_builtin_metric_table_id = models.CharField("内置指标结果表", max_length=128, null=True, blank=True)
+    fed_builtin_event_table_id = models.CharField("内置事件结果表", max_length=128, null=True, blank=True)
 
     class Meta:
         verbose_name = "BCS联邦集群拓扑信息"
