@@ -1219,7 +1219,7 @@ class SearchHandler(object):
                         index_set_type=IndexSetType.SINGLE.value,
                     )
                     .order_by("-rank", "-created_at")[:10]
-                    .values("id", "params")
+                    .values("id", "params", "search_mode")
                 )
             else:
                 history_obj = (
@@ -1230,7 +1230,7 @@ class SearchHandler(object):
                         index_set_type=IndexSetType.SINGLE.value,
                     )
                     .order_by("created_by", "-created_at")
-                    .values("id", "params", "created_by", "created_at")
+                    .values("id", "params", "search_mode", "created_by", "created_at")
                 )
         else:
             history_obj = (
@@ -1241,7 +1241,7 @@ class SearchHandler(object):
                     index_set_type=IndexSetType.UNION.value,
                 )
                 .order_by("-rank", "-created_at")[:10]
-                .values("id", "params", "created_by", "created_at")
+                .values("id", "params", "search_mode", "created_by", "created_at")
             )
         history_obj = SearchHandler._deal_repeat_history(history_obj)
         return_data = []
