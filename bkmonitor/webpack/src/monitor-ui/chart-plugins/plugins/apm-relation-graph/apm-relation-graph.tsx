@@ -160,18 +160,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     field: '',
     order: 'ascending',
   };
-
-  /* 展开列表 */
-  expandList = [
-    {
-      id: 'topo',
-      icon: 'icon-ziyuan',
-    },
-    {
-      id: 'overview',
-      icon: 'icon-mc-overview',
-    },
-  ];
   expanded = [];
 
   /** 是否需要缓存 */
@@ -219,6 +207,30 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   selectedIcon = '';
 
   nodeTipsMap = new Map();
+
+  /* 展开列表 */
+  get expandList() {
+    return [
+      {
+        id: 'topo',
+        tips: this.resourceDisable
+          ? this.selectedEndpoint
+            ? window.i18n.tc('请选择非接口节点')
+            : window.i18n.tc('请选择节点')
+          : window.i18n.tc('资源拓扑'),
+        icon: 'icon-ziyuan',
+      },
+      {
+        id: 'overview',
+        tips: this.overviewDisable
+          ? window.i18n.tc('请选择节点')
+          : this.selectedEndpoint
+            ? window.i18n.tc('接口概览')
+            : window.i18n.tc('服务概览'),
+        icon: 'icon-mc-overview',
+      },
+    ];
+  }
 
   /** 经过过滤的表格数据 */
   get filterTableData() {
@@ -272,7 +284,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     return this.showType === 'table' || !this.selectedServiceName;
   }
   get resourceDisable() {
-    return this.showType === 'table' || !!this.selectedEndpoint;
+    return this.showType === 'table' || !!this.selectedEndpoint || !this.selectedServiceName;
   }
 
   created() {
@@ -677,6 +689,9 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                     { disabled: item.id === 'topo' ? this.resourceDisable : this.overviewDisable },
                     { active: this.expanded.includes(item.id) },
                   ]}
+                  v-bk-tooltips={{
+                    content: item.tips,
+                  }}
                   onClick={() =>
                     !(item.id === 'topo' ? this.resourceDisable : this.overviewDisable) && this.handleExpand(item.id)
                   }
@@ -711,7 +726,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
           />
           {this.loading.topo && (
             <div class={{ 'apm-topo-empty-chart': true, 'all-loading': this.refreshTopoLayout }}>
-              {this.refreshTopoLayout ? <div class='chart-skeleton' /> : <bk-spin spinning />}
+              {this.refreshTopoLayout ? <div v-bkloading={{ isLoading: true }} /> : <bk-spin spinning />}
             </div>
           )}
 

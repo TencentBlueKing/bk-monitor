@@ -319,14 +319,17 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   async getMoreAlertLink() {
     try {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-      const result = await topoLink({
-        start_time: startTime,
-        end_time: endTime,
-        app_name: this.appName,
-        service_name: this.serviceName,
-        endpoint_name: this.curType === 'endpoint' ? this.endpoint : undefined,
-        link_type: 'alert',
-      }).catch(() => '');
+      const result = await topoLink(
+        {
+          start_time: startTime,
+          end_time: endTime,
+          app_name: this.appName,
+          service_name: this.serviceName,
+          endpoint_name: this.curType === 'endpoint' ? this.endpoint : undefined,
+          link_type: 'alert',
+        },
+        { needMessage: false }
+      ).catch(() => '');
       this.moreLink = result;
     } catch (e) {
       console.error(e);
