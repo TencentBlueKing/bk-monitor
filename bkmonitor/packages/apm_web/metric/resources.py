@@ -542,7 +542,6 @@ class ServiceListResource(PageListResource):
         )
         service_alert_status_mapping = defaultdict(int)
         for strategy_id, items in strategy_map.items():
-
             # Step1: 处理策略条件中配置的服务 将数量作为服务的策略数
             service_names = self.get_condition_service_names(items["info"])
             for name in service_names:
@@ -684,8 +683,12 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             elif service["extra_data"]["kind"] == TopoNodeKind.SERVICE:
                 metric_info = service_metric_info.get(service_name, {})
             elif service["extra_data"]["kind"] == TopoNodeKind.COMPONENT:
-                origin_service, predicate_value = service_name.rsplit("-", 1)
-                metric_info = component_metric_info.get(origin_service, {}).get(predicate_value, {})
+                info = service_name.rsplit("-", 1)
+                if len(info) == 2:
+                    origin_service, predicate_value = info
+                    metric_info = component_metric_info.get(origin_service, {}).get(predicate_value, {})
+                else:
+                    metric_info = {}
 
             if service["topo_key"] in profiling_metric_info:
                 # 补充 profiling 数据

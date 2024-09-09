@@ -26,6 +26,11 @@ for _setting in dir(_module):
     if _setting == _setting.upper():
         locals()[_setting] = getattr(_module, _setting)
 
+# 复用worker CACHES
+from config.role import worker
+
+CACHES = worker.CACHES
+
 # 覆盖默认配置
 RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_VHOST, RABBITMQ_USER, RABBITMQ_PASS, _ = get_rabbitmq_settings(
     app_code=APP_CODE, backend=True
@@ -223,9 +228,6 @@ COMMON_USERNAME = os.environ.get("BK_ESB_SUPER_USER", "admin")
 AES_TOKEN_KEY = os.environ.get("AK_AES_TOKEN_KEY", "ALERT_RESULT")
 
 INGESTER_CONSUL = os.environ.get("INGESTER_CONSUL", "")
-
-# 项目空间API类模块路径
-BKM_SPACE_API_CLASS = "metadata.resources.space_api.InjectSpaceApi"
 
 # api 进程禁用ssl
 SECURE_SSL_REDIRECT = False
