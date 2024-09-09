@@ -235,7 +235,7 @@
             });
           } else if (Array.isArray(contextFields) && contextFields.length) {
             // 传参配置指定字段
-            contextFields.push(config.timeField);
+            contextFields.push(this.timeField);
             contextFields.forEach(field => {
               if (field === 'bk_host_id') {
                 if (row[field]) dialogNewParams[field] = row[field];
@@ -324,16 +324,6 @@
 
         &:first-child {
           margin-left: 0;
-        }
-      }
-
-      .icon-handle {
-        font-size: 14px;
-        color: #979ba5;
-        cursor: pointer;
-
-        &:hover {
-          color: #3a84ff;
         }
       }
 

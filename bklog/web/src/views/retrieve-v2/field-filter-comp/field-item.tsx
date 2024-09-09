@@ -81,9 +81,6 @@ export default class FieldItem extends tsc<object> {
       !/^__dist_/.test(this.fieldItem.field_name)
     );
   }
-  get reQueryAggChart() {
-    return `${this.retrieveSearchNumber} ${this.datePickerValue.join(',')}`;
-  }
   /** 冲突字段索引集名称*/
   get unionConflictFieldsName() {
     return this.unionIndexItemList
@@ -252,7 +249,6 @@ export default class FieldItem extends tsc<object> {
             field-type={this.fieldItem.field_type}
             is-front-statistics={this.isFrontStatistics}
             parent-expand={this.isExpand}
-            re-query-agg-chart={this.reQueryAggChart}
             retrieve-params={this.retrieveParams}
             statistical-field-data={this.statisticalFieldData}
           />

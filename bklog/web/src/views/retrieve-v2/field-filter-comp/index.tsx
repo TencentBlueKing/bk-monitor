@@ -43,11 +43,8 @@ export default class FieldFilterComp extends tsc<object> {
   @Prop({ type: Array, default: () => [] }) sortList: Array<any>;
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;
   @Prop({ type: Boolean, default: false }) showFieldAlias: object;
-  @Prop({ type: Boolean, default: false }) parentLoading: boolean;
   @Prop({ type: Object, default: () => ({}) }) retrieveParams: object;
   @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
-  @Prop({ type: Number, default: 0 }) retrieveSearchNumber: number;
-  @Prop({ type: Object, default: () => ({}) }) statisticalFieldsData: object;
   @Prop({ type: Object, default: () => ({}) }) indexSetItem: any;
   @Ref('filterPopover') readonly filterPopoverRef!: HTMLDivElement;
   @Ref('fieldFilter') readonly fieldFilterRef!: HTMLDivElement;
@@ -83,6 +80,10 @@ export default class FieldFilterComp extends tsc<object> {
   get hiddenFields() {
     return this.totalFields.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
   }
+  get statisticalFieldsData() {
+    return this.$store.state.retrieveDropdownData;
+  }
+
   /** 内置字段 */
   indexSetFields() {
     const underlineFieldList = []; // 下划线的字段
@@ -387,7 +388,7 @@ export default class FieldFilterComp extends tsc<object> {
         >
           {!!this.totalFields.length && (
             <div class='fields-container is-selected'>
-              <div class='title'>{this.$t('已添加字段')}</div>
+              <div class='title'>{this.$t('显示字段')}</div>
               {!!this.visibleFields.length ? (
                 <VueDraggable
                   class='filed-list'
@@ -406,7 +407,6 @@ export default class FieldFilterComp extends tsc<object> {
                         field-item={item}
                         is-front-statistics={this.isFrontStatistics}
                         retrieve-params={this.retrieveParams}
-                        retrieve-search-number={this.retrieveSearchNumber}
                         show-field-alias={this.showFieldAlias}
                         statistical-field-data={this.statisticalFieldsData[item.field_name]}
                         type='visible'
@@ -424,7 +424,7 @@ export default class FieldFilterComp extends tsc<object> {
           <div class='field-filter-roll'>
             {!!this.indexSetFields().length && (
               <div class='fields-container not-selected'>
-                <div class='title'>{this.$t('索引字段')}</div>
+                <div class='title'>{this.$t('可选字段')}</div>
                 <ul class='filed-list'>
                   {this.showIndexSetFields.map(item => (
                     <FieldItem
@@ -434,7 +434,6 @@ export default class FieldFilterComp extends tsc<object> {
                       field-item={item}
                       is-front-statistics={this.isFrontStatistics}
                       retrieve-params={this.retrieveParams}
-                      retrieve-search-number={this.retrieveSearchNumber}
                       show-field-alias={this.showFieldAlias}
                       statistical-field-data={this.statisticalFieldsData[item.field_name]}
                       type='hidden'
@@ -465,7 +464,6 @@ export default class FieldFilterComp extends tsc<object> {
                       field-item={item}
                       is-front-statistics={this.isFrontStatistics}
                       retrieve-params={this.retrieveParams}
-                      retrieve-search-number={this.retrieveSearchNumber}
                       show-field-alias={this.showFieldAlias}
                       statistical-field-data={this.statisticalFieldsData[item.field_name]}
                       type='hidden'

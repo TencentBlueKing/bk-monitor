@@ -52,6 +52,12 @@ import http from '@/api';
 
 Vue.use(Vuex);
 
+const sessionShowFieldObj = () => {
+  // 显示字段缓存
+  const showFieldStr = sessionStorage.getItem('showFieldSession');
+  return !showFieldStr ? {} : JSON.parse(showFieldStr);
+};
+
 const store = new Vuex.Store({
   // 模块
   modules: {
@@ -467,8 +473,9 @@ const store = new Vuex.Store({
               recursiveIncreaseData(value, `${prefixFieldKey + field}.`);
             } else {
               const fullFieldKey = prefixFieldKey ? prefixFieldKey + field : field;
+              let fieldData = state.retrieveDropdownData[fullFieldKey];
+              if (fieldData) fieldData.__totalCount += 1;
               if (value || value === 0) {
-                let fieldData = state.retrieveDropdownData[fullFieldKey];
                 if (!fieldData) {
                   Object.assign(state.retrieveDropdownData, {
                     [fullFieldKey]: Object.defineProperties(
@@ -478,11 +485,23 @@ const store = new Vuex.Store({
                           // 该字段下的值的数据类型，可能是数值、字符串、布尔值
                           value: typeof value,
                         },
+                        __totalCount: {
+                          // 总记录数量
+                          value: 1,
+                          writable: true,
+                        },
+                        __validCount: {
+                          // 有效值数量
+                          value: 0,
+                          writable: true,
+                        },
                       },
                     ),
                   });
                   fieldData = state.retrieveDropdownData[fullFieldKey];
                 }
+                fieldData.__validCount += 1;
+                fieldData[value] += 1;
                 if (state.notTextTypeFields.includes(field) && !fieldData?.[value]) {
                   // 非 text 类型字段统计可选值，text 则由用户手动输入
                   fieldData[value] = 1;
@@ -511,6 +530,57 @@ const store = new Vuex.Store({
     },
     updateTableLineIsWarp(state, payload) {
       state.tableLineIsWarp = payload;
+    },
+    resetVisibleFields(state, payload) {
+      const sessionShownFieldList = sessionShowFieldObj()?.[state.indexId];
+      // 请求字段时 判断当前索引集是否有更改过字段 若更改过字段则使用session缓存的字段显示
+      const filterList = (payload || sessionShownFieldList) ?? state.indexFieldInfo.display_fields;
+      const visibleFields =
+        filterList
+          .map(displayName => {
+            for (const field of state.indexFieldInfo.fields) {
+              if (field.field_name === displayName) {
+                return field;
+              }
+            }
+          })
+          .filter(Boolean) ?? [];
+      store.commit('updateVisibleFields', visibleFields);
+      store.commit('updateIsNotVisibleFieldsShow', !visibleFields.length);
+    },
+    resetIndexSetOperatorConfig(state) {
+      const {
+        bkmonitor,
+        context_and_realtime: contextAndRealtime,
+        bcs_web_console: bcsWebConsole,
+      } = state.indexSetFieldConfig;
+      // 字段设置的参数传到实时日志和上下文
+      let indexSetValue;
+      if (!state.indexItem.isUnionIndex) {
+        const items = state.indexItem.items[0];
+        indexSetValue = {
+          scenarioID: items.scenario_id,
+          sortFields: items.sort_fields ?? [],
+          targetFields: items.target_fields ?? [],
+        };
+      } else {
+        indexSetValue = {};
+      }
+      store.commit('updateIndexSetOperatorConfig', {
+        bkmonitor,
+        bcsWebConsole,
+        contextAndRealtime,
+        indexSetValue,
+        toolMessage: {
+          webConsole: bcsWebConsole.is_active ? 'WebConsole' : bcsWebConsole?.extra?.reason,
+          realTimeLog: contextAndRealtime.is_active
+            ? window.mainComponent.$t('实时日志')
+            : contextAndRealtime?.extra?.reason,
+          contextLog: contextAndRealtime.is_active
+            ? window.mainComponent.$t('上下文')
+            : contextAndRealtime?.extra?.reason,
+        },
+      });
     },
   },
   actions: {
@@ -698,11 +768,9 @@ const store = new Vuex.Store({
           commit('updateIndexFieldInfo', res.data ?? {});
           commit('updataOperatorDictionary', res.data ?? {});
           commit('updateNotTextTypeFields', res.data ?? {});
-          const visibleFields =
-            res.data?.fields.filter(item => res.data.display_fields.includes(item.field_name)) ?? [];
-          commit('updateVisibleFields', visibleFields);
-          commit('updateIsNotVisibleFieldsShow', !visibleFields.length);
           commit('updateIndexSetFieldConfig', res.data ?? {});
+          commit('resetVisibleFields');
+          commit('resetIndexSetOperatorConfig');
           return res;
         })
         .catch(() => {

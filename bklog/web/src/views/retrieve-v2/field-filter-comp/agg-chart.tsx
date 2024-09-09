@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Inject, Watch } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _escape from 'lodash/escape';
@@ -42,8 +42,6 @@ export default class AggChart extends tsc<object> {
   @Prop({ type: String, required: true }) reQueryAggChart: string;
   @Prop({ type: Boolean, default: false }) isFrontStatistics: boolean;
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: any;
-
-  @Inject('addFilterCondition') addFilterCondition;
 
   showAllList = false;
   shouldShowMore = false;
@@ -111,8 +109,9 @@ export default class AggChart extends tsc<object> {
     return `${showPercentageStr}%`;
   }
   addCondition(operator, value) {
+    console.log('add-condition', operator, value);
     if (this.fieldType === '__virtual__') return;
-    this.addFilterCondition(this.fieldName, operator, value);
+    // this.addFilterCondition(this.fieldName, operator, value);
   }
   getIconPopover(operator, value) {
     if (this.fieldType === '__virtual__') return this.$t('该字段为平台补充 不可检索');
