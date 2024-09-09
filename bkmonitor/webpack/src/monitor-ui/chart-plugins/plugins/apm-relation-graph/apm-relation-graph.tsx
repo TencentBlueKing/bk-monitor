@@ -711,7 +711,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
           />
           {this.loading.topo && (
             <div class={{ 'apm-topo-empty-chart': true, 'all-loading': this.refreshTopoLayout }}>
-              {this.refreshTopoLayout ? <div class='chart-skeleton' /> : <bk-spin spinning />}
+              {this.refreshTopoLayout ? <div v-bkloading={{ isLoading: true }} /> : <bk-spin spinning />}
             </div>
           )}
 
