@@ -43,10 +43,17 @@ def refresh_bcs_monitor_info():
         fed_cluster_id_list = []
         logger.error("get federation clusters failed: {}".format(e))
 
+    bcs_clusters = list(
+        BCSClusterInfo.objects.filter(
+            status__in=[models.BCSClusterInfo.CLUSTER_STATUS_RUNNING, models.BCSClusterInfo.CLUSTER_RAW_STATUS_RUNNING],
+        )
+    )
+
+    # 对 bcs_clusters 进行排序，确保 fed_cluster_id_list 中的集群优先
+    bcs_clusters = sorted(bcs_clusters, key=lambda x: x.cluster_id not in fed_cluster_id_list)
+
     # 拉取所有cluster，遍历刷新monitorinfo信息
-    for cluster in BCSClusterInfo.objects.filter(
-        status__in=[models.BCSClusterInfo.CLUSTER_STATUS_RUNNING, models.BCSClusterInfo.CLUSTER_RAW_STATUS_RUNNING],
-    ):
+    for cluster in bcs_clusters:
         try:
             is_fed_cluster = cluster.cluster_id in fed_cluster_id_list
             # 刷新集群内置公共dataid resource
@@ -64,14 +71,15 @@ def refresh_bcs_monitor_info():
             logger.debug("refresh bcs service monitor custom resource in cluster:{} done".format(cluster.cluster_id))
             PodMonitorInfo.refresh_custom_resource(cluster_id=cluster.cluster_id)
             logger.debug("refresh bcs pod monitor custom resource in cluster:{} done".format(cluster.cluster_id))
+            if is_fed_cluster:
+                # 更新联邦集群记录
+                try:
+                    sync_federation_clusters(fed_clusters)
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.error("sync_federation_clusters failed, error:{}".format(e))
+
         except Exception:  # noqa
             logger.exception("refresh bcs monitor info failed, cluster_id(%s)", cluster.cluster_id)
-
-    # 更新联邦集群记录
-    try:
-        sync_federation_clusters(fed_clusters)
-    except Exception as e:  # pylint: disable=broad-except
-        logger.error("sync_federation_clusters failed, error:{}".format(e))
 
 
 @app.task(ignore_result=True, queue="celery_cron")
