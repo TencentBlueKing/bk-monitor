@@ -35,6 +35,7 @@ CMDB_IP_SEARCH_MAX_SIZE = 100
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshBCSMonitorInfo")
 def refresh_bcs_monitor_info():
+    fed_clusters = {}
     try:
         fed_clusters = api.bcs.get_federation_clusters()
         fed_cluster_id_list = list(fed_clusters.keys())
@@ -42,10 +43,17 @@ def refresh_bcs_monitor_info():
         fed_cluster_id_list = []
         logger.error("get federation clusters failed: {}".format(e))
 
+    bcs_clusters = list(
+        BCSClusterInfo.objects.filter(
+            status__in=[models.BCSClusterInfo.CLUSTER_STATUS_RUNNING, models.BCSClusterInfo.CLUSTER_RAW_STATUS_RUNNING],
+        )
+    )
+
+    # 对 bcs_clusters 进行排序，确保 fed_cluster_id_list 中的集群优先
+    bcs_clusters = sorted(bcs_clusters, key=lambda x: x.cluster_id not in fed_cluster_id_list)
+
     # 拉取所有cluster，遍历刷新monitorinfo信息
-    for cluster in BCSClusterInfo.objects.filter(
-        status__in=[models.BCSClusterInfo.CLUSTER_STATUS_RUNNING, models.BCSClusterInfo.CLUSTER_RAW_STATUS_RUNNING],
-    ):
+    for cluster in bcs_clusters:
         try:
             is_fed_cluster = cluster.cluster_id in fed_cluster_id_list
             # 刷新集群内置公共dataid resource
@@ -63,6 +71,13 @@ def refresh_bcs_monitor_info():
             logger.debug("refresh bcs service monitor custom resource in cluster:{} done".format(cluster.cluster_id))
             PodMonitorInfo.refresh_custom_resource(cluster_id=cluster.cluster_id)
             logger.debug("refresh bcs pod monitor custom resource in cluster:{} done".format(cluster.cluster_id))
+            if is_fed_cluster:
+                # 更新联邦集群记录
+                try:
+                    sync_federation_clusters(fed_clusters)
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.error("sync_federation_clusters failed, error:{}".format(e))
+
         except Exception:  # noqa
             logger.exception("refresh bcs monitor info failed, cluster_id(%s)", cluster.cluster_id)
 
@@ -142,12 +157,16 @@ def discover_bcs_clusters():
         return
     cluster_list = []
     # 获取所有联邦集群 ID
+    fed_clusters = {}
     try:
         fed_clusters = api.bcs.get_federation_clusters()
         fed_cluster_id_list = list(fed_clusters.keys())
     except Exception as e:  # pylint: disable=broad-except
         fed_cluster_id_list = []
         logger.error("get federation clusters failed, error:{}".format(e))
+
+    # 联邦集群顺序调整到前面，因为创建链路时依赖联邦关系记录
+    bcs_clusters = sorted(bcs_clusters, key=lambda x: x["cluster_id"] not in fed_cluster_id_list)
 
     # bcs 集群中的正常状态
     for bcs_cluster in bcs_clusters:
@@ -193,6 +212,12 @@ def discover_bcs_clusters():
             creator="admin",
             is_fed_cluster=is_fed_cluster,
         )
+        if is_fed_cluster:
+            # 创建联邦集群记录
+            try:
+                sync_federation_clusters(fed_clusters)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error("sync_federation_clusters failed, error:{}".format(e))
         logger.info(
             "cluster_id:{},project_id:{},bk_biz_id:{} registered".format(
                 cluster.cluster_id, cluster.project_id, cluster.bk_biz_id
@@ -323,3 +348,42 @@ def update_bcs_cluster_cloud_id_config(bk_biz_id=None, cluster_id=None):
         # 更新云区域
         for bk_cloud_id, bcs_cluster_ids in update_params.items():
             BCSClusterInfo.objects.filter(cluster_id__in=bcs_cluster_ids).update(bk_cloud_id=bk_cloud_id)
+
+
+def sync_federation_clusters(fed_clusters):
+    """
+    同步联邦集群信息，创建对应数据记录
+    """
+    logger.info("sync_federation_clusters started insert to db")
+    try:
+        fed_cluster_id_list = list(fed_clusters.keys())
+
+        for fed_cluster_id in fed_cluster_id_list:
+            logger.info("Syncing federation cluster->{}".format(fed_cluster_id))
+            host_cluster_id = fed_clusters[fed_cluster_id]['host_cluster_id']
+            sub_clusters = fed_clusters[fed_cluster_id]['sub_clusters']
+
+            # 获取代理集群的对应RT
+            cluster = models.BCSClusterInfo.objects.get(cluster_id=fed_cluster_id)
+            fed_builtin_k8s_metric_data_id = cluster.K8sMetricDataID
+            fed_builtin_k8s_event_data_id = cluster.K8sEventDataID
+            fed_builtin_metric_table_id = models.DataSourceResultTable.objects.get(
+                bk_data_id=fed_builtin_k8s_metric_data_id
+            ).table_id
+            fed_builtin_event_table_id = models.DataSourceResultTable.objects.get(
+                bk_data_id=fed_builtin_k8s_event_data_id
+            ).table_id
+
+            for sub_cluster_id, namespaces in sub_clusters.items():
+                # 同步至DB
+                models.BcsFederalClusterInfo.objects.update_or_create(
+                    fed_cluster_id=fed_cluster_id,
+                    host_cluster_id=host_cluster_id,
+                    sub_cluster_id=sub_cluster_id,
+                    fed_namespaces=namespaces,  # 直接存储完整的命名空间列表
+                    fed_builtin_metric_table_id=fed_builtin_metric_table_id,
+                    fed_builtin_event_table_id=fed_builtin_event_table_id,
+                )
+        logger.info("sync_federation_clusters run successfully.")
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error("sync_federation_clusters failed, error: {}".format(e))

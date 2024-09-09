@@ -9,7 +9,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from .bcs import BCSClusterInfo, PodMonitorInfo, ReplaceConfig, ServiceMonitorInfo
+from .bcs import (
+    BCSClusterInfo,
+    BcsFederalClusterInfo,
+    PodMonitorInfo,
+    ReplaceConfig,
+    ServiceMonitorInfo,
+)
 from .common import Label
 from .custom_report import (
     CustomReportSubscription,
@@ -119,6 +125,7 @@ __all__ = [
     "Label",
     # bcs
     "BCSClusterInfo",
+    "BcsFederalClusterInfo",
     "ServiceMonitorInfo",
     "PodMonitorInfo",
     "ReplaceConfig",
