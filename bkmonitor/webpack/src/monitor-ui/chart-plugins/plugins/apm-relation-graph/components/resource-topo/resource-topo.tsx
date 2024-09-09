@@ -33,7 +33,7 @@ import { Debounce, random } from 'monitor-common/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import { CommonSimpleChart } from '../../../common-simple-chart';
-import ResourceTopoSkeleton from './resource-topo-skeleton';
+// import ResourceTopoSkeleton from './resource-topo-skeleton';
 
 import './resource-topo.scss';
 import '@blueking/monitor-resource-topo/vue2/vue2.css';
@@ -185,8 +185,10 @@ class ResourceTopo extends CommonSimpleChart {
       <div
         key={this.refreshKey}
         class='apm-resource-topo'
+        v-bkloading={{ isLoading: this.loading }}
       >
-        {this.loading ? <ResourceTopoSkeleton /> : <div class='apm-resource-topo__chart' />}
+        {this.loading ? <div /> : <div class='apm-resource-topo__chart' />}
+        {/* {this.loading ? <ResourceTopoSkeleton /> : <div class='apm-resource-topo__chart' />} */}
       </div>
     );
   }
