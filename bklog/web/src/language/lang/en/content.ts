@@ -368,7 +368,7 @@ export default {
   '格式解析失败，可以尝试其他提取方法': 'Format parsing failed, other extraction methods can be tried',
   '注： 同一个日志可以进行多次清洗。': 'Note: the same log can be parsed multiple times.',
   '应用程序(Application)': 'Application',
-  '自动添加Pod中的{0}': 'Auto-add {0} from Pod',
+  '自动添加Pod中的{n}': 'Auto-add {n} from Pod',
   'IP格式有误或不存在，检查后重试！': 'Ip format is incorrect or does not exist, please check and retry!',
   '最多匹配{0}行，最大耗时{1}秒': 'Max {0} lines matched, max {1} seconds consumed',
   '当前归档ID为{n}，确认要删除？': 'Current archive id is {n}, confirm deletion?',
@@ -889,5 +889,5 @@ export default {
   '为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成':
     'To reduce transmission and storage costs, some content can be filtered out. More complex operations can be completed in the "Cleaning" feature.',
   请选择需要同步的配置: 'Please select the configuration to be synchronized',
-  '任务启动中，预计等待时长 {0} 分钟': 'Task starting, estimated wait time is {0} minutes.',
+  手动输入annotation: 'Manually enter annotation',
 };

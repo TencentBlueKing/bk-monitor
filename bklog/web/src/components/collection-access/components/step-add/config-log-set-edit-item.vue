@@ -160,7 +160,7 @@
 
         let type;
         if (this.isLabelEdit) {
-          type = val.operator === '=' ? 'match_labels' : 'match_expressions';
+          type = newValue.operator === '=' ? 'match_labels' : 'match_expressions';
         } else {
           type = 'match_annotations';
         }
