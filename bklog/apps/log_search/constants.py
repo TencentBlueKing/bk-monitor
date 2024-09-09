@@ -1407,7 +1407,7 @@ class IndexSetType(ChoicesEnum):
 
 class SearchMode(ChoicesEnum):
     """
-    查询模式
+    检索模式
     """
 
     UI = "ui"

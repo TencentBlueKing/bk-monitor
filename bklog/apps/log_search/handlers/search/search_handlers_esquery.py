@@ -201,7 +201,7 @@ class SearchHandler(object):
         self.addition = copy.deepcopy(search_dict.get("addition", []))
         self.ip_chooser = copy.deepcopy(search_dict.get("ip_chooser", {}))
         self.from_favorite_id = self.search_dict.get("from_favorite_id", 0)
-        # 查询模式
+        # 检索模式
         self.search_mode = self.search_dict.get("search_mode", "ui")
 
         self.use_time_range = search_dict.get("use_time_range", True)
