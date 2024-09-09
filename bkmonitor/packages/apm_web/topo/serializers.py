@@ -121,7 +121,7 @@ class EndpointNameSerializer(TopoBaseRequestSerializer):
     def validate(self, attrs):
         res = super(EndpointNameSerializer, self).validate(attrs)
         if attrs["link_type"] == TopoLinkType.ALERT.value:
-            if attrs.get("service_name"):
+            if attrs.get("endpoint_name") and not attrs.get("service_name"):
                 raise ValueError(f"[获取链接]获取告警中心链接需要 endpoint_name 参数")
 
         elif attrs["link_type"] == TopoLinkType.TOPO_SOURCE.value:
