@@ -136,7 +136,7 @@
         type="text"
         @blur="handleTextInputBlur"
         @focus.stop="handleFocusInput"
-        @keyup.delete="handleInputDelete"
+        @keydown.delete="handleInputDelete"
       />
     </li>
     <div style="display: none">
