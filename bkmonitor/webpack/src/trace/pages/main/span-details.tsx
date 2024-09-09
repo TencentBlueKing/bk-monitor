@@ -961,12 +961,12 @@ export default defineComponent({
         </Popover>
       </div>
     );
-    if (window.enable_apm_profiling) {
-      tabList.push({
-        label: t('性能分析'),
-        name: 'Profiling',
-      });
-    }
+    // if (window.enable_apm_profiling) {
+    //   tabList.push({
+    //     label: t('性能分析'),
+    //     name: 'Profiling',
+    //   });
+    // }
     const detailsMain = () => {
       // profiling 查询起始时间根据 span 开始时间前后各推半小时
       const halfHour = 18 * 10 ** 8;

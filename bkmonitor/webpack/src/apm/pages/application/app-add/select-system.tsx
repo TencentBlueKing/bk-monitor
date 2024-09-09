@@ -63,7 +63,7 @@ interface IProps {
   listData: IListDataItem[];
 }
 interface IEvents {
-  onNextStep: void;
+  onNextStep: (data: ICreateAppFormData) => void;
   onChange: ICreateAppFormData;
 }
 @Component
@@ -201,7 +201,7 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
   /** 批量修改整行卡片的选中状态 */
   handleRowChecked(row: IListDataItem, bool = false) {
     row.list.forEach(item => (item.checked = bool));
-    if (!!row.other) {
+    if (row.other) {
       row.other.checked = bool;
 
       row.other.value = '';
@@ -228,7 +228,7 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
     let isEmpy = true;
     const fn = (list: IListDataItem[]) => {
       list.forEach(row => {
-        if (!!row.children?.length) {
+        if (row.children?.length) {
           fn(row.children);
         } else {
           row.list?.forEach?.(cardItem => {
@@ -503,7 +503,7 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
               type='textarea'
             />
           </bk-form-item>
-          <bk-form-item
+          {/* <bk-form-item
             label='Profiling'
             required
           >
@@ -526,7 +526,7 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
                 </span>
               </i18n>
             </span>
-          </bk-form-item>
+          </bk-form-item> */}
           <bk-form-item
             label='Tracing'
             required
@@ -540,6 +540,7 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
           <bk-form-item label={this.$t('支持插件')}>
             {this.pluginList.map(item => (
               <div
+                key={item.id}
                 class={{
                   'app-add-plugin-radio': true,
                   selected: item.id === this.formData.pluginId,
@@ -552,7 +553,7 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
                 }}
               >
                 <div class='plugin-info'>
-                  <img src={item.img} />
+                  <img src={item.img} alt='' />
                   <div class='plugin-name'>
                     <span>{item.name}</span>
                     <span class='desc'>
@@ -606,7 +607,7 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
                 required
               >
                 {this.formData.plugin_config.paths.map((path, index) => (
-                  <div>
+                  <div key={`${path}_${index}`}>
                     <div
                       style={{
                         display: 'flex',

@@ -216,12 +216,12 @@ export default class BasicInfo extends tsc<IProps> {
   ];
   samplingTypeList = [
     { id: 'random', name: window.i18n.tc('随机') },
-    { id: 'tail', name: window.i18n.tc('尾部采样') },
+    // { id: 'tail', name: window.i18n.tc('尾部采样') },
     { id: 'empty', name: window.i18n.tc('不采样') },
   ];
   samplingTypeMaps = {
     random: window.i18n.tc('随机'),
-    tail: window.i18n.tc('尾部采样'),
+    // tail: window.i18n.tc('尾部采样'),
     empty: window.i18n.tc('不采样'),
   };
   localInstanceList: IInstanceOption[] = [];
