@@ -274,15 +274,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     this.graph.changeSize(width, height);
     // 将拓扑图移到画布中心
     this.graph.fitCenter();
-
-    // 节点
-    if (this.menuCfg.show) {
-      const nodeTarget = this.graph.find('node', node => node.getModel().id === this.menuCfg.nodeModel.id);
-      const { x, y } = nodeTarget.getModel(); // 获得该节点的位置，对应 pointX/pointY 坐标
-      const canvasXY = this.graph.getCanvasByPoint(x, y);
-      this.menuCfg.x = canvasXY.x;
-      this.menuCfg.y = canvasXY.y;
-    }
+    this.updateMenuPosition();
   }
 
   @Watch('data')
@@ -380,6 +372,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         activeNode.setState('active', true);
       }
     } else {
+      this.hideMenu();
       if (this.graph) {
         this.graph.destroy();
         this.graph = null;
@@ -630,6 +623,10 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       this.scaleValue = this.graph.getZoom();
     });
 
+    graph.on('viewportchange', () => {
+      this.updateMenuPosition();
+    });
+
     graph.on('afterrender', () => {
       this.isRender = true;
       const zoom = this.graph.getZoom();
@@ -671,6 +668,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   hideMenu(e?: Event) {
     if (e && this.menuListRef.contains(e.target as HTMLElement)) return;
+    if (e && this.menuCfg.show && this.menuCfg.isDrilling) return;
     this.menuCfg = {
       x: 0,
       y: 0,
@@ -681,6 +679,18 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       drillingList: [],
     };
     document.body.removeEventListener('click', this.hideMenu);
+  }
+
+  /** 更新菜单位置 */
+  updateMenuPosition() {
+    // 节点
+    if (this.menuCfg.show) {
+      const nodeTarget = this.graph.find('node', node => node.getModel().id === this.menuCfg.nodeModel.id);
+      const { x, y } = nodeTarget.getModel(); // 获得该节点的位置，对应 pointX/pointY 坐标
+      const canvasXY = this.graph.getCanvasByPoint(x, y);
+      this.menuCfg.x = canvasXY.x;
+      this.menuCfg.y = canvasXY.y;
+    }
   }
 
   /** 设置节点状态 */
