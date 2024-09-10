@@ -1,22 +1,35 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
-from ...models import PluginVersionHistory
+from monitor_web.commons.data_access import PluginDataAccessor
+from monitor_web.models import PluginVersionHistory
+
 from .base import BasePluginManager
 
 
 class K8sPluginManager(BasePluginManager):
+    """
+    K8s插件管理器
+    collector_json: {
+        "template.yaml": "",
+        "values"
+    }
+    """
+
     def release(
         self, config_version: int, info_version: int, token: List[str] = None, debug: bool = True
     ) -> PluginVersionHistory:
-        pass
+        """
+        插件发布
+        """
+        # 数据接入
+        current_version = self.plugin.get_version(config_version, info_version)
+        PluginDataAccessor(current_version, self.operator).access()
 
-    def create_version(self, data: Dict[str, Any]) -> Tuple[PluginVersionHistory, bool]:
-        pass
-
-    def update_version(
-        self, data: Dict[str, Any], target_config_version: int = None, target_info_version: int = None
-    ) -> Tuple[PluginVersionHistory, bool]:
-        pass
+        # 标记为已发布
+        current_version.stage = PluginVersionHistory.Stage.RELEASE
+        current_version.is_packaged = True
+        current_version.save()
+        return current_version
 
     def make_package(
         self,
@@ -24,7 +37,12 @@ class K8sPluginManager(BasePluginManager):
         add_dirs: Dict[str, List[Dict[str, str]]] = None,
         need_tar: bool = True,
     ) -> Optional[str]:
-        pass
+        """
+        todo: 目前暂时不需要实现
+        """
 
     def run_export(self) -> str:
+        """
+        todo: 目前暂时不需要实现
+        """
         return ""

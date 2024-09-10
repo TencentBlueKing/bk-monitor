@@ -282,7 +282,7 @@ class NodeManInstaller(BaseInstaller):
         self.collect_config.save()
 
         # 如果是首次创建，更新部署配置关联的采集配置ID
-        if new_version.config_meta_id == 0:
+        if not new_version.config_meta_id:
             new_version.config_meta_id = self.collect_config.pk
             new_version.save()
 
@@ -327,6 +327,7 @@ class NodeManInstaller(BaseInstaller):
         self._deploy(target_version)
 
         # 更新采集配置
+        self.collect_config.deployment_config = target_version
         self.collect_config.operation_result = OperationResult.PREPARING
         self.collect_config.last_operation = OperationType.ROLLBACK
         self.collect_config.save()

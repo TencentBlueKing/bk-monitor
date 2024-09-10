@@ -868,7 +868,7 @@ class SaveCollectConfigResource(Resource):
             required=True, label="采集目标类型", choices=DeploymentConfigVersion.TARGET_NODE_TYPE_CHOICES
         )
         plugin_id = serializers.CharField(required=True, label="插件ID")
-        target_nodes = serializers.ListField(required=True, label="节点列表")
+        target_nodes = serializers.ListField(required=True, label="节点列表", allow_empty=True)
         remote_collecting_host = RemoteCollectingSlz(required=False, allow_null=True, default=None, label="远程采集配置")
         params = serializers.DictField(required=True, label="采集配置参数")
         label = serializers.CharField(required=True, label="二级标签")

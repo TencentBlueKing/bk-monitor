@@ -7,7 +7,7 @@ metadata:
   labels:
     app.kubernetes.io/name: qcloud-exporter
     app.kubernetes.io/instance: {{ release_name }}
-    app.kubernetes.io/version: "{{ version }}"
+    app.kubernetes.io/version: "{{ plugin.version }}"
     app.kubernetes.io/managed-by: bk-monitor
 automountServiceAccountToken: true
 ---
@@ -19,7 +19,7 @@ metadata:
   labels:
     app.kubernetes.io/name: qcloud-exporter
     app.kubernetes.io/instance: {{ release_name }}
-    app.kubernetes.io/version: "{{ version }}"
+    app.kubernetes.io/version: "{{ plugin.version }}"
     app.kubernetes.io/managed-by: bk-monitor
 data:
   config.yaml: |
@@ -33,7 +33,7 @@ metadata:
   labels:
     app.kubernetes.io/name: qcloud-exporter
     app.kubernetes.io/instance: {{ release_name }}
-    app.kubernetes.io/version: "{{ version }}"
+    app.kubernetes.io/version: "{{ plugin.version }}"
     app.kubernetes.io/managed-by: bk-monitor
 spec:
   type: ClusterIP
@@ -54,7 +54,7 @@ metadata:
   labels:
     app.kubernetes.io/name: qcloud-exporter
     app.kubernetes.io/instance: {{ release_name }}
-    app.kubernetes.io/version: "{{ version }}"
+    app.kubernetes.io/version: "{{ plugin.version }}"
     app.kubernetes.io/managed-by: bk-monitor
 spec:
   replicas: 1
@@ -67,17 +67,16 @@ spec:
       labels:
         app.kubernetes.io/name: qcloud-exporter
         app.kubernetes.io/instance: {{ release_name }}
-        app.kubernetes.io/version: "{{ version }}"
+        app.kubernetes.io/version: "{{ plugin.version }}"
         app.kubernetes.io/managed-by: bk-monitor
     spec:
       serviceAccountName: {{ release_name }}-qcloud-exporter
-      securityContext:
-        {}
+      securityContext: {}
       containers:
         - name: qcloud-exporter
           securityContext:
             {}
-          image: {{ image }}
+          image: {{ values.image }}
           imagePullPolicy: IfNotPresent
           command:
             - qcloud-exporter
@@ -96,11 +95,11 @@ spec:
               port: http
           resources:
             limits:
-              cpu: {{ cpu.limits }}
-              memory: {{ memory.limits }}
+              cpu: {{ values.limits.cpu }}
+              memory: {{ values.limits.memory }}
             requests:
-              cpu: {{ cpu.requests }}
-              memory: {{ memory.requests }}
+              cpu: {{ values.requests.cpu }}
+              memory: {{ values.requests.memory }}
           volumeMounts:
             - name: config
               mountPath: /app/config.yaml
@@ -114,7 +113,7 @@ metadata:
   labels:
     app.kubernetes.io/name: qcloud-exporter
     app.kubernetes.io/instance: {{ release_name }}
-    app.kubernetes.io/version: "{{ version }}"
+    app.kubernetes.io/version: "{{ plugin.version }}"
     app.kubernetes.io/managed-by: bk-monitor
 spec:
   selector:
@@ -124,9 +123,15 @@ spec:
   endpoints:
     - port: http
       path: /metrics/
-      interval: 60s
-      scrapeTimeout: 30s
-      honorLabels: false
+      interval: {{ collect.period }}s
+      scrape_timeout: {{ collect.timeout }}s
+      honor_labels: false
+      # 插入采集配置ID及业务ID
+      relabelings:
+        - target_label: "collect_config_id"
+          replacement: "{{ collect.id }}"
+        - target_label: "bk_biz_id"
+          replacement: "{{ bk_biz_id }}"
   namespaceSelector:
     matchNames:
     - {{ namespace }}

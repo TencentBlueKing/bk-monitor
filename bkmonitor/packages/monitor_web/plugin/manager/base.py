@@ -84,6 +84,28 @@ class BasePluginManager:
             plugin_id=self.plugin.plugin_id
         ).last()
 
+    @staticmethod
+    def _update_version_params(data, version, current_version, stag=None):
+        """
+        更新插件版本参数
+        """
+        sig_manager = load_plugin_signature_manager(version)
+        version.signature = sig_manager.signature().dumps2python()
+
+        if data.get("version_log", ""):
+            version.version_log = data.get("version_log", "")
+
+        # 如果是官方插件，且当前版本不是官方版本，则删除当前版本的所有历史版本
+        if version.is_official:
+            if not current_version.is_official:
+                PluginVersionHistory.origin_objects.filter(plugin=version.plugin).delete()
+            version.config_version = data.get("config_version", 1)
+            version.info_version = data.get("info_version", 1)
+
+        if stag:
+            version.stage = stag
+        version.save()
+
     @classmethod
     def _update_config(cls, update_config_data: Dict[str, Any], version: PluginVersionHistory):
         """
@@ -256,22 +278,103 @@ class BasePluginManager:
         :param debug: 是否为调试模式
         """
 
-    @abc.abstractmethod
-    def create_version(self, data: Dict[str, Any]) -> Tuple[PluginVersionHistory, bool]:
-        """
-        创建新版本
-        """
+    def create_version(self, data):
+        version = self.plugin.generate_version(data["config_version"], data["info_version"])
+        version.version_log = data.get("version_log", "")
+        version.save()
 
-    @abc.abstractmethod
-    def update_version(
-        self,
-        data: Dict[str, Any],
-        target_config_version: int = None,
-        target_info_version: int = None,
-    ) -> Tuple[PluginVersionHistory, bool]:
+        config_data = {
+            "config_json": data.get("config_json", []),
+            "collector_json": data.get("collector_json", []),
+            "is_support_remote": data.get("is_support_remote", False),
+        }
+        for attr, value in list(config_data.items()):
+            setattr(version.config, attr, value)
+        version.config.save()
+
+        info_data = {
+            "plugin_display_name": (
+                data["plugin_display_name"] if data["plugin_display_name"] else self.plugin.plugin_id
+            ),
+            "logo": None,
+            "description_md": data["description_md"],
+            "metric_json": data["metric_json"],
+        }
+        for attr, value in list(info_data.items()):
+            setattr(version.info, attr, value)
+        version.info.save()
+
+        if len(data["logo"]) > 1:
+            self.save_logo_file(version.info, data["logo"])
+
+        need_debug = True
+        if data.get("signature"):
+            version.signature = Signature().load_from_yaml(data["signature"]).dumps2python()
+            if version.is_safety:
+                need_debug = False
+            else:
+                sig_manager = load_plugin_signature_manager(version)
+                version.signature = sig_manager.signature().dumps2python()
+        else:
+            sig_manager = load_plugin_signature_manager(version)
+            version.signature = sig_manager.signature().dumps2python()
+        version.save()
+
+        return version, need_debug
+
+    def update_version(self, data):
         """
-        更新版本
+        更新插件版本
         """
+        need_debug = True
+        current_version = self.plugin.current_version
+        if not data.get("is_support_remote", False):
+            if current_version.is_release and current_version.config.is_support_remote:
+                raise RemoteCollectError({"msg": _("已开启远程采集的插件无法关闭远程采集")})
+
+        config = current_version.config
+        info = current_version.info
+        now_config_data = config.config2dict()
+        update_config_data = config.config2dict(data)
+
+        now_info_data = info.info2dict()
+        update_info_data = info.info2dict(data)
+
+        old_config_md5, new_config_md5, old_info_md5, new_info_md5 = list(
+            map(count_md5, [now_config_data, update_config_data, now_info_data, update_info_data])
+        )
+
+        current_config_version = current_version.config_version
+        current_info_version = current_version.info_version
+
+        if old_info_md5 != new_info_md5 and current_version.is_release:
+            current_info_version += 1
+
+        if old_config_md5 != new_config_md5 and current_version.is_release:
+            current_config_version += 1
+
+        if old_config_md5 == new_config_md5:
+            if current_version.is_release:
+                need_debug = False
+            if old_info_md5 != new_info_md5 and current_version.is_release:
+                version = self._get_version(current_config_version, current_info_version)
+                self._update_config(update_config_data, version)
+                self._update_info(update_info_data, now_info_data, current_version, version)
+                self._update_version_params(data, version, current_version, stag="release")
+            else:
+                # 包内容一样，则更新发布日志
+                setattr(current_version, "version_log", data.get("version_log", ""))
+                if data.get("signature"):
+                    current_version.signature = Signature().load_from_yaml(data["signature"]).dumps2python()
+                current_version.save()
+                version = current_version
+        else:
+            version = self._get_version(current_config_version, current_info_version)
+            self._update_config(update_config_data, version)
+            self._update_info(update_info_data, now_info_data, current_version, version)
+            self._update_version_params(data, version, current_version)
+
+        return version, need_debug
 
     @abc.abstractmethod
     def make_package(
@@ -551,26 +654,16 @@ class PluginManager(BasePluginManager):
 
     @staticmethod
     def _update_version_params(data, version, current_version, stag=None):
-        sig_manager = load_plugin_signature_manager(version)
-        version.signature = sig_manager.signature().dumps2python()
-
-        if data.get("version_log", ""):
-            version.version_log = data.get("version_log", "")
-
-        if version.is_official:
-            if not current_version.is_official:
-                PluginVersionHistory.origin_objects.filter(plugin=version.plugin).delete()
-                try:
-                    api.node_man.delete_plugin(name=version.plugin.plugin_id)
-                except BKAPIError:
-                    raise NodeManDeleteError
-
-            version.config_version = data.get("config_version", 1)
-            version.info_version = data.get("info_version", 1)
-
-        if stag:
-            version.stage = stag
-        version.save()
+        """
+        更新插件版本参数
+        """
+        super()._update_version_params(data, version, current_version, stag)
+        # 如果是官方插件，且当前版本不是官方版本，则删除当前版本的所有历史版本
+        if version.is_official and not current_version.is_official:
+            try:
+                api.node_man.delete_plugin(name=version.plugin.plugin_id)
+            except BKAPIError:
+                raise NodeManDeleteError
 
     def _tar_gz_file(self, filename_list):
         t = tarfile.open(os.path.join(self.tmp_path, self.plugin.plugin_id + ".tgz"), "w:gz")
@@ -828,107 +921,6 @@ class PluginManager(BasePluginManager):
             self.plugin.rollback_version_status(config_version)
             raise err
         return current_version
-
-    def create_version(self, data):
-        version = self.plugin.generate_version(data["config_version"], data["info_version"])
-        version.version_log = data.get("version_log", "")
-        version.save()
-
-        config_data = {
-            "config_json": data.get("config_json", []),
-            "collector_json": data.get("collector_json", []),
-            "is_support_remote": data.get("is_support_remote", False),
-        }
-        for attr, value in list(config_data.items()):
-            setattr(version.config, attr, value)
-        version.config.save()
-
-        info_data = {
-            "plugin_display_name": (
-                data["plugin_display_name"] if data["plugin_display_name"] else self.plugin.plugin_id
-            ),
-            "logo": None,
-            "description_md": data["description_md"],
-            "metric_json": data["metric_json"],
-        }
-        for attr, value in list(info_data.items()):
-            setattr(version.info, attr, value)
-        version.info.save()
-
-        if len(data["logo"]) > 1:
-            self.save_logo_file(version.info, data["logo"])
-
-        need_debug = True
-        if data.get("signature"):
-            version.signature = Signature().load_from_yaml(data["signature"]).dumps2python()
-            if version.is_safety:
-                need_debug = False
-            else:
-                sig_manager = load_plugin_signature_manager(version)
-                version.signature = sig_manager.signature().dumps2python()
-        else:
-            sig_manager = load_plugin_signature_manager(version)
-            version.signature = sig_manager.signature().dumps2python()
-        version.save()
-
-        return version, need_debug
-
-    def update_version(self, data, target_config_version=None, target_info_version=None):
-        need_debug = True
-        current_version = self.plugin.current_version
-        if not data.get("is_support_remote", False):
-            if current_version.is_release and current_version.config.is_support_remote:
-                raise RemoteCollectError({"msg": _("已开启远程采集的插件无法关闭远程采集")})
-
-        config = current_version.config
-        info = current_version.info
-        now_config_data = config.config2dict()
-        update_config_data = config.config2dict(data)
-
-        now_info_data = info.info2dict()
-        update_info_data = info.info2dict(data)
-
-        old_config_md5, new_config_md5, old_info_md5, new_info_md5 = list(
-            map(count_md5, [now_config_data, update_config_data, now_info_data, update_info_data])
-        )
-
-        current_config_version = current_version.config_version
-        current_info_version = current_version.info_version
-
-        if old_info_md5 != new_info_md5 and current_version.is_release:
-            current_info_version += 1
-
-        if old_config_md5 != new_config_md5 and current_version.is_release:
-            current_config_version += 1
-
-        # 如果有指定的目标版本，则强制设置
-        if target_config_version:
-            current_config_version = target_config_version
-        if target_info_version:
-            current_info_version = target_info_version
-
-        if old_config_md5 == new_config_md5:
-            if current_version.is_release:
-                need_debug = False
-            if old_info_md5 != new_info_md5 and current_version.is_release:
-                version = self._get_version(current_config_version, current_info_version)
-                self._update_config(update_config_data, version)
-                self._update_info(update_info_data, now_info_data, current_version, version)
-                self._update_version_params(data, version, current_version, stag="release")
-            else:
-                # 包内容一样，则更新发布日志
-                setattr(current_version, "version_log", data.get("version_log", ""))
-                if data.get("signature"):
-                    current_version.signature = Signature().load_from_yaml(data["signature"]).dumps2python()
-                current_version.save()
-                version = current_version
-        else:
-            version = self._get_version(current_config_version, current_info_version)
-            self._update_config(update_config_data, version)
-            self._update_info(update_info_data, now_info_data, current_version, version)
-            self._update_version_params(data, version, current_version)
-
-        return version, need_debug
 
     def make_package(self, add_files=None, add_dirs=None, need_tar=True):
         """
