@@ -164,8 +164,6 @@ class TopoLinkType(ChoicesEnum):
     TOPO_SOURCE = "topo_source"
 
     _choices_labels = (
-        ALERT,
-        _("跳转到告警中心"),
-        TOPO_SOURCE,
-        _("资源拓扑链接跳转处理"),
+        (ALERT, _("跳转到告警中心")),
+        (TOPO_SOURCE, _("资源拓扑链接跳转处理")),
     )
