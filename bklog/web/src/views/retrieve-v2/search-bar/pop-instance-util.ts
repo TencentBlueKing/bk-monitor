@@ -75,10 +75,10 @@ export default class PopInstanceUtil {
       this.uninstallInstance();
     }
 
-    if (this.tippyInstance === null) {
+    if (this.tippyInstance === null && this.refContent.value) {
       this.tippyInstance = tippy(target, {
         arrow: this.arrow,
-        content: (this.refContent.value.$el ?? this.refContent.value) as HTMLElement,
+        content: (this.refContent.value?.$el ?? this.refContent.value) as HTMLElement,
         trigger: 'manual',
         theme: 'log-light',
         placement: 'bottom-start',

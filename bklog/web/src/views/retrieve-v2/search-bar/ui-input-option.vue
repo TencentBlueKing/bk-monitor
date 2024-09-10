@@ -242,49 +242,21 @@
     }
   };
 
-  const keyEnterCallbackFn = computed(() => {
-    return [
-      () => {
-        // 如果不是Input键入内容进行全文检索
-        // 执行自动focus Vue选择框
-        if (!showFulltextMsg.value) {
-          enterStepIndex.value++;
-          handleConditionValueClick();
-          return;
-        }
-
-        // 如果当前为input focus自动弹出全文检索
-        // 回车执行保存动作，不做后续vue focus动作
-        handelSaveBtnClick();
-      },
-      () => {
-        enterStepIndex.value++;
-        handelSaveBtnClick();
-      },
-    ];
-  });
-
-  const debounceSetActiveStep = debounce(() => {
-    // 第二次点击Enter键，自动提交
-    if (enterStepIndex.value === 1) {
-      if (conditionValueEnterCount !== condition.value.value.length) {
-        keyEnterCallbackFn.value[enterStepIndex.value]?.();
-        document.removeEventListener('keydown', handleKeydownClick);
-      }
-
-      conditionValueEnterCount++;
-      return;
-    }
-
-    // 第一次点击Enter键，切换为条件值选择
-    keyEnterCallbackFn.value[enterStepIndex.value]?.();
-  });
+  /**
+   * 当前快捷键操作是否命中条件相关弹出
+   */
+  const isConditionValueFocus = () => {
+    const instance = conditionValueInstance.getTippyInstance();
+    return isConditionValueInputFocus.value && instance?.state.isShown;
+  };
 
   const activeConditionValueOption = () => {
     const instance = conditionValueInstance.getTippyInstance();
-    instance.popper?.querySelector('li.active')?.classList.remove('active');
-    instance.popper?.querySelectorAll('li')[conditionValueActiveIndex.value]?.classList.add('active');
-    instance.popper?.querySelector('li.active')?.scrollIntoView({ block: 'nearest' });
+    if (instance?.state.isShown) {
+      instance.popper?.querySelector('li.active')?.classList.remove('active');
+      instance.popper?.querySelectorAll('li')[conditionValueActiveIndex.value]?.classList.add('active');
+      instance.popper?.querySelector('li.active')?.scrollIntoView({ block: 'nearest' });
+    }
   };
 
   const handleInputVlaueChange = e => {
@@ -315,17 +287,31 @@
   };
 
   const resolveConditonValueInputEnter = () => {
-    if (isConditionValueInputFocus.value) {
+    // 如果需要设置条件
+    // 条件选择或者输入框已经渲染出来
+    if (refValueTagInput.value) {
       const instance = conditionValueInstance.getTippyInstance();
+
       // 如果是条件选择下拉已经展开，查询当前选中项
-      if (instance.state.isShown) {
+      if (instance?.state.isShown) {
         const val = activeItemMatchList.value[conditionValueActiveIndex.value];
         if (val !== undefined) {
           handleTagItemClick(val);
           refValueTagInput.value.value = '';
+          return;
         }
+      }
 
+      // 如果当前没有自动focus条件选择
+      if (!isConditionValueInputFocus.value) {
+        handleConditionValueClick();
         return;
+      }
+
+      // 如果有可以自动联想的内容 & 没有自动展开下拉提示
+      // 此时，自动展开下拉提示
+      if (!instance?.state.isShown && activeItemMatchList.value.length) {
+        handleConditionValueClick();
       }
 
       // 如果是条件输入框内有数据执行数据填入操作
@@ -336,8 +322,14 @@
         return;
       }
 
-      handelSaveBtnClick();
+      if (condition.value.value.length) {
+        handelSaveBtnClick();
+      }
+
+      return;
     }
+
+    handelSaveBtnClick();
   };
 
   const handleKeydownClick = e => {
@@ -354,7 +346,7 @@
       stopPropagation = true;
       isUpDownKeyEvent = true;
 
-      if (isConditionValueInputFocus.value) {
+      if (isConditionValueFocus()) {
         if (conditionValueActiveIndex.value > 0) {
           conditionValueActiveIndex.value--;
         }
@@ -371,7 +363,7 @@
     if (e.keyCode === 40) {
       stopPropagation = true;
       isUpDownKeyEvent = true;
-      if (isConditionValueInputFocus.value) {
+      if (isConditionValueFocus()) {
         if (conditionValueActiveIndex.value < activeItemMatchList.value.length - 1) {
           conditionValueActiveIndex.value++;
         }
@@ -387,16 +379,12 @@
     if (e.keyCode === 13) {
       stopPropagation = true;
 
-      if (!isConditionValueInputFocus.value) {
-        debounceSetActiveStep();
-      } else {
-        resolveConditonValueInputEnter();
-      }
+      resolveConditonValueInputEnter();
     }
 
     // key esc
     if (e.keyCode === 27) {
-      if (isConditionValueInputFocus.value) {
+      if (isConditionValueFocus()) {
         conditionValueInstance.hide();
         return;
       }
@@ -408,7 +396,7 @@
       e.stopImmediatePropagation();
     }
 
-    if (!isConditionValueInputFocus.value) {
+    if (!isConditionValueFocus()) {
       if (isUpDownKeyEvent && activeIndex.value < filterFieldList.value.length) {
         if (index >= 0) {
           handleFieldItemClick(filterFieldList.value[index], index);
@@ -438,7 +426,10 @@
     scrollActiveItemIntoView();
 
     nextTick(() => {
-      refFilterInput.value?.focus();
+      // 如果是外层检索输入，这里不能自动focus到搜索
+      if (!props.isInputFocus) {
+        refFilterInput.value?.focus();
+      }
     });
   };
 
@@ -464,7 +455,7 @@
     }
   };
 
-  const handleConditionValueInputBlur = () => {
+  const handleConditionValueInputBlur = e => {
     isConditionValueInputFocus.value = false;
     if (e.target.value) {
       condition.value.value.push(e.target.value);
@@ -776,7 +767,6 @@
       box-shadow: 0 2px 6px 0 #0000001a;
 
       > li {
-
         display: inline-block;
         width: 100%;
         max-width: 100%;
