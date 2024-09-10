@@ -214,6 +214,7 @@ def update_metric_list():
     source_type_gt_0 = ["BKDATA"]
     # 不再全局周期任务重执行，引导用户通过主动刷新进行触发
     extr_source_type_gt_0 = ["LOGTIMESERIES", "BKFTAALERT", "BKMONITORALERT", "BKMONITOR"]
+    # 非web请求， 允许使用 list_spaces
     businesses = SpaceApi.list_spaces()
 
     # 记录分发任务轮次

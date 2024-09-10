@@ -83,7 +83,7 @@
               {
                 "id": 2,
                 "title": "请求数",
-                "type": "graph",
+                "type": "apm-timeseries-chart",
                 "alias": "请求数",
                 "targets": [
                   {
@@ -278,13 +278,16 @@
                 "options": {
                   "time_series": {
                     "type": "bar"
+                  },
+                  "apm_time_series": {
+                    "metric": "request_count"
                   }
                 }
               },
               {
                 "id": 3,
                 "title": "错误数",
-                "type": "graph",
+                "type": "apm-timeseries-chart",
                 "alias": "错误数",
                 "targets": [
                   {
@@ -573,13 +576,16 @@
                 "options": {
                   "time_series": {
                     "type": "bar"
+                  },
+                  "apm_time_series": {
+                    "metric": "error"
                   }
                 }
               },
               {
                 "id": 4,
                 "title": "响应耗时",
-                "type": "graph",
+                "type": "apm-timeseries-chart",
                 "alias": "响应耗时",
                 "targets": [
                   {
@@ -1162,6 +1168,9 @@
                   }
                 ],
                 "options": {
+                  "apm_time_series": {
+                    "metric": "duration"
+                  }
                 }
               }
             ]
@@ -1267,7 +1276,7 @@
               {
                 "id": 2,
                 "title": "请求数",
-                "type": "graph",
+                "type": "apm-timeseries-chart",
                 "alias": "请求数",
                 "targets": [
                   {
@@ -1466,13 +1475,16 @@
                 "options": {
                   "time_series": {
                     "type": "bar"
+                  },
+                  "apm_time_series": {
+                    "metric": "request_count"
                   }
                 }
               },
               {
                 "id": 3,
                 "title": "错误数",
-                "type": "graph",
+                "type": "apm-timeseries-chart",
                 "alias": "错误数",
                 "targets": [
                   {
@@ -1767,13 +1779,16 @@
                 "options": {
                   "time_series": {
                     "type": "bar"
+                  },
+                  "apm_time_series": {
+                    "metric": "error"
                   }
                 }
               },
               {
                 "id": 4,
                 "title": "响应耗时",
-                "type": "graph",
+                "type": "apm-timeseries-chart",
                 "alias": "响应耗时",
                 "targets": [
                   {
@@ -2368,6 +2383,9 @@
                   }
                 ],
                 "options": {
+                  "apm_time_series": {
+                    "metric": "duration"
+                  }
                 }
               }
             ]

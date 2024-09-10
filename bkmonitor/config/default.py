@@ -236,7 +236,7 @@ BKM_SPACE_INJECT_REQUEST_ENABLED = False
 # 返回参数是否需要注入空间属性
 BKM_SPACE_INJECT_RESPONSE_ENABLED = False
 # 项目空间API类模块路径
-BKM_SPACE_API_CLASS = "monitor_web.commons.biz.space_api.InjectSpaceApi"
+BKM_SPACE_API_CLASS = "bkmonitor.space.space_api.InjectSpaceApi"
 
 #
 # Database

@@ -118,7 +118,7 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
   handleClickFuncName(e: MouseEvent, index: number) {
     this.curFuncParam = null;
     this.curFuncIndex = index;
-    this.handlePopoverShow(e.target);
+    this.handleDeleteSelect();
   }
   // 删除选中函数时触发
   handleDeleteSelect() {
@@ -198,18 +198,13 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
           {this.$t('函数')}
         </span>
         {this.localValue.map((item, index) => (
-          <span
+          <bk-tag
             key={item.key}
             ref={`target-${item.key}`}
-            class='func-item'
+            ext-cls='func-item'
             data-type='func'
           >
-            <span
-              class={['is-hover', 'func-name', { 'is-readonly': this.readonly }]}
-              on-click={(e: MouseEvent) => this.handleClickFuncName(e, index)}
-            >
-              {item.name}
-            </span>
+            <span class={['is-hover', 'func-name', { 'is-readonly': this.readonly }]}>{item.name}</span>
             {item?.params?.length ? <span class='brackets'>&nbsp;(&nbsp;</span> : undefined}
             {item?.params?.map((param, pIndex) => (
               <span
@@ -235,7 +230,11 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
               </span>
             ))}
             {item?.params?.length ? <span class='brackets'>&nbsp;)&nbsp;</span> : undefined}
-          </span>
+            <i
+              class='bk-icon icon-close-circle-shape clear-icon'
+              onClick={(e: MouseEvent) => this.handleClickFuncName(e, index)}
+            />
+          </bk-tag>
         ))}
         <FunctionMenu
           class='init-add'

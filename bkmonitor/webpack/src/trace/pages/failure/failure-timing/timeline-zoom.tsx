@@ -94,7 +94,7 @@ export default defineComponent({
   },
   emits: ['zoom', 'move'],
   setup(props, { emit }) {
-    /** 时序图 */
+    /** 时序图工具栏 */
     const { t } = useI18n();
     const MIN_ZOOM = 0;
     const showLegend = ref<boolean>(localStorage.getItem('showTimeLegend') === 'true');
