@@ -888,5 +888,6 @@ export default {
   '为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成':
     'To reduce transmission and storage costs, some content can be filtered out. More complex operations can be completed in the "Cleaning" feature.',
   请选择需要同步的配置: 'Please select the configuration to be synchronized',
-  '任务启动中，预计等待时长 {0} 分钟': 'Task starting, estimated wait time is {0} minutes.',
+  '使用LIKE、NOT LINK操作符时请在过滤值前后增加%':
+    'When using the LIKE and NOT LINK operators, please add % before and after the filter value.',
 };
