@@ -2648,9 +2648,8 @@ class ESStorage(models.Model, StorageResultTable):
         logger.info("table_id->[%s] will create new index->[%s]", self.table_id, new_index_name)
 
         # 2.1 创建新的index
-        es_client.indices.create(index=new_index_name, body=self.index_body, params={"request_timeout": 30})
-        logger.info("table_id->[%s] new index_name->[%s] is created now", self.table_id, new_index_name)
-
+        response = es_client.indices.create(index=new_index_name, body=self.index_body, params={"request_timeout": 30})
+        logger.info("table_id->[%s] create new index_name->[%s] response [%s]", self.table_id, new_index_name, response)
         return True
 
     def clean_index(self):
