@@ -41,87 +41,12 @@
     }
   }
 
-  .filter-rule {
-    display: flex;
-    flex-wrap: wrap;
+  .tooltips-icon {
+    /* stylelint-disable-next-line declaration-no-important */
+    top: -24px !important;
 
-    .icon-box {
-      min-width: 32px;
-      height: 32px;
-      font-size: 14px;
-      line-height: 28px;
-      text-align: center;
-      cursor: pointer;
-      background: #fff;
-      border: 1px solid #c4c6cc;
-
-      .bk-select-name {
-        padding: 0 10px;
-      }
-
-      .icon-plus-line {
-        color: #3a84ff;
-      }
-    }
-  }
-
-  .filter-rule-item {
-    margin-bottom: 6px;
-
-    .bk-select-angle {
-      display: none;
-    }
-
-    .bk-select, .bk-tag-input {
-      border-radius: 0;
-    }
-
-    .bk-form-control {
-      width: 140px;
-      border-radius: 0;
-    }
-
-    .and-or {
-      min-width: 62px;
-      line-height: 30px;
-      color: #ff9c01;
-    }
-
-    .condition {
-      // padding: 0 10px;
-      line-height: 30px;
-      color: #3A84FF;
-    }
-
-    .min-100 {
-      min-width: 100px;
-      max-height: 32px;
-    }
-
-    .mr-neg1 {
-      position: relative;
-      margin-right: -1px;
-    }
-
-    .above {
-      z-index: 999;
-    }
-
-    .is-not-error {
-      &.bk-select,
-      &.bk-tag-selector .bk-tag-input {
-        /* stylelint-disable-next-line declaration-no-important */
-        border: 1px solid #c4c6cc !important;
-      }
-    }
-
-    .alarm-config {
-      @include flex-center();
-    }
-  }
-
-  .shield-time {
-    width: 300px;
+    /* stylelint-disable-next-line declaration-no-important */
+    right: 510px !important;
   }
 
   .cluster-set {
@@ -145,17 +70,6 @@
       margin-right: 8px;
       font-size: 16px;
       color: #979BA5;
-    }
-  }
-
-  .rule-error {
-    .bk-tag-input {
-      border-color: #ff5656;
-    }
-
-    &.bk-select {
-      /* stylelint-disable-next-line declaration-no-important */
-      border-color: #ff5656 !important;
     }
   }
 }
