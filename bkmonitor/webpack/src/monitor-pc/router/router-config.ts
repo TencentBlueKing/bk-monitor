@@ -138,17 +138,17 @@ export const getRouteConfig = () => {
           // isBeta: window.platform?.te === false,
           canStore: true,
         },
-        {
-          name: 'Profiling 检索',
-          icon: 'icon-monitor icon-profiling menu-icon',
-          navName: 'Profiling 检索',
-          id: 'profiling',
-          path: '/trace/profiling',
-          href: '#/trace/profiling',
-          usePath: true,
-          // isBeta: window.platform?.te === false,
-          canStore: true,
-        },
+        // {
+        //   name: 'Profiling 检索',
+        //   icon: 'icon-monitor icon-profiling menu-icon',
+        //   navName: 'Profiling 检索',
+        //   id: 'profiling',
+        //   path: '/trace/profiling',
+        //   href: '#/trace/profiling',
+        //   usePath: true,
+        //   // isBeta: window.platform?.te === false,
+        //   canStore: true,
+        // },
       ],
     },
     {
@@ -518,7 +518,14 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
       return {
         ...item,
         children: item.children.reduce(
-          (pre, cur) => (cur.children?.length ? [...pre, ...cur.children.filter(set => set.canStore)] : [...pre, cur]),
+          (pre, cur) => {
+            if(cur.children?.length) {
+              pre.push(...cur.children.filter(set => set.canStore))
+            } else {
+              pre.push(cur)
+            }
+            return pre
+          },
           []
         ),
       };

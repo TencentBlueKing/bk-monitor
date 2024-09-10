@@ -29,13 +29,13 @@ import alarmShield from './modules/alarm-shield';
 import Report from './modules/email-subscription';
 import failureRoutes from './modules/failure';
 import homeRoutes from './modules/home';
-import profilingRoutes from './modules/profiling';
+// import profilingRoutes from './modules/profiling';
 import rotationRoutes from './modules/rotation';
 
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
-    ...[...homeRoutes, ...alarmShield, ...rotationRoutes, ...profilingRoutes, ...Report].map(item => ({
+    ...[...homeRoutes, ...alarmShield, ...rotationRoutes, ...Report].map(item => ({
       ...item,
       path: `${window.__BK_WEWEB_DATA__?.baseroute || '/'}${item.path}`.replace(/\/\//gim, '/'),
     })),

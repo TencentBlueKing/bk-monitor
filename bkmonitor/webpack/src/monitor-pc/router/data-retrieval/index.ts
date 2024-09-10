@@ -37,7 +37,7 @@ const LogRetrievalNew = () =>
   import(/* webpackChunkName: 'LogRetrievalNew'*/ '../../pages/data-retrieval/log-retrieval');
 const TraceRetrieval = () =>
   import(/* webpackChunkName: 'TraceRetrieval'*/ '../../pages/trace-retrieval/trace-retrieval');
-const Profiling = () => import(/* webpackChunkName: 'Profiling'*/ '../../pages/profiling/profiling');
+// const Profiling = () => import(/* webpackChunkName: 'Profiling'*/ '../../pages/profiling/profiling');
 export default [
   {
     path: '/data-retrieval',
@@ -124,26 +124,26 @@ export default [
       },
     },
   },
-  {
-    path: '/trace/profiling',
-    name: 'profiling',
-    components: {
-      noCache: Profiling,
-    },
-    meta: {
-      title: 'Profiling 检索',
-      navId: 'profiling',
-      navClass: 'profiling-retrieval-nav',
-      noChangeLoading: true,
-      noNavBar: true,
-      needClearQuery: true, // 需要清空query搜索条件
-      route: {
-        parent: 'data',
-      },
-      authority: {
-        map: traceAuth,
-        page: traceAuth.VIEW_AUTH,
-      },
-    },
-  },
+  // {
+  //   path: '/trace/profiling',
+  //   name: 'profiling',
+  //   components: {
+  //     noCache: Profiling,
+  //   },
+  //   meta: {
+  //     title: 'Profiling 检索',
+  //     navId: 'profiling',
+  //     navClass: 'profiling-retrieval-nav',
+  //     noChangeLoading: true,
+  //     noNavBar: true,
+  //     needClearQuery: true, // 需要清空query搜索条件
+  //     route: {
+  //       parent: 'data',
+  //     },
+  //     authority: {
+  //       map: traceAuth,
+  //       page: traceAuth.VIEW_AUTH,
+  //     },
+  //   },
+  // },
 ] as RouteConfig[];
