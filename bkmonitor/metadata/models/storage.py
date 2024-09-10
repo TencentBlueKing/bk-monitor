@@ -2491,7 +2491,7 @@ class ESStorage(models.Model, StorageResultTable):
 
                 # 3.2 需要将循环中的别名都指向了最新的index
                 response = es_client.indices.update_aliases(body={"actions": actions})
-                logger.info("table_id->[%s] actions->[%s] update alias get response [%s]",self.table_id, actions, response)
+                logger.info("table_id->[%s] actions->[%s] update alias response [%s]", self.table_id, actions, response)
 
                 logger.info(
                     "table_id->[%s] now has index->[%s] and alias->[%s | %s]",
