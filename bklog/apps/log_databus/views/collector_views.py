@@ -2240,6 +2240,7 @@ class CollectorViewSet(ModelViewSet):
                 namespaces=data.get("namespaces", []),
                 namespaces_exclude=data.get("namespaces_exclude", []),
                 label_selector=data.get("label_selector"),
+                annotation_selector=data.get("annotation_selector"),
                 container=data.get("container"),
             )
         )
