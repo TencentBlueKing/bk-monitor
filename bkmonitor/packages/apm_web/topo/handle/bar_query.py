@@ -204,7 +204,7 @@ class LinkHelper:
             return None
 
         return (
-            f"/?bizId={bk_biz_id}#/apm/service?"
+            f"/apm/service?"
             f"filter-service_name={service_name}&"
             f"filter-app_name={app_name}&"
             f"from={start_time}&"
@@ -223,7 +223,7 @@ class LinkHelper:
             return None
 
         return (
-            f"/?bizId={bk_biz_id}#/apm/service?"
+            f"/apm/service?"
             f"filter-service_name={service_name}&"
             f"filter-app_name={app_name}&"
             f"from={start_time}&"
