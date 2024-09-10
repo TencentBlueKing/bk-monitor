@@ -47,7 +47,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-service-default-instance",
         "apm_service-service-default-log",
         "apm_service-service-default-overview",
-        "apm_service-service-default-profiling",
+        # "apm_service-service-default-profiling", # 去掉应用场景下的服务详情内的profiling
         "apm_service-service-default-topo",
         "apm_service-service-default-db",
         # ⬇️ APMTrace检索场景视图
