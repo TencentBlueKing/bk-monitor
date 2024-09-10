@@ -769,7 +769,15 @@ class SpaceTableIDRedis:
                 filter_data=table_id_list,
             )
 
-        table_ids = set(influxdb_table_ids).union(set(vm_table_ids))
+        es_table_ids = models.ESStorage.objects.values_list("table_id", flat=True)
+        if table_id_list:
+            es_table_ids = filter_query_set_by_in_page(
+                query_set=es_table_ids,
+                field_op="table_id__in",
+                filter_data=table_id_list,
+            )
+
+        table_ids = set(influxdb_table_ids).union(set(vm_table_ids)).union(set(es_table_ids))
 
         return table_ids
 
