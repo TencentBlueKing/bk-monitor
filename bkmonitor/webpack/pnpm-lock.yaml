@@ -351,8 +351,8 @@ importers:
         specifier: 0.0.0-beta.4
         version: 0.0.0-beta.4
       '@blueking/date-picker':
-        specifier: 2.0.0-beta.30
-        version: 2.0.0-beta.30(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(dayjs@1.11.11)(vue@2.7.16)
+        specifier: 2.0.0-beta.32
+        version: 2.0.0-beta.32(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(dayjs@1.11.11)(vue@2.7.16)
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -587,8 +587,8 @@ importers:
         specifier: ^4.8.24
         version: 4.8.24
       '@blueking/date-picker':
-        specifier: 2.0.0-beta.30
-        version: 2.0.0-beta.30(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.1-beta.51.select.2)(dayjs@1.11.11)(vue@3.4.31)
+        specifier: 2.0.0-beta.32
+        version: 2.0.0-beta.32(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.1-beta.51.select.2)(dayjs@1.11.11)(vue@3.4.31)
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -2574,8 +2574,8 @@ packages:
       '@vue/runtime-dom': 3.4.38
     dev: false
 
-  /@blueking/date-picker@2.0.0-beta.30(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(dayjs@1.11.11)(vue@2.7.16):
-    resolution: {integrity: sha512-7+L42y1hUlbwvq0X/dXcGSPHpuji7pn16D6kcIAyHjeuypdjzU96HZPGDlUCuNrt1jvsV8MIuBRsgbPFcp8xIw==}
+  /@blueking/date-picker@2.0.0-beta.32(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(dayjs@1.11.11)(vue@2.7.16):
+    resolution: {integrity: sha512-gkm4grXyimAajW50pmo8NNcX7RL466X13CsKiJaWmK3n7KYLSiU+MLgF02fZkNJtf/DWuq/E7EFOYWKvGOYOAg==}
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
       bkui-vue: ^1.0.3-beta.38
@@ -2588,8 +2588,8 @@ packages:
       vue: 2.7.16
     dev: false
 
-  /@blueking/date-picker@2.0.0-beta.30(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.1-beta.51.select.2)(dayjs@1.11.11)(vue@3.4.31):
-    resolution: {integrity: sha512-7+L42y1hUlbwvq0X/dXcGSPHpuji7pn16D6kcIAyHjeuypdjzU96HZPGDlUCuNrt1jvsV8MIuBRsgbPFcp8xIw==}
+  /@blueking/date-picker@2.0.0-beta.32(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.1-beta.51.select.2)(dayjs@1.11.11)(vue@3.4.31):
+    resolution: {integrity: sha512-gkm4grXyimAajW50pmo8NNcX7RL466X13CsKiJaWmK3n7KYLSiU+MLgF02fZkNJtf/DWuq/E7EFOYWKvGOYOAg==}
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
       bkui-vue: ^1.0.3-beta.38
