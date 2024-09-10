@@ -156,6 +156,11 @@ export class TableChart extends CommonSimpleChart {
   get jsonViewerDataEmptyText() {
     return this.panel.options?.table_chart?.json_viewer_data_empty_text ?? window.i18n.tc('数据为空');
   }
+
+  get description() {
+    return this.panel.options?.header?.tips || '';
+  }
+
   @Watch('queryData', { immediate: true })
   queryDataChange(queryData: IQueryData) {
     this.conditionList = updateBkSearchSelectName(this.conditionOptions, transformQueryDataSearch(queryData.search));
@@ -474,6 +479,7 @@ export class TableChart extends CommonSimpleChart {
         {this.hasTitle ? (
           <ChartHeader
             class='draggable-handle'
+            descrition={this.description}
             draging={this.panel.draging}
             isInstant={this.panel.instant}
             showMore={false}
@@ -490,7 +496,10 @@ export class TableChart extends CommonSimpleChart {
         >
           {this.columns?.length ? (
             [
-              <div class='search-wrapper'>
+              <div
+                key={'01'}
+                class='search-wrapper'
+              >
                 {}
                 {this.searchType === 'search_select' ? (
                   <div class='search-wrapper-input'>
@@ -541,6 +550,7 @@ export class TableChart extends CommonSimpleChart {
                 )}
               </div>,
               <CommonTable
+                key={'02'}
                 style='background: #fff;'
                 checkable={false}
                 columns={this.columns}
@@ -552,7 +562,7 @@ export class TableChart extends CommonSimpleChart {
                 pagination={this.pagination}
                 paginationType='simple'
                 showExpand={this.showExpand}
-                storeKey={!!this.panel.title ? `${STORE_KEY_PREFIX}${this.panel.title}` : ''}
+                storeKey={this.panel.title ? `${STORE_KEY_PREFIX}${this.panel.title}` : ''}
                 onCollect={this.handleCollect}
                 onFilterChange={this.handleFilterChange}
                 onLimitChange={this.handleLimitChange}
