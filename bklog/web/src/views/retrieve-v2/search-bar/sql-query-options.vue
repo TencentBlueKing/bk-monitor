@@ -6,6 +6,8 @@
   import useStore from '@/hooks/use-store';
   // @ts-ignore
   import { debounce } from 'lodash';
+  import imgEnterKey from '@/images/icons/enter-key.svg';
+  import imgUpDownKey from '@/images/icons/up-down-key.svg';
   const props = defineProps({
     value: {
       type: String,
@@ -49,13 +51,13 @@
   /** 获取数字类型的字段name */
   const getNumTypeFieldList = computed(() => {
     return totalFields.value
-      .filter(item => ['long', 'integer', 'float'].includes(item.field_type))
-      .map(item => item.field_name);
+      .filter((item: { field_type: string }) => ['long', 'integer', 'float'].includes(item.field_type))
+      .map((item: { field_name: any }) => item.field_name);
   });
 
   /** 所有字段的字段名 */
   const totalFieldsNameList = computed(() => {
-    return totalFields.value.map(item => item.field_name);
+    return totalFields.value.map((item: { field_name: any }) => item.field_name);
   });
 
   // 检索后的日志数据如果字段在字段接口找不到则不展示联想的key
@@ -101,7 +103,7 @@
    * 显示哪个下拉列表
    * @param {String} [param]
    */
-  const showWhichDropdown = (param?) => {
+  const showWhichDropdown = (param?: string | OptionItemType[]) => {
     activeType.value.length = 0;
     activeType.value = [];
     if (typeof param === 'string') {
@@ -111,6 +113,7 @@
     if (Array.isArray(param)) {
       activeType.value.push(...param);
     }
+    console.log(activeType.value);
 
     activeIndex.value = 0;
   };
@@ -120,7 +123,7 @@
    * @param {Object} valueMap
    * @return {string[]}
    */
-  const getValueList = valueMap => {
+  const getValueList = (valueMap: { __fieldType?: any }) => {
     let valueMapList = Object.keys(valueMap);
     if (valueMap.__fieldType === 'string') {
       valueMapList = valueMapList // 清除mark标签
@@ -138,7 +141,7 @@
     return getNumTypeFieldList.value.includes(fieldStr);
   };
 
-  const showColonOperator = inputField => {
+  const showColonOperator = (inputField: string) => {
     const showVal = [OptionItemType.Colon];
 
     if (isNumTypeField(inputField?.trim())) {
@@ -234,9 +237,11 @@
    * 选择某个可选字段
    * @param {string} field
    */
-  const handleClickField = field => {
+  const handleClickField = (field: string | number) => {
     valueList.value = getValueList(retrieveDropdownData.value[field]);
+
     const currentValue = props.value;
+
     const trimValue = currentValue.trim();
     if (!trimValue || trimValue === '*') {
       emits('change', `${field} `);
@@ -261,7 +266,7 @@
    * 选择 : 或者 :*
    * @param {string} type
    */
-  const handleClickColon = type => {
+  const handleClickColon = (type: string) => {
     emits('change', `${props.value + type} `);
     calculateDropdown();
     nextTick(() => {
@@ -274,7 +279,7 @@
    * 选择某个字段可选值
    * @param {string} value
    */
-  const handleClickValue = value => {
+  const handleClickValue = (value: any) => {
     // 当前输入值可能的情况 【name:"a】【age:】
     emits(
       'change',
@@ -293,7 +298,7 @@
    * 选择 AND 或者 OR
    * @param {string} type
    */
-  const handleClickContinue = type => {
+  const handleClickContinue = (type: string) => {
     emits('change', `${props.value + type} `);
     showWhichDropdown(OptionItemType.Fields);
     fieldList.value = [...originFieldList()];
@@ -310,7 +315,7 @@
     }
   };
 
-  const handleKeydown = e => {
+  const handleKeydown = (e: { preventDefault?: any; code?: any }) => {
     const { code } = e;
     if (code === 'Escape') {
       emits('cancel');
@@ -368,9 +373,14 @@
   const beforeHideFn = () => {
     document.removeEventListener('keydown', handleKeydown);
   };
+  // 收藏查询列表
+  const favoriteList = ref([{}]);
+  // const favoriteList = ref([]);
+  const isFavorite = computed(() => !!props.value);
+  const handleClickFavorite = (item: any) => {};
   // 查询语法按钮部分
   const isRetract = ref(true);
-  const handleRetract = val => {
+  const handleRetract = (val: boolean) => {
     isRetract.value = val;
   };
   const matchList = ref([
@@ -399,6 +409,9 @@
       value: `count:[1 TO 5] \n  count:[1 TO 5} \n count:[10 TO *]`,
     },
   ]);
+  // 移动光标and确认结果提示
+
+  const svgImg = ref({ imgUpDownKey, imgEnterKey });
   defineExpose({
     beforeShowndFn,
     beforeHideFn,
@@ -423,79 +436,89 @@
   >
     <!-- 字段列表 -->
     <template v-if="showOption.showFields">
-      <li
-        v-for="item in fieldList"
-        class="list-item field-list-item"
-        :key="item"
-        @click="handleClickField(item)"
-      >
-        <div class="item-type-icon">
-          <span class="bklog-icon bklog-field"></span>
-        </div>
-        <div
-          class="item-text text-overflow-hidden"
-          v-bk-overflow-tips="{ placement: 'right' }"
+      <div class="control-list">
+        <li
+          v-for="item in fieldList"
+          class="list-item field-list-item"
+          :key="item"
+          @click="handleClickField(item)"
         >
-          {{ item }}
-        </div>
-      </li>
+          <div class="item-type-icon">
+            <span class="bklog-icon bklog-field"></span>
+          </div>
+          <div
+            class="item-text text-overflow-hidden"
+            v-bk-overflow-tips="{ placement: 'right' }"
+          >
+            {{ item }}
+          </div>
+        </li>
+      </div>
     </template>
+
     <!-- 字段对应值 -->
     <template v-if="showOption.showValue">
-      <li
-        v-for="item in valueList"
-        class="list-item value-list-item"
-        :key="item"
-        @click="handleClickValue(item)"
-      >
-        <div class="item-type-icon">
-          <span class="bklog-icon bklog-value"></span>
-        </div>
-        <div
-          class="item-text text-overflow-hidden"
-          v-bk-overflow-tips="{ placement: 'right' }"
+      <div class="control-list">
+        <li
+          v-for="item in valueList"
+          class="list-item value-list-item"
+          :key="item"
+          @click="handleClickValue(item)"
         >
-          {{ item }}
-        </div>
-      </li>
+          <div class="item-type-icon">
+            <span class="bklog-icon bklog-value"></span>
+          </div>
+          <div
+            class="item-text text-overflow-hidden"
+            v-bk-overflow-tips="{ placement: 'right' }"
+          >
+            {{ item }}
+          </div>
+        </li>
+      </div>
     </template>
     <!-- : :* -->
     <template v-if="showOption.showColon">
-      <li
-        class="list-item colon-list-item"
-        @click="handleClickColon(':')"
-      >
-        <div class="item-type-icon">
-          <span class="bklog-icon bklog-equal"></span>
-        </div>
-        <div class="item-text">:</div>
-        <div
-          class="item-description text-overflow-hidden"
-          v-bk-overflow-tips="{ placement: 'right' }"
+      <div class="control-list">
+        <li
+          class="list-item colon-list-item"
+          @click="handleClickColon(':')"
         >
-          <i18n path="{0}某一值">
-            <span class="item-callout">{{ $t('等于') }}</span>
-          </i18n>
-        </div>
-      </li>
-      <li
-        class="list-item colon-list-item"
-        @click="handleClickColon(': *')"
-      >
-        <div class="item-type-icon">
-          <span class="bklog-icon bklog-equal"></span>
-        </div>
-        <div class="item-text">:*</div>
-        <div
-          class="item-description text-overflow-hidden"
-          v-bk-overflow-tips="{ placement: 'right' }"
+          <div class="item-type-icon">
+            <span class="bklog-icon bklog-equal"></span>
+          </div>
+          <div class="item-text">:</div>
+          <div
+            class="item-description text-overflow-hidden"
+            v-bk-overflow-tips="{ placement: 'right' }"
+          >
+            <i18n path="{0}某一值">
+              <span class="item-callout">{{ $t('等于') }}</span>
+            </i18n>
+          </div>
+        </li>
+        <li
+          class="list-item colon-list-item"
+          @click="handleClickColon(': *')"
         >
-          <i18n path="{0}任意形式">
-            <span class="item-callout">{{ $t('存在') }}</span>
-          </i18n>
-        </div>
-      </li>
-      <template v-if="showOption.showOperator">
+          <div class="item-type-icon">
+            <span class="bklog-icon bklog-equal"></span>
+          </div>
+          <div class="item-text">:*</div>
+          <div
+            class="item-description text-overflow-hidden"
+            v-bk-overflow-tips="{ placement: 'right' }"
+          >
+            <i18n path="{0}任意形式">
+              <span class="item-callout">{{ $t('存在') }}</span>
+            </i18n>
+          </div>
+        </li>
+      </div>
+      <template
+        class="control-list"
+        v-if="showOption.showOperator"
+      >
         <li
           v-for="(item, key) in operatorSelectList"
           class="list-item continue-list-item"
@@ -519,44 +542,81 @@
     </template>
     <!-- AND OR -->
     <template v-if="showOption.showContinue">
-      <li
-        class="list-item continue-list-item"
-        @click="handleClickContinue('AND')"
-      >
-        <div class="item-type-icon">
-          <span class="bklog-icon bklog-and"></span>
-        </div>
-        <div class="item-text">AND</div>
-        <div
-          class="item-description text-overflow-hidden"
-          v-bk-overflow-tips="{ placement: 'right' }"
+      <div class="control-list">
+        <li
+          class="list-item continue-list-item"
+          @click="handleClickContinue('AND')"
         >
-          <i18n path="需要{0}为真">
-            <span class="item-callout">{{ $t('两个参数都') }}</span>
-          </i18n>
-        </div>
-      </li>
-      <li
-        class="list-item continue-list-item"
-        @click="handleClickContinue('OR')"
-      >
-        <div class="item-type-icon">
-          <span class="bklog-icon bklog-and"></span>
-        </div>
-        <div class="item-text">OR</div>
-        <div
-          class="item-description text-overflow-hidden"
-          v-bk-overflow-tips="{ placement: 'right' }"
+          <div class="item-type-icon">
+            <span class="bklog-icon bklog-and"></span>
+          </div>
+          <div class="item-text">AND</div>
+          <div
+            class="item-description text-overflow-hidden"
+            v-bk-overflow-tips="{ placement: 'right' }"
+          >
+            <i18n path="需要{0}为真">
+              <span class="item-callout">{{ $t('两个参数都') }}</span>
+            </i18n>
+          </div>
+        </li>
+        <li
+          class="list-item continue-list-item"
+          @click="handleClickContinue('OR')"
         >
-          <i18n path="需要{0}为真">
-            <span class="item-callout">{{ $t('一个或多个参数') }}</span>
-          </i18n>
+          <div class="item-type-icon">
+            <span class="bklog-icon bklog-and"></span>
+          </div>
+          <div class="item-text">OR</div>
+          <div
+            class="item-description text-overflow-hidden"
+            v-bk-overflow-tips="{ placement: 'right' }"
+          >
+            <i18n path="需要{0}为真">
+              <span class="item-callout">{{ $t('一个或多个参数') }}</span>
+            </i18n>
+          </div>
+        </li>
+      </div>
+    </template>
+    <!-- 收藏查询列表 -->
+    <template>
+      <div class="favorite-query-list">
+        <div class="query-list-title">{{ $t('收藏查询') }} ({{ favoriteList.length || 0 }})</div>
+        <div class="favorite-list">
+          <template v-if="favoriteList.length">
+            <div
+              class="list-item"
+              v-for="item in favoriteList"
+              @click="handleClickFavorite(item)"
+            >
+              <div><span class="active bklog-icon bklog-lc-star-shape"></span></div>
+              <div class="list-item-type">检索语句</div>
+              <div class="list-item-information">错误日志排查</div>
+              <div class="list-item-text">time:2024.10.24 15:15:15 AND k8s.container.name:1234</div>
+            </div>
+          </template>
+          <template v-else>
+            <bk-exception
+              class="exception-wrap-item exception-part exception-gray"
+              type="empty"
+              scene="part"
+            >
+            </bk-exception>
+          </template>
         </div>
-      </li>
+      </div>
+    </template>
+    <!-- 移动光标and确认结果提示 -->
+    <template>
+      <div class="ui-shortcut-key">
+        <span><img :src="svgImg.imgUpDownKey" />{{ $t('移动光标') }}</span>
+        <span><img :src="svgImg.imgEnterKey" />{{ $t('确认结果') }}</span>
+      </div>
     </template>
     <template v-if="isRetract">
       <span
-        class="sql-query-common"
+        class="sql-query-common sql-query-retract"
         @click="handleRetract(false)"
       >
         <span>{{ $t('查询语法') }}</span>
