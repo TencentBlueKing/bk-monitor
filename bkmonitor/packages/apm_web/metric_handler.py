@@ -360,7 +360,16 @@ class PromqlInstanceQueryMixin(MetricHandler):
 
         where = []
         for i in self.where:
-            where.append(f'{i["key"]}={"" if i["method"] == "eq" else "~"}"{"|".join(i["value"])}"')
+            op = "="
+            if i["method"] == "neq":
+                op = "!="
+
+            if len(i["value"]) <= 1:
+                v = f'"{i["value"][0]}"'
+            else:
+                v = '"' + "^(" + "|".join(i["value"]) + ")" + '"'
+                op = "=~"
+            where.append(f'{i["key"]}{op}{v}')
 
         for k, v in self.filter_dict.items():
             where.append(f'{k}="{v}"')

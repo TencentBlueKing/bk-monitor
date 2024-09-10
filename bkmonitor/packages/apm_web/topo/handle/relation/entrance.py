@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from typing import List, Tuple
 
 from apm_web.topo.constants import BarChartDataType, RelationResourcePathType
+from apm_web.topo.handle.graph_plugin import EndpointTips, PluginProvider
 from apm_web.topo.handle.relation.define import Node, TreeInfo
 from apm_web.topo.handle.relation.endpoint_top import (
     AlertList,
@@ -20,6 +21,8 @@ from apm_web.topo.handle.relation.endpoint_top import (
     ErrorRateList,
 )
 from apm_web.topo.handle.relation.path import PathProvider
+from apm_web.utils import merge_dicts
+from bkmonitor.utils.thread_backend import ThreadPool
 
 
 class RelationEntrance:
@@ -127,11 +130,39 @@ class EndpointListEntrance:
         if data_type not in cls.handler_mapping:
             raise ValueError(f"不支持根据 {data_type} 类型获取接口列表")
 
-        return cls.handler_mapping[data_type](
+        handler = cls.handler_mapping[data_type](
             bk_biz_id,
             app_name,
             start_time,
             end_time,
             service_name=service_name,
             size=size,
-        ).list()
+        )
+
+        endpoints = handler.list()
+        # 只获取列表中的接口 避免查询全部接口的数据
+        endpoint_names = [i["name"] for i in endpoints]
+
+        # 补充指标数据
+        plugins = PluginProvider.endpoint_plugins(
+            runtime={
+                "application": handler.application,
+                "start_time": handler.start_time,
+                "end_time": handler.end_time,
+                "service_name": handler.service_name,
+                "endpoint_names": endpoint_names,
+            }
+        )
+
+        endpoint_metrics = {}
+        pool = ThreadPool()
+        results = pool.map_ignore_exception(lambda p: p.install(), plugins)
+        for r in results:
+            endpoint_metrics = merge_dicts(endpoint_metrics, r)
+
+        for e in endpoints:
+            e_metrics = endpoint_metrics.get((e["name"],), {})
+            EndpointTips().process(e_metrics)
+            e.update(e_metrics)
+
+        return endpoints
