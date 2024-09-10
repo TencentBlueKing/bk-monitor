@@ -108,13 +108,14 @@ export default class QuickOpenCluster extends tsc<IProps> {
     return this.$route.params.indexId;
   }
 
-  created() {
-    this.formData.filter_rules = this.localFilterRule;
-  }
-
   @Watch('formData.filter_rules', { deep: true })
   handleIsShowChange(val) {
     this.localFilterRule = val;
+  }
+
+  @Watch('localFilterRule', { deep: true })
+  handleFilterRuleChange(val) {
+    this.formData.filter_rules = val;
   }
 
   @Emit('field-change')
