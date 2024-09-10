@@ -264,7 +264,9 @@ STRING_WITH_NESTED_FIELD_DSL = {
     }
 }
 
-STRING_WITH_FIELD_DSL = {"query_string": {"query": 'name: "Spongebob"', "analyze_wildcard": True}}
+STRING_WITH_FIELD_DSL = {
+    "query_string": {"query": 'name: "Spongebob"', "analyze_wildcard": True, "fields": ["*", "__*"]}
+}
 
 SERIALIZER_PARAMS = {
     "indices": "1_log_test,2_log_tes",
