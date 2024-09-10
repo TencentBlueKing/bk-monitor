@@ -237,14 +237,19 @@ NESTED_FIELDS_MAPPING = [
 STRING_WITHOUT_FIELD_DSL = {
     "bool": {
         "should": [
-            {"query_string": {"query": "Spongebob", "analyze_wildcard": True}},
+            {"query_string": {"query": "Spongebob", "analyze_wildcard": True, "fields": ["*", "__*"]}},
             {
                 "nested": {
                     "path": "address",
-                    "query": {"query_string": {"query": "Spongebob", "analyze_wildcard": True}},
+                    "query": {"query_string": {"query": "Spongebob", "analyze_wildcard": True, "fields": ["*", "__*"]}},
                 }
             },
-            {"nested": {"path": "school", "query": {"query_string": {"query": "Spongebob", "analyze_wildcard": True}}}},
+            {
+                "nested": {
+                    "path": "school",
+                    "query": {"query_string": {"query": "Spongebob", "analyze_wildcard": True, "fields": ["*", "__*"]}},
+                }
+            },
         ]
     }
 }
