@@ -763,7 +763,9 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                 nodeTipsMap={this.nodeTipsMap}
                 serviceName={this.selectedServiceName}
                 show={this.expanded.includes('overview')}
+                sliceTimeRange={this.sliceTimeRange}
                 timeRange={this.timeRange}
+                onSliceTimeRangeChange={this.handleSliceTimeRangeChange}
               />
             </div>
           </template>

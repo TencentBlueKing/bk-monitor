@@ -161,7 +161,7 @@
 
           &.log-type {
             .chart-wrapper {
-              height: 112px;
+              // height: 186px;
             }
           }
 
@@ -244,13 +244,29 @@
         .related-log-chart-wrap {
           .empty-chart {
             .bk-exception {
-              transform: scale(0.35);
+              top: -12px;
+              .empty-text {
+                font-size: 14px;
+              }
+              .text-wrap {
+                .text-row {
+                  margin: 12px 0;
+                  font-size: 12px;
+                }
+              }
+              .bk-exception-img {
+                img {
+                  height: 100px;
+                }
+              }
+              button {
+                font-size: 12px;
+              }
             }
           }
-
           .empty-chart-text {
             position: relative;
-            top: 30px;
+            top: 68px;
           }
         }
       }
