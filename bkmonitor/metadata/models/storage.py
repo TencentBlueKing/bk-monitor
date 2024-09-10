@@ -2007,7 +2007,7 @@ class ESStorage(models.Model, StorageResultTable):
     @property
     def read_alias_re(self):
         """获取读取别名的正则匹配"""
-        pattern = r"{}_(?P<datetime>\d+)_read".format(self.index_name)
+    not match datetime str(self.index_name)
         return re.compile(pattern)
 
     @property
@@ -2482,14 +2482,16 @@ class ESStorage(models.Model, StorageResultTable):
                     for _index in delete_list:
                         actions.append({"remove": {"index": _index, "alias": round_alias_name}})
                     logger.info(
-                        "table_id->[%s] index->[%s] alias->[%s] need delete",
+                        "table_id->[%s] last_index->[%s] index->[%s] alias->[%s] need delete",
                         self.table_id,
+                        last_index_name,
                         delete_list,
                         round_alias_name,
                     )
 
                 # 3.2 需要将循环中的别名都指向了最新的index
-                es_client.indices.update_aliases(body={"actions": actions})
+                response = es_client.indices.update_aliases(body={"actions": actions})
+                logger.info("table_id->[%s] actions->[%s] update alias get response [%s]",self.table_id, actions, response)
 
                 logger.info(
                     "table_id->[%s] now has index->[%s] and alias->[%s | %s]",
