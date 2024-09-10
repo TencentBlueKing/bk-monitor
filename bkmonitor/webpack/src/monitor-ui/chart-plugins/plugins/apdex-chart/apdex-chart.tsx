@@ -377,6 +377,7 @@ export class ApdexChart extends LineChart {
                   width={this.width}
                   height={this.height}
                   groupId={this.panel.dashboardId}
+                  hoverAllTooltips={this.hoverAllTooltips}
                   isContextmenuPreventDefault={this.enableContextmenu}
                   options={this.options}
                   onDataZoom={this.dataZoom}

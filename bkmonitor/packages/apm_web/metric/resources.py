@@ -43,7 +43,7 @@ from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.icon import get_icon
-from apm_web.metric.constants import StatisticsMetric
+from apm_web.metric.constants import ErrorMetricCategory, StatisticsMetric
 from apm_web.metric.handler.statistics import ServiceMetricStatistics
 from apm_web.metric.handler.top_n import get_top_n_query_type, load_top_n_handler
 from apm_web.metric_handler import (
@@ -165,6 +165,7 @@ class DynamicUnifyQueryResource(Resource):
             validate_data["bk_biz_id"],
             validate_data["app_name"],
             validate_data["service_name"],
+            raise_exception=False,
         )
         if not node:
             return self.fill_unit(resource.grafana.graph_unify_query(unify_query_params), validate_data.get("unit"))
@@ -2469,13 +2470,19 @@ class MetricDetailStatisticsResource(Resource):
         data_type = serializers.ChoiceField(label="指标类型", choices=StatisticsMetric.get_choices())
         # 请求数无维度 错误数维度为 总数量+状态码 响应耗时维度为 平均耗时+MAX/MIN/P90/...
         dimension = serializers.CharField(label="下拉框维度", required=False, default="default")
+        dimension_category = serializers.ChoiceField(
+            label="下拉框维度分类",
+            choices=ErrorMetricCategory.get_choices(),
+            required=False,
+        )
 
     def perform_request(self, validated_data):
         template = ServiceMetricStatistics.get_template(
             validated_data["data_type"],
-            validated_data.pop("option_kind"),
+            validated_data.get("option_kind"),
             validated_data.pop("dimension"),
             validated_data.get("service_name"),
+            validated_data.get("dimension_category"),
         )
         s = ServiceMetricStatistics(**validated_data)
         return s.list(template)

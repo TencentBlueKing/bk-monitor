@@ -15,15 +15,15 @@ from apm_web.models import Application
 
 
 class BaseQuery:
-    def __init__(self, data_type, bk_biz_id, app_name, start_time, end_time, service_name=None, **extra_params):
+    def __init__(self, bk_biz_id, app_name, start_time, end_time, data_type=None, service_name=None, **extra_params):
         self.bk_biz_id = bk_biz_id
         self.app_name = app_name
-        self.data_type = data_type
         self.start_time = start_time
         self.end_time = end_time
         self.delta = self.end_time - self.start_time
+        self.data_type = data_type
         self.service_name = service_name
-        self.params = extra_params.get("extra_params") if extra_params else {}
+        self.params = extra_params if extra_params else {}
 
         self.application = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get()
         self.metrics_table = self.application.metric_result_table_id
@@ -33,14 +33,14 @@ class BaseQuery:
         return [{"key": "service_name", "method": "eq", "value": [self.service_name]}] if self.service_name else []
 
     def get_metric(self, metric_clz: Type[MetricHandler], **kwargs):
-        return metric_clz(**self.common_params, **kwargs)
+        return metric_clz(**self.common_params(), **kwargs)
 
-    @property
-    def common_params(self):
+    def common_params(self, **kwargs):
         return {
             "application": self.application,
             "start_time": self.start_time,
             "end_time": self.end_time,
+            **kwargs,
         }
 
 

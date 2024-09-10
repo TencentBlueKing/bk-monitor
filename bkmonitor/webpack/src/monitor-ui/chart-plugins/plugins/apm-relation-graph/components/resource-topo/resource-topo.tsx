@@ -28,12 +28,12 @@ import { ofType } from 'vue-tsx-support';
 
 import { MonitorTopo, createApp, h as vue3CreateElement } from '@blueking/monitor-resource-topo/vue2';
 import { CancelToken } from 'monitor-api/index';
-import { nodeRelation, nodeRelationDetail } from 'monitor-api/modules/apm_topo';
+import { nodeRelation, nodeRelationDetail, topoLink } from 'monitor-api/modules/apm_topo';
 import { Debounce, random } from 'monitor-common/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import { CommonSimpleChart } from '../../../common-simple-chart';
-import ResourceTopoSkeleton from './resource-topo-skeleton';
+// import ResourceTopoSkeleton from './resource-topo-skeleton';
 
 import './resource-topo.scss';
 import '@blueking/monitor-resource-topo/vue2/vue2.css';
@@ -71,6 +71,9 @@ class ResourceTopo extends CommonSimpleChart {
           topoSidebars: that.topoSidebars || [],
           getNodeDetails(params) {
             return that.getNodeDetail(params);
+          },
+          getNodeLink(params) {
+            return that.getNodeLink(params);
           },
           showEventDetail(id: string) {
             that.showEventDetail(id);
@@ -146,6 +149,20 @@ class ResourceTopo extends CommonSimpleChart {
       source_info: params.source_info,
     }).catch(() => ({}));
   }
+  async getNodeLink(params) {
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const url = await topoLink({
+      app_name: this.viewOptions?.filters?.app_name,
+      start_time: startTime,
+      end_time: endTime,
+      source_type: params.source_type,
+      source_info: params.source_info,
+      link_type: 'topo_source',
+    }).catch(() => '');
+    if (url) {
+      window.open(location.href.replace(location.hash, `#${url}`), '_blank');
+    }
+  }
   showEventDetail(id) {
     window.__BK_WEWEB_DATA__?.showDetailSlider?.(id);
   }
@@ -168,8 +185,10 @@ class ResourceTopo extends CommonSimpleChart {
       <div
         key={this.refreshKey}
         class='apm-resource-topo'
+        v-bkloading={{ isLoading: this.loading }}
       >
-        {this.loading ? <ResourceTopoSkeleton /> : <div class='apm-resource-topo__chart' />}
+        {this.loading ? <div /> : <div class='apm-resource-topo__chart' />}
+        {/* {this.loading ? <ResourceTopoSkeleton /> : <div class='apm-resource-topo__chart' />} */}
       </div>
     );
   }

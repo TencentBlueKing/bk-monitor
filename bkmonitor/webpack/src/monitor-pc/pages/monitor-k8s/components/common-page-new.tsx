@@ -42,6 +42,7 @@ import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import introduce from '../../../common/introduce';
 import Collapse from '../../../components/collapse/collapse';
+import EmptyStatus from '../../../components/empty-status/empty-status';
 import GuidePage from '../../../components/guide-page/guide-page';
 import { ASIDE_COLLAPSE_HEIGHT } from '../../../components/resize-layout/resize-layout';
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
@@ -267,6 +268,9 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   collapseInfo = false;
   // 时间范围缓存用于复位功能
   cacheTimeRange = [];
+  // getSceneViewList 是否报错了
+  isSceneDataError = false;
+
   // 特殊的目标字段配置
   get targetFields(): { [propName: string]: string } {
     const panel = this.sceneData?.selectorPanel;
@@ -718,7 +722,11 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       }, {});
       Object.assign(params, apmServiceParams);
     }
-    const data = await getSceneViewList(params, { reject403: true }).catch(() => []);
+    this.isSceneDataError = false;
+    const data = await getSceneViewList(params, { reject403: true }).catch(() => {
+      this.isSceneDataError = true;
+      return [];
+    });
     if (this.sceneId === 'kubernetes') {
       this.showK8sGuidePage = !data?.length;
       if (this.showK8sGuidePage) return;
@@ -780,29 +788,40 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       };
     }
     const data: IBookMark = await getSceneView(params).catch(() => ({ id: '', panels: [], name: '' }));
-    /* apm视图特殊处理 */
+    /* ------apm视图特殊处理-------start */
     for (const item of data?.overview_panels || []) {
       if (['apm_application', 'apm_service'].includes(this.sceneId)) {
         if (item.type === 'apm-timeseries-chart') {
           item.options = {
             ...item.options,
+            time_series: {
+              ...(item.options?.time_series || {}),
+              hoverAllTooltips: true,
+            },
             apm_time_series: {
-              ...item.options.apm_time_series,
+              ...(item.options?.apm_time_series || {}),
               enableContextmenu: true,
+              sceneType: this.localSceneType,
             },
           };
         }
         if (item.type === 'apdex-chart') {
           item.options = {
+            ...(item?.options || {}),
+            time_series: {
+              ...(item.options?.time_series || {}),
+              hoverAllTooltips: true,
+            },
             apdex_chart: {
               ...(item?.options?.apdex_chart || {}),
               enableContextmenu: true,
+              sceneType: this.localSceneType,
             },
           };
         }
       }
     }
-    /* apm视图特殊处理 */
+    /* ----------apm视图特殊处理-----------end */
     const oldSelectPanel = this.sceneData?.options?.selector_panel?.targets
       ? JSON.stringify(this.sceneData.options.selector_panel.targets)
       : '';
@@ -1469,10 +1488,14 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.dashboardId = item.id as string;
     this.handleTabChange(item.id as any);
     if (item.show_panel_count) {
+      this.isSceneDataError = false;
       const data = await getSceneViewList({
         scene_id: this.sceneId,
         type: this.localSceneType,
-      }).catch(() => []);
+      }).catch(() => {
+        this.isSceneDataError = true;
+        return [];
+      });
       this.tabList.forEach(tab => {
         if (!!tab.panel_count) {
           const count = data.find(d => d.id === tab.id)?.panel_count || 0;
@@ -1900,6 +1923,14 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                 />
               )}
             </keep-alive>
+            {this.isSceneDataError ? (
+              <div class='scene-error-no-data'>
+                <EmptyStatus
+                  showOperation={false}
+                  type={'500'}
+                />
+              </div>
+            ) : undefined}
           </div>,
           !this.readonly ? (
             <SettingModal
