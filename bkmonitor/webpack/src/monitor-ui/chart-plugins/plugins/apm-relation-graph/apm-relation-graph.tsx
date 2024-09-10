@@ -582,10 +582,11 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   }
 
   /** 下钻接口节点点击 */
-  handleDrillingNodeClick(node: INodeModel, drillingName: string) {
+  handleDrillingNodeClick(node: INodeModel, drillingItem) {
     this.nodeTipsMap.set(node.data.id, node.node_tips);
+    this.nodeTipsMap.set(`${node.data.id}___${drillingItem.name}`, drillingItem?.endpoint_tips || []);
     this.selectedServiceName = node.data.id;
-    this.selectedEndpoint = drillingName;
+    this.selectedEndpoint = drillingItem.name;
     this.selectedIcon = 'icon-fx';
     if (this.expanded.includes('topo')) {
       this.handleExpand('topo');
@@ -776,7 +777,9 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                 nodeTipsMap={this.nodeTipsMap}
                 serviceName={this.selectedServiceName}
                 show={this.expanded.includes('overview')}
+                sliceTimeRange={this.sliceTimeRange}
                 timeRange={this.timeRange}
+                onSliceTimeRangeChange={this.handleSliceTimeRangeChange}
               />
             </div>
           </template>

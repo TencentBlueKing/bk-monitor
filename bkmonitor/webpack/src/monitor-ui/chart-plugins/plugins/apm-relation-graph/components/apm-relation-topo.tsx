@@ -66,7 +66,8 @@ export interface INodeModel {
   color: string;
   size: number;
   menu: { name: string; action: string; url?: string; type?: string }[];
-  node_tips: { name: string; value: string }[];
+  node_tips: { name: string; value: string; group?: string }[];
+  endpoint_tips: { name: string; value: string; group?: string }[];
 }
 
 type IEdgeModel = {
@@ -99,7 +100,7 @@ type ApmRelationTopoEvent = {
   onResourceDrilling: (node: INodeModel) => void;
   onEdgeTypeChange: (edgeType: EdgeDataType) => void;
   onServiceDetail: (node: INodeModel) => void;
-  onDrillingNodeClick: (node: INodeModel, name: string) => void;
+  onDrillingNodeClick: (node: INodeModel, drillingItem) => void;
 };
 
 type INodeModelConfig = ModelConfig & INodeModel;
@@ -359,8 +360,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     this.hideMenu();
   }
 
-  handleDrillingNodeClick(name: string) {
-    this.$emit('drillingNodeClick', this.menuCfg.nodeModel, name);
+  handleDrillingNodeClick(item) {
+    this.$emit('drillingNodeClick', this.menuCfg.nodeModel, item);
   }
 
   initGraph() {
@@ -1101,7 +1102,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
                   <li
                     key={item.id}
                     class='node-item topo-menu-action'
-                    onClick={() => this.handleDrillingNodeClick(item.name)}
+                    onClick={() => this.handleDrillingNodeClick(item)}
                   >
                     <div
                       style={{ 'border-color': item.color }}

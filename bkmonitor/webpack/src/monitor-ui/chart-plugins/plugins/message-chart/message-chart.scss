@@ -1,28 +1,43 @@
 .message-chart {
   display: flex;
-  padding: 12px 24px 12px 16px;
   flex-direction: column;
-  font-size: 12px;
-  color: #63656e;
   width: 100%;
   height: 100%;
+  padding: 12px 24px 12px 16px;
+  font-size: 12px;
+  color: #63656e;
 
-  &-title {
-    font-size: 14px;
-    color: #313238;
-    line-height: 22px;
+  .tips-icon{
     display: flex;
     align-items: center;
-    margin-bottom: 16px;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    margin-right: 10px;
+    font-size: 14px;
+    color: #c4c6cc;
+
+    &::before {
+      height: 14px;
+    }
+  }
+  
+  &-title {
+    display: flex;
+    align-items: center;
     width: 100%;
+    margin-bottom: 16px;
+    font-size: 14px;
+    line-height: 22px;
+    color: #313238;
   }
 
   &-pagination {
     display: flex;
-    align-items: center;
-    min-height: 32px;
     flex-wrap: wrap;
+    align-items: center;
     width: 100%;
+    min-height: 32px;
     margin-bottom: 16px;
 
     .pagination-list {
@@ -32,11 +47,11 @@
     }
 
     .bold-num {
-      font-weight: 600;
       display: flex;
       align-items: center;
       justify-content: center;
       margin: 0 4px;
+      font-weight: 600;
     }
 
     .pagination-btn {
@@ -46,15 +61,15 @@
 
       .bk-default {
         margin-left: 8px;
-        border-radius: 4px;
-        border: none;
         font-size: 12px;
         background-color: #f0f1f5;
+        border: none;
+        border-radius: 4px;
 
         &:not(.is-disabled) {
           &:hover {
-            background-color: #3a84ff;
             color: white;
+            background-color: #3a84ff;
           }
         }
       }
@@ -63,8 +78,8 @@
 
   .collapse-wrapper {
     height: 100%;
-    overflow: auto;
     padding-right: 6px;
+    overflow: auto;
   }
 
   &-collapse {
@@ -73,10 +88,10 @@
       border-radius: 2px;
 
       .bk-collapse-item-header {
-        height: 60px;
-        background-color: #f5f7fa;
         display: flex;
+        height: 60px;
         padding: 0;
+        background-color: #f5f7fa;
       }
 
       .bk-collapse-item-content {
@@ -85,29 +100,29 @@
 
         .content-item {
           margin: 0;
-          white-space: pre-wrap;
           word-break: break-all;
+          white-space: pre-wrap;
         }
       }
 
       &-icon {
+        position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
-        height: 32px;
         width: 32px;
+        height: 32px;
         font-size: 24px;
         color: #63656e;
-        position: relative;
-        transform: rotate(-90deg);
         transition: all .2s linear;
+        transform: rotate(-90deg);
 
         &::before {
           display: flex;
           align-items: center;
           justify-content: center;
-          height: 32px;
           width: 32px;
+          height: 32px;
         }
 
         &.is-expand {
@@ -116,24 +131,24 @@
       }
 
       &-title {
-        height: 60px;
         width: calc(100% - 40px);
+        height: 60px;
 
         .item-title {
           display: flex;
           align-items: center;
-          font-weight: bold;
           height: 20px;
-          margin-bottom: 4px;
           margin-top: 7px;
+          margin-bottom: 4px;
+          font-weight: bold;
         }
 
         .item-subtitle {
+          height: 20px;
+          overflow: hidden;
           // display: flex;
           // align-items: center;
           line-height: 20px;
-          height: 20px;
-          overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
@@ -149,9 +164,10 @@
 
     .collapse-item-title {
       height: auto;
+
       .item-subtitle {
-        margin-bottom: 6px;
         height: auto;
+        margin-bottom: 6px;
         overflow: unset;
         white-space: normal;
       }
@@ -165,9 +181,9 @@
 
   .empty-chart {
     display: flex;
+    flex: 1;
     align-items: center;
     justify-content: center;
     height: 100%;
-    flex: 1;
   }
 }
