@@ -134,6 +134,22 @@ export default class BarAlarmChart extends tsc<IProps> {
     }
   }
 
+  @Watch('sliceTimeRange')
+  handleWatchSliceTimeRange(sliceTimeRange: number[]) {
+    this.curActive = -1;
+    if (this.enableSelect) {
+      if (sliceTimeRange?.every?.(v => !!v)) {
+        const [sliceStartTime] = sliceTimeRange;
+        for (const item of this.localData) {
+          if (item.time >= sliceStartTime) {
+            this.curActive = item.time;
+            break;
+          }
+        }
+      }
+    }
+  }
+
   initData() {
     if (this.getData) {
       this.loading = true;

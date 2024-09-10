@@ -65,6 +65,7 @@ import './apm-relation-graph.scss';
 })
 export default class ApmRelationGraph extends CommonSimpleChart {
   @Ref('content-wrap') contentWrap: ApmRelationGraphContent;
+  @Ref('apmRelationTopo') apmRelationTopoRef: ApmRelationTopo;
 
   // 框选事件范围后需应用到所有图表(包含三个数据 框选方法 是否展示复位  复位方法)
   @Inject({ from: 'enableSelectionRestoreAll', default: false }) readonly enableSelectionRestoreAll: boolean;
@@ -403,11 +404,14 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     const cacheKey = JSON.stringify({
       ...params,
       start_time: this.timeRange[0],
-      end_time: [1],
+      end_time: this.timeRange[1],
+      metric_start_time: sliceTimeStart,
+      metric_end_time: sliceTimeEnd,
     });
     let data = null;
     this.loading[exportType] = true;
     this.refreshTopoLayout = this.refreshTopoLayout || (!this.graphData.nodes.length && !this.graphData.edges.length);
+    if (this.refreshTopoLayout) this.apmRelationTopoRef.hideMenu();
     if (this.needCache && this.graphAndTableDataCache.has(cacheKey)) {
       data = this.graphAndTableDataCache.get(cacheKey);
       this.loading[exportType] = false;
@@ -434,6 +438,12 @@ export default class ApmRelationGraph extends CommonSimpleChart {
           return {
             ...item,
             type: 'scoped_slots',
+          };
+        }
+        if (item.id === 'operators') {
+          return {
+            ...item,
+            showOverflowTooltip: false,
           };
         }
         return item;
@@ -504,7 +514,9 @@ export default class ApmRelationGraph extends CommonSimpleChart {
         return order === 'ascending' ? a[field] - b[field] : b[field] - a[field];
       }
       if (field === 'error_rate') {
-        return order === 'ascending' ? a[field].localeCompare(b[field]) : b[field].localeCompare(a[field]);
+        return order === 'ascending'
+          ? (a[field] ?? '').localeCompare(b[field])
+          : (b[field] ?? '').localeCompare(a[field]);
       }
       if (field === 'avg_duration') {
         return order === 'ascending'
@@ -570,10 +582,11 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   }
 
   /** 下钻接口节点点击 */
-  handleDrillingNodeClick(node: INodeModel, drillingName: string) {
+  handleDrillingNodeClick(node: INodeModel, drillingItem) {
     this.nodeTipsMap.set(node.data.id, node.node_tips);
+    this.nodeTipsMap.set(`${node.data.id}___${drillingItem.name}`, drillingItem?.endpoint_tips || []);
     this.selectedServiceName = node.data.id;
-    this.selectedEndpoint = drillingName;
+    this.selectedEndpoint = drillingItem.name;
     this.selectedIcon = 'icon-fx';
     if (this.expanded.includes('topo')) {
       this.handleExpand('topo');
@@ -710,6 +723,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
           expanded={this.expanded}
         >
           <ApmRelationTopo
+            ref='apmRelationTopo'
             activeNode={this.selectedServiceName}
             appName={this.appName}
             data={this.graphData}
@@ -763,7 +777,9 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                 nodeTipsMap={this.nodeTipsMap}
                 serviceName={this.selectedServiceName}
                 show={this.expanded.includes('overview')}
+                sliceTimeRange={this.sliceTimeRange}
                 timeRange={this.timeRange}
+                onSliceTimeRangeChange={this.handleSliceTimeRangeChange}
               />
             </div>
           </template>

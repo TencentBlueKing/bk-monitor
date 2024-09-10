@@ -60,6 +60,8 @@ type ServiceOverviewProps = {
   endpoint?: string;
   detailIcon?: string;
   nodeTipsMap?: TNodeTipsMap;
+  sliceTimeRange?: number[];
+  onSliceTimeRangeChange?: (timeRange: [number, number]) => void;
 };
 
 const apiFn = (api: string) => {
@@ -79,6 +81,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   @Prop({ type: Array, default: () => [] }) timeRange: TimeRangeType;
   @Prop({ type: String, default: '' }) detailIcon: string;
   @Prop({ type: Map, default: () => new Map() }) nodeTipsMap: TNodeTipsMap;
+  @Prop({ type: Array, default: () => [] }) sliceTimeRange: number[];
 
   tabActive = 'service';
   panels = {};
@@ -359,9 +362,18 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
     }
   }
 
+  handleSliceTimeRangeChange(timeRange: [number, number]) {
+    this.$emit('sliceTimeRangeChange', timeRange);
+  }
+
   renderCharts() {
     if (this.tabActive === 'service') {
-      const nodeTips = this.nodeTipsMap.get(this.serviceName) || [];
+      let nodeTips = [];
+      if (this.curType === 'endpoint') {
+        nodeTips = this.nodeTipsMap.get(`${this.serviceName}___${this.endpoint}`) || [];
+      } else {
+        nodeTips = this.nodeTipsMap.get(this.serviceName) || [];
+      }
       const tipsMap = {};
       for (const tip of nodeTips) {
         if (tipsMap[tip.group]) {
@@ -479,13 +491,15 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
               ) : (
                 <div class='form-title'>{this.$t('暂无数据')}</div>
               )}
-              <div
-                class='setting-btn'
-                onClick={this.handleServiceConfig}
-              >
-                {this.$t('服务配置')}
-                <i class='icon-monitor icon-shezhi' />
-              </div>
+              {this.curType !== 'endpoint' && (
+                <div
+                  class='setting-btn'
+                  onClick={this.handleServiceConfig}
+                >
+                  {this.$t('服务配置')}
+                  <i class='icon-monitor icon-shezhi' />
+                </div>
+              )}
             </div>
             <div class='form-content'>
               {this.overviewDetail.others.map(item => (
@@ -504,11 +518,14 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
           <BarAlarmChart
             activeItemHeight={32}
             dataType={EDataType.Alert}
+            enableSelect={true}
             getData={this.serviceAlert.getData}
             isAdaption={true}
             itemHeight={24}
             showHeader={true}
             showXAxis={true}
+            sliceTimeRange={this.sliceTimeRange}
+            onSliceTimeRangeChange={this.handleSliceTimeRangeChange}
           >
             <div slot='title'>{this.$t('告警')}</div>
             <div slot='more'>
