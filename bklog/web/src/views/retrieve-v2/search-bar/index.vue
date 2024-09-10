@@ -23,7 +23,13 @@
   const indexItem = computed(() => store.state.indexItem);
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
   const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
-  const isInputLoading = computed(() => indexFieldInfo.value.is_loading || indexSetQueryResult.value.is_loading);
+  const isInputLoading = computed(() => {
+    if (activeIndex.value === 0) {
+      return indexFieldInfo.value.is_loading;
+    }
+
+    return indexFieldInfo.value.is_loading || indexSetQueryResult.value.is_loading;
+  });
   const keyword = computed(() => indexItem.value.keyword);
   const addition = computed(() => indexItem.value.addition);
 

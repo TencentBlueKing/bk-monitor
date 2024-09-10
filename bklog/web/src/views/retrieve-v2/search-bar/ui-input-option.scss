@@ -1,12 +1,13 @@
+
 .ui-query-options {
   background: #ffffff;
 
   .ui-query-option-content {
     display: flex;
-    width: 510px;
+    width: 710px;
 
     .field-list {
-      width: 240px;
+      width: 340px;
       border-right: solid 1px #dcdee5;
 
       .ui-search-input {
@@ -94,7 +95,7 @@
     }
 
     .value-list {
-      width: 270px;
+      width: 370px;
       height: 312px;
       padding: 10px 16px;
 
@@ -179,7 +180,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    width: 510px;
+    width: 710px;
     height: 42px;
     padding: 0 15px;
     background: #fafbfd;

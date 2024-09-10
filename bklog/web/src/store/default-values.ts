@@ -23,7 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
+// @ts-ignore
+import { handleTransformToTimestamp } from '@/components/time-range/utils';
 export const getDefaultRetrieveParams = () => {
   return {
     keyword: '*',
@@ -38,7 +39,15 @@ export const getDefaultRetrieveParams = () => {
   };
 };
 
+export const getDefaultDatePickerValue = () => {
+  const datePickerValue = ['now-15m', 'now'];
+  const [start_time, end_time] = handleTransformToTimestamp(datePickerValue);
+
+  return { datePickerValue, start_time, end_time };
+};
+
 export const DEFAULT_RETRIEVE_PARAMS = getDefaultRetrieveParams();
+export const DEFAULT_DATETIME_PARAMS = getDefaultDatePickerValue();
 
 export const IndexSetQueryResult = {
   is_loading: false,
@@ -63,19 +72,19 @@ export const IndexFieldInfo = {
   time_field_unit: '',
   config: [],
   config_id: 0,
+  aggs_items: [],
 };
 
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
 
 export const IndexItem = {
-  start_time: 'now-15m',
-  end_time: 'now',
   ids: [],
   isUnionIndex: false,
   items: [],
   catchUnionBeginList: [],
   selectIsUnionSearch: false,
   ...IndexsetItemParams,
+  ...DEFAULT_DATETIME_PARAMS,
 };
 
 export const logSourceField = () => {

@@ -58,7 +58,6 @@
     inputValue,
     hideTippyInstance,
     getTippyInstance,
-    handleContainerClick,
     handleInputBlur,
     delayShowInstance,
   } = useFocusInput(props, {

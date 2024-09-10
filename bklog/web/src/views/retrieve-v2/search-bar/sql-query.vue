@@ -46,7 +46,7 @@
     });
 
   const sqlQueryString = computed(() => {
-    return `${modelValue.value.filter(val => !val.is_focus_input).join('')}${inputValue.value}`;
+    return `${modelValue.value.join('')}${inputValue.value}`;
   });
 
   const sqlQueryItemList = computed(() => {
@@ -86,12 +86,11 @@
     isInputFocus.value = true;
     nextTick(() => {
       delayShowInstance(refUlRoot.value);
-      console.log('delayShowInstance');
     });
   };
 
   const handleQueryChange = value => {
-    while (modelValue.value.length > 1) {
+    while (modelValue.value.length > 0) {
       modelValue.value.shift();
     }
 

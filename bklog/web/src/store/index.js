@@ -31,8 +31,7 @@
  */
 import Vue from 'vue';
 
-import { unifyObjectStyle, getOperatorKey, readBlobRespToJson, parseBigNumberList } from '@/common/util';
-import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import { unifyObjectStyle, getOperatorKey, readBlobRespToJson, parseBigNumberList, formatDate } from '@/common/util';
 import axios from 'axios';
 import Vuex from 'vuex';
 
@@ -704,7 +703,7 @@ const store = new Vuex.Store({
      * @param {*} param0
      * @param {*} param1
      */
-    updateIndexItemByRoute({ commit, dispatch }, { route, list }) {
+    updateIndexItemByRoute({ commit }, { route, list }) {
       const ids = [];
       let isUnionIndex = false;
       commit('resetIndexSetQueryResult', { search_count: 0 });
@@ -733,23 +732,26 @@ const store = new Vuex.Store({
         };
 
         commit('updateIndexItem', payload);
-        return dispatch('requestIndexSetFieldInfo');
       }
     },
 
-    requestIndexSetFieldInfo({ commit, state }) {
+    requestIndexSetFieldInfo({ commit, dispatch, state }) {
+      // @ts-ignore
+      const { ids = [], start_time = '', end_time = '', isUnionIndex } = state.indexItem;
+
+      if (!ids.length) {
+        return;
+      }
+
       commit('resetIndexFieldInfo', { is_loading: true });
       commit('updataOperatorDictionary', {});
       commit('updateVisibleFields', []);
 
-      const isUnionIndex = state.indexItem?.isUnionIndex;
-      // @ts-ignore
-      const { ids = [], start_time = '', end_time = '' } = state.indexItem;
       const urlStr = isUnionIndex ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
-      const tempList = handleTransformToTimestamp([start_time, end_time]);
+
       const queryData = {
-        start_time: tempList[0],
-        end_time: tempList[1],
+        start_time,
+        end_time,
         is_realtime: 'True',
       };
       if (isUnionIndex) {
@@ -771,6 +773,10 @@ const store = new Vuex.Store({
           commit('updateIndexSetFieldConfig', res.data ?? {});
           commit('resetVisibleFields');
           commit('resetIndexSetOperatorConfig');
+
+          // 请求字段联想相关配置
+          dispatch('requestIndexSetValueList');
+
           return res;
         })
         .catch(() => {
@@ -806,7 +812,6 @@ const store = new Vuex.Store({
       const searchCount = payload.searchCount ?? state.indexSetQueryResult.search_count + 1;
       commit('resetIndexSetQueryResult', { is_loading: true, search_count: searchCount });
 
-      const [startTimeStamp, endTimeStamp] = handleTransformToTimestamp([start_time, end_time]);
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
       const cancelTokenKey = 'requestIndexSetQueryCancelToken';
       RequestPool.execCanceToken(cancelTokenKey);
@@ -821,13 +826,13 @@ const store = new Vuex.Store({
         addition: (addition ?? []).filter(item => !item.disabled),
         begin,
         bk_biz_id,
-        end_time: endTimeStamp,
+        end_time,
         host_scopes,
         interval,
         ip_chooser,
         keyword,
         size,
-        start_time: startTimeStamp,
+        start_time,
         timezone,
         search_mode,
       };
@@ -948,6 +953,42 @@ const store = new Vuex.Store({
       }
 
       return dispatch('requestIndexSetFieldInfo');
+    },
+
+    requestIndexSetValueList({ commit, state }, payload) {
+      const filterFn = field => field.field_type !== 'text' && field.es_doc_values;
+      const mapFn = field => field.field_name;
+      const fields = payload?.fields?.length ? payload.fields : state.indexFieldInfo.fields.filter(filterFn).map(mapFn);
+      commit('updateIndexFieldInfo', { aggs_items: [] });
+      if (!fields.length) return;
+
+      const { start_time, end_time } = state.indexItem;
+      const urlStr = state.isUnionSearch ? 'unionSearch/unionTerms' : 'retrieve/getAggsTerms';
+      const queryData = {
+        keyword: '*',
+        fields,
+        start_time: formatDate(start_time * 1000),
+        end_time: formatDate(end_time * 1000),
+      };
+
+      if (state.isUnionSearch) {
+        Object.assign(queryData, {
+          index_set_ids: this.unionIndexList,
+        });
+      }
+
+      const params = {
+        index_set_id: state.indexId,
+      };
+
+      const body = {
+        params,
+        data: queryData,
+      };
+
+      http.request(urlStr, body).then(resp => {
+        commit('updateIndexFieldInfo', { aggs_items: resp.data.aggs_items });
+      });
     },
 
     changeShowUnionSource({ commit, dispatch, state }) {

@@ -27,8 +27,8 @@ import { ref, watch, onMounted, getCurrentInstance, onUnmounted } from 'vue';
 
 // @ts-ignore
 import { getCharLength } from '@/common/util';
-import { debounce } from 'lodash';
-import tippy from 'tippy.js';
+
+import PopInstanceUtil from './pop-instance-util';
 
 export default (
   props,
@@ -49,51 +49,15 @@ export default (
 
   let resizeObserver = null;
   const INPUT_MIN_WIDTH = 12;
-  let tippyInstance = null;
+  const popInstanceUtil = new PopInstanceUtil({ refContent, onShowFn, onHiddenFn, arrow, newInstance, tippyOptions });
 
-  const uninstallInstance = () => {
-    if (tippyInstance) {
-      tippyInstance.hide();
-      tippyInstance.unmount();
-      tippyInstance.destroy();
-      tippyInstance = null;
-    }
-  };
-
-  const initInistance = target => {
-    if (newInstance) {
-      uninstallInstance();
-    }
-
-    if (tippyInstance === null) {
-      tippyInstance = tippy(target, {
-        arrow,
-        content: refContent.value.$el,
-        trigger: 'manual',
-        theme: 'log-light',
-        placement: 'bottom-start',
-        interactive: true,
-        maxWidth: 800,
-        onShow: () => {
-          onShowFn?.(tippyInstance);
-        },
-        onHidden: () => {
-          onHiddenFn?.();
-        },
-        ...(tippyOptions ?? {}),
-      });
-    }
-  };
-
-  const getTippyInstance = () => tippyInstance;
+  const uninstallInstance = () => popInstanceUtil.uninstallInstance();
+  const getTippyInstance = () => popInstanceUtil.getTippyInstance();
 
   /**
    * 处理多次点击触发多次请求的事件
    */
-  const delayShowInstance = debounce(target => {
-    initInistance(target);
-    getTippyInstance()?.show();
-  });
+  const delayShowInstance = target => popInstanceUtil.show(target);
 
   const setModelValue = val => {
     modelValue.value = (val ?? []).map(formatModelValueItem);
@@ -122,11 +86,7 @@ export default (
     }
   };
 
-  const repositionTippyInstance = () => {
-    if (!newInstance && tippyInstance?.state.isShown) {
-      tippyInstance?.popperInstance?.update();
-    }
-  };
+  const repositionTippyInstance = () => popInstanceUtil.repositionTippyInstance();
 
   const handleFulltextInput = e => {
     const input = getTargetInput();
@@ -145,9 +105,7 @@ export default (
     }
   };
 
-  const hideTippyInstance = () => {
-    getTippyInstance()?.hide();
-  };
+  const hideTippyInstance = () => popInstanceUtil.hide();
 
   const resizeHeightObserver = target => {
     if (!target) {
@@ -173,9 +131,9 @@ export default (
   };
 
   watch(
-    props.value,
-    val => {
-      setModelValue(val);
+    props,
+    () => {
+      setModelValue(props.value);
       // setFocusInputItem();
     },
     { deep: true, immediate: true },

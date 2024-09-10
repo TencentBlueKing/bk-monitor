@@ -177,7 +177,6 @@
   import EmptyStatus from '@/components/empty-status';
   import ClusteringLoader from '@/skeleton/clustering-loader';
   import { mapGetters } from 'vuex';
-  import { handleTransformToTimestamp } from '@/components/time-range/utils';
   import FingerOperate from './components/finger-operate';
   import DataFingerprint from './data-fingerprint';
   import QuickOpenCluster from './components/quick-open-cluster-step/quick-open-cluster';
@@ -518,7 +517,6 @@
           interval,
           timezone,
         } = this.retrieveParams;
-        const [startTimeStamp, endTimeStamp] = handleTransformToTimestamp([start_time, end_time]);
         this.tableLoading = true;
         this.$http
           .request(
@@ -535,8 +533,8 @@
                 host_scopes,
                 interval,
                 timezone,
-                start_time: startTimeStamp,
-                end_time: endTimeStamp,
+                start_time,
+                end_time,
                 ...this.requestData,
               },
             },

@@ -3,6 +3,7 @@
   import useStore from '@/hooks/use-store';
   import TimeRange from '@/components/time-range/time-range';
   import { updateTimezone } from '@/language/dayjs';
+  import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
   const store = useStore();
 
@@ -28,7 +29,9 @@
     if (val.every(item => typeof item === 'string')) {
       localStorage.setItem('SEARCH_DEFAULT_TIME', JSON.stringify(val));
     }
-    store.commit('updateIndexItemParams', { start_time: val[0], end_time: val[1] });
+
+    const result = handleTransformToTimestamp(val);
+    store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1], datePickerValue: val });
     store.dispatch('requestIndexSetQuery');
   };
 

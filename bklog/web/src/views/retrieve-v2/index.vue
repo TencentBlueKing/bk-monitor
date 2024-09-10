@@ -25,7 +25,7 @@
 -->
 
 <script setup>
-  import { computed, onMounted, ref, watch, set } from 'vue';
+  import { computed, onMounted, ref, watch } from 'vue';
 
   import useStore from '@/hooks/use-store';
   import { isEqual } from 'lodash';
@@ -59,9 +59,7 @@
     store.dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value }).then(resp => {
       // 拉取完毕根据当前路由参数回填默认选中索引集
       store.dispatch('updateIndexItemByRoute', { route, list: resp[1] }).then(() => {
-        setTimeout(() => {
-          store.dispatch('requestIndexSetQuery');
-        });
+        store.dispatch('requestIndexSetQuery');
       });
     });
   };
@@ -81,6 +79,11 @@
     }
   };
 
+  const requestIndexSetFieldParams = computed(() => {
+    const { start_time, end_time, ids, isUnionIndex } = store.state.indexItem;
+    return { start_time, end_time, ids, isUnionIndex };
+  })
+
   watch(
     indexSetParams,
     () => {
@@ -89,6 +92,12 @@
     },
     { deep: true },
   );
+
+  watch(requestIndexSetFieldParams, (val, oldValue) => {
+    if (!isEqual(val, oldValue ?? {})) {
+      store.dispatch('requestIndexSetFieldInfo');
+    }
+  }, { deep: true, immediate: true });
 
   watch(
     spaceUid,
