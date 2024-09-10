@@ -32,7 +32,10 @@ import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
 import loadingIcon from '../icons/spinner.svg';
 import AiopsChart from '../plugins/aiops-chart/aiops-chart';
 import AiopsDimensionLint from '../plugins/aiops-dimension-lint/aiops-dimension-lint';
+import AlarmEventChart from '../plugins/alarm-event-chart/alarm-event-chart';
 import ApdexChart from '../plugins/apdex-chart/apdex-chart';
+import ApmRelationGraph from '../plugins/apm-relation-graph/apm-relation-graph';
+import ApmTimeSeries from '../plugins/apm-time-series/apm-time-series';
 import BarEchart from '../plugins/bar-echart/bar-echart';
 import ChartRow from '../plugins/chart-row/chart-row';
 import ColumnBarEchart from '../plugins/column-bar-echart/column-bar-echart';
@@ -62,7 +65,7 @@ import LineEcharts from '../plugins/time-series/time-series';
 import TimeSeriesForecast from '../plugins/time-series-forecast/time-series-forecast';
 import TimeSeriesOutlier from '../plugins/time-series-outlier/time-series-outlier';
 
-import type { PanelModel } from '../typings';
+import type { ChartTitleMenuType, PanelModel } from '../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
 import type { IQueryOption } from 'monitor-pc/pages/performance/performance-type';
@@ -76,6 +79,7 @@ interface IChartWrapperProps {
   detectionConfig?: IDetectionConfig;
   needHoverStryle?: boolean;
   needCheck?: boolean;
+  customMenuList?: ChartTitleMenuType[];
 }
 interface IChartWrapperEvent {
   onChartCheck: boolean;
@@ -88,7 +92,7 @@ interface IChartWrapperEvent {
   onCollapse: boolean;
   onCollectChart?: () => void;
   onChangeHeight?: (height: number) => void;
-  onDblClick?: void;
+  onDblClick?: () => void;
 }
 @Component({
   components: {
@@ -103,6 +107,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   @Prop({ type: Boolean, default: true }) needCheck: boolean;
   @Prop({ type: Boolean, default: undefined }) collapse: boolean;
   @Prop({ type: Boolean, default: undefined }) chartChecked: boolean;
+  @Prop({ type: Array, default: null }) customMenuList: ChartTitleMenuType[];
 
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
@@ -410,15 +415,15 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onLoading={this.handleChangeLoading}
           />
         );
-      case 'relation-graph':
-        return (
-          <relation-graph
-            clearErrorMsg={this.handleClearErrorMsg}
-            panel={this.panel}
-            onErrorMsg={this.handleErrorMsgChange}
-            onLoading={this.handleChangeLoading}
-          />
-        );
+      // case 'relation-graph':
+      //   return (
+      //     <relation-graph
+      //       clearErrorMsg={this.handleClearErrorMsg}
+      //       panel={this.panel}
+      //       onErrorMsg={this.handleErrorMsgChange}
+      //       onLoading={this.handleChangeLoading}
+      //     />
+      //   );
       case 'api_message':
         return (
           <MessageChart
@@ -494,8 +499,27 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onLoading={this.handleChangeLoading}
           />
         );
+      case 'apm-timeseries-chart':
+        return (
+          <ApmTimeSeries
+            clearErrorMsg={this.handleClearErrorMsg}
+            customMenuList={this.customMenuList}
+            panel={this.panel}
+            showHeaderMoreTool={this.showHeaderMoreTool}
+            onCollectChart={this.handleCollectChart}
+            onDimensionsOfSeries={this.handleDimensionsOfSeries}
+            onErrorMsg={this.handleErrorMsgChange}
+            onFullScreen={this.handleFullScreen}
+            onLoading={this.handleChangeLoading}
+          />
+        );
+      case 'relation-graph':
+      case 'apm-relation-graph':
+        return <ApmRelationGraph panel={this.panel} />;
+      case 'alarm-event-chart':
+        return <AlarmEventChart panel={this.panel} />;
       // 不需要报错显示
-      case 'graph':
+      // case 'graph':
       default:
         return (
           <LineEcharts
@@ -527,7 +551,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         onMouseenter={() => (this.showHeaderMoreTool = true)}
         onMouseleave={() => (this.showHeaderMoreTool = false)}
       >
-        {!!window.graph_watermark && (
+        {window?.graph_watermark && (
           <div
             class='wm'
             v-watermark={{

@@ -262,6 +262,8 @@ class UnifyQuery:
 
         if instant:
             params["instant"] = instant
+            # 使用 instant 查询时 step 固定为 1m
+            params["step"] = "1m"
 
         logger.info(f"UNIFY_QUERY: {json.dumps(params)}")
 

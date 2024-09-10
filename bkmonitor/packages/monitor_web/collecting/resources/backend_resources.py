@@ -309,7 +309,7 @@ class CollectConfigListResource(Resource):
                 .select_related("plugin", "deployment_config__plugin_version")
                 .order_by("-id")
             )
-
+            # todo 优化为 SpaceApi.list_spaces_dict()
             all_space_list = SpaceApi.list_spaces()
             bk_biz_id_space_dict = {space.bk_biz_id: space for space in all_space_list}
 

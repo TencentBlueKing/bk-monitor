@@ -118,13 +118,13 @@ class Command(BaseCommand):
             if forward.lower() != "y":
                 exit(0)
 
-            queues = options.get("queue")
+            queues = options.get("queues")
             if not queues:
                 raise ValueError("未输入可分配队列")
 
             queues = queues.split(",")
-            rebalance_info = DaemonTaskHandler.list_rebalance_info(queues)
-            self.print_app_queue_mapping(rebalance_info)
+            rebalance_info, have_data_apps = DaemonTaskHandler.list_rebalance_info(queues)
+            self.print_app_queue_mapping(rebalance_info, have_data_apps)
             forward = input("确认以上分配信息，y/n")
             if forward.lower() != "y":
                 exit(0)
@@ -133,8 +133,13 @@ class Command(BaseCommand):
             print("执行完成")
 
     @classmethod
-    def print_app_queue_mapping(cls, app_queue_mapping):
+    def print_app_queue_mapping(cls, app_queue_mapping, have_data_apps):
         for queue, apps in app_queue_mapping.items():
             print(f"队列: {queue} 分配的应用: ")
             for item in apps:
-                print(f"   ----> Id: {item.id} BkBizId: {item.bk_biz_id} Name: {item.app_name}")
+                print(
+                    f"   ----> Id: {item.id} "
+                    f"BkBizId: {item.bk_biz_id} "
+                    f"Name: {item.app_name} "
+                    f"{'有数据' if item in have_data_apps else '无数据'}"
+                )

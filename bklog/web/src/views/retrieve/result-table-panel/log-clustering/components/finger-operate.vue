@@ -31,7 +31,7 @@
     >
       <bk-checkbox
         v-model="isNear24"
-        :disabled="!fingerOperateData.signatureSwitch || !strategyHaveSubmit"
+        :disabled="!clusterSwitch || !strategyHaveSubmit"
         :false-value="false"
         :true-value="true"
         data-test-id="fingerTable_checkBox_selectCustomSize"
@@ -51,7 +51,6 @@
         <bk-slider
           class="pattern-slider"
           v-model="patternSize"
-          :disable="!fingerOperateData.signatureSwitch"
           :max-value="fingerOperateData.sliderMaxVal"
           :show-tip="false"
           data-test-id="fingerTable_slider_patterSize"

@@ -69,3 +69,8 @@ class Space:
         instance = cls(**filtered_data)
         setattr(instance, "extend", data)
         return instance
+
+    @property
+    def display_name(self):
+        extend = getattr(self, "extend", {})
+        return extend.get("display_name", self.space_name)

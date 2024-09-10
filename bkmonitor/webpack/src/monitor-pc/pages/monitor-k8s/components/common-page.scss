@@ -114,6 +114,13 @@
       position: relative;
       display: flex;
     }
+    .scene-error-no-data {
+      height: 100%;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   }
 
   .empty-wrapper {

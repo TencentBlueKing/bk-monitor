@@ -17,6 +17,7 @@ to the current version of the project delivered to anyone in the future.
 """
 import logging
 import random
+from collections import defaultdict
 
 from django.conf import settings
 
@@ -326,19 +327,42 @@ class DaemonTaskHandler:
 
     @classmethod
     def list_rebalance_info(cls, queues):
-        apps = [
-            i
-            for i in ApmApplication.objects.filter(is_enabled=True)
-            if TraceDataSource.objects.filter(bk_biz_id=i.bk_biz_id, app_name=i.app_name).first()
-        ]
+        have_data_apps = []
+        exclude_apps = []
+        start_time, end_time = get_datetime_range("minute", 10)
+        start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
 
-        queue_application_mapping = {
-            queue: [app for app in apps if app_queue_assignments[app] == queue]
-            for app_queue_assignments in [dict(zip(apps, [random.choice(queues) for _ in apps]))]
-            for queue in queues
-        }
+        applications = list(ApmApplication.objects.filter(is_enabled=True))
+        random.shuffle(applications)
+        for i in applications:
+            if i.metric_datasource:
+                try:
+                    if cls.is_normal(i.metric_datasource, start_time, end_time):
+                        logger.info(f"[Rebalance] 有数据应用: {i.bk_biz_id} - {i.app_name}")
+                        have_data_apps.append(i)
+                except Exception as e:  # noqa
+                    logger.warning(f"[Rebalance] 查询 {i.bk_biz_id} - {i.app_name} 数据状态时出现异常 - {e}")
+            else:
+                exclude_apps.append(i)
 
-        return queue_application_mapping
+        res = defaultdict(list)
+
+        # 先分配有数据应用到各个队列 尽量保持每个队列数量相同
+        queues_count = len(queues)
+        for index, app in enumerate(have_data_apps):
+            queue_index = index % queues_count
+            res[queues[queue_index]].append(app)
+
+        # 再分配无数据应用
+        for i in applications:
+            if i in have_data_apps or i in exclude_apps:
+                continue
+
+            # 找当前数量最小的队列
+            min_queue = min(res, key=lambda k: len(res[k]))
+            res[min_queue].append(i)
+
+        return res, have_data_apps
 
     @classmethod
     def rebalance(cls, queue_application_mapping):

@@ -25,7 +25,7 @@
   "overview_panels": [
     {
       "id": 1,
-      "title": "错误信息",
+      "title": "错误详情",
       "type": "api_message",
       "targets": [
         {
@@ -113,7 +113,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "错误信息",
+      "title": "错误详情",
       "type": "api_message",
       "targets": [
         {

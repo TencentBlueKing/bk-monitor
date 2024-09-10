@@ -8,9 +8,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from opentelemetry.semconv.resource import ResourceAttributes
 
 from apm_web.constants import OPERATOR_MAP
 from apm_web.handlers.db_handler import DbComponentHandler
+from constants.apm import OtlpKey
 
 
 def get_offset(params):
@@ -28,6 +30,14 @@ def build_filter_params(filters):
         res.append({"key": k, "op": "=", "value": v if isinstance(v, list) else [v]})
 
     return res
+
+
+def get_service_from_params(filters):
+    """从 filters 中获取服务名称"""
+    return next(
+        (i["value"][0] for i in filters if i["key"] == OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME)),
+        None,
+    )
 
 
 def transform_param(params: list) -> list:
@@ -49,11 +59,15 @@ def build_db_param(validated_data):
 
     params = build_filter_params(validated_data["filter_params"])
 
+    service_name = get_service_from_params(params)
+    if not service_name:
+        raise ValueError(f"过滤参数中没有指定服务名称(resource.service.name): {[i['key'] for i in params]}")
+
     DbComponentHandler.build_component_filter_params(
         validated_data["bk_biz_id"],
         validated_data["app_name"],
+        service_name,
         params,
-        validated_data.get("service_params"),
         validated_data.get("component_instance_id"),
     )
     # 去除重复的查询条件

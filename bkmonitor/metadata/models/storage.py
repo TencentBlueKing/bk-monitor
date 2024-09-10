@@ -2482,14 +2482,16 @@ class ESStorage(models.Model, StorageResultTable):
                     for _index in delete_list:
                         actions.append({"remove": {"index": _index, "alias": round_alias_name}})
                     logger.info(
-                        "table_id->[%s] index->[%s] alias->[%s] need delete",
+                        "table_id->[%s] last_index->[%s] index->[%s] alias->[%s] need delete",
                         self.table_id,
+                        last_index_name,
                         delete_list,
                         round_alias_name,
                     )
 
                 # 3.2 需要将循环中的别名都指向了最新的index
-                es_client.indices.update_aliases(body={"actions": actions})
+                response = es_client.indices.update_aliases(body={"actions": actions})
+                logger.info("table_id->[%s] actions->[%s] update alias response [%s]", self.table_id, actions, response)
 
                 logger.info(
                     "table_id->[%s] now has index->[%s] and alias->[%s | %s]",
@@ -2646,9 +2648,8 @@ class ESStorage(models.Model, StorageResultTable):
         logger.info("table_id->[%s] will create new index->[%s]", self.table_id, new_index_name)
 
         # 2.1 创建新的index
-        es_client.indices.create(index=new_index_name, body=self.index_body, params={"request_timeout": 30})
-        logger.info("table_id->[%s] new index_name->[%s] is created now", self.table_id, new_index_name)
-
+        response = es_client.indices.create(index=new_index_name, body=self.index_body, params={"request_timeout": 30})
+        logger.info("table_id->[%s] create new index_name->[%s] response [%s]", self.table_id, new_index_name, response)
         return True
 
     def clean_index(self):
