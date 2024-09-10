@@ -63,6 +63,7 @@ export default {
   增删目标: 'Add / Delete Targets',
   修改流程套餐: 'Modify Flow Solution',
   批量导入: 'Bulk Import',
+  '导入/导出': 'Import / Export',
   '批量启用/停用策略': 'On/Off Rules', // 中文改成 启/停策略  有重复的词条
   '同比（高级）': 'YoY (advanced)',
   '同比（简易）': 'YoY (simple)',
