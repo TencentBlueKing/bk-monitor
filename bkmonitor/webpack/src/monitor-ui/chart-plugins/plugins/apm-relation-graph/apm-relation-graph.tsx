@@ -572,6 +572,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   /** 下钻接口节点点击 */
   handleDrillingNodeClick(node: INodeModel, drillingName: string) {
     this.nodeTipsMap.set(node.data.id, node.node_tips);
+    this.nodeTipsMap.set(`${node.data.id}___${drillingName}`, node?.endpoint_tips || []);
     this.selectedServiceName = node.data.id;
     this.selectedEndpoint = drillingName;
     this.selectedIcon = 'icon-fx';

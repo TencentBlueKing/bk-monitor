@@ -368,7 +368,12 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
 
   renderCharts() {
     if (this.tabActive === 'service') {
-      const nodeTips = this.nodeTipsMap.get(this.serviceName) || [];
+      let nodeTips = [];
+      if (this.curType === 'endpoint') {
+        nodeTips = this.nodeTipsMap.get(`${this.serviceName}___${this.endpoint}`) || [];
+      } else {
+        nodeTips = this.nodeTipsMap.get(this.serviceName) || [];
+      }
       const tipsMap = {};
       for (const tip of nodeTips) {
         if (tipsMap[tip.group]) {

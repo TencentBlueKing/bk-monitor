@@ -66,7 +66,8 @@ export interface INodeModel {
   color: string;
   size: number;
   menu: { name: string; action: string; url?: string; type?: string }[];
-  node_tips: { name: string; value: string }[];
+  node_tips: { name: string; value: string; group?: string }[];
+  endpoint_tips: { name: string; value: string; group?: string }[];
 }
 
 type IEdgeModel = {
