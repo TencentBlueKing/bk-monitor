@@ -45,9 +45,11 @@ export default class LogRetrieval extends Vue {
   @Ref('iframe') private iframeRef: HTMLIFrameElement;
   private initRouteString = '';
   private initBizId = -1;
+  private indexId: number | string = '';
 
   getUrlParamsString() {
-    const { from, spaceUid, bizId, ...otherQuery } = this.$route.query;
+    const { from, spaceUid, bizId, indexId, ...otherQuery } = this.$route.query;
+    this.indexId = indexId;
     const queryVal = Object.entries(otherQuery).reduce(
       (acc, [key, val]) => {
         if (val) acc[key] = val;
@@ -75,8 +77,7 @@ export default class LogRetrieval extends Vue {
     if (window.location.protocol === 'https:' && this.$store.getters.bkLogSearchUrl.match(/^http:/)) {
       bkLogSearchUrl = this.$store.getters.bkLogSearchUrl.replace('http:', 'https:');
     }
-
-    return `${bkLogSearchUrl}#/retrieve/${this.$route.params?.indexId || ''}?from=monitor${this.initRouteString}`;
+    return `${bkLogSearchUrl}#/retrieve/${this.indexId || ''}?from=monitor${this.initRouteString}`;
   }
 
   handleLoad() {
@@ -95,11 +96,9 @@ export default class LogRetrieval extends Vue {
     if (event.origin !== bkLogSearchUrl) return;
     // 获取来自iframe的内容
     const data = event.data;
-
     this.$router
       .replace({
-        params: data.params,
-        query: data.query,
+        query: { ...data.params, ...data.query },
       })
       .catch(err => {
         if (err.name !== 'NavigationDuplicated') {

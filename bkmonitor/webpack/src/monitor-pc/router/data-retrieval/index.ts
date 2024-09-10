@@ -61,7 +61,7 @@ export default [
     },
   },
   {
-    path: '/log-retrieval/:indexId?',
+    path: '/log-retrieval',
     name: 'log-retrieval',
     components: {
       noCache: LogRetrievalNew,
