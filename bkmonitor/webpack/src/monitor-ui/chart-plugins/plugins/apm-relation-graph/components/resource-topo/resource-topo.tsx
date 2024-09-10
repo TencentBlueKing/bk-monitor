@@ -26,7 +26,15 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
-import { MonitorTopo, createApp, h as vue3CreateElement } from '@blueking/monitor-resource-topo/vue2';
+import {
+  MonitorTopo,
+  createApp,
+  h as vue3CreateElement,
+  type IResourceEdge,
+  type IResourceNode,
+  type IResourceSidebar,
+  type IResourceData,
+} from '@blueking/monitor-resource-topo/vue2';
 import { CancelToken } from 'monitor-api/index';
 import { nodeRelation, nodeRelationDetail, topoLink } from 'monitor-api/modules/apm_topo';
 import { Debounce, random } from 'monitor-common/utils';
@@ -45,15 +53,19 @@ class ResourceTopo extends CommonSimpleChart {
   refreshIntervalInstance = null;
   init = false;
   loading = false;
-  topoEdges = [];
-  topoNodes = [];
-  topoSidebars = [];
+  topoEdges: IResourceEdge[] = [];
+  topoNodes: IResourceNode[] = [];
+  topoSidebars: IResourceSidebar[] = [];
   paths: string[] = [];
   refreshKey = random(10);
   cancelFn = null;
 
   @Watch('serviceName')
   handleServiceNameChange() {
+    this.paths = [];
+    this.topoEdges = [];
+    this.topoNodes = [];
+    this.topoSidebars = [];
     this.getPanelData();
   }
   beforeDestroy() {
@@ -105,7 +117,7 @@ class ResourceTopo extends CommonSimpleChart {
     this.unregisterOberver();
     this.cancelFn?.();
     this.loading = true;
-    const data = await nodeRelation(params, {
+    const data: IResourceData = await nodeRelation(params, {
       cancelToken: new CancelToken(cb => {
         this.cancelFn = cb;
       }),
