@@ -2007,7 +2007,7 @@ class ESStorage(models.Model, StorageResultTable):
     @property
     def read_alias_re(self):
         """获取读取别名的正则匹配"""
-    not match datetime str(self.index_name)
+        pattern = r"{}_(?P<datetime>\d+)_read".format(self.index_name)
         return re.compile(pattern)
 
     @property
