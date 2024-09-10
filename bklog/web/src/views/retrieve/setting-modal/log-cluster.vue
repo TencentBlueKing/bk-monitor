@@ -445,14 +445,6 @@
       margin-top: 16px;
     }
 
-    :deep(.tooltips-icon) {
-      /* stylelint-disable-next-line declaration-no-important */
-      top: -24px !important;
-
-      /* stylelint-disable-next-line declaration-no-important */
-      right: 818px !important;
-    }
-
     .setting-item {
       display: flex;
       align-items: center;

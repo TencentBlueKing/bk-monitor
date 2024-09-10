@@ -61,6 +61,7 @@ export default class QuickOpenCluster extends tsc<IProps> {
     { id: 'or', name: 'OR' },
   ];
   operateIndex = 0;
+  isLikeCorrect = true;
   formData = {
     filter_rules: [],
   };
@@ -78,8 +79,7 @@ export default class QuickOpenCluster extends tsc<IProps> {
       },
       {
         validator: this.checkLIKERules,
-        message: $i18n.t('使用LIKE、NOT LINK操作符时请在过滤值前后增加%'),
-        trigger: 'blur',
+        trigger: 'change',
       },
     ],
   };
@@ -170,10 +170,11 @@ export default class QuickOpenCluster extends tsc<IProps> {
     return this.formData.filter_rules.every(item => !!item.value.length && item.fields_name);
   }
   checkLIKERules() {
-    return this.formData.filter_rules.every(item => {
+    this.isLikeCorrect = this.formData.filter_rules.every(item => {
       if (['NOT LIKE', 'LIKE'].includes(item.op) && !!item.value.length) return /%/.test(item.value[0]);
       return true;
     });
+    return this.isLikeCorrect;
   }
   handleDeleteSelect(index: number) {
     this.formData.filter_rules.splice(index, 1);
@@ -217,6 +218,12 @@ export default class QuickOpenCluster extends tsc<IProps> {
           label=''
           property='filter_rules'
         >
+          {!this.isLikeCorrect && (
+            <div class='like-error-message'>
+              <i class='bk-icon icon-exclamation-circle-shape error-icon'></i>
+              <span>{$i18n.t('使用LIKE、NOT LINK操作符时请在过滤值前后增加%')}</span>
+            </div>
+          )}
           <div class='filter-rule'>
             {this.formData.filter_rules.map((item, index) => (
               <div class='filter-rule filter-rule-item'>

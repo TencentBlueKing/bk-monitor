@@ -1,6 +1,21 @@
 @import '@/scss/mixins/flex.scss';
 
 .filter-container {
+  position: relative;
+
+  .like-error-message {
+    position: absolute;
+    top: -30px;
+    left: 68px;
+    font-size: 12px;
+
+    .error-icon {
+      margin-right: 4px;
+      font-size: 16px;
+      color: #ea3636;
+    }
+  }
+
   .filter-rule {
     display: flex;
     flex-wrap: wrap;
