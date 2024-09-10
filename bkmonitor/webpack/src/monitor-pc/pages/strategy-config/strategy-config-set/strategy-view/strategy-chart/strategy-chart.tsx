@@ -390,6 +390,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
       expression: this.expression || LETTERS.at(0),
       functions: this.expression ? this.expFunctions : [],
       target: this.strategyTarget || [],
+      series_num: this.nearNum,
       query_configs:
         this.editMode === 'Source'
           ? [
