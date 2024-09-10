@@ -7,13 +7,11 @@
 
   @include flex-justify(space-between);
 
-
-
   .history-button {
     display: flex;
     align-items: center;
     font-size: 12px;
-    color: #3A84FF;
+    color: #3a84ff;
     cursor: pointer;
 
     .bklog-icon {
@@ -42,7 +40,6 @@
   }
 }
 
-
 .retrieve-history-list {
   max-height: 300px;
   overflow-y: auto;
@@ -53,6 +50,24 @@
     background-color: #fff;
 
     @include flex-align;
+
+    .icon {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      line-height: 16px;
+      color: #fff;
+      text-align: center;
+      border-radius: 2px;
+    }
+
+    .bklog-c-ui {
+      background: #ffb848;
+    }
+
+    .bklog-c-sql {
+      background: #14b1c7;
+    }
 
     .item-type-icon {
       width: 32px;

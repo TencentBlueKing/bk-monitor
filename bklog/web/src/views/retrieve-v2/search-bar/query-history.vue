@@ -17,7 +17,18 @@
             class="list-item"
             @click="handleClickHistory(item)"
           >
-            <div class="item-text text-overflow-hidden">{{ item.query_string }}</div>
+            <div class="item-text text-overflow-hidden">
+              <span
+                class="icon"
+                :class="getClass(item.search_mode)"
+              >
+                {{ getText(item.search_mode) }}
+              </span>
+
+              <span>
+                {{ item.query_string }}
+              </span>
+            </div>
           </li>
         </template>
         <li
@@ -55,6 +66,20 @@
       },
     },
     methods: {
+      getClass(searchMode) {
+        const classMap = {
+          ui: 'bklog-c-ui',
+          sql: 'bklog-c-sql',
+        };
+        return classMap[searchMode] || '';
+      },
+      getText(searchMode) {
+        const textMap = {
+          ui: 'UI',
+          sql: '</>',
+        };
+        return textMap[searchMode] || '';
+      },
       async handleClickHistoryButton(e) {
         await this.requestSearchHistory();
         const popoverWidth = '300px';
@@ -89,11 +114,9 @@
         const params = this.isUnionSearch
           ? {
               index_set_ids: this.unionIndexList,
-              search_mode: this.indexItem.search_mode
             }
           : {
               index_set_id: this.indexId,
-              search_mode: this.indexItem.search_mode
             };
         this.$http
           .request(queryUrl, {
