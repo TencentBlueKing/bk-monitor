@@ -392,10 +392,9 @@
         setConditionValueActiveIndex(true);
         activeConditionValueOption();
       } else {
-        if (activeIndex.value < filterFieldList.value.length - 1) {
-          activeIndex.value = activeIndex.value + 1;
-          handleKeyupAndKeydown();
-        }
+        const maxIndex = filterFieldList.value.length - 1;
+        activeIndex.value = activeIndex.value < maxIndex ? activeIndex.value + 1 : 0;
+        handleKeyupAndKeydown();
       }
 
       return;
