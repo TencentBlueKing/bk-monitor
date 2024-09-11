@@ -1351,7 +1351,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       item.scenarioDisplayName = nameArr.join('-');
     }
     // 列表total设置为监控对象筛选项count总和
-    total = data.scenario_list.reduce((total, item) => total + item.count, 0);
+    total = data.total;
     return total;
   }
   /** 更新监控对象搜索框回显 */
