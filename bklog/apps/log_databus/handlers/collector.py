@@ -165,7 +165,7 @@ from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import format_user_time_zone
 from bkm_space.define import SpaceTypeEnum
 
-COLLECTOR_RE = re.compile(r".*\d{6,8}$")
+COLLECTOR_RE = re.compile(r'.*\d{6,8}$')
 
 
 class CollectorHandler(object):
@@ -3983,13 +3983,13 @@ class CollectorHandler(object):
                 key = _match["key"]
                 op = _match["operator"]
                 value = _match["value"]
-                if op == "In" and not (key in annotations and annotations[key] in value):
+                if op == LabelSelectorOperator.IN and not (key in annotations and annotations[key] in value):
                     is_matched = False
-                elif op == "NotIn" and not (key in annotations and annotations[key] not in value):
+                elif op == LabelSelectorOperator.NOT_IN and not (key in annotations and annotations[key] not in value):
                     is_matched = False
-                elif op == "Exists" and key not in annotations:
+                elif op == LabelSelectorOperator.EXISTS and key not in annotations:
                     is_matched = False
-                elif op == "DoneNotExist" and key in annotations:
+                elif op == LabelSelectorOperator.DOES_NOT_EXIST and key in annotations:
                     is_matched = False
 
             if is_matched:
@@ -4035,7 +4035,7 @@ class CollectorHandler(object):
         label_expression = ", ".join(match_labels_list)
 
         # annotation selector expr解析
-        match_annotations = annotation_selector.get("match_expressions", [])
+        match_annotations = annotation_selector.get("match_annotations", [])
 
         api_instance = Bcs(cluster_id=bcs_cluster_id).api_instance_core_v1
         previews = []
