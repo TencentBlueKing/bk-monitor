@@ -390,7 +390,6 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
       expression: this.expression || LETTERS.at(0),
       functions: this.expression ? this.expFunctions : [],
       target: this.strategyTarget || [],
-      series_num: this.nearNum,
       query_configs:
         this.editMode === 'Source'
           ? [
@@ -533,6 +532,9 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
               }
             ),
     };
+    if (this.shortcutsType === EShortcutsType.NEAR) {
+      Object.assign(params, { series_num: this.nearNum });
+    }
     return params;
   }
   /** 智能检测算法创建请求的指标数据 */
