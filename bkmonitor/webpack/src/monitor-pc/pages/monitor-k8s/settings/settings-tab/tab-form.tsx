@@ -32,7 +32,6 @@ import './tab-form.scss';
 
 interface ITabFormProps {
   canAddTab: boolean;
-  needAutoAdd: boolean;
   formData: SettingsTabType.ITabForm;
   bookMarkData: IBookMark[];
 }
@@ -52,7 +51,6 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
   @Prop({ default: () => [], type: Array }) bookMarkData: IBookMark[];
   @Prop() formData: SettingsTabType.ITabForm;
   @Prop({ default: false, type: Boolean }) canAddTab: boolean;
-  @Prop({ default: false, type: Boolean }) needAutoAdd: boolean;
   @Ref('tabForm') refForm;
   @Ref() myInput: {
     focus: () => void;
@@ -189,15 +187,13 @@ export default class TabForm extends tsc<ITabFormProps, ITabFormEvents> {
                 {this.$t('保存')}
               </bk-button>
               {/* <bk-button class="handle-btn" onClick={this.handleReset}>{ this.$t('重置') }</bk-button> */}
-              {this.needAutoAdd && (
-                <bk-button
-                  class='handle-btn'
-                  theme='primary'
-                  onClick={this.handleSave}
-                >
-                  {this.$t('保存并继续创建')}
-                </bk-button>
-              )}
+              <bk-button
+                class='handle-btn'
+                theme='primary'
+                onClick={this.handleSave}
+              >
+                {this.$t('保存并继续创建')}
+              </bk-button>
               {this.canAddTab && (
                 <bk-button
                   class='handle-btn'
