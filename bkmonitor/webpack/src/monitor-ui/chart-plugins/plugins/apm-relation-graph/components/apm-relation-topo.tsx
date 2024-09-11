@@ -140,7 +140,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   isRender = false;
   /** 图例筛选 */
   legendFilter = {
-    status: '',
+    color: '',
     size: '',
   };
   /** 接口下钻节点列表 */
@@ -959,23 +959,9 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       }
       let isStatusFilter = true;
       // 节点颜色过滤
-      if (this.legendFilter.status) {
-        switch (this.legendFilter.status) {
-          case 'success':
-            isStatusFilter = color === '#2DCB56';
-            break;
-          case 'warning':
-            isStatusFilter = color === '#FF9C01';
-            break;
-          case 'error':
-            isStatusFilter = color === '#EA3636';
-            break;
-          case 'empty':
-            isStatusFilter = color === '#DCDEE5';
-            break;
-        }
+      if (this.legendFilter.color) {
+        isStatusFilter = color === this.legendFilter.color;
       }
-
       // 高亮当前分类的节点 根据分类、关键字搜索，节点类型匹配过滤
       const isDisabled = !isKeywordMatch || !isShowNoDataNode || !isCategoryFilter || !isSizeFilter || !isStatusFilter;
       this.graph.setItemState(node, 'no-select', isDisabled);
@@ -1067,6 +1053,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
                 style={{
                   display: this.showLegend ? 'block' : 'none',
                 }}
+                dataType={this.dataType}
                 edgeType={this.edgeType}
                 legendFilter={this.legendFilter}
                 onEdgeTypeChange={this.handleEdgeTypeChange}
