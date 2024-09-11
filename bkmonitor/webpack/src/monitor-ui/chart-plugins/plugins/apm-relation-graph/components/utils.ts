@@ -193,9 +193,9 @@ export enum CategoryEnum {
 // 规则是边缘样式 + 填充样式结合在一起返回
 // solid_normal 比如这个就是 实线 + 正常
 export enum NodeDisplayType {
-  //  节点边缘样式: 虚线 / 实线
+  //  节点边缘样式: 虚线 DASHED / 实线 SOLID
   DASHED = 'dashed',
-  // 节点填充样式 正常 / 残影
+  // 节点填充样式 正常 normal / 残影 void
   NORMAL = 'normal',
 
   SOLID = 'solid',

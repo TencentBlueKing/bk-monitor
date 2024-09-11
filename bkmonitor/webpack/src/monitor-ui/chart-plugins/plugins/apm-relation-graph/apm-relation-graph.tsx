@@ -471,6 +471,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     }
   }
 
+  @Debounce(200)
   handleSearch(v) {
     this.filterCondition.searchValue = v;
     this.pagination.current = 1;
@@ -688,6 +689,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               value={this.filterCondition.searchValue}
               clearable
               onBlur={this.handleSearch}
+              onChange={this.handleSearch}
               onClear={this.handleSearch}
               onEnter={this.handleSearch}
             />
