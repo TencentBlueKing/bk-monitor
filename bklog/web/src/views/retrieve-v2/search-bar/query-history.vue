@@ -17,7 +17,7 @@
             class="list-item"
             @click="handleClickHistory(item)"
           >
-            <div class="item-text text-overflow-hidden">
+            <div class="item-text">
               <span
                 class="icon"
                 :class="getClass(item.search_mode)"

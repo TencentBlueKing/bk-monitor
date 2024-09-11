@@ -1,6 +1,5 @@
 <script lang="ts" setup>
   import { computed, ref, watch, nextTick, Ref } from 'vue';
-
   // @ts-ignore
   import useLocale from '@/hooks/use-locale';
   // @ts-ignore
@@ -369,7 +368,37 @@
   const beforeHideFn = () => {
     document.removeEventListener('keydown', handleKeydown);
   };
-
+  // 查询语法按钮部分
+  const isRetract = ref(true);
+  const handleRetract = val => {
+    isRetract.value = val;
+  };
+  const matchList = ref([
+    {
+      name: $t('精确匹配(支持AND、OR):'),
+      value: 'author:"John Smith" AND age:20',
+    },
+    {
+      name: $t('字段名匹配(*代表通配符):'),
+      value: `status:active \n title:(quick brown)`,
+    },
+    {
+      name: $t('字段名模糊匹配:'),
+      value: 'vers\*on:(quick brown)',
+    },
+    {
+      name: $t('通配符匹配:'),
+      value: `qu?ck bro*`,
+    },
+    {
+      name: $t('正则匹配:'),
+      value: `name:/joh?n(ath[oa]n)/`,
+    },
+    {
+      name: $t('范围匹配:'),
+      value: `count:[1 TO 5] \n  count:[1 TO 5} \n count:[10 TO *]`,
+    },
+  ]);
   defineExpose({
     beforeShowndFn,
     beforeHideFn,
@@ -525,152 +554,44 @@
         </div>
       </li>
     </template>
+    <template v-if="isRetract">
+      <span
+        class="sql-query-common"
+        @click="handleRetract(false)"
+      >
+        <span>{{ $t('查询语法') }}</span>
+        <span class="angle-icon bk-icon icon-angle-left"></span>
+      </span>
+    </template>
+    <template v-else>
+      <div class="sql-query-fold">
+        <div>
+          <div class="sql-query-fold-title">
+            <div>{{ $t('如何查询') }}?</div>
+            <div class="fold-title-right">
+              <span>{{ $t('查询语法') }}</span>
+              <span class="fold-title-icon bklog-icon bklog-jump"></span>
+            </div>
+          </div>
+          <div
+            class="sql-query-list"
+            v-for="item in matchList"
+          >
+            <div style="font-weight: 700; line-height: 19px">{{ item.name }}</div>
+            <div>{{ item.value }}</div>
+          </div>
+        </div>
+        <span
+          class="sql-query-fold-text sql-query-common"
+          @click="handleRetract(true)"
+        >
+          <span>{{ $t('收起') }}</span>
+          <span class="angle-icon bk-icon icon-angle-right"></span>
+        </span>
+      </div>
+    </template>
   </ul>
 </template>
-<style scoped>
-  .sql-query-options {
-    width: 100%;
-    max-height: 360px;
-    margin-top: 4px;
-    overflow: auto;
-    background: #fff;
-    border: 1px solid #dcdee5;
-    border-radius: 2px;
-
-    .list-item {
-      display: flex;
-      align-items: center;
-      font-size: 12px;
-      line-height: 32px;
-      background-color: #fff;
-
-      .item-type-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 32px;
-        height: 32px;
-
-        .bklog-icon {
-          font-size: 16px;
-        }
-      }
-
-      .item-text {
-        flex: 1;
-        min-width: 150px;
-        padding: 0 8px;
-        font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
-        color: #63656e;
-      }
-
-      .item-description {
-        flex: 2;
-        margin-left: 24px;
-        color: #979ba5;
-
-        .item-callout {
-          padding: 0 4px;
-          font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
-          color: #313238;
-          background-color: #f4f6fa;
-        }
-      }
-
-      &:hover,
-      &.active {
-        background-color: #f4f6fa;
-
-        .item-text {
-          color: #313238;
-        }
-
-        .item-callout {
-          background-color: #fff;
-        }
-      }
-
-      &:hover {
-        cursor: pointer;
-        background-color: #eaf3ff;
-      }
-    }
-
-    /* 字段 icon 样式 */
-    .field-list-item.list-item {
-      .item-type-icon {
-        color: #936501;
-        background-color: #fef6e6;
-      }
-
-      &:hover,
-      &.active {
-        .item-type-icon {
-          color: #010101;
-          background-color: #fdedcc;
-        }
-      }
-    }
-
-    /* 值 icon 样式 */
-    .value-list-item.list-item {
-      /* stylelint-disable-next-line no-descending-specificity */
-      .item-type-icon {
-        color: #02776e;
-        background-color: #e6f2f1;
-      }
-
-      &:hover,
-      &.active {
-        .item-type-icon {
-          color: #010101;
-          background-color: #cce5e3;
-        }
-      }
-    }
-
-    /* AND OR icon 样式 */
-    .continue-list-item.list-item {
-      /* stylelint-disable-next-line no-descending-specificity */
-      .item-type-icon {
-        color: #7800a6;
-        background-color: #f2e6f6;
-      }
-
-      &:hover,
-      &.active {
-        .item-type-icon {
-          color: #000;
-          background-color: #e4cced;
-        }
-      }
-    }
-
-    /* : :* icon 样式 */
-    .colon-list-item.list-item {
-      /* stylelint-disable-next-line no-descending-specificity */
-      .item-type-icon {
-        color: #006bb4;
-        background-color: #e6f0f8;
-      }
-
-      &:hover,
-      &.active {
-        .item-type-icon {
-          color: #000;
-          background-color: #cce1f0;
-        }
-      }
-    }
-
-    .history-title-item.list-item {
-      cursor: default;
-      background-color: #fff;
-      border-top: 1px solid #dcdee5;
-
-      .item-text {
-        color: #979ba5;
-      }
-    }
-  }
+<style lang="scss" scoped>
+  @import './sql-query-options.scss';
 </style>

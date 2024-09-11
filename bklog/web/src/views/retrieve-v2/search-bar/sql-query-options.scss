@@ -1,0 +1,215 @@
+.sql-query-options {
+  position: relative;
+  width: 100%;
+  max-height: 360px;
+  margin-top: 4px;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+
+  .list-item {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    line-height: 32px;
+    background-color: #fff;
+
+    .item-type-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+
+      .bklog-icon {
+        font-size: 16px;
+      }
+    }
+
+    .item-text {
+      flex: 1;
+      min-width: 150px;
+      padding: 0 8px;
+      font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
+      color: #63656e;
+    }
+
+    .item-description {
+      flex: 2;
+      margin-left: 24px;
+      color: #979ba5;
+
+      .item-callout {
+        padding: 0 4px;
+        font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
+        color: #313238;
+        background-color: #f4f6fa;
+      }
+    }
+
+    &:hover,
+    &.active {
+      background-color: #f4f6fa;
+
+      .item-text {
+        color: #313238;
+      }
+
+      .item-callout {
+        background-color: #fff;
+      }
+    }
+
+    &:hover {
+      cursor: pointer;
+      background-color: #eaf3ff;
+    }
+  }
+
+  /* 字段 icon 样式 */
+  .field-list-item.list-item {
+    .item-type-icon {
+      color: #936501;
+      background-color: #fef6e6;
+    }
+
+    &:hover,
+    &.active {
+      .item-type-icon {
+        color: #010101;
+        background-color: #fdedcc;
+      }
+    }
+  }
+
+  /* 值 icon 样式 */
+  .value-list-item.list-item {
+    /* stylelint-disable-next-line no-descending-specificity */
+    .item-type-icon {
+      color: #02776e;
+      background-color: #e6f2f1;
+    }
+
+    &:hover,
+    &.active {
+      .item-type-icon {
+        color: #010101;
+        background-color: #cce5e3;
+      }
+    }
+  }
+
+  /* AND OR icon 样式 */
+  .continue-list-item.list-item {
+    /* stylelint-disable-next-line no-descending-specificity */
+    .item-type-icon {
+      color: #7800a6;
+      background-color: #f2e6f6;
+    }
+
+    &:hover,
+    &.active {
+      .item-type-icon {
+        color: #000;
+        background-color: #e4cced;
+      }
+    }
+  }
+
+  /* : :* icon 样式 */
+  .colon-list-item.list-item {
+    /* stylelint-disable-next-line no-descending-specificity */
+    .item-type-icon {
+      color: #006bb4;
+      background-color: #e6f0f8;
+    }
+
+    &:hover,
+    &.active {
+      .item-type-icon {
+        color: #000;
+        background-color: #cce1f0;
+      }
+    }
+  }
+
+  /*   tips查询语法 样式*/
+  .history-title-item.list-item {
+    cursor: default;
+    background-color: #fff;
+    border-top: 1px solid #dcdee5;
+
+    .item-text {
+      color: #979ba5;
+    }
+  }
+
+  /*   收起、展开文字按钮 样式*/
+  .sql-query-common {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    width: 20px;
+    padding-top: 15px;
+    font-size: 12px;
+    color: #63656e;
+    text-align: center;
+    white-space: nowrap;
+    cursor: pointer;
+    background: #f0f1f5;
+    border: 1px solid #dcdee5;
+    border-radius: 4px 0 0 4px;
+    writing-mode: vertical-rl;
+    transform: translate(0, -50%);
+    text-orientation: upright;
+
+    .angle-icon {
+      margin-top: -10px;
+      font-size: 20px;
+    }
+  }
+
+  /*   收起内容 样式*/
+  .sql-query-fold {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 240px;
+    height: 100%;
+    padding: 12px;
+    background: #fafbfd;
+    border: 1px solid #dcdee5;
+    border-radius: 0 2px 2px 0;
+
+    .sql-query-fold-text {
+      right: 238px;
+    }
+
+    .sql-query-fold-title {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 12px;
+
+      .fold-title-right {
+        display: flex;
+        align-items: center;
+        height: 100%;
+        color: #3a84ff;
+        cursor: pointer;
+
+        .fold-title-icon {
+          margin-left: 5px;
+          font-size: 16px;
+        }
+      }
+    }
+
+    .sql-query-list {
+      overflow-y: auto;
+      font-size: 12px;
+      white-space: pre-line;
+    }
+  }
+}
