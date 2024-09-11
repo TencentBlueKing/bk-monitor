@@ -4,7 +4,7 @@
   import useRouter from '@/hooks/use-router';
   import useLocale from '@/hooks/use-locale';
 
-  const emit = defineEmits(['setting-menu-click']);
+  const emit = defineEmits(['update:is-show-cluster-setting']);
 
   const showSettingMenuList = ref([]);
 
@@ -13,13 +13,13 @@
   const store = useStore();
   const isExternal = computed(() => store.state.isExternal);
   const spaceUid = computed(() => store.state.spaceUid);
-  const indexSetItem = computed(() => store.state.indexFieldInfo);
-  const indexParams = computed(() => [indexSetItem.value.scenario_id, indexSetItem.value.collector_scenario_id]);
+  const indexSetItem = computed(() => store.state.indexItem.items[0]);
 
   const isUnionSearch = computed(() => store.isUnionSearch);
   const isShowRetrieveSetting = computed(() => !isExternal.value && !isUnionSearch.value);
   const isShowMaskingTemplate = computed(() => store.getters.isShowMaskingTemplate);
-
+  const clusterIsActive = computed(() => store.state.indexSetFieldConfig.clustering_config.is_active);
+  const storeIsShowClusterStep = computed(() => store.state.storeIsShowClusterStep);
   const bkBizId = computed(() => store.state.bkBizId);
 
   const isAiopsToggle = computed(() => {
@@ -71,9 +71,9 @@
   /**
    * @desc: 初始化选择列表
    * @param {String} detailStr 当前索引集类型
-   * @param {Boolean} isFilterExtract 是否过滤字段设置
    */
-  const initJumpRouteList = (detailStr, isFilterExtract = false) => {
+  const initJumpRouteList = detailStr => {
+    if (!detailStr) return;
     if (!['log', 'es', 'bkdata', 'custom', 'setIndex'].includes(detailStr)) {
       showSettingMenuList.value = isAiopsToggle.value ? settingMenuList.value : [];
       return;
@@ -86,17 +86,18 @@
     }
     // 日志脱敏的路由key
     maskingRouteKey.value = detailStr;
+    const isShowClusterSet = clusterIsActive.value || storeIsShowClusterStep.value;
     // 判断是否展示字段设置
     const filterMenuList = isAiopsToggle.value
-      ? settingMenuList.value.filter(item => (isFilterExtract ? item.id !== 'extract' : true))
+      ? settingMenuList.value.filter(item => (isShowClusterSet ? true : item.id !== 'clustering'))
       : [];
     const filterList = accessList.value.filter(item => (isShowMaskingTemplate.value ? true : item.id !== 'logMasking'));
     // 合并其他
-    showSettingMenuList.value.push(...filterMenuList.concat(filterList));
+    showSettingMenuList.value = [...filterMenuList.concat(filterList)];
   };
 
   const setShowLiList = setItem => {
-    if (setItem.scenario_id === 'log') {
+    if (setItem?.scenario_id === 'log') {
       // 索引集类型为采集项或自定义上报
       if (setItem.collector_scenario_id === null) {
         // 若无日志类型 则类型为索引集
@@ -108,13 +109,13 @@
       return;
     }
     // 当scenario_id不为log（采集项，索引集，自定义上报）时，不显示字段设置
-    initJumpRouteList(setItem.scenario_id, true);
+    initJumpRouteList(setItem?.scenario_id);
   };
 
   const handleMenuClick = val => {
     // 不属于新开页面的操作
     if (['index', 'extract', 'clustering'].includes(val)) {
-      emit('setting-menu-click', val);
+      emit('update:is-show-cluster-setting', true);
       return;
     }
     const params = {
@@ -139,13 +140,14 @@
   };
 
   watch(
-    indexParams,
-    val => {
-      setTimeout(() => {
-        setShowLiList({ scenario_id: val?.[0], collector_scenario_id: val?.[1] });
-      }, 100);
+    [indexSetItem, clusterIsActive, storeIsShowClusterStep],
+    () => {
+      setShowLiList({
+        scenario_id: indexSetItem.value?.scenario_id,
+        collector_scenario_id: indexSetItem.value?.collector_scenario_id,
+      });
     },
-    { deep: true, immediate: true },
+    { deep: true },
   );
 </script>
 <template>

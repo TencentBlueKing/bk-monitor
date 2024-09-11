@@ -87,6 +87,7 @@ export default class FieldItem extends tsc<object> {
       .filter(item => this.unionIndexList.includes(item.index_set_id))
       .map(item => item.indexName);
   }
+
   beforeDestroy() {
     this.instanceDestroy();
   }
@@ -160,6 +161,10 @@ export default class FieldItem extends tsc<object> {
     return this.isUnionSearch && fieldType === 'conflict';
   }
 
+  getFieldIconColor = type => {
+    return this.fieldTypeMap?.[type] ? this.fieldTypeMap?.[type]?.color : '#EAEBF0';
+  };
+
   render() {
     return (
       <li class='filed-item'>
@@ -172,6 +177,9 @@ export default class FieldItem extends tsc<object> {
           <span class={{ 'icon-right-shape': this.showFieldsChart, 'bk-icon': true }}></span>
           {/* 字段类型对应的图标 */}
           <span
+            style={{
+              backgroundColor: this.fieldItem.is_full_text ? false : this.getFieldIconColor(this.fieldItem.field_type),
+            }}
             class={[this.getFieldIcon(this.fieldItem.field_type) || 'bklog-icon bklog-unkown', 'field-type-icon']}
             v-bk-tooltips={{
               content: this.fieldTypeMap[this.fieldItem.field_type]?.name,
@@ -212,7 +220,7 @@ export default class FieldItem extends tsc<object> {
               <div
                 class={{
                   'operation-icon-box': true,
-                  'analysis-disabled': !(this.isUnionSearch || this.isFrontStatistics),
+                  'analysis-disabled': this.isUnionSearch || this.isFrontStatistics,
                 }}
                 v-bk-tooltips={{
                   content: this.isUnionSearch || this.isFrontStatistics ? this.$t('暂不支持') : this.$t('图表分析'),

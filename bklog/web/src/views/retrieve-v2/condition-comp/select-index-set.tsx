@@ -507,7 +507,7 @@ export default class QueryStatement extends tsc<object> {
           },
         })
         .then(() => {
-          this.$emit('update-index-set-list');
+          // this.$emit('update-index-set-list');
         });
     } finally {
       this.isCollectionLoading = false;

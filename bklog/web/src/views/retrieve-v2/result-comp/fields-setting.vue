@@ -257,6 +257,7 @@
 <script>
   import VueDraggable from 'vuedraggable';
   import { mapGetters } from 'vuex';
+  import { sessionShowFieldObj } from '@/common/util';
 
   import fieldsSettingOperate from './fields-setting-operate';
 
@@ -380,8 +381,14 @@
           if (this.currentClickConfigID !== this.filedSettingConfigID) {
             await this.submitFieldsSet(this.currentClickConfigID);
           }
+          this.cancelModifyFields();
+          const showFieldObj = sessionShowFieldObj();
+          Object.assign(showFieldObj, { [this.indexId]: this.shadowVisible });
+          sessionStorage.setItem('showFieldSession', JSON.stringify(showFieldObj));
           this.$store.commit('updateClearTableWidth', 1);
-          this.$emit('confirm', this.shadowVisible, this.showFieldAlias);
+          this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
+          await this.$store.dispatch('requestIndexSetFieldInfo');
+          this.$store.commit('resetVisibleFields');
         } catch (error) {
           console.warn(error);
         } finally {
@@ -600,8 +607,11 @@
             this.currentClickConfigID = this.configTabPanels[0].id;
             // 若删除的元素id与使用当前使用的config_id相同则直接刷新显示字段
             this.$store.commit('updateClearTableWidth', 1);
+            this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
             const { display_fields } = this.configTabPanels[0];
-            this.$emit('modify-fields', display_fields, this.showFieldAlias);
+            this.$store.commit('resetVisibleFields', display_fields);
+            this.$store.dispatch('requestIndexSetQuery');
+            this.cancelModifyFields();
           }
         }
       },

@@ -96,8 +96,6 @@
                   :field-alias-map="fieldAliasMap"
                   :retrieve-params="retrieveParams"
                   @cancel="cancelModifyFields"
-                  @confirm="confirmModifyFields"
-                  @modify-fields="modifyFields"
                   @set-popper-instance="setPopperInstance"
                 />
               </div>
@@ -151,6 +149,7 @@
         showAsyncExport: false, // 异步下载弹窗
         exportLoading: false,
         expandTextView: false,
+        isInitActiveTab: false,
       };
     },
     computed: {
@@ -191,10 +190,19 @@
           {},
         );
       },
+      fieldsLoading() {
+        return this.indexFieldInfo.is_loading;
+      },
     },
-
-    created() {
-      this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
+    watch: {
+      fieldsLoading(v) {
+        if (!v && !this.isInitActiveTab) {
+          this.isInitActiveTab = true;
+          this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
+        }
+      },
+    },
+    mounted() {
       const expandStr = localStorage.getItem('EXPAND_SEARCH_VIEW');
       this.expandTextView = expandStr ? JSON.parse(expandStr) : false;
       this.handleChangeExpandView(this.expandTextView);
@@ -207,17 +215,8 @@
       handleDropdownHide() {
         this.showFieldsSetting = false;
       },
-      confirmModifyFields(displayFieldNames, showFieldAlias) {
-        this.modifyFields(displayFieldNames, showFieldAlias);
-        this.closeDropdown();
-      },
       cancelModifyFields() {
         this.closeDropdown();
-      },
-      /** 更新显示字段 */
-      modifyFields(displayFieldNames, showFieldAlias) {
-        this.$emit('fields-updated', displayFieldNames, showFieldAlias);
-        this.$emit('should-retrieve');
       },
       closeDropdown() {
         this.showFieldsSetting = false;
@@ -228,27 +227,6 @@
         this.$refs.fieldsSettingPopper?.instance.set({
           hideOnClick: status,
         });
-      },
-
-      getFieldsConfigCancelFn() {},
-      async handleSelectFieldConfig(configID, option) {
-        const { display_fields: displayFields, sort_list: sortList } = option;
-        // 更新config
-        await this.$http
-          .request('retrieve/postFieldsConfig', {
-            data: {
-              index_set_id: this.routeIndexSet,
-              index_set_ids: this.unionIndexList,
-              index_set_type: this.isUnionSearch ? 'union' : 'single',
-              display_fields: this.shadowVisible,
-              sort_list: this.shadowSort,
-              config_id: configID,
-            },
-          })
-          .catch(e => {
-            console.warn(e);
-          });
-        this.confirmModifyFields(displayFields, sortList);
       },
       handleAddNewConfig() {
         this.$refs.configSelectRef?.close();
@@ -263,7 +241,7 @@
       },
       handleChangeIsWarp(val) {
         this.$store.commit('updateTableLineIsWarp', val);
-      }
+      },
     },
   };
 </script>
