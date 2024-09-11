@@ -42,6 +42,15 @@ import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range'
 
 import './service-overview.scss';
 
+type TNodeTipsMap = Map<
+  string,
+  {
+    group: string;
+    name: string;
+    value: string;
+  }[]
+>;
+
 type ServiceOverviewProps = {
   data: Record<string, any>;
   show?: boolean;
@@ -50,6 +59,7 @@ type ServiceOverviewProps = {
   timeRange?: TimeRangeType;
   endpoint?: string;
   detailIcon?: string;
+  nodeTipsMap?: TNodeTipsMap;
 };
 
 const apiFn = (api: string) => {
@@ -68,6 +78,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   @Prop() data: Record<string, any>;
   @Prop({ type: Array, default: () => [] }) timeRange: TimeRangeType;
   @Prop({ type: String, default: '' }) detailIcon: string;
+  @Prop({ type: Map, default: () => new Map() }) nodeTipsMap: TNodeTipsMap;
 
   tabActive = 'service';
   panels = {};
@@ -243,10 +254,15 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
               ...panel,
               options: {
                 ...(panel?.options || {}),
+                time_series: {
+                  ...(panel?.options?.time_series || {}),
+                  hoverAllTooltips: true,
+                },
                 apm_time_series: {
                   ...(panel?.options?.apm_time_series || {}),
                   xAxisSplitNumber: 3,
                   disableZoom: true,
+                  sceneType: 'overview',
                 },
               },
               dashboardId: this.serviceTabData.dashboardId,
@@ -303,14 +319,17 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   async getMoreAlertLink() {
     try {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-      const result = await topoLink({
-        start_time: startTime,
-        end_time: endTime,
-        app_name: this.appName,
-        service_name: this.serviceName,
-        endpoint_name: this.curType === 'endpoint' ? this.endpoint : undefined,
-        link_type: 'alert',
-      }).catch(() => '');
+      const result = await topoLink(
+        {
+          start_time: startTime,
+          end_time: endTime,
+          app_name: this.appName,
+          service_name: this.serviceName,
+          endpoint_name: this.curType === 'endpoint' ? this.endpoint : undefined,
+          link_type: 'alert',
+        },
+        { needMessage: false }
+      ).catch(() => '');
       this.moreLink = result;
     } catch (e) {
       console.error(e);
@@ -342,10 +361,18 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
 
   renderCharts() {
     if (this.tabActive === 'service') {
+      const nodeTips = this.nodeTipsMap.get(this.serviceName) || [];
+      const tipsMap = {};
+      for (const tip of nodeTips) {
+        if (tipsMap[tip.group]) {
+          tipsMap[tip.group].push(tip);
+        } else {
+          tipsMap[tip.group] = [tip];
+        }
+      }
       return (
         <div class='tabs-content'>
           <BarAlarmChart
-            style='margin-bottom: 16px'
             activeItemHeight={32}
             dataType={EDataType.Apdex}
             getData={this.serviceTabData.getApdexData}
@@ -368,19 +395,40 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
               />
             </div>
           </BarAlarmChart>
-          {this.serviceTabData.panels.map(panel => (
-            <div
-              key={panel.id}
-              class={['chart-item', `${this.tabActive}-type`]}
-            >
-              <ChartWrapper
-                customMenuList={['more', 'fullscreen', 'explore', 'set', 'area', 'drill-down', 'relate-alert']}
-                panel={panel}
-                onChartCheck={v => this.handleChartCheck(v, panel)}
-                onCollectChart={() => this.handleCollectChart(panel)}
-              />
-            </div>
-          ))}
+          {this.serviceTabData.panels.map((panel, index) => {
+            const chartMetric = panel?.options?.apm_time_series?.metric || '';
+            const tipList = tipsMap?.[chartMetric] || [];
+            return [
+              <div
+                key={`${index}__split`}
+                class='split-line'
+              />,
+              <div
+                key={panel.id}
+                class={['chart-item', `${this.tabActive}-type`]}
+              >
+                <ChartWrapper
+                  customMenuList={['more', 'fullscreen', 'explore', 'set', 'area', 'drill-down', 'relate-alert']}
+                  panel={panel}
+                  onChartCheck={v => this.handleChartCheck(v, panel)}
+                  onCollectChart={() => this.handleCollectChart(panel)}
+                />
+                {!!tipList.length && (
+                  <div class='statistics-wrap'>
+                    {tipList.map(t => (
+                      <div
+                        key={t.name}
+                        class='statistics-item'
+                      >
+                        <span class='item-title'>{`${t.name}：`}</span>
+                        <span class='item-value'>{t.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>,
+            ];
+          })}
         </div>
       );
     }

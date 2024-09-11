@@ -253,7 +253,7 @@ class ClusteringConfigHandler(object):
                     "is_desensitize": False,
                     "addition": [{"field": "__dist_05", "operator": "exists"}],
                 }
-                search_handler = SearchHandler(self.index_set_id, query_params)
+                search_handler = SearchHandler(self.index_set_id, query_params, only_for_agg=True)
                 search_result = search_handler.search()
                 if search_result["total"] > 0:
                     # 只要有一次有数据，就认为是接入完成

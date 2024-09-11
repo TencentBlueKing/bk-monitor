@@ -33,13 +33,17 @@ class RelationEntrance:
         # [!] tree_path / trees_info 会在 default 模式下进行更新
         self.tree_paths = paths
         self.trees_info = []
+        self.tree_info = None
 
     @property
     def relation_tree(self):
         # 指定路径获取: 不请求其他路径
         if self.path_type != RelationResourcePathType.DEFAULT.value:
             tree = PathProvider(self.paths, self._runtime).build_tree()
-            self.trees_info = [self._get_tree_info(self.paths, tree)]
+            tree_info = self._get_tree_info(self.paths, tree)
+            self.trees_info = [tree_info]
+            self.tree_info = tree_info
+            self.tree_paths = self.paths
             return tree
 
         # 默认逻辑: 从所有路径获取最完整的树并且返回所有路径的树信息
@@ -53,13 +57,14 @@ class RelationEntrance:
         best_tree, best_paths = self._find_complex(trees)
         self.tree_paths = best_paths
         self.trees_info = tree_infos
+        self.tree_info = next(i for i in tree_infos if i.paths == best_paths)
         return best_tree
 
     def export(self, tree, export_type):
         if export_type == "tree":
             return PathProvider.get_template(self.tree_paths).to_tree_json(tree, self.trees_info)
         if export_type == "layer":
-            return PathProvider.get_template(self.tree_paths).to_layers_json(tree, self.trees_info)
+            return PathProvider.get_template(self.tree_paths).to_layers_json(tree, self.tree_info, self.trees_info)
         raise ValueError(f"[RelationTopo] 不支持以 {export_type} 格式导出关联树")
 
     def _find_complex(self, trees: List[Tuple[str, Node]]):
@@ -97,6 +102,10 @@ class RelationEntrance:
             paths=paths,
             is_complete=Node.get_depth(tree) >= PathProvider.get_depth(paths),
             runtime=self._runtime,
+            layers_have_data=[
+                bool(Node.list_nodes_by_level(tree, layer_index))
+                for layer_index in range(len(PathProvider.get_template(paths).layers))
+            ],
         )
 
         return info

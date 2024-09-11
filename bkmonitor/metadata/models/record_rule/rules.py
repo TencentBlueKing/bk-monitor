@@ -25,6 +25,7 @@ from bkmonitor.utils.time_format import parse_duration
 from constants.dataflow import ConsumingMode
 from core.drf_resource import api
 from core.errors.api import BKAPIError
+from metadata.models import ClusterInfo
 from metadata.models.common import BaseModelWithTime
 from metadata.models.record_rule import utils
 from metadata.models.record_rule.constants import (
@@ -38,6 +39,7 @@ logger = logging.getLogger("metadata")
 
 
 class RecordRule(BaseModelWithTime):
+    STORAGE_TYPE = ClusterInfo.TYPE_VM
     space_type = models.CharField("空间类型", max_length=64)
     space_id = models.CharField("空间ID", max_length=128)
     table_id = models.CharField("结果表名", max_length=128)

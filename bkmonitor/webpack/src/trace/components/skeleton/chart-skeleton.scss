@@ -1,0 +1,23 @@
+@import '../../../fta-solutions/static/scss/mixin.scss';
+
+.chart-skeleton {
+  width: 100%;
+  padding: 8px 16px;
+
+  @include simple-class-style('h', 20);
+  @include simple-class-style('mt', 8);
+  @include simple-class-style('mt', 16);
+
+  .w-20 {
+    width: 20%;
+  }
+  .w-70 {
+    width: 70%;
+  }
+  .w-45 {
+    width: 45%;
+  }
+  .w-57 {
+    width: 57%;
+  }
+}

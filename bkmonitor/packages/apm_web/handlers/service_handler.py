@@ -273,7 +273,7 @@ class ServiceHandler:
 
     @classmethod
     @using_cache(CacheType.APM(60 * 10))
-    def get_node(cls, bk_biz_id, app_name, service_name):
+    def get_node(cls, bk_biz_id, app_name, service_name, raise_exception=True):
         """获取 topoNode 节点信息"""
         params = {
             "bk_biz_id": bk_biz_id,
@@ -284,10 +284,15 @@ class ServiceHandler:
         try:
             response = api.apm_api.query_topo_node(**params)
             if not response:
-                raise ValueError(f"[ServiceHandler] 拓扑节点: {service_name} 不存在，请检查上报数据是否包含此服务")
+                if raise_exception:
+                    raise ValueError(f"[ServiceHandler] 拓扑节点: {service_name} 不存在，请检查上报数据是否包含此服务")
+                else:
+                    return None
             return response[0]
         except BKAPIError as e:
-            raise ValueError(f"[ServiceHandler] 查询拓扑节点信息失败，错误: {e}")
+            if raise_exception:
+                raise ValueError(f"[ServiceHandler] 查询拓扑节点信息失败，错误: {e}")
+            return None
 
     @classmethod
     def list_nodes(cls, bk_biz_id, app_name):

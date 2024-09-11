@@ -1061,7 +1061,13 @@ class ServiceDetailResource(Resource):
     def perform_request(self, data):
         node_info = ServiceHandler.get_node(data["bk_biz_id"], data["app_name"], data["service_name"])
         if not node_info:
-            raise ValueError(f"节点: {data['service_name']} 暂未发现，请检查上报数据中是否包含此服务")
+            return [
+                {
+                    "name": _("数据状态"),
+                    "type": "string",
+                    "value": _("无数据（暂未发现此服务）"),
+                }
+            ]
 
         instance_count = api.apm_api.query_instance(
             bk_biz_id=data["bk_biz_id"],
@@ -1177,7 +1183,7 @@ class EndpointDetailResource(Resource):
 
         return [
             {
-                "name": _("类型"),
+                "name": _("接口类型"),
                 "type": "string",
                 "value": CategoryEnum.get_label_by_key(endpoint_info.get("category"))
                 if endpoint_info.get("category")

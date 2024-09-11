@@ -57,9 +57,6 @@ import type { IFilterDict, ITableColumn, ITablePagination } from 'monitor-pc/pag
 
 import './apm-relation-graph.scss';
 
-const sideTopoMinWidth = 400;
-const sideOverviewMinWidth = 320;
-
 @Component({
   name: 'ApmRelationGraph',
   components: {
@@ -163,18 +160,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     field: '',
     order: 'ascending',
   };
-
-  /* 展开列表 */
-  expandList = [
-    {
-      id: 'topo',
-      icon: 'icon-ziyuan',
-    },
-    {
-      id: 'overview',
-      icon: 'icon-mc-overview',
-    },
-  ];
   expanded = [];
 
   /** 是否需要缓存 */
@@ -220,6 +205,32 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   /* 当前点击的接口 */
   selectedEndpoint = '';
   selectedIcon = '';
+
+  nodeTipsMap = new Map();
+
+  /* 展开列表 */
+  get expandList() {
+    return [
+      {
+        id: 'topo',
+        tips: this.resourceDisable
+          ? this.selectedEndpoint
+            ? window.i18n.tc('请选择非接口节点')
+            : window.i18n.tc('请选择节点')
+          : window.i18n.tc('资源拓扑'),
+        icon: 'icon-ziyuan',
+      },
+      {
+        id: 'overview',
+        tips: this.overviewDisable
+          ? window.i18n.tc('请选择节点')
+          : this.selectedEndpoint
+            ? window.i18n.tc('接口概览')
+            : window.i18n.tc('服务概览'),
+        icon: 'icon-mc-overview',
+      },
+    ];
+  }
 
   /** 经过过滤的表格数据 */
   get filterTableData() {
@@ -269,8 +280,11 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   }
 
   /* 右侧按钮禁用状态 */
-  get rightExpandDisable() {
-    return this.showType === 'table' || !(this.selectedServiceName || this.selectedEndpoint);
+  get overviewDisable() {
+    return this.showType === 'table' || !this.selectedServiceName;
+  }
+  get resourceDisable() {
+    return this.showType === 'table' || !!this.selectedEndpoint || !this.selectedServiceName;
   }
 
   created() {
@@ -524,6 +538,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   /** 点击节点 */
   handleNodeClick(node: INodeModel) {
+    this.nodeTipsMap.set(node.data.id, node.node_tips);
     this.selectedServiceName = node.data.id;
     this.selectedEndpoint = '';
     this.selectedIcon = nodeIconClass[node.data.category];
@@ -534,6 +549,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   /** 资源拓扑 */
   handleResourceDrilling(node: INodeModel) {
+    this.nodeTipsMap.set(node.data.id, node.node_tips);
     this.selectedServiceName = node.data.id;
     this.selectedEndpoint = '';
     this.selectedIcon = nodeIconClass[node.data.category];
@@ -544,6 +560,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   /** 服务概览 */
   handleServiceDetail(node: INodeModel) {
+    this.nodeTipsMap.set(node.data.id, node.node_tips);
     this.selectedServiceName = node.data.id;
     this.selectedIcon = nodeIconClass[node.data.category];
     this.selectedEndpoint = '';
@@ -554,9 +571,13 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   /** 下钻接口节点点击 */
   handleDrillingNodeClick(node: INodeModel, drillingName: string) {
+    this.nodeTipsMap.set(node.data.id, node.node_tips);
     this.selectedServiceName = node.data.id;
     this.selectedEndpoint = drillingName;
     this.selectedIcon = 'icon-fx';
+    if (this.expanded.includes('topo')) {
+      this.handleExpand('topo');
+    }
     if (!this.expanded.includes('overview')) {
       this.handleExpand('overview');
     }
@@ -665,10 +686,15 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                   key={item.id}
                   class={[
                     'tool-btn',
-                    { disabled: this.rightExpandDisable },
+                    { disabled: item.id === 'topo' ? this.resourceDisable : this.overviewDisable },
                     { active: this.expanded.includes(item.id) },
                   ]}
-                  onClick={() => !this.rightExpandDisable && this.handleExpand(item.id)}
+                  v-bk-tooltips={{
+                    content: item.tips,
+                  }}
+                  onClick={() =>
+                    !(item.id === 'topo' ? this.resourceDisable : this.overviewDisable) && this.handleExpand(item.id)
+                  }
                 >
                   <span class={`icon-monitor ${item.icon}`} />
                 </div>
@@ -691,6 +717,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             edgeType={this.edgeDataType}
             filterCondition={this.filterCondition}
             refreshTopoLayout={this.refreshTopoLayout}
+            showType={this.showType}
             onDrillingNodeClick={this.handleDrillingNodeClick}
             onEdgeTypeChange={this.handleEdgeTypeChange}
             onNodeClick={this.handleNodeClick}
@@ -699,67 +726,47 @@ export default class ApmRelationGraph extends CommonSimpleChart {
           />
           {this.loading.topo && (
             <div class={{ 'apm-topo-empty-chart': true, 'all-loading': this.refreshTopoLayout }}>
-              {this.refreshTopoLayout ? <div class='chart-skeleton' /> : <bk-spin spinning />}
+              {this.refreshTopoLayout ? <div v-bkloading={{ isLoading: true }} /> : <bk-spin spinning />}
             </div>
           )}
 
-          <div
-            class='side-wrap'
-            slot='side'
-          >
-            <div
-              style={{
-                minWidth: `${sideTopoMinWidth}px`,
-                display: this.expanded.includes('topo') ? 'block' : 'none',
-              }}
-              class='source-topo'
-            >
-              <div class='header-wrap'>
-                <div class='title'>{this.$t('资源拓扑')}</div>
-                <div
-                  class='expand-btn'
-                  onClick={() => this.handleExpand('topo')}
-                >
-                  <span class='icon-monitor icon-zhankai' />
-                </div>
-              </div>
-              <div class='content-wrap'>
-                <resource-topo serviceName={this.selectedServiceName} />
+          <template slot='side1'>
+            <div class='header-wrap'>
+              <div class='title'>{this.$t('资源拓扑')}</div>
+              <div
+                class='expand-btn'
+                onClick={() => this.handleExpand('topo')}
+              >
+                <span class='icon-monitor icon-zhankai' />
               </div>
             </div>
-            <div
-              style={{
-                minWidth: `${sideOverviewMinWidth}px`,
-                display: this.expanded.includes('overview') ? 'block' : 'none',
-              }}
-              class={[
-                'service-overview',
-                { 'no-border': !this.expanded.includes('topo') },
-                { 'overview-w-auto': this.expanded.length === 1 && this.expanded[0] === 'overview' },
-              ]}
-            >
-              <div class='header-wrap'>
-                <div class='title'>{this.selectedEndpoint ? this.$t('接口概览') : this.$t('服务概览')}</div>
-                <div
-                  class='expand-btn'
-                  onClick={() => this.handleExpand('overview')}
-                >
-                  <span class='icon-monitor icon-zhankai' />
-                </div>
-              </div>
-              <div class={'content-wrap'}>
-                <ServiceOverview
-                  appName={this.appName}
-                  data={this.serviceOverviewData}
-                  detailIcon={this.selectedIcon}
-                  endpoint={this.selectedEndpoint}
-                  serviceName={this.selectedServiceName}
-                  show={this.expanded.includes('overview')}
-                  timeRange={this.timeRange}
-                />
+            <div class='content-wrap'>
+              <resource-topo serviceName={this.expanded.includes('topo') ? this.selectedServiceName : ''} />
+            </div>
+          </template>
+          <template slot='side2'>
+            <div class='header-wrap'>
+              <div class='title'>{this.selectedEndpoint ? this.$t('接口概览') : this.$t('服务概览')}</div>
+              <div
+                class='expand-btn'
+                onClick={() => this.handleExpand('overview')}
+              >
+                <span class='icon-monitor icon-zhankai' />
               </div>
             </div>
-          </div>
+            <div class={'content-wrap'}>
+              <ServiceOverview
+                appName={this.appName}
+                data={this.serviceOverviewData}
+                detailIcon={this.selectedIcon}
+                endpoint={this.selectedEndpoint}
+                nodeTipsMap={this.nodeTipsMap}
+                serviceName={this.selectedServiceName}
+                show={this.expanded.includes('overview')}
+                timeRange={this.timeRange}
+              />
+            </div>
+          </template>
         </ApmRelationGraphContent>
         <div
           style={{

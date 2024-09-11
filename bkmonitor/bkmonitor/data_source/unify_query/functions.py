@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from dataclasses import dataclass
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from django.utils.translation import gettext_lazy as _lazy
 
@@ -75,7 +75,7 @@ class FunctionCategory:
     description: str
 
 
-CpAggMethods = dict(
+CpAggMethods: Dict[str, AggMethod] = dict(
     cp50=AggMethod(
         id="cp50",
         method="quantile",

@@ -258,7 +258,7 @@ export default {
   边图例: 'Edge Legend',
   从属关系: 'Subordinate',
   调用关系: 'Call',
-  故障传播: 'Fault Spread',
+  故障传播: 'Incident Spread',
   显示图例: 'Show Legend',
   显示小地图: 'Show Mini Map',
   重置比例: 'Reset Scale',
@@ -288,7 +288,10 @@ export default {
   选择任一图并点选所需对比时间和参照时间:
     'Select any graph and click on the desired comparison time and reference time',
   '在“故障处理”展开折叠告警拓扑，会对应展开收起时序图块；在“故障流转”点击事件，会高亮对应的时间节点。':
-    'Expanding the folded alarm topology in "Fault Handling" will expand and collapse the timing diagram accordingly; clicking an event in "Fault Flow" will highlight the corresponding time node.',
-  '故障内的告警：共': 'Alarm in Fault: ',
-  '个': ' in total',
+    'Expanding the folded alarm topology in "Incident Handling" will expand and collapse the timing diagram accordingly; clicking an event in "Incident Flow" will highlight the corresponding time node.',
+  '故障内的告警：共': 'Alarm in Incident: ',
+  个: ' in total',
+  请选择非接口节点: 'Please select a non-interface node',
+  请选择节点: 'Please select a node',
+  接口概览: 'Interface Overview',
 };

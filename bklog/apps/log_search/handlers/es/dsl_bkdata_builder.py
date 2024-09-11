@@ -173,6 +173,7 @@ class DslCreateSearchContextBodyScenarioLog(object):
         path = kwargs.get("path")
         server_ip = kwargs.get("server_ip")
         bk_host_id = kwargs.get("bk_host_id")
+        ext_container_id = kwargs.get("container_id", "")
         order = kwargs.get("order")
 
         self._body = None
@@ -224,6 +225,18 @@ class DslCreateSearchContextBodyScenarioLog(object):
                         "path": {
                             "query": path,
                             # "type": "phrase"
+                            "operator": "and",
+                        }
+                    }
+                }
+            )
+
+        if ext_container_id:
+            body_data["query"]["bool"]["must"].append(
+                {
+                    "match": {
+                        "__ext.container_id": {
+                            "query": ext_container_id,
                             "operator": "and",
                         }
                     }
@@ -451,6 +464,7 @@ class DslCreateSearchTailBodyScenarioLog:
         server_ip = kwargs.get("serverIp")
         bk_host_id = kwargs.get("bk_host_id")
         zero = kwargs.get("zero", False)
+        ext_container_id = kwargs.get("container_id", "")
 
         self._body = None
         body_data = copy.deepcopy(BODY_DATA_FOR_TAIL_SCENARIO_LOG)
@@ -482,6 +496,17 @@ class DslCreateSearchTailBodyScenarioLog:
         body_data["query"]["bool"]["must"].append({"match": {"serverIp": {"query": server_ip, "operator": "and"}}})
         if path:
             body_data["query"]["bool"]["must"].append({"match": {"path": {"query": path, "operator": "and"}}})
+        if ext_container_id:
+            body_data["query"]["bool"]["must"].append(
+                {
+                    "match": {
+                        "__ext.container_id": {
+                            "query": ext_container_id,
+                            "operator": "and",
+                        }
+                    }
+                }
+            )
 
         if size:
             body_data["size"] = size
