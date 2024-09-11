@@ -9,8 +9,7 @@
 
   /** 时间选择器绑定的值 */
   const timeRangValue = computed(() => {
-    const { start_time = 'now-15m', end_time = 'now' } = store.state.indexItem;
-    return [start_time, end_time];
+    return store.state.indexItem.datePickerValue;
   });
 
   const timezone = computed(() => {

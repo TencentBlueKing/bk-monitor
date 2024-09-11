@@ -690,7 +690,7 @@
       display: inline-flex;
       flex-wrap: wrap;
       width: 100%;
-      max-height: 135px;
+      max-height: 110px;
       padding: 0 5px;
       margin: 0;
       overflow: auto;

@@ -232,6 +232,9 @@ const store = new Vuex.Store({
   // 公共 mutations
   mutations: {
     updateIndexItem(state, payload) {
+      if (payload?.addition?.length >= 0) {
+        state.indexItem.addition.splice(0, state.indexItem.addition.length, ...payload?.addition);
+      }
       Object.assign(state.indexItem, payload ?? {});
       state.unionIndexList = [];
       if (payload.isUnionIndex) {
@@ -250,6 +253,9 @@ const store = new Vuex.Store({
      */
     resetIndexsetItemParams(state, payload) {
       const defaultValue = { ...IndexsetItemParams };
+      if (payload?.addition?.length >= 0) {
+        state.indexItem.addition.splice(0, state.indexItem.addition.length, ...payload?.addition);
+      }
       Object.assign(state.indexItem, defaultValue, payload ?? {});
     },
 
@@ -272,6 +278,9 @@ const store = new Vuex.Store({
     },
 
     updateIndexItemParams(state, payload) {
+      if (payload?.addition?.length >= 0) {
+        state.indexItem.addition.splice(0, state.indexItem.addition.length, ...payload?.addition);
+      }
       Object.assign(state.indexItem, payload ?? {});
     },
 
