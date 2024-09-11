@@ -128,7 +128,7 @@ export default defineComponent({
     const edgeInterval = [];
     let playTime = null;
     /** g6 默认缩放级别 数值 / 10 为真实结果值  */
-    const MIN_ZOOM = 0.8;
+    const MIN_ZOOM = 0.2;
     const { t } = useI18n();
     const incidentDetail = inject<Ref<IncidentDetailData>>('incidentDetail');
     const incidentDetailData: Ref<IncidentDetailData> = computed(() => {
@@ -2048,7 +2048,7 @@ export default defineComponent({
                     v-model={this.zoomValue}
                     disable={this.isPlay}
                     maxValue={20}
-                    minValue={8}
+                    minValue={2}
                     onChange={this.handleZoomChange}
                     onUpdate:modelValue={this.handleZoomChange}
                   />

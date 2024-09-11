@@ -809,7 +809,7 @@ def access_aiops_by_strategy_id(strategy_id):
         }
     )
     # 如果是保存后的第一次接入，则清空接入message内容
-    if rt_query_config.intelligent_detect["retries"] == 0:
+    if rt_query_config.intelligent_detect.get("retries", 0) == 0:
         rt_query_config.intelligent_detect["message"] = ""
     rt_query_config.save()
 
@@ -1312,6 +1312,6 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
         "agg_method": "",
     }
     # 如果是保存后的第一次接入，则清空接入message内容
-    if rt_query_config.intelligent_detect["retries"] == 0:
+    if rt_query_config.intelligent_detect.get("retries", 0) == 0:
         rt_query_config.intelligent_detect["message"] = ""
     rt_query_config.save()
