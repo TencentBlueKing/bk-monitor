@@ -195,22 +195,22 @@ export default class AppList extends tsc<object> {
         name: query.queryString,
       });
     }
-    const setSearchCondition = (keys: string[]) => {
-      keys.forEach(key => {
-        if (query?.[key]) {
-          const { name, children } = SEARCH_KEYS.find(item => item.id === key);
-          const matchingStatus = children.find(s => s.id === query[key]);
-          if (matchingStatus) {
-            this.searchCondition.push({
-              id: key,
-              name,
-              values: [{ ...matchingStatus }],
-            });
-          }
-        }
-      });
-    };
-    setSearchCondition(['profiling_data_status', 'is_enabled_profiling']);
+    // const setSearchCondition = (keys: string[]) => {
+    //   keys.forEach(key => {
+    //     if (query?.[key]) {
+    //       const { name, children } = SEARCH_KEYS.find(item => item.id === key);
+    //       const matchingStatus = children.find(s => s.id === query[key]);
+    //       if (matchingStatus) {
+    //         this.searchCondition.push({
+    //           id: key,
+    //           name,
+    //           values: [{ ...matchingStatus }],
+    //         });
+    //       }
+    //     }
+    //   });
+    // };
+    // setSearchCondition(['profiling_data_status', 'is_enabled_profiling']);
     this.getLimitOfHeight();
     this.getAppList();
   }
@@ -758,7 +758,7 @@ export default class AppList extends tsc<object> {
                 </bk-button>
                 <div class='app-list-search'>
                   <SearchSelect
-                    data={this.conditionListFilter()}
+                    // data={this.conditionListFilter()}
                     modelValue={this.searchCondition}
                     placeholder={this.$t('请输入搜索或筛选')}
                     onChange={this.handleSearchCondition}

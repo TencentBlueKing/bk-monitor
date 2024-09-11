@@ -1044,7 +1044,7 @@ export default class BasicInfo extends tsc<IProps> {
                           theme='primary'
                         />
                       </bk-form-item>
-                      <bk-form-item
+                      {/* <bk-form-item
                         class='form-flex-item'
                         label={`Profiling ${this.$t('启/停')}`}
                       >
@@ -1055,7 +1055,7 @@ export default class BasicInfo extends tsc<IProps> {
                           size='small'
                           theme='primary'
                         />
-                      </bk-form-item>
+                      </bk-form-item> */}
                     </div>
                     <div class='item-row'>
                       <bk-form-item label={this.$t('Tracing 的插件')}>
@@ -1125,13 +1125,13 @@ export default class BasicInfo extends tsc<IProps> {
                       tagTheme={this.appInfo.is_enabled ? 'success' : ''}
                       value={this.appInfo.is_enabled ? [this.$t('已开启')] : [this.$t('未开启')]}
                     />
-                    <EditableFormItem
+                    {/* <EditableFormItem
                       formType='tag'
                       label='Profiling'
                       showEditable={false}
                       tagTheme={this.appInfo.is_enabled_profiling ? 'success' : ''}
                       value={this.appInfo.is_enabled_profiling ? [this.$t('已开启')] : [this.$t('未开启')]}
-                    />
+                    /> */}
                   </div>,
                   <div class='item-row'>
                     <EditableFormItem
