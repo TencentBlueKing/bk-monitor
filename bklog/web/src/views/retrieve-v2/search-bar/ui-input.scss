@@ -143,11 +143,23 @@ ul.search-items {
         }
 
         &.match-value {
-          display: flex;
+          display: inline-flex;
+          max-width: 600px;
+          overflow: hidden;
           color: #313238;
+          text-overflow: ellipsis;
+          white-space: nowrap;
 
           > span {
             display: flex;
+
+            .match-value-text {
+              display: inline-block;
+              max-width: 200px;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
 
             .match-value-relation {
               display: flex;

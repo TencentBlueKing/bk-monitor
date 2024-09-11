@@ -242,7 +242,7 @@
             v-for="(child, childInex) in item.value"
             :key="childInex"
           >
-            <span>{{ child }}</span>
+            <span class="match-value-text">{{ child }}</span>
             <span
               v-if="childInex < item.value.length - 1"
               class="match-value-relation"

@@ -62,10 +62,6 @@
     },
   });
 
-  // 匹配条件值Enter键点击次数
-  // 用于计数当前Enter键是否为切换为提交
-  let conditionValueEnterCount = 0;
-
   const fullTextField = ref({
     field_name: '',
     is_full_text: true,
@@ -286,6 +282,20 @@
     }
   };
 
+  const setConditionValueActiveIndex = (isIncrease = true) => {
+    if (isIncrease) {
+      if (conditionValueActiveIndex.value < activeItemMatchList.value.length - 1) {
+        conditionValueActiveIndex.value++;
+      }
+
+      return;
+    }
+
+    if (conditionValueActiveIndex.value > 0) {
+      conditionValueActiveIndex.value--;
+    }
+  };
+
   const resolveConditonValueInputEnter = () => {
     // 如果需要设置条件
     // 条件选择或者输入框已经渲染出来
@@ -298,6 +308,8 @@
         if (val !== undefined) {
           handleTagItemClick(val);
           refValueTagInput.value.value = '';
+          setConditionValueActiveIndex(true);
+          activeConditionValueOption();
           return;
         }
       }
@@ -347,9 +359,7 @@
       isUpDownKeyEvent = true;
 
       if (isConditionValueFocus()) {
-        if (conditionValueActiveIndex.value > 0) {
-          conditionValueActiveIndex.value--;
-        }
+        setConditionValueActiveIndex(false);
       } else {
         enterStepIndex.value = 0;
         const minValue = 0;
@@ -364,9 +374,7 @@
       stopPropagation = true;
       isUpDownKeyEvent = true;
       if (isConditionValueFocus()) {
-        if (conditionValueActiveIndex.value < activeItemMatchList.value.length - 1) {
-          conditionValueActiveIndex.value++;
-        }
+        setConditionValueActiveIndex(true);
       } else {
         enterStepIndex.value = 0;
         if (activeIndex.value < filterFieldList.value.length) {
