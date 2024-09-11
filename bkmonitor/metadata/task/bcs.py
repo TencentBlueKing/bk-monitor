@@ -160,7 +160,7 @@ def discover_bcs_clusters():
     fed_clusters = {}
     try:
         fed_clusters = api.bcs.get_federation_clusters()
-        fed_cluster_id_list = list(fed_clusters.keys())
+        fed_cluster_id_list = list(fed_clusters.keys())  # 联邦的代理集群列表
     except Exception as e:  # pylint: disable=broad-except
         fed_cluster_id_list = []
         logger.error("get federation clusters failed, error:{}".format(e))

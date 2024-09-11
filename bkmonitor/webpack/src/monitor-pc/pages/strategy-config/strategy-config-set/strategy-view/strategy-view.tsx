@@ -209,7 +209,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   private shortcutsType: EShortcutsType = EShortcutsType.NEAR;
   /* 实际的快捷方式 当选择了维度并且切换的指定数据则为指定类型 */
   private realShortcutsType: EShortcutsType = EShortcutsType.NEAR;
-  private nearNum = 20;
+  private nearNum = 10;
   private shortcutsList = [
     { id: EShortcutsType.NEAR, name: '' },
     { id: EShortcutsType.assign, name: window.i18n.t('查看指定数据') },
@@ -331,7 +331,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   deactivated() {
     // 图例查看方式还原
     this.shortcutsType = EShortcutsType.NEAR;
-    this.nearNum = 20;
+    this.nearNum = 10;
     this.handleShortcutsTypeChange(this.shortcutsType);
   }
 
@@ -409,7 +409,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     try {
       if (!this.needNearRadio) {
         this.shortcutsType = EShortcutsType.assign;
-        this.nearNum = 20;
+        this.nearNum = 10;
         this.handleShortcutsTypeChange(this.shortcutsType);
       }
       /* 触发图表查询无需清空已选条件 */
@@ -966,7 +966,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                       expFunctions={this.expFunctions}
                       expression={this.expression}
                       metricData={this.metricQueryData}
-                      nearNum={this.realShortcutsType === EShortcutsType.NEAR ? this.nearNum : 20}
+                      nearNum={this.realShortcutsType === EShortcutsType.NEAR ? this.nearNum : 10}
                       shortcutsType={this.realShortcutsType}
                       sourceData={this.sourceData}
                       strategyTarget={this.strategyTarget}
@@ -988,7 +988,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                                 >
                                   <NumberSelect
                                     value={this.nearNum}
-                                    onChange={v => (this.nearNum = v)}
+                                    onChange={v => {
+                                      this.nearNum = v;
+                                    }}
                                   />
                                 </i18n>
                               ) : (

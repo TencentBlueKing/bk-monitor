@@ -88,6 +88,7 @@ export const useTraceStore = defineStore('trace', () => {
   // Trace / Span list 切换标志
   const listType = ref<ListType>('trace');
   const traceType = ref([]);
+  const isTraceLoading = ref(false);
   const spanType = ref([]);
   const selectedTraceViewFilterTab = ref('');
   const traceListMode = ref<TraceListMode>('pre_calculation');
@@ -177,6 +178,11 @@ export const useTraceStore = defineStore('trace', () => {
 
   function setTraceType(v) {
     traceType.value = v;
+  }
+
+  /** 四个表格的 loading 状态，使用骨架屏 */
+  function setTraceLoading(v) {
+    isTraceLoading.value = v;
   }
 
   function setServiceSpanList(spanList: IServiceSpanListItem[]) {
@@ -392,5 +398,7 @@ export const useTraceStore = defineStore('trace', () => {
     updateCompareTraceOriginalData,
     tableSettings,
     updateTableCheckedSettings,
+    isTraceLoading,
+    setTraceLoading,
   };
 });

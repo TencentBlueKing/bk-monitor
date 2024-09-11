@@ -109,6 +109,7 @@ COLLECTORS_LIST = {
         "list": [
             {
                 "add_pod_label": False,
+                "add_pod_annotation": False,
                 "bcs_cluster_id": None,
                 "environment": None,
                 "extra_labels": None,
