@@ -274,21 +274,22 @@ class ServiceListResource(PageListResource):
                 filterable=True,
                 display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_SERVICES,
             ),
-            StatusTableFormat(
-                id="profiling_data_status",
-                name=_lazy("Profiling 状态"),
-                checked=True,
-                status_map_cls=DataStatus,
-                asyncable=True,
-            ),
-            NumberTableFormat(
-                id="profiling_data_count",
-                name=_lazy("数据量"),
-                checked=True,
-                decimal=0,
-                sortable=True,
-                asyncable=True,
-            ),
+            # 去掉APM的Profiling状态和数据量
+            # StatusTableFormat(
+            #     id="profiling_data_status",
+            #     name=_lazy("Profiling 状态"),
+            #     checked=True,
+            #     status_map_cls=DataStatus,
+            #     asyncable=True,
+            # ),
+            # NumberTableFormat(
+            #     id="profiling_data_count",
+            #     name=_lazy("数据量"),
+            #     checked=True,
+            #     decimal=0,
+            #     sortable=True,
+            #     asyncable=True,
+            # ),
             LinkListTableFormat(
                 id="operation",
                 name=_lazy("操作"),
