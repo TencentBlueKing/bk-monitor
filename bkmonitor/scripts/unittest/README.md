@@ -48,12 +48,12 @@ python scripts/unittest/parse_test_output.py "$(pwd)/testcase.log"
 
 ```shell
 # 仅统计告警后台覆盖度
-COVERAGE_SOURCE="alarm_backends"
+COVERAGE_SOURCE="alarm_backends,bkmonitor/data_source"
 # 忽略部分无关文件
 COVERAGE_OMIT_PATH="*/test/*,*/virtualenv/*,*/venv/*,*/migrations/*,*/mock_data/*,*/tests/*"
 # -p 表示覆盖率统计文件追加机器名称，进程pid和随机数，用于区分不同模块之间生成的 .coverage 文件
-coverage run --parallel-mode --source="$COVERAGE_SOURCE" --omit="$COVERAGE_OMIT_PATH" -m pytest alarm_backends/tests 2>&1 | tee pytest.log || true
-coverage run --parallel-mode --source="$COVERAGE_SOURCE" --omit="$COVERAGE_OMIT_PATH" ./manage.py test alarm_backends.tests 2>&1 | tee testcase.log || true
+coverage run --parallel-mode --source="$COVERAGE_SOURCE" --omit="$COVERAGE_OMIT_PATH" -m pytest alarm_backends/tests bkmonitor/data_source/tests 2>&1 | tee pytest.log || true
+coverage run --parallel-mode --source="$COVERAGE_SOURCE" --omit="$COVERAGE_OMIT_PATH" ./manage.py test alarm_backends.tests bkmonitor.data_source.tests 2>&1 | tee testcase.log || true
 
 # 合并多个覆盖度统计结果
 coverage combine
