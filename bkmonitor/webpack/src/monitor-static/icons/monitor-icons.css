@@ -16,6 +16,14 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-zhibiao:before {
+  content: '\e7a9';
+}
+
+.icon-global:before {
+  content: '\e600';
+}
+
 .icon-mc-service-all:before {
   content: '\e700';
 }
