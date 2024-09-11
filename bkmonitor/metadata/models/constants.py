@@ -473,6 +473,13 @@ class EsSourceType(Enum):
     ES = "es"
 
 
+class ESNamespacedClientType(Enum):
+    """ES API 客户端名字"""
+
+    INDICES = "indices"
+    CAT = "cat"
+
+
 class DataIdCreatedFromSystem(Enum):
     """数据源 ID 来源"""
 

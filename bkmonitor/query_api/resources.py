@@ -8,14 +8,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from typing import List
 
-
-from elasticsearch5 import Elasticsearch
 from elasticsearch5.exceptions import ConnectionError
 from rest_framework.exceptions import APIException
 
 from bkmonitor.views import serializers
 from core.drf_resource import Resource
+from metadata.utils.es_tools import get_client_by_datasource_info
 from query_api.drivers import load_driver_by_sql
 
 
@@ -33,17 +33,27 @@ class GetTSDataResource(Resource):
 class GetEsDataResource(Resource):
     class RequestSerializer(serializers.Serializer):
         index_name = serializers.CharField(required=True, label="索引名")
+        # 可以是具体的索引名，也可以包含通配符号，以下都是符合预期的：
+        # - 具体索引名：2_bkapm_trace_testapp_20240820_0
+        # - 包含通配符：2_bkapm_trace_testapp_*_*
+        index_names = serializers.ListSerializer(
+            required=False, label="索引名列表（不为空优先使用）", child=serializers.CharField(required=True, label="索引名")
+        )
         doc_type = serializers.CharField(required=True, label="文档类型")
         query_body = serializers.DictField(required=True, label="查询内容")
         datasource_info = serializers.DictField(required=True, label="链接信息")
 
     def perform_request(self, validated_request_data):
         try:
-            es_client = self.get_client(validated_request_data["datasource_info"])
+            index_names: List[str] = validated_request_data.get("index_names") or []
+            if index_names:
+                index: str = ",".join(index_names)
+            else:
+                index: str = f"{validated_request_data['index_name']}*"
+
+            es_client = get_client_by_datasource_info(validated_request_data["datasource_info"])
             data = es_client.search(
-                index="{}{}".format(validated_request_data["index_name"], "*"),
-                doc_type=validated_request_data["doc_type"],
-                body=validated_request_data["query_body"],
+                index=index, doc_type=validated_request_data["doc_type"], body=validated_request_data["query_body"]
             )
             return data
         except ConnectionError as conn_err:
@@ -52,20 +62,3 @@ class GetEsDataResource(Resource):
             raise APIException("connect hosts:{}:{} error, message is {}.".format(domain_name, port, conn_err))
         except Exception as err:
             raise Exception("call get_es_data api failed, error message is {}".format(err))
-
-    @staticmethod
-    def get_client(datasource_info):
-        connection_info = {
-            "hosts": ["{}:{}".format(datasource_info["domain_name"], datasource_info["port"])],
-            "verify_certs": datasource_info["is_ssl_verify"],
-            "use_ssl": datasource_info["is_ssl_verify"],
-        }
-
-        # 如果需要身份验证
-        username = datasource_info["auth_info"]["username"]
-        password = datasource_info["auth_info"]["password"]
-        if username and password:
-            connection_info["http_auth"] = (username, password)
-
-        es_client = Elasticsearch(**connection_info)
-        return es_client

@@ -19,17 +19,19 @@ import datetime
 import hashlib
 import json
 import logging
-import os
 import traceback
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from django.conf import settings
+from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 from elasticsearch import helpers as helpers_common
 from elasticsearch5 import helpers as helpers_5
-from elasticsearch6 import helpers as heplers_6
+from elasticsearch6 import helpers as helpers_6
 
 from apm.core.handlers.application_hepler import ApplicationHelper
 from apm.models import DataLink
+from apm.utils.base import rt_id_to_index
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.user import get_global_user
 from constants.apm import PreCalculateSpecificField
@@ -309,34 +311,59 @@ class PrecalculateStorage:
     # Modify(/Create)ResultTable和QueryResultTable接口返回的字段命名差异
     RESULT_TABLE_FIELD_MAPPING = {"field_name": "field_name", "type": "field_type", "tag": "tag", "option": "option"}
 
-    def __init__(self, bk_biz_id, app_name):
+    def __init__(self, bk_biz_id: int, app_name: str, need_client: bool = True):
         self.bk_biz_id = bk_biz_id
         self.app_name = app_name
-        self.hash_ring, self.node_mapping, self.id_mapping = self.list_nodes(bk_biz_id)
+        self.hash_ring, self.node_mapping, self.id_mapping = self.list_nodes(bk_biz_id, need_client)
         (
             self.search_index_name,
             self.save_index_name,
             self.client,
             self.storage_cluster_id,
             self.origin_index_name,
+            self.result_table_id,
         ) = self.select_and_get_storage_client()
-        self.helpers = self.get_es_helpers()
-        self.is_valid = bool(self.client)
+
+        self.is_valid = self.storage_cluster_id is not None
 
     def select_and_get_storage_client(self):
         if not self.hash_ring:
             return None, None, None, None, None
 
-        node = self.hash_ring.select_node(self.bk_biz_id, self.app_name)
-        table_name = node.split('-', 1)[-1].replace('.', '_')
+        node: str = self.hash_ring.select_node(self.bk_biz_id, self.app_name)
+        result_table_id: str = node.split('-', 1)[-1]
+        origin_index_name: str = rt_id_to_index(result_table_id)
 
         return (
-            f"{table_name}*",
-            self.get_index_write_alias(table_name),
+            f"{origin_index_name}*",
+            self.get_index_write_alias(origin_index_name),
             self.node_mapping[node],
             self.id_mapping[node],
-            table_name,
+            origin_index_name,
+            result_table_id,
         )
+
+    @cached_property
+    def helpers(self):
+        if not self.client:
+            return None
+
+        version = self.client.info().get("version", {}).get("number", "")
+        helpers = helpers_common
+        if version.startswith("6."):
+            helpers = helpers_6
+        elif version.startswith("5."):
+            helpers = helpers_5
+
+        return helpers
+
+    def save(self, data):
+        if not self.client:
+            logger.warning(f"[PrecalculateStorage] {self.bk_biz_id}: {self.app_name} storage not ready, skip")
+            return
+
+        self.helpers.bulk(self.client, data, index=self.save_index_name)
+        logger.info(f"[PrecalculateStorage] save {len(data)} success")
 
     @classmethod
     def _create_default(cls, bk_biz_id, datalink):
@@ -344,12 +371,12 @@ class PrecalculateStorage:
 
         default_storage_id = ApplicationHelper.get_default_cluster_id(bk_biz_id)
         if not default_storage_id:
-            logger.warning(f"[PreCalculate] not found default storage, skip create config")
+            logger.warning("[PreCalculate] not found default storage, skip create config")
             return None
 
         pre_calculate_config = {"cluster": []}
 
-        prefix = f"apm_global.precalculate_storage_auto_{{index}}"
+        prefix = "apm_global.precalculate_storage_auto_{index}"
 
         for i in range(cls.DEFAULT_STORAGE_DISPERSED_COUNT):
             pre_calculate_config["cluster"].append(
@@ -364,65 +391,102 @@ class PrecalculateStorage:
         return DataLink.create_global(pre_calculate_config=pre_calculate_config)
 
     @classmethod
-    def list_nodes(cls, bk_biz_id):
-        datalink = DataLink.get_data_link(bk_biz_id)
+    def get_datalink_or_none(cls, bk_biz_id: int) -> Optional[DataLink]:
+        datalink: Optional[DataLink] = DataLink.get_data_link(bk_biz_id)
+        # 不存在则创建
         if not datalink or not datalink.pre_calculate_config:
             try:
                 datalink = cls._create_default(bk_biz_id, datalink)
                 if not datalink:
-                    return None, None, None
+                    return None
             except Exception as e:  # noqa
                 logger.exception(f"[PreCalculate] create default storage failed, {e} detail: {traceback.format_exc()}")
-                return None, None, None
+                return None
+        return datalink
 
-        cluster_config = datalink.pre_calculate_config.get("cluster")
-        if not cluster_config:
+    @classmethod
+    def fetch_cluster_simple_infos(cls, bk_biz_id) -> List[Dict[str, Union[int, str]]]:
+        datalink: Optional[DataLink] = cls.get_datalink_or_none(bk_biz_id)
+        if datalink is None:
+            return []
+
+        cluster_infos: List[Dict[str, Any]] = datalink.pre_calculate_config.get("cluster") or []
+        if not cluster_infos:
+            logger.warning("[PreCalculate] empty pre_calculate clusters, bk_biz_id -> %s", bk_biz_id)
+            return []
+
+        return [
+            {"table_name": cluster_info["table_name"], "cluster_id": cluster_info["cluster_id"]}
+            for cluster_info in cluster_infos
+        ]
+
+    @classmethod
+    def fetch_result_table_ids(cls, bk_biz_id: int) -> List[str]:
+        cluster_infos: List[Dict[str, Union[int, str]]] = cls.fetch_cluster_simple_infos(bk_biz_id)
+        return [cluster_info["table_name"] for cluster_info in cluster_infos]
+
+    @classmethod
+    def list_nodes(
+        cls, bk_biz_id: int, need_client: bool
+    ) -> Tuple[Optional[RendezvousHash], Optional[Dict[str, Any]], Optional[Dict[str, int]]]:
+
+        cluster_infos: List[Dict[str, Union[int, str]]] = cls.fetch_cluster_simple_infos(bk_biz_id)
+        if not cluster_infos:
             return None, None, None
 
-        nodes = []
-        node_mapping = {}
-        id_mapping = {}
-        for i in cluster_config:
-            key = f"{i['cluster_id']}-{i['table_name']}"
-            instance = ESStorage.objects.filter(table_id=i["table_name"]).first()
+        table_ids: List[str] = [cluster_info["table_name"] for cluster_info in cluster_infos]
+        table_storage_mapping: Dict[str, ESStorage] = {
+            storage.table_id: storage for storage in ESStorage.objects.filter(table_id__in=table_ids)
+        }
 
-            if not instance:
+        nodes: List[str] = []
+        id_mapping: Dict[str, int] = {}
+        node_mapping: Dict[str, Any] = {}
+
+        for cluster_info in cluster_infos:
+            table_name: str = cluster_info["table_name"]
+            cluster_id: str = cluster_info["cluster_id"]
+            key: str = f"{cluster_id}-{table_name}"
+
+            storage: Optional[ESStorage] = table_storage_mapping.get(table_name)
+            if storage is None:
                 try:
-                    instance = cls.create_storage_table(i["cluster_id"], i["table_name"])
-                    client = instance.get_client()
+                    storage: ESStorage = cls.create_storage_table(cluster_id, table_name)
                 except Exception as e:  # noqa
                     logger.exception(
-                        f"[PreCalculate] create storage table failed. "
-                        f"except to create: {i['table_name']} in storageId: {i['cluster_id']}, ignore. \n"
-                        f"{traceback.format_exc()}"
+                        "[PreCalculate] create storage table failed but ignore: table_name -> %s, cluster_id -> %s",
+                        table_name,
+                        cluster_id,
+                    )
+                    continue
+
+            if need_client:
+                try:
+                    client = storage.get_client()
+                except Exception as e:  # noqa
+                    logger.exception(
+                        "[PreCalculate] get storage client failed but ignore: storage_cluster_id -> %s",
+                        storage.storage_cluster_id,
                     )
                     continue
             else:
-                try:
-                    client = instance.get_client()
-                except Exception as e:  # noqa
-                    logger.exception(
-                        f"[PreCalculate] get storage client failed. "
-                        f"except to get storageId: {instance.storage_cluster_id} client, ignore. \n"
-                        f"{traceback.format_exc()}"
-                    )
-                    continue
+                client = None
 
-            if client:
-                nodes.append(key)
-                node_mapping[key] = client
-                id_mapping[key] = instance.storage_cluster_id
+            nodes.append(key)
+            node_mapping[key] = client
+            id_mapping[key] = storage.storage_cluster_id
 
         if not nodes or not node_mapping or not id_mapping:
             logger.warning(
-                f"[PreCalculate] find storage config(dataId: {datalink.id}), "
-                f"but completely get failed, preStorage not work"
+                "[PreCalculate] find storage config(bk_biz_id: %s), but completely get failed, preStorage not work",
+                bk_biz_id,
             )
             return None, None, None
 
         return RendezvousHash(nodes), node_mapping, id_mapping
 
-    def get_index_write_alias(self, index_name):
+    @classmethod
+    def get_index_write_alias(cls, index_name):
         return f"write_{datetime.datetime.now().strftime('%Y%m%d')}_{index_name}"
 
     @classmethod
@@ -490,82 +554,6 @@ class PrecalculateStorage:
         except Exception as e:  # noqa
             raise ValueError(_("创建dataId失败"))
 
-    def get_es_helpers(self):
-        if not self.client:
-            return None
-
-        version = self.client.info().get("version", {}).get("number", "")
-        helpers = helpers_common
-        if version.startswith("6."):
-            helpers = heplers_6
-        elif version.startswith("5."):
-            helpers = helpers_5
-
-        return helpers
-
-    def save(self, data):
-        if not self.client:
-            logger.warning(f"[PrecalculateStorage] {self.bk_biz_id}: {self.app_name} storage not ready, skip")
-            return
-
-        self.helpers.bulk(self.client, data, index=self.save_index_name)
-        logger.info(f"[PrecalculateStorage] save {len(data)} success")
-
-    @classmethod
-    def get_search_mapping(cls, bk_biz_id):
-        def can_combine(index_names):
-            """只有索引名称长度一致并且只有最后一个字符不相同 才合并名称"""
-
-            def is_same_length(strings):
-                length = len(strings[0])
-                for string in strings:
-                    if len(string) != length:
-                        return False
-                return True
-
-            def is_last_char_diff(strings):
-                for i in range(len(strings) - 1):
-                    diff_count = 0
-                    for j in range(len(strings[0])):
-                        if strings[i][j] != strings[i + 1][j]:
-                            diff_count += 1
-                    if diff_count != 1:
-                        return False
-                return True
-
-            if not index_names:
-                return False
-
-            if is_same_length(index_names) and is_last_char_diff(index_names):
-                return True
-            else:
-                return False
-
-        _, node_mapping, _ = cls.list_nodes(bk_biz_id)
-        res = {}
-
-        cluster_mapping = {}
-        for k, v in node_mapping.items():
-            parts = k.split("-", 1)
-            cluster_id = parts[0]
-            index_name = parts[-1].replace('.', '_')
-            if cluster_id in cluster_mapping:
-                cluster_mapping[cluster_id]["tables"].append(index_name)
-            else:
-                cluster_mapping[cluster_id] = {"client": v, "tables": [index_name]}
-
-        for cluster, index_info in cluster_mapping.items():
-            is_combine = can_combine(index_info["tables"])
-            if not is_combine:
-                logger.info(f"[PreCalculate] table_name not have common prefix, will not combine indexes")
-                for t in index_info["tables"]:
-                    res[f"{t}*"] = index_info["client"]
-            else:
-                prefix = os.path.commonprefix(index_info["tables"])
-                res[f"{prefix}*"] = index_info["client"]
-
-        return res
-
     @classmethod
     def handle_fields_update(cls):
         """
@@ -594,7 +582,7 @@ class PrecalculateStorage:
                     if (
                         count_md5(json.dumps(cur_res, sort_keys=True)) != count_md5(json.dumps(pre_res, sort_keys=True))
                     ) or (instance.storage_cluster_id != j["cluster_id"]):
-                        logger.info(f"[PreCalculateStorage-CHECK_UPDATE] FIELD OR STORAGE UPDATE!")
+                        logger.info("[PreCalculateStorage-CHECK_UPDATE] FIELD OR STORAGE UPDATE!")
                         cls.update_result_table(j["table_name"], j["cluster_id"])
                     else:
                         logger.info(

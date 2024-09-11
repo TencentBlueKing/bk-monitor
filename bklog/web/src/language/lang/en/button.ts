@@ -192,4 +192,5 @@ export default {
   测试发送: 'Test Send',
   分隔符: 'Separator',
   接入日志聚类: 'Access Log Cluster',
+  按annotation选择: 'According To Annotation',
 };

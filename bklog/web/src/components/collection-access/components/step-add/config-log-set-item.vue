@@ -563,8 +563,8 @@
         this.initConfigLogSet();
       },
     },
-    created() {
-      this.isCloneOrUpdate && this.initConfigLogSet();
+    mounted() {
+      (this.isCloneOrUpdate || this.configChangeLength > 0) && this.initConfigLogSet();
     },
     methods: {
       initPathList(params, type = 'paths') {
@@ -773,9 +773,6 @@
 
     &.black-hori-title {
       left: 0;
-
-      /* stylelint-disable-next-line declaration-no-important */
-      padding: 0 !important;
     }
   }
 
