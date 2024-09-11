@@ -40,7 +40,6 @@
   const refSearchResultList = ref(null);
   const refFilterInput = ref(null);
   const isFocusFieldList = ref(true);
-  const enterStepIndex = ref(0);
   const refValueTagInputOptionList = ref(null);
 
   const operatorInstance = new PopInstanceUtil({
@@ -344,80 +343,79 @@
     handelSaveBtnClick();
   };
 
-  const handleKeydownClick = e => {
-    if (!isFocusFieldList.value) {
-      return;
-    }
-
-    let stopPropagation = false;
-    let isUpDownKeyEvent = false;
-
-    let index = activeIndex.value;
-    // key up
-    if (e.keyCode === 38) {
-      stopPropagation = true;
-      isUpDownKeyEvent = true;
-
-      if (isConditionValueFocus()) {
-        setConditionValueActiveIndex(false);
-      } else {
-        enterStepIndex.value = 0;
-        const minValue = 0;
-        if (activeIndex.value > minValue) {
-          index = index - 1;
-        }
-      }
-    }
-
-    // key down
-    if (e.keyCode === 40) {
-      stopPropagation = true;
-      isUpDownKeyEvent = true;
-      if (isConditionValueFocus()) {
-        setConditionValueActiveIndex(true);
-      } else {
-        enterStepIndex.value = 0;
-        if (activeIndex.value < filterFieldList.value.length) {
-          index = index + 1;
-        }
-      }
-    }
-
-    // key enter
-    if (e.keyCode === 13) {
-      stopPropagation = true;
-
-      resolveConditonValueInputEnter();
-    }
-
-    // key esc
-    if (e.keyCode === 27) {
-      if (isConditionValueFocus()) {
-        conditionValueInstance.hide();
-        return;
-      }
-    }
-
-    if (stopPropagation) {
-      e.stopPropagation();
-      e.preventDefault();
-      e.stopImmediatePropagation();
-    }
-
+  const handleKeyupAndKeydown = () => {
     if (!isConditionValueFocus()) {
-      if (isUpDownKeyEvent && activeIndex.value < filterFieldList.value.length) {
-        if (index >= 0) {
-          handleFieldItemClick(filterFieldList.value[index], index);
+      if (activeIndex.value < filterFieldList.value.length) {
+        if (activeIndex.value >= 0) {
+          handleFieldItemClick(filterFieldList.value[activeIndex.value], activeIndex.value);
           scrollActiveItemIntoView();
           return;
         }
 
         scrollActiveItemIntoView();
       }
-    } else {
-      if (isUpDownKeyEvent) {
+    }
+  };
+
+  const stopEventPreventDefault = e => {
+    e.stopPropagation();
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  };
+
+  const handleKeydownClick = e => {
+    if (!isFocusFieldList.value) {
+      return;
+    }
+    // key up
+    if (e.keyCode === 38) {
+      stopEventPreventDefault(e);
+
+      if (isConditionValueFocus()) {
+        setConditionValueActiveIndex(false);
         activeConditionValueOption();
+      } else {
+        const minValue = 0;
+        if (activeIndex.value > minValue) {
+          activeIndex.value = activeIndex.value - 1;
+          handleKeyupAndKeydown();
+        }
       }
+
+      return;
+    }
+
+    // key down
+    if (e.keyCode === 40) {
+      stopEventPreventDefault(e);
+      if (isConditionValueFocus()) {
+        setConditionValueActiveIndex(true);
+        activeConditionValueOption();
+      } else {
+        if (activeIndex.value < filterFieldList.value.length - 1) {
+          activeIndex.value = activeIndex.value + 1;
+          handleKeyupAndKeydown();
+        }
+      }
+
+      return;
+    }
+
+    // key enter
+    if (e.keyCode === 13) {
+      stopEventPreventDefault(e);
+      resolveConditonValueInputEnter();
+      return;
+    }
+
+    // key esc
+    if (e.keyCode === 27) {
+      stopEventPreventDefault(e);
+      if (isConditionValueFocus()) {
+        conditionValueInstance.hide();
+      }
+
+      return;
     }
   };
 
@@ -444,7 +442,6 @@
   const afterHideFn = () => {
     document.removeEventListener('keydown', handleKeydownClick);
     handleFieldItemClick(filterFieldList.value[0], 0);
-    enterStepIndex.value = 0;
     isFocusFieldList.value = false;
   };
 
