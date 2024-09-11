@@ -222,7 +222,7 @@
         required: true,
       },
       isAsIframe: {
-        type: Boolean,
+        type: Boolean | String,
         required: true,
       },
       isShowCollect: {

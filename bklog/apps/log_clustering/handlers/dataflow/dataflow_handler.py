@@ -1628,6 +1628,10 @@ class DataFlowHandler(BaseAiopsHandler):
 
     def create_predict_flow(self, index_set_id: int):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+
+        # 检查清洗任务是否已经正常启动，若未启动，则启动之
+        self.check_and_start_clean_task(clustering_config.bkdata_etl_result_table_id)
+
         all_fields_dict = self.get_fields_dict(clustering_config=clustering_config)
         predict_flow_dict = asdict(
             self._init_predict_flow(

@@ -214,6 +214,7 @@ def update_metric_list():
     source_type_gt_0 = ["BKDATA"]
     # 不再全局周期任务重执行，引导用户通过主动刷新进行触发
     extr_source_type_gt_0 = ["LOGTIMESERIES", "BKFTAALERT", "BKMONITORALERT", "BKMONITOR"]
+    # 非web请求， 允许使用 list_spaces
     businesses = SpaceApi.list_spaces()
 
     # 记录分发任务轮次
@@ -808,7 +809,7 @@ def access_aiops_by_strategy_id(strategy_id):
         }
     )
     # 如果是保存后的第一次接入，则清空接入message内容
-    if rt_query_config.intelligent_detect["retries"] == 0:
+    if rt_query_config.intelligent_detect.get("retries", 0) == 0:
         rt_query_config.intelligent_detect["message"] = ""
     rt_query_config.save()
 
@@ -1311,6 +1312,6 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
         "agg_method": "",
     }
     # 如果是保存后的第一次接入，则清空接入message内容
-    if rt_query_config.intelligent_detect["retries"] == 0:
+    if rt_query_config.intelligent_detect.get("retries", 0) == 0:
         rt_query_config.intelligent_detect["message"] = ""
     rt_query_config.save()

@@ -386,6 +386,7 @@ export interface IApmTimeSeriesOption {
     enableContextmenu?: boolean; // 是否开启全局的右键菜单
     xAxisSplitNumber?: number;
     disableZoom?: boolean;
+    sceneType?: string;
   };
 }
 
@@ -399,6 +400,7 @@ export interface IApmRelationGraphOption {
 export interface IApdexChartOption {
   apdex_chart?: {
     enableContextmenu?: boolean; // 是否开启全局的右键菜单
+    sceneType?: string;
   };
 }
 

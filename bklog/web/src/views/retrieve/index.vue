@@ -801,9 +801,9 @@
                     spaceUid: this.$store.state.spaceUid,
                     bizId: this.$store.state.bkBizId,
                   };
-                  if (this.$route.query.from) {
-                    queryObj.from = this.$route.query.from;
-                  }
+                  // if (this.$route.query.from) {
+                  //   queryObj.from = this.$route.query.from;
+                  // }
                   this.setRouteParams(
                     'retrieve',
                     {
@@ -822,9 +822,9 @@
                 spaceUid: this.$store.state.spaceUid,
                 bizId: this.$store.state.bkBizId,
               };
-              if (this.$route.query.from) {
-                queryObj.from = this.$route.query.from;
-              }
+              // if (this.$route.query.from) {
+              //   queryObj.from = this.$route.query.from;
+              // }
               this.setRouteParams(
                 'retrieve',
                 {

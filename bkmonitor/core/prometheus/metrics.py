@@ -1086,6 +1086,7 @@ AIOPS_STRATEGY_CHECK = Gauge(
         "data_source_label",
         "data_type_label",
         "metric_id",
+        "flow_id",
         "status",
         "exception",
         "exc_type",

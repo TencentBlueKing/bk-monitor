@@ -256,6 +256,8 @@ class SearchHandler(object):
         self._mapping_handlers = None
         self._final_fields_list = None
 
+        self.using_clustering_proxy = False
+
         # 构建排序list
         self.sort_list: list = self._init_sort()
 
@@ -604,7 +606,11 @@ class SearchHandler(object):
         if self.scenario_id == Scenario.LOG:
             gse_index = "gseIndex"
             iteration_index = "iterationIndex"
-        elif self.scenario_id == Scenario.BKDATA and not (target_fields and sort_fields):
+        elif (
+            self.scenario_id == Scenario.BKDATA
+            and not (target_fields and sort_fields)
+            and not self.using_clustering_proxy
+        ):
             gse_index = "gseindex"
             iteration_index = "_iteration_idx"
         else:
@@ -1620,6 +1626,7 @@ class SearchHandler(object):
                     if clustering_config and clustering_config.clustered_rt:
                         # 如果是查询bkbase端的表，即场景需要对应改为bkdata
                         self.scenario_id = Scenario.BKDATA
+                        self.using_clustering_proxy = True
                         return clustering_config.clustered_rt
             return self.origin_indices
         raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))

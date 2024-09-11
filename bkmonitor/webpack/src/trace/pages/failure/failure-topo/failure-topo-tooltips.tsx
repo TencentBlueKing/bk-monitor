@@ -248,37 +248,65 @@ export default defineComponent({
     const handleToDetail = node => {
       emit('toDetail', node);
     };
+
+    /** 不同类型的路由跳转逻辑处理 */
+    const typeToLinkHandle = {
+      BcsPod: {
+        path: () => '/k8s',
+        beforeJumpVerify: () => true,
+        query: node => ({
+          dashboardId: 'pod',
+          sceneId: 'kubernetes',
+          sceneType: 'detail',
+          queryData: JSON.stringify({
+            page: 1,
+            selectorSearch: [
+              {
+                keyword: node.entity?.dimensions?.pod_name ?? '',
+              },
+            ],
+          }),
+          'filter-pod_name': node.entity?.dimensions?.pod_name ?? '',
+          'filter-namespace': node.entity?.dimensions?.namespace ?? '',
+          'filter-bcs_cluster_id': node.entity?.dimensions?.cluster_id ?? '',
+        }),
+      },
+      BkNodeHost: {
+        path: node => `/performance/detail/${node.entity?.dimensions?.bk_host_id}`,
+        beforeJumpVerify: node => !!node.entity?.dimensions?.bk_host_id,
+        query: node => ({
+          'filter-bk_host_id': node.entity?.dimensions?.bk_host_id ?? '',
+          'filter-bk_target_cloud_id': node.entity?.dimensions?.bk_cloud_id ?? '',
+          'filter-bk_target_ip': node.entity?.dimensions?.inner_ip ?? '',
+        }),
+      },
+    };
+
+    /** 根据类型判断是否可以跳转 */
+    function canJumpByType(node) {
+      const type = node.entity.entity_type;
+      // @ts-ignore
+      if (!(Object.hasOwn(typeToLinkHandle, type) && !!typeToLinkHandle[type])) {
+        return false;
+      }
+      return typeToLinkHandle[type].beforeJumpVerify(node);
+    }
+
     /** 跳转pod页面 */
     const handleToLink = node => {
-      console.log(node, '.....');
-      if (node.entity.entity_type !== 'BcsPod') return;
+      // console.log(node, '.....');
+      if (!canJumpByType(node)) return;
       const timestamp = new Date().getTime();
-      const query = {
-        dashboardId: 'pod',
-        sceneId: 'kubernetes',
-        sceneType: 'detail',
-        queryData: JSON.stringify({
-          page: 1,
-          selectorSearch: [
-            {
-              keyword: node.entity?.dimensions?.pod_name ?? '',
-            },
-          ],
-        }),
-        'filter-pod_name': node.entity?.dimensions?.pod_name ?? '',
-        'filter-namespace': node.entity?.dimensions?.namespace ?? '',
-        'filter-bcs_cluster_id': node.entity?.dimensions?.cluster_id ?? '',
-      };
-      let queryString = '';
-      Object.keys(query).forEach(key => {
-        queryString += `${key}=${query[key]}&`;
-      });
-      queryString = queryString.slice(0, -1);
+      const linkHandleByType = typeToLinkHandle[node.entity.entity_type];
+      const query = linkHandleByType?.query(node);
+      const queryString = Object.keys(query)
+        .map(key => `${key}=${query[key]}`)
+        .join('&');
 
       const { origin, pathname } = window.location;
       // 使用原始 URL 的协议、主机名和路径部分构建新的 URL
       const baseUrl = bkzIds.value[0] ? `${origin}${pathname}?bizId=${bkzIds.value[0]}` : '';
-      window.open(`${baseUrl}#/k8s?${queryString.toString()}`, timestamp.toString());
+      window.open(`${baseUrl}#${linkHandleByType?.path(node)}?${queryString.toString()}`, timestamp.toString());
     };
     /** 拷贝操作 */
     const handleCopy = (text: string) => {
@@ -301,6 +329,7 @@ export default defineComponent({
       activeNode,
       hide,
       activeEdge,
+      canJumpByType,
       handleAfterHidden,
       handleShowNodeTips,
       handleToDetail,
@@ -433,7 +462,7 @@ export default defineComponent({
     };
     /** 边的tips详情 */
     const createEdgeToolTip = (nodes: ITopoNode[]) => {
-      console.log(this.activeEdge, '....');
+      // console.log(this.activeEdge, '....');
       const linkMap: { direction_0?: IEdge; direction_1?: IEdge } = {};
       /** 最多展示2个，分别在线的左右两侧 */
       const { events } = this.activeEdge;
@@ -651,7 +680,7 @@ export default defineComponent({
             </span>
             <OverflowTitle
               key={node?.entity?.entity_id}
-              class={['header-name', node?.entity?.entity_type === 'BcsPod' && 'header-pod-name']}
+              class={['header-name', this.canJumpByType(node) && 'header-pod-name']}
               type='tips'
             >
               <span onClick={this.handleToLink.bind(this, node)}>{node?.entity?.entity_name}</span>

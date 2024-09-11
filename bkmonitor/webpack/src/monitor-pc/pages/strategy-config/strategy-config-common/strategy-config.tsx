@@ -148,7 +148,8 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       { id: 16, name: I18N.t('修改通知间隔') },
       { id: 17, name: I18N.t('修改通知模板') },
       { id: 18, name: I18N.t('修改告警风暴开关') },
-      { id: 19, name: I18N.t('导出Yaml（As Code功能）') },
+      { id: 19, name: I18N.t('As Code') },
+      { id: 22, name: I18N.t('导入/导出') },
     ],
     keyword: '',
     keywordObj: [], // 搜索框绑定值
@@ -1457,6 +1458,12 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
               });
             });
         },
+      });
+      return;
+    }
+    if (v === 22) {
+      this.$router.push({
+        name: 'export-import',
       });
       return;
     }
