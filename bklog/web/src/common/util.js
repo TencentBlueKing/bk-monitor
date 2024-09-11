@@ -1154,3 +1154,9 @@ export const getCharLength = str => {
 
   return bitLen;
 };
+
+export const sessionShowFieldObj = () => {
+  // 显示字段缓存
+  const showFieldStr = sessionStorage.getItem('showFieldSession');
+  return !showFieldStr ? {} : JSON.parse(showFieldStr);
+};

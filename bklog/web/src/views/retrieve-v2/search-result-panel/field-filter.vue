@@ -3,6 +3,7 @@
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+  import { sessionShowFieldObj } from '@/common/util';
 
   import FieldFilterComp from '../field-filter-comp';
   const store = useStore();
@@ -53,39 +54,22 @@
     };
   });
 
-  const showFieldAlias = ref(localStorage.getItem('showFieldAlias') === 'true');
+  const showFieldAlias = computed(() => store.state.showFieldAlias);
   const visibleFields = computed(() => store.state.visibleFields ?? []);
 
-  // 接口中获取的字段
-  const statisticalFieldsData = ref({});
-  const sessionShowFieldObj = () => {
-    // 显示字段缓存
-    const showFieldStr = sessionStorage.getItem('showFieldSession');
-    return !showFieldStr ? {} : JSON.parse(showFieldStr);
-  };
   /**
    * @desc: 字段设置更新了
    * @param {Array} displayFieldNames 展示字段
-   * @param {Boolean} showFieldAlias 是否别名
-   * @param {Boolean} isRequestFields 是否请求字段
    */
-  const handleFieldsUpdated = async (displayFieldNames, showFieldAlias, isRequestFields = true) => {
+  const handleFieldsUpdated = async displayFieldNames => {
     store.commit('updateClearTableWidth', 1);
     // 缓存展示字段
     const showFieldObj = sessionShowFieldObj();
     Object.assign(showFieldObj, { [indexId.value]: displayFieldNames });
     sessionStorage.setItem('showFieldSession', JSON.stringify(showFieldObj));
-    if (showFieldAlias !== undefined) {
-      showFieldAlias.value = showFieldAlias;
-      window.localStorage.setItem('showFieldAlias', showFieldAlias);
-    }
     await nextTick();
-    if (!isRequestFields) {
-      store.commit('resetVisibleFields', displayFieldNames);
-    } else {
-      // isSetDefaultTableColumn.value = false;
-      store.dispatch('requestIndexSetFieldInfo');
-    }
+    store.commit('resetVisibleFields', displayFieldNames);
+    store.commit('updateIsSetDefaultTableColumn', false);
   };
   const handleCloseFilterTitle = () => {
     emit('update:is-show-field-statistics', !props.isShowFieldStatistics);

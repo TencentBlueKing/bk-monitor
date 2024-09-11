@@ -42,17 +42,20 @@
     border-radius: 2px;
 
     .bk-icon {
-      width: 12px;
       margin: 0 5px;
-      font-size: 12px;
       transition: transform 0.3s;
     }
 
     .field-type-icon {
-      width: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 16px;
+      height: 16px;
       margin: 0 5px 0 0;
       font-size: 12px;
-      color: #979ba5;
+      background: #dcdee5;
+      border-radius: 2px;
     }
 
     .field-name {
@@ -69,9 +72,10 @@
       color: #ff9c01;
     }
 
-    .icon-ext {
-      width: 18px;
-      transform: scale(0.8);
+    .bklog-ext {
+      min-width: 22px;
+      height: 22px;
+      transform: scale(0.7);
     }
 
     .field-count {

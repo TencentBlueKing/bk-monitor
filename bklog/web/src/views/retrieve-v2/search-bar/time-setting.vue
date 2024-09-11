@@ -25,6 +25,7 @@
 
   // 日期变化
   const handleTimeRangeChange = val => {
+    store.commit('updateIsSetDefaultTableColumn', false);
     if (val.every(item => typeof item === 'string')) {
       localStorage.setItem('SEARCH_DEFAULT_TIME', JSON.stringify(val));
     }

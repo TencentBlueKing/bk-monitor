@@ -80,9 +80,9 @@
   };
 
   const requestIndexSetFieldParams = computed(() => {
-    const { start_time, end_time, ids, isUnionIndex } = store.state.indexItem;
-    return { start_time, end_time, ids, isUnionIndex };
-  })
+    const { start_time, end_time } = store.state.indexItem;
+    return { start_time, end_time };
+  });
 
   watch(
     indexSetParams,
@@ -93,11 +93,15 @@
     { deep: true },
   );
 
-  watch(requestIndexSetFieldParams, (val, oldValue) => {
-    if (!isEqual(val, oldValue ?? {})) {
-      store.dispatch('requestIndexSetFieldInfo');
-    }
-  }, { deep: true, immediate: true });
+  watch(
+    requestIndexSetFieldParams,
+    (val, oldValue) => {
+      if (!isEqual(val, oldValue ?? {})) {
+        store.dispatch('requestIndexSetFieldInfo');
+      }
+    },
+    { deep: true, immediate: true },
+  );
 
   watch(
     spaceUid,
@@ -148,7 +152,7 @@
     }
     store.commit('resetIndexsetItemParams');
     store.commit('updateIndexId', v.index_set_id);
-    const isUnionIndex =  v.index_set_ids.length > 0;
+    const isUnionIndex = v.index_set_ids.length > 0;
 
     store.commit('updateIndexItem', {
       ...v.params,

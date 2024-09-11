@@ -300,6 +300,7 @@
           offset: '0, -1',
           interactive: true,
           hideOnClick: false,
+          extCls: 'download-box',
           arrow: true,
         });
         this.popoverInstance?.show();
@@ -579,9 +580,11 @@
     flex-direction: column;
     justify-content: space-evenly;
     min-height: 60px;
+    padding: 4px 0;
     font-size: 12px;
 
     span {
+      padding: 2px 6px;
       cursor: pointer;
 
       &:hover {

@@ -31,7 +31,15 @@
  */
 import Vue from 'vue';
 
-import { unifyObjectStyle, getOperatorKey, readBlobRespToJson, parseBigNumberList, formatDate } from '@/common/util';
+import {
+  unifyObjectStyle,
+  getOperatorKey,
+  readBlobRespToJson,
+  parseBigNumberList,
+  setDefaultTableWidth,
+  sessionShowFieldObj,
+  formatDate,
+} from '@/common/util';
 import axios from 'axios';
 import Vuex from 'vuex';
 
@@ -50,12 +58,6 @@ import retrieve from './retrieve';
 import http from '@/api';
 
 Vue.use(Vuex);
-
-const sessionShowFieldObj = () => {
-  // 显示字段缓存
-  const showFieldStr = sessionStorage.getItem('showFieldSession');
-  return !showFieldStr ? {} : JSON.parse(showFieldStr);
-};
 
 const store = new Vuex.Store({
   // 模块
@@ -155,6 +157,8 @@ const store = new Vuex.Store({
     retrieveDropdownData: {},
     notTextTypeFields: [],
     tableLineIsWarp: true,
+    isSetDefaultTableColumn: false,
+    showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
   },
   // 公共 getters
   getters: {
@@ -539,6 +543,26 @@ const store = new Vuex.Store({
     updateTableLineIsWarp(state, payload) {
       state.tableLineIsWarp = payload;
     },
+    updateShowFieldAlias(state, payload) {
+      window.localStorage.setItem('showFieldAlias', payload);
+      state.showFieldAlias = payload;
+    },
+    /** 初始化表格宽度 为false的时候会按照初始化的情况来更新宽度 */
+    updateIsSetDefaultTableColumn(state, payload) {
+      // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
+      if (!state.isSetDefaultTableColumn) {
+        const storageKey = state.isUnionSearch ? 'TABLE_UNION_COLUMN_WIDTH' : 'table_column_width_obj';
+        const columnWidth = JSON.parse(localStorage.getItem(storageKey));
+        const indexKey = state.isUnionSearch ? state.unionIndexList.sort().join('-') : state.indexId;
+        const catchFieldsWidthObj = columnWidth?.[state.bkBizId]?.fields[indexKey];
+        state.isSetDefaultTableColumn = setDefaultTableWidth(
+          state.visibleFields,
+          state.indexSetQueryResult.list,
+          catchFieldsWidthObj,
+        );
+      }
+      if (typeof payload === 'boolean') state.isSetDefaultTableColumn = payload;
+    },
     resetVisibleFields(state, payload) {
       const sessionShownFieldList = sessionShowFieldObj()?.[state.indexId];
       // 请求字段时 判断当前索引集是否有更改过字段 若更改过字段则使用session缓存的字段显示
@@ -780,6 +804,7 @@ const store = new Vuex.Store({
           commit('updataOperatorDictionary', res.data ?? {});
           commit('updateNotTextTypeFields', res.data ?? {});
           commit('updateIndexSetFieldConfig', res.data ?? {});
+          commit('retrieve/updateFiledSettingConfigID', res.data?.config_id ?? -1); // 当前字段配置configID
           commit('resetVisibleFields');
           commit('resetIndexSetOperatorConfig');
 
@@ -892,6 +917,7 @@ const store = new Vuex.Store({
               commit('updateSqlQueryFieldList', rsolvedData.list);
               commit('updateIndexItem', { catchUnionBeginList, begin: begin + 1 });
               commit('updateIndexSetQueryResult', rsolvedData);
+              commit('updateIsSetDefaultTableColumn');
 
               return {
                 data: rsolvedData,
@@ -956,6 +982,7 @@ const store = new Vuex.Store({
     requestIndexSetItemChanged({ commit, dispatch }, payload) {
       commit('updateIndexItem', payload);
       commit('resetIndexSetQueryResult', { search_count: 0, is_loading: true });
+      commit('updateIsSetDefaultTableColumn', false);
 
       if (!payload.isUnionIndex) {
         commit('updateIndexId', payload.ids[0]);
