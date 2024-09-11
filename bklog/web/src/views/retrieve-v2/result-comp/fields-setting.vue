@@ -388,7 +388,7 @@
           this.$store.commit('updateClearTableWidth', 1);
           this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
           await this.$store.dispatch('requestIndexSetFieldInfo');
-          this.$store.commit('resetVisibleFields');
+          this.$store.commit('resetVisibleFields', this.shadowVisible);
         } catch (error) {
           console.warn(error);
         } finally {
