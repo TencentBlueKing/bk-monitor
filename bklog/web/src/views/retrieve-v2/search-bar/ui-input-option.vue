@@ -285,8 +285,10 @@
     if (isIncrease) {
       if (conditionValueActiveIndex.value < activeItemMatchList.value.length - 1) {
         conditionValueActiveIndex.value++;
+        return;
       }
 
+      conditionValueActiveIndex.value = 0;
       return;
     }
 
