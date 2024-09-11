@@ -208,58 +208,76 @@ class CollectConfigListResource(Resource):
         conf.save(not_update_user=True, update_fields=["cache_data"])
         return is_need_upgrade
 
+    def exists_by_biz(self, bk_biz_id):
+        config_list = CollectConfigMeta.objects.select_related("plugin")
+
+        space = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
+        data_sources = api.metadata.query_data_source_by_space_uid(
+            space_uid_list=[space.space_uid], is_platform_data_id=True
+        )
+        data_names = [ds["data_name"] for ds in data_sources]
+        plugin_ids = []
+        global_plugins = CollectorPluginMeta.objects.filter(bk_biz_id=0).values("plugin_type", "plugin_id")
+        for plugin in global_plugins:
+            data_name = f"{plugin['plugin_type']}_{plugin['plugin_id']}".lower()
+            if data_name in data_names:
+                plugin_ids.append(plugin['plugin_id'])
+
+        filter_condition = Q(plugin_id__in=plugin_ids) | Q(bk_biz_id=bk_biz_id)
+        return config_list.filter(filter_condition).exists()
+
     def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data.get("bk_biz_id")
+        refresh_status = validated_request_data.get("refresh_status")
+        search_dict = validated_request_data.get("search", {})
+        order = validated_request_data.get("order")
+        self.bk_biz_id = bk_biz_id
+
+        collect_config_fields = [i.attname for i in list(CollectConfigMeta._meta.fields)]
+        new_search = []
+        for item, value in search_dict.items():
+            if item in ["status", "task_status"]:
+                # config_status: 启用 STARTED、停用 STOPPED
+                # task_status: 异常 WARNING
+                new_search.append(Q(cache_data__contains=f'"{item}": "{value}"'))
+            elif item == "need_upgrade":
+                # need_upgrade: 是否需要升级
+                new_search.append(Q(cache_data__contains=f'"{item}": {value}'))
+            elif item == "fuzzy":
+                new_search.append(Q(id__icontains=value) | Q(name__icontains=value))
+            elif item in collect_config_fields:
+                new_search.append(Q(**{item: value}))
+
+        # 获取全量的采集配置数据（包含外键数据）filter(**search_dict)
+        config_list = (
+            CollectConfigMeta.objects.filter(*new_search)
+            .select_related("plugin", "deployment_config__plugin_version")
+            .order_by("-id")
+        )
+
+        all_space_list = SpaceApi.list_spaces()
+        bk_biz_id_space_dict = {space.bk_biz_id: space for space in all_space_list}
+
+        global_plugins = CollectorPluginMeta.objects.filter(bk_biz_id=0).values("plugin_type", "plugin_id")
+
+        # bk_biz_id可以为空，为空则按用户拥有的业务查询
+        plugin_ids = []
+        user_biz_ids = []
         try:
-            bk_biz_id = validated_request_data.get("bk_biz_id")
-            refresh_status = validated_request_data.get("refresh_status")
-            search_dict = validated_request_data.get("search", {})
-            order = validated_request_data.get("order")
-            self.bk_biz_id = bk_biz_id
-
-            collect_config_fields = [i.attname for i in list(CollectConfigMeta._meta.fields)]
-            new_search = []
-            for item, value in search_dict.items():
-                if item in ["status", "task_status"]:
-                    # config_status: 启用 STARTED、停用 STOPPED
-                    # task_status: 异常 WARNING
-                    new_search.append(Q(cache_data__contains=f'"{item}": "{value}"'))
-                elif item == "need_upgrade":
-                    # need_upgrade: 是否需要升级
-                    new_search.append(Q(cache_data__contains=f'"{item}": {value}'))
-                elif item == "fuzzy":
-                    new_search.append(Q(id__icontains=value) | Q(name__icontains=value))
-                elif item in collect_config_fields:
-                    new_search.append(Q(**{item: value}))
-
-            # 获取全量的采集配置数据（包含外键数据）filter(**search_dict)
-            config_list = (
-                CollectConfigMeta.objects.filter(*new_search)
-                .select_related("plugin", "deployment_config__plugin_version")
-                .order_by("-id")
-            )
-
-            all_space_list = SpaceApi.list_spaces()
-            bk_biz_id_space_dict = {space.bk_biz_id: space for space in all_space_list}
-
-            global_plugins = CollectorPluginMeta.objects.filter(bk_biz_id=0).values("plugin_type", "plugin_id")
-
-            # bk_biz_id可以为空，为空则按用户拥有的业务查询
             if bk_biz_id:
+                user_biz_ids = [bk_biz_id]
                 space = bk_biz_id_space_dict.get(bk_biz_id)
                 data_sources = api.metadata.query_data_source_by_space_uid(
                     space_uid_list=[space.space_uid], is_platform_data_id=True
                 )
                 data_names = [ds["data_name"] for ds in data_sources]
-                plugin_ids = []
+
                 for plugin in global_plugins:
                     data_name = f"{plugin['plugin_type']}_{plugin['plugin_id']}".lower()
                     if data_name in data_names:
                         plugin_ids.append(plugin['plugin_id'])
-
-                filter_condition = Q(plugin_id__in=plugin_ids) | Q(bk_biz_id=bk_biz_id)
             else:
                 # 全业务场景 to be legacy
-                plugin_ids = []
                 user_biz_ids = resource.space.get_bk_biz_ids_by_user(get_request().user)
                 space_uid_set = set()
                 for biz_id in user_biz_ids:
@@ -275,84 +293,78 @@ class CollectConfigListResource(Resource):
                     data_name = f"{plugin['plugin_type']}_{plugin['plugin_id']}".lower()
                     if data_name in data_names:
                         plugin_ids.append(plugin['plugin_id'])
-                # 用户拥有业务下创建的插件以及业务下的采集
-                filter_condition = Q(plugin_id__in=plugin_ids) | Q(bk_biz_id__in=user_biz_ids)
+        except BKAPIError as e:
+            logger.error(f"get data source error: {e}")
 
-            config_list = config_list.filter(filter_condition)
+        config_list = config_list.filter(Q(plugin_id__in=plugin_ids) | Q(bk_biz_id__in=user_biz_ids))
 
-            total = len(config_list)
-            if total == 0:
-                return {"type_list": [], "config_list": [], "total": 0}
+        total = len(config_list)
+        if total == 0:
+            return {"type_list": [], "config_list": [], "total": 0}
 
-            if validated_request_data["page"] != -1:
-                paginator = Paginator(config_list, validated_request_data["limit"])
-                config_data_list = list(paginator.page(validated_request_data["page"]))
-            else:
-                config_data_list = list(config_list)
+        if validated_request_data["page"] != -1:
+            paginator = Paginator(config_list, validated_request_data["limit"])
+            config_data_list = list(paginator.page(validated_request_data["page"]))
+        else:
+            config_data_list = list(config_list)
 
-            if refresh_status:
-                try:
-                    self.get_realtime_data(config_data_list)
-                except Exception:
-                    # 尝试实时获取，获取失败就用缓存数据
-                    pass
+        if refresh_status:
+            try:
+                self.get_realtime_data(config_data_list)
+            except Exception:
+                # 尝试实时获取，获取失败就用缓存数据
+                pass
 
-            search_list = []
-            for item in config_data_list:
-                status = self.get_status(item)
-                space = bk_biz_id_space_dict.get(item.bk_biz_id)
-                search_list.append(
-                    {
-                        "id": item.id,
-                        "name": item.name,
-                        "bk_biz_id": item.bk_biz_id,
-                        "space_name": f"{space.space_name}({space.type_name})" if space else "",
-                        "collect_type": item.collect_type,
-                        "status": status["config_status"],
-                        "task_status": status["task_status"],
-                        "target_object_type": item.target_object_type,
-                        "target_node_type": item.deployment_config.target_node_type,
-                        "plugin_id": item.plugin.plugin_id,
-                        "target_nodes_count": len(item.deployment_config.target_nodes),
-                        "need_upgrade": self.need_upgrade(item),
-                        "config_version": item.deployment_config.plugin_version.config_version,
-                        "info_version": item.deployment_config.plugin_version.info_version,
-                        "error_instance_count": (
-                            0
-                            if status["task_status"] == TaskStatus.STOPPED
-                            else item.get_cache_data("error_instance_count", 0)
-                        ),
-                        "total_instance_count": item.get_cache_data("total_instance_count", 0),
-                        "running_tasks": status["running_tasks"],
-                        "label_info": item.label_info,
-                        "label": item.label,
-                        "update_time": item.update_time,
-                        "update_user": item.update_user,
-                    }
-                )
+        search_list = []
+        for item in config_data_list:
+            status = self.get_status(item)
+            space = bk_biz_id_space_dict.get(item.bk_biz_id)
+            search_list.append(
+                {
+                    "id": item.id,
+                    "name": item.name,
+                    "bk_biz_id": item.bk_biz_id,
+                    "space_name": f"{space.space_name}({space.type_name})" if space else "",
+                    "collect_type": item.collect_type,
+                    "status": status["config_status"],
+                    "task_status": status["task_status"],
+                    "target_object_type": item.target_object_type,
+                    "target_node_type": item.deployment_config.target_node_type,
+                    "plugin_id": item.plugin.plugin_id,
+                    "target_nodes_count": len(item.deployment_config.target_nodes),
+                    "need_upgrade": self.need_upgrade(item),
+                    "config_version": item.deployment_config.plugin_version.config_version,
+                    "info_version": item.deployment_config.plugin_version.info_version,
+                    "error_instance_count": (
+                        0
+                        if status["task_status"] == TaskStatus.STOPPED
+                        else item.get_cache_data("error_instance_count", 0)
+                    ),
+                    "total_instance_count": item.get_cache_data("total_instance_count", 0),
+                    "running_tasks": status["running_tasks"],
+                    "label_info": item.label_info,
+                    "label": item.label,
+                    "update_time": item.update_time,
+                    "update_user": item.update_user,
+                }
+            )
 
-            # 排序
-            if order:
-                reverse = False
-                if order.startswith("-"):
-                    order = order[1:]
-                    reverse = True
+        # 排序
+        if order:
+            reverse = False
+            if order.startswith("-"):
+                order = order[1:]
+                reverse = True
 
-                try:
-                    search_list.sort(key=lambda x: x[order], reverse=reverse)
-                except KeyError:
-                    pass
+            try:
+                search_list.sort(key=lambda x: x[order], reverse=reverse)
+            except KeyError:
+                pass
 
-            # 获取插件类型
-            type_list = [{"id": item[0], "name": item[1]} for item in COLLECT_TYPE_CHOICES]
+        # 获取插件类型
+        type_list = [{"id": item[0], "name": item[1]} for item in COLLECT_TYPE_CHOICES]
 
-            return {"type_list": type_list, "config_list": search_list, "total": total}
-        except Exception:
-            import traceback
-
-            logger.error(traceback.format_exc())
-
-        return {"type_list": [], "config_list": [], "total": 0}
+        return {"type_list": type_list, "config_list": search_list, "total": total}
 
 
 class CollectConfigDetailResource(Resource):
