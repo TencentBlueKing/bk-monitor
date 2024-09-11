@@ -161,7 +161,7 @@
 
           &.log-type {
             .chart-wrapper {
-              // height: 186px;
+              min-height: 112px;
             }
           }
 
@@ -243,27 +243,34 @@
 
         .related-log-chart-wrap {
           .empty-chart {
+            min-height: 112px;
+
             .bk-exception {
               top: -12px;
+
               .empty-text {
                 font-size: 14px;
               }
+
               .text-wrap {
                 .text-row {
                   margin: 12px 0;
                   font-size: 12px;
                 }
               }
+
               .bk-exception-img {
                 img {
                   height: 100px;
                 }
               }
+
               button {
                 font-size: 12px;
               }
             }
           }
+
           .empty-chart-text {
             position: relative;
             top: 68px;
