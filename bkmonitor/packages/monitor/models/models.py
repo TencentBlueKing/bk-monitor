@@ -485,7 +485,7 @@ class UptimeCheckTask(OperateRecordModel):
             else:
                 task_group_id = ",".join(map(str, task_group_ids))
         except UptimeCheckTask.DoesNotExist:
-            raise CustomException(_("不存在的任务id:%s") % pk)
+            task_group_id = "0"
 
         params_list = []
         tasks = resource.uptime_check.generate_sub_config({"task_id": pk})
