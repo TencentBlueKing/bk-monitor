@@ -133,6 +133,7 @@ class AIOpsStrategyMaintainer:
             "data_source_label": query_config.data_source_label,
             "data_type_label": query_config.data_type_label,
             "metric_id": query_config.metric_id,
+            "flow_id": getattr(query_config, "intelligent_detect", {}).get("data_flow_id"),
         }
 
     def check_strategies_valid(self):
@@ -151,14 +152,25 @@ class AIOpsStrategyMaintainer:
         self.access_enable_strategies()
 
         for strategy_info in self.monitor_strategies.values():
-            self.check_strategy_flow_status(strategy_info)
+            try:
+                self.check_strategy_flow_status(strategy_info)
 
-            self.check_strategy_data_monitor_metrics(strategy_info)
+                self.check_strategy_data_monitor_metrics(strategy_info)
 
-            self.check_strategy_output(strategy_info)
+                self.check_strategy_output(strategy_info)
 
-            if strategy_info["strategy"].id not in self.checked_abnormal_strategies:
-                report_aiops_check_metrics(strategy_info["base_labels"], DataFlow.Status.Running)
+                if strategy_info["strategy"].id not in self.checked_abnormal_strategies:
+                    report_aiops_check_metrics(strategy_info["base_labels"], DataFlow.Status.Running)
+            except BaseException as e:
+                report_aiops_check_metrics(
+                    strategy_info["base_labels"],
+                    DataFlow.Status.Warning,
+                    (
+                        f"Checking dataflow for strategy({strategy_info['strategy'].id}: "
+                        f"{strategy_info['strategy'].bk_biz_id}) error: {str(e)}"
+                    ),
+                    CheckErrorType.CHECK_FAILED,
+                )
 
         self.stop_invalid_strategies()
 
@@ -169,24 +181,33 @@ class AIOpsStrategyMaintainer:
         for strategy_id, strategy_info in self.monitor_strategies.items():
             error_type = CheckErrorType.ACCESS_ERROR
 
-            # 如果告警策略配置记录的flow_id与dataflow记录的flow_id相符，则跳过，否则触发接入流程
-            if strategy_id in self.flow_strategies and self.flow_strategies[strategy_id]:
-                monitor_flow_id = strategy_info["query_config"].intelligent_detect.get("data_flow_id")
+            try:
+                # 如果告警策略配置记录的flow_id与dataflow记录的flow_id相符，则跳过，否则触发接入流程
+                if strategy_id in self.flow_strategies and self.flow_strategies[strategy_id]:
+                    monitor_flow_id = getattr(strategy_info["query_config"], "intelligent_detect", {}).get(
+                        "data_flow_id"
+                    )
 
-                # 如果已经接入成功（监控配置记录的flow_id和bkbase实际的flow_id一致），且正在运行中，则认为已经接入且成功
-                if monitor_flow_id in self.flow_strategies[strategy_id]:
-                    if (
-                        self.flow_strategies[strategy_id][monitor_flow_id]["flow_info"]["status"]
-                        == DataFlow.Status.Running
-                    ):
-                        continue
-                    else:
-                        error_type = CheckErrorType.NOT_RUNNING
+                    # 如果已经接入成功（监控配置记录的flow_id和bkbase实际的flow_id一致），且正在运行中，则认为已经接入且成功
+                    if monitor_flow_id in self.flow_strategies[strategy_id]:
+                        if (
+                            self.flow_strategies[strategy_id][monitor_flow_id]["flow_info"]["status"]
+                            == DataFlow.Status.Running
+                        ):
+                            continue
+                        else:
+                            error_type = CheckErrorType.NOT_RUNNING
+            except BaseException as e:
+                logger.exception(
+                    f"check strategy({strategy_id}: {strategy_info['strategy'].bk_biz_id})"
+                    f"dataflow status error({str(e)})"
+                )
 
             # 不满足上述接入成功的条件，则重新触发接入流程，并启动
             try:
                 err_msg = (
-                    f"Dataflow for strategy({strategy_id}) is abnormal({error_type}: "
+                    f"Dataflow for strategy({strategy_id}: {strategy_info['strategy'].bk_biz_id})"
+                    f"is abnormal({error_type}: "
                     f"{getattr(strategy_info['query_config'], 'intelligent_detect', {}).get('message')})"
                 )
                 logger.error(err_msg)
@@ -201,7 +222,10 @@ class AIOpsStrategyMaintainer:
                 )
                 self.checked_abnormal_strategies.add(strategy_id)
             except BaseException as e:  # noqa
-                logger.exception(f"check strategy({strategy_id}) dataflow status error({str(e)})")
+                logger.exception(
+                    f"check strategy({strategy_id}: {strategy_info['strategy'].bk_biz_id})"
+                    f"dataflow status error({str(e)})"
+                )
 
     def check_strategy_flow_status(self, strategy_info: Dict):
         """检测任务运行是否有异常.
@@ -216,7 +240,10 @@ class AIOpsStrategyMaintainer:
         # 检测任务启动状态
         deploy_data = api.bkdata.get_latest_deploy_data_flow(flow_id=flow_id)
         if deploy_data["status"] == DataFlow.Status.Failure:
-            error_msg = f"Dataflow for strategy({strategy_info['strategy'].id}) had started failure"
+            error_msg = (
+                f"Dataflow for strategy({strategy_info['strategy'].id}:"
+                f"{strategy_info['strategy'].bk_biz_id}) had started failure"
+            )
             logger.error(error_msg)
             report_aiops_check_metrics(
                 strategy_info["base_labels"],
@@ -235,7 +262,8 @@ class AIOpsStrategyMaintainer:
                 err_msgs.append(f"Node[{node_info['node_name']}]({node_info['node_type']}) is running failure")
         if err_msgs:
             error_msg = (
-                f"Dataflow for strategy({strategy_info['strategy'].id}) is running failure({'|'.join(err_msgs)})"
+                f"Dataflow for strategy({strategy_info['strategy'].id}:"
+                f"{strategy_info['strategy'].bk_biz_id}) is running failure({'|'.join(err_msgs)})"
             )
             logger.error(error_msg)
             report_aiops_check_metrics(
@@ -269,7 +297,10 @@ class AIOpsStrategyMaintainer:
             format="value",
         )
         if not (len(metrics_data) > 0 and metrics_data[0]["value"]["output_count"] > 0):
-            error_msg = f"Dataflow for strategy({strategy_info['strategy'].id}) has no metrics about running"
+            error_msg = (
+                f"Dataflow for strategy({strategy_info['strategy'].id}:"
+                f"{strategy_info['strategy'].bk_biz_id}) has no metrics about running"
+            )
             logger.error(error_msg)
             report_aiops_check_metrics(
                 strategy_info["base_labels"],
@@ -294,11 +325,13 @@ class AIOpsStrategyMaintainer:
         """停止没有生效或已经删除的任务."""
         for strategy_id, flows in self.flow_strategies.items():
             monitor_flow_id = None
+            bk_biz_id = None
 
             # 如果监控有对应策略，但是flow id不对应，也需要停止对应任务
             if strategy_id in self.monitor_strategies:
                 strategy_info = self.monitor_strategies[strategy_id]
-                monitor_flow_id = strategy_info["query_config"].intelligent_detect.get("data_flow_id")
+                monitor_flow_id = getattr(strategy_info["query_config"], "intelligent_detect", {}).get("data_flow_id")
+                bk_biz_id = strategy_info["strategy"].bk_biz_id
 
             for bkbase_flow_id in flows.keys():
                 if monitor_flow_id and int(monitor_flow_id) == bkbase_flow_id:
@@ -306,9 +339,10 @@ class AIOpsStrategyMaintainer:
 
                 if flows[bkbase_flow_id]["flow_info"]["status"] == DataFlow.Status.Running:
                     try:
-                        logger.info(
-                            f"stop dataflow({bkbase_flow_id}) because strategy({strategy_id}) is disabled or deleted"
+                        print(
+                            f"stop dataflow({bkbase_flow_id}) because strategy({strategy_id}:"
+                            f"{bk_biz_id}) is disabled or deleted"
                         )
-                        api.bkdata.stop_data_flow(flow_id=bkbase_flow_id)
+                        # api.bkdata.stop_data_flow(flow_id=bkbase_flow_id)
                     except BaseException:  # noqa
-                        logger.exception(f"stop dataflow({bkbase_flow_id}) error")
+                        print(f"stop dataflow({bkbase_flow_id}) error")
