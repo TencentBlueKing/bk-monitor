@@ -505,7 +505,17 @@
             bcs_cluster_id: this.formData.bcs_cluster_id,
             type,
             [namespacesKey]: namespaces,
-            label_selector: this.getLabelSelectorQueryParams(config.labelSelector),
+            label_selector: this.getLabelSelectorQueryParams(config.labelSelector, {
+              match_labels: [],
+              match_expressions: [],
+            }),
+            annotation_selector: this.getLabelSelectorQueryParams(
+              config.annotationSelector,
+              {
+                match_annotations: [],
+              },
+              true,
+            ),
             container: {
               workload_type: workloadType,
               workload_name: workloadName,
@@ -520,22 +530,20 @@
        * @param {Object} labelSelector 主页展示用的label_selector
        * @returns {Object} 返回传参用的label_selector
        */
-      getLabelSelectorQueryParams(labelSelector) {
-        return labelSelector.reduce(
-          (pre, cur) => {
-            const value = ['NotIn', 'In'].includes(cur.operator) ? `(${cur.value})` : cur.value;
-            pre[cur.type].push({
-              key: cur.key,
-              operator: cur.operator,
-              value,
-            });
-            return pre;
-          },
-          {
-            match_labels: [],
-            match_expressions: [],
-          },
-        );
+      getLabelSelectorQueryParams(labelSelector, preParams, isArray = false) {
+        return labelSelector.reduce((pre, cur) => {
+          const value = ['NotIn', 'In'].includes(cur.operator)
+            ? isArray
+              ? cur.value.split(',')
+              : `(${cur.value})`
+            : cur.value;
+          pre[cur.type].push({
+            key: cur.key,
+            operator: cur.operator,
+            value,
+          });
+          return pre;
+        }, preParams);
       },
       // 是否展示对应操作范围模块
       isShowScopeItem(conIndex, scope) {
