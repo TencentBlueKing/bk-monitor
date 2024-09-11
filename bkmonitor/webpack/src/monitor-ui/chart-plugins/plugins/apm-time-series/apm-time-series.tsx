@@ -344,6 +344,8 @@ export default class ApmTimeSeries extends TimeSeries {
           { arrayMerge: (_, newArr) => newArr }
         );
         const xInterval = getTimeSeriesXInterval(maxXInterval, this.width, maxSeriesCount);
+        const width = (this.$refs?.baseChart as any)?.clientWidth;
+        const splitNumber = Math.ceil(width / 100);
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
@@ -376,6 +378,7 @@ export default class ApmTimeSeries extends TimeSeries {
               axisLabel: {
                 formatter: formatterFunc || '{value}',
               },
+              splitNumber,
               ...xInterval,
               ...(this.xAxisSplitNumber ? { splitNumber: this.xAxisSplitNumber } : {}),
             },
