@@ -818,7 +818,7 @@ export default class AppList extends tsc<object> {
                             {STATUS_MAP[item.data_status]?.name || '--'}
                           </div>
                         </div>
-                        <div class='item-label'>Profiling:</div>
+                        {/* <div class='item-label'>Profiling:</div>
                         <div class='item-content'>
                           <div
                             style={STATUS_MAP[item.profiling_data_status]?.style}
@@ -826,7 +826,7 @@ export default class AppList extends tsc<object> {
                           >
                             {STATUS_MAP[item.profiling_data_status]?.name || '--'}
                           </div>
-                        </div>
+                        </div> */}
                       </div>
                       <div class='header-right'>
                         <bk-button
