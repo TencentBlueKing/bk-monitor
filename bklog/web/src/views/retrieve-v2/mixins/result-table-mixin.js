@@ -71,10 +71,6 @@ export default {
       type: Boolean,
       default: false,
     },
-    fieldAliasMap: {
-      type: Object,
-      default: () => {},
-    },
     isWrap: {
       type: Boolean,
       default: false,
@@ -133,6 +129,7 @@ export default {
       'indexSetQueryResult',
       'tableLineIsWarp',
       'indexSetOperatorConfig',
+      'indexFieldInfo',
     ]),
     ...mapGetters({
       isUnionSearch: 'isUnionSearch',
@@ -185,6 +182,12 @@ export default {
     /** 是否展示数据来源 */
     isShowSourceField() {
       return this.operatorConfig?.isShowSourceField ?? false;
+    },
+    fieldAliasMap() {
+      return (this.indexFieldInfo.fields ?? []).reduce(
+        (out, field) => ({ ...out, [field.field_name]: field.field_alias || field.field_name }),
+        {},
+      );
     },
   },
   watch: {

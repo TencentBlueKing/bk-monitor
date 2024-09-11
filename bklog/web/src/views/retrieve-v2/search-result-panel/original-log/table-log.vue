@@ -37,6 +37,7 @@
           :total-fields="totalFields"
           :origin-table-list="originLogList"
           :operator-config="indexSetOperatorConfig"
+          :show-field-alias="showFieldAlias"
           :time-field="timeField"
           v-on="$listeners"
           :handle-click-tools="handleClickTools"
@@ -149,6 +150,7 @@
         indexSetQueryResult: 'indexSetQueryResult',
         visibleFields: 'visibleFields',
         indexSetOperatorConfig: 'indexSetOperatorConfig',
+        showFieldAlias: 'showFieldAlias',
       }),
       ...mapState('globals', ['fieldTypeMap']),
       timeField() {
@@ -162,7 +164,7 @@
       },
       isContentLoading() {
         return this.indexSetQueryResult.is_loading;
-      }
+      },
     },
     methods: {
       // 滚动到顶部

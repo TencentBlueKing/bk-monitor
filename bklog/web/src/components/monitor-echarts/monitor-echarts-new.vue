@@ -1011,7 +1011,7 @@
 
     .echart-content {
       position: absolute;
-      top: -20px;
+      top: 0;
       right: 1px;
       bottom: 1px;
       left: 1px;

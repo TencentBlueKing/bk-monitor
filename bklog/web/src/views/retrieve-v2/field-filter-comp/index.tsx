@@ -209,7 +209,7 @@ export default class FieldFilterComp extends tsc<object> {
       default:
         const { scenario_id_white_list: scenarioIdWhiteList } = (window as any).FIELD_ANALYSIS_CONFIG;
         const { field_analysis_config: fieldAnalysisConfig } = (window as any).FEATURE_TOGGLE_WHITE_LIST;
-        const scenarioID = this.indexSetItem?.scenario_id;
+        const scenarioID = this.indexSetItem.items?.[0]?.scenario_id;
         isFront = !(scenarioIdWhiteList?.includes(scenarioID) && fieldAnalysisConfig?.includes(Number(this.bkBizId)));
         break;
     }
@@ -288,7 +288,7 @@ export default class FieldFilterComp extends tsc<object> {
     }
   }
   handleVisibleMoveEnd() {
-    this.$emit('fields-updated', this.dragVisibleFields, undefined, false);
+    this.$emit('fields-updated', this.dragVisibleFields);
   }
   // 字段显示或隐藏
   async handleToggleItem(type: string, fieldItem) {
@@ -301,7 +301,7 @@ export default class FieldFilterComp extends tsc<object> {
       // 需要显示字段
       displayFieldNames.push(fieldItem.field_name);
     }
-    this.$emit('fields-updated', displayFieldNames, undefined, false);
+    this.$emit('fields-updated', displayFieldNames);
     if (!displayFieldNames.length) return; // 可以设置为全部隐藏，但是不请求接口
     $http
       .request('retrieve/postFieldsConfig', {

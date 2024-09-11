@@ -47,16 +47,6 @@
             >{{ field }}
           </span>
         </div>
-        <div class="handle-option-list">
-          <span
-            v-for="option in toolMenuList"
-            v-bk-tooltips="{ content: getIconPopover(option.id, field), delay: 300 }"
-            :class="`icon ${getHandleIcon(option, field)} ${checkDisable(option.id, field)}`"
-            :key="option.id"
-            @click.stop="handleMenuClick(option.id, field)"
-          >
-          </span>
-        </div>
         <div class="field-value">
           <text-segmentation
             :content="formatterStr(data, field)"
@@ -190,12 +180,6 @@
         const rowData = this.listData;
         return this.tableRowDeepView(rowData, field, fieldType);
       },
-      getHandleIcon(option, field) {
-        if (option.id !== 'display') return option.icon;
-
-        const isDisplay = this.visibleFields.some(item => item.field_name === field);
-        return `${option.icon} ${isDisplay ? 'is-hidden' : ''}`;
-      },
       getFieldType(field) {
         const target = this.fieldList.find(item => item.field_name === field);
         return target ? target.field_type : '';
@@ -219,23 +203,6 @@
         return (['is', 'not'].includes(id) && type === 'text') || type === '__virtual__' || isExist
           ? 'is-disabled'
           : '';
-      },
-      getIconPopover(id, field) {
-        const type = this.getFieldType(field);
-        if (type === 'text' && ['is', 'not'].includes(id)) return this.toolMenuTips[`text_${id}`];
-        if (type === '__virtual__' && ['is', 'not'].includes(id)) return this.$t('该字段为平台补充 不可检索');
-        if (this.filterIsExist(id, field)) return this.$t('已添加过滤条件');
-
-        if (['is', 'not'].includes(id)) {
-          const curValue = this.tableRowDeepView(this.data, field, this.getFieldType(field), false);
-          const operator = id === 'is' ? '=' : '!=';
-          return `${field} ${operator} ${_escape(curValue)}`;
-        }
-
-        if (id !== 'display') return this.toolMenuTips[id];
-
-        const isDisplay = this.visibleFields.some(item => item.field_name === field);
-        return this.toolMenuTips[isDisplay ? 'hiddenField' : 'displayField'];
       },
       handleMenuClick(operator, item, field, isLink = false) {
         let params = {};
@@ -383,6 +350,7 @@
     .log-item {
       display: flex;
       align-items: baseline;
+      min-height: 24px;
 
       .field-label {
         display: flex;
@@ -390,6 +358,7 @@
         flex-wrap: nowrap;
         align-items: baseline;
         height: 100%;
+        margin-right: 18px;
 
         .field-text {
           display: block;
@@ -402,7 +371,7 @@
           word-wrap: break-word;
         }
 
-        :deep(.icon-ext) {
+        :deep(.bklog-ext) {
           display: inline-block;
           width: 13px;
           font-size: 12px;
@@ -415,58 +384,6 @@
         font-size: var(--table-fount-size);
         color: var(--table-fount-color);
         word-break: break-all;
-      }
-
-      .handle-option-list {
-        display: flex;
-        flex-shrink: 0;
-        align-items: center;
-        justify-content: space-between;
-        margin: 0px 14px 0 24px;
-
-        .icon {
-          margin-right: 6px;
-          font-size: 14px;
-          cursor: pointer;
-
-          &:hover {
-            color: #3a84ff;
-          }
-        }
-
-        .search {
-          font-size: 16px;
-        }
-
-        .icon-arrows-up-circle {
-          margin-right: 2px;
-          font-size: 12px;
-          transform: rotate(45deg);
-
-          &.is-hidden {
-            transform: rotate(225deg);
-          }
-        }
-
-        .icon-chart {
-          margin: 0 0 0 6px;
-        }
-
-        .icon-copy {
-          font-size: 24px;
-          cursor: pointer;
-          transform: rotate(0);
-        }
-
-        .icon-enlarge-line,
-        .icon-narrow-line,
-        .icon-arrows-up-circle,
-        .icon-copy {
-          &.is-disabled {
-            color: #dcdee5;
-            cursor: not-allowed;
-          }
-        }
       }
     }
 

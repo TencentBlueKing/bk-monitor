@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _escape from 'lodash/escape';
@@ -39,7 +39,6 @@ export default class AggChart extends tsc<object> {
   @Prop({ type: String, required: true }) fieldType: string;
   @Prop({ type: Boolean, default: false }) parentExpand: boolean;
   @Prop({ type: Object, required: true }) retrieveParams: any;
-  @Prop({ type: String, required: true }) reQueryAggChart: string;
   @Prop({ type: Boolean, default: false }) isFrontStatistics: boolean;
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: any;
 
@@ -92,12 +91,6 @@ export default class AggChart extends tsc<object> {
 
   mounted() {
     if (!this.isFrontStatistics) this.queryFieldFetchTopList();
-  }
-
-  @Watch('reQueryAggChart')
-  watchPicker() {
-    if (this.isFrontStatistics) return;
-    this.queryFieldFetchTopList(this.limitSize);
   }
 
   // 计算百分比
