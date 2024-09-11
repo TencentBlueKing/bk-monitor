@@ -57,6 +57,10 @@ export default class PopInstanceUtil {
     });
   }
 
+  setContent(refContent) {
+    this.refContent = refContent;
+  }
+
   getTippyInstance() {
     return this.tippyInstance;
   }
@@ -89,7 +93,7 @@ export default class PopInstanceUtil {
           this.onShowFn?.(this.tippyInstance);
         },
         onHidden: () => {
-          this.onHiddenFn?.();
+          this.onHiddenFn?.(this.tippyInstance);
         },
         ...(this.tippyOptions ?? {}),
       });

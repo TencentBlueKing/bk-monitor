@@ -1,12 +1,9 @@
 .sql-query-options {
   position: relative;
   width: 100%;
-  max-height: 360px;
-  margin-top: 4px;
+  max-height: 260px;
   overflow: auto;
   background: #fff;
-  border: 1px solid #dcdee5;
-  border-radius: 2px;
 
   .list-item {
     display: flex;
@@ -83,94 +80,6 @@
     }
   }
 
-  /* 收藏查询列表 样式 */
-  .favorite-query-list {
-    min-height: 150px;
-    border-top: 1px solid #ecedf2;
-
-    .query-list-title {
-      height: 32px;
-      padding: 5px 12px 7px 12px;
-      font-size: 12px;
-      line-height: 20px;
-      color: #979ba5;
-    }
-
-    .favorite-list{
-      margin-bottom: 8px;
-    }
-
-    .list-item {
-      display: flex;
-      align-items: center;
-      height: 32px;
-      padding: 4px 13px;
-
-      .active {
-        font-size: 14px;
-        color: #ffb848;
-      }
-
-      .list-item-type {
-        width: 64px;
-        height: 22px;
-        margin: 0px 5px;
-        font-size: 12px;
-        line-height: 22px;
-        color: #3a84ff;
-        text-align: center;
-
-        background: #f0f5ff;
-        border-radius: 2px;
-      }
-
-      .list-item-information {
-        margin-right: 7px;
-      }
-
-      .list-item-text {
-        color: #979ba5;
-      }
-
-      &:hover,
-      &.active {
-        background-color: #f4f6fa;
-      }
-
-      &:hover {
-        cursor: pointer;
-        background-color: #eaf3ff;
-      }
-    }
-  }
-
-   /* 移动光标and确认结果提示 样式 */
-  .ui-shortcut-key {
-    padding: 9px 0 7px 15px;
-    background-color: #FAFBFD;
-    border-top: 1px solid #ecedf2;
-
-    span {
-      display: inline-flex;
-      align-items: center;
-      margin-right: 24px;
-      font-size: 12px;
-      line-height: 20px;
-      color: #63656e;
-      letter-spacing: 0;
-
-      img {
-        display: inline-flex;
-        width: 16px;
-        height: 16px;
-        margin-right: 4px;
-        background: #ffffff;
-        border: 1px solid #dcdee5;
-        border-radius: 2px;
-      }
-    }
-  }
-
   /* 值 icon 样式 */
   .value-list-item.list-item {
     /* stylelint-disable-next-line no-descending-specificity */
@@ -230,78 +139,6 @@
 
     .item-text {
       color: #979ba5;
-    }
-  }
-
-  /*   收起、展开文字按钮 样式*/
-  .sql-query-common {
-    position: absolute;
-    top: 50%;
-    right: 0;
-    width: 20px;
-    padding-top: 15px;
-    font-size: 12px;
-    color: #63656e;
-    text-align: center;
-    white-space: nowrap;
-    cursor: pointer;
-    background: #f0f1f5;
-    border: 1px solid #dcdee5;
-    border-radius: 4px 0 0 4px;
-    writing-mode: vertical-rl;
-    transform: translate(0, -50%);
-    text-orientation: upright;
-
-    .angle-icon {
-      margin-top: -10px;
-      font-size: 20px;
-    }
-  }
-
-  .sql-query-retract{
-    position: fixed;
-  }
-
-  /*   收起内容 样式*/
-  .sql-query-fold {
-    position: fixed;
-    top: 4px;
-    right: 0;
-    width: 240px;
-    height: calc(100% - 4px);
-    padding: 12px;
-    background: #fafbfd;
-    border: 1px solid #dcdee5;
-    border-radius: 0 2px 2px 0;
-
-    .sql-query-fold-text {
-      right: 238px;
-    }
-
-    .sql-query-fold-title {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 8px;
-      font-size: 12px;
-
-      .fold-title-right {
-        display: flex;
-        align-items: center;
-        height: 100%;
-        color: #3a84ff;
-        cursor: pointer;
-
-        .fold-title-icon {
-          margin-left: 5px;
-          font-size: 16px;
-        }
-      }
-    }
-
-    .sql-query-list {
-      overflow-y: auto;
-      font-size: 12px;
-      white-space: pre-line;
     }
   }
 

@@ -40,21 +40,33 @@
   const refSearchResultList = ref(null);
   const refFilterInput = ref(null);
   const isFocusFieldList = ref(true);
+  // 条件Value选择列表
   const refValueTagInputOptionList = ref(null);
 
+  // 操作符下拉当前激活Index
+  const operatorActiveIndex = ref(0);
+
+  // 操作符下拉实例
   const operatorInstance = new PopInstanceUtil({
     refContent: refUiValueOperatorList,
     arrow: false,
     newInstance: false,
+    onHiddenFn: () => {
+      operatorActiveIndex.value = 0;
+    },
     tippyOptions: {
       flip: false,
     },
   });
 
+  // 条件Value弹出下拉实例
   const conditionValueInstance = new PopInstanceUtil({
     refContent: refValueTagInputOptionList,
     arrow: false,
     newInstance: true,
+    onHiddenFn: instance => {
+      refValueTagInputOptionList.value?.querySelector('li.is-hover')?.classList.remove('is-hover');
+    },
     tippyOptions: {
       flip: false,
       placement: 'bottom',
@@ -95,9 +107,20 @@
 
   const fieldList = computed(() => [fullTextField.value].concat(indexFieldInfo.value.fields));
 
+  // 需要排除的字段
+  const excludesFields = ['__ext', '__module__', ' __set__', '__ipv6__', '__ext'];
+
+  // 无需配置值（Value）的条件列表
+  const withoutValueConditionList = ['does not exists', 'exists'];
+
+  // 判定当前选中条件是否需要设置Value
+  const isShowConditonValueSetting = computed(() => !withoutValueConditionList.includes(condition.value.operator));
+
   const filterFieldList = computed(() => {
     const regExp = getRegExp(searchValue.value);
-    const filterFn = field => field.is_full_text || regExp.test(field.field_alias) || regExp.test(field.field_name);
+    const filterFn = field =>
+      !excludesFields.includes(field.field_name) &&
+      (field.is_full_text || regExp.test(field.field_alias) || regExp.test(field.field_name));
     return fieldList.value.filter(filterFn);
   });
 
@@ -188,6 +211,11 @@
   };
 
   const handleFieldItemClick = (item, index) => {
+    // 避免重复提交设置
+    if (activeFieldItem.value.field_name === item.field_name) {
+      return;
+    }
+
     resetActiveFieldItem();
     Object.assign(activeFieldItem.value, item);
     activeIndex.value = index;
@@ -245,12 +273,15 @@
     return isConditionValueInputFocus.value && instance?.state.isShown;
   };
 
+  /**
+   * 条件值下拉选择设置当前hover项
+   */
   const activeConditionValueOption = () => {
     const instance = conditionValueInstance.getTippyInstance();
     if (instance?.state.isShown) {
-      instance.popper?.querySelector('li.active')?.classList.remove('active');
-      instance.popper?.querySelectorAll('li')[conditionValueActiveIndex.value]?.classList.add('active');
-      instance.popper?.querySelector('li.active')?.scrollIntoView({ block: 'nearest' });
+      instance.popper?.querySelector('li.is-hover')?.classList.remove('is-hover');
+      instance.popper?.querySelectorAll('li')[conditionValueActiveIndex.value]?.classList.add('is-hover');
+      instance.popper?.querySelector('li.is-hover')?.scrollIntoView({ block: 'nearest' });
     }
   };
 
@@ -281,23 +312,63 @@
     }
   };
 
-  const setConditionValueActiveIndex = (isIncrease = true) => {
+  /**
+   * 通用方法：根据键盘上下键操作，设置对应参数当前激活Index的值
+   */
+  const setActiveObjectIndex = (objIndex, matchList, isIncrease = true) => {
+    const maxIndex = matchList.length - 1;
     if (isIncrease) {
-      if (conditionValueActiveIndex.value < activeItemMatchList.value.length - 1) {
-        conditionValueActiveIndex.value++;
+      if (objIndex.value < maxIndex) {
+        objIndex.value++;
         return;
       }
 
-      conditionValueActiveIndex.value = 0;
+      objIndex.value = 0;
       return;
     }
 
-    if (conditionValueActiveIndex.value > 0) {
-      conditionValueActiveIndex.value--;
+    if (objIndex.value > 0) {
+      objIndex.value--;
+      return;
+    }
+
+    objIndex.value = maxIndex;
+  };
+
+  /**
+   * 设置当前条件值激活Index
+   */
+  const setConditionValueActiveIndex = (isIncrease = true) => {
+    setActiveObjectIndex(conditionValueActiveIndex, activeItemMatchList.value, isIncrease);
+  };
+
+  /**
+   * 判断当前操作符选择下拉是否激活
+   */
+  const isOperatorInstanceActive = () => {
+    return operatorInstance.getTippyInstance()?.state?.isShown && activeFieldItem.value.field_operator?.length;
+  };
+
+  /**
+   * 手动选择操作符值改变之后
+   * 判定是否已有值，如果条件值为空
+   * 自动弹出选择值
+   */
+  const afterOperatorValueEnter = () => {
+    if (isShowConditonValueSetting.value && !condition.value.value.length) {
+      nextTick(() => {
+        handleConditionValueClick();
+      });
     }
   };
 
   const resolveConditonValueInputEnter = () => {
+    if (isOperatorInstanceActive()) {
+      operatorInstance?.hide();
+      afterOperatorValueEnter();
+      return;
+    }
+
     // 如果需要设置条件
     // 条件选择或者输入框已经渲染出来
     if (refValueTagInput.value) {
@@ -345,17 +416,83 @@
     handelSaveBtnClick();
   };
 
-  const handleKeyupAndKeydown = () => {
-    if (!isConditionValueFocus()) {
-      if (activeIndex.value < filterFieldList.value.length) {
-        if (activeIndex.value >= 0) {
-          handleFieldItemClick(filterFieldList.value[activeIndex.value], activeIndex.value);
-          scrollActiveItemIntoView();
-          return;
-        }
+  /**
+   * 设置当前条件激活Index
+   */
+  const setOperatorActiveIndex = (isIncrease = true) => {
+    setActiveObjectIndex(operatorActiveIndex, activeFieldItem.value.field_operator, isIncrease);
+    const operator = activeFieldItem.value.field_operator[operatorActiveIndex.value]?.operator;
+    if (condition.value.operator !== operator) {
+      condition.value.operator = operator;
+      nextTick(() => {
+        const target = refUiValueOperatorList.value?.querySelector('.ui-value-option.active');
+        target?.scrollIntoView({ block: 'nearest' });
+      });
+    }
+  };
 
+  /**
+   * 设置待选择字段列表条件激活Index
+   */
+  const setFieldListActiveIndex = (isIncrease = true) => {
+    setActiveObjectIndex(activeIndex, filterFieldList.value, isIncrease);
+  };
+
+  /**
+   * 字段列表键盘上下键响应事件
+   */
+  const handleFieldListKeyupAndKeydown = () => {
+    if (!isConditionValueFocus() && !isOperatorInstanceActive()) {
+      if (activeIndex.value < filterFieldList.value.length && activeIndex.value >= 0) {
+        handleFieldItemClick(filterFieldList.value[activeIndex.value], activeIndex.value);
         scrollActiveItemIntoView();
+        return;
       }
+    }
+  };
+
+  const handleArrowUpKeyEvent = () => {
+    if (isConditionValueFocus()) {
+      setConditionValueActiveIndex(false);
+      activeConditionValueOption();
+      return;
+    }
+
+    if (isOperatorInstanceActive()) {
+      setOperatorActiveIndex(false);
+      return;
+    }
+
+    setFieldListActiveIndex(false);
+    handleFieldListKeyupAndKeydown();
+    return;
+  };
+
+  const handleArrowDownKeyEvent = () => {
+    if (isConditionValueFocus()) {
+      setConditionValueActiveIndex(true);
+      activeConditionValueOption();
+      return;
+    }
+
+    if (isOperatorInstanceActive()) {
+      setOperatorActiveIndex(true);
+      return;
+    }
+
+    setFieldListActiveIndex(true);
+    handleFieldListKeyupAndKeydown();
+  };
+
+  const handleEscKeyEvent = () => {
+    if (isConditionValueFocus()) {
+      conditionValueInstance.hide();
+      return;
+    }
+
+    if (isOperatorInstanceActive()) {
+      operatorInstance?.hide();
+      return;
     }
   };
 
@@ -372,33 +509,14 @@
     // key up
     if (e.keyCode === 38) {
       stopEventPreventDefault(e);
-
-      if (isConditionValueFocus()) {
-        setConditionValueActiveIndex(false);
-        activeConditionValueOption();
-      } else {
-        const minValue = 0;
-        if (activeIndex.value > minValue) {
-          activeIndex.value = activeIndex.value - 1;
-          handleKeyupAndKeydown();
-        }
-      }
-
+      handleArrowUpKeyEvent();
       return;
     }
 
     // key down
     if (e.keyCode === 40) {
       stopEventPreventDefault(e);
-      if (isConditionValueFocus()) {
-        setConditionValueActiveIndex(true);
-        activeConditionValueOption();
-      } else {
-        const maxIndex = filterFieldList.value.length - 1;
-        activeIndex.value = activeIndex.value < maxIndex ? activeIndex.value + 1 : 0;
-        handleKeyupAndKeydown();
-      }
-
+      handleArrowDownKeyEvent();
       return;
     }
 
@@ -412,17 +530,17 @@
     // key esc
     if (e.keyCode === 27) {
       stopEventPreventDefault(e);
-      if (isConditionValueFocus()) {
-        conditionValueInstance.hide();
-      }
-
+      handleEscKeyEvent();
       return;
     }
   };
 
   const handleUiValueOptionClick = option => {
-    condition.value.operator = option.operator;
+    if (condition.value.operator !== option.operator) {
+      condition.value.operator = option.operator;
+    }
     operatorInstance.hide();
+    afterOperatorValueEnter();
   };
 
   const beforeShowndFn = () => {
@@ -451,9 +569,7 @@
   };
 
   const handleValueInputEnter = e => {
-    e.stopImmediatePropagation();
-    e.stopPropagation();
-    e.preventDefault();
+    stopEventPreventDefault(e);
 
     if (e.target.value) {
       condition.value.value.push(e.target.value);
@@ -471,9 +587,7 @@
 
   let needDeleteItem = false;
   const handleDeleteInputValue = e => {
-    e.stopImmediatePropagation();
-    e.stopPropagation();
-    e.preventDefault();
+    stopEventPreventDefault(e);
 
     if (e.target.value) {
       needDeleteItem = false;
@@ -580,7 +694,10 @@
               </div>
             </div>
           </div>
-          <div class="ui-value-row">
+          <div
+            class="ui-value-row"
+            v-if="isShowConditonValueSetting"
+          >
             <div class="ui-value-label">
               <span>Value</span
               ><span
@@ -736,10 +853,10 @@
     }
   }
 </style>
-<style>
+<style lang="scss">
   [data-theme='log-light'] {
     .ui-value-select {
-      width: 238px;
+      width: 338px;
       max-height: 200px;
       overflow: auto;
 
@@ -790,6 +907,7 @@
           background: #f5f7fa;
         }
 
+        &.is-hover,
         &:hover {
           background: #e1ecff;
         }
