@@ -3994,8 +3994,7 @@ class CollectorHandler(object):
         label_expression = ", ".join(match_labels_list)
 
         # annotation selector expr解析
-        match_annotations = annotation_selector.get("match_expressions", [])
-        annotation_expression = ", ".join(self.get_expr_list(match_annotations))
+        match_annotations = annotation_selector.get("match_annotations", [])
 
         api_instance = Bcs(cluster_id=bcs_cluster_id).api_instance_core_v1
         previews = []
@@ -4571,7 +4570,7 @@ class CollectorHandler(object):
                 {
                     "extMeta": {label["key"]: label["value"] for label in extra_labels if label},
                     "addPodLabel": add_pod_label,
-                    "addPodAnnotation": add_pod_annotation
+                    "addPodAnnotation": add_pod_annotation,
                 }
             )
             result.append(container_raw_config)

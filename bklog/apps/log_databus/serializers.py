@@ -1305,8 +1305,7 @@ class PreviewContainersSerializer(serializers.Serializer):
     label_selector = LabelSelectorSerializer(
         required=False, label=_("标签"), default={"match_labels": [], "match_expressions": []}
     )
-    annotation_selector = LabelSelectorSerializer(required=False, label=_("注解"),
-                                                  default={"match_labels": [], "match_expressions": []})
+    annotation_selector = AnnotationSelectorSerializer(required=False, label=_("注解"), default={"match_annotations": []})
     namespaces = serializers.ListSerializer(child=serializers.CharField(), required=False, label=_("命名空间"), default=[])
     namespaces_exclude = serializers.ListSerializer(
         child=serializers.CharField(), required=False, label=_("排除命名空间"), default=[]
