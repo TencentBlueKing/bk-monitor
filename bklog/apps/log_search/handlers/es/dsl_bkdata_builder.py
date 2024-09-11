@@ -276,7 +276,7 @@ class DslCreateSearchContextBodyCustomField:
 
         # 把排序字段为空的字段剔除并记录非空字段的值
         sort_fields_value = []
-        for _sort_field in sort_fields:
+        for _sort_field in sort_fields[:]:
             _field_value = params.get(_sort_field, "")
             if _field_value == "":
                 sort_fields.remove(_sort_field)
