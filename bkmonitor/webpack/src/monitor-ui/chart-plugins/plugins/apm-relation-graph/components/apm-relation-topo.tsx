@@ -489,9 +489,9 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   }
 
   drawNode(cfg: INodeModelConfig, group: IGroup) {
-    const { size = 36, color, data } = cfg;
+    const { size = 36, color = '#2DCB56', data } = cfg;
     const { type, category, name } = data;
-    const [fillType, borderType] = type.split('_');
+    const [borderType, fillType] = type.split('_');
 
     // 是否为残影节点
     const isGhost = fillType === NodeDisplayType.VOID;
@@ -511,7 +511,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     const keyShape = group.addShape('circle', {
       attrs: {
         fill: '#fff', // 填充颜色,
-        stroke: isGhost ? '#DCDEE5' : color, // 描边颜色
+        stroke: color, // 描边颜色
         lineWidth: isGhost ? 2 : 4, // 描边宽度
         r: size,
         cursor: 'pointer',
@@ -697,7 +697,10 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   /** 设置节点状态 */
   setNodeState(name: string, value: boolean | string, item: INode) {
     const group = item.get<IGroup>('group');
-    const { size = 36, color = '#2DCB56' } = item.getModel() as INodeModelConfig;
+    const { size = 36, data } = item.getModel() as INodeModelConfig;
+    const { type } = data;
+    const isGhost = type.split('_')[1] === NodeDisplayType.VOID;
+
     const hoverCircle = group.find(e => e.get('name') === 'custom-node-hover-circle');
     if (name === 'hover' && !item.hasState('active')) {
       const edges = item.getEdges();
@@ -752,10 +755,15 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       const textShape = group.find(e => e.get('name') === 'text-shape');
       const nodeIcon = group.find(e => e.get('name') === 'node-icon');
       const nodeKeyShape = group.find(e => e.get('name') === 'custom-node-keyShape');
-      textShape.attr('opacity', value ? 0.4 : 1);
-      nodeIcon.attr('opacity', value ? 0.4 : 1);
-      nodeKeyShape.attr('stroke', value ? '#DCDEE5' : color);
-      nodeKeyShape.attr('lineWidth', value ? 2 : 4);
+      textShape.attr({
+        opacity: value || isGhost ? 0.4 : 1,
+      });
+      nodeIcon.attr({
+        opacity: value || isGhost ? 0.4 : 1,
+      });
+      nodeKeyShape.attr({
+        lineWidth: value || isGhost ? 2 : 4,
+      });
     }
   }
 
@@ -838,7 +846,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     this.scaleValue = ratio;
     // 以画布中心为圆心放大/缩小
     this.graph.zoomTo(ratio);
-    this.graph.fitCenter();
   }
 
   /**
