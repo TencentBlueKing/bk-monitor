@@ -85,7 +85,7 @@ class CompatibleQuery:
 
         node = ServiceHandler.get_node(bk_biz_id, app_name, service_name, raise_exception=False)
         if ComponentHandler.is_component_by_node(node):
-            category_value = f"{ComponentHandler.get_dimension_key(node)}-{node['extra_data']['predicate_value']}"
+            category_value = ComponentHandler.get_flow_metric_category_value(node)
             if mode == "full":
                 wheres = [
                     {

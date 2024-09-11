@@ -268,7 +268,9 @@ class MetricHandler:
         response = self.origin_query_instance()
         res = defaultdict(lambda: defaultdict(int))
         for item in response:
-            res[tuple(item[i] for i in self.group_by if i not in ignore_keys)][self.metric_id] += item["_result_"]
+            res[tuple(item.get(i, "") for i in self.group_by if i not in ignore_keys)][self.metric_id] += item[
+                "_result_"
+            ]
         return res
 
     def get_instance_calculate_values_mapping(self, ignore_keys=None):

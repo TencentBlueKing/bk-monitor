@@ -277,6 +277,16 @@ class ComponentHandler:
         return OtlpKey.get_metric_dimension_key(cls.component_filter_params_mapping[category]["key"])
 
     @classmethod
+    def get_flow_metric_category_value(cls, node):
+        """获取 flow 指标中 category_value 维度的值"""
+        return f"{ComponentHandler.get_dimension_key(node)}-{node['extra_data']['predicate_value']}"
+
+    @classmethod
+    def get_predicate_value_from_flow_metric_category_value(cls, category_value):
+        """从 flow 指标的 category_value 维度中获取 predicate_value 的值"""
+        return category_value.rsplit("-")[-1]
+
+    @classmethod
     def replace_or_add_service_filter(cls, service_name, filter_params):
         has_service_condition = next(
             (i for i in filter_params if i["key"] == OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME)),
