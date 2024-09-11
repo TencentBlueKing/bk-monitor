@@ -903,4 +903,11 @@ export default {
     'To reduce transmission and storage costs, some content can be filtered out. More complex operations can be completed in the "Cleaning" feature.',
   请选择需要同步的配置: 'Please select the configuration to be synchronized',
   字段列表: 'Field List',
+  如何查询: 'How to query',
+  '精确匹配(支持AND、OR):': 'Exact match (supports AND, OR):',
+  '字段名匹配(*代表通配符):': 'Field name match (* represents wildcard):',
+  '字段名模糊匹配:': 'Field name fuzzy match:',
+  '通配符匹配:': 'Wildcard match:',
+  '正则匹配:': 'Regular match:',
+  '范围匹配:': 'Range match:',
 };

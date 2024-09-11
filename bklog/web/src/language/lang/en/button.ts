@@ -193,4 +193,5 @@ export default {
   分隔符: 'Separator',
   字段配置: 'Field Config',
   接入日志聚类: '',
+  查询语法: 'Query Syntax',
 };

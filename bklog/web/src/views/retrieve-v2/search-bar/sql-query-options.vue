@@ -375,27 +375,27 @@
   };
   const matchList = ref([
     {
-      name: '精确匹配(支持AND、OR):',
+      name: $t('精确匹配(支持AND、OR):'),
       value: 'author:"John Smith" AND age:20',
     },
     {
-      name: '字段名匹配(*代表通配符):',
+      name: $t('字段名匹配(*代表通配符):'),
       value: `status:active \n title:(quick brown)`,
     },
     {
-      name: '字段名模糊匹配:',
+      name: $t('字段名模糊匹配:'),
       value: 'vers\*on:(quick brown)',
     },
     {
-      name: '通配符匹配:',
+      name: $t('通配符匹配:'),
       value: `qu?ck bro*`,
     },
     {
-      name: '正则匹配:',
+      name: $t('正则匹配:'),
       value: `name:/joh?n(ath[oa]n)/`,
     },
     {
-      name: '范围匹配:',
+      name: $t('范围匹配:'),
       value: `count:[1 TO 5] \n  count:[1 TO 5} \n count:[10 TO *]`,
     },
   ]);
@@ -559,17 +559,17 @@
         class="sql-query-common"
         @click="handleRetract(false)"
       >
-        <span>查询语法</span>
-        <span class="angle-left bk-icon icon-angle-left"></span>
+        <span>{{ $t('查询语法') }}</span>
+        <span class="angle-icon bk-icon icon-angle-left"></span>
       </span>
     </template>
     <template v-else>
       <div class="sql-query-fold">
         <div>
           <div class="sql-query-fold-title">
-            <div>如何查询？</div>
+            <div>{{ $t('如何查询') }}?</div>
             <div class="fold-title-right">
-              <span>查询语法</span>
+              <span>{{ $t('查询语法') }}</span>
               <span class="fold-title-icon bklog-icon bklog-jump"></span>
             </div>
           </div>
@@ -585,8 +585,8 @@
           class="sql-query-fold-text sql-query-common"
           @click="handleRetract(true)"
         >
-          <span>收起</span>
-          <span class="angle-right bk-icon icon-angle-right"></span>
+          <span>{{ $t('收起') }}</span>
+          <span class="angle-icon bk-icon icon-angle-right"></span>
         </span>
       </div>
     </template>

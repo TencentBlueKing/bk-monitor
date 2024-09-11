@@ -148,29 +148,24 @@
   /*   收起、展开文字按钮 样式*/
   .sql-query-common {
     position: absolute;
-    top: calc(50% - 40px);
+    top: 50%;
     right: 0;
     width: 20px;
-    height: 80px;
+    padding-top: 15px;
     font-size: 12px;
     color: #63656e;
     text-align: center;
+    white-space: nowrap;
     cursor: pointer;
     background: #f0f1f5;
     border: 1px solid #dcdee5;
     border-radius: 4px 0 0 4px;
+    writing-mode: vertical-rl;
+    transform: translate(0, -50%);
+    text-orientation: upright;
 
-    .angle-right {
-      position: absolute;
-      top: calc(50% + 8px);
-      right: -1px;
-      font-size: 20px;
-    }
-
-    .angle-left {
-      position: absolute;
-      top: calc(50% + 23px);
-      right: -1px;
+    .angle-icon {
+      margin-top: -10px;
       font-size: 20px;
     }
   }
@@ -189,7 +184,6 @@
 
     .sql-query-fold-text {
       right: 238px;
-      padding-top: 15px;
     }
 
     .sql-query-fold-title {

@@ -55,10 +55,12 @@
       display: inline-block;
       width: 16px;
       height: 16px;
+      margin-right: 4px;
       line-height: 16px;
       color: #fff;
       text-align: center;
       border-radius: 2px;
+     
     }
 
     .bklog-c-ui {
@@ -66,6 +68,7 @@
     }
 
     .bklog-c-sql {
+      font-size: 8px;
       background: #14b1c7;
     }
 
@@ -81,7 +84,9 @@
     }
 
     .item-text {
+      display: flex;
       flex: 1;
+      align-items: center;
       min-width: 150px;
       padding: 0 16px;
       font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
