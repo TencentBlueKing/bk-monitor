@@ -329,7 +329,7 @@
         // enter 选中下拉选项
         (dropdownList[activeIndex.value] as HTMLElement).click();
       } else {
-        emits('change', `${props.value} `);
+        emits('change', props.value);
         nextTick(() => {
           handleRetrieve();
         });
