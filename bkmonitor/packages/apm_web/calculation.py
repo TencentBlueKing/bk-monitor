@@ -187,6 +187,9 @@ class FlowMetricErrorRateCalculation(Calculation):
             is_normal = not from_span_error and not to_span_error
 
             for value, timestamp in item["datapoints"]:
+                if not value:
+                    continue
+
                 if is_normal:
                     normal_ts[timestamp] = value
 
@@ -202,7 +205,9 @@ class FlowMetricErrorRateCalculation(Calculation):
             "series": [
                 {
                     "datapoints": [
-                        (round(error_ts.get(t, 0) / (normal_ts.get(t, 0) + error_ts.get(t, 0)), 2), t) for t in all_ts
+                        (round(error_ts.get(t, 0) / (normal_ts.get(t, 0) + error_ts.get(t, 0)), 2), t)
+                        for t in all_ts
+                        if (normal_ts.get(t, 0) + error_ts.get(t, 0))
                     ]
                     if normal_ts or error_ts
                     else [],

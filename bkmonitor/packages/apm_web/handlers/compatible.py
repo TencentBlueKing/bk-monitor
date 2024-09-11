@@ -16,8 +16,11 @@ class CompatibleQuery:
     """兼容组件类服务、自定义服务的查询条件 统一获取"""
 
     @classmethod
-    def get_alert_query_string(cls, bk_biz_id, app_name, service_name, endpoint_name=None):
+    def get_alert_query_string(cls, table_id, bk_biz_id, app_name, service_name=None, endpoint_name=None):
         """[获取告警查询语句]"""
+        res = f"metric: custom.{table_id}.*"
+        if not service_name:
+            return res
 
         try:
             node = ServiceHandler.get_node(bk_biz_id, app_name, service_name, raise_exception=False)
@@ -37,11 +40,13 @@ class CompatibleQuery:
         if endpoint_name:
             query += f' AND tags.span_name: {endpoint_name}'
 
-        return query
+        return f"{res} AND {query}"
 
     @classmethod
-    def list_metric_wheres(cls, bk_biz_id, app_name, service_name, endpoint_name=None):
+    def list_metric_wheres(cls, bk_biz_id, app_name, service_name=None, endpoint_name=None):
         """[获取 collector 内置 APM 指标的 where 条件列表]"""
+        if not service_name:
+            return []
 
         node = ServiceHandler.get_node(bk_biz_id, app_name, service_name, raise_exception=False)
 
@@ -135,8 +140,8 @@ class CompatibleQuery:
             # 自定义服务 | 普通服务 直接查询
             if mode == "full":
                 wheres = [
-                    {"condition": "and", "key": "from_apm_service_name", "method": "eq", "value": [service_name]},
-                    {"condition": "and", "key": "to_apm_service_name", "method": "eq", "value": [service_name]},
+                    {"key": "from_apm_service_name", "method": "eq", "value": [service_name]},
+                    {"condition": "or", "key": "to_apm_service_name", "method": "eq", "value": [service_name]},
                 ]
             elif mode == "caller":
                 wheres = [{"key": "from_apm_service_name", "method": "eq", "value": [service_name]}]

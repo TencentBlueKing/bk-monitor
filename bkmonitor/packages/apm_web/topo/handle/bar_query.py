@@ -69,6 +69,7 @@ class BarQuery(BaseQuery):
         ts_mapping = {AlertLevel.INFO: {}, AlertLevel.WARN: {}, AlertLevel.ERROR: {}}
         all_ts = []
         query_string = CompatibleQuery.get_alert_query_string(
+            self.metrics_table,
             self.bk_biz_id,
             self.app_name,
             self.service_name,
@@ -79,7 +80,7 @@ class BarQuery(BaseQuery):
             "start_time": self.start_time,
             "end_time": self.end_time,
             "interval": self.delta // 30,
-            "query_string": f"metric: custom.{self.metrics_table}.* AND {query_string}",
+            "query_string": query_string,
             "conditions": [],
         }
 
@@ -143,7 +144,7 @@ class BarQuery(BaseQuery):
             ServiceFlowErrorRateCaller,
             interval=self._get_metric_interval(),
             where=CompatibleQuery.list_flow_metric_wheres(
-                self.bk_biz_id, self.app_name, mode="full", service_name=self.service_name
+                self.bk_biz_id, self.app_name, mode="caller", service_name=self.service_name
             ),
         ).query_range()
 
@@ -152,7 +153,7 @@ class BarQuery(BaseQuery):
             ServiceFlowErrorRateCallee,
             interval=self._get_metric_interval(),
             where=CompatibleQuery.list_flow_metric_wheres(
-                self.bk_biz_id, self.app_name, mode="full", service_name=self.service_name
+                self.bk_biz_id, self.app_name, mode="callee", service_name=self.service_name
             ),
         ).query_range()
 
@@ -175,8 +176,7 @@ class LinkHelper:
         table_id = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get().metric_result_table_id
         return (
             f"/?bizId={bk_biz_id}#/event-center?"
-            f"queryString={CompatibleQuery.get_alert_query_string(bk_biz_id, app_name, service_name)} "
-            f"AND metric: custom.{table_id}.*&"
+            f"queryString={CompatibleQuery.get_alert_query_string(table_id, bk_biz_id, app_name, service_name)}&"
             f"from={start_time * 1000}&to={end_time * 1000}"
         )
 
@@ -184,10 +184,12 @@ class LinkHelper:
     def get_endpoint_alert_link(cls, bk_biz_id, app_name, service_name, endpoint_name, start_time, end_time):
         """获取接口的告警中心链接"""
         table_id = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get().metric_result_table_id
+        query_string = CompatibleQuery.get_alert_query_string(
+            table_id, bk_biz_id, app_name, service_name, endpoint_name
+        )
         return (
             f"/?bizId={bk_biz_id}#/event-center?"
-            f"queryString=metric: custom.{table_id}.* "
-            f'AND {CompatibleQuery.get_alert_query_string(bk_biz_id, app_name, service_name, endpoint_name)}&'
+            f"queryString={query_string}&"
             f"from={start_time * 1000}&to={end_time * 1000}"
         )
 
