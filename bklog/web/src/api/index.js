@@ -302,6 +302,13 @@ function handleReject(error, config) {
  * @return {Promise} 本次 http 请求的 Promise
  */
 function initConfig(method, url, userConfig) {
+  // const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
+  // const copyUserConfig = Object.assign({}, userConfig ?? {});
+  // copyUserConfig.headers = {
+  //   ...(userConfig.headers ?? {}),
+  //   traceparent,
+  // };
+
   const defaultConfig = {
     ...getCancelToken(),
     // http 请求默认 id

@@ -139,7 +139,6 @@ export default class ExceptionPage extends Vue {
   handleGotoApply() {
     // 20231205 代码还原，先保留原有部分
     // showAccessRequest(this.applyUrl);
-
     if (!this.applyUrl) return;
     try {
       if (self === top) {
@@ -155,9 +154,8 @@ export default class ExceptionPage extends Vue {
     if (resources.length === 0) {
       return ['--'];
     }
-
     const data = [];
-    resources.forEach(resource => {
+    for (const resource of resources) {
       if (resource.instances.length > 0) {
         const instances = resource.instances
           .map(instanceItem => instanceItem.map(item => `[${item.id}]${item.name}`).join('，'))
@@ -165,7 +163,7 @@ export default class ExceptionPage extends Vue {
         const resourceItemData = `${resource.type_name}：${instances}`;
         data.push(resourceItemData);
       }
-    });
+    }
     return data;
   }
 }

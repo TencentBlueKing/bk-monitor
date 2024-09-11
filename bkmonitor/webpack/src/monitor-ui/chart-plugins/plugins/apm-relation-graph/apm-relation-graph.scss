@@ -1,0 +1,205 @@
+.apm-relation-graph {
+  position: relative;
+  height: 100%;
+  background: #fff;
+
+  .apm-relation-graph-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 52px;
+    background: #ffffff;
+    box-shadow: 0 1px 0 0 #dcdee5;
+
+    .ml-24 {
+      margin-left: 24px;
+    }
+
+    .bk-form-checkbox {
+      display: inline-flex;
+      overflow: visible;
+
+      .bk-checkbox-text {
+        font-size: 12px;
+        white-space: nowrap;
+      }
+    }
+
+    .header-select-wrap {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      border-right: 1px solid #dcdee5;
+
+      .data-type-select {
+        display: flex;
+        align-items: center;
+        width: 68px;
+        height: 32px;
+        padding: 0 2px;
+        margin-left: 24px;
+        background: #ffffff;
+        border: 1px solid #dcdee5;
+        border-radius: 2px;
+
+        .data-type-item {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 32px;
+          height: 28px;
+          cursor: pointer;
+
+          .icon-monitor {
+            font-size: 16px;
+            color: #63656e;
+          }
+
+          &.active {
+            cursor: auto;
+            background: #3a84ff;
+            border-radius: 2px;
+
+            .icon-monitor {
+              color: #fff;
+            }
+          }
+        }
+      }
+
+      .type-selector {
+        min-width: 130px;
+        margin: 0 24px 0 16px;
+        background: #f5f7fa;
+        border: 1px solid #f5f7fa;
+      }
+    }
+
+    .header-alarm-wrap {
+      display: flex;
+      align-items: center;
+      min-width: 337px;
+      height: 100%;
+      padding: 0 24px;
+      border-right: 1px solid #dcdee5;
+    }
+
+    .header-search-wrap {
+      display: flex;
+      align-items: center;
+    }
+
+    .header-tool-wrap {
+      display: flex;
+      align-items: center;
+      margin: 0 24px 0 auto;
+
+      .tool-btns {
+        display: flex;
+        align-items: center;
+        width: 70px;
+        height: 32px;
+        padding: 2px 0 2px 2px;
+        background: #f0f1f5;
+        border-radius: 4px;
+
+        .tool-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 32px;
+          height: 28px;
+          margin-right: 2px;
+          cursor: pointer;
+          background: #f0f1f5;
+          border-radius: 3px;
+
+          .icon-monitor {
+            font-size: 16px;
+            color: #63656e;
+          }
+
+          &.active {
+            background: #979ba5;
+
+            .icon-monitor {
+              color: #fff;
+            }
+          }
+
+          &.disabled {
+            cursor: not-allowed;
+          }
+        }
+      }
+    }
+  }
+
+  .apm-relation-graph-table-wrap {
+    position: relative;
+    width: 100%;
+    height: calc(100% - 52px);
+    overflow-y: auto;
+    background: #f5f7fa;
+
+    .table-wrap {
+      padding: 16px;
+      margin: 24px;
+      background: #fff;
+
+      .call-type-column {
+        display: flex;
+
+        .icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 16px;
+          height: 16px;
+          margin-left: 6px;
+          border-radius: 2px;
+
+          &.caller {
+            background: #fff3e1;
+            border: 1px solid #ffd695;
+          }
+
+          &.callee {
+            background: #e8fff5;
+            border: 1px solid #6fe0b8;
+          }
+        }
+
+        .icon-monitor {
+          font-size: 16px;
+        }
+      }
+    }
+  }
+
+  .apm-topo-empty-chart {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    z-index: 1002;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &.all-loading {
+      top: 1px;
+      left: 0;
+      width: 100%;
+      height: calc(100% - 1px);
+      background-color: #fff;
+    }
+
+    // .chart-skeleton {
+    //   width: 100%;
+    //   height: 100%;
+    //   background-image: url('./apm-relation-skeleton.svg');
+    //   background-repeat: no-repeat;
+    //   background-position: center;
+    // }
+  }
+}

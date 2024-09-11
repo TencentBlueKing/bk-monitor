@@ -737,6 +737,7 @@ class IndexSetHandler(APIModel):
                             "index_set_id": self.index_set_id,
                             "field_name": field_name,
                             "rule_id": 0,
+                            "match_pattern": rule.get("match_pattern"),
                             "operator": rule.get("operator"),
                             "params": rule.get("params"),
                             "sort_index": sort_index,
@@ -1355,6 +1356,7 @@ class BaseIndexSetHandler(object):
                     "table_id": self.get_rt_id(index_set.index_set_id, index_set.collector_config_id, self.indexes),
                     "space_id": index_set.space_uid.split("__")[-1],
                     "space_type": index_set.space_uid.split("__")[0],
+                    "need_create_index": True if index_set.collector_config_id else False,
                     "options": [
                         {
                             "name": "time_field",
@@ -1368,11 +1370,12 @@ class BaseIndexSetHandler(object):
                                     else TimeFieldUnitEnum.MILLISECOND.value,
                                 }
                             ),
-                        }, {
+                        },
+                        {
                             "name": "need_add_time",
                             "value_type": "bool",
                             "value": json.dumps(index_set.scenario_id != Scenario.ES),
-                        }
+                        },
                     ],
                 }
             )

@@ -127,6 +127,7 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
       >
         {this.data?.map?.(item => (
           <bk-collapse-item
+            key={item.id}
             ext-cls={`collapse-item collapse-item-${this.theme}`}
             scopedSlots={{
               default: () => this.titleSlot(item),

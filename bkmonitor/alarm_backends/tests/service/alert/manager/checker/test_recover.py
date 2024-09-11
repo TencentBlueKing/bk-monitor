@@ -20,7 +20,6 @@ from six.moves import range
 from alarm_backends.core.alert import Alert, Event
 from alarm_backends.core.alert.adapter import MonitorEventAdapter
 from alarm_backends.core.cache.key import (
-    ALERT_CONTENT_KEY,
     CHECK_RESULT_CACHE_KEY,
     LAST_CHECKPOINTS_CACHE_KEY,
 )
@@ -59,7 +58,6 @@ def _set_recovery_with_event_id(event_id, timedelta=1000):
 
 
 class TestRecoverStatusChecker(TestCase):
-
     databases = {"monitor_api", "default"}
 
     def clear_data(self):
@@ -78,9 +76,6 @@ class TestRecoverStatusChecker(TestCase):
         event = MonitorEventAdapter(event or ANOMALY_EVENT, strategy or STRATEGY).adapt()
         event["extra_info"]["strategy"] = strategy or STRATEGY
         alert = Alert.from_event(Event(event))
-        ALERT_CONTENT_KEY.client.set(
-            ALERT_CONTENT_KEY.get_key(dedupe_md5=alert.dedupe_md5), json.dumps(alert.to_dict())
-        )
         return alert
 
     def test_set_recovered(self):

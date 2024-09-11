@@ -31,6 +31,10 @@
       }
     }
 
+    .failure-topo-graph-tooltip {
+      z-index: 9999 !important;
+    }
+
     .failure-topo-graph-legend,
     .failure-topo-graph-proportion,
     .failure-topo-graph-setting {

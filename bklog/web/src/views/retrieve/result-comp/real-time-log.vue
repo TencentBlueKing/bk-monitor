@@ -67,7 +67,7 @@
         @handle-filter="handleFilter"
       />
       <!-- 暂停、复制、全屏 -->
-      <div class="dialog-bar controls">
+      <div :class="['dialog-bar controls', { 'not-fill': !isScreenFull }]">
         <div
           class="control-icon"
           v-bk-tooltips.top="{ content: isPolling ? $t('暂停') : $t('启动'), delay: 300 }"
@@ -99,6 +99,7 @@
       </div>
     </div>
     <div
+      ref="realTimeLog"
       class="dialog-log-markdown"
       tabindex="0"
     >
@@ -109,10 +110,17 @@
         :interval="interval"
         :is-real-time-log="true"
         :log-list="logList"
+        :reverse-log-list="reverseLogList"
         :max-length="maxLength"
         :shift-length="shiftLength"
+        :light-list="highlightList"
+        :show-type="showType"
       />
     </div>
+    <log-view-control
+      :show-type="showType"
+      :light-list="highlightList"
+    />
     <p class="handle-tips">{{ $t('快捷键  Esc:退出; PageUp: 向上翻页; PageDn: 向下翻页') }}</p>
   </section>
 </template>
@@ -120,6 +128,7 @@
 <script>
   import { getFlatObjValues } from '@/common/util';
   import logView from '@/components/log-view';
+  import logViewControl from '@/components/log-view/log-view-control';
 
   import DataFilter from '../condition-comp/data-filter';
 
@@ -127,6 +136,7 @@
     name: 'RealTimeLog',
     components: {
       logView,
+      logViewControl,
       DataFilter,
     },
     props: {
@@ -156,6 +166,7 @@
         timer: null,
         cloudAreaList: [],
         logList: [],
+        reverseLogList: [],
         // 日志最大长度
         maxLength: Number(window.REAL_TIME_LOG_MAX_LENGTH) || 20000,
         // 超过此长度删除部分日志
@@ -170,7 +181,11 @@
           prev: 0,
           next: 0,
         },
+        showType: 'log',
+        highlightList: [],
         rowShowParams: {},
+        throttleTimer: null,
+        isInit: true,
       };
     },
     computed: {
@@ -221,12 +236,12 @@
         this.$http
           .request('retrieve/getRealTimeLog', {
             params: { index_set_id: this.$route.params.indexId },
-            data: Object.assign({ order: '-', size: 500, zero: this.zero }, this.params),
+            data: Object.assign({ order: '-', size: 50, zero: this.zero }, this.params),
           })
           .then(res => {
             // 通过gseindex 去掉出返回日志， 并加入现有日志
             const { list } = res.data;
-            if (list?.length) {
+            if (list && list.length) {
               // 超过最大长度时剔除部分日志
               if (this.logList.length > this.maxLength) {
                 this.logList.splice(0, this.shiftLength);
@@ -236,16 +251,15 @@
               const logArr = [];
               list.forEach(item => {
                 const { log } = item;
-                let logString = '';
-                if (typeof log === 'object') {
-                  logString = Object.values(log).join(' ');
-                } else {
-                  logString = log;
-                }
-                logArr.push(logString);
+                logArr.push({ log });
               });
               this.deepClone(list[list.length - 1]);
-              this.logList.splice(this.logList.length, 0, ...logArr);
+              if (this.isInit) {
+                this.reverseLogList = logArr.slice(0, -1);
+                this.logList = logArr.slice(-1);
+              } else {
+                this.logList.splice(this.logList.length, 0, ...logArr);
+              }
               if (this.isScrollBottom) {
                 this.$nextTick(() => {
                   if (this.zero) {
@@ -264,6 +278,7 @@
             }
           })
           .finally(() => {
+            this.isInit = false;
             setTimeout(() => {
               this.loading = false;
             }, 300);
@@ -306,7 +321,8 @@
       },
       copyLogText() {
         const el = document.createElement('textarea');
-        el.value = this.logList.join('\n');
+        const copyStrList = this.reverseLogList.concat(this.logList).map(item => item.log);
+        el.value = copyStrList.join('\n');
         el.setAttribute('readonly', '');
         el.style.position = 'absolute';
         el.style.left = '-9999px';
@@ -326,6 +342,34 @@
       },
       filterLog(value) {
         this.activeFilterKey = value;
+        clearTimeout(this.throttleTimer);
+        this.throttleTimer = setTimeout(() => {
+          if (!value) {
+            this.$nextTick(() => {
+              this.initLogScrollPosition();
+            });
+          }
+        }, 300);
+      },
+      initLogScrollPosition() {
+        // 确定第0条的位置
+        this.firstLogEl = document.querySelector('.dialog-log-markdown .log-init');
+        // 没有数据
+        if (!this.firstLogEl) return;
+        const logContentHeight = this.firstLogEl.scrollHeight;
+        const logOffsetTop = this.firstLogEl.offsetTop;
+
+        const wrapperOffsetHeight = this.$refs.realTimeLog.offsetHeight;
+
+        if (wrapperOffsetHeight <= logContentHeight) {
+          this.$refs.realTimeLog.scrollTop = logOffsetTop;
+        } else {
+          this.$refs.realTimeLog.scrollTop = logOffsetTop - Math.ceil((wrapperOffsetHeight - logContentHeight) / 2);
+        }
+        // 避免重复请求
+        setTimeout(() => {
+          this.$refs.realTimeLog.addEventListener('scroll', this.handleScroll, { passive: true });
+        }, 64);
       },
       handleFilter(field, value) {
         if (field === 'filterKey') {
@@ -373,13 +417,12 @@
     .dialog-bars {
       position: relative;
       display: flex;
-      align-items: center;
-      margin-bottom: 14px;
+      align-items: start;
+      justify-content: space-between;
 
       .dialog-bar {
         display: flex;
         align-items: center;
-        margin-right: 50px;
 
         .label-text {
           margin-right: 10px;
@@ -391,9 +434,7 @@
         }
 
         &.controls {
-          position: absolute;
-          right: 0;
-          margin: 0;
+          flex: 1;
 
           .control-icon {
             display: flex;
@@ -415,6 +456,10 @@
               transition: color 0.2s;
             }
           }
+
+          &.not-fill .control-icon:not(:last-child) {
+            margin-right: 4px;
+          }
         }
       }
     }
@@ -423,6 +468,8 @@
       height: 404px;
       overflow-y: auto;
       background: #f5f7fa;
+      border: 1px solid #dcdee5;
+      border-bottom: none;
 
       @include scroller($backgroundColor: #aaa, $width: 4px);
 
@@ -437,11 +484,16 @@
     }
 
     &.log-full-dialog-wrapper {
-      height: calc(100% - 78px);
-      margin: 10px 0;
+      height: calc(100% - 16px);
+      margin-top: 10px;
+      overflow: hidden;
 
       .dialog-log-markdown {
-        height: calc(100% - 70px);
+        height: calc(100% - 176px);
+      }
+
+      .handle-tips {
+        margin-top: 18px;
       }
     }
   }

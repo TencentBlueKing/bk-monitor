@@ -72,6 +72,7 @@ import {
   TIME_OFFSET_KEY,
   TIME_RANGE_KEY,
   VIEWOPTIONS_KEY,
+  useIsEnabledProfilingProvider,
 } from '../../plugins/hooks';
 import { DEFAULT_TRACE_DATA } from '../../store/constant';
 import { useSearchStore } from '../../store/modules/search';
@@ -231,11 +232,16 @@ export default defineComponent({
     const traceColumnFilters = ref<Record<string, string[]>>({});
     const interfaceListCanLoadMore = ref<boolean>(false);
     const serviceListCanLoadMore = ref<boolean>(false);
-    const spanDetails = ref<Span | null>(null);
+    const spanDetails = ref<null | Span>(null);
 
     const isLoading = computed<boolean>(() => store.loading);
     const isPreCalculationMode = computed(() => store.traceListMode === 'pre_calculation');
     const collectCheckValue = ref(queryScopeParams());
+
+    const enableProfiling = computed(
+      () => !!appList.value.find(item => item.app_name === state.app)?.is_enabled_profiling
+    );
+
     const setSelectedTypeByRoute = () => {
       const listType = (route.query.listType as ListType) || 'trace';
       const selectedType = JSON.parse((route.query.selectedType as string) || '[]');
@@ -260,6 +266,8 @@ export default defineComponent({
       }
     };
     setSelectedTypeByRoute();
+
+    useIsEnabledProfilingProvider(enableProfiling);
 
     const handleLeftHiddenAndShow = (val: boolean) => {
       state.showLeft = val;
@@ -562,65 +570,89 @@ export default defineComponent({
       collectCheckValue.value = params;
       // Trace List 查询相关
       if (selectedListType.value === 'trace') {
-        const listData = await listTrace(params).catch(() => []);
-        const { total, data, type = 'pre_calculation' } = listData;
-        store.setTraceListMode(type);
-        store.setTraceTotalCount(total);
-        if (traceListPagination.offset > 1) {
-          // 两个区间可能会包含同一个trace的span 这里需要去重
-          const list = [...store.traceList];
-          data.forEach((trace: ITraceData) => {
-            if (list.every(val => val.trace_id !== trace.trace_id)) {
-              list.push(trace);
-            }
-          });
-          store.setTraceList(list);
-        } else {
-          store.setTraceList(data);
+        store.setTraceLoading(true);
+        try {
+          const listData = await listTrace(params).catch(() => []);
+          const { total, data, type = 'pre_calculation' } = listData;
+          store.setTraceListMode(type);
+          store.setTraceTotalCount(total);
+          if (traceListPagination.offset > 1) {
+            // 两个区间可能会包含同一个trace的span 这里需要去重
+            const list = [...store.traceList];
+            data.forEach((trace: ITraceData) => {
+              if (list.every(val => val.trace_id !== trace.trace_id)) {
+                list.push(trace);
+              }
+            });
+            store.setTraceList(list);
+          } else {
+            store.setTraceList(data);
+          }
+        } catch {
+        } finally {
+          store.setTraceLoading(false);
         }
       }
       // Span List 查询相关
       if (selectedListType.value === 'span') {
-        const spanListData = await listSpan(params).catch(() => []);
-        const { total, data } = spanListData;
-        store.setTraceTotalCount(total);
+        store.setTraceLoading(true);
+        try {
+          const spanListData = await listSpan(params).catch(() => []);
+          const { total, data } = spanListData;
+          store.setTraceTotalCount(total);
 
-        if (traceListPagination.offset > 1) {
-          // TODO：这里可能会有重复的 span ID ，需要去重。
-          store.setSpanList(store.spanList.concat(data));
-        } else {
-          store.setSpanList(data);
+          if (traceListPagination.offset > 1) {
+            // TODO：这里可能会有重复的 span ID ，需要去重。
+            store.setSpanList(store.spanList.concat(data));
+          } else {
+            store.setSpanList(data);
+          }
+        } catch {
+        } finally {
+          store.setTraceLoading(false);
         }
       }
       // 接口统计 查询相关
       if (selectedListType.value === 'interfaceStatistics') {
-        interfaceListCanLoadMore.value = true;
-        // 请求接口
-        // store 设置相关 list
-        const interfaceStatisticsList = await listSpanStatistics(params).catch(() => []);
-        if (interfaceStatisticsList.length < traceListPagination.limit) {
-          // 当前页返回不足一页数量则说明请求完所有数据
-          interfaceListCanLoadMore.value = false;
+        store.setTraceLoading(true);
+        try {
+          interfaceListCanLoadMore.value = true;
+          // 请求接口
+          // store 设置相关 list
+          const interfaceStatisticsList = await listSpanStatistics(params).catch(() => []);
+          if (interfaceStatisticsList.length < traceListPagination.limit) {
+            // 当前页返回不足一页数量则说明请求完所有数据
+            interfaceListCanLoadMore.value = false;
+          }
+          if (traceListPagination.offset > 1) {
+            store.setInterfaceStatisticsList(store.interfaceStatisticsList.concat(interfaceStatisticsList));
+          } else {
+            store.setInterfaceStatisticsList(interfaceStatisticsList);
+          }
+          // store.setTraceTotalCount(store.interfaceStatisticsList.length);
+        } catch {
+        } finally {
+          store.setTraceLoading(false);
         }
-        if (traceListPagination.offset > 1) {
-          store.setInterfaceStatisticsList(store.interfaceStatisticsList.concat(interfaceStatisticsList));
-        } else {
-          store.setInterfaceStatisticsList(interfaceStatisticsList);
-        }
-        // store.setTraceTotalCount(store.interfaceStatisticsList.length);
       }
       // 服务统计 查询相关
       if (selectedListType.value === 'serviceStatistics') {
-        serviceListCanLoadMore.value = true;
-        const serviceStatisticList = await listServiceStatistics(params).catch(() => []);
-        if (serviceStatisticList.length < traceListPagination.limit) {
-          // 当前页返回不足一页数量则说明请求完所有数据
-          serviceListCanLoadMore.value = false;
-        }
-        if (traceListPagination.offset > 1) {
-          store.setServiceStatisticsList(store.serviceStatisticsList.concat(serviceStatisticList));
-        } else {
-          store.setServiceStatisticsList(serviceStatisticList);
+        store.setTraceLoading(true);
+        try {
+          serviceListCanLoadMore.value = true;
+          const serviceStatisticList = await listServiceStatistics(params).catch(() => []);
+          if (serviceStatisticList.length < traceListPagination.limit) {
+            // 当前页返回不足一页数量则说明请求完所有数据
+            serviceListCanLoadMore.value = false;
+          }
+          if (traceListPagination.offset > 1) {
+            store.setServiceStatisticsList(store.serviceStatisticsList.concat(serviceStatisticList));
+          } else {
+            store.setServiceStatisticsList(serviceStatisticList);
+          }
+        } catch {
+        } finally {
+          store.setTraceLoading(false);
         }
       }
 
@@ -1121,21 +1153,28 @@ export default defineComponent({
       >
         <div class='tips-content-title'>
           {t('可输入SQL语句进行快速查询')}
-          <a
+          <span
             class='link'
-            target='_blank'
             onClick={() => handleGotoLink('bkLogQueryString')}
           >
             {t('查看语法')}
             <i class='icon-monitor icon-mc-link' />
-          </a>
+          </span>
         </div>
         <ul class='tips-content-list'>
-          {tipsContentList.map(item => (
-            <li class='tips-content-item'>
+          {tipsContentList.map((item, index) => (
+            <li
+              key={index}
+              class='tips-content-item'
+            >
               <div class='tips-content-item-label'>{item.label}</div>
-              {item.value.map(val => (
-                <div class='tips-content-item-val'>{val}</div>
+              {item.value.map((val, vIndex) => (
+                <div
+                  key={vIndex}
+                  class='tips-content-item-val'
+                >
+                  {val}
+                </div>
               ))}
             </li>
           ))}
@@ -1478,6 +1517,7 @@ export default defineComponent({
         {/* 这里插入 condition 组件 */}
         {conditionList.map((item, index) => (
           <Condition
+            key={index}
             style='margin-bottom: 16px;'
             conditionList={item.conditionList}
             conditionType={item.conditionType}
@@ -1548,7 +1588,7 @@ export default defineComponent({
         >
           <div class={['inquire-left-main', { 'scope-inquire': state.searchType === 'scope' }]}>
             <div class='left-top'>
-              <div class='left-title'>{t('新检索')}</div>
+              <div class='left-title'>{t('route-Tracing 检索')}</div>
               <div class='left-title-operate'>
                 <span
                   class='icon-monitor icon-double-down'
@@ -1579,59 +1619,59 @@ export default defineComponent({
           style={{ flex: 1, width: `calc(100% - ${state.leftWidth}px)` }}
           class='inquire-right'
         >
-          <Loading
+          {/* <Loading
             class='inquire-page-loading'
             loading={isLoading.value}
+          > */}
+          {/* 头部工具栏 */}
+          <SearchHeader
+            style={{ height: `${HEADER_HEIGHT}px` }}
+            class='inquire-right-header'
+            v-models={[
+              [state.showLeft, 'showLeft'],
+              [refleshInterval.value, 'refleshInterval'],
+              [timeRange.value, 'timeRange'],
+              [timezone.value, 'timezone'],
+            ]}
+            checkedValue={collectCheckValue.value}
+            favoritesList={collectList.value}
+            menuList={headerToolMenuList}
+            onDeleteCollect={handleDeleteCollect}
+            onImmediateReflesh={handleImmediateReflesh}
+            onMenuSelectChange={handleMenuSelectChange}
+            onRefleshIntervalChange={handleRefleshIntervalChange}
+            onSelectCollect={handleSelectCollect}
+            onTimeRangeChange={handleTimeRangeChange}
+            onTimezoneChange={handleTimezoneChange}
+          />
+          <div
+            style={{ height: `calc(100% - ${HEADER_HEIGHT}px)` }}
+            class='inquire-right-main'
           >
-            {/* 头部工具栏 */}
-            <SearchHeader
-              style={{ height: `${HEADER_HEIGHT}px` }}
-              class='inquire-right-header'
-              v-models={[
-                [state.showLeft, 'showLeft'],
-                [refleshInterval.value, 'refleshInterval'],
-                [timeRange.value, 'timeRange'],
-                [timezone.value, 'timezone'],
-              ]}
-              checkedValue={collectCheckValue.value}
-              favoritesList={collectList.value}
-              menuList={headerToolMenuList}
-              onDeleteCollect={handleDeleteCollect}
-              onImmediateReflesh={handleImmediateReflesh}
-              onMenuSelectChange={handleMenuSelectChange}
-              onRefleshIntervalChange={handleRefleshIntervalChange}
-              onSelectCollect={handleSelectCollect}
-              onTimeRangeChange={handleTimeRangeChange}
-              onTimezoneChange={handleTimezoneChange}
+            <InquireContent
+              appList={appList.value}
+              appName={state.app}
+              emptyApp={isEmptyApp.value}
+              isAlreadyAccurateQuery={state.isAlreadyAccurateQuery}
+              isAlreadyScopeQuery={state.isAlreadyScopeQuery}
+              queryType={state.searchType}
+              searchIdType={searchResultIdType.value}
+              spanDetails={spanDetails.value}
+              traceListTabelLoading={traceListTabelLoading.value}
+              onChangeQuery={val => handleChangeQuery(val)}
+              onInterfaceStatisticsChange={handleInterfaceStatisticsChange}
+              onListTypeChange={handleListTypeChange}
+              onServiceStatisticsChange={handleServiceStatisticsChange}
+              onSpanTypeChange={handleSpanTypeChange}
+              onTraceListColumnSortChange={value => handleTraceListColumnSort(value)}
+              onTraceListColumuFilter={handleTraceListColumuFilter}
+              onTraceListScrollBottom={handleTraceListScrollBottom}
+              onTraceListSortChange={handleTraceListSortChange}
+              onTraceListStatusChange={handleTraceListStatusChange}
+              onTraceTypeChange={handleTraceTypeChange}
             />
-            <div
-              style={{ height: `calc(100% - ${HEADER_HEIGHT}px)` }}
-              class='inquire-right-main'
-            >
-              <InquireContent
-                appList={appList.value}
-                appName={state.app}
-                emptyApp={isEmptyApp.value}
-                isAlreadyAccurateQuery={state.isAlreadyAccurateQuery}
-                isAlreadyScopeQuery={state.isAlreadyScopeQuery}
-                queryType={state.searchType}
-                searchIdType={searchResultIdType.value}
-                spanDetails={spanDetails.value}
-                traceListTabelLoading={traceListTabelLoading.value}
-                onChangeQuery={val => handleChangeQuery(val)}
-                onInterfaceStatisticsChange={handleInterfaceStatisticsChange}
-                onListTypeChange={handleListTypeChange}
-                onServiceStatisticsChange={handleServiceStatisticsChange}
-                onSpanTypeChange={handleSpanTypeChange}
-                onTraceListColumnSortChange={value => handleTraceListColumnSort(value)}
-                onTraceListColumuFilter={handleTraceListColumuFilter}
-                onTraceListScrollBottom={handleTraceListScrollBottom}
-                onTraceListSortChange={handleTraceListSortChange}
-                onTraceListStatusChange={handleTraceListStatusChange}
-                onTraceTypeChange={handleTraceTypeChange}
-              />
-            </div>
-          </Loading>
+          </div>
+          {/* </Loading> */}
         </div>
         <Dialog
           height={300}

@@ -236,6 +236,12 @@
         });
         return;
       }
+      // 离开路由时清空采集配置导入数据
+      this.$store.commit('collect/updateExportCollectObj', {
+        collectID: null,
+        syncType: [],
+        collect: {},
+      });
       next();
     },
     methods: {
@@ -285,7 +291,7 @@
           try {
             const detailRes = await this.getDetail();
             // 是否完成过一次完整的步骤
-            this.isFinishCreateStep = !!detailRes.table_id;
+            this.isFinishCreateStep = !!detailRes.table_id && type !== 'clone';
             this.operateType = routeType;
           } catch (e) {
             console.warn(e);

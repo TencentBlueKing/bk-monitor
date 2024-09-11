@@ -391,10 +391,6 @@ class QueryDataSourceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryDataSourceResource)]
 
 
-class QueryBizByBkBaseViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("POST", resource.QueryBizByBkBase)]
-
-
 class QueryResultTableStorageDetailViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryResultTableStorageDetailResource)]
 

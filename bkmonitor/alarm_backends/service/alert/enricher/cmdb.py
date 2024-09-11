@@ -72,9 +72,6 @@ class CMDBEnricher(BaseEventEnricher):
             return event
 
         target_type = event.target_type
-        target = event.target
-
-        logger.debug("[cmdb_enrich] target(%s) to be enriched as (%s) object", target, target_type)
 
         if target_type == EventTargetType.HOST:
             return self.enrich_host(event)
@@ -122,7 +119,9 @@ class CMDBEnricher(BaseEventEnricher):
                 # 2. 如果没有提供业务ID，则直接匹配成功
                 if host:
                     # 如果已经有一台机器匹配过了，那么就发生冲突，清洗失败
-                    logger.warning("[enrich_host] host conflict for target(%s): (%s) <=> (%s)", event.target, h, host)
+                    logger.warning(
+                        "[enrich_host] host(%s) conflict, multiple cloud regions exist for this IP", event.target
+                    )
                     event.drop()
                     return event
                 host = h
@@ -137,7 +136,7 @@ class CMDBEnricher(BaseEventEnricher):
         if not host:
             if event.bk_biz_id is None:
                 # 如果事件也没有提供业务，则丢弃
-                logger.warning("[enrich_host] biz is empty for target(%s)", event.target)
+                logger.warning("[enrich_host] biz is empty for host target(%s)", event.target)
                 event.drop()
                 return event
 
@@ -163,7 +162,7 @@ class CMDBEnricher(BaseEventEnricher):
 
         if not instance:
             if event.bk_biz_id is None:
-                logger.warning("[enrich_service] biz is empty for target(%s)", event.target)
+                logger.warning("[enrich_service] biz is empty for service target(%s)", event.target)
                 event.drop()
                 return event
 
@@ -175,6 +174,7 @@ class CMDBEnricher(BaseEventEnricher):
             event.set("bk_biz_id", instance.bk_biz_id)
         event.set("target", instance.service_instance_id)
         event.set("bk_service_instance_id", instance.service_instance_id)
+        event.set("bk_host_id", instance.bk_host_id)
         event.set("ip", instance.ip)
         event.set("bk_cloud_id", instance.bk_cloud_id)
         event.set("bk_topo_node", list({node.id for node in chain(*list(instance.topo_link.values()))}))
@@ -184,7 +184,7 @@ class CMDBEnricher(BaseEventEnricher):
         bk_obj_and_inst = event.target.split("|")
 
         if len(bk_obj_and_inst) != 2:
-            logger.warning("[enrich_topo] target(%s) is not a valid topo node", event.target)
+            logger.warning("[enrich_topo] topo target(%s) is not a valid topo node", event.target)
             event.drop()
             return event
 
@@ -192,7 +192,7 @@ class CMDBEnricher(BaseEventEnricher):
         event.set("bk_topo_node", [event.target])
 
         if event.bk_biz_id is None:
-            logger.warning("[enrich_topo] biz is empty for target(%s)", event.target)
+            logger.warning("[enrich_topo] biz is empty for topo target(%s)", event.target)
             event.drop()
             return event
 

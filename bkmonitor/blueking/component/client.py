@@ -92,6 +92,29 @@ class BaseComponentClient(object):
             data = json.dumps(_data)
         return params, data
 
+    def add_apigw_auth_header(self, headers, params, data):
+        """Add apigw authorization header"""
+        headers = headers.copy()
+        auth_info = {"bk_app_code": self.app_code, "bk_app_secret": self.app_secret}
+
+        # find bk_username, bk_token, access_token
+        keys = ["bk_username", "bk_token", "access_token"]
+        args_list = [self.common_args]
+        if params:
+            args_list.append(params)
+        if data:
+            args_list.append(data)
+
+        for key in keys:
+            for args in args_list:
+                value = args.get(key)
+                if value:
+                    auth_info[key] = value
+                    break
+
+        headers["x-bkapi-authorization"] = json.dumps(auth_info)
+        return headers
+
     def request(self, method, url, params=None, data=None, **kwargs):
         """Send request"""
         # determine whether access test environment of third-party system
@@ -101,7 +124,8 @@ class BaseComponentClient(object):
         if self.language:
             headers["blueking-language"] = self.language
 
-        params, data = self.merge_params_data_with_common_args(method, params, data, enable_app_secret=True)
+        headers = self.add_apigw_auth_header(headers, params, data)
+
         logger.debug("Calling %s %s with params=%s, data=%s, headers=%s", method, url, params, data, headers)
         return requests.request(method, url, params=params, data=data, verify=False, headers=headers, **kwargs)
 

@@ -11,22 +11,6 @@ specific language governing permissions and limitations under the License.
 from django.db import transaction
 from django.db.models import Prefetch
 from django.utils.translation import ugettext_lazy as _
-from monitor_web.models import CollectConfigMeta
-from monitor_web.models.plugin import (
-    CollectorPluginMeta,
-    OperatorSystem,
-    PluginVersionHistory,
-)
-from monitor_web.plugin.constant import BUILT_IN_TAGS, PluginType
-from monitor_web.plugin.manager import PluginManagerFactory
-from monitor_web.plugin.manager.base import check_skip_debug
-from monitor_web.plugin.resources import PluginFileUploadResource
-from monitor_web.plugin.serializers import (
-    ReleaseSerializer,
-    StartDebugSerializer,
-    TaskIdSerializer,
-)
-from monitor_web.plugin.signature import Signature
 from rest_framework import permissions, serializers, viewsets
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import action
@@ -49,6 +33,22 @@ from core.errors.plugin import (
     PluginIDNotExist,
     RelatedItemsExist,
 )
+from monitor_web.models import CollectConfigMeta
+from monitor_web.models.plugin import (
+    CollectorPluginMeta,
+    OperatorSystem,
+    PluginVersionHistory,
+)
+from monitor_web.plugin.constant import BUILT_IN_TAGS, PluginType
+from monitor_web.plugin.manager import PluginManagerFactory
+from monitor_web.plugin.manager.base import check_skip_debug
+from monitor_web.plugin.resources import PluginFileUploadResource
+from monitor_web.plugin.serializers import (
+    ReleaseSerializer,
+    StartDebugSerializer,
+    TaskIdSerializer,
+)
+from monitor_web.plugin.signature import Signature
 
 
 class PermissionMixin:
@@ -385,7 +385,10 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
                 }
                 ret = resource.plugin.plugin_register(**register_info)
                 plugin_manager.release(
-                    **{"config_version": config_version, "info_version": info_version, "token": ret["token"]}
+                    config_version=config_version,
+                    info_version=info_version,
+                    token=ret["token"],
+                    debug=False,
                 )
 
         # 刷新metric json

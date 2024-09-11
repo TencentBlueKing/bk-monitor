@@ -69,7 +69,7 @@ import EmptyTable from './empty-table';
 import EventChart from './event-chart';
 import AlarmConfirm from './event-detail/alarm-confirm';
 import AlarmDispatch from './event-detail/alarm-dispatch';
-import EventDetailSlider, { type TType as TSliderType } from './event-detail/event-detail-slider';
+// import EventDetailSlider from './event-detail/event-detail-slider';
 import ManualDebugStatus from './event-detail/manual-debug-status';
 import ManualProcess from './event-detail/manual-process';
 import QuickShield from './event-detail/quick-shield';
@@ -91,6 +91,7 @@ import {
 } from './typings/event';
 import { INIT_COMMON_FILTER_DATA, getOperatorDisabled } from './utils';
 
+import type { TType as TSliderType } from './event-detail/event-detail-slider';
 // import { showAccessRequest } from 'monitor-pc/components/access-request-dialog';
 import type { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -141,8 +142,8 @@ export const commonAlertFieldMap = {
       name: window.i18n.tc('已恢复'),
     },
     {
-      id: isEn ? 'CLOSED' : '已关闭',
-      name: window.i18n.tc('已关闭'),
+      id: isEn ? 'CLOSED' : '已失效',
+      name: window.i18n.tc('已失效'),
     },
   ],
   severity: [
@@ -308,6 +309,9 @@ const filterIconMap = {
 };
 @Component({
   name: 'Event',
+  components: {
+    EventDetailSlider: () => import('./event-detail/event-detail-slider'),
+  },
 })
 class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   // 监控左侧栏是否收缩配置 自愈默认未收缩
@@ -401,8 +405,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       details: [
         {
           severity: 1,
-          dimension: '',
+          dimension: [],
           trigger: '',
+          alertId: '',
           strategy: {
             id: '',
             name: '',
@@ -472,6 +477,10 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   }
   get curAnalyzeFields() {
     return this.searchType === 'alert' ? this.analyzeFields : this.analyzeActionFields;
+  }
+
+  get isIncident() {
+    return this.searchType === 'incident';
   }
 
   // 是否拥有查询条件： 搜索条件或者高级筛选条件
@@ -615,14 +624,14 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
 
   async mounted() {
     const { contentWrap } = this.$refs as any;
-    (contentWrap as HTMLDivElement).addEventListener('scroll', this.handleDisbaleHover, false);
+    (contentWrap as HTMLDivElement).addEventListener('scroll', this.handleDisableHover, false);
   }
 
   beforeDestroy() {
     this.routeStateKeyList = [];
     window.removeEventListener('popstate', this.handlePopstate);
     const { contentWrap } = this.$refs as any;
-    (contentWrap as HTMLDivElement).removeEventListener('scroll', this.handleDisbaleHover, false);
+    (contentWrap as HTMLDivElement).removeEventListener('scroll', this.handleDisableHover, false);
     window.clearInterval(this.refleshInstance);
   }
   // 拼一个查询语句，然后查询 未恢复的且处理阶段都不满足 的异常通知人数据（显示是通知人为空）
@@ -639,7 +648,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     }
     this.handleQueryStringChange(queryString);
   }
-  handleDisbaleHover() {
+  handleDisableHover() {
     const { contentTable } = this.$refs as any;
     clearTimeout(this.disableHoverTimer);
     if (!contentTable.classList.contains('disable-hover')) {
@@ -721,7 +730,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       ];
     }
     /** 移动端带collectId跳转事件中心 */
-    if (!!defaultData.collectId) {
+    if (defaultData.collectId) {
       defaultData.queryString = defaultData.queryString
         ? `${defaultData.queryString} AND action_id : ${defaultData.collectId}`
         : `action_id : ${defaultData.collectId}`;
@@ -729,7 +738,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       defaultData.timeRange = ['now-30d', 'now'];
     }
     /** 处理指标参数 */
-    if (!!defaultData.metricId?.length) {
+    if (defaultData.metricId?.length) {
       const metricStr = `metric : (${defaultData.metricId.map(item => `"${item}"`).join(' OR ')})`;
       defaultData.queryString = defaultData.queryString ? `AND ${metricStr}` : metricStr;
     }
@@ -827,9 +836,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         !onlyOverview && (this.filterInputStatus = 'success');
         return res.data || {};
       })
-      .catch(({ message, code }) => {
+      .catch(({ error_details, message, code }) => {
         if (code !== grammaticalErrorCode) {
-          this.$bkMessage({ message, theme: 'error' });
+          this.$bkMessage(error_details || { message, theme: 'error' });
         }
         return {
           aggs: [],
@@ -896,9 +905,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         !onlyOverview && (this.filterInputStatus = 'success');
         return res.data || {};
       })
-      .catch(({ message, code }) => {
+      .catch(({ error_details, message, code }) => {
         if (code !== grammaticalErrorCode) {
-          this.$bkMessage({ message, theme: 'error' });
+          this.$bkMessage(error_details || { message, theme: 'error' });
         }
         return {
           aggs: [],
@@ -1010,9 +1019,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         !onlyOverview && (this.filterInputStatus = 'success');
         return res.data || {};
       })
-      .catch(({ message, code }) => {
+      .catch(({ error_details, message, code }) => {
         if (code !== grammaticalErrorCode) {
-          this.$bkMessage({ message, theme: 'error' });
+          this.$bkMessage(error_details || { message, theme: 'error' });
         }
         return {
           aggs: [],
@@ -1407,8 +1416,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           key,
         },
       };
-      this.routeStateKeyList.length === 0 ? this.$router.replace(params) : this.$router.push(params);
-      this.routeStateKeyList.push(key);
+      setTimeout(() => {
+        if (this.$store.getters.paddingRoute?.name.includes('event-center')) {
+          this.routeStateKeyList.length === 0 ? this.$router.replace(params) : this.$router.push(params);
+          this.routeStateKeyList.push(key);
+        }
+      }, 100);
     }
     this.tableLoading = false;
   }
@@ -1448,6 +1461,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   handleParam2Url() {
     const defaultRouteData = this.handleGetDefaultRouteData();
     const newData = {};
+    // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(defaultRouteData).forEach(key => {
       const item = defaultRouteData[key];
       if (item !== this[key]) {
@@ -1470,6 +1484,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       }
       if (['from', 'to'].includes(key)) {
         key === 'from' && ([newData[key]] = this.timeRange);
+        // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
         key === 'to' && ([, newData[key]] = this.timeRange);
       } else if (key === 'timezone') {
         newData[key] = this.timezone;
@@ -1505,9 +1520,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     const promiseFn = this.searchType === 'action' ? actionDateHistogram : alertDateHistogram;
     const { unit, series, code } = await promiseFn(params, { needRes: true, needMessage: false })
       .then(res => res.data)
-      .catch(({ code, message }) => {
+      .catch(({ code, message, error_details }) => {
         if (code !== grammaticalErrorCode) {
-          this.$bkMessage({ message, theme: 'error' });
+          this.$bkMessage(error_details || { message, theme: 'error' });
         }
         return {
           series: [],
@@ -1761,7 +1776,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     };
     switch (id) {
       // 批量确认告警
-      case 'comfirm':
+      case 'confirm':
       case EBatchAction.alarmConfirm: {
         if (isMoreThenOneOfBiz) {
           messsage();
@@ -1782,12 +1797,13 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         this.dialog.quickShield.show = true;
         this.dialog.quickShield.ids = this.selectedList;
         const details = [];
-        this.selectedList.forEach(item => {
-          const detail = this.tableData.find(tableitem => tableitem.id === item);
+        this.selectedList.forEach(alertId => {
+          const detail = this.tableData.find(tableitem => tableitem.id === alertId);
           details.push({
             severity: detail.severity,
-            dimension: detail.dimension_message,
+            dimension: detail.dimensions,
             trigger: detail.description,
+            alertId: alertId,
             strategy: {
               id: detail.strategy_id,
               name: detail.strategy_name,
@@ -1837,8 +1853,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           key,
         },
       };
-      this.$router.replace(params);
-      this.routeStateKeyList.push(key);
+      this.$nextTick(() => {
+        if (this.$route.name.includes('event-center')) {
+          this.$router.replace(params);
+          this.routeStateKeyList.push(key);
+        }
+      });
     }
   }
 
@@ -1864,14 +1884,16 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     this.dialog.quickShield.details = [
       {
         severity: v.severity,
-        dimension: v.dimension_message,
+        dimension: v.dimensions,
         trigger: v.description,
+        alertId: v.id,
         strategy: {
           id: v?.strategy_id as unknown as string,
           name: v?.strategy_name,
         },
       },
     ];
+    // EventModuleStore.setDimensionList(v.dimensions || []);
   }
   /**
    * @description: 手动处理
@@ -2204,6 +2226,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   getOperateDialogComponent() {
     return [
       <AlarmConfirm
+        key='AlarmConfirm'
         bizIds={this.dialog.alarmConfirm.bizIds}
         ids={this.dialog.alarmConfirm.ids}
         show={this.dialog.alarmConfirm.show}
@@ -2211,6 +2234,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         onConfirm={this.handleConfirmAfter}
       />,
       <QuickShield
+        key='QuickShield'
         authority={this.authority}
         bizIds={this.dialog.quickShield.bizIds}
         details={this.dialog.quickShield.details}
@@ -2221,6 +2245,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         on-succes={this.quickShieldSucces}
       />,
       <ManualProcess
+        key='ManualProcess'
         alertIds={this.dialog.manualProcess.alertIds}
         bizIds={this.dialog.manualProcess.bizIds}
         show={this.dialog.manualProcess.show}
@@ -2229,12 +2254,14 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         onShowChange={this.manualProcessShowChange}
       />,
       <ManualDebugStatus
+        key='ManualDebugStatus'
         actionIds={this.dialog.manualProcess.actionIds}
         bizIds={this.dialog.manualProcess.bizIds}
         debugKey={this.dialog.manualProcess.debugKey}
         mealInfo={this.dialog.manualProcess.mealInfo}
       />,
       <AlarmDispatch
+        key='AlarmDispatch'
         alertIds={this.dialog.alarmDispatch.alertIds}
         bizIds={this.dialog.alarmDispatch.bizIds}
         show={this.dialog.alarmDispatch.show}
@@ -2272,6 +2299,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     const isOpen = this.commonFilterDataIdMap[item.id].includes(this.listOpenId);
     return [
       <div
+        key={`${item.id}list-title`}
         class={['list-title', { 'item-active': item.id === this.activeFilterId }]}
         on-click={() => this.handleSelectActiveFilter(item.id as SearchType, item)}
       >
@@ -2447,7 +2475,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               style={{ marginLeft: this.filterWidth > 200 ? '24px' : '0px' }}
               class='header-title'
             >
-              {this.activeFilterName || this.$t('事件中心')}
+              {this.$t(this.activeFilterName) || this.$t('事件中心')}
             </span>
             <DashboardTools
               class='header-tools'
@@ -2479,12 +2507,6 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               />
             )}
             <div class='content-wrap-filter'>
-              <div
-                v-en-style='width: 120px;'
-                class='business-screening-notes'
-              >
-                {this.$t('空间筛选')}
-              </div>
               {/* <bk-select
                 class={`filter-select ${this.filterSelectIsEmpty ? 'empty-warning' : ''}`}
                 v-model={this.bizIds}
@@ -2532,6 +2554,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                 class='mr-16'
                 currentSpace={this.$store.getters.bizId}
                 hasAuthApply={true}
+                // needAlarmOption={!this.isIncident}
+                needIncidentOption={this.isIncident}
                 spaceList={this.$store.getters.bizList}
                 value={this.bizIds}
                 onApplyAuth={this.handleCheckAllowedByIds}
@@ -2687,14 +2711,16 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             />
           ) : undefined}
         </div>
-        <EventDetailSlider
-          activeTab={this.detailInfo.activeTab}
-          bizId={this.detailInfo.bizId}
-          eventId={this.detailInfo.id}
-          isShow={this.detailInfo.isShow}
-          type={this.detailInfo.type}
-          onShowChange={v => (this.detailInfo.isShow = v)}
-        />
+        {this.detailInfo.isShow && (
+          <event-detail-slider
+            activeTab={this.detailInfo.activeTab}
+            bizId={this.detailInfo.bizId}
+            eventId={this.detailInfo.id}
+            isShow={this.detailInfo.isShow}
+            type={this.detailInfo.type}
+            onShowChange={v => (this.detailInfo.isShow = v)}
+          />
+        )}
         {this.getOperateDialogComponent()}
         <ChatGroup
           alarmEventName={this.chatGroupDialog.alertName}

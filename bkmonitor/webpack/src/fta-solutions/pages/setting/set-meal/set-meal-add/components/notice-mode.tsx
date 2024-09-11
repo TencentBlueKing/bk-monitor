@@ -225,10 +225,6 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
     const isRobotValidPass = res.every(item => {
       return item.notice_ways.every(({ name, receivers }) => {
         if (name === robot.wxworkBot) {
-          if (receivers.length > 32) {
-            this.errMsg = window.i18n.tc('长度不能超过32个字符');
-            return false;
-          }
           if (
             /(\ud83c[\udf00-\udfff])|(\ud83d[\udc00-\ude4f\ude80-\udeff])|[\u2600-\u2B55]/g.test(receivers as string)
           ) {
@@ -266,7 +262,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
               <th class='first-col'>{this.tableTitle[this.type]}</th>
               {this.newNoticeWay.length
                 ? this.newNoticeWay.map(item => (
-                    <th>
+                    <th key={item.label}>
                       <div class='th-title'>
                         {item.icon ? (
                           <img
@@ -295,7 +291,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
             </thead>
             <tbody>
               {this.noticeData.map(item => (
-                <tr>
+                <tr key={item.level}>
                   <td class='first-col'>
                     <div
                       key={item.title}
@@ -307,6 +303,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                   </td>
                   {item.list.map(notice => (
                     <td
+                      key={notice.name + item.level}
                       class={[
                         this.channels.length === 3 && 'limit-width',
                         [robot.wxworkBot, 'bkchat'].includes(notice.name) && 'custom-td',

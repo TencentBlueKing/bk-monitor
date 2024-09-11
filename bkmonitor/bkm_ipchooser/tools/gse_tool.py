@@ -26,7 +26,12 @@ def fill_agent_status(cc_hosts: List[Dict], bk_biz_id: int) -> List[Dict]:
         "scope_list": scope_list,
         "agent_realtime_state": True,
     }
-    host_info = api.node_man.ipchooser_host_detail(request_params)
+    try:
+        host_info = api.node_man.ipchooser_host_detail(request_params)
+    except Exception as e:
+        logger.error("获取主机agent状态失败: %s", e)
+        return cc_hosts
+
     for status in host_info:
         host_id = status.get("host_id")
         if host_id in host_map and "alive" in status:

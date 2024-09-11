@@ -14,8 +14,8 @@ from bkmonitor.utils.kubernetes import translate_timestamp_since
 from core.drf_resource import resource
 
 
+@pytest.mark.django_db(databases=["default", "monitor_api"])
 class TestGetKubernetesPod:
-    @pytest.mark.django_db
     def test_perform_request(self, add_bcs_cluster_item_for_update_and_delete, add_bcs_pods):
         params = {
             "bcs_cluster_id": "BCS-K8S-00000",
@@ -142,7 +142,6 @@ class TestGetKubernetesPod:
         ]
         assert actual == expect
 
-    @pytest.mark.django_db
     def test_perform_request_by_space_id(
         self,
         add_bcs_cluster_item_for_update_and_delete,

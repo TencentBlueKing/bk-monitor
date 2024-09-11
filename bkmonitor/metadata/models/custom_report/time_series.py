@@ -31,7 +31,9 @@ from metadata.models.constants import (
     BULK_CREATE_BATCH_SIZE,
     BULK_UPDATE_BATCH_SIZE,
     DB_DUPLICATE_ID,
+    DataIdCreatedFromSystem,
 )
+from metadata.models.data_source import DataSource
 from metadata.models.result_table import (
     ResultTable,
     ResultTableField,
@@ -441,6 +443,14 @@ class TimeSeriesGroup(CustomGroupBase):
         ]
 
     @property
+    def data_source(self):
+        """
+        返回一个结果表的数据源
+        :return: DataSource object
+        """
+        return DataSource.objects.get(bk_data_id=self.bk_data_id)
+
+    @property
     def metric_consul_path(self):
         return "{}/influxdb_metrics/{}/time_series_metric".format(config.CONSUL_PATH, self.bk_data_id)
 
@@ -491,7 +501,8 @@ class TimeSeriesGroup(CustomGroupBase):
         """
         # 从 bkdata 获取指标数据
         data = RedisTools.get_list(config.METADATA_RESULT_TABLE_WHITE_LIST)
-        if self.table_id in data:
+        # 默认开启单指标单表后，需要根据数据源的来源决定从哪里获取指标数据（redis/bkdata）
+        if self.table_id in data or self.data_source.created_from == DataIdCreatedFromSystem.BKDATA.value:
             return self.get_metric_from_bkdata()
 
         # 获取redis中数据
@@ -589,6 +600,7 @@ class TimeSeriesGroup(CustomGroupBase):
         metric_info_list=None,
         table_id=None,
         is_split_measurement=True,
+        is_builtin=False,
         default_storage_config=None,
         additional_options: Optional[dict] = None,
         data_label: Optional[str] = None,
@@ -603,6 +615,7 @@ class TimeSeriesGroup(CustomGroupBase):
         :param metric_info_list: metric列表
         :param table_id: 需要制定的table_id，否则通过默认规则创建得到
         :param is_split_measurement: 是否启动自动分表逻辑
+        :param is_builtin: 是否内置
         :param default_storage_config: 默认存储配置
         :param additional_options: 附带创建的 ResultTableOption
         :param data_label: 数据标签
@@ -617,6 +630,7 @@ class TimeSeriesGroup(CustomGroupBase):
             operator=operator,
             metric_info_list=metric_info_list,
             table_id=table_id,
+            is_builtin=is_builtin,
             is_split_measurement=is_split_measurement,
             default_storage_config=default_storage_config,
             additional_options=additional_options,

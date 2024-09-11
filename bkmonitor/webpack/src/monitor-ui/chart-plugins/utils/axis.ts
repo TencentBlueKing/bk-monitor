@@ -31,11 +31,16 @@
 export function getSeriesMaxInterval<T extends Array<{ datapoints: [number, number][] }>>(series: T) {
   let minX = Number.POSITIVE_INFINITY;
   let maxX = Number.NEGATIVE_INFINITY;
+  let maxLength = 0;
   for (const s of series) {
     minX = Math.min(minX, +s.datapoints.at(0)?.[1]);
     maxX = Math.max(maxX, +s.datapoints.at(-1)?.[1]);
+    maxLength = Math.max(maxLength, s.datapoints?.length);
   }
-  return maxX - minX;
+  return {
+    maxXInterval: maxX - minX,
+    maxSeriesCount: maxLength,
+  };
 }
 /**
  *
@@ -43,16 +48,18 @@ export function getSeriesMaxInterval<T extends Array<{ datapoints: [number, numb
  * @param width 图表宽度
  * @returns 适配于 echarts 中X轴关于限制ticks的设置
  */
-export function getTimeSeriesXInterval(maxXInterval: number, width: number) {
-  if (!maxXInterval || !width)
+export function getTimeSeriesXInterval(maxXInterval: number, width: number, maxSeriesCount: number) {
+  if (!maxXInterval || !width || maxSeriesCount < 3)
     return {
       max: 'dataMax',
       min: 'dataMin',
-      splitNumber: 5,
+      splitNumber: Math.min(maxSeriesCount < 3 ? maxSeriesCount : 5, 5),
     };
   const hasDayAndHour = maxXInterval > 60 * 60 * 24 * 1000 && maxXInterval < 60 * 60 * 24 * 6000;
   const labelWidth = hasDayAndHour ? 180 : 80;
-  const preInterval = Math.ceil(maxXInterval / Math.min(9, Math.ceil(width / labelWidth)));
+  const preInterval = Math.ceil(
+    maxXInterval / Math.min(Math.min(maxSeriesCount || 9, 9), Math.ceil(width / labelWidth))
+  );
   const interval = hasDayAndHour ? Math.max(preInterval, 60 * 60 * 24 * 1000) : preInterval;
   return {
     interval,

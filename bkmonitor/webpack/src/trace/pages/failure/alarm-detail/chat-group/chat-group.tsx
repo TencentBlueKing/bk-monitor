@@ -41,6 +41,7 @@ export default defineComponent({
     assignee: { type: Array, default: () => [] },
     alertIds: { type: Array, default: () => [] },
     bizId: { type: Array, default: () => [] },
+    type: { type: String, default: 'alarm'},
     data: {
       type: Object,
       default: () => ({}),
@@ -57,12 +58,18 @@ export default defineComponent({
       emit('showChange', v);
     };
 
+    const isAlarm = computed(() => {
+      return props.type === 'alarm'
+    });
+
     const bkUrl = computed(() => `${window.site_url}rest/v2/commons/user/list_users/`);
 
     const title = computed(() => {
-      return props.alertIds.length > 1
-        ? t('已经选择了{0}个告警事件,将通过企业微信将相关人员邀请到一个群里面进行讨论', [props.alertIds.length])
-        : t('已经选择了{0}告警事件,将通过企业微信将相关人员邀请到一个群里面进行讨论', [props.alarmEventName]);
+      const alarmTitle = props.alertIds.length > 1
+      ? t('已经选择了{0}个告警事件,将通过企业微信将相关人员邀请到一个群里面进行讨论', [props.alertIds.length])
+      : t('已经选择了{0}告警事件,将通过企业微信将相关人员邀请到一个群里面进行讨论', [props.alarmEventName]);;
+      const incidentTitle = t('将通过企业微信把当前故障相关人员邀请到一个群里面进行讨论', [props.alarmEventName]);
+      return isAlarm.value ? alarmTitle : incidentTitle;
     });
 
     watch(
@@ -74,6 +81,7 @@ export default defineComponent({
           } else {
             contentType.value = ['alarm_content'];
           }
+          console.log(props.assignee, 'props.assignee')
           localValue.value.splice(0, localValue.value.length, ...props.assignee);
         }
       }
@@ -118,6 +126,7 @@ export default defineComponent({
       isLoading,
       handleShowChange,
       handleConfirm,
+      isAlarm
     };
   },
   render() {
@@ -140,7 +149,7 @@ export default defineComponent({
                   modelValue={true}
                   disabled
                 >
-                  {this.$t('告警关注人')}
+                  {this.isAlarm ? this.$t('告警关注人') : this.$t('故障关注人')}
                 </Checkbox>
                 {/* <Checkbox value={this.isHandler}>{this.$t('告警处理人')}</Checkbox> */}
               </div>
@@ -151,9 +160,13 @@ export default defineComponent({
               />
               <div class='checkbox-group'>
                 <Checkbox.Group v-model={this.contentType}>
-                  <Checkbox label={'detail_url'}>{this.$t('告警事件链接')}</Checkbox>
-                  <Checkbox label={'alarm_content'}>{this.$t('告警事件内容')}</Checkbox>
-                  {/* <Checkbox value={''}>{this.$t('告警分析内容')}</Checkbox> */}
+                  {
+                    !this.isAlarm ? [<Checkbox label={'detail_url'}>{this.$t('故障链接')}</Checkbox>,
+                    <Checkbox label={'alarm_content'}>{this.$t('故障内告警')}</Checkbox>] : [
+                      <Checkbox label={'detail_url'}>{this.$t('告警事件链接')}</Checkbox>,
+                      <Checkbox label={'alarm_content'}>{this.$t('告警事件内容')}</Checkbox>
+                    ]
+                  }
                 </Checkbox.Group>
               </div>
             </div>,

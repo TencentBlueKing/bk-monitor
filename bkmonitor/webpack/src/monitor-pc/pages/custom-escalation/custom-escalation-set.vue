@@ -523,7 +523,7 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
       // 自定义指标
       result = await createCustomTimeSeries({ ...params, ...addParams }, { needMessage: false }).catch(err => ({
         time_series_group_id: '',
-        message: err.message,
+        message: err.error_details || err.message,
         code: err.code,
       }));
       this.handleToDetail(result.time_series_group_id);
@@ -536,7 +536,7 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
       // 名称报错
       this.rule.name = true;
       this.rule.nameTips = result.message;
-    } else if (!!result.code) {
+    } else if (result.code) {
       this.$bkMessage({ message: result.message, theme: 'error' });
     }
     this.disableSubmit = false;

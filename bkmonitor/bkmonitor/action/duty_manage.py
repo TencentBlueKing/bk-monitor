@@ -133,6 +133,13 @@ class DutyRuleManager:
 
         # end_date 为规则/快照的结束日期，包括这天
         self.end_date = self._calculate_end_date(duty_rule.get("end_time"), snap_end_time)
+        self._last_duty_plans = []
+
+    def get_last_duty_plans(self):
+        """
+        缓存上一次排班的结果
+        """
+        return self._last_duty_plans
 
     @staticmethod
     def _calculate_end_date(rule_end_time: typing.Optional[str], snap_end_time: typing.Optional[str]) -> datetime.date:
@@ -538,7 +545,7 @@ class DutyRuleManager:
         if begin_time > duty_rule["effective_time"] and is_handoff:
             duty_manager = cls(duty_rule, end_time=begin_time)
             # 排班会刷新 rule_snap 中 duty_time["begin_time"] 和 duty_arrange["last_user_index"]
-            duty_manager.get_duty_plan()
+            duty_manager._last_duty_plans = duty_manager.get_duty_plan()
             return duty_manager
         return None
 

@@ -274,8 +274,9 @@ export default defineComponent({
                         <div class='second panel'>
                           {this.hasData ? (
                             <div class='has-data-wrap'>
-                              {this.serviceList.map(item => (
+                              {this.serviceList.map((item, index) => (
                                 <div
+                                  key={index}
                                   class={{ 'group-item': true, active: item.name === this.selectValue.serviceName }}
                                   onClick={() => this.handleServiceClick(item)}
                                 >
@@ -308,14 +309,11 @@ export default defineComponent({
                                     )}
                                   </Form.FormItem>
                                 </Form>
-                                <div class='btn'>
-                                  <a
-                                    class='link'
-                                    target='_blank'
-                                    onClick={() => this.handleGotoLink('profiling_docs')}
-                                  >
-                                    {this.t('Profile 接入指引')}
-                                  </a>
+                                <div
+                                  class='btn'
+                                  onClick={() => this.handleGotoLink('profiling_docs')}
+                                >
+                                  <span class='link'>{this.t('Profile 接入指引')}</span>
                                   <i class='icon-monitor icon-fenxiang' />
                                 </div>
                                 <div

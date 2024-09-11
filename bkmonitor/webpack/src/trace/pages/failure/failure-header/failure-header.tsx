@@ -26,7 +26,6 @@
 
 import { type Ref, computed, defineComponent, inject, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
 
 import { Dialog, Form, Input, Loading, Message, Popover, Progress, Tag } from 'bkui-vue';
 import { editIncident, incidentAlertAggregate } from 'monitor-api/modules/incident';
@@ -48,7 +47,6 @@ export default defineComponent({
     const { t } = useI18n();
     const isShow = ref<boolean>(false);
     const isShowResolve = ref<boolean>(false);
-    const router = useRouter();
     const listLoading = ref(false);
     const alertAggregateData = ref<IAggregationRoot[]>([]);
     const alertAggregateTotal = ref(0);
@@ -85,6 +83,7 @@ export default defineComponent({
       assignee: [],
       alertIds: [],
     });
+    const editIncidenDialogRef = ref(null);
     const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
     const incidentDetailData: Ref<IIncident> = computed(() => {
       return incidentDetail.value;
@@ -94,6 +93,7 @@ export default defineComponent({
       incidentAlertAggregate({
         id: incidentId.value,
         aggregate_bys: [],
+        bk_biz_ids: [-1],
       })
         .then(res => {
           alertAggregateData.value = res;
@@ -106,10 +106,15 @@ export default defineComponent({
         .catch(err => {
           console.log(err);
         })
-        .finally(() => (listLoading.value = false));
+        .finally(() => {
+          listLoading.value = false;
+        });
     };
     const handleBack = () => {
-      router.go(-1);
+      const { bk_biz_id } = incidentDetail.value;
+      const { origin, pathname } = location;
+      const url = `${origin}${pathname}?bizId=${bk_biz_id}#/event-center?searchType=incident&activeFilterId=incident`;
+      window.location.href = url;
     };
     /** 一期先不展示 */
     // const tipsItem = (val: number) => (
@@ -128,10 +133,14 @@ export default defineComponent({
         <div class='header-status-tips'>
           <div class='tips-head'>
             {t('故障内的告警：共')}
-            <b> {total} </b> 个
+            <b> {total} </b>
+            {t('个')}
           </div>
           {list.map((item: any, ind: number) => (
-            <span class={['tips-item', { marked: ind === 0 }]}>
+            <span
+              key={item.name}
+              class={['tips-item', { marked: ind === 0 }]}
+            >
               {item.name}：<b>{item.count}</b> (<b>{Math.round((item.count / total) * 100) || 0}%</b>)
               {/* {ind === 0 && tipsItem(10)} */}
             </span>
@@ -177,23 +186,35 @@ export default defineComponent({
       );
     };
     const editIncidentHandle = (type = 'edit') => {
-      btnLoading.value = true;
-      const { id, incident_id } = incidentDetailData.value;
-      editIncident({ incident_reason: incidentReason.value, incident_id, id, status: 'closed' })
-        .then(() => {
-          Message({
-            theme: 'success',
-            message: t('标记成功'),
+      editIncidenDialogRef.value?.validate().then(() => {
+        btnLoading.value = true;
+        const { id, incident_id } = incidentDetailData.value;
+        editIncident({ incident_reason: incidentReason.value, incident_id, id, status: 'closed' })
+          .then(() => {
+            Message({
+              theme: 'success',
+              message: t('标记成功'),
+            });
+            if (type === 'resolve') {
+              isShowResolve.value = false;
+            } else {
+              isShow.value = false;
+            }
+            onEditSuccess();
+          })
+          .catch(() => {
+            if (type === 'resolve') {
+              isShowResolve.value = true;
+            } else {
+              isShow.value = true;
+            }
+          })
+          .finally(() => {
+            btnLoading.value = false;
           });
-          type === 'resolve' ? (isShowResolve.value = false) : (isShow.value = false);
-          onEditSuccess();
-        })
-        .catch(() => {
-          type === 'resolve' ? (isShowResolve.value = true) : (isShow.value = true);
-        })
-        .finally(() => (btnLoading.value = false));
+      });
     };
-    /** 标记已解决弹框 */
+    /** 标记已解决弹框  */
     const DialogFn = () => (
       <Dialog
         ext-cls='failure-edit-dialog'
@@ -204,9 +225,14 @@ export default defineComponent({
           editIncidentHandle('resolve');
         }}
       >
-        <Form form-type={'vertical'}>
+        <Form
+          ref='editIncidenDialogRef'
+          form-type={'vertical'}
+          model={{ incidentReason: incidentReason.value }}
+        >
           <Form.FormItem
             label={t('故障原因')}
+            property='incidentReason'
             required
           >
             <Input
@@ -283,6 +309,7 @@ export default defineComponent({
       chatGroupShowChange,
       currentData,
       handleChatGroup,
+      editIncidenDialogRef,
     };
   },
   render() {
@@ -297,7 +324,9 @@ export default defineComponent({
       if (!end_time) {
         this.showTime = this.convertTimestamp(begin_time * 1000, new Date().getTime());
         this.timer = setInterval(() => {
-          !!begin_time && (this.showTime = this.convertTimestamp(begin_time * 1000, new Date().getTime()));
+          if (begin_time) {
+            this.showTime = this.convertTimestamp(begin_time * 1000, new Date().getTime());
+          }
         }, 1000);
         return this.showTime;
       }
@@ -325,11 +354,13 @@ export default defineComponent({
                 {incident_name}
               </label>
               {(labels || []).map((item: any) => (
-                <Tag>{item.replace(/\//g, '')}</Tag>
+                <Tag key={item}>{item.replace(/\//g, '')}</Tag>
               ))}
               <span
                 class='info-edit'
-                onClick={() => (this.isShow = true)}
+                onClick={() => {
+                  this.isShow = true;
+                }}
               >
                 <i class='icon-monitor icon-bianji info-edit-icon' />
                 {this.t('编辑')}
@@ -339,7 +370,7 @@ export default defineComponent({
           <div class='header-status'>
             <div class='header-status-icon'>{this.renderStatusIcon(status)}</div>
             <span class='status-info'>
-              <span class='txt'>{status_alias}</span>
+              <span class='txt'>{this.t(`${status_alias}`)}</span>
               <span class='txt'>
                 {this.t('故障持续时间：')}
                 <b>{handleShowTime()}</b>
@@ -350,8 +381,9 @@ export default defineComponent({
             <div
               class={['header-btn', { disabled: isRecovered }]}
               v-bk-tooltips={{
-                content: this.t('故障已恢复，才可以标记已解决'),
+                content: status === 'abnormal' ? this.t('故障已恢复，才可以标记已解决') : this.t('故障已解决'),
                 disabled: !isRecovered,
+                placement: 'bottom',
               }}
               onClick={() => {
                 if (!isRecovered) {
@@ -374,7 +406,9 @@ export default defineComponent({
             levelList={this.levelList}
             visible={this.isShow}
             onEditSuccess={this.onEditSuccess}
-            onUpdate:isShow={(val: boolean) => (this.isShow = val)}
+            onUpdate:isShow={(val: boolean) => {
+              this.isShow = val;
+            }}
           />
           {this.DialogFn()}
         </div>
@@ -384,6 +418,7 @@ export default defineComponent({
           assignee={this.chatGroupDialog.assignee}
           data={this.incidentDetailData}
           show={this.chatGroupDialog.show}
+          type={'incident'}
           onShowChange={this.chatGroupShowChange}
         />
       </Loading>

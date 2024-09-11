@@ -106,7 +106,7 @@ export default defineComponent({
       () => {
         const { start, end, ...rest } = props.queryParams as IQueryParams;
         const allTrend = chartType.value === 'all'; // 根据类型构造图表配置
-        const type = allTrend ? 'bar' : 'bar';
+        const type = allTrend ? 'line' : 'bar';
         const targetApi = allTrend ? 'apm_profile.query' : 'apm_profile.queryProfileBarGraph';
         const targetData = {
           ...rest,

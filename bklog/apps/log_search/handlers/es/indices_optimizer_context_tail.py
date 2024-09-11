@@ -51,7 +51,8 @@ class IndicesOptimizerContextTail(object):
                     self._index = self.index_filter_context(dtEventTimeStamp, result_table_id_list)
                 elif search_type_tag == "tail" and dtEventTimeStamp:
                     self._index = self.index_filter_tail(result_table_id_list)
-            else:
+
+            if not self._index:
                 self._index = ",".join(result_table_id_list)
 
             if scenario_id in [Scenario.BKDATA, Scenario.LOG]:

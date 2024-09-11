@@ -84,6 +84,9 @@ export default defineComponent({
       return props.tagInfo || [];
     });
     const inputStatus = ref<string>('success');
+    const isErr = ref(false);
+    const selectRef = ref();
+    const trigger = ref('default')
     const handleBiz = (data: any) => {
       const list = JSON.parse(JSON.stringify(spaceFilter.value));
       spaceFilter.value.push(data.bk_biz_id);
@@ -96,6 +99,12 @@ export default defineComponent({
       () => tagInfoData.value,
       () => {
         handleBiz(tagInfoData.value);
+      }
+    );
+    watch(
+      () => isErr.value,
+      (val) => {
+        trigger.value = val ? 'manual' : 'default';
       }
     );
     watch(
@@ -113,8 +122,9 @@ export default defineComponent({
       const list = (window.space_list || []).filter(item => currentBizList.value.includes(item.bk_biz_id));
       return getSpaceList(list || []);
     });
-    const changeSpace = (space: string) => {
-      emit('changeSpace', space);
+    const changeSpace = (space: string) => {     
+      isErr.value = !space.length;
+      emit('changeSpace', space, isErr.value);
     };
     /* 整理space_list */
     const getSpaceList = spaceList => {
@@ -177,6 +187,9 @@ export default defineComponent({
       valueMap,
       spaceDataList,
       inputStatus,
+      isErr,
+      selectRef,
+      trigger
     };
   },
   render() {
@@ -184,8 +197,13 @@ export default defineComponent({
       <div class='failure-search-main'>
         <div class='main-top'>
           <Select
+            ref="selectRef"
             selected-style='checkbox'
-            class='main-select'
+            class={[
+              'main-select',
+              { error: this.isErr }
+            ]}
+            trigger={this.trigger}
             v-model={this.spaceFilter}
             clearable={false}
             inputSearch={false}
@@ -193,11 +211,14 @@ export default defineComponent({
             filterable
             multiple
             onChange={this.changeSpace}
+            onBlur={() => {
+              this.isErr && this.selectRef.showPopover();
+            }}
           >
-            {this.spaceDataList.map((item, ind) => (
+            {this.spaceDataList.map(item => (
               <Select.Option
                 id={item.id}
-                key={ind}
+                key={item.id}
                 class='main-select-item'
                 name={item.name}
               >
@@ -205,10 +226,10 @@ export default defineComponent({
                   <span class={['name', { disabled: !!item.noAuth && !item.hasData }]}>{item.name}</span>
                 </span>
                 <div class='space-tags'>
-                  {item.tags.map((tag, ind) =>
+                  {item.tags.map(tag =>
                     SPACE_TYPE_MAP[tag.id]?.name ? (
                       <Tag
-                        key={ind}
+                        key={tag.id}
                         style={{ ...SPACE_TYPE_MAP[tag.id]?.light }}
                         class='space-tags-item'
                       >

@@ -152,14 +152,16 @@ class AlertManager(BaseAlertProcessor):
             [Event(data=alert.top_event, do_clean=False) for alert in alerts]
         )
         active_alerts_mapping = {alert.dedupe_md5: alert.id for alert in active_alerts}
-        self.update_alert_cache(
+        update_count, finished_count = self.update_alert_cache(
             [
                 alert
                 for alert in alerts
                 if alert.dedupe_md5 not in active_alerts_mapping or active_alerts_mapping[alert.dedupe_md5] == alert.id
             ]
         )
+        self.logger.info("[alert.manager update alert cache]: updated(%s), finished(%s)", update_count, finished_count)
         # 4. 再把最新的内容刷回快照
-        self.update_alert_snapshot(alerts)
+        snapshot_count = self.update_alert_snapshot(alerts)
+        self.logger.info("[alert.manager update alert snapshot]: %s", snapshot_count)
 
         return alerts

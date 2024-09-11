@@ -110,15 +110,15 @@ export default class MonitorDataEmpty extends tsc<IProps> {
       },
     ].filter(item => item.show);
   }
-  mounted() {
-    if (!localStorage.getItem(`${this.$store.getters.userName}-strategy-config-set-tips`)) {
-      const timer = setTimeout(() => {
-        this.handleShowRemindTips();
-        localStorage.setItem(`${this.$store.getters.userName}-strategy-config-set-tips`, 'true');
-        clearTimeout(timer);
-      }, 1000);
-    }
-  }
+  // mounted() {
+  // if (!localStorage.getItem(`${this.$store.getters.userName}-strategy-config-set-tips`)) {
+  //   const timer = setTimeout(() => {
+  //     this.handleShowRemindTips();
+  //     localStorage.setItem(`${this.$store.getters.userName}-strategy-config-set-tips`, 'true');
+  //     clearTimeout(timer);
+  //   }, 1000);
+  // }
+  // }
   beforeDestroy() {
     if (this.tipsInstance) {
       this.tipsInstance.hide(0);
@@ -181,7 +181,7 @@ export default class MonitorDataEmpty extends tsc<IProps> {
             </li>
           ))}
         </ul>
-        <div style='display: none'>
+        {/* <div style='display: none'>
           <div
             ref='remindTips'
             class='remind-tips'
@@ -219,7 +219,7 @@ export default class MonitorDataEmpty extends tsc<IProps> {
               {this.$t('知道了!')}
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
     );
   }

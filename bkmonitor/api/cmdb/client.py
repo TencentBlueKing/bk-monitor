@@ -286,6 +286,24 @@ class FindTopoNodePaths(CMDBBaseResource):
     method = "POST"
 
 
+class SearchDynamicGroup(CMDBBaseResource):
+    """
+    查询动态分组列表
+    """
+
+    action = "search_dynamic_group"
+    method = "POST"
+
+
+class ExecuteDynamicGroup(CMDBBaseResource):
+    """
+    执行动态分组
+    """
+
+    action = "execute_dynamic_group"
+    method = "POST"
+
+
 search_set = SearchSet()
 search_module = SearchModule()
 list_biz_hosts_topo = ListBizHostsTopo()
@@ -307,3 +325,5 @@ find_host_by_service_template = FindHostByServiceTemplate()
 list_hosts_without_biz = ListHostsWithoutBiz()
 find_host_biz_relation = FindHostBizRelation()
 find_topo_node_paths = FindTopoNodePaths()
+search_dynamic_group = SearchDynamicGroup()
+execute_dynamic_group = ExecuteDynamicGroup()

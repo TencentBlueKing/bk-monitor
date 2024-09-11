@@ -23,7 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, computed, defineComponent, inject, onBeforeMount, onMounted, reactive, ref, watch } from 'vue';
+import {
+  type Ref,
+  computed,
+  defineComponent,
+  inject,
+  onBeforeMount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+  onUnmounted,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Exception, Loading, Message, Popover, Table } from 'bkui-vue';
@@ -143,7 +154,7 @@ export default defineComponent({
     const incidentDetailData = computed(() => {
       return incidentDetail.value;
     });
-    /** 一键拉群弹窗 */
+    /** 一键拉群弹窗  */
     const chatGroupDialog = reactive({
       show: false,
       alertName: '',
@@ -228,7 +239,7 @@ export default defineComponent({
     const chatGroupShowChange = (show: boolean) => {
       chatGroupDialog.show = show;
     };
-    const feedbackIncidentRootApi = (isCancel = false, data) => {
+    const feedbackIncidentRootApi = (isCancel, data) => {
       const { bk_biz_id } = data;
       const params = {
         id: incidentId.value,
@@ -295,7 +306,7 @@ export default defineComponent({
     const askTipMsg = (isAak, status, ackOperator) => {
       const statusNames = {
         RECOVERED: t('告警已恢复'),
-        CLOSED: t('告警已关闭'),
+        CLOSED: t('告警已失效'),
       };
       if (!isAak) {
         return statusNames[status];
@@ -564,7 +575,16 @@ export default defineComponent({
         </div>
       );
     };
-    const handleHideMoreOperate = () => {
+    const handleHideMoreOperate = (e?: Event) => {
+      if (!popoperOperateInstance.value) {
+        return;
+      }
+      if (e) {
+        const { classList } = e.target as HTMLElement;
+        if (classList.contains('icon-mc-more') || classList.contains('operate-more')) {
+          return;
+        }
+      }
       popoperOperateInstance.value.hide();
       popoperOperateInstance.value.close();
       popoperOperateInstance.value = null;
@@ -578,13 +598,13 @@ export default defineComponent({
           target: e.target,
           content: moreItems.value,
           arrow: false,
-          trigger: 'click',
+          trigger: 'manual',
           placement: 'bottom',
           theme: 'light common-monitor',
           width: 120,
           extCls: 'alarm-detail-table-more-popover',
           disabled: false,
-          isShow: false,
+          isShow: true,
           always: false,
           height: 'auto',
           maxWidth: '120',
@@ -592,7 +612,7 @@ export default defineComponent({
           allowHtml: false,
           renderType: 'auto',
           padding: 0,
-          offset: 20,
+          offset: 0,
           zIndex: 10,
           disableTeleport: false,
           autoPlacement: false,
@@ -605,8 +625,16 @@ export default defineComponent({
           forceClickoutside: false,
           immediate: false,
         });
+        popoperOperateInstance.value.install();
+        setTimeout(() => {
+          popoperOperateInstance.value?.vm?.show();
+        }, 100);
+      } else {
+        popoperOperateInstance.value.update(e.target, {
+          target: e.target,
+          content: moreItems.value,
+        });
       }
-      setTimeout(popoperOperateInstance.value.show, 100);
     };
     const handleLoadData = () => {
       // scrollLoading.value = true;
@@ -672,6 +700,11 @@ export default defineComponent({
     };
     onMounted(() => {
       props.searchValidate && handleGetTable();
+      document.body.addEventListener('click', handleHideMoreOperate);
+    });
+    onUnmounted(() => {
+      handleHideMoreOperate();
+      document.body.removeEventListener('click', handleHideMoreOperate);
     });
     const handleAlarmDispatchSuccess = () => {};
     const handleChangeCollapse = ({ id, isCollapse }) => {
@@ -698,9 +731,8 @@ export default defineComponent({
     watch(
       () => props.alertIdsObject,
       val => {
-        if (val) {
-          props.searchValidate && handleGetTable();
-        }
+        alertIdsData.value = val;
+        props.searchValidate && handleGetTable();
       },
       { deep: true }
     );
@@ -835,7 +867,9 @@ export default defineComponent({
                       settings={this.settings}
                       show-overflow-tooltip={true}
                       onRowMouseEnter={this.handleEnter}
-                      onRowMouseLeave={() => (this.hoverRowIndex = -1)}
+                      onRowMouseLeave={() => {
+                        this.hoverRowIndex = -1;
+                      }}
                       onSettingChange={this.handleSettingChange}
                       // onScrollBottom={this.handleLoadData}
                     />

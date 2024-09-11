@@ -45,7 +45,7 @@ export default defineComponent({
       default: () => [],
     },
   },
-  emits: ['chooseOperation'],
+  emits: ['chooseOperation', 'changeTab'],
   setup(props, { emit }) {
     const failureProcessListRef = ref<HTMLDivElement>();
     const renderStep = () => {};
@@ -53,8 +53,9 @@ export default defineComponent({
     const queryString = ref<string>('');
     const hidePopover = ref<boolean>(false);
     // const operations = ref([]);
-    const operations = inject<Ref>('operationsList');
+    const operationsList = inject<Ref>('operationsList');
     const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
+    const operationsLoading = inject<Ref<boolean>>('operationsLoading');
     const operationTypes = ref([]);
     const operationTypeMap = ref({});
     const checkedNodes = ref([]);
@@ -76,7 +77,10 @@ export default defineComponent({
       const result = select.filter(item => !filterSelect.find(filter => filter.id === item.id));
       checkedNodes.value = result.map(item => item.id);
     };
-    /** 前端搜索 */
+    const operations = computed(() => {
+      return operationsList.value;
+    });
+    /** 前端搜索  */
     const searchOperations = computed(() => {
       let result = operations.value;
       if (checkedNodes.value.length > 0) {
@@ -108,7 +112,9 @@ export default defineComponent({
               operationTypeMap.value[type.id] = type.name;
             });
             const isAddLineIndex = item.operation_types.findIndex(type => type.id.startsWith('alert'));
-            isAddLineIndex > 0 && (item.operation_types[isAddLineIndex - 1].isAddLine = true);
+            if (isAddLineIndex > 0) {
+              item.operation_types[isAddLineIndex - 1].isAddLine = true;
+            }
           });
           operationTypes.value = res;
           const defaultCheckNodeIds = [];
@@ -120,7 +126,9 @@ export default defineComponent({
         .catch(err => {
           console.log(err);
         })
-        .finally(() => (tableLoading.value = false));
+        .finally(() => {
+          tableLoading.value = false;
+        });
     };
     const handleClearSearch = () => {
       queryString.value = '';
@@ -153,6 +161,11 @@ export default defineComponent({
       getIncidentOperationTypes();
       // getIncidentOperations();
     });
+    const handleCallback = type => {
+      if (type === 'incident_create') {
+        emit('changeTab');
+      }
+    };
     return {
       queryString,
       operationTypeMap,
@@ -172,6 +185,8 @@ export default defineComponent({
       failureProcessListRef,
       incidentId,
       incidentDetail,
+      operationsLoading,
+      handleCallback,
     };
   },
   render() {
@@ -206,6 +221,7 @@ export default defineComponent({
                 <div class='failure-process-search-setting-tree'>
                   <Tree
                     checked={this.checkedNodes}
+                    // biome-ignore lint/correctness/noChildrenProp: <explanation>
                     children='operation_types'
                     data={this.operationTypes}
                     expand-all={true}
@@ -243,7 +259,7 @@ export default defineComponent({
             }}
           </Popover>
         </div>
-        <Loading loading={this.tableLoading}>
+        <Loading loading={this.operationsLoading || this.tableLoading}>
           {this.searchOperations.length ? (
             <ul
               ref='failureProcessListRef'
@@ -261,7 +277,7 @@ export default defineComponent({
                       <i
                         class={[
                           'icon-monitor item-icon',
-                          operation.operation_class !== 'system'
+                          operation.operation_class === 'system'
                             ? operation.operation_type.startsWith('alert')
                               ? 'icon-gaojing1'
                               : 'icon-mc-fault'
@@ -280,7 +296,8 @@ export default defineComponent({
                         {renderMap[operation.operation_type]?.(
                           operation,
                           this.incidentId,
-                          this.incidentDetail.bk_biz_id
+                          this.incidentDetail.bk_biz_id,
+                          () => this.handleCallback(operation.operation_type)
                         ) || '--'}
                       </p>
                     </div>

@@ -105,7 +105,7 @@ export const statusMap = {
 };
 
 export interface IContentsItem {
-  isExpan: boolean;
+  isExpand: boolean;
   is_label: boolean;
   label_name: string;
   successNum: number;

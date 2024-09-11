@@ -61,22 +61,22 @@ const feedbackRootAttrs = {
   },
 };
 /** 告警未恢复 */
-const notRestoredAttrs = {
-  groupAttrs: {
-    fill: '#F55555',
-    stroke: '#F55555',
-  },
-  rectAttrs: {
-    stroke: '#3A3B3D',
-    fill: '#F55555',
-  },
-  textAttrs: {
-    fill: '#fff',
-  },
-  textNameAttrs: {
-    fill: '#F55555',
-  },
-};
+// const notRestoredAttrs = {
+//   groupAttrs: {
+//     fill: '#F55555',
+//     stroke: '#F55555',
+//   },
+//   rectAttrs: {
+//     stroke: '#3A3B3D',
+//     fill: '#F55555',
+//   },
+//   textAttrs: {
+//     fill: '#fff',
+//   },
+//   textNameAttrs: {
+//     fill: '#F55555',
+//   },
+// };
 /** 异常节点 */
 const errorNodeAttrs = {
   groupAttrs: {
@@ -114,9 +114,9 @@ const normalNodeAttrs = {
 };
 /** 根据优先级返回 */
 export const getNodeAttrs = (node: ITopoNode): typeof normalNodeAttrs => {
-  if (node.entity?.is_on_alert) {
-    return { ...notRestoredAttrs };
-  }
+  // if (node.entity?.is_on_alert) {
+  //   return { ...notRestoredAttrs };
+  // }
   if (node.entity?.is_anomaly) {
     return { ...errorNodeAttrs };
   }
@@ -127,4 +127,29 @@ export const getNodeAttrs = (node: ITopoNode): typeof normalNodeAttrs => {
     return { ...rootNodeAttrs };
   }
   return { ...normalNodeAttrs };
+};
+
+/**
+ * 手动裁剪文本内容
+ * @param {string} text - 原始文本
+ * @param {number} maxWidth - 最大宽度
+ * @param {number} fontSize - 字体大小
+ * @param {string} fontFamily - 字体
+ * @returns {string} - 裁剪后的文本
+ */
+export const truncateText = (text, maxWidth, fontSize, fontFamily) => {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  context.font = `${fontSize}px ${fontFamily}`;
+
+  let width = context.measureText(text).width;
+  if (width <= maxWidth) return text;
+
+  let truncated = text;
+  while (width > maxWidth) {
+    truncated = truncated.slice(0, -1);
+    width = context.measureText(truncated).width;
+  }
+
+  return truncated;
 };

@@ -197,8 +197,8 @@ ACTION_TASK_CRONTAB = [
     # 分集群任务
     # 定期检测异常告警
     ("alarm_backends.service.alert.manager.tasks.check_abnormal_alert", "* * * * *", "cluster"),
-    # 定期关闭流控告警，避免与整点之类的任务并发，设置每12分钟执行一次
-    ("alarm_backends.service.alert.manager.tasks.check_blocked_alert", "*/12 * * * *", "cluster"),
+    # 定期关闭流控告警，避免与整点之类的任务并发，设置每小时执行一次
+    ("alarm_backends.service.alert.manager.tasks.check_blocked_alert", "40 */1 * * *", "cluster"),
     # 定期检测屏蔽策略，进行告警的屏蔽
     ("alarm_backends.service.converge.shield.tasks.check_and_send_shield_notice", "* * * * *", "cluster"),
     # 全局任务
@@ -242,6 +242,8 @@ DEFAULT_CRONTAB += [
     ("metadata.task.sync_space.sync_bkcc_space", "*/10 * * * *", "global"),
     ("metadata.task.sync_space.sync_bcs_space", "*/10 * * * *", "global"),
     ("metadata.task.sync_space.refresh_bcs_project_biz", "*/10 * * * *", "global"),
+    # 关联协议数据同步--cmdb_relation
+    ("metadata.task.sync_cmdb_relation.sync_relation_redis_data", "0 * * * *", "global"),
 ]
 # 耗时任务单独队列处理
 LONG_TASK_CRONTAB = [
@@ -274,6 +276,8 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.vm.check_access_vm_task", "0 2 * * *", "global"),
     # 自定义事件休眠检查，对长期没有数据的自定义事件进行休眠
     ("metadata.task.custom_report.check_custom_event_group_sleep", "0 4 * * *", "global"),
+    # ES 周期性任务 从report_cron 队列迁回 LONG_TASK_CRONTAB (周期调整 10-> 15min)
+    ("metadata.task.config_refresh.refresh_es_storage", "*/15 * * * *", "global"),
 ]
 
 # Timeout for image exporter service, default set to 10 seconds
@@ -481,7 +485,22 @@ CACHES = {
         "OPTIONS": {"MAX_ENTRIES": 100000, "CULL_FREQUENCY": 10},
     },
     "login_db": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "account_cache"},
-    "locmem": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    "locmem": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        'OPTIONS': {
+            'MAX_ENTRIES': 10000,
+            'CULL_FREQUENCY': 0,
+        },
+    },
+    "space": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "space",
+        'OPTIONS': {
+            # 5w空间支持
+            'MAX_ENTRIES': 50000,
+            'CULL_FREQUENCY': 0,
+        },
+    },
 }
 
 # django cache backend using redis

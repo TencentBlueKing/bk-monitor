@@ -70,41 +70,28 @@
           </span>
         </div>
       </bk-form-item>
-
-      <div class="setting-item">
-        <span class="left-word">{{ $t('忽略数字') }}</span>
-        <span style="color: #979ba5">{{ $t('前端忽略所有的数字') }}</span>
-      </div>
-      <div class="setting-item">
-        <span class="left-word">{{ $t('忽略字符') }}</span>
-        <span style="color: #979ba5">{{ $t('前端忽略数字和所有的常见符号，只保留日志具体内容') }}</span>
-      </div>
-      <div class="setting-item">
-        <span class="left-word">{{ $t('数据指纹') }}</span>
-        <div @click="handleChangeFinger">
-          <span
-            class="top-middle"
-            v-bk-tooltips="$t('暂时未开放聚类关闭功能，如有关闭需求，可联系平台管理员')"
-            :disabled="!isShowFingerTips"
-          >
-            <bk-switcher
-              class="left-word"
-              v-model="fingerSwitch"
-              :disabled="!globalEditable || configData.extra.signature_switch"
-              :pre-check="() => false"
-              data-test-id="LogCluster_div_isOpenSignature"
-              size="large"
-              theme="primary"
+      <bk-form-item :label="$t('是否启用')">
+        <div class="setting-item">
+          <div @click="handleChangeFinger">
+            <span
+              class="top-middle"
+              v-bk-tooltips="$t('暂时未开放聚类关闭功能，如有关闭需求，可联系平台管理员')"
+              :disabled="!isShowFingerTips"
             >
-            </bk-switcher>
-          </span>
+              <bk-switcher
+                class="left-word"
+                v-model="fingerSwitch"
+                :disabled="!globalEditable || fingerSwitch"
+                :pre-check="() => false"
+                data-test-id="LogCluster_div_isOpenSignature"
+                size="large"
+                theme="primary"
+              >
+              </bk-switcher>
+            </span>
+          </div>
         </div>
-        <bk-alert
-          style="width: 800px"
-          :title="$t('通过AI学习能力，提取日志的数据指纹实现日志聚类，注意训练时间越久效果越好，存储将增加10%')"
-          type="info"
-        ></bk-alert>
-      </div>
+      </bk-form-item>
 
       <!-- 字段长度 -->
       <div class="rule-container">
@@ -139,101 +126,14 @@
         </bk-form-item>
         <!-- 过滤规则 -->
         <div style="margin-bottom: 40px">
-          <p style="height: 32px">{{ $t('过滤规则') }}</p>
-          <div class="filter-rule">
-            <div
-              v-for="(item, index) of formData.filter_rules"
-              class="filter-rule filter-rule-item"
-              :key="index"
-            >
-              <bk-select
-                v-if="formData.filter_rules.length !== 0 && index !== 0 && item.fields_name !== ''"
-                class="icon-box and-or mr-neg1"
-                v-model="item.logic_operator"
-                :clearable="false"
-                :disabled="!globalEditable"
-              >
-                <bk-option
-                  v-for="option in comparedList"
-                  :id="option.id"
-                  :key="option.id"
-                  :name="option.name"
-                >
-                </bk-option>
-              </bk-select>
-
-              <bk-select
-                v-if="!isCloseSelect"
-                v-model="item.fields_name"
-                :class="['min-100 mr-neg1 above', item.fields_name === '' && isFieldsError ? 'rule-error' : '']"
-                :clearable="false"
-                :disabled="!globalEditable"
-                :popover-min-width="150"
-                searchable
-                @blur="blurFilter"
-                @selected="fieldsName => handleFieldChange(fieldsName, index)"
-              >
-                <bk-option
-                  v-for="option in filterSelectList"
-                  :id="option.id"
-                  :key="option.id"
-                  :name="option.name"
-                >
-                </bk-option>
-                <template #extension>
-                  <div
-                    style="cursor: pointer"
-                    @click="handleDeleteSelect(index)"
-                  >
-                    <i class="bk-icon icon-close-circle"></i>{{ $t('删除') }}
-                  </div>
-                </template>
-              </bk-select>
-
-              <bk-select
-                v-if="item.fields_name !== ''"
-                style="color: #3a84ff"
-                class="icon-box mr-neg1"
-                v-model="item.op"
-                :clearable="false"
-                :disabled="!globalEditable"
-                :popover-min-width="100"
-              >
-                <bk-option
-                  v-for="option in conditionList"
-                  :id="option.id"
-                  :key="option.id"
-                  :name="option.name"
-                >
-                </bk-option>
-              </bk-select>
-
-              <div @click="handleInputTag(index)">
-                <bk-tag-input
-                  v-if="item.fields_name !== ''"
-                  v-model="item.value"
-                  :class="['mr-neg1 min-100 above', !item.value.length && isFilterRuleError ? 'rule-error' : '']"
-                  :content-width="232"
-                  :list="item.valueList"
-                  :max-data="1"
-                  :placeholder="$t('请输入')"
-                  trigger="focus"
-                  allow-auto-match
-                  allow-create
-                  @blur="handleValueBlur"
-                >
-                </bk-tag-input>
-              </div>
-            </div>
-            <button
-              v-if="isShowAddFilterIcon"
-              class="icon-box"
-              :disabled="!globalEditable"
-              @click="addFilterRule"
-            >
-              <i class="bk-icon icon-plus-line"></i>
-            </button>
-          </div>
+          <p style="height: 24px; font-size: 12px">{{ $t('过滤规则') }}</p>
+          <FilterRule
+            ref="filterRuleRef"
+            v-model="formData.filter_rules"
+            :total-fields="totalFields"
+            :date-picker-value="datePickerValue"
+            :retrieve-params="retrieveParams"
+          ></FilterRule>
         </div>
         <!-- 聚类规则 -->
         <rule-table
@@ -244,30 +144,29 @@
           :global-editable="globalEditable"
           :table-str="defaultData.predefined_varibles"
         />
-
-        <bk-form-item>
-          <bk-button
-            :disabled="!globalEditable"
-            :loading="isHandle"
-            :title="$t('保存')"
-            data-test-id="LogCluster_button_submit"
-            theme="primary"
-            @click.stop.prevent="handleSubmit"
-          >
-            {{ $t('保存') }}
-          </bk-button>
-          <bk-button
-            style="margin-left: 8px"
-            :disabled="!globalEditable"
-            :title="$t('重置')"
-            data-test-id="LogCluster_button_reset"
-            @click="resetPage"
-          >
-            {{ $t('重置') }}
-          </bk-button>
-        </bk-form-item>
       </div>
     </bk-form>
+    <div class="submit-div">
+      <bk-button
+        :disabled="!globalEditable"
+        :loading="isHandle"
+        :title="$t('保存')"
+        data-test-id="LogCluster_button_submit"
+        theme="primary"
+        @click.stop.prevent="handleSubmit"
+      >
+        {{ $t('保存') }}
+      </bk-button>
+      <bk-button
+        style="margin-left: 8px"
+        :disabled="!globalEditable"
+        :title="$t('重置')"
+        data-test-id="LogCluster_button_reset"
+        @click="resetPage"
+      >
+        {{ $t('重置') }}
+      </bk-button>
+    </div>
     <!-- 保存dialog -->
     <bk-dialog
       width="360"
@@ -279,11 +178,11 @@
     >
       <div class="submit-dialog-container">
         <p class="submit-dialog-title">{{ $t('保存待生效') }}</p>
-        <p class="submit-dialog-text">{{ $t('该保存需要1小时生效,请耐心等待') }}</p>
+        <p class="submit-dialog-text">{{ $t('该保存需要10分钟生效, 请耐心等待') }}</p>
         <bk-button
           class="submit-dialog-btn"
           theme="primary"
-          @click="isShowSubmitDialog = false"
+          @click="closeKnowDialog"
         >
           {{ $t('我知道了') }}</bk-button
         >
@@ -293,14 +192,13 @@
 </template>
 
 <script>
-  import { formatDate } from '@/common/util';
-
-  import { handleTransformToTimestamp } from '../../../components/time-range/utils';
   import RuleTable from './rule-table';
+  import FilterRule from '../result-table-panel/log-clustering/components/quick-open-cluster-step/filter-rule';
 
   export default {
     components: {
       RuleTable,
+      FilterRule,
     },
     props: {
       globalEditable: {
@@ -341,7 +239,6 @@
         isShowAddFilterIcon: true, // 是否显示过滤规则增加按钮
         isShowSubmitDialog: false, // 是否展开保存弹窗
         isHandle: false, // 保存loading
-        filterSelectList: [], // 过滤条件选项
         isFilterRuleError: false, // 过滤规则未填警告
         isFieldsError: false, // 未选过滤条件字段警告
         isCloseSelect: false, // 过滤规则下拉框隐藏
@@ -361,49 +258,16 @@
           ],
         },
         formData: {
-          min_members: 0, // 最小日志数量
           max_dist_list: '', // 敏感度
           predefined_varibles: '', //	预先定义的正则表达式
-          delimeter: '', // 分词符
           max_log_length: 1, // 最大日志长度
-          is_case_sensitive: 1, // 是否大小写忽略
           clustering_fields: '', // 聚类字段
           filter_rules: [], // 过滤规则
           signature_enable: false,
         },
-        conditionList: [
-          // 过滤条件对比
-          { id: '=', name: '=' },
-          { id: '!=', name: '!=' },
-          { id: 'LIKE', name: 'LIKE' },
-          { id: 'NOT LIKE', name: 'NOT LIKE' },
-        ],
-        comparedList: [
-          { id: 'and', name: 'AND' },
-          { id: 'or', name: 'OR' },
-        ],
-        operateIndex: 0, // 赋值过滤字段的操作的当前下标
         isShowFingerTips: false,
         isActive: false,
       };
-    },
-    watch: {
-      'formData.filter_rules': {
-        deep: true,
-        handler(val) {
-          if (val.length === 0) {
-            this.isShowAddFilterIcon = true;
-            return;
-          }
-          if ((val.slice(-1)[0].fields_name !== '' && val.length === 1) || val.slice(-1)[0].value.length > 0) {
-            this.isShowAddFilterIcon = true;
-          }
-          if (val.slice(-1)[0].fields_name === '') {
-            this.isShowAddFilterIcon = false;
-          }
-          this.isFilterRuleError = false;
-        },
-      },
     },
     mounted() {
       this.initList();
@@ -423,13 +287,9 @@
           const requestUrl = `${baseUrl}${requestBehindUrl}`;
           const res = await this.$http.request(requestUrl, !isDefault && { params, data });
           const {
-            collector_config_name_en: collectorConfigNameEn,
-            min_members,
             max_dist_list,
             predefined_varibles,
-            delimeter,
             max_log_length,
-            is_case_sensitive,
             clustering_fields,
             filter_rules: filterRules,
           } = res.data;
@@ -439,13 +299,9 @@
             value: [item.value],
           }));
           const assignObj = {
-            collector_config_name_en: collectorConfigNameEn || '',
-            min_members,
             max_dist_list,
             predefined_varibles,
-            delimeter,
             max_log_length,
-            is_case_sensitive,
             clustering_fields,
             filter_rules: newFilterRules || [],
           };
@@ -454,10 +310,6 @@
           // 当前回填的字段如果在聚类字段列表里找不到则赋值为空需要用户重新赋值
           const isHaveFieldsItem = this.clusterField.find(item => item.id === res.data.clustering_fields);
           if (!isHaveFieldsItem) this.formData.clustering_fields = '';
-          this.$nextTick(() => {
-            const requestFields = this.fieldsKeyStrList();
-            this.queryValueList(requestFields);
-          });
         } catch (e) {
           console.warn(e);
         } finally {
@@ -471,8 +323,8 @@
           extra: { collector_config_id: configID },
         } = this.cleanConfig;
         this.configID = configID;
-        this.fingerSwitch = extra.signature_switch;
-        this.isShowFingerTips = extra.signature_switch;
+        this.fingerSwitch = true;
+        this.isShowFingerTips = true;
         this.formData.clustering_fields = extra.clustering_fields;
         this.clusterField = this.totalFields
           .filter(item => item.is_analyzed)
@@ -480,16 +332,8 @@
             const { field_name: id, field_alias: alias } = el;
             return { id, name: alias ? `${id}(${alias})` : id };
           });
-        this.filterSelectList = this.totalFields
-          .filter(item => !/^__dist/.test(item.field_name) && item.field_type !== '__virtual__')
-          .map(el => {
-            const { field_name: id, field_alias: alias } = el;
-            return { id, name: alias ? `${id}(${alias})` : id };
-          });
         // 日志聚类且数据指纹同时打开则不请求默认值
-        if (isActive) {
-          this.requestCluster(false);
-        }
+        this.requestCluster(false);
       },
       /**
        * @desc: 数据指纹开关
@@ -523,31 +367,15 @@
           this.requestCluster(true);
         }
       },
-      addFilterRule() {
-        this.formData.filter_rules.push({
-          fields_name: '', // 过滤规则字段名
-          op: '=', // 过滤规则操作符号
-          value: [], // 过滤规则字段值
-          logic_operator: 'and',
-          valueList: [],
-        });
-      },
-      blurFilter() {
-        if (this.formData.filter_rules?.length > 0) {
-          this.isFilterRuleError = this.formData.filter_rules.some(el => !el.value.length);
-          this.isFieldsError = this.formData.filter_rules.some(el => el.fields_name === '');
-        }
-      },
-      handleSubmit() {
-        this.blurFilter();
+      async handleSubmit() {
+        const isRulePass = await this.$refs.filterRuleRef.handleCheckRuleValidate();
+        if (!isRulePass) return;
         this.$refs.validateForm.validate().then(
           () => {
             if (this.isFilterRuleError || this.isFieldsError) return;
             this.isHandle = true;
             const { index_set_id, bk_biz_id } = this.indexSetItem;
             const {
-              collector_config_name_en,
-              min_members,
               max_dist_list,
               predefined_varibles,
               delimeter,
@@ -557,8 +385,6 @@
               filter_rules,
             } = this.formData;
             const paramsData = {
-              collector_config_name_en,
-              min_members,
               max_dist_list,
               predefined_varibles,
               delimeter,
@@ -577,7 +403,7 @@
               value: item.value?.length ? item.value[0] : '',
             }));
             this.$http
-              .request('/logClustering/changeConfig', {
+              .request('retrieve/updateClusteringConfig', {
                 params: {
                   index_set_id,
                 },
@@ -590,7 +416,6 @@
                 },
               })
               .then(() => {
-                this.$emit('update-log-fields');
                 this.isShowSubmitDialog = true;
               })
               .finally(() => {
@@ -600,71 +425,12 @@
           () => {},
         );
       },
-      // 字段改变
-      handleFieldChange(fieldName, index) {
-        const field = this.totalFields.find(item => item.field_name === fieldName) ?? {};
-        Object.assign(this.formData.filter_rules[index], {
-          ...field,
-          value: [],
-        });
-        const requestFields = this.fieldsKeyStrList();
-        this.queryValueList(requestFields);
-      },
-      async queryValueList(fields = []) {
-        if (!fields.length) return;
-        const tempList = handleTransformToTimestamp(this.datePickerValue);
-        try {
-          const res = await this.$http.request('retrieve/getAggsTerms', {
-            params: {
-              index_set_id: this.$route.params.indexId,
-            },
-            data: {
-              keyword: this.retrieveParams?.keyword ?? '*',
-              fields,
-              start_time: formatDate(tempList[0] * 1000),
-              end_time: formatDate(tempList[1] * 1000),
-            },
-          });
-          this.formData.filter_rules.forEach(item => {
-            item.valueList =
-              res.data.aggs_items[item.fields_name]?.map(item => ({
-                id: item.toString(),
-                name: item.toString(),
-              })) ?? [];
-          });
-        } catch (err) {
-          this.formData.filter_rules.forEach(item => (item.valueList = []));
-        }
-      },
-      fieldsKeyStrList() {
-        const fieldsStrList = this.formData.filter_rules
-          .filter(item => item.field_type !== 'text' && item.es_doc_values)
-          .map(item => item.fields_name);
-        return Array.from(new Set(fieldsStrList));
-      },
-      /**
-       * @desc: 赋值过滤字段的下标
-       * @param { Number } index 下标
-       */
-      handleInputTag(index) {
-        this.operateIndex = index;
-      },
-      handleValueBlur(val) {
-        const operateItem = this.formData.filter_rules[this.operateIndex];
-        if (!operateItem.value.length && val !== '') {
-          operateItem.value.push(val);
-        }
-      },
-      handleDeleteSelect(index) {
-        this.formData.filter_rules.splice(index, 1);
-        this.isCloseSelect = true;
-        // 删除非最后一条过滤规则时隐藏下拉框
-        this.$nextTick(() => {
-          this.isCloseSelect = false;
-        });
-      },
       resetPage() {
         this.$emit('reset-page');
+      },
+      closeKnowDialog() {
+        this.isShowSubmitDialog = false;
+        this.$emit('update-log-fields');
       },
     },
   };
@@ -672,19 +438,17 @@
 
 <style lang="scss" scoped>
   .setting-log-cluster {
+    position: relative;
     padding: 0 20px;
+
+    .rule-container {
+      margin-top: 16px;
+    }
 
     .setting-item {
       display: flex;
       align-items: center;
       margin-bottom: 25px;
-
-      .left-word {
-        flex-shrink: 0;
-        margin-right: 16px;
-        font-size: 14px;
-        font-weight: 700;
-      }
 
       .bk-icon {
         margin-left: 8px;
@@ -693,77 +457,11 @@
       }
     }
 
-    .filter-rule {
-      display: flex;
-      flex-wrap: wrap;
-
-      .icon-box {
-        min-width: 32px;
-        height: 32px;
-        font-size: 14px;
-        line-height: 28px;
-        text-align: center;
-        cursor: pointer;
-        background: #fff;
-        border: 1px solid #c4c6cc;
-
-        :deep(.bk-select-name) {
-          /* stylelint-disable-next-line declaration-no-important */
-          padding: 0 !important;
-        }
-
-        .icon-plus-line {
-          color: #3a84ff;
-        }
-      }
-    }
-
-    .filter-rule-item {
-      margin-bottom: 6px;
-
-      :deep(.bk-select-angle) {
-        display: none;
-      }
-
-      :deep(.bk-select) {
-        border-radius: 0;
-      }
-
-      :deep(.bk-form-control) {
-        width: 140px;
-        border-radius: 0;
-      }
-
-      .and-or {
-        min-width: 62px;
-        font-size: 12px;
-        color: #ff9c01;
-      }
-
-      .min-100 {
-        min-width: 100px;
-        max-height: 32px;
-      }
-
-      .mr-neg1 {
-        position: relative;
-        margin-right: -1px;
-      }
-
-      .above {
-        z-index: 99;
-      }
-    }
-
-    .rule-error {
-      :deep(.bk-tag-input) {
-        border-color: #ff5656;
-      }
-
-      &.bk-select {
-        /* stylelint-disable-next-line declaration-no-important */
-        border-color: #ff5656 !important;
-      }
+    .submit-div {
+      position: sticky;
+      bottom: 0;
+      padding: 10px 0 50px;
+      background: #fff;
     }
   }
 

@@ -96,6 +96,16 @@ export default defineComponent({
         aggregateBys.value.push(key);
       }
     };
+    const treeStatus = ref(true);
+    watch(
+      () => props.topoNodeId,
+      () => {
+        treeStatus.value = false;
+        setTimeout(() => {
+          treeStatus.value = true;
+        }, 1);
+      }
+    );
     watch(
       () => props.username,
       () => {
@@ -106,9 +116,9 @@ export default defineComponent({
       <div class='handle-search-top'>
         <FilterSearchMain
           tagInfo={props.tagInfo}
-          onChangeSpace={(val: number[]) => {
+          onChangeSpace={(val: number[], isErr: boolean) => {
             bkBizIds.value = val;
-            getIncidentAlertAggregate();
+            !isErr && getIncidentAlertAggregate();
             emit('changeSpace', bkBizIds.value);
           }}
           onSearch={(val: string, validate: boolean) => {
@@ -218,6 +228,9 @@ export default defineComponent({
     };
     const nodeClick = item => {
       if (item.level_name !== 'status') {
+        selectedNode.value = item;
+        console.log(item, '===');
+        console.log(selectedNode.value, 'selectedNode.value');
         emit('nodeClick', item);
       }
     };
@@ -305,9 +318,9 @@ export default defineComponent({
     };
     const showName = () => {
       if (['all', window.user_name, window.username].includes(props.username.id)) {
-        return `${props.username.name}的告警`;
+        return `${props.username.name}${t('的告警')}`;
       }
-      return `${props.username.name}处理的告警`;
+      return `${props.username.name}${t('处理的告警')}`;
     };
     const scrollChange = e => {
       const scrollTop = e.target?.scrollTop;
@@ -336,6 +349,7 @@ export default defineComponent({
       cancelFilter,
       showName,
       treeRef,
+      treeStatus,
     };
   },
   render() {
@@ -386,7 +400,7 @@ export default defineComponent({
               ref='treeRef'
               class='search-tree'
             >
-              {this.treeFn()}
+              {this.treeStatus && this.treeFn()}
             </div>
           </Loading>
         </div>

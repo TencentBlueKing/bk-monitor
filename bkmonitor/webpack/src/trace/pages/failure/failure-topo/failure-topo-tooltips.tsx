@@ -24,19 +24,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, getCurrentInstance, ref, watch } from 'vue';
+import { type PropType, defineComponent, getCurrentInstance, ref, watch, inject, type Ref } from 'vue';
 
 import { OverflowTitle, Popover } from 'bkui-vue';
+import { Message } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { copyText } from 'monitor-common/utils/utils';
 import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import { NODE_TYPE_ICON } from './node-type-svg';
-import { getNodeAttrs } from './utils';
+import { getNodeAttrs, truncateText } from './utils';
 
 import type { IEdge, ITopoNode } from './types';
 
 import './failure-topo-tooltips.scss';
-
+const { i18n } = window;
 type PopoverInstance = {
   show?: () => void;
   hide?: () => void;
@@ -66,15 +68,16 @@ export default defineComponent({
   },
   emits: ['viewResource', 'FeedBack', 'toDetail', 'toDetailSlider', 'toDetailTab'],
   setup(props, { emit }) {
+    const bkzIds = inject<Ref<string[]>>('bkzIds');
     /** 当前点击的线和边 */
     const activeEdge = ref(null);
     const activeNode = ref(null);
     const popover = ref<HTMLDivElement>();
-    /** 线存在变化则重置边的图表 */
+    /** 线存在变化或者type变化为edge时，重置边的图表 */
     watch(
-      () => props.edge,
-      () => {
-        activeEdge.value = props.edge || {};
+      () => ({ edge: props.edge, type: props.type }),
+      ({ edge, type }) => {
+        activeEdge.value = edge || {};
         if (leftChart) {
           leftChart.dispose();
           leftChart = null;
@@ -83,7 +86,7 @@ export default defineComponent({
           rightChart.dispose();
           rightChart = null;
         }
-        if (props.type === 'edge' && !props.edge.aggregated) {
+        if (type === 'edge' && !edge.aggregated) {
           setTimeout(renderChart, 300);
         }
       }
@@ -245,30 +248,73 @@ export default defineComponent({
     const handleToDetail = node => {
       emit('toDetail', node);
     };
+
+    /** 不同类型的路由跳转逻辑处理 */
+    const typeToLinkHandle = {
+      BcsPod: {
+        path: () => '/k8s',
+        beforeJumpVerify: () => true,
+        query: node => ({
+          dashboardId: 'pod',
+          sceneId: 'kubernetes',
+          sceneType: 'detail',
+          queryData: JSON.stringify({
+            page: 1,
+            selectorSearch: [
+              {
+                keyword: node.entity?.dimensions?.pod_name ?? '',
+              },
+            ],
+          }),
+          'filter-pod_name': node.entity?.dimensions?.pod_name ?? '',
+          'filter-namespace': node.entity?.dimensions?.namespace ?? '',
+          'filter-bcs_cluster_id': node.entity?.dimensions?.cluster_id ?? '',
+        }),
+      },
+      BkNodeHost: {
+        path: node => `/performance/detail/${node.entity?.dimensions?.bk_host_id}`,
+        beforeJumpVerify: node => !!node.entity?.dimensions?.bk_host_id,
+        query: node => ({
+          'filter-bk_host_id': node.entity?.dimensions?.bk_host_id ?? '',
+          'filter-bk_target_cloud_id': node.entity?.dimensions?.bk_cloud_id ?? '',
+          'filter-bk_target_ip': node.entity?.dimensions?.inner_ip ?? '',
+        }),
+      },
+    };
+
+    /** 根据类型判断是否可以跳转 */
+    function canJumpByType(node) {
+      const type = node.entity.entity_type;
+      // @ts-ignore
+      if (!(Object.hasOwn(typeToLinkHandle, type) && !!typeToLinkHandle[type])) {
+        return false;
+      }
+      return typeToLinkHandle[type].beforeJumpVerify(node);
+    }
+
     /** 跳转pod页面 */
     const handleToLink = node => {
-      if (node.entity.entity_type !== 'BcsPod') return;
-      const query = {
-        dashboardId: 'pod',
-        sceneId: 'kubernetes',
-        sceneType: 'detail',
-        queryData: JSON.stringify({
-          page: 1,
-          selectorSearch: [
-            {
-              keyword: node.entity?.dimensions?.pod_name ?? '',
-            },
-          ],
-        }),
-        'filter-pod_name': node.entity?.dimensions?.pod_name ?? '',
-        'filter-namespace': node.entity?.dimensions?.namespace ?? '',
-        'filter-bcs_cluster_id': node.entity?.dimensions?.cluster_id ?? '',
-      };
-      let queryString = '';
-      Object.keys(query).forEach(key => {
-        queryString += `${key}=${query[key]}&`;
+      // console.log(node, '.....');
+      if (!canJumpByType(node)) return;
+      const timestamp = new Date().getTime();
+      const linkHandleByType = typeToLinkHandle[node.entity.entity_type];
+      const query = linkHandleByType?.query(node);
+      const queryString = Object.keys(query)
+        .map(key => `${key}=${query[key]}`)
+        .join('&');
+
+      const { origin, pathname } = window.location;
+      // 使用原始 URL 的协议、主机名和路径部分构建新的 URL
+      const baseUrl = bkzIds.value[0] ? `${origin}${pathname}?bizId=${bkzIds.value[0]}` : '';
+      window.open(`${baseUrl}#${linkHandleByType?.path(node)}?${queryString.toString()}`, timestamp.toString());
+    };
+    /** 拷贝操作 */
+    const handleCopy = (text: string) => {
+      copyText(text);
+      Message({
+        theme: 'success',
+        message: i18n.t('复制成功'),
       });
-      window.open(`#/k8s?${queryString}`, '__blank');
     };
     /** 详情侧滑 */
     const goDetailSlider = node => {
@@ -283,12 +329,14 @@ export default defineComponent({
       activeNode,
       hide,
       activeEdge,
+      canJumpByType,
       handleAfterHidden,
       handleShowNodeTips,
       handleToDetail,
       handleViewResource,
       handleFeedBack,
       handleToLink,
+      handleCopy,
       goDetailSlider,
       goDetailTab,
     };
@@ -296,19 +344,29 @@ export default defineComponent({
   render() {
     if (!this.model) return undefined;
     const { aggregated_nodes } = this.model;
-    /** 创建边的node展示 */
+    /** 创建边的node展示  */
     const createEdgeNodeItem = (node: ITopoNode) => {
       return [
-        <div class='node-source-wrap'>
+        <div
+          key={`${node?.entity?.entity_id}-${node?.entity?.entity_name}`}
+          class='node-source-wrap'
+        >
           <div
             class={[
               'node-source',
               node?.entity?.is_anomaly && 'node-source-anomaly',
               node?.entity?.is_on_alert && 'node-source-alert',
+              node?.alert_all_recorved && 'node-source-alert-recorved',
             ]}
           >
             <span class='node-item'>
               <span>
+                {(node?.entity?.is_on_alert || node?.alert_all_recorved) && (
+                  <span class='alert-wrap'>
+                    <i class='icon-monitor icon-menu-event' />
+                  </span>
+                )}
+
                 <i
                   style={{ color: '#fff' }}
                   class={[
@@ -322,12 +380,13 @@ export default defineComponent({
               </span>
             </span>
             {node?.entity?.entity_type}(
-            <span
+            <OverflowTitle
+              key={node?.entity?.entity_id}
               class='node-name'
-              onClick={this.handleToLink.bind(this, node)}
+              type='tips'
             >
-              {node?.entity?.entity_name || '--'}
-            </span>
+              <span onClick={this.handleToLink.bind(this, node)}>{node?.entity?.entity_name || '--'}</span>
+            </OverflowTitle>
             ）
           </div>
         </div>,
@@ -403,6 +462,7 @@ export default defineComponent({
     };
     /** 边的tips详情 */
     const createEdgeToolTip = (nodes: ITopoNode[]) => {
+      // console.log(this.activeEdge, '....');
       const linkMap: { direction_0?: IEdge; direction_1?: IEdge } = {};
       /** 最多展示2个，分别在线的左右两侧 */
       const { events } = this.activeEdge;
@@ -413,6 +473,7 @@ export default defineComponent({
       });
       return [
         <div
+          key={`edge-tooltip-${this.activeEdge.id}`}
           class={[
             'edge-tooltip-content',
             this.activeEdge.edge_type !== 'ebpf_call' && 'dependency-tooltip-content',
@@ -517,18 +578,20 @@ export default defineComponent({
                     {isEdge
                       ? [
                           <span
+                            key={`${node.id}-edge`}
                             class={[
                               'item-edge',
                               edge_type === 'ebpf_call' && 'call-edge',
                               node.is_anomaly && 'anomaly-edge',
                             ]}
                           />,
-                          <span>
+                          <span key={`${node.id}-edge-text`}>
                             {`${node.source_type} ${node.source_name}`}-{`${node.target_type} ${node.target_name}`}
                           </span>,
                         ]
                       : [
                           <span
+                            key={`${node.id}-edge-icon-source`}
                             style={{ backgroundColor: groupAttrs.fill, border: `1px solid ${groupAttrs.stroke}` }}
                             class='item-source'
                           >
@@ -544,7 +607,7 @@ export default defineComponent({
                               ]}
                             />
                           </span>,
-                          <span>{node?.entity?.entity_name}</span>,
+                          <span key={`${node.id}-edge-name`}>{node?.entity?.entity_name}</span>,
                         ]}
                   </span>
                   <i class='icon-monitor icon-arrow-right' />
@@ -617,11 +680,18 @@ export default defineComponent({
             </span>
             <OverflowTitle
               key={node?.entity?.entity_id}
-              class={['header-name', node?.entity?.entity_type === 'BcsPod' && 'header-pod-name']}
+              class={['header-name', this.canJumpByType(node) && 'header-pod-name']}
               type='tips'
             >
               <span onClick={this.handleToLink.bind(this, node)}>{node?.entity?.entity_name}</span>
             </OverflowTitle>
+            <span
+              class='icon-btn'
+              onClick={this.handleCopy.bind(this, node?.entity?.entity_name)}
+            >
+              <i class={['icon-monitor', 'btn-icon', 'icon-mc-copy-fill']} />
+              {this.$t('复制')}
+            </span>
             {isShowRootText && (
               <span
                 style={{
@@ -629,20 +699,21 @@ export default defineComponent({
                 }}
                 class='root-mark'
               >
-                {this.$t('根因')}
+                {truncateText(this.$t('根因'), 28, 11, 'PingFangSC-Medium')}
               </span>
             )}
             {this.showViewResource &&
               createCommonIconBtn(
-                this.$t('查看资源'),
+                this.$t('查看从属'),
                 {
-                  marginLeft: 'auto',
+                  marginLeft: '16px',
                 },
                 true,
                 node,
                 'ViewResource'
               )}
-            {node.is_feedback_root &&
+            {this.showViewResource &&
+              node.is_feedback_root &&
               createCommonIconBtn(
                 this.$t('取消反馈根因'),
                 {
@@ -652,7 +723,8 @@ export default defineComponent({
                 node,
                 'FeedBack'
               )}
-            {!node.is_feedback_root &&
+            {this.showViewResource &&
+              !node.is_feedback_root &&
               !node?.entity?.is_root &&
               createCommonIconBtn(
                 this.$t('反馈新根因'),
@@ -666,7 +738,7 @@ export default defineComponent({
           </div>
           <div class='node-tooltip-content'>
             {node.alert_display.alert_name &&
-              createCommonForm(this.$t('包含告警') + '：', () => (
+              createCommonForm(`${this.$t('包含告警')}：`, () => (
                 <>
                   <span
                     class='flex-label'
@@ -706,19 +778,19 @@ export default defineComponent({
                   )}
                 </>
               ))}
-            {createCommonForm(this.$t('分类') + '：', () => (
+            {createCommonForm(`${this.$t('分类')}：`, () => (
               <>{node.entity.rank.rank_category.category_alias}</>
             ))}
-            {createCommonForm(this.$t('节点类型') + '：', () => (
+            {createCommonForm(`${this.$t('节点类型')}：`, () => (
               <>{node.entity.entity_type}</>
             ))}
-            {createCommonForm(this.$t('所属业务') + '：', () => (
+            {createCommonForm(`${this.$t('所属业务')}：`, () => (
               <>
                 [{node.bk_biz_id}] {node.bk_biz_name}
               </>
             ))}
             {node.entity?.tags?.BcsService &&
-              createCommonForm(this.$t('所属服务') + '：', () => <>{node.entity.tags.BcsService.name}</>)}
+              createCommonForm(`${this.$t('所属服务')}：`, () => <>{node.entity.tags.BcsService.name}</>)}
           </div>
         </div>
       );

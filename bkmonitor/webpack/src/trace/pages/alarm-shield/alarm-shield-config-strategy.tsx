@@ -382,6 +382,11 @@ export default defineComponent({
       return Object.keys(errMsg).every(key => !errMsg[key]);
     }
 
+    // 自定义过滤函数
+    const customFilter = (input: string, option: { id: number; name: string }) => {
+      return option.name.toLowerCase().includes(input.toLowerCase()) || option.id.toString().includes(input);
+    };
+
     return {
       strategyList,
       dimensionCondition,
@@ -401,6 +406,7 @@ export default defineComponent({
       handleScopeChange,
       handleLevelChange,
       handleClear,
+      customFilter,
     };
   },
   render() {
@@ -417,6 +423,7 @@ export default defineComponent({
               <Select
                 class='width-940'
                 disabled={this.isEdit}
+                filterOption={this.customFilter}
                 filterable={true}
                 modelValue={this.strategyId}
                 multiple={true}
@@ -496,7 +503,7 @@ export default defineComponent({
           )}
           {!!this.isShowDetail && (
             <AlarmShieldConfigScope
-              filterTypes={['ip', 'node']}
+              filterTypes={['ip', 'node', 'dynamic_group']}
               isEdit={this.isEdit}
               require={false}
               show={true}

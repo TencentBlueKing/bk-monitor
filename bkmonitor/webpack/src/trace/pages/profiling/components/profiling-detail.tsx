@@ -161,14 +161,11 @@ export default defineComponent({
             header: () => (
               <div class='profiling-detail-header'>
                 <span class='title'>{this.t('基础信息')}</span>
-                <span class='jump-link'>
-                  <a
-                    class='link'
-                    target='_blank'
-                    onClick={() => this.handleGotoLink('profiling_docs')}
-                  >
-                    {this.t('Profile 接入指引')}
-                  </a>
+                <span
+                  class='jump-link'
+                  onClick={() => this.handleGotoLink('profiling_docs')}
+                >
+                  <span class='link'>{this.t('Profile 接入指引')}</span>
                   <i class='icon-monitor icon-fenxiang' />
                 </span>
               </div>

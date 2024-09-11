@@ -263,6 +263,10 @@ class StrategyConfigParser(BaseConfigParser):
             "recovery_config": recovery_config,
             "trigger_config": trigger_config,
         }
+
+        if DataTypeLabel.ALERT == config["query"]["data_type"]:
+            detect["expression"] = config["query"]["expression"]
+
         detects = [
             dict({"level": level}, **detect)
             for level_name, level in LEVEL_NAME_TO_ID.items()

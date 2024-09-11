@@ -58,8 +58,8 @@ export default defineComponent({
       handleSearchRef.value?.handleFilter();
     };
 
-    const handleChangeSpace = (value: string[]) => {
-      emit('changeSpace', value);
+    const handleChangeSpace = (value: string[], isErr: boolean) => {
+      emit('changeSpace', value, isErr);
     };
     return {
       handleChangeSpace,

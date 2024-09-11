@@ -121,14 +121,14 @@
           <!-- 日志路径 -->
           <div>
             <span>
-              {{ collectorData.collector_scenario_id === 'wineventlog' ? $t('日志种类') : $t('日志路径') }}
+              {{ isWinEventLog ? $t('日志种类') : $t('日志路径') }}
             </span>
             <div
-              v-if="collectorData.params.paths"
+              v-if="params.paths"
               class="deploy-path"
             >
               <p
-                v-for="(val, key) in collectorData.params.paths"
+                v-for="(val, key) in params.paths"
                 :key="key"
               >
                 {{ val }}
@@ -172,100 +172,82 @@
             <span>{{ $t('备注说明') }}</span>
             <span>{{ collectorData.description || '-' }}</span>
           </div>
-          <!-- 过滤内容 -->
-          <div
-            v-if="
-              collectorData.params.conditions &&
-              collectorData.params.conditions.type === 'match' &&
-              collectorData.params.conditions.match_content !== ''
-            "
-            class="content-style"
-          >
-            <span>{{ $t('过滤内容') }}</span>
-            <div>
-              <p>{{ $t('字符串匹配') }}</p>
-              <p v-if="collectorData.params.conditions.match_content">
-                {{ collectorData.params.conditions.match_content }}
-              </p>
-              <p>
-                {{ collectorData.params.conditions.match_type }}/{{
-                  collectorData.params.conditions.match_type === 'include' ? $t('保留匹配字符串') : $t('过滤匹配字符串')
-                }}
-              </p>
-            </div>
-          </div>
           <!-- 段日志 -->
           <template v-if="collectorData.collector_scenario_id === 'section'">
             <div class="content-style">
               <span>{{ $t('段日志参数') }}</span>
               <div class="section-box">
                 <p>
-                  {{ $t('行首正则') }}: <span>{{ collectorData.params.multiline_pattern }}</span>
+                  {{ $t('行首正则') }}: <span>{{ params.multiline_pattern }}</span>
                 </p>
                 <br />
                 <p>
                   <i18n path="最多匹配{0}行，最大耗时{1}秒">
-                    <span>{{ collectorData.params.multiline_max_lines }}</span>
-                    <span>{{ collectorData.params.multiline_timeout }}</span>
+                    <span>{{ params.multiline_max_lines }}</span>
+                    <span>{{ params.multiline_timeout }}</span>
                   </i18n>
                 </p>
               </div>
             </div>
           </template>
           <div
-            v-else-if="
-              collectorData.params.conditions &&
-              collectorData.params.conditions.type === 'separator' &&
-              !!collectorData.params.conditions.separator_filters.length
-            "
+            v-if="!isWinEventLog && conditions.type === 'none'"
+            class="content-style"
+          >
+            <span>{{ $t('过滤内容') }}</span>
+            <div>--</div>
+          </div>
+          <div
+            v-else-if="isNotWinAndHaveFilter"
             class="content-style"
           >
             <span>{{ $t('过滤内容') }}</span>
             <div>
-              <p>{{ $t('分隔符匹配') }}</p>
-              <p v-if="collectorData.params.conditions.separator">{{ collectorData.params.conditions.separator }}</p>
+              <p>{{ isMatchType ? $t('字符串过滤') : $t('分隔符匹配') }}</p>
+              <p v-if="!isMatchType && conditions.separator">{{ conditions.separator }}</p>
               <div class="condition-stylex">
-                <div>
-                  <div class="the-column">
-                    <div
-                      v-for="(val, key) in collectorData.params.conditions.separator_filters"
-                      :key="key"
-                    >
-                      {{ $t('第 {n} 列', { n: val.fieldindex }) }}
+                <div
+                  v-for="(fItem, fIndex) in filterGroup"
+                  :key="fIndex"
+                >
+                  <span class="title">{{ $t('第{n}组', { n: fIndex + 1 }) }}</span>
+                  <div class="column-box">
+                    <div class="item-box">
+                      <div
+                        v-for="(gItem, gIndex) in groupKey"
+                        :key="gIndex"
+                        class="item"
+                      >
+                        {{ gItem }}
+                      </div>
                     </div>
-                  </div>
-                  <div>
                     <div
-                      v-for="(val, key) in collectorData.params.conditions.separator_filters"
-                      :key="key"
+                      v-for="(item, index) in fItem"
+                      :key="index"
+                      class="item-box"
                     >
+                      <div
+                        v-if="!isMatchType"
+                        class="item the-column"
+                      >
+                        {{ $t('第{n}行', { n: item.fieldindex + 1 }) }}
+                      </div>
+                      <div class="item the-column">{{ showOperatorObj[item.op] }}</div>
                       <p
+                        class="value the-column"
                         @mouseenter="handleEnter"
                         @mouseleave="handleLeave"
                       >
-                        {{ val.word }}
+                        {{ item.word }}
                       </p>
-                      <div
-                        v-if="collectorData.params.conditions.separator_filters.length > 1"
-                        :class="key === 0 ? 'line-styy' : 'line-sty'"
-                      ></div>
                     </div>
                   </div>
-                </div>
-                <div
-                  v-if="collectorData.params.conditions.separator_filters.length > 1"
-                  class="con-text"
-                >
-                  <div class="line-styx"></div>
-                  <p>
-                    {{ collectorData.params.conditions.separator_filters[0].logic_op === 'and' ? $t('并') : $t('或') }}
-                  </p>
                 </div>
               </div>
             </div>
           </div>
           <div
-            v-else-if="collectorData.collector_scenario_id === 'wineventlog' && isHaveEventValue"
+            v-else-if="isWinEventLog && isHaveEventValue"
             class="content-style"
           >
             <span>{{ $t('过滤内容') }}</span>
@@ -277,13 +259,6 @@
                 <p>{{ $t('级别') }}:{{ getLevelStr }}</p>
               </div>
             </div>
-          </div>
-          <div
-            v-else
-            class="content-style"
-          >
-            <span>{{ $t('过滤内容') }}</span>
-            <div>--</div>
           </div>
         </template>
         <!-- 存储集群 -->
@@ -344,6 +319,7 @@
 
 <script>
   import { utcFormatDate, copyMessage } from '@/common/util';
+  import { operatorMappingObj, operatorMapping } from '@/components/collection-access/components/log-filter/type';
   import { mapState } from 'vuex';
 
   import containerBase from './components/container-base';
@@ -379,21 +355,22 @@
         showPassword: true, // 是否展示Token值
         tokenLoading: false,
         tokenStr: '', // token 的值
+        groupList: [this.$t('过滤参数'), this.$t('操作符'), 'Value'],
       };
     },
     computed: {
       ...mapState(['spaceUid']),
       getEventIDStr() {
-        return this.collectorData.params.winlog_event_id?.join(',') || '';
+        return this.params.winlog_event_id?.join(',') || '';
       },
       getLevelStr() {
-        return this.collectorData.params.winlog_level?.join(',') || '';
+        return this.params.winlog_level?.join(',') || '';
       },
       getLogSpeciesStr() {
-        return this.collectorData.params.winlog_name?.join(',') || '';
+        return this.params.winlog_name?.join(',') || '';
       },
       isHaveEventValue() {
-        return this.collectorData.params.winlog_event_id.length || this.collectorData.params.winlog_level.length;
+        return this.params.winlog_event_id.length || this.params.winlog_level.length;
       },
       isContainer() {
         return this.collectorData.environment === 'container';
@@ -401,6 +378,37 @@
       // 自定义上报基本信息
       isCustomReport() {
         return this.$route.name === 'custom-report-detail';
+      },
+      isWinEventLog() {
+        return this.collectorData.collector_scenario_id === 'wineventlog';
+      },
+      isNotWinAndHaveFilter() {
+        if (this.isWinEventLog || this.params.type === 'none') return false;
+        return this.conditions && !!this.conditions?.separator_filters.length;
+      },
+      isMatchType() {
+        return this.conditions.type === 'match';
+      },
+      params() {
+        return this.collectorData.params;
+      },
+      conditions() {
+        return this.collectorData.params.conditions;
+      },
+      filterGroup() {
+        const filters = this.conditions?.separator_filters;
+        return this.splitFilters(filters ?? []);
+      },
+      showOperatorObj() {
+        return Object.keys(operatorMappingObj).reduce((pre, acc) => {
+          let newKey = acc;
+          if ((this.isMatchType && acc === 'include') || (!this.isMatchType && acc === 'eq')) newKey = '=';
+          pre[newKey] = operatorMappingObj[acc];
+          return pre;
+        }, {});
+      },
+      groupKey() {
+        return this.isMatchType ? this.groupList.slice(1) : this.groupList;
       },
     },
     created() {
@@ -449,7 +457,7 @@
         const sWidth = e.target.scrollWidth;
         if (sWidth > cWidth) {
           this.instance = this.$bkPopover(e.target, {
-            content: e.path[0].childNodes[0].data,
+            content: e.target.innerText,
             arrow: true,
             placement: 'right',
           });
@@ -499,6 +507,28 @@
       },
       handleCopy(text) {
         copyMessage(text);
+      },
+      /** 设置过滤分组 */
+      splitFilters(filters) {
+        const groups = [];
+        let currentGroup = [];
+
+        filters.forEach((filter, index) => {
+          const mappingFilter = {
+            ...filter,
+            op: operatorMapping[filter.op] ?? filter.op, // 映射操作符
+          };
+          currentGroup.push(mappingFilter);
+          // 检查下一个 filter
+          if (filters[index + 1]?.logic_op === 'or' || index === filters.length - 1) {
+            groups.push(currentGroup);
+            currentGroup = [];
+          }
+        });
+        if (currentGroup.length > 0) {
+          groups.push(currentGroup);
+        }
+        return groups;
       },
     },
   };

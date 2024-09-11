@@ -94,5 +94,5 @@ class UpgradeChecker(BaseChecker):
         metrics.ALERT_ASSIGN_PROCESS_COUNT.labels(**assign_labels).inc()
         if need_upgrade:
             # 如果有的话，直接发送升级通知任务
-            logger.info("[push upgrade action]  alert(%s) strategy(%s)" % alert_doc.id, alert_doc.strategy_id)
+            logger.info("[push upgrade action]  alert(%s) strategy(%s)", alert_doc.id, alert_doc.strategy_id)
             create_actions.delay(**upgrade_notice)

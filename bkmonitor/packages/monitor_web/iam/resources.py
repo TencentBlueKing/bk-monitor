@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 from collections import defaultdict
+from typing import Dict, List
 from urllib.parse import urljoin
 
 from django.conf import settings
@@ -21,10 +22,8 @@ from bk_dataview.permissions import GrafanaRole
 from bk_dataview.views import ProxyBaseView
 from bkm_space.api import SpaceApi
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
-from bkmonitor.iam.action import get_action_by_id
 from bkmonitor.iam.resource import ApmApplication
 from bkmonitor.models.external_iam import (
-    ACTION_ID_MAP,
     ExternalPermission,
     ExternalPermissionApplyRecord,
 )
@@ -33,6 +32,7 @@ from bkmonitor.utils.user import get_local_username
 from core.drf_resource import Resource, api, resource
 from monitor.models import GlobalConfig
 from monitor_web.grafana.auth import GrafanaAuthSync
+from monitor_web.grafana.permissions import DashboardPermission
 from monitor_web.iam.serializers import (
     ExternalPermissionApplyRecordSerializer,
     ExternalPermissionSerializer,
@@ -266,9 +266,14 @@ class CreateOrUpdateExternalPermission(Resource):
             """
             验证授权人是否有对应操作ID权限
             """
+            from monitor_web.grafana.permissions import DashboardPermission
+
             authorizer = attrs.pop("authorizer", "")
-            action = get_action_by_id(ACTION_ID_MAP[attrs["action_id"]])
-            Permission(username=authorizer).is_allowed_by_biz(attrs["bk_biz_id"], action, raise_exception=True)
+            _, role, _ = DashboardPermission.get_user_permission(authorizer, str(attrs["bk_biz_id"]))
+            if (attrs["action_id"] == "view_grafana" and role < GrafanaRole.Viewer) or (
+                attrs["action_id"] == "manage_grafana" and role < GrafanaRole.Editor
+            ):
+                raise serializers.ValidationError(f"{authorizer}无此操作权限")
             return attrs
 
     def create_approval_ticket(self, authorized_users, params):
@@ -277,8 +282,8 @@ class CreateOrUpdateExternalPermission(Resource):
         1. 新增权限 - 被授权人视角
         2. 新增权限 - 实例视角
         """
-        space_info = {i.bk_biz_id: i for i in SpaceApi.list_spaces()}
-        bk_biz_name = space_info[params["bk_biz_id"]].space_name
+        biz = resource.cc.get_app_by_id(params["bk_biz_id"])
+        bk_biz_name = biz.bk_biz_name
         ticket_data = {
             "creator": get_request_username() or get_local_username(),
             "fields": [
@@ -449,25 +454,47 @@ class GetExternalPermissionList(Resource):
         2. 基于实例资源视角
         """
         authorizer_map, _ = GlobalConfig.objects.get_or_create(key="EXTERNAL_AUTHORIZER_MAP", defaults={"value": {}})
-        space_info = {i.bk_biz_id: i.space_name for i in SpaceApi.list_spaces()}
+        space_info = {i["bk_biz_id"]: i["space_name"] for i in SpaceApi.list_spaces_dict()}
         permission_qs = ExternalPermission.objects.all()
+
+        # 业务过滤
         if validated_request_data["bk_biz_id"] != 0:
             permission_qs = permission_qs.filter(bk_biz_id=validated_request_data["bk_biz_id"])
+
+        biz_authorizer_role = {}
+        for permission in permission_qs:
+            # 获取授权人权限
+            if permission.bk_biz_id not in biz_authorizer_role:
+                authorizer = authorizer_map.value.get(str(permission.bk_biz_id))
+                if not authorizer:
+                    biz_authorizer_role[permission.bk_biz_id] = GrafanaRole.Anonymous
+                else:
+                    _, role, _ = DashboardPermission.get_user_permission(authorizer, str(permission.bk_biz_id))
+                    biz_authorizer_role[permission.bk_biz_id] = role
+
         if validated_request_data["view_type"] != "resource":
             serializer = ExternalPermissionSerializer(permission_qs, many=True)
             permission_list = serializer.data
+            for permission, permission_data in zip(permission_qs, permission_list):
+                authorizer_role = biz_authorizer_role[permission.bk_biz_id]
+                permission_data["status"] = permission.get_status(authorizer_role)
         else:
             resource_to_user = defaultdict(lambda: {"authorized_users": []})
             for permission in permission_qs:
                 for resource_id in permission.resources:
-                    resource_key = tuple([permission.action_id, resource_id, permission.status])
+                    # 根据授权人权限判断权限状态
+                    authorizer_role = biz_authorizer_role[permission.bk_biz_id]
+                    permission_status = permission.get_status(authorizer_role)
+
+                    resource_key = tuple([permission.action_id, resource_id, permission_status])
                     resource_to_user[resource_key]["authorized_users"].append(permission.authorized_user)
                     resource_to_user[resource_key]["action_id"] = permission.action_id
                     resource_to_user[resource_key]["resource_id"] = resource_id
-                    resource_to_user[resource_key]["status"] = permission.status
+                    resource_to_user[resource_key]["status"] = permission_status
                     resource_to_user[resource_key]["bk_biz_id"] = permission.bk_biz_id
 
-            permission_list = list(resource_to_user.values())
+            permission_list: List[Dict] = list(resource_to_user.values())
+
         for permission in permission_list:
             permission["authorizer"] = authorizer_map.value.get(str(permission["bk_biz_id"]), "")
             permission["space_name"] = space_info.get(permission["bk_biz_id"], "")

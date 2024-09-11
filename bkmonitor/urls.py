@@ -22,7 +22,6 @@ from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from rest_framework import permissions
 
-from bkmonitor.iam import ActionEnum, Permission
 from core.prometheus.tools import get_metric_agg_gateway_url
 
 
@@ -92,33 +91,3 @@ if settings.ENVIRONMENT != "production":
         url(r"^swagger/$", schema_view.with_ui("swagger", cache_timeout=0), name="schema-swagger-ui"),
         url(r"^redoc/$", schema_view.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
     ]
-
-
-def render_403(request, exception):
-    """
-    无权限页面
-    PS: 加了Demo业务后，此函数仅兜底使用
-    """
-    from django.shortcuts import render
-
-    from core.drf_resource import resource
-
-    user_biz_list = resource.cc.get_app_ids_by_user(request.user)
-    application_map = resource.cc.get_biz_map()
-    request_biz_obj = application_map.get(request.biz_id)
-
-    apply_url = Permission().get_apply_url([ActionEnum.VIEW_BUSINESS])
-
-    return render(
-        request,
-        "/adapter/403.html",
-        {
-            "BK_IAM_APPLY_URL": apply_url,
-            "has_biz": len(user_biz_list) > 0 and request_biz_obj,
-            "request_biz_obj": request_biz_obj,
-            "application_map": application_map,
-        },
-    )
-
-
-handler403 = render_403

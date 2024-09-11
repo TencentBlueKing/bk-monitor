@@ -113,7 +113,7 @@ export default {
     'Provides metrics such as single point availability, response time, and expected response code',
   '直接进行{0}，定位到 Trace 详情': 'Directly perform {0}, locate Trace details',
   '自定义上报指标和插件采集指标请勾选映射规则，K8S系统指标可以不勾选。':
-    'Please check the mapping rules for custom reporting metrics and plug-in collection metrics, and K8s system metrics can not be checked. ', // 确定位置
+    'Please check the mapping rules for custom reporting metrics and plugin collection metrics, and K8s system metrics can not be checked. ', // 确定位置
   '若不同时删除掉，相关联的策略配置则会成为失效策略':
     'if not deleted at the same time, the associated rule will become an invalid rule',
   '该指标需设置期望返回码/期望响应信息后才可选取':
@@ -140,8 +140,8 @@ export default {
   '数据格式需遵循{0},如下': 'The data format needs to follow {0}, as follows',
   本次下发覆盖: 'This Issuance Overwrites',
   监控项为策略配置: 'Monitoring items are alert rules',
-  空间数量指个人有权限的空间数量:
-    'The number of spaces refers to the number of spaces that an individual has access to',
+  '空间数量指个人有权限的空间数量，包含业务、研发项目、容器项目、蓝鲸应用四种类型':
+    'The number of spaces refers to the number of spaces that an individual has permission to use, including business, R&D projects, container projects, and Blue Whale applications',
   联系系统管理员升级至最新版本: 'Contact the system administrator to upgrade to the latest version',
   调整关键词: 'Adjusting keywords',
   配置管理业务: 'Configuration management business',
@@ -253,19 +253,23 @@ export default {
     'The export YAML function is used for As Code. If you need to import and export policies, please go to {0} to perform operations.',
   // 故障
   节点图例: 'Node Legend',
+  标签图例: 'Tag Legend',
   反馈的根因: 'Feedback Root',
   边图例: 'Edge Legend',
   从属关系: 'Subordinate',
   调用关系: 'Call',
-  故障传播: 'Fault Spread',
+  故障传播: 'Incident Spread',
   显示图例: 'Show Legend',
+  显示小地图: 'Show Mini Map',
   重置比例: 'Reset Scale',
   自动聚合: 'Auto',
   不聚合: 'No',
   聚合异常: 'Error ',
   查看资源: 'View Resource',
+  查看从属: 'View Dependencies',
   反馈新根因: 'New Feedback',
   所属业务: 'Business',
+  '已恢复 / 已解决 / 已失效告警': 'Recovered / Resolved / Expired Alerts',
   包含告警: 'Alarm',
   '等共 {slot0} 个同类告警': 'And {slot0} Same Alerts',
 
@@ -281,4 +285,13 @@ export default {
     'The current data has not been loaded yet. If the data has not been loaded for a long time, {0}',
   '默认取URL中的URI进行统计，实际生产中有很多将ID应用到URI中，所以需要通过手动设置将同一类URI进行归类统计。 如： /user/{ID}/index.html':
     'By default, the URI in the URL is taken for statistics. In actual production, many IDs are applied to the URI, so it is necessary to manually set and classify the same type of URI for statistics. For example:/user/{ID}/index.com',
+  选择任一图并点选所需对比时间和参照时间:
+    'Select any graph and click on the desired comparison time and reference time',
+  '在“故障处理”展开折叠告警拓扑，会对应展开收起时序图块；在“故障流转”点击事件，会高亮对应的时间节点。':
+    'Expanding the folded alarm topology in "Incident Handling" will expand and collapse the timing diagram accordingly; clicking an event in "Incident Flow" will highlight the corresponding time node.',
+  '故障内的告警：共': 'Alarm in Incident: ',
+  个: ' in total',
+  请选择非接口节点: 'Please select a non-interface node',
+  请选择节点: 'Please select a node',
+  接口概览: 'Interface Overview',
 };

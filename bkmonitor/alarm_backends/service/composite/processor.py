@@ -183,23 +183,27 @@ class CompositeProcessor:
             # 限流计数器，监控的告警以策略ID，信号，告警级别作为维度
             try:
                 is_qos, current_count = self.alert.qos_calc(action["signal"])
+                logger.info(
+                    "[composite send action] alert(%s) strategy(%s) signal(%s) severity(%s) ",
+                    self.alert.id,
+                    action["strategy_id"],
+                    action["signal"],
+                    action["severity"],
+                )
                 if not is_qos:
                     create_actions.delay(**action)
                     success_actions += 1
                 else:
                     # 达到阈值之后，触发流控
                     logger.info(
-                        "alert(%s) qos triggered->alert_name(%s)-strategy(%s)-signal(%s)-severity(%s),"
-                        "current_count->(%s)",
+                        "[action qos triggered] alert(%s) strategy(%s) signal(%s) severity(%s) qos_count: %s",
                         self.alert.id,
-                        self.alert.alert_name,
                         action["strategy_id"],
                         action["signal"],
                         action["severity"],
                         current_count,
                     )
                     qos_actions += 1
-                if is_qos:
                     # 被QOS的，按照策略维度发送一份
                     # 被QOS的情况下，需要删除首次处理记录
                     first_handle_key = ALERT_FIRST_HANDLE_RECORD.get_key(
@@ -210,6 +214,7 @@ class CompositeProcessor:
                     metrics.COMPOSITE_PUSH_ACTION_COUNT.labels(
                         strategy_id=action["strategy_id"], signal=action["signal"], is_qos="1", status="success"
                     ).inc()
+
                 metrics.COMPOSITE_PUSH_ACTION_COUNT.labels(
                     strategy_id=metrics.TOTAL_TAG,
                     signal=action["signal"],
@@ -217,17 +222,16 @@ class CompositeProcessor:
                     status="success",
                 ).inc()
             except Exception as e:
-                logger.exception("alert(%s) detect finished, but push actions failed, reason: %s", self.alert.id, e)
+                logger.exception(
+                    "[composite push action ERROR] alert(%s) strategy(%s) detail: %s",
+                    self.alert.id,
+                    action["strategy_id"],
+                    e,
+                )
                 metrics.COMPOSITE_PUSH_ACTION_COUNT.labels(
                     strategy_id=metrics.TOTAL_TAG, is_qos="0", signal=action["signal"], status="failed"
                 ).inc()
                 continue
-        logger.info(
-            "alert(%s) detect finished, push (%s) actions, qos (%s) actions",
-            self.alert.id,
-            success_actions,
-            qos_actions,
-        )
         if qos_actions:
             # 如果有被qos的事件， 进行日志记录
             qos_log = Alert.create_qos_log([self.alert.id], current_count, qos_actions)
@@ -599,8 +603,6 @@ class CompositeProcessor:
             # 没有策略也没有适配规则，直接返回
             return
 
-        dimension_values = {dimension["key"]: dimension["value"] for dimension in self.alert.dimensions}
-
         try:
             with service_lock(ALERT_DETECT_KEY_LOCK, alert_id=self.alert.id):
                 cache_key = ALERT_DETECT_RESULT.get_key(alert_id=self.alert.id)
@@ -652,7 +654,7 @@ class CompositeProcessor:
                     if signal != ActionSignal.ABNORMAL and not strategy_id:
                         # 如果是第三方分派的情况下，忽略非异常信号的通知
                         logger.info(
-                            "ignore send %s notice for alert(%s) from monitor source(%s)",
+                            "[composite ignore] alert(%s) signal(%s) source(%s), no strategy_id",
                             signal,
                             self.alert.id,
                             self.alert.top_event.get("plugin_id", ""),
@@ -661,10 +663,9 @@ class CompositeProcessor:
                         first_handle_key = ALERT_FIRST_HANDLE_RECORD.get_key(
                             strategy_id=self.alert.strategy_id or 0, alert_id=self.alert.id, signal=signal
                         )
-                        result = ALERT_FIRST_HANDLE_RECORD.client.set(
+                        if ALERT_FIRST_HANDLE_RECORD.client.set(
                             first_handle_key, 1, nx=True, ex=ALERT_FIRST_HANDLE_RECORD.ttl
-                        )
-                        if result:
+                        ):
                             # 只有第一次设置成功，才可以进行消息推送
                             # todo 优化
                             self.add_action(
@@ -674,7 +675,8 @@ class CompositeProcessor:
                                 severity=self.alert.severity,
                                 dimensions=self.alert.dimensions,
                             )
-                            ALERT_FIRST_HANDLE_RECORD.client.expire(first_handle_key, ALERT_FIRST_HANDLE_RECORD.ttl)
+                            # 这里没必要再执行一次，因为已经设置成功了
+                            # ALERT_FIRST_HANDLE_RECORD.client.expire(first_handle_key, ALERT_FIRST_HANDLE_RECORD.ttl)
                             action = self.actions[-1]
                         self.push_actions()
 
@@ -685,29 +687,10 @@ class CompositeProcessor:
                     ALERT_DETECT_RESULT.client.delete(cache_key)
                     self.clear_composite_detect_cache()
 
-                if signal:
-                    logger.info(
-                        "strategy(%s) dimension(%s) detect finished, single_alert(%s), signal(%s)",
-                        strategy_id,
-                        dimension_values,
-                        self.alert.id,
-                        signal,
-                    )
-                else:
-                    logger.debug(
-                        "strategy(%s) dimension(%s) detect finished, nothing to do",
-                        strategy_id,
-                        dimension_values,
-                    )
                 return action
 
         except LockError:
             # 加锁失败，重新发布任务
-            logger.info(
-                "[get service lock fail] composite strategy->({}), dimension->({}). will process later".format(
-                    self.alert.strategy_id, dimension_values
-                )
-            )
             from alarm_backends.service.composite.tasks import (
                 check_action_and_composite,
             )
@@ -739,6 +722,7 @@ class CompositeProcessor:
         # 1. 如果告警本身就是由关联告警策略产生的，则不再进行关联检测
         # 2. 如果告警是无数据告警，则不参与关联检测
         if not self.is_composite_strategy() and not self.alert.is_no_data():
+            #  关联告警逻辑处理
             self.pull()
             for strategy in self.strategies:
                 in_alarm_time, message = Strategy(strategy["id"], strategy).in_alarm_time()

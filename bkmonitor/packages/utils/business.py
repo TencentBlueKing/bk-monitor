@@ -114,8 +114,8 @@ def human_readable_biz(biz_id_list):
     """
     return a human readable biz list
     """
-    biz_info = resource.cc.get_biz_map(use_cache=True)
+    biz_info = resource.space.get_space_map()
     if not isinstance(biz_id_list, list):
         biz_id_list = [biz_id_list]
-    biz_id_list = set(map(str, biz_id_list))
-    return [biz_info[biz_id].display_name if biz_id in biz_info else biz_id for biz_id in biz_id_list]
+    biz_id_list = set(map(int, biz_id_list))
+    return [biz_info[biz_id]["display_name"] if biz_id in biz_info else str(biz_id) for biz_id in biz_id_list]

@@ -59,6 +59,7 @@ import InterfaceStatistics from './interface-statistics';
 import ServiceStatistics from './service-statistics';
 import SimpleList from './simple-list/simple-list';
 import TraceDetail from './trace-detail';
+import TableSkeleton from '../../../components/skeleton/table-skeleton';
 
 import type { PanelModel } from '../../../plugins/typings';
 import type { IAppItem, ISpanListItem, ITraceListItem } from '../../../typings';
@@ -977,6 +978,9 @@ export default defineComponent({
      * 重新发起列表查询。
      */
     function handleListTypeChange(v: ListType) {
+      if (!store.isTraceLoading) {
+        store.setTraceLoading(true);
+      }
       store.setListType(v);
       selectedTraceType.value.length = 0;
       // span 类型重置
@@ -1412,10 +1416,12 @@ export default defineComponent({
 
     function handleTraceTableSettingsChange(settings: { checked: string[]; size: string; height: number }) {
       store.tableSettings.trace.checked = settings.checked;
+      window.localStorage.setItem('traceCheckedSettings', JSON.stringify(settings.checked));
     }
 
     function handleSpanTableSettingsChange(settings: { checked: string[]; size: string; height: number }) {
       store.tableSettings.span.checked = settings.checked;
+      window.localStorage.setItem('spanCheckedSettings', JSON.stringify(settings.checked));
     }
 
     return {
@@ -1522,80 +1528,96 @@ export default defineComponent({
         ref='traceTableContainer'
         class={`trace-content-table-wrap ${this.showTraceDetail ? 'is-show-detail' : ' '}`}
       >
-        <Table
-          ref='traceTableElem'
-          style='height: 100%'
-          height='100%'
-          class='trace-table'
-          v-slots={{ empty: () => tableEmptyContent() }}
-          rowStyle={(row: { traceID: string[] }) => {
-            if (this.showTraceDetail && row.traceID?.[0] === this.curTraceId) return { background: '#EDF4FF' };
-            return {};
-          }}
-          // rowHeight={40}
-          border={this.isFullscreen ? '' : ['outer']}
-          columns={this.tableColumns}
-          data={this.localTableData}
-          scroll-loading={this.tableLoading}
-          settings={this.store.tableSettings.trace}
-          tabindex={-1}
-          onColumnFilter={this.handleSpanFilter}
-          onColumnSort={this.handleTraceColumnSort}
-          onScrollBottom={this.handleScrollBottom}
-          onSettingChange={this.handleTraceTableSettingsChange}
-        />
+        {this.store.isTraceLoading ? (
+          <TableSkeleton />
+        ) : (
+          <Table
+            ref='traceTableElem'
+            style='height: 100%'
+            height='100%'
+            class='trace-table'
+            v-slots={{ empty: () => tableEmptyContent() }}
+            rowStyle={(row: { traceID: string[] }) => {
+              if (this.showTraceDetail && row.traceID?.[0] === this.curTraceId) return { background: '#EDF4FF' };
+              return {};
+            }}
+            // rowHeight={40}
+            border={this.isFullscreen ? '' : ['outer']}
+            columns={this.tableColumns}
+            data={this.localTableData}
+            scroll-loading={this.tableLoading}
+            settings={this.store.tableSettings.trace}
+            tabindex={-1}
+            onColumnFilter={this.handleSpanFilter}
+            onColumnSort={this.handleTraceColumnSort}
+            onScrollBottom={this.handleScrollBottom}
+            onSettingChange={this.handleTraceTableSettingsChange}
+          />
+        )}
       </div>
     );
     const spanTableContent = () => (
       <div class='trace-content-table-wrap'>
-        <Table
-          ref='tableSpanElem'
-          style='height: 100%'
-          height='100%'
-          class='table-span'
-          border={['outer']}
-          columns={this.tableColumnOfSpan}
-          data={this.tableDataOfSpan}
-          rowHeight={40}
-          scroll-loading={this.tableLoading}
-          settings={this.store.tableSettings.span}
-          tabindex={-1}
-          onColumnFilter={this.handleSpanFilter}
-          onColumnSort={this.handleTraceColumnSort}
-          onScrollBottom={this.handleScrollBottom}
-          onSettingChange={this.handleSpanTableSettingsChange}
-          // TODO：后期确认空数据的设计样式
-          // v-slots={{ empty: () => tableEmptyContent() }}
-        />
+        {this.store.isTraceLoading ? (
+          <TableSkeleton />
+        ) : (
+          <Table
+            ref='tableSpanElem'
+            style='height: 100%'
+            height='100%'
+            class='table-span'
+            border={['outer']}
+            columns={this.tableColumnOfSpan}
+            data={this.tableDataOfSpan}
+            rowHeight={40}
+            scroll-loading={this.tableLoading}
+            settings={this.store.tableSettings.span}
+            tabindex={-1}
+            onColumnFilter={this.handleSpanFilter}
+            onColumnSort={this.handleTraceColumnSort}
+            onScrollBottom={this.handleScrollBottom}
+            onSettingChange={this.handleSpanTableSettingsChange}
+            // TODO：后期确认空数据的设计样式
+            // v-slots={{ empty: () => tableEmptyContent() }}
+          />
+        )}
       </div>
     );
     const interfaceStatisticsTableContent = () => (
       <div class='trace-content-table-wrap'>
-        <InterfaceStatistics
-          filterList={this.traceListFilter}
-          interfaceTypeList={this.selectedInterfaceTypeInInterfaceStatistics}
-          scroll-loading={this.tableLoading}
-          sourceTypeList={this.selectedSourceTypeInInterfaceStatistics}
-          onColumnFilter={this.handleSpanFilter}
-          // @ts-ignore
-          onScrollBottom={this.handleScrollBottom}
-          // onColumnSort={this.handleTraceColumnSort}
-        />
+        {this.store.isTraceLoading ? (
+          <TableSkeleton />
+        ) : (
+          <InterfaceStatistics
+            filterList={this.traceListFilter}
+            interfaceTypeList={this.selectedInterfaceTypeInInterfaceStatistics}
+            scroll-loading={this.tableLoading}
+            sourceTypeList={this.selectedSourceTypeInInterfaceStatistics}
+            onColumnFilter={this.handleSpanFilter}
+            // @ts-ignore
+            onScrollBottom={this.handleScrollBottom}
+            // onColumnSort={this.handleTraceColumnSort}
+          />
+        )}
       </div>
     );
 
     const serviceStatisticsTableContent = () => (
       <div class='trace-content-table-wrap'>
-        <ServiceStatistics
-          filterList={this.traceListFilter}
-          interfaceTypeList={this.selectedInterfaceTypeInServiceStatistics}
-          scroll-loading={this.tableLoading}
-          sourceTypeList={this.selectedSourceTypeInServiceStatistics}
-          onColumnFilter={this.handleSpanFilter}
-          // @ts-ignore
-          onScrollBottom={this.handleScrollBottom}
-          // onColumnSort={this.handleTraceColumnSort}
-        />
+        {this.store.isTraceLoading ? (
+          <TableSkeleton />
+        ) : (
+          <ServiceStatistics
+            filterList={this.traceListFilter}
+            interfaceTypeList={this.selectedInterfaceTypeInServiceStatistics}
+            scroll-loading={this.tableLoading}
+            sourceTypeList={this.selectedSourceTypeInServiceStatistics}
+            onColumnFilter={this.handleSpanFilter}
+            // @ts-ignore
+            onScrollBottom={this.handleScrollBottom}
+            // onColumnSort={this.handleTraceColumnSort}
+          />
+        )}
       </div>
     );
 
@@ -1623,6 +1645,7 @@ export default defineComponent({
                   class='chart-list-item'
                   panel={panel}
                   isUseAlone
+                  needChartLoading
                 />
               ))}
             </div>

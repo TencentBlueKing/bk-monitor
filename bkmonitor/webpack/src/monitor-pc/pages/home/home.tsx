@@ -99,7 +99,7 @@ export default class Home extends tsc<object> {
         unit: '',
         type: 'num',
         borderRight: true,
-        tip: window.i18n.tc('空间数量指个人有权限的空间数量'),
+        tip: window.i18n.tc('空间数量指个人有权限的空间数量，包含业务、研发项目、容器项目、蓝鲸应用四种类型'),
       },
       {
         id: 'event',
@@ -244,7 +244,7 @@ export default class Home extends tsc<object> {
       days: this.dataOverview.timeChecked,
       page: 1,
       page_size: this.firstPageSize,
-      allowed_only: !Boolean(this.businessOverview.searchValue),
+      allowed_only: !this.businessOverview.searchValue,
       ...FILTER_PARAMS_MAP[this.businessOverview.filterItem],
     };
     const data: any = await this.getStatistics(params);
@@ -347,7 +347,7 @@ export default class Home extends tsc<object> {
         days: this.dataOverview.timeChecked,
         page: this.page,
         page_size: this.pageSize,
-        allowed_only: !Boolean(this.businessOverview.searchValue),
+        allowed_only: !this.businessOverview.searchValue,
         ...FILTER_PARAMS_MAP[this.businessOverview.filterItem],
       };
       const data: any = await this.getStatistics(params);
@@ -508,7 +508,10 @@ export default class Home extends tsc<object> {
                           onToEvent={this.handleToEvent}
                         />
                       ) : (
-                        <NoBusinessItem data={{ ...item }} />
+                        <NoBusinessItem
+                          key={item.id}
+                          data={{ ...item }}
+                        />
                       )
                     );
                   })()}
@@ -539,17 +542,19 @@ export default class Home extends tsc<object> {
           class='home-scrollload'
           v-bkloading={{ isLoading: this.scrollLoading, opacity: 0, color: '#fff0' }}
         />
-        <MonitorDialog
-          class='no-business-guide'
-          fullScreen={true}
-          needFooter={false}
-          value={this.showGuide}
-          onChange={v => (this.showGuide = v)}
-        >
-          <div class='no-business-guide-body'>
-            <NoBussiness />
-          </div>
-        </MonitorDialog>
+        {this.showGuide && (
+          <MonitorDialog
+            class='no-business-guide'
+            fullScreen={true}
+            needFooter={false}
+            value={this.showGuide}
+            onChange={v => (this.showGuide = v)}
+          >
+            <div class='no-business-guide-body'>
+              <NoBussiness />
+            </div>
+          </MonitorDialog>
+        )}
       </div>
     );
   }

@@ -11,6 +11,8 @@ specific language governing permissions and limitations under the License.
 import logging
 from typing import Dict, List, Set
 
+from alarm_backends.core.cache.cmdb.dynamic_group import DynamicGroupManager
+
 logger = logging.getLogger("service")
 
 
@@ -67,6 +69,19 @@ class TargetCondition:
                             continue
 
                         target_keys.add(f"{bk_obj_id}|{bk_inst_id}")
+                elif field == "dynamic_group":
+                    dynamic_group_ids = set()
+                    for value in values:
+                        dynamic_group_id = value.get("dynamic_group_id")
+                        if dynamic_group_id:
+                            dynamic_group_ids.add(dynamic_group_id)
+
+                    # todo: 目前仅支持host动态分组
+                    dynamic_groups = DynamicGroupManager.multi_get(list(dynamic_group_ids))
+                    for dynamic_group in dynamic_groups:
+                        if dynamic_group and dynamic_group.get("bk_obj_id") == "host":
+                            target_keys.update([str(bk_inst_id) for bk_inst_id in dynamic_group.get("bk_inst_ids", [])])
+                    field = "bk_target_ip"
 
                 if not target_keys:
                     continue

@@ -35,6 +35,7 @@ export interface IEntity {
   aggregated_entites: IEntity[];
   anomaly_score: number;
   anomaly_type: string;
+  alert_all_recorved: boolean;
   entity_id: string;
   entity_name: string;
   entity_type: string;

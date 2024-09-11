@@ -216,14 +216,12 @@
       <template v-else>
         <template v-if="!isFinishCreateStep">
           <bk-button
-            :disabled="hasRunning"
             data-test-id="collectionDistribution_button_previous"
             @click="prevHandler"
           >
             {{ $t('上一步') }}
           </bk-button>
           <bk-button
-            :disabled="hasRunning"
             data-test-id="collectionDistribution_button_nextStep"
             theme="primary"
             @click="nextHandler"

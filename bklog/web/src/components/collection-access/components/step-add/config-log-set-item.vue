@@ -158,7 +158,7 @@
               </div>
               <div class="black-title-tips">
                 <i class="bk-icon icon-info-circle"></i>
-                <span>{{ $t('设定排除路径，路径之间为或的关系') }}</span>
+                <span>{{ $t('若需要排除指定路径，请展开添加路径') }}</span>
               </div>
             </div>
             <template v-if="isShowBlackList">
@@ -370,6 +370,10 @@
       },
       configLength: {
         type: Number,
+        default: 0,
+      },
+      configChangeLength: {
+        type: Number,
         require: true,
       },
       isCloneOrUpdate: {
@@ -549,54 +553,18 @@
         deep: true,
         handler(val) {
           const { data_encoding, params } = val;
-          this.$emit('configChange', { data_encoding, params });
+          this.$emit('config-change', { data_encoding, params });
         },
       },
       configLength() {
         this.assignSubData(this.configData);
       },
+      configChangeLength() {
+        this.initConfigLogSet();
+      },
     },
     created() {
-      this.assignSubData(this.configData);
-      if (this.isCloneOrUpdate) {
-        const { params } = this.subFormData;
-        if (this.scenarioId !== 'wineventlog') {
-          this.initPathList(params, 'paths');
-          this.initPathList(params, 'exclude_files');
-          this.isShowBlackList = params.exclude_files.some(item => !!item.value);
-        } else {
-          const otherList = params.winlog_name.filter(v => ['Application', 'Security', 'System'].indexOf(v) === -1);
-          if (otherList.length > 0) {
-            this.otherSpeciesList = otherList;
-            this.selectLogSpeciesList = params.winlog_name.filter(v =>
-              ['Application', 'Security', 'System'].includes(v),
-            );
-            this.selectLogSpeciesList.push('Other');
-          } else {
-            this.selectLogSpeciesList = params.winlog_name;
-          }
-
-          delete params.ignore_older;
-          delete params.max_bytes;
-          delete params.tail_files;
-
-          const newEventSettingList = [];
-          const selectStrList = this.selectEventList.map(item => item.id);
-          for (const [key, val] of Object.entries(params)) {
-            if (selectStrList.includes(key) && val[0] !== '') {
-              newEventSettingList.push({
-                type: key,
-                list: val,
-                isCorrect: true,
-              });
-            }
-          }
-          if (newEventSettingList.length !== 0) {
-            this.eventSettingList = newEventSettingList;
-          }
-          this.selectDisabledChange();
-        }
-      }
+      this.isCloneOrUpdate && this.initConfigLogSet();
     },
     methods: {
       initPathList(params, type = 'paths') {
@@ -690,6 +658,48 @@
         } catch (error) {
           return false;
         }
+      },
+      initConfigLogSet() {
+        this.assignSubData(this.configData);
+        const { params } = this.subFormData;
+        if (this.scenarioId === 'wineventlog') {
+          const otherList = params.winlog_name.filter(v => ['Application', 'Security', 'System'].indexOf(v) === -1);
+          if (otherList.length > 0) {
+            this.otherSpeciesList = otherList;
+            this.selectLogSpeciesList = params.winlog_name.filter(v =>
+              ['Application', 'Security', 'System'].includes(v),
+            );
+            this.selectLogSpeciesList.push('Other');
+          } else {
+            this.selectLogSpeciesList = params.winlog_name;
+          }
+
+          delete params.ignore_older;
+          delete params.max_bytes;
+          delete params.tail_files;
+
+          const newEventSettingList = [];
+          const selectStrList = this.selectEventList.map(item => item.id);
+          for (const [key, val] of Object.entries(params)) {
+            if (selectStrList.includes(key) && val[0] !== '') {
+              newEventSettingList.push({
+                type: key,
+                list: val,
+                isCorrect: true,
+              });
+            }
+          }
+          if (newEventSettingList.length !== 0) {
+            this.eventSettingList = newEventSettingList;
+          }
+          this.selectDisabledChange();
+        }
+        this.initPathList(params, 'paths');
+        this.initPathList(params, 'exclude_files');
+        this.isShowBlackList = params.exclude_files.some(item => !!item.value);
+        this.$nextTick(() => {
+          this.$refs.logFilterRef?.initContainerData();
+        });
       },
     },
   };

@@ -181,6 +181,7 @@ class CustomGroupBase(models.Model):
         operator,
         metric_info_list=None,
         table_id=None,
+        is_builtin=False,
         is_split_measurement=False,
         default_storage_config=None,
         additional_options: Optional[dict] = None,
@@ -195,6 +196,7 @@ class CustomGroupBase(models.Model):
         :param operator: 操作者
         :param metric_info_list: metric列表
         :param table_id: 需要制定的table_id，否则通过默认规则创建得到
+        :param is_builtin: 是否为内置指标
         :param is_split_measurement: 是否需要单指标单表存储，主要针对容器大量指标的情况适配
         :param default_storage_config: 默认存储的配置
         :param additional_options: 附带创建的 ResultTableOption
@@ -259,6 +261,7 @@ class CustomGroupBase(models.Model):
             default_storage=cls.DEFAULT_STORAGE,
             default_storage_config=default_storage_config,
             field_list=cls.STORAGE_FIELD_LIST,
+            is_builtin=is_builtin,
             # 自定义上报，都不需要业务属性、云区域、IP等内容，只需要保留时间字段即可
             is_time_field_only=True,
             time_option=cls.STORAGE_TIME_OPTION,

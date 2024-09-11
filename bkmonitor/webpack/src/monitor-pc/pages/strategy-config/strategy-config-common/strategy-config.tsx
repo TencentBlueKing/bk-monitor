@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
-import { Component as tsc, modifiers } from 'vue-tsx-support';
+import { Component, Mixins, Prop, Watch } from 'vue-property-decorator';
+import { ofType, modifiers } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import SearchSelect from '@blueking/search-select-v3/vue2';
@@ -45,12 +45,17 @@ import { xssFilter } from 'monitor-common/utils/xss';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
+import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import SvgIcon from '../../../components/svg-icon/svg-icon.vue';
 import TableFilter from '../../../components/table-filter/table-filter.vue';
+import authorityMixinCreate from '../../../mixins/authorityMixin';
+import UserConfigMixin from '../../../mixins/userStoreConfig';
+import AuthComponent from '../../../pages/exception-page/auth-component';
 import { downFile } from '../../../utils';
 // import StrategySetTarget from '../strategy-config-set/strategy-set-target/strategy-set-target.vue';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
 import AlarmShieldStrategy from '../../alarm-shield/quick-alarm-shield/quick-alarm-shield-strategy.vue';
+import * as strategyAuth from '../authority-map';
 import TableStore, { invalidTypeMap } from '../store';
 import StrategyConfigDialog from '../strategy-config-dialog/strategy-config-dialog';
 import FilterPanel from '../strategy-config-list/filter-panel';
@@ -58,6 +63,7 @@ import { DetectionRuleTypeEnum, MetricDetail } from '../strategy-config-set-new/
 import StrategyIpv6 from '../strategy-ipv6/strategy-ipv6';
 import { compareObjectsInArray, handleMouseDown, handleMouseMove } from '../util';
 import DeleteSubtitle from './delete-subtitle';
+import FilterPanelPopover from './filter-panel-popover';
 
 import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import type { INodeType, TargetObjectType } from '../../../components/monitor-ip-selector/typing';
@@ -70,15 +76,13 @@ import '@blueking/search-select-v3/vue2/vue2.css';
 const { i18n: I18N } = window;
 const UN_SET_ACTION = 'UN_SET_ACTION';
 const STRATEGY_CONFIG_SETTING = 'strategy_config_setting';
+/** 过滤项 */
+const FILTER_PANEL_FIELD = 'FILTER_PANEL_FIELD';
 
 @Component({
   name: 'StrategyConfig',
 })
-export default class StrategyConfig extends tsc<IStrategyConfigProps> {
-  @Inject('authority') authority;
-  @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
-  @Inject('authorityMap') authorityMap;
-  @Inject('strategyType') strategyType;
+class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strategyAuth, false)) {
   @Prop({ type: String, default: '' }) fromRouteName: IStrategyConfigProps['fromRouteName'];
   @Prop({ type: String, default: '' }) noticeName: IStrategyConfigProps['noticeName'];
   @Prop({ type: String, default: '' }) serviceCategory: IStrategyConfigProps['serviceCategory'];
@@ -92,12 +96,33 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
   @Prop({ type: Array, default: null }) bkStrategyId: IStrategyConfigProps['bkStrategyId'];
   @Prop({ type: Array, default: null }) dataSource: IStrategyConfigProps['dataSource'];
   @Prop({ type: String, default: '' }) actionName: IStrategyConfigProps['actionName'];
+  @Prop({ type: String, default: '' }) strategyLabels: IStrategyConfigProps['strategyLabels'];
   @Prop({ type: [String, Array] }) scenario: string;
   @Prop({ type: [String, Array] }) strategyState: string;
   @Prop({ type: Array }) keywords: IStrategyConfigProps['keywords']; /** 支持传入自定义搜索关键词 */
   @Prop({ type: String, default: '' }) resultTableId: IStrategyConfigProps['resultTableId']; /** 结果表搜索条件 */
 
   showFilterPanel = true;
+  showFilterPanelField = [
+    'strategy_status',
+    'scenario',
+    'data_source_list',
+    'user_group_name',
+    'label_name',
+    'action_name',
+  ];
+  /** 过滤面板字段展示顺序 */
+  filterPanelFieldOrder = [
+    'status',
+    'scenario',
+    'dataSource',
+    'noticeName',
+    'strategyLabels',
+    'actionName',
+    'level',
+    'algorithmType',
+    'invalidType',
+  ];
   header: IHeader = {
     value: 0,
     dropdownShow: false,
@@ -123,7 +148,8 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
       { id: 16, name: I18N.t('修改通知间隔') },
       { id: 17, name: I18N.t('修改通知模板') },
       { id: 18, name: I18N.t('修改告警风暴开关') },
-      { id: 19, name: I18N.t('导出Yaml（As Code功能）') },
+      { id: 19, name: I18N.t('As Code') },
+      { id: 22, name: I18N.t('导入/导出') },
     ],
     keyword: '',
     keywordObj: [], // 搜索框绑定值
@@ -215,7 +241,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
   scenarioList = []; // 监控对象
   fieldSettingData: any = {};
   fieldAllSelected = false; // 是否全选
-  drapWidth = 214;
+  dropWidth = 214;
   noticeGroupList = [];
   conditionList = [];
   /** 策略状态数据 */
@@ -251,6 +277,8 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
   ipTargetType = 'TOPO';
   ipSelectorShow = false;
   emptyType: EmptyStatusType = 'empty'; // 空状态
+  selectKey = 1;
+  firstRequest = true; // 第一次请求
   cancelFn = () => {}; // 取消监控目标接口方法
 
   get bizList() {
@@ -271,10 +299,9 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
       })
     );
   }
+
+  // 筛选面板所有字段
   get filterPanelData(): IGroupData[] {
-    // 筛选面板数据
-    // 过滤需要展示的分组（监控对象、数据来源、告警组）
-    const displayKeys = ['scenario', 'dataSource', 'noticeName', 'strategyLabels', 'actionName'];
     const iconMap = {
       ALERT: 'icon-mc-chart-alert',
       INVALID: 'icon-shixiao',
@@ -291,17 +318,20 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         icon: iconMap[item.id],
       })),
     };
-    return [
-      strategyStatusFilter,
-      ...displayKeys.map(key => {
-        const { id, name, list } = this.backDisplayMap[key];
-        return {
-          id,
-          name,
-          data: key === 'noticeName' ? this.groupList.map(({ name, count }) => ({ id: name, name, count })) : list,
-        };
-      }),
-    ];
+    return this.filterPanelFieldOrder.map(key => {
+      if (key === 'status') return strategyStatusFilter;
+      const { id, name, list } = this.backDisplayMap[key];
+      return {
+        id,
+        name,
+        data: key === 'noticeName' ? this.groupList.map(({ name, count }) => ({ id: name, name, count })) : list,
+      };
+    });
+  }
+
+  /** 筛选面板展示字段 */
+  get showFilterPanelData(): IGroupData[] {
+    return this.filterPanelData.filter(item => this.showFilterPanelField.includes(item.id as string));
   }
 
   get isFta() {
@@ -348,8 +378,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         canSetDetEctionRules =
           `${dataSourceLabel}|${dataTypeLabel}` !== 'bk_monitor|event' && dataTypeLabel !== 'alert';
       }
-
-      Object.keys(detectionDisabledStatusMap).forEach((key: DetectionRuleTypeEnum) => {
+      for (const key of Object.keys(detectionDisabledStatusMap)) {
         if (!canSetDetEctionRules) detectionDisabledStatusMap[key] = true;
 
         // ICMP协议的拨测服务开放所有的检测算法选项、HTTP、TCP、UDP协议仅有静态阈值检测算法
@@ -365,7 +394,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             DetectionRuleTypeEnum.IntelligentDetect,
             DetectionRuleTypeEnum.TimeSeriesForecasting,
             DetectionRuleTypeEnum.AbnormalCluster,
-          ].includes(key)
+          ].includes(key as DetectionRuleTypeEnum)
         ) {
           if (!isCanSetAiops) {
             detectionDisabledStatusMap[key] = true;
@@ -374,7 +403,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
             detectionDisabledStatusMap[key] = true;
           }
         }
-      });
+      }
       return detectionDisabledStatusMap;
     });
     return compareObjectsInArray(Object.values(res)) && canSetDetEctionRules;
@@ -391,41 +420,24 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
     this.$nextTick(() => {
       v.forEach((item, index) => {
         /* 告警组 */
-        const ref: any = this.$refs.strategyTable?.$refs[`table-row-${index}`];
+        const ref = (this.$refs.strategyTable as Element & { $refs: Record<string, HTMLDivElement> })?.$refs[
+          `table-row-${index}`
+        ];
         item.overflow = ref && ref.clientHeight > 32;
         /* 标签组 */
-        const refLabel: any = this.$refs.strategyTable?.$refs[`table-labels-${index}`];
+        const refLabel = (this.$refs.strategyTable as Element & { $refs: Record<string, HTMLDivElement> })?.$refs[
+          `table-labels-${index}`
+        ];
         // 这里计算整个 label 容器内是否会出现 换行 的可能，若换行就显示省略号。
         /* 标签组样式 */
         item.overflowLabel = refLabel && refLabel.clientHeight > 32;
         const overflowMap = ['signals', 'levels', 'detectionTypes', 'mealNames'];
-        overflowMap.forEach(key => {
+        for (const key of overflowMap) {
           // 通用数据样式
           const refDom: any = this.$refs[`table-${key}-${index}`];
           item[`overflow${key}`] = refDom && refDom.clientHeight > 32;
-        });
+        }
       });
-    });
-  }
-  /**
-   * 由于父容器 content-right 进行自适应宽度调整的过程中
-   * 会让 table 中的标签 label 无法显示省略号（浏览器宽度缩小的情况下）
-   * 本方法在 table 的 mounted 或 activated 完毕时监听容器的 resize 事件
-   */
-  handleTableMountedOrActivated() {
-    const resize = debounce(50, () => {
-      this.handleTableDataChange(this.table.data);
-    });
-    const container = document.querySelector('#content-for-watch-resize') as HTMLElement;
-    if (!container) return;
-    addListener(container, () => {
-      resize();
-    });
-    this.$once('hook:beforeDestory', () => {
-      removeListener(container);
-    });
-    this.$once('hook:deactivated', () => {
-      removeListener(container);
     });
   }
   created() {
@@ -798,7 +810,26 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
     });
   }
 
-  activated() {
+  async activated() {
+    await this.getAuthCreated();
+    if (!this.hasPageViewAuth) return;
+    /** 获取筛选面板用户配置 */
+    this.handleGetUserConfig<{ fields: string[]; order: string[] }>(FILTER_PANEL_FIELD, { reject403: true }).then(
+      res => {
+        if (!res) {
+          this.handleSetUserConfig(
+            FILTER_PANEL_FIELD,
+            JSON.stringify({
+              fields: this.showFilterPanelField,
+              order: this.filterPanelFieldOrder,
+            })
+          );
+        } else {
+          this.showFilterPanelField = res.fields;
+          this.filterPanelFieldOrder = res.order;
+        }
+      }
+    );
     if (
       !['strategy-config-edit', 'strategy-config-add', 'strategy-config-detail', 'strategy-config-target'].includes(
         this.fromRouteName
@@ -806,15 +837,36 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
     ) {
       if (this.tableInstance.setDefaultStore) {
         this.tableInstance.setDefaultStore();
-        this.tableInstance.pageSize = commonPageSizeGet();
+        this.handleResetRoute('Get');
       }
       this.header.keyword = '';
     }
     this.checkColInit();
     this.handleSetDashboard();
     this.handleSearchBackDisplay();
-    this.handleGetListData(true, 1);
+    this.handleGetListData(true, this.tableInstance.page);
     this.getGroupList();
+  }
+  /**
+   * 由于父容器 content-right 进行自适应宽度调整的过程中
+   * 会让 table 中的标签 label 无法显示省略号（浏览器宽度缩小的情况下）
+   * 本方法在 table 的 mounted 或 activated 完毕时监听容器的 resize 事件
+   */
+  handleTableMountedOrActivated() {
+    const resize = debounce(50, () => {
+      this.handleTableDataChange(this.table.data);
+    });
+    const container = document.querySelector('#content-for-watch-resize') as HTMLElement;
+    if (!container) return;
+    addListener(container, () => {
+      resize();
+    });
+    this.$once('hook:beforeDestory', () => {
+      removeListener(container);
+    });
+    this.$once('hook:deactivated', () => {
+      removeListener(container);
+    });
   }
   handleSearchChange(v) {
     if (JSON.stringify(v || []) === JSON.stringify(this.header.keywordObj || [])) return;
@@ -831,11 +883,11 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
     let fieldSettingData: any = localStorage.getItem(STRATEGY_CONFIG_SETTING);
     if (fieldSettingData) {
       fieldSettingData = JSON.parse(fieldSettingData);
-      fieldSettingData.forEach(item => {
+      for (const item of fieldSettingData) {
         if (this.fieldSettingData[item.id]) {
           this.fieldSettingData[item.id].checked = item.checked;
         }
-      });
+      }
     }
     this.fieldAllSelected = Object.keys(this.fieldSettingData).every(key => this.fieldSettingData[key].checked);
   }
@@ -860,14 +912,14 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
    */
   handleFieldAllSelected(v: boolean) {
     this.fieldAllSelected = v;
-    Object.keys(this.fieldSettingData).forEach(key => {
+    for (const key of Object.keys(this.fieldSettingData)) {
       if (v) {
         this.fieldSettingData[key].checked = true;
       }
       if (!this.fieldSettingData[key].disable && !v) {
         this.fieldSettingData[key].checked = false;
       }
-    });
+    }
     const result = Object.keys(this.fieldSettingData).map(key => ({
       id: key,
       checked: this.fieldSettingData[key].checked,
@@ -896,7 +948,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
   handleSearchBackDisplay() {
     const temp = [];
     const map = this.backDisplayMap;
-    Object.keys(map).forEach(key => {
+    for (const key of Object.keys(map)) {
       let value = this[key];
       if (value) {
         try {
@@ -920,7 +972,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
           values,
         });
       }
-    });
+    }
     if (this.keywords?.length) {
       /** 自定义搜索条件 */
       temp.push(...this.keywords.map(id => ({ id, name: id })));
@@ -936,7 +988,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
    */
   handleSearchCondition(data = this.header.keywordObj) {
     const res = [];
-    data.forEach(item => {
+    for (const item of data) {
       const key = item.values ? item.id : 'query';
       let value = item.values ? item.values.map(val => val.id) : item.id;
       if (key === 'action_name') {
@@ -951,7 +1003,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         value,
       };
       res.push(temp);
-    });
+    }
     this.header.condition = res;
   }
   /**
@@ -962,17 +1014,17 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
   createdConditionList() {
     const res = [];
     const map = this.backDisplayMap;
-    Object.keys(map).forEach(key => {
+    for (const key of Object.keys(map)) {
       const { name, id, list, multiple } = map[key];
       if (id === 'scenario') {
         const resChildren = [];
-        list.forEach(listItem => {
+        for (const listItem of list) {
           if (listItem.children) {
-            listItem.children.forEach(item => {
+            for (const item of listItem.children) {
               resChildren.push(item);
-            });
+            }
           }
-        });
+        }
         res.push({
           name,
           id,
@@ -987,7 +1039,8 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
           children: list ? list : [],
         });
       }
-    });
+    }
+    this.selectKey += 1;
     this.conditionList = res;
   }
   /**
@@ -995,7 +1048,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
    * @param {String} metricId（指标ID有可能从sessionStorage中来）
    */
   handleInitQueryParams(metricId) {
-    Object.keys(this.backDisplayMap).forEach(key => {
+    for (const key of Object.keys(this.backDisplayMap)) {
       // 判断props中是否存在该属性 指标id数组支持多指标
       if (metricId && key === 'metricId') {
         let metricIds = metricId;
@@ -1022,7 +1075,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
           });
         }
       }
-    });
+    }
   }
   /**
    * @description:设置dashabord
@@ -1049,13 +1102,14 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
       TOPO: '{0}个拓扑节点',
       SERVICE_TEMPLATE: '{0}个服务模板',
       SET_TEMPLATE: '{0}个集群模板',
+      DYNAMIC_GROUP: '{0}个动态分组',
     };
-    tableData.forEach(item => {
+    for (const item of tableData) {
       const target = targetMap[item.id];
       item.objectType = item.objectType || target.instance_type;
       item.targetNodeType = item.node_type;
       if (target.instance_type === 'HOST') {
-        if (['SERVICE_TEMPLATE', 'SET_TEMPLATE', 'TOPO'].includes(target.node_type)) {
+        if (['SERVICE_TEMPLATE', 'SET_TEMPLATE', 'TOPO', 'DYNAMIC_GROUP'].includes(target.node_type)) {
           item.target = `${this.$t(textMap[target.node_type], [target.node_count])} （${this.$t('共{0}台主机', [target.instance_count])}）`;
         } else if (target.node_type === 'INSTANCE') {
           item.target = this.$t('{0}台主机', [target.node_count]);
@@ -1069,7 +1123,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
       } else {
         item.target = '';
       }
-    });
+    }
     return tableData;
   }
   setTableFilterSelect(filterType) {
@@ -1183,9 +1237,14 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
           id: item.name,
           name: item.name,
         }));
+        this.backDisplayMap.level.list = data.alert_level_list || [];
+        this.backDisplayMap.algorithmType.list = data.algorithm_type_list || [];
+        this.backDisplayMap.invalidType.list = data.invalid_type_list || [];
         this.createdConditionList();
-        // magic code  reflesh bk table
-        this.$refs.strategyTable?.doLayout?.();
+        this.handleResetRoute('Set');
+        // magic code  refresh bk table
+        (this.$refs.strategyTable as Element & { doLayout?: () => void })?.doLayout?.();
+        this.firstRequest = false;
       })
       .catch(() => {
         this.emptyType = '500';
@@ -1194,6 +1253,70 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         this.loading = false;
         this.table.loading = false;
       });
+  }
+
+  handleResetRoute(type: 'Get' | 'Set') {
+    if (type === 'Get') {
+      const { page, pageSize, filters } = this.$route.query;
+      this.tableInstance.page = Number(page) || 1;
+      this.tableInstance.pageSize = Number(pageSize) || commonPageSizeGet();
+      try {
+        this.header.condition = filters ? JSON.parse(filters as string) : [];
+      } catch {
+        this.header.condition = [];
+      }
+    } else {
+      const { route } = this.$router.resolve({
+        name: this.$route.name,
+        query: {
+          page: String(this.tableInstance.page),
+          pageSize: String(this.tableInstance.pageSize),
+          filters: JSON.stringify(this.header.condition),
+        },
+      });
+      if (this.$route.fullPath !== route.fullPath) {
+        this.$router.replace(route);
+      }
+    }
+    if (this.firstRequest) {
+      this.header.keywordObj = this.header.condition.map(item => {
+        const { id, name, data } = this.filterPanelData.find(panel => item.key === panel.id) || {
+          id: item.key,
+          name: item.key,
+          data: [],
+        };
+        let values = [];
+        /**
+         * 因为有些筛选项需要等待列表接口请求完成后才能知道，所以这里需要判断一下
+         * 如果该筛选项没有子级，就暂时使用Url传递的值构造一个id为值的对象,等待接口返回后在进行处理
+         */
+        if (data?.length) {
+          values = data.reduce((values, cur) => {
+            if (Array.isArray(cur.children)) {
+              values.push(...cur.children.filter(child => item.value.includes(child.id)));
+            } else {
+              item.value.includes(cur.id) && values.push(cur);
+            }
+            return values;
+          }, []);
+        } else if (typeof item.value === 'string') {
+          return {
+            id: item.value,
+            name: item.value,
+          };
+        } else if (Array.isArray(item.value)) {
+          values = item.value.map(id => ({
+            id,
+            name: id,
+          }));
+        }
+        return {
+          id: id,
+          name,
+          values,
+        };
+      });
+    }
   }
   /**
    * @description: 监控对象处理
@@ -1338,6 +1461,12 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
       });
       return;
     }
+    if (v === 22) {
+      this.$router.push({
+        name: 'export-import',
+      });
+      return;
+    }
     // 批量增删目标
     if (v === 8) {
       // 增删目标禁用状态
@@ -1360,24 +1489,19 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
    * @return {*}
    */
   handleSelectorData(type, data) {
-    const checkedData = [];
-    if (type === 'INSTANCE') {
-      data.forEach(item => {
-        checkedData.push({
-          ip: item.ip,
-          bk_cloud_id: item.bk_cloud_id,
-          bk_supplier_id: item.bk_supplier_id,
-        });
-      });
-    } else {
-      data.forEach(item => {
-        checkedData.push({
-          bk_inst_id: item.bk_inst_id,
-          bk_obj_id: item.bk_obj_id,
-        });
-      });
-    }
-    return checkedData;
+    const mapper =
+      type === 'INSTANCE'
+        ? item => ({
+            ip: item.ip,
+            bk_cloud_id: item.bk_cloud_id,
+            bk_supplier_id: item.bk_supplier_id,
+          })
+        : item => ({
+            bk_inst_id: item.bk_inst_id,
+            bk_obj_id: item.bk_obj_id,
+          });
+
+    return data.map(mapper);
   }
   handleOperatorOver(data, e, index) {
     if (this.popover.index === index) {
@@ -1733,7 +1857,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
     const titleStr = this.$t(title);
     return (
       <span
-        class={{ 'dropdown-trigger': true, ' plugin-label': true, selected: active }}
+        class={{ 'dropdown-trigger': true, 'plugin-label': true, selected: active }}
         slot='dropdown-trigger'
         onClick={e => this.handleShowTableFilter(e, type, title)}
       >
@@ -1775,7 +1899,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
    * @return {*}
    */
   handleSearchSelectChange(data = []) {
-    data.forEach(item => {
+    for (const item of data) {
       const obj = this.header.keywordObj.find(obj => obj.id === item.id);
       const index = this.header.keywordObj.findIndex(obj => obj.id === item.id);
       if (obj) {
@@ -1788,18 +1912,18 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
       } else {
         this.header.keywordObj.push(item);
       }
-    });
+    }
     this.header.keywordObj = [...this.header.keywordObj];
     this.handleGetListData(false, 1);
   }
   handleShowFilterPanel() {
-    this.drapWidth = 214;
+    this.dropWidth = 214;
     this.showFilterPanel = true;
   }
   handleMouseDown(e) {
     handleMouseDown(e, 'resizeTarget', 114, { min: 214, max: 500 }, width => {
       this.showFilterPanel = width !== 0;
-      this.drapWidth = width;
+      this.dropWidth = width;
     });
   }
   handleMouseMove(e) {
@@ -1856,6 +1980,23 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
   handleAlarmGroupClick(groupId: number) {
     this.alarmGroupDialog.id = groupId;
     this.alarmGroupDialog.show = true;
+  }
+
+  /** 筛选面板设置 */
+  handleFilterFieldsChange({ showFields = [], order = [] }) {
+    this.showFilterPanelField = showFields;
+    const fieldsOrder = order.reduce((acc, cur) => {
+      acc.push(this.filterPanelFieldOrder[cur]);
+      return acc;
+    }, []);
+    this.filterPanelFieldOrder = fieldsOrder;
+    this.handleSetUserConfig(
+      FILTER_PANEL_FIELD,
+      JSON.stringify({
+        fields: this.showFilterPanelField,
+        order: this.filterPanelFieldOrder,
+      })
+    );
   }
 
   getTableComponent() {
@@ -2651,15 +2792,15 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
   }
 
   render() {
+    if (!this.authLoading && !this.hasPageViewAuth && this.isQueryAuthDone) {
+      return <AuthComponent actionId={strategyAuth.VIEW_AUTH} />;
+    }
     return (
-      <div
-        class='strategy-config'
-        v-monitor-loading={{ isLoading: this.loading }}
-      >
+      <div class='strategy-config'>
         <div class='content'>
           <div
-            style={{ flexBasis: `${this.drapWidth}px`, width: `${this.drapWidth}px` }}
-            class={['content-left', { displaynone: !this.showFilterPanel }]}
+            style={{ flexBasis: `${this.dropWidth}px`, width: `${this.dropWidth}px` }}
+            class={['content-left', { hidden: !this.showFilterPanel }]}
             v-show='showFilterPanel'
             data-tag='resizeTarget'
           >
@@ -2674,11 +2815,24 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                 },
               }}
               checkedData={this.header.keywordObj}
-              data={this.filterPanelData}
+              data={this.showFilterPanelData}
+              showSkeleton={this.authLoading || this.loading}
               on-change={this.handleSearchSelectChange}
-            />
+            >
+              <div
+                class='filter-panel-header mb20'
+                slot='header'
+              >
+                <span class='title'>{this.$t('筛选')}</span>
+                <FilterPanelPopover
+                  list={this.filterPanelData}
+                  showFields={this.showFilterPanelField}
+                  onFilterFieldChange={this.handleFilterFieldsChange}
+                />
+              </div>
+            </FilterPanel>
             <div
-              class={['content-left-drag', { displaynone: !this.showFilterPanel }]}
+              class={['content-left-drag', { hidden: !this.showFilterPanel }]}
               onMousedown={this.handleMouseDown}
               onMousemove={this.handleMouseMove}
             />
@@ -2764,6 +2918,7 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                 </ul>
               </bk-dropdown-menu>
               <SearchSelect
+                key={this.selectKey}
                 class='header-search'
                 data={this.conditionList}
                 modelValue={this.header.keywordObj}
@@ -2819,23 +2974,30 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
                   </div>
                 </bk-popover>
               </div>
-              {this.getTableComponent()}
-              {this.table.data?.length ? (
-                <bk-pagination
-                  class='strategy-pagination list-pagination'
-                  v-show={this.tableInstance.total}
-                  align='right'
-                  count={this.pageCount}
-                  current={this.tableInstance.page}
-                  limit={this.tableInstance.pageSize}
-                  limit-list={this.tableInstance.pageList}
-                  size='small'
-                  pagination-able
-                  show-total-count
-                  on-change={this.handlePageChange}
-                  on-limit-change={this.handleLimitChange}
-                />
-              ) : undefined}
+              {this.authLoading || this.table.loading || this.loading ? (
+                <TableSkeleton type={2} />
+              ) : (
+                [
+                  this.getTableComponent(),
+                  this.table.data?.length ? (
+                    <bk-pagination
+                      key='table-pagination'
+                      class='strategy-pagination list-pagination'
+                      v-show={this.tableInstance.total}
+                      align='right'
+                      count={this.pageCount}
+                      current={this.tableInstance.page}
+                      limit={this.tableInstance.pageSize}
+                      limit-list={this.tableInstance.pageList}
+                      size='small'
+                      pagination-able
+                      show-total-count
+                      on-change={this.handlePageChange}
+                      on-limit-change={this.handleLimitChange}
+                    />
+                  ) : undefined,
+                ]
+              )}
             </div>
           </div>
         </div>
@@ -2844,3 +3006,5 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
     );
   }
 }
+
+export default ofType<IStrategyConfigProps>().convert(StrategyConfig);

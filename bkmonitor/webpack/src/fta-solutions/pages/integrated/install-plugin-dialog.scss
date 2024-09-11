@@ -39,6 +39,9 @@
 }
 
 .integrated-install-plugin-dialog {
+  /* stylelint-disable-next-line declaration-no-important */
+  z-index: 5555 !important;
+  
   .dialog-form-content {
     min-height: 50px;
   }

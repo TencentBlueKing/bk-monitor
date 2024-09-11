@@ -40,7 +40,7 @@ import type { TranslateResult } from 'vue-i18n';
 
 import './incident-table.scss';
 
-// const alertStoreKey = '__ALERT_EVENT_COLUMN__';
+// const alertStoreKey = '__ALERT_EVENT_COLUMN__' ;
 // const actionStoreKey = '__ACTION_EVENT_COLUMN__';
 type TableSizeType = 'large' | 'medium' | 'small';
 
@@ -74,12 +74,12 @@ interface IEventTableProps {
 interface IEventStatusMap {
   color: string;
   bgColor: string;
-  name: TranslateResult | string;
+  name: string | TranslateResult;
   icon: string;
 }
 interface IColumnItem {
   id: string;
-  name: TranslateResult | string;
+  name: string | TranslateResult;
   disabled: boolean;
   checked: boolean;
   props?: {
@@ -143,29 +143,13 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   selectedCount = 0;
   tableToolList: {
     id: string;
-    name: TranslateResult | string;
+    name: string | TranslateResult;
   }[];
   /* 状态栏更多操作按钮 */
   popoperOperateInstance: any = null;
   popoperOperateIndex = -1;
   opetateRow = null;
   enableCreateChatGroup = false;
-  metricPopoverIns = null;
-  handleMetricMouseenter(e: MouseEvent, data: { key: string; value: string }[] | string[]) {
-    this.metricPopoverIns?.hide?.(0);
-    const { clientWidth, scrollWidth } = e.target as HTMLDivElement;
-    if (scrollWidth > clientWidth) {
-      this.metricPopoverIns = this.$bkPopover(e.target, {
-        content: `${data.map(item => `<div>${item}</div>`).join('')}`,
-        interactive: true,
-        distance: 0,
-        duration: [200, 0],
-      });
-      this.metricPopoverIns?.show?.(100);
-    } else {
-      this.metricPopoverIns?.destroy?.();
-    }
-  }
   /**
    * @description: 处理记录列表字段
    * @param {*}
@@ -228,13 +212,35 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
             formatter: (row: IncidentItem) => {
               return (
                 <div class='tag-column-wrap'>
-                  <div
-                    class='tag-column'
-                    onMouseenter={e => this.handleMetricMouseenter(e, row.labels)}
-                  >
-                    {row.labels?.map((item) => (
-                      <div class='tag-item set-item'>{item.key ? `${item.key}: ${item.value.replace(/\//g, '')}` : item?.replace(/\//g, '')}</div>
-                    )) || '--'}
+                  <div class='tag-column'>
+                    {row.labels ? (
+                      <div>
+                        <div class='tag-item set-item'>
+                          {typeof row.labels[0] === 'string'
+                            ? row.labels[0].replace(/\//g, '')
+                            : row.labels[0]?.key
+                              ? `${row.labels[0].key}: ${row.labels[0].value.replace(/\//g, '')}`
+                              : '--'}
+                        </div>
+                        {row.labels.length > 1 && (
+                          <bk-popover>
+                            <div slot='content'>
+                              {row.labels.map(item => (
+                                <div
+                                  key={item}
+                                  style={'margin:0 -5px'}
+                                >
+                                  {item}
+                                </div>
+                              ))}
+                            </div>
+                            <div class='tag-item set-item'>+ {row.labels.length - 1}</div>
+                          </bk-popover>
+                        )}
+                      </div>
+                    ) : (
+                      '--'
+                    )}
                   </div>
                 </div>
               );
@@ -268,7 +274,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           props: {
             width: 100,
             minWidth: 100,
-            sortable: 'curstom',
+            // sortable: 'curstom',
             formatter: (row: IncidentItem) => {
               return row.duration || '--';
             },
@@ -360,7 +366,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
       CLOSED: {
         color: '#63656E',
         bgColor: '#F0F1F5',
-        name: this.$t('已关闭'),
+        name: this.$t('已失效'),
         icon: '',
       },
     };
@@ -459,9 +465,11 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
    */
   handleGotoMore(extendInfo: Record<string, any>, bizId: string) {
     const origin = process.env.NODE_ENV === 'development' ? process.env.proxyUrl : location.origin;
+    const id = extendInfo.bk_event_group_id;
     switch (extendInfo.type) {
       // 监控主机监控详情
       case 'host':
+        // biome-ignore lint/correctness/noSwitchDeclarations: <explanation>
         const detailId =
           extendInfo.bk_host_id ??
           `${extendInfo.ip}-${extendInfo.bk_cloud_id === undefined ? 0 : extendInfo.bk_cloud_id}`;
@@ -472,29 +480,35 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
         return;
       // 监控数据检索
       case 'bkdata':
+        // biome-ignore lint/correctness/noSwitchDeclarations: <explanation>
         const targets = [{ data: { query_configs: extendInfo.query_configs } }];
         window.open(
           `${origin}${location.pathname
             .toString()
-            .replace('fta/', '')}?bizId=${bizId}#/data-retrieval/?targets=${JSON.stringify(targets)}`,
+            .replace(
+              'fta/',
+              ''
+            )}?bizId=${bizId}#/data-retrieval/?targets=${encodeURIComponent(JSON.stringify(targets))}`,
           '__blank'
         );
         return;
       // 日志检索
       case 'log_search':
+        // biome-ignore lint/correctness/noSwitchDeclarations: <explanation>
         const retrieveParams = {
           // 检索参数
           bizId,
           keyword: extendInfo.query_string, // 搜索关键字
           addition: extendInfo.agg_condition || [],
         };
+        // biome-ignore lint/correctness/noSwitchDeclarations: <explanation>
         const queryStr = transformLogUrlQuery(retrieveParams);
+        // biome-ignore lint/correctness/noSwitchDeclarations: <explanation>
         const url = `${this.$store.getters.bkLogSearchUrl}#/retrieve/${extendInfo.index_set_id}${queryStr}`;
         window.open(url);
         return;
       // 监控自定义事件
       case 'custom_event':
-        const id = extendInfo.bk_event_group_id;
         window.open(
           `${origin}${location.pathname
             .toString()
@@ -538,8 +552,14 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
     switch (extendInfo.type) {
       case 'host':
         return [
-          <div class='extend-content'>{`${this.$t('主机名:')}${extendInfo.hostname || '--'}`}</div>,
-          <div class='extend-content'>
+          <div
+            key={extendInfo.hostname}
+            class='extend-content'
+          >{`${this.$t('主机名:')}${extendInfo.hostname || '--'}`}</div>,
+          <div
+            key={`${extendInfo.hostname}-info`}
+            class='extend-content'
+          >
             <span class='extend-content-message'>{`${this.$t('节点信息:')}${extendInfo.topo_info || '--'}`}</span>
             <span
               class='extend-content-link link-more'
@@ -651,6 +671,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   }
 
   handleRenderIdColumn(column) {
+    const { origin, pathname } = window.location;
     return (
       <bk-table-column
         key={`${this.searchType}_${column.id}`}
@@ -659,13 +680,17 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
         {...{ props: column.props }}
         scopedSlots={{
           default: ({ row }: { row: IncidentItem }) => (
-            <span
+            <a
               class={`event-status status-${row.severity} id-column ${row.level}_id`}
               v-bk-overflow-tips
-              onClick={() => this.handleShowDetail(row)}
+              href={`${origin}${pathname}?bizId=${row.bk_biz_id}#/trace/incident/detail/${row.id}`}
+              onClick={e => {
+                e.preventDefault();
+                this.handleShowDetail(row);
+              }}
             >
               {row.id}
-            </span>
+            </a>
           ),
         }}
       />
@@ -708,7 +733,13 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
                 ) : (
                   ''
                 )}
-                {this.eventStatusMap?.[status]?.name || '--'}
+                <span
+                  class={'status-label-status'}
+                  v-bk-overflow-tips
+                >
+                  {' '}
+                  {this.eventStatusMap?.[status]?.name || '--'}
+                </span>
               </span>
             </div>
           ),
@@ -774,8 +805,12 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           size={this.tableSize}
           on-page-change={this.handlePageChange}
           on-page-limit-change={this.handlePageLimitChange}
-          on-row-mouse-enter={index => (this.hoverRowIndex = index)}
-          on-row-mouse-leave={() => (this.hoverRowIndex = -1)}
+          on-row-mouse-enter={index => {
+            this.hoverRowIndex = index;
+          }}
+          on-row-mouse-leave={() => {
+            this.hoverRowIndex = -1;
+          }}
           on-selection-change={this.handleSelectChange}
           on-sort-change={this.handleSortChange}
         >

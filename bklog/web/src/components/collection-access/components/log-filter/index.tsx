@@ -51,7 +51,7 @@ const inputLogStyle = {
 
 @Component
 export default class LogFilter extends tsc<object> {
-  @Prop({ type: Object, required: true }) conditions: object;
+  @Prop({ type: Object, default: () => ({}) }) conditions: object;
   @Prop({ type: Boolean, default: false }) isCloneOrUpdate: boolean;
 
   /** 日志过滤开关 */
@@ -119,9 +119,6 @@ export default class LogFilter extends tsc<object> {
     return this.getSubmitConditionsData();
   }
 
-  mounted() {
-    this.initContainerData();
-  }
   /** 初始化日志过滤table表格 */
   initContainerData() {
     const {
@@ -349,6 +346,7 @@ export default class LogFilter extends tsc<object> {
           ref={`value-${row.tableIndex}-${$index}`}
           v-model={row.word}
           active-type={this.activeType}
+          placeholder={['regex', 'nregex'].includes(row.op) ? this.$t('支持正则匹配，如18*123') : this.$t('请输入')}
           row-data={row}
         />
       ),
@@ -395,7 +393,7 @@ export default class LogFilter extends tsc<object> {
           ></bk-switcher>
           <div class='switcher-tips'>
             <i class='bk-icon icon-info-circle' />
-            <span>{this.$t('过滤器支持采集时过滤不符合的日志内容，需采集器版本 7.7.2及以上版本')}</span>
+            <span>{this.$t('过滤器支持采集时过滤不符合的日志内容，请保证采集器已升级到最新版本')}</span>
           </div>
         </div>
         {this.filterSwitcher && (

@@ -23,11 +23,14 @@ def check_action_and_composite(
     :param retry_times: 重试次数，最大为2
     :return:
     """
+    logger.info(
+        "[composite] alert(%s) strategy(%s) begin: alert_key(%s)", alert_key.alert_id, alert_key.strategy_id, alert_key
+    )
     try:
         alert = Alert.get(alert_key)
     except AlertNotFoundError:
         # 如果从redis和ES都找不到告警，可以推迟一分钟之后再次检测
-        logger.info("[composite] alert(%s) found error, try again 5 seconds later", alert_key)
+        logger.info("[composite] alert(%s) not found, retry in 5s", alert_key.alert_id)
         if retry_times <= 2:
             # 异常情况下最多重试2次
             check_action_and_composite.apply_async(
@@ -42,11 +45,11 @@ def check_action_and_composite(
         return
 
     if not alert:
-        logger.info("[composite] alert(%s) not found, skip it", alert_key)
+        logger.info("[composite] alert(%s) not found, skip it", alert_key.alert_id)
         return
 
     if not alert.bk_biz_id:
-        logger.info("[composite] alert(%s) bk_biz_id is empty, skip it", alert_key)
+        logger.info("[composite] alert(%s) bk_biz_id is empty, skip it", alert.id)
         return
 
     exc = None
@@ -59,7 +62,7 @@ def check_action_and_composite(
             processor.process()
     except Exception as e:
         exc = e
-        logger.exception("[composite] alert(%s) process error: %s", alert.id, e)
+        logger.exception("[composite ERROR] alert(%s) strategy(%s) detail: %s", alert.id, alert.strategy_id, e)
 
     metrics.COMPOSITE_PROCESS_COUNT.labels(
         strategy_id=metrics.TOTAL_TAG, status=metrics.StatusEnum.from_exc(exc), exception=exc

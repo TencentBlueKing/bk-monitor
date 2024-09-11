@@ -91,6 +91,9 @@ export const queryPathIpChooserTopo = request('POST', 'rest/v2/commons/ip_choose
 export const queryServiceInstancesIpChooserTopo = request('POST', 'rest/v2/commons/ip_chooser_topo/query_service_instances/');
 export const serviceInstanceCountIpChooserTopo = request('POST', 'rest/v2/commons/ip_chooser_topo/service_instance_count/');
 export const treesIpChooserTopo = request('POST', 'rest/v2/commons/ip_chooser_topo/trees/');
+export const groupsIpChooserDynamicGroup = request('POST', 'rest/v2/commons/ip_chooser_dynamic_group/groups/');
+export const executeIpChooserDynamicGroup = request('POST', 'rest/v2/commons/ip_chooser_dynamic_group/execute/');
+export const agentStatisticsIpChooserDynamicGroup = request('POST', 'rest/v2/commons/ip_chooser_dynamic_group/agent_statistics/');
 export const enhancedContext = request('GET', 'rest/v2/commons/context/enhanced/');
 export const listUsersUser = request('GET', 'rest/v2/commons/user/list_users/');
 export const createFavoriteGroup = request('POST', 'rest/v2/favorite_group/');
@@ -253,6 +256,9 @@ export default {
   queryServiceInstancesIpChooserTopo,
   serviceInstanceCountIpChooserTopo,
   treesIpChooserTopo,
+  groupsIpChooserDynamicGroup,
+  executeIpChooserDynamicGroup,
+  agentStatisticsIpChooserDynamicGroup,
   enhancedContext,
   listUsersUser,
   createFavoriteGroup,

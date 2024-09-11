@@ -162,7 +162,7 @@ class NoticeGroupListResource(NoticeGroupDetailResource):
         if bk_biz_id:
             bk_biz_ids = [0, bk_biz_id]
         else:
-            bk_biz_ids = [biz.id for biz in resource.cc.get_app_by_user(get_request().user)]
+            bk_biz_ids: List[int] = resource.space.get_bk_biz_ids_by_user(get_request().user)
 
         notice_groups = resource.notice_group.backend_search_notice_group(bk_biz_ids=bk_biz_ids)
         strategy_ids = StrategyModel.objects.filter(bk_biz_id__in=bk_biz_ids).values_list("id", flat=True)

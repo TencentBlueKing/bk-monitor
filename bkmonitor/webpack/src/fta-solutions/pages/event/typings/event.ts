@@ -50,6 +50,7 @@ export interface IEventItem {
   begin_time: number;
   bk_biz_id: number;
   bizName: string;
+  bk_biz_name: string;
   bk_cloud_id: number;
   bk_service_instance_id: string;
   category: string;

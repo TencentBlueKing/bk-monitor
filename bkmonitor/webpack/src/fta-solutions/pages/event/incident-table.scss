@@ -54,9 +54,18 @@ $statusColors: #ea3635 #ff9c00 #699df4;
       justify-content: center;
       height: 22px;
       padding: 0 5px;
+      overflow: hidden;
       line-height: 22px;
       color: #63656e;
       background-color: #f0f1f5;
+
+      .status-label-status {
+        display: inline-block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
     }
 
     .operate-panel {

@@ -91,7 +91,7 @@ export default {
   展开: 'Expand',
   退出登录: 'Sign out',
   产品文档: 'Documentation',
-  版本日志: 'Release note',
+  版本日志: 'Release Notes',
   问题反馈: 'Feedback',
   操作: 'Actions',
   'Trace 视角': 'Trace List',
@@ -420,7 +420,7 @@ export default {
   更新执行历史: 'Update Execution History',
   告警分析: 'Analysis',
   关联事件: 'Related Events',
-  告警确认: 'Confirm',
+  告警确认: 'Alarm Confirm',
   解除: 'Unmute',
   拉群: 'WeCom',
   连通性测试: 'Connectivity test',
@@ -470,5 +470,19 @@ export default {
   请调整筛选条件: 'Please adjust filter criteria',
   设置聚合维度: 'Set aggregate dimension',
   标记已解决: 'Marked as resolved',
+  故障已解决: 'The issue has been solved',
   查看操作指引: 'View operation instructions',
+
+  '故障已恢复，才可以标记已解决': 'The incident can be marked as resolved only after it has been restored',
+  '故障持续时间：': 'Incident duration:',
+  故障群: 'Incident Group',
+  故障处理: 'Incident Handle',
+  故障流转: 'Incident Flow',
+  我处理: 'I handled ',
+
+  // 故障流转
+  修改故障属性: 'Modify Incident Attribute',
+  '反馈/取消反馈根因': 'Feedback/Cancel feedback root cause',
+  故障生成: 'Generate Incident',
+  人工操作: 'Manual Operation',
 };

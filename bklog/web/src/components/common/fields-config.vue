@@ -36,9 +36,8 @@
       <!-- 已选字段 -->
       <div class="field-list">
         <div class="list-title">
-          <i18n path="显示字段（已选 {0} / {1})">
+          <i18n path="显示字段（已选 {0} 条)">
             <span>{{ displayFieldNames.length }}</span>
-            <span>{{ limitCount }}</span>
           </i18n>
         </div>
         <vue-draggable
@@ -74,7 +73,7 @@
           >
             <div class="field_name">{{ field }}</div>
             <div
-              :class="['operate-button', disabledAdd && 'disabled']"
+              class='operate-button'
               @click="addItem(field)"
             >
               {{ $t('添加') }}
@@ -129,7 +128,6 @@
     },
     data() {
       return {
-        limitCount: 5, // 最多显示多少字段
         totalFieldNames: [], // 所有的字段名
         displayFieldNames: [], // 展示的字段名
 
@@ -148,10 +146,6 @@
       // 最少显示一个字段
       disabledRemove() {
         return this.displayFieldNames.length <= 1;
-      },
-      // 超过最大显示量禁止添加字段
-      disabledAdd() {
-        return this.displayFieldNames.length >= this.limitCount;
       },
     },
     watch: {
@@ -173,7 +167,7 @@
        * @param {String} fieldName
        */
       addItem(fieldName) {
-        !this.disabledAdd && this.displayFieldNames.push(fieldName);
+        this.displayFieldNames.push(fieldName);
       },
       handleConfirm() {
         this.$emit('confirm', this.displayFieldNames);

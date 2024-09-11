@@ -2,7 +2,7 @@
 msgid ""
 msgstr ""
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-05-27 17:55+0800\n"
+"POT-Creation-Date: 2024-08-22 10:18+0800\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 
 #, python-brace-format
@@ -251,6 +251,9 @@ msgstr "The current time hit the calendar rest: {}"
 msgid "strategy({}), item({}) 监控项在快照数据中找不到"
 msgstr "rules ({}), item ({}) monitored item can not be found in the snapshot data"
 
+msgid "确认RabbitMQ是否可用"
+msgstr "Check whether RabbitMQ valid"
+
 msgid "策略ID超过设置的默认上限"
 msgstr "The strategy ID exceeds the default limit of the settings"
 
@@ -405,14 +408,14 @@ msgstr "Strategic filtering conditions have been modified, the alarm is closed"
 msgid "无数据告警设置被关闭，告警关闭"
 msgstr "No data is set off the alarm, the alarm off"
 
-msgid "当前维度存在更新的告警事件({})，告警已关闭"
+msgid "当前维度存在更新的告警事件({})，告警已失效"
 msgstr "The current dimension has a updated alarm ({}), the alarm has been closed"
 
-msgid "在恢复检测周期内无数据上报，告警已关闭"
+msgid "在恢复检测周期内无数据上报，告警已失效"
 msgstr "No recovery in the detection data reporting period, the alarm is turned off"
 
 #, python-format
-msgid "在恢复检测周期内，已经有 %s 没有产生无数据关联事件，告警已关闭"
+msgid "在恢复检测周期内，已经有 %s 没有产生无数据关联事件，告警已失效"
 msgstr "During the recovery detection cycle, there are already %s that has not produced countless related events, and the alarm has been closed."
 
 msgid "CMDB 未查询到告警目标主机 ({}|{}) 的信息，主机可能已被删除，告警关闭"
@@ -650,7 +653,7 @@ msgid "获取任务参数异常，错误信息：{}"
 msgstr "Get the task parameter abnormal, error message: {}"
 
 msgid "[故障自愈]-{}"
-msgstr "[Flash self-healing]-{}"
+msgstr "[Fault Tree Analysis]-{}"
 
 msgid "当前任务状态不可执行"
 msgstr "The current task status cannot be executed"
@@ -760,8 +763,9 @@ msgstr ""
 "**Graph: **\n"
 ">{graph_names}\n"
 
-#, python-brace-format
-msgid "[处理结果] ({result}) record({record_id}), strategy({strategy_id}), item({item_id})"
+#, fuzzy, python-brace-format
+#| msgid "[处理结果] ({result}) record({record_id}), strategy({strategy_id}), item({item_id})"
+msgid "[trigger 处理结果] ({result}) record({record_id}), strategy({strategy_id}), item({item_id})"
 msgstr "[Treatment Result] ({result}) record ({record_id}), strategy({strategy_id}), item({item_id})"
 
 msgid "Resource[{}] 请求参数格式错误：{}"
@@ -778,6 +782,18 @@ msgstr "Unknown"
 
 msgid "业务"
 msgstr "Business"
+
+msgid "业务ID"
+msgstr "Business ID"
+
+msgid "动态分组ID"
+msgstr ""
+
+msgid "对象ID"
+msgstr ""
+
+msgid "动态分组ID列表"
+msgstr ""
 
 #, python-format
 msgid "无法解析的端口号：%s"
@@ -899,9 +915,6 @@ msgstr "Background Task"
 
 msgid "指标"
 msgstr "Metric"
-
-msgid "应用名称: {}已被创建"
-msgstr "Application name: {} has been created"
 
 msgid "操作类型不支持: {validated_request_data['type']}"
 msgstr "unsupported op: {validated_request_data['type']}"
@@ -1340,11 +1353,14 @@ msgstr "[Organic detection] Polymerization data source"
 msgid "多指标异常检测"
 msgstr "Multi -metric abnormal detection"
 
-msgid "主机场景"
-msgstr "Host Scene"
-
 msgid "指标推荐V2"
 msgstr "Recommended metrics V2"
+
+msgid "故障接入的 RabbitMQ 地址"
+msgstr "RabbitMQ address for AIOPS Incident access"
+
+msgid "故障接入队列名"
+msgstr "RabbitMQ queue for AIOPS Incident access"
 
 msgid "全局 Ping 告警开关"
 msgstr "Global Ping alarm switch"
@@ -1491,6 +1507,9 @@ msgstr ""
 msgid "APM 创建虚拟指标业务列表"
 msgstr "APM virtual metric supported biz list"
 
+msgid "拓扑发现允许的最大 Span 数量"
+msgstr ""
+
 msgid "蓝鲸监控机器人名称"
 msgstr "BK-Monitor Robot Name"
 
@@ -1599,6 +1618,11 @@ msgstr "Default output fields for dial tests"
 msgid "文档链接配置"
 msgstr "DOC LINK MAPPING"
 
+#, fuzzy
+#| msgid "自定义事件"
+msgid "是否开启自定义事件休眠"
+msgstr "Custom Event"
+
 msgid "已屏蔽"
 msgstr "Muted"
 
@@ -1649,9 +1673,6 @@ msgstr "Objective to the event"
 
 msgid "事件的严重程度，1:致命; 2:预警; 3:提醒"
 msgstr "The severity of the incident, 1: fatal; 2: warning; 3: Reminder"
-
-msgid "业务ID"
-msgstr "Business ID"
 
 msgid "事件所属的业务ID，不提供则根据 target 自动解析"
 msgstr "The business ID of the incident is not provided based on the target automatic analysis"
@@ -1818,6 +1839,12 @@ msgstr "Calendar Service Management"
 msgid "订阅管理"
 msgstr "Subscription Manage"
 
+msgid "故障查看"
+msgstr "Incident Detail"
+
+msgid "故障管理"
+msgstr "Incident Management"
+
 msgid "APM应用"
 msgstr "APM Application"
 
@@ -1911,8 +1938,10 @@ msgstr "Already Fixed"
 msgid "异常中"
 msgstr "Exception"
 
+#, fuzzy
+#| msgid "关闭"
 msgid "已关闭"
-msgstr "Closed"
+msgstr "Close"
 
 msgid "告警确认"
 msgstr "Alarm Confirmation"
@@ -1979,6 +2008,9 @@ msgstr "Alarm Blocking"
 
 msgid "维度屏蔽"
 msgstr "Mute by Dimension"
+
+msgid "动态分组"
+msgstr ""
 
 msgid "单例"
 msgstr "Single Examples"
@@ -2320,7 +2352,7 @@ msgid "指标：{metric_field_name}；数据名称：{related_name}；数据来�
 msgstr "Metrics: {metric_field_name}; data name: {related_name}; data source: custom time order"
 
 msgid "数据来源：故障自愈第三方告警"
-msgstr "Data Source: Self -healing Third Party Alarm"
+msgstr "Data Source: FTA Third Party Alarm"
 
 #, python-brace-format
 msgid "指标：{metric_field}；指标分类：{result_table_name}；数据来源：监控采集"
@@ -2339,7 +2371,7 @@ msgid "监控"
 msgstr "Monitoring"
 
 msgid "故障自愈"
-msgstr "Fault self-healing"
+msgstr "Fault Tree Analysis"
 
 msgid "关联的策略已失效"
 msgstr "The associated rule has expired"
@@ -4843,6 +4875,12 @@ msgstr "Metrics / Dimension index name does not allow duplicate names"
 msgid "指标维度中表名不允许重名"
 msgstr "Metrics / Dimension table name does not allow duplicate names"
 
+msgid "bk_biz_id or space_uid must be provided"
+msgstr ""
+
+msgid "space_uid is invalid"
+msgstr ""
+
 msgid "策略名称：{}"
 msgstr "Rule name: {}"
 
@@ -4860,9 +4898,6 @@ msgstr "<1 hour / {}"
 
 msgid "{}小时/{}"
 msgstr "{}hour/{}"
-
-msgid "告警事件屏蔽"
-msgstr "Alarm Event Mute"
 
 msgid "用户配置的通知模板渲染失败，默认使用系统内置模板，渲染失败可能是使用了不正确的语法，具体请查看策略配置{}"
 msgstr "The notification template rendering of the user configuration failed, and the built -in template of the system by default. The rendering failure may be using incorrect grammar. Please check the strategy configuration {}"
@@ -5554,6 +5589,11 @@ msgstr "Alarm level name"
 msgid "告警开始时间"
 msgstr "Police start time"
 
+#, fuzzy
+#| msgid "告警开始时间"
+msgid "告警开始时间戳"
+msgstr "Police start time"
+
 msgid "告警持续时间(秒)"
 msgstr "Police duration (second)"
 
@@ -5794,6 +5834,9 @@ msgstr "property of Module"
 msgid "主机属性"
 msgstr "property of Host"
 
+msgid "主机场景"
+msgstr "Host Scene"
+
 msgid "无"
 msgstr "No"
 
@@ -5805,6 +5848,9 @@ msgstr "Not Recovered"
 
 msgid "已恢复"
 msgstr "Recovered"
+
+msgid "已失效"
+msgstr "CLOSED"
 
 msgid "已抑制"
 msgstr "Has Suppressed"
@@ -5932,6 +5978,20 @@ msgstr "net.host.ip"
 msgid "主机IP(host.ip)"
 msgstr "host.ip"
 
+msgid "K8S BCS 集群 ID"
+msgstr ""
+
+#, fuzzy
+#| msgid "命名空间"
+msgid "K8S 命名空间"
+msgstr "Namespace"
+
+msgid "K8S Pod Ip"
+msgstr ""
+
+msgid "K8S Pod 名称"
+msgstr ""
+
 msgid "主机端口"
 msgstr "Host Port"
 
@@ -6052,6 +6112,76 @@ msgstr "Related Rules"
 msgid "Trace明细指标"
 msgstr "Trace Details"
 
+msgid "观察中"
+msgstr "Recovering"
+
+msgid "已解决"
+msgstr "Closed"
+
+msgid "人工操作"
+msgstr "Manaul Operation"
+
+msgid "故障生成"
+msgstr "Generate Incident"
+
+msgid "故障观察中"
+msgstr "Incident Recovering"
+
+msgid "故障恢复"
+msgstr "Incident Recovered"
+
+msgid "故障通知"
+msgstr "Incident Notify"
+
+msgid "修改故障属性"
+msgstr "Edit Incident Property"
+
+msgid "故障合并"
+msgstr "Incident Merge"
+
+msgid "告警失效"
+msgstr "Alert Invalid"
+
+msgid "反馈/取消反馈根因"
+msgstr "Feedback/Cancel Incident Root"
+
+msgid "故障关闭"
+msgstr "Incident Closed"
+
+#, fuzzy
+#| msgid "「快捷」一键拉群"
+msgid "一键拉群"
+msgstr "Fast one -click pull group "
+
+#, fuzzy
+#| msgid "当前告警处理正常"
+msgid "告警处理"
+msgstr "Current alarm processing is normal"
+
+msgid "告警分派"
+msgstr "Alarm Routing"
+
+msgid "节点状态"
+msgstr "Node Status"
+
+msgid "节点层级"
+msgstr "Node Layer"
+
+msgid "节点类型"
+msgstr "Node Type"
+
+msgid "屏蔽中"
+msgstr "Muted"
+
+msgid "已过期"
+msgstr "Expired"
+
+msgid "被解除"
+msgstr "Resolved"
+
+msgid "告警事件屏蔽"
+msgstr "Alarm Event Mute"
+
 msgid "监控采集"
 msgstr "Monitoring Collection"
 
@@ -6081,6 +6211,14 @@ msgstr "Method only supports GET or POST or PUT or Delete or PATCH"
 
 msgid "接口返回结果超时"
 msgstr "Interface returns the result timeout"
+
+msgid "自定义异常"
+msgstr "Custom Exception"
+
+#, fuzzy, python-brace-format
+#| msgid "自定义异常"
+msgid "自定义异常：{msg}"
+msgstr "Custom Exception"
 
 #, python-format
 msgid "resource_class参数必须提供Resource的子类, 当前类型: %s"
@@ -6485,9 +6623,6 @@ msgstr "Collect configuration parameter error"
 msgid "采集配置参数错误：{msg}"
 msgstr "Collect configuration parameter error: {msg}"
 
-msgid "自定义异常"
-msgstr "Custom Exception"
-
 msgid "未知错误"
 msgstr "Unknown Error"
 
@@ -6719,6 +6854,22 @@ msgstr "Resource ID does not exist"
 #, python-brace-format
 msgid "资源ID不存在：{resource_id}"
 msgstr "Resource ID does not exist: {resource_id}"
+
+msgid "故障模块错误"
+msgstr "Incident Module Error"
+
+msgid "故障不存在"
+msgstr "Incident not found"
+
+msgid "故障 ({id}) 对应的故障信息不存在"
+msgstr "Incident ID ({id}) The corresponding incident information does not exist"
+
+msgid "实体ID不在当前图谱中"
+msgstr "Entity ID not found in current incident snapshot"
+
+#, python-brace-format
+msgid "实体ID ({entity_id}) 不在当前图谱中"
+msgstr "Entity ({entity_id}) not found in current incident snapshot"
 
 msgid "内置指标元数据错误"
 msgstr "Built index metadata error"
@@ -7054,6 +7205,15 @@ msgstr "Smart abnormal detection model does not exist"
 #, python-brace-format
 msgid "智能异常检测模型不存在：{model_id}"
 msgstr "Smart abnormal detection model does not exist: {model_id}"
+
+#, fuzzy
+#| msgid "通知组名称已存在"
+msgid "策略名称已存在"
+msgstr "Notification group name already exists."
+
+#, python-brace-format
+msgid "策略名称 [{name}] 已存在"
+msgstr ""
 
 msgid "升级模块错误"
 msgstr "Upgrade Module error"
@@ -7940,6 +8100,9 @@ msgstr ""
 msgid "目前暂不支持关闭 Tracing 功能"
 msgstr "Currently, it is not supported to turn off the Tracing"
 
+msgid "应用名称: {}已被创建"
+msgstr "Application name: {} has been created"
+
 msgid "Span耗时"
 msgstr "Span Duration"
 
@@ -8203,7 +8366,9 @@ msgstr "Upload failed, the reason for failure {}"
 msgid "未查询到有效数据"
 msgstr "No Valid Data Found"
 
-msgid "当前对比项查询条件未查询到有效数据，请调整后再试"
+#, fuzzy
+#| msgid "当前对比项查询条件未查询到有效数据，请调整后再试"
+msgid "当前对比项的查询条件未查询到有效数据，请调整后再试"
 msgstr "The current comparison item query conditions did not query the valid data, please adjust and try again!"
 
 msgid "应用({}) 未开启性能分析"
@@ -8241,9 +8406,6 @@ msgstr "Resource does not exist"
 
 msgid "uri含有重复配置项"
 msgstr "Uri contains duplicate configuration items"
-
-msgid "{} 匹配到第{}个uri配置: {}"
-msgstr "{} Match to No. 1 {} a URI configuration: {}"
 
 msgid "关联日志平台日志需要选择业务"
 msgstr "Related log platform logs need to choose business"
@@ -8335,7 +8497,7 @@ msgid "trace_id({})对应的参照不存在"
 msgstr "Reference for trace_id({}) Does Not Exist"
 
 msgid "故障自愈 | 蓝鲸智云"
-msgstr "Failure Self -heal | BlueKing Zhiyun"
+msgstr "Fault Tree Analysis | BlueKing"
 
 msgid "对应的ID{}不存在"
 msgstr "The corresponding ID {} does not exist"
@@ -8437,9 +8599,6 @@ msgstr "{creator} assigned alarm ({appointees}), the reason for assignment: {rea
 
 msgid "正在注册蓝鲸插件套餐，注册结果请前往日志查看"
 msgstr "Registering the BlueKing Plugin package, please go to the log to view the results"
-
-msgid "告警分派"
-msgstr "Alarm Routing"
 
 msgid "{}给您分派了告警【{{alarm.name}}({{alarm.id}})】"
 msgstr "{} assigned you alert [{{alarm.name}} ({{alarm.id}})]"
@@ -8666,6 +8825,51 @@ msgstr "Time to enter the warehouse"
 msgid "当前"
 msgstr "Current"
 
+msgid "故障ID"
+msgstr "Incident ID"
+
+msgid "故障主键"
+msgstr "Incident Key"
+
+msgid "故障名称"
+msgstr "Inciden Name"
+
+msgid "故障原因"
+msgstr "Incident Reason"
+
+msgid "故障状态"
+msgstr "Incident Status"
+
+msgid "故障级别"
+msgstr "Incident Level"
+
+msgid "处理人"
+msgstr "Handler"
+
+msgid "故障检出时间"
+msgstr "Incident Create Time"
+
+msgid "故障更新时间"
+msgstr "Incident Update Time"
+
+msgid "故障开始时间"
+msgstr "Incident Begin Time"
+
+msgid "故障结束时间"
+msgstr "Incident End Time"
+
+msgid "故障图谱快照"
+msgstr "Incident Graph Snapshot"
+
+msgid "故障告警数"
+msgstr "Incident Alert Count"
+
+msgid "故障"
+msgstr "Incident"
+
+msgid "我处理的"
+msgstr "My Handled"
+
 msgid "其他-其他"
 msgstr "Others-others"
 
@@ -8775,10 +8979,10 @@ msgid "自愈通知"
 msgstr "Self -healing notice"
 
 msgid "故障自愈通知"
-msgstr "Notice of Failing Self -healing"
+msgstr "Notice of FTA"
 
 msgid "故障自愈获取备机"
-msgstr "Failing self -healing for reserve"
+msgstr "FTA get backup host"
 
 #, python-brace-format
 msgid "故障自愈获取到备机为【${bak_ip}】"
@@ -8876,25 +9080,25 @@ msgid "{}（组合套餐迁移）"
 msgstr "{} (Combined Solution migration)"
 
 msgid "{}||{}【故障自愈】"
-msgstr "{} || {} 【Failure Self -healing】"
+msgstr "{} || {} 【FTA】"
 
 msgid "迁移的通知套餐"
 msgstr "Notice of Migration"
 
 msgid "[{}]自愈迁移{}告警组"
-msgstr "[{}] Self -healing {} alarm group"
+msgstr "[{}] FTA Migrate {} alarm group"
 
 msgid "自愈迁移"
-msgstr "Self -healing"
+msgstr "FTA Migrate"
 
 msgid "自愈迁移-{}"
-msgstr "Self-healing- {}"
+msgstr "FTA Migrate- {}"
 
 msgid "[{}]自愈迁移-{}"
-msgstr "[{}] Self-healing- {}"
+msgstr "[{}] FTA-Migrate {}"
 
 msgid "{}（迁移自愈套餐）"
-msgstr "{} (Migrate Solution)"
+msgstr "{} (Migrated Solution)"
 
 msgid "系统内置快捷套餐"
 msgstr "System built-in Solution"
@@ -9468,6 +9672,9 @@ msgstr "BK-Nodeman log was not found"
 
 msgid "主机id和ip/bk_cloud_id不能同时为空"
 msgstr "Host ID and ip/bk_cloud_id cannot be empty at the same time"
+
+msgid "是否实时刷新缓存"
+msgstr ""
 
 msgid "当前操作不支持回滚，或采集配置正处于执行中"
 msgstr "Rollback the current operation is not supported, or gathered configuration is being executed"
@@ -10081,6 +10288,12 @@ msgstr "Dashboard User Guide"
 msgid "应用ID(application_id)或者应用名称(application_name)不能同时为空"
 msgstr "Application_id (Application_ID) or Application_name cannot be empty at the same time"
 
+msgid "未分派"
+msgstr "Not Dispatch"
+
+msgid "我处理"
+msgstr "My Handling"
+
 msgid "无法解析plugin_id"
 msgstr "Unable to resolve plugin_id"
 
@@ -10614,9 +10827,6 @@ msgstr "Docker Server Version"
 msgid "所属模块"
 msgstr "Modules"
 
-msgid "节点类型"
-msgstr "Node Type"
-
 msgid "子级数量"
 msgstr "Sub -level quantity"
 
@@ -10842,15 +11052,6 @@ msgstr "[Dial test task] {name}"
 #, python-brace-format
 msgid "搜索到 {count} 拨测任务"
 msgstr "Search {count} Dialing Test Mission"
-
-msgid "屏蔽中"
-msgstr "Muted"
-
-msgid "已过期"
-msgstr "Expired"
-
-msgid "被解除"
-msgstr "Resolved"
 
 msgid "详情链接"
 msgstr "Details Link"
@@ -11326,11 +11527,11 @@ msgstr "View Corefile generating path: Cat/Proc/SYS/KERNEL/CORE_PATTERN, ensure 
 msgid "依赖bkmonitorbeat采集器, 在节点管理安装,会自动根据core_pattern监听文件目录"
 msgstr "Dependence on bkmonitorbeat collector, in BK-Nodeman and installation, it will automatically follow the Core_Pattern monitoring file directory"
 
-msgid "【不推荐】"
-msgstr "[Not Recommended]"
+msgid "【已废弃】"
+msgstr ""
 
-msgid "通过蓝鲸Agent目录中的gsecmdline命令上报自定义字符型告警。用法：{}plugins/bin/gsecmdline -d {} -l \"This service is offline.\""
-msgstr "Report the custom characteristic alarm on the GSECMDLINE command in the BlueKing Agent directory. Usage: {} plugins/bin/gsecmdline -d {} -L \" this service is official. \\"
+msgid "功能通过上报 自定义事件 覆盖"
+msgstr ""
 
 msgid "gse每隔60秒检查一次agent心跳数据。"
 msgstr "GSE checks the agent heartbeat data every 60 seconds."
@@ -11368,17 +11569,14 @@ msgstr "This interface has been abandoned, please contact the administrator"
 msgid "检测算法不允许为空"
 msgstr "Detection algorithm does not allow nulls"
 
-msgid "存在非法的策略ID, {}"
-msgstr "There is an illegal strategy ID, {}"
-
 msgid "- 未配置 -"
 msgstr "- Not Configured"
 
 msgid "告警中"
 msgstr "Alerting"
 
-msgid "已失效"
-msgstr "Expired"
+msgid "策略已失效"
+msgstr "INVALID"
 
 msgid "监控条件包含or语句时无法转换为PromQL语句"
 msgstr "The monitoring condition cannot be converted to the PROMQL statement when it contains the OR statement"
@@ -11869,6 +12067,9 @@ msgstr "Dial and test task of the same name"
 msgid "分组 %s 已存在！"
 msgstr "Packet %s already exists!"
 
+msgid "未开启拨测联通性测试，保存任务中..."
+msgstr ""
+
 msgid "拨测分组({})已存在任务({})"
 msgstr "Check group ({}) has already exists ({})"
 
@@ -11921,3 +12122,15 @@ msgstr "Results Table [%s] is not the physical store"
 #, python-format
 msgid "存储[%s]对应的查询引擎不存在"
 msgstr "Storage [%s] corresponding to the query engine absent"
+
+#~ msgid "{} 匹配到第{}个uri配置: {}"
+#~ msgstr "{} Match to No. 1 {} a URI configuration: {}"
+
+#~ msgid "【不推荐】"
+#~ msgstr "[Not Recommended]"
+
+#~ msgid "通过蓝鲸Agent目录中的gsecmdline命令上报自定义字符型告警。用法：{}plugins/bin/gsecmdline -d {} -l \"This service is offline.\""
+#~ msgstr "Report the custom characteristic alarm on the GSECMDLINE command in the BlueKing Agent directory. Usage: {} plugins/bin/gsecmdline -d {} -L \" this service is official. \\"
+
+#~ msgid "存在非法的策略ID, {}"
+#~ msgstr "There is an illegal strategy ID, {}"

@@ -29,29 +29,42 @@ import type { PanelModel } from '../typings';
 
 export const handleRelateAlert = (panel: PanelModel, timeRange: string[]) => {
   const metricIdMap = {};
-  panel?.targets?.forEach(target => {
-    if (target.data?.query_configs?.length) {
-      target.data?.query_configs?.forEach((item: any) => {
-        const metricId = getMetricId(
-          item.data_source_label,
-          item.data_type_label,
-          item.metrics?.[0]?.field,
-          item.table,
-          item.index_set_id
-        );
-        metricIdMap[metricId] = 'true';
-      });
+  const promqlSet = new Set<string>();
+  if (panel?.targets?.length) {
+    for (const target of panel.targets) {
+      if (target.data?.query_configs?.length) {
+        for (const item of target.data.query_configs) {
+          if (item.promql) {
+            promqlSet.add(JSON.stringify(item.promql));
+          } else {
+            const metricId = getMetricId(
+              item.data_source_label,
+              item.data_type_label,
+              item.metrics?.[0]?.field,
+              item.table,
+              item.index_set_id
+            );
+            if (metricId) {
+              metricIdMap[metricId] = 'true';
+            }
+          }
+        }
+      }
     }
-  });
+  }
   let queryString = '';
-  Object.keys(metricIdMap).forEach(metricId => {
+  for (const metricId of Object.keys(metricIdMap)) {
     queryString += `${queryString.length ? ' or ' : ''}指标ID : ${metricId}`;
-  });
-  queryString.length &&
+  }
+  let promqlString = '';
+  for (const promql of promqlSet) {
+    promqlString = `promql=${promql}`;
+  }
+  (queryString.length || promqlString) &&
     window.open(
       location.href.replace(
         location.hash,
-        `#/event-center?queryString=${queryString}&from=${timeRange[0]}&to=${timeRange[1]}&timezone=${window.timezone}`
+        `#/event-center?from=${timeRange[0]}&to=${timeRange[1]}&timezone=${window.timezone}&${promqlString || `queryString=${queryString}`}`
       )
     );
 };

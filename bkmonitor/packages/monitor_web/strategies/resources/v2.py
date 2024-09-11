@@ -62,7 +62,6 @@ from core.drf_resource.base import Resource
 from core.errors.bkmonitor.data_source import CmdbLevelValidateError
 from core.errors.strategy import StrategyNameExist
 from monitor.models import ApplicationConfig
-from monitor_web.commons.cc.utils.cmdb import CmdbUtil
 from monitor_web.models import (
     CollectorPluginMeta,
     CustomEventGroup,
@@ -174,7 +173,8 @@ class GetStrategyListV2Resource(Resource):
                 }
                 if target_ips & ips:
                     ip_strategy_ids.add(item.strategy_id)
-            else:
+
+            elif target["field"].endswith("topo_node"):
                 nodes = {(node["bk_obj_id"], node["bk_inst_id"]) for node in target["value"]}
                 if nodes & topo_nodes:
                     ip_strategy_ids.add(item.strategy_id)
@@ -185,12 +185,13 @@ class GetStrategyListV2Resource(Resource):
     def filter_strategy_ids_by_id(cls, filter_dict: dict, filter_strategy_ids_set: set):
         """过滤策略ID"""
         if filter_dict["id"]:
-            ids = filter_dict["id"]
-            try:
-                ids = {int(_id) for _id in ids if _id}
-            except (ValueError, TypeError):
-                # 无效的过滤条件，查不出数据
-                ids = set()
+            ids = set()
+            for _id in filter_dict["id"]:
+                try:
+                    ids.add(int(_id))
+                except (ValueError, TypeError):
+                    # 无效的过滤条件，查不出数据
+                    continue
             filter_strategy_ids_set.intersection_update(ids)
 
     @classmethod
@@ -358,21 +359,24 @@ class GetStrategyListV2Resource(Resource):
         # 过滤插件ID
         if filter_dict["plugin_id"]:
             plugin_id = filter_dict["plugin_id"]
-            plugins = CollectorPluginMeta.objects.filter(plugin_id__in=plugin_id, bk_biz_id__in=[0, bk_biz_id])
-            plugin_table_ids = []
-            for plugin in plugins:
-                version = plugin.current_version
-                for table in version.info.metric_json:
-                    plugin_table_ids.append(version.get_result_table_id(plugin, table["table_name"]).lower())
+            plugins = CollectorPluginMeta.objects.filter(plugin_id__in=plugin_id, bk_biz_id__in=[0, bk_biz_id]).values(
+                "plugin_id"
+            )
+            # plugin_table_ids = []
+            # for plugin in plugins:
+            #     version = plugin.current_version
+            #     for table in version.info.metric_json:
+            #         plugin_table_ids.append(version.get_result_table_id(plugin, table["table_name"]).lower())
 
             plugin_strategy_ids = []
-            if plugin_table_ids:
-                query_configs = QueryConfigModel.objects.filter(strategy_id__in=filter_strategy_ids_set).only(
-                    "config", "strategy_id"
-                )
-                for qc in query_configs:
-                    if qc.config.get("result_table_id") in plugin_table_ids:
+            query_configs = QueryConfigModel.objects.filter(strategy_id__in=filter_strategy_ids_set).only(
+                "config", "strategy_id"
+            )
+            for qc in query_configs:
+                for plugin in plugins:
+                    if f"{plugin['plugin_id']}." in qc.config.get("result_table_id"):
                         plugin_strategy_ids.append(qc.strategy_id)
+                        break
 
             filter_strategy_ids_set.intersection_update(set(plugin_strategy_ids))
 
@@ -467,6 +471,9 @@ class GetStrategyListV2Resource(Resource):
             value = condition["value"]
             if not isinstance(value, list):
                 value = [value]
+            if len(value) == 1:
+                # 默认按list传递，多个值用 | 分割
+                value = [i.strip() for i in str(value[0]).split(" | ") if i.strip()]
             filter_dict[key].extend(value)
 
         filter_strategy_ids_set = set(strategies.values_list("id", flat=True).distinct())
@@ -881,7 +888,7 @@ class GetStrategyListV2Resource(Resource):
             },
             {
                 "id": "INVALID",
-                "name": _("已失效"),
+                "name": _("策略已失效"),
                 "count": 0,
             },
             {"id": "OFF", "name": _("已停用"), "count": 0},
@@ -892,6 +899,69 @@ class GetStrategyListV2Resource(Resource):
             data = self.filter_by_status(status["id"], strategy_ids, bk_biz_id)
             status["count"] = len(data)
         return status_list
+
+    def get_alert_level_list(self, strategy_ids: List[int]):
+        """
+        按告警级别统计策略数量
+        """
+        alert_level_list = []
+        count_records = (
+            DetectModel.objects.filter(strategy_id__in=strategy_ids)
+            .values("level")
+            .annotate(total=Count("strategy_id", distinct=True))
+            .order_by("level")
+        )
+
+        level_counts = {record["level"]: record["total"] for record in count_records}
+
+        all_level = {1: _("致命"), 2: _("预警"), 3: _("提醒")}
+        for level_id, level_name in all_level.items():
+            alert_level_list.append({"id": level_id, "name": level_name, "count": level_counts.get(level_id, 0)})
+        return alert_level_list
+
+    def get_invalid_type_list(self, strategy_ids: List[int]):
+        """
+        按策略失效类型统计策略数量
+        """
+        invalid_type_list = []
+        count_records = (
+            StrategyModel.objects.filter(is_invalid=True, id__in=strategy_ids)
+            .values("invalid_type")
+            .annotate(total=Count("id", distinct=True))
+        )
+
+        invalid_type_counts = {record["invalid_type"]: record["total"] for record in count_records}
+
+        for invalid_type_id, invalid_type_name in StrategyModel.InvalidType.Choices:
+            if not invalid_type_id:
+                continue
+            invalid_type_list.append(
+                {"id": invalid_type_id, "name": invalid_type_name, "count": invalid_type_counts.get(invalid_type_id, 0)}
+            )
+        return invalid_type_list
+
+    def get_algorithm_type_list(self, strategy_ids: List[int]):
+        """
+        按算法类型统计策略数量
+        """
+        algorithm_type_list = []
+        count_records = (
+            AlgorithmModel.objects.filter(strategy_id__in=strategy_ids)
+            .values("type")
+            .annotate(total=Count("strategy_id", distinct=True))
+        )
+
+        algorithm_type_counts = {record["type"]: record["total"] for record in count_records if record["type"]}
+
+        for algorithm_type_id, algorithm_type_name in AlgorithmModel.ALGORITHM_CHOICES:
+            algorithm_type_list.append(
+                {
+                    "id": algorithm_type_id,
+                    "name": algorithm_type_name,
+                    "count": algorithm_type_counts.get(algorithm_type_id, 0),
+                }
+            )
+        return algorithm_type_list
 
     def fill_metric_info(self, bk_biz_id: int, strategies: List[Dict]):
         """
@@ -1067,6 +1137,12 @@ class GetStrategyListV2Resource(Resource):
         data_source_list = self.get_data_source_list(strategy_ids)
         strategy_label_list = self.get_strategy_label_list(strategy_ids, bk_biz_id)
         strategy_status_list = self.get_strategy_status_list(strategy_ids, bk_biz_id)
+        alert_level_list = self.get_alert_level_list(strategy_ids)
+        invalid_type_list = self.get_invalid_type_list(strategy_ids)
+        algorithm_type_list = self.get_algorithm_type_list(strategy_ids)
+
+        # 统计总数
+        total = strategies.count()
 
         # 排序
         strategies = strategies.order_by("-update_time")
@@ -1140,6 +1216,10 @@ class GetStrategyListV2Resource(Resource):
             "strategy_status_list": strategy_status_list,
             "user_group_list": user_group_list,
             "action_config_list": action_config_list,
+            "alert_level_list": alert_level_list,
+            "invalid_type_list": invalid_type_list,
+            "algorithm_type_list": algorithm_type_list,
+            "total": total,
         }
 
 
@@ -1165,6 +1245,51 @@ class GetStrategyV2Resource(Resource):
         # 补充告警组配置
         Strategy.fill_user_groups([config])
         return config
+
+
+class PlainStrategyListV2Resource(Resource):
+    """获取轻量的策略列表"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+
+    @staticmethod
+    def get_label_msg(scenario: str, labels: list) -> dict:
+        for first_label in labels:
+            for second_label in first_label["children"]:
+                if second_label["id"] != scenario:
+                    continue
+                return {
+                    "first_label": first_label["id"],
+                    "first_label_name": first_label["name"],
+                    "second_label": second_label["id"],
+                    "second_label_name": second_label["name"],
+                }
+
+        return {
+            "first_label": scenario,
+            "first_label_name": scenario,
+            "second_label": scenario,
+            "second_label_name": scenario,
+        }
+
+    def perform_request(self, validated_request_data):
+        # 获取指定业务下启用的策略
+        bk_biz_id = validated_request_data.get("bk_biz_id")
+        strategies = (
+            StrategyModel.objects.filter(bk_biz_id=bk_biz_id, is_enabled=True)
+            .values("id", "name", "scenario")
+            .order_by("-update_time")
+        )
+        # 获取分类标签
+        labels = resource.commons.get_label()
+
+        strategy_list = []
+        for strategy in strategies:
+            label_msg = self.get_label_msg(strategy["scenario"], labels)
+            strategy.update(label_msg)
+            strategy_list.append(strategy)
+        return strategy_list
 
 
 class DeleteStrategyV2Resource(Resource):
@@ -2150,6 +2275,7 @@ class GetTargetDetail(Resource):
             TargetFieldType.service_set_template: TargetNodeType.SET_TEMPLATE,
             TargetFieldType.host_service_template: TargetNodeType.SERVICE_TEMPLATE,
             TargetFieldType.host_set_template: TargetNodeType.SET_TEMPLATE,
+            TargetFieldType.dynamic_group: TargetNodeType.DYNAMIC_GROUP,
         }
         obj_type_map = {
             TargetFieldType.host_target_ip: TargetObjectType.HOST,
@@ -2160,6 +2286,7 @@ class GetTargetDetail(Resource):
             TargetFieldType.service_set_template: TargetObjectType.SERVICE,
             TargetFieldType.host_service_template: TargetObjectType.HOST,
             TargetFieldType.host_set_template: TargetObjectType.HOST,
+            TargetFieldType.dynamic_group: TargetObjectType.HOST,
         }
         info_func_map = {
             TargetFieldType.host_target_ip: resource.commons.get_host_instance_by_ip,
@@ -2170,6 +2297,7 @@ class GetTargetDetail(Resource):
             TargetFieldType.service_set_template: resource.commons.get_nodes_by_template,
             TargetFieldType.host_service_template: resource.commons.get_nodes_by_template,
             TargetFieldType.host_set_template: resource.commons.get_nodes_by_template,
+            TargetFieldType.dynamic_group: resource.commons.get_dynamic_group_instance,
         }
 
         # 判断target格式是否符合预期
@@ -2204,6 +2332,8 @@ class GetTargetDetail(Resource):
             params["bk_obj_id"] = target_type_map[field]
             params["bk_inst_type"] = obj_type_map[field]
             params["bk_inst_ids"] = [inst["bk_inst_id"] for inst in target["value"]]
+        elif field == TargetFieldType.dynamic_group:
+            params["dynamic_group_ids"] = [x["dynamic_group_id"] for x in target["value"]]
         else:
             node_list = target.get("value")
             for target_item in node_list:
@@ -2241,7 +2371,7 @@ class GetTargetDetail(Resource):
         empty_strategy_ids = []
         result = {}
         for item in items:
-            info = CmdbUtil.get_target_detail(bk_biz_id, item.target)
+            info = self.get_target_detail(bk_biz_id, item.target)
 
             if info:
                 result[item.strategy_id] = info

@@ -118,6 +118,10 @@ export default defineComponent({
           if (select.includes(treeNode.key)) {
             checkedIds.value.push(treeNode.children.map(({ id }) => id).concat(treeNode.id));
           } else {
+            const data = treeNode.children.some(s => select.includes(s.key));
+            if (data) {
+              checkedIds.value.push(treeNode.id);
+            }
             treeNode.children.map(({ key, id }) => {
               select.includes(key) && checkedIds.value.push(id);
             });
@@ -140,8 +144,8 @@ export default defineComponent({
           key: item.entity_type,
           children: item.aggregate_bys?.map(child => {
             const name = child.aggregate_key
-              ? `${t('按 {0} 聚合', [child.aggregate_key])} (${child.count})`
-              : `${`${t('聚合异常')}${item.entity_type}`}  (${child.count})`;
+              ? `${t('按 {0} 聚合', [child.aggregate_key])}`
+              : `${`${t('聚合异常')}${item.entity_type}`}`;
             return {
               ...child,
               parentId,
@@ -258,7 +262,6 @@ export default defineComponent({
   render() {
     return (
       <div class='topo-tools'>
-        {this.$t('故障拓扑')}
         <AggregationSelect
           class='topo-tools-agg'
           autoAggregate={this.autoAggregate}
