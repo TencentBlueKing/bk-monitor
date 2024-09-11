@@ -32,6 +32,7 @@ import yaml
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils.translation import ugettext as _
+from kubernetes import client
 from rest_framework.exceptions import ErrorDetail, ValidationError
 
 from apps.api import BcsApi, BkDataAccessApi, CCApi, NodeApi, TransferApi
@@ -3963,6 +3964,46 @@ class CollectorHandler(object):
             expr_list.append(expr)
         return expr_list
 
+    @staticmethod
+    def filter_pods_by_annotations(pods, match_annotations):
+        """
+        通过annotation过滤pod信息
+        """
+        # 用于存储符合条件的 pods
+        filtered_pods = []
+        # 遍历 pods，检查每个 pod 的 annotations
+        for pod in pods.items:
+            annotations = pod.metadata.annotations
+            if not annotations:
+                continue
+
+            is_matched = True
+            # 遍历match_annotations条件,如果不满足条件,is_matched设置为False
+            for _match in match_annotations:
+                key = _match["key"]
+                op = _match["operator"]
+                value = _match["value"]
+                if op == LabelSelectorOperator.IN and not (key in annotations and annotations[key] in value):
+                    is_matched = False
+                elif op == LabelSelectorOperator.NOT_IN and not (key in annotations and annotations[key] not in value):
+                    is_matched = False
+                elif op == LabelSelectorOperator.EXISTS and key not in annotations:
+                    is_matched = False
+                elif op == LabelSelectorOperator.DOES_NOT_EXIST and key in annotations:
+                    is_matched = False
+
+            if is_matched:
+                # 满足匹配条件时,加入到结果列表中
+                filtered_pods.append(pod)
+
+        # 把返回的数据重新构建为V1PodList类型
+        return client.models.V1PodList(
+            api_version=pods.api_version,
+            kind=pods.kind,
+            items=filtered_pods,
+            metadata=pods.metadata,
+        )
+
     def preview_containers(
         self,
         topo_type,
@@ -4024,6 +4065,10 @@ class CollectorHandler(object):
                 pods = api_instance.list_pod_for_all_namespaces()
             else:
                 pods = api_instance.list_namespaced_pod(namespace=namespaces[0])
+
+        if match_annotations:
+            # 根据annotation过滤
+            pods = self.filter_pods_by_annotations(pods, match_annotations)
 
         is_shared_cluster = False
         shared_cluster_namespace = list()
