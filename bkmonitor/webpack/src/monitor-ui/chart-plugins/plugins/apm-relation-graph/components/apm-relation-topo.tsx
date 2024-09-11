@@ -33,6 +33,7 @@ import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
 import { nodeEndpointsTop } from 'monitor-api/modules/apm_topo';
 import { Debounce } from 'monitor-common/utils/utils';
+import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import CompareGraphTools from '../../apm-time-series/components/compare-topo-fullscreen/compare-graph-tools';
@@ -145,6 +146,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   };
   /** 接口下钻节点列表 */
   interfaceNodeList = [];
+  /** 选中的下钻节点 */
+  drillingNodeActive = '';
 
   /** 图表缩放大小 */
   scaleValue = 1;
@@ -352,6 +355,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       this.$emit('serviceDetail', this.menuCfg.nodeModel);
     }
     if (type === 'link') {
+      console.log(url);
+      console.log(`${window.__BK_WEWEB_DATA__?.baseroute || ''}${url}`.replace(/\/\//g, '/'));
       this.$router.push({
         path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${url}`.replace(/\/\//g, '/'),
       });
@@ -361,6 +366,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   }
 
   handleDrillingNodeClick(item) {
+    this.drillingNodeActive = item.name;
     this.$emit('drillingNodeClick', this.menuCfg.nodeModel, item);
   }
 
@@ -1004,129 +1010,158 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   render() {
     return (
-      <div
-        class='apm-relation-topo'
-        onContextmenu={e => {
-          e.stopPropagation();
-          e.preventDefault();
-        }}
-      >
-        <div
-          ref='relationGraph'
-          class='graph-wrap'
-        />
-        <div
-          ref='topoToolsPanel'
-          class='graph-tools-panel'
-        >
-          <CompareGraphTools
-            maxScale={this.maxZoomVal}
-            minScale={this.minZoomVal}
-            originScaleValue={this.initScale}
-            scaleValue={this.scaleValue}
-            showLegend={this.showLegend}
-            showThumbnail={this.showThumbnail}
-            onDownloadImage={this.handleDownloadImage}
-            onResetCenter={this.handleResetCenter}
-            onScaleChange={this.handleScaleChange}
-            onShowLegend={this.handleShowLegend}
-            onShowThumbnail={this.handleShowThumbnail}
-          />
-          <div style='display: none;'>
-            <div
-              ref='topoToolsPopover'
-              style={{
-                'min-width': `${this.graphToolsRect.width}px`,
-                'min-height': `${this.graphToolsRect.height}px`,
-              }}
-              class='topo-graph-content'
-            >
-              <div
-                ref='thumbnailTool'
-                style={{
-                  display: this.showThumbnail ? 'block' : 'none',
-                }}
-                class='topo-graph-thumbnail'
-              />
-
-              <ApmTopoLegend
-                style={{
-                  display: this.showLegend ? 'block' : 'none',
-                }}
-                dataType={this.dataType}
-                edgeType={this.edgeType}
-                legendFilter={this.legendFilter}
-                onEdgeTypeChange={this.handleEdgeTypeChange}
-                onLegendFilterChange={this.handleLegendFilterChange}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div
-          ref='menuList'
-          style={{
-            display: this.menuCfg.show ? 'block' : 'none',
-            left: `${this.menuCfg.x}px`,
-            top: `${this.menuCfg.y}px`,
-          }}
-          class='node-menu-list'
-        >
+      <div class='apm-relation-topo'>
+        {this.formatData.edges.length || this.formatData.nodes.length ? (
           <div
-            style={{ display: this.menuCfg.isDrilling ? 'block' : 'none' }}
-            class='node-drilling-container'
+            class='graph-container'
+            onContextmenu={e => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
           >
-            <div class='header'>
-              <span>{this.menuCfg.nodeModel?.data.name}</span>
-              <div
-                class='close-icon topo-menu-action'
-                onClick={() => this.hideMenu()}
-              >
-                <div class='row-line' />
+            <div
+              ref='relationGraph'
+              class='graph-wrap'
+            />
+            <div
+              ref='topoToolsPanel'
+              class='graph-tools-panel'
+            >
+              <CompareGraphTools
+                maxScale={this.maxZoomVal}
+                minScale={this.minZoomVal}
+                originScaleValue={this.initScale}
+                scaleValue={this.scaleValue}
+                showLegend={this.showLegend}
+                showThumbnail={this.showThumbnail}
+                onDownloadImage={this.handleDownloadImage}
+                onResetCenter={this.handleResetCenter}
+                onScaleChange={this.handleScaleChange}
+                onShowLegend={this.handleShowLegend}
+                onShowThumbnail={this.handleShowThumbnail}
+              />
+              <div style='display: none;'>
+                <div
+                  ref='topoToolsPopover'
+                  style={{
+                    'min-width': `${this.graphToolsRect.width}px`,
+                    'min-height': `${this.graphToolsRect.height}px`,
+                  }}
+                  class='topo-graph-content'
+                >
+                  <div
+                    ref='thumbnailTool'
+                    style={{
+                      display: this.showThumbnail ? 'block' : 'none',
+                    }}
+                    class='topo-graph-thumbnail'
+                  />
+
+                  <ApmTopoLegend
+                    style={{
+                      display: this.showLegend ? 'block' : 'none',
+                    }}
+                    dataType={this.dataType}
+                    edgeType={this.edgeType}
+                    legendFilter={this.legendFilter}
+                    onEdgeTypeChange={this.handleEdgeTypeChange}
+                    onLegendFilterChange={this.handleLegendFilterChange}
+                  />
+                </div>
               </div>
             </div>
-            {this.menuCfg.drillingLoading ? (
+
+            <div
+              ref='menuList'
+              style={{
+                display: this.menuCfg.show ? 'block' : 'none',
+                left: `${this.menuCfg.x}px`,
+                top: `${this.menuCfg.y}px`,
+              }}
+              class='node-menu-list'
+            >
               <div
-                class='drilling-loading'
-                v-bkloading={{ isLoading: true, size: 'small', color: '#ecedf2' }}
-              />
-            ) : (
-              <ul class='node-list'>
-                {this.menuCfg.drillingList.map(item => (
-                  <li
-                    key={item.id}
-                    class='node-item topo-menu-action'
-                    onClick={() => this.handleDrillingNodeClick(item)}
+                style={{ display: this.menuCfg.isDrilling ? 'block' : 'none' }}
+                class='node-drilling-container'
+              >
+                <div class='header'>
+                  <span
+                    class='name'
+                    v-bk-overflow-tips
                   >
-                    <div
-                      style={{ 'border-color': item.color }}
-                      class='node'
-                    >
-                      <i class='icon-monitor icon-fx' />
-                    </div>
-                    <span class='node-text'>{item.name}</span>
+                    {this.menuCfg.nodeModel?.data.name}
+                  </span>
+                  <div
+                    class='close-icon topo-menu-action'
+                    onClick={() => this.hideMenu()}
+                  >
+                    <div class='row-line' />
+                  </div>
+                </div>
+                {this.menuCfg.drillingLoading ? (
+                  <div
+                    class='drilling-loading'
+                    v-bkloading={{ isLoading: true, size: 'small', color: '#ecedf2' }}
+                  />
+                ) : (
+                  <ul class='node-list'>
+                    {this.menuCfg.drillingList.length ? (
+                      this.menuCfg.drillingList.map(item => (
+                        <li
+                          key={item.id}
+                          class='node-item topo-menu-action'
+                          onClick={() => this.handleDrillingNodeClick(item)}
+                        >
+                          <div
+                            style={{ 'border-color': item.color }}
+                            class={{
+                              node: true,
+                              active: this.drillingNodeActive === item.name,
+                            }}
+                          >
+                            <i class='icon-monitor icon-fx' />
+                          </div>
+                          <span
+                            class='node-text name'
+                            v-bk-overflow-tips
+                          >
+                            {item.name}
+                          </span>
+                        </li>
+                      ))
+                    ) : (
+                      <EmptyStatus
+                        class='drilling-node-empty'
+                        type='empty'
+                      />
+                    )}
+                  </ul>
+                )}
+              </div>
+              <ul
+                style={{ display: this.menuCfg.isDrilling ? 'none' : 'block' }}
+                class='topo-menu-list'
+              >
+                {this.menuCfg.nodeModel?.menu.map(target => (
+                  <li
+                    key={target.name}
+                    class='topo-menu-action'
+                    onClick={() => {
+                      this.handleNodeMenuClick(target);
+                    }}
+                  >
+                    {target.name}
                   </li>
                 ))}
               </ul>
-            )}
+            </div>
           </div>
-          <ul
-            style={{ display: this.menuCfg.isDrilling ? 'none' : 'block' }}
-            class='topo-menu-list'
-          >
-            {this.menuCfg.nodeModel?.menu.map(target => (
-              <li
-                key={target.name}
-                class='topo-menu-action'
-                onClick={() => {
-                  this.handleNodeMenuClick(target);
-                }}
-              >
-                {target.name}
-              </li>
-            ))}
-          </ul>
-        </div>
+        ) : (
+          <EmptyStatus
+            class='apm-topo-empty'
+            type='empty'
+          />
+        )}
       </div>
     );
   }
