@@ -471,7 +471,9 @@ export default class ApmTimeSeries extends TimeSeries {
   handleCloseDetails() {
     this.detailsSideData.show = false;
   }
-
+  handleUpdateAxisPointer(event) {
+    console.info('handleUpdateAxisPointer==================', event);
+  }
   render() {
     const { legend } = this.panel?.options || { legend: {} };
     return (
@@ -532,6 +534,7 @@ export default class ApmTimeSeries extends TimeSeries {
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}
                   onRestore={this.handleRestore}
+                  onUpdateAxisPointer={this.handleUpdateAxisPointer}
                 />
               )}
             </div>
