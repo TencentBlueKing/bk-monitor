@@ -1,0 +1,351 @@
+/* stylelint-disable declaration-no-important */
+.apm-home-wrap-page {
+  height: 100%;
+
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  /*navbar */
+  .dashboard-tools-wrap {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+
+    .alarm-tools {
+      margin-right: 16px;
+    }
+
+    .dashboard-tools {
+      margin-right: 11px;
+
+      .dropdown-trigger {
+        padding: 0 16px;
+      }
+
+      .time-range {
+        padding: 0 16px;
+      }
+
+      .dashboard-tools-more {
+        padding-left: 6px;
+      }
+    }
+
+    .icon-mc-more-tool {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      margin-left: 8px;
+      overflow: hidden;
+      font-size: 16px;
+      cursor: pointer;
+      background: #f5f7fa;
+      border-radius: 2px;
+
+      &:hover {
+        color: #3a84ff;
+        background-color: #eaf3ff;
+      }
+    }
+  }
+
+  /*应用列表*/
+  .app-list {
+    height: calc(100vh - 126px);
+    background-color: #fff;
+
+    .app-list-title {
+      width: 56px;
+      height: 22px;
+      margin: 12px 16px 8px 16px;
+      font-family: MicrosoftYaHei;
+      font-size: 14px;
+      line-height: 22px;
+      color: #313238;
+      letter-spacing: 0;
+    }
+
+    .app-list-search {
+      display: flex;
+      margin: 0 16px 16px;
+
+      .app-list-add {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 32px;
+        margin-left: 8px;
+        background-color: #3a84ff;
+        border-radius: 2px;
+
+        .icon-monitor {
+          display: inline-block;
+          color: #fff;
+        }
+      }
+    }
+
+    .app-list-data {
+      .data-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding: 8px 16px;
+
+        &:hover {
+          cursor: pointer;
+
+          .item-content {
+            display: none;
+          }
+
+          .operate {
+            display: block;
+          }
+        }
+
+        .first-code {
+          display: flex;
+          flex: 0 0 auto;
+          align-items: center;
+          justify-content: center;
+          width: 16px;
+          height: 16px;
+          margin-right: 8px;
+          font-size: 12px;
+          line-height: 1;
+          color: #fff;
+          background: #85cca8;
+          border-radius: 4px;
+
+          & > span {
+            line-height: 14px;
+          }
+        }
+
+        .biz-name-01 {
+          flex: 1;
+          overflow: hidden;
+          font-size: 12px;
+          line-height: 1;
+          color: #313238;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .item-content {
+          flex: 0 0 auto;
+          width: 16px;
+          font-size: 12px;
+          line-height: 1;
+          color: #979ba5;
+          text-align: right;
+        }
+
+        .operate {
+          display: none;
+        }
+      }
+
+      .selected {
+        background-color: #e1ecff;
+
+        .biz-name-01 {
+          color: #3a84ff;
+        }
+      }
+    }
+  }
+
+  // 服务
+  .app-list-service {
+    // header
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      .header-left {
+        height: 24px;
+        font-family: MicrosoftYaHei;
+        font-size: 16px;
+        line-height: 24px;
+        color: #313238;
+        letter-spacing: 0;
+      }
+
+      .header-right {
+        display: flex;
+      }
+    }
+    // 右侧主体部分
+    .main {
+      display: flex;
+      height: calc(100vh - 240px);
+      padding: 13px 16px;
+      margin-top: 12px;
+      background-color: #fff;
+
+      .main-left {
+        width: 100%;
+        height: 100%;
+
+        .main-left-filter {
+          padding-right: 16px;
+        }
+
+        .main-left-table {
+          padding: 16px;
+        }
+
+        .toggle-wrap {
+          font-size: 24px;
+          color: #979ba5;
+          cursor: pointer;
+          transform: rotate(90deg);
+        }
+
+        .isCollapsed {
+          display: none;
+        }
+      }
+
+      .app-list-content {
+        flex: 1;
+
+        .app-add-btn {
+          display: flex;
+          align-items: center;
+          line-height: 24px;
+        }
+      }
+    }
+  }
+
+  .app-add-icon {
+    font-size: 24px;
+  }
+
+  .app-list-service {
+    height: calc(100% - 48px);
+    padding: 16px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background-color: #f5f7fa;
+
+    .app-list-content {
+      position: relative;
+      margin-bottom: 36px;
+
+      .app-list-content-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        .icon-mc-full-screen,
+        .icon-mc-merge {
+          margin-right: 8px;
+          font-size: 16px;
+        }
+      }
+
+      .app-list-content-data {
+        display: flex;
+        flex-direction: column;
+        padding-top: 16px;
+
+        .item-expan-wrap {
+          margin-bottom: 16px;
+          cursor: pointer;
+
+          .expan-header {
+            display: flex;
+            align-items: center;
+            height: 52px;
+            background: #fff;
+            border-radius: 2px;
+            box-shadow: 0 2px 4px 0 #1919290d;
+
+            .header-left {
+              display: flex;
+              align-items: center;
+
+              .icon-mc-triangle-down {
+                margin: 0 10px;
+                font-size: 20px;
+                color: #979ba5;
+                transition: 0.3s transform;
+                transform: rotate(-90deg);
+
+                &.expan {
+                  color: #63656e;
+                  transform: rotate(0);
+                }
+              }
+            }
+          }
+
+          .expan-content {
+            min-height: 180px;
+            background: #fff;
+
+            .common-table .bk-table-column-setting.is-last {
+              border-top: 0 !important;
+            }
+
+            .table-skeleton {
+              padding: 16px;
+            }
+          }
+        }
+      }
+
+      .bottom-loading-status {
+        position: absolute;
+        bottom: -32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+
+        .loading-box {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: fit-content;
+          height: 32px;
+          padding: 8px 22px;
+          font-size: 12px;
+          color: #979ba5;
+          background: #ebedf0;
+          border-radius: 2px;
+        }
+      }
+    }
+
+    .app-list-search {
+      width: 426px;
+      background: #fff;
+
+      .bk-loading {
+        z-index: 9999;
+      }
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      margin-right: 6px;
+      background: url(../../static/img/spinner.svg);
+    }
+  }
+
+  .bk-resize-layout-aside-content {
+    background-color: #fff;
+  }
+}

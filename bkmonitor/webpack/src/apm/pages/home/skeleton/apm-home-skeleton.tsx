@@ -23,25 +23,34 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { RouteConfig } from 'vue-router';
-// import * as HomeAuth from '../../pages/home/authority-map';
-const AppList = () => import(/* webpackChunkName: "AppList" */ '../../pages/home/apm-home');
-export default [
-  {
-    path: '/home',
-    name: 'home',
-    props: true,
-    components: {
-      noCache: AppList,
-    },
-    meta: {
-      title: '首页',
-      navId: 'home',
-      // authority: {
-      //   map: HomeAuth,
-      //   page: [HomeAuth.VIEW_AUTH]
-      // },
-      noNavBar: true,
-    },
-  },
-] as RouteConfig[];
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import './apm-home-skeleton.scss';
+
+interface IProps {
+  count?: number;
+}
+
+@Component
+export default class AppListSkeleton extends tsc<IProps> {
+  @Prop({ type: Number, default: 10 }) count: number;
+  render() {
+    return (
+      <div class='app-list-skeleton'>
+        {new Array(this.count).fill(null).map((_, index) => (
+          <div
+            key={index}
+            class='expan-header'
+          >
+            <div class='header-left'>
+              <div class='skeleton-01 skeleton-element' />
+              <div class='skeleton-02 skeleton-element' />
+              <div class='skeleton-03 skeleton-element' />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+}
