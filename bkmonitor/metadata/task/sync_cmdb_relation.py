@@ -46,8 +46,8 @@ def sync_relation_redis_data():
         space_type, space_id = key.split('__')  # 分割出space_type和space_id
         biz_id = space_id if space_type == "bkcc" else Space.objects.get_biz_id_by_space(space_type, space_id)
         # {space_type}_{space_id}_built_in_time_series.__default__
-        data_name = "{}_{}_built_in_time_series".format(space_id, space_type)
-        table_id = "{}_{}_built_in_time_series.__default__".format(space_id, space_type)
+        data_name = "{}_{}_built_in_time_series".format(biz_id, space_type)
+        table_id = "{}_{}_built_in_time_series.__default__".format(biz_id, space_type)
         token = value_dict.get('token')
         modify_time = value_dict.get('modifyTime')  # noqa
         logger.info("Start sync builtin redis data, field={}".format(key))
