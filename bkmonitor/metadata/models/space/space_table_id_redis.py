@@ -184,7 +184,6 @@ class SpaceTableIDRedis:
             )
         }
         _table_id_detail = {}
-        storage_type = models.RecordRule.STORAGE_TYPE
         for obj in record_rule_objs:
             _table_id_detail[obj["table_id"]] = json.dumps(
                 {
@@ -199,7 +198,7 @@ class SpaceTableIDRedis:
                     "measurement_type": "bk_split_measurement",
                     "bcs_cluster_id": "",
                     "data_label": "",
-                    "storage_type": storage_type,
+                    "storage_type": models.RecordRule.STORAGE_TYPE,
                     "bk_data_id": None,
                 }
             )
@@ -218,7 +217,6 @@ class SpaceTableIDRedis:
     def _compose_es_table_id_detail(self, table_id_list: Optional[List[str]] = None):
         """组装 es 结果表的详细信息"""
         logger.info("start to compose es table_id detail data")
-        storage_type = models.ESStorage.STORAGE_TYPE
         # 这里要过来的结果表不会太多
         if table_id_list:
             table_ids = models.ESStorage.objects.filter(table_id__in=table_id_list).values(
@@ -267,7 +265,7 @@ class SpaceTableIDRedis:
                     "measurement": DEFAULT_MEASUREMENT,
                     "source_type": source_type,
                     "options": tid_options_map.get(tid) or {},
-                    'storage_type': storage_type,
+                    'storage_type': models.ESStorage.STORAGE_TYPE,
                 }
             )
         return data
