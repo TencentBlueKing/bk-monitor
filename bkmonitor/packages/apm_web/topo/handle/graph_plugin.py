@@ -25,7 +25,7 @@ from apm_web.metric_handler import (
     ServiceFlowDurationBucket,
     ServiceFlowDurationMax,
     ServiceFlowDurationMin,
-    ServiceFlowErrorRate,
+    ServiceFlowErrorRateCaller,
 )
 from apm_web.topo.constants import (
     BarChartDataType,
@@ -328,7 +328,7 @@ class EdgeErrorRate(PrePlugin, ValuesPluginMixin):
     id: str = TopoEdgeDataType.ERROR_RATE.value
     type: GraphPluginType = GraphPluginType.EDGE
     metric: Type[MetricHandler] = functools.partial(
-        ServiceFlowErrorRate, group_by=["from_apm_service_name", "to_apm_service_name"]
+        ServiceFlowErrorRateCaller, group_by=["from_apm_service_name", "to_apm_service_name"]
     )
 
     def __post_init__(self):
@@ -1281,7 +1281,7 @@ class NodeColor(PostPlugin):
     """
     节点边缘颜色
     通过: apdex / 告警 alert / 主调错误率 error_rate_caller / 被调错误率 error_rate_callee / 错误率 error_rate
-
+    此插件依赖 NodeHaveData 插件
     """
 
     id: str = "color"
@@ -1295,6 +1295,11 @@ class NodeColor(PostPlugin):
         WHITE = "#DCDEE5"
 
     def process(self, data_type, edge_data_type, node_data, graph):
+
+        # 如果节点无数据 那么颜色就是灰色
+        if NodeHaveData.id in node_data:
+            node_data[self.id] = self.Color.WHITE
+            return
 
         if data_type in [
             BarChartDataType.ErrorRate.value,
