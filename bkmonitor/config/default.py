@@ -1068,7 +1068,7 @@ BK_DOCS_SITE_URL = os.getenv("BK_DOCS_SITE_URL") or get_service_url("bk_docs_cen
 DOC_HOST = "https://bk.tencent.com/docs/"
 
 # 版本差异变量
-if PLATFORM == "community":
+if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
     BK_DOCS_SITE_URL = DOC_HOST
 
 # monitor api base url:
