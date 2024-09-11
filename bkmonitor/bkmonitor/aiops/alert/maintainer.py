@@ -339,10 +339,10 @@ class AIOpsStrategyMaintainer:
 
                 if flows[bkbase_flow_id]["flow_info"]["status"] == DataFlow.Status.Running:
                     try:
-                        print(
+                        logger.info(
                             f"stop dataflow({bkbase_flow_id}) because strategy({strategy_id}:"
                             f"{bk_biz_id}) is disabled or deleted"
                         )
                         # api.bkdata.stop_data_flow(flow_id=bkbase_flow_id)
                     except BaseException:  # noqa
-                        print(f"stop dataflow({bkbase_flow_id}) error")
+                        logger.exception(f"stop dataflow({bkbase_flow_id}) error")
