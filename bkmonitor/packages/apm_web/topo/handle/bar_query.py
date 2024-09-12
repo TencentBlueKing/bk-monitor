@@ -14,6 +14,9 @@ import json
 import urllib.parse
 from dataclasses import asdict, dataclass, field
 from typing import Dict, List
+from urllib.parse import urljoin
+
+from django.conf import settings
 
 from apm_web.constants import AlertLevel, DataStatus
 from apm_web.handlers.compatible import CompatibleQuery
@@ -204,11 +207,11 @@ class LinkHelper:
             return None
 
         return (
-            f"/?bizId={bk_biz_id}#/apm/service?"
+            f"/service?"
             f"filter-service_name={service_name}&"
             f"filter-app_name={app_name}&"
-            f"from={start_time}&"
-            f"to={end_time}&"
+            f"from={start_time * 1000}&"
+            f"to={end_time * 1000}&"
             f"dashboardId={dashboard_id}"
         )
 
@@ -223,11 +226,11 @@ class LinkHelper:
             return None
 
         return (
-            f"/?bizId={bk_biz_id}#/apm/service?"
+            f"/service?"
             f"filter-service_name={service_name}&"
             f"filter-app_name={app_name}&"
-            f"from={start_time}&"
-            f"to={end_time}&"
+            f"from={start_time * 1000}&"
+            f"to={end_time * 1000}&"
             f"dashboardId={dashboard_id}"
         )
 
@@ -275,3 +278,8 @@ class LinkHelper:
             f"from={start_time * 1000}&to={end_time * 1000}&"
             f"dashboardId=service&sceneId=kubernetes&sceneType=detail&queryData={encode_query}"
         )
+
+    @classmethod
+    def get_host_cmdb_link(cls, bk_biz_id, bk_host_id):
+        """获取主机在 cmdb 中的链接"""
+        return urljoin(settings.BK_CC_URL, f"#/business/{bk_biz_id}/index/host/{bk_host_id}")

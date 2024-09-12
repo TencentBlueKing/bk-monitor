@@ -672,6 +672,36 @@ class NodeErrorRateFull(PrePlugin, ValuesPluginMixin):
         return res
 
 
+@PluginProvider.pre_plugin
+@dataclass
+class NodeErrorCountCaller(PrePlugin, ValuesPluginMixin):
+    """节点主调错误数量 (不区分错误码)"""
+
+    id: str = BarChartDataType.ERROR_COUNT_CALLER.value
+    type: GraphPluginType = GraphPluginType.NODE
+    metric: Type[MetricHandler] = ServiceFlowCount
+
+    def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
+        return self.get_instance_values_mapping(
+            group_by=["from_apm_service_name"], where=[{"key": "from_span_error", "method": "eq", "value": ["true"]}]
+        )
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class NodeErrorCountCallee(PrePlugin, ValuesPluginMixin):
+    """节点被调错误数量 (不区分错误码)"""
+
+    id: str = BarChartDataType.ERROR_COUNT_CALLEE.value
+    type: GraphPluginType = GraphPluginType.NODE
+    metric: Type[MetricHandler] = ServiceFlowCount
+
+    def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
+        return self.get_instance_values_mapping(
+            group_by=["to_apm_service_name"], where=[{"key": "to_span_error", "method": "eq", "value": ["true"]}]
+        )
+
+
 class ErrorCountStatusCodeMixin(PrePlugin, ValuesPluginMixin):
     status_code_key = "error_status_code_"
 
@@ -770,7 +800,7 @@ class ErrorCountStatusCodeMixin(PrePlugin, ValuesPluginMixin):
 
 @PluginProvider.pre_plugin
 @dataclass
-class NodeErrorCountCaller(ErrorCountStatusCodeMixin):
+class NodeErrorCountCallerMultiple(ErrorCountStatusCodeMixin):
     """
     节点主调错误量 (分为总错误、HTTP 错误、GRPC 错误)
     [!] 此插件返回的数据格式与其他插件不一致
@@ -786,7 +816,7 @@ class NodeErrorCountCaller(ErrorCountStatusCodeMixin):
 
 @PluginProvider.pre_plugin
 @dataclass
-class NodeErrorCountCallee(ErrorCountStatusCodeMixin):
+class NodeErrorCountCalleeMultiple(ErrorCountStatusCodeMixin):
     """
     节点被调错误量 (分为总错误、HTTP 错误、GRPC 错误)
     [!] 此插件返回的数据格式与其他插件不一致
@@ -1175,29 +1205,20 @@ class EndpointAvgDurationCallee(DurationUnitMixin, SimpleMetricInstanceValuesMix
 
 @PluginProvider.pre_plugin
 @dataclass
-class EndpointErrorRateCaller(PrePlugin, ValuesPluginMixin):
-    """接口主调错误率"""
+class EndpointErrorCountCaller(PrePlugin, ValuesPluginMixin):
+    """接口主调错误量"""
 
-    id: str = BarChartDataType.ErrorRateCaller.value
+    id: str = BarChartDataType.ERROR_COUNT_CALLER.value
     type: GraphPluginType = GraphPluginType.ENDPOINT
     metric: Type[MetricHandler] = ServiceFlowCount
 
     def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
-        total_mapping = self.get_instance_values_mapping(group_by=["from_span_name"])
-        caller_error_mapping = self.get_instance_values_mapping(
+        return self.get_instance_values_mapping(
             group_by=["from_span_name"], where=[{"key": "from_span_error", "method": "eq", "value": ["true"]}]
         )
-        res = {}
-        for endpoint, attr in total_mapping.items():
-            total_count = attr[self.id]
-            caller_count = caller_error_mapping.get(endpoint, {}).get(self.id, 0)
-
-            res[endpoint] = {self.id: round((caller_count / total_count), 2) if total_count else None}
-
-        return res
 
     def add_endpoint_query(self, params, endpoint_name):
-        params = super(EndpointErrorRateCaller, self).add_endpoint_query(params, endpoint_name)
+        params = super(EndpointErrorCountCaller, self).add_endpoint_query(params, endpoint_name)
         params.setdefault("where", []).extend(
             [
                 {"key": "from_apm_service_name", "method": "eq", "value": [self._runtime["service_name"]]},
@@ -1209,29 +1230,20 @@ class EndpointErrorRateCaller(PrePlugin, ValuesPluginMixin):
 
 @PluginProvider.pre_plugin
 @dataclass
-class EndpointErrorRateCallee(PrePlugin, ValuesPluginMixin):
-    """接口被调错误率"""
+class EndpointErrorCountCallee(PrePlugin, ValuesPluginMixin):
+    """接口被调错误量"""
 
-    id: str = BarChartDataType.ErrorRateCallee.value
+    id: str = BarChartDataType.ERROR_COUNT_CALLEE.value
     type: GraphPluginType = GraphPluginType.ENDPOINT
     metric: Type[MetricHandler] = ServiceFlowCount
 
     def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
-        total_mapping = self.get_instance_values_mapping(group_by=["to_span_name"])
-        caller_error_mapping = self.get_instance_values_mapping(
+        return self.get_instance_values_mapping(
             group_by=["to_span_name"], where=[{"key": "to_span_error", "method": "eq", "value": ["true"]}]
         )
-        res = {}
-        for endpoint, attr in total_mapping.items():
-            total_count = attr[self.id]
-            caller_count = caller_error_mapping.get(endpoint, {}).get(self.id, 0)
-
-            res[endpoint] = {self.id: round((caller_count / total_count), 2) if total_count else None}
-
-        return res
 
     def add_endpoint_query(self, params, endpoint_name):
-        params = super(EndpointErrorRateCallee, self).add_endpoint_query(params, endpoint_name)
+        params = super(EndpointErrorCountCallee, self).add_endpoint_query(params, endpoint_name)
         params.setdefault("where", []).extend(
             [
                 {"key": "to_apm_service_name", "method": "eq", "value": [self._runtime["service_name"]]},
@@ -1507,13 +1519,12 @@ class HoverTipsMixin:
     def add_tips(cls, key, data):
         # 将节点数据归类在 tips 目录下
         duration_converter = functools.partial(load_unit("µs").auto_convert, decimal=2)
-        percent_converter = functools.partial(load_unit("percent").auto_convert, decimal=2)
 
         duration_caller = data.pop(f"_{BarChartDataType.AVG_DURATION_CALLER.value}", None)
         duration_callee = data.pop(f"_{BarChartDataType.AVG_DURATION_CALLEE.value}", None)
 
-        error_rate_caller = data.pop(BarChartDataType.ErrorRateCaller.value, None)
-        error_rate_callee = data.pop(BarChartDataType.ErrorRateCallee.value, None)
+        error_count_caller = data.pop(BarChartDataType.ERROR_COUNT_CALLER.value, None)
+        error_count_callee = data.pop(BarChartDataType.ERROR_COUNT_CALLEE.value, None)
 
         def _join(items):
             res = ""
@@ -1530,12 +1541,12 @@ class HoverTipsMixin:
             {
                 "group": "duration",
                 "name": _("主调平均耗时"),
-                "value": _join(duration_converter(value=duration_caller)) if duration_caller else "--",
+                "value": _join(duration_converter(value=duration_caller)) if duration_caller is not None else "--",
             },
             {
                 "group": "error",
-                "name": _("主调错误率"),
-                "value": _join(percent_converter(value=error_rate_caller * 100)) if error_rate_caller else "--",
+                "name": _("主调错误量"),
+                "value": error_count_caller if error_count_caller is not None else "--",
             },
             {
                 "group": "request_count",
@@ -1545,12 +1556,12 @@ class HoverTipsMixin:
             {
                 "group": "duration",
                 "name": _("被调平均耗时"),
-                "value": _join(duration_converter(value=duration_callee)) if duration_callee else "--",
+                "value": _join(duration_converter(value=duration_callee)) if duration_callee is not None else "--",
             },
             {
                 "group": "error",
-                "name": _("被调错误率"),
-                "value": _join(percent_converter(value=error_rate_callee * 100)) if error_rate_callee else "--",
+                "name": _("被调错误量"),
+                "value": error_count_callee if error_count_callee is not None else "--",
             },
         ]
 
@@ -1566,8 +1577,8 @@ class NodeTips(PostPlugin, HoverTipsMixin):
     def process(self, data_type, edge_data_type, node_data, graph):
         """
         获取指标数据
-        主调调用量 、 主调平均耗时 、 主调错误率
-        被调调用量 、 被调平均耗时 、 被调错误率
+        主调调用量 、 主调平均耗时 、 主调错误量
+        被调调用量 、 被调平均耗时 、 被调错误量
         实例数量
         """
         self.add_tips(self.id, node_data)
@@ -1645,8 +1656,8 @@ class TopoViewConverter(ViewConverter):
             NodeRequestCountCallee,
             NodeAvgDurationCaller,
             NodeAvgDurationCallee,
-            NodeErrorRateCaller,
-            NodeErrorRateCallee,
+            NodeErrorCountCaller,
+            NodeErrorCountCallee,
             NodeApdex,
         ]
     )
@@ -1675,7 +1686,7 @@ class TopoDiffDataConverter(ViewConverter):
     """拓扑图对比模式转换器"""
 
     _caller_plugins = [
-        NodeErrorCountCaller,
+        NodeErrorCountCallerMultiple,
         NodeDurationMaxCaller,
         NodeDurationMinCaller,
         NodeDurationP50Caller,
@@ -1685,7 +1696,7 @@ class TopoDiffDataConverter(ViewConverter):
     ]
 
     _callee_plugins = [
-        NodeErrorCountCallee,
+        NodeErrorCountCalleeMultiple,
         NodeDurationMaxCallee,
         NodeDurationMinCallee,
         NodeDurationP50Callee,

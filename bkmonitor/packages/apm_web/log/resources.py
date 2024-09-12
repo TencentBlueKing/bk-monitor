@@ -8,14 +8,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from rest_framework import serializers
+
 from apm_web.constants import ServiceRelationLogTypeChoices
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.models import LogServiceRelation
-from monitor_web.scene_view.resources import HostIndexQueryMixin
-from rest_framework import serializers
-
-from constants.apm import IndexSetSource
 from core.drf_resource import Resource, api
+from monitor_web.scene_view.resources import HostIndexQueryMixin
 
 
 class ServiceLogInfoResource(Resource, HostIndexQueryMixin):
@@ -97,7 +96,7 @@ class ServiceRelationListResource(Resource, HostIndexQueryMixin):
                 res.append(
                     {
                         "index_set_id": index_set_info["index_set_id"],
-                        "index_set_name": f"({IndexSetSource.SERVICE_RELATED.label}){index_set_info['index_set_name']}",
+                        "index_set_name": index_set_info['index_set_name'],
                         "log_type": item.log_type,
                         "related_bk_biz_id": item.related_bk_biz_id,
                     }
