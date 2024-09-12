@@ -92,6 +92,7 @@
 
 .bar-alarm-chart-tooltip-theme-theme {
   padding: 0;
+  background: #000000cc !important;
   border-radius: 5px;
 
   .tippy-content {
@@ -106,7 +107,7 @@
     min-width: 137px;
     padding: 8px;
     font-size: 12px;
-    background: #000000cc;
+    background: #00000000;
     border-radius: 5px;
 
     .time-text {

@@ -32,6 +32,7 @@ import yaml
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils.translation import ugettext as _
+from kubernetes import client
 from rest_framework.exceptions import ErrorDetail, ValidationError
 
 from apps.api import BcsApi, BkDataAccessApi, CCApi, NodeApi, TransferApi
@@ -2685,6 +2686,7 @@ class CollectorHandler(object):
             "environment": Environment.CONTAINER,
             "bcs_cluster_id": data["bcs_cluster_id"],
             "add_pod_label": data["add_pod_label"],
+            "add_pod_annotation": data["add_pod_annotation"],
             "extra_labels": data["extra_labels"],
             "yaml_config_enabled": data["yaml_config_enabled"],
             "yaml_config": data["yaml_config"],
@@ -2767,6 +2769,7 @@ class CollectorHandler(object):
                     container_name_exclude=config["container"]["container_name_exclude"],
                     match_labels=config["label_selector"]["match_labels"],
                     match_expressions=config["label_selector"]["match_expressions"],
+                    match_annotations=config["annotation_selector"]["match_annotations"],
                     all_container=not any(
                         [
                             config["container"]["workload_type"],
@@ -2775,6 +2778,7 @@ class CollectorHandler(object):
                             config["container"]["container_name_exclude"],
                             config["label_selector"]["match_labels"],
                             config["label_selector"]["match_expressions"],
+                            config["annotation_selector"]["match_annotations"],
                         ]
                     ),
                     # yaml 原始配置，如果启用了yaml，则把解析后的原始配置保存下来用于下发
@@ -2835,6 +2839,7 @@ class CollectorHandler(object):
             "collector_scenario_id": data["collector_scenario_id"],
             "bcs_cluster_id": data["bcs_cluster_id"],
             "add_pod_label": data["add_pod_label"],
+            "add_pod_annotation": data["add_pod_annotation"],
             "extra_labels": data["extra_labels"],
             "yaml_config_enabled": data["yaml_config_enabled"],
             "yaml_config": data["yaml_config"],
@@ -3599,6 +3604,7 @@ class CollectorHandler(object):
                     data["configs"][x]["container"]["container_name_exclude"],
                     data["configs"][x]["label_selector"]["match_labels"],
                     data["configs"][x]["label_selector"]["match_expressions"],
+                    data["configs"][x]["annotation_selector"]["match_annotations"],
                 ]
             )
             if x < len(container_configs):
@@ -3622,6 +3628,7 @@ class CollectorHandler(object):
                 container_configs[x].container_name_exclude = data["configs"][x]["container"]["container_name_exclude"]
                 container_configs[x].match_labels = data["configs"][x]["label_selector"]["match_labels"]
                 container_configs[x].match_expressions = data["configs"][x]["label_selector"]["match_expressions"]
+                container_configs[x].match_annotations = data["configs"][x]["annotation_selector"]["match_annotations"]
                 container_configs[x].collector_type = data["configs"][x]["collector_type"]
                 container_configs[x].all_container = is_all_container
                 container_configs[x].raw_config = data["configs"][x].get("raw_config")
@@ -3650,6 +3657,7 @@ class CollectorHandler(object):
                     container_name_exclude=data["configs"][x]["container"]["container_name_exclude"],
                     match_labels=data["configs"][x]["label_selector"]["match_labels"],
                     match_expressions=data["configs"][x]["label_selector"]["match_expressions"],
+                    match_annotations=data["configs"][x]["annotation_selector"]["match_annotations"],
                     collector_type=data["configs"][x]["collector_type"],
                     all_container=is_all_container,
                     raw_config=data["configs"][x].get("raw_config"),
@@ -3940,31 +3948,8 @@ class CollectorHandler(object):
 
         return [(pod.metadata.namespace, pod.metadata.name) for pod in filtered_pods]
 
-    def preview_containers(
-        self,
-        topo_type,
-        bk_biz_id,
-        bcs_cluster_id,
-        namespaces=None,
-        namespaces_exclude=None,
-        label_selector=None,
-        container=None,
-    ):
-        """
-        预览匹配到的 nodes 或 pods
-        """
-        container = container or {}
-        namespaces = namespaces or []
-        namespaces_exclude = namespaces_exclude or []
-        label_selector = label_selector or {}
-
-        # 将标签匹配条件转换为表达式
-        match_expressions = label_selector.get("match_expressions", [])
-
-        # match_labels 本质上是个字典，需要去重
-        match_labels = {label["key"]: label["value"] for label in label_selector.get("match_labels", [])}
-        match_labels_list = ["{} = {}".format(label[0], label[1]) for label in match_labels.items()]
-
+    def get_expr_list(self, match_expressions):
+        expr_list = []
         for expression in match_expressions:
             if expression["operator"] == LabelSelectorOperator.IN:
                 expr = "{} in {}".format(expression["key"], expression["value"])
@@ -3976,17 +3961,90 @@ class CollectorHandler(object):
                 expr = "!{}".format(expression["key"])
             else:
                 expr = "{} = {}".format(expression["key"], expression["value"])
-            match_labels_list.append(expr)
-        selector_expression = ", ".join(match_labels_list)
+            expr_list.append(expr)
+        return expr_list
+
+    @staticmethod
+    def filter_pods_by_annotations(pods, match_annotations):
+        """
+        通过annotation过滤pod信息
+        """
+        # 用于存储符合条件的 pods
+        filtered_pods = []
+        # 遍历 pods，检查每个 pod 的 annotations
+        for pod in pods.items:
+            annotations = pod.metadata.annotations
+            if not annotations:
+                continue
+
+            is_matched = True
+            # 遍历match_annotations条件,如果不满足条件,is_matched设置为False
+            for _match in match_annotations:
+                key = _match["key"]
+                op = _match["operator"]
+                value = _match["value"].strip("()").split(",")
+                if op == LabelSelectorOperator.IN and not (key in annotations and annotations[key] in value):
+                    is_matched = False
+                elif op == LabelSelectorOperator.NOT_IN and not (key in annotations and annotations[key] not in value):
+                    is_matched = False
+                elif op == LabelSelectorOperator.EXISTS and key not in annotations:
+                    is_matched = False
+                elif op == LabelSelectorOperator.DOES_NOT_EXIST and key in annotations:
+                    is_matched = False
+
+            if is_matched:
+                # 满足匹配条件时,加入到结果列表中
+                filtered_pods.append(pod)
+
+        # 把返回的数据重新构建为V1PodList类型
+        return client.models.V1PodList(
+            api_version=pods.api_version,
+            kind=pods.kind,
+            items=filtered_pods,
+            metadata=pods.metadata,
+        )
+
+    def preview_containers(
+        self,
+        topo_type,
+        bk_biz_id,
+        bcs_cluster_id,
+        namespaces=None,
+        namespaces_exclude=None,
+        label_selector=None,
+        annotation_selector=None,
+        container=None,
+    ):
+        """
+        预览匹配到的 nodes 或 pods
+        """
+        container = container or {}
+        namespaces = namespaces or []
+        namespaces_exclude = namespaces_exclude or []
+        label_selector = label_selector or {}
+        annotation_selector = annotation_selector or {}
+
+        # 将标签匹配条件转换为表达式
+        match_expressions = label_selector.get("match_expressions", [])
+
+        # match_labels 本质上是个字典，需要去重
+        match_labels = {label["key"]: label["value"] for label in label_selector.get("match_labels", [])}
+        match_labels_list = ["{} = {}".format(label[0], label[1]) for label in match_labels.items()]
+
+        match_labels_list.extend(self.get_expr_list(match_expressions))
+        label_expression = ", ".join(match_labels_list)
+
+        # annotation selector expr解析
+        match_annotations = annotation_selector.get("match_annotations", [])
 
         api_instance = Bcs(cluster_id=bcs_cluster_id).api_instance_core_v1
         previews = []
 
         # Node 预览
         if topo_type == TopoType.NODE.value:
-            if selector_expression:
+            if label_expression:
                 # 如果有多条表达式，需要拆分为多个去请求，以获取每个表达式实际匹配的数量
-                nodes = api_instance.list_node(label_selector=selector_expression)
+                nodes = api_instance.list_node(label_selector=label_expression)
             else:
                 nodes = api_instance.list_node()
             previews.append(
@@ -3997,16 +4055,20 @@ class CollectorHandler(object):
         # Pod 预览
         # 当存在标签表达式时，以标签表达式维度展示
         # 当不存在标签表达式时，以namespace维度展示
-        if selector_expression:
+        if label_expression:
             if not namespaces or len(namespaces) > 1 or namespaces_exclude:
-                pods = api_instance.list_pod_for_all_namespaces(label_selector=selector_expression)
+                pods = api_instance.list_pod_for_all_namespaces(label_selector=label_expression)
             else:
-                pods = api_instance.list_namespaced_pod(label_selector=selector_expression, namespace=namespaces[0])
+                pods = api_instance.list_namespaced_pod(label_selector=label_expression, namespace=namespaces[0])
         else:
             if not namespaces or len(namespaces) > 1 or namespaces_exclude:
                 pods = api_instance.list_pod_for_all_namespaces()
             else:
                 pods = api_instance.list_namespaced_pod(namespace=namespaces[0])
+
+        if match_annotations:
+            # 根据annotation过滤
+            pods = self.filter_pods_by_annotations(pods, match_annotations)
 
         is_shared_cluster = False
         shared_cluster_namespace = list()
@@ -4156,6 +4218,7 @@ class CollectorHandler(object):
             }
 
         add_pod_label = False
+        add_pod_annotation = False
         extra_labels = {}
         container_configs = []
 
@@ -4194,11 +4257,17 @@ class CollectorHandler(object):
                 }
 
             add_pod_label = config["addPodLabel"]
+            add_pod_annotation = config["addPodAnnotation"]
             extra_labels = config.get("extMeta", {})
             conditions = convert_filters_to_collector_condition(config.get("filters", []), config.get("delimiter", ""))
 
             match_expressions = config.get("labelSelector", {}).get("matchExpressions", [])
             for expr in match_expressions:
+                # 转换为字符串
+                expr["value"] = ",".join(expr.get("values") or [])
+
+            match_annotations = config.get("annotationSelector", {}).get("matchExpressions", [])
+            for expr in match_annotations:
                 # 转换为字符串
                 expr["value"] = ",".join(expr.get("values") or [])
 
@@ -4223,6 +4292,9 @@ class CollectorHandler(object):
                         ],
                         "match_expressions": match_expressions,
                     },
+                    "annotation_selector": {
+                        "match_annotations": match_annotations,
+                    },
                     "params": {
                         "paths": config.get("path", []),
                         "exclude_files": config.get("exclude_files", []),
@@ -4244,6 +4316,7 @@ class CollectorHandler(object):
                 "environment": Environment.CONTAINER,
                 "extra_labels": [{"key": key, "value": value} for key, value in extra_labels.items()],
                 "add_pod_label": add_pod_label,
+                "add_pod_annotation": add_pod_annotation,
                 "configs": container_configs,
             },
         }
@@ -4421,6 +4494,7 @@ class CollectorHandler(object):
                 "dataId": collector_config.bk_data_id,
                 "extMeta": {label["key"]: label["value"] for label in collector_config.extra_labels},
                 "addPodLabel": collector_config.add_pod_label,
+                "addPodAnnotation": collector_config.add_pod_annotation,
             }
         )
         return raw_config
@@ -4465,6 +4539,18 @@ class CollectorHandler(object):
                 if container_config.match_expressions
                 else [],
             },
+            "annotationSelector": {
+                "matchExpressions": [
+                    {
+                        "key": expression["key"],
+                        "operator": expression["operator"],
+                        "values": [v.strip() for v in expression.get("value", "").split(",") if v.strip()],
+                    }
+                    for expression in container_config.match_annotations
+                ]
+                if container_config.match_annotations
+                else [],
+            },
             "multiline": {
                 "pattern": container_config.params.get("multiline_pattern"),
                 "maxLines": container_config.params.get("multiline_max_lines"),
@@ -4486,12 +4572,13 @@ class CollectorHandler(object):
 
     @classmethod
     def container_dict_configs_to_yaml(
-        cls, container_configs: List[Dict], add_pod_label: bool, extra_labels: List
+        cls, container_configs: List[Dict], add_pod_label: bool, add_pod_annotation: bool, extra_labels: List
     ) -> str:
         """
         将字典格式的容器采集配置转为yaml
         @param container_configs: 容器采集配置实例
         @param add_pod_label: 上报时是否把标签带上
+        @param add_pod_annotation: 上报时是否把注解带上
         @param extra_labels: 额外标签
         @return: 将多个配置转为yaml结果
         """
@@ -4515,6 +4602,7 @@ class CollectorHandler(object):
                         container_config["container_name_exclude"],
                         container_config["match_labels"],
                         container_config["match_expressions"],
+                        container_config.get("match_annotations", []),
                     ]
                 ),
                 "any_namespace": not any([container_config["namespaces"], container_config["namespaces_exclude"]]),
@@ -4527,6 +4615,7 @@ class CollectorHandler(object):
                 {
                     "extMeta": {label["key"]: label["value"] for label in extra_labels if label},
                     "addPodLabel": add_pod_label,
+                    "addPodAnnotation": add_pod_annotation,
                 }
             )
             result.append(container_raw_config)

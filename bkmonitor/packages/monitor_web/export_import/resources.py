@@ -15,16 +15,35 @@ import datetime
 import json
 import logging
 import os
+import re
 import shutil
 import tarfile
 import uuid
+from collections import defaultdict
 from uuid import uuid4
-import re
 
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db.models import Q
 from django.utils.translation import ugettext as _
+from rest_framework.exceptions import ValidationError
+
+from api.grafana.exporter import DashboardExporter
+from bkmonitor.models import ItemModel, QueryConfigModel, StrategyModel
+from bkmonitor.utils.request import get_request
+from bkmonitor.utils.text import convert_filename
+from bkmonitor.utils.time_tools import now
+from bkmonitor.views import serializers
+from constants.data_source import DataSourceLabel
+from constants.strategy import TargetFieldType
+from core.drf_resource import Resource, api, resource
+from core.drf_resource.tasks import step
+from core.errors.export_import import (
+    AddTargetError,
+    ImportConfigError,
+    ImportHistoryNotExistError,
+    UploadPackageError,
+)
 from monitor_web.collecting.constant import OperationResult, OperationType
 from monitor_web.commons.cc.utils import CmdbUtil
 from monitor_web.commons.file_manager import ExportImportManager
@@ -54,24 +73,6 @@ from monitor_web.models import (
 from monitor_web.plugin.manager import PluginManagerFactory
 from monitor_web.strategies.serializers import handle_target, is_validate_target
 from monitor_web.tasks import import_config, remove_file
-from rest_framework.exceptions import ValidationError
-
-from api.grafana.exporter import DashboardExporter
-from bkmonitor.models import ItemModel, QueryConfigModel, StrategyModel
-from bkmonitor.utils.request import get_request
-from bkmonitor.utils.text import convert_filename
-from bkmonitor.utils.time_tools import now
-from bkmonitor.views import serializers
-from constants.strategy import TargetFieldType
-from constants.data_source import DataSourceLabel
-from core.drf_resource import Resource, api, resource
-from core.drf_resource.tasks import step
-from core.errors.export_import import (
-    AddTargetError,
-    ImportConfigError,
-    ImportHistoryNotExistError,
-    UploadPackageError,
-)
 
 logger = logging.getLogger("monitor_web")
 
@@ -168,9 +169,15 @@ class GetAllConfigListResource(Resource):
                 {"id": collect_config.id, "name": collect_config.name, "dependency_plugin": collect_config.plugin_id}
             )
 
+        strategy_ids = [strategy.id for strategy in self.strategy_config_list]
+        strategy_items = {item.id: item for item in ItemModel.objects.filter(strategy_id__in=strategy_ids)}
+        strategy_query_configs = defaultdict(list)
+        for query_config in QueryConfigModel.objects.filter(item_id__in=list(strategy_items.keys())):
+            item = strategy_items[query_config.item_id]
+            strategy_query_configs[item.strategy_id].append(query_config)
+
         for strategy_config in self.strategy_config_list:
-            item_instances = ItemModel.objects.filter(strategy_id=strategy_config.id)
-            query_configs = QueryConfigModel.objects.filter(item_id__in=list({item.id for item in item_instances}))
+            query_configs = strategy_query_configs.get(strategy_config.id, [])
             collect_config_list = []
             for query_config in query_configs:
                 collect_config_list.extend(
@@ -475,13 +482,16 @@ class ExportPackageResource(Resource):
 
                     # 如果需要的话，自定义上报和插件采集类指标导出时将结果表ID替换为 data_label
                     data_label = query_config.get("data_label", None)
-                    if settings.ENABLE_DATA_LABEL_EXPORT and data_label and \
-                            (query_config.get("data_source_label", None)
-                             in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]):
+                    if (
+                        settings.ENABLE_DATA_LABEL_EXPORT
+                        and data_label
+                        and (
+                            query_config.get("data_source_label", None)
+                            in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]
+                        )
+                    ):
                         query_config["metric_id"] = re.sub(
-                            rf"\b{query_config['result_table_id']}\b",
-                            data_label,
-                            query_config["metric_id"]
+                            rf"\b{query_config['result_table_id']}\b", data_label, query_config["metric_id"]
                         )
                         query_config["result_table_id"] = data_label
 

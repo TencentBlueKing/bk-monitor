@@ -532,6 +532,9 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
               }
             ),
     };
+    if (this.shortcutsType === EShortcutsType.NEAR) {
+      Object.assign(params, { series_num: this.nearNum });
+    }
     return params;
   }
   /** 智能检测算法创建请求的指标数据 */

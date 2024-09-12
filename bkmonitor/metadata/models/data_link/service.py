@@ -167,12 +167,15 @@ def create_fed_vm_data_link(
     # 判断是否为联邦集群的子集群，如果不是，则直接返回
     objs = BcsFederalClusterInfo.objects.filter(sub_cluster_id=bcs_cluster_id)
     if not (objs.exists() and utils.is_k8s_metric_data_id(data_name)):
-        logger.info("not federal sub cluster or not buildin datasource")
+        logger.info("not federal sub cluster or not builtin datasource")
         return
 
     # 获取数据源名称对应的资源，便于后续组装整个链路
     logger.info(
-        "create vm data link for table_id: %s, data_name: %s, vm_cluster_name: %s", table_id, data_name, vm_cluster_name
+        "create_fed_vm_data_link for table_id: %s, data_name: %s, vm_cluster_name: %s",
+        table_id,
+        data_name,
+        vm_cluster_name,
     )
 
     data_id_name = utils.get_bkdata_data_id_name(data_name)
@@ -182,26 +185,30 @@ def create_fed_vm_data_link(
     # 下发资源
     config_list, data_links, conditions = [], [], []
     for obj in objs:
-        buildin_name = utils.get_bkdata_table_id(obj.fed_buildin_table_id)
+        builtin_name = utils.get_bkdata_table_id(obj.fed_builtin_metric_table_id)
         match_labels = [{"name": "namespace", "value": ns} for ns in obj.fed_namespaces]
         relabels = [{"name": "bcs_cluster_id", "value": obj.fed_cluster_id}]
         sinks = [
-            {"kind": "VmStorageBinding", "name": buildin_name, "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE}
+            {"kind": "VmStorageBinding", "name": builtin_name, "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE}
         ]
         conditions.append({"match_labels": match_labels, "relabels": relabels, "sinks": sinks})
-
+        logger.info(
+            "composed datalink config,name->{},builtin_name->{},match_labels->{},relabels->{},sinks->{}".format(
+                name, builtin_name, match_labels, relabels, sinks
+            )
+        )
         # 添加rt及和存储的关联
-        rt_config = DataLinkResourceConfig.compose_vm_table_id_config(buildin_name)
+        rt_config = DataLinkResourceConfig.compose_vm_table_id_config(builtin_name)
         vm_storage_binding_config = DataLinkResourceConfig.compose_vm_storage_binding(
-            buildin_name, buildin_name, vm_cluster_name
+            builtin_name, builtin_name, vm_cluster_name
         )
         config_list.extend([rt_config, vm_storage_binding_config])
         data_links.append(
             {
-                "raw_rt_id": obj.fed_buildin_table_id,
-                "rt_name": buildin_name,
+                "raw_rt_id": obj.fed_builtin_metric_table_id,
+                "rt_name": builtin_name,
                 "rt_config": rt_config,
-                "vm_storage_binding_name": buildin_name,
+                "vm_storage_binding_name": builtin_name,
                 "vm_storage_binding_config": vm_storage_binding_config,
             }
         )
@@ -217,7 +224,12 @@ def create_fed_vm_data_link(
     config_list.extend([vm_conditional_sink_config, vm_data_bus_config])
     # 下发资源
     data = {"config": config_list}
-    api.bkdata.apply_data_link(data)
+    try:
+        logger.info("create_fed_vm_data_link start to apply data link")
+        api.bkdata.apply_data_link(data)
+    except Exception as e:
+        logger.error("create_fed_vm_data_link apply data link error: %s", e)
+        return
     # 根据存储创建多条记录
     records, vm_records = [], []
     # 如果 vm 集群ID不存在，则通过集群名称获取
@@ -282,12 +294,12 @@ def create_fed_vm_data_link(
     )
     DataLinkResourceConfig.objects.bulk_create(records)
     # 创建 vm 记录
-    from metadata.models import AccessVMRecord, ClusterInfo
+    from metadata.models import AccessVMRecord
 
     AccessVMRecord.objects.bulk_create(vm_records)
 
     logger.info(
-        "create vm data link for table_id: %s, data_name: %s, vm_cluster_name: %s success",
+        "create_fed_vm_data_link for table_id: %s, data_name: %s, vm_cluster_name: %s success",
         table_id,
         data_name,
         vm_cluster_name,

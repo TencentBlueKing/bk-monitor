@@ -166,7 +166,11 @@ class FlowMetricErrorRateCalculation(Calculation):
         """
         normal_ts = defaultdict(int)
         error_ts = defaultdict(int)
-        all_ts = []
+
+        series = metric_result.get("series", [])
+        if not series:
+            return {"metrics": [], "series": []}
+        all_ts = [i[-1] for i in metric_result["series"][0]["datapoints"]]
 
         for i, item in enumerate(metric_result.get("series", [])):
             if not item.get("datapoints"):
@@ -193,16 +197,15 @@ class FlowMetricErrorRateCalculation(Calculation):
                 ):
                     error_ts[timestamp] += value
 
-                if i == 0:
-                    all_ts.append(timestamp)
-
         return {
             "metrics": [],
             "series": [
                 {
                     "datapoints": [
                         (round(error_ts.get(t, 0) / (normal_ts.get(t, 0) + error_ts.get(t, 0)), 2), t) for t in all_ts
-                    ],
+                    ]
+                    if normal_ts or error_ts
+                    else [],
                     "dimensions": {},
                     "target": "flow",
                     "type": "bar",

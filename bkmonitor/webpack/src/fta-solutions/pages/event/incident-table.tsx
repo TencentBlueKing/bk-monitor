@@ -671,6 +671,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   }
 
   handleRenderIdColumn(column) {
+    const { origin, pathname } = window.location;
     return (
       <bk-table-column
         key={`${this.searchType}_${column.id}`}
@@ -679,13 +680,17 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
         {...{ props: column.props }}
         scopedSlots={{
           default: ({ row }: { row: IncidentItem }) => (
-            <span
+            <a
               class={`event-status status-${row.severity} id-column ${row.level}_id`}
               v-bk-overflow-tips
-              onClick={() => this.handleShowDetail(row)}
+              href={`${origin}${pathname}?bizId=${row.bk_biz_id}#/trace/incident/detail/${row.id}`}
+              onClick={e => {
+                e.preventDefault();
+                this.handleShowDetail(row);
+              }}
             >
               {row.id}
-            </span>
+            </a>
           ),
         }}
       />
@@ -728,7 +733,13 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
                 ) : (
                   ''
                 )}
-                <span class={'status-label-status'}> {this.eventStatusMap?.[status]?.name || '--'}</span>
+                <span
+                  class={'status-label-status'}
+                  v-bk-overflow-tips
+                >
+                  {' '}
+                  {this.eventStatusMap?.[status]?.name || '--'}
+                </span>
               </span>
             </div>
           ),

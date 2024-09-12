@@ -563,7 +563,7 @@ class ResultTable(models.Model):
         return storage_list
 
     @classmethod
-    def get_result_table(cls, table_id):
+    def get_result_table(cls, table_id: str):
         """
         可以使用已有的结果表的命名规范(2_system_cpu_summary)或
         新的命名规范(system_cpu_summary | system.cpu_summary | 2_system.cpu_summary)查询结果表
@@ -571,7 +571,8 @@ class ResultTable(models.Model):
         :return: raise Exception | ResultTable object
         """
         # 0. 尝试直接查询，如果可以命中，则认为符合新的命名规范，直接返回
-        query_table_id = table_id
+        query_table_id: str = table_id
+
         try:
             return cls.objects.get(table_id=table_id, is_deleted=False)
         except cls.DoesNotExist:
@@ -922,17 +923,17 @@ class ResultTable(models.Model):
 
         return True
 
+    def get_storage(self, storage_type):
+        storage_class = self.REAL_STORAGE_DICT[storage_type]
+        return storage_class.objects.get(table_id=self.table_id)
+
     def get_storage_info(self, storage_type):
         """
         获取结果表一个指定存储的配置信息
         :param storage_type: 存储集群配置
         :return: consul config in dict | raise Exception
         """
-
-        storage_class = self.REAL_STORAGE_DICT[storage_type]
-        storage_info = storage_class.objects.get(table_id=self.table_id)
-
-        return storage_info.consul_config
+        return self.get_storage(storage_type).consul_config
 
     def raw_delete(self, qs, using=config.DATABASE_CONNECTION_NAME):
         # 考虑公开

@@ -145,6 +145,8 @@ def get_pattern(content) -> list:
                 continue
 
             origin_log = sensitive_pattern[ORIGIN_LOG_INDEX][0]
+            if isinstance(origin_log, list):
+                origin_log = origin_log[0]
             pattern_str = ""
             pattern_list = []
             for pattern in sensitive_pattern[PATTERN_INDEX]:

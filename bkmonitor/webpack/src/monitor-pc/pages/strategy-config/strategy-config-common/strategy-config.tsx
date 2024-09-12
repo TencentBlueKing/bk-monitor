@@ -148,7 +148,8 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       { id: 16, name: I18N.t('修改通知间隔') },
       { id: 17, name: I18N.t('修改通知模板') },
       { id: 18, name: I18N.t('修改告警风暴开关') },
-      { id: 19, name: I18N.t('导出Yaml（As Code功能）') },
+      { id: 19, name: I18N.t('As Code') },
+      { id: 22, name: I18N.t('导入/导出') },
     ],
     keyword: '',
     keywordObj: [], // 搜索框绑定值
@@ -1350,7 +1351,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       item.scenarioDisplayName = nameArr.join('-');
     }
     // 列表total设置为监控对象筛选项count总和
-    total = data.scenario_list.reduce((total, item) => total + item.count, 0);
+    total = data.total;
     return total;
   }
   /** 更新监控对象搜索框回显 */
@@ -1457,6 +1458,12 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
               });
             });
         },
+      });
+      return;
+    }
+    if (v === 22) {
+      this.$router.push({
+        name: 'export-import',
       });
       return;
     }
