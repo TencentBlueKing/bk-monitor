@@ -199,6 +199,7 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
                       popover-options={{
                         placement: 'bottom',
                       }}
+                      allow-enter={false}
                       ext-popover-cls='nav-bar-select-popover'
                       popover-width={240}
                       value={item.selectOption.value}

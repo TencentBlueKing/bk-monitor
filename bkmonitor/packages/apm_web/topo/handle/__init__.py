@@ -28,10 +28,6 @@ class BaseQuery:
         self.application = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get()
         self.metrics_table = self.application.metric_result_table_id
 
-    def convert_metric_to_condition(self) -> [list]:
-        """转换为 APM 内置指标的 where 条件"""
-        return [{"key": "service_name", "method": "eq", "value": [self.service_name]}] if self.service_name else []
-
     def get_metric(self, metric_clz: Type[MetricHandler], **kwargs):
         return metric_clz(**self.common_params(), **kwargs)
 
