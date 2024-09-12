@@ -92,8 +92,6 @@ export default class LogRetrieval extends Vue {
   }
   receiveMessage(event) {
     // 检查消息来源是否可信
-    // 测试代码，后续验证成功后就删掉
-    console.log(event.data, event.origin, location.origin);
     if (event.origin !== location.origin) return;
     // 获取来自iframe的内容
     const data = event.data;
