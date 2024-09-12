@@ -28,9 +28,9 @@
         @click.stop="jumpToHome"
       >
         <img
+          class="logo-image"
           :src="platformData.logo"
           alt="logo"
-          class="logo-image"
         />
         <span class="logo-text">{{ platformData.name }}</span>
       </div>
@@ -42,10 +42,10 @@
       <ul>
         <li
           v-for="menu in menuList"
-          :id="`${menu.id}MenuGuide`"
-          :key="menu.id"
           :class="['menu-item', { active: activeTopMenu.id === menu.id }]"
           :data-test-id="`topNavBox_li_${menu.id}`"
+          :id="`${menu.id}MenuGuide`"
+          :key="menu.id"
           @click="routerHandler(menu)"
         >
           <template>
@@ -55,185 +55,179 @@
       </ul>
     </div>
     <div
-      v-show="usernameRequested"
       class="nav-right fr"
+      v-show="usernameRequested"
     >
       <!-- 全局设置 -->
       <bk-dropdown-menu
         v-if="isShowGlobalSetIcon"
         align="center"
-        trigger="click"
-        @show="dropdownGlobalShow"
         @hide="dropdownGlobalHide"
+        @show="dropdownGlobalShow"
       >
-        <div
-          slot="dropdown-trigger"
-          class="icon-language-container"
-        >
-          <span
-            :class="{
-              'setting bk-icon icon-cog-shape': true,
-              active: isShowGlobalDialog || isShowGlobalDropdown
-            }"
-          ></span>
-        </div>
-        <ul
-          slot="dropdown-content"
-          class="bk-dropdown-list"
-        >
-          <li
-            v-for="item in globalSettingList"
-            :key="item.id"
-            class="language-btn"
-          >
-            <a
-              href="javascript:;"
-              @click="handleClickGlobalDialog(item.id)"
+        <template #dropdown-trigger>
+          <div class="icon-language-container">
+            <span
+              :class="{
+                'setting bk-icon icon-cog-shape': true,
+                active: isShowGlobalDialog || isShowGlobalDropdown
+              }"
+            ></span>
+          </div>
+        </template>
+        <template #dropdown-content>
+          <ul class="bk-dropdown-list">
+            <li
+              v-for="item in globalSettingList"
+              class="language-btn"
+              :key="item.id"
             >
-              {{ item.name }}
-            </a>
-          </li>
-        </ul>
+              <a
+                href="javascript:;"
+                @click="handleClickGlobalDialog(item.id)"
+              >
+                {{ item.name }}
+              </a>
+            </li>
+          </ul>
+        </template>
       </bk-dropdown-menu>
       <!-- 语言 -->
       <bk-dropdown-menu
         align="center"
-        trigger="click"
-        @show="dropdownLanguageShow"
         @hide="dropdownLanguageHide"
+        @show="dropdownLanguageShow"
       >
-        <div
-          slot="dropdown-trigger"
-          class="icon-language-container"
-          :class="isShowLanguageDropdown && 'active'"
-        >
-          <div class="icon-circle-container">
-            <img
-              class="icon-language"
-              :src="language === 'en' ? require('@/images/icons/en.svg') : require('@/images/icons/zh.svg')"
-            />
-          </div>
-        </div>
-        <ul
-          slot="dropdown-content"
-          class="bk-dropdown-list"
-        >
-          <li
-            v-for="item in languageList"
-            :key="item.id"
-            class="language-btn"
-          >
-            <a
-              href="javascript:;"
-              :class="{ active: language === item.id }"
-              @click="changeLanguage(item.id)"
-            >
-              <img
-                class="icon-language"
-                :src="item.id === 'en' ? require('@/images/icons/en.svg') : require('@/images/icons/zh.svg')"
+        <template #dropdown-trigger>
+          <div class="icon-language-container">
+            <div class="icon-circle-container">
+              <div
+                :class="[
+                  'icon-language',
+                  {
+                    active: isShowLanguageDropdown
+                  },
+                  language === 'en' ? 'bk-icon icon-english' : 'bk-icon icon-chinese'
+                ]"
               />
-              {{ item.name }}
-            </a>
-          </li>
-        </ul>
+            </div>
+          </div>
+        </template>
+        <template #dropdown-content>
+          <ul class="bk-dropdown-list">
+            <li
+              v-for="item in languageList"
+              class="language-btn"
+              :key="item.id"
+            >
+              <a
+                :class="{ active: language === item.id }"
+                href="javascript:;"
+                @click="changeLanguage(item.id)"
+              >
+                <span :class="['icon-language', getLanguageClass(item.id)]" />
+                {{ item.name }}
+              </a>
+            </li>
+          </ul>
+        </template>
       </bk-dropdown-menu>
       <!-- 版本日志和产品文档 -->
       <bk-dropdown-menu
         ref="dropdownHelp"
         align="center"
-        trigger="click"
-        @show="dropdownHelpShow"
         @hide="dropdownHelpHide"
+        @show="dropdownHelpShow"
       >
-        <div
-          slot="dropdown-trigger"
-          class="icon-language-container"
-          :class="isShowHelpDropdown && 'active'"
-        >
-          <div class="icon-circle-container">
-            <span
-              slot="dropdown-trigger"
-              class="icon log-icon icon-help"
-            ></span>
+        <template #dropdown-trigger>
+          <div
+            class="icon-language-container"
+            :class="isShowHelpDropdown && 'active'"
+          >
+            <div class="icon-circle-container">
+              <span
+                class="log-icon icon-icon-help-document-fill"
+                slot="dropdown-trigger"
+              ></span>
+            </div>
           </div>
-        </div>
-        <ul
-          slot="dropdown-content"
-          class="bk-dropdown-list"
-        >
-          <li>
-            <a
-              href="javascript:;"
-              @click.stop="dropdownHelpTriggerHandler('docCenter')"
-            >
-              {{ $t('产品文档') }}
-            </a>
-            <a
-              v-if="!isExternal"
-              href="javascript:;"
-              @click.stop="dropdownHelpTriggerHandler('logVersion')"
-            >
-              {{ $t('版本日志') }}
-            </a>
-            <a
-              href="javascript:;"
-              @click.stop="dropdownHelpTriggerHandler('feedback')"
-            >
-              {{ $t('问题反馈') }}
-            </a>
-          </li>
-        </ul>
+        </template>
+        <template #dropdown-content>
+          <ul class="bk-dropdown-list">
+            <li>
+              <a
+                href="javascript:;"
+                @click.stop="dropdownHelpTriggerHandler('docCenter')"
+              >
+                {{ $t('产品文档') }}
+              </a>
+              <a
+                v-if="!isExternal"
+                href="javascript:;"
+                @click.stop="dropdownHelpTriggerHandler('logVersion')"
+              >
+                {{ $t('版本日志') }}
+              </a>
+              <a
+                href="javascript:;"
+                @click.stop="dropdownHelpTriggerHandler('feedback')"
+              >
+                {{ $t('问题反馈') }}
+              </a>
+            </li>
+          </ul>
+        </template>
       </bk-dropdown-menu>
       <log-version :dialog-show.sync="showLogVersion" />
       <bk-dropdown-menu
         align="center"
-        trigger="click"
-        @show="dropdownLogoutShow"
         @hide="dropdownLogoutHide"
+        @show="dropdownLogoutShow"
       >
-        <div
-          slot="dropdown-trigger"
-          class="icon-language-container"
-          :class="isShowLogoutDropdown && 'active'"
-        >
-          <span
-            v-if="username"
-            class="username"
-            >{{ username }}
-            <i class="bk-icon icon-down-shape"></i>
-          </span>
-        </div>
-        <ul
-          slot="dropdown-content"
-          class="bk-dropdown-list"
-        >
-          <template v-if="isAiopsToggle">
-            <li>
-              <a
-                href="javascript:;"
-                @click="handleGoToMyApplication"
-              >
-                {{ $t('我申请的') }}
-              </a>
-            </li>
-            <li>
-              <a
-                href="javascript:;"
-                @click="handleGoToMyReport"
-              >
-                {{ $t('我的订阅') }}
-              </a>
-            </li>
-          </template>
-          <li>
-            <a
-              href="javascript:;"
-              @click="handleQuit"
+        <template #dropdown-trigger>
+          <div
+            class="icon-language-container"
+            :class="isShowLogoutDropdown && 'active'"
+          >
+            <span
+              v-if="username"
+              class="username"
             >
-              {{ $t('退出登录') }}
-            </a>
-          </li>
-        </ul>
+              {{ username }}
+              <i class="bk-icon icon-down-shape"></i>
+            </span>
+          </div>
+        </template>
+        <template #dropdown-content>
+          <ul class="bk-dropdown-list">
+            <template v-if="isAiopsToggle">
+              <li>
+                <a
+                  href="javascript:;"
+                  @click="handleGoToMyApplication"
+                >
+                  {{ $t('我申请的') }}
+                </a>
+              </li>
+              <li>
+                <a
+                  href="javascript:;"
+                  @click="handleGoToMyReport"
+                >
+                  {{ $t('我的订阅') }}
+                </a>
+              </li>
+            </template>
+            <li>
+              <a
+                href="javascript:;"
+                @click="handleQuit"
+              >
+                {{ $t('退出登录') }}
+              </a>
+            </li>
+          </ul>
+        </template>
       </bk-dropdown-menu>
     </div>
 
@@ -242,23 +236,24 @@
       :title="globalDialogTitle"
     >
       <iframe
-        :src="targetSrc"
         style="width: 100%; height: 100%; border: none"
+        :src="targetSrc"
       ></iframe>
     </GlobalDialog>
   </nav>
 </template>
 
 <script>
-import { mapState, mapGetters } from 'vuex';
-import jsCookie from 'js-cookie';
-import LogVersion from './log-version';
-import { menuArr } from './complete-menu';
-import navMenuMixin from '@/mixins/nav-menu-mixin';
 import { useJSONP } from '@/common/jsonp';
 import GlobalDialog from '@/components/global-dialog';
-import platformConfigStore from '@/store/modules/platform-config';
 import logoImg from '@/images/log-logo.png';
+import navMenuMixin from '@/mixins/nav-menu-mixin';
+import platformConfigStore from '@/store/modules/platform-config';
+import jsCookie from 'js-cookie';
+import { mapState, mapGetters } from 'vuex';
+
+import { menuArr } from './complete-menu';
+import LogVersion from './log-version';
 
 export default {
   name: 'HeaderNav',
@@ -611,6 +606,9 @@ export default {
       // 打开全局设置弹窗
       this.$store.commit('updateGlobalActiveLabel', id);
       this.$store.commit('updateIsShowGlobalDialog', true);
+    },
+    getLanguageClass(language) {
+      return language === 'en' ? 'bk-icon icon-english' : 'bk-icon icon-chinese';
     }
   }
 };
@@ -737,9 +735,9 @@ export default {
         z-index: 99;
         width: 30px;
         height: 30px;
-        background: #424e5a;
-        border-radius: 50%;
         content: '';
+        background: #3b475e;
+        border-radius: 50%;
         transform: translateX(-50%);
       }
     }
@@ -757,6 +755,24 @@ export default {
 
       @include flex-center;
 
+      .username {
+        margin: 0 28px 0 6px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #63656e;
+
+        &:hover {
+          color: #d3d9e4;
+          cursor: pointer;
+        }
+      }
+
+      &.active {
+        .username {
+          color: #d3d9e4;
+        }
+      }
+
       .icon-circle-container {
         width: 32px;
         height: 32px;
@@ -765,13 +781,18 @@ export default {
 
         @include flex-center;
 
+        .icon-language {
+          font-size: 20px;
+
+          &.active,
+          &:hover {
+            color: #d3d9e4;
+          }
+        }
+
         .log-icon {
           font-size: 16px;
           transition: all 0.2s;
-        }
-
-        .icon-language {
-          width: 20px;
         }
       }
 
@@ -794,28 +815,11 @@ export default {
       cursor: pointer;
     }
 
-    .username {
-      margin: 0 28px 0 6px;
-      font-size: 12px;
-      line-height: 20px;
-      color: #63656e;
-
-      &:hover {
-        color: #3a84ff;
-        cursor: pointer;
-      }
-    }
-
     .bk-dropdown-list {
       .language-btn {
         a {
           display: flex;
           align-items: center;
-        }
-
-        .icon-language {
-          width: 20px;
-          margin-right: 2px;
         }
       }
 
@@ -823,6 +827,14 @@ export default {
         color: #3c96ff;
       }
     }
+  }
+
+  .icon-chinese::before {
+    content: '\e206';
+  }
+
+  .icon-english::before {
+    content: '\e207';
   }
 }
 
@@ -833,8 +845,8 @@ export default {
   .bk-select-search-wrapper {
     border: 1px solid #dcdee5;
     border-bottom: none;
-    border-top-right-radius: 2px;
     border-top-left-radius: 2px;
+    border-top-right-radius: 2px;
   }
 
   .bk-options-wrapper {
@@ -855,9 +867,9 @@ export default {
       cursor: pointer;
 
       .extension-item {
+        flex-grow: 1;
         width: 50%;
         text-align: center;
-        flex-grow: 1;
         border: 1px solid #dcdee5;
 
         &:nth-child(2) {
