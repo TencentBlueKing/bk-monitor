@@ -20,7 +20,6 @@ class BaseQuery:
         self.app_name = app_name
         self.start_time = start_time
         self.end_time = end_time
-        self.delta = self.end_time - self.start_time
         self.data_type = data_type
         self.service_name = service_name
         self.params = extra_params if extra_params else {}

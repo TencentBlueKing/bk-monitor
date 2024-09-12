@@ -29,6 +29,7 @@ from apm_web.metric_handler import (
 from apm_web.models import Application
 from apm_web.topo.constants import BarChartDataType
 from apm_web.topo.handle import BaseQuery
+from apm_web.utils import get_bar_interval_number
 from core.drf_resource import resource
 from monitor_web.models.scene_view import SceneViewModel
 from monitor_web.scene_view.builtin.apm import ApmBuiltinProcessor
@@ -82,7 +83,7 @@ class BarQuery(BaseQuery):
             "bk_biz_ids": [self.bk_biz_id],
             "start_time": self.start_time,
             "end_time": self.end_time,
-            "interval": self.delta // 30,
+            "interval": get_bar_interval_number(self.start_time, self.end_time),
             "query_string": query_string,
             "conditions": [],
         }
@@ -124,7 +125,7 @@ class BarQuery(BaseQuery):
     def get_apdex_series(self) -> Dict:
         return self.get_metric(
             ApdexRange,
-            interval=self._get_metric_interval(),
+            interval=get_bar_interval_number(self.start_time, self.end_time),
             where=CompatibleQuery.list_metric_wheres(
                 self.bk_biz_id,
                 self.app_name,
@@ -136,7 +137,7 @@ class BarQuery(BaseQuery):
     def get_error_rate_series(self) -> Dict:
         return self.get_metric(
             ServiceFlowErrorRate,
-            interval=self._get_metric_interval(),
+            interval=get_bar_interval_number(self.start_time, self.end_time),
             where=CompatibleQuery.list_flow_metric_wheres(
                 self.bk_biz_id, self.app_name, mode="full", service_name=self.service_name
             ),
@@ -145,7 +146,7 @@ class BarQuery(BaseQuery):
     def get_error_rate_caller_series(self) -> Dict:
         return self.get_metric(
             ServiceFlowErrorRateCaller,
-            interval=self._get_metric_interval(),
+            interval=get_bar_interval_number(self.start_time, self.end_time),
             where=CompatibleQuery.list_flow_metric_wheres(
                 self.bk_biz_id, self.app_name, mode="caller", service_name=self.service_name
             ),
@@ -154,22 +155,11 @@ class BarQuery(BaseQuery):
     def get_error_rate_callee_series(self) -> Dict:
         return self.get_metric(
             ServiceFlowErrorRateCallee,
-            interval=self._get_metric_interval(),
+            interval=get_bar_interval_number(self.start_time, self.end_time),
             where=CompatibleQuery.list_flow_metric_wheres(
                 self.bk_biz_id, self.app_name, mode="callee", service_name=self.service_name
             ),
         ).query_range()
-
-    def _get_metric_interval(self):
-        """
-        计算 flow 指标的聚合周期
-        需要保持柱状图最大柱子数量为 30
-        """
-
-        if self.end_time - self.start_time > 1800:
-            return int((self.end_time - self.start_time) / 30)
-        # 如果小于 30分钟 按照一分钟进行聚合
-        return 60
 
 
 class LinkHelper:
