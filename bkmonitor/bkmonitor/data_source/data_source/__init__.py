@@ -1840,7 +1840,8 @@ class CustomEventDataSource(BkMonitorLogDataSource):
 
         # 为什么去掉 limit=1
         # 之前 limit=1 用于限制原始日志返回(size=1)，而聚合分桶数固定为（size=1440）
-        # 现在 limit 可调整聚合分桶数，原始日志现在默认就是 1
+        # 现在 limit 可用于调整聚合分桶数，而原始日志默认就是 1
+        # 不传 limit 以保持原逻辑的默认行为
         q = self._get_queryset(
             metrics=self.metrics,
             table=self.table,
