@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import json
+from typing import Optional
 
 from django.conf import settings
 from django.db import models, transaction
@@ -616,7 +617,7 @@ class DeploymentConfigVersion(OperateRecordModelBase):
         return f"{self.target_node_type}-{self.plugin_version}"
 
     @property
-    def last_version(self):
+    def last_version(self) -> Optional["DeploymentConfigVersion"]:
         """
         上一次部署历史
         """

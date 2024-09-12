@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 import copy
 import itertools
 from collections import defaultdict
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
@@ -265,7 +265,7 @@ class NodeManInstaller(BaseInstaller):
 
         return diff_result["nodes"]
 
-    def install(self, install_config: Dict) -> Dict:
+    def install(self, install_config: Dict, operation: Optional[str]) -> Dict:
         """
         首次安装插件采集
         """
@@ -294,7 +294,12 @@ class NodeManInstaller(BaseInstaller):
         if "label" in install_config:
             self.collect_config.labels = install_config.get["label"]
         self.collect_config.operation_result = OperationResult.PREPARING
-        self.collect_config.last_operation = OperationType.EDIT if self.collect_config.pk else OperationType.CREATE
+
+        # 如果有指定操作类型，则更新为指定操作类型
+        if operation:
+            self.collect_config.last_operation = operation
+        else:
+            self.collect_config.last_operation = OperationType.EDIT if self.collect_config.pk else OperationType.CREATE
         self.collect_config.deployment_config = new_version
         self.collect_config.save()
 
@@ -377,15 +382,15 @@ class NodeManInstaller(BaseInstaller):
         """
         回滚插件采集
         """
-        # 判断是否支持回滚
-        if not self.collect_config.allow_rollback:
-            raise CollectConfigRollbackError({"msg": _("当前操作不支持回滚，或采集配置正处于执行中")})
-
         # 获取目标版本
         if not target_version:
             target_version = self.collect_config.deployment_config.last_version
         elif isinstance(target_version, int):
-            target_version = DeploymentConfigVersion.objects.get(pk=target_version)
+            target_version = DeploymentConfigVersion.objects.filter(pk=target_version).first()
+
+        # 判断目标版本是否存在
+        if not target_version:
+            raise CollectConfigRollbackError({"msg": _("目标版本不存在")})
 
         # 回滚部署
         diff_node = self._deploy(target_version)
@@ -714,8 +719,13 @@ class NodeManInstaller(BaseInstaller):
             for host in itertools.chain(
                 current_version.target_nodes, last_version.target_nodes if last_version else []
             ):
-                if f"{host['ip']}|{host.get('bk_cloud_id', 0)}" in ip_to_host_ids:
-                    host["bk_host_id"] = ip_to_host_ids[f"{host['ip']}|{host.get('bk_cloud_id', 0)}"]
+                if "bk_host_id" in host:
+                    continue
+
+                ip = host.get("ip", host.get("bk_target_ip"))
+                bk_cloud_id = host.get("bk_cloud_id", host.get("bk_target_cloud_id", 0))
+                if f"{ip}|{bk_cloud_id}" in ip_to_host_ids:
+                    host["bk_host_id"] = ip_to_host_ids[f"{ip}|{bk_cloud_id}"]
 
             # 过滤主机ID为空的节点
             current_version.target_nodes = [

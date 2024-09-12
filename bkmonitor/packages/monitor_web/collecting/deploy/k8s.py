@@ -7,7 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 import yaml
@@ -203,7 +203,7 @@ class K8sInstaller(BaseInstaller):
         yaml_config = jinja_render(yaml_template, context)
         return yaml_config
 
-    def install(self, install_config: Dict):
+    def install(self, install_config: Dict, operation: Optional[str] = None) -> Dict:
         """
         安装采集配置
         """
@@ -223,7 +223,12 @@ class K8sInstaller(BaseInstaller):
 
         # 更新采集配置
         self.collect_config.operation_result = OperationResult.PREPARING
-        self.collect_config.last_operation = OperationType.EDIT if self.collect_config.pk else OperationType.CREATE
+
+        # 如果有指定操作类型，则更新为指定操作类型
+        if operation:
+            self.collect_config.last_operation = operation
+        else:
+            self.collect_config.last_operation = OperationType.EDIT if self.collect_config.pk else OperationType.CREATE
         self.collect_config.deployment_config = new_version
         self.collect_config.save()
 

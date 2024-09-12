@@ -8,7 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import abc
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 from monitor_web.models import CollectConfigMeta, DeploymentConfigVersion
 
@@ -25,7 +25,7 @@ class BaseInstaller(abc.ABC):
         self.plugin = collect_config.plugin
 
     @abc.abstractmethod
-    def install(self, install_config: Dict) -> Dict:
+    def install(self, install_config: Dict, operation: Optional[str]) -> Dict:
         """
         部署
         :return: dict

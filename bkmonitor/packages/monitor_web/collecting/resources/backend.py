@@ -29,6 +29,7 @@ from core.errors.api import BKAPIError
 from core.errors.collecting import (
     CollectConfigNotExist,
     CollectConfigParamsError,
+    CollectConfigRollbackError,
     SubscriptionStatusError,
 )
 from core.errors.plugin import PluginIDNotExist
@@ -895,11 +896,12 @@ class SaveCollectConfigResource(Resource):
                 target_object_type=data["target_object_type"],
                 label=data["label"],
             )
+            data["operation"] = OperationType.CREATE
 
         # 部署
         installer = get_collect_installer(collect_config)
         try:
-            result = installer.install(data)
+            result = installer.install(data, data["operation"])
         except Exception as err:
             logger.error(err)
 
@@ -1044,6 +1046,10 @@ class RollbackDeploymentConfigResource(Resource):
             collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(pk=data["id"])
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": data["id"]})
+
+        # 判断是否支持回滚
+        if not self.collect_config.allow_rollback:
+            raise CollectConfigRollbackError({"msg": _("当前操作不支持回滚，或采集配置正处于执行中")})
 
         installer = get_collect_installer(collect_config)
         result = installer.rollback()
