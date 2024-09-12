@@ -221,6 +221,7 @@ CELERY_IMPORTS = (
     "apps.log_databus.tasks.archive",
     "apps.log_measure.tasks.report",
     "apps.log_extract.tasks",
+    "apps.log_clustering.tasks.msg",
     "apps.log_clustering.tasks.sync_pattern",
     "apps.log_clustering.tasks.subscription",
     "apps.log_extract.tasks.extract",
@@ -856,9 +857,9 @@ TABLE_SPACE_PREFIX = "space"
 DEFAULT_OPERATOR = os.environ.get("BKAPP_ES_OPERATOR", "admin")
 ES_DATE_FORMAT = os.environ.get("BKAPP_ES_DATE_FORMAT", "%Y%m%d")
 ES_SHARDS_SIZE = int(os.environ.get("BKAPP_ES_SHARDS_SIZE", 30))
-ES_SLICE_GAP = int(os.environ.get("BKAPP_ES_SLICE_GAP", 60))
+ES_SLICE_GAP = int(os.environ.get("BKAPP_ES_SLICE_GAP", 1440))
 ES_SHARDS = int(os.environ.get("BKAPP_ES_SHARDS", 3))
-ES_SHARDS_MAX = int(os.environ.get("BKAPP_ES_SHARDS_MAX", 64))
+ES_SHARDS_MAX = int(os.environ.get("BKAPP_ES_SHARDS_MAX", 512))
 ES_REPLICAS = int(os.environ.get("BKAPP_ES_REPLICAS", 1))
 ES_STORAGE_DEFAULT_DURATION = int(os.environ.get("BKAPP_ES_STORAGE_DURATION", 7))
 ES_PRIVATE_STORAGE_DURATION = int(os.environ.get("BKAPP_ES_PRIVATE_STORAGE_DURATION", 365))

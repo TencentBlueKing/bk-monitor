@@ -159,7 +159,11 @@
     props: {
       matchItem: {
         type: Object,
-        require: true,
+        default: () => ({
+          key: '',
+          operator: 'In',
+          value: '',
+        }),
       },
       onlyShowSelectEdit: {
         type: Boolean,
@@ -183,6 +187,10 @@
       isDialogItem: {
         type: Boolean,
         default: false,
+      },
+      isLabelEdit: {
+        type: Boolean,
+        default: true,
       },
     },
     data() {
@@ -276,6 +284,9 @@
         handler(val) {
           if (val.operator) {
             this.matchOperator = val.operator || 'In';
+          }
+          if (!this.isLabelEdit) {
+            this.expressOperatorList.shift();
           }
         },
       },

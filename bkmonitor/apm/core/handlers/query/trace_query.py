@@ -15,19 +15,25 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
-import datetime
+import logging
+from typing import Any, Dict, List, Optional, Set, Tuple
 
-from elasticsearch_dsl import Q
+from django.db.models import Q
 
-from apm.core.handlers.discover_handler import DiscoverHandler
+from apm import types
+from apm.core.discover.precalculation.storage import PrecalculateStorage
 from apm.core.handlers.ebpf.base import EbpfHandler
-from apm.core.handlers.query.base import EsQueryBuilderMixin
-from apm.utils.es_search import EsSearch
+from apm.core.handlers.query.base import BaseQuery
+from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
+from apm.models import ApmApplication
 from constants.apm import OtlpKey
 
+logger = logging.getLogger("apm")
 
-class TraceQuery(EsQueryBuilderMixin):
-    DEFAULT_SORT_FIELD = "min_start_time"
+
+class TraceQuery(BaseQuery):
+
+    DEFAULT_TIME_FIELD = "min_start_time"
 
     KEY_PREFIX_TRANSLATE_FIELDS = {
         f"{OtlpKey.ATTRIBUTES}.": "collections",
@@ -38,182 +44,127 @@ class TraceQuery(EsQueryBuilderMixin):
 
     KEY_REPLACE_FIELDS = {"duration": "trace_duration"}
 
-    def __init__(self, bk_biz_id, app_name, es_client, index_name):
-        self.bk_biz_id = bk_biz_id
-        self.app_name = app_name
-        self.client = es_client
-        self.index_name = index_name
+    def __init__(self, bk_biz_id: int, app_name: str, result_table_id: str, retention: int):
+        self.app_name: str = app_name
+        super().__init__(bk_biz_id, result_table_id, retention)
 
-    @property
-    def search(self):
-        return EsSearch(using=self.client, index=self.index_name)
+    @classmethod
+    def _get_select_fields(cls, exclude_fields: Optional[List[str]]) -> List[str]:
+        all_fields: Set[str] = {field_info["field_name"] for field_info in PrecalculateStorage.TABLE_SCHEMA}
+        select_fields: List[str] = list(
+            all_fields - set(exclude_fields or ["collections", "bk_app_code", "biz_name", "root_span_id"])
+        )
+        return select_fields
 
-    def list(self, start_time, end_time, offset, limit, filters=None, es_dsl=None, exclude_field=None):
-        query = self.search
-        if es_dsl:
-            query = query.update_from_dict(es_dsl)
+    def build_app_filter(self) -> Q:
+        return Q(biz_id__eq=self.bk_biz_id, app_name__eq=self.app_name)
 
-        start, end = self.add_time_by_expire(start_time, end_time)
-        if not start or not end:
-            return [], 0
-
-        query = self.add_time(query, start, end)
-
-        query = self.add_app_filter(query)
-
-        if filters:
-            query = self.add_filter_params(query, filters)
-
-        query = self.distinct_fields(query, OtlpKey.TRACE_ID)
-        query = self.add_sort(query)
-        query = query.source(exclude=["collections", "bk_app_code", "biz_name", "root_span_id"])
-
-        query = query[offset : offset + limit]
-
-        response = query.execute()
-
-        # 将collapsed字段打平
-        res = []
-        for i in response.hits:
-            item = i.to_dict()
-            res.append({"trace_id": item.pop("trace_id")[0], **item})
-
-        return res, response.aggregations.total_size.value
-
-    def add_app_filter(self, query):
-        query = self.add_filter(query, "biz_id", self.bk_biz_id)
-        query = self.add_filter(query, "app_name", self.app_name)
-        return query
-
-    def _get_ebpf_application(self):
+    def _get_ebpf_application(self) -> Optional[ApmApplication]:
         return EbpfHandler.get_ebpf_application(self.bk_biz_id)
 
-    def query_relation_by_trace_id(self, trace_id, start_time=None, end_time=None):
-        """
-        查询此traceId是否有跨应用关联
-        查询时需要排除此业务下的EBPF应用
-        """
+    def list(
+        self,
+        start_time: Optional[int],
+        end_time: Optional[int],
+        offset: int,
+        limit: int,
+        filters: Optional[List[types.Filter]] = None,
+        es_dsl: Optional[Dict[str, Any]] = None,
+        exclude_fields: Optional[List[str]] = None,
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        select_fields: List[str] = self._get_select_fields(exclude_fields)
+        queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time)
+        q: QueryConfigBuilder = self.q.filter(self._build_filters(filters) & self.build_app_filter()).order_by(
+            *(self._parse_ordering_from_dsl(es_dsl) or [f"{self.DEFAULT_TIME_FIELD} desc"])
+        )
+        q = self._add_filters_from_dsl(q, es_dsl)
+        page_data: types.Page = self._get_data_page(q, queryset, select_fields, OtlpKey.TRACE_ID, offset, limit)
+        return page_data["data"], page_data["total"]
 
-        query = self.search
-
-        ebpf_application = self._get_ebpf_application()
+    def query_relation_by_trace_id(
+        self, trace_id: str, start_time: Optional[int], end_time: Optional[int]
+    ) -> Optional[Dict[str, Any]]:
+        """查询此traceId是否有跨应用关联（需要排除此业务下的EBPF应用）"""
+        exclude_app_names: List[str] = [self.app_name]
+        ebpf_application: Optional[ApmApplication] = self._get_ebpf_application()
         if ebpf_application:
-            app_filter_params = [
-                {"term": {"biz_id": self.bk_biz_id}},
-                {"terms": {"app_name": [self.app_name, ebpf_application.app_name]}},
-            ]
-        else:
-            app_filter_params = [{"term": {"biz_id": self.bk_biz_id}}, {"term": {"app_name": self.app_name}}]
+            exclude_app_names.append(ebpf_application.app_name)
 
-        query = query.query(
-            "bool",
-            must_not=[{"bool": {"filter": app_filter_params}}],
+        q: QueryConfigBuilder = (
+            self.q.order_by("time desc")
+            .filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id})
+            .filter(Q(app_name__neq=exclude_app_names) | Q(biz_id__neq=self.bk_biz_id))
         )
 
-        # 以此TraceId开始-结束时间为范围 在此时间范围内才为跨应用
-        time_query = []
+        # 以此TraceId 开始-结束时间为范围 在此时间范围内才为跨应用
+        # <start_time -- <min_start_time --- ... --- max_end_time> -- end_time>
         if start_time:
-            time_query.append(Q("range", **{"min_start_time": {"gte": start_time}}))
+            q = q.filter(min_start_time__gte=start_time)
         if end_time:
-            time_query.append(Q("range", **{"max_end_time": {"lte": end_time}}))
-        if time_query:
-            query = query.query("bool", must=time_query)
+            q = q.filter(max_end_time__lte=end_time)
 
-        query = self.add_filter(query, OtlpKey.TRACE_ID, trace_id)
-        query = query.extra(size=1).sort("-time")
-        response = query.execute()
+        return self.time_range_queryset().add_query(q).first()
 
-        return response.hits[0].to_dict() if response.hits else None
+    def query_latest(self, trace_id: str) -> Optional[Dict[str, Any]]:
+        q: QueryConfigBuilder = (
+            self.q.filter(self.build_app_filter()).filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id}).order_by("time desc")
+        )
+        return self.time_range_queryset().add_query(q).first()
 
-    def query_latest(self, trace_id):
-        query = self.search
-
-        query = self.add_app_filter(query)
-        query = self.add_filter(query, OtlpKey.TRACE_ID, trace_id)
-
-        query = query.extra(size=1).sort("-time")
-
-        response = query.execute()
-
-        return response.hits[0].to_dict() if response.hits else None
-
-    def query_option_values(self, start_time, end_time, fields):
-        query = self.search
-
-        start, end = self.add_time_by_expire(start_time, end_time)
-        if not start or not end:
-            return {}
-
-        query = self.add_time(query, start, end)
-        query = self.add_app_filter(query)
-
-        return self._query_option_values(query, fields)
+    def query_option_values(
+        self, start_time: Optional[int], end_time: Optional[int], fields: List[str]
+    ) -> Dict[str, List[str]]:
+        q: QueryConfigBuilder = self.q.filter(self.build_app_filter()).order_by(f"{self.DEFAULT_TIME_FIELD} desc")
+        return self._query_option_values(q, fields, start_time, end_time)
 
     @classmethod
-    def _translate_key(cls, key):
-        for i, prefix in cls.KEY_PREFIX_TRANSLATE_FIELDS.items():
-            if key.startswith(i):
-                return f"{prefix}.{key}"
-
-        if key in cls.KEY_REPLACE_FIELDS:
-            return cls.KEY_REPLACE_FIELDS[key]
-
-        return key
+    def _translate_field(cls, field: str) -> str:
+        for prefix, translated_prefix in cls.KEY_PREFIX_TRANSLATE_FIELDS.items():
+            if field.startswith(prefix):
+                return f"{translated_prefix}.{field}"
+        return super()._translate_field(field)
 
     @classmethod
-    def _add_logic_filter(cls, query, key, value):
-        if key == "error":
-            query = query.query("bool", must_not=[Q("term", **{"error_count": 0})])
-
-        return query
+    def _add_logic_filter(cls, q: Q, field: str, value: types.FilterValue) -> Q:
+        if field == "error":
+            return q & Q(error_count__neq=0)
+        return q
 
     @classmethod
-    def query_by_trace_ids(cls, client, index_name, trace_ids, start_time, end_time):
-        query = EsSearch(using=client, index=index_name)
-        query = cls.add_time(query, start_time, end_time)
-        query = cls.add_sort(query, f"-{cls.DEFAULT_SORT_FIELD}")
-        query = query.query("bool", filter=[Q("terms", **{OtlpKey.TRACE_ID: trace_ids})])
-        query = query.extra(size=len(trace_ids))
-        query = query.source(
-            ["trace_id", "app_name", "error", "trace_duration", "root_service_category", "root_span_id"]
+    def query_by_trace_ids(
+        cls,
+        result_table_ids: List[str],
+        trace_ids: List[str],
+        retention: int,
+        start_time: Optional[int],
+        end_time: Optional[int],
+    ) -> List[Dict[str, Any]]:
+        base_q: QueryConfigBuilder = (
+            QueryConfigBuilder(cls.USING)
+            .filter(trace_id__eq=trace_ids)
+            .values("trace_id", "app_name", "error", "trace_duration", "root_service_category", "root_span_id")
+            .time_field(cls.DEFAULT_TIME_FIELD)
+            .order_by(f"{cls.DEFAULT_TIME_FIELD} desc")
         )
 
-        response = query.execute()
-        return [i.to_dict() for i in response.hits] if response.hits else []
+        aliases: List[str] = []
+        start_time, end_time = cls._get_time_range(retention, start_time, end_time)
+        queryset: UnifyQuerySet = UnifyQuerySet().start_time(start_time).end_time(end_time)
+        for idx, result_table_id in enumerate(result_table_ids):
+            alias: str = chr(ord("a") + idx)
+            q: QueryConfigBuilder = base_q.table(result_table_id).alias(alias)
+            queryset: UnifyQuerySet = queryset.add_query(q)
+            aliases.append(alias)
 
-    def query_simple_info(self, start_time, end_time, offset, limit):
+        # TODO 这里大概率后面对接 UnifyQuery 还需要微调和扩展
+        return list(queryset.expression(" or ".join(aliases)).limit(len(trace_ids)))
+
+    def query_simple_info(
+        self, start_time: Optional[int], end_time: Optional[int], offset: int, limit: int
+    ) -> Tuple[List[Dict[str, Any]], int]:
         """查询App下的简单Trace信息"""
-
-        query = self.search
-
-        start, end = self.add_time_by_expire(start_time, end_time)
-        if not start or not end:
-            return [], 0
-
-        query = self.add_time(query, start, end)
-        query = self.add_app_filter(query)
-        query = self.add_sort(query, f"-{self.DEFAULT_SORT_FIELD}")
-        query = self.distinct_fields(query, OtlpKey.TRACE_ID)
-        query = query.source(["trace_id", "app_name", "error", "trace_duration", "root_service_category"])
-        query = query[offset : offset + limit]
-
-        response = query.execute()
-        return [i.to_dict() for i in response.hits] if response.hits else [], response.aggregations.total_size.value
-
-    def add_time_by_expire(self, start_time, end_time):
-        """根据业务的ES过期时间限制查询的时间范围"""
-
-        retention = DiscoverHandler.get_app_retention(self.bk_biz_id, self.app_name)
-        now = datetime.datetime.now()
-        days_ago = now - datetime.timedelta(days=retention)
-
-        start_time = datetime.datetime.fromtimestamp(start_time)
-        end_time = datetime.datetime.fromtimestamp(end_time)
-
-        if end_time < days_ago:
-            return None, None
-
-        if start_time < days_ago:
-            start_time = days_ago
-
-        return int(start_time.timestamp()), int(end_time.timestamp())
+        select_fields: List[str] = ["trace_id", "app_name", "error", "trace_duration", "root_service_category"]
+        queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time)
+        q: QueryConfigBuilder = self.q.filter(self.build_app_filter()).order_by(f"{self.DEFAULT_TIME_FIELD} desc")
+        page_data: types.Page = self._get_data_page(q, queryset, select_fields, OtlpKey.TRACE_ID, offset, limit)
+        return page_data["data"], page_data["total"]

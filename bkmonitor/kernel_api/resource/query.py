@@ -10,8 +10,8 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+from typing import Any, Dict
 
-from django.utils.translation import ugettext_lazy as _
 from rest_framework.exceptions import NotFound
 
 from bkmonitor.views import serializers
@@ -26,27 +26,42 @@ class QueryEsResource(Resource):
     class RequestSerializer(serializers.Serializer):
         table_id = serializers.CharField(required=True, label="结果表ID")
         query_body = serializers.DictField(required=True, label="查询内容")
+        use_full_index_names = serializers.BooleanField(required=False, label="是否使用索引全名进行检索", default=False)
 
     def perform_request(self, validated_request_data):
         table_id = validated_request_data["table_id"]
         result_table = self.get_result_table(table_id)
-        storage_info = self.get_storage_info(result_table)
+
+        storage: models.ESStorage = self.get_storage(result_table)
+        storage_info: Dict[str, Any] = storage.consul_config
         data_source_info = {
             "domain_name": storage_info["cluster_config"]["domain_name"],
             "port": storage_info["cluster_config"]["port"],
             "is_ssl_verify": storage_info["cluster_config"]["is_ssl_verify"],
             "auth_info": storage_info["auth_info"],
         }
+
+        extra: Dict[str, Any] = {}
+        if validated_request_data["use_full_index_names"]:
+            data_source_info.update(
+                {
+                    "schema": storage_info["cluster_config"]["schema"],
+                    "version": storage_info["cluster_config"]["version"],
+                }
+            )
+            extra["index_names"] = storage.get_index_names()
+
         data = GetEsDataResource().request(
             index_name=validated_request_data["table_id"],
             doc_type="_doc",
             query_body=validated_request_data["query_body"],
             datasource_info=data_source_info,
+            **extra
         )
         return data
 
     @staticmethod
-    def get_result_table(table_id):
+    def get_result_table(table_id: str) -> models.ResultTable:
         try:
             result_table = models.ResultTable.get_result_table(table_id=table_id)
         except models.ResultTable.DoesNotExist:
@@ -57,16 +72,16 @@ class QueryEsResource(Resource):
         return result_table
 
     @staticmethod
-    def get_storage_info(result_table):
+    def get_storage(result_table: models.ResultTable) -> models.ESStorage:
         try:
-            consul_config = result_table.get_storage_info(models.ClusterInfo.TYPE_ES)
+            storage: models.ESStorage = result_table.get_storage(models.ClusterInfo.TYPE_ES)
         except models.storage.ESStorage.DoesNotExist:
             raise NotFound("result table({}) storage info not exists.".format(result_table.table_id))
         except Exception as err:
             logger.exception(
-                "get result table({}) storage info failed, error message is {}".format(result_table.table_id, err)
+                "get result table({}) storage failed, error message is {}".format(result_table.table_id, err)
             )
             raise Exception(
-                "get result table({}) storage info failed, error message is {}".format(result_table.table_id, err)
+                "get result table({}) storage failed, error message is {}".format(result_table.table_id, err)
             )
-        return consul_config
+        return storage
