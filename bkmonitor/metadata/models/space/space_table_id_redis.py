@@ -198,6 +198,7 @@ class SpaceTableIDRedis:
                     "measurement_type": "bk_split_measurement",
                     "bcs_cluster_id": "",
                     "data_label": "",
+                    "storage_type": models.RecordRule.STORAGE_TYPE,
                     "bk_data_id": None,
                 }
             )
@@ -216,7 +217,6 @@ class SpaceTableIDRedis:
     def _compose_es_table_id_detail(self, table_id_list: Optional[List[str]] = None):
         """组装 es 结果表的详细信息"""
         logger.info("start to compose es table_id detail data")
-
         # 这里要过来的结果表不会太多
         if table_id_list:
             table_ids = models.ESStorage.objects.filter(table_id__in=table_id_list).values(
@@ -245,6 +245,7 @@ class SpaceTableIDRedis:
                 _option = {}
 
             tid_options_map.setdefault(option["table_id"], {}).update(_option)
+
         # 组装数据
         # NOTE: 这里针对一段式的追加一个`__default__`
         # 组装需要的数据，字段相同
@@ -253,16 +254,18 @@ class SpaceTableIDRedis:
             source_type = record["source_type"]
             index_set = record["index_set"]
             tid = record["table_id"]
+            storage_id = record.get("storage_cluster_id", 0)
             table_id_db = index_set
 
             # 索引集，直接按照存储进行路由
             data[tid] = json.dumps(
                 {
-                    "storage_id": record.get("storage_cluster_id", 0),
+                    "storage_id": storage_id,
                     "db": table_id_db,
                     "measurement": DEFAULT_MEASUREMENT,
                     "source_type": source_type,
                     "options": tid_options_map.get(tid) or {},
+                    'storage_type': models.ESStorage.STORAGE_TYPE,
                 }
             )
         return data
@@ -769,7 +772,15 @@ class SpaceTableIDRedis:
                 filter_data=table_id_list,
             )
 
-        table_ids = set(influxdb_table_ids).union(set(vm_table_ids))
+        es_table_ids = models.ESStorage.objects.values_list("table_id", flat=True)
+        if table_id_list:
+            es_table_ids = filter_query_set_by_in_page(
+                query_set=es_table_ids,
+                field_op="table_id__in",
+                filter_data=table_id_list,
+            )
+
+        table_ids = set(influxdb_table_ids).union(set(vm_table_ids)).union(set(es_table_ids))
 
         return table_ids
 

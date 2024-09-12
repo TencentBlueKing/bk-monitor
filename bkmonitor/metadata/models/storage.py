@@ -17,7 +17,7 @@ import logging
 import re
 import time
 import traceback
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import arrow
 import curator
@@ -53,7 +53,11 @@ from metadata.models.influxdb_cluster import InfluxDBTool
 from metadata.utils import consul_tools, es_tools, go_time, influxdb_tools
 from metadata.utils.redis_tools import RedisTools
 
-from .constants import ES_ALIAS_EXPIRED_DELAY_DAYS, EventGroupStatus
+from .constants import (
+    ES_ALIAS_EXPIRED_DELAY_DAYS,
+    ESNamespacedClientType,
+    EventGroupStatus,
+)
 from .es_snapshot import EsSnapshot, EsSnapshotIndice
 from .influxdb_cluster import (
     InfluxDBClusterInfo,
@@ -628,6 +632,11 @@ class StorageResultTable(object):
     def consul_config(self):
         """返回一个实际存储的consul配置"""
         pass
+
+    @property
+    def storage_type(self):
+        """返回存储类型"""
+        return self.STORAGE_TYPE
 
     def update_storage(self, **kwargs):
         """更新存储配置"""
@@ -2127,6 +2136,46 @@ class ESStorage(models.Model, StorageResultTable):
         logger.info("table_id->[%s] no index", self.table_id)
         return False
 
+    def _get_index_infos(self, namespaced: str) -> Tuple[Dict[str, Dict[str, Any]], str]:
+        index_version = ""
+        client = self.get_client()
+        extra = {ESNamespacedClientType.CAT.value: {"format": "json"}, ESNamespacedClientType.INDICES.value: {}}[
+            namespaced
+        ]
+        getdata = {
+            ESNamespacedClientType.CAT.value: lambda d: {idx["index"]: idx for idx in d},
+            ESNamespacedClientType.INDICES.value: lambda d: d["indices"],
+        }[namespaced]
+        func = {
+            ESNamespacedClientType.CAT.value: client.cat.indices,
+            ESNamespacedClientType.INDICES.value: client.indices.stats,
+        }[namespaced]
+
+        index_info_map: Dict[str, Dict[str, Any]] = getdata(func(index=self.search_format_v2(), **extra))
+        if len(index_info_map) != 0:
+            index_version = "v2"
+        else:
+            index_info_map: Dict[str, Dict[str, Any]] = getdata(func(index=self.search_format_v1(), **extra))
+            if len(index_info_map) != 0:
+                index_version = "v1"
+
+        return index_info_map, index_version
+
+    def get_index_names(self) -> List[str]:
+        index_info_map, index_version = self._get_index_infos(ESNamespacedClientType.CAT.value)
+        if index_version == "v2":
+            index_re = self.index_re_v2
+        else:
+            index_re = self.index_re_v1
+
+        index_names: List[str] = []
+        for index_name in index_info_map:
+            if index_re.match(index_name) is None:
+                logger.warning("index->[%s] is not match re, skipped", index_name)
+                continue
+            index_names.append(index_name)
+        return index_names
+
     def get_index_stats(self):
         """
         获取index的统计信息
@@ -2142,18 +2191,7 @@ class ESStorage(models.Model, StorageResultTable):
           }
         }
         """
-        client = self.get_client()
-
-        index_version = ""
-        stat_info_list = client.indices.stats(self.search_format_v2())
-        if len(stat_info_list["indices"]) != 0:
-            index_version = "v2"
-        else:
-            stat_info_list = client.indices.stats(self.search_format_v1())
-            if len(stat_info_list["indices"]) != 0:
-                index_version = "v1"
-
-        return stat_info_list["indices"], index_version
+        return self._get_index_infos(ESNamespacedClientType.INDICES.value)
 
     def current_index_info(self):
         """
@@ -2482,14 +2520,16 @@ class ESStorage(models.Model, StorageResultTable):
                     for _index in delete_list:
                         actions.append({"remove": {"index": _index, "alias": round_alias_name}})
                     logger.info(
-                        "table_id->[%s] index->[%s] alias->[%s] need delete",
+                        "table_id->[%s] last_index->[%s] index->[%s] alias->[%s] need delete",
                         self.table_id,
+                        last_index_name,
                         delete_list,
                         round_alias_name,
                     )
 
                 # 3.2 需要将循环中的别名都指向了最新的index
-                es_client.indices.update_aliases(body={"actions": actions})
+                response = es_client.indices.update_aliases(body={"actions": actions})
+                logger.info("table_id->[%s] actions->[%s] update alias response [%s]", self.table_id, actions, response)
 
                 logger.info(
                     "table_id->[%s] now has index->[%s] and alias->[%s | %s]",
@@ -2646,9 +2686,8 @@ class ESStorage(models.Model, StorageResultTable):
         logger.info("table_id->[%s] will create new index->[%s]", self.table_id, new_index_name)
 
         # 2.1 创建新的index
-        es_client.indices.create(index=new_index_name, body=self.index_body, params={"request_timeout": 30})
-        logger.info("table_id->[%s] new index_name->[%s] is created now", self.table_id, new_index_name)
-
+        response = es_client.indices.create(index=new_index_name, body=self.index_body, params={"request_timeout": 30})
+        logger.info("table_id->[%s] create new index_name->[%s] response [%s]", self.table_id, new_index_name, response)
         return True
 
     def clean_index(self):

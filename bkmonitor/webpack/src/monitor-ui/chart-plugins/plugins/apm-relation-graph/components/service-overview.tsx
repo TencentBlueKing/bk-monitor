@@ -161,7 +161,9 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   }
   @Debounce(200)
   initPanel() {
-    this.tabActive = 'service';
+    if (this.curType === 'endpoint') {
+      this.tabActive = 'service';
+    }
     this.viewOptions = {
       app_name: this.appName,
       service_name: this.serviceName,

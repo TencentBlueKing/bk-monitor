@@ -500,9 +500,9 @@ class RelatedLogChart extends CommonSimpleChart {
           <div class='chart-simple-header'>
             <div
               class='left'
-              v-bk-tooltips={{
+              /*               v-bk-tooltips={{
                 content: this.$tc('跳转查看详情'),
-              }}
+              }} */
               onClick={() => this.goLink()}
             >
               <span

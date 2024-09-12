@@ -437,7 +437,7 @@
                 this.$refs.contextLog.scrollTo({ top: newScrollHeight - scrollHeight });
               });
             });
-          } else if (scrollHeight - scrollTop - offsetHeight === 0) {
+          } else if (scrollHeight - scrollTop - offsetHeight < 1) {
             // 滚动到底部
             this.requestContentLog('down');
           }

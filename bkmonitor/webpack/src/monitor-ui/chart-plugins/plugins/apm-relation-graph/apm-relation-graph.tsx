@@ -471,6 +471,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     }
   }
 
+  @Debounce(200)
   handleSearch(v) {
     this.filterCondition.searchValue = v;
     this.pagination.current = 1;
@@ -688,6 +689,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               value={this.filterCondition.searchValue}
               clearable
               onBlur={this.handleSearch}
+              onChange={this.handleSearch}
               onClear={this.handleSearch}
               onEnter={this.handleSearch}
             />
@@ -747,12 +749,12 @@ export default class ApmRelationGraph extends CommonSimpleChart {
           <template slot='side1'>
             <div class='header-wrap'>
               <div class='title'>{this.$t('资源拓扑')}</div>
-              <div
+              {/* <div
                 class='expand-btn'
                 onClick={() => this.handleExpand('topo')}
               >
                 <span class='icon-monitor icon-zhankai' />
-              </div>
+              </div> */}
             </div>
             <div class='content-wrap'>
               <resource-topo serviceName={this.expanded.includes('topo') ? this.selectedServiceName : ''} />
@@ -761,12 +763,12 @@ export default class ApmRelationGraph extends CommonSimpleChart {
           <template slot='side2'>
             <div class='header-wrap'>
               <div class='title'>{this.selectedEndpoint ? this.$t('接口概览') : this.$t('服务概览')}</div>
-              <div
+              {/* <div
                 class='expand-btn'
                 onClick={() => this.handleExpand('overview')}
               >
                 <span class='icon-monitor icon-zhankai' />
-              </div>
+              </div> */}
             </div>
             <div class={'content-wrap'}>
               <ServiceOverview
