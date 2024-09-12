@@ -1313,7 +1313,7 @@ class NodeColor(PostPlugin):
     def process(self, data_type, edge_data_type, node_data, graph):
 
         # 如果节点无数据 那么颜色就是灰色
-        if NodeHaveData.id in node_data:
+        if not node_data.get(NodeHaveData.id):
             node_data[self.id] = self.Color.WHITE
             return
 
