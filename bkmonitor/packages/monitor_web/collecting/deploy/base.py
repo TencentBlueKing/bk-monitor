@@ -16,6 +16,8 @@ from monitor_web.models import CollectConfigMeta, DeploymentConfigVersion
 class BaseInstaller(abc.ABC):
     """
     安装器基类
+
+    TODO: 所有操作加锁，并且加入异步回调状态更新
     """
 
     def __init__(self, collect_config: CollectConfigMeta):
@@ -23,9 +25,42 @@ class BaseInstaller(abc.ABC):
         self.plugin = collect_config.plugin
 
     @abc.abstractmethod
-    def install(self, install_config: Dict):
+    def install(self, install_config: Dict) -> Dict:
         """
         部署
+        :return: dict
+        {
+            "id": 1, # 采集配置ID
+            "deployment_id": 1, # 采集部署配置ID
+            "can_rollback": False, # 是否可以回滚
+            "diff_node": {
+                "is_modified": False,
+                "added": [],
+                "removed": []
+                "unchanged": []
+                "updated": []
+            }
+        }
+        """
+        return {}
+
+    @abc.abstractmethod
+    def upgrade(self, params: Dict) -> Dict:
+        """
+        升级
+        :return: dict
+        {
+            "id": 1,
+            "deployment_id": 1,
+            "can_rollback": False,
+            "diff_node": {
+                "is_modified": False,
+                "added": [],
+                "removed": []
+                "unchanged": []
+                "updated": []
+            }
+        }
         """
 
     @abc.abstractmethod
@@ -38,6 +73,18 @@ class BaseInstaller(abc.ABC):
     def rollback(self, deployment_config_version: Union[int, DeploymentConfigVersion, None] = None):
         """
         回滚到某个版本，默认回滚到上一个版本
+        :return: dict
+        {
+            "id": 1, # 采集配置ID
+            "deployment_id": 1, # 采集部署配置ID
+            "diff_node": {
+                "is_modified": False,
+                "added": [],
+                "removed": []
+                "unchanged": []
+                "updated": []
+            }
+        }
         """
 
     @abc.abstractmethod
@@ -68,4 +115,10 @@ class BaseInstaller(abc.ABC):
     def status(self, *args, **kwargs):
         """
         实例状态
+        """
+
+    @abc.abstractmethod
+    def instance_status(self, instance_id: str):
+        """
+        单个实例状态
         """

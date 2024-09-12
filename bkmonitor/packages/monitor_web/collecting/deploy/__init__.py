@@ -7,3 +7,20 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+from monitor_web.models.collecting import CollectConfigMeta
+from monitor_web.plugin.constant import PluginType
+
+from .base import BaseInstaller
+from .k8s import K8sInstaller
+from .node_man import NodeManInstaller
+
+
+def get_collect_installer(collect_config: CollectConfigMeta) -> BaseInstaller:
+    """
+    获取插件采集安装器
+    """
+    if collect_config.plugin.plugin_type == PluginType.K8S:
+        return K8sInstaller(collect_config)
+    else:
+        return NodeManInstaller(collect_config)

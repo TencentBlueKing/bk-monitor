@@ -9,8 +9,8 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 from copy import copy
+from typing import Dict
 
-from django.conf import settings
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
@@ -27,14 +27,9 @@ from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.errors.api import BKAPIError
 from core.errors.collecting import (
-    CollectConfigNeedUpgrade,
     CollectConfigNotExist,
-    CollectConfigNotNeedUpgrade,
     CollectConfigParamsError,
-    CollectConfigRollbackError,
-    DeleteCollectConfigError,
     SubscriptionStatusError,
-    ToggleConfigStatusError,
 )
 from core.errors.plugin import PluginIDNotExist
 from monitor_web.collecting.constant import (
@@ -45,7 +40,7 @@ from monitor_web.collecting.constant import (
     Status,
     TaskStatus,
 )
-from monitor_web.collecting.lock import CacheLock, lock
+from monitor_web.collecting.deploy import get_collect_installer
 from monitor_web.collecting.utils import fetch_sub_statistics
 from monitor_web.models import (
     CollectConfigMeta,
@@ -508,44 +503,22 @@ class ToggleCollectConfigStatusResource(Resource):
         id = serializers.IntegerField(required=True, label="采集配置ID")
         action = serializers.ChoiceField(required=True, choices=["enable", "disable"], label="启停配置")
 
-    @lock(CacheLock("collect_config"))
-    def request_nodeman(self, collect_config, action):
-        if action == "disable":
-            collect_config.switch_subscription("disable")
-        elif action == "enable" and settings.IS_SUBSCRIPTION_ENABLED:
-            collect_config.switch_subscription("enable")
-        task_id = collect_config.trigger_subscription(action="START" if action == "enable" else "STOP")
-        return task_id
+    def perform_request(self, params: Dict):
+        config_id = params["id"]
+        action = params["action"]
 
-    def perform_request(self, validated_request_data):
-        config_id = validated_request_data["id"]
-        action = validated_request_data["action"]
         try:
             collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(id=config_id)
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": config_id})
 
-        # 判断采集配置是否可以启用/停用
-        if (
-            action == "enable"
-            and collect_config.config_status != Status.STOPPED
-            or action == "disable"
-            and collect_config.config_status != Status.STARTED
-        ):
-            raise ToggleConfigStatusError({"msg": _("采集配置未处于已启用/已停用状态")})
-
-        # 请求节点管理，更新采集配置任务状态
-        if collect_config.deployment_config.subscription_id:
-            task_id = self.request_nodeman(collect_config, action)
-            collect_config.deployment_config.task_ids = [task_id]
-            collect_config.deployment_config.save()
-            collect_config.last_operation = OperationType.START if action == "enable" else OperationType.STOP
-            collect_config.operation_result = OperationResult.PREPARING
-            collect_config.save()
+        # 使用安装器启停采集配置
+        installer = get_collect_installer(collect_config)
+        if action == "enable":
+            installer.start()
         else:
-            collect_config.last_operation = OperationType.START if action == "enable" else OperationType.STOP
-            collect_config.operation_result = OperationResult.SUCCESS
-            collect_config.save()
+            installer.stop()
+
         return "success"
 
 
@@ -564,16 +537,9 @@ class DeleteCollectConfigResource(Resource):
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": data["id"]})
 
-        # 判断采集配置是否停用
-        if collect_config.task_status != TaskStatus.STOPPED and collect_config.deployment_config.subscription_id:
-            raise DeleteCollectConfigError({"msg": _("采集配置未停用")})
-
-        if collect_config.deployment_config.subscription_id:
-            collect_config.delete_subscription()
-
-        # 删除采集配置及部署配置
-        DeploymentConfigVersion.objects.filter(config_meta_id=data["id"]).delete()
-        collect_config.delete()
+        # 删除采集配置
+        installer = get_collect_installer(collect_config)
+        installer.uninstall()
 
         # 内置链路健康策略处理
         # 如果用户还创建了其他的采集配置，则不会从告警组中移除
@@ -672,13 +638,10 @@ class RetryTargetNodesResource(Resource):
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": config_id})
 
-        # 主动触发节点管理订阅，更新采集配置信息
-        if collect_config.deployment_config.subscription_id:
-            task_id = collect_config.retry_subscription(instance_id_list=[instance_id])
-            collect_config.deployment_config.task_ids.append(task_id)
-            collect_config.deployment_config.save()
-            collect_config.operation_result = OperationResult.PREPARING
-            collect_config.save()
+        # 使用安装器重试实例
+        installer = get_collect_installer(collect_config)
+        installer.retry(instance_ids=[instance_id])
+
         return "success"
 
 
@@ -700,11 +663,9 @@ class RevokeTargetNodesResource(Resource):
             raise CollectConfigNotExist({"msg": config_id})
 
         # 主动触发节点管理终止任务
-        if collect_config.deployment_config.subscription_id:
-            api.node_man.revoke_subscription(
-                subscription_id=collect_config.deployment_config.subscription_id, instance_id_list=instance_ids
-            )
-            update_config_operation_result(collect_config, not_update_user=False)
+        installer = get_collect_installer(collect_config)
+        installer.revoke(instance_ids=instance_ids)
+
         return "success"
 
 
@@ -724,10 +685,9 @@ class BatchRevokeTargetNodesResource(Resource):
             raise CollectConfigNotExist({"msg": config_id})
 
         # 主动触发节点管理终止任务
-        # 不带 instance_id_list 即为批量终止
-        if collect_config.deployment_config.subscription_id:
-            api.node_man.revoke_subscription(subscription_id=collect_config.deployment_config.subscription_id)
-            update_config_operation_result(collect_config, not_update_user=False)
+        installer = get_collect_installer(collect_config)
+        installer.revoke()
+
         return "success"
 
 
@@ -745,37 +705,18 @@ class GetCollectLogDetailResource(Resource):
         # todo 目前的日志是由后端拼接成文本，然后给前端显示的。和产品讨论后，后面会采取结构化的数据展示，等待最新的设计稿
         config_id = validated_request_data["id"]
         instance_id = validated_request_data["instance_id"]
-        task_id = validated_request_data["task_id"]
         try:
             config = CollectConfigMeta.objects.select_related("deployment_config").get(id=config_id)
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": config_id})
 
-        params = {
-            "subscription_id": config.deployment_config.subscription_id,
-            "instance_id": instance_id,
-            "task_id": task_id,
-        }
-        result = api.node_man.task_result_detail(**params)
-        if result:
-            log = []
-            for step in result.get("steps", []):
-                log.append("{}{}{}\n".format("=" * 20, step["node_name"], "=" * 20))
-                for sub_step in step["target_hosts"][0].get("sub_steps", []):
-                    log.extend(["{}{}{}".format("-" * 20, sub_step["node_name"], "-" * 20), sub_step["log"]])
-                    # 如果ex_data里面有值，则在日志里加上它
-                    if sub_step["ex_data"]:
-                        log.append(sub_step["ex_data"])
-                    if sub_step["status"] != CollectStatus.SUCCESS:
-                        return {"log_detail": "\n".join(log), "nodeman_result": result}
-            return {"log_detail": "\n".join(log), "nodeman_result": result}
-        else:
-            return {"log_detail": _("未找到节点管理的日志"), "nodeman_result": result}
+        installer = get_collect_installer(config)
+        return installer.instance_status(instance_id)
 
 
 class BatchRetryConfigResource(Resource):
     """
-    新建页面
+    重试所有失败的实例
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -785,29 +726,6 @@ class BatchRetryConfigResource(Resource):
         super(BatchRetryConfigResource, self).__init__()
         self.config = None
 
-    def get_node(self, instance):
-        if self.config.target_object_type == TargetObjectType.HOST:
-            return {
-                "ip": instance["instance_info"]["host"]["bk_host_innerip"],
-                "bk_cloud_id": int(instance["instance_info"]["host"]["bk_cloud_id"]),
-                "bk_supplier_id": instance["instance_info"]["host"]["bk_supplier_account"],
-            }
-        else:
-            return {"id": instance["instance_info"]["service"]["id"]}
-
-    def get_failed_instances(self):
-        params = {
-            "subscription_id": self.config.deployment_config.subscription_id,
-            "task_id_list": self.config.deployment_config.task_ids,
-        }
-        result = api.node_man.batch_task_result(**params)
-
-        # 所有不正确的实例
-        failed_instances_ids = [
-            item["instance_id"] for item in result if item["status"] in [CollectStatus.FAILED, CollectStatus.PENDING]
-        ]
-        return failed_instances_ids, len(failed_instances_ids) == len(result)
-
     def perform_request(self, validated_request_data):
         config_id = validated_request_data["id"]
         try:
@@ -815,15 +733,9 @@ class BatchRetryConfigResource(Resource):
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": config_id})
 
-        failed_instances_ids, is_all_failed = self.get_failed_instances()
-        params = {}
-        if not is_all_failed:
-            params["instance_id_list"] = failed_instances_ids
-        task_id = self.config.retry_subscription(**params)
-        self.config.deployment_config.task_ids.append(task_id)
-        self.config.deployment_config.save()
-        self.config.operation_result = OperationResult.PREPARING
-        self.config.save()
+        installer = get_collect_installer(self.config)
+        installer.retry()
+
         return "success"
 
 
@@ -936,10 +848,6 @@ class SaveCollectConfigResource(Resource):
 
             return attrs
 
-    @lock(CacheLock("collect_config"))
-    def request_nodeman(self, collect_config, deployment_config):
-        return collect_config.switch_config_version(deployment_config)
-
     def perform_request(self, data):
         try:
             collector_plugin = self.get_collector_plugin(data)
@@ -969,37 +877,40 @@ class SaveCollectConfigResource(Resource):
         # 将重新标记配置参数嵌入到部署配置参数中
         data["params"]["collector"]["metric_relabel_configs"] = data.pop("metric_relabel_configs")
 
-        deployment_config_params = {
-            "plugin_version": collector_plugin.packaged_release_version,
-            "target_node_type": data["target_node_type"],
-            "params": data["params"],
-            "target_nodes": target_nodes,
-            "remote_collecting_host": data.get("remote_collecting_host"),
-        }
-        save_result = {}
-
+        # 获取或新建采集配置
         if data.get("id"):
             try:
-                config_meta = CollectConfigMeta.objects.get(id=data["id"])
+                collect_config = CollectConfigMeta.objects.get(id=data["id"])
             except CollectConfigMeta.DoesNotExist:
                 raise CollectConfigNotExist({"msg": data["id"]})
-
-            self.update_password_inplace(data, config_meta)
-            # 编辑
-            collect_config = self.update_collector(data, deployment_config_params, save_result)
+            # 密码字段处理
+            self.update_password_inplace(data, collect_config)
         else:
-            try:
-                # 新建
-                collect_config = self.create_collector(data, deployment_config_params, collector_plugin)
-            except Exception as err:
-                logger.error(err)
+            collect_config = CollectConfigMeta(
+                bk_biz_id=data["bk_biz_id"],
+                name=data["name"],
+                last_operation=OperationType.CREATE,
+                operation_result=OperationResult.PREPARING,
+                collect_type=data["collect_type"],
+                plugin=collector_plugin,
+                target_object_type=data["target_object_type"],
+                label=data["label"],
+            )
+
+        # 部署
+        installer = get_collect_installer(collect_config)
+        try:
+            result = installer.install(data)
+        except Exception as err:
+            logger.error(err)
+
+            # 如果是新建采集配置，需要尝试回滚结果表
+            if collect_config.last_operation == OperationType.CREATE:
                 self.roll_back_result_table(collector_plugin)
-                raise err
+            raise err
 
         # 异步更新主机总数的缓存
         resource.collecting.update_config_instance_count.delay(id=collect_config.id)
-
-        save_result.update(id=collect_config.pk, deployment_id=collect_config.deployment_config_id)
 
         # 添加完成采集配置，主动更新指标缓存表
         self.update_metric_cache(collector_plugin)
@@ -1007,7 +918,7 @@ class SaveCollectConfigResource(Resource):
         # 采集配置完成
         DatalinkDefaultAlarmStrategyLoader(collect_config=collect_config, user_id=get_global_user()).run()
 
-        return save_result
+        return result
 
     @staticmethod
     def update_password_inplace(data: dict, config_meta: "CollectConfigMeta") -> None:
@@ -1030,76 +941,6 @@ class SaveCollectConfigResource(Resource):
                 default_password = param["default"]
                 actual_password = deployment_params[param_mode].get(param_name, default_password)
                 data["params"][param_mode][param_name] = actual_password
-
-    def update_collector(self, data, deployment_config_params, save_result):
-        try:
-            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(pk=data["id"])
-        except CollectConfigMeta.DoesNotExist:
-            raise CollectConfigNotExist({"msg": data["id"]})
-
-        if collect_config.need_upgrade:
-            raise CollectConfigNeedUpgrade({"msg": collect_config.name})
-
-        # 请求节点管理，主动触发订阅，切换部署配置
-        result = self.request_nodeman(collect_config, DeploymentConfigVersion(**deployment_config_params))
-
-        # 更新采集配置信息
-        can_rollback = self.update_collect_config(data, result)
-
-        save_result.update({"diff_node": result["diff_result"]["nodes"], "can_rollback": can_rollback})
-        return collect_config
-
-    @staticmethod
-    def update_collect_config(data, result):
-        try:
-            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(pk=data["id"])
-        except CollectConfigMeta.DoesNotExist:
-            raise CollectConfigNotExist({"msg": data["id"]})
-
-        collect_config.name = data["name"]
-        collect_config.label = data["label"]
-        can_rollback = False
-        if result["task_id"]:
-            can_rollback = True
-            collect_config.last_operation = data["operation"]
-            collect_config.operation_result = OperationResult.PREPARING
-            collect_config.deployment_config.task_ids = [result["task_id"]]
-            collect_config.deployment_config.save()
-        collect_config.save()
-        return can_rollback
-
-    @staticmethod
-    def create_collector(data, deployment_config_params, collector_plugin):
-        deployment_config_params["config_meta_id"] = 0
-
-        with transaction.atomic():
-            deployment_config = DeploymentConfigVersion.objects.create(**deployment_config_params)
-            collect_config = CollectConfigMeta(
-                bk_biz_id=data["bk_biz_id"],
-                name=data["name"],
-                last_operation=OperationType.CREATE,
-                operation_result=OperationResult.PREPARING,
-                collect_type=data["collect_type"],
-                plugin=collector_plugin,
-                target_object_type=data["target_object_type"],
-                deployment_config=deployment_config,
-                label=data["label"],
-            )
-            collect_config.deployment_config_id = deployment_config.id
-            collect_config.save()
-            result = collect_config.create_subscription()
-
-        # 更新采集配置信息
-        collect_config.deployment_config.subscription_id = result["subscription_id"]
-        deployment_config.config_meta_id = collect_config.id
-        deployment_config.task_ids = [result["task_id"]]
-        deployment_config.save()
-        # 新创建订阅是否开启巡检
-        if settings.IS_SUBSCRIPTION_ENABLED:
-            collect_config.switch_subscription("enable")
-        else:
-            collect_config.switch_subscription("disable")
-        return collect_config
 
     @staticmethod
     def get_collector_plugin(data):
@@ -1164,11 +1005,6 @@ class UpgradeCollectPluginResource(Resource):
         params = serializers.DictField(required=True, label="采集配置参数")
         realtime = serializers.BooleanField(required=False, default=False, label=_("是否实时刷新缓存"))
 
-    @lock(CacheLock("collect_config"))
-    def request_nodeman(self, collect_config, deployment_config):
-        # 创建并切换到该部署配置
-        return collect_config.switch_config_version(deployment_config)
-
     def perform_request(self, data):
         # 判断是否需要实时刷新缓存
         if data["realtime"]:
@@ -1180,42 +1016,20 @@ class UpgradeCollectPluginResource(Resource):
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": data["id"]})
 
-        # 判断采集配置是否需要升级
-        if not collect_config.need_upgrade:
-            raise CollectConfigNotNeedUpgrade({"msg": data["id"]})
-
-        # 获取部署配置信息，请求节点管理
-        data["params"]["collector"]["period"] = collect_config.deployment_config.params["collector"]["period"]
-        deployment_config_params = {
-            "plugin_version": collect_config.plugin.packaged_release_version,
-            "target_node_type": collect_config.deployment_config.target_node_type,
-            "params": data["params"],
-            "target_nodes": collect_config.deployment_config.target_nodes,
-            "remote_collecting_host": collect_config.deployment_config.remote_collecting_host,
-        }
-        result = self.request_nodeman(collect_config, DeploymentConfigVersion(**deployment_config_params))
-
-        # 更新采集配置信息
-        collect_config.deployment_config.task_ids = [result["task_id"]]
-        collect_config.deployment_config.save()
-        collect_config.last_operation = OperationType.UPGRADE
-        collect_config.operation_result = OperationResult.PREPARING
-        collect_config.save()
+        # 安装器执行升级操作
+        installer = get_collect_installer(collect_config)
+        result = installer.upgrade(data["params"])
 
         # 升级采集配置，主动更新指标缓存表
-        version = collect_config.plugin.current_version
-        metric_json = version.info.metric_json
         result_table_id_list = [
             "{}_{}.{}".format(
                 collect_config.plugin.plugin_type.lower(), collect_config.plugin.plugin_id, metric_msg["table_name"]
             )
-            for metric_msg in metric_json
+            for metric_msg in collect_config.plugin.current_version.info.metric_json
         ]
         append_metric_list_cache.delay(result_table_id_list)
 
-        return {
-            "id": collect_config.pk,
-        }
+        return result
 
 
 class RollbackDeploymentConfigResource(Resource):
@@ -1226,38 +1040,16 @@ class RollbackDeploymentConfigResource(Resource):
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=True, label="采集配置id")
 
-    @lock(CacheLock("collect_config"))
-    def request_nodeman(self, collect_config):
-        return collect_config.rollback()
-
     def perform_request(self, data):
         try:
             collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(pk=data["id"])
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": data["id"]})
 
-        # 判断是否采集配置是否允许回滚
-        if not collect_config.allow_rollback:
-            raise CollectConfigRollbackError({"msg": _("当前操作不支持回滚，或采集配置正处于执行中")})
+        installer = get_collect_installer(collect_config)
+        result = installer.rollback()
 
-        # 新克隆出的任务不需要进行节点管理调用
-        if not collect_config.deployment_config.subscription_id:
-            collect_config.last_operation = OperationType.ROLLBACK
-            collect_config.operation_result = OperationResult.SUCCESS
-            collect_config.save()
-            return {"diff_node": []}
-
-        # 请求节点管理，触发订阅，切换配置
-        result = self.request_nodeman(collect_config)
-
-        # 更新采集配置状态
-        collect_config.deployment_config.task_ids = [result["task_id"]]
-        collect_config.deployment_config.save()
-        collect_config.last_operation = OperationType.ROLLBACK
-        collect_config.operation_result = OperationResult.PREPARING
-        collect_config.save()
-
-        return {"diff_node": result["diff_result"]["nodes"]}
+        return result
 
 
 class GetMetricsResource(Resource):

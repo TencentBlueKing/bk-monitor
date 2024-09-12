@@ -196,7 +196,7 @@ class NodeManInstaller(BaseInstaller):
 
         return subscription_params
 
-    def _deploy(self, target_version: DeploymentConfigVersion):
+    def _deploy(self, target_version: DeploymentConfigVersion) -> Dict:
         """
         部署插件采集
         """
@@ -208,6 +208,15 @@ class NodeManInstaller(BaseInstaller):
             operate_type = self.collect_config.operate_type(diff_result)
         else:
             operate_type = "create"
+            diff_result = {
+                "nodes": {
+                    "is_modified": True,
+                    "added": target_version.target_nodes,
+                    "removed": [],
+                    "unchanged": [],
+                    "updated": [],
+                }
+            }
 
         subscription_params = self._get_deploy_params(target_version)
         if operate_type == "create":
@@ -246,13 +255,17 @@ class NodeManInstaller(BaseInstaller):
         # 启动自动巡检
         if settings.IS_SUBSCRIPTION_ENABLED:
             api.node_man.switch_subscription(subscription_id=subscription_id, action="enable")
+        else:
+            api.node_man.switch_subscription(subscription_id=subscription_id, action="disable")
 
         # 更新部署记录及采集配置
         target_version.subscription_id = subscription_id
         target_version.task_ids = [task_id]
         target_version.save()
 
-    def install(self, install_config: Dict):
+        return diff_result["nodes"]
+
+    def install(self, install_config: Dict) -> Dict:
         """
         首次安装插件采集
         """
@@ -273,9 +286,13 @@ class NodeManInstaller(BaseInstaller):
         new_version = DeploymentConfigVersion.objects.create(**deployment_config_params)
 
         # 部署插件采集
-        self._deploy(new_version)
+        diff_node = self._deploy(new_version)
 
         # 更新采集配置
+        if install_config.get("name"):
+            self.collect_config.name = install_config["name"]
+        if "label" in install_config:
+            self.collect_config.labels = install_config.get["label"]
         self.collect_config.operation_result = OperationResult.PREPARING
         self.collect_config.last_operation = OperationType.EDIT if self.collect_config.pk else OperationType.CREATE
         self.collect_config.deployment_config = new_version
@@ -285,6 +302,51 @@ class NodeManInstaller(BaseInstaller):
         if not new_version.config_meta_id:
             new_version.config_meta_id = self.collect_config.pk
             new_version.save()
+
+        return {
+            "diff_node": diff_node,
+            "can_rollback": self.collect_config.last_operation != OperationType.CREATE,
+            "id": self.collect_config.pk,
+            "deployment_id": new_version.pk,
+        }
+
+    def upgrade(self, params: Dict) -> Dict:
+        """
+        升级插件采集
+        """
+        # 判断是否需要升级
+        if not self.collect_config.need_upgrade:
+            raise CollectConfigNeedUpgrade({"msg": _("采集配置无需升级")})
+
+        current_version = self.collect_config.deployment_config
+
+        # 创建新的部署记录
+        params["collector"]["period"] = current_version.params["collector"]["period"]
+
+        deployment_config_params = {
+            "plugin_version": self.plugin.packaged_release_version,
+            "target_node_type": current_version.target_node_type,
+            "target_nodes": current_version.target_nodes,
+            "params": params,
+            "remote_collecting_host": current_version.remote_collecting_host,
+            "config_meta_id": self.collect_config.pk,
+            "parent_id": current_version.pk,
+        }
+        new_version = DeploymentConfigVersion.objects.create(**deployment_config_params)
+
+        # 部署插件采集
+        self._deploy(new_version)
+
+        # 更新采集配置
+        self.collect_config.operation_result = OperationResult.PREPARING
+        self.collect_config.last_operation = OperationType.UPGRADE
+        self.collect_config.deployment_config = new_version
+        self.collect_config.save()
+
+        return {
+            "id": self.collect_config.pk,
+            "deployment_id": new_version.pk,
+        }
 
     def uninstall(self):
         """
@@ -296,14 +358,16 @@ class NodeManInstaller(BaseInstaller):
         if self.collect_config.last_operation != OperationType.STOP:
             raise DeleteCollectConfigError({"msg": _("采集配置未停用")})
 
-        # 删除节点管理订阅任务
         subscription_id = self.collect_config.deployment_config.subscription_id
-        subscription_params = self._get_deploy_params(self.collect_config.deployment_config)
-        api.node_man.run_subscription(
-            subscription_id=subscription_id,
-            actions=[{step["id"]: "UNINSTALL"} for step in subscription_params["steps"]],
-        )
-        api.node_man.delete_subscription(subscription_id=subscription_id)
+
+        # 卸载并删除节点管理订阅任务
+        if subscription_id:
+            subscription_params = self._get_deploy_params(self.collect_config.deployment_config)
+            api.node_man.run_subscription(
+                subscription_id=subscription_id,
+                actions=[{step["id"]: "UNINSTALL"} for step in subscription_params["steps"]],
+            )
+            api.node_man.delete_subscription(subscription_id=subscription_id)
 
         # 删除部署记录及采集配置
         DeploymentConfigVersion.objects.filter(config_meta_id=self.collect_config.id).delete()
@@ -324,13 +388,19 @@ class NodeManInstaller(BaseInstaller):
             target_version = DeploymentConfigVersion.objects.get(pk=target_version)
 
         # 回滚部署
-        self._deploy(target_version)
+        diff_node = self._deploy(target_version)
 
         # 更新采集配置
         self.collect_config.deployment_config = target_version
         self.collect_config.operation_result = OperationResult.PREPARING
         self.collect_config.last_operation = OperationType.ROLLBACK
         self.collect_config.save()
+
+        return {
+            "diff_node": diff_node,
+            "id": self.collect_config.pk,
+            "deployment_id": target_version.pk,
+        }
 
     def stop(self):
         """
@@ -342,6 +412,13 @@ class NodeManInstaller(BaseInstaller):
             raise ToggleConfigStatusError({"msg": _("采集配置已处于停用状态，无需重复执行停止操作")})
 
         subscription_id = self.collect_config.deployment_config.subscription_id
+
+        # 如果没有订阅任务ID，则直接返回
+        if not subscription_id:
+            self.collect_config.operation_result = OperationResult.SUCCESS
+            self.collect_config.last_operation = OperationType.STOP
+            self.collect_config.save()
+            return
 
         # 关闭订阅任务巡检
         api.node_man.switch_subscription(subscription_id=subscription_id, action="disable")
@@ -372,6 +449,13 @@ class NodeManInstaller(BaseInstaller):
 
         subscription_id = self.collect_config.deployment_config.subscription_id
 
+        # 如果没有订阅任务ID，则直接返回
+        if not subscription_id:
+            self.collect_config.operation_result = OperationResult.SUCCESS
+            self.collect_config.last_operation = OperationType.START
+            self.collect_config.save()
+            return
+
         # 启用订阅任务巡检
         if settings.IS_SUBSCRIPTION_ENABLED:
             api.node_man.switch_subscription(subscription_id=subscription_id, action="enable")
@@ -393,14 +477,36 @@ class NodeManInstaller(BaseInstaller):
 
     def retry(self, instance_ids: List[int] = None):
         """
-        重试插件采集
+        重试插件采集，如果没有指定实例，则啊重试失败的实例
         """
-        subscription_id = self.collect_config.deployment_config.subscription_id
+        current_version = self.collect_config.deployment_config
 
-        # 如果没有指定实例ID，则重试所有实例
-        params = {"subscription_id": subscription_id}
+        if not current_version.subscription_id:
+            return
+
+        params = {"subscription_id": current_version.subscription_id}
         if instance_ids is not None:
+            # 如果指定了实例ID，则只重试指定的实例
             params["instance_id_list"] = instance_ids
+        elif current_version.task_ids:
+            # 如果没有指定实例ID，则重试所有失败实例
+            result = api.node_man.batch_task_result(
+                subscription_id=current_version.subscription_id,
+                task_id_list=current_version.task_ids,
+            )
+
+            # 所有失败的实例
+            failed_instances_ids = {
+                item["instance_id"]
+                for item in result
+                if item["status"] in [CollectStatus.FAILED, CollectStatus.PENDING]
+            }
+            if not failed_instances_ids:
+                # 如果没有失败的实例，则直接返回
+                return
+            elif len(failed_instances_ids) != len(result):
+                # 如果不是所有实例都失败，则只重试失败的实例
+                params["instance_id_list"] = failed_instances_ids
 
         # 重试订阅任务
         result = api.node_man.retry_subscription(**params)
@@ -693,3 +799,33 @@ class NodeManInstaller(BaseInstaller):
                 }
 
         return list(diff_mapping.values())
+
+    def instance_status(self, instance_id: str) -> Dict[str, Any]:
+        """
+        获取实例状态详情
+        """
+        current_version = self.collect_config.deployment_config
+
+        if not current_version.subscription_id or not current_version.task_ids:
+            return {"log_detail": _("未找到日志")}
+
+        params = {
+            "subscription_id": self.collect_config.deployment_config.subscription_id,
+            "instance_id": instance_id,
+            "task_id": self.collect_config.deployment_config.task_ids[0],
+        }
+        result = api.node_man.task_result_detail(**params)
+        if result:
+            log = []
+            for step in result.get("steps", []):
+                log.append("{}{}{}\n".format("=" * 20, step["node_name"], "=" * 20))
+                for sub_step in step["target_hosts"][0].get("sub_steps", []):
+                    log.extend(["{}{}{}".format("-" * 20, sub_step["node_name"], "-" * 20), sub_step["log"]])
+                    # 如果ex_data里面有值，则在日志里加上它
+                    if sub_step["ex_data"]:
+                        log.append(sub_step["ex_data"])
+                    if sub_step["status"] != CollectStatus.SUCCESS:
+                        return {"log_detail": "\n".join(log)}
+            return {"log_detail": "\n".join(log)}
+        else:
+            return {"log_detail": _("未找到日志")}

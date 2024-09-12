@@ -124,6 +124,8 @@ class K8sInstaller(BaseInstaller):
             )
             # todo: 解析result，更新采集配置状态
 
+        target_version.save()
+
         return
 
     def _undeploy(self):
@@ -209,7 +211,7 @@ class K8sInstaller(BaseInstaller):
         deployment_config_params = {
             "plugin_version": self.plugin.packaged_release_version,
             "target_node_type": TargetNodeType.CLUSTER,
-            # todo: 目前仅使用内置的k8s集群，后续根据需求支持自定义集群
+            # TODO: 目前仅使用内置的k8s集群，后续根据需求支持自定义集群
             "target_nodes": [],
             "params": install_config["params"],
             "config_meta_id": self.collect_config.pk or 0,
@@ -229,6 +231,42 @@ class K8sInstaller(BaseInstaller):
         if not new_version.config_meta_id:
             new_version.config_meta_id = self.collect_config.pk
             new_version.save()
+
+        return {
+            "id": self.collect_config.pk,
+            "deployment_id": new_version.pk,
+            "can_rollback": bool(new_version.parent_id),
+        }
+
+    def upgrade(self, params: Dict):
+        """
+        升级采集配置
+        """
+        current_version = self.collect_config.deployment_config
+
+        params["collector"]["period"] = current_version.params["collector"]["period"]
+
+        # 创建新的部署记录
+        deployment_config_params = {
+            "plugin_version": self.plugin.packaged_release_version,
+            "target_node_type": TargetNodeType.CLUSTER,
+            # TODO: 目前仅使用内置的k8s集群，后续根据需求支持自定义集群
+            "target_nodes": [],
+            "params": params,
+            "config_meta_id": self.collect_config.pk,
+            "parent_id": current_version.pk,
+        }
+        new_version = DeploymentConfigVersion.objects.create(**deployment_config_params)
+
+        self._deploy(new_version)
+
+        # 更新采集配置
+        self.collect_config.operation_result = OperationResult.PREPARING
+        self.collect_config.last_operation = OperationType.UPGRADE
+        self.collect_config.deployment_config = new_version
+        self.collect_config.save()
+
+        return {"id": self.collect_config.pk, "deployment_id": new_version.pk}
 
     def uninstall(self):
         """
@@ -267,6 +305,8 @@ class K8sInstaller(BaseInstaller):
         self.collect_config.operation_result = OperationResult.PREPARING
         self.collect_config.last_operation = OperationType.ROLLBACK
         self.collect_config.save()
+
+        return {"id": self.collect_config.pk, "deployment_id": target_version.pk}
 
     def start(self):
         """
@@ -333,3 +373,6 @@ class K8sInstaller(BaseInstaller):
                 }
             )
         return [{"child": children, "node_path": _("公共采集集群"), "label_name": "", "is_label": False}]
+
+    def instance_status(self, instance_id: str):
+        return {"log_detail": ""}
