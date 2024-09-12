@@ -1831,6 +1831,7 @@ class SearchHandler(object):
             "post_tags": ["</mark>"],
             "fields": {"*": {"number_of_fragments": 0}},
             "require_field_match": require_field_match,
+            "max_analyzed_offset": settings.ES_MAX_ANALYZED_OFFSET,
         }
 
         if self.export_log:
