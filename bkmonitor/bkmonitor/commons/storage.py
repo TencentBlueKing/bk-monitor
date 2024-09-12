@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from bkstorages.backends.bkrepo import BKGenericRepoClient, BKRepoStorage
+from django.conf import settings
 from django.core.cache import cache
 
 from constants.common import LOGO_IMAGE_TIMEOUT
@@ -60,3 +61,10 @@ class BKCacheRepoStorage(BKRepoStorage):
             username=self.client.username,
             password=self.client.password,
         )
+
+
+def get_default_image_storage():
+    if getattr(settings, "USE_CEPH", False):
+        return BKCacheRepoStorage
+
+    return None
