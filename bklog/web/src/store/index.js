@@ -924,7 +924,7 @@ const store = new Vuex.Store({
               const catchUnionBeginList = parseBigNumberList(rsolvedData?.union_configs || []);
 
               commit('updateSqlQueryFieldList', rsolvedData.list);
-              commit('updateIndexItem', { catchUnionBeginList, begin: begin + 1 });
+              commit('updateIndexItem', { catchUnionBeginList });
               commit('updateIndexSetQueryResult', rsolvedData);
               commit('updateIsSetDefaultTableColumn');
 
