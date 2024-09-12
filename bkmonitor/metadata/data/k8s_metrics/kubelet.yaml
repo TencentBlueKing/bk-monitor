@@ -993,3 +993,961 @@
     field_name: bcs_cluster_id
     type: string
     unit: ''
+- description: ''
+  field_name: kubelet_cgroup_manager_duration_seconds_sum
+  tag_list:
+  - description: ''
+    field_name: node
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: operation_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: metrics_path
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+- description: ''
+  field_name: kubelet_pleg_relist_duration_seconds_sum
+  tag_list:
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: node
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: metrics_path
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+- description: ''
+  field_name: kubelet_pleg_relist_interval_seconds_count
+  tag_list:
+  - description: ''
+    field_name: metrics_path
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: node
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+- description: ''
+  field_name: kubelet_pleg_relist_interval_seconds_sum
+  tag_list:
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: node
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: metrics_path
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+- description: ''
+  field_name: kubelet_pod_start_duration_seconds_count
+  tag_list:
+  - description: ''
+    field_name: node
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: metrics_path
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+- description: ''
+  field_name: kubelet_pod_start_duration_seconds_sum
+  tag_list:
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: metrics_path
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: node
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+- description: ''
+  field_name: kubelet_pod_worker_duration_seconds_sum
+  tag_list:
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: metrics_path
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: operation_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: node
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+- description: ''
+  field_name: kubelet_runtime_operations_duration_seconds_count
+  tag_list:
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: node
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: metrics_path
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: operation_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+- description: ''
+  field_name: kubelet_runtime_operations_duration_seconds_sum
+  tag_list:
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: operation_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: node
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: metrics_path
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+- description: ''
+  field_name: kubelet_pod_start_sli_duration_seconds_count
+  tag_list:
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: metrics_path
+    type: string
+    unit: ''
+  - description: ''
+    field_name: node
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+- description: ''
+  field_name: kubelet_pod_start_sli_duration_seconds_sum
+  tag_list:
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: node
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: metrics_path
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+- description: ''
+  field_name: kubelet_pod_status_sync_duration_seconds_count
+  tag_list:
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: node
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: metrics_path
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+- description: ''
+  field_name: kubelet_pod_status_sync_duration_seconds_sum
+  tag_list:
+  - description: ''
+    field_name: metrics_path
+    type: string
+    unit: ''
+  - description: ''
+    field_name: node
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+- description: ''
+  field_name: scheduler_schedule_attempts_total
+  tag_list:
+  - description: ''
+    field_name: bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: monitor_type
+    type: string
+    unit: ''
+  - description: ''
+    field_name: pod
+    type: string
+    unit: ''
+  - description: ''
+    field_name: endpoint
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_index
+    type: string
+    unit: ''
+  - description: ''
+    field_name: namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: instance
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace/bk_monitor_name
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bcs_cluster_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: profile
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_monitor_namespace
+    type: string
+    unit: ''
+  - description: ''
+    field_name: result
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_endpoint_url
+    type: string
+    unit: ''
+  - description: ''
+    field_name: target
+    type: string
+    unit: ''
+  - description: ''
+    field_name: service
+    type: string
+    unit: ''
+  - description: ''
+    field_name: bk_biz_id
+    type: string
+    unit: ''
+  - description: ''
+    field_name: job
+    type: string
+    unit: ''

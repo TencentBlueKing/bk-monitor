@@ -10,6 +10,10 @@ specific language governing permissions and limitations under the License.
 """
 from functools import partial
 
+from django.utils.translation import ugettext_lazy as _
+from opentelemetry.semconv.resource import ResourceAttributes
+from opentelemetry.semconv.trace import SpanAttributes
+
 from apm_web.constants import CalculationMethod
 from apm_web.metric_handler import (
     ApdexInstance,
@@ -20,10 +24,6 @@ from apm_web.metric_handler import (
     cache_batch_metric_query,
     cache_batch_metric_query_group,
 )
-from django.utils.translation import ugettext_lazy as _
-from opentelemetry.semconv.resource import ResourceAttributes
-from opentelemetry.semconv.trace import SpanAttributes
-
 from constants.apm import OtlpKey
 from core.unit import load_unit
 
@@ -80,7 +80,7 @@ REMOTE_SERVICE_DATA_STATUS = partial(
     cache_batch_metric_query_group,
     period="day",
     distance=1,
-    group_key=[OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME)],
+    group_key=[OtlpKey.get_metric_dimension_key(SpanAttributes.PEER_SERVICE)],
     metric_handler_cls=[RequestCountInstance],
 )
 
@@ -403,6 +403,8 @@ COMPONENT_LIST = partial(
         RequestCountInstance,
         ErrorCountInstance,
         AvgDurationInstance,
+        ErrorRateInstance,
+        ApdexInstance,
         ErrorRateInstance,
     ],
 )

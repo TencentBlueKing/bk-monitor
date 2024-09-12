@@ -92,6 +92,7 @@ def get_table_info_for_influxdb_and_vm(table_id_list: Optional[List] = None) -> 
             "measurement": detail["measurement"],
             "vm_rt": "",
             "tags_key": detail["tags_key"],
+            "storage_type": models.InfluxDBStorage.STORAGE_TYPE,
         }
     # 仅有几条记录，查询一次 vm 集群列表，获取到集群ID和名称关系
     vm_cluster_id_name = {
@@ -107,7 +108,14 @@ def get_table_info_for_influxdb_and_vm(table_id_list: Optional[List] = None) -> 
             table_id_info[table_id].update({"vm_rt": detail["vm_rt"], "storage_name": storage_name})
         else:
             detail.update(
-                {"cluster_name": "", "storage_name": storage_name, "db": "", "measurement": "", "tags_key": []}
+                {
+                    "cluster_name": "",
+                    "storage_name": storage_name,
+                    "db": "",
+                    "measurement": "",
+                    "tags_key": [],
+                    "storage_type": models.ClusterInfo.TYPE_VM,
+                }
             )
             table_id_info[table_id] = detail
     return table_id_info

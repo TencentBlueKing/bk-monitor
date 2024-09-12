@@ -128,7 +128,7 @@ export default defineComponent({
     const edgeInterval = [];
     let playTime = null;
     /** g6 默认缩放级别 数值 / 10 为真实结果值  */
-    const MIN_ZOOM = 0.8;
+    const MIN_ZOOM = 0.2;
     const { t } = useI18n();
     const incidentDetail = inject<Ref<IncidentDetailData>>('incidentDetail');
     const incidentDetailData: Ref<IncidentDetailData> = computed(() => {
@@ -194,8 +194,8 @@ export default defineComponent({
       registerNode('topo-node', {
         afterDraw(cfg, group) {
           const nodeAttrs = getNodeAttrs(cfg as ITopoNode);
-          const { entity } = cfg as ITopoNode;
-          if (entity.is_root || (cfg as ITopoNode).is_feedback_root) {
+          const { entity, alert_all_recorved, is_feedback_root } = cfg as ITopoNode;
+          if (entity.is_root || is_feedback_root) {
             group.addShape('circle', {
               attrs: {
                 lineDash: [3],
@@ -234,7 +234,7 @@ export default defineComponent({
               name: 'topo-node-text',
             });
           }
-          if (entity.is_on_alert || entity.alert_all_recorved) {
+          if (entity.is_on_alert || alert_all_recorved) {
             group.addShape('circle', {
               attrs: {
                 x: 15,
@@ -370,7 +370,10 @@ export default defineComponent({
                 textAlign: 'center',
                 cursor: 'cursor',
                 textBaseline: 'middle',
-                text: entity.is_root || is_feedback_root ? truncateText(t('根因'), 28, 11, 'PingFangSC-Medium') : aggregated_nodes.length + 1,
+                text:
+                  entity.is_root || is_feedback_root
+                    ? truncateText(t('根因'), 28, 11, 'PingFangSC-Medium')
+                    : aggregated_nodes.length + 1,
                 fontSize: 11,
                 fill: '#fff',
                 ...nodeAttrs.textAttrs,
@@ -1775,6 +1778,7 @@ export default defineComponent({
       if (graph?.zoomTo) {
         graph.zoomTo(value / 10);
         localStorage.setItem('failure-topo-zoom', String(value));
+        zoomValue.value = value;
       }
     };
     const handleUpdateZoom = val => {
@@ -1958,7 +1962,7 @@ export default defineComponent({
                           <li class='node-type-title'>{this.$t('节点图例')}</li>
                           {NODE_TYPE.map(node => {
                             return (
-                              <li>
+                              <li key={node.status}>
                                 <span class='circle-wrap'>
                                   <span class={['circle', node.status]}>
                                     {'error' === node.status && <i class='icon-monitor icon-mc-pod' />}
@@ -1974,7 +1978,7 @@ export default defineComponent({
                           <li class='node-type-title'>{this.$t('标签图例')}</li>
                           {TAG_TYPE.map(node => {
                             return (
-                              <li>
+                              <li key={node.status}>
                                 <span class='circle-wrap'>
                                   <span class={['circle', node.status]}>
                                     {['notRestored', 'restored'].includes(node.status) && (
@@ -2044,7 +2048,7 @@ export default defineComponent({
                     v-model={this.zoomValue}
                     disable={this.isPlay}
                     maxValue={20}
-                    minValue={8}
+                    minValue={2}
                     onChange={this.handleZoomChange}
                     onUpdate:modelValue={this.handleZoomChange}
                   />

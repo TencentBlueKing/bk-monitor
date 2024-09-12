@@ -25,6 +25,7 @@ from django.db.models import Count, Q
 from django.db.transaction import atomic
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
+from elasticsearch_dsl import Search
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 from rest_framework import serializers
@@ -51,6 +52,7 @@ from apm_web.constants import (
     ServiceRelationLogTypeChoices,
     TopoNodeKind,
 )
+from apm_web.db.db_utils import build_filter_params, get_service_from_params
 from apm_web.handlers.application_handler import ApplicationHandler
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.db_handler import DbComponentHandler
@@ -93,7 +95,6 @@ from apm_web.serializers import (
     ApplicationCacheSerializer,
     AsyncSerializer,
     CustomServiceConfigSerializer,
-    ServiceParamsSerializer,
 )
 from apm_web.service.resources import CMDBServiceTemplateResource
 from apm_web.service.serializers import (
@@ -101,7 +102,7 @@ from apm_web.service.serializers import (
     LogServiceRelationOutputSerializer,
 )
 from apm_web.trace.service_color import ServiceColorClassifier
-from apm_web.utils import group_by, span_time_strft
+from apm_web.utils import get_interval, group_by, span_time_strft
 from bkmonitor.iam import ActionEnum
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.ip import is_v6
@@ -114,6 +115,7 @@ from constants.apm import (
     FlowType,
     OtlpKey,
     SpanStandardField,
+    StandardFieldCategory,
     TailSamplingSupportMethod,
 )
 from constants.data_source import (
@@ -223,9 +225,19 @@ class CreateApplicationResource(Resource):
             datasource_option=validated_request_data["datasource_option"],
             plugin_config=plugin_config,
         )
-        from apm_web.tasks import report_apm_application_event
 
-        report_apm_application_event.delay(validated_request_data["bk_biz_id"], app.application_id)
+        from apm_web.tasks import APMEvent, report_apm_application_event
+
+        switch_on_data_sources = {
+            OperateType.TRACING.value: app.is_enabled,
+            OperateType.PROFILING.value: app.is_enabled_profiling,
+        }
+        report_apm_application_event.delay(
+            validated_request_data["bk_biz_id"],
+            app.application_id,
+            apm_event=APMEvent.APP_CREATE,
+            data_sources=switch_on_data_sources,
+        )
         return app
 
 
@@ -443,13 +455,34 @@ class StartResource(Resource):
 
     @atomic
     def perform_request(self, validated_data):
-        if validated_data["type"] == OperateType.TRACING.value:
-            Application.objects.filter(application_id=validated_data["application_id"]).update(is_enabled=True)
-            Application.start_plugin_config(validated_data["application_id"])
-            return api.apm_api.start_application(application_id=validated_data["application_id"], type="tracing")
+        try:
+            application = Application.objects.get(application_id=validated_data["application_id"])
+        except Application.DoesNotExist:
+            raise ValueError(_("应用不存在"))
 
-        Application.objects.filter(application_id=validated_data["application_id"]).update(is_enabled_profiling=True)
-        return api.apm_api.start_application(application_id=validated_data["application_id"], type="profiling")
+        if validated_data["type"] == OperateType.TRACING.value:
+            application.is_enabled = True
+            Application.start_plugin_config(validated_data["application_id"])
+        elif validated_data["type"] == OperateType.PROFILING.value:
+            application.is_enabled_profiling = True
+        else:
+            raise ValueError(_("不支持的data_source: {}").format(validated_data["type"]))
+
+        application.save()
+        switch_on_data_sources = {validated_data["type"]: True}
+        res = api.apm_api.start_application(
+            application_id=validated_data["application_id"], type=validated_data["type"]
+        )
+
+        from apm_web.tasks import APMEvent, report_apm_application_event
+
+        report_apm_application_event.delay(
+            application.bk_biz_id,
+            application.application_id,
+            apm_event=APMEvent.APP_UPDATE,
+            data_sources=switch_on_data_sources,
+        )
+        return res
 
 
 class StopResource(Resource):
@@ -719,6 +752,8 @@ class SetupResource(Resource):
         if validated_data.get("application_sampler_config"):
             SamplingHelpers(validated_data['application_id']).setup(validated_data["application_sampler_config"])
 
+        # 新打开的datasource
+        switch_on_data_sources = {}
         # 判断是否需要启动/停止项目
         if validated_data.get("is_enabled") is not None:
             if application.is_enabled != validated_data["is_enabled"]:
@@ -729,6 +764,7 @@ class SetupResource(Resource):
                 if validated_data["is_enabled"]:
                     Application.start_plugin_config(validated_data["application_id"])
                     api.apm_api.start_application(application_id=validated_data["application_id"], type="tracing")
+                    switch_on_data_sources[OperateType.TRACING.value] = True
                 else:
                     Application.stop_plugin_config(validated_data["application_id"])
                     api.apm_api.stop_application(application_id=validated_data["application_id"], type="tracing")
@@ -742,6 +778,7 @@ class SetupResource(Resource):
 
                 if validated_data["profiling_is_enabled"]:
                     api.apm_api.start_application(application_id=validated_data["application_id"], type="profiling")
+                    switch_on_data_sources[OperateType.PROFILING.value] = True
                 else:
                     api.apm_api.stop_application(application_id=validated_data["application_id"], type="profiling")
 
@@ -750,9 +787,21 @@ class SetupResource(Resource):
         # Log-Trace配置更新
         if application.plugin_id == LOG_TRACE:
             Application.update_plugin_config(application.application_id, validated_data["plugin_config"])
-        from apm_web.tasks import update_application_config
+        from apm_web.tasks import (
+            APMEvent,
+            report_apm_application_event,
+            update_application_config,
+        )
 
         update_application_config.delay(application.application_id)
+
+        if any(list(switch_on_data_sources.values())):
+            report_apm_application_event.delay(
+                application.bk_biz_id,
+                application.application_id,
+                apm_event=APMEvent.APP_UPDATE,
+                data_sources=switch_on_data_sources,
+            )
 
 
 class ListApplicationResource(PageListResource):
@@ -980,7 +1029,6 @@ class ServiceDetailResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称")
         service_name = serializers.CharField(label="服务名称")
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
 
     def key_name_map(self):
         return {
@@ -989,7 +1037,7 @@ class ServiceDetailResource(Resource):
                 "category": _("服务分类"),
                 "predicate_value": _("分类名称"),
                 "service_language": _("语言"),
-                "instance_count": _("实例数"),
+                "instance_count": _("实例数量"),
                 "cmdb_template_name": _("关联CMDB服务名称"),
                 "cmdb_first_category": _("关联CMDB一级分类名称"),
                 "cmdb_second_category": _("关联CMDB二级分类名称"),
@@ -1006,77 +1054,65 @@ class ServiceDetailResource(Resource):
                 "predicate_value": _("分类名称"),
                 "kind": _("服务类型"),
                 "belong_service": _("归属服务"),
+                "instance_count": _("实例数量"),
             },
         }
 
-    def value_map(self):
-        return {
-            "category": lambda x: CategoryEnum.get_label_by_key(x),
-        }
+    def perform_request(self, data):
+        node_info = ServiceHandler.get_node(data["bk_biz_id"], data["app_name"], data["service_name"])
+        if not node_info:
+            return [
+                {
+                    "name": _("数据状态"),
+                    "type": "string",
+                    "value": _("无数据（暂未发现此服务）"),
+                }
+            ]
 
-    def get_service_detail(self, data):
-        resp = api.apm_api.query_topo_node({"bk_biz_id": data["bk_biz_id"], "app_name": data["app_name"]})
-        instance_map = api.apm_api.query_instance(
-            {
-                "bk_biz_id": data["bk_biz_id"],
-                "app_name": data["app_name"],
-                "service_name": [data["service_name"]],
-                "filters": {
-                    "instance_topo_kind": TopoNodeKind.SERVICE,
-                },
-            }
+        instance_count = api.apm_api.query_instance(
+            bk_biz_id=data["bk_biz_id"],
+            app_name=data["app_name"],
+            service_name=[data["service_name"]],
+            page_size=1,
         )
-        instance_count = instance_map.get("total", 0)
-        for service in resp:
-            if service["topo_key"] == data["service_name"]:
-                service.update(service["extra_data"])
-                for clean_key in ["extra_data", "kind"]:
-                    service.pop(clean_key)
+        if instance_count:
+            instance_count = instance_count.get("total")
 
-                if service["category"] == CategoryEnum.HTTP:
-                    service.pop("predicate_value")
+        extra_data = node_info.get("extra_data", {})
+        if extra_data.get("kind") == TopoNodeKind.COMPONENT:
+            return [
+                {
+                    "name": self.key_name_map()[TopoNodeKind.COMPONENT][k],
+                    "type": "string",
+                    "value": v or "--",
+                }
+                for k, v in {
+                    "topo_key": data["service_name"],
+                    "category": StandardFieldCategory.get_label_by_key(extra_data.get("category")),
+                    "predicate_value": extra_data.get("predicate_value"),
+                    "kind": TopoNodeKind.get_label_by_key(extra_data.get("kind")),
+                    "belong_service": ComponentHandler.get_component_belong_service(data["service_name"]),
+                    "instance_count": instance_count,
+                }.items()
+            ]
 
-                service["instance_count"] = instance_count
-
-                self.add_service_relation(data["bk_biz_id"], data["app_name"], service)
-
-                return [
-                    {
-                        "name": self.key_name_map()[TopoNodeKind.SERVICE].get(item, item),
-                        "type": "string",
-                        "value": self.value_map().get(item, lambda x: str(x))(value),
-                    }
-                    for item, value in service.items()
-                    if item in self.key_name_map()[TopoNodeKind.SERVICE].keys()
-                ]
-
-    def get_component_detail(self, data):
-        service_params = data["service_params"]
-
-        instance = {
-            "topo_key": data.get("service_name"),
-            "category": service_params.get("category"),
-            "predicate_value": service_params.get("predicate_value"),
-            "kind": service_params.get("kind"),
-            "belong_service": ComponentHandler.get_component_belong_service(
-                data.get("service_name", ""), service_params.get("predicate_value", "")
-            ),
-        }
+        self.add_service_relation(data["bk_biz_id"], data["app_name"], node_info)
 
         return [
             {
-                "name": self.key_name_map()[TopoNodeKind.COMPONENT][k],
+                "name": self.key_name_map()[TopoNodeKind.SERVICE].get(item, item),
                 "type": "string",
-                "value": v,
+                "value": str(value) if value else "--",
             }
-            for k, v in instance.items()
+            for item, value in {
+                "topo_key": data["service_name"],
+                "category": StandardFieldCategory.get_label_by_key(extra_data.get("category")),
+                "predicate_value": extra_data.get("predicate_value"),
+                "service_language": TopoNodeKind.get_label_by_key(extra_data.get("service_language")),
+                "instance_count": instance_count,
+            }.items()
+            if item in self.key_name_map()[TopoNodeKind.SERVICE].keys()
         ]
-
-    def perform_request(self, data):
-        if ComponentHandler.is_component(data.get("service_params")):
-            return self.get_component_detail(data)
-
-        return self.get_service_detail(data)
 
     def add_service_relation(self, bk_biz_id, app_name, service):
         query_params = {"bk_biz_id": bk_biz_id, "app_name": app_name, "service_name": service["topo_key"]}
@@ -1125,6 +1161,38 @@ class ServiceDetailResource(Resource):
             )
 
 
+class EndpointDetailResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务id")
+        app_name = serializers.CharField(label="应用名称")
+        service_name = serializers.CharField(label="服务名称")
+        endpoint_name = serializers.CharField(label="接口名称")
+
+    def perform_request(self, validated_data):
+        endpoint_info = api.apm_api.query_endpoint(
+            **{
+                "bk_biz_id": validated_data["bk_biz_id"],
+                "app_name": validated_data["app_name"],
+                "service_name": validated_data["service_name"],
+                "filters": {"endpoint_name": validated_data["endpoint_name"]},
+            }
+        )
+        if not endpoint_info:
+            raise ValueError(f"服务: {validated_data['service_name']} 下暂未发现 {validated_data['endpoint_name']} 接口")
+        endpoint_info = endpoint_info[0]
+
+        return [
+            {
+                "name": _("接口类型"),
+                "type": "string",
+                "value": CategoryEnum.get_label_by_key(endpoint_info.get("category"))
+                if endpoint_info.get("category")
+                else "--",
+            },
+            {"name": _("所属服务"), "type": "string", "value": endpoint_info.get("service_name", "--")},
+        ]
+
+
 class MetricInfoResource(Resource):
     class RequestSerializer(serializers.Serializer):
         application_id = serializers.IntegerField(label="应用id")
@@ -1146,9 +1214,8 @@ class ServiceListResource(ApiAuthResource):
         app_name = serializers.CharField(label="应用名称")
 
     def perform_request(self, validated_request_data):
-        resp = api.apm_api.query_topo_node(
-            {"bk_biz_id": validated_request_data["bk_biz_id"], "app_name": validated_request_data["app_name"]}
-        )
+        resp = ServiceHandler.list_nodes(validated_request_data["bk_biz_id"], validated_request_data["app_name"])
+
         return {
             "conditionList": [],
             "data": [
@@ -1176,58 +1243,56 @@ class QueryExceptionEventResource(PageListResource):
         filter_dict = serializers.DictField(required=False, label="过滤条件", default={})
         filter_params = serializers.DictField(required=False, label="过滤参数", default={})
         sort = serializers.CharField(required=False, label="排序条件", allow_blank=True)
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
         component_instance_id = serializers.ListSerializer(
             child=serializers.CharField(), required=False, label="组件实例id(组件页面下有效)"
         )
-
-    def build_filter_params(self, filter_dict):
-        result = []
-        for key, value in filter_dict.items():
-            if value == "undefined":
-                continue
-            result.append(
-                {"key": key, "op": "=", "value": value if isinstance(value, list) else [value], "condition": "and"}
-            )
-        return result
+        category = serializers.CharField(label="分类", required=False)
 
     def get_operator(self):
         return _("查看")
 
-    def perform_request(self, validated_request_data):
-        filter_params = self.build_filter_params(validated_request_data["filter_params"])
-        DbComponentHandler.build_component_filter_params(
-            validated_request_data["bk_biz_id"],
-            validated_request_data["app_name"],
-            filter_params,
-            validated_request_data.get("service_params"),
-            validated_request_data.get("component_instance_id"),
-        )
-        category = validated_request_data.get("service_params", {}).get("category")
-        if category:
-            db_system_filter = DbComponentHandler.build_db_system_param(category=category)
-            filter_params.extend(db_system_filter)
+    def perform_request(self, validated_data):
+        filter_params = build_filter_params(validated_data["filter_params"])
+        service_name = get_service_from_params(filter_params)
+        params = {
+            "app_name": validated_data["app_name"],
+            "bk_biz_id": validated_data["bk_biz_id"],
+            "start_time": validated_data["start_time"],
+            "end_time": validated_data["end_time"],
+            "name": [self.EXCEPTION_EVENT_TYPE],
+        }
+        if validated_data.get("category"):
+            params["category"] = validated_data["category"]
+        if service_name:
+            node = ServiceHandler.get_node(
+                validated_data["bk_biz_id"],
+                validated_data["app_name"],
+                service_name,
+            )
+            # 如果是组件 增加查询参数
+            if ComponentHandler.is_component_by_node(node):
+                DbComponentHandler.build_component_filter_params(
+                    validated_data["bk_biz_id"],
+                    validated_data["app_name"],
+                    service_name,
+                    filter_params,
+                    validated_data.get("component_instance_id"),
+                )
+                db_system_filter = DbComponentHandler.build_db_system_param(category=node["extra_data"]["category"])
+                filter_params.extend(db_system_filter)
+            else:
+                if ServiceHandler.is_remote_service_by_node(node):
+                    filter_params = ServiceHandler.build_remote_service_filter_params(service_name, filter_params)
 
-        events = api.apm_api.query_event(
-            {
-                "app_name": validated_request_data["app_name"],
-                "bk_biz_id": validated_request_data["bk_biz_id"],
-                "start_time": validated_request_data["start_time"],
-                "end_time": validated_request_data["end_time"],
-                "name": [self.EXCEPTION_EVENT_TYPE],
-                "filter_params": filter_params,
-            }
-        )
+        params["filter_params"] = filter_params
+        events = api.apm_api.query_event(params)
         res = []
         for event in events:
-            title = (
-                f"{datetime.datetime.fromtimestamp(int(event['timestamp']) // 1000000).strftime('%Y-%m-%d %H:%M:%S')}  "
-                f"{event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_TYPE, 'unknown')}"
-            )
+            exception_type = event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_TYPE, "unknown")
             res.append(
                 {
-                    "title": title,
-                    "subtitle": event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_STACKTRACE),
+                    "title": f"{span_time_strft(event['timestamp'])}  {exception_type}",
+                    "subtitle": event.get(OtlpKey.ATTRIBUTES, {}).get(SpanAttributes.EXCEPTION_MESSAGE, ""),
                     "content": event.get(OtlpKey.ATTRIBUTES, {})
                     .get(SpanAttributes.EXCEPTION_STACKTRACE, "")
                     .split("\n"),
@@ -1238,7 +1303,7 @@ class QueryExceptionEventResource(PageListResource):
         res = sorted(res, key=lambda x: x["timestamp"], reverse=True)
         for index, r in enumerate(res, 1):
             r["id"] = index
-        return self.get_pagination_data(res, validated_request_data)
+        return self.get_pagination_data(res, validated_data)
 
 
 class MetaConfigInfoResource(Resource):
@@ -1967,7 +2032,6 @@ class QueryEndpointStatisticsResource(PageListResource):
         end_time = serializers.IntegerField(required=True, label="数据结束时间")
         filter_params = serializers.DictField(required=False, label="过滤参数", default={})
         sort = serializers.CharField(required=False, label="排序条件", allow_blank=True)
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
         component_instance_id = serializers.ListSerializer(
             child=serializers.CharField(), required=False, label="组件实例id(组件页面下有效)"
         )
@@ -2049,14 +2113,15 @@ class QueryEndpointStatisticsResource(PageListResource):
         match_res = []
         no_match_res = []
         for summary, items in summary_mappings.items():
-            request_count = len(items)
+            request_count = sum(i.get("doc_count", 0) for i in items)
+            sum_duration = sum(i["sum_duration"]["value"] for i in items)
 
             (no_match_res, match_res)[summary[-1]].append(
                 {
                     "summary": summary[0],
                     "filter_key": OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL),
                     "request_count": request_count,
-                    "average": round(sum([item["avg_duration"]["value"] for item in items]) / request_count / 1000, 2),
+                    "average": round(sum_duration / request_count / 1000, 2),
                     "max_elapsed": round(max([item["max_duration"]["value"] for item in items]) / 1000, 2),
                     "min_elapsed": round(min([item["min_duration"]["value"] for item in items]) / 1000, 2),
                     "operation": {"trace": _("调用链"), "statistics": _("统计")},
@@ -2076,13 +2141,31 @@ class QueryEndpointStatisticsResource(PageListResource):
         if not validated_data.get("sort"):
             validated_data["sort"] = self.default_sort
         filter_params = self.build_filter_params(validated_data["filter_params"])
-        ComponentHandler.build_component_filter_params(
-            validated_data["bk_biz_id"],
-            validated_data["app_name"],
-            filter_params,
-            validated_data.get("service_params"),
-            validated_data.get("component_instance_id"),
+        service_name = get_service_from_params(filter_params)
+        is_component = False
+        uri_queryset = UriServiceRelation.objects.filter(
+            bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
         )
+
+        if service_name:
+            node = ServiceHandler.get_node(
+                validated_data["bk_biz_id"],
+                validated_data["app_name"],
+                service_name,
+            )
+            if ComponentHandler.is_component_by_node(node):
+                ComponentHandler.build_component_filter_params(
+                    validated_data["bk_biz_id"],
+                    validated_data["app_name"],
+                    service_name,
+                    filter_params,
+                    validated_data.get("component_instance_id"),
+                )
+                is_component = True
+            else:
+                uri_queryset.filter(service_name=service_name)
+                if ServiceHandler.is_remote_service_by_node(node):
+                    filter_params = ServiceHandler.build_remote_service_filter_params(service_name, filter_params)
 
         buckets = api.apm_api.query_span(
             {
@@ -2094,15 +2177,6 @@ class QueryEndpointStatisticsResource(PageListResource):
                 "group_keys": [key.replace(".", "_") for key in self.span_keys],
             }
         )
-
-        is_component = ComponentHandler.is_component(validated_data.get("service_params"))
-        uri_queryset = None
-        if not is_component:
-            uri_queryset = UriServiceRelation.objects.filter(
-                bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
-            )
-            if "resource.service.name" in validated_data.get("filter_params", {}):
-                uri_queryset.filter(service_name=validated_data["filter_params"]["resource.service.name"])
 
         res = []
         summary_mappings = defaultdict(list)
@@ -2158,7 +2232,6 @@ class QueryExceptionDetailEventResource(PageListResource):
         filter_params = serializers.DictField(required=False, label="过滤参数", default={})
         keyword = serializers.CharField(required=False, default="", label="关键词", allow_blank=True)
         sort = serializers.CharField(required=False, label="排序条件", allow_blank=True)
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
         component_instance_id = serializers.ListSerializer(
             child=serializers.CharField(), required=False, label="组件实例id(组件页面下有效)"
         )
@@ -2173,20 +2246,30 @@ class QueryExceptionDetailEventResource(PageListResource):
 
     def perform_request(self, validated_data):
         filter_params = self.build_filter_params(validated_data["filter_params"])
-        ComponentHandler.build_component_filter_params(
-            validated_data["bk_biz_id"],
-            validated_data["app_name"],
-            filter_params,
-            validated_data.get("service_params"),
-            validated_data.get("component_instance_id"),
-        )
+        service_name = get_service_from_params(filter_params)
+        if service_name:
+            node = ServiceHandler.get_node(
+                validated_data["bk_biz_id"],
+                validated_data["app_name"],
+                service_name,
+            )
+            if ComponentHandler.is_component_by_node(node):
+                ComponentHandler.build_component_filter_params(
+                    validated_data["bk_biz_id"],
+                    validated_data["app_name"],
+                    service_name,
+                    filter_params,
+                    validated_data.get("component_instance_id"),
+                )
+            else:
+                if ServiceHandler.is_remote_service_by_node(node):
+                    filter_params = ServiceHandler.build_remote_service_filter_params(service_name, filter_params)
 
         query_dict = {
             "start_time": validated_data["start_time"],
             "end_time": validated_data["end_time"],
             "app_name": validated_data["app_name"],
             "bk_biz_id": validated_data["bk_biz_id"],
-            "name": ["exception"],
             "filter_params": filter_params,
         }
         exception_spans = api.apm_api.query_span(query_dict)
@@ -2247,7 +2330,6 @@ class QueryExceptionEndpointResource(Resource):
         end_time = serializers.IntegerField(required=True, label="数据结束时间")
         exception_type = serializers.CharField(label="异常类型", required=False, default="")
         filter_params = serializers.DictField(required=False, label="过滤条件", default={})
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
         component_instance_id = serializers.ListSerializer(
             child=serializers.CharField(), required=False, label="组件实例id(组件页面下有效)"
         )
@@ -2262,13 +2344,24 @@ class QueryExceptionEndpointResource(Resource):
 
     def perform_request(self, validated_data):
         filter_params = self.build_filter_params(validated_data["filter_params"])
-        ComponentHandler.build_component_filter_params(
-            validated_data["bk_biz_id"],
-            validated_data["app_name"],
-            filter_params,
-            validated_data.get("service_params"),
-            validated_data.get("component_instance_id"),
-        )
+        service_name = get_service_from_params(filter_params)
+        if service_name:
+            node = ServiceHandler.get_node(
+                validated_data["bk_biz_id"],
+                validated_data["app_name"],
+                service_name,
+            )
+            if ComponentHandler.is_component_by_node(node):
+                ComponentHandler.build_component_filter_params(
+                    validated_data["bk_biz_id"],
+                    validated_data["app_name"],
+                    service_name,
+                    filter_params,
+                    validated_data.get("component_instance_id"),
+                )
+            else:
+                if ServiceHandler.is_remote_service_by_node(node):
+                    filter_params = ServiceHandler.build_remote_service_filter_params(service_name, filter_params)
 
         query_dict = {
             "start_time": validated_data["start_time"],
@@ -2342,101 +2435,158 @@ class QueryExceptionTypeGraphResource(Resource):
         end_time = serializers.IntegerField(required=True, label="数据结束时间")
         exception_type = serializers.CharField(label="异常类型", required=False, default="")
         filter_params = serializers.DictField(required=False, label="过滤条件", default={})
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
         component_instance_id = serializers.ListSerializer(
             child=serializers.CharField(), required=False, label="组件实例id(组件页面下有效)"
         )
 
     def build_filter_params(self, filter_dict):
-        result = [{"key": "status.code", "op": "=", "value": ["2"]}]
+        result = []
+        service_name = None
         for key, value in filter_dict.items():
             if value == "undefined":
                 continue
-            result.append({"key": key, "op": "=", "value": value if isinstance(value, list) else [value]})
-        return result
+            if key == OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME):
+                service_name = value
+            else:
+                result.append({"key": key, "op": "=", "value": value if isinstance(value, list) else [value]})
+        return result, service_name
 
     def perform_request(self, validated_data):
-        filter_params = self.build_filter_params(validated_data["filter_params"])
-        ComponentHandler.build_component_filter_params(
-            validated_data["bk_biz_id"],
-            validated_data["app_name"],
-            filter_params,
-            validated_data.get("service_params"),
-            validated_data.get("component_instance_id"),
+        app = Application.objects.get(bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"])
+        query = Search().query()
+        query = query.update_from_dict(
+            {
+                "aggs": {
+                    "events_over_time": {
+                        "date_histogram": {
+                            "field": "time",
+                            "interval": get_interval(validated_data["start_time"], validated_data["end_time"]),
+                            "format": "epoch_millis",
+                        }
+                    }
+                },
+            }
+        )
+        musts = [
+            {
+                "match": {
+                    "status.code": 2,
+                },
+            },
+            {
+                "range": {
+                    "end_time": {
+                        # 往前 / 往后对齐至 0 秒 防止数据看上去出现了波动
+                        "gt": int(
+                            datetime.datetime.fromtimestamp(validated_data["start_time"]).replace(second=0).timestamp()
+                        )
+                        * 1000
+                        * 1000,
+                        "lt": int(
+                            (
+                                datetime.datetime.fromtimestamp(validated_data["end_time"])
+                                + datetime.timedelta(minutes=1)
+                            )
+                            .replace(second=0)
+                            .timestamp()
+                        )
+                        * 1000
+                        * 1000,
+                    }
+                }
+            },
+        ]
+        # Step1: 根据错误类型过滤
+        if validated_data["exception_type"] and validated_data["exception_type"] != "unknown":
+            musts.append(
+                {
+                    "nested": {
+                        "path": "events",
+                        "query": {
+                            "bool": {
+                                "must": [
+                                    {"match": {"events.name": "exception"}},
+                                    {"match": {"events.attributes.exception.type": validated_data["exception_type"]}},
+                                ]
+                            }
+                        },
+                    }
+                }
+            )
+        query = query.update_from_dict(
+            {
+                "query": {
+                    "bool": {
+                        "must": musts,
+                    }
+                }
+            }
         )
 
-        query_dict = {
-            "start_time": validated_data["start_time"],
-            "end_time": validated_data["end_time"],
-            "app_name": validated_data["app_name"],
-            "bk_biz_id": validated_data["bk_biz_id"],
-            "filter_params": filter_params,
-        }
-
-        exception_spans = api.apm_api.query_span(query_dict)
-        timestamp_mapping = {}
-        has_event_trace_id = [i["trace_id"] for i in exception_spans if i["events"]]
-
-        for span in exception_spans:
-            if span["events"]:
-                for event in span["events"]:
-                    exception_type = event[OtlpKey.ATTRIBUTES].get(
-                        SpanAttributes.EXCEPTION_TYPE, self.UNKNOWN_EXCEPTION_TYPE
-                    )
-                    if validated_data["exception_type"]:
-                        if exception_type == validated_data["exception_type"]:
-                            timestamp = self.convert_timestamp(span["start_time"])
-                            if timestamp in timestamp_mapping:
-                                timestamp_mapping[timestamp][0] += 1
-                            else:
-                                timestamp_mapping[timestamp] = [1, timestamp]
-                    else:
-                        timestamp = self.convert_timestamp(span["start_time"])
-                        if timestamp in timestamp_mapping:
-                            timestamp_mapping[timestamp][0] += 1
-                        else:
-                            timestamp_mapping[timestamp] = [1, timestamp]
+        # Step3: 根据组件类服务过滤
+        filter_params, service_name = self.build_filter_params(validated_data["filter_params"])
+        if service_name:
+            node = ServiceHandler.get_node(
+                validated_data["bk_biz_id"],
+                validated_data["app_name"],
+                service_name,
+            )
+            if ComponentHandler.is_component_by_node(node):
+                query = ComponentHandler.build_component_filter_es_query_dict(
+                    query,
+                    validated_data["bk_biz_id"],
+                    validated_data["app_name"],
+                    service_name,
+                    filter_params,
+                    validated_data.get("component_instance_id"),
+                )
             else:
-                exception_type = self.UNKNOWN_EXCEPTION_TYPE
-                if validated_data["exception_type"]:
-                    if (
-                        exception_type == validated_data["exception_type"]
-                        and span["trace_id"] not in has_event_trace_id
-                    ):
-                        timestamp = self.convert_timestamp(span["start_time"])
-                        if timestamp in timestamp_mapping:
-                            timestamp_mapping[timestamp][0] += 1
-                        else:
-                            timestamp_mapping[timestamp] = [1, timestamp]
+                if ServiceHandler.is_remote_service_by_node(node):
+                    query = ServiceHandler.build_remote_service_es_query_dict(query, service_name, filter_params)
                 else:
-                    if span["trace_id"] not in has_event_trace_id:
-                        timestamp = self.convert_timestamp(span["start_time"])
-                        if timestamp in timestamp_mapping:
-                            timestamp_mapping[timestamp][0] += 1
-                        else:
-                            timestamp_mapping[timestamp] = [1, timestamp]
+                    query = ServiceHandler.build_service_es_query_dict(query, service_name, filter_params)
+
+        response = api.apm_api.query_es(table_id=app.trace_result_table_id, query_body=query.to_dict())
+        buckets = response.get("aggregations", {}).get("events_over_time", {}).get("buckets", [])
+        if not buckets:
+            return {"metrics": [], "series": []}
+
+        if len(buckets) > 2:
+            # 去除头尾未统计完整的元素
+            buckets.pop(0)
+            buckets.pop()
 
         return {
             "metrics": [],
             "series": [
                 {
                     "alias": "_result_",
-                    "datapoints": sorted(timestamp_mapping.values(), key=lambda i: i[-1]),
+                    "datapoints": [[i["doc_count"], i["key"]] for i in buckets],
                     "dimensions": {},
                     "metric_field": "_result_",
                     "target": "",
                     "type": "line",
                     "unit": "",
                 }
-            ]
-            if timestamp_mapping
-            else [],
+            ],
         }
 
-    def convert_timestamp(self, timestamp):
-        # 16位时间戳转13位&忽略秒数
-        timestamp = int(str(timestamp)[:-3])
-        return int(str(timestamp)[:-4] + "0000")
+    def convert_timestamp(self, timestamp, interval):
+        """
+        将时间戳向 interval 对齐 防止图表时间点过于密集或过小
+        例如:
+        8:30:12 interval=60 -> 8:30:00
+                interval=3600 -> 8:00:00
+        """
+        timestamp_seconds = timestamp / 1000000
+
+        dt = datetime.datetime.fromtimestamp(timestamp_seconds)
+
+        aligned_dt = dt - datetime.timedelta(
+            seconds=(dt.second % interval) + (dt.minute * 60 % interval) + (dt.hour * 3600 % interval)
+        )
+
+        return int(aligned_dt.timestamp()) * 1000
 
 
 class InstanceDiscoverKeysResource(Resource):

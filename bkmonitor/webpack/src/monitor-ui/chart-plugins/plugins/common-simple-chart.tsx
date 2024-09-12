@@ -45,7 +45,7 @@ export class CommonSimpleChart
   implements ICommonCharts
 {
   // 时序视图panel实例
-  @Prop({ required: true }) readonly panel: PanelModel;
+  @Prop({ required: false }) readonly panel: PanelModel;
   // 高度
   height = 100;
   // 宽度度
@@ -131,4 +131,4 @@ export class CommonSimpleChart
   }
 }
 
-export default ofType<{ panel: PanelModel }>().convert(CommonSimpleChart);
+export default ofType<{ panel?: PanelModel }>().convert(CommonSimpleChart);

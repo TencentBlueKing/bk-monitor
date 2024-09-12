@@ -242,6 +242,8 @@ DEFAULT_CRONTAB += [
     ("metadata.task.sync_space.sync_bkcc_space", "*/10 * * * *", "global"),
     ("metadata.task.sync_space.sync_bcs_space", "*/10 * * * *", "global"),
     ("metadata.task.sync_space.refresh_bcs_project_biz", "*/10 * * * *", "global"),
+    # 关联协议数据同步--cmdb_relation
+    ("metadata.task.sync_cmdb_relation.sync_relation_redis_data", "0 * * * *", "global"),
 ]
 # 耗时任务单独队列处理
 LONG_TASK_CRONTAB = [
@@ -483,7 +485,22 @@ CACHES = {
         "OPTIONS": {"MAX_ENTRIES": 100000, "CULL_FREQUENCY": 10},
     },
     "login_db": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "account_cache"},
-    "locmem": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    "locmem": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        'OPTIONS': {
+            'MAX_ENTRIES': 10000,
+            'CULL_FREQUENCY': 0,
+        },
+    },
+    "space": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "space",
+        'OPTIONS': {
+            # 5w空间支持
+            'MAX_ENTRIES': 50000,
+            'CULL_FREQUENCY': 0,
+        },
+    },
 }
 
 # django cache backend using redis

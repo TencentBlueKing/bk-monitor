@@ -46,3 +46,6 @@ GRAFANA_CUSTOM_ES_DATASOURCE = "grafana_custom_es_datasource"
 EXTERNAL_AUTHORIZER_MAP = "external_authorizer_map"
 # 字段分析白名单开关
 FIELD_ANALYSIS_CONFIG = "field_analysis_config"
+
+# 直接进行esquery_search查询的开关
+DIRECT_ESQUERY_SEARCH = "direct_esquery_search"

@@ -89,7 +89,7 @@ class TestComplexQuerySQL(object):
         qs = self.q_obj.filter(Q(ip="127.0.0.1", bk_cloud_id="0") | Q(ip="127.0.0.2", bk_cloud_id=0))
         assert (
             str(qs.query) == "SELECT * FROM 2_system_cpu_summary "
-            "WHERE (ip = 127.0.0.1 AND bk_cloud_id = 0) OR (ip = 127.0.0.2 AND bk_cloud_id = 0)"
+            "WHERE (bk_cloud_id = 0 AND ip = 127.0.0.1) OR (bk_cloud_id = 0 AND ip = 127.0.0.2)"
         )
 
     def test_q_nested_q_condition(self):
@@ -215,7 +215,7 @@ class TestSpecialCondition(object):
         assert (
             str(qs.query) == "SELECT usage, bk_cloud_id, ip "
             "FROM 2_system_cpu_summary "
-            "WHERE (ip = 127.0.0.1 AND bk_cloud_id = 0) AND time > 5m "
+            "WHERE (bk_cloud_id = 0 AND ip = 127.0.0.1) AND time > 5m "
             "GROUP BY bk_cloud_id, ip "
             "ORDER BY time desc "
             "LIMIT 1"

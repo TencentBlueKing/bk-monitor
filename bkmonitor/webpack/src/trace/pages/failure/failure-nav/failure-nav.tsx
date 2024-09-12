@@ -79,7 +79,6 @@ export default defineComponent({
       emit('filterSearch', data);
     };
     const nodeExpand = data => {
-      console.log(data, 'data');
       emit('nodeExpand', data);
     };
     const treeScroll = scrollTop => {
@@ -142,7 +141,7 @@ export default defineComponent({
       chooseOperation,
       refNav,
       handleRefNavRefresh,
-      changeTab
+      changeTab,
     };
   },
   render() {
@@ -164,12 +163,12 @@ export default defineComponent({
               tagInfo={this.$props.tagInfo}
               topoNodeId={this.$props.topoNodeId}
               onChangeSpace={this.handleSpace}
+              onChangeTab={this.changeTab}
               onChooseOperation={this.chooseOperation}
               onFilterSearch={this.filterSearch}
               onNodeClick={this.nodeClick}
               onNodeExpand={this.nodeExpand}
               onTreeScroll={this.treeScroll}
-              onChangeTab={this.changeTab}
             />
           </KeepAlive>
         </div>

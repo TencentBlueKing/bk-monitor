@@ -236,6 +236,12 @@
         });
         return;
       }
+      // 离开路由时清空采集配置导入数据
+      this.$store.commit('collect/updateExportCollectObj', {
+        collectID: null,
+        syncType: [],
+        collect: {},
+      });
       next();
     },
     methods: {

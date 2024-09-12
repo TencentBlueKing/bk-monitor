@@ -440,7 +440,7 @@ class LabelSelectorOperator(object):
 
 
 # 容器采集配置项转yaml时需要排除的字段
-CONTAINER_CONFIGS_TO_YAML_EXCLUDE_FIELDS = ("container", "label_selector")
+CONTAINER_CONFIGS_TO_YAML_EXCLUDE_FIELDS = ("container", "label_selector", "annotation_selector")
 
 
 class CheckStatusEnum(ChoicesEnum):

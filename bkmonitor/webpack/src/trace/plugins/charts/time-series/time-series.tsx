@@ -83,7 +83,7 @@ import type {
   PanelModel,
 } from '../../typings';
 import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
-
+import ChartSkeleton from '../../../components/skeleton/chart-skeleton';
 import './time-series.scss';
 
 const TimeSeriesProps = {
@@ -95,6 +95,11 @@ const TimeSeriesProps = {
   showChartHeader: {
     type: Boolean,
     default: true,
+  },
+  // 是否需要骨架屏
+  needChartLoading: {
+    type: Boolean,
+    default: false,
   },
   // 是否展示more tools
   showHeaderMoreTool: {
@@ -139,6 +144,7 @@ export default defineComponent({
     const empty = ref<boolean>(true);
     const emptyText = ref<string>('');
     const errorMsg = ref<string>('');
+    const isChartLoading = ref<boolean>(true);
     const metrics = ref<IExtendMetricData[]>([]);
     const hasSetEvent = ref<boolean>(false);
     const isInHover = ref<boolean>(false);
@@ -486,7 +492,10 @@ export default defineComponent({
         return;
       }
       if (inited.value) emit('loading', true);
-      emptyText.value = t('加载中...');
+      if (!props.needChartLoading) {
+        emptyText.value = t('加载中...');
+      }
+      isChartLoading.value = true;
       try {
         unregisterOberver();
         const series: any[] = [];
@@ -686,6 +695,8 @@ export default defineComponent({
         empty.value = true;
         emptyText.value = t('出错了');
         console.error(e);
+      } finally {
+        isChartLoading.value = false;
       }
       emit('loading', false);
       // this.cancelTokens = [];
@@ -819,6 +830,7 @@ export default defineComponent({
       handleMetricClick,
       handleDblClick,
       handleRestore,
+      isChartLoading,
     };
   },
   render() {
@@ -830,73 +842,79 @@ export default defineComponent({
         onMouseenter={() => (this.isInHover = true)}
         onMouseleave={() => (this.isInHover = false)}
       >
-        {this.showChartHeader && this.panel && (
-          <ChartTitle
-            class='draggable-handle'
-            draging={this.panel.draging}
-            drillDownOption={this.drillDownOptions}
-            isInstant={this.panel.instant}
-            menuList={this.menuList}
-            metrics={this.metrics}
-            showAddMetric={this.showAddMetric}
-            showMore={this.isInHover}
-            subtitle={this.panel.subTitle || ''}
-            title={this.panel.title}
-            onAlarmClick={this.handleAlarmClick}
-            onAllMetricClick={this.handleMetricClick}
-            onMenuClick={this.handleMenuClick}
-            onMetricClick={this.handleMetricClick}
-            onSelectChild={({ child }) => this.handleMenuClick(child)}
-            onUpdateDragging={() => this.panel?.updateDraging(false)}
-          />
-        )}
-        {!this.empty ? (
-          <div class={`time-series-content ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
-            <div
-              ref='chartWrapperRef'
-              class={`chart-instance ${legend?.displayMode === 'table' ? 'is-table-legend' : ''}`}
-            >
-              {this.inited && (
-                <BaseEchart
-                  ref='baseChartRef'
-                  width={this.width}
-                  groupId={this.panel!.dashboardId}
-                  options={this.options}
-                  showRestore={this.showRestore}
-                  onDataZoom={this.dataZoom}
-                  onDblClick={this.handleDblClick}
-                  onRestore={this.handleRestore}
-                />
-              )}
-            </div>
-            {legend?.displayMode !== 'hidden' && (
-              <div class={`chart-legend ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
-                {legend?.displayMode === 'table' ? (
-                  <TableLegend
-                    legendData={this.legendData}
-                    onSelectLegend={this.handleSelectLegend}
-                  />
-                ) : (
-                  <CommonLegend
-                    legendData={this.legendData}
-                    onSelectLegend={this.handleSelectLegend}
-                  />
+        {this.isChartLoading && this.needChartLoading ? (
+          <ChartSkeleton />
+        ) : (
+          <>
+            {this.showChartHeader && this.panel && (
+              <ChartTitle
+                class='draggable-handle'
+                draging={this.panel.draging}
+                drillDownOption={this.drillDownOptions}
+                isInstant={this.panel.instant}
+                menuList={this.menuList}
+                metrics={this.metrics}
+                showAddMetric={this.showAddMetric}
+                showMore={this.isInHover}
+                subtitle={this.panel.subTitle || ''}
+                title={this.panel.title}
+                onAlarmClick={this.handleAlarmClick}
+                onAllMetricClick={this.handleMetricClick}
+                onMenuClick={this.handleMenuClick}
+                onMetricClick={this.handleMetricClick}
+                onSelectChild={({ child }) => this.handleMenuClick(child)}
+                onUpdateDragging={() => this.panel?.updateDraging(false)}
+              />
+            )}
+            {!this.empty ? (
+              <div class={`time-series-content ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
+                <div
+                  ref='chartWrapperRef'
+                  class={`chart-instance ${legend?.displayMode === 'table' ? 'is-table-legend' : ''}`}
+                >
+                  {this.inited && (
+                    <BaseEchart
+                      ref='baseChartRef'
+                      width={this.width}
+                      groupId={this.panel!.dashboardId}
+                      options={this.options}
+                      showRestore={this.showRestore}
+                      onDataZoom={this.dataZoom}
+                      onDblClick={this.handleDblClick}
+                      onRestore={this.handleRestore}
+                    />
+                  )}
+                </div>
+                {legend?.displayMode !== 'hidden' && (
+                  <div class={`chart-legend ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
+                    {legend?.displayMode === 'table' ? (
+                      <TableLegend
+                        legendData={this.legendData}
+                        onSelectLegend={this.handleSelectLegend}
+                      />
+                    ) : (
+                      <CommonLegend
+                        legendData={this.legendData}
+                        onSelectLegend={this.handleSelectLegend}
+                      />
+                    )}
+                  </div>
                 )}
               </div>
+            ) : (
+              <div class='empty-chart'>{this.emptyText}</div>
             )}
-          </div>
-        ) : (
-          <div class='empty-chart'>{this.emptyText}</div>
-        )}
-        {!!this.errorMsg && (
-          <span
-            class='is-error'
-            v-bk-tooltips={{
-              content: <div>{this.errorMsg}</div>,
-              extCls: 'chart-wrapper-error-tooltip',
-              placement: 'top-start',
-            }}
-          />
+            {!!this.errorMsg && (
+              <span
+                class='is-error'
+                v-bk-tooltips={{
+                  content: <div>{this.errorMsg}</div>,
+                  extCls: 'chart-wrapper-error-tooltip',
+                  placement: 'top-start',
+                }}
+              />
+            )}
+          </>
         )}
       </div>
     );

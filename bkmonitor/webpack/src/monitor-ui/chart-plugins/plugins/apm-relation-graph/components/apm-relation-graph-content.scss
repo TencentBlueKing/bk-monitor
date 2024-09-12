@@ -1,0 +1,142 @@
+.apm-relation-graph-content {
+  position: relative;
+  height: calc(100% - 52px);
+
+  .apm-relation-graph-charts {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+
+    &.col-resize {
+      cursor: col-resize;
+    }
+
+    .main-content {
+      position: relative;
+      flex: 1;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .side-content {
+      position: relative;
+      box-sizing: content-box;
+      height: 100%;
+      border-left: 1px solid #dcdee5;
+      transition: width 0.3s;
+
+      .side-drop-wrap {
+        position: absolute;
+        top: 0;
+        left: -6px;
+        z-index: 1;
+        width: 8px;
+        height: 100%;
+        cursor: col-resize;
+        user-select: none;
+
+        .drop-point {
+          position: absolute;
+          top: 50%;
+          left: -4px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          transform: translateY(-50%);
+
+          .point {
+            width: 2px;
+            height: 2px;
+            margin-top: 2px;
+            margin-right: 8px;
+            background: #63656e;
+          }
+        }
+      }
+
+      &.drop-active {
+        border-left: 1px solid #3a84ff;
+        transition: width 0s;
+
+        &::after {
+          position: absolute;
+          top: 0;
+          left: -3px;
+          width: 2px;
+          height: 100%;
+          content: '';
+          background: #3a84ff;
+        }
+
+        .side-drop-wrap {
+          .drop-point {
+            .point {
+              background: #3a84ff;
+            }
+          }
+        }
+      }
+    }
+
+    .side-overview,
+    .side-topo {
+      height: 100%;
+
+      .content-wrap {
+        height: calc(100% - 52px);
+      }
+
+      &.no-border {
+        border-left: none;
+      }
+
+      .header-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        height: 52px;
+        margin-top: 1px;
+        background: #ffffff;
+        box-shadow: 0 2px 4px 0 #1919290d;
+
+        &::before {
+          position: absolute;
+          bottom: 0;
+          width: 100%;
+          height: 1px;
+          content: '';
+          box-shadow: 0 2px 4px 0 #1919290d;
+        }
+
+        .title {
+          margin-left: 20px;
+          font-size: 14px;
+          font-weight: 700;
+          color: #313238;
+        }
+
+        .expand-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          margin: 0 12px 0 auto;
+          font-size: 18px;
+
+          &:hover {
+            cursor: pointer;
+            background: #f0f1f5;
+            border-radius: 2px;
+          }
+        }
+      }
+
+      .source-topo {
+        z-index: 1;
+        flex: 1;
+      }
+    }
+  }
+}

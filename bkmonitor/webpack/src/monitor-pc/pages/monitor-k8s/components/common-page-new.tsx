@@ -42,6 +42,7 @@ import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import introduce from '../../../common/introduce';
 import Collapse from '../../../components/collapse/collapse';
+import EmptyStatus from '../../../components/empty-status/empty-status';
 import GuidePage from '../../../components/guide-page/guide-page';
 import { ASIDE_COLLAPSE_HEIGHT } from '../../../components/resize-layout/resize-layout';
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
@@ -139,6 +140,7 @@ interface ICommonPageEvent {
 }
 export const MIN_DASHBOARD_PANEL_WIDTH = '640';
 export type ShowModeType = 'dashboard' | 'default' | 'list';
+const customRouterQueryKeys = ['sliceStartTime', 'sliceEndTime'];
 @Component({
   components: {
     /** 视图设置异步组件 */
@@ -266,6 +268,9 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   collapseInfo = false;
   // 时间范围缓存用于复位功能
   cacheTimeRange = [];
+  // getSceneViewList 是否报错了
+  isSceneDataError = false;
+
   // 特殊的目标字段配置
   get targetFields(): { [propName: string]: string } {
     const panel = this.sceneData?.selectorPanel;
@@ -391,7 +396,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
               children: [],
             };
             total.push(item);
-          } else if (!!row.title) {
+          } else if (row.title) {
             const curGroup = total.find(group => group.id === curTagChartId);
             const child = {
               id: row.id,
@@ -468,6 +473,10 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       (this.localPanels?.[0].type === 'row' ? this.localPanels[0]?.panels?.some(item => item.type !== 'graph') : true)
     );
   }
+  /* 当前单图模式下dashboard-panel是否需要padding */
+  get isSingleChartNoPadding() {
+    return this.isSingleChart && this.localPanels?.[0]?.type === 'apm-relation-graph';
+  }
   /** 是否含overviewPanels */
   get hasOverviewPanels() {
     return !!this.sceneData?.overview_panels;
@@ -499,6 +508,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   @ProvideReactive('downSampleRange') downSampleRange: number | string = 'auto';
   /** 图表的告警状态接口是否需要加入$current_target作为请求参数 */
   @ProvideReactive('alertFilterable') alertFilterable = false;
+  /* 自定义router query */
+  @ProvideReactive('customRouteQuery') customRouteQuery = {};
   // 是否展示复位
   @ProvideReactive('showRestore') showRestore = false;
   // 是否开启（框选/复位）全部操作
@@ -522,6 +533,30 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   handleRestoreEvent() {
     this.timeRange = JSON.parse(JSON.stringify(this.cacheTimeRange));
     this.showRestore = false;
+  }
+  /**
+   * @description 切换视图面板模式 (底层图表事件)
+   * @param id
+   * @param customRouterQuery
+   */
+  @Provide('handlePageTabChange')
+  handleChartToTabChange(id: string, customRouteQuery: Record<string, number | string>) {
+    const item = this.tabList.find(item => item.id === id);
+    if (item) {
+      this.customRouteQuery = {
+        ...this.customRouteQuery,
+        ...customRouteQuery,
+      };
+      this.handleMenuTabChange(item);
+    }
+  }
+  @Provide('handleCustomRouteQueryChange')
+  handleCustomRouteQueryChange(customRouteQuery: Record<string, number | string>) {
+    this.customRouteQuery = {
+      ...this.customRouteQuery,
+      ...customRouteQuery,
+    };
+    this.handleResetRouteQuery();
   }
   mounted() {
     this.timezone = getDefaultTimezone();
@@ -566,16 +601,18 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   handleSetDefaultParams() {
     const filters: Record<string, any> = {};
     const variables = {};
-    this.defaultViewOptions?.filters &&
-      Object.keys(this.defaultViewOptions.filters).forEach(key => {
+    if (this.defaultViewOptions?.filters) {
+      for (const key in this.defaultViewOptions.filters) {
         filters[key] = this.defaultViewOptions.filters[key];
-      });
-    this.defaultViewOptions?.variables &&
-      Object.keys(this.defaultViewOptions.variables).forEach(key => {
+      }
+    }
+    if (this.defaultViewOptions?.variables) {
+      for (const key in this.defaultViewOptions.variables) {
         variables[key] = this.defaultViewOptions.variables[key];
-      });
+      }
+    }
     this.groups = this.defaultViewOptions?.groups || [];
-    Object.keys(this.$route.query || {}).forEach(key => {
+    for (const key in this.$route.query || {}) {
       const val = this.$route.query[key];
       if (key.match(/^filter-/)) {
         let v = null;
@@ -593,8 +630,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         filters[key.replace('filter-', '')] = v;
         /** 处理主机详情 (主机、节点、服务实例) 互为冲突的字段 */
         if (['bk_inst_id', 'bk_target_service_instance_id'].some(item => key.includes(item))) {
-          delete filters.bk_target_cloud_id;
-          delete filters.bk_target_ip;
+          filters.bk_target_cloud_id = undefined;
+          filters.bk_target_ip = undefined;
         }
       } else if (key.match(/^var-/)) {
         variables[key.replace('var-', '')] = typeof val === 'string' && /^-?[1-9]?[0-9]*[1-9]+$/.test(val) ? +val : val;
@@ -652,11 +689,13 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
             this.timezone = val as string;
             updateTimezone(val as string);
           }
+        } else if (customRouterQueryKeys.includes(key)) {
+          this.customRouteQuery[key] = val;
         } else {
           this[key] = val;
         }
       }
-    });
+    }
     this.localSceneType = (this.$route.query.sceneType as any) ?? this.sceneType;
     this.method =
       this.defaultViewOptions.method || (this.$route.query.method as string) || this.defalutMethod || DEFAULT_METHOD;
@@ -683,7 +722,11 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       }, {});
       Object.assign(params, apmServiceParams);
     }
-    const data = await getSceneViewList(params, { reject403: true }).catch(() => []);
+    this.isSceneDataError = false;
+    const data = await getSceneViewList(params, { reject403: true }).catch(() => {
+      this.isSceneDataError = true;
+      return [];
+    });
     if (this.sceneId === 'kubernetes') {
       this.showK8sGuidePage = !data?.length;
       if (this.showK8sGuidePage) return;
@@ -745,6 +788,40 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       };
     }
     const data: IBookMark = await getSceneView(params).catch(() => ({ id: '', panels: [], name: '' }));
+    /* ------apm视图特殊处理-------start */
+    for (const item of data?.overview_panels || []) {
+      if (['apm_application', 'apm_service'].includes(this.sceneId)) {
+        if (item.type === 'apm-timeseries-chart') {
+          item.options = {
+            ...item.options,
+            time_series: {
+              ...(item.options?.time_series || {}),
+              hoverAllTooltips: true,
+            },
+            apm_time_series: {
+              ...(item.options?.apm_time_series || {}),
+              enableContextmenu: true,
+              sceneType: this.localSceneType,
+            },
+          };
+        }
+        if (item.type === 'apdex-chart') {
+          item.options = {
+            ...(item?.options || {}),
+            time_series: {
+              ...(item.options?.time_series || {}),
+              hoverAllTooltips: true,
+            },
+            apdex_chart: {
+              ...(item?.options?.apdex_chart || {}),
+              enableContextmenu: true,
+              sceneType: this.localSceneType,
+            },
+          };
+        }
+      }
+    }
+    /* ----------apm视图特殊处理-----------end */
     const oldSelectPanel = this.sceneData?.options?.selector_panel?.targets
       ? JSON.stringify(this.sceneData.options.selector_panel.targets)
       : '';
@@ -1209,6 +1286,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       name: this.$route.name,
       query: {
         ...filters,
+        ...this.customRouteQuery,
         method: this.method,
         interval: this.interval.toString(),
         groups: this.groups,
@@ -1410,10 +1488,14 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.dashboardId = item.id as string;
     this.handleTabChange(item.id as any);
     if (item.show_panel_count) {
+      this.isSceneDataError = false;
       const data = await getSceneViewList({
         scene_id: this.sceneId,
         type: this.localSceneType,
-      }).catch(() => []);
+      }).catch(() => {
+        this.isSceneDataError = true;
+        return [];
+      });
       this.tabList.forEach(tab => {
         if (!!tab.panel_count) {
           const count = data.find(d => d.id === tab.id)?.panel_count || 0;
@@ -1782,7 +1864,9 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                     )}
                   </div>
                   {/* 所有视图无数据提示 如apm视图无数据指引 */}
-                  {!!this.$slots.noData && <div class='view-has-no-data-main'>{this.$slots.noData}</div>}
+                  {this.$slots.noData && !this.isSingleChartNoPadding && (
+                    <div class='view-has-no-data-main'>{this.$slots.noData}</div>
+                  )}
                   {this.filtersReady ? (
                     <DashboardPanel
                       id={this.dashboardPanelId}
@@ -1792,6 +1876,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                       isSingleChart={this.isSingleChart}
                       needOverviewBtn={!!this.sceneData?.list?.length}
                       panels={this.dashbordMode === 'chart' ? this.preciseFilteringPanels : this.sceneData.list}
+                      singleChartNoPadding={this.isSingleChartNoPadding}
                       // onLinkTo={this.handleUpdateCurrentData}
                       onBackToOverview={this.handleBackToOverview}
                       onLintToDetail={this.handleLinkToDetail}
@@ -1838,6 +1923,14 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                 />
               )}
             </keep-alive>
+            {this.isSceneDataError ? (
+              <div class='scene-error-no-data'>
+                <EmptyStatus
+                  showOperation={false}
+                  type={'500'}
+                />
+              </div>
+            ) : undefined}
           </div>,
           !this.readonly ? (
             <SettingModal
