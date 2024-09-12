@@ -482,6 +482,77 @@
   path: /v2/monitor_v3/change_uptime_check_task_status/
   suggest_method: POST
 
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/models/uptime_check_group/add/
+  is_hidden: true
+  label: 创建拨测任务组
+  label_en: create uptime check group
+  name: create_uptime_check_group
+  path: /v2/monitor_v3/create_uptime_check_group/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/models/uptime_check_group/delete/
+  is_hidden: true
+  label: 删除拨测任务组
+  label_en: delete uptime check group
+  name: delete_uptime_check_group
+  path: /v2/monitor_v3/delete_uptime_check_group/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/models/uptime_check_group/edit/
+  is_hidden: true
+  label: 编辑拨测任务组信息
+  label_en: edit uptime check group info
+  name: edit_uptime_check_group
+  path: /v2/monitor_v3/edit_uptime_check_group/
+  suggest_method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/models/uptime_check_group/{group_id}/
+  is_hidden: true
+  label: 获取拨测任务组信息
+  label_en: uptime check group info
+  name: uptime_check_group_info
+  path: /v2/monitor_v3/uptime_check_group_info/
+  suggest_method: GET
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v3/models/uptime_check_group/
+  is_hidden: true
+  label: 拨测任务组列表
+  label_en: get uptime check group list
+  name: get_uptime_check_group_list
+  path: /v2/monitor_v3/get_uptime_check_group_list/
+  suggest_method: GET
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/models/uptime_check_group/add_task/
+  is_hidden: true
+  label: 拨测任务组新增拨测任务
+  label_en: uptime check group add task
+  name: uptime_check_group_add_task
+  path: /v2/monitor_v3/uptime_check_group_add_task/
+  suggest_method: POST
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v3/models/uptime_check_group/remove_task/
+  is_hidden: true
+  label: 拨测任务组移除拨测任务
+  label_en: uptime check group remove task
+  name: uptime_check_group_remove_task
+  path: /v2/monitor_v3/uptime_check_group_remove_task/
+  suggest_method: POST
+
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: GET

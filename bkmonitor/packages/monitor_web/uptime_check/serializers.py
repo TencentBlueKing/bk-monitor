@@ -403,7 +403,12 @@ class UptimeCheckTaskSerializer(UptimeCheckTaskBaseSerializer):
 
 class UptimeCheckGroupSerializer(serializers.ModelSerializer):
     tasks = UptimeCheckTaskSerializer(many=True, read_only=True)
-    task_id_list = serializers.ListField(required=True, write_only=True)
+    task_id_list = serializers.ListField(required=False, write_only=True)
+
+    def validate(self, data):
+        if self.instance is None and 'task_id_list' not in data:
+            raise serializers.ValidationError(_("创建拨测任务组时需必传参数task_id_list"))
+        return data
 
     def create(self, validated_data):
         tasks = validated_data.pop("task_id_list")
@@ -419,7 +424,6 @@ class UptimeCheckGroupSerializer(serializers.ModelSerializer):
         return group
 
     def update(self, instance, validated_data):
-        tasks = validated_data.pop("task_id_list")
         if (
             UptimeCheckGroup.objects.filter(name=validated_data["name"], bk_biz_id=validated_data["bk_biz_id"])
             .exclude(id=instance.id)
@@ -429,10 +433,13 @@ class UptimeCheckGroupSerializer(serializers.ModelSerializer):
 
         for attr, value in list(validated_data.items()):
             setattr(instance, attr, value)
+
+        tasks = validated_data.pop("task_id_list", None)
         with transaction.atomic():
-            instance.tasks.clear()
-            for task in tasks:
-                instance.tasks.add(task)
+            if tasks is not None:
+                instance.tasks.clear()
+                for task in tasks:
+                    instance.tasks.add(task)
             instance.save()
 
         return instance
