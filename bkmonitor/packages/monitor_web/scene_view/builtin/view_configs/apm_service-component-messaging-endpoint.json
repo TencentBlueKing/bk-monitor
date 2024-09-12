@@ -52,6 +52,9 @@
           "json_viewer_data_key": "data",
           "show_expand": true,
           "query_update_url": true
+        },
+        "header": {
+          "tips": "此表格展示了类型为 exception 的事件列表。<br>查询条件为: events.name=\"exception\""
         }
       }
     },
@@ -1073,6 +1076,9 @@
           "show_expand": false,
           "query_update_url": true,
           "need_title": true
+        },
+        "header": {
+          "tips": "此表格会对不同类型的 Span 进行归类统计（如 Http、DB、消息队列、Rpc 类型）。<br> 其中，支持配置正则表达式对 attributes.http.url 进行归类，可以前往 服务配置页 - Uri 设置 里进行配置。"
         }
       }
     }
@@ -1107,6 +1113,9 @@
           "json_viewer_data_key": "data",
           "show_expand": true,
           "query_update_url": true
+        },
+        "header": {
+          "tips": "此表格展示了类型为 exception 的事件列表。<br>查询条件为: events.name=\"exception\""
         }
       }
     },
@@ -2144,6 +2153,9 @@
           "show_expand": false,
           "query_update_url": true,
           "need_title": true
+        },
+        "header": {
+          "tips": "此表格会对不同类型的 Span 进行归类统计（如 Http、DB、消息队列、Rpc 类型）。<br> 其中，支持配置正则表达式对 attributes.http.url 进行归类，可以前往 服务配置页 - Uri 设置 里进行配置。"
         }
       }
     }

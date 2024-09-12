@@ -248,6 +248,10 @@ class PluginProvider:
     def get_node_plugin(cls, node_data_type, runtime):
         return cls.mappings[GraphPluginType.NODE][node_data_type](_runtime=runtime)
 
+    @classmethod
+    def list_endpoint_post_plugin(cls, runtime):
+        return cls.Container(_plugins=[i(_runtime=runtime) for i in cls.post_mappings[GraphPluginType.ENDPOINT_UI]])
+
 
 @PluginProvider.pre_plugin
 @dataclass
@@ -1395,6 +1399,38 @@ class NodeSize(PostPlugin):
             node_data[self.id] = self.Size.MEDIUM
         else:
             node_data[self.id] = self.Size.LARGE
+
+
+@PluginProvider.post_plugin
+@dataclass
+class EndpointSize(PostPlugin):
+    """
+    接口大小
+    只跟请求量有关
+    """
+
+    id: str = "size"
+    type: GraphPluginType = GraphPluginType.ENDPOINT_UI
+
+    class Size:
+        NO_DATA = 20
+        SMALL = 20
+        MEDIUM = 30
+        LARGE = 36
+
+    def process(self, endpoint_data):
+        caller_value = endpoint_data.get(EndpointRequestCountCaller.id, 0)
+        callee_value = endpoint_data.get(EndpointRequestCountCallee.id, 0)
+        value = caller_value or 0 + callee_value or 0
+
+        if value == 0:
+            endpoint_data[self.id] = self.Size.NO_DATA
+        elif value < 200:
+            endpoint_data[self.id] = self.Size.SMALL
+        elif value < 1000:
+            endpoint_data[self.id] = self.Size.MEDIUM
+        else:
+            endpoint_data[self.id] = self.Size.LARGE
 
 
 @PluginProvider.post_plugin

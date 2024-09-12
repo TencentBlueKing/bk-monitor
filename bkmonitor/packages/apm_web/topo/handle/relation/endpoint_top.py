@@ -34,6 +34,8 @@ class EndpointList:
         self.service_name = service_name
         self.size = size
         self.application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        # 总数据量
+        self.total = 0
 
     @property
     def common_params(self):
@@ -68,7 +70,8 @@ class EndpointList:
         else:
             return {"service_name": self.service_name}
 
-    def fill_endpoints(self, res, endpoint_names):
+    def fill_endpoints(self, endpoints):
+        endpoint_names = [i["name"] for i in endpoints]
 
         node = ServiceHandler.get_node(self.bk_biz_id, self.app_name, self.service_name)
         if ComponentHandler.is_component_by_node(node):
@@ -78,22 +81,24 @@ class EndpointList:
         else:
             service_name = self.service_name
 
-        # 数量可能不够 用接口列表进行凑数
-        endpoints = api.apm_api.query_endpoint(
+        # 数量不够的话用接口列表进行凑数
+        full_endpoints = api.apm_api.query_endpoint(
             **{
                 "bk_biz_id": self.bk_biz_id,
                 "app_name": self.app_name,
                 "service_name": service_name,
             }
         )
-
-        for index, item in enumerate(endpoints, len(res) + 1):
-            if len(res) >= self.size:
+        self.total = len(full_endpoints)
+        for index, item in enumerate(full_endpoints, len(endpoints) + 1):
+            if len(endpoints) >= self.size:
                 break
             if item["endpoint_name"] not in endpoint_names:
-                res.append({"id": index, "name": item["endpoint_name"], "color": NodeColor.Color.GREEN, "value": 0})
+                endpoints.append(
+                    {"id": index, "name": item["endpoint_name"], "color": NodeColor.Color.GREEN, "value": 0}
+                )
 
-        return sorted(res, key=lambda j: j["value"], reverse=True)
+        return sorted(endpoints, key=lambda j: j["value"], reverse=True)
 
 
 class ErrorRateMixin(EndpointList):
@@ -140,8 +145,9 @@ class ErrorRateMixin(EndpointList):
                     "value": error_rate,
                 }
             )
-
-        return sorted(res, key=lambda i: i["value"], reverse=True)[: self.size]
+        res = sorted(res, key=lambda i: i["value"], reverse=True)
+        self.total = len(res)
+        return res[: self.size]
 
     def get_where_kinds(self, call_type):
         node = ServiceHandler.get_node(self.bk_biz_id, self.app_name, self.service_name)
@@ -266,7 +272,9 @@ class ApdexList(EndpointList):
                 return 1
             return 2
 
-        return sorted(res, key=_sort)[: self.size]
+        res = sorted(res, key=_sort)
+        self.total = len(res)
+        return res[: self.size]
 
 
 class AlertList(EndpointList):
@@ -310,7 +318,4 @@ class AlertList(EndpointList):
             )
             endpoint_names.append(item[0])
 
-        if len(res) >= self.size:
-            return res[: self.size]
-
-        return self.fill_endpoints(res, endpoint_names)
+        return res

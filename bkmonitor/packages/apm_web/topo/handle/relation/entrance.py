@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from typing import List, Tuple
 
 from apm_web.topo.constants import BarChartDataType, RelationResourcePathType
-from apm_web.topo.handle.graph_plugin import EndpointTips, PluginProvider
+from apm_web.topo.handle.graph_plugin import PluginProvider
 from apm_web.topo.handle.relation.define import Node, TreeInfo
 from apm_web.topo.handle.relation.endpoint_top import (
     AlertList,
@@ -140,8 +140,15 @@ class EndpointListEntrance:
         )
 
         endpoints = handler.list()
+        if len(endpoints) < size:
+            # 补充额外的接口
+            endpoints = handler.fill_endpoints(endpoints)
+
         # 只获取列表中的接口 避免查询全部接口的数据
         endpoint_names = [i["name"] for i in endpoints]
+
+        if not endpoints:
+            return {"total": 0, "endpoints": []}
 
         # 补充指标数据
         plugins = PluginProvider.endpoint_plugins(
@@ -160,9 +167,11 @@ class EndpointListEntrance:
         for r in results:
             endpoint_metrics = merge_dicts(endpoint_metrics, r)
 
+        # 执行 UI 插件
+        endpoint_post_plugins = PluginProvider.list_endpoint_post_plugin({})
         for e in endpoints:
-            e_metrics = endpoint_metrics.get((e["name"],), {})
-            EndpointTips().process(e_metrics)
-            e.update(e_metrics)
+            e.update(endpoint_metrics.get((e["name"],), {}))
+            for p in endpoint_post_plugins:
+                p.process(e)
 
-        return endpoints
+        return {"total": handler.total, "endpoints": endpoints}
