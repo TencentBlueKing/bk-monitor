@@ -72,6 +72,9 @@
       refPopInstance.value?.afterHideFn?.();
       isOptionShowing.value = false;
 
+      inputValue.value = '';
+      handleInputBlur();
+
       delayItemClickFn?.();
       delayItemClickFn = undefined;
     },
@@ -171,8 +174,10 @@
   };
 
   const handleFullTextInputBlur = e => {
-    inputValue.value = '';
-    handleInputBlur(e);
+    if (!getTippyInstance()?.state?.isShown) {
+      inputValue.value = '';
+      handleInputBlur(e);
+    }
   };
 
   const handleCancelClick = () => {

@@ -103,7 +103,7 @@
   };
 
   const handleInputDelete = () => {
-    if (!inputValue.value.length && modelValue.value.length === 2) {
+    if (!inputValue.value.length && modelValue.value.length === 1) {
       const result = modelValue.value[0].slice(0, -1);
       modelValue.value.splice(0, 1, result);
       emit('input', [modelValue.value[0]]);
