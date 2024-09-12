@@ -114,11 +114,12 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         # 获取全量的插件数据（包含外键数据）
         all_versions = (
             PluginVersionHistory.objects.exclude(plugin__plugin_type__in=CollectorPluginMeta.VIRTUAL_PLUGIN_TYPE)
-            .select_related("plugin", "config", "info")
+            .select_related("plugin", "info")
             .prefetch_related(
                 Prefetch("plugin__versions", queryset=PluginVersionHistory.objects.defer("signature")),
                 Prefetch("plugin__collect_configs", queryset=CollectConfigMeta.objects.defer("cache_data")),
             )
+            .defer("info__metric_json", "info__description_md")
         )
         if bk_biz_id:
             all_versions = all_versions.filter(plugin__bk_biz_id__in=[0, bk_biz_id])
