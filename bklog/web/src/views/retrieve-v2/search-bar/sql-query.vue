@@ -89,17 +89,21 @@
     });
   };
 
+  const isOptionKeyEnter = ref(false);
   const handleQueryChange = value => {
-    while (modelValue.value.length > 0) {
-      modelValue.value.shift();
-    }
+    if (modelValue.value[0] !== value) {
+      isOptionKeyEnter.value = true;
+      while (modelValue.value.length > 0) {
+        modelValue.value.shift();
+      }
 
-    modelValue.value.unshift(value);
-    emit('input', [modelValue.value[0]]);
-    inputValue.value = '';
-    nextTick(() => {
-      handleContainerClick();
-    });
+      modelValue.value.unshift(value);
+      emit('input', [modelValue.value[0]]);
+      inputValue.value = '';
+      nextTick(() => {
+        handleContainerClick();
+      });
+    }
   };
 
   const handleInputDelete = () => {
@@ -114,7 +118,19 @@
     getTippyInstance()?.hide();
     handleContainerClick();
   };
-  const hadnleRetrieve = () => {};
+
+  const handleKeyEnterUp = e => {
+    if (!e.target?.value) {
+      if (isOptionKeyEnter.value) {
+        isOptionKeyEnter.value = false;
+        return;
+      }
+      emit('retrieve');
+    }
+  };
+  const hadnleRetrieve = () => {
+    // emit('retrieve');
+  };
 </script>
 <template>
   <ul
@@ -136,6 +152,7 @@
         @blur="handleTextInputBlur"
         @focus.stop="handleFocusInput"
         @keydown.delete="handleInputDelete"
+        @keyup.enter="handleKeyEnterUp"
       />
     </li>
     <div style="display: none">
