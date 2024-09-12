@@ -509,13 +509,9 @@
               match_labels: [],
               match_expressions: [],
             }),
-            annotation_selector: this.getLabelSelectorQueryParams(
-              config.annotationSelector,
-              {
-                match_annotations: [],
-              },
-              true,
-            ),
+            annotation_selector: this.getLabelSelectorQueryParams(config.annotationSelector, {
+              match_annotations: [],
+            }),
             container: {
               workload_type: workloadType,
               workload_name: workloadName,
@@ -530,13 +526,9 @@
        * @param {Object} labelSelector 主页展示用的label_selector
        * @returns {Object} 返回传参用的label_selector
        */
-      getLabelSelectorQueryParams(labelSelector, preParams, isArray = false) {
+      getLabelSelectorQueryParams(labelSelector, preParams) {
         return labelSelector.reduce((pre, cur) => {
-          const value = ['NotIn', 'In'].includes(cur.operator)
-            ? isArray
-              ? cur.value.split(',')
-              : `(${cur.value})`
-            : cur.value;
+          const value = ['NotIn', 'In'].includes(cur.operator) ? `(${cur.value})` : cur.value;
           pre[cur.type].push({
             key: cur.key,
             operator: cur.operator,
