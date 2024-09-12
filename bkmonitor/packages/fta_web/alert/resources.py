@@ -655,32 +655,37 @@ class AlertRelatedInfoResource(Resource):
         for alert in alerts:
             event = alert.event
             dimensions_dict = {d["key"]: d["value"] for d in alert.dimensions}
-            if event.target_type == EventTargetType.HOST:
-                if hasattr(event, "bk_host_id"):
-                    instances_by_biz[event.bk_biz_id]["host_ids"][alert.id] = int(event.bk_host_id)
-                else:
-                    instances_by_biz[event.bk_biz_id]["ips"][alert.id] = {
-                        "ip": event.ip,
-                        "bk_cloud_id": int(event.bk_cloud_id),
-                    }
-                related_infos[alert.id]["ip"] = event.ip
-                related_infos[alert.id]["bk_cloud_id"] = getattr(event, "bk_cloud_id", "")
-                related_infos[alert.id]["type"] = "host"
-            elif dimensions_dict.get("ip"):
-                bk_cloud_id = dimensions_dict.get("bk_cloud_id", 0)
-                if dimensions_dict.get("bk_host_id"):
-                    instances_by_biz[event.bk_biz_id]["host_ids"][alert.id] = int(dimensions_dict["bk_host_id"])
-                else:
-                    instances_by_biz[event.bk_biz_id]["ips"][alert.id] = {
-                        "ip": dimensions_dict["ip"],
-                        "bk_cloud_id": bk_cloud_id,
-                    }
+            if not dimensions_dict:
+                continue
+            try:
+                if event.target_type == EventTargetType.HOST:
+                    if hasattr(event, "bk_host_id"):
+                        instances_by_biz[event.bk_biz_id]["host_ids"][alert.id] = int(event.bk_host_id)
+                    else:
+                        instances_by_biz[event.bk_biz_id]["ips"][alert.id] = {
+                            "ip": event.ip,
+                            "bk_cloud_id": int(event.bk_cloud_id),
+                        }
+                    related_infos[alert.id]["ip"] = event.ip
+                    related_infos[alert.id]["bk_cloud_id"] = getattr(event, "bk_cloud_id", "")
+                    related_infos[alert.id]["type"] = "host"
+                elif dimensions_dict.get("ip"):
+                    bk_cloud_id = dimensions_dict.get("bk_cloud_id", 0)
+                    if dimensions_dict.get("bk_host_id"):
+                        instances_by_biz[event.bk_biz_id]["host_ids"][alert.id] = int(dimensions_dict["bk_host_id"])
+                    else:
+                        instances_by_biz[event.bk_biz_id]["ips"][alert.id] = {
+                            "ip": dimensions_dict["ip"],
+                            "bk_cloud_id": bk_cloud_id,
+                        }
 
-                related_infos[alert.id]["ip"] = dimensions_dict["ip"]
-                related_infos[alert.id]["bk_cloud_id"] = bk_cloud_id
-                related_infos[alert.id]["type"] = dimensions_dict.get("target_type", "")
-            elif event.target_type == EventTargetType.SERVICE:
-                instances_by_biz[event.bk_biz_id]["service_instance_ids"][alert.id] = event.bk_service_instance_id
+                    related_infos[alert.id]["ip"] = dimensions_dict["ip"]
+                    related_infos[alert.id]["bk_cloud_id"] = bk_cloud_id
+                    related_infos[alert.id]["type"] = dimensions_dict.get("target_type", "")
+                elif event.target_type == EventTargetType.SERVICE:
+                    instances_by_biz[event.bk_biz_id]["service_instance_ids"][alert.id] = event.bk_service_instance_id
+            except AttributeError:
+                continue
 
         set_template = _("集群({}) ")
         module_template = _("模块({})")
@@ -1893,9 +1898,9 @@ class SearchAlertByEventResource(Resource):
             "id": event.id,
             "event_id": event.event_id,
             "create_time": utc2localtime(event.create_time),
-            "ip": event.ip,
+            "ip": getattr(event, "ip", ""),
             "bk_biz_id": event.bk_biz_id,
-            "bk_cloud_id": event.bk_cloud_id,
+            "bk_cloud_id": getattr(event, "bk_cloud_id", ""),
             "target_type": event.target_type,
             "target": event.target,
         }
