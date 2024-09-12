@@ -1129,7 +1129,11 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
                         onClick={() => this.handleDrillingNodeClick(item)}
                       >
                         <div
-                          style={{ 'border-color': item.color }}
+                          style={{
+                            'border-color': item.color,
+                            width: `${item.size * 2}px`,
+                            height: `${item.size * 2}px`,
+                          }}
                           class={{
                             node: true,
                             active: this.drillingNodeActive === item.name,
