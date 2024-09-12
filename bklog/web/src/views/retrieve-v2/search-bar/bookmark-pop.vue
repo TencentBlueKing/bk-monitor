@@ -15,13 +15,12 @@
   // 用于展示索引集
   // 这里返回数组，展示 index_set_name 字段
   const indexSetItemList = computed(() => store.state.indexItem.items);
-  const collectGroupList = computed(() => [{ id: 'group1', name: '分组1' }]);
+
+  // 数据格式: [{ group_id: '', group_name: '', group_type: '' }]
+  const collectGroupList = computed(() => store.state.favoriteList);
 
   // 新建提交逻辑
-  const handleCreateRequest = () => {
-
-  }
-
+  const handleCreateRequest = () => {};
 </script>
 <template>
   <span class="disabled bklog-icon bklog-star-line"></span>

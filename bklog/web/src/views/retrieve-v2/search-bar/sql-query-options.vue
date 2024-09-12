@@ -113,7 +113,6 @@
     if (Array.isArray(param)) {
       activeType.value.push(...param);
     }
-    console.log(activeType.value);
 
     activeIndex.value = 0;
   };

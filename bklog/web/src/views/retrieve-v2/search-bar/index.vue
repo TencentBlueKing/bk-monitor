@@ -158,7 +158,7 @@
           class="bklog-icon bklog-brush"
           @click="handleClearBtnClick"
         ></span>
-        <BookmarkPop></BookmarkPop>
+        <BookmarkPop :sql="sqlQueryValue[0]"></BookmarkPop>
         <span class="disabled bklog-icon bklog-set-icon"></span>
       </div>
       <div
