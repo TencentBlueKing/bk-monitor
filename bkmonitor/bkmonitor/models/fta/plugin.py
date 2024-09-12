@@ -13,7 +13,7 @@ import base64
 from django.db import models
 from django.utils.functional import cached_property
 
-from bkmonitor.commons.storage import BKCacheRepoStorage
+from bkmonitor.commons.storage import get_default_image_storage
 from bkmonitor.models.fta.constant import (
     PluginMainType,
     PluginStatus,
@@ -36,7 +36,7 @@ class EventPluginBaseModel(AbstractRecordModel):
     description = models.TextField("详细描述，markdown文本", default="", blank=True)
     tutorial = models.TextField("配置向导，markdown文本", default="", blank=True)
 
-    logo = models.ImageField("logo文件", null=True, storage=BKCacheRepoStorage)
+    logo = models.ImageField("logo文件", null=True, storage=get_default_image_storage())
 
     package_dir = models.TextField("包路径", default="", blank=True)
 
