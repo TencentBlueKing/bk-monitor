@@ -88,7 +88,6 @@
     indexSetParams,
     () => {
       setRouteParams();
-      store.commit('retrieve/updateChartKey');
     },
     { deep: true },
   );
@@ -97,6 +96,7 @@
     requestIndexSetFieldParams,
     (val, oldValue) => {
       if (!isEqual(val, oldValue ?? {})) {
+        store.commit('retrieve/updateChartKey');
         store.dispatch('requestIndexSetFieldInfo');
       }
     },
