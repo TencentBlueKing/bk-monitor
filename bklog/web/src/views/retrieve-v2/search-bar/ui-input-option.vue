@@ -248,7 +248,7 @@
         };
 
     // 如果是空操作符禁止提交
-    if (result && !result.condition.value.operator) {
+    if (result && !result.operator) {
       return;
     }
 
@@ -549,7 +549,10 @@
   const handleUiValueOptionClick = option => {
     if (condition.value.operator !== option.operator) {
       condition.value.operator = option.operator;
+      condition.value.value.length = 0;
+      condition.value.value = [];
     }
+
     operatorInstance.hide();
     afterOperatorValueEnter();
   };

@@ -134,7 +134,6 @@ export default (
     props,
     () => {
       setModelValue(props.value);
-      // setFocusInputItem();
     },
     { deep: true, immediate: true },
   );

@@ -18,7 +18,7 @@
   const btnQuery = $t('查询');
   const activeIndex = ref(1);
 
-  const searchItemList = ref([]);
+  const uiQueryValue = ref([]);
   const sqlQueryValue = ref([]);
 
   const indexItem = computed(() => store.state.indexItem);
@@ -46,8 +46,8 @@
   watch(
     addition,
     () => {
-      searchItemList.value.splice(0);
-      searchItemList.value.push(...addition.value);
+      uiQueryValue.value.splice(0);
+      uiQueryValue.value.push(...addition.value);
     },
     { immediate: true, deep: true },
   );
@@ -67,7 +67,7 @@
 
   const handleBtnQueryClick = () => {
     store.commit('updateIndexItemParams', {
-      addition: searchItemList.value.filter(val => !val.is_focus_input),
+      addition: uiQueryValue.value.filter(val => !val.is_focus_input),
       keyword: sqlQueryValue.value[0] ?? '*',
     });
 
@@ -111,7 +111,7 @@
 
   const handleClearBtnClick = () => {
     sqlQueryValue.value.splice(0);
-    searchItemList.value.splice(0);
+    uiQueryValue.value.splice(0);
     handleBtnQueryClick();
   };
 
@@ -145,7 +145,7 @@
     >
       <UiInput
         v-if="activeIndex === 0"
-        v-model="searchItemList"
+        v-model="uiQueryValue"
         @change="handleQueryChange"
       ></UiInput>
       <SqlQuery
