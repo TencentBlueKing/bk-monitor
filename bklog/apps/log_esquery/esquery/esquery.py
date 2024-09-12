@@ -186,7 +186,6 @@ class EsQuery(object):
             search_after=search_after,
             use_time_range=use_time_range,
             mappings=mappings,
-            fields_list=["*", "__*"],
         ).body
 
         if self.search_dict.get("origin_query_string") and self.search_dict["origin_query_string"].strip(
