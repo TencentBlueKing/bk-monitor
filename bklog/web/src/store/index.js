@@ -90,6 +90,10 @@ const store = new Vuex.Store({
     unionIndexList: [],
     /** 联合查询元素列表 */
     unionIndexItemList: [],
+
+    // 收藏列表
+    favoriteList: [],
+
     /** 索引集对应的字段列表信息 */
     // @ts-ignore
     indexFieldInfo: { ...IndexFieldInfo },
@@ -235,6 +239,11 @@ const store = new Vuex.Store({
   },
   // 公共 mutations
   mutations: {
+    updateFavoriteList(state, payload) {
+      state.favoriteList.length = 0;
+      state.favoriteList = [];
+      state.favoriteList.push(...(payload ?? []));
+    },
     updateIndexItem(state, payload) {
       if (payload?.addition?.length >= 0) {
         state.indexItem.addition.splice(0, state.indexItem.addition.length, ...payload?.addition);
@@ -1024,6 +1033,19 @@ const store = new Vuex.Store({
 
       http.request(urlStr, body).then(resp => {
         commit('updateIndexFieldInfo', { aggs_items: resp.data.aggs_items });
+      });
+    },
+
+    requestFavoriteList({ commit, state }, payload) {
+      commit('updateFavoriteList', []);
+      http.request('favorite/getFavoriteByGroupList', {
+        query: {
+          space_uid: payload?.spaceUid ?? state.spaceUid,
+          order_type: payload?.sort ?? (localStorage.getItem('favoriteSortType') || 'NAME_ASC'),
+        },
+      }).then(resp => {
+        commit('updateFavoriteList', resp.data || []);
+        return resp;
       });
     },
 
