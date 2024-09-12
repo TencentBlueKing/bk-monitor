@@ -78,6 +78,7 @@
 <script>
   import ChartTitle from '@/components/monitor-echarts/components/chart-title-new.vue';
   import MonitorEcharts from '@/components/monitor-echarts/monitor-echarts-new';
+  import { handleTransformToTimestamp } from '@/components/time-range/utils';
   import indexSetSearchMixin from '@/mixins/indexSet-search-mixin';
   import axios from 'axios';
   import { debounce } from 'throttle-debounce';
@@ -149,7 +150,7 @@
         return this.$store.state.indexItem.items[0];
       },
       datePickerValue() {
-        return [this.$store.state.indexItem.start_time, this.$store.state.indexItem.end_time];
+        return this.$store.state.indexItem.datePickerValue;
       },
       chartKey() {
         this.getInterval();
@@ -241,7 +242,8 @@
           // !this.isFrontStatistics && this.getInfoTotalNum();
           this.totalCount = 0;
           // 框选时间范围
-          window.bus.$emit('changeTimeByChart', [startTime, endTime], 'customized');
+          this.changeTimeByChart([startTime, endTime]);
+          return;
         }
 
         // 轮循结束
@@ -353,21 +355,17 @@
       },
       // 双击回到初始化时间范围
       handleDbClick() {
-        const { cacheDatePickerValue, cacheTimeRange } = this.$store.state.retrieve;
+        const { cacheDatePickerValue } = this.$store.state.retrieve;
 
         if (this.timeRange.length) {
           this.timeRange = [];
           setTimeout(() => {
-            window.bus.$emit('changeTimeByChart', cacheDatePickerValue, cacheTimeRange);
-            this.finishPolling = true;
-            this.totalCount = 0;
-            // !this.isFrontStatistics && this.getInfoTotalNum();
             this.$refs.chartRef.handleCloseTimer();
-            setTimeout(() => {
-              this.finishPolling = false;
-              this.isStart = false;
-              this.$store.commit('retrieve/updateChartKey');
-            }, 100);
+            this.totalCount = 0;
+            this.finishPolling = false;
+            this.isStart = false;
+            this.changeTimeByChart(cacheDatePickerValue);
+            // !this.isFrontStatistics && this.getInfoTotalNum();
           }, 100);
         }
       },
@@ -376,6 +374,18 @@
         localStorage.setItem('chartIsFold', isFold);
         this.$refs.chartRef?.handleToggleExpand(isFold);
         this.$emit('toggle-change', !isFold);
+        if (!isFold && !this.optionData.length) {
+          this.$store.commit('retrieve/updateChartKey');
+        }
+      },
+      changeTimeByChart(datePickerValue) {
+        const tempList = handleTransformToTimestamp(datePickerValue);
+        this.$store.commit('updateIndexItemParams', {
+          datePickerValue,
+          start_time: tempList[0],
+          end_time: tempList[1],
+        });
+        this.$store.dispatch('requestIndexSetQuery');
       },
       handleMoreToolItemSet(event) {
         this.$refs.chartRef.handleMoreToolItemSet(event);
