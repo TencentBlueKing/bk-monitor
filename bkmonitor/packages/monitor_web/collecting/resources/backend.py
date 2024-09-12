@@ -368,7 +368,8 @@ class CollectConfigDetailResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=True, label="采集配置ID")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        id = serializers.IntegerField(label="采集配置ID")
 
     @staticmethod
     def password_convert(collect_config_meta):
@@ -388,9 +389,12 @@ class CollectConfigDetailResource(Resource):
                 params[item["mode"]][item["name"]] = bool(value)
 
     def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
         config_id = validated_request_data["id"]
         try:
-            collect_config_meta = CollectConfigMeta.objects.select_related("deployment_config").get(id=config_id)
+            collect_config_meta = CollectConfigMeta.objects.select_related("deployment_config").get(
+                id=config_id, bk_biz_id=bk_biz_id
+            )
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": config_id})
 
@@ -485,12 +489,7 @@ class RenameCollectConfigResource(Resource):
         name = serializers.CharField(required=True, label="名称")
 
     def perform_request(self, data):
-        try:
-            collect_config = CollectConfigMeta.objects.get(id=data["id"])
-        except CollectConfigMeta.DoesNotExist:
-            raise CollectConfigNotExist({"msg": data["id"]})
-        collect_config.name = data["name"]
-        collect_config.save()
+        CollectConfigMeta.objects.update(id=data["id"], name=data["name"])
         return "success"
 
 

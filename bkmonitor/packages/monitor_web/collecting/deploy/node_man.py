@@ -427,7 +427,7 @@ class NodeManInstaller(BaseInstaller):
         subscription_params = self._get_deploy_params(self.collect_config.deployment_config)
         result = api.node_man.run_subscription(
             subscription_id=subscription_id,
-            actions=[{step["id"]: "STOP"} for step in subscription_params["steps"]],
+            actions={step["id"]: "STOP" for step in subscription_params["steps"]},
         )
 
         # 更新采集配置及部署记录
@@ -464,7 +464,7 @@ class NodeManInstaller(BaseInstaller):
         subscription_params = self._get_deploy_params(self.collect_config.deployment_config)
         result = api.node_man.run_subscription(
             subscription_id=subscription_id,
-            actions=[{step["id"]: "START"} for step in subscription_params["steps"]],
+            actions={step["id"]: "START" for step in subscription_params["steps"]},
         )
 
         # 更新采集配置及部署记录
