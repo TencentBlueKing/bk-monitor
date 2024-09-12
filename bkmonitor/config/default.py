@@ -1065,10 +1065,14 @@ BK_IAM_SAAS_HOST = os.getenv("BK_IAM_SITE_URL") or get_service_url(BK_IAM_APP_CO
 
 # 文档中心地址
 BK_DOCS_SITE_URL = os.getenv("BK_DOCS_SITE_URL") or get_service_url("bk_docs_center", bk_paas_host=BK_PAAS_HOST)
+if not BK_DOCS_SITE_URL.endswith("/"):
+    BK_DOCS_SITE_URL += "/"
+
+# 文档中心地址
 DOC_HOST = "https://bk.tencent.com/docs/"
 
 # 版本差异变量
-if PLATFORM == "community":
+if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
     BK_DOCS_SITE_URL = DOC_HOST
 
 # monitor api base url:
