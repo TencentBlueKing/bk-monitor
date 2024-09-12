@@ -910,7 +910,7 @@ const store = new Vuex.Store({
       };
       if (state.isExternal) {
         params.headers = {
-          'X-Bk-Space-Uid': this.spaceUid,
+          'X-Bk-Space-Uid': state.spaceUid,
         };
       }
 
@@ -1018,7 +1018,7 @@ const store = new Vuex.Store({
 
       if (state.isUnionSearch) {
         Object.assign(queryData, {
-          index_set_ids: this.unionIndexList,
+          index_set_ids: state.unionIndexList,
         });
       }
 
@@ -1038,15 +1038,83 @@ const store = new Vuex.Store({
 
     requestFavoriteList({ commit, state }, payload) {
       commit('updateFavoriteList', []);
-      http.request('favorite/getFavoriteByGroupList', {
-        query: {
-          space_uid: payload?.spaceUid ?? state.spaceUid,
-          order_type: payload?.sort ?? (localStorage.getItem('favoriteSortType') || 'NAME_ASC'),
-        },
-      }).then(resp => {
-        commit('updateFavoriteList', resp.data || []);
-        return resp;
-      });
+      http
+        .request('favorite/getFavoriteByGroupList', {
+          query: {
+            space_uid: payload?.spaceUid ?? state.spaceUid,
+            order_type: payload?.sort ?? (localStorage.getItem('favoriteSortType') || 'NAME_ASC'),
+          },
+        })
+        .then(resp => {
+          commit('updateFavoriteList', resp.data || []);
+          return resp;
+        });
+    },
+
+    /**
+     * 下钻添加条件到查询搜索
+     * @param {*} param0
+     * @param {*} payload
+     * @returns
+     */
+    setQueryCondition({ state, dispatch }, payload) {
+      const { field, operator, value, isLink = false } = payload;
+      const getFieldType = field => {
+        const target = state.indexFieldInfo.fields?.find(item => item.field_name === field);
+        return target ? target.field_type : '';
+      };
+
+      const getAdditionMappingOperator = ({ operator, field }) => {
+        let mappingKey = {
+          // is is not 值映射
+          is: '=',
+          'is not': '!=',
+        };
+
+        /** text类型字段类型的下钻映射 */
+        const textMappingKey = {
+          is: 'contains match phrase',
+          'is not': 'not contains match phrase',
+        };
+
+        const textType = getFieldType(field);
+        switch (textType) {
+          case 'text':
+            mappingKey = textMappingKey;
+            break;
+          default:
+            break;
+        }
+        return mappingKey[operator] ?? operator; // is is not 值映射
+      };
+
+      /** 判断条件是否已经在检索内 */
+      const additionIsExist = ({ field, value }) => {
+        const mapOperator = getAdditionMappingOperator({ field, value });
+        const isExist = state.indexItem.addition.some(addition => {
+          return (
+            addition.field === field &&
+            addition.operator === mapOperator &&
+            addition.value.toString() === value.toString()
+          );
+        });
+        return isExist;
+      };
+
+      const isExist = additionIsExist({ field, operator, value });
+      // 已存在相同条件
+      if (isExist) {
+        return;
+      }
+      const mapOperator = getAdditionMappingOperator({ field, operator });
+      const startIndex = state.indexItem.addition.length;
+      const newAddition = { field, operator: mapOperator, value };
+      if (!isLink) {
+        state.indexItem.addition.splice(startIndex, 0, newAddition);
+        dispatch('requestIndexSetQuery');
+      }
+
+      return Promise.resolve(newAddition);
     },
 
     changeShowUnionSource({ commit, dispatch, state }) {
