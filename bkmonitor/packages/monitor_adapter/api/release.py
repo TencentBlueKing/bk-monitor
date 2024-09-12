@@ -9,15 +9,25 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from blueapps.account.decorators import login_exempt
+from django.http import HttpResponse
 
-from django.conf.urls import url
+from core.drf_resource import resource
 
-from monitor_adapter.api import signature, status, views
 
-urlpatterns = [
-    url(r"^api/signature.png$", signature.signature),
-    url(r"^api/status/settings/$", status.status_settings),
-    url(r"^VERSION/$", views.version_info),
-    url(r"^api/pre-release/$", status.status_settings),
-    url(r"^api/post-release/$", status.status_settings),
-]
+@login_exempt
+def pre_release(request):
+    token = getattr(request, "token", None)
+    if not token:
+        return HttpResponse("no auth", status=401)
+    resource.commons.pre_hook()
+    return HttpResponse("pre-hook success", content_type='text/plain')
+
+
+@login_exempt
+def post_release(request):
+    token = getattr(request, "token", None)
+    if not token:
+        return HttpResponse("no auth", status=401)
+    resource.commons.post_hook()
+    return HttpResponse("post-hook success", content_type='text/plain')

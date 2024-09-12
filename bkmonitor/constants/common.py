@@ -102,3 +102,9 @@ class IsoWeekDay:
 
 class MonthDay:
     MONTH_DAY_RANGE = list(range(1, 32))
+
+
+class ReleaseStatus:
+    DEPLOYING = "deploying"
+    SUCCESS = "success"
+    FAILED = "failed"
