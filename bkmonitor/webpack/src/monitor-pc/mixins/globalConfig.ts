@@ -47,6 +47,6 @@ export default class GlobalConfigMixin extends Vue {
     } catch {
       console.error('parse global config error');
     }
-    return undefined;
+    return [];
   }
 }
