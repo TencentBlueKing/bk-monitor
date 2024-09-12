@@ -10,6 +10,7 @@
   import SqlQuery from './sql-query';
   import TimeSetting from './time-setting';
   import UiInput from './ui-input';
+  import BookmarkPop from './bookmark-pop';
 
   const store = useStore();
   const { $t } = useLocale();
@@ -157,7 +158,7 @@
           class="bklog-icon bklog-brush"
           @click="handleClearBtnClick"
         ></span>
-        <span class="disabled bklog-icon bklog-star-line"></span>
+        <BookmarkPop></BookmarkPop>
         <span class="disabled bklog-icon bklog-set-icon"></span>
       </div>
       <div
