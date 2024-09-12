@@ -54,6 +54,7 @@
       .name {
         display: block;
         width: 100%;
+        padding: 0 12px;
         overflow: hidden;
         font-size: 12px;
         font-weight: 700;
@@ -93,7 +94,7 @@
       }
 
       .node-list {
-        padding: 16px 0 22px 0;
+        padding-top: 16px;
         background: #ecedf2;
         border-radius: 0 0 8px 8px;
 
@@ -152,6 +153,37 @@
             transform: translateY(-5px);
           }
         }
+
+        .footer {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 24px;
+
+          &.has-more {
+            margin-top: 10px;
+            cursor: pointer;
+          }
+
+          &:hover {
+            .more-icon .dot {
+              background: #3a84ff;
+            }
+          }
+
+          .more-icon {
+            display: flex;
+            justify-content: space-between;
+            width: 14.25px;
+
+            .dot {
+              width: 3px;
+              height: 3px;
+              background: #979ba5;
+              border-radius: 50%;
+            }
+          }
+        }
       }
 
       .drilling-loading {
@@ -170,6 +202,7 @@
         .empty-text-content,
         .empty-text {
           margin: 0;
+          font-size: 12px;
         }
       }
     }

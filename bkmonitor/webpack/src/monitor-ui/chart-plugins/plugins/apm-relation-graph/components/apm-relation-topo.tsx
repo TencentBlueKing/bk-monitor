@@ -25,7 +25,7 @@
  */
 
 // import Vue from 'vue';
-import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import G6, { type IGroup, type ModelConfig, type Graph, type INode, type IEdge, type IShape } from '@antv/g6';
@@ -124,6 +124,10 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   @Prop() dataType: string;
 
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
+  @Inject('handlePageTabChange') handlePageTabChange: (
+    id: string,
+    customRouterQuery: Record<string, number | string>
+  ) => void;
 
   @Ref('relationGraph') relationGraphRef: HTMLDivElement;
   @Ref('topoToolsPanel') topoToolsPanelRef: HTMLDivElement;
@@ -200,6 +204,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     isDrilling: false,
     nodeModel: null,
     drillingList: [],
+    drillingTotal: 0,
   };
 
   layout = null;
@@ -650,14 +655,19 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   }
 
   showMenu(x: number, y: number, item: INode) {
+    const model = item.getModel();
+    if (model.id !== this.menuCfg.nodeModel?.id) {
+      this.drillingNodeActive = '';
+    }
     this.menuCfg = {
       show: true,
       x,
       y,
       drillingLoading: true,
-      nodeModel: item.getModel(),
+      nodeModel: model,
       isDrilling: false,
       drillingList: [],
+      drillingTotal: 0,
     };
     this.$nextTick(() => {
       const { width: graphWidth } = this.relationGraphRef.getBoundingClientRect();
@@ -681,6 +691,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       drillingLoading: true,
       isDrilling: false,
       drillingList: [],
+      drillingTotal: 0,
     };
     document.body.removeEventListener('click', this.hideMenu);
   }
@@ -989,14 +1000,20 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     this.menuCfg.isDrilling = true;
     this.menuCfg.drillingLoading = true;
-    this.menuCfg.drillingList = await nodeEndpointsTop({
+    const { total, endpoints } = await nodeEndpointsTop({
       app_name: this.appName,
       start_time: startTime,
       end_time: endTime,
       node_name: nodeName,
       data_type: this.dataType,
-    }).catch(() => []);
+    }).catch(() => ({ total: 0, endpoints: [] }));
+    this.menuCfg.drillingList = endpoints;
+    this.menuCfg.drillingTotal = total;
     this.menuCfg.drillingLoading = false;
+  }
+
+  handleJumpToInterface() {
+    this.handlePageTabChange('endpoint', {});
   }
 
   reset() {
@@ -1112,7 +1129,11 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
                         onClick={() => this.handleDrillingNodeClick(item)}
                       >
                         <div
-                          style={{ 'border-color': item.color }}
+                          style={{
+                            'border-color': item.color,
+                            width: `${item.size * 2}px`,
+                            height: `${item.size * 2}px`,
+                          }}
                           class={{
                             node: true,
                             active: this.drillingNodeActive === item.name,
@@ -1131,9 +1152,27 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
                   ) : (
                     <EmptyStatus
                       class='drilling-node-empty'
+                      textMap={{
+                        empty: this.$t('暂无接口'),
+                      }}
                       type='empty'
                     />
                   )}
+                  <li
+                    class={{
+                      footer: true,
+                      'has-more': this.menuCfg.drillingTotal > 5,
+                    }}
+                    onClick={this.handleJumpToInterface}
+                  >
+                    {this.menuCfg.drillingTotal > 5 && (
+                      <li class='more-icon'>
+                        <div class='dot' />
+                        <div class='dot' />
+                        <div class='dot' />
+                      </li>
+                    )}
+                  </li>
                 </ul>
               )}
             </div>
