@@ -341,7 +341,7 @@ class CustomProgressTableFormat(TableFormat):
         if not isinstance(value, dict):
             # 兼容概览列数据格式
             return {
-                "value": value if not self.max_if_overview else 100,
+                "value": (value if not self.max_if_overview else 100) if value else None,
                 "label": self.label_calculator(value) if self.label_calculator else value,
                 "status": self.color_getter(value) if self.color_getter else None,
             }
