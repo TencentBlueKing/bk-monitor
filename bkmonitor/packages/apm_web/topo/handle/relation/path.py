@@ -18,7 +18,6 @@ from django.utils.translation import ugettext_lazy as _
 from apm_web.constants import CategoryEnum
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.topo.constants import RelationResourcePath
-from apm_web.topo.handle.graph_plugin import NodeColor
 from apm_web.topo.handle.relation.define import (
     Node,
     Source,
@@ -266,17 +265,13 @@ class PathTemplateSidebar:
                         **i.info,
                         "sidebar_id": self.id,
                         "collapses": [],
-                        "color": NodeColor.Color.WHITE,
                         "category": node.get("extra_data", {}).get("category") if node else CategoryEnum.OTHER,
                         "status": "normal",
                     }
                 )
         else:
             # 其他类型不需要进行合并
-            r_nodes = [
-                {**i.info, "sidebar_id": self.id, "collapses": [], "color": NodeColor.Color.WHITE, "status": "normal"}
-                for i in nodes
-            ]
+            r_nodes = [{**i.info, "sidebar_id": self.id, "collapses": [], "status": "normal"} for i in nodes]
 
         return r_nodes
 
@@ -303,9 +298,7 @@ class PathTemplateSidebar:
         res = []
         # 异常节点不需要折叠
         for n in error_nodes:
-            res.append(
-                {**n.info, "sidebar_id": self.id, "collapses": [], "color": NodeColor.Color.RED, "status": "abnormal"}
-            )
+            res.append({**n.info, "sidebar_id": self.id, "collapses": [], "status": "abnormal"})
         # 正常节点折叠
         if normal_nodes:
             # 页面显示为第一个节点
@@ -314,10 +307,9 @@ class PathTemplateSidebar:
                 {
                     **first.info,
                     "sidebar_id": self.id,
-                    "collapses": [{**n.info, "color": NodeColor.Color.GREEN, "status": "normal"} for n in normal_nodes]
+                    "collapses": [{**n.info, "status": "normal"} for n in normal_nodes]
                     if len(normal_nodes) > 1
                     else [],
-                    "color": NodeColor.Color.GREEN,
                     "status": "normal",
                 }
             )

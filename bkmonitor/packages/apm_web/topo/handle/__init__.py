@@ -27,8 +27,11 @@ class BaseQuery:
         self.application = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get()
         self.metrics_table = self.application.metric_result_table_id
 
-    def get_metric(self, metric_clz: Type[MetricHandler], **kwargs):
-        return metric_clz(**self.common_params(), **kwargs)
+    def get_metric(self, metric_clz: Type[MetricHandler], params=None, **kwargs):
+        if not params:
+            params = self.common_params()
+
+        return metric_clz(**params, **kwargs)
 
     def common_params(self, **kwargs):
         return {

@@ -56,7 +56,7 @@ class TopoViewResource(Resource):
             "bk_biz_id": validated_data["bk_biz_id"],
             "app_name": validated_data["app_name"],
             "service_name": validated_data.get("service_name"),
-            "data_type": validated_data["data_type"],
+            "data_type": validated_data.get("data_type"),
         }
 
         # 时间范围 与 数据时间

@@ -1485,33 +1485,49 @@ class NodeMenu(PostPlugin):
                     "name": _("资源拓扑"),
                     "action": "resource_drilling",
                 },
-                {
-                    "name": _("查看日志"),
-                    "action": "self",
-                    "type": "link",
-                    "url": LinkHelper.get_service_log_tab_link(
-                        self._runtime["application"].bk_biz_id,
-                        self._runtime["application"].app_name,
-                        node_name,
-                        self._runtime["start_time"],
-                        self._runtime["end_time"],
-                        views=self.views,
-                    ),
-                },
-                {
-                    "name": _("查看服务"),
-                    "action": "self",
-                    "type": "link",
-                    "url": LinkHelper.get_service_overview_tab_link(
-                        self._runtime["application"].bk_biz_id,
-                        self._runtime["application"].app_name,
-                        node_name,
-                        self._runtime["start_time"],
-                        self._runtime["end_time"],
-                        views=self.views,
-                    ),
-                },
             ]
+
+            log_link = LinkHelper.get_service_log_tab_link(
+                self._runtime["application"].bk_biz_id,
+                self._runtime["application"].app_name,
+                node_name,
+                self._runtime["start_time"],
+                self._runtime["end_time"],
+                views=self.views,
+            )
+            if not self._runtime.get("service_name"):
+                # 如果没有服务名称的过滤 增加菜单
+                node_data[self.id].append(
+                    {
+                        "name": _("查看服务"),
+                        "action": "self",
+                        "type": "link",
+                        "url": LinkHelper.get_service_overview_tab_link(
+                            self._runtime["application"].bk_biz_id,
+                            self._runtime["application"].app_name,
+                            node_name,
+                            self._runtime["start_time"],
+                            self._runtime["end_time"],
+                            views=self.views,
+                        ),
+                    },
+                )
+                if log_link:
+                    node_data[self.id].append(
+                        {
+                            "name": _("查看日志"),
+                            "action": "self",
+                            "type": "link",
+                            "url": LinkHelper.get_service_log_tab_link(
+                                self._runtime["application"].bk_biz_id,
+                                self._runtime["application"].app_name,
+                                node_name,
+                                self._runtime["start_time"],
+                                self._runtime["end_time"],
+                                views=self.views,
+                            ),
+                        },
+                    )
 
 
 class HoverTipsMixin:
