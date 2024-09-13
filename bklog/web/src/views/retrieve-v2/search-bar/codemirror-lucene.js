@@ -3,6 +3,7 @@ import { basicSetup, EditorView } from 'codemirror';
 // import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
 // import { tags as t } from '@lezer/highlight';
 import { sql } from '@codemirror/lang-sql';
+import { lineNumbers } from "@codemirror/gutter";
 
 // // 定义 Lucene 语法高亮
 // const luceneHighlightStyle = HighlightStyle.define([
@@ -40,7 +41,7 @@ export default ({ target, onChange, onFocusChange, value }) => {
   const state = EditorState.create({
     doc: value,
     extensions: [
-      basicSetup,
+      basicSetup.filter(ext => ext != lineNumbers),
       // lucene()
       // syntaxHighlighting(luceneHighlightStyle),
       // EditorView.lineWrapping,
