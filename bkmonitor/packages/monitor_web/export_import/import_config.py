@@ -23,6 +23,7 @@ from bkmonitor.utils.local import local
 from core.drf_resource import api, resource
 from core.errors.export_import import ImportConfigError
 from monitor_web.collecting.constant import OperationResult, OperationType
+from monitor_web.collecting.deploy import get_collect_installer
 from monitor_web.export_import.constant import ConfigType, ImportDetailStatus
 from monitor_web.grafana.auth import GrafanaAuthSync
 from monitor_web.models import (
@@ -177,12 +178,8 @@ def import_collect(bk_biz_id, import_history_instance, collect_config_list):
             "params": config["params"],
             "target_nodes": [],
             "remote_collecting_host": config.get("remote_collecting_host"),
-            "config_meta_id": 0,
         }
-        collect_config = None
-        deployment_config = None
         try:
-            deployment_config = DeploymentConfigVersion.objects.create(**deployment_config_params)
             collect_config = CollectConfigMeta(
                 bk_biz_id=config["bk_biz_id"],
                 name=config["name"],
@@ -191,32 +188,18 @@ def import_collect(bk_biz_id, import_history_instance, collect_config_list):
                 collect_type=config["collect_type"],
                 plugin=plugin_obj,
                 target_object_type=config["target_object_type"],
-                deployment_config=deployment_config,
                 label=config["label"],
             )
-            collect_config.deployment_config_id = deployment_config.id
-            collect_config.save()
-            deployment_config.config_meta_id = collect_config.id
-            deployment_config.save()
-            result = collect_config.create_subscription()
-            if result["task_id"]:
-                deployment_config.subscription_id = result["subscription_id"]
-                collect_config.operation_result = OperationResult.PREPARING
-                deployment_config.task_ids = [result["task_id"]]
-                deployment_config.save()
-                collect_config.last_operation = OperationType.STOP
-                collect_config.save()
+            installer = get_collect_installer(collect_config)
+            installer.install(deployment_config_params, operation=OperationType.STOP)
+
             import_collect_config.config_id = collect_config.id
             import_collect_config.import_status = ImportDetailStatus.SUCCESS
             import_collect_config.error_msg = ""
             import_collect_config.save()
         except Exception as e:
-            if collect_config:
-                collect_config.is_deleted = True
-                collect_config.save()
-            if deployment_config:
-                deployment_config.is_deleted = True
-                deployment_config.save()
+            collect_config.delete()
+            DeploymentConfigVersion.objects.filter(config_meta_id=collect_config.id).delete()
             import_collect_config.import_status = ImportDetailStatus.FAILED
             import_collect_config.error_msg = str(e)
             import_collect_config.config_id = None

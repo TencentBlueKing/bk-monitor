@@ -29,6 +29,7 @@ from core.errors.collecting import (
     CollectConfigNotExist,
     CollectConfigParamsError,
     CollectConfigRollbackError,
+    ToggleConfigStatusError,
 )
 from core.errors.plugin import PluginIDNotExist
 from monitor_web.collecting.constant import (
@@ -512,8 +513,12 @@ class ToggleCollectConfigStatusResource(Resource):
         # 使用安装器启停采集配置
         installer = get_collect_installer(collect_config)
         if action == "enable":
+            if self.collect_config.last_operation == OperationType.START:
+                raise ToggleConfigStatusError({"msg": _("采集配置已处于启用状态，无需重复执行启用操作")})
             installer.start()
         else:
+            if self.collect_config.last_operation == OperationType.STOP:
+                raise ToggleConfigStatusError({"msg": _("采集配置已处于停用状态，无需重复执行停止操作")})
             installer.stop()
 
         return "success"

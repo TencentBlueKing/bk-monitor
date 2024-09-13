@@ -24,7 +24,6 @@ from core.errors.collecting import (
     CollectConfigRollbackError,
     DeleteCollectConfigError,
     SubscriptionStatusError,
-    ToggleConfigStatusError,
 )
 from monitor_web.collecting.constant import (
     CollectStatus,
@@ -427,9 +426,6 @@ class NodeManInstaller(BaseInstaller):
         1. 关闭订阅任务巡检
         2. 执行停止操作
         """
-        if self.collect_config.last_operation == OperationType.STOP:
-            raise ToggleConfigStatusError({"msg": _("采集配置已处于停用状态，无需重复执行停止操作")})
-
         subscription_id = self.collect_config.deployment_config.subscription_id
 
         # 如果没有订阅任务ID，则直接返回
@@ -463,9 +459,6 @@ class NodeManInstaller(BaseInstaller):
         1. 启动订阅任务巡检
         2. 执行启动操作
         """
-        if self.collect_config.last_operation != OperationType.STOP:
-            raise ToggleConfigStatusError({"msg": _("采集配置未处于停用状态，无法执行启动操作")})
-
         subscription_id = self.collect_config.deployment_config.subscription_id
 
         # 如果没有订阅任务ID，则直接返回

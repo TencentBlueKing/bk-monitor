@@ -28,6 +28,7 @@ from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
 from core.errors.collecting import CollectingError
 from monitor_web.collecting.constant import COLLECT_TYPE_CHOICES
+from monitor_web.collecting.deploy import get_collect_installer
 from monitor_web.models import (
     CollectConfigMeta,
     CustomEventGroup,
@@ -415,7 +416,8 @@ class CheckAdjectiveCollect(Resource):
             raise CustomException("You are not superuser, can't clean.")
         for i in need_switch_off_and_stop:
             api.node_man.switch_subscription(subscription_id=i["subscription_id"], action="disable")
-            config_id_map[i["config_id"]].trigger_subscription(action="STOP")
+            installer = get_collect_installer(config_id_map[i["config_id"]])
+            installer.stop()
         return need_switch_off_and_stop
 
 

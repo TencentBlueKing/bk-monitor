@@ -44,7 +44,7 @@ from core.errors.export_import import (
     ImportHistoryNotExistError,
     UploadPackageError,
 )
-from monitor_web.collecting.constant import OperationResult, OperationType
+from monitor_web.collecting.deploy import get_collect_installer
 from monitor_web.commons.cc.utils import CmdbUtil
 from monitor_web.commons.file_manager import ExportImportManager
 from monitor_web.export_import.constant import (
@@ -1070,23 +1070,8 @@ class AddMonitorTargetResource(Resource):
                 "target_nodes": collect_target,
                 "remote_collecting_host": deploy_config.remote_collecting_host,
             }
-            create_subscription = True
-            if deploy_config.task_ids:
-                create_subscription = False
-                result = instance.switch_config_version(DeploymentConfigVersion(**deployment_config_params))
-            else:
-                deploy_config.target_node_type = target_node_type
-                deploy_config.target_nodes = collect_target
-                deploy_config.save()
-                result = instance.create_subscription()
-            if result["task_id"]:
-                if create_subscription:
-                    instance.deployment_config.subscription_id = result["subscription_id"]
-                instance.operation_result = OperationResult.PREPARING
-                instance.deployment_config.task_ids = [result["task_id"]]
-                instance.deployment_config.save()
-            instance.last_operation = OperationType.START
-            instance.save()
+            installer = get_collect_installer(instance)
+            installer.install(deployment_config_params)
 
         # 添加策略配置目标
         resource.strategies.bulk_edit_strategy(
