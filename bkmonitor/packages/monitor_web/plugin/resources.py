@@ -696,6 +696,7 @@ class PluginUpgradeInfoResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         plugin_id = serializers.CharField(required=True, label="插件id")
         config_id = serializers.CharField(required=True, label="配置id")
         config_version = serializers.IntegerField(required=True, label="插件版本")
@@ -730,7 +731,7 @@ class PluginUpgradeInfoResource(Resource):
             version_log_list.append({"version": plugin_version.version, "version_log": version_log})
 
         config_id = data["config_id"]
-        config_detail = resource.collecting.collect_config_detail({"id": config_id})
+        config_detail = resource.collecting.collect_config_detail(id=config_id, bk_biz_id=data["bk_biz_id"])
         runtime_params_dict = {}
 
         def param_key(param):

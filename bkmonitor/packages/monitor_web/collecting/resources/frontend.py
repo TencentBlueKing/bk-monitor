@@ -30,10 +30,11 @@ class FrontendCollectConfigDetailResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=True, label="采集配置ID")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        id = serializers.IntegerField(label="采集配置ID")
 
     def perform_request(self, params):
-        config_detail = resource.collecting.collect_config_detail(id=params["id"])
+        config_detail = resource.collecting.collect_config_detail(id=params["id"], bk_biz_id=params["bk_biz_id"])
 
         # 基本信息
         basic_info = {
@@ -180,7 +181,9 @@ class FrontendTargetStatusTopoResource(Resource):
 
     def perform_request(self, params):
         topo_tree = resource.collecting.collect_target_status_topo(params)
-        config = CollectConfigMeta.objects.select_related("deployment_config").get(id=params["id"])
+        config = CollectConfigMeta.objects.select_related("deployment_config").get(
+            id=params["id"], bk_biz_id=params["bk_biz_id"]
+        )
 
         handle_node = partial(self.handle_node, params["bk_biz_id"])
 

@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 from copy import copy
-from typing import Dict
+from typing import Any, Dict
 
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -484,11 +484,12 @@ class RenameCollectConfigResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=True, label="采集配置ID")
-        name = serializers.CharField(required=True, label="名称")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        id = serializers.IntegerField(label="采集配置ID")
+        name = serializers.CharField(label="名称")
 
-    def perform_request(self, data):
-        CollectConfigMeta.objects.update(id=data["id"], name=data["name"])
+    def perform_request(self, params: Dict):
+        CollectConfigMeta.objects.filter(id=params["id"], bk_biz_id=params["bk_biz_id"]).update(name=params["name"])
         return "success"
 
 
@@ -498,6 +499,7 @@ class ToggleCollectConfigStatusResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
         id = serializers.IntegerField(required=True, label="采集配置ID")
         action = serializers.ChoiceField(required=True, choices=["enable", "disable"], label="启停配置")
 
@@ -506,18 +508,20 @@ class ToggleCollectConfigStatusResource(Resource):
         action = params["action"]
 
         try:
-            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(id=config_id)
+            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
+                bk_biz_id=params["bk_biz_id"], id=config_id
+            )
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": config_id})
 
         # 使用安装器启停采集配置
         installer = get_collect_installer(collect_config)
         if action == "enable":
-            if self.collect_config.last_operation == OperationType.START:
+            if collect_config.last_operation == OperationType.START:
                 raise ToggleConfigStatusError({"msg": _("采集配置已处于启用状态，无需重复执行启用操作")})
             installer.start()
         else:
-            if self.collect_config.last_operation == OperationType.STOP:
+            if collect_config.last_operation == OperationType.STOP:
                 raise ToggleConfigStatusError({"msg": _("采集配置已处于停用状态，无需重复执行停止操作")})
             installer.stop()
 
@@ -530,12 +534,15 @@ class DeleteCollectConfigResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=True, label="采集配置ID")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        id = serializers.IntegerField(label="采集配置ID")
 
     def perform_request(self, data):
         # 获取采集配置
         try:
-            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(id=data["id"])
+            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
+                id=data["id"], bk_biz_id=data["bk_biz_id"]
+            )
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": data["id"]})
 
@@ -559,7 +566,8 @@ class CloneCollectConfigResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=True, label="采集配置ID")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        id = serializers.IntegerField(label="采集配置ID")
 
     def perform_request(self, data):
         # 获取采集配置
@@ -585,7 +593,9 @@ class CloneCollectConfigResource(Resource):
             return
 
         try:
-            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(id=data["id"])
+            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
+                id=data["id"], bk_biz_id=data["bk_biz_id"]
+            )
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": data["id"]})
 
@@ -623,20 +633,21 @@ class RetryTargetNodesResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
         id = serializers.IntegerField(required=True, label="采集配置ID")
         instance_id = serializers.CharField(required=True, label="需要重试的实例id")
 
-    def perform_request(self, validated_request_data):
-        config_id = validated_request_data["id"]
-        instance_id = validated_request_data["instance_id"]
+    def perform_request(self, params: Dict[str, Any]):
         try:
-            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(id=config_id)
+            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
+                id=params["id"], bk_biz_id=params["bk_biz_id"]
+            )
         except CollectConfigMeta.DoesNotExist:
-            raise CollectConfigNotExist({"msg": config_id})
+            raise CollectConfigNotExist({"msg": params["id"]})
 
         # 使用安装器重试实例
         installer = get_collect_installer(collect_config)
-        installer.retry(instance_ids=[instance_id])
+        installer.retry(instance_ids=[params["instance_id"]])
 
         return "success"
 
@@ -647,20 +658,21 @@ class RevokeTargetNodesResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=True, label="采集配置ID")
-        instance_ids = serializers.ListField(required=True, label="需要终止的实例ID")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        id = serializers.IntegerField(label="采集配置ID")
+        instance_ids = serializers.ListField(label="需要终止的实例ID")
 
-    def perform_request(self, validated_request_data):
-        config_id = validated_request_data["id"]
-        instance_ids = validated_request_data["instance_ids"]
+    def perform_request(self, params: Dict[str, Any]):
         try:
-            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(id=config_id)
+            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
+                id=params["id"], bk_biz_id=params["bk_biz_id"]
+            )
         except CollectConfigMeta.DoesNotExist:
-            raise CollectConfigNotExist({"msg": config_id})
+            raise CollectConfigNotExist({"msg": params["id"]})
 
         # 主动触发节点管理终止任务
         installer = get_collect_installer(collect_config)
-        installer.revoke(instance_ids=instance_ids)
+        installer.revoke(instance_ids=params["instance_ids"])
 
         return "success"
 
@@ -671,14 +683,16 @@ class BatchRevokeTargetNodesResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=True, label="采集配置ID")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        id = serializers.IntegerField(label="采集配置ID")
 
-    def perform_request(self, validated_request_data):
-        config_id = validated_request_data["id"]
+    def perform_request(self, params: Dict[str, Any]):
         try:
-            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(id=config_id)
+            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
+                id=params["id"], bk_biz_id=params["bk_biz_id"]
+            )
         except CollectConfigMeta.DoesNotExist:
-            raise CollectConfigNotExist({"msg": config_id})
+            raise CollectConfigNotExist({"msg": params["id"]})
 
         # 主动触发节点管理终止任务
         installer = get_collect_installer(collect_config)
@@ -693,21 +707,21 @@ class GetCollectLogDetailResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=True, label="采集配置ID")
-        instance_id = serializers.CharField(required=True, label="主机/实例id")
-        task_id = serializers.IntegerField(required=True, label="任务id")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        id = serializers.IntegerField(label="采集配置ID")
+        instance_id = serializers.CharField(label="主机/实例id")
+        task_id = serializers.IntegerField(label="任务id")
 
-    def perform_request(self, validated_request_data):
-        # todo 目前的日志是由后端拼接成文本，然后给前端显示的。和产品讨论后，后面会采取结构化的数据展示，等待最新的设计稿
-        config_id = validated_request_data["id"]
-        instance_id = validated_request_data["instance_id"]
+    def perform_request(self, params: Dict[str, Any]):
         try:
-            config = CollectConfigMeta.objects.select_related("deployment_config").get(id=config_id)
+            config = CollectConfigMeta.objects.select_related("deployment_config").get(
+                id=params["id"], bk_biz_id=params["bk_biz_id"]
+            )
         except CollectConfigMeta.DoesNotExist:
-            raise CollectConfigNotExist({"msg": config_id})
+            raise CollectConfigNotExist({"msg": params["id"]})
 
         installer = get_collect_installer(config)
-        return installer.instance_status(instance_id)
+        return installer.instance_status(params["instance_id"])
 
 
 class BatchRetryConfigResource(Resource):
@@ -716,20 +730,18 @@ class BatchRetryConfigResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=True, label="采集配置ID")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        id = serializers.IntegerField(label="采集配置ID")
 
-    def __init__(self):
-        super(BatchRetryConfigResource, self).__init__()
-        self.config = None
-
-    def perform_request(self, validated_request_data):
-        config_id = validated_request_data["id"]
+    def perform_request(self, params: Dict[str, Any]):
         try:
-            self.config = CollectConfigMeta.objects.select_related("deployment_config").get(id=config_id)
+            config = CollectConfigMeta.objects.select_related("deployment_config").get(
+                id=params["id"], bk_biz_id=params["bk_biz_id"]
+            )
         except CollectConfigMeta.DoesNotExist:
-            raise CollectConfigNotExist({"msg": config_id})
+            raise CollectConfigNotExist({"msg": params["id"]})
 
-        installer = get_collect_installer(self.config)
+        installer = get_collect_installer(config)
         installer.retry()
 
         return "success"
@@ -831,6 +843,17 @@ class SaveCollectConfigResource(Resource):
                     "{} {} is not supported".format(attrs["target_object_type"], attrs["target_node_type"])
                 )
 
+            # 目标字段整理
+            target_nodes = []
+            for node in attrs["target_nodes"]:
+                if "bk_host_id" in node:
+                    target_nodes.append({"bk_host_id": node["bk_host_id"]})
+                elif "bk_inst_id" in node and "bk_obj_id" in node:
+                    target_nodes.append({"bk_inst_id": node["bk_inst_id"], "bk_obj_id": node["bk_obj_id"]})
+                elif "bcs_cluster_id" in node:
+                    target_nodes.append({"bcs_cluster_id": node["bcs_cluster_id"]})
+            attrs["target_nodes"] = target_nodes
+
             # 日志关键字规则名称去重
             if attrs["collect_type"] == CollectConfigMeta.CollectType.LOG:
                 rules = attrs["params"]["log"]["rules"]
@@ -852,25 +875,6 @@ class SaveCollectConfigResource(Resource):
 
         data["params"]["target_node_type"] = data["target_node_type"]
         data["params"]["target_object_type"] = data["target_object_type"]
-        # 创建部署配置版本的参数
-        if data["target_node_type"] in [
-            TargetNodeType.SERVICE_TEMPLATE,
-            TargetNodeType.SET_TEMPLATE,
-            TargetNodeType.TOPO,
-        ]:
-            # 动态拓扑、集群模板、服务模板
-            # todo 补齐对应跨业务下发权限控制
-            target_nodes = data["target_nodes"]
-        else:
-            # 静态
-            target_nodes = []
-            for node in data["target_nodes"]:
-                if "bk_host_id" in node:
-                    target_nodes.append({"bk_host_id": node["bk_host_id"]})
-                else:
-                    target_nodes.append({"ip": node["ip"], "bk_cloud_id": node["bk_cloud_id"]})
-
-        # 将重新标记配置参数嵌入到部署配置参数中
         data["params"]["collector"]["metric_relabel_configs"] = data.pop("metric_relabel_configs")
 
         # 获取或新建采集配置
@@ -939,7 +943,6 @@ class SaveCollectConfigResource(Resource):
     @staticmethod
     def get_collector_plugin(data):
         plugin_id = data["plugin_id"]
-
         # 虚拟日志采集器
         if data["collect_type"] == CollectConfigMeta.CollectType.LOG:
             label = data["label"]
@@ -954,16 +957,18 @@ class SaveCollectConfigResource(Resource):
                 plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=PluginType.LOG)
                 params = plugin_manager.get_params(plugin_id, bk_biz_id, label, rules=rules)
                 plugin_manager.update_version(params)
-
         # 虚拟进程采集器
-        if data["collect_type"] == CollectConfigMeta.CollectType.PROCESS:
+        elif data["collect_type"] == CollectConfigMeta.CollectType.PROCESS:
             plugin_manager = PluginManagerFactory.get_manager("bkprocessbeat", plugin_type=PluginType.PROCESS)
             # 全局唯一
             plugin_manager.touch()
             plugin_id = plugin_manager.plugin.plugin_id
-
-        if data["collect_type"] == CollectConfigMeta.CollectType.SNMP_TRAP:
+        elif data["collect_type"] == CollectConfigMeta.CollectType.SNMP_TRAP:
             plugin_id = resource.collecting.get_trap_collector_plugin(data)
+        elif data["collect_type"] == CollectConfigMeta.CollectType.K8S:
+            # TODO: 自动创建k8s插件
+            pass
+
         collector_plugin = CollectorPluginMeta.objects.get(plugin_id=plugin_id)
         return collector_plugin
 
@@ -995,6 +1000,7 @@ class UpgradeCollectPluginResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
         id = serializers.IntegerField(required=True, label="采集配置id")
         params = serializers.DictField(required=True, label="采集配置参数")
         realtime = serializers.BooleanField(required=False, default=False, label=_("是否实时刷新缓存"))
@@ -1003,10 +1009,14 @@ class UpgradeCollectPluginResource(Resource):
         # 判断是否需要实时刷新缓存
         if data["realtime"]:
             # 调用 collect_config_list 接口刷新采集配置的缓存，避免外部调接口可能会无法更新插件
-            resource.collecting.collect_config_list(page=-1, refresh_status=True, search={"id": data["id"]})
+            resource.collecting.collect_config_list(
+                page=-1, refresh_status=True, search={"id": data["id"]}, bk_biz_id=data["bk_biz_id"]
+            )
 
         try:
-            collect_config = CollectConfigMeta.objects.select_related("plugin", "deployment_config").get(pk=data["id"])
+            collect_config = CollectConfigMeta.objects.select_related("plugin", "deployment_config").get(
+                pk=data["id"], bk_biz_id=data["bk_biz_id"]
+            )
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": data["id"]})
 

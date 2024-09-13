@@ -281,6 +281,19 @@ class NodeManInstaller(BaseInstaller):
     def install(self, install_config: Dict, operation: Optional[str]) -> Dict:
         """
         首次安装插件采集
+        install_config: {
+            "target_node_type": "INSTANCE",
+            "target_nodes": [],
+            "params": {
+                "collector": {"period": 60, "timeout": 60, "metric_relabel_configs": []},
+                "plugin": {},
+                "target_node_type": "INSTANCE",
+                "target_object_type": "HOST"
+            },
+            "remote_collecting_host": {},
+            "name": "",
+            "label": ""
+        }
         """
         # 判断该采集是否需要升级，如果需要升级则抛出异常
         if self.collect_config.pk and self.collect_config.need_upgrade:
