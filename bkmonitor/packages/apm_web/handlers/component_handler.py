@@ -85,6 +85,15 @@ class ComponentHandler:
         return name.rsplit("-", 1)[0]
 
     @classmethod
+    def get_component_belong_predicate_value(cls, name: str) -> str:
+        """
+        获取组件归属的组件名称
+        如：{service_name}-mysql -> mysql
+        """
+        # 去除最后一个 "-" 符号
+        return name.rsplit("-", 1)[-1]
+
+    @classmethod
     def get_component_predicate_value(cls, node):
         return node.get("extra_data", {}).get("predicate_value")
 

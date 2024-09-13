@@ -327,11 +327,12 @@ class ServiceHandler:
 
         for keys in flow_response.keys():
             if keys[0] == service_name:
-                c_v = keys[3]
                 predicate_value = None
-                if c_v:
-                    # 有此维度 说明是组件类服务
-                    predicate_value = ComponentHandler.get_predicate_value_from_flow_metric_category_value(c_v)
+                if keys[2] == TopoNodeKind.COMPONENT:
+                    if keys[3]:
+                        predicate_value = ComponentHandler.get_predicate_value_from_flow_metric_category_value(keys[3])
+                    else:
+                        predicate_value = ComponentHandler.get_component_belong_predicate_value(service_name)
                 return {
                     "topo_key": keys[0],
                     "extra_data": {
@@ -341,11 +342,13 @@ class ServiceHandler:
                     },
                 }
             if keys[4] == service_name:
-                c_v = keys[7]
                 predicate_value = None
-                if c_v:
-                    # 有此维度 说明是组件类服务
-                    predicate_value = ComponentHandler.get_predicate_value_from_flow_metric_category_value(c_v)
+                if keys[6] == TopoNodeKind.COMPONENT:
+                    # 组件类服务
+                    if keys[7]:
+                        predicate_value = ComponentHandler.get_predicate_value_from_flow_metric_category_value(keys[7])
+                    else:
+                        predicate_value = ComponentHandler.get_component_belong_predicate_value(service_name)
                 return {
                     "topo_key": keys[4],
                     "extra_data": {

@@ -74,7 +74,6 @@ from apm_web.serializers import AsyncSerializer, ComponentInstanceIdDynamicField
 from apm_web.utils import (
     Calculator,
     get_bar_interval_number,
-    get_interval_number,
     group_by,
     handle_filter_fields,
 )
@@ -1230,7 +1229,7 @@ class ApdexQueryResource(ApiAuthResource):
 
         if ApplicationHandler.have_data(application, start_time, end_time):
             return ApdexRange(
-                application, start_time, end_time, interval=get_interval_number(start_time, end_time)
+                application, start_time, end_time, interval=get_bar_interval_number(start_time, end_time)
             ).query_range()
         return {"metrics": [], "series": []}
 
@@ -1936,7 +1935,7 @@ class AlertQueryResource(Resource):
             "bk_biz_ids": [bk_biz_id],
             "start_time": start_time,
             "end_time": end_time,
-            "interval": get_interval_number(start_time, end_time),
+            "interval": get_bar_interval_number(start_time, end_time),
             "query_string": f"metric: custom.{application.metric_result_table_id}.*",
             "conditions": [
                 {"key": "severity", "value": [level]},

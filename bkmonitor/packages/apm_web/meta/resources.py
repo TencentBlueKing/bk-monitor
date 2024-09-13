@@ -1048,7 +1048,6 @@ class ServiceDetailResource(Resource):
                 "app_related_app_name": _("关联应用(应用名称)"),
             },
             TopoNodeKind.COMPONENT: {
-                "topo_key": _("服务名称"),
                 "category": _("服务分类"),
                 "predicate_value": _("分类名称"),
                 "kind": _("服务类型"),
@@ -1058,7 +1057,12 @@ class ServiceDetailResource(Resource):
         }
 
     def perform_request(self, data):
-        node_info = ServiceHandler.get_node(data["bk_biz_id"], data["app_name"], data["service_name"])
+        node_info = ServiceHandler.get_node(
+            data["bk_biz_id"],
+            data["app_name"],
+            data["service_name"],
+            raise_exception=False,
+        )
         if not node_info:
             return [
                 {
