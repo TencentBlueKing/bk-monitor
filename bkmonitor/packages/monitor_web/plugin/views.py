@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from django.db import transaction
-from django.db.models import Prefetch
+from django.db.models import Count, Prefetch
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import permissions, serializers, viewsets
 from rest_framework.authentication import SessionAuthentication
@@ -182,6 +182,15 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
             # fmt: off
             return_version = return_version[(page - 1) * page_size: page * page_size]
             # fmt: on
+
+        # 生产插件配置的统计值
+        plugin_ids = list({item.plugin.plugin_id for item in return_version})
+        plugin_queryset = CollectConfigMeta.objects.filter(plugin_id__in=plugin_ids)
+        if bk_biz_id:
+            plugin_queryset.filter(bk_biz_id=bk_biz_id)
+        plugin_count_queryset = plugin_queryset.values("plugin_id").annotate(count=Count("plugin_id"))
+        plugin_counts = {item["plugin_id"]: item["count"] for item in plugin_count_queryset}
+
         search_list = []
         for value in return_version:
             # 提取搜索需要的字段生成新的list
@@ -192,7 +201,7 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
                     "plugin_type": value.plugin.plugin_type,
                     "tag": value.plugin.tag,
                     "bk_biz_id": value.plugin.bk_biz_id,
-                    "related_conf_count": value.get_related_config_count(bk_biz_id),
+                    "related_conf_count": plugin_counts.get(value.plugin.plugin_id, 0),
                     "status": "normal" if value.is_release else "draft",
                     "create_user": value.plugin.create_user,
                     "create_time": utc2biz_str(value.plugin.create_time),
