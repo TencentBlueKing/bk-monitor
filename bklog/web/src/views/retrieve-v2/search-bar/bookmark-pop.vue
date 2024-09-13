@@ -18,9 +18,9 @@
   // 用于展示索引集
   // 这里返回数组，展示 index_set_name 字段
   const indexSetItemList = computed(() => store.state.indexItem.items);
+  const indexSetName = computed(() => indexSetItemList.value.map(item => item.index_set_name));
   const collectGroupList = computed(() => store.state.favoriteList);
   const favStrList = computed(() => store.state.favoriteList.map(item => item.name));
-
   const favoriteData = ref({
     // 收藏参数
     space_uid: -1,
@@ -165,12 +165,16 @@
   const isDisableSelect = ref(false);
   // 新建提交逻辑
   const handleCreateRequest = async () => {
-    const { index_set_id, name, group_id, visible_type, id, is_enable_display_fields } = favoriteData.value;
+    const { index_set_id, name, group_id, display_fields, visible_type, id, is_enable_display_fields } =
+      favoriteData.value;
     const data = {
       name,
       group_id,
+      display_fields,
       visible_type,
+      keyword: props.sql,
       is_enable_display_fields,
+      index_set_name: indexSetName,
     };
     Object.assign(data, {
       index_set_id,
@@ -342,7 +346,7 @@
 
           <bk-form-item label="索引集">
             <bk-input
-              :value="indexSetItemList.index_set_name"
+              :value="indexSetName"
               readonly
             ></bk-input>
           </bk-form-item>
