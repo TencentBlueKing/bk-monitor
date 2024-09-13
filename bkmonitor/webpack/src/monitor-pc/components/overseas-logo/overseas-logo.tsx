@@ -26,49 +26,55 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import type { IOverseasConfig } from '../../types/common/common';
+
 import './overseas-logo.scss';
 
-interface OverseasLogoProps {
-  globalList: [] | string[];
+interface IOverseasLogoProps {
+  globalList: [] | IOverseasConfig[];
+}
+
+interface IOverseasLogoEvent {
+  onClickItem: (config: IOverseasConfig) => void;
 }
 
 @Component
-export default class OverseasLogo extends tsc<OverseasLogoProps> {
-  @Prop({ default: [] }) globalList: [] | string[];
+export default class OverseasLogo extends tsc<IOverseasLogoProps, IOverseasLogoEvent> {
+  @Prop({ default: [] }) globalList: [] | IOverseasConfig[];
 
   @Emit('clickItem')
   // 处理链接跳转
-  handleLink(item) {
+  handleLink(item: IOverseasConfig): IOverseasConfig {
     return item;
   }
 
   render() {
     return (
       <bk-popover
-        ref='popoverset'
         arrow={false}
         offset='15'
         placement='bottom-start'
-        theme=' common-monitor'
+        theme='common-monitor'
       >
         <div class='header-globel'>{<span class='icon-monitor icon-global' />}</div>
-        <template slot='content'>
-          <div class='monitor-navigation-globel'>
-            {this.globalList.map(config => (
-              <div
-                key={config.url}
-                class='nav-item'
-                onClick={() => this.handleLink(config)}
-              >
-                <div class='nav-item-left'>
-                  <div>{config.title}</div>
-                  <span>{config.subtitle}</span>
-                </div>
-                {config.icon && <div class={`nav-item-right icon-monitor ${config.icon}`} />}
+        <div
+          class='monitor-navigation-globel'
+          slot='content'
+        >
+          {this.globalList.map((config, index) => (
+            <div
+              key={config.url + index}
+              class='nav-item'
+              onClick={() => this.handleLink(config)}
+            >
+              <div class='nav-item-left'>
+                <div>{config.title}</div>
+                <span class='nav-item-subtitle'>{config.subtitle}</span>
               </div>
-            ))}
-          </div>
-        </template>
+              {config.icon && <div class={`nav-item-right icon-monitor ${config.icon}`} />}
+            </div>
+          ))}
+        </div>
       </bk-popover>
     );
   }

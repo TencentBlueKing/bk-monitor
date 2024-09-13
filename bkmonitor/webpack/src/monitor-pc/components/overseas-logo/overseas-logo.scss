@@ -19,9 +19,9 @@
     padding: 8px;
 
     .nav-item-left {
-      min-width: 90%;
+      flex: 1;
 
-      span {
+      .nav-item-subtitle {
         color: #66768E;
       }
     }

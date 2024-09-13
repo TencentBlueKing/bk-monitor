@@ -32,21 +32,16 @@ export default class GlobalConfigMixin extends Vue {
   /**
    * @description: 获取Global个性化配置
    * @param {string} key key
-   * @return {*}
    */
-  public async handleGetGlobalConfig<T>(
-    key: string,
-    config: Record<string, any> = { reject403: true }
-  ): Promise<[] | T> {
-    const globalConfig = await listGlobalConfig({ key }, config).catch(() => false);
-    if (!globalConfig?.[0]?.id) {
+  public async handleGetGlobalConfig<T>(key: string): Promise<[] | T> {
+    try {
+      const globalConfig = await listGlobalConfig({ key }, { reject403: true });
+      if (!globalConfig?.[0]?.id) {
+        return [];
+      }
+      return JSON.parse(globalConfig[0].value) as T;
+    } catch {
       return [];
     }
-    try {
-      return JSON.parse(globalConfig[0].value);
-    } catch {
-      console.error('parse global config error');
-    }
-    return [];
   }
 }

@@ -43,7 +43,7 @@ import UserConfigMixin from '../mixins/userStoreConfig';
 import { isAuthority } from '../router/router';
 import { GLOAB_FEATURE_LIST, type IRouteConfigItem, getRouteConfig } from '../router/router-config';
 import { SET_NAV_ROUTE_LIST } from '../store/modules/app';
-import type { ISpaceItem } from '../types';
+import type { IOverseasConfig, ISpaceItem } from '../types';
 import { useCheckVersion } from './check-version';
 import DashboardContainer from './grafana/dashboard-container/dashboard-container';
 import { getDashboardCache } from './grafana/utils';
@@ -113,7 +113,7 @@ export default class App extends tsc<object> {
   needBack = false;
   headerNav = 'home';
   headerNavChange = true;
-  globalList = [];
+  overseaGlobalList: IOverseasConfig[] = [];
   menuStore = '';
   hideNavCount = 0;
   spacestickyList: string[] = []; /** 置顶的空间列表 */
@@ -678,11 +678,11 @@ export default class App extends tsc<object> {
 
   // 获取配置
   async getGlobalConfig() {
-    this.globalList = await globalConfigModal.handleGetGlobalConfig<string[]>(OVERSEAS_SITES_MENU);
+    this.overseaGlobalList = await globalConfigModal.handleGetGlobalConfig<IOverseasConfig[]>(OVERSEAS_SITES_MENU);
   }
 
   // 处理链接跳转
-  handleLink(item) {
+  handleLink(item: IOverseasConfig): void {
     item.url && window.open(item.url);
   }
 
@@ -953,13 +953,16 @@ export default class App extends tsc<object> {
               class='monitor-logo'
             />
             {<div class='title-desc'>{this.platformData.name}</div>}
-
-            {this.globalList.length > 0 && (
-              <OverseasLogo
-                globalList={this.globalList}
-                on-clickItem={this.handleLink}
-              />
-            )}
+            {
+              // #if APP !== 'external'
+              this.overseaGlobalList.length > 0 && (
+                <OverseasLogo
+                  globalList={this.overseaGlobalList}
+                  onClickItem={this.handleLink}
+                />
+              )
+              // #endif
+            }
           </div>
         </bk-navigation>
         {
