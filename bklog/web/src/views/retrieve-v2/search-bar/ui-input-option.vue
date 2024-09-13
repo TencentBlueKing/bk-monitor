@@ -1,5 +1,5 @@
 <script setup>
-  import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue';
+  import { computed, ref, watch, onBeforeUnmount, nextTick, getCurrentInstance } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
@@ -60,19 +60,23 @@
     },
   });
 
+  const refUiQueryOptionContainer = ref(null);
+
   // 条件Value弹出下拉实例
   const conditionValueInstance = new PopInstanceUtil({
     refContent: refValueTagInputOptionList,
     arrow: false,
-    watchElement: refConditionInput,
     newInstance: false,
+    watchElement: refConditionInput,
     onHiddenFn: instance => {
       refValueTagInputOptionList.value?.querySelector('li.is-hover')?.classList.remove('is-hover');
     },
     tippyOptions: {
       flip: false,
       placement: 'bottom',
-      appendTo: () => document.body,
+      appendTo: () => {
+        return refUiQueryOptionContainer.value;
+      }
     },
   });
 
@@ -122,6 +126,7 @@
   const filterFieldList = computed(() => {
     const regExp = getRegExp(searchValue.value);
     const filterFn = field =>
+      field.field_type !== '__virtual__' &&
       !excludesFields.includes(field.field_name) &&
       (field.is_full_text || regExp.test(field.field_alias) || regExp.test(field.field_name));
     return fieldList.value.filter(filterFn);
@@ -632,7 +637,7 @@
   });
 </script>
 <template>
-  <div class="ui-query-options">
+  <div class="ui-query-options" ref="refUiQueryOptionContainer">
     <div class="ui-query-option-content">
       <div class="field-list">
         <div class="ui-search-input">
