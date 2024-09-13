@@ -46,3 +46,33 @@ def user_visit_record(func):
         return func(obj, request, *args, **kwargs)
 
     return wrapper
+
+def user_visit_record_for_topo(func):
+    """
+    记录topo接口的用户访问记录
+    """
+    @wraps(func)
+    def wrapper(obj, request, *args, **kwargs):
+        bk_biz_id = request.biz_id
+        username = request.user.username
+        request_path = request.path_info
+        # request_data = request.GET
+        # app_name = request_data.get("app_name", "")
+        app_name = request.GET.get("app_name", "")
+
+        # 必须是访问了应用，才能算在请求记录里 (后续的统计需要关联应用的创建者)
+        if app_name:
+            try:
+                UserVisitRecord.objects.create(
+                    bk_biz_id=bk_biz_id,
+                    app_name=app_name,
+                    func_name=request_path,
+                    created_by=username,
+                )
+            except Exception:  # pylint: disable=broad-except
+                # 记录失败不能影响业务正常逻辑
+                pass
+
+        return func(obj, request, *args, **kwargs)
+
+    return wrapper
