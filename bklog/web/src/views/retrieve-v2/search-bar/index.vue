@@ -19,7 +19,7 @@
   const activeIndex = ref(1);
 
   const uiQueryValue = ref([]);
-  const sqlQueryValue = ref([]);
+  const sqlQueryValue = ref("*");
 
   const indexItem = computed(() => store.state.indexItem);
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
@@ -37,8 +37,7 @@
   watch(
     keyword,
     () => {
-      sqlQueryValue.value.splice(0);
-      sqlQueryValue.value.push(keyword.value);
+      sqlQueryValue.value = keyword.value;
     },
     { immediate: true },
   );
@@ -68,7 +67,7 @@
   const handleBtnQueryClick = () => {
     store.commit('updateIndexItemParams', {
       addition: uiQueryValue.value.filter(val => !val.is_focus_input),
-      keyword: sqlQueryValue.value[0] ?? '*',
+      keyword: sqlQueryValue.value ?? '*',
     });
 
     store.dispatch('requestIndexSetQuery');
@@ -110,9 +109,13 @@
   };
 
   const handleClearBtnClick = () => {
-    sqlQueryValue.value.splice(0);
+    sqlQueryValue.value = "*";
     uiQueryValue.value.splice(0);
     handleBtnQueryClick();
+  };
+
+  const handleValueChange = val => {
+    sqlQueryValue.value = val;
   };
 
   const handleQueryChange = () => {
@@ -158,7 +161,7 @@
           class="bklog-icon bklog-brush"
           @click="handleClearBtnClick"
         ></span>
-        <BookmarkPop :sql="sqlQueryValue[0]"></BookmarkPop>
+        <BookmarkPop :sql="sqlQueryValue"></BookmarkPop>
         <span class="disabled bklog-icon bklog-set-icon"></span>
       </div>
       <div

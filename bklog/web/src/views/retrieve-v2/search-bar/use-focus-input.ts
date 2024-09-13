@@ -41,6 +41,7 @@ export default (
     newInstance = true,
     tippyOptions = {},
     onHeightChange,
+    addInputListener = true,
   },
 ) => {
   const modelValue = ref([]);
@@ -60,7 +61,12 @@ export default (
   const delayShowInstance = target => popInstanceUtil.show(target);
 
   const setModelValue = val => {
-    modelValue.value = (val ?? []).map(formatModelValueItem);
+    if (Array.isArray(val)) {
+      modelValue.value = (val ?? []).map(formatModelValueItem);
+      return;
+    }
+
+    modelValue.value = formatModelValueItem(val);
   };
 
   let instance = undefined;
@@ -142,14 +148,18 @@ export default (
     instance = getCurrentInstance();
 
     document?.addEventListener('click', handleContainerClick);
-    document?.addEventListener('input', handleFulltextInput);
+    if (addInputListener) {
+      document?.addEventListener('input', handleFulltextInput);
+    }
     resizeHeightObserver(instance?.proxy?.$el);
   });
 
   onUnmounted(() => {
     uninstallInstance();
     document?.removeEventListener('click', handleContainerClick);
-    document?.removeEventListener('input', handleFulltextInput);
+    if (addInputListener) {
+      document?.removeEventListener('input', handleFulltextInput);
+    }
     resizeObserver?.disconnect();
   });
 
