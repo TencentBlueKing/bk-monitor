@@ -18,7 +18,9 @@
   // 用于展示索引集
   // 这里返回数组，展示 index_set_name 字段
   const indexSetItemList = computed(() => store.state.indexItem.items);
-  const indexSetName = computed(() => indexSetItemList.value?.map(item => item?.index_set_name).join(','));
+  const indexSetName = computed(() => {
+    return indexSetItemList.value?.map(item => item?.index_set_name).join(',');
+  });
   const collectGroupList = computed(() => store.state.favoriteList);
   const favStrList = computed(() => store.state.favoriteList.map(item => item.name));
   const favoriteData = ref({
@@ -143,9 +145,7 @@
         if (res.result) {
           // 获取最新组列表
           store.dispatch('requestFavoriteList');
-          favoriteData.value.name = '';
-          favoriteData.value.group_id = undefined;
-          verifyData.value.groupName = '';
+          window.mainComponent.messageSuccess($t('操作成功'));
         }
       } catch (error) {
       } finally {
@@ -174,7 +174,7 @@
       visible_type,
       keyword: props.sql,
       is_enable_display_fields,
-      index_set_name: indexSetName,
+      index_set_name: indexSetName.value,
     };
     Object.assign(data, {
       index_set_id,
@@ -190,8 +190,11 @@
       if (res.result) {
         // 新增成功
         // 获取最新组列表
-
+        window.mainComponent.messageSuccess($t('操作成功'));
         store.dispatch('requestFavoriteList');
+        favoriteData.value.name = '';
+        favoriteData.value.group_id = undefined;
+        verifyData.value.groupName = '';
       }
     } catch (error) {}
   };
@@ -348,6 +351,7 @@
             <bk-input
               :value="indexSetName"
               readonly
+              show-overflow-tooltips
             ></bk-input>
           </bk-form-item>
 
@@ -356,6 +360,7 @@
               :value="props.sql"
               type="textarea"
               readonly
+              show-overflow-tooltips
             ></bk-input>
           </bk-form-item>
         </bk-form>
