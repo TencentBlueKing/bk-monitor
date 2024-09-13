@@ -396,7 +396,7 @@ class NodeManInstaller(BaseInstaller):
             subscription_params = self._get_deploy_params(self.collect_config.deployment_config)
             api.node_man.run_subscription(
                 subscription_id=subscription_id,
-                actions=[{step["id"]: "UNINSTALL"} for step in subscription_params["steps"]],
+                actions={step["id"]: "UNINSTALL" for step in subscription_params["steps"]},
             )
             api.node_man.delete_subscription(subscription_id=subscription_id)
 
