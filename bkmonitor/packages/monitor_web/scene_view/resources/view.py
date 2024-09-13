@@ -20,11 +20,9 @@ from django.http import Http404
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
-from bkmonitor.aiops.utils import AiSetting
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.models import MetricListCache
 from bkmonitor.share.api_auth_resource import ApiAuthResource
-from constants.aiops import SceneSet
 from constants.data_source import GRAPH_MAX_SLIMIT, DataSourceLabel
 from core.drf_resource import Resource, api, resource
 from monitor_web.models.scene_view import (
@@ -319,14 +317,6 @@ class GetSceneViewResource(ApiAuthResource):
         if params["is_split"]:
             return self.process_split(view_config, params["split_variables"])
 
-        if scene_id == SceneSet.HOST:
-            ai_setting = AiSetting(bk_biz_id=bk_biz_id)
-
-            if ai_setting.multivariate_anomaly_detection.host.is_access_aiops():
-                for panel in view_config.get("panels", []):
-                    for item in panel.get("panels", []):
-                        if item.get("type") == "graph":
-                            item["type"] = "performance-chart"
         return view_config
 
 
