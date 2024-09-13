@@ -25,7 +25,7 @@
  */
 
 // import Vue from 'vue';
-import { Component, Emit, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import G6, { type IGroup, type ModelConfig, type Graph, type INode, type IEdge, type IShape } from '@antv/g6';
@@ -124,11 +124,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   @Prop() dataType: string;
 
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
-  @Inject('handlePageTabChange') handlePageTabChange: (
-    id: string,
-    customRouterQuery: Record<string, number | string>
-  ) => void;
-
   @Ref('relationGraph') relationGraphRef: HTMLDivElement;
   @Ref('topoToolsPanel') topoToolsPanelRef: HTMLDivElement;
   @Ref('topoToolsPopover') topoToolsPopoverRef: HTMLDivElement;
@@ -1028,10 +1023,14 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   }
 
   handleJumpToInterface() {
-    /** 接口下钻列表超过5个，才有跳转功能 */
-    if (this.menuCfg.drillingTotal > 5) {
-      this.handlePageTabChange('endpoint', {});
-    }
+    const { dashboardId, sliceEndTime, sliceStartTime, ...param } = this.$route.query;
+    const { href } = this.$router.resolve({
+      query: {
+        ...param,
+        dashboardId: 'endpoint',
+      },
+    });
+    window.open(href);
   }
 
   reset() {
@@ -1111,13 +1110,13 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
               display: this.menuCfg.show ? 'block' : 'none',
               left: `${this.menuCfg.x}px`,
               top: `${this.menuCfg.y}px`,
+              transform: `scale(${this.menuCfg.isDrilling ? this.scaleValue : 1})`,
             }}
             class='node-menu-list'
           >
             <div
               style={{
                 display: this.menuCfg.isDrilling ? 'block' : 'none',
-                transform: `scale(${this.scaleValue})`,
               }}
               class='node-drilling-container'
             >
@@ -1135,67 +1134,77 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
                   <div class='row-line' />
                 </div>
               </div>
-              {this.menuCfg.drillingLoading ? (
-                <div
-                  class='drilling-loading'
-                  v-bkloading={{ isLoading: true, size: 'small', color: '#ecedf2' }}
-                />
-              ) : (
-                <ul class='node-list'>
-                  {this.menuCfg.drillingList.length ? (
-                    this.menuCfg.drillingList.map(item => (
-                      <li
-                        key={item.id}
-                        class='node-item topo-menu-action'
-                        onClick={() => this.handleDrillingNodeClick(item)}
+
+              <div
+                class={{
+                  'node-list': true,
+                  more: this.menuCfg.drillingTotal > 5,
+                }}
+                v-bkloading={{ isLoading: this.menuCfg.drillingLoading, size: 'small', color: '#ecedf2' }}
+              >
+                {this.menuCfg.drillingList.length ? (
+                  this.menuCfg.drillingList.map(item => (
+                    <div
+                      key={item.id}
+                      class='node-item topo-menu-action'
+                      onClick={() => this.handleDrillingNodeClick(item)}
+                    >
+                      <div
+                        style={{
+                          'border-color': item.color,
+                          width: `${item.size * 2}px`,
+                          height: `${item.size * 2}px`,
+                        }}
+                        class={{
+                          node: true,
+                          active: this.drillingNodeActive === item.name,
+                        }}
                       >
-                        <div
-                          style={{
-                            'border-color': item.color,
-                            width: `${item.size * 2}px`,
-                            height: `${item.size * 2}px`,
-                          }}
-                          class={{
-                            node: true,
-                            active: this.drillingNodeActive === item.name,
-                          }}
-                        >
-                          <i class='icon-monitor icon-fx' />
-                        </div>
-                        <span
-                          class='node-text name'
-                          v-bk-overflow-tips
-                        >
-                          {item.name}
-                        </span>
-                      </li>
-                    ))
-                  ) : (
-                    <EmptyStatus
-                      class='drilling-node-empty'
-                      textMap={{
-                        empty: this.$t('暂无接口'),
-                      }}
-                      type='empty'
-                    />
-                  )}
-                  <li
-                    class={{
-                      footer: true,
-                      'has-more': this.menuCfg.drillingTotal > 5,
+                        <i class='icon-monitor icon-fx' />
+                      </div>
+                      <span
+                        class='node-text name'
+                        v-bk-overflow-tips
+                      >
+                        {item.name}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <EmptyStatus
+                    class='drilling-node-empty'
+                    textMap={{
+                      empty: this.$t('暂无接口'),
                     }}
-                    onClick={this.handleJumpToInterface}
+                    type='empty'
+                  />
+                )}
+                {this.menuCfg.drillingTotal > 5 && (
+                  <bk-popover
+                    distance={5}
+                    theme='drilling-more-popover'
                   >
-                    {this.menuCfg.drillingTotal > 5 && (
-                      <li class='more-icon'>
+                    <div
+                      class='footer'
+                      onClick={this.handleJumpToInterface}
+                    >
+                      <div class='more-icon'>
                         <div class='dot' />
                         <div class='dot' />
                         <div class='dot' />
-                      </li>
-                    )}
-                  </li>
-                </ul>
-              )}
+                      </div>
+                    </div>
+                    <div
+                      class='drilling-more-popover-content'
+                      slot='content'
+                      onClick={this.handleJumpToInterface}
+                    >
+                      <span>{this.$t('查看完整接口')}</span>
+                      <i class='icon-monitor icon-fenxiang' />
+                    </div>
+                  </bk-popover>
+                )}
+              </div>
             </div>
             <ul
               style={{ display: this.menuCfg.isDrilling ? 'none' : 'block' }}
