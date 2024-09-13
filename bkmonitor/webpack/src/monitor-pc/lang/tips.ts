@@ -294,4 +294,7 @@ export default {
   请选择非接口节点: 'Please select a non-interface node',
   请选择节点: 'Please select a node',
   接口概览: 'Interface Overview',
+  烦躁: 'be agitated',
+  可容忍: 'tolerableness',
+  满意: 'satisfaction',
 };
