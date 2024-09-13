@@ -1086,15 +1086,9 @@ export default class QueryStatement extends tsc<object> {
                         {item.isNotVal && <i class='not-val'></i>}
                         <span
                           class='index-name'
-                          v-bk-overflow-tips
+                          v-bk-tooltips={{ content: item.lightenName, placements: ['top-start'] }}
                         >
                           {item.indexName}
-                        </span>
-                        <span
-                          class='lighten-name'
-                          v-bk-overflow-tips
-                        >
-                          {item.lightenName}
                         </span>
                       </span>
                       <div class='index-tags'>{getLabelDom(item.tags)}</div>
