@@ -484,9 +484,7 @@ export default class ApmTimeSeries extends TimeSeries {
 
   handleUpdateAxisPointer(event) {
     if (this.panel.dashboardId === this.customChartConnector?.groupId) {
-      if (this.$refs?.baseChart?.isMouseOver) {
-        this.customChartConnector.updateAxisPointer(this.chartId, event?.axesInfo?.[0]?.value || 0);
-      }
+      this.customChartConnector.updateAxisPointer(this.chartId, event?.axesInfo?.[0]?.value || 0);
     }
   }
   render() {

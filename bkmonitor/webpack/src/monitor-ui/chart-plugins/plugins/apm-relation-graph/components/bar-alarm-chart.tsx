@@ -201,6 +201,9 @@ export default class BarAlarmChart extends tsc<IProps> {
         this.loading = false;
         this.localData = Object.freeze(data);
         this.curActive = -1;
+        if (this.customChartConnector?.groupId === this.groupId) {
+          this.customChartConnector.setCustomChartInstance(this.chartId, this.chartInstance);
+        }
         if (this.localData.length) {
           const len = this.localData.length;
           const start = this.localData[0].time;
@@ -220,9 +223,6 @@ export default class BarAlarmChart extends tsc<IProps> {
             /* if (this.curActive <= 0) {
               this.curActive = this.localData[this.localData.length - 1].time;
             } */
-          }
-          if (this.customChartConnector?.groupId === this.groupId) {
-            this.customChartConnector.setCustomChartInstance(this.chartId, this.chartInstance);
           }
         } else {
           this.xAxis = [];
@@ -499,9 +499,9 @@ export default class BarAlarmChart extends tsc<IProps> {
         </div>
         {this.showXAxis && (
           <div class='alarm-footer-wrap'>
-            {this.xAxis.map(item => (
+            {this.xAxis.map((item, index) => (
               <div
-                key={item}
+                key={`${item}_${index}`}
                 class='x-axis-item'
               >
                 {item}

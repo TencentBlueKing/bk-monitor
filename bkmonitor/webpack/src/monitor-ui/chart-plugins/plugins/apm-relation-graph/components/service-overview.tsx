@@ -309,6 +309,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
           panel =>
             new PanelModel({
               ...panel,
+              dashboardId: this.dashboardId,
               options: {
                 ...(panel?.options || {}),
                 related_log_chart: {

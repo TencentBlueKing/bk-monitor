@@ -186,8 +186,10 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
     this.chartRef.addEventListener('contextmenu', this.handleContextmenu);
     for (const event of MOUSE_EVENTS) {
       (this as any).instance.on(event, params => {
-        if ('updateAxisPointer' === event && this.isMouseOver) {
-          this.$emit(event, params);
+        if ('updateAxisPointer' === event) {
+          if (this.isMouseOver) {
+            this.$emit(event, params);
+          }
         } else {
           this.$emit(event, params);
         }

@@ -734,14 +734,18 @@ export class CustomChartConnector {
   }
   // 更新echart图的hover坐标
   updateAxisPointer(id, time) {
-    this.curTime = time;
-    for (const [chartId, instance] of this.customInstanceMap) {
-      if (chartId !== id) {
-        instance?.dispatchAction({
-          type: 'showTip',
-          x: time,
-        });
+    try {
+      this.curTime = time;
+      for (const [chartId, instance] of this.customInstanceMap) {
+        if (chartId !== id) {
+          instance?.dispatchAction({
+            type: 'showTip',
+            x: time,
+          });
+        }
       }
+    } catch (err) {
+      console.error(err);
     }
   }
   // 更新自定图的hover坐标
@@ -760,7 +764,8 @@ export class CustomChartConnector {
                 let is = false;
                 for (const dataItem of seriesItem.data) {
                   dataIndex += 1;
-                  if (dataItem?.value?.[0] === time) {
+                  const valueTime = Array.isArray(dataItem) ? dataItem?.[0] : dataItem?.value?.[0];
+                  if (valueTime === time) {
                     instance?.dispatchAction({
                       type: 'showTip',
                       seriesIndex,

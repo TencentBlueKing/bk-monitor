@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref } from 'vue-property-decorator';
+import { Component, InjectReactive, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -34,7 +34,7 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 
 import { MONITOR_BAR_OPTIONS } from '../../constants';
-import { downFile } from '../../utils';
+import { type CustomChartConnector, downFile } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
@@ -73,6 +73,8 @@ interface IRelationLogChartProps {
 @Component
 class RelatedLogChart extends CommonSimpleChart {
   @Ref() baseChart: HTMLDivElement;
+
+  @InjectReactive('customChartConnector') customChartConnector: CustomChartConnector;
 
   empty = true;
   emptyText = window.i18n.tc('加载中...');
@@ -121,6 +123,8 @@ class RelatedLogChart extends CommonSimpleChart {
   tableRenderKey = random(6);
 
   isFilterError = false;
+
+  chartId = random(8);
 
   /* 是否为精简模式 */
   get isSimpleChart() {
@@ -321,7 +325,6 @@ class RelatedLogChart extends CommonSimpleChart {
                           padding: [8, 8, 8, 8],
                           transitionDuration: 0,
                           formatter: params => {
-                            console.log(params);
                             const time = dayjs(params[0].value[0]).format('YYYY-MM-DD HH:mm:ss');
                             const value = params[0].value[1];
                             return `
@@ -343,6 +346,7 @@ class RelatedLogChart extends CommonSimpleChart {
             })
             .finally(() => {
               this.handleLoadingChange(false);
+              this.setChartInstance();
             })
         );
       this.clearErrorMsg();
@@ -493,6 +497,18 @@ class RelatedLogChart extends CommonSimpleChart {
     this.updateBarChartData();
   }
 
+  setChartInstance() {
+    if (this.panel.dashboardId === this.customChartConnector?.groupId) {
+      this.customChartConnector.setChartInstance(this.chartId, this.$refs?.baseChartInstance);
+    }
+  }
+
+  handleUpdateAxisPointer(event) {
+    if (this.panel.dashboardId === this.customChartConnector?.groupId) {
+      this.customChartConnector.updateAxisPointer(this.chartId, event?.axesInfo?.[0]?.value || 0);
+    }
+  }
+
   contentRender() {
     if (this.isSimpleChart) {
       return (
@@ -528,12 +544,15 @@ class RelatedLogChart extends CommonSimpleChart {
               class='chart-instance'
             >
               <BaseEchart
+                ref='baseChartInstance'
                 width={this.width}
                 height={this.height}
                 class='base-chart'
+                hoverAllTooltips={true}
                 options={this.customOptions}
                 onDataZoom={this.dataZoom}
                 onDblClick={this.handleDblClick}
+                onUpdateAxisPointer={this.handleUpdateAxisPointer}
               />
             </div>
           ) : (
