@@ -34,7 +34,7 @@ from utils.query_data import TSDataBase
 logger = logging.getLogger(__name__)
 
 
-class CollectTargetStatusResource:
+class CollectTargetStatusResource(Resource):
     """
     获取采集配置下发状态（默认进行差异比对）
     """
@@ -74,7 +74,7 @@ class CollectInstanceStatusResource(CollectTargetStatusResource):
         diff = serializers.BooleanField(required=False, label="是否只返回差异", default=False)
 
 
-class CollectTargetStatusTopoResource:
+class CollectTargetStatusTopoResource(Resource):
     """
     获取检查视图左侧数据（ip列表或topo树）的接口
     """
