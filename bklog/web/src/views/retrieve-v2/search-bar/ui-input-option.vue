@@ -60,8 +60,6 @@
     },
   });
 
-  const refUiQueryOptionContainer = ref(null);
-
   // 条件Value弹出下拉实例
   const conditionValueInstance = new PopInstanceUtil({
     refContent: refValueTagInputOptionList,
@@ -74,9 +72,23 @@
     tippyOptions: {
       flip: false,
       placement: 'bottom',
-      appendTo: () => {
-        return refUiQueryOptionContainer.value;
-      }
+      popperOptions: {
+        placement: 'bottom', // 或者其他你想要的位置
+        modifiers: [
+          {
+            name: 'preventOverflow',
+            options: {
+              boundary: document.body,
+            },
+          },
+          {
+            name: 'flip',
+            options: {
+              boundary: document.body,
+            },
+          },
+        ],
+      },
     },
   });
 
@@ -637,7 +649,7 @@
   });
 </script>
 <template>
-  <div class="ui-query-options" ref="refUiQueryOptionContainer">
+  <div class="ui-query-options">
     <div class="ui-query-option-content">
       <div class="field-list">
         <div class="ui-search-input">
