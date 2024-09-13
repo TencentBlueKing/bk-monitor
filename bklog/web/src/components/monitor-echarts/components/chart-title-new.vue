@@ -30,14 +30,20 @@
       ref="chartTitle"
       class="chart-title"
       tabindex="0"
-      @click.stop="handleShowMenu"
     >
       <div class="main-title">
-        <span
-          class="bk-icon icon-down-shape"
-          :class="{ 'is-flip': isFold }"
-        ></span>
-        <div class="title-name">{{ title }}</div>
+        <div
+          class="main-title-area"
+          @click.stop="handleShowMenu"
+        >
+          <span
+            class="bk-icon icon-down-shape"
+            :class="{ 'is-flip': isFold }"
+          ></span>
+          <div class="title-name">
+            {{ title }}
+          </div>
+        </div>
         <div
           v-if="!isEmptyChart && !isFold"
           class="converge-cycle"
@@ -193,24 +199,28 @@
         height: 24px;
         font-weight: 700;
 
-        .title-name {
-          height: 20px;
-          overflow: hidden;
-          line-height: 20px;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
+        .main-title-area {
+          display: flex;
+          align-items: center;
 
-        .icon-down-shape {
-          margin-right: 8px;
-          transition: transform 0.3s;
+          .title-name {
+            height: 20px;
+            overflow: hidden;
+            line-height: 20px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
 
-          &.is-flip {
+          .icon-down-shape {
+            margin-right: 8px;
             transition: transform 0.3s;
-            transform: rotate(-90deg);
+
+            &.is-flip {
+              transition: transform 0.3s;
+              transform: rotate(-90deg);
+            }
           }
         }
-
         // &::after {
         //   /* stylelint-disable-next-line declaration-no-important */
         //   font-family: 'icon-monitor' !important;
