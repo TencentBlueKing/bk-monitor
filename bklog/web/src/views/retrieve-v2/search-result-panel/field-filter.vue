@@ -63,13 +63,13 @@
    */
   const handleFieldsUpdated = async displayFieldNames => {
     store.commit('updateClearTableWidth', 1);
+    store.commit('updateIsSetDefaultTableColumn', false);
     // 缓存展示字段
     const showFieldObj = sessionShowFieldObj();
     Object.assign(showFieldObj, { [indexId.value]: displayFieldNames });
     sessionStorage.setItem('showFieldSession', JSON.stringify(showFieldObj));
     await nextTick();
     store.commit('resetVisibleFields', displayFieldNames);
-    store.commit('updateIsSetDefaultTableColumn', false);
   };
   const handleCloseFilterTitle = () => {
     emit('update:is-show-field-statistics', !props.isShowFieldStatistics);

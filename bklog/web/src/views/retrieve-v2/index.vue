@@ -25,7 +25,7 @@
 -->
 
 <script setup>
-  import { computed, onMounted, ref, watch } from 'vue';
+  import { computed, ref, watch } from 'vue';
 
   import useStore from '@/hooks/use-store';
   import { isEqual } from 'lodash';
@@ -88,7 +88,6 @@
     indexSetParams,
     () => {
       setRouteParams();
-      store.commit('retrieve/updateChartKey');
     },
     { deep: true },
   );
@@ -97,6 +96,7 @@
     requestIndexSetFieldParams,
     (val, oldValue) => {
       if (!isEqual(val, oldValue ?? {})) {
+        store.commit('retrieve/updateChartKey');
         store.dispatch('requestIndexSetFieldInfo');
       }
     },
@@ -120,18 +120,12 @@
           },
         });
       }
+
       getIndexSetList();
+      store.dispatch('requestFavoriteList');
     },
     { immediate: true },
   );
-
-  const initFavoriteState = () => {
-    // const isOpen = localStorage.getItem('isAutoShowCollect') === 'true';
-    // if (!isOpen) {
-    //   showFavorites.value = true;
-    //   favoriteWidth.value = 240;
-    // }
-  };
 
   const handleFavoritesClick = () => {
     if (showFavorites.value) return;
@@ -163,10 +157,6 @@
 
     store.dispatch('requestIndexSetFieldInfo');
   };
-
-  onMounted(() => {
-    initFavoriteState();
-  });
 
   const activeTab = ref('origin');
 </script>

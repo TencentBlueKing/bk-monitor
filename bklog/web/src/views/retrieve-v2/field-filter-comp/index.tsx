@@ -30,7 +30,6 @@ import { Component as tsc } from 'vue-tsx-support';
 import { TABLE_LOG_FIELDS_SORT_REGULAR, Debounce } from '@/common/util';
 import VueDraggable from 'vuedraggable';
 
-import FieldFilterPopover from './field-filter-popover';
 import FieldItem from './field-item';
 import $http from '@/api';
 
@@ -49,7 +48,6 @@ export default class FieldFilterComp extends tsc<object> {
   @Ref('filterPopover') readonly filterPopoverRef!: HTMLDivElement;
   @Ref('fieldFilter') readonly fieldFilterRef!: HTMLDivElement;
 
-  showFilterPopover = false; // 字段类型过滤 popover 显示状态
   searchKeyword = '';
   polymerizable = '0'; // 聚合
   fieldType = 'any'; // 字段类型
@@ -232,13 +230,11 @@ export default class FieldFilterComp extends tsc<object> {
 
   mounted() {
     window.addEventListener('resize', this.updateContainerHeight);
-    document.getElementById('app').addEventListener('click', this.closePopoverIfOpened);
     this.updateContainerHeight();
   }
 
   beforeDestroy() {
     window.removeEventListener('resize', this.updateContainerHeight);
-    document.getElementById('app').removeEventListener('click', this.closePopoverIfOpened);
   }
 
   @Debounce(200)
@@ -274,19 +270,7 @@ export default class FieldFilterComp extends tsc<object> {
       });
     });
   }
-  handlePopoverShow() {
-    this.showFilterPopover = true;
-  }
-  handlePopoverHide() {
-    this.showFilterPopover = false;
-  }
-  closePopoverIfOpened() {
-    if (this.showFilterPopover) {
-      this.$nextTick(() => {
-        (this.filterPopoverRef as any).instance.hide();
-      });
-    }
-  }
+
   handleVisibleMoveEnd() {
     this.$emit('fields-updated', this.dragVisibleFields);
   }
@@ -350,36 +334,6 @@ export default class FieldFilterComp extends tsc<object> {
             clearable
             onChange={() => this.filterListByCondition()}
           ></bk-input>
-          <bk-popover
-            ref='filterPopover'
-            animation='slide-toggle'
-            distance={15}
-            offset={0}
-            placement='bottom-start'
-            theme='light'
-            tippy-options={{ hideOnClick: false }}
-            trigger='click'
-            onHide={() => this.handlePopoverHide()}
-            onShow={() => this.handlePopoverShow()}
-          >
-            <slot name='trigger'>
-              <div
-                class='filter-popover-trigger'
-                data-test-id='fieldFilter_div_phrasesSearch'
-                onClick={() => this.closePopoverIfOpened()}
-              >
-                <span class='bk-icon icon-funnel'></span>
-                <span class='text'>{this.$t('字段类型')}</span>
-                {!!this.filterTypeCount && <span class='count'>{this.filterTypeCount}</span>}
-              </div>
-            </slot>
-            <FieldFilterPopover
-              slot='content'
-              value={this.showFilterPopover}
-              onClosePopover={() => this.closePopoverIfOpened()}
-              onConfirm={v => this.handleFilter(v)}
-            />
-          </bk-popover>
         </div>
         <div
           ref='fieldFilter'

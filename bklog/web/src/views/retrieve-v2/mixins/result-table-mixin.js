@@ -130,6 +130,7 @@ export default {
       'tableLineIsWarp',
       'indexSetOperatorConfig',
       'indexFieldInfo',
+      'indexItem',
     ]),
     ...mapGetters({
       isUnionSearch: 'isUnionSearch',
@@ -325,6 +326,7 @@ export default {
         const fieldType = field.field_type;
         const isUnionSource = field?.tag === 'union-source';
         const fieldIcon = this.getFieldIcon(field.field_type);
+        const fieldIconColor = this.getFieldIconColor(field.field_type);
         const content = this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].name : undefined;
         let unionContent = '';
         // 联合查询判断字段来源 若indexSetIDs缺少已检索的索引集内容 则增加字段来源判断
@@ -349,8 +351,12 @@ export default {
             h('span', {
               class: `field-type-icon ${fieldIcon}`,
               style: {
-                marginRight: '4px',
+                ...{
+                  marginRight: '4px',
+                },
+                backgroundColor: fieldIconColor,
               },
+
               directives: [
                 {
                   name: 'bk-tooltips',
@@ -402,6 +408,68 @@ export default {
         );
       }
     },
+    isExistsOperator(operator) {
+      // 是否是包含和不包含
+      return ['exists', 'does not exists'].includes(operator);
+    },
+    // 获取有效的字段条件字符串
+    getFiledAdditionStr(linkAdditionList = null) {
+      const filterAddition = this.indexItem.addition.filter(item => {
+        if (item.conditionType === 'filed') {
+          // 如果是有exists操作符则不判断是否有值 直接回填路由
+          if (this.isExistsOperator(item.operator)) return true;
+          return !!item.value.filter(Boolean).length;
+        }
+        return false;
+      });
+      if (!filterAddition.length && !linkAdditionList) return undefined;
+      const stringifyList = filterAddition.map(item => ({
+        field: item.id,
+        operator: item.operator,
+        value: item.value,
+        isInclude: item.isInclude,
+      }));
+      if (linkAdditionList?.length) {
+        stringifyList.push(...linkAdditionList);
+      }
+      return JSON.stringify(stringifyList);
+    },
+    getIPChooserStr(ipChooser) {
+      if (typeof ipChooser === 'object') return JSON.stringify(ipChooser);
+      return ipChooser;
+    },
+    getConditionRouterParams(linkAdditionList = null) {
+      const { params, query } = this.$route;
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      const { ip_chooser, isIPChooserOpen, addition, ...reset } = query;
+      const filterQuery = reset; // 给query排序 让addition和ip_chooser排前面
+      const newQueryObj = { addition: this.getFiledAdditionStr(linkAdditionList) }; // 新的query对象
+      const newIPChooser = ip_chooser;
+
+      if (newIPChooser && Object.keys(newIPChooser).length) {
+        // ip值更新
+        Object.assign(newQueryObj, {
+          ip_chooser: this.getIPChooserStr(newIPChooser),
+          isIPChooserOpen: this.ipChooserIsOpen,
+        });
+      }
+
+      Object.assign(filterQuery, newQueryObj);
+      const routeData = {
+        name: 'retrieve',
+        params,
+        query: filterQuery,
+      };
+      return this.$router.resolve(routeData).href;
+    },
+    handleAddCondition(field, operator, value, isLink = false) {
+      this.$store.dispatch('setQueryCondition', { field, operator, value, isLink }).then(newAddition => {
+        if (isLink) {
+          const openUrl = this.getConditionRouterParams([newAddition]);
+          window.open(openUrl, '_blank');
+        }
+      });
+    },
     handleIconClick(type, content, field, row, isLink) {
       let value = field.field_type === 'date' ? row[field.field_name] : content;
       value = String(value)
@@ -409,23 +477,26 @@ export default {
         .replace(/<\/mark>/g, '');
       if (type === 'search') {
         // 将表格单元添加到过滤条件
-        this.$emit('add-filter-condition', field.field_name, 'eq', [value], isLink);
+        this.handleAddCondition(field.field_name, 'eq', [value], isLink);
       } else if (type === 'copy') {
         // 复制单元格内容
         copyMessage(value);
       } else if (['is', 'is not'].includes(type)) {
-        this.$emit('add-filter-condition', field.field_name, type, value === '--' ? [] : [value], isLink);
+        this.handleAddCondition(field.field_name, type, value === '--' ? [] : [value], isLink);
       }
     },
     getFieldIcon(fieldType) {
       return this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].icon : 'bklog-icon bklog-unkown';
+    },
+    getFieldIconColor(fieldType) {
+      return this.fieldTypeMap?.[fieldType] ? this.fieldTypeMap?.[fieldType]?.color : '#EAEBF0';
     },
     handleMenuClick(option, isLink) {
       switch (option.operation) {
         case 'is':
         case 'is not':
           const { fieldName, operation, value } = option;
-          this.$emit('add-filter-condition', fieldName, operation, value === '--' ? [] : [value], isLink);
+          this.handleAddCondition(fieldName, operation, value === '--' ? [] : [value], isLink);
           break;
         case 'copy':
           copyMessage(option.value);

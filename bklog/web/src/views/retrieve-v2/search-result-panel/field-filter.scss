@@ -1,6 +1,6 @@
 .search-field-filter {
   position: relative;
-  width: 330px;
+  width: 290px;
   padding: 16px;
   background: #ffffff;
   box-shadow: 1px 0 0 0 #eaebf0;
@@ -50,6 +50,10 @@
     justify-content: space-between;
     font-size: 12px;
     color: #313238;
+
+    .is-text-click{
+      cursor: pointer;
+    }
 
     .close-total {
       display: flex;

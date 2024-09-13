@@ -6,6 +6,9 @@
   import useStore from '@/hooks/use-store';
   // @ts-ignore
   import { debounce } from 'lodash';
+
+  import FavoriteList from './favorite-list';
+
   const props = defineProps({
     value: {
       type: String,
@@ -49,13 +52,13 @@
   /** 获取数字类型的字段name */
   const getNumTypeFieldList = computed(() => {
     return totalFields.value
-      .filter(item => ['long', 'integer', 'float'].includes(item.field_type))
-      .map(item => item.field_name);
+      .filter((item: { field_type: string }) => ['long', 'integer', 'float'].includes(item.field_type))
+      .map((item: { field_name: any }) => item.field_name);
   });
 
   /** 所有字段的字段名 */
   const totalFieldsNameList = computed(() => {
-    return totalFields.value.map(item => item.field_name);
+    return totalFields.value.map((item: { field_name: any }) => item.field_name);
   });
 
   // 检索后的日志数据如果字段在字段接口找不到则不展示联想的key
@@ -101,7 +104,7 @@
    * 显示哪个下拉列表
    * @param {String} [param]
    */
-  const showWhichDropdown = (param?) => {
+  const showWhichDropdown = (param?: string | OptionItemType[]) => {
     activeType.value.length = 0;
     activeType.value = [];
     if (typeof param === 'string') {
@@ -111,7 +114,6 @@
     if (Array.isArray(param)) {
       activeType.value.push(...param);
     }
-
     activeIndex.value = 0;
   };
 
@@ -120,7 +122,7 @@
    * @param {Object} valueMap
    * @return {string[]}
    */
-  const getValueList = valueMap => {
+  const getValueList = (valueMap: { __fieldType?: any }) => {
     let valueMapList = Object.keys(valueMap);
     if (valueMap.__fieldType === 'string') {
       valueMapList = valueMapList // 清除mark标签
@@ -138,7 +140,7 @@
     return getNumTypeFieldList.value.includes(fieldStr);
   };
 
-  const showColonOperator = inputField => {
+  const showColonOperator = (inputField: string) => {
     const showVal = [OptionItemType.Colon];
 
     if (isNumTypeField(inputField?.trim())) {
@@ -234,9 +236,11 @@
    * 选择某个可选字段
    * @param {string} field
    */
-  const handleClickField = field => {
+  const handleClickField = (field: string | number) => {
     valueList.value = getValueList(retrieveDropdownData.value[field]);
+
     const currentValue = props.value;
+
     const trimValue = currentValue.trim();
     if (!trimValue || trimValue === '*') {
       emits('change', `${field} `);
@@ -250,7 +254,7 @@
         emits('change', currentValue.replace(/\s*[\w.]+$/, ` ${field} `));
       }
     }
-    showColonOperator(field);
+    showColonOperator(field as string);
     nextTick(() => {
       activeIndex.value = 0;
       setOptionActive();
@@ -261,7 +265,7 @@
    * 选择 : 或者 :*
    * @param {string} type
    */
-  const handleClickColon = type => {
+  const handleClickColon = (type: string) => {
     emits('change', `${props.value + type} `);
     calculateDropdown();
     nextTick(() => {
@@ -274,7 +278,7 @@
    * 选择某个字段可选值
    * @param {string} value
    */
-  const handleClickValue = value => {
+  const handleClickValue = (value: any) => {
     // 当前输入值可能的情况 【name:"a】【age:】
     emits(
       'change',
@@ -293,7 +297,7 @@
    * 选择 AND 或者 OR
    * @param {string} type
    */
-  const handleClickContinue = type => {
+  const handleClickContinue = (type: string) => {
     emits('change', `${props.value + type} `);
     showWhichDropdown(OptionItemType.Fields);
     fieldList.value = [...originFieldList()];
@@ -310,7 +314,7 @@
     }
   };
 
-  const handleKeydown = e => {
+  const handleKeydown = (e: { preventDefault?: any; code?: any }) => {
     const { code } = e;
     if (code === 'Escape') {
       emits('cancel');
@@ -368,10 +372,11 @@
   const beforeHideFn = () => {
     document.removeEventListener('keydown', handleKeydown);
   };
+
   // 查询语法按钮部分
-  const isRetract = ref(true);
-  const handleRetract = val => {
-    isRetract.value = val;
+  const isRetractShow = ref(false);
+  const handleRetract = () => {
+    isRetractShow.value = !isRetractShow.value;
   };
   const matchList = ref([
     {
@@ -399,6 +404,11 @@
       value: `count:[1 TO 5] \n  count:[1 TO 5} \n count:[10 TO *]`,
     },
   ]);
+
+  const handleFavoriteClick = item => {
+    emits('change', item.keyword);
+  }
+
   defineExpose({
     beforeShowndFn,
     beforeHideFn,
@@ -416,154 +426,171 @@
   );
 </script>
 <template>
-  <!-- 搜索提示 -->
-  <ul
-    ref="refDropdownEl"
-    class="sql-query-options"
-  >
-    <!-- 字段列表 -->
-    <template v-if="showOption.showFields">
-      <li
-        v-for="item in fieldList"
-        class="list-item field-list-item"
-        :key="item"
-        @click="handleClickField(item)"
+  <div class="sql-query-container">
+    <div class="sql-field-list">
+      <!-- 搜索提示 -->
+      <ul
+        ref="refDropdownEl"
+        class="sql-query-options"
       >
-        <div class="item-type-icon">
-          <span class="bklog-icon bklog-field"></span>
-        </div>
-        <div
-          class="item-text text-overflow-hidden"
-          v-bk-overflow-tips="{ placement: 'right' }"
-        >
-          {{ item }}
-        </div>
-      </li>
-    </template>
-    <!-- 字段对应值 -->
-    <template v-if="showOption.showValue">
-      <li
-        v-for="item in valueList"
-        class="list-item value-list-item"
-        :key="item"
-        @click="handleClickValue(item)"
-      >
-        <div class="item-type-icon">
-          <span class="bklog-icon bklog-value"></span>
-        </div>
-        <div
-          class="item-text text-overflow-hidden"
-          v-bk-overflow-tips="{ placement: 'right' }"
-        >
-          {{ item }}
-        </div>
-      </li>
-    </template>
-    <!-- : :* -->
-    <template v-if="showOption.showColon">
-      <li
-        class="list-item colon-list-item"
-        @click="handleClickColon(':')"
-      >
-        <div class="item-type-icon">
-          <span class="bklog-icon bklog-equal"></span>
-        </div>
-        <div class="item-text">:</div>
-        <div
-          class="item-description text-overflow-hidden"
-          v-bk-overflow-tips="{ placement: 'right' }"
-        >
-          <i18n path="{0}某一值">
-            <span class="item-callout">{{ $t('等于') }}</span>
-          </i18n>
-        </div>
-      </li>
-      <li
-        class="list-item colon-list-item"
-        @click="handleClickColon(': *')"
-      >
-        <div class="item-type-icon">
-          <span class="bklog-icon bklog-equal"></span>
-        </div>
-        <div class="item-text">:*</div>
-        <div
-          class="item-description text-overflow-hidden"
-          v-bk-overflow-tips="{ placement: 'right' }"
-        >
-          <i18n path="{0}任意形式">
-            <span class="item-callout">{{ $t('存在') }}</span>
-          </i18n>
-        </div>
-      </li>
-      <template v-if="showOption.showOperator">
-        <li
-          v-for="(item, key) in operatorSelectList"
-          class="list-item continue-list-item"
-          :key="key"
-          @click="handleClickColon(item.operator)"
-        >
-          <div class="item-type-icon">
-            <span class="bklog-icon bklog-equal"></span>
+        <!-- 字段列表 -->
+        <template v-if="showOption.showFields">
+          <div class="control-list">
+            <li
+              v-for="item in fieldList"
+              class="list-item field-list-item"
+              :key="item"
+              @click="handleClickField(item)"
+            >
+              <div class="item-type-icon">
+                <span class="bklog-icon bklog-field"></span>
+              </div>
+              <div
+                class="item-text text-overflow-hidden"
+                v-bk-overflow-tips="{ placement: 'right' }"
+              >
+                {{ item }}
+              </div>
+            </li>
           </div>
-          <div class="item-text">{{ item.operator }}</div>
-          <div
-            class="item-description text-overflow-hidden"
-            v-bk-overflow-tips="{ placement: 'right' }"
+        </template>
+
+        <!-- 字段对应值 -->
+        <template v-if="showOption.showValue">
+          <div class="control-list">
+            <li
+              v-for="item in valueList"
+              class="list-item value-list-item"
+              :key="item"
+              @click="handleClickValue(item)"
+            >
+              <div class="item-type-icon">
+                <span class="bklog-icon bklog-value"></span>
+              </div>
+              <div
+                class="item-text text-overflow-hidden"
+                v-bk-overflow-tips="{ placement: 'right' }"
+              >
+                {{ item }}
+              </div>
+            </li>
+          </div>
+        </template>
+        <!-- : :* -->
+        <template v-if="showOption.showColon">
+          <div class="control-list">
+            <li
+              class="list-item colon-list-item"
+              @click="handleClickColon(':')"
+            >
+              <div class="item-type-icon">
+                <span class="bklog-icon bklog-equal"></span>
+              </div>
+              <div class="item-text">:</div>
+              <div
+                class="item-description text-overflow-hidden"
+                v-bk-overflow-tips="{ placement: 'right' }"
+              >
+                <i18n path="{0}某一值">
+                  <span class="item-callout">{{ $t('等于') }}</span>
+                </i18n>
+              </div>
+            </li>
+            <li
+              class="list-item colon-list-item"
+              @click="handleClickColon(': *')"
+            >
+              <div class="item-type-icon">
+                <span class="bklog-icon bklog-equal"></span>
+              </div>
+              <div class="item-text">:*</div>
+              <div
+                class="item-description text-overflow-hidden"
+                v-bk-overflow-tips="{ placement: 'right' }"
+              >
+                <i18n path="{0}任意形式">
+                  <span class="item-callout">{{ $t('存在') }}</span>
+                </i18n>
+              </div>
+            </li>
+          </div>
+          <template
+            class="control-list"
+            v-if="showOption.showOperator"
           >
-            <i18n path="{0}某一值">
-              <span class="item-callout">{{ item.label }}</span>
-            </i18n>
+            <li
+              v-for="(item, key) in operatorSelectList"
+              class="list-item continue-list-item"
+              :key="key"
+              @click="handleClickColon(item.operator)"
+            >
+              <div class="item-type-icon">
+                <span class="bklog-icon bklog-equal"></span>
+              </div>
+              <div class="item-text">{{ item.operator }}</div>
+              <div
+                class="item-description text-overflow-hidden"
+                v-bk-overflow-tips="{ placement: 'right' }"
+              >
+                <i18n path="{0}某一值">
+                  <span class="item-callout">{{ item.label }}</span>
+                </i18n>
+              </div>
+            </li>
+          </template>
+        </template>
+        <!-- AND OR -->
+        <template v-if="showOption.showContinue">
+          <div class="control-list">
+            <li
+              class="list-item continue-list-item"
+              @click="handleClickContinue('AND')"
+            >
+              <div class="item-type-icon">
+                <span class="bklog-icon bklog-and"></span>
+              </div>
+              <div class="item-text">AND</div>
+              <div
+                class="item-description text-overflow-hidden"
+                v-bk-overflow-tips="{ placement: 'right' }"
+              >
+                <i18n path="需要{0}为真">
+                  <span class="item-callout">{{ $t('两个参数都') }}</span>
+                </i18n>
+              </div>
+            </li>
+            <li
+              class="list-item continue-list-item"
+              @click="handleClickContinue('OR')"
+            >
+              <div class="item-type-icon">
+                <span class="bklog-icon bklog-and"></span>
+              </div>
+              <div class="item-text">OR</div>
+              <div
+                class="item-description text-overflow-hidden"
+                v-bk-overflow-tips="{ placement: 'right' }"
+              >
+                <i18n path="需要{0}为真">
+                  <span class="item-callout">{{ $t('一个或多个参数') }}</span>
+                </i18n>
+              </div>
+            </li>
           </div>
-        </li>
-      </template>
-    </template>
-    <!-- AND OR -->
-    <template v-if="showOption.showContinue">
-      <li
-        class="list-item continue-list-item"
-        @click="handleClickContinue('AND')"
-      >
-        <div class="item-type-icon">
-          <span class="bklog-icon bklog-and"></span>
-        </div>
-        <div class="item-text">AND</div>
-        <div
-          class="item-description text-overflow-hidden"
-          v-bk-overflow-tips="{ placement: 'right' }"
-        >
-          <i18n path="需要{0}为真">
-            <span class="item-callout">{{ $t('两个参数都') }}</span>
-          </i18n>
-        </div>
-      </li>
-      <li
-        class="list-item continue-list-item"
-        @click="handleClickContinue('OR')"
-      >
-        <div class="item-type-icon">
-          <span class="bklog-icon bklog-and"></span>
-        </div>
-        <div class="item-text">OR</div>
-        <div
-          class="item-description text-overflow-hidden"
-          v-bk-overflow-tips="{ placement: 'right' }"
-        >
-          <i18n path="需要{0}为真">
-            <span class="item-callout">{{ $t('一个或多个参数') }}</span>
-          </i18n>
-        </div>
-      </li>
-    </template>
-    <template v-if="isRetract">
+        </template>
+      </ul>
+      <FavoriteList @change="handleFavoriteClick"></FavoriteList>
+    </div>
+    <div :class="['sql-syntax-tips', { 'is-show': isRetractShow }]">
       <span
-        class="sql-query-common"
-        @click="handleRetract(false)"
+        class="sql-query-retract"
+        @click="handleRetract"
       >
-        <span>{{ $t('查询语法') }}</span>
-        <span class="angle-icon bk-icon icon-angle-left"></span>
+        <span>{{ isRetractShow ? $t('收起') : $t('查询语法') }}</span>
+        <span
+          :class="['angle-icon bk-icon', { 'icon-angle-left': !isRetractShow, 'icon-angle-right': isRetractShow }]"
+        ></span>
       </span>
-    </template>
-    <template v-else>
       <div class="sql-query-fold">
         <div>
           <div class="sql-query-fold-title">
@@ -581,17 +608,90 @@
             <div>{{ item.value }}</div>
           </div>
         </div>
-        <span
-          class="sql-query-fold-text sql-query-common"
-          @click="handleRetract(true)"
-        >
-          <span>{{ $t('收起') }}</span>
-          <span class="angle-icon bk-icon icon-angle-right"></span>
-        </span>
       </div>
-    </template>
-  </ul>
+    </div>
+  </div>
 </template>
 <style lang="scss" scoped>
   @import './sql-query-options.scss';
+
+  .sql-query-container {
+    display: flex;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+
+    .sql-field-list {
+      width: 100%;
+    }
+
+    .sql-syntax-tips {
+      position: relative;
+      width: 240px;
+      background: #fafbfd;
+      border: 1px solid #dcdee5;
+      border-radius: 0 2px 2px 0;
+
+      .sql-query-retract {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        display: inline-block;
+        width: 20px;
+        padding: 4px 2px;
+
+        font-size: 12px;
+        color: #63656e;
+        cursor: pointer;
+        background: #f0f1f5;
+        border: 1px solid #dcdee5;
+        border-radius: 4px 0 0 4px;
+        transform: translate(-100%, -50%);
+      }
+
+      /*   收起内容 样式*/
+      .sql-query-fold {
+        width: 100%;
+        height: 100%;
+        padding: 12px;
+        background: #fafbfd;
+        border: 1px solid #dcdee5;
+        border-radius: 0 2px 2px 0;
+
+        .sql-query-fold-title {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 8px;
+          font-size: 12px;
+
+          .fold-title-right {
+            display: flex;
+            align-items: center;
+            height: 100%;
+            color: #3a84ff;
+            cursor: pointer;
+
+            .fold-title-icon {
+              margin-left: 5px;
+              font-size: 16px;
+            }
+          }
+        }
+
+        .sql-query-list {
+          overflow-y: auto;
+          font-size: 12px;
+          white-space: pre-line;
+        }
+      }
+
+      &:not(.is-show) {
+        width: 1px;
+        border: none;
+
+        .sql-query-fold {
+          display: none;
+        }
+      }
+    }
+  }
 </style>

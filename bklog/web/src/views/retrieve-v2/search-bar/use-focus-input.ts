@@ -97,9 +97,9 @@ export default (
     }
   };
 
-  const handleInputBlur = e => {
+  const handleInputBlur = (e?) => {
     const input = getTargetInput();
-    if (input !== undefined && e.target === input) {
+    if (input !== undefined && (e === undefined || e.target === input)) {
       input.value = '';
       input?.style.setProperty('width', `${1 * INPUT_MIN_WIDTH}px`);
     }
@@ -134,7 +134,6 @@ export default (
     props,
     () => {
       setModelValue(props.value);
-      // setFocusInputItem();
     },
     { deep: true, immediate: true },
   );
