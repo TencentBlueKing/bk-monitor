@@ -18,16 +18,22 @@
             @click="handleClickHistory(item)"
           >
             <div class="item-text">
-              <span
+              <div
                 class="icon"
                 :class="getClass(item.search_mode)"
               >
                 {{ getText(item.search_mode) }}
-              </span>
+              </div>
 
-              <span>
+              <div
+                class="text"
+                v-bk-tooltips="{
+                  content: item.query_string,
+                  disabled: item.query_string.length < 5,
+                }"
+              >
                 {{ item.query_string }}
-              </span>
+              </div>
             </div>
           </li>
         </template>
@@ -82,7 +88,7 @@
       },
       async handleClickHistoryButton(e) {
         await this.requestSearchHistory();
-        const popoverWidth = '300px';
+        const popoverWidth = '350px';
         this.popoverInstance = this.$bkPopover(e.target, {
           content: this.$refs.historyUlRef,
           trigger: 'manual',

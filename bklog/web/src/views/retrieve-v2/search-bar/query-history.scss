@@ -53,14 +53,21 @@
 
     .icon {
       display: inline-block;
-      width: 16px;
+      min-width: 16px;
       height: 16px;
       margin-right: 4px;
+      font-size: 12px;
       line-height: 16px;
       color: #fff;
       text-align: center;
+      white-space: nowrap;
       border-radius: 2px;
-     
+    }
+
+    .text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .bklog-c-ui {
@@ -72,17 +79,6 @@
       background: #14b1c7;
     }
 
-    .item-type-icon {
-      width: 32px;
-      height: 32px;
-
-      @include flex-center;
-
-      .bklog-icon {
-        font-size: 16px;
-      }
-    }
-
     .item-text {
       display: flex;
       flex: 1;
@@ -91,19 +87,6 @@
       padding: 0 16px;
       font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
       color: #63656e;
-    }
-
-    .item-description {
-      flex: 2;
-      margin-left: 24px;
-      color: #979ba5;
-
-      .item-callout {
-        padding: 0 4px;
-        font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
-        color: #313238;
-        background-color: #f4f6fa;
-      }
     }
 
     &:hover,
