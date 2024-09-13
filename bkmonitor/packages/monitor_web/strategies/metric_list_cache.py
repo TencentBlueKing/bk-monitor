@@ -89,12 +89,14 @@ class DefaultDimensions(object):
         {"id": "task_id", "name": _lazy("任务ID")},
         {"id": "ip", "name": _lazy("节点地址")},
         {"id": "bk_cloud_id", "name": _lazy("节点云区域id")},
+        {"id": "group_id", "name": _lazy("拨测任务组ID")},
     ]
     uptime_check = [
         {"id": "task_id", "name": _lazy("任务ID")},
         {"id": "node_id", "name": _lazy("节点ID")},
         {"id": "ip", "name": _lazy("节点地址")},
         {"id": "bk_cloud_id", "name": _lazy("节点云区域id")},
+        {"id": "group_id", "name": _lazy("拨测任务组ID")},
     ]
 
 
@@ -1463,6 +1465,9 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
         for metric_model in field_metric_list:
             if protocol == "ICMP":
                 metric_dict = metric_model
+                metric_dict["dimensions"].extend(
+                    [dimension for dimension in DefaultDimensions.uptime_check if dimension["id"] == "group_id"]
+                )
             else:
                 metric_dict = base_metric.copy()
                 metric_dict.update(metric_model(protocol).__dict__)
