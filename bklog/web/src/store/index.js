@@ -162,6 +162,7 @@ const store = new Vuex.Store({
     notTextTypeFields: [],
     tableLineIsWarp: true,
     isSetDefaultTableColumn: false,
+    tookTime: 0,
     showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
   },
   // 公共 getters
@@ -835,14 +836,13 @@ const store = new Vuex.Store({
      */
     requestIndexSetQuery(
       { commit, state },
-      payload = { isTablePagination: true, cancelToken: null, searchCount: undefined },
+      payload = { isPagination: false, cancelToken: null, searchCount: undefined },
     ) {
       const {
         start_time,
         end_time,
         isUnionIndex,
         addition,
-        begin,
         size,
         keyword = '*',
         ip_chooser,
@@ -850,10 +850,15 @@ const store = new Vuex.Store({
         interval,
         timezone,
         search_mode,
+        sort_list,
       } = state.indexItem;
+      let begin = state.indexItem.begin;
       const bk_biz_id = state.bkBizId;
       const searchCount = payload.searchCount ?? state.indexSetQueryResult.search_count + 1;
-      commit('resetIndexSetQueryResult', { is_loading: true, search_count: searchCount });
+      commit(payload.isPagination ? 'updateIndexSetQueryResult' : 'resetIndexSetQueryResult', {
+        is_loading: true,
+        search_count: searchCount,
+      });
 
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
       const cancelTokenKey = 'requestIndexSetQueryCancelToken';
@@ -867,7 +872,7 @@ const store = new Vuex.Store({
 
       const baseData = {
         addition: (addition ?? []).filter(item => !item.disabled),
-        begin,
+        // begin,
         bk_biz_id,
         end_time,
         host_scopes,
@@ -878,22 +883,24 @@ const store = new Vuex.Store({
         start_time,
         timezone,
         search_mode,
+        sort_list,
       };
 
       // 更新联合查询的begin
       const unionConfigs = state.unionIndexList.map(item => ({
-        begin: payload.isTablePagination
+        begin: payload.isPagination
           ? (state.indexItem.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0)
           : 0,
         index_set_id: item,
       }));
 
+      const queryBegin = payload.isPagination ? (begin += size) : 0;
+
       const queryData = Object.assign(
         baseData,
         !state.isUnionSearch
           ? {
-              // 单选检索的begin
-              begin: begin * size,
+              begin: queryBegin, // 单选检索的begin
             }
           : {
               union_configs: unionConfigs,
@@ -919,11 +926,18 @@ const store = new Vuex.Store({
           if (resp.data && !resp.message) {
             return readBlobRespToJson(resp.data).then(({ code, data, result, message }) => {
               const rsolvedData = data;
-              rsolvedData.list = parseBigNumberList(rsolvedData.list);
-              rsolvedData.origin_log_list = parseBigNumberList(rsolvedData.origin_log_list);
+              const indexSetQueryResult = state.indexSetQueryResult;
+              const logList = parseBigNumberList(rsolvedData.list);
+              const originLogList = parseBigNumberList(rsolvedData.origin_log_list);
+              rsolvedData.list = payload.isPagination ? indexSetQueryResult.list.concat(logList) : logList;
+              rsolvedData.origin_log_list = payload.isPagination
+                ? indexSetQueryResult.origin_log_list.concat(originLogList)
+                : originLogList;
               const catchUnionBeginList = parseBigNumberList(rsolvedData?.union_configs || []);
-
-              commit('updateSqlQueryFieldList', rsolvedData.list);
+              state.tookTime = Number(data?.took || 0);
+              // 更新页数
+              commit('updateIndexItem', { begin: payload.isPagination ? begin : 0 });
+              commit('updateSqlQueryFieldList', logList);
               commit('updateIndexItem', { catchUnionBeginList });
               commit('updateIndexSetQueryResult', rsolvedData);
               commit('updateIsSetDefaultTableColumn');

@@ -31,6 +31,7 @@ export const getDefaultRetrieveParams = () => {
     host_scopes: { modules: [], ips: '', target_nodes: [], target_node_type: '' },
     ip_chooser: {},
     addition: [],
+    sort_list: [],
     begin: 0,
     size: 50,
     interval: 'auto',
