@@ -98,7 +98,6 @@ class PostPlugin(Plugin):
 
 class ValuesPluginMixin:
     def get_increase_values_mapping(self, **kwargs) -> Dict[Tuple[Union[str, Tuple]], Dict]:
-
         params = {
             "application": self._runtime["application"],
             "start_time": self._runtime["start_time"],
@@ -118,7 +117,6 @@ class ValuesPluginMixin:
         return dict(res)
 
     def get_instance_values_mapping(self, **kwargs) -> Dict[Tuple[Union[str, Tuple]], Dict]:
-
         params = {
             "application": self._runtime["application"],
             "start_time": self._runtime["start_time"],
@@ -754,7 +752,6 @@ class ErrorCountStatusCodeMixin(PrePlugin, ValuesPluginMixin):
 
     @classmethod
     def diff(cls, attrs, other_attrs):
-
         # 处理 Http 状态码
         http_status_code_items_1 = {k for k in attrs if k.startswith(f"{cls.status_code_key}http_")}
         http_status_code_items_2 = {k for k in other_attrs if k.startswith(f"{cls.status_code_key}http_")}
@@ -1287,6 +1284,8 @@ class BreadthEdge(PostPlugin):
         sorted_values = sorted(set(metric_values))
         position = sorted_values.index(value)
         total = len(sorted_values)
+        if total <= 1:
+            return self._min_width
 
         return round((self._min_width + (self._max_width - self._min_width) * (position / (total - 1))), 2)
 
@@ -1311,7 +1310,6 @@ class NodeColor(PostPlugin):
         WHITE = "#DCDEE5"
 
     def process(self, data_type, edge_data_type, node_data, graph):
-
         # 如果节点无数据 那么颜色就是灰色
         if not node_data.get(NodeHaveData.id):
             node_data[self.id] = self.Color.WHITE
@@ -1354,7 +1352,6 @@ class NodeColor(PostPlugin):
 
             node_data[self.id] = color
         elif data_type == BarChartDataType.Apdex.value:
-
             apdex = node_data.get(NodeApdex.metric.metric_id, None)
             if not apdex:
                 color = self.Color.WHITE
