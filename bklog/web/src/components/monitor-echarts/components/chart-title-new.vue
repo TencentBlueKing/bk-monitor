@@ -30,14 +30,22 @@
       ref="chartTitle"
       class="chart-title"
       tabindex="0"
-      @click.stop="handleShowMenu"
+      @click.stop="handleShowMenu(false)"
     >
       <div class="main-title">
-        <span
-          class="bk-icon icon-down-shape"
-          :class="{ 'is-flip': isFold }"
-        ></span>
-        <div class="title-name">{{ title }}</div>
+        <div
+          class="main-title-area"
+          @click.stop="handleShowMenu(true)"
+        >
+          <span
+            class="bk-icon icon-down-shape"
+            :class="{ 'is-flip': isFold }"
+          ></span>
+          <div class="title-name">
+            {{ title }}
+          </div>
+        </div>
+
         <div
           v-if="!isEmptyChart && !isFold"
           class="converge-cycle"
@@ -114,6 +122,7 @@
     @Prop({ default: true }) loading: boolean;
     @Prop({ default: true }) isEmptyChart: boolean;
     @Ref('chartTitle') chartTitleRef: HTMLDivElement;
+    @Prop({ default: false }) isRetrieval: boolean;
 
     chartInterval = 'auto';
     intervalArr = [
@@ -133,7 +142,8 @@
       this.chartInterval = newVal;
     }
 
-    handleShowMenu(e: MouseEvent) {
+    handleShowMenu(isTextAreaClick = false) {
+      if (this.isRetrieval && !isTextAreaClick) return;
       this.$emit('toggle-expand', !this.isFold);
 
       // this.showMenu = !this.showMenu
@@ -193,21 +203,26 @@
         height: 24px;
         font-weight: 700;
 
-        .title-name {
-          height: 20px;
-          overflow: hidden;
-          line-height: 20px;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
+        .main-title-area {
+          display: flex;
+          align-items: center;
 
-        .icon-down-shape {
-          margin-right: 8px;
-          transition: transform 0.3s;
+          .title-name {
+            height: 20px;
+            overflow: hidden;
+            line-height: 20px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
 
-          &.is-flip {
+          .icon-down-shape {
+            margin-right: 8px;
             transition: transform 0.3s;
-            transform: rotate(-90deg);
+
+            &.is-flip {
+              transition: transform 0.3s;
+              transform: rotate(-90deg);
+            }
           }
         }
 

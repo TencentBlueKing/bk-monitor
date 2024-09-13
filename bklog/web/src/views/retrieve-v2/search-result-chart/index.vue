@@ -37,6 +37,7 @@
       :loading="isLoading || !finishPolling"
       :menu-list="chartOptions.tool.list"
       :title="$t('总趋势')"
+      :isRetrieval=true
       @menu-click="handleMoreToolItemSet"
       @toggle-expand="toggleExpand"
     >
