@@ -18,14 +18,9 @@
   // 用于展示索引集
   // 这里返回数组，展示 index_set_name 字段
   const indexSetItemList = computed(() => store.state.indexItem.items);
-  // store.state.favoriteList store.state.favoriteList.value
   const collectGroupList = computed(() => store.state.favoriteList);
   const favStrList = computed(() => store.state.favoriteList.map(item => item.name));
-  // const groupList = ref([]); // 组列表
-  // const publicGroupList = ref([]); // 可见状态为公共的时候显示的收藏组space_uid
-  // const privateGroupList = ref([]); // 个人收藏 group_name替换为本人
-  // let unknownGroupID = ref(0);
-  // let privateGroupID = ref(0);
+
   const favoriteData = ref({
     // 收藏参数
     space_uid: -1,
@@ -133,10 +128,7 @@
       },
     ],
   };
-  // const groupNameMap = {
-  //   unknown: $t('未分组'),
-  //   private: $t('个人收藏'),
-  // };
+
   // 新增组表单ref
   const checkInputFormRef = ref();
 
