@@ -27,9 +27,11 @@ import { Component, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-propert
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { random } from 'monitor-common/utils';
 
 import { EAlarmType, type IAlarmDataItem, type EDataType, alarmColorMap, getAlarmItemStatusTips } from './utils';
 
+import type { CustomChartConnector } from '../../../utils/utils';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './bar-alarm-chart.scss';
@@ -61,6 +63,7 @@ interface IProps {
   enableSelect?: boolean;
   needRestoreEvent?: boolean;
   enableZoom?: boolean;
+  groupId?: string;
   getData?: TGetData;
   onDataZoom?: () => void;
   onSliceTimeRangeChange?: (v: number[]) => void;
@@ -86,6 +89,7 @@ export default class BarAlarmChart extends tsc<IProps> {
   @Prop({ type: Function, default: null }) getData: TGetData;
   @Prop({ type: Boolean, default: false }) needRestoreEvent: boolean;
   @Prop({ type: Boolean, default: false }) enableZoom: boolean;
+  @Prop({ type: String, default: '' }) groupId: string;
 
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
@@ -93,6 +97,8 @@ export default class BarAlarmChart extends tsc<IProps> {
   @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
+
+  @InjectReactive({ from: 'customChartConnector', default: () => null }) customChartConnector: CustomChartConnector;
 
   loading = false;
 
@@ -126,6 +132,44 @@ export default class BarAlarmChart extends tsc<IProps> {
   };
 
   selectedTimeRange = [];
+
+  chartInstance = null;
+  chartId = random(8);
+
+  created() {
+    this.chartInstance = {
+      dispatchAction: this.dispatchAction,
+    };
+  }
+
+  dispatchAction(obj) {
+    if (obj.type === 'showTip') {
+      const time = obj.x || -1;
+      const item = this.localData.find(v => v.time === time);
+      const target = this?.$el?.querySelector?.(`.time-cube______${time}`);
+      clearTimeout(this.timer);
+      this.popInstance?.hide?.(0);
+      this.popInstance?.destroy?.();
+      this.popInstance = null;
+      if (item && target) {
+        this.getTips(item);
+        this.curHover = item.time;
+        this.timer = setTimeout(() => {
+          this.popInstance = this.$bkPopover(target, {
+            content: this.tipsRef,
+            placement: 'top',
+            boundary: 'window',
+            arrow: true,
+            trigger: 'click',
+            theme: 'bar-alarm-chart-tooltip-theme',
+          });
+          this.popInstance?.show?.();
+        }, 200);
+      } else {
+        this.curHover = -1;
+      }
+    }
+  }
 
   @Watch('timeRange')
   handleWatchTimeRange() {
@@ -177,6 +221,9 @@ export default class BarAlarmChart extends tsc<IProps> {
               this.curActive = this.localData[this.localData.length - 1].time;
             } */
           }
+          if (this.customChartConnector?.groupId === this.groupId) {
+            this.customChartConnector.setCustomChartInstance(this.chartId, this.chartInstance);
+          }
         } else {
           this.xAxis = [];
         }
@@ -207,6 +254,9 @@ export default class BarAlarmChart extends tsc<IProps> {
     }
     this.getTips(item);
     this.curHover = item.time;
+    if (this.customChartConnector?.groupId === this.groupId) {
+      this.customChartConnector.updateCustomAxisPointer(this.chartId, item.time);
+    }
     this.timer = setTimeout(() => {
       this.popInstance = this.$bkPopover(event.target, {
         content: this.tipsRef,
@@ -216,7 +266,7 @@ export default class BarAlarmChart extends tsc<IProps> {
         trigger: 'click',
         theme: 'bar-alarm-chart-tooltip-theme',
       });
-      this.popInstance.show();
+      this.popInstance?.show?.();
     }, 200);
   }
   /**
@@ -225,6 +275,9 @@ export default class BarAlarmChart extends tsc<IProps> {
   handleMouseLeave() {
     this.curHover = -1;
     clearTimeout(this.timer);
+    if (this.customChartConnector?.groupId === this.groupId) {
+      this.customChartConnector.updateCustomAxisPointer(this.chartId, 0);
+    }
     this.popInstance?.hide?.(0);
     this.popInstance?.destroy?.();
     this.popInstance = null;
@@ -395,7 +448,7 @@ export default class BarAlarmChart extends tsc<IProps> {
           background: `${color}`,
           cursor: item.type !== EAlarmType.gray ? 'pointer' : 'default',
         }}
-        class={['time-cube', { 'adaptive-width': this.isAdaption }]}
+        class={['time-cube', `time-cube______${item.time}`, { 'adaptive-width': this.isAdaption }]}
         onClick={() => this.handleClick(item)}
         onMouseenter={event => this.handleMouseEnter(event, item)}
         onMouseleave={() => this.handleMouseLeave()}
