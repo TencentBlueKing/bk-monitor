@@ -233,7 +233,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         const common = {
           source: item.from_name,
           target: item.to_name,
-          label: String(item.duration_avg || item.duration_p95 || item.duration_p99 || item.request_count),
+          label: String(item.duration_avg || item.duration_p95 || item.duration_p99 || item.request_count || 0),
           style: {
             lineWidth: item.edge_breadth,
             stroke: '#C4C6CC',
@@ -286,6 +286,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   @Watch('data')
   handleDataChange() {
+    this.hideMenu();
     this.initGraph();
   }
 
@@ -711,9 +712,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   /** 设置节点状态 */
   setNodeState(name: string, value: boolean | string, item: INode) {
     const group = item.get<IGroup>('group');
-    const { size = 36, data } = item.getModel() as INodeModelConfig;
-    const { type } = data;
-    const isGhost = type.split('_')[1] === NodeDisplayType.VOID;
+    const { size = 36 } = item.getModel() as INodeModelConfig;
 
     const hoverCircle = group.find(e => e.get('name') === 'custom-node-hover-circle');
     if (name === 'hover' && !item.hasState('active')) {
@@ -769,14 +768,18 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       const textShape = group.find(e => e.get('name') === 'text-shape');
       const nodeIcon = group.find(e => e.get('name') === 'node-icon');
       const nodeKeyShape = group.find(e => e.get('name') === 'custom-node-keyShape');
+      const nodeHoverShape = group.find(e => e.get('name') === 'custom-node-hover-circle');
       textShape.attr({
-        opacity: value || isGhost ? 0.4 : 1,
+        opacity: value ? 0.2 : 1,
       });
       nodeIcon.attr({
-        opacity: value || isGhost ? 0.4 : 1,
+        opacity: value ? 0.2 : 1,
       });
       nodeKeyShape.attr({
-        lineWidth: value || isGhost ? 2 : 4,
+        opacity: value ? 0.2 : 1,
+      });
+      nodeHoverShape.attr({
+        opacity: value ? 0.2 : 1,
       });
     }
   }
@@ -785,6 +788,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   setEdgeState(name: string, value: boolean | string, item: IEdge) {
     const group = item.get('group');
     const keyShape: IShape = group.get('children')[0];
+    const textRect: IShape = group.get('children')[1];
+    const text: IShape = group.get('children')[2];
 
     if (name === 'active') {
       if (value) {
@@ -813,7 +818,13 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
     if (name === 'no-select') {
       keyShape.attr({
-        opacity: value ? 0.4 : 1,
+        opacity: value ? 0.2 : 1,
+      });
+      textRect.attr({
+        opacity: value ? 0.2 : 1,
+      });
+      text.attr({
+        opacity: value ? 0.2 : 1,
       });
     }
   }
@@ -857,9 +868,13 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   /** 缩放滑块切换 */
   handleScaleChange(ratio: number) {
     if (!this.graph) return;
-    this.scaleValue = ratio;
     // 以画布中心为圆心放大/缩小
     this.graph.zoomTo(ratio);
+    // 手动拖拽缩放条，画布居中
+    if (this.scaleValue !== ratio) {
+      this.graph.fitCenter();
+    }
+    this.scaleValue = ratio;
   }
 
   /**
@@ -1013,7 +1028,10 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   }
 
   handleJumpToInterface() {
-    this.handlePageTabChange('endpoint', {});
+    /** 接口下钻列表超过5个，才有跳转功能 */
+    if (this.menuCfg.drillingTotal > 5) {
+      this.handlePageTabChange('endpoint', {});
+    }
   }
 
   reset() {
@@ -1097,7 +1115,10 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
             class='node-menu-list'
           >
             <div
-              style={{ display: this.menuCfg.isDrilling ? 'block' : 'none' }}
+              style={{
+                display: this.menuCfg.isDrilling ? 'block' : 'none',
+                transform: `scale(${this.scaleValue})`,
+              }}
               class='node-drilling-container'
             >
               <div class='header'>
