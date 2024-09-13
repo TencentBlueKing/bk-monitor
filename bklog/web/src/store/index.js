@@ -873,7 +873,7 @@ const store = new Vuex.Store({
         host_scopes,
         interval,
         ip_chooser,
-        keyword,
+        keyword: keyword.length ? keyword : '*',
         size,
         start_time,
         timezone,
@@ -1088,6 +1088,30 @@ const store = new Vuex.Store({
         return mappingKey[operator] ?? operator; // is is not 值映射
       };
 
+      const getSqlAdditionMappingOperator = ({ operator, field }) => {
+        let mappingKey = {
+          // is is not 值映射
+          is: ':',
+          'is not': '!=',
+        };
+
+        /** text类型字段类型的下钻映射 */
+        const textMappingKey = {
+          is: ':',
+          'is not': 'not contains match phrase',
+        };
+
+        const textType = getFieldType(field);
+        switch (textType) {
+          case 'text':
+            mappingKey = textMappingKey;
+            break;
+          default:
+            break;
+        }
+        return mappingKey[operator] ?? operator; // is is not 值映射
+      };
+
       /** 判断条件是否已经在检索内 */
       const additionIsExist = ({ field, value }) => {
         const mapOperator = getAdditionMappingOperator({ field, value });
@@ -1110,8 +1134,24 @@ const store = new Vuex.Store({
       const startIndex = state.indexItem.addition.length;
       const newAddition = { field, operator: mapOperator, value };
       if (!isLink) {
-        state.indexItem.addition.splice(startIndex, 0, newAddition);
-        dispatch('requestIndexSetQuery');
+        if (state.indexItem.search_mode === 'ui') {
+          state.indexItem.addition.splice(startIndex, 0, newAddition);
+          dispatch('requestIndexSetQuery');
+        }
+
+        if (state.indexItem.search_mode === 'sql') {
+          const sqlMapOperator = getSqlAdditionMappingOperator({ field, operator });
+
+          const keyword = state.indexItem.keyword.replace(/^\s*\*\s*$/, '');
+          const valString = /^-?\d+\.?\d*$/.test(value) ? value : `"${value}"`;
+          const appendText = `${field} ${sqlMapOperator} ${valString}`;
+          if (keyword.indexOf(appendText) === -1) {
+            const keywords = keyword.length > 0 ? [keyword] : [];
+            keywords.push(appendText);
+            state.indexItem.keyword = keywords.join(' and ');
+            dispatch('requestIndexSetQuery');
+          }
+        }
       }
 
       return Promise.resolve(newAddition);

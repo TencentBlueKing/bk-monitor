@@ -54,8 +54,9 @@
   watch(
     activeIndex,
     () => {
-      const params = ['sql', 'ui'];
-      store.commit('updateIndexItemParams', { search_mode: params[activeIndex.value] });
+      const params = ['ui', 'sql'];
+      const resetData = [{ keyword: '*' }, { addition: [] }];
+      store.commit('updateIndexItemParams', { search_mode: params[activeIndex.value], ...resetData[activeIndex.value] });
     },
     { immediate: true, deep: true },
   );
