@@ -26,6 +26,7 @@ from monitor_web.collecting.deploy import get_collect_installer
 from monitor_web.collecting.utils import fetch_sub_statistics
 from monitor_web.commons.data_access import ResultTable
 from monitor_web.models import CollectConfigMeta, CustomEventGroup
+from monitor_web.models.plugin import PluginVersionHistory
 from monitor_web.plugin.constant import PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
 from utils import business
@@ -86,7 +87,19 @@ class CollectTargetStatusTopoResource(Resource):
         bk_biz_id = serializers.IntegerField(label=_("业务ID"))
         id = serializers.IntegerField(label=_("采集配置ID"))
 
-    def nodata_test(self, target_list: List[Dict[str, Any]]) -> Dict[str, bool]:
+    @staticmethod
+    def fetch_latest_version_by_config(collect_config: CollectConfigMeta) -> PluginVersionHistory:
+        """
+        根据主配置拿最新子配置版本号
+        """
+        config_version = collect_config.deployment_config.plugin_version.config_version
+        latest_info_version = PluginVersionHistory.objects.filter(
+            plugin=collect_config.plugin, config_version=config_version, stage=PluginVersionHistory.Stage.RELEASE
+        ).latest("info_version")
+        return latest_info_version
+
+    @classmethod
+    def nodata_test(cls, collect_config: CollectConfigMeta, target_list: List[Dict[str, Any]]) -> Dict[str, bool]:
         """
         无数据检测
         """
@@ -94,13 +107,16 @@ class CollectTargetStatusTopoResource(Resource):
             return {}
 
         # 取3个采集周期内的数据，若3个采集周期都无数据则判断为无数据
-        period = self.config.deployment_config.params["collector"]["period"]
+        period = collect_config.deployment_config.params["collector"]["period"]
 
-        filter_dict = {"bk_collect_config_id": str(self.config.id)}
+        filter_dict = {"bk_collect_config_id": str(collect_config.id)}
 
         # 日志关键字无数据判断
-        if self.config.plugin.plugin_type == PluginType.LOG or self.config.plugin.plugin_type == PluginType.SNMP_TRAP:
-            version = self.config.deployment_config.plugin_version
+        if (
+            collect_config.plugin.plugin_type == PluginType.LOG
+            or collect_config.plugin.plugin_type == PluginType.SNMP_TRAP
+        ):
+            version = collect_config.deployment_config.plugin_version
             event_group_name = "{}_{}".format(version.plugin.plugin_type, version.plugin_id)
             group_info = CustomEventGroup.objects.get(name=event_group_name)
 
@@ -128,23 +144,23 @@ class CollectTargetStatusTopoResource(Resource):
             return target_status
 
         # 获取结果表配置
-        if self.config.plugin.is_split_measurement:
-            db_name = f"{self.config.plugin.plugin_type}_{self.config.plugin.plugin_id}".lower()
+        if collect_config.plugin.is_split_measurement:
+            db_name = f"{collect_config.plugin.plugin_type}_{collect_config.plugin.plugin_id}".lower()
             group_result = api.metadata.query_time_series_group(bk_biz_id=0, time_series_group_name=db_name)
             result_tables = [ResultTable.time_series_group_to_result_table(group_result)]
         else:
-            if self.config.plugin.plugin_type == PluginType.PROCESS:
+            if collect_config.plugin.plugin_type == PluginType.PROCESS:
                 db_name = "process:perf"
                 metric_json = PluginManagerFactory.get_manager(
-                    plugin=self.config.plugin.plugin_id, plugin_type=self.config.plugin.plugin_type
+                    plugin=collect_config.plugin.plugin_id, plugin_type=collect_config.plugin.plugin_type
                 ).gen_metric_info()
 
                 metric_json = [table for table in metric_json if table["table_name"] == "perf"]
             else:
                 db_name = "{plugin_type}_{plugin_id}".format(
-                    plugin_type=self.config.plugin.plugin_type, plugin_id=self.config.plugin.plugin_id
+                    plugin_type=collect_config.plugin.plugin_type, plugin_id=collect_config.plugin.plugin_id
                 )
-                latest_info_version = self.fetch_latest_version_by_config()
+                latest_info_version = cls.fetch_latest_version_by_config()
                 metric_json = latest_info_version.info.metric_json
             result_tables = [ResultTable.new_result_table(table) for table in metric_json]
 
@@ -154,7 +170,9 @@ class CollectTargetStatusTopoResource(Resource):
         else:
             filter_dict["time__gt"] = f"{period // 60 * 3}m"
 
-        ts_database = TSDataBase(db_name=db_name.lower(), result_tables=result_tables, bk_biz_id=self.config.bk_biz_id)
+        ts_database = TSDataBase(
+            db_name=db_name.lower(), result_tables=result_tables, bk_biz_id=collect_config.bk_biz_id
+        )
         target_status_list = ts_database.no_data_test(test_target_list=target_list, filter_dict=filter_dict)
         target_status = {}
         for target in target_status_list:
@@ -165,7 +183,7 @@ class CollectTargetStatusTopoResource(Resource):
 
             target_status[key] = target["no_data"]
 
-        return
+        return target_status
 
     @staticmethod
     def get_instance_info(instance: Dict) -> Dict:
@@ -241,7 +259,7 @@ class CollectTargetStatusTopoResource(Resource):
         installer = get_collect_installer(collect_config, topo_tree=topo_tree)
 
         # 获取实例采集状态并搜集节点信息，避免服务模板还需要进行转换
-        collect_status = installer.status(topo_tree=topo_tree, diff=False)
+        collect_status = installer.status(diff=False)
         topo_nodes: Set[str] = set()
         instance_status: Dict[str, Dict[str, Any]] = {}
         targets: List[Dict[str, Any]] = []
@@ -261,15 +279,15 @@ class CollectTargetStatusTopoResource(Resource):
                     targets.append({"bk_target_ip": instance["ip"], "bk_target_cloud_id": instance["bk_cloud_id"]})
 
         # 获取数据状态
-        self.no_data_info = self.nodata_test(targets)
+        no_data_info = self.nodata_test(collect_config, targets)
 
         # 填充数据状态
         for instance in instance_status.values():
             # 获取实例数据状态
             if instance.get("service_instance_id"):
-                no_data = self.no_data_info.get(str(instance["service_instance_id"])) or True
+                no_data = no_data_info.get(str(instance["service_instance_id"]), True)
             else:
-                no_data = self.no_data_info.get(f"{instance['ip']}|{instance['bk_cloud_id']}") or True
+                no_data = no_data_info.get(f"{instance['ip']}|{instance['bk_cloud_id']}", True)
 
             if no_data and instance["status"] == CollectStatus.SUCCESS:
                 instance["status"] = CollectStatus.NODATA
@@ -286,6 +304,7 @@ class CollectTargetStatusTopoResource(Resource):
             for instance in instance_status.values():
                 result.append(self.get_instance_info(instance))
         else:
+            # TODO: k8s插件下发
             pass
         return result
 

@@ -555,7 +555,7 @@ class CollectConfigMeta(OperateRecordModelBase):
             "label": self.label,
             "config_version": self.deployment_config.plugin_version.config_version,
             "info_version": self.deployment_config.plugin_version.info_version,
-            "last_operation": self.config.last_operation,
+            "last_operation": self.last_operation,
         }
 
 
