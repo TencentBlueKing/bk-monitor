@@ -176,10 +176,11 @@
     display: inline-flex;
     align-items: center;
     width: 100%;
-    padding-left: 10px;
+
 
     .search-sql-editor {
       width: 100%;
+      padding-left: 8px;
 
       .cm-editor {
         &.cm-focused {
