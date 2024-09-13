@@ -15,17 +15,14 @@ import re
 
 from django.db import transaction
 from django.utils.translation import ugettext as _
-from six.moves import map
 
 from bkmonitor.action.serializers import DutyRuleDetailSlz, UserGroupDetailSlz
 from bkmonitor.models import ActionConfig, DutyRule, StrategyModel, UserGroup
 from bkmonitor.strategy.new_strategy import Strategy
 from bkmonitor.utils.local import local
 from core.drf_resource import api, resource
-from core.errors.collecting import SubscriptionStatusError
 from core.errors.export_import import ImportConfigError
 from monitor_web.collecting.constant import OperationResult, OperationType
-from monitor_web.collecting.resources import update_config_operation_result
 from monitor_web.export_import.constant import ConfigType, ImportDetailStatus
 from monitor_web.grafana.auth import GrafanaAuthSync
 from monitor_web.models import (
@@ -106,29 +103,19 @@ def import_plugin(bk_biz_id, plugin_config):
     return plugin_config
 
 
-def import_collect_without_plugin(data):
-    result = resource.collecting.save_collect_config(data)
-    collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(id=result["id"])
-    try:
-        update_config_operation_result(collect_config)
-    except SubscriptionStatusError as e:
-        logger.exception(str(e))
-    return result
-
-
 def import_one_log_collect(data, bk_biz_id):
     data.pop("id")
     data["bk_biz_id"] = bk_biz_id
     data["plugin_id"] = "default_log"
     data["target_nodes"] = []
-    return import_collect_without_plugin(data)
+    return resource.collecting.save_collect_config(data)
 
 
 def import_process_collect(data, bk_biz_id):
     data.pop("id")
     data["bk_biz_id"] = bk_biz_id
     data["target_nodes"] = []
-    return import_collect_without_plugin(data)
+    return resource.collecting.save_collect_config(data)
 
 
 def check_and_change_bkdata_table_id(query_config, bk_biz_id):

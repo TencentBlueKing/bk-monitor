@@ -18,16 +18,19 @@ from django.utils.translation import ugettext as _
 from api.cmdb.define import TopoNode, TopoTree
 from constants.cmdb import TargetNodeType, TargetObjectType
 from core.drf_resource import api
+from core.errors.api import BKAPIError
 from core.errors.collecting import (
     CollectConfigNeedUpgrade,
     CollectConfigRollbackError,
     DeleteCollectConfigError,
+    SubscriptionStatusError,
     ToggleConfigStatusError,
 )
 from monitor_web.collecting.constant import (
     CollectStatus,
     OperationResult,
     OperationType,
+    TaskStatus,
 )
 from monitor_web.models import CollectConfigMeta, DeploymentConfigVersion
 from monitor_web.plugin.constant import ParamMode, PluginType
@@ -40,6 +43,8 @@ class NodeManInstaller(BaseInstaller):
     """
     节点管理安装器
     """
+
+    running_status = {OperationType.START: TaskStatus.STARTING, OperationType.STOP: TaskStatus.STOPPING}
 
     def __init__(self, collect_config: CollectConfigMeta, topo_tree: TopoTree = None):
         super().__init__(collect_config)
@@ -56,7 +61,16 @@ class NodeManInstaller(BaseInstaller):
         if not self._topo_tree:
             self._topo_tree = api.cmdb.get_topo_tree(bk_biz_id=self.collect_config.bk_biz_id)
 
-        self._topo_links = self._topo_tree.convert_to_topo_link()
+        topo_links = self._topo_tree.convert_to_topo_link()
+
+        # 补充节点信息
+        self._topo_links = {}
+        for link in topo_links.values():
+            for index, node in enumerate(link[:-1]):
+                node_id = f"{node.bk_obj_id}|{node.bk_inst_id}"
+                if node_id not in self._topo_links:
+                    self._topo_links[node_id] = link[index:]
+
         return self._topo_links
 
     def _create_plugin_collecting_steps(self, target_version: DeploymentConfigVersion, data_id: str):
@@ -625,6 +639,10 @@ class NodeManInstaller(BaseInstaller):
                 "scope_ids": [],
             }
 
+            # 状态转换
+            if instance["status"] in [TaskStatus.DEPLOYING, TaskStatus.RUNNING]:
+                instance["status"] = self.running_status.get(self.collect_config.last_operation, TaskStatus.DEPLOYING)
+
             # 处理scope
             for scope in instance_result["instance_info"].get("scope", []):
                 if "ip" in scope:
@@ -643,6 +661,8 @@ class NodeManInstaller(BaseInstaller):
                 )
             else:
                 instance["instance_name"] = host.get("bk_host_innerip") or host.get("bk_host_innerip_v6") or ""
+                instance["bk_module_ids"] = host.get("module", [])
+                instance["bk_set_ids"] = host.get("set", [])
 
             # 根据步骤获取操作类型
             action = "install"
@@ -754,6 +774,16 @@ class NodeManInstaller(BaseInstaller):
             # 如果没有差异，直接返回
             if not node_diff.pop("is_modified", True):
                 return []
+
+            node_diff = {
+                new_diff_type: node_diff.get(diff_type, [])
+                for diff_type, new_diff_type in [
+                    ("added", "ADD"),
+                    ("removed", "REMOVE"),
+                    ("updated", "UPDATE"),
+                    ("unchanged", "RETRY"),
+                ]
+            }
         else:
             node_diff = {"": current_version.target_nodes}
 
@@ -839,3 +869,40 @@ class NodeManInstaller(BaseInstaller):
             return {"log_detail": "\n".join(log)}
         else:
             return {"log_detail": _("未找到日志")}
+
+    def update_status(self):
+        """
+        更新采集配置状态
+        """
+        current_version = self.collect_config.deployment_config
+
+        try:
+            status_result = api.node_man.batch_task_result(subscription_id=current_version.subscription_id)
+        except BKAPIError as e:
+            message = _("采集配置 CollectConfigMeta: {} 查询订阅{}结果出错: {}").format(
+                self.collect_config.id, current_version.subscription_id, e
+            )
+            raise SubscriptionStatusError({"msg": message})
+        except IndexError:
+            message = _("采集配置 CollectConfigMeta: {} 对应订阅{}不存在").format(
+                self.collect_config.id, current_version.subscription_id
+            )
+            raise SubscriptionStatusError({"msg": message})
+
+        error_count = 0
+        total_count = len(status_result)
+        instances_status = ""
+        for item in status_result:
+            instances_status += "{}({});".format(item["instance_id"], item["status"])
+            if item["status"] in [CollectStatus.RUNNING, CollectStatus.PENDING]:
+                break
+            if item["status"] == CollectStatus.FAILED:
+                error_count += 1
+        else:
+            if error_count == 0:
+                self.collect_config.operation_result = OperationResult.SUCCESS
+            elif error_count == total_count:
+                self.collect_config.operation_result = OperationResult.FAILED
+            else:
+                self.collect_config.operation_result = OperationResult.WARNING
+            self.collect_config.save(not_update_user=True)

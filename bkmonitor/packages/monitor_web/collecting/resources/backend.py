@@ -18,7 +18,6 @@ from django.utils.translation import ugettext as _
 
 from bkm_space.api import SpaceApi
 from bkmonitor.utils import shortuuid
-from bkmonitor.utils.local import local
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.views import serializers
@@ -30,7 +29,6 @@ from core.errors.collecting import (
     CollectConfigNotExist,
     CollectConfigParamsError,
     CollectConfigRollbackError,
-    SubscriptionStatusError,
 )
 from core.errors.plugin import PluginIDNotExist
 from monitor_web.collecting.constant import (
@@ -54,7 +52,6 @@ from monitor_web.strategies.loader.datalink_loader import (
     DatalinkDefaultAlarmStrategyLoader,
 )
 from monitor_web.tasks import append_metric_list_cache
-from utils import business
 
 logger = logging.getLogger(__name__)
 
@@ -579,46 +576,40 @@ class CloneCollectConfigResource(Resource):
             # 克隆任务不克隆目标节点
             data["target_nodes"] = []
 
-            result = resource.collecting.save_collect_config(data)
-            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(id=result["id"])
-            try:
-                update_config_operation_result(collect_config)
-            except SubscriptionStatusError as e:
-                logger.error(str(e))
-            return None
-        else:
-            try:
-                collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(id=data["id"])
-            except CollectConfigMeta.DoesNotExist:
-                raise CollectConfigNotExist({"msg": data["id"]})
+            resource.collecting.save_collect_config(data)
+            return
 
-            with transaction.atomic():
-                # 克隆部署配置
-                deployment_config = copy(collect_config.deployment_config)
-                deployment_config.id = None
-                # 克隆任务不克隆目标节点
-                deployment_config.target_nodes = []
-                deployment_config.subscription_id = 0
-                deployment_config.save()
-                # 克隆采集配置
-                collect_config.id = None
-                collect_config.deployment_config = deployment_config
+        try:
+            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(id=data["id"])
+        except CollectConfigMeta.DoesNotExist:
+            raise CollectConfigNotExist({"msg": data["id"]})
 
-                #  判断重名
-                new_name = name = collect_config.name + "_copy"
-                i = 1
-                while CollectConfigMeta.objects.filter(name=new_name):
-                    new_name = f"{name}({i})"
-                    i += 1
-                collect_config.name = new_name
+        with transaction.atomic():
+            # 克隆部署配置
+            deployment_config = copy(collect_config.deployment_config)
+            deployment_config.id = None
+            # 克隆任务不克隆目标节点
+            deployment_config.target_nodes = []
+            deployment_config.subscription_id = 0
+            deployment_config.save()
+            # 克隆采集配置
+            collect_config.id = None
+            collect_config.deployment_config = deployment_config
 
-                # 清除目标节点统计
-                collect_config.cache_data = {}
-                # 设置任务状态为“正常”
-                collect_config.last_operation = OperationType.CREATE
-                collect_config.operation_result = OperationResult.SUCCESS
-                collect_config.save()
-            return None
+            #  判断重名
+            new_name = name = collect_config.name + "_copy"
+            i = 1
+            while CollectConfigMeta.objects.filter(name=new_name):
+                new_name = f"{name}({i})"
+                i += 1
+            collect_config.name = new_name
+
+            # 清除目标节点统计
+            collect_config.cache_data = {}
+            # 设置任务状态为“正常”
+            collect_config.last_operation = OperationType.CREATE
+            collect_config.operation_result = OperationResult.SUCCESS
+            collect_config.save()
 
 
 class RetryTargetNodesResource(Resource):
@@ -910,9 +901,6 @@ class SaveCollectConfigResource(Resource):
                 self.roll_back_result_table(collector_plugin)
             raise err
 
-        # 异步更新主机总数的缓存
-        resource.collecting.update_config_instance_count.delay(id=collect_config.id)
-
         # 添加完成采集配置，主动更新指标缓存表
         self.update_metric_cache(collector_plugin)
 
@@ -1073,44 +1061,6 @@ class GetMetricsResource(Resource):
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": validated_request_data["id"]})
         return collect_config.deployment_config.metrics
-
-
-def update_config_operation_result(config, not_update_user=True):
-    """
-    更新采集配置的任务执行结果
-    """
-    local.username = business.maintainer(str(config.bk_biz_id))
-    # 请求节点管理的任务结果接口，获取采集下发状态
-    try:
-        status_result = api.node_man.batch_task_result(subscription_id=config.deployment_config.subscription_id)
-    except BKAPIError as e:
-        message = _("采集配置 CollectConfigMeta: {} 查询订阅{}结果出错: {}").format(
-            config.id, config.deployment_config.subscription_id, e
-        )
-        raise SubscriptionStatusError({"msg": message})
-    except IndexError:
-        message = _("采集配置 CollectConfigMeta: {} 对应订阅{}不存在").format(config.id, config.deployment_config.subscription_id)
-        raise SubscriptionStatusError({"msg": message})
-
-    error_count = 0
-    total_count = len(status_result)
-    instances_status = ""
-    for item in status_result:
-        instances_status += "{}({});".format(item["instance_id"], item["status"])
-        if item["status"] in [CollectStatus.RUNNING, CollectStatus.PENDING]:
-            logger.info("running instance is found in config {}".format(config.id))
-            break
-        if item["status"] == CollectStatus.FAILED:
-            error_count += 1
-    else:
-        logger.info("采集配置id:{}, 实例状态:{}".format(config.id, instances_status))
-        if error_count == 0:
-            config.operation_result = OperationResult.SUCCESS
-        elif error_count == total_count:
-            config.operation_result = OperationResult.FAILED
-        else:
-            config.operation_result = OperationResult.WARNING
-        config.save(not_update_user=not_update_user)
 
 
 class CollectConfigInfoResource(Resource):

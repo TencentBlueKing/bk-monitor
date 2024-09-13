@@ -541,6 +541,23 @@ class CollectConfigMeta(OperateRecordModelBase):
         if self.deployment_config.subscription_id:
             api.node_man.switch_subscription(subscription_id=self.deployment_config.subscription_id, action=action)
 
+    def get_info(self):
+        """
+        获取配置信息
+        """
+        return {
+            "id": self.id,
+            "name": self.name,
+            "bk_biz_id": self.bk_biz_id,
+            "target_object_type": self.target_object_type,
+            "target_node_type": self.deployment_config.target_node_type,
+            "plugin_id": self.plugin.plugin_id,
+            "label": self.label,
+            "config_version": self.deployment_config.plugin_version.config_version,
+            "info_version": self.deployment_config.plugin_version.info_version,
+            "last_operation": self.config.last_operation,
+        }
+
 
 class DeploymentConfigVersion(OperateRecordModelBase):
     """

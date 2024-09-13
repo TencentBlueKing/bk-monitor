@@ -70,8 +70,6 @@ class CollectingConfigViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.collecting.collect_running_status, endpoint="running_status"),
         # 获取采集下发详细日志
         ResourceRoute("GET", resource.collecting.get_collect_log_detail, endpoint="get_collect_log_detail"),
-        # 测试接口，更新采集配置的主机数目/异常数目
-        ResourceRoute("GET", resource.collecting.update_config_instance_count, endpoint="update_config_instance_count"),
         # 获取采集配置变量列表
         ResourceRoute("GET", resource.collecting.get_collect_variables, endpoint="get_collect_variables"),
         # 执行详情页批量重试

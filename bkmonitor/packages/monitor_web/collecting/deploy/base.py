@@ -20,7 +20,7 @@ class BaseInstaller(abc.ABC):
     TODO: 所有操作加锁，并且加入异步回调状态更新
     """
 
-    def __init__(self, collect_config: CollectConfigMeta):
+    def __init__(self, collect_config: CollectConfigMeta, *args, **kwargs):
         self.collect_config = collect_config
         self.plugin = collect_config.plugin
 

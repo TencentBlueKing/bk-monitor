@@ -16,11 +16,11 @@ from .k8s import K8sInstaller
 from .node_man import NodeManInstaller
 
 
-def get_collect_installer(collect_config: CollectConfigMeta) -> BaseInstaller:
+def get_collect_installer(collect_config: CollectConfigMeta, *args, **kwargs) -> BaseInstaller:
     """
     获取插件采集安装器
     """
     if collect_config.plugin.plugin_type == PluginType.K8S:
-        return K8sInstaller(collect_config)
+        return K8sInstaller(collect_config, *args, **kwargs)
     else:
-        return NodeManInstaller(collect_config)
+        return NodeManInstaller(collect_config, *args, **kwargs)

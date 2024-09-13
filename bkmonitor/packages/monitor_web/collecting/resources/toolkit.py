@@ -331,6 +331,11 @@ class IsTaskReady(Resource):
     def perform_request(self, validated_request_data):
         config_id = validated_request_data["collect_config_id"]
         config = CollectConfigMeta.objects.select_related("deployment_config").get(id=config_id)
+
+        # 兼容非节点管理部署的采集
+        if not config.deployment_config.subscription_id:
+            return True
+
         params = {
             "subscription_id": config.deployment_config.subscription_id,
             "task_id_list": config.deployment_config.task_ids,
