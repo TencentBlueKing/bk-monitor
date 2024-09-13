@@ -68,7 +68,7 @@
     }
 
     .log-icon {
-      width: 16px;
+      min-width: 16px;
     }
 
     .icon-star-shape {
@@ -82,6 +82,8 @@
     .index-name {
       display: block;
       margin-left: 4px;
+
+      @include ellipsis();
     }
 
     .lighten-name {
