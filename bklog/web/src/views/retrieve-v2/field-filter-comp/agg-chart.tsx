@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _escape from 'lodash/escape';
@@ -87,6 +87,16 @@ export default class AggChart extends tsc<object> {
   }
   get showTotalCount() {
     return this.isFrontStatistics ? this.statisticalFieldData.__totalCount : this.fieldValueData.total_count;
+  }
+  get watchQueryParams() {
+    const { datePickerValue, ip_chooser, addition, timezone, keyword } = this.$store.state.indexItem;
+    return { datePickerValue, ip_chooser, addition, timezone, keyword };
+  }
+
+  @Watch('watchQueryParams', { deep: true })
+  watchPicker() {
+    if (this.isFrontStatistics) return;
+    this.queryFieldFetchTopList(this.limitSize);
   }
 
   mounted() {

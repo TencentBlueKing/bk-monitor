@@ -3,7 +3,8 @@ import { basicSetup, EditorView } from 'codemirror';
 // import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
 // import { tags as t } from '@lezer/highlight';
 import { sql } from '@codemirror/lang-sql';
-import { lineNumbers } from "@codemirror/gutter";
+import { lineNumbers } from '@codemirror/gutter';
+import { keymap } from '@codemirror/view';
 
 // // 定义 Lucene 语法高亮
 // const luceneHighlightStyle = HighlightStyle.define([
@@ -37,10 +38,19 @@ function lucene() {
   });
 }
 
-export default ({ target, onChange, onFocusChange, value }) => {
+export default ({ target, onChange, onFocusChange, onKeyEnter, value }) => {
   const state = EditorState.create({
     doc: value,
     extensions: [
+      keymap.of([
+        {
+          key: 'Enter',
+          run: view => {
+            onKeyEnter?.(view);
+            return true;
+          },
+        },
+      ]),
       basicSetup.filter(ext => ext != lineNumbers),
       // lucene()
       // syntaxHighlighting(luceneHighlightStyle),
@@ -69,9 +79,22 @@ export default ({ target, onChange, onFocusChange, value }) => {
   };
 
   const setValue = value => {
+    if (view.state.doc.toString() === value) {
+      return;
+    }
+
     view.dispatch({
       changes: { from: 0, to: view.state.doc.length, insert: value },
     });
+
+    setTimeout(() => {
+      view.dispatch({
+        selection: {
+          anchor: view.state.doc.length,
+          head: view.state.doc.length,
+        },
+      });
+    }, 300);
   };
 
   return { state, view, appendText, setValue };

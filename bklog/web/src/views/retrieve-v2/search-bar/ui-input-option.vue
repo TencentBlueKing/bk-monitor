@@ -115,7 +115,7 @@
 
   const condition = ref({
     operator: '',
-    isInclude: true,
+    isInclude: false,
     value: [],
     relation: 'AND',
   });
@@ -260,12 +260,19 @@
     }
 
     const isFulltextValue = activeFieldItem.value.field_name === '';
-    const result = isFulltextValue
-      ? undefined
-      : {
-          field: activeFieldItem.value.field_name,
-          ...condition.value,
-        };
+    let result = {
+      field: activeFieldItem.value.field_name,
+      ...condition.value,
+    };
+
+    // 如果是全文检索
+    if (isFulltextValue) {
+      // 全文检索值为空，说明是是新增全文检索
+      // 此时，检索值还在Input输入框内，这里result设置为 undefined；
+      if (!condition.value.value.length) {
+        result = undefined;
+      }
+    }
 
     // 如果是空操作符禁止提交
     if (result && !result.operator) {
@@ -701,7 +708,10 @@
           <div class="full-text-content">{{ $t('可通过上下键快速切换选择「Key」值') }}</div>
         </template>
         <template v-else>
-          <div class="ui-value-row">
+          <div
+            class="ui-value-row"
+            v-if="activeFieldItem.field_name"
+          >
             <div class="ui-value-label">{{ $t('条件') }}</div>
             <div class="ui-value-component">
               <div
@@ -734,11 +744,20 @@
           >
             <div class="ui-value-label">
               <span>Value</span
-              ><span
+              ><span v-show="['text', 'string'].includes(activeFieldItem.field_type)"
                 ><bk-checkbox v-model="condition.isInclude">{{ $t('使用通配符') }}</bk-checkbox></span
               >
             </div>
-            <div :class="['condition-value-container', { 'is-focus': isConditionValueInputFocus }]">
+            <template v-if="!activeFieldItem.field_name">
+              <bk-input
+                v-model="condition.value[0]"
+                type="textarea"
+              ></bk-input>
+            </template>
+            <div
+              v-else
+              :class="['condition-value-container', { 'is-focus': isConditionValueInputFocus }]"
+            >
               <ul
                 class="condition-value-input"
                 ref="refConditionInput"
@@ -785,7 +804,10 @@
               </ul>
             </div>
           </div>
-          <div class="ui-value-row">
+          <div
+            class="ui-value-row"
+            v-show="condition.value.length > 1"
+          >
             <div class="ui-value-label">{{ $t('组间关系') }}</div>
             <div>
               <bk-radio-group v-model="condition.relation">

@@ -20,7 +20,7 @@
     },
   });
 
-  const emits = defineEmits(['change', 'cancel', 'retrieve']);
+  const emits = defineEmits(['change', 'cancel', 'retrieve', 'active-change']);
 
   const store = useStore();
   const { $t } = useLocale();
@@ -98,6 +98,10 @@
   ]);
 
   const setOptionActive = () => {
+    if (activeIndex.value === null) {
+      return;
+    }
+
     const dropdownList = refDropdownEl?.value?.querySelectorAll('.list-item');
     refDropdownEl?.value?.querySelector('.list-item.active')?.classList.remove('active');
     dropdownList?.[activeIndex.value]?.classList.add('active');
@@ -117,7 +121,7 @@
     if (Array.isArray(param)) {
       activeType.value.push(...param);
     }
-    activeIndex.value = 0;
+    activeIndex.value = null;
   };
 
   /**
@@ -259,7 +263,7 @@
     }
     showColonOperator(field as string);
     nextTick(() => {
-      activeIndex.value = 0;
+      activeIndex.value = null;
       setOptionActive();
     });
   };
@@ -272,7 +276,7 @@
     emits('change', `${props.value + type} `);
     calculateDropdown();
     nextTick(() => {
-      activeIndex.value = 0;
+      activeIndex.value = null;
       setOptionActive();
     });
   };
@@ -291,7 +295,7 @@
     );
     showWhichDropdown(OptionItemType.Continue);
     nextTick(() => {
-      activeIndex.value = 0;
+      activeIndex.value = null;
       setOptionActive();
     });
   };
@@ -305,7 +309,7 @@
     showWhichDropdown(OptionItemType.Fields);
     fieldList.value = [...originFieldList()];
     nextTick(() => {
-      activeIndex.value = 0;
+      activeIndex.value = null;
       setOptionActive();
     });
   };
@@ -377,7 +381,7 @@
   };
 
   // 查询语法按钮部分
-  const isRetractShow = ref(false);
+  const isRetractShow = ref(true);
   const handleRetract = () => {
     isRetractShow.value = !isRetractShow.value;
   };
@@ -427,6 +431,10 @@
     },
     { immediate: true, deep: true },
   );
+
+  watch(activeIndex, () => {
+    emits('active-change', activeIndex.value);
+  });
 </script>
 <template>
   <div class="sql-query-container">

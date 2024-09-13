@@ -1,9 +1,10 @@
 <script setup>
-  import { ref, nextTick, computed, onMounted } from 'vue';
+  import { ref, nextTick, computed, onMounted, watch } from 'vue';
 
   import SqlQueryOptions from './sql-query-options';
   import useFocusInput from './use-focus-input';
   import CreateLuceneEditor from './codemirror-lucene';
+  import { debounce } from 'lodash';
 
   const props = defineProps({
     value: {
@@ -23,6 +24,8 @@
   const refUlRoot = ref(null);
   const separator = /\s(AND|OR)\s/i; // 区分查询语句条件
   const refEditorParent = ref(null);
+  const sqlActiveParamsIndex = ref(null);
+
   let editorInstance = null;
 
   const formatModelValueItem = item => {
@@ -58,13 +61,30 @@
 
   const onEditorContextChange = doc => {
     emit('input', doc.text.join(''));
-    // emit('change', doc.text.join(''))
   };
+
+  const debounceRetrieve = () => {
+    emit('retrieve', modelValue.value);
+  }
+
+  watch(modelValue, () => {
+    setEditorContext(modelValue.value);
+  });
 
   const createEditorInstance = () => {
     editorInstance = CreateLuceneEditor({
+      value: modelValue.value,
       target: refEditorParent.value,
       onChange: e => onEditorContextChange(e),
+      onKeyEnter: view => {
+        if (!(getTippyInstance()?.state?.isShown ?? false) || sqlActiveParamsIndex.value === null) {
+
+          getTippyInstance()?.hide();
+          debounceRetrieve();
+
+          console.log('view', view);
+        }
+      },
       onFocusChange: isFocusing => {
         if (isFocusing) {
           delayShowInstance(refEditorParent.value);
@@ -73,10 +93,6 @@
       },
     });
   };
-
-  const sqlQueryString = computed(() => {
-    return modelValue.value;
-  });
 
   const sqlQueryItemList = computed(() => {
     return modelValue.value
@@ -119,6 +135,10 @@
     }
   };
 
+  const handleSqlParamsActiveChange = val => {
+    sqlActiveParamsIndex.value = val;
+  }
+
   const handleCancel = () => {
     getTippyInstance()?.hide();
     handleContainerClick();
@@ -137,7 +157,8 @@
     <div style="display: none">
       <SqlQueryOptions
         ref="refSqlQueryOption"
-        :value="sqlQueryString"
+        :value="modelValue"
+        @active-change="handleSqlParamsActiveChange"
         @cancel="handleCancel"
         @change="handleQueryChange"
       ></SqlQueryOptions>

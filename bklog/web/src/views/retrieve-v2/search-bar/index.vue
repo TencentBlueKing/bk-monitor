@@ -26,7 +26,7 @@
   const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
   const isInputLoading = computed(() => {
     if (activeIndex.value === 0) {
-      return indexFieldInfo.value.is_loading;
+      return false;
     }
 
     return indexFieldInfo.value.is_loading || indexSetQueryResult.value.is_loading;
@@ -54,8 +54,9 @@
   watch(
     activeIndex,
     () => {
-      const params = ['sql', 'ui'];
-      store.commit('updateIndexItemParams', { search_mode: params[activeIndex.value] });
+      const params = ['ui', 'sql'];
+      const resetData = [{ keyword: '*' }, { addition: [] }];
+      store.commit('updateIndexItemParams', { search_mode: params[activeIndex.value], ...resetData[activeIndex.value] });
     },
     { immediate: true, deep: true },
   );
@@ -76,6 +77,7 @@
   const handleIndexSetSelected = payload => {
     if (!isEqual(indexItem.value.ids, payload.ids) || indexItem.value.isUnionIndex !== payload.isUnionIndex) {
       store.dispatch('requestIndexSetItemChanged', payload).then(() => {
+        store.commit('retrieve/updateChartKey');
         store.dispatch('requestIndexSetQuery');
       });
     }
