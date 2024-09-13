@@ -202,6 +202,7 @@
       showColonOperator(inputField);
       return;
     }
+
     // 准备输入值【name:】
     const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups?.field;
     if (confirmField) {
@@ -230,6 +231,7 @@
       }
       return;
     }
+
     // 一组条件输入完毕【age:18 】提示继续增加条件 AND OR
     if (/^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>["']?.*["']?)$/.test(lastFragment)) {
       showWhichDropdown(OptionItemType.Continue);

@@ -67,6 +67,10 @@
       top: 0;
       bottom: 0;
 
+      .bk-tooltip {
+        display: inline-flex;
+      }
+
       &.items .disabled  {
         color: #dcdee5 ;
         cursor: not-allowed;
@@ -84,6 +88,10 @@
         span {
           font-size: 18px;
           color: #63656e;
+
+          &.bklog-star-line {
+            font-size: 20px;
+          }
         }
       }
 
@@ -177,5 +185,5 @@
     justify-content: end;
   }
 
- 
+
 }

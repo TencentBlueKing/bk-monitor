@@ -228,6 +228,7 @@
       }
     });
   };
+
 </script>
 <template>
   <bk-popover
