@@ -42,14 +42,7 @@
             :class="getFieldIcon(field)"
             :style="{ backgroundColor: getFieldIconColor(field) }"
           ></span>
-          <span
-            class="field-text"
-            v-bk-tooltips="{
-              content: field,
-              disabled: field.length < 5,
-            }"
-            >{{ field }}
-          </span>
+          <span class="field-text">{{ field }}</span>
         </div>
         <div class="field-value">
           <text-segmentation
@@ -162,7 +155,7 @@
       getMaxWidth() {
         // 表格内字体如果用12px在windows系统下表格字体会显得很细，所以用13px来加粗
         const fieldWidthList = this.fieldKeyMap.map(item => getTextPxWidth(item, '13px', TABLE_FOUNT_FAMILY));
-        return Math.max(...fieldWidthList) + 18; // 18是icon的宽度
+        return Math.max(...fieldWidthList) + 22; // 22是icon的宽度
       },
       hiddenFields() {
         return this.fieldList.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
@@ -388,10 +381,8 @@
           font-family: var(--table-fount-family);
           font-size: var(--table-fount-size);
           color: var(--table-fount-color);
-          text-overflow: ellipsis;
           word-break: normal;
           word-wrap: break-word;
-          white-space: nowrap;
         }
 
         :deep(.bklog-ext) {

@@ -326,6 +326,7 @@ export default {
         const fieldType = field.field_type;
         const isUnionSource = field?.tag === 'union-source';
         const fieldIcon = this.getFieldIcon(field.field_type);
+        const fieldIconColor = this.getFieldIconColor(field.field_type);
         const content = this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].name : undefined;
         let unionContent = '';
         // 联合查询判断字段来源 若indexSetIDs缺少已检索的索引集内容 则增加字段来源判断
@@ -350,8 +351,12 @@ export default {
             h('span', {
               class: `field-type-icon ${fieldIcon}`,
               style: {
-                marginRight: '4px',
+                ...{
+                  marginRight: '4px',
+                },
+                backgroundColor: fieldIconColor,
               },
+
               directives: [
                 {
                   name: 'bk-tooltips',
@@ -482,6 +487,9 @@ export default {
     },
     getFieldIcon(fieldType) {
       return this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].icon : 'bklog-icon bklog-unkown';
+    },
+    getFieldIconColor(fieldType) {
+      return this.fieldTypeMap?.[fieldType] ? this.fieldTypeMap?.[fieldType]?.color : '#EAEBF0';
     },
     handleMenuClick(option, isLink) {
       switch (option.operation) {
