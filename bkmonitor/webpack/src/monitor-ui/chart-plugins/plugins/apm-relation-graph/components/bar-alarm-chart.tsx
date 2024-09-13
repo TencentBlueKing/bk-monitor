@@ -136,14 +136,54 @@ export default class BarAlarmChart extends tsc<IProps> {
   chartInstance = null;
   chartId = random(8);
 
+  intersectionObserver: IntersectionObserver;
+  isIntersecting = true;
+
   created() {
     this.chartInstance = {
       dispatchAction: this.dispatchAction,
     };
   }
 
+  mounted() {
+    setTimeout(this.registerObserver, 20);
+  }
+
+  beforeDestroy() {
+    this.unregisterOberver();
+  }
+
+  registerObserver() {
+    if (this.intersectionObserver) {
+      this.unregisterOberver();
+    }
+    this.intersectionObserver = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        this.isIntersecting = !!entry.isIntersecting;
+        if (!this.isIntersecting) {
+          clearTimeout(this.timer);
+          this.popInstance?.hide?.(0);
+          this.popInstance?.destroy?.();
+          this.popInstance = null;
+        }
+      }
+    });
+    this.intersectionObserver.observe(this.$el);
+  }
+
+  unregisterOberver() {
+    if (this.intersectionObserver) {
+      this.intersectionObserver.unobserve(this.$el);
+      this.intersectionObserver.disconnect();
+      this.intersectionObserver = null;
+    }
+  }
+
   /* 联动操作 */
   dispatchAction(obj) {
+    if (!this.isIntersecting) {
+      return;
+    }
     if (obj.type === 'showTip') {
       const time = obj.x || -1;
       const item = this.localData.find(v => v.time === time);
@@ -165,7 +205,7 @@ export default class BarAlarmChart extends tsc<IProps> {
             theme: 'bar-alarm-chart-tooltip-theme',
           });
           this.popInstance?.show?.();
-        }, 200);
+        }, 10);
       } else {
         this.curHover = -1;
       }
@@ -268,7 +308,7 @@ export default class BarAlarmChart extends tsc<IProps> {
         theme: 'bar-alarm-chart-tooltip-theme',
       });
       this.popInstance?.show?.();
-    }, 200);
+    }, 10);
   }
   /**
    * @description 鼠标离开事件
