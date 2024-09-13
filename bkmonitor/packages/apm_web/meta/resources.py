@@ -56,6 +56,7 @@ from apm_web.db.db_utils import build_filter_params, get_service_from_params
 from apm_web.handlers.application_handler import ApplicationHandler
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.db_handler import DbComponentHandler
+from apm_web.handlers.endpoint_handler import EndpointHandler
 from apm_web.handlers.instance_handler import InstanceHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.handlers.span_handler import SpanHandler
@@ -1170,17 +1171,21 @@ class EndpointDetailResource(Resource):
         endpoint_name = serializers.CharField(label="接口名称")
 
     def perform_request(self, validated_data):
-        endpoint_info = api.apm_api.query_endpoint(
-            **{
-                "bk_biz_id": validated_data["bk_biz_id"],
-                "app_name": validated_data["app_name"],
-                "service_name": validated_data["service_name"],
-                "filters": {"endpoint_name": validated_data["endpoint_name"]},
-            }
+        endpoint_info = EndpointHandler.get_endpoint(
+            validated_data["bk_biz_id"],
+            validated_data["app_name"],
+            validated_data["service_name"],
+            validated_data["endpoint_name"],
         )
+
         if not endpoint_info:
-            raise ValueError(f"服务: {validated_data['service_name']} 下暂未发现 {validated_data['endpoint_name']} 接口")
-        endpoint_info = endpoint_info[0]
+            return [
+                {
+                    "name": _("数据状态"),
+                    "type": "string",
+                    "value": _("无数据（暂未发现此接口）"),
+                }
+            ]
 
         return [
             {

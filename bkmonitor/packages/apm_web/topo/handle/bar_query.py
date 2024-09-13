@@ -138,27 +138,21 @@ class BarQuery(BaseQuery):
         return self.get_metric(
             ServiceFlowErrorRate,
             interval=get_bar_interval_number(self.start_time, self.end_time),
-            where=CompatibleQuery.list_flow_metric_wheres(
-                self.bk_biz_id, self.app_name, mode="full", service_name=self.service_name
-            ),
+            where=CompatibleQuery.list_flow_metric_wheres(mode="full", service_name=self.service_name),
         ).query_range()
 
     def get_error_rate_caller_series(self) -> Dict:
         return self.get_metric(
             ServiceFlowErrorRateCaller,
             interval=get_bar_interval_number(self.start_time, self.end_time),
-            where=CompatibleQuery.list_flow_metric_wheres(
-                self.bk_biz_id, self.app_name, mode="caller", service_name=self.service_name
-            ),
+            where=CompatibleQuery.list_flow_metric_wheres(mode="caller", service_name=self.service_name),
         ).query_range()
 
     def get_error_rate_callee_series(self) -> Dict:
         return self.get_metric(
             ServiceFlowErrorRateCallee,
             interval=get_bar_interval_number(self.start_time, self.end_time),
-            where=CompatibleQuery.list_flow_metric_wheres(
-                self.bk_biz_id, self.app_name, mode="callee", service_name=self.service_name
-            ),
+            where=CompatibleQuery.list_flow_metric_wheres(mode="callee", service_name=self.service_name),
         ).query_range()
 
 
