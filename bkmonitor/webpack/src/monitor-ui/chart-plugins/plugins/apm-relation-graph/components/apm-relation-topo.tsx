@@ -1110,13 +1110,13 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
               display: this.menuCfg.show ? 'block' : 'none',
               left: `${this.menuCfg.x}px`,
               top: `${this.menuCfg.y}px`,
+              transform: `scale(${this.menuCfg.isDrilling ? this.scaleValue : 1})`,
             }}
             class='node-menu-list'
           >
             <div
               style={{
                 display: this.menuCfg.isDrilling ? 'block' : 'none',
-                transform: `scale(${this.scaleValue})`,
               }}
               class='node-drilling-container'
             >

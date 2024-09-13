@@ -21,6 +21,7 @@
 
   .node-menu-list {
     position: absolute;
+    transform-origin: 0 0;
 
     .topo-menu-list {
       width: 120px;
@@ -50,7 +51,6 @@
 
     .node-drilling-container {
       width: 104px;
-      transform-origin: 0 0;
 
       .name {
         display: block;
