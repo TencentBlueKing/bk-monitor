@@ -233,6 +233,12 @@
   };
 
   const handelSaveBtnClick = () => {
+    // 如果条件值为空 并且当前条件需要条件值
+    // 禁止提交
+    if (isShowConditonValueSetting.value && !condition.value.value.length && !showFulltextMsg) {
+      return;
+    }
+
     const isFulltextValue = activeFieldItem.value.field_name === '';
     const result = isFulltextValue
       ? undefined
@@ -240,6 +246,11 @@
           field: activeFieldItem.value.field_name,
           ...condition.value,
         };
+
+    // 如果是空操作符禁止提交
+    if (result && !result.operator) {
+      return;
+    }
 
     resetActiveFieldItem();
     emit('save', result);
@@ -538,7 +549,10 @@
   const handleUiValueOptionClick = option => {
     if (condition.value.operator !== option.operator) {
       condition.value.operator = option.operator;
+      condition.value.value.length = 0;
+      condition.value.value = [];
     }
+
     operatorInstance.hide();
     afterOperatorValueEnter();
   };
@@ -775,12 +789,12 @@
         <bk-button
           style="width: 64px; margin-right: 8px"
           theme="primary"
-          @click="handelSaveBtnClick"
+          @click.stop="handelSaveBtnClick"
           >{{ $t('确定') }}</bk-button
         >
         <bk-button
           style="width: 64px"
-          @click="handleCancelBtnClick"
+          @click.stop="handleCancelBtnClick"
           >{{ $t('取消') }}</bk-button
         >
       </div>

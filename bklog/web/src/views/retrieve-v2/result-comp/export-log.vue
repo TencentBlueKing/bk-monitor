@@ -35,6 +35,10 @@
       </div> -->
     <div
       :class="{ 'operation-icon': true, 'disabled-icon': !queueStatus }"
+      v-bk-tooltips.top="{
+        content: $t('请打开趋势图，如打开请等待数据请求完毕'),
+        disabled: queueStatus,
+      }"
       data-test-id="fieldForm_div_exportData"
       @mouseenter="handleShowAlarmPopover"
     >
@@ -288,10 +292,13 @@
     beforeUnmount() {
       this.popoverInstance = null;
     },
+
     methods: {
       handleShowAlarmPopover(e) {
         if (this.popoverInstance || !this.queueStatus) return;
-
+        this.popoverInstance?.hide();
+        this.popoverInstance?.destroyed();
+        this.popoverInstance = null;
         this.popoverInstance = this.$bkPopover(e.target, {
           content: this.$refs.downloadTips,
           trigger: 'mouseenter',
@@ -342,7 +349,7 @@
           is_desensitize: this.desensitizeRadioType === 'desensitize',
         };
         axiosInstance
-        .post(downRequestUrl, data)
+          .post(downRequestUrl, data)
           .then(res => {
             if (Object.prototype.hasOwnProperty.call(res, 'result') && !res.result) {
               this.$bkMessage({

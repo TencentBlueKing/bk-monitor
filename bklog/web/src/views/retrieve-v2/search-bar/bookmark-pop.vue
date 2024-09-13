@@ -19,7 +19,8 @@
   // 这里返回数组，展示 index_set_name 字段
   const indexSetItemList = computed(() => store.state.indexItem.items);
   // store.state.favoriteList
-  const collectGroupList = computed(() => [{ id: 1, name: 2 }]);
+  const collectGroupList = computed(() => store.state.favoriteList);
+
   const groupList = ref([]); // 组列表
   const publicGroupList = ref([]); // 可见状态为公共的时候显示的收藏组space_uid
   const privateGroupList = ref([]); // 个人收藏 group_name替换为本人
@@ -178,6 +179,11 @@
       }
     });
   };
+
+  // 数据格式: [{ group_id: '', group_name: '', group_type: '' }]
+
+  // 新建提交逻辑
+  const handleCreateRequest = () => {};
 </script>
 <template>
   <bk-popover
@@ -248,7 +254,7 @@
                   </div>
                   <li
                     v-else
-                    style=" display: flex; align-items: center;padding: 6px 0"
+                    style="display: flex; align-items: center; padding: 6px 0"
                     class="add-new-page-input"
                   >
                     <bk-form

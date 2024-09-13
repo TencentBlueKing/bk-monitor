@@ -89,21 +89,25 @@
     });
   };
 
+  const isOptionKeyEnter = ref(false);
   const handleQueryChange = value => {
-    while (modelValue.value.length > 0) {
-      modelValue.value.shift();
-    }
+    if (modelValue.value[0] !== value) {
+      isOptionKeyEnter.value = true;
+      while (modelValue.value.length > 0) {
+        modelValue.value.shift();
+      }
 
-    modelValue.value.unshift(value);
-    emit('input', [modelValue.value[0]]);
-    inputValue.value = '';
-    nextTick(() => {
-      handleContainerClick();
-    });
+      modelValue.value.unshift(value);
+      emit('input', [modelValue.value[0]]);
+      inputValue.value = '';
+      nextTick(() => {
+        handleContainerClick();
+      });
+    }
   };
 
   const handleInputDelete = () => {
-    if (!inputValue.value.length && modelValue.value.length === 2) {
+    if (!inputValue.value.length && modelValue.value.length === 1) {
       const result = modelValue.value[0].slice(0, -1);
       modelValue.value.splice(0, 1, result);
       emit('input', [modelValue.value[0]]);
@@ -114,7 +118,19 @@
     getTippyInstance()?.hide();
     handleContainerClick();
   };
-  const hadnleRetrieve = () => {};
+
+  const handleKeyEnterUp = e => {
+    if (!e.target?.value) {
+      if (isOptionKeyEnter.value) {
+        isOptionKeyEnter.value = false;
+        return;
+      }
+      emit('retrieve');
+    }
+  };
+  const hadnleRetrieve = () => {
+    // emit('retrieve');
+  };
 </script>
 <template>
   <ul
@@ -136,6 +152,7 @@
         @blur="handleTextInputBlur"
         @focus.stop="handleFocusInput"
         @keydown.delete="handleInputDelete"
+        @keyup.enter="handleKeyEnterUp"
       />
     </li>
     <div style="display: none">

@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, computed, nextTick } from 'vue';
+  import { ref, computed, nextTick, set } from 'vue';
 
   import { getOperatorKey } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
@@ -23,7 +23,7 @@
   const formatModelValueItem = item => {
     const key = getOperatorKey(item.operator);
     const label = operatorDictionary.value[key]?.label ?? item.operator;
-    return { ...item, operator_label: label, disabled: false };
+    return { operator_label: label, disabled: false, ...item };
   };
 
   const emit = defineEmits(['input', 'change', 'height-change']);
@@ -53,29 +53,26 @@
   const isOptionShowing = ref(false);
   let delayItemClickFn = undefined;
 
-  const {
-    modelValue,
-    inputValue,
-    hideTippyInstance,
-    getTippyInstance,
-    handleInputBlur,
-    delayShowInstance,
-  } = useFocusInput(props, {
-    onHeightChange: handleHeightChange,
-    formatModelValueItem,
-    refContent: refPopInstance,
-    onShowFn: () => {
-      isOptionShowing.value = true;
-      refPopInstance.value?.beforeShowndFn?.();
-    },
-    onHiddenFn: () => {
-      refPopInstance.value?.afterHideFn?.();
-      isOptionShowing.value = false;
+  const { modelValue, inputValue, hideTippyInstance, getTippyInstance, handleInputBlur, delayShowInstance } =
+    useFocusInput(props, {
+      onHeightChange: handleHeightChange,
+      formatModelValueItem,
+      refContent: refPopInstance,
+      onShowFn: () => {
+        isOptionShowing.value = true;
+        refPopInstance.value?.beforeShowndFn?.();
+      },
+      onHiddenFn: () => {
+        refPopInstance.value?.afterHideFn?.();
+        isOptionShowing.value = false;
 
-      delayItemClickFn?.();
-      delayItemClickFn = undefined;
-    },
-  });
+        inputValue.value = '';
+        handleInputBlur();
+
+        delayItemClickFn?.();
+        delayItemClickFn = undefined;
+      },
+    });
 
   /**
    * 执行点击弹出操作项方法
@@ -117,8 +114,8 @@
     showTagListItems(target);
   };
 
-  const handleDisabledTagItem = item => {
-    item.disabled = !item.disabled;
+  const handleDisabledTagItem = (item, e) => {
+    set(item, 'disabled', !item.disabled);
     emitChange(modelValue.value);
   };
 
@@ -129,15 +126,16 @@
 
   const handleSaveQueryClick = payload => {
     const isPayloadValueEmpty = !(payload?.value?.length ?? 0);
+    const isFulltextEnterVlaue = isInputFocus.value && isPayloadValueEmpty && !payload?.field;
 
     // 如果是全文检索，未输入任何内容就点击回车
     // 此时提交无任何意义，禁止后续逻辑
-    if (isInputFocus.value && isPayloadValueEmpty && !inputValue.value) {
+    if (isFulltextEnterVlaue && !inputValue.value) {
       return;
     }
 
     let targetValue = formatModelValueItem(
-      isInputFocus.value && isPayloadValueEmpty
+      isFulltextEnterVlaue
         ? {
             field: '',
             operator: 'contains',
@@ -171,8 +169,10 @@
   };
 
   const handleFullTextInputBlur = e => {
-    inputValue.value = '';
-    handleInputBlur(e);
+    if (!getTippyInstance()?.state?.isShown) {
+      inputValue.value = '';
+      handleInputBlur(e);
+    }
   };
 
   const handleCancelClick = () => {
@@ -256,8 +256,11 @@
       </div>
       <div class="tag-options">
         <span
-          :class="['bklog-icon', { 'bklog-eye': !item.disabled, 'bklog-eye-slash': item.disabled }]"
-          @click.stop="() => handleDisabledTagItem(item)"
+          :class="[
+            'bklog-icon',
+            { 'bklog-eye': !item.disabled, disabled: item.disabled, 'bklog-eye-slash': item.disabled },
+          ]"
+          @click.stop="e => handleDisabledTagItem(item, e)"
         ></span>
         <span
           class="bk-icon icon-close"
