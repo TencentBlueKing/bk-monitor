@@ -26,7 +26,7 @@
   const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
   const isInputLoading = computed(() => {
     if (activeIndex.value === 0) {
-      return indexFieldInfo.value.is_loading;
+      return false;
     }
 
     return indexFieldInfo.value.is_loading || indexSetQueryResult.value.is_loading;
