@@ -95,11 +95,9 @@
     <span
       class="search-refresh"
       v-bk-tooltips="{ content: $t('刷新') }"
+      @click="handleRefresh"
     >
-      <i
-        class="bklog-icon bklog-log-refresh"
-        @click="handleRefresh"
-      ></i>
+      <i class="bklog-icon bklog-log-refresh"></i>
     </span>
   </span>
 </template>
