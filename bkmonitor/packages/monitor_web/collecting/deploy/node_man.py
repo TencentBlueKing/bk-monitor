@@ -318,7 +318,7 @@ class NodeManInstaller(BaseInstaller):
         if install_config.get("name"):
             self.collect_config.name = install_config["name"]
         if "label" in install_config:
-            self.collect_config.labels = install_config.get["label"]
+            self.collect_config.labels = install_config["label"]
         self.collect_config.operation_result = OperationResult.PREPARING
 
         # 如果有指定操作类型，则更新为指定操作类型
@@ -668,7 +668,6 @@ class NodeManInstaller(BaseInstaller):
             else:
                 instance["instance_name"] = host.get("bk_host_innerip") or host.get("bk_host_innerip_v6") or ""
                 instance["bk_module_ids"] = host.get("module", [])
-                instance["bk_set_ids"] = host.get("set", [])
 
             # 根据步骤获取操作类型
             action = "install"
@@ -730,9 +729,7 @@ class NodeManInstaller(BaseInstaller):
         ):
             # 统计旧版主机配置
             ips = []
-            for host in itertools.chain(
-                current_version.target_nodes, last_version.target_nodes if last_version else []
-            ):
+            for host in current_version.target_nodes:
                 if "bk_host_id" in host:
                     continue
                 ips.append({"ip": host["ip"], "bk_cloud_id": host.get("bk_cloud_id", 0)})
@@ -813,8 +810,18 @@ class NodeManInstaller(BaseInstaller):
         # 将任务状态与差异比对数据结构合并返回
         for instance in instance_statuses:
             for scope_id in instance["scope_ids"]:
-                if scope_id in nodes:
-                    nodes[scope_id]["child"].append(instance)
+                scope_ids = set()
+                if str(scope_id).startswith("module|"):
+                    topo_links = self._get_topo_links()
+                    for link in topo_links.get(scope_id, []):
+                        scope_ids.add(f"{link.bk_obj_id}|{link.bk_inst_id}")
+                else:
+                    scope_ids = {scope_id}
+
+                for sid in scope_ids:
+                    if sid in nodes:
+                        nodes[sid]["child"].append(instance)
+
             # 清理scope_ids
             instance.pop("scope_ids", None)
 
