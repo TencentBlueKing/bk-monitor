@@ -524,10 +524,10 @@
       handleLeave() {
         this.instance?.destroy(true);
       },
-      isSelectorHaveValue(labelSelector) {
-        return Object.values(labelSelector)?.some(item => item.length) || false;
+      isSelectorHaveValue(labelSelector = []) {
+        return Object.values(labelSelector)?.some(item => item?.length) || false;
       },
-      isContainerHaveValue(container) {
+      isContainerHaveValue(container = []) {
         return Object.values(container)?.some(item => !!item) || false;
       },
       /**
