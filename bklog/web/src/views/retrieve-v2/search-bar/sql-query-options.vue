@@ -1,13 +1,14 @@
 <script lang="ts" setup>
   import { computed, ref, watch, nextTick, Ref } from 'vue';
+
   // @ts-ignore
   import useLocale from '@/hooks/use-locale';
   // @ts-ignore
   import useStore from '@/hooks/use-store';
-  // @ts-ignore
-  import { debounce } from 'lodash';
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
+  // @ts-ignore
+  import { debounce } from 'lodash';
   const props = defineProps({
     value: {
       type: String,
@@ -103,7 +104,7 @@
    * 显示哪个下拉列表
    * @param {String} [param]
    */
-  const showWhichDropdown = (param?: string | OptionItemType[]) => {
+  const showWhichDropdown = (param?: OptionItemType[] | string) => {
     activeType.value.length = 0;
     activeType.value = [];
     if (typeof param === 'string') {
@@ -237,7 +238,7 @@
    * 选择某个可选字段
    * @param {string} field
    */
-  const handleClickField = (field: string | number) => {
+  const handleClickField = (field: number | string) => {
     valueList.value = getValueList(retrieveDropdownData.value[field]);
 
     const currentValue = props.value;
@@ -518,8 +519,8 @@
             </li>
           </div>
           <template
-            class="control-list"
             v-if="showOption.showOperator"
+            class="control-list"
           >
             <li
               v-for="(item, key) in operatorSelectList"
@@ -589,8 +590,8 @@
           <div class="favorite-list">
             <template v-if="favoriteList.length">
               <div
-                class="list-item"
                 v-for="item in favoriteList"
+                class="list-item"
                 @click="handleClickFavorite(item)"
               >
                 <div><span class="active bklog-icon bklog-lc-star-shape"></span></div>
@@ -602,8 +603,8 @@
             <template v-else>
               <bk-exception
                 class="exception-wrap-item exception-part exception-gray"
-                type="empty"
                 scene="part"
+                type="empty"
               >
               </bk-exception>
             </template>
@@ -636,8 +637,8 @@
             </div>
           </div>
           <div
-            class="sql-query-list"
             v-for="item in matchList"
+            class="sql-query-list"
           >
             <div style="font-weight: 700; line-height: 19px">{{ item.name }}</div>
             <div>{{ item.value }}</div>
