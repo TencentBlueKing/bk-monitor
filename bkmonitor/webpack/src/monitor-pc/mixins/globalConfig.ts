@@ -23,41 +23,25 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export interface IMenuItem {
-  id: string;
-  name: string;
-  href?: string;
-}
+import { Component, Vue } from 'vue-property-decorator';
 
-export type SpaceIntroduceKeys =
-  | 'apm-home'
-  | 'collect-config'
-  | 'custom-event'
-  | 'custom-metric'
-  | 'custom-scenes'
-  | 'k8s'
-  | 'performance'
-  | 'uptime-check';
-export interface IBtnAndLinkItem {
-  name: string;
-  url: string;
-}
-export interface ISPaceIntroduceData {
-  is_no_data?: boolean;
-  is_no_source?: boolean;
-  data?: {
-    title: string;
-    subTitle: string;
-    introduce: string[];
-    buttons: IBtnAndLinkItem[];
-    links: IBtnAndLinkItem[];
-  };
-}
-export type SpaceIntoduceType = Record<SpaceIntroduceKeys, ISPaceIntroduceData>;
+import { listGlobalConfig } from 'monitor-api/modules/model';
 
-export interface IOverseasConfig {
-  title: string;
-  url?: string;
-  subtitle?: string;
-  icon?: string;
+@Component
+export default class GlobalConfigMixin extends Vue {
+  /**
+   * @description: 获取Global个性化配置
+   * @param {string} key key
+   */
+  public async handleGetGlobalConfig<T>(key: string): Promise<[] | T> {
+    try {
+      const globalConfig = await listGlobalConfig({ key }, { reject403: true });
+      if (!globalConfig?.[0]?.id) {
+        return [];
+      }
+      return JSON.parse(globalConfig[0].value) as T;
+    } catch {
+      return [];
+    }
+  }
 }
