@@ -1,42 +1,33 @@
-import { EditorState } from '@codemirror/state';
-import { basicSetup, EditorView } from 'codemirror';
-// import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
-// import { tags as t } from '@lezer/highlight';
-import { sql } from '@codemirror/lang-sql';
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import { lineNumbers } from '@codemirror/gutter';
+import { sql } from '@codemirror/lang-sql';
+import { EditorState } from '@codemirror/state';
 import { keymap } from '@codemirror/view';
-
-// // 定义 Lucene 语法高亮
-// const luceneHighlightStyle = HighlightStyle.define([
-//   { tag: tags.keyword, color: "#cc7832" },
-//   { tag: tags.operator, color: "#a9b7c6" },
-//   { tag: tags.string, color: "#6a8759" },
-//   { tag: tags.variableName, color: "#9876aa" },
-//   { tag: tags.number, color: "#6897bb" },
-//   { tag: tags.comment, color: "#808080" },
-//   { tag: tags.bracket, color: "#a9b7c6" },
-//   { tag: tags.wildcard, color: "#ff0000" }
-// ]);
-
-// 自定义 SQL 扩展以支持 Lucene
-function lucene() {
-  const luceneKeywords = ['AND', 'OR', 'NOT'];
-  const luceneOperators = ['+', '-', '*', '?'];
-  return sql({
-    dialect: {
-      keywords: luceneKeywords,
-      builtin: [],
-      types: [],
-      operators: luceneOperators,
-      builtinFunctions: [],
-      builtinVariables: [],
-      builtinTables: [],
-    },
-    languageData: {
-      commentTokens: { line: '//' },
-    },
-  });
-}
+import { basicSetup, EditorView } from 'codemirror';
 
 export default ({ target, onChange, onFocusChange, onKeyEnter, value }) => {
   const state = EditorState.create({
@@ -52,9 +43,8 @@ export default ({ target, onChange, onFocusChange, onKeyEnter, value }) => {
         },
       ]),
       basicSetup.filter(ext => ext != lineNumbers),
-      // lucene()
-      // syntaxHighlighting(luceneHighlightStyle),
-      // EditorView.lineWrapping,
+      sql(),
+      EditorView.lineWrapping,
       EditorView.focusChangeEffect.of((_, focusing) => {
         onFocusChange?.(focusing);
       }),

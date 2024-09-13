@@ -231,7 +231,7 @@
       return;
     }
     // 一组条件输入完毕【age:18 】提示继续增加条件 AND OR
-    if (/^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>[\S]+)\s+$/.test(lastFragment)) {
+    if (/^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>["']?.*["']?)$/.test(lastFragment)) {
       showWhichDropdown(OptionItemType.Continue);
       return;
     }

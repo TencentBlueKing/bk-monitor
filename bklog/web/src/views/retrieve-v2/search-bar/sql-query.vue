@@ -65,7 +65,7 @@
 
   const debounceRetrieve = () => {
     emit('retrieve', modelValue.value);
-  }
+  };
 
   watch(modelValue, () => {
     setEditorContext(modelValue.value);
@@ -76,13 +76,10 @@
       value: modelValue.value,
       target: refEditorParent.value,
       onChange: e => onEditorContextChange(e),
-      onKeyEnter: view => {
+      onKeyEnter: () => {
         if (!(getTippyInstance()?.state?.isShown ?? false) || sqlActiveParamsIndex.value === null) {
-
           getTippyInstance()?.hide();
           debounceRetrieve();
-
-          console.log('view', view);
         }
       },
       onFocusChange: isFocusing => {
@@ -92,6 +89,12 @@
         }
       },
     });
+  };
+
+  const handleEditorClick = () => {
+    if (!(getTippyInstance()?.state?.isShown ?? false) && editorInstance.view.hasFocus) {
+      delayShowInstance(refEditorParent.value);
+    }
   };
 
   const sqlQueryItemList = computed(() => {
@@ -137,7 +140,7 @@
 
   const handleSqlParamsActiveChange = val => {
     sqlActiveParamsIndex.value = val;
-  }
+  };
 
   const handleCancel = () => {
     getTippyInstance()?.hide();
@@ -149,7 +152,10 @@
   });
 </script>
 <template>
-  <div class="search-sql-query">
+  <div
+    class="search-sql-query"
+    @click="handleEditorClick"
+  >
     <div
       ref="refEditorParent"
       class="search-sql-editor"
@@ -167,9 +173,9 @@
 </template>
 <style>
   .search-sql-query {
-    width: 100%;
     display: inline-flex;
     align-items: center;
+    width: 100%;
 
     .search-sql-editor {
       width: 100%;
@@ -182,9 +188,22 @@
         .cm-activeLine {
           background-color: transparent;
         }
+
+        .cm-scroller {
+          .cm-gutters {
+            /* border-right-color: transparent; */
+            background-color: transparent;
+
+            .cm-lineNumbers,
+            .cm-foldGutter {
+              .cm-activeLineGutter {
+                background-color: transparent;
+              }
+            }
+          }
+        }
       }
     }
-
   }
 </style>
 

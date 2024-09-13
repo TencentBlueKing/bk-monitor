@@ -47,49 +47,49 @@
   // 操作符下拉当前激活Index
   const operatorActiveIndex = ref(0);
 
+  const tippyOptions = {
+    flip: false,
+    placement: 'bottom',
+    popperOptions: {
+      placement: 'bottom', // 或者其他你想要的位置
+      modifiers: [
+        {
+          name: 'preventOverflow',
+          options: {
+            boundary: document.body,
+          },
+        },
+        {
+          name: 'flip',
+          options: {
+            boundary: document.body,
+          },
+        },
+      ],
+    },
+  };
+
   // 操作符下拉实例
   const operatorInstance = new PopInstanceUtil({
     refContent: refUiValueOperatorList,
     arrow: false,
-    newInstance: false,
+    newInstance: true,
     onHiddenFn: () => {
       operatorActiveIndex.value = 0;
     },
-    tippyOptions: {
-      flip: false,
-    },
+    tippyOptions,
   });
 
   // 条件Value弹出下拉实例
   const conditionValueInstance = new PopInstanceUtil({
     refContent: refValueTagInputOptionList,
     arrow: false,
-    newInstance: false,
+    newInstance: true,
     watchElement: refConditionInput,
     onHiddenFn: instance => {
       refValueTagInputOptionList.value?.querySelector('li.is-hover')?.classList.remove('is-hover');
     },
-    tippyOptions: {
-      flip: false,
-      placement: 'bottom',
-      popperOptions: {
-        placement: 'bottom', // 或者其他你想要的位置
-        modifiers: [
-          {
-            name: 'preventOverflow',
-            options: {
-              boundary: document.body,
-            },
-          },
-          {
-            name: 'flip',
-            options: {
-              boundary: document.body,
-            },
-          },
-        ],
-      },
-    },
+    tippyOptions,
   });
 
   const fullTextField = ref({
@@ -127,7 +127,7 @@
   const fieldList = computed(() => [fullTextField.value].concat(indexFieldInfo.value.fields));
 
   // 需要排除的字段
-  const excludesFields = ['__ext', '__module__', ' __set__', '__ipv6__', '__ext'];
+  // const excludesFields = ['__ext', '__module__', ' __set__', '__ipv6__', '__ext'];
 
   // 无需配置值（Value）的条件列表
   const withoutValueConditionList = ['does not exists', 'exists'];
@@ -139,7 +139,6 @@
     const regExp = getRegExp(searchValue.value);
     const filterFn = field =>
       field.field_type !== '__virtual__' &&
-      !excludesFields.includes(field.field_name) &&
       (field.is_full_text || regExp.test(field.field_alias) || regExp.test(field.field_name));
     return fieldList.value.filter(filterFn);
   });
