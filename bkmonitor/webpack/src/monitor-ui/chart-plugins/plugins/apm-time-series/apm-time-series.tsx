@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Inject } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive } from 'vue-property-decorator';
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
@@ -36,7 +36,7 @@ import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, MONITOR_LINE_OPTIONS } from '../../constants';
-import { createMenuList, reviewInterval } from '../../utils';
+import { createMenuList, type CustomChartConnector, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
@@ -53,6 +53,7 @@ export default class ApmTimeSeries extends TimeSeries {
     id: string,
     customRouterQuery: Record<string, number | string>
   ) => void;
+  @InjectReactive('customChartConnector') customChartConnector: CustomChartConnector;
 
   contextmenuInfo = {
     options: [
@@ -71,6 +72,9 @@ export default class ApmTimeSeries extends TimeSeries {
 
   /* 错误数图表维度分类 */
   errorCountCategory: Record<string, string> = {};
+
+  /* 用于customChartConnector */
+  chartId = random(8);
 
   get apmMetric(): EDataType {
     return (this.panel.options?.apm_time_series?.metric || '') as EDataType;
@@ -399,6 +403,7 @@ export default class ApmTimeSeries extends TimeSeries {
         }
         setTimeout(() => {
           this.handleResize();
+          this.setChartInstance();
         }, 100);
       } else {
         this.inited = this.metrics.length > 0;
@@ -471,8 +476,18 @@ export default class ApmTimeSeries extends TimeSeries {
   handleCloseDetails() {
     this.detailsSideData.show = false;
   }
+
+  /* 与非echarts图联动时需要调用此函数（存储实例） */
+  setChartInstance() {
+    if (this.panel.dashboardId === this.customChartConnector?.groupId) {
+      this.customChartConnector.setChartInstance(this.chartId, this.$refs?.baseChart);
+    }
+  }
+  /* 与非echarts图联动时需要调用此函数 (联动动作) */
   handleUpdateAxisPointer(event) {
-    console.info('handleUpdateAxisPointer==================', event);
+    if (this.panel.dashboardId === this.customChartConnector?.groupId) {
+      this.customChartConnector.updateAxisPointer(this.chartId, event?.axesInfo?.[0]?.value || 0);
+    }
   }
   render() {
     const { legend } = this.panel?.options || { legend: {} };

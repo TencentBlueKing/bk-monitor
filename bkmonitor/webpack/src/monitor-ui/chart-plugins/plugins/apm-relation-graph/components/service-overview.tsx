@@ -35,6 +35,7 @@ import { echartsConnect, echartsDisconnect } from 'monitor-ui/monitor-echarts/ut
 
 import { PanelModel } from '../../../../chart-plugins/typings';
 import ChartWrapper from '../../../components/chart-wrapper';
+import { CustomChartConnector } from '../../../utils/utils';
 import BarAlarmChart from './bar-alarm-chart';
 import { alarmBarChartDataTransform, EDataType } from './utils';
 
@@ -101,12 +102,13 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   serviceTabData = {
     getApdexData: null,
     panels: [],
-    dashboardId: random(8),
   };
   /* 日志tab栏数据 */
   logTabData = {
     panels: [],
   };
+
+  dashboardId = random(8);
 
   moreLink = '';
 
@@ -118,6 +120,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
     service_name: '',
     endpoint_name: '',
   };
+  @ProvideReactive('customChartConnector') customChartConnector: CustomChartConnector = null;
 
   get tabs() {
     if (this.curType === 'endpoint') {
@@ -131,6 +134,10 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
 
   get name() {
     return this.curType === 'endpoint' ? this.endpoint : this.serviceName;
+  }
+
+  created() {
+    this.customChartConnector = new CustomChartConnector(this.dashboardId);
   }
 
   @Watch('serviceName')
@@ -155,7 +162,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
       this.curType = this.endpoint ? 'endpoint' : 'service';
       this.initPanel();
     } else {
-      echartsDisconnect(this.serviceTabData.dashboardId);
+      echartsDisconnect(this.dashboardId);
       this.moreLink = '';
     }
   }
@@ -230,7 +237,6 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
    */
   async getServiceTabData() {
     try {
-      this.serviceTabData.dashboardId = random(8);
       const typeKey = this.curType === 'endpoint' ? 'endpoint_tabs_service' : 'service_tabs_service';
       const apdexPanel = this.data[typeKey].panels.find(item => item.type === 'apdex-chart');
       if (apdexPanel) {
@@ -270,7 +276,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
                   sceneType: 'overview',
                 },
               },
-              dashboardId: this.serviceTabData.dashboardId,
+              dashboardId: this.dashboardId,
               type: 'apm-timeseries-chart',
               targets: panel.targets.map(t => {
                 const queryConfigs = t?.data?.unify_query_param?.query_configs;
@@ -287,7 +293,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
               }),
             })
         );
-      echartsConnect(this.serviceTabData.dashboardId);
+      echartsConnect(this.dashboardId);
     } catch (e) {
       console.error(e);
     }
@@ -303,6 +309,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
           panel =>
             new PanelModel({
               ...panel,
+              dashboardId: this.dashboardId,
               options: {
                 ...(panel?.options || {}),
                 related_log_chart: {
@@ -390,6 +397,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
             activeItemHeight={32}
             dataType={EDataType.Apdex}
             getData={this.serviceTabData.getApdexData}
+            groupId={this.dashboardId}
             isAdaption={true}
             itemHeight={24}
             showHeader={true}
@@ -522,6 +530,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
             dataType={EDataType.Alert}
             enableSelect={true}
             getData={this.serviceAlert.getData}
+            groupId={this.dashboardId}
             isAdaption={true}
             itemHeight={24}
             showHeader={true}
