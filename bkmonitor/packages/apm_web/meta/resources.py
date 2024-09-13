@@ -1090,7 +1090,6 @@ class ServiceDetailResource(Resource):
                     "value": v or "--",
                 }
                 for k, v in {
-                    "topo_key": data["service_name"],
                     "category": StandardFieldCategory.get_label_by_key(extra_data.get("category")),
                     "predicate_value": extra_data.get("predicate_value"),
                     "kind": TopoNodeKind.get_label_by_key(extra_data.get("kind")),

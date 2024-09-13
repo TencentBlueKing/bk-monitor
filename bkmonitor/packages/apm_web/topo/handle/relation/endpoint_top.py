@@ -89,7 +89,8 @@ class EndpointList:
                 "service_name": service_name,
             }
         )
-        self.total = len(full_endpoints)
+        if full_endpoints:
+            self.total = len(endpoints) + len([i for i in full_endpoints if i["endpoint_name"] not in endpoint_names])
         for index, item in enumerate(full_endpoints, len(endpoints) + 1):
             if len(endpoints) >= self.size:
                 break
