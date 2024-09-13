@@ -56,6 +56,8 @@ class ComponentHandler:
     @classmethod
     def is_component_by_node(cls, node_info):
         """通过 topo_node 节点的信息判断是否为组件类节点"""
+        if not node_info:
+            return False
         return node_info.get("extra_data", {}).get("kind") == TopoNodeKind.COMPONENT
 
     @classmethod
@@ -265,6 +267,24 @@ class ComponentHandler:
                 )
 
         cls.replace_or_add_service_filter(service_name, filter_params)
+
+    @classmethod
+    def get_dimension_key(cls, node):
+        """获取节点的维度 key"""
+        category = node["extra_data"]["category"]
+        if category not in cls.component_filter_params_mapping:
+            raise ValueError(_("不支持查询此分类的统计数据: {}").format(category))
+        return OtlpKey.get_metric_dimension_key(cls.component_filter_params_mapping[category]["key"])
+
+    @classmethod
+    def get_flow_metric_category_value(cls, node):
+        """获取 flow 指标中 category_value 维度的值"""
+        return f"{ComponentHandler.get_dimension_key(node)}-{node['extra_data']['predicate_value']}"
+
+    @classmethod
+    def get_predicate_value_from_flow_metric_category_value(cls, category_value):
+        """从 flow 指标的 category_value 维度中获取 predicate_value 的值"""
+        return category_value.rsplit("-")[-1]
 
     @classmethod
     def replace_or_add_service_filter(cls, service_name, filter_params):

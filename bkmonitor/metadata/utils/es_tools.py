@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import requests
 from django.conf import settings
@@ -38,41 +38,59 @@ def compose_es_hosts(host: str, port: int) -> List:
     return [f"{host}:{port}"]
 
 
-def get_client(cluster):
-    from metadata.models import ClusterInfo
-
-    cluster_info = cluster
-    if not isinstance(cluster, ClusterInfo):
-        cluster_info = ClusterInfo.objects.get(cluster_id=cluster)
-
+def get_client_by_datasource_info(datasource_info: Dict[str, Any]):
+    is_ssl_verify: bool = datasource_info.get("is_ssl_verify") or False
     connection_info = {
-        "hosts": compose_es_hosts(cluster_info.domain_name, cluster_info.port),
-        "verify_certs": cluster_info.is_ssl_verify,
-        "use_ssl": cluster_info.is_ssl_verify,
+        "hosts": compose_es_hosts(datasource_info["domain_name"], datasource_info["port"]),
+        "verify_certs": is_ssl_verify,
+        "use_ssl": is_ssl_verify,
     }
 
     # 如果需要身份验证
-    if cluster_info.username is not None and cluster_info.password is not None:
-        connection_info["http_auth"] = (cluster_info.username, cluster_info.password)
+    username: Optional[str] = datasource_info["auth_info"].get("username")
+    password: Optional[str] = datasource_info["auth_info"].get("password")
+    if username is not None and password is not None:
+        connection_info["http_auth"] = (username, password)
 
-    if cluster_info.schema == "https":
-        connection_info["scheme"] = cluster_info.schema
+    schema = datasource_info.get("schema") or ""
+    if schema == "https":
+        connection_info["scheme"] = schema
 
     # 根据版本加载客户端
     elastic_client = Elasticsearch
-    if cluster_info.version.startswith("5."):
+    version = datasource_info.get("version") or ""
+    if version.startswith("5."):
         elastic_client = Elasticsearch5
-    elif cluster_info.version.startswith("6."):
+    elif version.startswith("6."):
         elastic_client = Elasticsearch6
 
     # 获取超时时间
     timeout_config = settings.METADATA_REQUEST_ES_TIMEOUT
-    timeout = timeout_config.get(cluster_info.domain_name)
+    timeout = timeout_config.get(datasource_info["domain_name"])
     if not timeout:
         timeout = timeout_config.get("default") or DEFAULT_ES_TIMEOUT
-
+    # 全局的请求超时时间
+    # Refer：https://elasticsearch-py.readthedocs.io/en/v7.12.0/api.html?highlight=timeout#timeout
     es_client = elastic_client(**connection_info, timeout=timeout)
     return es_client
+
+
+def get_client(cluster):
+    from metadata.models import ClusterInfo
+
+    cluster_info = cluster
+    if isinstance(cluster, int):
+        cluster_info = ClusterInfo.objects.get(cluster_id=cluster)
+
+    datasource_info = {
+        "port": cluster_info.port,
+        "schema": cluster_info.schema,
+        "version": cluster_info.version,
+        "domain_name": cluster_info.domain_name,
+        "is_ssl_verify": cluster_info.is_ssl_verify,
+        "auth_info": {"password": cluster_info.password, "username": cluster_info.username},
+    }
+    return get_client_by_datasource_info(datasource_info)
 
 
 def get_cluster_disk_size(es_client, kind="total", bytes="b"):

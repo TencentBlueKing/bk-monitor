@@ -26,31 +26,55 @@
 import { Component, Prop, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { EdgeDataType } from './utils';
+import { EDataType, type EdgeDataType } from './utils';
 
 import './apm-topo-legend.scss';
 
 interface TopoLegendProps {
   edgeType: EdgeDataType;
-  legendFilter: { status: string; size: string };
+  dataType: string;
+  legendFilter: { color: string; size: string };
 }
 
 interface TopoLegendEvent {
   onEdgeTypeChange(type: EdgeDataType): void;
-  onLegendFilterChange(filter: { status: string; size: string }): void;
+  onLegendFilterChange(filter: { color: string; size: string }): void;
 }
 
 @Component
 export default class TopoLegend extends tsc<TopoLegendProps, TopoLegendEvent> {
   @Prop() edgeType: EdgeDataType;
-  @Prop() legendFilter: { status: string; size: string };
+  @Prop() dataType: string;
+  @Prop() legendFilter: { color: string; size: string };
 
-  nodeColor = [
-    { color: '#2DCB56', label: window.i18n.tc('正常'), id: 'success' },
-    { color: '#FF9C01', label: window.i18n.tc('错误率 < 10%'), id: 'warning' },
-    { color: '#EA3636', label: window.i18n.tc('错误率 ≥ 10%'), id: 'error' },
-    { color: '#DCDEE5', label: window.i18n.tc('无数据'), id: 'empty' },
-  ];
+  get nodeColor() {
+    if (this.dataType === EDataType.Alert) {
+      return [
+        { color: '#2DCB56', label: window.i18n.tc('无告警') },
+        { color: '#3A84FF', label: window.i18n.tc('提醒') },
+        { color: '#FF9C01', label: window.i18n.tc('预警') },
+        { color: '#EA3636', label: window.i18n.tc('致命') },
+        { color: '#DCDEE5', label: window.i18n.tc('无数据') },
+      ];
+    }
+
+    if (this.dataType === EDataType.Apdex) {
+      return [
+        { color: '#2DCB56', label: window.i18n.tc('满意') },
+        { color: '#FF9C01', label: window.i18n.tc('可容忍') },
+        { color: '#EA3636', label: window.i18n.tc('烦躁期') },
+        { color: '#DCDEE5', label: window.i18n.tc('无数据') },
+      ];
+    }
+
+    return [
+      { color: '#2DCB56', label: window.i18n.tc('正常') },
+      { color: '#FF9C01', label: window.i18n.tc('错误率 < 10%') },
+      { color: '#EA3636', label: window.i18n.tc('错误率 ≥ 10%') },
+      { color: '#DCDEE5', label: window.i18n.tc('无数据') },
+    ];
+  }
+
   nodeSize = [
     {
       id: 'small',
@@ -90,12 +114,12 @@ export default class TopoLegend extends tsc<TopoLegendProps, TopoLegendEvent> {
   handleLegendFilterChange(type: string, val: string) {
     if (type === 'color') {
       return {
-        status: val === this.legendFilter.status ? '' : val,
+        color: val === this.legendFilter.color ? '' : val,
         size: this.legendFilter.size,
       };
     }
     return {
-      status: this.legendFilter.status,
+      color: this.legendFilter.color,
       size: val === this.legendFilter.size ? '' : val,
     };
   }
@@ -108,19 +132,19 @@ export default class TopoLegend extends tsc<TopoLegendProps, TopoLegendEvent> {
           <div class='filter-list node-color'>
             {this.nodeColor.map(item => (
               <div
-                key={item.id}
+                key={item.color}
                 class={{
                   'color-item': true,
-                  active: !this.legendFilter.status || this.legendFilter.status === item.id,
+                  active: !this.legendFilter.color || this.legendFilter.color === item.color,
                 }}
                 onClick={() => {
-                  this.handleLegendFilterChange('color', item.id);
+                  this.handleLegendFilterChange('color', item.color);
                 }}
               >
                 <div
                   style={{
                     background:
-                      !this.legendFilter.status || this.legendFilter.status === item.id ? item.color : '#c4c6cc',
+                      !this.legendFilter.color || this.legendFilter.color === item.color ? item.color : '#c4c6cc',
                   }}
                   class='color-mark'
                 />

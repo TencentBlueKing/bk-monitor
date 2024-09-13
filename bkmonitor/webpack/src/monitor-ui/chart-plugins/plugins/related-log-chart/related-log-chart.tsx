@@ -500,9 +500,9 @@ class RelatedLogChart extends CommonSimpleChart {
           <div class='chart-simple-header'>
             <div
               class='left'
-              v-bk-tooltips={{
+              /*               v-bk-tooltips={{
                 content: this.$tc('跳转查看详情'),
-              }}
+              }} */
               onClick={() => this.goLink()}
             >
               <span
@@ -696,6 +696,20 @@ class RelatedLogChart extends CommonSimpleChart {
           <div class='empty-chart'>
             {this.emptyText ? (
               this.emptyText
+            ) : this.isSimpleChart ? (
+              <bk-exception type='empty'>
+                <span class='empty-text'>{this.$t('暂无关联日志')}</span>
+                <div class='text-wrap'>
+                  <span class='text-row'>{this.$t('可前往配置页去配置相关日志')}</span>
+                  <bk-button
+                    theme='primary'
+                    text
+                    onClick={() => this.handleRelated()}
+                  >
+                    {this.$t('去配置')}
+                  </bk-button>
+                </div>
+              </bk-exception>
             ) : (
               <bk-exception type='building'>
                 <span>{this.$t('暂无关联日志')}</span>

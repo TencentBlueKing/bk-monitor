@@ -9,9 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from typing import Type
-from urllib.parse import urljoin
 
-from django.conf import settings
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
@@ -121,7 +119,7 @@ class SystemDetail(ResourceDetail):
                 "name": ip,
                 "url": LinkHelper.get_host_monitor_link(bk_host_id, self.start_time, self.end_time),
             },
-            "resource_link": urljoin(settings.BK_CC_URL, f"#/business/{self.bk_biz_id}/index/host/{bk_host_id}"),
+            "resource_link": LinkHelper.get_host_cmdb_link(self.bk_biz_id, bk_host_id),
             "raws": self._list_info_raws(host_infos, self._host_info_columns),
             **self.search_and_handle_alert(f"(ip: {ip} OR tags.ip: {ip})"),
         }
@@ -175,7 +173,15 @@ class K8sPodDetail(ResourceDetail):
             pod_name=pod,
         )
         if not pod_infos:
-            raise ValueError(f"没有从集群中获取到 {pod} 的信息，原因可能是此 Pod 为历史快照数据并且当前已经销毁")
+            return {
+                "title": pod,
+                "raws": [
+                    {
+                        "name": _("错误信息"),
+                        "value": _("没有从集群 ") + bcs_cluster_id + _(" 中获取到此 Pod 信息，原因可能为此 Pod 为历史数据或者当前已经销毁"),
+                    }
+                ],
+            }
 
         return {
             "title": {
@@ -221,7 +227,15 @@ class K8sServiceDetail(ResourceDetail):
             service_name=service,
         )
         if not service_infos:
-            raise ValueError(f"没有从集群中获取到 {service} 的信息，原因可能是此 Service 为历史快照数据并且当前已经销毁")
+            return {
+                "title": service,
+                "raws": [
+                    {
+                        "name": _("错误信息"),
+                        "value": _("没有从集群 ") + bcs_cluster_id + _(" 中获取到此 Service 信息，原因可能此服务为历史数据或者当前已经销毁"),
+                    }
+                ],
+            }
 
         return {
             "title": {

@@ -449,7 +449,13 @@
                 class="mt8"
                 v-model="formData.add_pod_label"
               >
-                {{ $t('自动添加Pod中的labels') }}
+                {{ $t('自动添加Pod中的{n}', { n: 'label' }) }}
+              </bk-checkbox>
+              <bk-checkbox
+                class="mt8 ml10"
+                v-model="formData.add_pod_annotation"
+              >
+                {{ $t('自动添加Pod中的{n}', { n: 'annotation' }) }}
               </bk-checkbox>
             </bk-form-item>
           </div>
@@ -598,6 +604,7 @@
           environment: 'linux', // 容器环境
           bcs_cluster_id: '', // 集群ID
           add_pod_label: false, // 是否自动添加Pod中的labels
+          add_pod_annotation: false, // 是否自动添加Pod中的labels
           extra_labels: [
             // 附加日志标签
             {
@@ -613,17 +620,12 @@
               namespaces: [],
               noQuestParams: {
                 letterIndex: 0,
-                handleEditLabel: false,
-                editLabelValue: {
-                  key: '',
-                  operator: '',
-                  value: '',
-                },
                 scopeSelectShow: {
                   namespace: false,
                   label: true,
                   load: true,
                   containerName: true,
+                  annotation: true,
                 },
                 namespaceStr: '',
                 namespacesExclude: '=',
@@ -643,6 +645,7 @@
               },
               match_labels: [],
               match_expressions: [], // config 为空时回填的标签数组
+              annotationSelector: [],
               data_encoding: 'UTF-8',
               params: {
                 paths: [{ value: '' }], // 日志路径
@@ -771,11 +774,6 @@
             ],
           },
         ],
-        baseLabelSelector: {
-          // 指定标签或表达式
-          match_labels: [],
-          match_expressions: [],
-        },
         isRequestCluster: false, // 集群列表是否正在请求
         // isConfigConflict: false, // 配置项是否有冲突
         conflictList: [], // 冲突列表
@@ -1010,12 +1008,14 @@
             container_name_exclude: containerNameExclude,
             match_expressions,
             match_labels,
+            match_annotations: matchAnnotations,
             data_encoding,
             params,
             namespaces: itemNamespace,
             namespaces_exclude: itemNamespacesExclude,
             container: yamlContainer,
             label_selector: yamlSelector,
+            annotation_selector: yamlAnnoSelector,
             collector_type,
           } = item;
           const showNameSpace = itemNamespacesExclude?.length ? itemNamespacesExclude : itemNamespace;
@@ -1028,10 +1028,12 @@
           };
 
           let labelSelector = [];
+          let annotationSelector = [];
           let containerNameList = this.getContainerNameList(containerName || containerNameExclude);
           if (isYamlData) {
             Object.assign(container, yamlContainer);
             labelSelector = this.getLabelSelectorArray(yamlSelector);
+            annotationSelector = this.getLabelSelectorArray(yamlAnnoSelector);
             const { container_name: yamlContainerName, container_name_exclude: yamlContainerNameExclude } =
               yamlContainer;
             containerNameList = this.getContainerNameList(yamlContainerName || yamlContainerNameExclude);
@@ -1044,6 +1046,9 @@
               match_expressions,
               match_labels,
             });
+            annotationSelector = this.getLabelSelectorArray({
+              match_annotations: matchAnnotations || [],
+            });
             if (!params.conditions?.separator_filters) {
               params.conditions.separator_filters = [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }];
             }
@@ -1055,17 +1060,12 @@
             namespaces,
             noQuestParams: {
               letterIndex: index, // 配置项字母下标
-              handleEditLabel: false,
-              editLabelValue: {
-                key: '',
-                operator: '',
-                value: '',
-              },
               scopeSelectShow: {
                 namespace: !Boolean(namespaces.length),
                 label: !Boolean(labelSelector.length),
                 load: !(Boolean(container.workload_type) || Boolean(container.workload_name)),
                 containerName: !Boolean(containerNameList.length),
+                annotation: !Boolean(annotationSelector.length),
               },
               namespaceStr,
               containerExclude,
@@ -1074,6 +1074,7 @@
             data_encoding,
             container,
             labelSelector,
+            annotationSelector,
             containerNameList,
             params,
             collector_type,
@@ -1320,6 +1321,7 @@
           environment,
           bcs_cluster_id,
           add_pod_label,
+          add_pod_annotation,
           extra_labels: extraLabels,
           configs,
           yaml_config,
@@ -1341,6 +1343,7 @@
           Object.assign(containerFromData, publicFromData, {
             bcs_cluster_id,
             add_pod_label,
+            add_pod_annotation,
             extra_labels: extraLabels,
             configs,
             yaml_config,
@@ -1351,7 +1354,7 @@
               item.noQuestParams.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
             const namespacesKey = item.noQuestParams.namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespaces';
             JSON.stringify(item.namespaces) === '["*"]' && (item.namespaces = []);
-            const { namespace, label, load, containerName } = this.getScopeSelectShow(index);
+            const { namespace, load, containerName } = this.getScopeSelectShow(index);
             item.collector_type = this.currentEnvironment;
             if (namespace || this.isNode) item.namespaces = [];
             if (load || this.isNode) {
@@ -1361,10 +1364,11 @@
             const cloneNamespaces = deepClone(item.namespaces);
             delete item.namespaces;
             item[namespacesKey] = cloneNamespaces;
-
-            // node 情况下由于只有标签选择 所以不判断是否有选中标签操作
-            item.label_selector =
-              label && !this.isNode ? this.baseLabelSelector : this.getLabelSelectorQueryParams(item.labelSelector);
+            item.label_selector = this.getSelectorQueryParams(item.labelSelector, {
+              match_labels: [],
+              match_expressions: [],
+            });
+            item.annotation_selector = this.getSelectorQueryParams(item.annotationSelector, { match_annotations: [] });
 
             item.container = {
               workload_type: item.container.workload_type,
@@ -1376,6 +1380,7 @@
             delete item.noQuestParams;
             delete item.labelSelector;
             delete item.containerNameList;
+            delete item.annotationSelector;
             // 若为标准输出 则直接清空日志路径
             if (item.collector_type === 'std_log_config') {
               item.params.paths = [];
@@ -1615,8 +1620,8 @@
       handelChangeYaml(val) {
         return new Promise((resolve, reject) => {
           if (val) {
-            const { add_pod_label, extra_labels, configs } = this.handleParams();
-            const data = { add_pod_label, extra_labels, configs };
+            const { add_pod_label, add_pod_annotation, extra_labels, configs } = this.handleParams();
+            const data = { add_pod_label, add_pod_annotation, extra_labels, configs };
             // 传入处理后的参数 请求ui配置转yaml的数据
             this.$http
               .request('container/containerConfigsToYaml', { data })
@@ -1625,6 +1630,7 @@
                 // 保存进入yaml模式之前的ui配置参数
                 Object.assign(this.uiconfigToYamlData, {
                   add_pod_label: this.formData.add_pod_label,
+                  add_pod_annotation: this.formData.add_pod_annotation,
                   extra_labels: this.formData.extra_labels,
                   configs: this.formData.configs,
                 });
@@ -1714,25 +1720,18 @@
       /**
        * @desc: 展示用的标签格式转化成存储或传参的标签格式
        * @param {Object} labelSelector 主页展示用的label_selector
-       * @param {Boolean} isViewType 是否是预览传参 in notin 操作符需要加括号
-       * @returns {Object} 返回传参用的label_selector
+       * @returns {Object} 返回传参的数据
        */
-      getLabelSelectorQueryParams(labelSelector, isViewType = false) {
-        return labelSelector.reduce(
-          (pre, cur) => {
-            const value = isViewType && ['NotIn', 'In'].includes(cur.operator) ? `(${cur.value})` : cur.value;
-            pre[cur.type].push({
-              key: cur.key,
-              operator: cur.operator,
-              value,
-            });
-            return pre;
-          },
-          {
-            match_labels: [],
-            match_expressions: [],
-          },
-        );
+      getSelectorQueryParams(selector, basePre) {
+        return selector.reduce((pre, cur) => {
+          if (!pre[cur.type]) pre[cur.type] = [];
+          pre[cur.type].push({
+            key: cur.key,
+            operator: cur.operator,
+            value: cur.value,
+          });
+          return pre;
+        }, basePre);
       },
       /** 判断除基本信息外是否有更改过值 */
       isUpdateIssuedShowValue() {

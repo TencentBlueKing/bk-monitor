@@ -67,6 +67,9 @@ const MOUSE_EVENTS = [
   'mouseup',
   'globalout',
   'contextmenu',
+  'updateAxisPointer',
+  'showTip',
+  'hideTip',
 ];
 @Component
 export default class BaseChart extends tsc<IChartProps, IChartEvent> {
