@@ -43,7 +43,6 @@ import OperateOptions, { type IOperateOption } from 'monitor-pc/pages/uptime-che
 import introduceData from 'monitor-pc/router/space';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
-// import { monitorDrag } from '../../common/drag-directive';
 import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
 import authorityStore from '../../store/modules/authority';
 import AppNewAdd from '../application/app-new-add/app-new-add';
@@ -136,7 +135,7 @@ export default class AppList extends tsc<object> {
   };
   loading = false;
 
-  refleshInstance = null;
+  refreshInstance = null;
 
   itemRow = {};
 
@@ -145,6 +144,9 @@ export default class AppList extends tsc<object> {
   showFilterPanel = true;
 
   isShowAppAdd = false;
+
+  searchQuery = '';
+
   operateOptions: IOperateOption[] = [
     {
       id: 'appDetails',
@@ -277,11 +279,15 @@ export default class AppList extends tsc<object> {
     }
   }
 
+  /* 搜索应用名/ID */
+  handleRemoteMethod() {}
+
   /* 筛选展开收起 */
   handleHidePanel() {
     this.showFilterPanel = !this.showFilterPanel;
     this.mainResize.setCollapse();
   }
+
   /**
    * @description 动态计算当前每页数量
    */
@@ -531,9 +537,9 @@ export default class AppList extends tsc<object> {
    * @param val
    */
   handleRefleshChange(val: number) {
-    window.clearInterval(this.refleshInstance);
+    window.clearInterval(this.refreshInstance);
     if (val > 0) {
-      this.refleshInstance = setInterval(() => {
+      this.refreshInstance = setInterval(() => {
         this.pagination.current = 1;
         this.getAppList();
       }, val);
@@ -568,7 +574,6 @@ export default class AppList extends tsc<object> {
   handleExpanChange(row: IAppListItem) {
     row.isExpan = !row.isExpan;
     this.itemRow = row;
-    console.log('this.itemRow', this.itemRow);
 
     if (row.isExpan) {
       this.getServiceData([row.application_id]);
@@ -777,8 +782,10 @@ export default class AppList extends tsc<object> {
           )}
         </NavBar>
         <bk-resize-layout
+          auto-minimize={200}
           collapsible={true}
-          initial-divide={200}
+          initial-divide={201}
+          min={195}
         >
           <div
             class='app-list'
@@ -787,8 +794,12 @@ export default class AppList extends tsc<object> {
             <div class='app-list-title'>{this.$t('应用列表')}</div>
             <div class='app-list-search'>
               <bk-input
+                v-model={this.searchQuery}
                 placeholder={this.$t('应用名或ID')}
                 right-icon='bk-icon icon-search'
+                clearable
+                show-clear-only-hover
+                onChange={() => this.handleRemoteMethod()}
               />
               <div
                 class='app-list-add'
@@ -821,25 +832,27 @@ export default class AppList extends tsc<object> {
                     </div>
                     <div class='biz-name-01'>{item.app_alias?.value}</div>
                     <div class='item-content'>
-                      {item.service_count === null ? <div class='spinner' /> : item?.service_count?.value || 0}
-                    </div>
-                    <OperateOptions
-                      class='operate'
-                      options={{
-                        outside: [],
-                        popover: this.operateOptions.map(o => ({
-                          ...o,
-                        })),
-                      }}
-                      onOptionClick={id => this.handleConfig(id, item)}
-                    >
-                      <div
-                        class='more-btn'
-                        slot='trigger'
+                      <span class='item-service-count'>
+                        {item.service_count === null ? <div class='spinner' /> : item?.service_count?.value || 0}
+                      </span>
+                      <OperateOptions
+                        class='operate'
+                        options={{
+                          outside: [],
+                          popover: this.operateOptions.map(o => ({
+                            ...o,
+                          })),
+                        }}
+                        onOptionClick={id => this.handleConfig(id, item)}
                       >
-                        <span class='icon-monitor icon-mc-more' />
-                      </div>
-                    </OperateOptions>
+                        <div
+                          class='more-btn'
+                          slot='trigger'
+                        >
+                          <span class='icon-monitor icon-mc-more' />
+                        </div>
+                      </OperateOptions>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -896,7 +909,7 @@ export default class AppList extends tsc<object> {
                     }}
                   >
                     <div
-                      class='filter-panel-header mb20'
+                      class='filter-panel-header'
                       slot='header'
                     >
                       <span class='title'>{this.$t('筛选')}</span>
@@ -1000,7 +1013,6 @@ export default class AppList extends tsc<object> {
                   onClick={this.handleHidePanel}
                 >
                   <div v-show={!this.showFilterPanel}>
-                    <span>{this.showFilterPanel}</span>
                     <i class='icon-monitor icon-double-up' />
                   </div>
                 </div>

@@ -52,15 +52,18 @@
     }
   }
 
+  .bk-resize-layout-aside-content {
+    background: #FAFBFD;
+  }
+
   /*应用列表*/
   .app-list {
-    height: calc(100vh - 126px);
-    background-color: #fff;
+    height: calc(100vh - 114px);
 
     .app-list-title {
       width: 56px;
       height: 22px;
-      margin: 12px 16px 8px 16px;
+      margin: 12px 0 12px 16px;
       font-family: MicrosoftYaHei;
       font-size: 14px;
       line-height: 22px;
@@ -70,17 +73,28 @@
 
     .app-list-search {
       display: flex;
-      margin: 0 16px 16px;
+      margin: 0 16px 12px;
+
+      .bk-form-control {
+        flex: 1;
+      }
 
       .app-list-add {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 40px;
+        width: 32px;
         height: 32px;
         margin-left: 8px;
         background-color: #3a84ff;
         border-radius: 2px;
+
+        &:hover {
+          cursor: pointer;
+          background-color: rgb(105, 157, 244);
+          border-color: rgb(105, 157, 244);
+          opacity: 1;
+        }
 
         .icon-monitor {
           display: inline-block;
@@ -95,18 +109,28 @@
         align-items: center;
         justify-content: space-between;
         width: 100%;
+        height: 36px;
         padding: 8px 16px;
 
         &:hover {
+          color: #313238;
           cursor: pointer;
+          background: #F0F1F5;
 
           .item-content {
-            display: none;
+            background: #DCDEE5;
+            border-radius: 50%;
+
+            .operate {
+              display: block;
+            }
+
+            .item-service-count {
+              display: none;
+            }
           }
 
-          .operate {
-            display: block;
-          }
+
         }
 
         .first-code {
@@ -117,7 +141,7 @@
           width: 16px;
           height: 16px;
           margin-right: 8px;
-          font-size: 12px;
+          font-size: 10px;
           line-height: 1;
           color: #fff;
           background: #85cca8;
@@ -139,17 +163,23 @@
         }
 
         .item-content {
+          display: flex;
           flex: 0 0 auto;
-          width: 16px;
+          align-items: center;
+          justify-content: center;
+          width: 20px;
+          height: 20px;
           font-size: 12px;
           line-height: 1;
           color: #979ba5;
           text-align: right;
+
+          .operate {
+            display: none;
+          }
         }
 
-        .operate {
-          display: none;
-        }
+
       }
 
       .selected {
@@ -187,8 +217,7 @@
     .main {
       display: flex;
       height: calc(100vh - 240px);
-      padding: 13px 16px;
-      margin-top: 12px;
+      margin-top: 14px;
       background-color: #fff;
 
       .main-left {
@@ -196,7 +225,18 @@
         height: 100%;
 
         .main-left-filter {
-          padding-right: 16px;
+          .filter-panel-header {
+            padding-bottom: 13px;
+            background-color: #fff;
+
+            .title {
+              font-size: 16px;
+            }
+          }
+
+          .bk-collapse-item-content {
+            background-color: #fff;
+          }
         }
 
         .main-left-table {
@@ -204,14 +244,24 @@
         }
 
         .toggle-wrap {
+          margin-left: 6px;
           font-size: 24px;
           color: #979ba5;
           cursor: pointer;
           transform: rotate(90deg);
+
+          .icon-double-up {
+            font-size: 24px;
+          }
         }
 
         .isCollapsed {
           display: none;
+        }
+
+        .bk-resize-layout-aside-content {
+          padding: 13px 16px 0;
+          background: #fff;
         }
       }
 
@@ -233,7 +283,7 @@
 
   .app-list-service {
     height: calc(100% - 48px);
-    padding: 16px;
+    padding: 18px 16px 0 16px;
     overflow-x: hidden;
     overflow-y: auto;
     background-color: #f5f7fa;
@@ -345,7 +395,32 @@
     }
   }
 
-  .bk-resize-layout-aside-content {
-    background-color: #fff;
+
+}
+
+.table-operate-options-component-more-items {
+  & :hover {
+    color: #63656E !important;
+  }
+
+  & :nth-last-child(2) {
+    position: relative;
+    margin-bottom: 4px;
+
+    &::after {
+      position: absolute;
+      bottom: 0;
+      left: 10;
+      width: 80%;
+      height: 1px;
+      content: '';
+      background-color: #DCDEE5;
+    }
+  }
+
+  & :last-child {
+    margin-top: 4px;
+    color: red;
+    border-color: #DCDEE5;
   }
 }
