@@ -370,6 +370,7 @@
   };
 
   const beforeShowndFn = () => {
+    activeIndex.value = null;
     document.addEventListener('keydown', handleKeydown);
 
     calculateDropdown();
