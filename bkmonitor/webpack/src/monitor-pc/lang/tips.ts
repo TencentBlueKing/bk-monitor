@@ -297,4 +297,5 @@ export default {
   烦躁: 'be agitated',
   可容忍: 'tolerableness',
   满意: 'satisfaction',
+  日志数: 'Log count',
 };

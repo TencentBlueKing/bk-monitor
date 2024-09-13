@@ -346,7 +346,9 @@ class RelatedLogChart extends CommonSimpleChart {
             })
             .finally(() => {
               this.handleLoadingChange(false);
-              this.setChartInstance();
+              setTimeout(() => {
+                this.setChartInstance();
+              }, 100);
             })
         );
       this.clearErrorMsg();
