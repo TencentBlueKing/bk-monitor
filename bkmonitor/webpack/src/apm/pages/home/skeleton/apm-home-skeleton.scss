@@ -7,32 +7,20 @@
   .expan-header {
     display: flex;
     align-items: center;
-    height: 52px;
+    height: 36px;
     margin-bottom: 16px;
-    background: #fff;
     border-radius: 2px;
-    box-shadow: 0 2px 4px 0 #1919290d;
 
     .header-left {
       display: flex;
       flex: 1;
       align-items: center;
 
-      .skeleton-01 {
-        max-width: 24px;
-        height: 24px;
-      }
-
-      .skeleton-02 {
+      .skeleton {
         max-width: 268px;
         height: 24px;
-        margin-left: 10px;
-      }
-
-      .skeleton-03 {
-        max-width: 24px;
-        height: 24px;
-        margin-left: 10px;
+        margin-right: 16px;
+        margin-left: 16px;
       }
     }
   }
