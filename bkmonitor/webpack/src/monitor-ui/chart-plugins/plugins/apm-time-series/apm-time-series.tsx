@@ -73,6 +73,7 @@ export default class ApmTimeSeries extends TimeSeries {
   /* 错误数图表维度分类 */
   errorCountCategory: Record<string, string> = {};
 
+  /* 用于customChartConnector */
   chartId = random(8);
 
   get apmMetric(): EDataType {
@@ -476,12 +477,13 @@ export default class ApmTimeSeries extends TimeSeries {
     this.detailsSideData.show = false;
   }
 
+  /* 与非echarts图联动时需要调用此函数（存储实例） */
   setChartInstance() {
     if (this.panel.dashboardId === this.customChartConnector?.groupId) {
       this.customChartConnector.setChartInstance(this.chartId, this.$refs?.baseChart);
     }
   }
-
+  /* 与非echarts图联动时需要调用此函数 (联动动作) */
   handleUpdateAxisPointer(event) {
     if (this.panel.dashboardId === this.customChartConnector?.groupId) {
       this.customChartConnector.updateAxisPointer(this.chartId, event?.axesInfo?.[0]?.value || 0);

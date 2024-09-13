@@ -712,6 +712,7 @@ export const createMenuList = (
   document.addEventListener('wheel', removeWrapWheel);
 };
 
+/* 用于echarts 与非echarts图表的联动处理， 利用provide inject进行数据传递 */
 export class CustomChartConnector {
   curTime = 0;
   customInstanceMap = new Map(); // 存储自定义实例
@@ -723,6 +724,7 @@ export class CustomChartConnector {
   // 删除所有实例
   removeChartInstance() {
     this.instanceMap = new Map();
+    this.customInstanceMap = new Map();
   }
   // 存储echarts 图的实例
   setChartInstance(id, instance) {

@@ -72,7 +72,7 @@ interface IRelationLogChartProps {
 
 @Component
 class RelatedLogChart extends CommonSimpleChart {
-  @Ref() baseChart: HTMLDivElement;
+  @Ref('chart') baseChart: HTMLDivElement;
 
   @InjectReactive('customChartConnector') customChartConnector: CustomChartConnector;
 
@@ -124,6 +124,7 @@ class RelatedLogChart extends CommonSimpleChart {
 
   isFilterError = false;
 
+  /* 用于customChartConnector */
   chartId = random(8);
 
   /* 是否为精简模式 */
@@ -499,12 +500,14 @@ class RelatedLogChart extends CommonSimpleChart {
     this.updateBarChartData();
   }
 
+  /* 与非echarts图联动时需要调用此函数（存储实例） */
   setChartInstance() {
     if (this.panel.dashboardId === this.customChartConnector?.groupId) {
-      this.customChartConnector.setChartInstance(this.chartId, this.$refs?.baseChartInstance);
+      this.customChartConnector.setChartInstance(this.chartId, this.$refs?.baseChart);
     }
   }
 
+  /* 与非echarts图联动时需要调用此函数 (联动动作) */
   handleUpdateAxisPointer(event) {
     if (this.panel.dashboardId === this.customChartConnector?.groupId) {
       this.customChartConnector.updateAxisPointer(this.chartId, event?.axesInfo?.[0]?.value || 0);
@@ -542,11 +545,11 @@ class RelatedLogChart extends CommonSimpleChart {
           </div>
           {!this.emptyChart ? (
             <div
-              ref='baseChart'
+              ref='chart'
               class='chart-instance'
             >
               <BaseEchart
-                ref='baseChartInstance'
+                ref='baseChart'
                 width={this.width}
                 height={this.height}
                 class='base-chart'
@@ -633,7 +636,7 @@ class RelatedLogChart extends CommonSimpleChart {
                 <div class='monitor-echart-common-content'>
                   {!this.emptyChart ? (
                     <div
-                      ref='baseChart'
+                      ref='chart'
                       class='chart-instance'
                     >
                       <BaseEchart

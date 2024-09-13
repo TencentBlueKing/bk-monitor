@@ -142,6 +142,7 @@ export default class BarAlarmChart extends tsc<IProps> {
     };
   }
 
+  /* 联动操作 */
   dispatchAction(obj) {
     if (obj.type === 'showTip') {
       const time = obj.x || -1;
