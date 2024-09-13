@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import copy
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from django.conf import settings
 from django.utils.encoding import force_str
@@ -238,8 +238,10 @@ class DataAccessor(object):
         """
         创建结果表
         """
-        create_rt_result_list = []
         contrast_result = self.contrast_rt()
+        func_list = []
+        params_list = []
+
         for operation in contrast_result:
             param = {
                 "bk_data_id": self.data_id,
@@ -270,13 +272,12 @@ class DataAccessor(object):
                 if operation == "create":
                     if self.etl_config == "bk_exporter":
                         param.update({"option": {"enable_default_value": False}})
-                    create_rt_result = api.metadata.create_result_table(param)
+                    func_list.append(api.metadata.create_result_table)
                 else:
-                    create_rt_result = api.metadata.modify_result_table(param)
+                    func_list.append(api.metadata.modify_result_table)
+                params_list.append(copy.deepcopy(param))
 
-                create_rt_result_list.append(create_rt_result)
-
-        return create_rt_result_list
+        return self.request_multi_thread(func_list, params_list, get_data=lambda x: x)
 
     def access(self):
         """
@@ -318,10 +319,30 @@ class DataAccessor(object):
             }
             params_list.append(param)
 
-        with ThreadPoolExecutor(max_workers=12) as executor:
-            executor.map(api.metadata.modify_result_table, params_list)
+        self.request_multi_thread(
+            [api.metadata.modify_result_table] * len(params_list), params_list, get_data=lambda x: x
+        )
 
         return "success"
+
+    def request_multi_thread(self, func_list, params_list, get_data=lambda x: []):
+        """
+        并发请求接口，每次按不同参数请求最后叠加请求结果
+        :param func: 请求方法
+        :param params_list: 参数列表
+        :param get_data: 获取数据函数，通常CMDB的批量接口应该设置为 get_data=lambda x: x["info"]，其它场景视情况而定
+        :return: 请求结果累计
+        """
+        result = []
+        with ThreadPoolExecutor(max_workers=12) as executor:
+            tasks = [executor.submit(func, **params) for func, params in zip(func_list, params_list)]
+        for future in as_completed(tasks):
+            _result = get_data(future.result())
+            if isinstance(_result, list):
+                result.extend(_result)
+            else:
+                result.append(_result)
+        return result
 
 
 class PluginDataAccessor(DataAccessor):
