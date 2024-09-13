@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import copy
+from concurrent.futures import ThreadPoolExecutor
 
 from django.conf import settings
 from django.utils.encoding import force_str
@@ -298,6 +299,7 @@ class DataAccessor(object):
         修改label
         """
         result_table_list = api.metadata.list_result_table({"datasource_type": self.tsdb_name})
+        params_list = []
         for table in result_table_list:
             external_storage = {"kafka": {"expired_time": 1800000}}
             if settings.IS_ACCESS_BK_DATA:
@@ -314,7 +316,10 @@ class DataAccessor(object):
                 "table_name_zh": table["table_name_zh"],
                 "external_storage": external_storage,
             }
-            api.metadata.modify_result_table(param)
+            params_list.append(param)
+
+        with ThreadPoolExecutor(max_workers=12) as executor:
+            executor.map(api.metadata.modify_result_table, params_list)
 
         return "success"
 

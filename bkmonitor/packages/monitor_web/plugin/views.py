@@ -114,12 +114,12 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         # 获取全量的插件数据（包含外键数据）
         all_versions = (
             PluginVersionHistory.objects.exclude(plugin__plugin_type__in=CollectorPluginMeta.VIRTUAL_PLUGIN_TYPE)
-            .select_related("plugin", "info")
+            .select_related("plugin", "config", "info")
             .prefetch_related(
                 Prefetch("plugin__versions", queryset=PluginVersionHistory.objects.defer("signature")),
                 Prefetch("plugin__collect_configs", queryset=CollectConfigMeta.objects.defer("cache_data")),
             )
-            .defer("info__metric_json", "info__description_md")
+            .defer("info__metric_json")
         )
         if bk_biz_id:
             all_versions = all_versions.filter(plugin__bk_biz_id__in=[0, bk_biz_id])
@@ -210,7 +210,8 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
                     "config_version": value.config_version,
                     "info_version": value.info_version,
                     "edit_allowed": value.plugin.edit_allowed if not value.is_official else False,
-                    "delete_allowed": value.plugin.delete_allowed,
+                    # 没有被任何采集关联的插件才可以被删除（旧逻辑使用delete_allowed属性）
+                    "delete_allowed": plugin_counts.get(value.plugin.plugin_id, 0) == 0,
                     "export_allowed": value.plugin.export_allowed,
                     "label_info": resource.commons.get_label_msg(value.plugin.label),
                     "logo": value.info.logo_content,
