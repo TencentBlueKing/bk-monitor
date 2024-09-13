@@ -3982,7 +3982,7 @@ class CollectorHandler(object):
             for _match in match_annotations:
                 key = _match["key"]
                 op = _match["operator"]
-                value = _match["value"]
+                value = _match["value"].strip("()").split(",")
                 if op == LabelSelectorOperator.IN and not (key in annotations and annotations[key] in value):
                     is_matched = False
                 elif op == LabelSelectorOperator.NOT_IN and not (key in annotations and annotations[key] not in value):

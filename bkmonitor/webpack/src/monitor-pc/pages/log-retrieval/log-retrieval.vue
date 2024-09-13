@@ -92,19 +92,16 @@ export default class LogRetrieval extends Vue {
   }
   receiveMessage(event) {
     // 检查消息来源是否可信
-    const { bkLogSearchUrl } = this.$store.getters;
-    if (event.origin !== bkLogSearchUrl) return;
+    if (event.origin !== location.origin) return;
     // 获取来自iframe的内容
     const data = event.data;
-    this.$router
-      .replace({
-        query: { ...data.params, ...data.query },
-      })
-      .catch(err => {
-        if (err.name !== 'NavigationDuplicated') {
-          console.log(err);
-        }
-      });
+    if ('params' in data) {
+      this.$router
+        .replace({
+          query: { ...data.params, ...data.query },
+        })
+        .catch(err => err);
+    }
   }
 
   mounted() {

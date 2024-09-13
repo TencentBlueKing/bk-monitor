@@ -1033,7 +1033,6 @@ class ServiceDetailResource(Resource):
     def key_name_map(self):
         return {
             TopoNodeKind.SERVICE: {
-                "topo_key": _("服务名称"),
                 "category": _("服务分类"),
                 "predicate_value": _("分类名称"),
                 "service_language": _("语言"),
@@ -1105,7 +1104,6 @@ class ServiceDetailResource(Resource):
                 "value": str(value) if value else "--",
             }
             for item, value in {
-                "topo_key": data["service_name"],
                 "category": StandardFieldCategory.get_label_by_key(extra_data.get("category")),
                 "predicate_value": extra_data.get("predicate_value"),
                 "service_language": TopoNodeKind.get_label_by_key(extra_data.get("service_language")),

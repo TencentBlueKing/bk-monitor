@@ -255,7 +255,7 @@ export default class Home extends tsc<object> {
     this.dataOverview.data.forEach(item => {
       const num = (data.overview[item.id]?.count === 0 ? '0' : data.overview[item.id]?.count) || data.overview[item.id];
       const numObj = initUnit(num, item.type);
-      item.num = +(+numObj.num).toFixed(1);
+      item.num = Number.isNaN(+numObj.num) ? numObj.num : +(+numObj.num).toFixed(1);
       item.unit = numObj.unit;
     });
     // 业务概览

@@ -500,6 +500,17 @@ class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ModelViewSet):
         group.tasks.add(task_id)
         return Response({"msg": _("拨测分组({})添加任务({})成功".format(group.name, task.name))})
 
+    @action(methods=['post'], detail=True)
+    def remove_task(self, request, *args, **kwargs):
+        """拨测任务组移除拨测任务"""
+        task_id = request.data.get("task_id")
+        task = UptimeCheckTask.objects.get(pk=task_id)
+        group = self.get_object()
+        if task not in group.tasks.all():
+            return Response({"msg": _("拨测分组({})不存在任务({})".format(group.name, task.name))})
+        group.tasks.remove(task_id)
+        return Response({"msg": _("拨测分组({})移除任务({})成功".format(group.name, task.name))})
+
 
 class ExportUptimeCheckConfViewSet(PermissionMixin, ResourceViewSet):
     """

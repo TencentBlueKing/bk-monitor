@@ -268,7 +268,9 @@ class MetricHandler:
         response = self.origin_query_instance()
         res = defaultdict(lambda: defaultdict(int))
         for item in response:
-            res[tuple(item[i] for i in self.group_by if i not in ignore_keys)][self.metric_id] += item["_result_"]
+            res[tuple(item.get(i, "") for i in self.group_by if i not in ignore_keys)][self.metric_id] += item[
+                "_result_"
+            ]
         return res
 
     def get_instance_calculate_values_mapping(self, ignore_keys=None):
@@ -360,7 +362,16 @@ class PromqlInstanceQueryMixin(MetricHandler):
 
         where = []
         for i in self.where:
-            where.append(f'{i["key"]}={"" if i["method"] == "eq" else "~"}"{"|".join(i["value"])}"')
+            op = "="
+            if i["method"] == "neq":
+                op = "!="
+
+            if len(i["value"]) <= 1:
+                v = f'"{i["value"][0]}"'
+            else:
+                v = '"' + "^(" + "|".join(i["value"]) + ")" + '"'
+                op = "=~"
+            where.append(f'{i["key"]}{op}{v}')
 
         for k, v in self.filter_dict.items():
             where.append(f'{k}="{v}"')
