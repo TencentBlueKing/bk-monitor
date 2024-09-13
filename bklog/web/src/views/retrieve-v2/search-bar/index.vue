@@ -1,16 +1,16 @@
 <script setup>
   import { ref, computed, watch } from 'vue';
-  import { isEqual } from 'lodash';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+  import { isEqual } from 'lodash';
 
   import SelectIndexSet from '../condition-comp/select-index-set.tsx';
+  import BookmarkPop from './bookmark-pop';
   import QueryHistory from './query-history';
   import SqlQuery from './sql-query';
   import TimeSetting from './time-setting';
   import UiInput from './ui-input';
-  import BookmarkPop from './bookmark-pop';
 
   const store = useStore();
   const { $t } = useLocale();

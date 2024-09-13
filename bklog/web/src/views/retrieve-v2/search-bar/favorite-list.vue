@@ -67,9 +67,9 @@
     /* 收藏查询列表 样式 */
     .favorite-query-list {
       min-height: 150px;
-      border-top: 1px solid #ecedf2;
       max-height: 200px;
       overflow: auto;
+      border-top: 1px solid #ecedf2;
 
       .query-list-title {
         height: 32px;
