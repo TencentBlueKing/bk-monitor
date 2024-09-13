@@ -51,6 +51,10 @@
     font-size: 12px;
     color: #313238;
 
+    .is-text-click{
+      cursor: pointer;
+    }
+
     .close-total {
       display: flex;
       align-items: center;
