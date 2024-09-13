@@ -133,6 +133,16 @@ def get_interval_number(start_time, end_time, interval="auto"):
     return 60 if not isinstance(interval, int) else interval
 
 
+def get_bar_interval_number(start_time, end_time, size=30):
+    """计算出柱状图（特殊处理的）的 interval 固定柱子数量"""
+    delta = end_time - start_time
+    if delta <= size:
+        # 如果间隔小于大小 按照一秒进行聚合 此时柱子数量不为 size
+        return 1
+
+    return int(delta // size)
+
+
 def split_by_interval(start_time, end_time, interval):
     """根据 interval 对开始时间和结束时间进行分割"""
     if interval[-1] == "m":

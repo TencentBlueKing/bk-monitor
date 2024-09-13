@@ -299,4 +299,5 @@ export default {
   图例: 'Legend',
   下载: 'Download',
   原始大小: 'Original size',
+  查看完整接口: 'View complete interface',
 };

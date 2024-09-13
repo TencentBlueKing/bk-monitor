@@ -25,7 +25,7 @@
  */
 
 // import Vue from 'vue';
-import { Component, Emit, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import G6, { type IGroup, type ModelConfig, type Graph, type INode, type IEdge, type IShape } from '@antv/g6';
@@ -124,11 +124,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   @Prop() dataType: string;
 
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
-  @Inject('handlePageTabChange') handlePageTabChange: (
-    id: string,
-    customRouterQuery: Record<string, number | string>
-  ) => void;
-
   @Ref('relationGraph') relationGraphRef: HTMLDivElement;
   @Ref('topoToolsPanel') topoToolsPanelRef: HTMLDivElement;
   @Ref('topoToolsPopover') topoToolsPopoverRef: HTMLDivElement;
@@ -233,7 +228,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         const common = {
           source: item.from_name,
           target: item.to_name,
-          label: String(item.duration_avg || item.duration_p95 || item.duration_p99 || item.request_count),
+          label: String(item.duration_avg || item.duration_p95 || item.duration_p99 || item.request_count || 0),
           style: {
             lineWidth: item.edge_breadth,
             stroke: '#C4C6CC',
@@ -286,6 +281,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   @Watch('data')
   handleDataChange() {
+    this.hideMenu();
     this.initGraph();
   }
 
@@ -711,9 +707,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   /** 设置节点状态 */
   setNodeState(name: string, value: boolean | string, item: INode) {
     const group = item.get<IGroup>('group');
-    const { size = 36, data } = item.getModel() as INodeModelConfig;
-    const { type } = data;
-    const isGhost = type.split('_')[1] === NodeDisplayType.VOID;
+    const { size = 36 } = item.getModel() as INodeModelConfig;
 
     const hoverCircle = group.find(e => e.get('name') === 'custom-node-hover-circle');
     if (name === 'hover' && !item.hasState('active')) {
@@ -769,14 +763,18 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       const textShape = group.find(e => e.get('name') === 'text-shape');
       const nodeIcon = group.find(e => e.get('name') === 'node-icon');
       const nodeKeyShape = group.find(e => e.get('name') === 'custom-node-keyShape');
+      const nodeHoverShape = group.find(e => e.get('name') === 'custom-node-hover-circle');
       textShape.attr({
-        opacity: value || isGhost ? 0.4 : 1,
+        opacity: value ? 0.2 : 1,
       });
       nodeIcon.attr({
-        opacity: value || isGhost ? 0.4 : 1,
+        opacity: value ? 0.2 : 1,
       });
       nodeKeyShape.attr({
-        lineWidth: value || isGhost ? 2 : 4,
+        opacity: value ? 0.2 : 1,
+      });
+      nodeHoverShape.attr({
+        opacity: value ? 0.2 : 1,
       });
     }
   }
@@ -785,6 +783,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   setEdgeState(name: string, value: boolean | string, item: IEdge) {
     const group = item.get('group');
     const keyShape: IShape = group.get('children')[0];
+    const textRect: IShape = group.get('children')[1];
+    const text: IShape = group.get('children')[2];
 
     if (name === 'active') {
       if (value) {
@@ -813,7 +813,13 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
     if (name === 'no-select') {
       keyShape.attr({
-        opacity: value ? 0.4 : 1,
+        opacity: value ? 0.2 : 1,
+      });
+      textRect.attr({
+        opacity: value ? 0.2 : 1,
+      });
+      text.attr({
+        opacity: value ? 0.2 : 1,
       });
     }
   }
@@ -857,9 +863,13 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   /** 缩放滑块切换 */
   handleScaleChange(ratio: number) {
     if (!this.graph) return;
-    this.scaleValue = ratio;
     // 以画布中心为圆心放大/缩小
     this.graph.zoomTo(ratio);
+    // 手动拖拽缩放条，画布居中
+    if (this.scaleValue !== ratio) {
+      this.graph.fitCenter();
+    }
+    this.scaleValue = ratio;
   }
 
   /**
@@ -1013,7 +1023,14 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   }
 
   handleJumpToInterface() {
-    this.handlePageTabChange('endpoint', {});
+    const { dashboardId, sliceEndTime, sliceStartTime, ...param } = this.$route.query;
+    const { href } = this.$router.resolve({
+      query: {
+        ...param,
+        dashboardId: 'endpoint',
+      },
+    });
+    window.open(href);
   }
 
   reset() {
@@ -1093,11 +1110,14 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
               display: this.menuCfg.show ? 'block' : 'none',
               left: `${this.menuCfg.x}px`,
               top: `${this.menuCfg.y}px`,
+              transform: `scale(${this.menuCfg.isDrilling ? this.scaleValue : 1})`,
             }}
             class='node-menu-list'
           >
             <div
-              style={{ display: this.menuCfg.isDrilling ? 'block' : 'none' }}
+              style={{
+                display: this.menuCfg.isDrilling ? 'block' : 'none',
+              }}
               class='node-drilling-container'
             >
               <div class='header'>
@@ -1114,67 +1134,77 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
                   <div class='row-line' />
                 </div>
               </div>
-              {this.menuCfg.drillingLoading ? (
-                <div
-                  class='drilling-loading'
-                  v-bkloading={{ isLoading: true, size: 'small', color: '#ecedf2' }}
-                />
-              ) : (
-                <ul class='node-list'>
-                  {this.menuCfg.drillingList.length ? (
-                    this.menuCfg.drillingList.map(item => (
-                      <li
-                        key={item.id}
-                        class='node-item topo-menu-action'
-                        onClick={() => this.handleDrillingNodeClick(item)}
+
+              <div
+                class={{
+                  'node-list': true,
+                  more: this.menuCfg.drillingTotal > 5,
+                }}
+                v-bkloading={{ isLoading: this.menuCfg.drillingLoading, size: 'small', color: '#ecedf2' }}
+              >
+                {this.menuCfg.drillingList.length ? (
+                  this.menuCfg.drillingList.map(item => (
+                    <div
+                      key={item.id}
+                      class='node-item topo-menu-action'
+                      onClick={() => this.handleDrillingNodeClick(item)}
+                    >
+                      <div
+                        style={{
+                          'border-color': item.color,
+                          width: `${item.size * 2}px`,
+                          height: `${item.size * 2}px`,
+                        }}
+                        class={{
+                          node: true,
+                          active: this.drillingNodeActive === item.name,
+                        }}
                       >
-                        <div
-                          style={{
-                            'border-color': item.color,
-                            width: `${item.size * 2}px`,
-                            height: `${item.size * 2}px`,
-                          }}
-                          class={{
-                            node: true,
-                            active: this.drillingNodeActive === item.name,
-                          }}
-                        >
-                          <i class='icon-monitor icon-fx' />
-                        </div>
-                        <span
-                          class='node-text name'
-                          v-bk-overflow-tips
-                        >
-                          {item.name}
-                        </span>
-                      </li>
-                    ))
-                  ) : (
-                    <EmptyStatus
-                      class='drilling-node-empty'
-                      textMap={{
-                        empty: this.$t('暂无接口'),
-                      }}
-                      type='empty'
-                    />
-                  )}
-                  <li
-                    class={{
-                      footer: true,
-                      'has-more': this.menuCfg.drillingTotal > 5,
+                        <i class='icon-monitor icon-fx' />
+                      </div>
+                      <span
+                        class='node-text name'
+                        v-bk-overflow-tips
+                      >
+                        {item.name}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <EmptyStatus
+                    class='drilling-node-empty'
+                    textMap={{
+                      empty: this.$t('暂无接口'),
                     }}
-                    onClick={this.handleJumpToInterface}
+                    type='empty'
+                  />
+                )}
+                {this.menuCfg.drillingTotal > 5 && (
+                  <bk-popover
+                    distance={5}
+                    theme='drilling-more-popover'
                   >
-                    {this.menuCfg.drillingTotal > 5 && (
-                      <li class='more-icon'>
+                    <div
+                      class='footer'
+                      onClick={this.handleJumpToInterface}
+                    >
+                      <div class='more-icon'>
                         <div class='dot' />
                         <div class='dot' />
                         <div class='dot' />
-                      </li>
-                    )}
-                  </li>
-                </ul>
-              )}
+                      </div>
+                    </div>
+                    <div
+                      class='drilling-more-popover-content'
+                      slot='content'
+                      onClick={this.handleJumpToInterface}
+                    >
+                      <span>{this.$t('查看完整接口')}</span>
+                      <i class='icon-monitor icon-fenxiang' />
+                    </div>
+                  </bk-popover>
+                )}
+              </div>
             </div>
             <ul
               style={{ display: this.menuCfg.isDrilling ? 'none' : 'block' }}

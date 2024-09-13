@@ -20,7 +20,6 @@ class BaseQuery:
         self.app_name = app_name
         self.start_time = start_time
         self.end_time = end_time
-        self.delta = self.end_time - self.start_time
         self.data_type = data_type
         self.service_name = service_name
         self.params = extra_params if extra_params else {}
@@ -28,8 +27,11 @@ class BaseQuery:
         self.application = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get()
         self.metrics_table = self.application.metric_result_table_id
 
-    def get_metric(self, metric_clz: Type[MetricHandler], **kwargs):
-        return metric_clz(**self.common_params(), **kwargs)
+    def get_metric(self, metric_clz: Type[MetricHandler], params=None, **kwargs):
+        if not params:
+            params = self.common_params()
+
+        return metric_clz(**params, **kwargs)
 
     def common_params(self, **kwargs):
         return {
