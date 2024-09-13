@@ -40,10 +40,14 @@
             class="field-type-icon mr5"
             v-bk-tooltips="fieldTypePopover(field)"
             :class="getFieldIcon(field)"
+            :style="{ backgroundColor: getFieldIconColor(field) }"
           ></span>
           <span
             class="field-text"
-            :title="field"
+            v-bk-tooltips="{
+              content: field,
+              disabled: field.length < 5,
+            }"
             >{{ field }}
           </span>
         </div>
@@ -196,6 +200,10 @@
           content: this.fieldTypeMap[fieldType]?.name,
           disabled: !this.fieldTypeMap[fieldType],
         };
+      },
+      getFieldIconColor(type) {
+        const fieldType = this.getFieldType(type);
+        return this.fieldTypeMap?.[fieldType] ? this.fieldTypeMap?.[fieldType]?.color : '#EAEBF0';
       },
       checkDisable(id, field) {
         const type = this.getFieldType(field);
@@ -360,6 +368,19 @@
         height: 100%;
         margin-right: 18px;
 
+        .field-type-icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 16px;
+          height: 16px;
+          margin: 0 5px 0 0;
+          font-size: 12px;
+          color: #63656e;
+          background: #dcdee5;
+          border-radius: 2px;
+        }
+
         .field-text {
           display: block;
           width: auto;
@@ -367,15 +388,16 @@
           font-family: var(--table-fount-family);
           font-size: var(--table-fount-size);
           color: var(--table-fount-color);
+          text-overflow: ellipsis;
           word-break: normal;
           word-wrap: break-word;
+          white-space: nowrap;
         }
 
         :deep(.bklog-ext) {
-          display: inline-block;
-          width: 13px;
-          font-size: 12px;
-          transform: translateX(-1px) scale(0.8);
+          min-width: 22px;
+          height: 22px;
+          transform: translateX(-3px) scale(0.7);
         }
       }
 
