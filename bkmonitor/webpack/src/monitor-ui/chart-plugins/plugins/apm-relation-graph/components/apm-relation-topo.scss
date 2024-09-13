@@ -21,6 +21,7 @@
 
   .node-menu-list {
     position: absolute;
+    transform-origin: 0 0;
 
     .topo-menu-list {
       width: 120px;
@@ -50,7 +51,6 @@
 
     .node-drilling-container {
       width: 104px;
-      transform-origin: 0 0;
 
       .name {
         display: block;
@@ -95,9 +95,13 @@
       }
 
       .node-list {
-        padding-top: 16px;
+        padding: 16px 0 20px 0;
         background: #ecedf2;
         border-radius: 0 0 8px 8px;
+
+        &.more {
+          padding-bottom: 0;
+        }
 
         .node-item {
           display: flex;
@@ -155,16 +159,21 @@
           }
         }
 
+        .bk-tooltip {
+          margin-top: 10px;
+        }
+
+        .bk-tooltip,
+        .bk-tooltip-ref {
+          width: 100%;
+        }
+
         .footer {
           display: flex;
           align-items: center;
           justify-content: center;
           height: 24px;
-
-          &.has-more {
-            margin-top: 10px;
-            cursor: pointer;
-          }
+          cursor: pointer;
 
           &:hover {
             .more-icon .dot {
@@ -220,4 +229,16 @@
 
 .apm-topo-tools-popover-theme {
   padding: 0;
+}
+
+.drilling-more-popover-theme.tippy-tooltip {
+  cursor: pointer;
+
+  .drilling-more-popover-content {
+    .icon-fenxiang {
+      margin-left: 2px;
+      font-size: 16px;
+      color: #3a84ff;
+    }
+  }
 }
