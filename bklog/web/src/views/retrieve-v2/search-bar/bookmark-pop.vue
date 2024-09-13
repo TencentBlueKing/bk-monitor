@@ -18,7 +18,7 @@
   // 用于展示索引集
   // 这里返回数组，展示 index_set_name 字段
   const indexSetItemList = computed(() => store.state.indexItem.items);
-  const indexSetName = computed(() => indexSetItemList.value.map(item => item.index_set_name));
+  const indexSetName = computed(() => indexSetItemList.value?.map(item => item?.index_set_name).join(','));
   const collectGroupList = computed(() => store.state.favoriteList);
   const favStrList = computed(() => store.state.favoriteList.map(item => item.name));
   const favoriteData = ref({
