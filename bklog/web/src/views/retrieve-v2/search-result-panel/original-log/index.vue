@@ -190,20 +190,10 @@
           {},
         );
       },
-      fieldsLoading() {
-        return this.indexFieldInfo.is_loading;
-      },
-    },
-    watch: {
-      fieldsLoading(v) {
-        if (!v && !this.isInitActiveTab) {
-          this.isInitActiveTab = true;
-          this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
-        }
-      },
     },
     mounted() {
       const expandStr = localStorage.getItem('EXPAND_SEARCH_VIEW');
+      this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
       this.expandTextView = expandStr ? JSON.parse(expandStr) : false;
       this.handleChangeExpandView(this.expandTextView);
     },

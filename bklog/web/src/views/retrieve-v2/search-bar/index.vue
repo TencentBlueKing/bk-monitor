@@ -76,6 +76,7 @@
   const handleIndexSetSelected = payload => {
     if (!isEqual(indexItem.value.ids, payload.ids) || indexItem.value.isUnionIndex !== payload.isUnionIndex) {
       store.dispatch('requestIndexSetItemChanged', payload).then(() => {
+        store.commit('retrieve/updateChartKey');
         store.dispatch('requestIndexSetQuery');
       });
     }

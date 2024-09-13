@@ -35,14 +35,10 @@
         class="cluster-nav"
         data-test-id="cluster_div_fingerOperate"
       >
-        <div class="left-container">
-          <div></div>
-          <strategy
-            style="margin-left: 20px"
-            :cluster-switch="clusterSwitch"
-            :strategy-submit-status="watchStrategySubmitStatus"
-          />
-        </div>
+        <strategy
+          :cluster-switch="clusterSwitch"
+          :strategy-submit-status="watchStrategySubmitStatus"
+        />
 
         <finger-operate
           :finger-operate-data="fingerOperateData"
@@ -199,6 +195,10 @@
         type: Object,
         required: true,
       },
+      activeTab: {
+        type: String,
+        required: true,
+      },
       clusterRouteParams: {
         type: Object,
         default: () => ({}),
@@ -336,15 +336,16 @@
       isSearchIng() {
         return this.$store.state.indexSetQueryResult?.is_loading || false;
       },
-    },
-    mounted() {
-      this.requestFinger();
+      isActiveTab() {
+        return this.activeTab === 'clustering';
+      },
     },
     watch: {
       totalFields: {
         deep: true,
         immediate: true,
         async handler(newList) {
+          if (!this.isActiveTab) return;
           // 当前nav为数据指纹且数据指纹开启点击指纹nav则不再重复请求
           this.fingerList = [];
           this.allFingerList = [];
@@ -681,11 +682,6 @@
       margin-bottom: 12px;
       color: #63656e;
       @include flex-justify(space-between);
-
-      .left-container {
-        flex-wrap: nowrap;
-        @include flex-justify(space-between);
-      }
     }
 
     .bk-alert {
