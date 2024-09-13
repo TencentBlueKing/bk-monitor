@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref, Ref } from 'vue';
+import { ref, Ref, onMounted, onUnmounted } from 'vue';
 
 import { debounce } from 'lodash';
 import tippy from 'tippy.js';
@@ -36,10 +36,19 @@ export default class PopInstanceUtil {
   private arrow = true;
   private newInstance = true;
   private tippyOptions = {};
+  private resizeObserver: ResizeObserver | null = null;
 
   private delayShowInstance;
 
-  constructor({ refContent, onShowFn, onHiddenFn, arrow = true, newInstance = true, tippyOptions = {} }) {
+  constructor({
+    refContent,
+    onShowFn,
+    onHiddenFn,
+    arrow = true,
+    newInstance = true,
+    tippyOptions = {},
+    watchElement = ref(null), // 添加需要监视的元素，能在元素高度变化时，自动更新 pop
+  }) {
     this.tippyInstance = null;
     this.refContent = refContent;
     this.onShowFn = onShowFn;
@@ -54,6 +63,21 @@ export default class PopInstanceUtil {
     this.delayShowInstance = debounce(target => {
       this.initInistance(target);
       this.getTippyInstance()?.show();
+    });
+
+    // 初始化监听器
+    onMounted(() => {
+      // 在 onMounted 中判断 watchElement 是否存在
+      if (watchElement.value) {
+        this.resizeObserver = new ResizeObserver(() => {
+          this.repositionTippyInstance();
+        });
+        this.resizeObserver.observe(watchElement.value);
+      }
+    });
+
+    onUnmounted(() => {
+      this.resizeObserver?.disconnect();
     });
   }
 
