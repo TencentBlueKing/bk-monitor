@@ -165,7 +165,7 @@ export default class BarAlarmChart extends tsc<IProps> {
             theme: 'bar-alarm-chart-tooltip-theme',
           });
           this.popInstance?.show?.();
-        }, 200);
+        }, 10);
       } else {
         this.curHover = -1;
       }
@@ -268,7 +268,7 @@ export default class BarAlarmChart extends tsc<IProps> {
         theme: 'bar-alarm-chart-tooltip-theme',
       });
       this.popInstance?.show?.();
-    }, 200);
+    }, 10);
   }
   /**
    * @description 鼠标离开事件

@@ -140,6 +140,10 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
     this.customChartConnector = new CustomChartConnector(this.dashboardId);
   }
 
+  beforeDestroy() {
+    this.customChartConnector?.removeChartInstance();
+  }
+
   @Watch('serviceName')
   handleWatchServiceName(v) {
     if (this.show && v) {
