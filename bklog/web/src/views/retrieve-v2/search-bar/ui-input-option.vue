@@ -34,6 +34,7 @@
   const store = useStore();
   const { t } = useLocale();
   const searchValue = ref('');
+  const refConditionInput = ref(null);
   const refUiValueOperator = ref(null);
   const refUiValueOperatorList = ref(null);
   const activeIndex = ref(0);
@@ -63,13 +64,15 @@
   const conditionValueInstance = new PopInstanceUtil({
     refContent: refValueTagInputOptionList,
     arrow: false,
-    newInstance: true,
+    watchElement: refConditionInput,
+    newInstance: false,
     onHiddenFn: instance => {
       refValueTagInputOptionList.value?.querySelector('li.is-hover')?.classList.remove('is-hover');
     },
     tippyOptions: {
       flip: false,
       placement: 'bottom',
+      appendTo: () => document.body,
     },
   });
 
@@ -721,6 +724,7 @@
             <div :class="['condition-value-container', { 'is-focus': isConditionValueInputFocus }]">
               <ul
                 class="condition-value-input"
+                ref="refConditionInput"
                 @click.stop="handleConditionValueClick"
               >
                 <li
