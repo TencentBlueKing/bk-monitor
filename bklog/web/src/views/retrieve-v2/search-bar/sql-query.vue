@@ -176,6 +176,7 @@
     display: inline-flex;
     align-items: center;
     width: 100%;
+    padding-left: 10px;
 
     .search-sql-editor {
       width: 100%;
@@ -191,6 +192,8 @@
 
         .cm-scroller {
           .cm-gutters {
+            display: none;
+
             /* border-right-color: transparent; */
             background-color: transparent;
 
