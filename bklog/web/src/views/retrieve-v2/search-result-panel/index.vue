@@ -46,11 +46,15 @@
       ]"
     >
       <SearchResultChart
+        v-show="activeTab === 'origin'"
         @change-queue-res="changeQueueRes"
         @change-total-count="changeTotalCount"
         @toggle-change="handleToggleChange"
       ></SearchResultChart>
-      <div class="split-line"></div>
+      <div
+        v-if="activeTab === 'origin'"
+        class="split-line"
+      ></div>
       <keep-alive>
         <OriginalLog
           v-if="activeTab === 'origin'"
@@ -60,6 +64,7 @@
         />
         <LogClustering
           v-if="activeTab === 'clustering'"
+          :active-tab="activeTab"
           :retrieveParams="retrieveParams"
         />
       </keep-alive>

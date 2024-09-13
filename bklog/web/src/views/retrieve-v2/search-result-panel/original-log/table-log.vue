@@ -29,9 +29,12 @@
     <div
       class="result-table-container"
       data-test-id="retrieve_from_fieldForm"
+      ref="scrollContainer"
+      @scroll.passive="handleOriginScroll"
     >
       <keep-alive>
         <component
+          v-on="$listeners"
           :is="`${showOriginal ? 'OriginalList' : 'TableList'}`"
           :table-list="tableList"
           :total-fields="totalFields"
@@ -39,7 +42,7 @@
           :operator-config="indexSetOperatorConfig"
           :show-field-alias="showFieldAlias"
           :time-field="timeField"
-          v-on="$listeners"
+          :is-page-over="isPageOver"
           :handle-click-tools="handleClickTools"
           :retrieve-params="retrieveParams"
           :table-loading="isContentLoading"
@@ -132,6 +135,9 @@
         limitCount: 2000,
         webConsoleLoading: false,
         targetFields: [],
+        isPageOver: false,
+        newScrollHeight: 0,
+        finishPolling: false,
         logDialog: {
           title: '',
           type: '',
@@ -151,6 +157,7 @@
         visibleFields: 'visibleFields',
         indexSetOperatorConfig: 'indexSetOperatorConfig',
         showFieldAlias: 'showFieldAlias',
+        indexItem: 'indexItem',
       }),
       ...mapState('globals', ['fieldTypeMap']),
       timeField() {
@@ -166,10 +173,36 @@
         return this.indexSetQueryResult.is_loading;
       },
     },
+    watch: {
+      'indexItem.begin'(v) {
+        if (v === 0) this.finishPolling = false;
+      },
+    },
     methods: {
       // 滚动到顶部
       scrollToTop() {
-        this.$easeScroll(0, 300, this.$parent.$parent.$parent.$refs.scrollContainer);
+        this.$easeScroll(0, 300, this.$refs.scrollContainer);
+      },
+      handleOriginScroll() {
+        const el = this.$refs.scrollContainer;
+        if (this.isPageOver || !el.scrollTop) return;
+        clearTimeout(this.timer);
+
+        this.timer = setTimeout(() => {
+          // this.showScrollTop = el.scrollTop > 550;
+          if (el.scrollHeight - el.offsetHeight - el.scrollTop < 20) {
+            if (this.count === this.limitCount || this.finishPolling) return;
+            this.isPageOver = true;
+            this.newScrollHeight = el.scrollTop;
+            this.$store.dispatch('requestIndexSetQuery', { isPagination: true }).then(res => {
+              this.isPageOver = false;
+              this.finishPolling = res.total < this.indexItem.begin;
+              this.$nextTick(() => {
+                this.$refs.scrollContainer.scrollTop = this.newScrollHeight;
+              });
+            });
+          }
+        }, 200);
       },
       // 打开实时日志或上下文弹窗
       openLogDialog(row, type) {
@@ -459,23 +492,23 @@
       display: inline;
 
       .field-type-icon {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-width: 16px;
-          height: 16px;
-          margin: 0 5px 0 0;
-          font-size: 12px;
-          color: #63656e;
-          background: #dcdee5;
-          border-radius: 2px;
-        }
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 16px;
+        height: 16px;
+        margin: 0 5px 0 0;
+        font-size: 12px;
+        color: #63656e;
+        background: #dcdee5;
+        border-radius: 2px;
+      }
 
-       .bklog-ext {
-          min-width: 22px;
-          height: 22px;
-          transform: translateX(-3px) scale(0.7);
-        }
+      .bklog-ext {
+        min-width: 22px;
+        height: 22px;
+        transform: translateX(-3px) scale(0.7);
+      }
 
       .toggle-display {
         position: absolute;
