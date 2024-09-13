@@ -158,11 +158,7 @@
           class="bklog-icon bklog-brush"
           @click="handleClearBtnClick"
         ></span>
-<<<<<<< HEAD
-        <BookmarkPop sql="t"></BookmarkPop>
-=======
         <BookmarkPop :sql="sqlQueryValue[0]"></BookmarkPop>
->>>>>>> upstream/feat/search
         <span class="disabled bklog-icon bklog-set-icon"></span>
       </div>
       <div

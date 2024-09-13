@@ -582,43 +582,7 @@
           </div>
         </template>
       </ul>
-      <<<<<<< HEAD
-      <div class="favorite-footer">
-        <!-- 收藏查询列表 -->
-        <div class="favorite-query-list">
-          <div class="query-list-title">{{ $t('收藏查询') }} ({{ favoriteList.length || 0 }})</div>
-          <div class="favorite-list">
-            <template v-if="favoriteList.length">
-              <div
-                v-for="item in favoriteList"
-                class="list-item"
-                @click="handleClickFavorite(item)"
-              >
-                <div><span class="active bklog-icon bklog-lc-star-shape"></span></div>
-                <div class="list-item-type">检索语句</div>
-                <div class="list-item-information">错误日志排查</div>
-                <div class="list-item-text">time:2024.10.24 15:15:15 AND k8s.container.name:1234</div>
-              </div>
-            </template>
-            <template v-else>
-              <bk-exception
-                class="exception-wrap-item exception-part exception-gray"
-                scene="part"
-                type="empty"
-              >
-              </bk-exception>
-            </template>
-          </div>
-        </div>
-        <!-- 移动光标and确认结果提示 -->
-        <div class="ui-shortcut-key">
-          <span><img :src="svgImg.imgUpDownKey" />{{ $t('移动光标') }}</span>
-          <span><img :src="svgImg.imgEnterKey" />{{ $t('确认结果') }}</span>
-        </div>
-      </div>
-      =======
       <FavoriteList @change="handleFavoriteClick"></FavoriteList>
-      >>>>>>> upstream/feat/search
     </div>
     <div :class="['sql-syntax-tips', { 'is-show': isRetractShow }]">
       <span

@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import { computed, ref, nextTick } from 'vue';
 
+  import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
 
   import $http from '../../../api';
@@ -12,18 +13,19 @@
       required: true,
     },
   });
-
+  const { $t } = useLocale();
   const store = useStore();
-  console.log(store, '---');
   // 用于展示索引集
   // 这里返回数组，展示 index_set_name 字段
   const indexSetItemList = computed(() => store.state.indexItem.items);
-  // store.state.favoriteList
+  // store.state.favoriteList store.state.favoriteList.value
   const collectGroupList = computed(() => store.state.favoriteList);
-
-  const groupList = ref([]); // 组列表
-  const publicGroupList = ref([]); // 可见状态为公共的时候显示的收藏组space_uid
-  const privateGroupList = ref([]); // 个人收藏 group_name替换为本人
+  const favStrList = computed(() => store.state.favoriteList.map(item => item.name));
+  // const groupList = ref([]); // 组列表
+  // const publicGroupList = ref([]); // 可见状态为公共的时候显示的收藏组space_uid
+  // const privateGroupList = ref([]); // 个人收藏 group_name替换为本人
+  // let unknownGroupID = ref(0);
+  // let privateGroupID = ref(0);
   const favoriteData = ref({
     // 收藏参数
     space_uid: -1,
@@ -49,8 +51,6 @@
     visible_type: 'public',
     display_fields: [],
   });
-  let unknownGroupID = ref(0);
-  let privateGroupID = ref(0);
   const spaceUid = computed(() => store.state.spaceUid);
   const isShowAddGroup = ref(true); // 是否新增组
   const verifyData = ref({
@@ -64,64 +64,82 @@
   };
 
   const checkExistName = () => {
-    return !groupList.value.some(item => item.name === verifyData.value.groupName);
+    return !collectGroupList.value.some(item => item.name === verifyData.value.groupName);
   };
+  const checkSpecification = () => {
+    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
+      favoriteData.value.name.trim(),
+    );
+  };
+  const checkCannotUseName = () => {
+    return ![$t('个人收藏'), $t('未分组')].includes(favoriteData.value.name.trim());
+  };
+
+  /** 判断是否收藏名是否重复 */
+  const checkRepeatName = () => {
+    return !favStrList.value.includes(favoriteData.value.name);
+  };
+  const rules = {
+    name: [
+      {
+        required: true,
+        trigger: 'blur',
+      },
+      {
+        validator: checkSpecification,
+        message: $t('{n}不规范, 包含特殊符号', { n: $t('收藏名') }),
+        trigger: 'blur',
+      },
+      {
+        validator: checkRepeatName,
+        message: $t('收藏名重复'),
+        trigger: 'blur',
+      },
+      {
+        validator: checkCannotUseName,
+        message: $t('保留名称，不可使用'),
+        trigger: 'blur',
+      },
+      {
+        max: 30,
+        message: $t('不能多于{n}个字符', { n: 30 }),
+        trigger: 'blur',
+      },
+    ],
+  };
+
   // 组名称新增规则
   const groupNameRules = {
     groupName: [
       {
         validator: checkName,
-        message: window.mainComponent.$t('{n}不规范, 包含特殊符号', { n: window.mainComponent.$t('组名') }),
+        message: $t('{n}不规范, 包含特殊符号', { n: $t('组名') }),
         trigger: 'blur',
       },
       {
         validator: checkExistName,
-        message: window.mainComponent.$t('组名重复'),
+        message: $t('组名重复'),
         trigger: 'blur',
       },
       {
         required: true,
-        message: window.mainComponent.$t('必填项'),
+        message: $t('必填项'),
         trigger: 'blur',
       },
       {
         max: 30,
-        message: window.mainComponent.$t('不能多于{n}个字符', { n: 30 }),
+        message: $t('不能多于{n}个字符', { n: 30 }),
         trigger: 'blur',
       },
     ],
   };
-  const groupNameMap = {
-    unknown: window.mainComponent.$t('未分组'),
-    private: window.mainComponent.$t('个人收藏'),
-  };
+  // const groupNameMap = {
+  //   unknown: $t('未分组'),
+  //   private: $t('个人收藏'),
+  // };
   // 新增组表单ref
   const checkInputFormRef = ref();
-  /** 获取组列表 */
-  // TODO 赋值逻辑待更改
-  async function requestGroupList(isAddGroup = false, groupName?) {
-    try {
-      const res = await $http.request('favorite/getGroupList', {
-        query: {
-          space_uid: spaceUid.value,
-        },
-      });
-      console.log(res, '----');
-      groupList.value = res.data.map(item => ({
-        ...item,
-        name: groupNameMap[item.group_type] ?? item.name,
-      }));
-      publicGroupList.value = groupList.value.slice(1, groupList.value.length);
-      privateGroupList.value = [this.groupList[0]];
-      unknownGroupID.value = groupList[this.groupList.length - 1]?.id;
-      privateGroupID.value = groupList.value[0]?.id;
-    } catch (error) {
-    } finally {
-      if (isAddGroup) {
-        favoriteData.value.group_id = groupList.value.find(item => item.name === groupName)?.id;
-      }
-    }
-  }
+
   // 确认新增组事件
   const handleCreateGroup = () => {
     checkInputFormRef.value.validate().then(async () => {
@@ -131,7 +149,11 @@
           data,
         });
         if (res.result) {
-          requestGroupList(true, verifyData.value.groupName.trim());
+          // 获取最新组列表
+          store.dispatch('requestFavoriteList');
+          favoriteData.value.name = '';
+          favoriteData.value.group_id = undefined;
+          verifyData.value.groupName = '';
         }
       } catch (error) {
       } finally {
@@ -142,18 +164,47 @@
   };
   // 组选择事件
   const handleSelectGroup = nVal => {
-    const visibleType = nVal === privateGroupID.value ? 'private' : 'public';
-    isDisableSelect.value = nVal === privateGroupID.value;
+    const visibleType = nVal === collectGroupList.value[0].group_id ? 'private' : 'public';
+    isDisableSelect.value = nVal === collectGroupList.value[0].group_id;
     Object.assign(favoriteData.value, { visibleType });
   };
   // 存储表单数据
 
   const isDisableSelect = ref(false);
   // 新建提交逻辑
-  const handleCreateRequest = () => {};
+  const handleCreateRequest = async () => {
+    const { index_set_id, name, group_id, visible_type, id, is_enable_display_fields } = favoriteData.value;
+    const data = {
+      name,
+      group_id,
+      visible_type,
+      is_enable_display_fields,
+    };
+    Object.assign(data, {
+      index_set_id,
+      space_uid: spaceUid.value,
+    });
+
+    const requestStr = 'createFavorite';
+    try {
+      const res = await $http.request(`favorite/${requestStr}`, {
+        params: { id },
+        data,
+      });
+      if (res.result) {
+        // 新增成功
+        // 获取最新组列表
+
+        store.dispatch('requestFavoriteList');
+      }
+    } catch (error) {}
+  };
   // 取消提交逻辑
   const handleCancleRequest = () => {
     popoverShow.value = false;
+    favoriteData.value.name = '';
+    favoriteData.value.group_id = undefined;
+    verifyData.value.groupName = '';
     popoverContentRef.value.hideHandler();
   };
   // popover组件Ref
@@ -170,7 +221,6 @@
       popoverContentRef.value.showHandler();
     }
   };
-  const popoverHide = () => {};
   const handlePopoverShow = () => {
     // 界面初始化隐藏弹窗样式
     nextTick(() => {
@@ -179,11 +229,6 @@
       }
     });
   };
-
-  // 数据格式: [{ group_id: '', group_name: '', group_type: '' }]
-
-  // 新建提交逻辑
-  const handleCreateRequest = () => {};
 </script>
 <template>
   <bk-popover
@@ -191,7 +236,6 @@
     width="400"
     ext-cls="collection-popover"
     :always="true"
-    :on-hide="popoverHide"
     :on-show="handlePopoverShow"
     placement="bottom-end"
     theme="light"
@@ -212,6 +256,7 @@
           ref="validateForm1"
           :label-width="200"
           :model="favoriteData"
+          :rules="rules"
           form-type="vertical"
         >
           <bk-form-item
@@ -238,9 +283,9 @@
             >
               <bk-option
                 v-for="item in collectGroupList"
-                :id="item.id"
-                :key="item.id"
-                :name="item.name"
+                :id="item.group_id"
+                :key="item.group_id"
+                :name="item.group_name"
               ></bk-option>
 
               <template #extension>
@@ -339,7 +384,7 @@
     </template>
   </bk-popover>
 </template>
-<style lang="scss">
+<style lang="scss" scoped>
   @import './bookmark-pop.scss';
 </style>
 
