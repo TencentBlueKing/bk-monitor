@@ -8,12 +8,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import inspect
 import json
 import logging
 import os
 import shutil
 import tarfile
 import tempfile
+import time
 import zipfile
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
@@ -58,11 +60,13 @@ from bkmonitor.models import (
 from bkmonitor.models.as_code import AsCodeImportTask
 from bkmonitor.strategy.new_strategy import Strategy
 from bkmonitor.utils.serializers import BkBizIdSerializer
+from bkmonitor.utils.request import get_request
 from bkmonitor.views import serializers
 from constants.strategy import DATALINK_SOURCE
 from core.drf_resource import Resource, api
 from core.drf_resource.tasks import step
 from monitor_web.grafana.utils import get_org_id
+from monitor_web.commons.report.resources import FrontendReportEventResource
 
 logger = logging.getLogger("monitor_web")
 
@@ -78,6 +82,11 @@ class ImportConfigResource(Resource):
         overwrite = serializers.BooleanField(default=False)
         incremental = serializers.BooleanField(default=False)
 
+        # 前端事件上报需要的参数
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        dimensions = serializers.DictField(label="维度信息", required=False, default={})
+        timestamp = serializers.IntegerField(label="事件时间戳(ms)", required=False)
+
     def perform_request(self, params):
         errors = import_code_config(
             bk_biz_id=params["bk_biz_id"],
@@ -85,6 +94,23 @@ class ImportConfigResource(Resource):
             configs=params["configs"],
             overwrite=params["overwrite"],
             incremental=params["incremental"],
+        )
+        
+        # 审计上报
+        # 构建审计上报的参数
+        event_name = "导入导出审计"
+        event_content = f"导入{len(params['configs']['action'])}个自愈套餐, {len(params['configs']['rule'])}条策略, {len(params['configs']['notice'])}个告警组, {len(params['configs']['assign_group'])}个告警分派, {len(params['configs']['grafana'])}条仪表盘"
+        timestamp=params.get("timestamp", int(time.time() * 1000))
+        params["dimensions"]["resource"] = f"{Path(inspect.getabsfile(self.__class__)).parent.name}.{self.__class__.__name__}"
+        params["dimensions"]["user_name"] = get_request().user.username
+
+        # 发送审计上报的请求
+        FrontendReportEventResource().request(
+            bk_biz_id=params["bk_biz_id"],
+            dimensions=params["dimensions"],
+            event_name=event_name,
+            event_content=event_content,
+            timestamp=timestamp,
         )
 
         if errors:
@@ -414,16 +440,27 @@ class ExportConfigFileResource(ExportConfigResource):
         lock_filename = serializers.BooleanField(label="锁定文件名", default=False)
         with_id = serializers.BooleanField(label="带上ID", default=False)
 
+        # 前端事件上报需要的参数
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        dimensions = serializers.DictField(label="维度信息", required=False, default={})
+        timestamp = serializers.IntegerField(label="事件时间戳(ms)", required=False)
+
     @classmethod
-    def create_tarfile(cls, configs: Dict[str, Iterable[Tuple[str, str, str]]]) -> str:
+    def create_tarfile(cls, configs: Dict[str, Iterable[Tuple[str, str, str]]]) -> Tuple[str, Dict[str,int]]:
         """
         生成配置压缩包
+        
+        同时统计不同配置的数量
         """
+        report_configs = {}
         temp_path = tempfile.mkdtemp()
         configs_path = os.path.join(temp_path, "configs")
         for config_type, files in configs.items():
+            report_configs[config_type] = 0
             config_path = os.path.join(configs_path, config_type)
-            for folder, name, file in files:
+            for folder, name, file in files: 
+                report_configs[config_type] += 1
+                
                 # 文件名不支持/，需要替换为-
                 folder = folder.replace("/", "-")
                 name = name.replace("/", "-")
@@ -438,7 +475,7 @@ class ExportConfigFileResource(ExportConfigResource):
             tar.add(configs_path, arcname=os.path.basename(configs_path))
 
         shutil.rmtree(configs_path)
-        return tarfile_path
+        return tarfile_path, report_configs
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
@@ -495,7 +532,7 @@ class ExportConfigFileResource(ExportConfigResource):
         }
 
         # 压缩包制作
-        tarfile_path = self.create_tarfile(configs)
+        tarfile_path, report_configs = self.create_tarfile(configs)
         path = f"as_code/export/{params['bk_biz_id']}-{arrow.get().strftime('%Y%m%d%H%M%S')}.tar.gz"
         with open(tarfile_path, "rb") as f:
             default_storage.save(path, f)
@@ -507,6 +544,22 @@ class ExportConfigFileResource(ExportConfigResource):
         # 非http链接需要补全监控地址
         if not download_url.startswith("http"):
             download_url = urljoin(settings.BK_MONITOR_HOST, download_url)
+
+        # 审计上报
+        # 构建审计上报的参数
+        event_name = "导入导出审计"
+        event_content = f"导出{report_configs['action']}个自愈套餐, {report_configs['rule']}条策略, {report_configs['notice']}个告警组, {report_configs['assign_group']}个告警分派, {report_configs['grafana']}条仪表盘, {report_configs['duty']}个告警组配置"
+        timestamp = params.get("timestamp", int(time.time() * 1000))
+        params["dimensions"]["resource"] = f"{Path(inspect.getabsfile(self.__class__)).parent.name}.{self.__class__.__name__}"
+        params["dimensions"]["user_name"] = get_request().user.username
+        # 发送审计上报的请求        
+        FrontendReportEventResource().request(
+            bk_biz_id=params["bk_biz_id"],
+            dimensions=params["dimensions"],
+            event_name=event_name,
+            event_content=event_content,
+            timestamp=timestamp,
+        )
 
         return {"download_url": download_url}
 
