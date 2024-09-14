@@ -24,14 +24,11 @@
   };
 
   // 日期变化
-  const handleTimeRangeChange = val => {
+  const handleTimeRangeChange = async val => {
     store.commit('updateIsSetDefaultTableColumn', false);
-    if (val.every(item => typeof item === 'string')) {
-      localStorage.setItem('SEARCH_DEFAULT_TIME', JSON.stringify(val));
-    }
-
     const result = handleTransformToTimestamp(val);
     store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1], datePickerValue: val });
+    await store.dispatch('requestIndexSetFieldInfo');
     store.dispatch('requestIndexSetQuery');
   };
 
@@ -95,11 +92,9 @@
     <span
       class="search-refresh"
       v-bk-tooltips="{ content: $t('刷新') }"
+      @click="handleRefresh"
     >
-      <i
-        class="bklog-icon bklog-log-refresh"
-        @click="handleRefresh"
-      ></i>
+      <i class="bklog-icon bklog-log-refresh"></i>
     </span>
   </span>
 </template>

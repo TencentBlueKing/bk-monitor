@@ -247,6 +247,13 @@
 
       if (!this.isAsIframe) this.getUserGuide();
 
+      const defaultTime = localStorage.getItem('SEARCH_DEFAULT_TIME');
+      if (defaultTime) {
+        this.$store.commit('updateIndexItemParams', {
+          datePickerValue: JSON.parse(defaultTime),
+        });
+      }
+
       this.$store.state.isExternal = window.IS_EXTERNAL ? JSON.parse(window.IS_EXTERNAL) : false;
     },
     methods: {

@@ -19,14 +19,14 @@
   const activeIndex = ref(1);
 
   const uiQueryValue = ref([]);
-  const sqlQueryValue = ref([]);
+  const sqlQueryValue = ref("*");
 
   const indexItem = computed(() => store.state.indexItem);
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
   const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
   const isInputLoading = computed(() => {
     if (activeIndex.value === 0) {
-      return indexFieldInfo.value.is_loading;
+      return false;
     }
 
     return indexFieldInfo.value.is_loading || indexSetQueryResult.value.is_loading;
@@ -37,8 +37,7 @@
   watch(
     keyword,
     () => {
-      sqlQueryValue.value.splice(0);
-      sqlQueryValue.value.push(keyword.value);
+      sqlQueryValue.value = keyword.value;
     },
     { immediate: true },
   );
@@ -55,8 +54,9 @@
   watch(
     activeIndex,
     () => {
-      const params = ['sql', 'ui'];
-      store.commit('updateIndexItemParams', { search_mode: params[activeIndex.value] });
+      const params = ['ui', 'sql'];
+      const resetData = [{ keyword: '*' }, { addition: [] }];
+      store.commit('updateIndexItemParams', { search_mode: params[activeIndex.value], ...resetData[activeIndex.value] });
     },
     { immediate: true, deep: true },
   );
@@ -68,7 +68,7 @@
   const handleBtnQueryClick = () => {
     store.commit('updateIndexItemParams', {
       addition: uiQueryValue.value.filter(val => !val.is_focus_input),
-      keyword: sqlQueryValue.value[0] ?? '*',
+      keyword: sqlQueryValue.value ?? '*',
     });
 
     store.dispatch('requestIndexSetQuery');
@@ -77,6 +77,7 @@
   const handleIndexSetSelected = payload => {
     if (!isEqual(indexItem.value.ids, payload.ids) || indexItem.value.isUnionIndex !== payload.isUnionIndex) {
       store.dispatch('requestIndexSetItemChanged', payload).then(() => {
+        store.commit('retrieve/updateChartKey');
         store.dispatch('requestIndexSetQuery');
       });
     }
@@ -110,9 +111,13 @@
   };
 
   const handleClearBtnClick = () => {
-    sqlQueryValue.value.splice(0);
+    sqlQueryValue.value = "*";
     uiQueryValue.value.splice(0);
     handleBtnQueryClick();
+  };
+
+  const handleValueChange = val => {
+    sqlQueryValue.value = val;
   };
 
   const handleQueryChange = () => {
@@ -158,7 +163,7 @@
           class="bklog-icon bklog-brush"
           @click="handleClearBtnClick"
         ></span>
-        <BookmarkPop :sql="sqlQueryValue[0]"></BookmarkPop>
+        <BookmarkPop :sql="sqlQueryValue"></BookmarkPop>
         <span class="disabled bklog-icon bklog-set-icon"></span>
       </div>
       <div

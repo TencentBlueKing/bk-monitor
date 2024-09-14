@@ -37,6 +37,8 @@
       :loading="isLoading || !finishPolling"
       :menu-list="chartOptions.tool.list"
       :title="$t('总趋势')"
+      :total-count="totalCount"
+      @interval-change="handleChangeInterval"
       @menu-click="handleMoreToolItemSet"
       @toggle-expand="toggleExpand"
     >
@@ -374,21 +376,25 @@
         localStorage.setItem('chartIsFold', isFold);
         this.$refs.chartRef?.handleToggleExpand(isFold);
         this.$emit('toggle-change', !isFold);
-        if (!isFold && !this.optionData.length) {
-          this.$store.commit('retrieve/updateChartKey');
-        }
+        // 现在下拉直接请求，不管有没有缓存
+        if (!isFold) this.$store.commit('retrieve/updateChartKey');
       },
-      changeTimeByChart(datePickerValue) {
+      async changeTimeByChart(datePickerValue) {
         const tempList = handleTransformToTimestamp(datePickerValue);
         this.$store.commit('updateIndexItemParams', {
           datePickerValue,
           start_time: tempList[0],
           end_time: tempList[1],
         });
+        this.$store.commit('updateIsSetDefaultTableColumn', false);
+        await this.$store.dispatch('requestIndexSetFieldInfo');
         this.$store.dispatch('requestIndexSetQuery');
       },
       handleMoreToolItemSet(event) {
         this.$refs.chartRef.handleMoreToolItemSet(event);
+      },
+      handleChangeInterval(v) {
+        this.chartInterval = v;
       },
       handleChartLoading(isLoading) {
         this.isLoading = isLoading;

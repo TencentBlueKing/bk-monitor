@@ -1,5 +1,5 @@
 <script setup>
-  import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue';
+  import { computed, ref, watch, onBeforeUnmount, nextTick, getCurrentInstance } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
@@ -34,6 +34,7 @@
   const store = useStore();
   const { t } = useLocale();
   const searchValue = ref('');
+  const refConditionInput = ref(null);
   const refUiValueOperator = ref(null);
   const refUiValueOperatorList = ref(null);
   const activeIndex = ref(0);
@@ -46,17 +47,37 @@
   // 操作符下拉当前激活Index
   const operatorActiveIndex = ref(0);
 
+  const tippyOptions = {
+    flip: false,
+    placement: 'bottom',
+    popperOptions: {
+      placement: 'bottom', // 或者其他你想要的位置
+      modifiers: [
+        {
+          name: 'preventOverflow',
+          options: {
+            boundary: document.body,
+          },
+        },
+        {
+          name: 'flip',
+          options: {
+            boundary: document.body,
+          },
+        },
+      ],
+    },
+  };
+
   // 操作符下拉实例
   const operatorInstance = new PopInstanceUtil({
     refContent: refUiValueOperatorList,
     arrow: false,
-    newInstance: false,
+    newInstance: true,
     onHiddenFn: () => {
       operatorActiveIndex.value = 0;
     },
-    tippyOptions: {
-      flip: false,
-    },
+    tippyOptions,
   });
 
   // 条件Value弹出下拉实例
@@ -64,13 +85,11 @@
     refContent: refValueTagInputOptionList,
     arrow: false,
     newInstance: true,
+    watchElement: refConditionInput,
     onHiddenFn: instance => {
       refValueTagInputOptionList.value?.querySelector('li.is-hover')?.classList.remove('is-hover');
     },
-    tippyOptions: {
-      flip: false,
-      placement: 'bottom',
-    },
+    tippyOptions,
   });
 
   const fullTextField = ref({
@@ -96,7 +115,7 @@
 
   const condition = ref({
     operator: '',
-    isInclude: true,
+    isInclude: false,
     value: [],
     relation: 'AND',
   });
@@ -108,7 +127,7 @@
   const fieldList = computed(() => [fullTextField.value].concat(indexFieldInfo.value.fields));
 
   // 需要排除的字段
-  const excludesFields = ['__ext', '__module__', ' __set__', '__ipv6__', '__ext'];
+  // const excludesFields = ['__ext', '__module__', ' __set__', '__ipv6__', '__ext'];
 
   // 无需配置值（Value）的条件列表
   const withoutValueConditionList = ['does not exists', 'exists'];
@@ -119,7 +138,7 @@
   const filterFieldList = computed(() => {
     const regExp = getRegExp(searchValue.value);
     const filterFn = field =>
-      !excludesFields.includes(field.field_name) &&
+      field.field_type !== '__virtual__' &&
       (field.is_full_text || regExp.test(field.field_alias) || regExp.test(field.field_name));
     return fieldList.value.filter(filterFn);
   });
@@ -240,12 +259,19 @@
     }
 
     const isFulltextValue = activeFieldItem.value.field_name === '';
-    const result = isFulltextValue
-      ? undefined
-      : {
-          field: activeFieldItem.value.field_name,
-          ...condition.value,
-        };
+    let result = {
+      field: activeFieldItem.value.field_name,
+      ...condition.value,
+    };
+
+    // 如果是全文检索
+    if (isFulltextValue) {
+      // 全文检索值为空，说明是是新增全文检索
+      // 此时，检索值还在Input输入框内，这里result设置为 undefined；
+      if (!condition.value.value.length) {
+        result = undefined;
+      }
+    }
 
     // 如果是空操作符禁止提交
     if (result && !result.operator) {
@@ -681,7 +707,10 @@
           <div class="full-text-content">{{ $t('可通过上下键快速切换选择「Key」值') }}</div>
         </template>
         <template v-else>
-          <div class="ui-value-row">
+          <div
+            class="ui-value-row"
+            v-if="activeFieldItem.field_name"
+          >
             <div class="ui-value-label">{{ $t('条件') }}</div>
             <div class="ui-value-component">
               <div
@@ -714,13 +743,23 @@
           >
             <div class="ui-value-label">
               <span>Value</span
-              ><span
+              ><span v-show="['text', 'string'].includes(activeFieldItem.field_type)"
                 ><bk-checkbox v-model="condition.isInclude">{{ $t('使用通配符') }}</bk-checkbox></span
               >
             </div>
-            <div :class="['condition-value-container', { 'is-focus': isConditionValueInputFocus }]">
+            <template v-if="!activeFieldItem.field_name">
+              <bk-input
+                v-model="condition.value[0]"
+                type="textarea"
+              ></bk-input>
+            </template>
+            <div
+              v-else
+              :class="['condition-value-container', { 'is-focus': isConditionValueInputFocus }]"
+            >
               <ul
                 class="condition-value-input"
+                ref="refConditionInput"
                 @click.stop="handleConditionValueClick"
               >
                 <li
@@ -764,7 +803,10 @@
               </ul>
             </div>
           </div>
-          <div class="ui-value-row">
+          <div
+            class="ui-value-row"
+            v-show="condition.value.length > 1"
+          >
             <div class="ui-value-label">{{ $t('组间关系') }}</div>
             <div>
               <bk-radio-group v-model="condition.relation">

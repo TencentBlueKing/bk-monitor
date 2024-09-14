@@ -20,7 +20,7 @@
     },
   });
 
-  const emits = defineEmits(['change', 'cancel', 'retrieve']);
+  const emits = defineEmits(['change', 'cancel', 'retrieve', 'active-change']);
 
   const store = useStore();
   const { $t } = useLocale();
@@ -98,6 +98,10 @@
   ]);
 
   const setOptionActive = () => {
+    if (activeIndex.value === null) {
+      return;
+    }
+
     const dropdownList = refDropdownEl?.value?.querySelectorAll('.list-item');
     refDropdownEl?.value?.querySelector('.list-item.active')?.classList.remove('active');
     dropdownList?.[activeIndex.value]?.classList.add('active');
@@ -117,7 +121,7 @@
     if (Array.isArray(param)) {
       activeType.value.push(...param);
     }
-    activeIndex.value = 0;
+    activeIndex.value = null;
   };
 
   /**
@@ -198,6 +202,7 @@
       showColonOperator(inputField);
       return;
     }
+
     // 准备输入值【name:】
     const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups?.field;
     if (confirmField) {
@@ -226,8 +231,9 @@
       }
       return;
     }
+
     // 一组条件输入完毕【age:18 】提示继续增加条件 AND OR
-    if (/^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>[\S]+)\s+$/.test(lastFragment)) {
+    if (/^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>["']?.*["']?)$/.test(lastFragment)) {
       showWhichDropdown(OptionItemType.Continue);
       return;
     }
@@ -259,7 +265,7 @@
     }
     showColonOperator(field as string);
     nextTick(() => {
-      activeIndex.value = 0;
+      activeIndex.value = null;
       setOptionActive();
     });
   };
@@ -272,7 +278,7 @@
     emits('change', `${props.value + type} `);
     calculateDropdown();
     nextTick(() => {
-      activeIndex.value = 0;
+      activeIndex.value = null;
       setOptionActive();
     });
   };
@@ -291,7 +297,7 @@
     );
     showWhichDropdown(OptionItemType.Continue);
     nextTick(() => {
-      activeIndex.value = 0;
+      activeIndex.value = null;
       setOptionActive();
     });
   };
@@ -305,7 +311,7 @@
     showWhichDropdown(OptionItemType.Fields);
     fieldList.value = [...originFieldList()];
     nextTick(() => {
-      activeIndex.value = 0;
+      activeIndex.value = null;
       setOptionActive();
     });
   };
@@ -364,6 +370,7 @@
   };
 
   const beforeShowndFn = () => {
+    activeIndex.value = null;
     document.addEventListener('keydown', handleKeydown);
 
     calculateDropdown();
@@ -377,7 +384,7 @@
   };
 
   // 查询语法按钮部分
-  const isRetractShow = ref(false);
+  const isRetractShow = ref(true);
   const handleRetract = () => {
     isRetractShow.value = !isRetractShow.value;
   };
@@ -427,6 +434,10 @@
     },
     { immediate: true, deep: true },
   );
+
+  watch(activeIndex, () => {
+    emits('active-change', activeIndex.value);
+  });
 </script>
 <template>
   <div class="sql-query-container">

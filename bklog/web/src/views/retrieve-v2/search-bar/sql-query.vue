@@ -1,18 +1,20 @@
 <script setup>
-  import { ref, nextTick, computed } from 'vue';
+  import { ref, nextTick, computed, onMounted, watch } from 'vue';
 
   import SqlQueryOptions from './sql-query-options';
   import useFocusInput from './use-focus-input';
+  import CreateLuceneEditor from './codemirror-lucene';
+  import { debounce } from 'lodash';
 
   const props = defineProps({
     value: {
-      type: Array,
+      type: String,
       required: true,
-      default: () => [],
+      default: '*',
     },
   });
 
-  const emit = defineEmits(['retrieve', 'input', 'height-change']);
+  const emit = defineEmits(['retrieve', 'input', 'change', 'height-change']);
   const handleHeightChange = height => {
     emit('height-change', height);
   };
@@ -21,59 +23,97 @@
   const isInputFocus = ref(false);
   const refUlRoot = ref(null);
   const separator = /\s(AND|OR)\s/i; // 区分查询语句条件
+  const refEditorParent = ref(null);
+  const sqlActiveParamsIndex = ref(null);
+
+  let editorInstance = null;
 
   const formatModelValueItem = item => {
     return item.replace(/^\s*\*\s*$/, '');
   };
 
-  const { modelValue, inputValue, handleInputBlur, delayShowInstance, getTippyInstance, handleContainerClick } =
-    useFocusInput(props, {
-      onHeightChange: handleHeightChange,
-      formatModelValueItem,
-      refContent: refSqlQueryOption,
-      arrow: false,
-      newInstance: false,
-      tippyOptions: {
-        maxWidth: 'none',
+  const { modelValue, delayShowInstance, getTippyInstance, handleContainerClick } = useFocusInput(props, {
+    onHeightChange: handleHeightChange,
+    formatModelValueItem,
+    refContent: refSqlQueryOption,
+    arrow: false,
+    newInstance: false,
+    addInputListener: false,
+    tippyOptions: {
+      maxWidth: 'none',
+    },
+    onShowFn: instance => {
+      refSqlQueryOption.value?.beforeShowndFn?.();
+      instance.popper?.style.setProperty('width', '100%');
+    },
+    onHiddenFn: () => {
+      refSqlQueryOption.value?.beforeHideFn?.();
+    },
+  });
+
+  const setEditorContext = val => {
+    editorInstance.setValue(val);
+  };
+
+  const appendContextValue = val => {
+    editorInstance.appendText(val);
+  };
+
+  const onEditorContextChange = doc => {
+    emit('input', doc.text.join(''));
+  };
+
+  const debounceRetrieve = () => {
+    emit('retrieve', modelValue.value);
+  };
+
+  watch(modelValue, () => {
+    setEditorContext(modelValue.value);
+  });
+
+  const createEditorInstance = () => {
+    editorInstance = CreateLuceneEditor({
+      value: modelValue.value,
+      target: refEditorParent.value,
+      onChange: e => onEditorContextChange(e),
+      onKeyEnter: () => {
+        if (!(getTippyInstance()?.state?.isShown ?? false) || sqlActiveParamsIndex.value === null) {
+          getTippyInstance()?.hide();
+          debounceRetrieve();
+        }
       },
-      onShowFn: instance => {
-        refSqlQueryOption.value?.beforeShowndFn?.();
-        instance.popper?.style.setProperty('width', '100%');
-      },
-      onHiddenFn: () => {
-        refSqlQueryOption.value?.beforeHideFn?.();
+      onFocusChange: isFocusing => {
+        if (isFocusing) {
+          delayShowInstance(refEditorParent.value);
+          return;
+        }
       },
     });
+  };
 
-  const sqlQueryString = computed(() => {
-    return `${modelValue.value.join('')}${inputValue.value}`;
-  });
+  const handleEditorClick = () => {
+    if (!(getTippyInstance()?.state?.isShown ?? false) && editorInstance.view.hasFocus) {
+      delayShowInstance(refEditorParent.value);
+    }
+  };
 
   const sqlQueryItemList = computed(() => {
     return modelValue.value
-      .map(value => {
-        if (typeof value === 'string') {
-          return value
-            .split(separator)
-            .filter(Boolean)
-            .map(val => {
-              if (/^\s*(AND|OR)\s*$/i.test(val)) {
-                return {
-                  text: val,
-                  operator: val,
-                };
-              }
-
-              return {
-                text: val,
-                operator: undefined,
-              };
-            });
+      .split(separator)
+      .filter(Boolean)
+      .map(val => {
+        if (/^\s*(AND|OR)\s*$/i.test(val)) {
+          return {
+            text: val,
+            operator: val,
+          };
         }
 
-        return value;
-      })
-      .flat();
+        return {
+          text: val,
+          operator: undefined,
+        };
+      });
   });
 
   const handleTextInputBlur = e => {
@@ -89,29 +129,17 @@
     });
   };
 
-  const isOptionKeyEnter = ref(false);
   const handleQueryChange = value => {
-    if (modelValue.value[0] !== value) {
-      isOptionKeyEnter.value = true;
-      while (modelValue.value.length > 0) {
-        modelValue.value.shift();
-      }
-
-      modelValue.value.unshift(value);
-      emit('input', [modelValue.value[0]]);
-      inputValue.value = '';
+    if (modelValue.value !== value) {
+      setEditorContext(value);
       nextTick(() => {
         handleContainerClick();
       });
     }
   };
 
-  const handleInputDelete = () => {
-    if (!inputValue.value.length && modelValue.value.length === 1) {
-      const result = modelValue.value[0].slice(0, -1);
-      modelValue.value.splice(0, 1, result);
-      emit('input', [modelValue.value[0]]);
-    }
+  const handleSqlParamsActiveChange = val => {
+    sqlActiveParamsIndex.value = val;
   };
 
   const handleCancel = () => {
@@ -119,93 +147,64 @@
     handleContainerClick();
   };
 
-  const handleKeyEnterUp = e => {
-    if (!e.target?.value) {
-      if (isOptionKeyEnter.value) {
-        isOptionKeyEnter.value = false;
-        return;
-      }
-      emit('retrieve');
-    }
-  };
-  const hadnleRetrieve = () => {
-    // emit('retrieve');
-  };
+  onMounted(() => {
+    createEditorInstance();
+  });
 </script>
 <template>
-  <ul
-    ref="refUlRoot"
+  <div
     class="search-sql-query"
+    @click="handleEditorClick"
   >
-    <li
-      v-for="(item, index) in sqlQueryItemList"
-      class="search-sql-item"
-      :key="`${item.field}-${index}`"
-    >
-      <span :data-operator="item.operator">{{ item?.text }}</span>
-    </li>
-    <li class="search-sql-item">
-      <input
-        class="tag-option-focus-input"
-        v-model="inputValue"
-        type="text"
-        @blur="handleTextInputBlur"
-        @focus.stop="handleFocusInput"
-        @keydown.delete="handleInputDelete"
-        @keyup.enter="handleKeyEnterUp"
-      />
-    </li>
+    <div
+      ref="refEditorParent"
+      class="search-sql-editor"
+    ></div>
     <div style="display: none">
       <SqlQueryOptions
         ref="refSqlQueryOption"
-        :value="sqlQueryString"
+        :value="modelValue"
+        @active-change="handleSqlParamsActiveChange"
         @cancel="handleCancel"
         @change="handleQueryChange"
-        @retrieve="hadnleRetrieve"
       ></SqlQueryOptions>
     </div>
-  </ul>
+  </div>
 </template>
-<style scoped>
+<style>
   .search-sql-query {
     display: inline-flex;
-    flex-wrap: wrap;
     align-items: center;
     width: 100%;
-    max-height: 135px;
-    padding: 4px 16px;
-    padding-bottom: 0;
-    margin: 0;
-    overflow: auto;
 
-    li {
-      display: inline-flex;
-      flex-direction: column;
-      align-content: center;
-      justify-content: center;
-      height: 20px;
-      margin-right: 4px;
-      margin-bottom: 4px;
 
-      font-size: 12px;
-      color: #63656e;
-      cursor: pointer;
-      border-radius: 2px;
+    .search-sql-editor {
+      width: 100%;
+      padding-left: 8px;
 
-      input.tag-option-focus-input {
-        width: 8px;
-        height: 38px;
-        font-size: 12px;
-        color: #63656e;
-        border: none;
-      }
+      .cm-editor {
+        &.cm-focused {
+          outline: none;
+        }
 
-      span {
-        &[data-operator] {
-          padding: 0 2px;
-          color: #ff9c01;
-          background: #fff3e1;
-          border-radius: 2px;
+        .cm-activeLine {
+          background-color: transparent;
+        }
+
+        .cm-scroller {
+          .cm-gutters {
+            display: none;
+
+            /* border-right-color: transparent; */
+            background-color: transparent;
+
+            .cm-lineNumbers,
+            .cm-foldGutter {
+              .cm-activeLineGutter {
+                background-color: transparent;
+              }
+            }
+          }
         }
       }
     }

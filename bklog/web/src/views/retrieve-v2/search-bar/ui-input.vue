@@ -139,7 +139,7 @@
         ? {
             field: '',
             operator: 'contains',
-            isInclude: true,
+            isInclude: false,
             value: [inputValue.value],
             relation: 'AND',
             disabled: false,
@@ -160,12 +160,12 @@
 
     if (activeIndex.value !== null && activeIndex.value >= 0) {
       Object.assign(modelValue.value[activeIndex.value], targetValue);
-      emit('input', modelValue.value);
+      emitChange(modelValue.value);
       return;
     }
 
     modelValue.value.push({ ...targetValue, disabled: false });
-    emit('input', modelValue.value);
+    emitChange(modelValue.value);
   };
 
   const handleFullTextInputBlur = e => {
@@ -197,6 +197,8 @@
       if (needDeleteItem.value) {
         if (modelValue.value.length >= 1) {
           modelValue.value.splice(-1, 1);
+          emitChange(modelValue.value);
+
           hideTippyInstance();
           setTimeout(() => {
             refSearchInput.value?.focus();

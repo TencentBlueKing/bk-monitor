@@ -26,7 +26,14 @@
 
 import TextHighlight from 'vue-text-highlight';
 
-import { formatDate, random, copyMessage, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
+import {
+  formatDate,
+  random,
+  copyMessage,
+  setDefaultTableWidth,
+  TABLE_LOG_FIELDS_SORT_REGULAR,
+  sessionShowFieldObj,
+} from '@/common/util';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import RetrieveLoader from '@/skeleton/retrieve-loader';
 import { mapState, mapGetters } from 'vuex';
@@ -326,6 +333,7 @@ export default {
         const fieldType = field.field_type;
         const isUnionSource = field?.tag === 'union-source';
         const fieldIcon = this.getFieldIcon(field.field_type);
+        const fieldIconColor = this.getFieldIconColor(field.field_type);
         const content = this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].name : undefined;
         let unionContent = '';
         // 联合查询判断字段来源 若indexSetIDs缺少已检索的索引集内容 则增加字段来源判断
@@ -350,8 +358,12 @@ export default {
             h('span', {
               class: `field-type-icon ${fieldIcon}`,
               style: {
-                marginRight: '4px',
+                ...{
+                  marginRight: '4px',
+                },
+                backgroundColor: fieldIconColor,
               },
+
               directives: [
                 {
                   name: 'bk-tooltips',
@@ -365,7 +377,7 @@ export default {
                 directives: [
                   {
                     name: 'bk-tooltips',
-                    value: { allowHTML: false, content: isLackIndexFields ? unionContent : fieldName },
+                    value: { allowHTML: true, content: isLackIndexFields ? unionContent : fieldName },
                   },
                 ],
                 class: { 'lack-index-filed': isLackIndexFields },
@@ -395,7 +407,10 @@ export default {
                       displayFieldNames.push(field.field_name);
                     }
                   });
-                  this.$emit('fields-updated', displayFieldNames, undefined, false);
+                  const showFieldObj = sessionShowFieldObj();
+                  Object.assign(showFieldObj, { [this.$route.params.indexId]: displayFieldNames });
+                  sessionStorage.setItem('showFieldSession', JSON.stringify(showFieldObj));
+                  this.$store.commit('resetVisibleFields', displayFieldNames);
                 },
               },
             }),
@@ -483,6 +498,9 @@ export default {
     getFieldIcon(fieldType) {
       return this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].icon : 'bklog-icon bklog-unkown';
     },
+    getFieldIconColor(fieldType) {
+      return this.fieldTypeMap?.[fieldType] ? this.fieldTypeMap?.[fieldType]?.color : '#EAEBF0';
+    },
     handleMenuClick(option, isLink) {
       switch (option.operation) {
         case 'is':
@@ -511,7 +529,10 @@ export default {
         descending: 'desc',
       };
       const sortList = !!column ? [[column.columnKey, sortMap[order]]] : [];
-      this.$emit('should-retrieve', { sort_list: sortList }, false);
+      this.$store.commit('updateIndexItemParams', {
+        sort_list: sortList,
+      });
+      this.$store.dispatch('requestIndexSetQuery');
     },
     getTableColumnContent(row, field) {
       // 日志来源 展示来源的索引集名称
@@ -525,6 +546,22 @@ export default {
     getLimitState(index) {
       if (this.isLimitExpandView) return false;
       return !this.cacheExpandStr.includes(index);
+    },
+    handleOriginScroll() {
+      if (this.isPageOver) return;
+      clearTimeout(this.timer);
+      this.timer = setTimeout(() => {
+        const el = this.$refs.scrollContainer;
+        this.showScrollTop = el.scrollTop > 550;
+        if (el.scrollHeight - el.offsetHeight - el.scrollTop < 20) {
+          if (this.count === this.limitCount || this.finishPolling) return;
+
+          this.isPageOver = true;
+          this.currentPage += 1;
+          this.newScrollHeight = el.scrollTop;
+          this.$emit('request-table-data');
+        }
+      }, 200);
     },
   },
 };

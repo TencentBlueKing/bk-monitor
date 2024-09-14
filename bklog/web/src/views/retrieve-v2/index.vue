@@ -58,7 +58,8 @@
   const getIndexSetList = () => {
     store.dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value }).then(resp => {
       // 拉取完毕根据当前路由参数回填默认选中索引集
-      store.dispatch('updateIndexItemByRoute', { route, list: resp[1] }).then(() => {
+      store.dispatch('updateIndexItemByRoute', { route, list: resp[1] }).then(async () => {
+        await store.dispatch('requestIndexSetFieldInfo');
         store.dispatch('requestIndexSetQuery');
       });
     });
@@ -97,7 +98,7 @@
     (val, oldValue) => {
       if (!isEqual(val, oldValue ?? {})) {
         store.commit('retrieve/updateChartKey');
-        store.dispatch('requestIndexSetFieldInfo');
+        // store.dispatch('requestIndexSetFieldInfo');
       }
     },
     { deep: true, immediate: true },
@@ -120,7 +121,6 @@
           },
         });
       }
-
       getIndexSetList();
       store.dispatch('requestFavoriteList');
     },

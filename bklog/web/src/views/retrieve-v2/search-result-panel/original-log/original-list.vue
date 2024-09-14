@@ -129,7 +129,8 @@
       >
         <bk-table-column>
           <retrieve-loader
-            :is-original-field="true"
+            is-new-search
+            is-original-field
             :visible-fields="getShowTableVisibleFields"
             is-loading
           >
@@ -140,7 +141,7 @@
         v-else
         #empty
       >
-        <empty-view/>
+        <empty-view />
       </template>
       <!-- 下拉刷新骨架屏loading -->
       <template
@@ -148,7 +149,8 @@
         #append
       >
         <retrieve-loader
-          :is-original-field="true"
+          is-new-search
+          is-original-field
           :is-page-over="isPageOver"
           :visible-fields="getShowTableVisibleFields"
         >
