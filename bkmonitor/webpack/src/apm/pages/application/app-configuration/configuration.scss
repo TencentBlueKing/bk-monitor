@@ -386,6 +386,7 @@ $statusType2: 'green' 'red' 'yellow';
 
       span {
         margin-left: 8px;
+        font-size: 14px;
         color: #63656E;
       }
     }
@@ -489,12 +490,12 @@ $statusType2: 'green' 'red' 'yellow';
       .condition-item {
         white-space: nowrap;
       }
-      
+
       .method {
         margin: 0 4px;
         color: #3a84ff;
       }
-  
+
       .and-condition {
         margin: 0 4px;
         color: #FE9C00;
@@ -536,7 +537,7 @@ $statusType2: 'green' 'red' 'yellow';
     .condition {
       &-item {
         margin-bottom: 2px;
-  
+
         &-label {
           flex-shrink: 0;
           height: 32px;
@@ -547,7 +548,7 @@ $statusType2: 'green' 'red' 'yellow';
           background: #e7e9ef;
           border: 1px solid #dcdee5;
         }
-  
+
         &-method {
           display: flex;
           align-items: center;
@@ -561,7 +562,7 @@ $statusType2: 'green' 'red' 'yellow';
           cursor: pointer;
           border: 1px solid #dcdee5;
           border-radius: 0;
-  
+
           &:focus {
             z-index: 9;
             background-color: white;
@@ -569,22 +570,22 @@ $statusType2: 'green' 'red' 'yellow';
             box-shadow: 0 0 4px rgba(58,132,255,.4);
           }
         }
-  
+
         &-value {
           min-width: 170px;
           margin-left: -1px;
-  
+
           &.bk-tag-selector .bk-tag-input {
             border: 1px solid #dcdee5;
             border-radius: 0;
-  
+
             .tag-list {
               display: flex;
               flex-wrap: nowrap;
             }
           }
         }
-  
+
         &-condition {
           min-width: 46px;
           max-width: 46px;
@@ -598,7 +599,7 @@ $statusType2: 'green' 'red' 'yellow';
           border-radius: 0;
         }
       }
-  
+
       &-add {
         display: flex;
         align-items: center;
@@ -610,11 +611,11 @@ $statusType2: 'green' 'red' 'yellow';
         cursor: pointer;
         border: 1px solid #dcdee5;
         border-radius: 0;
-  
+
         .icon-plus {
           font-size: 24px;
         }
-  
+
         &:hover {
           z-index: 9;
           color: #3a84ff;

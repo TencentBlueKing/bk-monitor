@@ -50,7 +50,7 @@ class DataTypeBarQueryRequestSerializer(TopoBaseRequestSerializer):
 class TopoQueryRequestSerializer(TopoBaseRequestSerializer):
     """拓扑视图请求参数"""
 
-    data_type = serializers.ChoiceField(label="数据类型", choices=BarChartDataType.get_choices())
+    data_type = serializers.ChoiceField(label="数据类型", choices=BarChartDataType.get_choices(), required=False)
     edge_data_type = serializers.ChoiceField(label="连接线数据类型", choices=TopoEdgeDataType.get_choices())
     export_type = serializers.ChoiceField(label="数据导出类型", choices=GraphViewType.get_choices())
     metric_start_time = serializers.IntegerField(label="数据开始时间")

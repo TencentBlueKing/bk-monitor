@@ -1507,6 +1507,58 @@ class TestCustomEventDataSource:
         assert len(data) == 2
         assert data == [{"_time_": 1614691260000, "_index": 2}, {"_time_": 1614691320000, "_index": 2}]
 
+    def test_query_data__top50(self, mock_get_es_data):
+        query_config = {
+            "filter_dict": {},
+            "functions": [{"id": "top", "params": [{"id": "n", "value": "50"}]}],
+            "agg_dimension": ["user_name"],
+            "interval": 600,
+            "interval_unit": "s",
+            "metrics": [{"alias": "a", "field": "__INDEX__", "method": "COUNT"}],
+            "result_table_id": "6_bkmonitor_event_1575757",
+            "time_field": "time",
+            "agg_condition": [{"key": "target", "method": "eq", "value": ["a", "b", "c"]}],
+        }
+        mock_get_es_data.return_value = {}
+
+        data_source = CustomEventDataSource.init_by_query_config(query_config)
+        data_source.query_data(start_time=1614334800000, end_time=1614334860000)
+
+        assert mock_get_es_data.call_args[1] == {
+            "query_body": {
+                "aggregations": {
+                    "dimensions.user_name": {
+                        "aggregations": {
+                            "time": {
+                                "aggregations": {"_index": {"value_count": {"field": "_index"}}},
+                                "date_histogram": {"field": "time", "interval": "60s", "time_zone": "UTC"},
+                            }
+                        },
+                        "terms": {"field": "dimensions.user_name", "size": 1440},
+                    }
+                },
+                "query": {
+                    "bool": {
+                        "filter": {
+                            "bool": {
+                                "must": [
+                                    {"bool": {"must_not": [{"terms": {"dimensions.event_type": ["recovery"]}}]}},
+                                    {"range": {"time": {"gte": 1614334800000}}},
+                                    {"range": {"time": {"lt": 1614334860000}}},
+                                ]
+                            }
+                        },
+                        "minimum_should_match": 1,
+                        "should": [{"bool": {"must": [{"terms": {"target": ["a", "b", "c"]}}]}}],
+                    }
+                },
+                "size": 1,
+                "sort": [{"time": "desc"}],
+            },
+            "table_id": "6_bkmonitor_event_1575757",
+            "use_full_index_names": False,
+        }
+
 
 class TestBkApmTraceDataSource:
     def test_query_data(self, mock_get_es_data):
@@ -1680,7 +1732,6 @@ class TestBkApmTraceDataSource:
         ]
 
     def test_query_log(self, mock_get_es_data):
-
         select = [
             "trace_id",
             "span_id",

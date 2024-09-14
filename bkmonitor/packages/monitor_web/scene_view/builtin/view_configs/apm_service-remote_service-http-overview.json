@@ -108,7 +108,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "bar_count": 30
           }
         }
       ],
@@ -230,7 +231,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "bar_count": 30
           },
           "apm_time_series_category": "http"
         },
@@ -331,7 +333,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "bar_count": 30
           },
           "apm_time_series_category": "rpc"
         },
@@ -339,7 +342,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "总数量",
+          "alias": "其他错误",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -364,6 +367,22 @@
                     "method": "eq",
                     "value": [
                       "2"
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "rpc_grpc_status_code",
+                    "method": "eq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  },
+                  {
+                    "key": "http_status_code",
+                    "method": "eq",
+                    "value": [
+                      ""
                     ],
                     "condition": "and"
                   }
@@ -403,6 +422,22 @@
                         "2"
                       ],
                       "condition": "and"
+                    },
+                    {
+                      "key": "rpc_grpc_status_code",
+                      "method": "eq",
+                      "value": [
+                        ""
+                      ],
+                      "condition": "and"
+                    },
+                    {
+                      "key": "http_status_code",
+                      "method": "eq",
+                      "value": [
+                        ""
+                      ],
+                      "condition": "and"
                     }
                   ],
                   "interval_unit": "s",
@@ -413,7 +448,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "bar_count": 30
           }
         }
       ],
@@ -582,7 +618,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "bar_count": 30
           }
         },
         {
@@ -685,7 +722,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "bar_count": 30
           }
         },
         {
@@ -788,7 +826,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "bar_count": 30
           }
         },
         {
@@ -891,7 +930,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "bar_count": 30
           }
         },
         {
@@ -954,7 +994,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "bar_count": 30
           }
         },
         {
@@ -1017,7 +1058,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "bar_count": 30
           }
         }
       ],

@@ -187,13 +187,16 @@ class FlowMetricErrorRateCalculation(Calculation):
             is_normal = not from_span_error and not to_span_error
 
             for value, timestamp in item["datapoints"]:
+                if not value:
+                    continue
+
                 if is_normal:
                     normal_ts[timestamp] = value
 
                 if (
                     (self.calculate_type == "callee" and to_span_error)
                     or (self.calculate_type == "caller" and from_span_error)
-                    or self.calculate_type == "full"
+                    or (self.calculate_type == "full" and (from_span_error or to_span_error))
                 ):
                     error_ts[timestamp] += value
 
@@ -202,7 +205,9 @@ class FlowMetricErrorRateCalculation(Calculation):
             "series": [
                 {
                     "datapoints": [
-                        (round(error_ts.get(t, 0) / (normal_ts.get(t, 0) + error_ts.get(t, 0)), 2), t) for t in all_ts
+                        (round(error_ts.get(t, 0) / (normal_ts.get(t, 0) + error_ts.get(t, 0)), 2), t)
+                        for t in all_ts
+                        if (normal_ts.get(t, 0) + error_ts.get(t, 0))
                     ]
                     if normal_ts or error_ts
                     else [],
@@ -220,17 +225,30 @@ class FlowMetricErrorRateCalculation(Calculation):
         if not total:
             return 0
         if self.calculate_type == "full":
+            error_count = 0
+            for i in metric_result:
+                if "from_span_error" not in i or "to_span_error" not in i:
+                    continue
+
+                if self.str_to_bool(i["from_span_error"]) or self.str_to_bool(i["to_span_error"]):
+                    error_count += i.get("_result_", 0)
+
+        elif self.calculate_type == "caller":
             error_count = sum(
                 [
                     i.get("_result_", 0)
                     for i in metric_result
-                    if self.str_to_bool(i["from_span_error"]) or self.str_to_bool(i["to_span_error"])
+                    if "from_span_error" in i and self.str_to_bool(i["from_span_error"])
                 ]
             )
-        elif self.calculate_type == "caller":
-            error_count = sum([i.get("_result_", 0) for i in metric_result if self.str_to_bool(i["from_span_error"])])
         elif self.calculate_type == "callee":
-            error_count = sum([i.get("_result_", 0) for i in metric_result if self.str_to_bool(i["to_span_error"])])
+            error_count = sum(
+                [
+                    i.get("_result_", 0)
+                    for i in metric_result
+                    if "to_span_error" in i and self.str_to_bool(i["to_span_error"])
+                ]
+            )
         else:
             raise ValueError(f"Not supported calculate type: {self.calculate_type}")
 

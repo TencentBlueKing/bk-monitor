@@ -395,15 +395,19 @@ export default class ApmRelationGraph extends CommonSimpleChart {
       metric_start_time: sliceTimeStart / 1000 || startTime,
       metric_end_time: sliceTimeEnd / 1000 || endTime,
       service_name: this.serviceName,
-      data_type: this.dataType,
       edge_data_type: this.edgeDataType,
       export_type: exportType,
+      ...(this.showType === 'topo' && {
+        data_type: this.dataType,
+      }),
     };
     this.topoCancelFn?.();
     const cacheKey = JSON.stringify({
       ...params,
       start_time: this.timeRange[0],
-      end_time: [1],
+      end_time: this.timeRange[1],
+      metric_start_time: sliceTimeStart,
+      metric_end_time: sliceTimeEnd,
     });
     let data = null;
     this.loading[exportType] = true;
@@ -436,6 +440,12 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             type: 'scoped_slots',
           };
         }
+        if (item.id === 'operators') {
+          return {
+            ...item,
+            showOverflowTooltip: false,
+          };
+        }
         return item;
       });
       this.tableData = data.data;
@@ -461,6 +471,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     }
   }
 
+  @Debounce(200)
   handleSearch(v) {
     this.filterCondition.searchValue = v;
     this.pagination.current = 1;
@@ -504,7 +515,9 @@ export default class ApmRelationGraph extends CommonSimpleChart {
         return order === 'ascending' ? a[field] - b[field] : b[field] - a[field];
       }
       if (field === 'error_rate') {
-        return order === 'ascending' ? a[field].localeCompare(b[field]) : b[field].localeCompare(a[field]);
+        return order === 'ascending'
+          ? (a[field] ?? '').localeCompare(b[field])
+          : (b[field] ?? '').localeCompare(a[field]);
       }
       if (field === 'avg_duration') {
         return order === 'ascending'
@@ -570,10 +583,11 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   }
 
   /** 下钻接口节点点击 */
-  handleDrillingNodeClick(node: INodeModel, drillingName: string) {
+  handleDrillingNodeClick(node: INodeModel, drillingItem) {
     this.nodeTipsMap.set(node.data.id, node.node_tips);
+    this.nodeTipsMap.set(`${node.data.id}___${drillingItem.name}`, drillingItem?.endpoint_tips || []);
     this.selectedServiceName = node.data.id;
-    this.selectedEndpoint = drillingName;
+    this.selectedEndpoint = drillingItem.name;
     this.selectedIcon = 'icon-fx';
     if (this.expanded.includes('topo')) {
       this.handleExpand('topo');
@@ -623,20 +637,22 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                 </div>
               ))}
             </div>
-            <bk-select
-              class='type-selector'
-              v-model={this.dataType}
-              clearable={false}
-              onChange={this.handleDataTypeChange}
-            >
-              {DATA_TYPE_LIST.map(item => (
-                <bk-option
-                  id={item.id}
-                  key={item.id}
-                  name={item.name}
-                />
-              ))}
-            </bk-select>
+            {this.showType === 'topo' && (
+              <bk-select
+                class='type-selector'
+                v-model={this.dataType}
+                clearable={false}
+                onChange={this.handleDataTypeChange}
+              >
+                {DATA_TYPE_LIST.map(item => (
+                  <bk-option
+                    id={item.id}
+                    key={item.id}
+                    name={item.name}
+                  />
+                ))}
+              </bk-select>
+            )}
           </div>
           <div class='header-alarm-wrap'>
             <BarAlarmChart
@@ -675,6 +691,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               value={this.filterCondition.searchValue}
               clearable
               onBlur={this.handleSearch}
+              onChange={this.handleSearch}
               onClear={this.handleSearch}
               onEnter={this.handleSearch}
             />
@@ -733,12 +750,12 @@ export default class ApmRelationGraph extends CommonSimpleChart {
           <template slot='side1'>
             <div class='header-wrap'>
               <div class='title'>{this.$t('资源拓扑')}</div>
-              <div
+              {/* <div
                 class='expand-btn'
                 onClick={() => this.handleExpand('topo')}
               >
                 <span class='icon-monitor icon-zhankai' />
-              </div>
+              </div> */}
             </div>
             <div class='content-wrap'>
               <resource-topo serviceName={this.expanded.includes('topo') ? this.selectedServiceName : ''} />
@@ -747,12 +764,12 @@ export default class ApmRelationGraph extends CommonSimpleChart {
           <template slot='side2'>
             <div class='header-wrap'>
               <div class='title'>{this.selectedEndpoint ? this.$t('接口概览') : this.$t('服务概览')}</div>
-              <div
+              {/* <div
                 class='expand-btn'
                 onClick={() => this.handleExpand('overview')}
               >
                 <span class='icon-monitor icon-zhankai' />
-              </div>
+              </div> */}
             </div>
             <div class={'content-wrap'}>
               <ServiceOverview
@@ -763,7 +780,9 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                 nodeTipsMap={this.nodeTipsMap}
                 serviceName={this.selectedServiceName}
                 show={this.expanded.includes('overview')}
+                sliceTimeRange={this.sliceTimeRange}
                 timeRange={this.timeRange}
+                onSliceTimeRangeChange={this.handleSliceTimeRangeChange}
               />
             </div>
           </template>
