@@ -169,23 +169,31 @@ export default class FieldItem extends tsc<object> {
     return (
       <li class='filed-item'>
         <div
-          class={{ 'filed-title': true, expanded: this.isExpand }}
+          class={{ 'filed-title': true }}
           onClick={() => this.handleClickItem()}
         >
           <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]}></span>
           {/* 三角符号 */}
-          <span class={{ 'icon-right-shape': this.showFieldsChart, 'bk-icon': true }}></span>
+          <div class={{ 'filed-item-triangle': true, expanded: this.isExpand }}>
+            <span class={{ 'icon-right-shape': this.showFieldsChart, 'bk-icon': true }}></span>
+          </div>
+
           {/* 字段类型对应的图标 */}
-          <span
-            style={{
-              backgroundColor: this.fieldItem.is_full_text ? false : this.getFieldIconColor(this.fieldItem.field_type),
-            }}
-            class={[this.getFieldIcon(this.fieldItem.field_type) || 'bklog-icon bklog-unkown', 'field-type-icon']}
-            v-bk-tooltips={{
-              content: this.fieldTypeMap[this.fieldItem.field_type]?.name,
-              disabled: !this.fieldTypeMap[this.fieldItem.field_type],
-            }}
-          ></span>
+          <div>
+            <span
+              style={{
+                backgroundColor: this.fieldItem.is_full_text
+                  ? false
+                  : this.getFieldIconColor(this.fieldItem.field_type),
+              }}
+              class={[this.getFieldIcon(this.fieldItem.field_type) || 'bklog-icon bklog-unkown', 'field-type-icon']}
+              v-bk-tooltips={{
+                content: this.fieldTypeMap[this.fieldItem.field_type]?.name,
+                disabled: !this.fieldTypeMap[this.fieldItem.field_type],
+              }}
+            ></span>
+          </div>
+
           {/* 字段名 */}
           <span class='overflow-tips field-name'>
             <span v-bk-overflow-tips>
