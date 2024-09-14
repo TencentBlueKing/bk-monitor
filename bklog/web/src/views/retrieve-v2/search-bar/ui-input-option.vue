@@ -127,7 +127,7 @@
   const fieldList = computed(() => [fullTextField.value].concat(indexFieldInfo.value.fields));
 
   // 需要排除的字段
-  // const excludesFields = ['__ext', '__module__', ' __set__', '__ipv6__', '__ext'];
+  const excludesFields = ['__ext', '__module__', ' __set__', '__ipv6__'];
 
   // 无需配置值（Value）的条件列表
   const withoutValueConditionList = ['does not exists', 'exists'];
@@ -139,6 +139,7 @@
     const regExp = getRegExp(searchValue.value);
     const filterFn = field =>
       field.field_type !== '__virtual__' &&
+      !excludesFields.includes(field.field_name) &&
       (field.is_full_text || regExp.test(field.field_alias) || regExp.test(field.field_name));
     return fieldList.value.filter(filterFn);
   });
