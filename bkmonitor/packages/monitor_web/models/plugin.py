@@ -826,7 +826,8 @@ class PluginVersionHistory(OperateRecordModelBase):
 
     @property
     def is_official(self):
-        return Signature(self.signature).verificate("official", self)
+        # 官方插件ID都是以bkplugin_作为前缀
+        return self.plugin.plugin_id.startswith("bkplugin_")
 
     @property
     def is_safety(self):

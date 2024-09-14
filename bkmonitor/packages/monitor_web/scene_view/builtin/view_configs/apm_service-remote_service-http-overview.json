@@ -108,7 +108,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "bar_count": 30
           }
         }
       ],
@@ -230,7 +231,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "bar_count": 30
           },
           "apm_time_series_category": "http"
         },
@@ -331,7 +333,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "bar_count": 30
           },
           "apm_time_series_category": "rpc"
         },
@@ -445,7 +448,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "bar_count": 30
           }
         }
       ],
@@ -614,7 +618,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "bar_count": 30
           }
         },
         {
@@ -717,7 +722,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "bar_count": 30
           }
         },
         {
@@ -820,7 +826,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "bar_count": 30
           }
         },
         {
@@ -923,7 +930,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "bar_count": 30
           }
         },
         {
@@ -986,7 +994,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "bar_count": 30
           }
         },
         {
@@ -1049,7 +1058,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "bar_count": 30
           }
         }
       ],

@@ -85,6 +85,15 @@ class ComponentHandler:
         return name.rsplit("-", 1)[0]
 
     @classmethod
+    def get_component_belong_predicate_value(cls, name: str) -> str:
+        """
+        获取组件归属的组件名称
+        如：{service_name}-mysql -> mysql
+        """
+        # 去除最后一个 "-" 符号
+        return name.rsplit("-", 1)[-1]
+
+    @classmethod
     def get_component_predicate_value(cls, node):
         return node.get("extra_data", {}).get("predicate_value")
 
@@ -275,11 +284,6 @@ class ComponentHandler:
         if category not in cls.component_filter_params_mapping:
             raise ValueError(_("不支持查询此分类的统计数据: {}").format(category))
         return OtlpKey.get_metric_dimension_key(cls.component_filter_params_mapping[category]["key"])
-
-    @classmethod
-    def get_flow_metric_category_value(cls, node):
-        """获取 flow 指标中 category_value 维度的值"""
-        return f"{ComponentHandler.get_dimension_key(node)}-{node['extra_data']['predicate_value']}"
 
     @classmethod
     def get_predicate_value_from_flow_metric_category_value(cls, category_value):

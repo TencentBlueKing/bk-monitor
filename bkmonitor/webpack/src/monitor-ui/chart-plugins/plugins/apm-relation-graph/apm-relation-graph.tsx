@@ -65,7 +65,6 @@ import './apm-relation-graph.scss';
 })
 export default class ApmRelationGraph extends CommonSimpleChart {
   @Ref('content-wrap') contentWrap: ApmRelationGraphContent;
-  @Ref('apmRelationTopo') apmRelationTopoRef: ApmRelationTopo;
 
   // 框选事件范围后需应用到所有图表(包含三个数据 框选方法 是否展示复位  复位方法)
   @Inject({ from: 'enableSelectionRestoreAll', default: false }) readonly enableSelectionRestoreAll: boolean;
@@ -396,9 +395,11 @@ export default class ApmRelationGraph extends CommonSimpleChart {
       metric_start_time: sliceTimeStart / 1000 || startTime,
       metric_end_time: sliceTimeEnd / 1000 || endTime,
       service_name: this.serviceName,
-      data_type: this.dataType,
       edge_data_type: this.edgeDataType,
       export_type: exportType,
+      ...(this.showType === 'topo' && {
+        data_type: this.dataType,
+      }),
     };
     this.topoCancelFn?.();
     const cacheKey = JSON.stringify({
@@ -411,7 +412,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     let data = null;
     this.loading[exportType] = true;
     this.refreshTopoLayout = this.refreshTopoLayout || (!this.graphData.nodes.length && !this.graphData.edges.length);
-    if (this.refreshTopoLayout) this.apmRelationTopoRef.hideMenu();
     if (this.needCache && this.graphAndTableDataCache.has(cacheKey)) {
       data = this.graphAndTableDataCache.get(cacheKey);
       this.loading[exportType] = false;
@@ -637,20 +637,22 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                 </div>
               ))}
             </div>
-            <bk-select
-              class='type-selector'
-              v-model={this.dataType}
-              clearable={false}
-              onChange={this.handleDataTypeChange}
-            >
-              {DATA_TYPE_LIST.map(item => (
-                <bk-option
-                  id={item.id}
-                  key={item.id}
-                  name={item.name}
-                />
-              ))}
-            </bk-select>
+            {this.showType === 'topo' && (
+              <bk-select
+                class='type-selector'
+                v-model={this.dataType}
+                clearable={false}
+                onChange={this.handleDataTypeChange}
+              >
+                {DATA_TYPE_LIST.map(item => (
+                  <bk-option
+                    id={item.id}
+                    key={item.id}
+                    name={item.name}
+                  />
+                ))}
+              </bk-select>
+            )}
           </div>
           <div class='header-alarm-wrap'>
             <BarAlarmChart
@@ -725,7 +727,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
           expanded={this.expanded}
         >
           <ApmRelationTopo
-            ref='apmRelationTopo'
             activeNode={this.selectedServiceName}
             appName={this.appName}
             data={this.graphData}
