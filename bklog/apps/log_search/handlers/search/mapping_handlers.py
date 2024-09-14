@@ -687,6 +687,7 @@ class MappingHandlers(object):
                 if merge_dict[property_key]["type"] != property_define["type"]:
                     merge_dict[property_key]["type"] = "conflict"
                     merge_dict[property_key]["is_conflict"] = True
+                    # test
         return {property_key: property for property_key, property in merge_dict.items()}
 
     def _mapping_group(self, index_result_tables: list, mapping_result: list):
