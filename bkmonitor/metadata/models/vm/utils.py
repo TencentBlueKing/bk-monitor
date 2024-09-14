@@ -19,7 +19,8 @@ from django.db.models import Q
 
 from core.drf_resource import api
 from core.errors.api import BKAPIError
-from metadata.models import AccessVMRecord
+from metadata.models import AccessVMRecord, DataSource, DataSourceOption
+from metadata.models.space.constants import EtlConfigs
 from metadata.models.vm.bk_data import BkDataAccessor, access_vm
 from metadata.models.vm.config import BkDataStorageWithDataID
 from metadata.models.vm.constants import BKDATA_NS_TIMESTAMP_DATA_ID_LIST, TimestampLen
@@ -351,7 +352,14 @@ def get_timestamp_len(data_id: Optional[int] = None, etl_config: Optional[str] =
     """
     if data_id and data_id in BKDATA_NS_TIMESTAMP_DATA_ID_LIST:
         return TimestampLen.NANOSECOND_LEN.value
-
+    ds = DataSource.objects.get(bk_data_id=data_id)
+    ds_option = DataSourceOption.objects.filter(bk_data_id=data_id, name=DataSourceOption.OPTION_ALIGN_TIME_UNIT)
+    # 若存在对应配置项，优先使用配置的时间格式
+    if ds_option.exists():
+        return TimestampLen.get_len_choices(ds_option.first().value)
+    # Note： 历史原因，针对脚本等配置，若不存在对应时间戳配置，默认单位应为秒
+    if ds.etl_config == EtlConfigs.BK_EXPORTER.value or ds.etl_config == EtlConfigs.BK_STANDARD.value:
+        return TimestampLen.SECOND_LEN.value
     return TimestampLen.MILLISECOND_LEN.value
 
 
