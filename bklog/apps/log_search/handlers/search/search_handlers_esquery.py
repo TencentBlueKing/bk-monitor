@@ -1724,8 +1724,11 @@ class SearchHandler(object):
         for item in filter_list:
             field: str = item.get("key") if item.get("key") else item.get("field")
             # 全文检索key & 存量query_string转换
-            if field in ["*", "__query_string__"] and not self.query_string:
-                self.query_string = item.get("value")
+            if field in ["*", "__query_string__"]:
+                value = item.get("value", [])
+                value = ",".join(value) if isinstance(value, list) else value
+                if value:
+                    self.query_string = value
                 continue
 
             _type = "field"
