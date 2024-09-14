@@ -14,7 +14,7 @@
 
   const store = useStore();
   const { $t } = useLocale();
-  const queryTypeList = ref([$t('UI语句'), $t('SQL语句')]);
+  const queryTypeList = ref([$t('UI模式'), $t('语句模式')]);
   const btnQuery = $t('查询');
   const activeIndex = ref(1);
 
@@ -60,6 +60,7 @@
         search_mode: params[activeIndex.value],
         ...resetData[activeIndex.value],
       });
+      store.dispatch('requestIndexSetQuery');
     },
     { immediate: true, deep: true },
   );
