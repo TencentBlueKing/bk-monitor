@@ -60,8 +60,6 @@ class TimestampLen(Enum):
             if item[0] == key:
                 return item[1]
 
-        return 0
-
     @classmethod
     def get_choice_value(cls, key: int) -> str:
         for item in TimestampLen._choices_labels.value:
