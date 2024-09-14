@@ -138,6 +138,7 @@ export class BookMarkModel implements IBookMark {
   aiPanel: PanelModel;
   // 策略、告警数据
   alarmPanel?: PanelModel;
+  allVariables: Set<string> = undefined;
   // 详情栏配置
   detailPanel?: PanelModel;
   // 动态获取panels 类似service_monitor的动态视图能力
@@ -210,6 +211,21 @@ export class BookMarkModel implements IBookMark {
     if (bookmark.variables?.length) {
       this.variables = bookmark.variables.map(item => new VariableModel(item));
     }
+    this.allVariables = this.getAllVariables();
+    console.info('this.allVariables', this.allVariables);
+  }
+  // dashbord tool menu list
+  get dasbordToolMenuList(): IMenuItem[] {
+    return [
+      { id: 'edit-tab', name: window.i18n.tc('编辑页签'), show: this.viewEditable },
+      { id: 'edit-variate', name: window.i18n.tc('编辑变量'), show: this.variableEditable },
+      { id: 'edit-dashboard', name: window.i18n.tc('编辑视图'), show: this.orderEditable },
+      {
+        id: 'view-demo',
+        name: window.i18n.tc('DEMO'),
+        show: window.space_list.some(item => item.is_demo),
+      },
+    ].filter(item => item.show);
   }
   // 所有视图ID
   // get allPanelId() {
@@ -225,19 +241,6 @@ export class BookMarkModel implements IBookMark {
   //   });
   //   return Array.from(tempSet) as string[];
   // }
-  // dashbord tool menu list
-  get dasbordToolMenuList(): IMenuItem[] {
-    return [
-      { id: 'edit-tab', name: window.i18n.tc('编辑页签'), show: this.viewEditable },
-      { id: 'edit-variate', name: window.i18n.tc('编辑变量'), show: this.variableEditable },
-      { id: 'edit-dashboard', name: window.i18n.tc('编辑视图'), show: this.orderEditable },
-      {
-        id: 'view-demo',
-        name: window.i18n.tc('DEMO'),
-        show: window.space_list.some(item => item.is_demo),
-      },
-    ].filter(item => item.show);
-  }
   // 左侧选择栏默认宽度
   get defaultSelectorPanelWidth() {
     return (this.selectorPanel.options?.selector_list?.status_filter ?? false) ? 400 : 240;
@@ -359,6 +362,22 @@ export class BookMarkModel implements IBookMark {
   // 是否可配置页签
   get viewEditable() {
     return !!this.options?.view_editable;
+  }
+  getAllVariables() {
+    let str = JSON.stringify(this.bookmark);
+    const variableList = new Set<string>();
+    str = str.replace(/\${([^}]+)}/gm, (m, key) => {
+      variableList.add(key);
+      return key;
+    });
+    str.replace(/"\$([^"]+)"/gm, (m, key) => {
+      variableList.add(key);
+      return m;
+    });
+    for (const item of variableList) {
+      console.info(item);
+    }
+    return variableList;
   }
   // 设置 和 判断是否有对应字段
   hasPanelFileds(name: string, fieldName: string, panels: IPanelModel[]) {
