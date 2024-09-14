@@ -1876,6 +1876,9 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
 
 
 class AlertQueryResource(Resource):
+
+    bar_size = 30
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
@@ -1935,7 +1938,7 @@ class AlertQueryResource(Resource):
             "bk_biz_ids": [bk_biz_id],
             "start_time": start_time,
             "end_time": end_time,
-            "interval": get_bar_interval_number(start_time, end_time),
+            "interval": get_bar_interval_number(start_time, end_time, size=self.bar_size),
             "query_string": f"metric: custom.{application.metric_result_table_id}.*",
             "conditions": [
                 {"key": "severity", "value": [level]},
@@ -1951,8 +1954,12 @@ class AlertQueryResource(Resource):
         alert_level_result = {}
         for level in alert_level:
             para = self.get_alert_params(application, bk_biz_id, start_time, end_time, level, strategy_id)
-            series = resource.fta_web.alert.alert_date_histogram(para)
-            alert_level_result[level] = series
+            response = resource.fta_web.alert.alert_date_histogram(para)
+            series = []
+            for i in response["series"]:
+                # 查询告警这个接口会返回多一个点 这里将时间点控制为符合 bar_size 的个数
+                series.append({**i, "data": i["data"][: self.bar_size]})
+            alert_level_result[level] = {"series": series, "unit": ""}
         return alert_level_result
 
     def perform_request(self, validated_request_data):
