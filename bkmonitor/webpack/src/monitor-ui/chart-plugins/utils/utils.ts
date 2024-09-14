@@ -711,3 +711,86 @@ export const createMenuList = (
   document.addEventListener('click', removeWrap);
   document.addEventListener('wheel', removeWrapWheel);
 };
+
+/* 用于echarts 与非echarts图表的联动处理， 利用provide inject进行数据传递 */
+export class CustomChartConnector {
+  curTime = 0;
+  customInstanceMap = new Map(); // 存储自定义实例
+  groupId = ''; // 存储groupId
+  instanceMap = new Map(); // 存储实例
+  constructor(groupId) {
+    this.groupId = groupId;
+  }
+  // 删除所有实例
+  removeChartInstance() {
+    this.instanceMap = new Map();
+    this.customInstanceMap = new Map();
+  }
+  // 存储echarts 图的实例
+  setChartInstance(id, instance) {
+    this.instanceMap.set(id, instance);
+  }
+  // 存储自定图的实例
+  setCustomChartInstance(id, instance) {
+    this.customInstanceMap.set(id, instance);
+  }
+  // 更新echart图的hover坐标
+  updateAxisPointer(id, time) {
+    try {
+      this.curTime = time;
+      for (const [chartId, instance] of this.customInstanceMap) {
+        if (chartId !== id) {
+          instance?.dispatchAction({
+            type: 'showTip',
+            x: time,
+          });
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  // 更新自定图的hover坐标
+  updateCustomAxisPointer(id, time) {
+    try {
+      this.curTime = time;
+      this.updateAxisPointer(id, time);
+      for (const [chartId, instance] of this.instanceMap) {
+        if (chartId !== id) {
+          if (instance) {
+            if (time) {
+              let seriesIndex = -1;
+              for (const seriesItem of instance?.options?.series || []) {
+                seriesIndex += 1;
+                let dataIndex = -1;
+                let is = false;
+                for (const dataItem of seriesItem.data) {
+                  dataIndex += 1;
+                  const valueTime = Array.isArray(dataItem) ? dataItem?.[0] : dataItem?.value?.[0];
+                  if (valueTime === time) {
+                    instance?.dispatchAction({
+                      type: 'showTip',
+                      seriesIndex,
+                      dataIndex,
+                    });
+                    is = true;
+                    break;
+                  }
+                }
+                if (is) {
+                  break;
+                }
+              }
+            } else {
+              instance?.dispatchAction({
+                type: 'hideTip',
+              });
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+}

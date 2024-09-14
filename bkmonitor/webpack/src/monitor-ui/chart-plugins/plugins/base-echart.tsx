@@ -56,6 +56,7 @@ export interface IChartEvent {
   onClick: MouseEvent;
   // contextmenu 事件
   onContextmenu?: (v: any) => void;
+  onUpdateAxisPointer?: (v: any) => void;
 }
 const MOUSE_EVENTS = [
   'click',
@@ -185,7 +186,13 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
     this.chartRef.addEventListener('contextmenu', this.handleContextmenu);
     for (const event of MOUSE_EVENTS) {
       (this as any).instance.on(event, params => {
-        this.$emit(event, params);
+        if ('updateAxisPointer' === event) {
+          if (this.isMouseOver) {
+            this.$emit(event, params);
+          }
+        } else {
+          this.$emit(event, params);
+        }
       });
     }
   }
