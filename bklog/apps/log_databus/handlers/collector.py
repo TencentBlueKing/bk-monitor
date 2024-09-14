@@ -3304,11 +3304,11 @@ class CollectorHandler(object):
         lower_cluster_id = convert_lower_cluster_id(bcs_cluster_id)
         return {
             "bcs_path_collector": {
-                "collector_config_name": f"{bcs_cluster_id}_{collector_config_name}_path",
+                "collector_config_name": f"{collector_config_name}_path",
                 "collector_config_name_en": f"{lower_cluster_id}_{collector_config_name_en}_path",
             },
             "bcs_std_collector": {
-                "collector_config_name": f"{bcs_cluster_id}_{collector_config_name}_std",
+                "collector_config_name": f"{collector_config_name}_std",
                 "collector_config_name_en": f"{lower_cluster_id}_{collector_config_name_en}_std",
             },
         }
