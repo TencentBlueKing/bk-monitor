@@ -3614,6 +3614,10 @@ class CollectorHandler(object):
                             "match_labels": conf["label_selector"].get("match_labels", []),
                             "match_expressions": conf["label_selector"].get("match_expressions", []),
                         },
+                        "annotation_selector": {
+                            "match_labels": conf["label_selector"].get("match_labels", []),
+                            "match_annotations": conf["label_selector"].get("match_annotations", []),
+                        },
                         "rule_id": rule_id,
                         "parent_container_config_id": 0,
                         "collector_type": ContainerCollectorType.CONTAINER,
@@ -3643,6 +3647,10 @@ class CollectorHandler(object):
                         "label_selector": {
                             "match_labels": conf["label_selector"].get("match_labels", []),
                             "match_expressions": conf["label_selector"].get("match_expressions", []),
+                        },
+                        "annotation_selector": {
+                            "match_labels": conf["label_selector"].get("match_labels", []),
+                            "match_annotations": conf["label_selector"].get("match_annotations", []),
                         },
                         "rule_id": rule_id,
                         "parent_container_config_id": path_collector.collector_config_id if path_collector else 0,
