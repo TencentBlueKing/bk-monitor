@@ -149,8 +149,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   filterCondition = {
     /** 筛选类型 */
     type: CategoryEnum.ALL,
-    /** 展示无数据节点 */
-    showNoData: true,
     /** 搜索值 */
     searchValue: '',
   };
@@ -477,11 +475,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.pagination.current = 1;
   }
 
-  handleShowNoDataChange(val) {
-    this.filterCondition.showNoData = val;
-    this.pagination.current = 1;
-  }
-
   handleFilterChange(id: CategoryEnum) {
     this.filterCondition.type = id;
     this.pagination.current = 1;
@@ -637,22 +630,21 @@ export default class ApmRelationGraph extends CommonSimpleChart {
                 </div>
               ))}
             </div>
-            {this.showType === 'topo' && (
-              <bk-select
-                class='type-selector'
-                v-model={this.dataType}
-                clearable={false}
-                onChange={this.handleDataTypeChange}
-              >
-                {DATA_TYPE_LIST.map(item => (
-                  <bk-option
-                    id={item.id}
-                    key={item.id}
-                    name={item.name}
-                  />
-                ))}
-              </bk-select>
-            )}
+            <bk-select
+              class='type-selector'
+              v-model={this.dataType}
+              clearable={false}
+              disabled={this.showType === 'table'}
+              onChange={this.handleDataTypeChange}
+            >
+              {DATA_TYPE_LIST.map(item => (
+                <bk-option
+                  id={item.id}
+                  key={item.id}
+                  name={item.name}
+                />
+              ))}
+            </bk-select>
           </div>
           <div class='header-alarm-wrap'>
             <BarAlarmChart
@@ -676,13 +668,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               value={this.filterCondition.type}
               onChange={this.handleFilterChange}
             />
-            <bk-checkbox
-              class='ml-24'
-              value={this.filterCondition.showNoData}
-              onChange={this.handleShowNoDataChange}
-            >
-              {this.$t('无数据节点')}
-            </bk-checkbox>
             <bk-input
               class='ml-24'
               behavior='simplicity'

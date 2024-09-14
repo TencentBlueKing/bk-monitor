@@ -91,7 +91,6 @@ type ApmRelationTopoProps = {
   refreshTopoLayout: boolean;
   filterCondition: {
     type: CategoryEnum;
-    showNoData: boolean;
     searchValue: string;
   };
 };
@@ -225,7 +224,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         id: node.data.id,
       })),
       edges: edges.map(item => {
-        const common = {
+        return {
+          type: item.from_name === item.to_name ? 'apm-loop-dash' : 'apm-line-dash',
           source: item.from_name,
           target: item.to_name,
           label: String(item.duration_avg || item.duration_p95 || item.duration_p99 || item.request_count || 0),
@@ -238,17 +238,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
               fill: '#C4C6CC', // 填充颜色
             },
           },
-        };
-
-        if (item.from_name === item.to_name) {
-          return {
-            type: 'apm-loop-dash',
-            ...common,
-          };
-        }
-        return {
-          type: 'apm-line-dash',
-          ...common,
         };
       }),
     };
@@ -666,12 +655,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       drillingTotal: 0,
     };
     this.$nextTick(() => {
-      const { width: graphWidth } = this.relationGraphRef.getBoundingClientRect();
-      const { width, left } = this.menuListRef.getBoundingClientRect();
-      // 超出画布宽度，则调整菜单位置
-      if (width + left > graphWidth) {
-        this.menuCfg.x = x - width;
-      }
+      this.updateMenuPosition(x, y);
     });
     document.body.addEventListener('click', this.hideMenu);
   }
@@ -693,14 +677,31 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   }
 
   /** 更新菜单位置 */
-  updateMenuPosition() {
+  updateMenuPosition(x?: number, y?: number) {
     // 节点
     if (this.menuCfg.show) {
-      const nodeTarget = this.graph.find('node', node => node.getModel().id === this.menuCfg.nodeModel.id);
-      const { x, y } = nodeTarget.getModel(); // 获得该节点的位置，对应 pointX/pointY 坐标
-      const canvasXY = this.graph.getCanvasByPoint(x, y);
-      this.menuCfg.x = canvasXY.x;
-      this.menuCfg.y = canvasXY.y;
+      let resultX = x;
+      let resultY = y;
+      if (!resultX && !resultY) {
+        const nodeTarget = this.graph.find('node', node => node.getModel().id === this.menuCfg.nodeModel.id);
+        const { x, y } = nodeTarget.getModel(); // 获得该节点的位置，对应 pointX/pointY 坐标
+        const canvasXY = this.graph.getCanvasByPoint(x, y);
+        resultX = canvasXY.x;
+        resultY = canvasXY.y;
+      }
+      const { width: graphWidth, height: graphHeight } = this.relationGraphRef.getBoundingClientRect();
+      const { width, height } = this.menuListRef.getBoundingClientRect();
+      // 超出画布宽度，则调整菜单位置
+      if (width + resultX > graphWidth) {
+        this.menuCfg.x = resultX - width;
+      } else {
+        this.menuCfg.x = resultX;
+      }
+      if (height + resultY > graphHeight) {
+        this.menuCfg.y = resultY - height;
+      } else {
+        this.menuCfg.y = resultY;
+      }
     }
   }
 
@@ -952,18 +953,16 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   /** 根据筛选条件高亮节点 */
   handleHighlightNode() {
     if (!this.graph) return;
-    const { type, searchValue, showNoData } = this.filterCondition;
+    const { type, searchValue } = this.filterCondition;
     const showAll = type === CategoryEnum.ALL;
     const targetNodes = []; // 所选分类节点
     const allEdges = []; // 所有边
     const allNodes = this.graph.getNodes(); // 所有节点
     for (const node of allNodes) {
-      const { data, have_data, request_count, color } = node.getModel() as INodeModelConfig;
+      const { data, request_count, color } = node.getModel() as INodeModelConfig;
       const { category, name, id } = data;
       // 关键字搜索匹配
       const isKeywordMatch = name.toLowerCase().includes(searchValue.toLowerCase());
-      // 是否展示无数据节点
-      const isShowNoDataNode = showNoData || have_data;
       // 节点类型过滤
       const isCategoryFilter = showAll || category === type;
       // 节点请求数过滤
@@ -987,7 +986,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         isStatusFilter = color === this.legendFilter.color;
       }
       // 高亮当前分类的节点 根据分类、关键字搜索，节点类型匹配过滤
-      const isDisabled = !isKeywordMatch || !isShowNoDataNode || !isCategoryFilter || !isSizeFilter || !isStatusFilter;
+      const isDisabled = !isKeywordMatch || !isCategoryFilter || !isSizeFilter || !isStatusFilter;
       this.graph.setItemState(node, 'no-select', isDisabled);
       // 保存高亮节点 用于设置关联边高亮
       if (!isDisabled) targetNodes.push(id);
@@ -1010,6 +1009,9 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     this.menuCfg.isDrilling = true;
     this.menuCfg.drillingLoading = true;
+    this.$nextTick(() => {
+      this.updateMenuPosition();
+    });
     const { total, endpoints } = await nodeEndpointsTop({
       app_name: this.appName,
       start_time: startTime,
@@ -1020,6 +1022,9 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     this.menuCfg.drillingList = endpoints;
     this.menuCfg.drillingTotal = total;
     this.menuCfg.drillingLoading = false;
+    this.$nextTick(() => {
+      this.updateMenuPosition();
+    });
   }
 
   handleJumpToInterface() {
