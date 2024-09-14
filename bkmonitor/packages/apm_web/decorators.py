@@ -27,8 +27,7 @@ def user_visit_record(func):
         bk_biz_id = request.biz_id
         username = request.user.username
         request_path = request.path_info
-        request_data = request.data or request.query_params
-        app_name = request_data.get("app_name", "") or request.query_params.get("app_name", "")
+        app_name = request.data.get("app_name", "") or request.query_params.get("app_name", "")
 
         # 必须是访问了应用，才能算在请求记录里 (后续的统计需要关联应用的创建者)
         if app_name:

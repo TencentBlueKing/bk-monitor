@@ -42,7 +42,7 @@ class GlobalViewSet(ResourceViewSet):
 
     resource_routes = [
         ResourceRoute("GET", DataTypeBarQueryResource, endpoint="bar"),
-        ResourceRoute("GET", TopoViewResource, endpoint="topo",decorators=[user_visit_record,],),  # 添加topo_view接口的访问记录
+        ResourceRoute("GET", TopoViewResource, endpoint="topo",decorators=[user_visit_record,],),
         ResourceRoute("POST", TopoLinkResource, endpoint="topo/link"),
         ResourceRoute("GET", GraphDiffResource, endpoint="topo/diff"),
         ResourceRoute("GET", NodeEndpointsTopResource, endpoint="topo/node/endpoints"),
