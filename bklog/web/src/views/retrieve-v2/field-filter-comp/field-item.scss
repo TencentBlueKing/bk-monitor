@@ -73,10 +73,18 @@
       color: #ff9c01;
     }
 
+    .bklog-string{
+      transform: translateX(1px);
+    }
+
     .bklog-ext {
       min-width: 22px;
       height: 22px;
-      transform: scale(0.7);
+      transform: translateX(-3.5px) scale(0.7);
+    }
+
+    .bklog-number{
+      transform: translateX(1px);
     }
 
     .field-count {
