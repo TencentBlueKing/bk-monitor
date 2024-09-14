@@ -242,7 +242,7 @@ class DataAccessor(object):
             "clean": old_table_id_set - new_table_id_set,
         }
 
-    def check_table_modify(new_table_info: ResultTable, old_result_table: Dict) -> bool:
+    def check_table_modify(self, new_table_info: ResultTable, old_result_table: Dict) -> bool:
         """判断表配置是否修改
 
         :param new_table_info: 新提交的配置
