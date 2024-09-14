@@ -9,14 +9,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from typing import Type
-from urllib.parse import urljoin
 
-from django.conf import settings
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
 from apm_web.topo.constants import SourceType
-from core.drf_resource import api, resource
+from apm_web.topo.handle.bar_query import LinkHelper
+from apm_web.topo.handle.relation.define import SourceSystem
+from core.drf_resource import resource
 
 
 class ResourceDetail:
@@ -70,6 +70,8 @@ class ResourceDetail:
             v = i["value"]
             if isinstance(v, dict):
                 v = v.get("value")
+            if isinstance(v, list):
+                v = "\n".join(v)
             res.append(
                 {
                     "name": i["name"],
@@ -96,16 +98,18 @@ class SystemDetail(ResourceDetail):
     def detail(self):
         ip = self.source_info["bk_target_ip"]
         # 获取主机 bk_host_id
-        response = api.cmdb.get_host_by_ip(
-            # TODO 等待关联接口增加 bk_cloud_id 后 再增加查询条件
-            ips=[{"ip": ip}],
-            bk_biz_id=self.bk_biz_id,
-            search_outer_ip=True,
-        )
-        if not response:
-            raise ValueError(f"没有从 CMDB 中找到主机 IP: {ip} 的信息，原因可能是此 IP 为历史快照数据不存在于当前 CMDB 中")
-
-        bk_host_id = response[0].bk_host_id
+        try:
+            bk_host_id = SourceSystem.get_bk_host_id(self.bk_biz_id, ip, raise_exception=True)
+        except ValueError as e:
+            return {
+                "title": ip,
+                "raws": [
+                    {
+                        "name": _("错误信息"),
+                        "value": str(e),
+                    }
+                ],
+            }
 
         # 获取主机基础信息
         host_infos = resource.scene_view.get_host_or_topo_node_detail.get_host_info(self.bk_biz_id, bk_host_id)
@@ -113,9 +117,9 @@ class SystemDetail(ResourceDetail):
         return {
             "title": {
                 "name": ip,
-                "url": f"/performance/detail/{bk_host_id}?from={self.start_time * 1000}&to={self.end_time * 1000}",
+                "url": LinkHelper.get_host_monitor_link(bk_host_id, self.start_time, self.end_time),
             },
-            "resource_link": urljoin(settings.BK_CC_URL, f"#/business/{self.bk_biz_id}/index/host/{bk_host_id}"),
+            "resource_link": LinkHelper.get_host_cmdb_link(self.bk_biz_id, bk_host_id),
             "raws": self._list_info_raws(host_infos, self._host_info_columns),
             **self.search_and_handle_alert(f"(ip: {ip} OR tags.ip: {ip})"),
         }
@@ -169,21 +173,21 @@ class K8sPodDetail(ResourceDetail):
             pod_name=pod,
         )
         if not pod_infos:
-            raise ValueError(f"没有从集群中获取到 {pod} 的信息，原因可能是此 Pod 为历史快照数据并且当前已经销毁")
+            return {
+                "title": pod,
+                "raws": [
+                    {
+                        "name": _("错误信息"),
+                        "value": _("该 POD 不在集群 ") + bcs_cluster_id + _(" 中，可能已销毁"),
+                    }
+                ],
+            }
 
         return {
             "title": {
                 "name": pod,
-                "url": f"/k8s?"
-                f"filter-bcs_cluster_id={bcs_cluster_id}&"
-                f"filter-namespace={namespace}&"
-                f"filter-pod_name={pod}&"
-                f"from={self.start_time}&to={self.end_time}",
+                "url": LinkHelper.get_pod_monitor_link(bcs_cluster_id, namespace, pod, self.start_time, self.end_time),
             },
-            "resource_link": urljoin(
-                settings.BK_BCS_HOST,
-                f"bcs/projects/bkce/clusters/{bcs_cluster_id}/workloads/pods/namespaces/{namespace}/{pod}?kind=Pod",
-            ),
             "raws": self._list_info_raws(pod_infos, self._pod_info_columns),
             **self.search_and_handle_alert(
                 f'tags.pod: "{pod}" AND tags.bcs_cluster_id: "{bcs_cluster_id}" AND tags.namespace: "{namespace}"'
@@ -223,16 +227,26 @@ class K8sServiceDetail(ResourceDetail):
             service_name=service,
         )
         if not service_infos:
-            raise ValueError(f"没有从集群中获取到 {service} 的信息，原因可能是此 Service 为历史快照数据并且当前已经销毁")
+            return {
+                "title": service,
+                "raws": [
+                    {
+                        "name": _("错误信息"),
+                        "value": _("没有从集群 ") + bcs_cluster_id + _(" 中获取到此 Service 信息，原因可能此服务为历史数据或者当前已经销毁"),
+                    }
+                ],
+            }
 
         return {
             "title": {
                 "name": service,
-                "url": f"/k8s?"
-                f"filter-bcs_cluster_id={bcs_cluster_id}&"
-                f"filter-namespace={namespace}&"
-                f"filter-service_name={service}&"
-                f"from={self.start_time}&to={self.end_time}",
+                "url": LinkHelper.get_service_monitor_link(
+                    bcs_cluster_id,
+                    namespace,
+                    service,
+                    self.start_time,
+                    self.end_time,
+                ),
             },
             "raws": self._list_info_raws(service_infos, self._service_info_columns),
             **self.search_and_handle_alert(

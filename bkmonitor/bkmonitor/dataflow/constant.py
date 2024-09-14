@@ -91,6 +91,9 @@ class CheckErrorType:
     # 任务没有输出
     NO_OUTPUT = "no_output"
 
+    # 巡检异常
+    CHECK_FAILED = "check_failed"
+
     # 任务没有埋点
     NO_RUNTIME_METRICS = "no_runtime_metrics"
 

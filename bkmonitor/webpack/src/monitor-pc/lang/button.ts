@@ -91,7 +91,7 @@ export default {
   展开: 'Expand',
   退出登录: 'Sign out',
   产品文档: 'Documentation',
-  版本日志: 'Release note',
+  版本日志: 'Release Notes',
   问题反馈: 'Feedback',
   操作: 'Actions',
   'Trace 视角': 'Trace List',

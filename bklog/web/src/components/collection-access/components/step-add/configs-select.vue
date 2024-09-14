@@ -125,59 +125,25 @@
               </bk-select>
             </div>
           </div>
-          <div
-            v-if="isShowScopeItem(conIndex, 'label')"
-            class="config-item"
-          >
-            <div class="config-item-title flex-ac">
-              <span>{{ $t('按标签选择{n}', { n: isNode ? 'Node' : 'Container' }) }}</span>
-              <span
-                class="bk-icon icon-delete"
-                @click="handleDeleteConfigParamsItem(conIndex, 'label')"
-              >
-              </span>
-            </div>
-            <div
-              v-if="!conItem.noQuestParams.handleEditLabel"
-              class="select-label flex-ac"
-            >
-              <div
-                class="manually"
-                @click="handleEnterLabel(conIndex, true)"
-              >
-                <span class="bk-icon icon-close-circle"></span>
-                <span>{{ $t('手动输入标签') }}</span>
-              </div>
-              <div
-                class="select"
-                @click="handelShowDialog(conIndex, 'label')"
-              >
-                <span class="bk-icon icon-close-circle"></span>
-                <span>{{ $t('选择已有标签') }}</span>
-              </div>
-            </div>
-            <match-label-item
-              v-else
-              :label-selector="conItem.labelSelector"
-              :match-item="conItem.noQuestParams.editLabelValue"
-              :submit-edit="val => handleSubmitExpressions(conIndex, val)"
-              @cancel-edit="handleEnterLabel(conIndex, false)"
-              only-show-select-edit
+          <template v-if="isShowScopeItem(conIndex, 'label')">
+            <ConfigLogSetEditItem
+              :edit-type="'label'"
+              :config="conItem"
+              :is-node="isNode"
+              @config-change="v => handleConfigChange(conIndex, v)"
+              @show-dialog="handelShowDialog(conIndex, 'label')"
+              @delete-config-params-item="type => handleDeleteConfigParamsItem(conIndex, type)"
             />
-            <div class="specify-domain">
-              <template>
-                <match-label-item
-                  v-for="labItem in conItem.labelSelector"
-                  :key="labItem.id"
-                  :label-selector="conItem.labelSelector"
-                  :match-item="labItem"
-                  :submit-edit="val => handleLabelEdit(conIndex, labItem.id, val)"
-                  show-edit
-                  @delete-item="deleteLabItem(conIndex, labItem.id)"
-                />
-              </template>
-            </div>
-          </div>
+          </template>
+          <template v-if="isShowScopeItem(conIndex, 'annotation')">
+            <ConfigLogSetEditItem
+              :edit-type="'annotation'"
+              :config="conItem"
+              :is-node="isNode"
+              @config-change="v => handleConfigChange(conIndex, v)"
+              @delete-config-params-item="type => handleDeleteConfigParamsItem(conIndex, type)"
+            />
+          </template>
           <div
             v-if="isShowScopeItem(conIndex, 'load')"
             class="config-item hover-light"
@@ -311,19 +277,18 @@
 <script>
   import containerTargetItem from './container-target-item';
   import configLogSetItem from './config-log-set-item';
-  import matchLabelItem from './match-label-item';
   import labelTargetDialog from './label-target-dialog';
   import configViewDialog from './config-view-dialog';
-  import { random } from '@/common/util';
+  import ConfigLogSetEditItem from './config-log-set-edit-item';
   import { mapGetters } from 'vuex';
 
   export default {
     components: {
       containerTargetItem,
       configLogSetItem,
-      matchLabelItem,
       labelTargetDialog,
       configViewDialog,
+      ConfigLogSetEditItem,
     },
     props: {
       formData: {
@@ -378,6 +343,7 @@
         scopeNameList: {
           namespace: this.$t('按命名空间选择'),
           label: this.$t('按标签选择'),
+          annotation: this.$t('按annotation选择'),
           load: this.$t('按工作负载选择'),
           containerName: this.$t('直接指定{n}', { n: 'Container' }),
         },
@@ -483,6 +449,9 @@
           case 'label':
             config.labelSelector = [];
             break;
+          case 'annotation':
+            config.annotationSelector = [];
+            break;
           case 'containerName':
             config.containerNameList = [];
             break;
@@ -492,6 +461,9 @@
         if (scope === 'label' && this.isNode) return;
         this.getScopeSelectShow(conIndex)[scope] = true;
       },
+      handleConfigChange(index, val) {
+        Object.assign(this.formData.configs[index], val);
+      },
       // 点击添加范围的列表 显示对应模块
       handleAddNewScope(conIndex, scope) {
         this.getScopeSelectShow(conIndex)[scope] = false;
@@ -499,7 +471,6 @@
       // 是否显示对应模块的列表的按钮
       isShowScopeButton(conIndex, scope) {
         // 当前环境为node时， 除了label列表全部不显示
-        if (this.isNode && scope !== 'label') return false;
         return this.getScopeSelectShow(conIndex)[scope];
       },
       getScopeName(conItem) {
@@ -534,7 +505,13 @@
             bcs_cluster_id: this.formData.bcs_cluster_id,
             type,
             [namespacesKey]: namespaces,
-            label_selector: this.getLabelSelectorQueryParams(config.labelSelector),
+            label_selector: this.getLabelSelectorQueryParams(config.labelSelector, {
+              match_labels: [],
+              match_expressions: [],
+            }),
+            annotation_selector: this.getLabelSelectorQueryParams(config.annotationSelector, {
+              match_annotations: [],
+            }),
             container: {
               workload_type: workloadType,
               workload_name: workloadName,
@@ -549,26 +526,20 @@
        * @param {Object} labelSelector 主页展示用的label_selector
        * @returns {Object} 返回传参用的label_selector
        */
-      getLabelSelectorQueryParams(labelSelector) {
-        return labelSelector.reduce(
-          (pre, cur) => {
-            const value = ['NotIn', 'In'].includes(cur.operator) ? `(${cur.value})` : cur.value;
-            pre[cur.type].push({
-              key: cur.key,
-              operator: cur.operator,
-              value,
-            });
-            return pre;
-          },
-          {
-            match_labels: [],
-            match_expressions: [],
-          },
-        );
+      getLabelSelectorQueryParams(labelSelector, preParams) {
+        return labelSelector.reduce((pre, cur) => {
+          const value = ['NotIn', 'In'].includes(cur.operator) ? `(${cur.value})` : cur.value;
+          pre[cur.type].push({
+            key: cur.key,
+            operator: cur.operator,
+            value,
+          });
+          return pre;
+        }, preParams);
       },
       // 是否展示对应操作范围模块
       isShowScopeItem(conIndex, scope) {
-        if (this.isNode) return scope === 'label'; // 当前环境为node时 若是标签模块则直接显示 其余均不显示
+        if (this.isNode) return ['label', 'annotation'].includes(scope); // 当前环境为node时 若是标签模块则直接显示 其余均不显示
         return !this.getScopeSelectShow(conIndex)[scope];
       },
       // 获取config里添加范围的列表
@@ -603,53 +574,6 @@
           return this.nameSpacesSelectList.slice(1);
         }
         return this.nameSpacesSelectList;
-      },
-      handleEnterLabel(conIndex, isShow = true) {
-        this.formData.configs[conIndex].noQuestParams.handleEditLabel = isShow;
-      },
-      // 手动添加表达式
-      handleSubmitExpressions(conIndex, val) {
-        const configs = this.formData.configs[conIndex];
-        const isRepeat = configs.labelSelector.some(item => {
-          return val.key === item.key && val.value === item.value && val.operator === item.operator;
-        });
-        return new Promise(resolve => {
-          if (!isRepeat) {
-            const type = val.operator === '=' ? 'match_labels' : 'match_expressions';
-            configs.labelSelector.unshift({
-              ...val,
-              id: random(10),
-              type,
-            });
-          }
-          configs.noQuestParams.handleEditLabel = false;
-          resolve(true);
-        });
-      },
-      handleLabelEdit(conIndex, matchID, newValue) {
-        const { labelSelector } = this.formData.configs[conIndex];
-
-        const isRepeat = labelSelector.some(item => {
-          return newValue.key === item.key && newValue.value === item.value && newValue.operator === item.operator;
-        });
-
-        const type = newValue.operator === '=' ? 'match_labels' : 'match_expressions';
-
-        return new Promise(resolve => {
-          const labelIndex = labelSelector.findIndex(item => item.id === matchID);
-          if (!isRepeat) {
-            const newMatchObject = { ...labelSelector[labelIndex], ...newValue, type };
-            labelSelector.splice(labelIndex, 1, newMatchObject);
-          } else {
-            if (newValue?.isExternal) labelSelector.splice(labelIndex, 1);
-          }
-          resolve(true);
-        });
-      },
-      deleteLabItem(conIndex, matchID) {
-        const { labelSelector } = this.formData.configs[conIndex];
-        const labelIndex = labelSelector.findIndex(item => item.id === matchID);
-        labelSelector.splice(labelIndex, 1);
       },
       handleContainerNameBlur(input, list, conIndex) {
         if (!input) return;
@@ -908,16 +832,6 @@
         .bk-select {
           width: 184px;
           height: 32px;
-        }
-      }
-
-      .specify-domain {
-        max-height: 210px;
-        margin-top: 8px;
-        overflow-y: auto;
-
-        > div {
-          padding: 4px 0;
         }
       }
 

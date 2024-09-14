@@ -15,11 +15,11 @@ import re
 from abc import ABCMeta
 from collections import defaultdict
 from itertools import product
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 from django.conf import settings
 from django.db.models import Q
-from django.utils import timezone
+from django.utils import timezone, tree
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 
@@ -78,6 +78,27 @@ def get_auto_interval(collect_interval: int, start_time: int, end_time: int):
 def is_build_in_process_data_source(table_id: str):
     # BuildInProcessMetric.result_table_list() only in web
     return table_id in ["process.perf", "process.port"]
+
+
+def q_to_dict(q: tree.Node, depth=1, width=1):
+    if not q.children:
+        return {}
+
+    filter_dict: Dict[str, Any] = {}
+    for idx, child in enumerate(q.children):
+        if isinstance(child, tree.Node):
+            sub_dict: Dict[str, Any] = q_to_dict(child, depth + 1, idx)
+            if q.connector == Q.AND:
+                filter_dict.update(sub_dict)
+            elif q.connector == Q.OR:
+                filter_dict.setdefault("or", []).append(sub_dict)
+        else:
+            key, value = child
+            if q.connector == Q.AND:
+                filter_dict[key] = value
+            elif q.connector == Q.OR:
+                filter_dict.setdefault(f"or_{width}_{depth}", []).append({key: value})
+    return filter_dict
 
 
 def dict_to_q(filter_dict):
@@ -351,8 +372,10 @@ class DataSource(metaclass=ABCMeta):
         agg_condition: List = None,
         where: Dict = None,
         group_by: List[str] = None,
+        distinct: Optional[str] = None,
         index_set_id: int = None,
         query_string: str = "",
+        nested_paths: List[str] = None,
         limit: int = None,
         offset: int = None,
         slimit: int = None,
@@ -362,6 +385,7 @@ class DataSource(metaclass=ABCMeta):
         start_time: int = None,
         end_time: int = None,
         time_align: bool = True,
+        use_full_index_names: bool = False,
     ):
         from bkmonitor.data_source.handler import DataQueryHandler
 
@@ -409,8 +433,10 @@ class DataSource(metaclass=ABCMeta):
             .agg_condition(agg_condition)
             .group_by(*group_by)
             .dsl_index_set_id(index_set_id)
-            .dsl_raw_query_string(query_string)
+            .dsl_raw_query_string(query_string, nested_paths=nested_paths)
+            .use_full_index_names(use_full_index_names)
             .order_by(*order_by)
+            .distinct(distinct)
             .limit(limit)
             .slimit(slimit)
             .offset(offset)
@@ -1200,7 +1226,7 @@ class LogSearchTimeSeriesDataSource(TimeSeriesDataSource):
         if "limit" in kwargs:
             kwargs.pop("limit")
 
-        return super(LogSearchTimeSeriesDataSource, self).query_data(start_time, end_time, limit=1, *args, **kwargs)
+        return super(LogSearchTimeSeriesDataSource, self).query_data(start_time, end_time, limit=None, *args, **kwargs)
 
     def query_dimensions(
         self,
@@ -1220,7 +1246,7 @@ class LogSearchTimeSeriesDataSource(TimeSeriesDataSource):
             dimension_field = dimension_field[0]
 
         return super(LogSearchTimeSeriesDataSource, self).query_dimensions(
-            dimension_field, start_time, end_time, limit=1, *args, **kwargs
+            dimension_field, start_time, end_time, *args, **kwargs
         )[:limit]
 
     def query_log(
@@ -1276,25 +1302,17 @@ class LogSearchLogDataSource(LogSearchTimeSeriesDataSource):
         return _("{}内匹配到关键字次数").format(time_display)
 
 
-class BkApmTraceDataSource(LogSearchLogDataSource):
-    data_source_label = DataSourceLabel.BK_APM
-    data_type_label = DataTypeLabel.LOG
-    DEFAULT_TIME_FIELD = "time"
-
-
-class BkApmTraceTimeSeriesDataSource(LogSearchTimeSeriesDataSource):
-    data_source_label = DataSourceLabel.BK_APM
-    data_type_label = DataTypeLabel.TIME_SERIES
-    DEFAULT_TIME_FIELD = "time"
-
-
 class BkMonitorLogDataSource(DataSource):
     data_source_label = DataSourceLabel.BK_MONITOR_COLLECTOR
     data_type_label = DataTypeLabel.LOG
 
+    RESERVED_FIELDS = ["_after_key_"]
     INNER_DIMENSIONS = ["event_name", "target"]
     DISTINCT_METHODS = {"AVG", "SUM", "COUNT"}
     METHOD_DESC = {"avg": _lazy("均值"), "sum": _lazy("总和"), "max": _lazy("最大值"), "min": _lazy("最小值"), "count": ""}
+
+    EXTRA_DISTINCT_FIELD = "dimensions.bk_module_id"
+    EXTRA_AGG_DIMENSIONS = ["dimensions.bk_target_ip", "dimensions.bk_target_cloud_id"]
 
     @classmethod
     def init_by_query_config(cls, query_config: Dict, name="", *args, **kwargs):
@@ -1333,9 +1351,14 @@ class BkMonitorLogDataSource(DataSource):
         where: List = None,
         filter_dict: Dict = None,
         query_string: str = "",
+        nested_paths: List[str] = None,
         group_by: List[str] = None,
+        order_by: List[str] = None,
         time_field: str = None,
         topo_nodes: Dict[str, List] = None,
+        select: List[str] = None,
+        distinct: Optional[str] = None,
+        use_full_index_names: bool = False,
         **kwargs,
     ):
         super(BkMonitorLogDataSource, self).__init__(**kwargs)
@@ -1345,8 +1368,14 @@ class BkMonitorLogDataSource(DataSource):
         self.where = where or []
         self.filter_dict = filter_dict or {}
         self.query_string = query_string
+        self.nested_paths = nested_paths
         self.group_by = group_by or []
         self.time_field = time_field or self.DEFAULT_TIME_FIELD
+        self.order_by = order_by or [f"{self.time_field} desc"]
+        self.select = select
+        self.distinct = distinct
+        # 是否使用索引全名进行检索
+        self.use_full_index_names = use_full_index_names
 
         # 过滤空维度
         self.group_by = [d for d in self.group_by if d]
@@ -1369,8 +1398,8 @@ class BkMonitorLogDataSource(DataSource):
         """
         metrics = self.metrics.copy()
         methods = {metric.get("method", "").upper() for metric in self.metrics}
-        if methods & self.DISTINCT_METHODS:
-            metrics.append({"field": "dimensions.bk_module_id", "method": "distinct", "alias": "distinct"})
+        if methods & self.DISTINCT_METHODS and self.EXTRA_DISTINCT_FIELD:
+            metrics.append({"field": self.EXTRA_DISTINCT_FIELD, "method": "distinct", "alias": "distinct"})
         return metrics
 
     def _get_group_by(self, bk_obj_id: str = None) -> List:
@@ -1447,29 +1476,33 @@ class BkMonitorLogDataSource(DataSource):
 
         return self._add_dimension_prefix(filter_dict)
 
-    def _distinct_calculate(self, records: List[Dict], bk_obj_id: str = None) -> List:
+    def _process_distinct_calculate_group_by(self, group_by: List[str]):
+        group_by.append(self.time_field)
+
+    def _distinct_calculate(self, group_by: List[str], records: List[Dict]) -> List:
         """
         根据聚合方法和bk_module_id的重复数量计算实际的值
         """
-        group_by = self._get_group_by(bk_obj_id)
-        group_by.append(self.time_field)
 
-        metric_values = {}
-        dimension_count = defaultdict(lambda: 0)
+        dimension_count: Dict[Tuple, int] = defaultdict(lambda: 0)
+        reserved_fields: Dict[Tuple, Dict[str, Any]] = defaultdict(lambda: {})
+        metric_values: Dict[Tuple, Dict[str, Union[int, float]]] = defaultdict(lambda: defaultdict(lambda: 0))
+
+        self._process_distinct_calculate_group_by(group_by)
         for record in records:
             key = tuple((dimension, record[dimension]) for dimension in group_by)
             dimension_count[key] += 1
 
-            # 维度初始化
-            if key not in metric_values:
-                metric_values[key] = defaultdict(lambda: 0)
+            for field in self.RESERVED_FIELDS:
+                if field in record:
+                    reserved_fields[key][field] = record[field]
 
             for metric in self.metrics:
                 method = metric.get("method", "")
                 alias = metric.get("alias") or metric["field"]
 
                 if method in ["COUNT", "SUM"]:
-                    record[alias] /= record["distinct"] or 1
+                    record[alias] /= record.get("distinct") or 1
 
                 if method in self.DISTINCT_METHODS:
                     metric_values[key][alias] += record[alias] or 0
@@ -1488,13 +1521,14 @@ class BkMonitorLogDataSource(DataSource):
                 value[alias] /= dimension_count[key]
 
         # 只保留需要的维度和指标
-        new_result = []
+        deduplicated_records: List[Dict] = []
         for key, value in metric_values.items():
-            record = {dimension: dimension_value for dimension, dimension_value in key}
+            record = dict(key)
             record.update(value)
-            new_result.append(record)
+            record.update(reserved_fields.get(key, {}))
+            deduplicated_records.append(record)
 
-        return new_result
+        return deduplicated_records
 
     @staticmethod
     def _remove_dimensions_prefix(data: List, bk_obj_id=None):
@@ -1515,11 +1549,23 @@ class BkMonitorLogDataSource(DataSource):
             result.append(new_record)
         return result
 
+    def _add_builtin_dimensions(self, group_by: List[str]):
+        for builtin_dimension in self.EXTRA_AGG_DIMENSIONS:
+            if builtin_dimension not in group_by:
+                group_by.append(builtin_dimension)
+
+    def _process_data_queryset(self, queryset):
+        return queryset
+
+    def _process_log_queryset(self, queryset):
+        return queryset
+
     def query_data(
         self,
         start_time: int = None,
         end_time: int = None,
         limit: int = None,
+        search_after_key: Optional[Dict[str, Any]] = None,
         *args,
         **kwargs,
     ) -> List:
@@ -1538,29 +1584,31 @@ class BkMonitorLogDataSource(DataSource):
         records = []
         for bk_obj_id, bk_inst_ids in topo_nodes.items():
             group_by = self._get_group_by(bk_obj_id)
-            filter_dict = self._get_filter_dict(bk_obj_id, bk_inst_ids)
-
-            if "dimensions.bk_target_ip" not in group_by:
-                group_by.append("dimensions.bk_target_ip")
-            if "dimensions.bk_target_cloud_id" not in group_by:
-                group_by.append("dimensions.bk_target_cloud_id")
+            self._add_builtin_dimensions(group_by)
 
             q = self._get_queryset(
                 metrics=metrics,
                 table=self.table,
                 agg_condition=where,
                 group_by=group_by,
+                order_by=self.order_by,
                 interval=self.interval,
-                where=filter_dict,
-                limit=1,
+                where=self._get_filter_dict(bk_obj_id, bk_inst_ids),
+                limit=limit,
                 time_field=self.time_field,
                 start_time=start_time,
                 end_time=end_time,
                 query_string=self.query_string,
-            )
-            data = self._distinct_calculate(q.raw_data, bk_obj_id)
+                nested_paths=self.nested_paths,
+                use_full_index_names=self.use_full_index_names,
+            ).dsl_search_after(search_after_key)
+            q = self._process_data_queryset(q)
+
+            data = self._distinct_calculate(self._get_group_by(bk_obj_id), q.raw_data)
             data = self._remove_dimensions_prefix(data, bk_obj_id)
+
             records.extend(data)
+
         records = self._filter_by_advance_method(records)
         records = self._format_time_series_records(records)
         return records[:limit]
@@ -1591,8 +1639,11 @@ class BkMonitorLogDataSource(DataSource):
             start_time=start_time,
             end_time=end_time,
             query_string=self.query_string,
+            nested_paths=self.nested_paths,
             interval=kwargs.get("interval"),
+            use_full_index_names=self.use_full_index_names,
         )
+
         records = self._remove_dimensions_prefix(q.raw_data)
         records = self._filter_by_advance_method(records)
         if "." in dimension_field:
@@ -1602,17 +1653,25 @@ class BkMonitorLogDataSource(DataSource):
     def query_log(
         self, start_time: int = None, end_time: int = None, limit: int = None, offset: int = None, *args, **kwargs
     ) -> Tuple[List, int]:
+
         q = self._get_queryset(
             table=self.table,
+            select=self.select,
             agg_condition=self._get_where(),
             where=self._get_filter_dict(),
             limit=limit,
             offset=offset,
+            order_by=self.order_by,
             time_field=self.time_field,
+            distinct=self.distinct,
             start_time=start_time,
             end_time=end_time,
             query_string=self.query_string,
+            nested_paths=self.nested_paths,
+            use_full_index_names=self.use_full_index_names,
         )
+        q = self._process_log_queryset(q)
+
         data = q.original_data
         total = data["hits"]["total"]
         if isinstance(total, dict):
@@ -1628,6 +1687,75 @@ class BkMonitorLogDataSource(DataSource):
             time_display = _("{}分钟").format(self.interval // 60)
         method = self.metrics[0]["method"].lower()
         return _("{}内接收到事件次数{}").format(time_display, self.METHOD_DESC[method])
+
+
+class BkApmTraceDataSource(BkMonitorLogDataSource):
+    data_source_label = DataSourceLabel.BK_APM
+    data_type_label = DataTypeLabel.LOG
+
+    DEFAULT_TIME_FIELD = "time"
+
+    EXTRA_DISTINCT_FIELD = None
+    EXTRA_AGG_DIMENSIONS = []
+
+    @classmethod
+    def init_by_query_config(cls, query_config: Dict, *args, **kwargs):
+        return cls(
+            table=query_config["table"],
+            time_field=query_config["time_field"],
+            select=query_config.get("select") or [],
+            distinct=query_config.get("distinct"),
+            where=query_config.get("where") or [],
+            metrics=query_config.get("metrics") or [],
+            group_by=query_config.get("group_by") or [],
+            filter_dict=query_config.get("filter_dict") or {},
+            query_string=query_config.get("query_string") or "*",
+            nested_paths=query_config.get("nested_paths") or [],
+            order_by=query_config["order_by"],
+            use_full_index_names=True,
+        )
+
+    def is_dimensions_field(self, field: str) -> bool:
+        """APM 维度都是完整的，不需要补全"""
+        return False
+
+    @staticmethod
+    def _remove_dimensions_prefix(data: List, bk_obj_id=None) -> List:
+        return data
+
+    def _add_dimension_prefix(self, filter_dict: Dict) -> Dict:
+        return filter_dict
+
+    def _process_distinct_calculate_group_by(self, group_by: List[str]):
+        if self.interval:
+            group_by.append(self.time_field)
+
+    def _process_data_queryset(self, queryset):
+        q = self._process_log_queryset(queryset)
+        return q.dsl_group_hits(-1)
+
+    def _process_log_queryset(self, queryset):
+        if self.interval:
+            return queryset
+        return queryset.dsl_date_histogram(False)
+
+    def query_data(
+        self,
+        start_time: int = None,
+        end_time: int = None,
+        limit: int = None,
+        search_after_key: Optional[Dict[str, Any]] = None,
+        *args,
+        **kwargs,
+    ) -> List:
+        if limit is not None:
+            limit = min(limit, 10000)
+        return super().query_data(start_time, end_time, limit, search_after_key, *args, **kwargs)
+
+
+class BkApmTraceTimeSeriesDataSource(BkApmTraceDataSource):
+    data_source_label = DataSourceLabel.BK_APM
+    data_type_label = DataTypeLabel.TIME_SERIES
 
 
 class CustomEventDataSource(BkMonitorLogDataSource):
@@ -1710,6 +1838,10 @@ class CustomEventDataSource(BkMonitorLogDataSource):
         if end_time:
             end_time = end_time + self.time_offset
 
+        # 为什么去掉 limit=1
+        # 之前 limit=1 用于限制原始日志返回(size=1)，而聚合分桶数固定为（size=1440）
+        # 现在 limit 可用于调整聚合分桶数，而原始日志默认就是 1
+        # 不传 limit 以保持原逻辑的默认行为
         q = self._get_queryset(
             metrics=self.metrics,
             table=self.table,
@@ -1718,7 +1850,6 @@ class CustomEventDataSource(BkMonitorLogDataSource):
             group_by=group_by,
             where=filter_dict,
             query_string=self.query_string,
-            limit=1,
             time_field=self.time_field,
             start_time=start_time,
             end_time=end_time,
@@ -1833,7 +1964,6 @@ class BkFtaEventDataSource(DataSource):
             interval=self.interval,
             group_by=self.group_by,
             where=self.filter_dict,
-            limit=1,
             time_field=self.time_field,
             start_time=start_time,
             end_time=end_time,
@@ -1866,7 +1996,6 @@ class BkFtaEventDataSource(DataSource):
             interval=self.interval,
             group_by=[dimension_field],
             where=self.filter_dict,
-            limit=1,
             time_field=self.time_field,
             start_time=start_time,
             end_time=end_time,

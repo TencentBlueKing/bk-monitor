@@ -29,6 +29,19 @@ class BarChartDataType(ChoicesEnum):
     AVG_DURATION_CALLEE = "avg_duration_callee"
     INSTANCE_COUNT = "instance_count"
 
+    ERROR_COUNT_CALLER = "error_count_caller"
+    ERROR_COUNT_CALLEE = "error_count_callee"
+    DURATION_MAX_CALLER = "duration_max_caller"
+    DURATION_MAX_CALLEE = "duration_max_callee"
+    DURATION_MIN_CALLER = "duration_min_callee"
+    DURATION_MIN_CALLEE = "duration_min_callee"
+    DURATION_P50_CALLER = "duration_p50_caller"
+    DURATION_P50_CALLEE = "duration_p50_callee"
+    DURATION_P99_CALLER = "duration_p99_caller"
+    DURATION_P99_CALLEE = "duration_p99_callee"
+    DURATION_P95_CALLER = "duration_p95_caller"
+    DURATION_P95_CALLEE = "duration_p95_callee"
+
     # 下拉框选项共下面五项
     _choices_labels = (
         (Apdex, _("apdex")),
@@ -36,6 +49,18 @@ class BarChartDataType(ChoicesEnum):
         (ErrorRateCaller, _("主调错误率")),
         (ErrorRateCallee, _("被调错误率")),
         (ErrorRate, _("错误率")),
+        (ERROR_COUNT_CALLER, _("主调错误数")),
+        (ERROR_COUNT_CALLEE, _("被调错误数")),
+        (DURATION_MAX_CALLER, _("主调最大耗时")),
+        (DURATION_MAX_CALLEE, _("被调最大耗时")),
+        (DURATION_MIN_CALLER, _("主调最小耗时")),
+        (DURATION_MIN_CALLEE, _("被调最小耗时")),
+        (DURATION_P50_CALLER, _("主调 P50 耗时")),
+        (DURATION_P50_CALLEE, _("被调 P50 耗时")),
+        (DURATION_P99_CALLER, _("主调 P99 耗时")),
+        (DURATION_P99_CALLEE, _("被调 P99 耗时")),
+        (DURATION_P95_CALLER, _("主调 P95 耗时")),
+        (DURATION_P95_CALLEE, _("被调 P95 耗时")),
     )
 
 
@@ -64,11 +89,15 @@ class GraphPluginType(ChoicesEnum):
     NODE = "node_data"
     # 边数据插件
     EDGE = "edge_data"
+    # 接口节点数据插件
+    ENDPOINT = "endpoint_data"
 
     # 节点 UI 插件
     NODE_UI = "node_ui"
     # 边 UI 插件
     EDGE_UI = "edge_ui"
+    # 接口 UI 插件
+    ENDPOINT_UI = "endpoint_ui"
 
 
 class GraphViewType(ChoicesEnum):
@@ -76,10 +105,12 @@ class GraphViewType(ChoicesEnum):
 
     TOPO = "topo"
     TABLE = "table"
+    TOPO_DIFF = "topo_diff"
 
     _choices_labels = (
         (TOPO, _("视图")),
         (TABLE, _("表格")),
+        (TOPO_DIFF, _("视图(对比模式)")),
     )
 
 
@@ -130,5 +161,9 @@ class TopoLinkType(ChoicesEnum):
     """拓扑图中可供跳转的链接日期"""
 
     ALERT = "alert"
+    TOPO_SOURCE = "topo_source"
 
-    _choices_labels = (ALERT, _("跳转到告警中心"))
+    _choices_labels = (
+        (ALERT, _("跳转到告警中心")),
+        (TOPO_SOURCE, _("资源拓扑链接跳转处理")),
+    )

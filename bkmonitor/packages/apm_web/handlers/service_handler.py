@@ -29,11 +29,13 @@ from apm_web.constants import (
     CustomServiceMatchType,
     TopoNodeKind,
 )
+from apm_web.metric_handler import ServiceFlowCount
 from apm_web.metrics import APPLICATION_LIST
-from apm_web.models import ApdexServiceRelation, ApplicationCustomService
+from apm_web.models import ApdexServiceRelation, Application, ApplicationCustomService
 from apm_web.utils import group_by
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.time_tools import get_datetime_range
 from constants.apm import OtlpKey
 from core.drf_resource import api
 from core.errors.api import BKAPIError
@@ -272,22 +274,86 @@ class ServiceHandler:
         return ApdexCategoryMapping.get_apdex_by_category(category)
 
     @classmethod
-    @using_cache(CacheType.APM(60 * 10))
-    def get_node(cls, bk_biz_id, app_name, service_name):
-        """获取 topoNode 节点信息"""
+    @using_cache(CacheType.APM(60 * 60))
+    def get_node(cls, bk_biz_id, app_name, service_name, raise_exception=True):
+        """
+        获取 topoNode 节点信息
+        先从 topo_node 表获取 如果不存在 则从 flow 指标维度中取然后拼接出数据
+        """
+
+        # 从 topo_node 中找
         params = {
             "bk_biz_id": bk_biz_id,
             "app_name": app_name,
             "topo_key": service_name,
         }
-
         try:
             response = api.apm_api.query_topo_node(**params)
-            if not response:
-                raise ValueError(f"[ServiceHandler] 拓扑节点: {service_name} 不存在，请检查上报数据是否包含此服务")
-            return response[0]
+            if response:
+                return response[0]
         except BKAPIError as e:
-            raise ValueError(f"[ServiceHandler] 查询拓扑节点信息失败，错误: {e}")
+            logger.warning(f"[ServiceHandler] get node from topo_node failed, error: {e}")
+
+        # 从 flow 指标中找
+        application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        start_time, end_time = get_datetime_range(period="day", distance=application.es_retention, rounding=False)
+        flow_response = ServiceFlowCount(
+            **{
+                "application": application,
+                "start_time": int(start_time.timestamp()),
+                "end_time": int(end_time.timestamp()),
+                "where": [
+                    {"key": "from_apm_service_name", "method": "eq", "value": [service_name]},
+                    {"condition": "or", "key": "to_apm_service_name", "method": "eq", "value": [service_name]},
+                ],
+                "group_by": [
+                    "from_apm_service_name",  # index: 0
+                    "from_apm_service_category",  # index: 1
+                    "from_apm_service_kind",  # index: 2
+                    "to_apm_service_name",  # index: 3
+                    "to_apm_service_category",  # index: 4
+                    "to_apm_service_kind",  # index: 5
+                ],
+            }
+        ).get_instance_values_mapping()
+        if not flow_response:
+            if raise_exception:
+                raise ValueError(f"[ServiceHandler] 拓扑节点: {service_name} 不存在，请检查上报数据是否包含此服务")
+            return None
+
+        from apm_web.handlers.component_handler import ComponentHandler
+
+        for keys in flow_response.keys():
+            if keys[0] == service_name:
+                predicate_value = None
+                if keys[2] == TopoNodeKind.COMPONENT:
+                    predicate_value = ComponentHandler.get_component_belong_predicate_value(service_name)
+                return {
+                    "topo_key": keys[0],
+                    "extra_data": {
+                        "category": keys[1],
+                        "kind": keys[2],
+                        "predicate_value": predicate_value,
+                    },
+                }
+            if keys[3] == service_name:
+                predicate_value = None
+                if keys[5] == TopoNodeKind.COMPONENT:
+                    # 组件类服务
+                    predicate_value = ComponentHandler.get_component_belong_predicate_value(service_name)
+                return {
+                    "topo_key": keys[3],
+                    "extra_data": {
+                        "category": keys[4],
+                        "kind": keys[5],
+                        "predicate_value": predicate_value,
+                    },
+                }
+
+        if raise_exception:
+            raise ValueError(f"[ServiceHandler] 拓扑节点: {service_name} 不存在，请检查上报数据是否包含此服务")
+
+        return None
 
     @classmethod
     def list_nodes(cls, bk_biz_id, app_name):

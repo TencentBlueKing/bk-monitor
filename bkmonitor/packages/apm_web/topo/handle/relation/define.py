@@ -9,11 +9,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import hashlib
-from collections import defaultdict
-from dataclasses import asdict, dataclass, field, fields
-from typing import List
+from dataclasses import dataclass, field, fields
+from typing import List, Tuple
 
 from apm_web.topo.constants import SourceType
+from bkmonitor.utils.cache import CacheType, using_cache
+from core.drf_resource import api
 
 
 @dataclass
@@ -30,6 +31,8 @@ class Source:
     def to_source_info(self):
         res = {}
         for f in fields(self):
+            if f.name in self._ignore_fields:
+                continue
             res[f.name] = getattr(self, f.name)
 
         return res
@@ -51,12 +54,21 @@ class Source:
         combined_string = '-'.join(f"{key}:{info[key]}" for key in sorted(info.keys()))
         return hashlib.md5(combined_string.encode()).hexdigest()
 
+    @property
+    def display_name(self):
+        """在页面上显示此资源时的显示名称"""
+        raise NotImplementedError
+
 
 @dataclass
 class SourceService(Source):
     apm_application_name: str
     apm_service_name: str
     name: str = SourceType.APM_SERVICE.value
+
+    @property
+    def display_name(self):
+        return self.apm_service_name
 
 
 @dataclass
@@ -66,11 +78,35 @@ class SourceServiceInstance(Source):
     apm_service_instance_name: str
     name: str = SourceType.APM_SERVICE_INSTANCE.value
 
+    @property
+    def display_name(self):
+        return self.apm_service_instance_name
+
 
 @dataclass
 class SourceSystem(Source):
     bk_target_ip: str
     name: str = SourceType.SYSTEM.value
+
+    @property
+    def display_name(self):
+        return self.bk_target_ip
+
+    @classmethod
+    @using_cache(CacheType.APM(60 * 60 * 24 * 7))
+    def get_bk_host_id(cls, bk_biz_id, bk_target_ip, raise_exception=False):
+        response = api.cmdb.get_host_by_ip(
+            # TODO 等待关联接口增加 bk_cloud_id 后 再增加查询条件
+            ips=[{"ip": bk_target_ip}],
+            bk_biz_id=bk_biz_id,
+            search_outer_ip=True,
+        )
+        if not response:
+            if raise_exception:
+                raise ValueError("未找到 IP 相关信息（可能为历史快照数据或 IP 不在该业务下）")
+            else:
+                return None
+        return response[0].bk_host_id
 
 
 @dataclass
@@ -80,12 +116,20 @@ class SourceK8sPod(Source):
     pod: str
     name: str = SourceType.POD.value
 
+    @property
+    def display_name(self):
+        return self.pod
+
 
 @dataclass
 class SourceK8sNode(Source):
     bcs_cluster_id: str
     node: str
     name: str = SourceType.NODE.value
+
+    @property
+    def display_name(self):
+        return self.node
 
 
 @dataclass
@@ -94,6 +138,10 @@ class SourceK8sService(Source):
     namespace: str
     service: str
     name: str = SourceType.SERVICE.value
+
+    @property
+    def display_name(self):
+        return self.service
 
 
 @dataclass
@@ -107,23 +155,18 @@ class Node:
         self.id = f"{self.source_type}-{self.source_info.id}"
 
     @classmethod
-    def get_relation_mapping(cls, node: "Node", level, current_level=0):
-        """从 node 节点开始 获取树的第 level 层的所有节点 并且按照上层节点进行分组"""
+    def list_nodes_by_level(cls, node: "Node", level, current_level=0):
+        """从 node 节点开始 获取树的第 level 层的所有节点 返回列表"""
         if level == 0:
             # 返回自身关联
-            return {node.id: [node]}
+            return [node]
 
         if current_level == level - 1:
-            res = defaultdict(list)
-            for c in node.children:
-                res[node.id].append(c)
-            return res
+            return node.children
 
-        res = defaultdict(list)
+        res = []
         for c in node.children:
-            c_res = cls.get_relation_mapping(c, level, current_level + 1)
-            for parent_id, children in c_res.items():
-                res[parent_id].extend(children)
+            res.extend(cls.list_nodes_by_level(c, level, current_level + 1))
         return res
 
     @classmethod
@@ -139,8 +182,21 @@ class Node:
         return {
             "id": self.id,
             "source_type": self.source_type,
-            "source_info": asdict(self.source_info),
+            "source_info": self.source_info.to_source_info(),
+            "display_name": self.source_info.display_name,
         }
+
+    @classmethod
+    def get_all_edges(cls, node, parent_id=None) -> List[Tuple[str, str]]:
+        """返回以此 node 往下的所有边"""
+        res = []
+        if parent_id is not None:
+            res.append((parent_id, node.id))
+
+        for c in node.children:
+            res.extend(cls.get_all_edges(c, node.id))
+
+        return res
 
 
 @dataclass
@@ -152,3 +208,4 @@ class TreeInfo:
     # 树的层级是否完整 (即根据 layers 判断是否每一层都有节点)
     is_complete: bool
     runtime: dict
+    layers_have_data: List[bool]

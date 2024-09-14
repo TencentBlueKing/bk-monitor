@@ -262,7 +262,8 @@ export default {
   进程关键字: 'Process Keyword',
   进程排除正则: 'Process exclusion regular expression',
   PID的绝对路径: 'Absolute Path of PID',
-  'Shift + Enter换行，Enter查询': 'Shift + Enter for line break, Enter for query',
+  '请输入 PromQL 查询语句，Shift + Enter换行，Enter查询':
+    'Please enter the PromQL query statement,Shift + Enter for line break, Enter for query',
   '留空默认以二进制名称，可以手动指定或者取值':
     'Leave it blank to use the binary name by default, or specify or retrieve it manually.',
   指标映射规则文件格式为yaml: 'The metric mapping rule file format is yaml',

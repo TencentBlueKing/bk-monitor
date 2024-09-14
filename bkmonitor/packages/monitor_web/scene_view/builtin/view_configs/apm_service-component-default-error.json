@@ -51,6 +51,9 @@
         "table_chart": {
           "json_viewer_data_key": "data",
           "show_expand": true
+        },
+        "header": {
+          "tips": "此表格展示状态为异常的 span，同时异常信息来自于 span 的 status.message 以及 events 字段。"
         }
       }
     },
@@ -144,6 +147,9 @@
         "table_chart": {
           "json_viewer_data_key": "data",
           "show_expand": true
+        },
+        "header": {
+          "tips": "此表格展示状态为异常的 span，同时异常信息来自于 span 的 status.message 以及 events 字段。"
         }
       }
     },

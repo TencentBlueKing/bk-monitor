@@ -162,6 +162,8 @@ export class ApdexChart extends LineChart {
         );
         const formatterFunc = this.handleSetFormatterFunc(seriesList[0].data, !!this.splitNumber);
         const echartOptions: any = MONITOR_BAR_OPTIONS;
+        let splitNumber = seriesList[0].data?.length || 0;
+        splitNumber = splitNumber >= 7 ? 7 : splitNumber;
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: true,
@@ -178,7 +180,7 @@ export class ApdexChart extends LineChart {
                 formatter: formatterFunc || '{value}',
               },
               // splitNumber: this.splitNumber || 0
-              splitNumber: this.splitNumber ? seriesList[0].data?.length || 2 : 0,
+              splitNumber: this.splitNumber ? this.splitNumber : splitNumber || 2,
             },
             series: seriesList,
           })
@@ -377,6 +379,7 @@ export class ApdexChart extends LineChart {
                   width={this.width}
                   height={this.height}
                   groupId={this.panel.dashboardId}
+                  hoverAllTooltips={this.hoverAllTooltips}
                   isContextmenuPreventDefault={this.enableContextmenu}
                   options={this.options}
                   onDataZoom={this.dataZoom}

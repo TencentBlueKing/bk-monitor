@@ -488,8 +488,11 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                           }
                           return pre;
                         }, {});
-
-                  if (dataSourceLabel === 'custom' && dataTypeLabel === 'event') {
+                  if (
+                    dataSourceLabel === 'custom' &&
+                    dataTypeLabel === 'event' &&
+                    !typeTools.isNull(custom_event_name)
+                  ) {
                     fieldDict.event_name = custom_event_name;
                   }
                   return fieldDict;
@@ -532,6 +535,9 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
               }
             ),
     };
+    if (this.shortcutsType === EShortcutsType.NEAR) {
+      Object.assign(params, { series_num: this.nearNum });
+    }
     return params;
   }
   /** 智能检测算法创建请求的指标数据 */

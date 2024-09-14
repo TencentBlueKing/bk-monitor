@@ -140,14 +140,10 @@
 
       .tabs-content {
         padding: 16px;
-        background-color: #f5f7fa;
+        background: #F5F7FA;
 
         .chart-item {
           width: 100%;
-
-          & + .chart-item {
-            margin-top: 16px;
-          }
 
           &.service-type {
             .chart-wrapper {
@@ -165,7 +161,7 @@
 
           &.log-type {
             .chart-wrapper {
-              height: 112px;
+              min-height: 112px;
             }
           }
 
@@ -208,17 +204,76 @@
               }
             }
           }
+
+          .statistics-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            width: 100%;
+            min-height: 32px;
+            padding-left: 8px;
+            margin-top: 8px;
+            background: #F0F1F5;
+            border-radius: 2px;
+
+            .statistics-item {
+              display: flex;
+              align-items: center;
+              margin-right: 24px;
+              line-height: 32px;
+
+              .item-title {
+                margin-right: 2px;
+                color: #63656E;
+              }
+
+              .item-value {
+                color: #313238;
+              }
+            }
+          }
+        }
+
+        .split-line {
+          width: 100%;
+          height: 1px;
+          margin: 16px 0px;
+          background: #DCDEE5;
         }
 
         .related-log-chart-wrap {
           .empty-chart {
+            min-height: 112px;
+
             .bk-exception {
-              transform: scale(0.35);
+              top: -12px;
+
+              .empty-text {
+                font-size: 14px;
+              }
+
+              .text-wrap {
+                .text-row {
+                  margin: 12px 0;
+                  font-size: 12px;
+                }
+              }
+
+              .bk-exception-img {
+                img {
+                  height: 100px;
+                }
+              }
+
+              button {
+                font-size: 12px;
+              }
             }
           }
+
           .empty-chart-text {
             position: relative;
-            top: 30px;
+            top: 68px;
           }
         }
       }

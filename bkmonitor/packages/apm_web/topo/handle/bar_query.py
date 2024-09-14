@@ -10,10 +10,16 @@ specific language governing permissions and limitations under the License.
 """
 import copy
 import itertools
+import json
+import urllib.parse
 from dataclasses import asdict, dataclass, field
 from typing import Dict, List
+from urllib.parse import urljoin
+
+from django.conf import settings
 
 from apm_web.constants import AlertLevel, DataStatus
+from apm_web.handlers.compatible import CompatibleQuery
 from apm_web.metric_handler import (
     ApdexRange,
     ServiceFlowErrorRate,
@@ -23,6 +29,7 @@ from apm_web.metric_handler import (
 from apm_web.models import Application
 from apm_web.topo.constants import BarChartDataType
 from apm_web.topo.handle import BaseQuery
+from apm_web.utils import get_bar_interval_number
 from core.drf_resource import resource
 from monitor_web.models.scene_view import SceneViewModel
 from monitor_web.scene_view.builtin.apm import ApmBuiltinProcessor
@@ -54,6 +61,7 @@ class BarQuery(BaseQuery):
         else:
             if not self.service_name:
                 raise ValueError(f"[柱状图] 查询接口: {self.params['endpoint_name']} 的告警数据时需要传递服务名称")
+            # 接口目前只能查询 告警 / Apdex
             if self.data_type == BarChartDataType.Alert.value:
                 return self.get_alert_series()
             if self.data_type == BarChartDataType.Apdex.value:
@@ -64,20 +72,21 @@ class BarQuery(BaseQuery):
     def get_alert_series(self) -> Dict:
         ts_mapping = {AlertLevel.INFO: {}, AlertLevel.WARN: {}, AlertLevel.ERROR: {}}
         all_ts = []
+        query_string = CompatibleQuery.get_alert_query_string(
+            self.metrics_table,
+            self.bk_biz_id,
+            self.app_name,
+            self.service_name,
+            self.params.get("endpoint_name"),
+        )
         common_params = {
             "bk_biz_ids": [self.bk_biz_id],
             "start_time": self.start_time,
             "end_time": self.end_time,
-            "interval": self.delta // 30,
-            "query_string": f"metric: custom.{self.metrics_table}.*",
+            "interval": get_bar_interval_number(self.start_time, self.end_time),
+            "query_string": query_string,
             "conditions": [],
         }
-        if self.service_name:
-            common_params["query_string"] += f' AND tags.service_name: "{self.service_name}"'
-
-        if self.params.get("endpoint_name"):
-            endpoint_name = self.params["endpoint_name"]
-            common_params["query_string"] += f' AND tags.span_name: "{endpoint_name}"'
 
         if self.params.get("strategy_ids", []):
             common_params["conditions"].append({"key": "strategy_id", "value": self.params["strategy_ids"]})
@@ -114,58 +123,37 @@ class BarQuery(BaseQuery):
         return asdict(BarResponse(series=[BarSeries(datapoints=[res])]))
 
     def get_apdex_series(self) -> Dict:
-        wheres = self.convert_metric_to_condition()
-        if self.params.get("endpoint_name"):
-            wheres.append({"key": "span_name", "method": "eq", "value": [self.params["endpoint_name"]]})
         return self.get_metric(
             ApdexRange,
-            interval=self._get_metric_interval(),
-            where=wheres,
+            interval=get_bar_interval_number(self.start_time, self.end_time),
+            where=CompatibleQuery.list_metric_wheres(
+                self.bk_biz_id,
+                self.app_name,
+                self.service_name,
+                self.params.get("endpoint_name"),
+            ),
         ).query_range()
 
     def get_error_rate_series(self) -> Dict:
         return self.get_metric(
             ServiceFlowErrorRate,
-            interval=self._get_metric_interval(),
-            where=self.convert_flow_metric_to_condition(),
+            interval=get_bar_interval_number(self.start_time, self.end_time),
+            where=CompatibleQuery.list_flow_metric_wheres(mode="full", service_name=self.service_name),
         ).query_range()
 
     def get_error_rate_caller_series(self) -> Dict:
         return self.get_metric(
             ServiceFlowErrorRateCaller,
-            interval=self._get_metric_interval(),
-            where=self.convert_flow_metric_to_condition(),
+            interval=get_bar_interval_number(self.start_time, self.end_time),
+            where=CompatibleQuery.list_flow_metric_wheres(mode="caller", service_name=self.service_name),
         ).query_range()
 
     def get_error_rate_callee_series(self) -> Dict:
         return self.get_metric(
             ServiceFlowErrorRateCallee,
-            interval=self._get_metric_interval(),
-            where=self.convert_flow_metric_to_condition(),
+            interval=get_bar_interval_number(self.start_time, self.end_time),
+            where=CompatibleQuery.list_flow_metric_wheres(mode="callee", service_name=self.service_name),
         ).query_range()
-
-    def _get_metric_interval(self):
-        """
-        计算 flow 指标的聚合周期
-        需要保持柱状图最大柱子数量为 30
-        """
-
-        if self.end_time - self.start_time > 1800:
-            return int((self.end_time - self.start_time) / 30)
-        # 如果小于 30分钟 按照一分钟进行聚合
-        return 60
-
-    def convert_flow_metric_to_condition(self):
-        """转换为 APM Flow 指标的 where 条件"""
-        # 服务页面中获取柱状图不需要固定 caller / callee 视角 因为某服务的拓扑图反应的是所有和这个服务有关的数据 所以用 or 条件来查询
-        return (
-            [
-                {"key": "from_apm_service_name", "method": "eq", "value": [self.service_name]},
-                {"key": "to_apm_service_name", "method": "eq", "value": [self.service_name], "condition": "or"},
-            ]
-            if self.service_name
-            else []
-        )
 
 
 class LinkHelper:
@@ -175,19 +163,20 @@ class LinkHelper:
         table_id = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get().metric_result_table_id
         return (
             f"/?bizId={bk_biz_id}#/event-center?"
-            f"queryString=tags.service_name: {service_name} AND metric: custom.{table_id}.*&"
+            f"queryString={CompatibleQuery.get_alert_query_string(table_id, bk_biz_id, app_name, service_name)}&"
             f"from={start_time * 1000}&to={end_time * 1000}"
         )
 
     @classmethod
     def get_endpoint_alert_link(cls, bk_biz_id, app_name, service_name, endpoint_name, start_time, end_time):
-        """获取接口得告警中心链接"""
+        """获取接口的告警中心链接"""
         table_id = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get().metric_result_table_id
+        query_string = CompatibleQuery.get_alert_query_string(
+            table_id, bk_biz_id, app_name, service_name, endpoint_name
+        )
         return (
             f"/?bizId={bk_biz_id}#/event-center?"
-            f"queryString=metric: custom.{table_id}.* "
-            f'AND tags.service_name: "{service_name}" '
-            f'AND tags.span_name: "{endpoint_name}"&'
+            f"queryString={query_string}&"
             f"from={start_time * 1000}&to={end_time * 1000}"
         )
 
@@ -202,11 +191,11 @@ class LinkHelper:
             return None
 
         return (
-            f"/?bizId={bk_biz_id}#/apm/service?"
+            f"/service?"
             f"filter-service_name={service_name}&"
             f"filter-app_name={app_name}&"
-            f"from={start_time}&"
-            f"to={end_time}&"
+            f"from={start_time * 1000}&"
+            f"to={end_time * 1000}&"
             f"dashboardId={dashboard_id}"
         )
 
@@ -221,10 +210,60 @@ class LinkHelper:
             return None
 
         return (
-            f"/?bizId={bk_biz_id}#/apm/service?"
+            f"/service?"
             f"filter-service_name={service_name}&"
             f"filter-app_name={app_name}&"
-            f"from={start_time}&"
-            f"to={end_time}&"
+            f"from={start_time * 1000}&"
+            f"to={end_time * 1000}&"
             f"dashboardId={dashboard_id}"
         )
+
+    @classmethod
+    def get_host_monitor_link(cls, bk_host_id, start_time, end_time):
+        """获取某主机的主机监控地址"""
+        return f"/performance/detail/{bk_host_id}?from={start_time * 1000}&to={end_time * 1000}"
+
+    @classmethod
+    def get_pod_monitor_link(cls, bcs_cluster_id, namespace, pod, start_time, end_time):
+        """获取某 Pod 的 K8S 监控地址"""
+        query_data = {
+            "selectorSearch": [
+                {
+                    "keyword": pod,
+                }
+            ]
+        }
+        encode_query = urllib.parse.quote(json.dumps(query_data))
+
+        return (
+            f"/k8s?filter-bcs_cluster_id={bcs_cluster_id}&"
+            f"filter-namespace={namespace}&"
+            f"filter-pod_name={pod}&dashboardId=pod&sceneId=kubernetes&sceneType=detail&"
+            f"from={start_time * 1000}&to={end_time * 1000}&"
+            f"queryData={encode_query}"
+        )
+
+    @classmethod
+    def get_service_monitor_link(cls, bcs_cluster_id, namespace, service, start_time, end_time):
+        """获取某 Service 的 K8S 监控地址"""
+        query_data = {
+            "selectorSearch": [
+                {
+                    "keyword": service,
+                }
+            ]
+        }
+        encode_query = urllib.parse.quote(json.dumps(query_data))
+
+        return (
+            f"/k8s?filter-bcs_cluster_id={bcs_cluster_id}&"
+            f"filter-namespace={namespace}&"
+            f"filter-service_name={service}&"
+            f"from={start_time * 1000}&to={end_time * 1000}&"
+            f"dashboardId=service&sceneId=kubernetes&sceneType=detail&queryData={encode_query}"
+        )
+
+    @classmethod
+    def get_host_cmdb_link(cls, bk_biz_id, bk_host_id):
+        """获取主机在 cmdb 中的链接"""
+        return urljoin(settings.BK_CC_URL, f"#/business/{bk_biz_id}/index/host/{bk_host_id}")

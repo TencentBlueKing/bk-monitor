@@ -291,4 +291,11 @@ export default {
     'Expanding the folded alarm topology in "Incident Handling" will expand and collapse the timing diagram accordingly; clicking an event in "Incident Flow" will highlight the corresponding time node.',
   '故障内的告警：共': 'Alarm in Incident: ',
   个: ' in total',
+  请选择非接口节点: 'Please select a non-interface node',
+  请选择节点: 'Please select a node',
+  接口概览: 'Interface Overview',
+  烦躁: 'be agitated',
+  可容忍: 'tolerableness',
+  满意: 'satisfaction',
+  日志数: 'Log count',
 };

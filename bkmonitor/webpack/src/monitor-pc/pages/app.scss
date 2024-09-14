@@ -4,6 +4,26 @@
 @import '../theme/index.scss';
 @import './header-setting-modal.scss';
 
+@mixin globel-icon-mixin($color: #3A84FF) {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: 16px;
+  font-size: 14px;
+  color: $color;
+}
+
+@mixin globel-icon-hover-mixin {
+  color: #3A84FF;
+  cursor: pointer;
+  background: #2F3975;
+  border-radius: 2px;
+}
+
+
 .bk-monitor {
   width: 100vw;
   height: 100vh;
@@ -443,6 +463,20 @@
     background-repeat: no-repeat;
     background-position: center;
     background-size: contain;
+  }
+
+  .monitor-head {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .header-globel {
+    @include globel-icon-mixin;
+
+    &:hover {
+      @include globel-icon-hover-mixin;
+    }
   }
 
   .monitor-footer {

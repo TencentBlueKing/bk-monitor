@@ -25,6 +25,7 @@ from apm_web.topo.handle import NodeDisplayType as Display
 from apm_web.topo.handle.graph_plugin import PluginProvider, ViewConverter
 from apm_web.utils import merge_dicts
 from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.time_tools import get_datetime_range
 
 logger = logging.getLogger("apm")
 
@@ -286,47 +287,79 @@ class Graph:
             else:
                 self._graph.add_node(base_node, **{"data": attrs["data"]})
 
+        remove_edges = []
+
         for from_node, to_node, attrs in self.edges:
             key = (from_node, to_node)
             if key in other_edge_mapping:
                 self._graph.add_edge(*key, **other_edge_mapping[key])
             else:
-                self._graph.remove_edge(*key)
+                remove_edges.append(key)
+
+        for key in remove_edges:
+            self._graph.remove_edge(*key)
+
+        return self
+
+    def __and__(self, other: "Graph") -> "Graph":
+        """
+        以自身为基准 对比另一个 Graph 的节点数据 计算出差异并返回
+        """
+        other_node_mapping = {k: v for k, v in other.nodes}
+
+        for base_node, attrs in self.nodes:
+            for p in self.plugins:
+                if p.type != GraphPluginType.NODE:
+                    continue
+                # 只对节点插件计算出的指标进行对比
+                if hasattr(p, "diff"):
+                    diff = p.diff(attrs, other_node_mapping.get(base_node))
+                    self._graph.add_node(base_node, **{"data": attrs["data"], **diff})
 
         return self
 
 
 class GraphQuery(BaseQuery):
     @classmethod
-    def create_converter(cls, bk_biz_id, app_name, export_type, start_time, end_time, service_name=None):
+    def create_converter(cls, bk_biz_id, app_name, export_type, service_name=None, runtime=None):
         filter_params = {"service_name": service_name} if service_name else {}
         return ViewConverter.new(
             bk_biz_id,
             app_name,
             export_type,
-            runtime={"start_time": start_time, "end_time": end_time},
+            runtime=runtime or {},
             filter_params=filter_params,
         )
 
     def execute(self, edge_data_type, converter):
+        converter_plugin_runtime = self.common_params()
+        if converter.filter_params:
+            converter_plugin_runtime.update(converter.filter_params)
         return self.create_graph(
-            with_plugin=True,
+            with_data_type_plugin=True,
             edge_data_type=edge_data_type,
-            extra_plugins=converter.extra_pre_plugins(self.common_params),
-            extra_converter_plugins=converter.extra_pre_convert_plugins(self.common_params),
+            extra_plugins=converter.extra_pre_plugins(converter_plugin_runtime),
+            extra_converter_plugins=converter.extra_pre_convert_plugins(converter_plugin_runtime),
         )
 
-    def create_graph(self, with_plugin=False, edge_data_type=None, extra_plugins=None, extra_converter_plugins=None):
+    def create_graph(
+        self,
+        with_data_type_plugin=False,
+        edge_data_type=None,
+        extra_plugins=None,
+        extra_converter_plugins=None,
+    ):
         db_nodes = self._list_nodes_from_db()
         flow_nodes, flow_edges = self._list_nodes_and_edges_from_flow()
 
         plugins = PluginProvider.Container()
-        if with_plugin:
-            plugins = PluginProvider.node_plugins(self.data_type, self.common_params)
-            if edge_data_type:
-                plugins += PluginProvider.edge_plugins(edge_data_type, self.common_params)
-            if extra_plugins:
-                plugins += extra_plugins
+        if with_data_type_plugin and self.data_type:
+            plugins += PluginProvider.node_plugins(self.data_type, self.common_params())
+        if edge_data_type:
+            plugins += PluginProvider.edge_plugins(edge_data_type, self.common_params())
+        if extra_plugins:
+            plugins += extra_plugins
+
         graph = Graph(
             plugins=plugins,
             converter_plugins=extra_converter_plugins or PluginProvider.Container(_plugins=[]),
@@ -381,10 +414,20 @@ class GraphQuery(BaseQuery):
         return nodes
 
     def _list_nodes_and_edges_from_flow(self) -> [NodeContainer, EdgeContainer]:
+        """
+        从 flow 指标中获取节点和边
+        数据需要为完整数据 查询周期为应用存储周期
+        """
+        retention = self.application.es_retention
+        start_time, end_time = get_datetime_range(period="day", distance=retention, rounding=False)
         nodes = NodeContainer()
         edges = EdgeContainer()
         dimension_mapping = self.get_metric(
             ServiceFlowCount,
+            params=self.common_params(
+                start_time=int(start_time.timestamp()),
+                end_time=int(end_time.timestamp()),
+            ),
             group_by=[
                 "from_apm_service_name",
                 "from_apm_service_category",

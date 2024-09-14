@@ -259,6 +259,7 @@ export default {
   总调用错误率: 'Total Error Rate',
   对比数据: 'Compare Data',
   资源拓扑: 'Resource Topo',
+  总数量: 'Total',
   编辑故障属性: 'Edit Incident Attribute',
   故障负责人: 'Incident Person in Charge',
   故障标签: 'Incident Label',

@@ -653,7 +653,7 @@ def generate_query_string(params: dict) -> str:
             if addition["operator"] in [OperatorEnum.IS_TRUE["operator"], OperatorEnum.IS_FALSE["operator"]]:
                 str_additions.append(f'{addition["field"]} {addition["operator"]}')
             else:
-                str_additions.append(f'{addition["field"]} {addition["operator"]} {addition["value"]}')
+                str_additions.append(f'{addition["field"]} {addition["operator"]} {addition.get("value", "")}')
 
         query_string += " AND (" + " AND ".join(str_additions) + ")"
     return query_string

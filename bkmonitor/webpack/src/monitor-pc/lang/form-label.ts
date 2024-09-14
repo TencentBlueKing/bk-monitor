@@ -1868,12 +1868,15 @@ export default {
   关联服务类型: 'Associated service type',
   Apdex阈值T: 'Apdex threshold T',
   替换为: 'Replace with',
+  批量替换: 'Batch replacement',
+  批量追加: 'Batch append',
+
+  故障关注人: 'Fault Follower',
+  故障链接: 'Fault Link',
+  故障内告警: 'Fault Internal Alarm',
   表单: 'Form',
   节点颜色: 'Node color',
   节点大小: 'Node size',
   连接线: 'Connection line',
   请求量: 'Request volume',
-  故障关注人: 'Incident Follower',
-  故障链接: 'Incident Link',
-  故障内告警: 'Incident Internal Alarm',
 };

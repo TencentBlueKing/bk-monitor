@@ -246,6 +246,16 @@
           background: #ebedf0;
           border-radius: 2px;
         }
+        .empty-status-box {
+          background-color: #f5f7fa;
+          position: absolute;
+          height: 400px;
+          width: 400px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding-top: 400px;
+        }
       }
     }
 

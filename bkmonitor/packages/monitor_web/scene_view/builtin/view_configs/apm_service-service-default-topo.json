@@ -83,7 +83,7 @@
               {
                 "id": 2,
                 "title": "请求数",
-                "type": "graph",
+                "type": "apm-timeseries-chart",
                 "alias": "请求数",
                 "targets": [
                   {
@@ -177,7 +177,8 @@
                             "functions": []
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   },
                   {
@@ -271,20 +272,24 @@
                             "functions": []
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   }
                 ],
                 "options": {
                   "time_series": {
                     "type": "bar"
+                  },
+                  "apm_time_series": {
+                    "metric": "request_count"
                   }
                 }
               },
               {
                 "id": 3,
                 "title": "错误数",
-                "type": "graph",
+                "type": "apm-timeseries-chart",
                 "alias": "错误数",
                 "targets": [
                   {
@@ -384,7 +389,8 @@
                             "functions": []
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   },
                   {
@@ -484,7 +490,8 @@
                             "functions": []
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   },
                   {
@@ -566,20 +573,24 @@
                             "functions": []
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   }
                 ],
                 "options": {
                   "time_series": {
                     "type": "bar"
+                  },
+                  "apm_time_series": {
+                    "metric": "error"
                   }
                 }
               },
               {
                 "id": 4,
                 "title": "响应耗时",
-                "type": "graph",
+                "type": "apm-timeseries-chart",
                 "alias": "响应耗时",
                 "targets": [
                   {
@@ -722,7 +733,8 @@
                             ]
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   },
                   {
@@ -825,7 +837,8 @@
                             ]
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   },
                   {
@@ -928,7 +941,8 @@
                             ]
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   },
                   {
@@ -1031,7 +1045,8 @@
                             ]
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   },
                   {
@@ -1094,7 +1109,8 @@
                             "functions": []
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   },
                   {
@@ -1157,11 +1173,15 @@
                             "functions": []
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   }
                 ],
                 "options": {
+                  "apm_time_series": {
+                    "metric": "duration"
+                  }
                 }
               }
             ]
@@ -1201,7 +1221,8 @@
                       "bk_biz_id": "${bk_biz_id}",
                       "index_set_id": "${index_set_id}",
                       "start_time": "${start_time}",
-                      "end_time": "${end_time}"
+                      "end_time": "${end_time}",
+                      "bar_count": 30
                     }
                   }
                 ]
@@ -1267,7 +1288,7 @@
               {
                 "id": 2,
                 "title": "请求数",
-                "type": "graph",
+                "type": "apm-timeseries-chart",
                 "alias": "请求数",
                 "targets": [
                   {
@@ -1363,7 +1384,8 @@
                             "functions": []
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   },
                   {
@@ -1459,20 +1481,24 @@
                             "functions": []
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   }
                 ],
                 "options": {
                   "time_series": {
                     "type": "bar"
+                  },
+                  "apm_time_series": {
+                    "metric": "request_count"
                   }
                 }
               },
               {
                 "id": 3,
                 "title": "错误数",
-                "type": "graph",
+                "type": "apm-timeseries-chart",
                 "alias": "错误数",
                 "targets": [
                   {
@@ -1526,6 +1552,7 @@
                           "functions": []
                         }
                       ],
+                      "stack": "all",
                       "unify_query_param": {
                         "type": "range",
                         "stack": "all",
@@ -1573,7 +1600,8 @@
                             "functions": []
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   },
                   {
@@ -1627,6 +1655,7 @@
                           "functions": []
                         }
                       ],
+                      "stack": "all",
                       "unify_query_param": {
                         "type": "range",
                         "stack": "all",
@@ -1674,7 +1703,8 @@
                             "functions": []
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   },
                   {
@@ -1719,6 +1749,7 @@
                           "functions": []
                         }
                       ],
+                      "stack": "all",
                       "unify_query_param": {
                         "type": "range",
                         "stack": "all",
@@ -1757,20 +1788,24 @@
                             "functions": []
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   }
                 ],
                 "options": {
                   "time_series": {
                     "type": "bar"
+                  },
+                  "apm_time_series": {
+                    "metric": "error"
                   }
                 }
               },
               {
                 "id": 4,
                 "title": "响应耗时",
-                "type": "graph",
+                "type": "apm-timeseries-chart",
                 "alias": "响应耗时",
                 "targets": [
                   {
@@ -1915,7 +1950,8 @@
                             ]
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   },
                   {
@@ -2020,7 +2056,8 @@
                             ]
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   },
                   {
@@ -2125,7 +2162,8 @@
                             ]
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   },
                   {
@@ -2230,7 +2268,8 @@
                             ]
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   },
                   {
@@ -2295,7 +2334,8 @@
                             "functions": []
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   },
                   {
@@ -2360,11 +2400,15 @@
                             "functions": []
                           }
                         ]
-                      }
+                      },
+                      "bar_count": 30
                     }
                   }
                 ],
                 "options": {
+                  "apm_time_series": {
+                    "metric": "duration"
+                  }
                 }
               }
             ]

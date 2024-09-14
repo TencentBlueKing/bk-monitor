@@ -10,10 +10,12 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import logging
+from typing import Any, Dict
+
+from opentelemetry import trace
 
 from bkmonitor.data_source.backends.base.connection import BaseDatabaseConnection
 
-from opentelemetry import trace
 from .operations import DatabaseOperations
 
 logger = logging.getLogger("bkmonitor.data_source.es")
@@ -38,9 +40,11 @@ class DatabaseConnection(BaseDatabaseConnection):
         self.ops = DatabaseOperations(self)
 
     def execute(self, rt_id, params):
+        extra: Dict[str, Any] = {"use_full_index_names": params.pop("use_full_index_names", False)}
 
-        logger.info("ES QUERY: rt_id is {}, query body is {}".format(rt_id, params))
+        query_body: str = json.dumps(params)
+        logger.info("ES QUERY: rt_id is {}, query body is {}".format(rt_id, query_body))
         with tracer.start_as_current_span("es_query") as span:
             span.set_attribute("bk.system", "es_query")
-            span.set_attribute("bk.es_query.statement", json.dumps(params))
-            return self.query_func(table_id=rt_id, query_body=params)
+            span.set_attribute("bk.es_query.statement", query_body)
+            return self.query_func(table_id=rt_id, query_body=params, **extra)

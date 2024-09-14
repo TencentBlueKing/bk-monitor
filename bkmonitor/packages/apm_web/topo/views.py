@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from apm_web.models import Application
 from apm_web.topo.resources import (
     DataTypeBarQueryResource,
+    GraphDiffResource,
     NodeEndpointsTopResource,
     NodeRelationDetailResource,
     NodeRelationResource,
@@ -20,7 +21,7 @@ from apm_web.topo.resources import (
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-
+from apm_web.decorators import user_visit_record
 
 class GlobalViewSet(ResourceViewSet):
     """
@@ -41,8 +42,9 @@ class GlobalViewSet(ResourceViewSet):
 
     resource_routes = [
         ResourceRoute("GET", DataTypeBarQueryResource, endpoint="bar"),
-        ResourceRoute("GET", TopoViewResource, endpoint="topo"),
-        ResourceRoute("GET", TopoLinkResource, endpoint="topo/link"),
+        ResourceRoute("GET", TopoViewResource, endpoint="topo",decorators=[user_visit_record,],),
+        ResourceRoute("POST", TopoLinkResource, endpoint="topo/link"),
+        ResourceRoute("GET", GraphDiffResource, endpoint="topo/diff"),
         ResourceRoute("GET", NodeEndpointsTopResource, endpoint="topo/node/endpoints"),
         ResourceRoute("GET", NodeRelationResource, endpoint="relation"),
         ResourceRoute("POST", NodeRelationDetailResource, endpoint="relation/detail"),

@@ -23,7 +23,9 @@ from apm_web.metric_handler import (
     ServiceFlowAvgDuration,
     ServiceFlowCount,
     ServiceFlowDurationBucket,
-    ServiceFlowErrorRate,
+    ServiceFlowDurationMax,
+    ServiceFlowDurationMin,
+    ServiceFlowErrorRateCaller,
 )
 from apm_web.topo.constants import (
     BarChartDataType,
@@ -32,6 +34,7 @@ from apm_web.topo.constants import (
     TopoEdgeDataType,
 )
 from apm_web.topo.handle.bar_query import LinkHelper
+from apm_web.utils import merge_dicts
 from constants.apm import OtlpKey
 from core.drf_resource import api
 from core.unit import load_unit
@@ -55,7 +58,7 @@ class Plugin:
 
 @dataclass
 class PrePlugin(Plugin):
-    """前置插件"""
+    """前置插件 (通常用来获取指标数据)"""
 
     metric: Type[MetricHandler] = None
     _runtime: dict = field(default_factory=dict)
@@ -64,6 +67,24 @@ class PrePlugin(Plugin):
     def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
         raise NotImplementedError
 
+    @classmethod
+    def diff(cls, attrs, other_attrs):
+        """获取对比信息"""
+
+        base_count = attrs.get(f"_{cls.id}", attrs.get(cls.id))
+        other_count = other_attrs.get(f"_{cls.id}", other_attrs.get(cls.id))
+
+        return {
+            cls.id: [
+                {
+                    "id": cls.id,
+                    "name": BarChartDataType.get_choice_label(cls.id),
+                    "base": base_count,
+                    "diff": other_count,
+                }
+            ]
+        }
+
 
 @dataclass
 class PostPlugin(Plugin):
@@ -71,16 +92,23 @@ class PostPlugin(Plugin):
 
     _runtime: dict = field(default_factory=dict)
 
-    def process(self, data_type, edge_data_type, node_or_edge_data, graph):
+    def process(self, *args, **kwargs):
         raise NotImplementedError
 
 
 class ValuesPluginMixin:
     def get_increase_values_mapping(self, **kwargs) -> Dict[Tuple[Union[str, Tuple]], Dict]:
-        m = self.metric(
-            **self._runtime,
+        params = {
+            "application": self._runtime["application"],
+            "start_time": self._runtime["start_time"],
+            "end_time": self._runtime["end_time"],
             **kwargs,
-        )
+        }
+
+        if self.type == GraphPluginType.ENDPOINT:
+            params = self.add_endpoint_query(params, self._runtime["endpoint_names"])
+
+        m = self.metric(**params)
         response = m.get_instance_values_mapping(ignore_keys=self._ignore_keys())
         res = defaultdict(lambda: defaultdict(int))
         for k, v in response.items():
@@ -89,10 +117,17 @@ class ValuesPluginMixin:
         return dict(res)
 
     def get_instance_values_mapping(self, **kwargs) -> Dict[Tuple[Union[str, Tuple]], Dict]:
-        if not self.metric:
-            raise ValueError(f"Plugin: {self.__name__} metric is empty")
+        params = {
+            "application": self._runtime["application"],
+            "start_time": self._runtime["start_time"],
+            "end_time": self._runtime["end_time"],
+            **kwargs,
+        }
 
-        metric = self.metric(**self._runtime, **kwargs)
+        if self.type == GraphPluginType.ENDPOINT:
+            params = self.add_endpoint_query(params, self._runtime["endpoint_names"])
+
+        metric = self.metric(**params)
         mappings = metric.get_instance_values_mapping(ignore_keys=self._ignore_keys())
         res = {}
         for k, v in mappings.items():
@@ -102,10 +137,17 @@ class ValuesPluginMixin:
         return res
 
     def get_instance_calculate_values_mapping(self, **kwargs):
-        if not self.metric:
-            raise ValueError(f"Plugin: {self.__name__} metric is empty")
+        params = {
+            "application": self._runtime["application"],
+            "start_time": self._runtime["start_time"],
+            "end_time": self._runtime["end_time"],
+            **kwargs,
+        }
 
-        metric = self.metric(**self._runtime, **kwargs)
+        if self.type == GraphPluginType.ENDPOINT:
+            params = self.add_endpoint_query(params, self._runtime["endpoint_names"])
+
+        metric = self.metric(**params)
         mappings = metric.get_instance_calculate_values_mapping(ignore_keys=self._ignore_keys())
         res = {}
         for k, v in mappings.items():
@@ -120,6 +162,27 @@ class ValuesPluginMixin:
     @classmethod
     def _ignore_keys(cls):
         return []
+
+    def add_endpoint_query(self, params, endpoint_names):
+        if "service_name" not in self._runtime or "endpoint_names" not in self._runtime:
+            raise ValueError(f"查询接口指标时需要指定服务名称、接口名称")
+        if any(i.get("condition") == "or" for i in params.get("where", [])):
+            raise ValueError(f"当前接口查询包含 or 条件 会导致查询结果错误")
+
+        return params
+
+
+class SimpleMetricInstanceValuesMixin(PrePlugin, ValuesPluginMixin):
+    def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
+        return self.get_instance_values_mapping()
+
+
+class DurationUnitMixin:
+    def __post_init__(self):
+        self.converter = load_unit("µs")
+
+    def _to_value(self, value):
+        return "".join([str(i) for i in self.converter.auto_convert(decimal=2, value=value)]) if value else None
 
 
 class PluginProvider:
@@ -173,8 +236,19 @@ class PluginProvider:
         return cls.Container(_plugins=common_plugin_instances + [plugin_instance])
 
     @classmethod
+    def endpoint_plugins(cls, runtime):
+        # 接口的插件是固定的
+        common_plugin_instances = [i(_runtime=runtime) for i in cls.common_mappings[GraphPluginType.ENDPOINT]]
+        plugin_instances = [i(_runtime=runtime) for i in cls.mappings[GraphPluginType.ENDPOINT].values()]
+        return cls.Container(_plugins=common_plugin_instances + plugin_instances)
+
+    @classmethod
     def get_node_plugin(cls, node_data_type, runtime):
         return cls.mappings[GraphPluginType.NODE][node_data_type](_runtime=runtime)
+
+    @classmethod
+    def list_endpoint_post_plugin(cls, runtime):
+        return cls.Container(_plugins=[i(_runtime=runtime) for i in cls.post_mappings[GraphPluginType.ENDPOINT_UI]])
 
 
 @PluginProvider.pre_plugin
@@ -198,7 +272,7 @@ class EdgeRequestCount(PrePlugin, ValuesPluginMixin):
 
 @PluginProvider.pre_plugin
 @dataclass
-class EdgeAvgDuration(PrePlugin, ValuesPluginMixin):
+class EdgeAvgDuration(DurationUnitMixin, ValuesPluginMixin, PrePlugin):
     id: str = TopoEdgeDataType.DURATION_AVG.value
     type: GraphPluginType = GraphPluginType.EDGE
     metric: Type[MetricHandler] = functools.partial(
@@ -206,19 +280,13 @@ class EdgeAvgDuration(PrePlugin, ValuesPluginMixin):
         group_by=["from_apm_service_name", "to_apm_service_name"],
     )
 
-    def __post_init__(self):
-        self.converter = load_unit("µs")
-
     def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
         return self.get_instance_values_mapping()
-
-    def _to_value(self, value):
-        return "".join([str(i) for i in self.converter.auto_convert(decimal=2, value=value)]) if value else None
 
 
 @PluginProvider.pre_plugin
 @dataclass
-class EdgeDurationP95(PrePlugin, ValuesPluginMixin):
+class EdgeDurationP95(DurationUnitMixin, ValuesPluginMixin, PrePlugin):
     id: str = TopoEdgeDataType.DURATION_P95.value
     type: GraphPluginType = GraphPluginType.EDGE
     metric: Type[MetricHandler] = functools.partial(
@@ -227,14 +295,8 @@ class EdgeDurationP95(PrePlugin, ValuesPluginMixin):
         functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.95"}]}],
     )
 
-    def __post_init__(self):
-        self.converter = load_unit("µs")
-
     def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
         return self.get_instance_values_mapping()
-
-    def _to_value(self, value):
-        return "".join([str(i) for i in self.converter.auto_convert(decimal=2, value=value)]) if value else None
 
     @classmethod
     def _ignore_keys(cls):
@@ -243,7 +305,7 @@ class EdgeDurationP95(PrePlugin, ValuesPluginMixin):
 
 @PluginProvider.pre_plugin
 @dataclass
-class EdgeDurationP99(PrePlugin, ValuesPluginMixin):
+class EdgeDurationP99(DurationUnitMixin, ValuesPluginMixin, PrePlugin):
     id: str = TopoEdgeDataType.DURATION_P99.value
     type: GraphPluginType = GraphPluginType.EDGE
     metric: Type[MetricHandler] = functools.partial(
@@ -252,14 +314,8 @@ class EdgeDurationP99(PrePlugin, ValuesPluginMixin):
         functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.99"}]}],
     )
 
-    def __post_init__(self):
-        self.converter = load_unit("µs")
-
     def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
         return self.get_instance_values_mapping()
-
-    def _to_value(self, value):
-        return "".join([str(i) for i in self.converter.auto_convert(decimal=2, value=value)]) if value else None
 
     @classmethod
     def _ignore_keys(cls):
@@ -274,7 +330,7 @@ class EdgeErrorRate(PrePlugin, ValuesPluginMixin):
     id: str = TopoEdgeDataType.ERROR_RATE.value
     type: GraphPluginType = GraphPluginType.EDGE
     metric: Type[MetricHandler] = functools.partial(
-        ServiceFlowErrorRate, group_by=["from_apm_service_name", "to_apm_service_name"]
+        ServiceFlowErrorRateCaller, group_by=["from_apm_service_name", "to_apm_service_name"]
     )
 
     def __post_init__(self):
@@ -315,7 +371,7 @@ class NodeRequestCount(PrePlugin, ValuesPluginMixin):
 @PluginProvider.pre_plugin
 @dataclass
 class NodeRequestCountCaller(PrePlugin, ValuesPluginMixin):
-    """节点主调请求量"""
+    """节点/接口 主调请求量"""
 
     id: str = BarChartDataType.REQUEST_COUNT_CALLER.value
     type: GraphPluginType = GraphPluginType.NODE
@@ -343,12 +399,74 @@ class NodeRequestCountCallee(PrePlugin, ValuesPluginMixin):
 
 @PluginProvider.pre_plugin
 @dataclass
-class NodeAvgDurationCaller(PrePlugin, ValuesPluginMixin):
+class NodeAvgDurationCaller(DurationUnitMixin, SimpleMetricInstanceValuesMixin):
     """节点主调平均耗时"""
 
     id: str = BarChartDataType.AVG_DURATION_CALLER.value
     type: GraphPluginType = GraphPluginType.NODE
     metric: Type[MetricHandler] = functools.partial(ServiceFlowAvgDuration, group_by=["from_apm_service_name"])
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class NodeAvgDurationCallee(DurationUnitMixin, SimpleMetricInstanceValuesMixin):
+    """节点被调平均耗时"""
+
+    id: str = BarChartDataType.AVG_DURATION_CALLEE.value
+    type: GraphPluginType = GraphPluginType.NODE
+    metric: Type[MetricHandler] = functools.partial(ServiceFlowAvgDuration, group_by=["to_apm_service_name"])
+
+
+@PluginProvider.pre_plugin  # noqa
+@dataclass
+class NodeDurationMaxCaller(DurationUnitMixin, SimpleMetricInstanceValuesMixin):
+    """节点主调响应耗时 MAX"""
+
+    id: str = BarChartDataType.DURATION_MAX_CALLER.value
+    type: GraphPluginType = GraphPluginType.NODE
+    metric: Type[MetricHandler] = functools.partial(
+        ServiceFlowDurationMax,
+        group_by=["from_apm_service_name"],
+    )
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class NodeDurationMaxCallee(DurationUnitMixin, SimpleMetricInstanceValuesMixin):
+    """节点被调响应耗时 MAX"""
+
+    id: str = BarChartDataType.DURATION_MAX_CALLEE.value
+    type: GraphPluginType = GraphPluginType.NODE
+    metric: Type[MetricHandler] = functools.partial(
+        ServiceFlowDurationMax,
+        group_by=["to_apm_service_name"],
+    )
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class NodeDurationMinCaller(DurationUnitMixin, SimpleMetricInstanceValuesMixin):
+    """节点主调响应耗时 MIN"""
+
+    id: str = BarChartDataType.DURATION_MIN_CALLER.value
+    type: GraphPluginType = GraphPluginType.NODE
+    metric: Type[MetricHandler] = functools.partial(
+        ServiceFlowDurationMin,
+        group_by=["from_apm_service_name"],
+    )
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class NodeDurationMinCallee(DurationUnitMixin, SimpleMetricInstanceValuesMixin):
+    """节点被调响应耗时 MIN"""
+
+    id: str = BarChartDataType.DURATION_MIN_CALLEE.value
+    type: GraphPluginType = GraphPluginType.NODE
+    metric: Type[MetricHandler] = functools.partial(
+        ServiceFlowDurationMin,
+        group_by=["to_apm_service_name"],
+    )
 
     def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
         return self.get_instance_values_mapping()
@@ -356,15 +474,110 @@ class NodeAvgDurationCaller(PrePlugin, ValuesPluginMixin):
 
 @PluginProvider.pre_plugin
 @dataclass
-class NodeAvgDurationCallee(PrePlugin, ValuesPluginMixin):
-    """节点被调平均耗时"""
+class NodeDurationP50Caller(DurationUnitMixin, SimpleMetricInstanceValuesMixin):
+    """节点主调响应耗时 P50"""
 
-    id: str = BarChartDataType.AVG_DURATION_CALLEE.value
+    id: str = BarChartDataType.DURATION_P50_CALLER.value
     type: GraphPluginType = GraphPluginType.NODE
-    metric: Type[MetricHandler] = functools.partial(ServiceFlowAvgDuration, group_by=["to_apm_service_name"])
+    metric: Type[MetricHandler] = functools.partial(
+        ServiceFlowDurationBucket,
+        group_by=["from_apm_service_name"],
+        functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.5"}]}],
+    )
 
-    def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
-        return self.get_instance_values_mapping()
+    @classmethod
+    def _ignore_keys(cls):
+        return ["le"]
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class NodeDurationP50Callee(DurationUnitMixin, SimpleMetricInstanceValuesMixin):
+    """节点被调响应耗时 P50"""
+
+    id: str = BarChartDataType.DURATION_P50_CALLEE.value
+    type: GraphPluginType = GraphPluginType.NODE
+    metric: Type[MetricHandler] = functools.partial(
+        ServiceFlowDurationBucket,
+        group_by=["to_apm_service_name"],
+        functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.5"}]}],
+    )
+
+    @classmethod
+    def _ignore_keys(cls):
+        return ["le"]
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class NodeDurationP95Caller(DurationUnitMixin, SimpleMetricInstanceValuesMixin):
+    """节点主调响应耗时 P95"""
+
+    id: str = BarChartDataType.DURATION_P95_CALLER.value
+    type: GraphPluginType = GraphPluginType.NODE
+    metric: Type[MetricHandler] = functools.partial(
+        ServiceFlowDurationBucket,
+        group_by=["from_apm_service_name"],
+        functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.95"}]}],
+    )
+
+    @classmethod
+    def _ignore_keys(cls):
+        return ["le"]
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class NodeDurationP95Callee(DurationUnitMixin, SimpleMetricInstanceValuesMixin):
+    """节点被调响应耗时 P95"""
+
+    id: str = BarChartDataType.DURATION_P95_CALLEE.value
+    type: GraphPluginType = GraphPluginType.NODE
+    metric: Type[MetricHandler] = functools.partial(
+        ServiceFlowDurationBucket,
+        group_by=["to_apm_service_name"],
+        functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.95"}]}],
+    )
+
+    @classmethod
+    def _ignore_keys(cls):
+        return ["le"]
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class NodeDurationP99Caller(DurationUnitMixin, SimpleMetricInstanceValuesMixin):
+    """节点主调响应耗时 P99"""
+
+    id: str = BarChartDataType.DURATION_P99_CALLER.value
+    type: GraphPluginType = GraphPluginType.NODE
+    metric: Type[MetricHandler] = functools.partial(
+        ServiceFlowDurationBucket,
+        group_by=["from_apm_service_name"],
+        functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.99"}]}],
+    )
+
+    @classmethod
+    def _ignore_keys(cls):
+        return ["le"]
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class NodeDurationP99Callee(DurationUnitMixin, SimpleMetricInstanceValuesMixin):
+    """节点被调响应耗时 P99"""
+
+    id: str = BarChartDataType.DURATION_P99_CALLEE.value
+    type: GraphPluginType = GraphPluginType.NODE
+    metric: Type[MetricHandler] = functools.partial(
+        ServiceFlowDurationBucket,
+        group_by=["to_apm_service_name"],
+        functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.99"}]}],
+    )
+
+    @classmethod
+    def _ignore_keys(cls):
+        return ["le"]
 
 
 @PluginProvider.pre_plugin
@@ -455,6 +668,163 @@ class NodeErrorRateFull(PrePlugin, ValuesPluginMixin):
             if k[2] == "true":
                 res[(k[0],)][self.id] += attrs[self.metric.metric_id]
         return res
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class NodeErrorCountCaller(PrePlugin, ValuesPluginMixin):
+    """节点主调错误数量 (不区分错误码)"""
+
+    id: str = BarChartDataType.ERROR_COUNT_CALLER.value
+    type: GraphPluginType = GraphPluginType.NODE
+    metric: Type[MetricHandler] = ServiceFlowCount
+
+    def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
+        return self.get_instance_values_mapping(
+            group_by=["from_apm_service_name"], where=[{"key": "from_span_error", "method": "eq", "value": ["true"]}]
+        )
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class NodeErrorCountCallee(PrePlugin, ValuesPluginMixin):
+    """节点被调错误数量 (不区分错误码)"""
+
+    id: str = BarChartDataType.ERROR_COUNT_CALLEE.value
+    type: GraphPluginType = GraphPluginType.NODE
+    metric: Type[MetricHandler] = ServiceFlowCount
+
+    def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
+        return self.get_instance_values_mapping(
+            group_by=["to_apm_service_name"], where=[{"key": "to_span_error", "method": "eq", "value": ["true"]}]
+        )
+
+
+class ErrorCountStatusCodeMixin(PrePlugin, ValuesPluginMixin):
+    status_code_key = "error_status_code_"
+
+    def _install(self, mode):
+        if mode == "caller":
+            group_key = "from_apm_service_name"
+            group_http_key = "from_span_http_status_code"
+            group_grpc_key = "from_span_grpc_status_code"
+            where_key = "from_span_error"
+        else:
+            group_key = "to_apm_service_name"
+            group_http_key = "to_span_http_status_code"
+            group_grpc_key = "to_span_grpc_status_code"
+            where_key = "to_span_error"
+
+        res = defaultdict(lambda: defaultdict(int))
+
+        # Step1: 查询总错误数
+        values_mapping = self.metric(
+            **self._runtime,
+            **{"group_by": [group_key], "where": [{"key": where_key, "method": "eq", "value": ["true"]}]},
+        ).get_instance_values_mapping()
+        for k, attrs in values_mapping.items():
+            res[k]["error_count"] += attrs[self.metric.metric_id]
+
+        # Step2: 查询 HTTP 错误数 根据状态码分类
+        res = merge_dicts(res, self.get_status_code_mapping(group_http_key, group_key, where_key, "http"))
+        # Step3: 查询 GRPC 错误数 根据状态码分类
+        res = merge_dicts(res, self.get_status_code_mapping(group_grpc_key, group_key, where_key, "grpc"))
+
+        return res
+
+    def get_status_code_mapping(self, group_specific_key, group_key, where_key, metric_key):
+        res = defaultdict(lambda: defaultdict(int))
+        values_mapping = self.metric(
+            **self._runtime,
+            **{
+                "group_by": [group_key, group_specific_key],
+                "where": [
+                    {"key": where_key, "method": "eq", "value": ["true"]},
+                    {"key": group_specific_key, "method": "neq", "value": [""]},
+                ],
+            },
+        ).get_instance_values_mapping()
+        for k, attrs in values_mapping.items():
+            service_name = k[0]
+            res[(service_name,)][f"{self.status_code_key}{metric_key}_{k[1]}"] += attrs[self.metric.metric_id]
+
+        return res
+
+    @classmethod
+    def diff(cls, attrs, other_attrs):
+        # 处理 Http 状态码
+        http_status_code_items_1 = {k for k in attrs if k.startswith(f"{cls.status_code_key}http_")}
+        http_status_code_items_2 = {k for k in other_attrs if k.startswith(f"{cls.status_code_key}http_")}
+        http_status_code_resp = []
+        for k in set(http_status_code_items_1) | set(http_status_code_items_2):
+            status_code = k.split(f"{cls.status_code_key}http_")[-1]
+            http_status_code_resp.append(
+                {
+                    "id": f"http_{status_code}",
+                    "name": _("错误数(HTTP: ") + status_code + ")",
+                    "base": attrs.get(k),
+                    "diff": other_attrs.get(k),
+                }
+            )
+
+        # 处理 Grpc 状态码
+        grpc_status_code_items_1 = {k for k in attrs if k.startswith(f"{cls.status_code_key}grpc_")}
+        grpc_status_code_items_2 = {k for k in other_attrs if k.startswith(f"{cls.status_code_key}grpc_")}
+        grpc_status_code_resp = []
+        for k in set(grpc_status_code_items_1) | set(grpc_status_code_items_2):
+            status_code = k.split(f"{cls.status_code_key}grpc_")[-1]
+            grpc_status_code_resp.append(
+                {
+                    "id": f"grpc_{status_code}",
+                    "name": _("错误数(GRPC: ") + status_code + ")",
+                    "base": attrs.get(k),
+                    "diff": other_attrs.get(k),
+                }
+            )
+        return {
+            cls.id: [
+                {
+                    "id": "error_count",
+                    "name": _("总错误数"),
+                    "base": attrs.get("error_count"),
+                    "diff": other_attrs.get("error_count"),
+                }
+            ]
+            + http_status_code_resp
+            + grpc_status_code_resp,
+        }
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class NodeErrorCountCallerMultiple(ErrorCountStatusCodeMixin):
+    """
+    节点主调错误量 (分为总错误、HTTP 错误、GRPC 错误)
+    [!] 此插件返回的数据格式与其他插件不一致
+    """
+
+    id: str = BarChartDataType.ERROR_COUNT_CALLER.value
+    type: GraphPluginType = GraphPluginType.NODE
+    metric: Type[MetricHandler] = ServiceFlowCount
+
+    def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
+        return self._install("caller")
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class NodeErrorCountCalleeMultiple(ErrorCountStatusCodeMixin):
+    """
+    节点被调错误量 (分为总错误、HTTP 错误、GRPC 错误)
+    [!] 此插件返回的数据格式与其他插件不一致
+    """
+
+    id: str = BarChartDataType.ERROR_COUNT_CALLEE.value
+    type: GraphPluginType = GraphPluginType.NODE
+    metric: Type[MetricHandler] = ServiceFlowCount
+
+    def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
+        return self._install("callee")
 
 
 @PluginProvider.pre_plugin
@@ -703,8 +1073,7 @@ class NodeApdex(PrePlugin):
         ).get_instance_calculate_values_mapping(
             ignore_keys=[OtlpKey.get_metric_dimension_key(OtlpKey.STATUS_CODE), Apdex.DIMENSION_KEY]
         )
-        for k, v in response.items():
-            res[k[0]] = v
+        res.update(response)
 
         # Step2: 计算组件节点的 Apdex
         component_response = self.metric(
@@ -729,7 +1098,7 @@ class NodeApdex(PrePlugin):
             system = k[1] or k[2]
             if system:
                 # 这里忽略了 topoNode 更变了拼接逻辑带来的影响(正常来说 topoNode 不会更变拼接逻辑)
-                res[f"{service}-{system}"] = v
+                res[(f"{service}-{system}",)] = v
 
         # Step3: 计算自定义服务节点的 Apdex
         custom_service_response = self.metric(
@@ -738,9 +1107,147 @@ class NodeApdex(PrePlugin):
             ignore_keys=[OtlpKey.get_metric_dimension_key(OtlpKey.STATUS_CODE), Apdex.DIMENSION_KEY]
         )
         for k, v in custom_service_response.items():
-            res[ServiceHandler.generate_remote_service_name(k[0])] = v
+            if k[0]:
+                res[(ServiceHandler.generate_remote_service_name(k[0]),)] = v
 
         return res
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class EndpointRequestCountCaller(PrePlugin, ValuesPluginMixin):
+    """接口主调请求量"""
+
+    id: str = BarChartDataType.REQUEST_COUNT_CALLER.value
+    type: GraphPluginType = GraphPluginType.ENDPOINT
+    metric: Type[MetricHandler] = functools.partial(ServiceFlowCount, group_by=["from_span_name"])
+
+    def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
+        return self.get_increase_values_mapping()
+
+    def add_endpoint_query(self, params, endpoint_name):
+        params = super(EndpointRequestCountCaller, self).add_endpoint_query(params, endpoint_name)
+
+        params.setdefault("where", []).extend(
+            [
+                {"key": "from_apm_service_name", "method": "eq", "value": [self._runtime["service_name"]]},
+                {"key": "from_span_name", "method": "eq", "value": self._runtime["endpoint_names"]},
+            ]
+        )
+        return params
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class EndpointRequestCountCallee(PrePlugin, ValuesPluginMixin):
+    """接口被调请求量"""
+
+    id: str = BarChartDataType.REQUEST_COUNT_CALLEE.value
+    type: GraphPluginType = GraphPluginType.ENDPOINT
+    metric: Type[MetricHandler] = functools.partial(ServiceFlowCount, group_by=["to_span_name"])
+
+    def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
+        return self.get_increase_values_mapping()
+
+    def add_endpoint_query(self, params, endpoint_name):
+        params = super(EndpointRequestCountCallee, self).add_endpoint_query(params, endpoint_name)
+        params.setdefault("where", []).extend(
+            [
+                {"key": "to_apm_service_name", "method": "eq", "value": [self._runtime["service_name"]]},
+                {"key": "to_span_name", "method": "eq", "value": self._runtime["endpoint_names"]},
+            ]
+        )
+        return params
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class EndpointAvgDurationCaller(DurationUnitMixin, SimpleMetricInstanceValuesMixin):
+    """接口主调平均耗时"""
+
+    id: str = BarChartDataType.AVG_DURATION_CALLER.value
+    type: GraphPluginType = GraphPluginType.ENDPOINT
+    metric: Type[MetricHandler] = functools.partial(ServiceFlowAvgDuration, group_by=["from_span_name"])
+
+    def add_endpoint_query(self, params, endpoint_name):
+        params = super(EndpointAvgDurationCaller, self).add_endpoint_query(params, endpoint_name)
+        params.setdefault("where", []).extend(
+            [
+                {"key": "from_apm_service_name", "method": "eq", "value": [self._runtime["service_name"]]},
+                {"key": "from_span_name", "method": "eq", "value": self._runtime["endpoint_names"]},
+            ]
+        )
+        return params
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class EndpointAvgDurationCallee(DurationUnitMixin, SimpleMetricInstanceValuesMixin):
+    """接口被调平均耗时"""
+
+    id: str = BarChartDataType.AVG_DURATION_CALLEE.value
+    type: GraphPluginType = GraphPluginType.ENDPOINT
+    metric: Type[MetricHandler] = functools.partial(ServiceFlowAvgDuration, group_by=["to_span_name"])
+
+    def add_endpoint_query(self, params, endpoint_name):
+        params = super(EndpointAvgDurationCallee, self).add_endpoint_query(params, endpoint_name)
+        params.setdefault("where", []).extend(
+            [
+                {"key": "to_apm_service_name", "method": "eq", "value": [self._runtime["service_name"]]},
+                {"key": "to_span_name", "method": "eq", "value": self._runtime["endpoint_names"]},
+            ]
+        )
+        return params
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class EndpointErrorCountCaller(PrePlugin, ValuesPluginMixin):
+    """接口主调错误量"""
+
+    id: str = BarChartDataType.ERROR_COUNT_CALLER.value
+    type: GraphPluginType = GraphPluginType.ENDPOINT
+    metric: Type[MetricHandler] = ServiceFlowCount
+
+    def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
+        return self.get_instance_values_mapping(
+            group_by=["from_span_name"], where=[{"key": "from_span_error", "method": "eq", "value": ["true"]}]
+        )
+
+    def add_endpoint_query(self, params, endpoint_name):
+        params = super(EndpointErrorCountCaller, self).add_endpoint_query(params, endpoint_name)
+        params.setdefault("where", []).extend(
+            [
+                {"key": "from_apm_service_name", "method": "eq", "value": [self._runtime["service_name"]]},
+                {"key": "from_span_name", "method": "eq", "value": self._runtime["endpoint_names"]},
+            ]
+        )
+        return params
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class EndpointErrorCountCallee(PrePlugin, ValuesPluginMixin):
+    """接口被调错误量"""
+
+    id: str = BarChartDataType.ERROR_COUNT_CALLEE.value
+    type: GraphPluginType = GraphPluginType.ENDPOINT
+    metric: Type[MetricHandler] = ServiceFlowCount
+
+    def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
+        return self.get_instance_values_mapping(
+            group_by=["to_span_name"], where=[{"key": "to_span_error", "method": "eq", "value": ["true"]}]
+        )
+
+    def add_endpoint_query(self, params, endpoint_name):
+        params = super(EndpointErrorCountCallee, self).add_endpoint_query(params, endpoint_name)
+        params.setdefault("where", []).extend(
+            [
+                {"key": "to_apm_service_name", "method": "eq", "value": [self._runtime["service_name"]]},
+                {"key": "to_span_name", "method": "eq", "value": self._runtime["endpoint_names"]},
+            ]
+        )
+        return params
 
 
 @PluginProvider.post_plugin
@@ -777,6 +1284,8 @@ class BreadthEdge(PostPlugin):
         sorted_values = sorted(set(metric_values))
         position = sorted_values.index(value)
         total = len(sorted_values)
+        if total <= 1:
+            return self._min_width
 
         return round((self._min_width + (self._max_width - self._min_width) * (position / (total - 1))), 2)
 
@@ -787,7 +1296,7 @@ class NodeColor(PostPlugin):
     """
     节点边缘颜色
     通过: apdex / 告警 alert / 主调错误率 error_rate_caller / 被调错误率 error_rate_callee / 错误率 error_rate
-
+    此插件依赖 NodeHaveData 插件
     """
 
     id: str = "color"
@@ -801,6 +1310,10 @@ class NodeColor(PostPlugin):
         WHITE = "#DCDEE5"
 
     def process(self, data_type, edge_data_type, node_data, graph):
+        # 如果节点无数据 那么颜色就是灰色
+        if not node_data.get(NodeHaveData.id):
+            node_data[self.id] = self.Color.WHITE
+            return
 
         if data_type in [
             BarChartDataType.ErrorRate.value,
@@ -810,7 +1323,12 @@ class NodeColor(PostPlugin):
             value = node_data.get(data_type)
 
             if value is None:
-                node_data[self.id] = self.Color.WHITE
+                # 为 None 有两种情况 一种为无数据 一种为无异常
+                request_count = node_data.get(NodeRequestCount.id)
+                if request_count:
+                    node_data[self.id] = self.Color.GREEN
+                else:
+                    node_data[self.id] = self.Color.WHITE
             elif value == 0:
                 node_data[self.id] = self.Color.GREEN
             elif value < 0.1:
@@ -834,7 +1352,6 @@ class NodeColor(PostPlugin):
 
             node_data[self.id] = color
         elif data_type == BarChartDataType.Apdex.value:
-
             apdex = node_data.get(NodeApdex.metric.metric_id, None)
             if not apdex:
                 color = self.Color.WHITE
@@ -895,6 +1412,38 @@ class NodeSize(PostPlugin):
 
 @PluginProvider.post_plugin
 @dataclass
+class EndpointSize(PostPlugin):
+    """
+    接口大小
+    只跟请求量有关
+    """
+
+    id: str = "size"
+    type: GraphPluginType = GraphPluginType.ENDPOINT_UI
+
+    class Size:
+        NO_DATA = 20
+        SMALL = 20
+        MEDIUM = 30
+        LARGE = 36
+
+    def process(self, endpoint_data):
+        caller_value = endpoint_data.get(EndpointRequestCountCaller.id, 0)
+        callee_value = endpoint_data.get(EndpointRequestCountCallee.id, 0)
+        value = caller_value or 0 + callee_value or 0
+
+        if value == 0:
+            endpoint_data[self.id] = self.Size.NO_DATA
+        elif value < 200:
+            endpoint_data[self.id] = self.Size.SMALL
+        elif value < 1000:
+            endpoint_data[self.id] = self.Size.MEDIUM
+        else:
+            endpoint_data[self.id] = self.Size.LARGE
+
+
+@PluginProvider.post_plugin
+@dataclass
 class NodeMenu(PostPlugin):
     """节点菜单"""
 
@@ -933,38 +1482,106 @@ class NodeMenu(PostPlugin):
                     "name": _("资源拓扑"),
                     "action": "resource_drilling",
                 },
-                {
-                    "name": _("查看日志"),
-                    "action": "self",
-                    "type": "link",
-                    "url": LinkHelper.get_service_log_tab_link(
-                        self._runtime["application"].bk_biz_id,
-                        self._runtime["application"].app_name,
-                        node_name,
-                        self._runtime["start_time"],
-                        self._runtime["end_time"],
-                        views=self.views,
-                    ),
-                },
-                {
-                    "name": _("查看服务"),
-                    "action": "self",
-                    "type": "link",
-                    "url": LinkHelper.get_service_overview_tab_link(
-                        self._runtime["application"].bk_biz_id,
-                        self._runtime["application"].app_name,
-                        node_name,
-                        self._runtime["start_time"],
-                        self._runtime["end_time"],
-                        views=self.views,
-                    ),
-                },
             ]
+
+            log_link = LinkHelper.get_service_log_tab_link(
+                self._runtime["application"].bk_biz_id,
+                self._runtime["application"].app_name,
+                node_name,
+                self._runtime["start_time"],
+                self._runtime["end_time"],
+                views=self.views,
+            )
+            if not self._runtime.get("service_name"):
+                # 如果没有服务名称的过滤 增加菜单
+                node_data[self.id].append(
+                    {
+                        "name": _("查看服务"),
+                        "action": "self",
+                        "type": "link",
+                        "url": LinkHelper.get_service_overview_tab_link(
+                            self._runtime["application"].bk_biz_id,
+                            self._runtime["application"].app_name,
+                            node_name,
+                            self._runtime["start_time"],
+                            self._runtime["end_time"],
+                            views=self.views,
+                        ),
+                    },
+                )
+                if log_link:
+                    node_data[self.id].append(
+                        {
+                            "name": _("查看日志"),
+                            "action": "self",
+                            "type": "link",
+                            "url": LinkHelper.get_service_log_tab_link(
+                                self._runtime["application"].bk_biz_id,
+                                self._runtime["application"].app_name,
+                                node_name,
+                                self._runtime["start_time"],
+                                self._runtime["end_time"],
+                                views=self.views,
+                            ),
+                        },
+                    )
+
+
+class HoverTipsMixin:
+    @classmethod
+    def add_tips(cls, key, data):
+        # 将节点数据归类在 tips 目录下
+        duration_converter = functools.partial(load_unit("µs").auto_convert, decimal=2)
+
+        duration_caller = data.pop(f"_{BarChartDataType.AVG_DURATION_CALLER.value}", None)
+        duration_callee = data.pop(f"_{BarChartDataType.AVG_DURATION_CALLEE.value}", None)
+
+        error_count_caller = data.pop(BarChartDataType.ERROR_COUNT_CALLER.value, None)
+        error_count_callee = data.pop(BarChartDataType.ERROR_COUNT_CALLEE.value, None)
+
+        def _join(items):
+            res = ""
+            for i in items:
+                res += str(i)
+            return res
+
+        data[key] = [
+            {
+                "group": "request_count",
+                "name": _("主调调用量"),
+                "value": data.pop(BarChartDataType.REQUEST_COUNT_CALLER.value, "--"),
+            },
+            {
+                "group": "duration",
+                "name": _("主调平均耗时"),
+                "value": _join(duration_converter(value=duration_caller)) if duration_caller is not None else "--",
+            },
+            {
+                "group": "error",
+                "name": _("主调错误量"),
+                "value": error_count_caller if error_count_caller is not None else "--",
+            },
+            {
+                "group": "request_count",
+                "name": _("被调调用量"),
+                "value": data.pop(BarChartDataType.REQUEST_COUNT_CALLEE.value, "--"),
+            },
+            {
+                "group": "duration",
+                "name": _("被调平均耗时"),
+                "value": _join(duration_converter(value=duration_callee)) if duration_callee is not None else "--",
+            },
+            {
+                "group": "error",
+                "name": _("被调错误量"),
+                "value": error_count_callee if error_count_callee is not None else "--",
+            },
+        ]
 
 
 @PluginProvider.post_plugin
 @dataclass
-class NodeTips(PostPlugin):
+class NodeTips(PostPlugin, HoverTipsMixin):
     """节点 Hover 信息"""
 
     id: str = "node_tips"
@@ -973,56 +1590,11 @@ class NodeTips(PostPlugin):
     def process(self, data_type, edge_data_type, node_data, graph):
         """
         获取指标数据
-        主调调用量 、 主调平均耗时 、 主调错误率
-        被调调用量 、 被调平均耗时 、 被调错误率
+        主调调用量 、 主调平均耗时 、 主调错误量
+        被调调用量 、 被调平均耗时 、 被调错误量
         实例数量
         """
-        # 将节点数据归类在 tips 目录下
-        duration_converter = functools.partial(load_unit("µs").auto_convert, decimal=2)
-        percent_converter = functools.partial(load_unit("percent").auto_convert, decimal=2)
-
-        duration_caller = node_data.pop(BarChartDataType.AVG_DURATION_CALLER.value, None)
-        duration_callee = node_data.pop(BarChartDataType.AVG_DURATION_CALLEE.value, None)
-
-        error_rate_caller = node_data.pop(BarChartDataType.ErrorRateCaller.value, None)
-        error_rate_callee = node_data.pop(BarChartDataType.ErrorRateCallee.value, None)
-
-        def _join(items):
-            res = ""
-            for i in items:
-                res += str(i)
-            return res
-
-        node_data[self.id] = [
-            {
-                "name": _("主调调用量"),
-                "value": node_data.pop(BarChartDataType.REQUEST_COUNT_CALLER.value, "--"),
-            },
-            {
-                "name": _("主调平均耗时"),
-                "value": _join(duration_converter(value=duration_caller)) if duration_caller else "--",
-            },
-            {
-                "name": _("主调错误率"),
-                "value": _join(percent_converter(value=error_rate_caller * 100)) if error_rate_caller else "--",
-            },
-            {
-                "name": _("被调调用量"),
-                "value": node_data.pop(BarChartDataType.REQUEST_COUNT_CALLEE.value, "--"),
-            },
-            {
-                "name": _("被调平均耗时"),
-                "value": _join(duration_converter(value=duration_callee)) if duration_callee else "--",
-            },
-            {
-                "name": _("被调错误率"),
-                "value": _join(percent_converter(value=error_rate_callee * 100)) if error_rate_callee else "--",
-            },
-            {
-                "name": _("实例数量"),
-                "value": node_data.pop(BarChartDataType.INSTANCE_COUNT.value, "--"),
-            },
-        ]
+        self.add_tips(self.id, node_data)
 
         if data_type == BarChartDataType.Alert.value:
             count = sum(
@@ -1041,6 +1613,23 @@ class NodeTips(PostPlugin):
                 )
 
 
+@PluginProvider.post_plugin
+@dataclass
+class EndpointTips(PostPlugin, HoverTipsMixin):
+    """接口 Hover 信息"""
+
+    id: str = "endpoint_tips"
+    type: GraphPluginType = GraphPluginType.ENDPOINT_UI
+
+    def process(self, endpoint_data):
+        """
+        获取指标数据
+        主调调用量 、 主调平均耗时 、 主调错误率
+        被调调用量 、 被调平均耗时 、 被调错误率
+        """
+        self.add_tips(self.id, endpoint_data)
+
+
 class ViewConverter:
     _extra_pre_plugins = PluginProvider.Container(_plugins=[])
     _extra_pre_convert_plugins = PluginProvider.Container(_plugins=[])
@@ -1054,9 +1643,8 @@ class ViewConverter:
     def convert(self, graph):
         raise NotImplementedError
 
-    @classmethod
-    def extra_pre_plugins(cls, runtime):
-        return PluginProvider.Container(_plugins=[i(_runtime=runtime) for i in cls._extra_pre_plugins])
+    def extra_pre_plugins(self, runtime):
+        return PluginProvider.Container(_plugins=[i(_runtime=runtime) for i in self._extra_pre_plugins])
 
     @classmethod
     def extra_pre_convert_plugins(cls, runtime):
@@ -1068,6 +1656,8 @@ class ViewConverter:
             return TopoViewConverter(bk_biz_id, app_name, runtime, filter_params=filter_params)
         elif data_type == GraphViewType.TABLE.value:
             return TableViewConverter(bk_biz_id, app_name, runtime, filter_params=filter_params)
+        elif data_type == GraphViewType.TOPO_DIFF.value:
+            return TopoDiffDataConverter(bk_biz_id, app_name, runtime, filter_params=filter_params)
         raise ValueError(f"Unsupported dataType: {data_type}")
 
 
@@ -1079,8 +1669,9 @@ class TopoViewConverter(ViewConverter):
             NodeRequestCountCallee,
             NodeAvgDurationCaller,
             NodeAvgDurationCallee,
-            NodeErrorRateCaller,
-            NodeErrorRateCallee,
+            NodeErrorCountCaller,
+            NodeErrorCountCallee,
+            NodeApdex,
         ]
     )
     _extra_pre_convert_plugins = PluginProvider.Container(
@@ -1094,6 +1685,46 @@ class TopoViewConverter(ViewConverter):
             NodeTips,
         ]
     )
+
+    def convert(self, graph):
+        nodes, edges = FilterChain.new(self.filter_params).filter(graph)
+
+        return {
+            "nodes": [attrs for _, attrs in nodes],
+            "edges": [{**attrs, "from_name": f, "to_name": t} for f, t, attrs in edges],
+        }
+
+
+class TopoDiffDataConverter(ViewConverter):
+    """拓扑图对比模式转换器"""
+
+    _caller_plugins = [
+        NodeErrorCountCallerMultiple,
+        NodeDurationMaxCaller,
+        NodeDurationMinCaller,
+        NodeDurationP50Caller,
+        NodeDurationP99Caller,
+        NodeDurationP95Caller,
+        NodeAvgDurationCaller,
+    ]
+
+    _callee_plugins = [
+        NodeErrorCountCalleeMultiple,
+        NodeDurationMaxCallee,
+        NodeDurationMinCallee,
+        NodeDurationP50Callee,
+        NodeDurationP99Callee,
+        NodeDurationP95Callee,
+        NodeAvgDurationCallee,
+    ]
+
+    @property
+    def _extra_pre_plugins(self):
+        if self.runtime.get("option_kind") == "caller":
+            return self._caller_plugins
+        if self.runtime.get("option_kind") == "callee":
+            return self._callee_plugins
+        return self._caller_plugins + self._callee_plugins
 
     def convert(self, graph):
         nodes, edges = FilterChain.new(self.filter_params).filter(graph)
@@ -1120,6 +1751,7 @@ class TableViewConverter(ViewConverter):
                 "id": "service",
                 "name": "服务名称",
                 "type": "link",
+                "disabled": True,
             },
             {
                 "id": "type",
@@ -1130,11 +1762,13 @@ class TableViewConverter(ViewConverter):
                     {"text": "主调", "value": "caller"},
                     {"text": "被调", "value": "callee"},
                 ],
+                "disabled": True,
             },
             {
                 "id": "other_service",
                 "name": "调用服务",
                 "type": "string",
+                "disabled": True,
             },
             {
                 "id": "request_count",
@@ -1154,7 +1788,7 @@ class TableViewConverter(ViewConverter):
                 "sortable": "custom",
                 "type": "number",
             },
-            {"id": "operators", "name": "操作", "type": "more_operate"},
+            {"id": "operators", "name": "操作", "type": "more_operate", "width": 80, "disabled": True},
         ]
 
     def __init__(self, *args, **kwargs):
@@ -1336,13 +1970,17 @@ class ServiceNameFilter(Filter):
         if not filter_service_name:
             return nodes, edges
 
+        valid_nodes = set()
         new_nodes, new_edges = [], []
-        for node_id, attrs in nodes:
-            if node_id == filter_service_name:
-                new_nodes.append((node_id, attrs))
 
         for k, v, attrs in edges:
             if k == filter_service_name or v == filter_service_name:
                 new_edges.append((k, v, attrs))
+                valid_nodes.add(k)
+                valid_nodes.add(v)
+
+        for node_id, attrs in nodes:
+            if node_id in valid_nodes:
+                new_nodes.append((node_id, attrs))
 
         return new_nodes, new_edges
