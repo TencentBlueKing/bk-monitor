@@ -79,6 +79,8 @@ export default class FieldFilterComp extends tsc<object> {
     return this.totalFields.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
   }
   get statisticalFieldsData() {
+    // 这里避免初始化的时候数据已经更新，但视图却未更新，加入请求完毕的loading进行监听
+    this.$store.state.indexSetQueryResult.is_loading;
     return this.$store.state.retrieveDropdownData;
   }
 

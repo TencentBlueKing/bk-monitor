@@ -42,7 +42,7 @@ interface IProps {
 const { $i18n } = window.mainComponent;
 
 @Component
-export default class QuickOpenCluster extends tsc<IProps> {
+export default class FilterRule extends tsc<IProps> {
   @ModelSync('value', 'change', { type: Array }) localFilterRule!: Array<any>;
   @Prop({ type: Array, required: true }) totalFields: Array<any>;
   @Prop({ type: Array, required: true }) datePickerValue: Array<any>;

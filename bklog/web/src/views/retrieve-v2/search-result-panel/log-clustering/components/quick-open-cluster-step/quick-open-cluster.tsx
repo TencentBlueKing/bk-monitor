@@ -45,7 +45,6 @@ const { $i18n } = window.mainComponent;
 @Component
 export default class QuickOpenCluster extends tsc<IProps> {
   @Prop({ type: Array, required: true }) totalFields: Array<any>;
-  @Prop({ type: Array, required: true }) datePickerValue: Array<any>;
   @Prop({ type: Object, required: true }) retrieveParams: object;
   @Ref('quickClusterFrom') quickClusterFromRef: From;
   @Ref('filterRule') filterRuleRef;
@@ -83,6 +82,11 @@ export default class QuickOpenCluster extends tsc<IProps> {
 
   get bkBizId() {
     return this.$store.state.bkBizId;
+  }
+
+  get datePickerValue() {
+    const { start_time = 'now-15m', end_time = 'now' } = this.$store.state.indexItem;
+    return [start_time, end_time];
   }
 
   @Emit('cluster-created')

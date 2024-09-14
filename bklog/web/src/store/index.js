@@ -934,10 +934,12 @@ const store = new Vuex.Store({
                 ? indexSetQueryResult.origin_log_list.concat(originLogList)
                 : originLogList;
               const catchUnionBeginList = parseBigNumberList(rsolvedData?.union_configs || []);
-              state.tookTime = Number(data?.took || 0);
+              state.tookTime = payload.isPagination
+                ? state.tookTime + Number(data?.took || 0)
+                : Number(data?.took || 0);
               // 更新页数
               commit('updateIndexItem', { begin: payload.isPagination ? begin : 0 });
-              commit('updateSqlQueryFieldList', logList);
+              commit('updateSqlQueryFieldList', rsolvedData.list);
               commit('updateIndexItem', { catchUnionBeginList });
               commit('updateIndexSetQueryResult', rsolvedData);
               commit('updateIsSetDefaultTableColumn');

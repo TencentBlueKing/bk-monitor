@@ -199,7 +199,7 @@
     }
     // 字段输入完毕【name 】
     if (/^\s*(?<field>[\w.]+)\s*$/.test(lastFragment)) {
-      showColonOperator(inputField);
+      showColonOperator(lastFragment);
       return;
     }
 

@@ -112,9 +112,8 @@ export default class AggChart extends tsc<object> {
     return `${showPercentageStr}%`;
   }
   addCondition(operator, value) {
-    console.log('add-condition', operator, value);
     if (this.fieldType === '__virtual__') return;
-    // this.addFilterCondition(this.fieldName, operator, value);
+    this.$store.dispatch('setQueryCondition', { field: this.fieldName, operator, value });
   }
   getIconPopover(operator, value) {
     if (this.fieldType === '__virtual__') return this.$t('该字段为平台补充 不可检索');
