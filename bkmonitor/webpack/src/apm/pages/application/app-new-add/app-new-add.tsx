@@ -108,7 +108,7 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
       {
         validator: val => /^[a-z0-9_-]+$/.test(val),
         message: window.i18n.t('仅支持小写字母、数字、_- 中任意一条件即可'),
-        trigger: 'change',
+        trigger: ['change', 'blur'],
       },
     ],
     name: [

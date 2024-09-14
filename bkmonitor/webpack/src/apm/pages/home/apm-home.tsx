@@ -27,28 +27,24 @@
 import { Component, Provide, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import SearchSelect from '@blueking/search-select-v3/vue2';
 import { deleteApplication, listApplication, listApplicationAsync } from 'monitor-api/modules/apm_meta';
 import { serviceList, serviceListAsync } from 'monitor-api/modules/apm_metric';
 import { Debounce } from 'monitor-common/utils/utils';
-import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import GuidePage from 'monitor-pc/components/guide-page/guide-page';
-import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import AlarmTools from 'monitor-pc/pages/monitor-k8s/components/alarm-tools';
-import CommonTable, { type ICommonTableProps } from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
-import FilterPanel from 'monitor-pc/pages/strategy-config/strategy-config-list/filter-panel';
-import OperateOptions, { type IOperateOption } from 'monitor-pc/pages/uptime-check/components/operate-options';
+import OperateOptions from 'monitor-pc/pages/uptime-check/components/operate-options';
 import introduceData from 'monitor-pc/router/space';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
 import authorityStore from '../../store/modules/authority';
 import AppNewAdd from '../application/app-new-add/app-new-add';
+import AppHomeList from './components/apm-home-list';
 import NavBar from './nav-bar';
 import ApmHomeSkeleton from './skeleton/apm-home-skeleton';
-import { SEARCH_KEYS } from './utils';
+import { SEARCH_KEYS, charColor, OPERATE_OPTIONS } from './utils';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { IFilterDict, INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
@@ -56,15 +52,7 @@ import type { IFilterDict, INavItem } from 'monitor-pc/pages/monitor-k8s/typings
 import './apm-home.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
-const charColor = (str: string) => {
-  const h = str.charCodeAt(0) % 360;
-  const s = '50%';
-  const l = '50%';
-  const color = `hsl(${h}, ${s}, ${l})`;
-  return color;
-};
-
-interface IAppListItem {
+export interface IAppListItem {
   isExpan: boolean;
   app_alias: {
     value: string;
@@ -95,11 +83,7 @@ interface IAppListItem {
   data_status: string;
 }
 
-@Component({
-  // directives: {
-  //   monitorDrag,
-  // },
-})
+@Component({})
 export default class AppList extends tsc<object> {
   @Ref() mainResize: any;
   routeList: INavItem[] = [
@@ -146,34 +130,6 @@ export default class AppList extends tsc<object> {
   isShowAppAdd = false;
 
   searchQuery = '';
-
-  operateOptions: IOperateOption[] = [
-    {
-      id: 'appDetails',
-      name: window.i18n.t('应用详情'),
-      authority: true,
-    },
-    {
-      id: 'appConfig',
-      name: window.i18n.t('应用配置'),
-      authority: true,
-    },
-    {
-      id: 'accessService',
-      name: window.i18n.t('服务接入'),
-      authority: true,
-    },
-    {
-      id: 'noDataAlarm',
-      name: window.i18n.t('新增无数据告警'),
-      authority: true,
-    },
-    {
-      id: 'delete',
-      name: window.i18n.t('删除'),
-      authority: true,
-    },
-  ];
 
   filterList = [
     {
@@ -281,12 +237,6 @@ export default class AppList extends tsc<object> {
 
   /* 搜索应用名/ID */
   handleRemoteMethod() {}
-
-  /* 筛选展开收起 */
-  handleHidePanel() {
-    this.showFilterPanel = !this.showFilterPanel;
-    this.mainResize.setCollapse();
-  }
 
   /**
    * @description 动态计算当前每页数量
@@ -680,62 +630,6 @@ export default class AppList extends tsc<object> {
   }
 
   /**
-   * @description 收藏
-   * @param val
-   * @param row
-   */
-  handleCollect(val, item: IAppListItem) {
-    const apis = val.api.split('.');
-    (this as any).$api[apis[0]][apis[1]](val.params).then(() => {
-      item.tableData.paginationData.current = 1;
-      item.tableData.paginationData.isEnd = false;
-      this.getServiceData([item.application_id], false, true);
-    });
-  }
-
-  /**
-   * @description 表格滚动到底部
-   * @param row
-   */
-  handleScrollEnd(item: IAppListItem) {
-    item.tableData.paginationData.current += 1;
-    this.getServiceData([item.application_id], true);
-  }
-
-  /**
-   * @description 表格排序
-   * @param param0
-   * @param item
-   */
-  handleSortChange({ prop, order }, item: IAppListItem) {
-    switch (order) {
-      case 'ascending':
-        item.tableSortKey = prop;
-        break;
-      case 'descending':
-        item.tableSortKey = `-${prop}`;
-        break;
-      default:
-        item.tableSortKey = undefined;
-    }
-    item.tableData.paginationData.current = 1;
-    item.tableData.paginationData.isEnd = false;
-    this.getServiceData([item.application_id], false, true);
-  }
-
-  /**
-   * @description 表格筛选
-   * @param filters
-   * @param item
-   */
-  handleFilterChange(filters: IFilterDict, item: IAppListItem) {
-    item.tableFilters = filters;
-    item.tableData.paginationData.current = 1;
-    item.tableData.paginationData.isEnd = false;
-    this.getServiceData([item.application_id], false, true);
-  }
-
-  /**
    * @description 条件搜索
    * @param value
    */
@@ -839,7 +733,7 @@ export default class AppList extends tsc<object> {
                         class='operate'
                         options={{
                           outside: [],
-                          popover: this.operateOptions.map(o => ({
+                          popover: OPERATE_OPTIONS.map(o => ({
                             ...o,
                           })),
                         }}
@@ -863,161 +757,13 @@ export default class AppList extends tsc<object> {
             slot='main'
             onScroll={this.handleScroll}
           >
-            <div class='header'>
-              <div class='header-left'>{this.itemRow.app_alias?.value}</div>
-              <div class='header-right'>
-                <bk-button
-                  class='mr-8'
-                  onClick={(event: Event) => {
-                    event.stopPropagation();
-                    this.linkToOverview(this.itemRow);
-                  }}
-                >
-                  {this.$t('应用详情')}
-                </bk-button>
-                <bk-button
-                  onClick={(event: Event) => {
-                    event.stopPropagation();
-                    this.handleToConfig(this.itemRow);
-                  }}
-                >
-                  {this.$t('应用配置')}
-                </bk-button>
-              </div>
-            </div>
-            <div class='main'>
-              <bk-resize-layout
-                ref='mainResize'
-                class='main-left'
-                border={false}
-                initial-divide={200}
-                collapsible
-              >
-                <div
-                  class={['main-left-filter']}
-                  slot='aside'
-                >
-                  <FilterPanel
-                    data={this.filterList}
-                    show={this.showFilterPanel}
-                    {...{
-                      on: {
-                        'update:show': val => {
-                          this.showFilterPanel = val;
-                        },
-                      },
-                    }}
-                  >
-                    <div
-                      class='filter-panel-header'
-                      slot='header'
-                    >
-                      <span class='title'>{this.$t('筛选')}</span>
-                      <span
-                        class='folding'
-                        onClick={this.handleHidePanel}
-                      >
-                        <i class='icon-monitor icon-double-up' />
-                      </span>
-                    </div>
-                  </FilterPanel>
-                </div>
-                <div
-                  class='main-left-table'
-                  slot='main'
-                >
-                  {this.showGuidePage ? (
-                    <GuidePage
-                      guideData={this.apmIntroduceData}
-                      guideId='apm-home'
-                    />
-                  ) : (
-                    <div class='app-list-content'>
-                      <div class='app-list-content-top'>
-                        <bk-button
-                          size='small'
-                          theme='primary'
-                          outline
-                        >
-                          <span class='app-add-btn'>
-                            <i class='icon-monitor icon-mc-add app-add-icon' />
-                            <span>{this.$t('接入服务')}</span>
-                          </span>
-                        </bk-button>
-                        <div class='app-list-search'>
-                          <SearchSelect
-                            data={this.conditionListFilter()}
-                            modelValue={this.searchCondition}
-                            placeholder={this.$t('请输入服务搜索')}
-                            onChange={this.handleSearchCondition}
-                          />
-                        </div>
-                      </div>
-                      <div class='app-right-content'>
-                        <div class='app-list-content-data'>
-                          <div
-                            key={this.itemRow.application_id}
-                            class='item-expan-wrap'
-                          >
-                            {this.itemRow.isExpan && (
-                              <div class='expan-content'>
-                                {this.itemRow.tableData.data.length || this.itemRow.tableData.loading ? (
-                                  (() => {
-                                    if (!this.itemRow.tableData.data.length) {
-                                      return <TableSkeleton class='table-skeleton' />;
-                                    }
-                                    return (
-                                      // 列名接口返回
-                                      <CommonTable
-                                        {...{ props: this.itemRow.tableData }}
-                                        onCollect={val => this.handleCollect(val, this.itemRow)}
-                                        onFilterChange={val => this.handleFilterChange(val, this.itemRow)}
-                                        onScrollEnd={() => this.handleScrollEnd(this.itemRow)}
-                                        onSortChange={val => this.handleSortChange(val as any, this.itemRow)}
-                                      />
-                                    );
-                                  })()
-                                ) : (
-                                  <EmptyStatus
-                                    textMap={{
-                                      empty: this.$t('暂无数据'),
-                                    }}
-                                  />
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      {!(this.pagination.current === 1 && this.loading) && (
-                        <div class='bottom-loading-status'>
-                          {(this.loading || this.pagination.isEnd) && (
-                            <div class='loading-box'>
-                              {this.loading && <div class='spinner' />}
-                              {(() => {
-                                if (!this.appList.length) {
-                                  return this.$t('暂无数据');
-                                }
-                                return this.pagination.isEnd ? this.$t('到底了') : this.$t('正加载更多内容…');
-                              })()}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div
-                  class={['toggle-wrap']}
-                  slot='collapse-trigger'
-                  onClick={this.handleHidePanel}
-                >
-                  <div v-show={!this.showFilterPanel}>
-                    <i class='icon-monitor icon-double-up' />
-                  </div>
-                </div>
-              </bk-resize-layout>
-            </div>
+            <AppHomeList
+              itemRow={this.itemRow}
+              onGetServiceData={this.getServiceData}
+              onHandleSearchCondition={this.handleSearchCondition}
+              onHandleToConfig={this.handleToConfig}
+              onLinkToOverview={this.linkToOverview}
+            />
           </div>
         </bk-resize-layout>
 

@@ -23,6 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import type { IOperateOption } from 'monitor-pc/pages/uptime-check/components/operate-options';
+
 export const STATUS_MAP = {
   normal: {
     name: window.i18n.tc('正常'),
@@ -92,5 +94,41 @@ export const SEARCH_KEYS = [
         name: window.i18n.t('否'),
       },
     ],
+  },
+];
+
+export const charColor = (str: string) => {
+  const h = str.charCodeAt(0) % 360;
+  const s = '50%';
+  const l = '50%';
+  const color = `hsl(${h}, ${s}, ${l})`;
+  return color;
+};
+
+export const OPERATE_OPTIONS: IOperateOption[] = [
+  {
+    id: 'appDetails',
+    name: window.i18n.t('应用详情'),
+    authority: true,
+  },
+  {
+    id: 'appConfig',
+    name: window.i18n.t('应用配置'),
+    authority: true,
+  },
+  {
+    id: 'accessService',
+    name: window.i18n.t('服务接入'),
+    authority: true,
+  },
+  {
+    id: 'noDataAlarm',
+    name: window.i18n.t('新增无数据告警'),
+    authority: true,
+  },
+  {
+    id: 'delete',
+    name: window.i18n.t('删除'),
+    authority: true,
   },
 ];
