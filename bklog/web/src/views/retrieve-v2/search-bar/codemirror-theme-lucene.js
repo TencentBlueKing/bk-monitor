@@ -23,67 +23,22 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { sql } from '@codemirror/lang-sql';
-import { EditorState } from '@codemirror/state';
-import { keymap } from '@codemirror/view';
-import { EditorView, minimalSetup } from 'codemirror';
+import { HighlightStyle } from '@codemirror/language';
+import { EditorView } from '@codemirror/view';
+import { tags as t } from '@lezer/highlight';
 
-export default ({ target, onChange, onFocusChange, onKeyEnter, value }) => {
-  const state = EditorState.create({
-    doc: value,
-    extensions: [
-      keymap.of([
-        {
-          key: 'Enter',
-          run: view => {
-            onKeyEnter?.(view);
-            return true;
-          },
-        },
-      ]),
-      minimalSetup,
-      sql(),
-      EditorView.lineWrapping,
-      EditorView.focusChangeEffect.of((_, focusing) => {
-        onFocusChange?.(focusing);
-      }),
-      EditorView.updateListener.of(update => {
-        if (update.docChanged) {
-          onChange?.(update.state.doc);
-        }
-      }),
-    ],
-  });
+// 定义高亮样式
+const luceneHighlightStyle = HighlightStyle.define([
+  { tag: t.keyword, color: 'blue' },
+  { tag: t.variableName, color: 'black' },
+  { tag: t.whitespace, color: 'gray' },
+]);
 
-  const view = new EditorView({
-    state,
-    parent: target,
-  });
+// 将高亮样式应用到编辑器视图中
+const luceneTheme = EditorView.baseTheme({
+  '.cm-content': {
+    fontFamily: 'monospace',
+  },
+});
 
-  const appendText = value => {
-    view.dispatch({
-      changes: { from: view.state.doc.length, insert: value },
-    });
-  };
-
-  const setValue = value => {
-    if (view.state.doc.toString() === value) {
-      return;
-    }
-
-    view.dispatch({
-      changes: { from: 0, to: view.state.doc.length, insert: value },
-    });
-
-    setTimeout(() => {
-      view.dispatch({
-        selection: {
-          anchor: view.state.doc.length,
-          head: view.state.doc.length,
-        },
-      });
-    }, 300);
-  };
-
-  return { state, view, appendText, setValue };
-};
+export default [luceneHighlightStyle, luceneTheme];

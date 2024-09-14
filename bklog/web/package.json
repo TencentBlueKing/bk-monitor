@@ -30,6 +30,7 @@
     "@codemirror/language": "^6.10.2",
     "@codemirror/state": "^6.4.1",
     "@codemirror/view": "^6.33.0",
+    "@lezer/javascript": "^1.4.17",
     "@opentelemetry/api": "^1.8.0",
     "@opentelemetry/context-zone": "^1.23.0",
     "@opentelemetry/instrumentation": "^0.50.0",
