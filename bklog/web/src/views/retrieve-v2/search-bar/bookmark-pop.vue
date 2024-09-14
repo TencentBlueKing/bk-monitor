@@ -23,6 +23,9 @@
   });
   const collectGroupList = computed(() => store.state.favoriteList);
   const favStrList = computed(() => store.state.favoriteList.map(item => item.name));
+  const unknownGroupID = computed(() => collectGroupList.value[collectGroupList.value.length - 1]?.group_id);
+  // 表单ref
+  const popoverFormRef = ref();
   const favoriteData = ref({
     // 收藏参数
     space_uid: -1,
@@ -198,6 +201,16 @@
       }
     } catch (error) {}
   };
+  // 提交表单校验
+  const handleSubmitFormData = () => {
+    popoverFormRef.value.validate().then(() => {
+      if (!unknownGroupID.value) return;
+      // 未选择组则新增到未分组中
+      if (!favoriteData.value.group_id) favoriteData.value.group_id = unknownGroupID.value;
+      handleCreateRequest();
+    });
+  };
+
   // 取消提交逻辑
   const handleCancleRequest = () => {
     popoverShow.value = false;
@@ -256,7 +269,7 @@
           <p class="dialog-title">{{ $t('新建收藏') }}</p>
         </div>
         <bk-form
-          ref="validateForm1"
+          ref="popoverFormRef"
           :label-width="200"
           :model="favoriteData"
           :rules="rules"
@@ -375,7 +388,7 @@
             style="margin-right: 8px"
             size="small"
             theme="primary"
-            @click.stop.prevent="handleCreateRequest"
+            @click.stop.prevent="handleSubmitFormData"
             >{{ $t('确定') }}</bk-button
           >
           <bk-button
