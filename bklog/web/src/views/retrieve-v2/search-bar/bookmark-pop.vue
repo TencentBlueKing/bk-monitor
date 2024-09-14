@@ -228,6 +228,11 @@
       }
     });
   };
+  const tippyOptions = {
+    theme: 'light',
+    placement: 'bottom-end',
+    offset: '22',
+  };
 </script>
 <template>
   <bk-popover
@@ -236,8 +241,7 @@
     ext-cls="collection-popover"
     :always="true"
     :on-show="handlePopoverShow"
-    placement="bottom-end"
-    theme="light"
+    :tippy-options="tippyOptions"
   >
     <span
       :style="{
