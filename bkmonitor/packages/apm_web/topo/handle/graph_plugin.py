@@ -1464,13 +1464,17 @@ class NodeMenu(PostPlugin):
                     "name": _("接口下钻"),
                     "action": "span_drilling",
                 },
-                {
-                    "name": _("查看三方应用"),
-                    "type": "link",
-                    "action": "blank",
-                    "url": ServiceHandler.build_url(self._runtime["application"].app_name, node_name),
-                },
             ]
+            if not self._runtime.get("service_name"):
+                # 如果没有服务名称的过滤 增加跳转链接
+                node_data[self.id].append(
+                    {
+                        "name": _("查看三方应用"),
+                        "type": "link",
+                        "action": "blank",
+                        "url": ServiceHandler.build_url(self._runtime["application"].app_name, node_name),
+                    }
+                )
         else:
             node_data[self.id] = [
                 {
