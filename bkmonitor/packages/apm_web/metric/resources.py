@@ -73,7 +73,7 @@ from apm_web.resources import (
 from apm_web.serializers import AsyncSerializer, ComponentInstanceIdDynamicField
 from apm_web.utils import (
     Calculator,
-    get_interval_number,
+    get_bar_interval_number,
     group_by,
     handle_filter_fields,
 )
@@ -149,6 +149,7 @@ class DynamicUnifyQueryResource(Resource):
         end_time = serializers.IntegerField(label="结束时间")
         component_instance_id = ComponentInstanceIdDynamicField(required=False, label="组件实例id(组件页面下有效)")
         unit = serializers.CharField(label="图表单位(多指标计算时手动返回)", default=False)
+        bar_count = serializers.IntegerField(label="图表柱子数量(用于特殊配置的场景 仅影响 interval)", required=False)
 
     def perform_request(self, validate_data):
         unify_query_params = {
@@ -157,6 +158,15 @@ class DynamicUnifyQueryResource(Resource):
             "end_time": validate_data["end_time"],
             "bk_biz_id": validate_data["bk_biz_id"],
         }
+
+        if validate_data.get("bar_count"):
+            interval = get_bar_interval_number(
+                validate_data["start_time"],
+                validate_data["end_time"],
+                size=validate_data["bar_count"],
+            )
+            for config in unify_query_params["query_configs"]:
+                config["interval"] = interval
 
         if not validate_data.get("service_name"):
             return self.fill_unit(resource.grafana.graph_unify_query(unify_query_params), validate_data.get("unit"))
@@ -1219,7 +1229,7 @@ class ApdexQueryResource(ApiAuthResource):
 
         if ApplicationHandler.have_data(application, start_time, end_time):
             return ApdexRange(
-                application, start_time, end_time, interval=get_interval_number(start_time, end_time)
+                application, start_time, end_time, interval=get_bar_interval_number(start_time, end_time)
             ).query_range()
         return {"metrics": [], "series": []}
 
@@ -1925,7 +1935,7 @@ class AlertQueryResource(Resource):
             "bk_biz_ids": [bk_biz_id],
             "start_time": start_time,
             "end_time": end_time,
-            "interval": get_interval_number(start_time, end_time),
+            "interval": get_bar_interval_number(start_time, end_time),
             "query_string": f"metric: custom.{application.metric_result_table_id}.*",
             "conditions": [
                 {"key": "severity", "value": [level]},

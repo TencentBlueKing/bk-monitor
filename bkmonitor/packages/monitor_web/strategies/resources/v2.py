@@ -8,7 +8,7 @@ from collections import defaultdict
 from functools import reduce
 from itertools import chain, product, zip_longest
 from typing import Any, Callable, Dict, List, Optional, Tuple
-
+from copy import deepcopy
 import arrow
 from django.conf import settings
 from django.db.models import Count, Q, QuerySet
@@ -2143,16 +2143,17 @@ class UpdatePartialStrategyV2Resource(Resource):
         ```
         """
         old_notice = strategy.notice.to_dict()
+        new_notice = deepcopy(notice)
         # 判断是否进行追加操作
-        if notice.get("append_keys"):
-            for key in notice.get("append_keys", []):
-                if notice.get(key):
-                    if type(notice[key]) is list:
-                        [notice[key].append(i) for i in old_notice.get(key) if i not in notice[key]]
+        if new_notice.get("append_keys"):
+            for key in new_notice.get("append_keys", []):
+                if new_notice.get(key):
+                    if type(new_notice[key]) is list:
+                        [new_notice[key].append(i) for i in old_notice.get(key) if i not in new_notice[key]]
 
-            notice.pop("append_keys")
+            new_notice.pop("append_keys")
 
-        UpdatePartialStrategyV2Resource.update_dict_recursive(old_notice, notice)
+        UpdatePartialStrategyV2Resource.update_dict_recursive(old_notice, new_notice)
         strategy.notice = NoticeRelation(strategy.id, **old_notice)
         # 同步当前的通知时间和通知组
         for action in strategy.actions:

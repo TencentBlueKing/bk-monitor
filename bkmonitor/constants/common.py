@@ -102,3 +102,7 @@ class IsoWeekDay:
 
 class MonthDay:
     MONTH_DAY_RANGE = list(range(1, 32))
+
+
+# 暂时不设置过期时间
+LOGO_IMAGE_TIMEOUT = None

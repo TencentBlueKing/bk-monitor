@@ -94,7 +94,7 @@ class EsQueryBuilder(object):
 
         if isinstance(query_tree, Word):
             # 不带字段查询
-            keyword_query = Q("query_string", query=str(query_tree), analyze_wildcard=True, fields=["*", "__*"])
+            keyword_query = Q("query_string", query=str(query_tree), analyze_wildcard=True)
             if str(query_tree) == WILDCARD_PATTERN:
                 # 单独*通配符, 直接返回, 不需要补充query查询, 空返回的是 WILDCARD_QUERY
                 return search.query()
@@ -116,7 +116,7 @@ class EsQueryBuilder(object):
                 return search.query(builder(query_tree))
 
             query_tree = auto_head_tail(query_tree)
-            return search.query("query_string", query=str(query_tree), analyze_wildcard=True, fields=["*", "__*"])
+            return search.query("query_string", query=str(query_tree), analyze_wildcard=True)
 
     @classmethod
     def _merge_mappings(cls, mappings):
