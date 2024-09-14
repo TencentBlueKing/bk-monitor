@@ -195,10 +195,6 @@
         type: Object,
         required: true,
       },
-      activeTab: {
-        type: String,
-        required: true,
-      },
       clusterRouteParams: {
         type: Object,
         default: () => ({}),
@@ -336,16 +332,12 @@
       isSearchIng() {
         return this.$store.state.indexSetQueryResult?.is_loading || false;
       },
-      isActiveTab() {
-        return this.activeTab === 'clustering';
-      },
     },
     watch: {
       totalFields: {
         deep: true,
         immediate: true,
         async handler(newList) {
-          if (!this.isActiveTab) return;
           // 当前nav为数据指纹且数据指纹开启点击指纹nav则不再重复请求
           this.fingerList = [];
           this.allFingerList = [];

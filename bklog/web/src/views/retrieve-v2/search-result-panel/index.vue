@@ -45,16 +45,15 @@
         { 'is-trend-chart-show': isTrendChartShow, 'is-show-field-statistics': isShowFieldStatistics },
       ]"
     >
-      <SearchResultChart
-        v-show="activeTab === 'origin'"
-        @change-queue-res="changeQueueRes"
-        @change-total-count="changeTotalCount"
-        @toggle-change="handleToggleChange"
-      ></SearchResultChart>
-      <div
-        v-if="activeTab === 'origin'"
-        class="split-line"
-      ></div>
+      <template v-if="activeTab === 'origin'">
+        <SearchResultChart
+          @change-queue-res="changeQueueRes"
+          @change-total-count="changeTotalCount"
+          @toggle-change="handleToggleChange"
+        ></SearchResultChart>
+        <div class="split-line"></div>
+      </template>
+
       <keep-alive>
         <OriginalLog
           v-if="activeTab === 'origin'"
@@ -64,7 +63,6 @@
         />
         <LogClustering
           v-if="activeTab === 'clustering'"
-          :active-tab="activeTab"
           :retrieveParams="retrieveParams"
         />
       </keep-alive>

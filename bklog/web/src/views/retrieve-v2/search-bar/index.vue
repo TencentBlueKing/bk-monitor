@@ -19,7 +19,7 @@
   const activeIndex = ref(1);
 
   const uiQueryValue = ref([]);
-  const sqlQueryValue = ref("*");
+  const sqlQueryValue = ref('*');
 
   const indexItem = computed(() => store.state.indexItem);
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
@@ -56,7 +56,10 @@
     () => {
       const params = ['ui', 'sql'];
       const resetData = [{ keyword: '*' }, { addition: [] }];
-      store.commit('updateIndexItemParams', { search_mode: params[activeIndex.value], ...resetData[activeIndex.value] });
+      store.commit('updateIndexItemParams', {
+        search_mode: params[activeIndex.value],
+        ...resetData[activeIndex.value],
+      });
     },
     { immediate: true, deep: true },
   );
@@ -111,7 +114,7 @@
   };
 
   const handleClearBtnClick = () => {
-    sqlQueryValue.value = "*";
+    sqlQueryValue.value = '*';
     uiQueryValue.value.splice(0);
     handleBtnQueryClick();
   };
@@ -133,8 +136,9 @@
           :class="['item', { active: activeIndex === index }]"
           :key="index"
           @click="() => handleQueryTypeChange(index)"
-          >{{ item }}</span
         >
+          {{ item }}
+        </span>
       </div>
 
       <SelectIndexSet
