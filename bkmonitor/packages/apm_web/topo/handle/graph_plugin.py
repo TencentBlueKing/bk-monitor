@@ -1668,7 +1668,6 @@ class ViewConverter:
 class TopoViewConverter(ViewConverter):
     _extra_pre_plugins = PluginProvider.Container(
         _plugins=[
-            NodeInstanceCount,
             NodeRequestCountCaller,
             NodeRequestCountCallee,
             NodeAvgDurationCaller,

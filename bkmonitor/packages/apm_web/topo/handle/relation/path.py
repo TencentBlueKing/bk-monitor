@@ -51,6 +51,7 @@ class Layer:
     @property
     def common_params(self):
         return {
+            "bk_biz_ids": [self._runtime["bk_biz_id"]],
             "start_time": self._runtime["start_time"],
             "end_time": self._runtime["end_time"],
             "step": f"{self._runtime['end_time'] - self._runtime['start_time']}s",

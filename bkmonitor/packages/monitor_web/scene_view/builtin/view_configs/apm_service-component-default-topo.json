@@ -37,7 +37,9 @@
                 "api": "apm_meta.serviceDetail",
                 "data": {
                   "app_name": "$app_name",
-                  "service_name": "$service_name"
+                  "service_name": "$service_name",
+                  "start_time": "${start_time}",
+                  "end_time": "${end_time}"
                 }
               }
             ]
