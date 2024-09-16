@@ -163,6 +163,7 @@ const store = new Vuex.Store({
     tableLineIsWarp: true,
     isSetDefaultTableColumn: false,
     tookTime: 0,
+    searchTotal: 0,
     showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
   },
   // 公共 getters
@@ -835,7 +836,7 @@ const store = new Vuex.Store({
      * 执行查询
      */
     requestIndexSetQuery(
-      { commit, state },
+      { commit, state, dispatch },
       payload = { isPagination: false, cancelToken: null, searchCount: undefined },
     ) {
       const {
@@ -939,10 +940,11 @@ const store = new Vuex.Store({
                 : Number(data?.took || 0);
               // 更新页数
               commit('updateIndexItem', { begin: payload.isPagination ? begin : 0 });
-              commit('updateSqlQueryFieldList', rsolvedData.list);
+              commit('updateSqlQueryFieldList', logList);
               commit('updateIndexItem', { catchUnionBeginList });
               commit('updateIndexSetQueryResult', rsolvedData);
               commit('updateIsSetDefaultTableColumn');
+              if (!payload?.isPagination) dispatch('requestSearchTotal');
 
               return {
                 data: rsolvedData,
@@ -956,6 +958,7 @@ const store = new Vuex.Store({
           return { data, message, result: false };
         })
         .catch(() => {
+          state.searchTotal = 0;
           commit('updateSqlQueryFieldList', []);
           commit('updateIndexSetQueryResult', []);
         })
@@ -1054,7 +1057,7 @@ const store = new Vuex.Store({
 
     requestFavoriteList({ commit, state }, payload) {
       commit('updateFavoriteList', []);
-      http
+      return http
         .request('favorite/getFavoriteByGroupList', {
           query: {
             space_uid: payload?.spaceUid ?? state.spaceUid,
@@ -1073,7 +1076,7 @@ const store = new Vuex.Store({
      * @param {*} payload
      * @returns
      */
-    setQueryCondition({ state, dispatch }, payload) {
+    setQueryCondition({ state, dispatch, commit }, payload) {
       const { field, operator, value, isLink = false } = payload;
       const getFieldType = field => {
         const target = state.indexFieldInfo.fields?.find(item => item.field_name === field);
@@ -1169,7 +1172,7 @@ const store = new Vuex.Store({
           }
         }
       }
-
+      commit('retrieve/updateChartKey');
       return Promise.resolve(newAddition);
     },
 
@@ -1195,6 +1198,27 @@ const store = new Vuex.Store({
       }
 
       isExist ? state.visibleFields.shift() : state.visibleFields.unshift(logSourceField());
+    },
+    requestSearchTotal({ state, getters }) {
+      state.searchTotal = 0;
+      http
+        .request(
+          'retrieve/fieldStatisticsTotal',
+          {
+            data: {
+              ...getters.retrieveParams,
+              bk_biz_id: state.bkBizId,
+              index_set_ids: state.indexItem.ids,
+            },
+          },
+          {
+            catchIsShowMessage: false,
+          },
+        )
+        .then(res => {
+          const { data, code } = res;
+          if (code === 0) state.searchTotal = data.total_count;
+        });
     },
   },
 });

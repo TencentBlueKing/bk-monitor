@@ -229,7 +229,6 @@ export default class CollectIndex extends tsc<IProps> {
     // 第一次显示收藏列表时因路由更变原因 在本页面第一次请求
     try {
       this.favoriteLoading = true;
-      this.$store.dispatch('requestFavoriteList');
       const { data } = await this.$store.dispatch('requestFavoriteList');
       const provideFavorite = data[0];
       const publicFavorite = data[data.length - 1];

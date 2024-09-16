@@ -48,7 +48,7 @@
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
-  const indexSetParams = computed(() => store.getters.retrieveParams); // commit('retrieve/updateChartKey');
+  const indexSetParams = computed(() => store.getters.retrieveParams);
 
   store.dispatch('updateIndexItemByRoute', { route, list: [] });
 
@@ -60,6 +60,7 @@
       // 拉取完毕根据当前路由参数回填默认选中索引集
       store.dispatch('updateIndexItemByRoute', { route, list: resp[1] }).then(async () => {
         await store.dispatch('requestIndexSetFieldInfo');
+        store.commit('retrieve/updateChartKey');
         store.dispatch('requestIndexSetQuery');
       });
     });
@@ -81,8 +82,8 @@
   };
 
   const requestIndexSetFieldParams = computed(() => {
-    const { start_time, end_time } = store.state.indexItem;
-    return { start_time, end_time };
+    const { start_time, end_time, keyword, addition } = store.state.indexItem;
+    return { start_time, end_time, keyword, addition };
   });
 
   watch(
