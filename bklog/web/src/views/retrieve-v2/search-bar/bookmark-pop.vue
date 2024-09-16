@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup>
   import { computed, ref, nextTick } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
@@ -13,6 +13,7 @@
       required: true,
     },
   });
+  const emit = defineEmits(['refresh']);
   const { $t } = useLocale();
   const store = useStore();
   // 用于展示索引集
@@ -159,13 +160,12 @@
   };
   // 组选择事件
   const handleSelectGroup = nVal => {
-    const visibleType = nVal === collectGroupList.value[0].group_id ? 'private' : 'public';
-    isDisableSelect.value = nVal === collectGroupList.value[0].group_id;
-    Object.assign(favoriteData.value, { visibleType });
+    if (collectGroupList.value.length > 0) {
+      const visibleType = nVal === collectGroupList.value[0].group_id ? 'private' : 'public';
+      Object.assign(favoriteData.value, { visibleType });
+    }
   };
-  // 存储表单数据
 
-  const isDisableSelect = ref(false);
   // 新建提交逻辑
   const handleCreateRequest = async () => {
     const { index_set_id, name, group_id, display_fields, visible_type, id, is_enable_display_fields } =
@@ -193,11 +193,13 @@
       if (res.result) {
         // 新增成功
         // 获取最新组列表
-        window.mainComponent.messageSuccess($t('操作成功'));
+        window.mainComponent.messageSuccess($t('收藏成功'));
+        hidePopover();
         store.dispatch('requestFavoriteList');
         favoriteData.value.name = '';
         favoriteData.value.group_id = undefined;
         verifyData.value.groupName = '';
+        emit('refresh', true);
       }
     } catch (error) {}
   };
@@ -212,7 +214,7 @@
   };
 
   // 取消提交逻辑
-  const handleCancleRequest = () => {
+  const handleCancelRequest = () => {
     popoverShow.value = false;
     favoriteData.value.name = '';
     favoriteData.value.group_id = undefined;
@@ -225,14 +227,16 @@
   const popoverShow = ref(false);
   // 弹窗按钮打开逻辑
   const handleCollection = () => {
-    if (popoverShow.value) {
-      popoverShow.value = false;
-      popoverContentRef.value.hideHandler();
-    } else {
-      popoverShow.value = true;
-      popoverContentRef.value.showHandler();
-    }
+    popoverShow.value ? hidePopover() : showPopover();
   };
+  const showPopover = () => {
+    popoverShow.value = true;
+    popoverContentRef.value.showHandler();
+  }
+  const hidePopover = () => {
+    popoverShow.value = false;
+    popoverContentRef.value.hideHandler();
+  }
   const handlePopoverShow = () => {
     // 界面初始化隐藏弹窗样式
     nextTick(() => {
@@ -251,7 +255,7 @@
   <bk-popover
     ref="popoverContentRef"
     width="400"
-    ext-cls="collection-popover"
+    ext-cls="collection-favorite-popover"
     :always="true"
     :on-show="handlePopoverShow"
     :tippy-options="tippyOptions"
@@ -291,7 +295,6 @@
           >
             <bk-select
               v-model="favoriteData.group_id"
-              :disabled="isDisableSelect"
               ext-popover-cls="add-popover-new-page-container"
               placeholder="未编组"
               searchable
@@ -305,7 +308,7 @@
               ></bk-option>
 
               <template #extension>
-                <div>
+                <div class="favorite-group-extension">
                   <div
                     v-if="isShowAddGroup"
                     class="select-add-new-group"
@@ -313,9 +316,8 @@
                   >
                     <div><i class="bk-icon icon-plus-circle"></i> {{ $t('新增') }}</div>
                   </div>
-                  <li
+                  <div
                     v-else
-                    style="display: flex; align-items: center; padding: 6px 0"
                     class="add-new-page-input"
                   >
                     <bk-form
@@ -334,13 +336,6 @@
                       </bk-form-item>
                     </bk-form>
                     <div
-                      style="
-                        justify-content: space-between;
-                        width: 45px;
-                        margin-left: 6px;
-                        font-size: 16px;
-                        color: #979ba5;
-                      "
                       class="operate-button"
                     >
                       <span
@@ -358,7 +353,7 @@
                         "
                       ></span>
                     </div>
-                  </li>
+                  </div>
                 </div>
               </template>
             </bk-select>
@@ -394,7 +389,7 @@
           <bk-button
             size="small"
             theme="default"
-            @click.stop.prevent="handleCancleRequest"
+            @click.stop.prevent="handleCancelRequest"
             >{{ $t('取消') }}</bk-button
           >
         </div>
@@ -402,52 +397,6 @@
     </template>
   </bk-popover>
 </template>
-<style lang="scss" scoped>
-  @import './bookmark-pop.scss';
-</style>
-
 <style lang="scss">
-  .collection-popover {
-    .tippy-tooltip[data-size='small'] {
-      height: 430px;
-      padding: 16px 16px;
-    }
-
-    .bk-tooltip-content {
-      height: 414px;
-
-      .bk-form-content {
-        .bk-form-control {
-          .bk-input-text {
-            .bk-form-input[readonly] {
-              border: 0px;
-            }
-          }
-
-          .bk-textarea-wrapper {
-            border: 0px;
-
-            .bk-form-textarea[readonly] {
-              border: 0px;
-            }
-          }
-        }
-      }
-    }
-
-    .popover-footer {
-      position: absolute;
-      right: -16px;
-      bottom: 0;
-      width: 400px;
-      height: 42px;
-      padding: 8px 16px;
-      background: #fafbfd;
-      box-shadow: 0 -1px 0 0 #dcdee5;
-
-      .footer-button {
-        text-align: right;
-      }
-    }
-  }
+  @import './bookmark-pop.scss';
 </style>

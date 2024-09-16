@@ -11,7 +11,8 @@
   import SqlQuery from './sql-query';
   import TimeSetting from './time-setting';
   import UiInput from './ui-input';
-
+  
+  const emit = defineEmits(['refresh']);
   const store = useStore();
   const { $t } = useLocale();
   const queryTypeList = ref([$t('UI语句'), $t('SQL语句')]);
@@ -125,6 +126,10 @@
   const handleQueryChange = () => {
     handleBtnQueryClick();
   };
+
+  const handleRefresh = (isRefresh) => {
+    emit('refresh', isRefresh);
+  }
 </script>
 <template>
   <div class="search-bar-container">
@@ -166,7 +171,7 @@
           class="bklog-icon bklog-brush"
           @click="handleClearBtnClick"
         ></span>
-        <BookmarkPop :sql="sqlQueryValue"></BookmarkPop>
+        <BookmarkPop :sql="sqlQueryValue" @refresh="handleRefresh"></BookmarkPop>
         <span class="disabled bklog-icon bklog-set-icon"></span>
       </div>
       <div

@@ -73,6 +73,8 @@ type visibleType = 'private' | 'public' | 'unknown';
 export default class CollectIndex extends tsc<IProps> {
   @PropSync('width', { type: Number }) collectWidth: number;
   @PropSync('isShow', { type: Boolean }) isShowCollect: boolean;
+  @PropSync('isRefresh', { type: Boolean }) isRefreshCollect: boolean;
+
   @Prop({ type: Object, default: () => ({}) }) indexSetList: object;
   @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
 
@@ -194,6 +196,11 @@ export default class CollectIndex extends tsc<IProps> {
       this.groupList = [];
       this.searchVal = '';
     }
+  }
+  @Watch('isRefreshCollect')
+  handleRefreshList(val) {
+    val && this.getFavoriteList();
+    this.isRefreshCollect = false;
   }
 
   @Watch('bkBizId')
