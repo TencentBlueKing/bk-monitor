@@ -160,6 +160,11 @@
   };
 
   const activeTab = ref('origin');
+  const isRefreshList = ref(false);
+  /** 刷新收藏夹列表 */
+  const handleRefresh = (v) => {
+    isRefreshList.value = v;
+  }
 </script>
 <template>
   <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]">
@@ -198,13 +203,14 @@
         class="collect-favorites"
         :is-show.sync="showFavorites"
         :width.sync="favoriteWidth"
+        :isRefresh.sync="isRefreshList"
         @handle-click-favorite="handleClickFavorite"
       ></CollectFavorites>
       <div
         :style="{ paddingLeft: `${showFavorites ? favoriteWidth : 0}px` }"
         class="retrieve-context"
       >
-        <SearchBar></SearchBar>
+        <SearchBar @refresh="handleRefresh"></SearchBar>
         <div class="result-row">
           <SearchResultTab v-model="activeTab"></SearchResultTab>
           <SearchResultPanel :active-tab="activeTab"></SearchResultPanel>

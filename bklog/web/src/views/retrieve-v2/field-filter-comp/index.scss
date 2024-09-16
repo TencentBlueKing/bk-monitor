@@ -89,6 +89,34 @@
         cursor: pointer;
       }
     }
+
+    .error-empty {
+      .bklog-icon {
+        margin-left: 5px;
+        color: #3a84ff;
+        vertical-align: middle;
+        cursor: pointer;
+      }
+
+      .bklog-log-refresh {
+        margin-left: 8px;
+      }
+
+      .bklog-expand-small, .bklog-collapse-small {
+        font-size: 22px;
+      }
+
+      .error-info {
+        width: 88%;
+        height: calc(100vh - 630px);
+        margin: 10px auto;
+        overflow: hidden;
+        font-size: 12px;
+        color: #979ba5;
+        text-align: left;
+        word-wrap: break-word;
+      }
+    }
   }
 }
 

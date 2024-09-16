@@ -30,6 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { TABLE_LOG_FIELDS_SORT_REGULAR, Debounce } from '@/common/util';
 import VueDraggable from 'vuedraggable';
 
+import EmptyStatus from '../../../components/empty-status/index.vue';
 import FieldItem from './field-item';
 import $http from '@/api';
 
@@ -74,13 +75,19 @@ export default class FieldFilterComp extends tsc<object> {
   isShowAllIndexSet = false;
   fieldContainerHeight = 400;
 
+  isShowErrInfo = false;
+
+  get errInfo() {
+    const key = 'retrieve/getLogTableHead';
+    return this.$store.state.apiErrorInfo[key] || '';
+  }
   /** 可选字段 */
   get hiddenFields() {
     return this.totalFields.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
   }
   get statisticalFieldsData() {
     // 这里避免初始化的时候数据已经更新，但视图却未更新，加入请求完毕的loading进行监听
-    this.$store.state.indexSetQueryResult.is_loading;
+    // this.$store.state.indexSetQueryResult.is_loading;
     return this.$store.state.retrieveDropdownData;
   }
 
@@ -323,6 +330,15 @@ export default class FieldFilterComp extends tsc<object> {
     return sortList;
   }
 
+  handleSearchException(type: string) {
+    if (type === 'clear-filter') {
+      this.searchKeyword = '';
+      this.filterListByCondition();
+    }
+    this.isShowErrInfo = false;
+    this.$store.dispatch('requestIndexSetFieldInfo');
+  }
+
   render() {
     return (
       <div class='field-filter-box'>
@@ -335,6 +351,7 @@ export default class FieldFilterComp extends tsc<object> {
             right-icon='icon-search'
             clearable
             onChange={() => this.filterListByCondition()}
+            onClear={() => this.handleSearchException('clear-filter')}
           ></bk-input>
         </div>
         <div
@@ -342,6 +359,33 @@ export default class FieldFilterComp extends tsc<object> {
           style={{ height: `${this.fieldContainerHeight}px` }}
           class='field-filter-container'
         >
+          {!this.totalFields.length && (
+            <EmptyStatus
+              style={{ marginTop: '20%' }}
+              emptyType={this.searchKeyword ? 'search-empty' : '500'}
+              showText={!!this.searchKeyword}
+              onOperation={this.handleSearchException}
+            >
+              {!this.searchKeyword && (
+                <div class='error-empty'>
+                  <p>
+                    {this.$t('获取字段列表失败')}
+                    <i
+                      class='bklog-icon bklog-log-refresh'
+                      v-bk-tooltips={{ content: this.$t('刷新') }}
+                      onClick={() => this.handleSearchException('refresh')}
+                    ></i>
+                    <i
+                      class={`bklog-icon bklog-${this.isShowErrInfo ? 'collapse-small' : 'expand-small'}`}
+                      v-bk-tooltips={{ content: this.$t('详情') }}
+                      onClick={() => (this.isShowErrInfo = !this.isShowErrInfo)}
+                    ></i>
+                  </p>
+                  {this.isShowErrInfo && <div class='error-info'>{this.errInfo}</div>}
+                </div>
+              )}
+            </EmptyStatus>
+          )}
           {!!this.totalFields.length && (
             <div class='fields-container is-selected'>
               <div class='title'>{this.$t('显示字段')}</div>

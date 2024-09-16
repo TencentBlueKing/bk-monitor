@@ -165,6 +165,8 @@ const store = new Vuex.Store({
     tookTime: 0,
     searchTotal: 0,
     showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
+    // 存放接口报错信息的对象
+    apiErrorInfo: {},
   },
   // 公共 getters
   getters: {
@@ -238,9 +240,18 @@ const store = new Vuex.Store({
       };
     },
     storeIsShowClusterStep: state => state.storeIsShowClusterStep,
+    getApiError: state => apiName => {
+      return state.apiErrorInfo[apiName];
+    },
   },
   // 公共 mutations
   mutations: {
+    updateApiError(state, { apiName, errorMessage }) {
+      Vue.set(state.apiErrorInfo, apiName, errorMessage);
+    },
+    deleteApiError(state, apiName) {
+      Vue.delete(state.apiErrorInfo, apiName);
+    },
     updateFavoriteList(state, payload) {
       state.favoriteList.length = 0;
       state.favoriteList = [];
@@ -792,7 +803,7 @@ const store = new Vuex.Store({
       commit('updateVisibleFields', []);
 
       const urlStr = isUnionIndex ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
-
+      !isUnionIndex && commit('deleteApiError', urlStr);
       const queryData = {
         start_time,
         end_time,
@@ -805,11 +816,15 @@ const store = new Vuex.Store({
       }
 
       return http
-        .request(urlStr, {
-          params: { index_set_id: ids[0] },
-          query: !isUnionIndex ? queryData : undefined,
-          data: isUnionIndex ? queryData : undefined,
-        })
+        .request(
+          urlStr,
+          {
+            params: { index_set_id: ids[0] },
+            query: !isUnionIndex ? queryData : undefined,
+            data: isUnionIndex ? queryData : undefined,
+          },
+          isUnionIndex ? {} : { catchIsShowMessage: false },
+        )
         .then(res => {
           commit('updateIndexFieldInfo', res.data ?? {});
           commit('updataOperatorDictionary', res.data ?? {});
@@ -824,7 +839,8 @@ const store = new Vuex.Store({
 
           return res;
         })
-        .catch(() => {
+        .catch(err => {
+          !isUnionIndex && commit('updateApiError', { apiName: urlStr, errorMessage: err });
           commit('updateIndexFieldInfo', { is_loading: false });
         })
         .finally(() => {
@@ -1219,6 +1235,12 @@ const store = new Vuex.Store({
           const { data, code } = res;
           if (code === 0) state.searchTotal = data.total_count;
         });
+    },
+    setApiError({ commit }, payload) {
+      commit('SET_API_ERROR', payload);
+    },
+    clearApiError({ commit }, apiName) {
+      commit('CLEAR_API_ERROR', apiName);
     },
   },
 });
