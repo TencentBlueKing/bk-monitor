@@ -41,17 +41,29 @@
     cursor: pointer;
     border-radius: 2px;
 
-    .bk-icon {
+    .filed-item-triangle {
       width: 32px;
-      margin: 0 5px;
-      transition: transform 0.3s;
+
+      .bk-icon {
+        display: block;
+        margin: 0 5px;
+        transition: transform 0.3s;
+      }
+
+      &.expanded {
+        background-color: #f0f1f5;
+
+        .icon-right-shape {
+          transform: rotate(90deg);
+        }
+      }
     }
 
     .field-type-icon {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 16px;
+      width: 16px;
       height: 16px;
       margin: 0 5px 0 0;
       font-size: 12px;
@@ -74,9 +86,7 @@
     }
 
     .bklog-ext {
-      min-width: 22px;
-      height: 22px;
-      transform: scale(0.7);
+      font-size: 8px;
     }
 
     .field-count {
@@ -153,15 +163,6 @@
           color: #3a84ff;
           background: #e1ecff;
         }
-      }
-    }
-
-    &.expanded {
-      background-color: #f0f1f5;
-
-      .icon-right-shape {
-        transition: transform 0.3s;
-        transform: rotate(90deg);
       }
     }
   }
