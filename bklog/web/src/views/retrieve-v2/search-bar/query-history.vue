@@ -48,6 +48,7 @@
   </div>
 </template>
 <script>
+import { ConditionOperator } from '@/store/condition-operator';
   export default {
     data() {
       return {
@@ -110,8 +111,9 @@
         this.popoverInstance.show();
       },
       handleClickHistory(item) {
-        const { keyword, addition, ip_chooser } = item.params;
-        this.$emit('change', { keyword, addition, ip_chooser });
+        const { search_mode, params } = item;
+        const { keyword, addition, ip_chooser } = params;
+        this.$emit('change', { keyword, addition, ip_chooser, search_mode });
         this.popoverInstance.hide();
       },
       requestSearchHistory() {
@@ -129,7 +131,14 @@
             params,
           })
           .then(res => {
-            this.historyRecords = res.data;
+            this.historyRecords = res.data.map(item => {
+              item.params.addition = item.params.addition.map(element => {
+                const instance = new ConditionOperator(element);
+                return instance.formatApiOperatorToFront();
+              });
+
+              return item;
+            });
             this.isHistoryRecords = !!this.historyRecords.length;
           })
           .finally(() => {
