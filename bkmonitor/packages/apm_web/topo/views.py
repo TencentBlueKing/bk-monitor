@@ -46,7 +46,7 @@ class GlobalViewSet(ResourceViewSet):
         ResourceRoute("GET", TopoViewResource, endpoint="topo", decorators=[user_visit_record]),
         ResourceRoute("POST", TopoLinkResource, endpoint="topo/link"),
         ResourceRoute("GET", GraphDiffResource, endpoint="topo/diff"),
-        ResourceRoute("GET", NodeEndpointsTopResource, endpoint="topo/node/endpoints"),
+        ResourceRoute("GET", NodeEndpointsTopResource, endpoint="topo/node/endpoints", decorators=[user_visit_record]),
         ResourceRoute("GET", NodeRelationResource, endpoint="relation", decorators=[user_visit_record]),
         ResourceRoute("POST", NodeRelationDetailResource, endpoint="relation/detail"),
     ]
