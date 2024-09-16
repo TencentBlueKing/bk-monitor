@@ -346,13 +346,23 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             apm_service_name = serializers.CharField()
 
         _Serializer(data=params).is_valid(raise_exception=True)
-        node = ServiceHandler.get_node(params["bk_biz_id"], params["apm_app_name"], params["apm_service_name"])
+        node = ServiceHandler.get_node(
+            params["bk_biz_id"],
+            params["apm_app_name"],
+            params["apm_service_name"],
+            raise_exception=False,
+        )
         default_key = "service-default"
-        if ComponentHandler.is_component_by_node(node):
-            default_key = f"{node['extra_data']['kind']}-default"
-        specific_key = f"{node['extra_data']['kind']}-{node['extra_data']['category']}"
-        specific_views = [i for i in views if i.id.startswith(specific_key)]
-        specific_tabs = [i.id.split("-")[-1] for i in specific_views]
+        if node:
+            if ComponentHandler.is_component_by_node(node):
+                default_key = f"{node['extra_data']['kind']}-default"
+            specific_key = f"{node['extra_data']['kind']}-{node['extra_data']['category']}"
+            specific_views = [i for i in views if i.id.startswith(specific_key)]
+            specific_tabs = [i.id.split("-")[-1] for i in specific_views]
+        else:
+            specific_tabs = []
+            specific_views = []
+
         default_views = [i for i in views if i.id.startswith(default_key) and i.id.split("-")[-1] not in specific_tabs]
 
         res = default_views + specific_views

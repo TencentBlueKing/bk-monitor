@@ -106,8 +106,7 @@ export default class AggChart extends tsc<object> {
   computePercent(count) {
     const percentageNum = count / this.showTotalCount;
     // 当百分比 大于1 的时候 不显示后面的小数点， 若小于1% 则展示0.xx 保留两位小数
-    const showPercentageStr =
-      percentageNum >= 0.01 ? Math.round(+percentageNum.toFixed(2) * 100) : (percentageNum * 100).toFixed(2);
+    const showPercentageStr = percentageNum >= 0.01 ? Math.round(+percentageNum.toFixed(2) * 100) : 0.01;
     return `${showPercentageStr}%`;
   }
   addCondition(operator, value) {

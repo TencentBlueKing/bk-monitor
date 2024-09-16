@@ -199,7 +199,7 @@ class Business(TopoNode):
         # display_name:
         # '[xxx]xx系统 (研发项目)'
         # '[2]蓝鲸 (业务)'
-        type_name = getattr(self, "type_name", "业务")
+        type_name = _(getattr(self, "type_name", "业务"))
         return (f"[{self.bk_biz_id}]{self.bk_biz_name} " if self.bk_biz_id > 0 else self.bk_biz_name) + f"({type_name})"
 
 

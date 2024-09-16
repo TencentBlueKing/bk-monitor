@@ -76,7 +76,7 @@ export default class Service extends tsc<object> {
   pluginId = '';
   dashboardId = '';
   tabId = '';
-  tabName: TranslateResult | string = '';
+  tabName: string | TranslateResult = '';
   subName = '';
   appList = [];
   serviceList = [];
@@ -147,7 +147,12 @@ export default class Service extends tsc<object> {
           },
         },
       ];
-      vm.viewOptions = {};
+      vm.viewOptions = {
+        filters: {
+          app_name: appName,
+          service_name: serviceName,
+        },
+      };
       vm.appName = appName;
       vm.serviceName = serviceName;
       vm.getApplicationList();
@@ -232,6 +237,15 @@ export default class Service extends tsc<object> {
           'filter-predicate_value': item.predicate_value,
         },
       });
+      this.viewOptions = {
+        filters: {
+          app_name: item.app_name,
+          service_name: item.service_name,
+          category: item.category,
+          kind: item.kind,
+          predicate_value: item.predicate_value,
+        },
+      };
       this.handleUpdateAppName(this.tabId);
       this.pageKey += 1;
     }

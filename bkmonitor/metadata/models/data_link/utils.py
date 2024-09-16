@@ -23,12 +23,27 @@ logger = logging.getLogger("metadata")
 
 def get_bkdata_table_id(table_id: str) -> str:
     """获取计算平台结果表"""
-    # NOTE: 按照 '__default__'截断，则取前半部分
+    # 按照 '__default__' 截断，取前半部分
     table_id = table_id.split(".__default__")[0]
     table_id = table_id.lower()
-    # 转换中划线为下划线，
-    # NOTE: 不能以数字开头，添加一个默认前缀
-    return f"bkm_{table_id.replace('-', '_').replace('.', '_').replace('__', '_')[-40:]}"
+
+    # 转换中划线和点为下划线
+    table_id = table_id.replace('-', '_').replace('.', '_')
+
+    # 处理负数开头和其他情况
+    if table_id.startswith('_'):
+        table_id = f'bkm_neg_{table_id.lstrip("_")}'
+    elif table_id[0].isdigit():
+        table_id = f'bkm_{table_id}'
+    else:
+        table_id = f'bkm_{table_id}'
+
+    # 确保不会出现连续的下划线
+    while '__' in table_id:
+        table_id = table_id.replace('__', '_')
+
+    # 确保长度不超过40
+    return table_id[:40]
 
 
 def compose_config(tpl: str, render_params: Dict, err_msg_prefix: Optional[str] = "compose config") -> Dict:

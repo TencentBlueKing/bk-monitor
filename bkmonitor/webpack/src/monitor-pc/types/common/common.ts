@@ -54,3 +54,10 @@ export interface ISPaceIntroduceData {
   };
 }
 export type SpaceIntoduceType = Record<SpaceIntroduceKeys, ISPaceIntroduceData>;
+
+export interface IOverseasConfig {
+  title: string;
+  url?: string;
+  subtitle?: string;
+  icon?: string;
+}

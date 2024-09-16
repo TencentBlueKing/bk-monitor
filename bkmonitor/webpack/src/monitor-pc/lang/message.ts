@@ -233,6 +233,7 @@ export default {
   暂无数据: 'No Data',
   没有数据: 'No Data',
   查无数据: 'No data',
+  暂无接口: 'No API',
   暂无进程: 'No Process',
   暂无收藏: 'No favorite',
   暂无搜索: 'No search result',

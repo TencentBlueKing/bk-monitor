@@ -146,7 +146,7 @@ def notify_access_not_finished():
     """
     30分钟内接入未完成接入的，触发事件
     """
-    half_hours_ago = arrow.now().shift(minutes=30).datetime
+    half_hours_ago = arrow.now().shift(minutes=-30).datetime
     clustering_configs = ClusteringConfig.objects.filter(
         signature_enable=True, access_finished=False, created_at__lte=half_hours_ago
     )
