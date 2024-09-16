@@ -71,7 +71,8 @@
     await nextTick();
     store.commit('resetVisibleFields', displayFieldNames);
   };
-  const handleCloseFilterTitle = () => {
+  const handleCloseFilterTitle = isTextClick => {
+    if (isTextClick && props.isShowFieldStatistics) return;
     emit('update:is-show-field-statistics', !props.isShowFieldStatistics);
   };
 </script>
@@ -80,12 +81,16 @@
   <div :class="['search-field-filter', { 'is-close': !isShowFieldStatistics }]">
     <!-- 字段过滤 -->
     <div class="tab-item-title field-filter-title">
-      <div class="left-title">
+      <div
+        class="left-title"
+        :class="{ 'is-text-click': !isShowFieldStatistics }"
+        @click="handleCloseFilterTitle(true)"
+      >
         {{ $t('字段列表') }}
       </div>
       <div
         class="close-total"
-        @click="handleCloseFilterTitle"
+        @click="handleCloseFilterTitle(false)"
       >
         <span
           v-show="isShowFieldStatistics"
