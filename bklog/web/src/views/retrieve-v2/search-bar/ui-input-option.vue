@@ -93,7 +93,7 @@
   });
 
   const fullTextField = ref({
-    field_name: '',
+    field_name: '*',
     is_full_text: true,
     field_alias: t('全文检索'),
     field_operator: [
@@ -106,7 +106,7 @@
   });
 
   const activeFieldItem = ref({
-    field_name: null,
+    field_name: '*',
     field_type: null,
     field_alias: null,
     field_id: null,
@@ -213,7 +213,7 @@
 
   const resetActiveFieldItem = () => {
     activeFieldItem.value = {
-      field_name: null,
+      field_name: '*',
       field_type: null,
       field_alias: null,
       field_id: null,
@@ -224,7 +224,7 @@
       operator: '',
       isInclude: true,
       value: [],
-      relation: 'AND',
+      relation: 'OR',
     };
 
     activeIndex.value = 0;
@@ -259,7 +259,7 @@
       return;
     }
 
-    const isFulltextValue = activeFieldItem.value.field_name === '';
+    const isFulltextValue = activeFieldItem.value.field_name === '*';
     let result = {
       field: activeFieldItem.value.field_name,
       ...condition.value,
@@ -710,7 +710,7 @@
         <template v-else>
           <div
             class="ui-value-row"
-            v-if="activeFieldItem.field_name"
+            v-if="activeFieldItem.field_name !== '*'"
           >
             <div class="ui-value-label">{{ $t('条件') }}</div>
             <div class="ui-value-component">
@@ -748,7 +748,7 @@
                 ><bk-checkbox v-model="condition.isInclude">{{ $t('使用通配符') }}</bk-checkbox></span
               >
             </div>
-            <template v-if="!activeFieldItem.field_name">
+            <template v-if="activeFieldItem.field_name === '*'">
               <bk-input
                 v-model="condition.value[0]"
                 type="textarea"
