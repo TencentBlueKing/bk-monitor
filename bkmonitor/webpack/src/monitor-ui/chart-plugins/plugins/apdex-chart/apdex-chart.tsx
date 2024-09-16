@@ -364,7 +364,9 @@ export class ApdexChart extends LineChart {
             subtitle={this.panel.subTitle || ''}
             title={this.panel.title}
             onUpdateDragging={() => this.panel.updateDraging(false)}
-          />
+          >
+            <div class='context-menu-info'>{this.$t('右键更多操作')}</div>
+          </ChartHeader>
         )}
         {!this.empty ? (
           <div class={`apdex-chart-content ${legend?.placement === 'right' ? 'right-legend' : ''}`}>

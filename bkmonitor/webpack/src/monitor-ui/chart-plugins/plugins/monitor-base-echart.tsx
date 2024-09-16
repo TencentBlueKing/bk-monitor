@@ -45,6 +45,7 @@ interface IBaseProps extends IChartProps {
   groupId?: string;
   showRestore?: boolean;
   needTooltips?: boolean;
+  sortTooltipsValue?: boolean;
   tooltipsContentLastItemFn?: (v: any) => string;
 }
 @Component
@@ -53,6 +54,8 @@ class MonitorBaseEchart extends BaseEchart {
   @Prop({ type: String, default: '' }) groupId: string;
   @Prop({ type: Boolean, default: false }) showRestore: boolean;
   @Prop({ type: Boolean, default: false }) hoverAllTooltips: boolean;
+  // 是否需要排序tooltip内容
+  @Prop({ type: Boolean, default: true }) sortTooltipsValue: boolean;
   @Prop({ type: Boolean, default: true }) needTooltips: boolean;
   /* tooltips内容最后一项格式化函数 */
   @Prop({ type: Function, default: null }) tooltipsContentLastItemFn: (v: any) => string;
@@ -266,32 +269,30 @@ class MonitorBaseEchart extends BaseEchart {
         .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
         .sort((a, b) => Math.abs(a.value - +this.curPoint.yAxis) - Math.abs(b.value - +this.curPoint.yAxis));
       const list = params.filter(item => !item.seriesName.match(/-no-tips$/));
-      liHtmls = list
-        .sort((a, b) => b.value[1] - a.value[1])
-        .map(item => {
-          let markColor = 'color: #fafbfd;';
-          if (data[0].value === item.value[1]) {
-            markColor = 'color: #fff;font-weight: bold;';
-            this.curPoint = {
-              color: item.color,
-              name: item.seriesName,
-              seriesIndex: item.seriesIndex,
-              dataIndex: item.dataIndex,
-              xAxis: item.value[0],
-              yAxis: item.value[1],
-            };
-          }
-          if (item.value[1] === null) return undefined;
-          let curSeries: any = (this as any).curChartOption.series[item.seriesIndex];
-          if (curSeries?.stack?.includes('boundary-')) {
-            curSeries = (this as any).curChartOption.series.find((item: any) => !item?.stack?.includes('boundary-'));
-          }
-          const unitFormater = curSeries.unitFormatter || (v => ({ text: v }));
-          const minBase = curSeries.minBase || 0;
-          const precision =
-            !['none', ''].some(val => val === curSeries.unit) && +curSeries.precision < 1 ? 2 : +curSeries.precision;
-          const valueObj = unitFormater(item.value[1] - minBase, precision);
-          return `<li class="tooltips-content-item">
+      liHtmls = (this.sortTooltipsValue ? list.sort((a, b) => b.value[1] - a.value[1]) : list).map(item => {
+        let markColor = 'color: #fafbfd;';
+        if (data[0].value === item.value[1]) {
+          markColor = 'color: #fff;font-weight: bold;';
+          this.curPoint = {
+            color: item.color,
+            name: item.seriesName,
+            seriesIndex: item.seriesIndex,
+            dataIndex: item.dataIndex,
+            xAxis: item.value[0],
+            yAxis: item.value[1],
+          };
+        }
+        if (item.value[1] === null) return undefined;
+        let curSeries: any = (this as any).curChartOption.series[item.seriesIndex];
+        if (curSeries?.stack?.includes('boundary-')) {
+          curSeries = (this as any).curChartOption.series.find((item: any) => !item?.stack?.includes('boundary-'));
+        }
+        const unitFormater = curSeries.unitFormatter || (v => ({ text: v }));
+        const minBase = curSeries.minBase || 0;
+        const precision =
+          !['none', ''].some(val => val === curSeries.unit) && +curSeries.precision < 1 ? 2 : +curSeries.precision;
+        const valueObj = unitFormater(item.value[1] - minBase, precision);
+        return `<li class="tooltips-content-item">
                   <span class="item-series"
                    style="background-color:${item.color};">
                   </span>
@@ -299,7 +300,7 @@ class MonitorBaseEchart extends BaseEchart {
                   <span class="item-value" style="${markColor}">
                   ${valueObj?.text} ${valueObj?.suffix || ''}</span>
                   </li>`;
-        });
+      });
       if (liHtmls?.length < 1) return undefined;
       // 如果超出屏幕高度，则分列展示
       const maxLen = Math.ceil((window.innerHeight - 100) / 20);
