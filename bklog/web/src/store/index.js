@@ -44,6 +44,7 @@ import axios from 'axios';
 import Vuex from 'vuex';
 
 import collect from './collect';
+import { ConditionOperator } from './condition-operator';
 import {
   IndexSetQueryResult,
   IndexFieldInfo,
@@ -871,20 +872,26 @@ const store = new Vuex.Store({
         ? `/search/index_set/${state.indexId}/search/`
         : '/search/index_set/union_search/';
 
+      const filterAddition = addition
+        .filter(item => !item.disabled)
+        .map(item => {
+          const instance = new ConditionOperator(item);
+          return instance.getRequestParam();
+        });
+
+      const searchParams = search_mode === 'sql' ? { keyword } : { addition: filterAddition };
       const baseData = {
-        addition: (addition ?? []).filter(item => !item.disabled),
-        // begin,
         bk_biz_id,
         end_time,
         host_scopes,
         interval,
         ip_chooser,
-        keyword: keyword.length ? keyword : '*',
         size,
         start_time,
         timezone,
         search_mode,
         sort_list,
+        ...searchParams,
       };
 
       // 更新联合查询的begin

@@ -15,8 +15,9 @@
   const store = useStore();
   const { $t } = useLocale();
   const queryTypeList = ref([$t('UI语句'), $t('SQL语句')]);
+  const queryParams = ['ui', 'sql'];
   const btnQuery = $t('查询');
-  const activeIndex = ref(1);
+  const activeIndex = ref(0);
 
   const uiQueryValue = ref([]);
   const sqlQueryValue = ref('*');
@@ -54,11 +55,8 @@
   watch(
     activeIndex,
     () => {
-      const params = ['ui', 'sql'];
-      const resetData = [{ keyword: '*' }, { addition: [] }];
       store.commit('updateIndexItemParams', {
-        search_mode: params[activeIndex.value],
-        ...resetData[activeIndex.value],
+        search_mode: queryParams[activeIndex.value],
       });
     },
     { immediate: true, deep: true },
@@ -79,27 +77,32 @@
 
   const handleIndexSetSelected = payload => {
     if (!isEqual(indexItem.value.ids, payload.ids) || indexItem.value.isUnionIndex !== payload.isUnionIndex) {
-      store.dispatch('requestIndexSetItemChanged', payload).then(() => {
+      store.dispatch('requestIndexSetItemChanged', Object.assign({}, payload, { addition: [] })).then(() => {
         store.commit('retrieve/updateChartKey');
         store.dispatch('requestIndexSetQuery');
       });
     }
   };
   const updateSearchParam = payload => {
-    const { keyword, addition, ip_chooser } = payload;
+    const { keyword, addition, ip_chooser, search_mode } = payload;
+
     store.commit('updateIndexItemParams', {
       keyword,
       addition,
       ip_chooser,
       begin: 0,
+      search_mode,
     });
 
-    if (addition?.length) {
-      activeIndex.value = 0;
-    }
+    activeIndex.value = queryParams.findIndex(m => m === search_mode);
+    if (activeIndex.value === -1) {
+      if (keyword?.length) {
+        activeIndex.value = 1;
+      }
 
-    if (keyword?.length) {
-      activeIndex.value = 1;
+      if (addition.length) {
+        activeIndex.value = 0;
+      }
     }
 
     store.dispatch('requestIndexSetQuery');
@@ -117,10 +120,6 @@
     sqlQueryValue.value = '*';
     uiQueryValue.value.splice(0);
     handleBtnQueryClick();
-  };
-
-  const handleValueChange = val => {
-    sqlQueryValue.value = val;
   };
 
   const handleQueryChange = () => {

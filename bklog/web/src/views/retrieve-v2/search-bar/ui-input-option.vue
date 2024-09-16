@@ -5,8 +5,7 @@
   import useStore from '@/hooks/use-store';
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
-  import { debounce } from 'lodash';
-  import tippy from 'tippy.js';
+  import { getInputQueryDefaultItem, getFieldConditonItem } from './const.common';
   import PopInstanceUtil from './pop-instance-util';
   // @ts-ignore
   import { getCharLength } from '@/common/util';
@@ -86,7 +85,7 @@
     arrow: false,
     newInstance: true,
     watchElement: refConditionInput,
-    onHiddenFn: instance => {
+    onHiddenFn: () => {
       refValueTagInputOptionList.value?.querySelector('li.is-hover')?.classList.remove('is-hover');
     },
     tippyOptions,
@@ -105,20 +104,8 @@
     ],
   });
 
-  const activeFieldItem = ref({
-    field_name: '*',
-    field_type: null,
-    field_alias: null,
-    field_id: null,
-    field_operator: [],
-  });
-
-  const condition = ref({
-    operator: '',
-    isInclude: false,
-    value: [],
-    relation: 'AND',
-  });
+  const activeFieldItem = ref(getFieldConditonItem());
+  const condition = ref(getInputQueryDefaultItem());
 
   const getRegExp = (searchValue, flags = 'ig') => {
     return new RegExp(`${searchValue}`.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), flags);
@@ -212,21 +199,8 @@
   };
 
   const resetActiveFieldItem = () => {
-    activeFieldItem.value = {
-      field_name: '*',
-      field_type: null,
-      field_alias: null,
-      field_id: null,
-      field_operator: [],
-    };
-
-    condition.value = {
-      operator: '',
-      isInclude: true,
-      value: [],
-      relation: 'OR',
-    };
-
+    activeFieldItem.value = getFieldConditonItem();
+    condition.value = getInputQueryDefaultItem();
     activeIndex.value = 0;
   };
 
@@ -240,7 +214,8 @@
     Object.assign(activeFieldItem.value, item);
     activeIndex.value = index;
     condition.value.operator = activeFieldItem.value.field_operator?.[0]?.operator;
-    condition.value.relation = 'AND';
+    condition.value.relation = 'OR';
+    condition.value.isInclude = ['text', 'string'].includes(activeFieldItem.value.field_type) ? false : null;
 
     if (props.value.field === item.field_name) {
       restoreFieldAndCondition();
@@ -261,8 +236,8 @@
 
     const isFulltextValue = activeFieldItem.value.field_name === '*';
     let result = {
-      field: activeFieldItem.value.field_name,
       ...condition.value,
+      field: activeFieldItem.value.field_name,
     };
 
     // 如果是全文检索
@@ -752,6 +727,7 @@
               <bk-input
                 v-model="condition.value[0]"
                 type="textarea"
+                :rows="12"
               ></bk-input>
             </template>
             <div

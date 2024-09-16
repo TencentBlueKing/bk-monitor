@@ -4,7 +4,7 @@
   import SqlQueryOptions from './sql-query-options';
   import useFocusInput from './use-focus-input';
   import CreateLuceneEditor from './codemirror-lucene';
-  import { debounce } from 'lodash';
+  // import useLocale from '@/hooks/use-locale';
 
   const props = defineProps({
     value: {
@@ -19,10 +19,8 @@
     emit('height-change', height);
   };
 
+  const placeholderText = 'log：error  AND "name=bklog"';
   const refSqlQueryOption = ref(null);
-  const isInputFocus = ref(false);
-  const refUlRoot = ref(null);
-  const separator = /\s(AND|OR)\s/i; // 区分查询语句条件
   const refEditorParent = ref(null);
   const sqlActiveParamsIndex = ref(null);
 
@@ -53,10 +51,6 @@
 
   const setEditorContext = val => {
     editorInstance.setValue(val);
-  };
-
-  const appendContextValue = val => {
-    editorInstance.appendText(val);
   };
 
   const onEditorContextChange = doc => {
@@ -97,38 +91,6 @@
     }
   };
 
-  const sqlQueryItemList = computed(() => {
-    return modelValue.value
-      .split(separator)
-      .filter(Boolean)
-      .map(val => {
-        if (/^\s*(AND|OR)\s*$/i.test(val)) {
-          return {
-            text: val,
-            operator: val,
-          };
-        }
-
-        return {
-          text: val,
-          operator: undefined,
-        };
-      });
-  });
-
-  const handleTextInputBlur = e => {
-    isInputFocus.value = false;
-    inputValue.value = '';
-    handleInputBlur(e);
-  };
-
-  const handleFocusInput = () => {
-    isInputFocus.value = true;
-    nextTick(() => {
-      delayShowInstance(refUlRoot.value);
-    });
-  };
-
   const handleQueryChange = value => {
     if (modelValue.value !== value) {
       setEditorContext(value);
@@ -160,6 +122,11 @@
       ref="refEditorParent"
       class="search-sql-editor"
     ></div>
+    <span
+      class="empty-placeholder-text"
+      v-show="!modelValue.length"
+      >{{ placeholderText }}</span
+    >
     <div style="display: none">
       <SqlQueryOptions
         ref="refSqlQueryOption"
@@ -177,6 +144,16 @@
     align-items: center;
     width: 100%;
 
+    .empty-placeholder-text {
+      position: absolute;
+      top: 50%;
+      left: 14px;
+      font-size: 12px;
+      line-height: 30px;
+      color: #c4c6cc;
+      pointer-events: none;
+      transform: translateY(-50%);
+    }
 
     .search-sql-editor {
       width: 100%;

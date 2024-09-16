@@ -7,6 +7,7 @@
 
   import UiInputOptions from './ui-input-option.vue';
   import useFocusInput from './use-focus-input';
+  import { getInputQueryDefaultItem } from './const.common';
 
   const props = defineProps({
     value: {
@@ -134,19 +135,7 @@
       return;
     }
 
-    let targetValue = formatModelValueItem(
-      isFulltextEnterVlaue
-        ? {
-            field: '',
-            operator: 'contains',
-            isInclude: false,
-            value: [inputValue.value],
-            relation: 'AND',
-            disabled: false,
-          }
-        : payload,
-    );
-
+    let targetValue = formatModelValueItem(isFulltextEnterVlaue ? getInputQueryDefaultItem(inputValue.value) : payload);
     getTippyInstance()?.hide();
 
     if (isInputFocus.value) {
@@ -231,7 +220,7 @@
       @click.stop="e => handleTagItemClick(e, item, index)"
     >
       <div class="tag-row match-name">
-        {{ item.field !== '' ? item.field : $t('全文') }}
+        {{ item.field !== '*' ? item.field : $t('全文') }}
         <span
           class="symbol"
           :data-operator="item.operator"

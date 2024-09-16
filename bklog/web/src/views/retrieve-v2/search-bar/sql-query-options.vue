@@ -5,11 +5,9 @@
   import useLocale from '@/hooks/use-locale';
   // @ts-ignore
   import useStore from '@/hooks/use-store';
-  import imgEnterKey from '@/images/icons/enter-key.svg';
-  import imgUpDownKey from '@/images/icons/up-down-key.svg';
   // @ts-ignore
   import { debounce } from 'lodash';
-
+  // @ts-ignore
   import FavoriteList from './favorite-list';
 
   const props = defineProps({
