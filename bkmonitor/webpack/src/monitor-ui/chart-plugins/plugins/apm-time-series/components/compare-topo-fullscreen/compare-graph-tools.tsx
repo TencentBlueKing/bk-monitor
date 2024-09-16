@@ -50,7 +50,7 @@ export default class CompareGraphTools extends tsc<CompareGraphToolsProps, Compa
   @Prop({ default: 1 }) scaleValue!: number;
   @Prop({ default: 100 }) maxScale!: number;
   @Prop({ default: 1 }) minScale!: number;
-  @Prop({ default: 10 }) scaleStep!: number;
+  @Prop({ default: 0.1 }) scaleStep!: number;
   @Prop({ default: false }) showThumbnail!: boolean;
   @Prop({ default: false }) showLegend!: boolean;
 
@@ -121,7 +121,7 @@ export default class CompareGraphTools extends tsc<CompareGraphToolsProps, Compa
             max-value={this.maxScale}
             min-value={this.minScale}
             show-tip={false}
-            step={0.1}
+            step={this.scaleStep}
             value={this.scaleValue}
             onInput={this.handleScaleChange}
           />

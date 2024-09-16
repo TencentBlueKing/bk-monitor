@@ -155,6 +155,7 @@ export default class Service extends tsc<object> {
       };
       vm.appName = appName;
       vm.serviceName = serviceName;
+      vm.dashboardId = query.dashboardId as string;
       vm.getApplicationList();
       vm.getServiceList();
     };
@@ -216,7 +217,7 @@ export default class Service extends tsc<object> {
       const targetRoute = this.$router.resolve({ name: id, query: { 'filter-app_name': this.appName } });
       /** 防止出现跳转当前地址导致报错 */
       if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
-        this.$router.push({ name: id, query: { 'filter-app_name': this.appName } });
+        this.$router.push({ name: id, query: { 'filter-app_name': this.appName, dashboardId: this.dashboardId } });
       }
     } else {
       this.serviceName = item.id;
@@ -294,6 +295,7 @@ export default class Service extends tsc<object> {
             key={this.pageKey}
             ref='commonPageRef'
             backToOverviewKey={this.backToOverviewKey}
+            defaultDashboardId={this.dashboardId}
             defaultViewOptions={this.viewOptions}
             isShowSplitPanel={false}
             sceneId={'apm_service'}

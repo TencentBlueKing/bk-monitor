@@ -225,6 +225,15 @@
     width: 100%;
     transform: translateY(-50%);
   }
+
+  .apm-graph-tips {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 9;
+    display: flex;
+    color: #979ba5;
+  }
 }
 
 .apm-topo-tools-popover-theme {

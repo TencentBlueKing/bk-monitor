@@ -343,6 +343,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
             {this.inited && [
               this.showTitleIcon && this.showMetricAlarm && this.metricTitleData?.collect_interval ? (
                 <span
+                  key='title-interval'
                   class='title-interval'
                   v-bk-tooltips={{
                     content: this.$t('数据步长'),
@@ -357,6 +358,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               (this.$scopedSlots as any)?.customSlot?.(),
               this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
                 <i
+                  key={'custom-icon'}
                   style={{ display: this.showMore ? 'flex' : 'none' }}
                   class='bk-icon icon-info-circle tips-icon'
                   onMouseenter={this.handleShowTips}
@@ -375,9 +377,15 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                   }}
                 />
               ),
-              <span class='title-center' />,
+              <span
+                key={'title-center'}
+                class='title-center'
+              >
+                {this.inited && this.$slots?.default}
+              </span>,
               this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
                 <i
+                  key={'添加策略'}
                   style={{
                     display: this.showMore && this.showAddMetric ? 'flex' : 'none',
                   }}
@@ -390,6 +398,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                 />
               ) : undefined,
               <span
+                key={'更多'}
                 style={{
                   marginLeft: this.metricTitleData && this.showAddMetric ? '0' : 'auto',
                   display: this.showMore ? 'flex' : 'none',

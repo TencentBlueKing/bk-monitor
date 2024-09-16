@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Mixins, Prop, Provide, Ref } from 'vue-property-decorator';
+import { Component, InjectReactive, Mixins, Prop, Ref } from 'vue-property-decorator';
 
 import { listApplicationInfo, simpleServiceList } from 'monitor-api/modules/apm_meta';
 import { random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
+import authorityMixinCreate from 'monitor-pc/mixins/authorityMixin';
 import CommonAlert from 'monitor-pc/pages/monitor-k8s/components/common-alert';
 import CommonPage, { type SceneType } from 'monitor-pc/pages/monitor-k8s/components/common-page-new';
 
@@ -37,7 +38,6 @@ import ApmCommonNavBar, {
   type ISelectItem,
 } from '../../components/apm-common-nav-bar/apm-common-nav-bar';
 import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
-import authorityMixinCreate from '../../mixins/authorityMixin';
 import applicationStore from '../../store/modules/application';
 import AppAddForm from '../home/app-add-form';
 import * as authorityMap from './../home/authority-map';
@@ -55,9 +55,6 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   @Prop({ type: String, default: '' }) id: string;
 
   @Ref() commonPageRef: CommonPage;
-
-  @Provide('authority') authority;
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
   // 是否是只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
   sceneType: SceneType = 'overview';
@@ -117,7 +114,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
       name: window.i18n.tc('数据状态'),
     },
   ];
-
+  dashboardId = '';
   get pluginsList() {
     return applicationStore.pluginsListGetter || [];
   }
@@ -175,6 +172,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
       };
       const { query } = to;
       vm.appName = query['filter-app_name'] as string;
+      vm.dashboardId = query.dashboardId || 'overview';
       applicationStore.getPluginList();
       vm.handleGetAppInfo();
       vm.getApplicationList();
@@ -244,6 +242,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
       this.routeList[1].selectOption.value = this.appName;
       this.pageKey += 1;
     } else {
+      const dashboardId = this.$route.query.dashboardId;
       this.$router.push({
         name: 'service',
         query: {
@@ -252,6 +251,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
           'filter-category': item.category,
           'filter-kind': item.kind,
           'filter-predicate_value': item.predicate_value,
+          dashboardId,
         },
       });
     }
@@ -329,6 +329,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
             key={this.pageKey}
             ref='commonPageRef'
             backToOverviewKey={this.backToOverviewKey}
+            defaultDashboardId={this.dashboardId}
             defaultViewOptions={this.viewOptions}
             isShowSplitPanel={false}
             sceneId={'apm_application'}

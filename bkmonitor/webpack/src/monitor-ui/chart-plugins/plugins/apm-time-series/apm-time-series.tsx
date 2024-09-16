@@ -328,7 +328,7 @@ export default class ApmTimeSeries extends TimeSeries {
           }
         }
         const formatterFunc = this.handleSetFormatterFunc(seriesList[0].data);
-        const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
+        const { canScale, maxThreshold } = this.handleSetThreholds();
 
         let chartBaseOptions = MONITOR_LINE_OPTIONS;
         if (this.disableZoom) {
@@ -371,12 +371,7 @@ export default class ApmTimeSeries extends TimeSeries {
               minInterval: 1,
               scale: this.height < 120 ? false : canScale,
               max: v => Math.max(v.max, +maxThreshold),
-              min: v => {
-                let min = Math.min(v.min, +minThreshold);
-                // 柱状图y轴不能以最小值作为起始点
-                if (isBar) min = min <= 10 ? 0 : min - 10;
-                return min;
-              },
+              min: 0,
             },
             xAxis: {
               axisLabel: {
@@ -513,7 +508,12 @@ export default class ApmTimeSeries extends TimeSeries {
             onMetricClick={this.handleMetricClick}
             onSelectChild={this.handleSelectChildMenu}
             onUpdateDragging={() => this.panel.updateDraging(false)}
-          />
+          >
+            <div class='context-menu-info'>
+              {/* <bk-button size='small'>{this.$t('查看详情')}</bk-button> */}
+              {this.$t('右键更多操作')}
+            </div>
+          </ChartHeader>
         )}
         {this.panel.options?.logHeader && (
           <div class='log-header'>
@@ -545,6 +545,7 @@ export default class ApmTimeSeries extends TimeSeries {
                   needTooltips={this.needTips}
                   options={this.options}
                   showRestore={this.showRestore}
+                  sortTooltipsValue={false}
                   tooltipsContentLastItemFn={this.tooltipsContentLastItem}
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}

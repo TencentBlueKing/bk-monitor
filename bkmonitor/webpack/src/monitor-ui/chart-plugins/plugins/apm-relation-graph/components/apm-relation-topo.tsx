@@ -78,6 +78,7 @@ type IEdgeModel = {
   duration_avg?: string;
   duration_p99?: string;
   duration_p95?: string;
+  duration_p50?: string;
   request_count?: number;
 };
 
@@ -228,7 +229,9 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
           type: item.from_name === item.to_name ? 'apm-loop-dash' : 'apm-line-dash',
           source: item.from_name,
           target: item.to_name,
-          label: String(item.duration_avg || item.duration_p95 || item.duration_p99 || item.request_count || 0),
+          label: String(
+            item.duration_avg || item.duration_p95 || item.duration_p99 || item.duration_p50 || item.request_count || 0
+          ),
           style: {
             lineWidth: item.edge_breadth,
             stroke: '#C4C6CC',
@@ -236,6 +239,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
             endArrow: {
               path: G6.Arrow.triangle(10, 10, 0), // 路径
               fill: '#C4C6CC', // 填充颜色
+              stroke: '#C4C6CC', // 描边颜色
+              strokeOpacity: 0, // 描边透明度
             },
           },
         };
@@ -343,9 +348,10 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       this.$emit('serviceDetail', this.menuCfg.nodeModel);
     }
     if (type === 'link') {
-      this.$router.push({
+      const route = this.$router.resolve({
         path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${url}`.replace(/\/\//g, '/'),
       });
+      window.open(route.href, '_blank');
     }
 
     this.hideMenu();
@@ -409,6 +415,19 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
              * @param  {Edge} edge 边
              */
             setState: (name, value, item: IEdge) => this.setEdgeState(name, value, item),
+            // afterDraw(cfg, group) {
+            //   const shape = group.get('children')[0];
+            //   const midPoint = shape.getPoint(0.5);
+            //   group.addShape('rect', {
+            //     attrs: {
+            //       width: 10,
+            //       height: 10,
+            //       fill: '#4051A3',
+            //       x: midPoint.x - 5,
+            //       y: midPoint.y - 5,
+            //     },
+            //   });
+            // },
           },
           'quadratic'
         );
@@ -590,6 +609,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         edge.setState('active', nodeEdges.includes(edge));
       }
       this.$emit('nodeClick', item.getModel());
+      this.hideMenu();
     });
 
     graph.on('node:mouseenter', evt => {
@@ -637,6 +657,12 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       }
       this.handleHighlightNode();
     });
+    // graph.on('edge:mouseenter', evt => {
+    //   if (['rect', 'text'].includes(evt.target.get('type'))) {
+    //     console.info(evt.item.getKeyShape().get('text'), '=========');
+    //     // debugger;
+    //   }
+    // });
   }
 
   showMenu(x: number, y: number, item: INode) {
@@ -1028,14 +1054,18 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   }
 
   handleJumpToInterface() {
-    const { dashboardId, sliceEndTime, sliceStartTime, ...param } = this.$route.query;
+    const { dashboardId, sliceEndTime, sliceStartTime, sceneId, sceneType, ...param } = this.$route.query;
     const { href } = this.$router.resolve({
+      name: 'service',
       query: {
         ...param,
-        dashboardId: 'endpoint',
+        dashboardId: 'service-default-endpoint',
+        'filter-service_name': this.menuCfg.nodeModel.data.name,
+        sceneId: 'apm_service',
+        sceneType: 'overview',
       },
     });
-    window.open(href);
+    window.open(href, '_blank');
   }
 
   reset() {
@@ -1185,29 +1215,18 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
                   />
                 )}
                 {this.menuCfg.drillingTotal > 5 && (
-                  <bk-popover
-                    distance={5}
-                    theme='drilling-more-popover'
+                  <bk-button
+                    style='width: 100%;'
+                    theme='primary'
+                    text
+                    onClick={this.handleJumpToInterface}
                   >
-                    <div
-                      class='footer'
-                      onClick={this.handleJumpToInterface}
-                    >
-                      <div class='more-icon'>
-                        <div class='dot' />
-                        <div class='dot' />
-                        <div class='dot' />
-                      </div>
-                    </div>
-                    <div
-                      class='drilling-more-popover-content'
-                      slot='content'
-                      onClick={this.handleJumpToInterface}
-                    >
-                      <span>{this.$t('查看完整接口')}</span>
-                      <i class='icon-monitor icon-fenxiang' />
-                    </div>
-                  </bk-popover>
+                    {this.$t('完整接口')}
+                    <i
+                      style='display: inline-flex; margin-left: 4px'
+                      class='icon-monitor icon-fenxiang'
+                    />
+                  </bk-button>
                 )}
               </div>
             </div>
@@ -1230,11 +1249,20 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
           </div>
         </div>
 
-        {!this.formatData.nodes.length && (
+        {!this.formatData.nodes.length && [
           <EmptyStatus
+            key='empty'
             class='apm-topo-empty'
             type='empty'
-          />
+          />,
+        ]}
+        {this.formatData.nodes.length && (
+          <div
+            key='graph-tips'
+            class='apm-graph-tips'
+          >
+            {this.$t('在节点右键进行更多操作')}
+          </div>
         )}
       </div>
     );
