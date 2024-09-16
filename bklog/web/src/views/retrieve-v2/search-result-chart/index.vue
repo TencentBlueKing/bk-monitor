@@ -37,7 +37,7 @@
       :loading="isLoading || !finishPolling"
       :menu-list="chartOptions.tool.list"
       :title="$t('总趋势')"
-      :total-count="totalCount"
+      :total-count="totalNumShow"
       @interval-change="handleChangeInterval"
       @menu-click="handleMoreToolItemSet"
       @toggle-expand="toggleExpand"
@@ -85,7 +85,7 @@
   import axios from 'axios';
   import { debounce } from 'throttle-debounce';
   // import { nextTick } from 'vue';
-  import { mapGetters } from 'vuex';
+  import { mapGetters, mapState } from 'vuex';
 
   const CancelToken = axios.CancelToken;
 
@@ -142,9 +142,6 @@
         optionData: [],
         totalCount: 0,
         localAddition: [],
-        infoTotal: 0,
-        infoTotalNumLoading: false,
-        infoTotalNumError: false,
       };
     },
     computed: {
@@ -158,6 +155,9 @@
         this.getInterval();
         return this.$store.state.retrieve.chartKey;
       },
+      ...mapState({
+        searchTotal: 'searchTotal',
+      }),
       ...mapGetters({
         unionIndexList: 'unionIndexList',
         isUnionSearch: 'isUnionSearch',
@@ -165,9 +165,7 @@
         retrieveParams: 'retrieveParams',
       }),
       totalNumShow() {
-        if (!this.infoTotalNumLoading && !this.infoTotalNumError && !this.isFrontStatistics && this.infoTotal > 0)
-          return this.infoTotal;
-        return this.totalCount;
+        return !!this.searchTotal ? this.searchTotal : this.totalCount;
       },
       /** 未开启白名单时 是否由前端来统计总数 */
       isFrontStatistics() {
@@ -201,7 +199,6 @@
           this.handleLogChartCancel();
           this.localAddition = this.retrieveParams.addition;
           this.$refs.chartRef?.handleCloseTimer();
-          // !this.isFrontStatistics && this.getInfoTotalNum();
           this.totalCount = 0;
           this.isRenderChart = true;
           this.isLoading = false;
@@ -215,6 +212,9 @@
       finishPolling(newVal) {
         this.$emit('change-queue-res', newVal);
       },
+      searchTotal(newVal) {
+        this.$emit('change-queue-res', !!newVal);
+      }
     },
     created() {
       this.handleLogChartCancel = debounce(300, this.logChartCancel);
@@ -241,7 +241,6 @@
           this.timeRange = [startTime, endTime];
           this.finishPolling = false;
           this.isStart = false;
-          // !this.isFrontStatistics && this.getInfoTotalNum();
           this.totalCount = 0;
           // 框选时间范围
           this.changeTimeByChart([startTime, endTime]);
@@ -367,7 +366,6 @@
             this.finishPolling = false;
             this.isStart = false;
             this.changeTimeByChart(cacheDatePickerValue);
-            // !this.isFrontStatistics && this.getInfoTotalNum();
           }, 100);
         }
       },
@@ -398,39 +396,6 @@
       },
       handleChartLoading(isLoading) {
         this.isLoading = isLoading;
-      },
-      getInfoTotalNum() {
-        clearTimeout(this.timer);
-        this.timer = setTimeout(() => {
-          this.infoTotalNumLoading = true;
-          this.infoTotalNumError = false;
-          this.infoTotal = 0;
-          this.$http
-            .request(
-              'retrieve/fieldStatisticsTotal',
-              {
-                data: {
-                  ...this.retrieveParams,
-                  index_set_ids: this.isUnionSearch ? this.unionIndexList : [this.$route.params.indexId],
-                },
-              },
-              {
-                cancelToken: new CancelToken(c => {
-                  this.infoTotalCancel = c;
-                }),
-              },
-            )
-            .then(res => {
-              const { data, code } = res;
-              if (code === 0) this.infoTotal = data.total_count;
-            })
-            .catch(() => {
-              this.infoTotalNumError = true;
-            })
-            .finally(() => {
-              this.infoTotalNumLoading = false;
-            });
-        }, 0);
       },
     },
   };
