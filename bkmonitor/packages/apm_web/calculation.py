@@ -96,7 +96,9 @@ class ApdexCalculation(Calculation):
                 datapoint_map[point[1]][apdex_type] += point[0]
 
         res = []
-        for timestamp, info in datapoint_map.items():
+        for timestamp in sorted(datapoint_map.keys()):
+            info = datapoint_map[timestamp]
+
             satisfied_count = info["satisfied"]
             tolerating_count = info["tolerating"]
             frustrated_count = info["frustrated"]
