@@ -154,6 +154,12 @@ class Node:
     def __post_init__(self):
         self.id = f"{self.source_type}-{self.source_info.id}"
 
+    def __eq__(self, other):
+        return self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id)
+
     @classmethod
     def list_nodes_by_level(cls, node: "Node", level, current_level=0):
         """从 node 节点开始 获取树的第 level 层的所有节点 返回列表"""

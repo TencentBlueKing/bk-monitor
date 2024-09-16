@@ -130,6 +130,7 @@ interface ICommonPageProps {
   toggleTabSearchFilterKeys?: string[];
   // 默认汇聚方法
   defalutMethod?: string;
+  defaultDashboardId?: string;
 }
 interface ICommonPageEvent {
   onTitleChange: string;
@@ -150,6 +151,8 @@ const customRouterQueryKeys = ['sliceStartTime', 'sliceEndTime'];
 export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEvent> {
   // 场景id
   @Prop({ default: 'host', type: String }) readonly sceneId: string;
+  // dashboard Id
+  @Prop({ type: String }) readonly defaultDashboardId: string;
   // 场景类型
   @Prop({ default: 'detail', type: String }) readonly sceneType: SceneType;
   // 默认viewoptions 视图变量等
@@ -558,6 +561,9 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     };
     this.handleResetRouteQuery();
   }
+  created() {
+    this.dashboardId = this.defaultDashboardId;
+  }
   mounted() {
     this.timezone = getDefaultTimezone();
     this.initData();
@@ -778,7 +784,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       type: this.localSceneType,
       id: this.dashboardId,
     };
-
     /** 注入侧栏的变量 或 apm自定义服务变量 */
     if (this.hasOtherParams || this.isApmServiceOverview) {
       const variablesService = new VariablesService(this.filters);

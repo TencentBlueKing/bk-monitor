@@ -69,6 +69,7 @@ class PercentageBarChart extends CommonSimpleChart {
   // 查看更多链接
   viewMoreLink = '';
   isFetchingData = false;
+  cellValueMaxWidth = 0;
 
   get showMoreData() {
     return this.viewMoreLink !== '';
@@ -235,7 +236,11 @@ class PercentageBarChart extends CommonSimpleChart {
    * @description: 更新图表的字体大小
    */
   handleUpdateTableFontSize(): TableFontClassType {
-    // const firstRow = this.tableRef?.querySelector('.first-row');
+    const firstRowCellValue = this.tableRef?.querySelector('.first-row .cell-value');
+    if (firstRowCellValue) {
+      const { width } = firstRowCellValue.getBoundingClientRect();
+      this.cellValueMaxWidth = width;
+    }
     // const { height } = firstRow?.getBoundingClientRect() || { height: 0 };
     // if (height <= 50) {
     //   return 'font-normal';
@@ -270,7 +275,10 @@ class PercentageBarChart extends CommonSimpleChart {
             >
               {this.inited &&
                 this.chartDataList.map((item, index) => (
-                  <tr class={['avr-chart-tr', { 'first-row': index === 0 }]}>
+                  <tr
+                    key={index}
+                    class={['avr-chart-tr', { 'first-row': index === 0 }]}
+                  >
                     <td class='avr-cell cell-label'>
                       <div class='avr-cell-content'>
                         <span class='num'>{item.value}</span>
@@ -280,7 +288,12 @@ class PercentageBarChart extends CommonSimpleChart {
                     <td class='avr-cell cell-value'>
                       <div class='avr-cell-content item-cell-bar'>
                         <div
+                          style={{
+                            maxWidth: this.cellValueMaxWidth > 10 ? `${this.cellValueMaxWidth}px` : 'initial',
+                            whiteSpace: this.cellValueMaxWidth > 10 ? 'nowrap' : 'wrap',
+                          }}
                           class={['content-label', { 'link-label': item.type === 'link' }]}
+                          title={item.name}
                           onClick={() => (item.type === 'link' ? this.handleLinkClick(item) : false)}
                         >
                           {item.name}

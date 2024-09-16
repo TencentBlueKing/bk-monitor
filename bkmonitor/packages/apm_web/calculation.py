@@ -96,7 +96,9 @@ class ApdexCalculation(Calculation):
                 datapoint_map[point[1]][apdex_type] += point[0]
 
         res = []
-        for timestamp, info in datapoint_map.items():
+        for timestamp in sorted(datapoint_map.keys()):
+            info = datapoint_map[timestamp]
+
             satisfied_count = info["satisfied"]
             tolerating_count = info["tolerating"]
             frustrated_count = info["frustrated"]
@@ -205,7 +207,7 @@ class FlowMetricErrorRateCalculation(Calculation):
             "series": [
                 {
                     "datapoints": [
-                        (round(error_ts.get(t, 0) / (normal_ts.get(t, 0) + error_ts.get(t, 0)), 2), t)
+                        (round(error_ts.get(t, 0) / (normal_ts.get(t, 0) + error_ts.get(t, 0)), 6), t)
                         for t in all_ts
                         if (normal_ts.get(t, 0) + error_ts.get(t, 0))
                     ]

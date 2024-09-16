@@ -121,8 +121,8 @@ class ErrorRateMixin(EndpointList):
             total_mapping.setdefault(span, 0)
             total_mapping[span] += value
 
+            error_mapping.setdefault(span, 0)
             if status_code == str(StatusCode.ERROR.value):
-                error_mapping.setdefault(span, 0)
                 error_mapping[span] += value
 
             endpoint_names.add(span)
@@ -132,8 +132,7 @@ class ErrorRateMixin(EndpointList):
     def convert_mapping_to_list(self, total_mapping, error_mapping, endpoint_names):
         res = []
         for index, name in enumerate(endpoint_names, 1):
-
-            error_rate = round(error_mapping[name] / total_mapping[name], 2) if total_mapping[name] else 0
+            error_rate = round(error_mapping.get(name, 0) / total_mapping[name], 2) if total_mapping[name] else 0
             if error_rate == 0:
                 color = NodeColor.Color.GREEN
             elif error_rate < 0.1:
@@ -240,7 +239,6 @@ class ApdexList(EndpointList):
     metric = ApdexInstance
 
     def list(self):
-
         response = self.metric(
             **self.common_params, **{"filter_dict": self.get_filter_dict(), "group_by": ["span_name"]}
         ).get_instance_calculate_values_mapping(

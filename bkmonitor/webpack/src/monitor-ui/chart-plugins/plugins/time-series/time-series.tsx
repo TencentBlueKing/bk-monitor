@@ -171,8 +171,8 @@ export class LineChart
     if (this.customMenuList) return this.customMenuList;
     const [target] = this.panel.targets;
     return target.datasource === 'time_series'
-      ? ['save', 'more', 'fullscreen', 'explore', 'set', 'area', 'drill-down', 'relate-alert']
-      : ['screenshot', 'set', 'area'];
+      ? ['save', 'more', 'fullscreen', 'explore', 'area', 'drill-down', 'relate-alert']
+      : ['screenshot', 'area'];
   }
 
   // 是否显示添加指标到策略选项
@@ -848,10 +848,9 @@ export class LineChart
         dimensions: item.dimensions,
       };
       // 动态单位转换
-      const unitFormatter =
-        item.unit !== 'none'
-          ? getValueFormat(this.yAxisNeedUnitGetter ? item.unit || '' : '')
-          : (v: any) => ({ text: v });
+      const unitFormatter = !['', 'none', undefined, null].includes(item.unit)
+        ? getValueFormat(this.yAxisNeedUnitGetter ? item.unit || '' : '')
+        : (v: any) => ({ text: v });
       let hasValueLength = 0;
       const data = item.data.map((seriesItem: any, seriesIndex: number) => {
         if (seriesItem?.length && typeof seriesItem[1] === 'number') {

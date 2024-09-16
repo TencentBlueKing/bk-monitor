@@ -365,8 +365,11 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   }
 
   handleServiceConfig() {
-    const url = `/service-config?app_name=${this.appName}&service_name=${this.serviceName}`;
-    window.open(`${location.origin}${location.pathname}${location.search}#/apm${url}`);
+    const url = `service-config?app_name=${this.appName}&service_name=${this.serviceName}`;
+    window.open(
+      `${location.origin}${location.pathname}${location.search}#/${window.__POWERED_BY_BK_WEWEB__ ? 'apm/' : ''}${url}`,
+      '_blank'
+    );
   }
 
   handleMoreLinkClick() {

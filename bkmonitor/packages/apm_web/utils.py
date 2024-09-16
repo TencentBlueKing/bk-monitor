@@ -143,9 +143,29 @@ def get_bar_interval_number(start_time, end_time, size=30):
     return int(delta // size)
 
 
+def split_by_size(start_time, end_time, size=30):
+    """切分开始时间和结束时间，按照个数返回"""
+    start_dt = datetime.datetime.fromtimestamp(start_time)
+    end_dt = datetime.datetime.fromtimestamp(end_time)
+
+    total_duration = end_dt - start_dt
+    segment_duration = total_duration / size
+
+    segments = []
+
+    for i in range(size):
+        segment_start = start_dt + segment_duration * i
+        segment_end = segment_start + segment_duration
+        segments.append((int(segment_start.timestamp()), int(segment_end.timestamp())))
+
+    return segments
+
+
 def split_by_interval(start_time, end_time, interval):
     """根据 interval 对开始时间和结束时间进行分割"""
-    if interval[-1] == "m":
+    if interval[-1] == "s":
+        interval_seconds = int(interval[:-1])
+    elif interval[-1] == "m":
         interval_seconds = int(interval[:-1]) * 60
     elif interval[-1] == "h":
         interval_seconds = int(interval[:-1]) * 3600
@@ -199,3 +219,33 @@ def merge_dicts(d1, d2):
         else:
             merged[key] = value
     return merged
+
+
+def fill_series(series, start_time, end_time):
+    """调整时间戳 将无数据的柱子值设置为 0 (适用于柱状图查询)"""
+    timestamp_range = split_by_size(start_time, end_time)
+
+    # Algorithm: 根据 series 中数据时间 不丢失数据的前提下放入不完整对齐的时间切片中
+    res = []
+    for i in series:
+        result = [[None, int((t_e + t_s) / 2) * 1000] for t_e, t_s in timestamp_range]
+        for j, d in enumerate(i["datapoints"]):
+            value, timestamp = d
+            if j > 0:
+                # 往前移动被覆盖元素
+                if timestamp_range[j - 1][0] <= timestamp <= timestamp_range[j - 1][1]:
+                    result[j - 1] = d
+                    result[j - 2] = i["datapoints"][j - 1]
+                    continue
+
+            if result[j][0] is None:
+                result[j] = d
+
+        res.append(
+            {
+                **i,
+                "datapoints": sorted(result, key=lambda t: t[-1]),
+            }
+        )
+
+    return res

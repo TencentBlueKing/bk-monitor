@@ -671,7 +671,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             <bk-input
               class='ml-24'
               behavior='simplicity'
-              placeholder={'搜索服务、接口'}
+              placeholder={'搜索服务'}
               right-icon='bk-icon icon-search'
               value={this.filterCondition.searchValue}
               clearable
@@ -682,7 +682,12 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             />
           </div>
           <div class='header-tool-wrap'>
-            <div class='tool-btns'>
+            <div
+              style={{
+                display: this.showType === 'topo' ? 'flex' : 'none',
+              }}
+              class='tool-btns'
+            >
               {this.expandList.map(item => (
                 <div
                   key={item.id}
@@ -779,34 +784,36 @@ export default class ApmRelationGraph extends CommonSimpleChart {
           class='apm-relation-graph-table-wrap'
         >
           <div class='table-wrap'>
-            {this.loading.table ? (
-              <TableSkeleton type={2} />
-            ) : (
-              <CommonTable
-                pagination={{
-                  ...this.pagination,
-                  count: this.filterTableData.length,
-                }}
-                scopedSlots={{
-                  type: row => (
-                    <div class='call-type-column'>
-                      <span>{this.callColumn[row.type]?.name}</span>
-                      <div class={`icon ${row.type}`}>
-                        <i class={`icon-monitor ${this.callColumn[row.type]?.icon}`} />
+            <keep-alive>
+              {this.loading.table ? (
+                <TableSkeleton type={2} />
+              ) : (
+                <CommonTable
+                  pagination={{
+                    ...this.pagination,
+                    count: this.filterTableData.length,
+                  }}
+                  scopedSlots={{
+                    type: row => (
+                      <div class='call-type-column'>
+                        <span>{this.callColumn[row.type]?.name}</span>
+                        <div class={`icon ${row.type}`}>
+                          <i class={`icon-monitor ${this.callColumn[row.type]?.icon}`} />
+                        </div>
                       </div>
-                    </div>
-                  ),
-                }}
-                checkable={false}
-                columns={this.tableColumns}
-                data={this.showTableData}
-                paginationType={'simple'}
-                onFilterChange={this.handleTableFilterChange}
-                onLimitChange={this.handleTableLimitChange}
-                onPageChange={this.handleTablePageChange}
-                onSortChange={this.handleTableSortChange}
-              />
-            )}
+                    ),
+                  }}
+                  checkable={false}
+                  columns={this.tableColumns}
+                  data={this.showTableData}
+                  paginationType={'simple'}
+                  onFilterChange={this.handleTableFilterChange}
+                  onLimitChange={this.handleTableLimitChange}
+                  onPageChange={this.handleTablePageChange}
+                  onSortChange={this.handleTableSortChange}
+                />
+              )}
+            </keep-alive>
           </div>
         </div>
       </div>
