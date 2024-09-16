@@ -132,7 +132,7 @@ class ErrorRateMixin(EndpointList):
     def convert_mapping_to_list(self, total_mapping, error_mapping, endpoint_names):
         res = []
         for index, name in enumerate(endpoint_names, 1):
-            error_rate = round(error_mapping[name] / total_mapping[name], 2) if total_mapping[name] else 0
+            error_rate = round(error_mapping.get(name, 0) / total_mapping[name], 2) if total_mapping[name] else 0
             if error_rate == 0:
                 color = NodeColor.Color.GREEN
             elif error_rate < 0.1:

@@ -74,6 +74,7 @@ from apm_web.serializers import AsyncSerializer, ComponentInstanceIdDynamicField
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from apm_web.utils import (
     Calculator,
+    fill_series,
     get_bar_interval_number,
     group_by,
     handle_filter_fields,
@@ -1214,9 +1215,11 @@ class ApdexQueryResource(ApiAuthResource):
             raise ValueError("Application does not exist")
 
         if ApplicationHandler.have_data(application, start_time, end_time):
-            return ApdexRange(
+            response = ApdexRange(
                 application, start_time, end_time, interval=get_bar_interval_number(start_time, end_time)
             ).query_range()
+            return {"metrics": [], "series": fill_series(response.get("series", []), start_time, end_time)}
+
         return {"metrics": [], "series": []}
 
 

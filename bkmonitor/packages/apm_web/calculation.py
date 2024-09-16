@@ -207,7 +207,7 @@ class FlowMetricErrorRateCalculation(Calculation):
             "series": [
                 {
                     "datapoints": [
-                        (round(error_ts.get(t, 0) / (normal_ts.get(t, 0) + error_ts.get(t, 0)), 2), t)
+                        (round(error_ts.get(t, 0) / (normal_ts.get(t, 0) + error_ts.get(t, 0)), 6), t)
                         for t in all_ts
                         if (normal_ts.get(t, 0) + error_ts.get(t, 0))
                     ]

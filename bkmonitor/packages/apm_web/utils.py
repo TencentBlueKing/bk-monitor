@@ -219,3 +219,33 @@ def merge_dicts(d1, d2):
         else:
             merged[key] = value
     return merged
+
+
+def fill_series(series, start_time, end_time):
+    """调整时间戳 将无数据的柱子值设置为 0 (适用于柱状图查询)"""
+    timestamp_range = split_by_size(start_time, end_time)
+
+    # Algorithm: 根据 series 中数据时间 不丢失数据的前提下放入不完整对齐的时间切片中
+    res = []
+    for i in series:
+        result = [[None, int((t_e + t_s) / 2) * 1000] for t_e, t_s in timestamp_range]
+        for j, d in enumerate(i["datapoints"]):
+            value, timestamp = d
+            if j > 0:
+                # 往前移动被覆盖元素
+                if timestamp_range[j - 1][0] <= timestamp <= timestamp_range[j - 1][1]:
+                    result[j - 1] = d
+                    result[j - 2] = i["datapoints"][j - 1]
+                    continue
+
+            if result[j][0] is None:
+                result[j] = d
+
+        res.append(
+            {
+                **i,
+                "datapoints": sorted(result, key=lambda t: t[-1]),
+            }
+        )
+
+    return res
