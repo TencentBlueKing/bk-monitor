@@ -191,7 +191,7 @@ class LinkHelper:
             return None
 
         return (
-            f"/service?"
+            f"/apm/service?"
             f"filter-service_name={service_name}&"
             f"filter-app_name={app_name}&"
             f"from={start_time * 1000}&"
@@ -210,7 +210,7 @@ class LinkHelper:
             return None
 
         return (
-            f"/service?"
+            f"/apm/service?"
             f"filter-service_name={service_name}&"
             f"filter-app_name={app_name}&"
             f"from={start_time * 1000}&"
