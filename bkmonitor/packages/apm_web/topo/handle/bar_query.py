@@ -26,7 +26,7 @@ from apm_web.metric_handler import (
     ServiceFlowErrorRateCallee,
     ServiceFlowErrorRateCaller,
 )
-from apm_web.models import Application
+from apm_web.models import Application, AppServiceRelation
 from apm_web.topo.constants import BarChartDataType
 from apm_web.topo.handle import BaseQuery
 from apm_web.utils import get_bar_interval_number
@@ -181,6 +181,17 @@ class LinkHelper:
         )
 
     @classmethod
+    def get_application_topo_link(cls, bk_biz_id, app_name, start_time, end_time):
+        """获取应用的 topo 链接"""
+        return (
+            f"?bizId={bk_biz_id}#/apm/application?"
+            f"filter-app_name={app_name}&"
+            f"dashboardId=topo&"
+            f"from={start_time * 1000}&"
+            f"to={end_time * 1000}"
+        )
+
+    @classmethod
     def get_service_log_tab_link(cls, bk_biz_id, app_name, service_name, start_time, end_time, views=None):
         """获取服务的日志 tab 页面链接"""
         if not views:
@@ -191,7 +202,7 @@ class LinkHelper:
             return None
 
         return (
-            f"#/apm/service?"
+            f"?bizId={bk_biz_id}#/apm/service?"
             f"filter-service_name={service_name}&"
             f"filter-app_name={app_name}&"
             f"from={start_time * 1000}&"
@@ -210,7 +221,7 @@ class LinkHelper:
             return None
 
         return (
-            f"#/apm/service?"
+            f"?bizId={bk_biz_id}#/apm/service?"
             f"filter-service_name={service_name}&"
             f"filter-app_name={app_name}&"
             f"from={start_time * 1000}&"
@@ -267,3 +278,23 @@ class LinkHelper:
     def get_host_cmdb_link(cls, bk_biz_id, bk_host_id):
         """获取主机在 cmdb 中的链接"""
         return urljoin(settings.BK_CC_URL, f"#/business/{bk_biz_id}/index/host/{bk_host_id}")
+
+    @classmethod
+    def get_relation_app_link(cls, bk_biz_id, app_name, service_name, start_time, end_time):
+        """获取应用的关联应用概览页跳转链接"""
+
+        # 获取应用关联
+        relation = AppServiceRelation.objects.filter(
+            bk_biz_id=bk_biz_id,
+            app_name=app_name,
+            service_name=service_name,
+        ).first()
+        if not relation:
+            return None
+
+        return cls.get_application_topo_link(
+            relation.bk_biz_id,
+            relation.app_name,
+            start_time,
+            end_time,
+        )

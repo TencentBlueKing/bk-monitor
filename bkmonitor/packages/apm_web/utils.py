@@ -143,9 +143,29 @@ def get_bar_interval_number(start_time, end_time, size=30):
     return int(delta // size)
 
 
+def split_by_size(start_time, end_time, size=30):
+    """切分开始时间和结束时间，按照个数返回"""
+    start_dt = datetime.datetime.fromtimestamp(start_time)
+    end_dt = datetime.datetime.fromtimestamp(end_time)
+
+    total_duration = end_dt - start_dt
+    segment_duration = total_duration / size
+
+    segments = []
+
+    for i in range(size):
+        segment_start = start_dt + segment_duration * i
+        segment_end = segment_start + segment_duration
+        segments.append((int(segment_start.timestamp()), int(segment_end.timestamp())))
+
+    return segments
+
+
 def split_by_interval(start_time, end_time, interval):
     """根据 interval 对开始时间和结束时间进行分割"""
-    if interval[-1] == "m":
+    if interval[-1] == "s":
+        interval_seconds = int(interval[:-1])
+    elif interval[-1] == "m":
         interval_seconds = int(interval[:-1]) * 60
     elif interval[-1] == "h":
         interval_seconds = int(interval[:-1]) * 3600

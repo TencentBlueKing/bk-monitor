@@ -1466,15 +1466,23 @@ class NodeMenu(PostPlugin):
                 },
             ]
             if not self._runtime.get("service_name"):
-                # 如果没有服务名称的过滤 增加跳转链接
-                node_data[self.id].append(
-                    {
-                        "name": _("查看三方应用"),
-                        "type": "link",
-                        "action": "blank",
-                        "url": ServiceHandler.build_url(self._runtime["application"].app_name, node_name),
-                    }
+                relation_link = LinkHelper.get_relation_app_link(
+                    self._runtime["application"].bk_biz_id,
+                    self._runtime["application"].app_name,
+                    node_name,
+                    self._runtime["start_time"],
+                    self._runtime["end_time"],
                 )
+                if relation_link:
+                    # 如果没有服务名称的过滤 增加跳转链接
+                    node_data[self.id].append(
+                        {
+                            "name": _("查看三方应用"),
+                            "type": "link",
+                            "action": "blank",
+                            "url": relation_link,
+                        }
+                    )
         else:
             node_data[self.id] = [
                 {
@@ -1849,7 +1857,14 @@ class TableViewConverter(ViewConverter):
                 "name": s,
                 "category": s_category,
                 "target": "self",
-                "url": ServiceHandler.build_url(self.app_name, s),
+                "url": LinkHelper.get_service_overview_tab_link(
+                    self.bk_biz_id,
+                    self.app_name,
+                    s,
+                    self.runtime["start_time"],
+                    self.runtime["end_time"],
+                    views=self.views,
+                ),
             },
             "other_service": {
                 "name": o_s,

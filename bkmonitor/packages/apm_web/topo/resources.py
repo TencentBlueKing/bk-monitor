@@ -10,7 +10,12 @@ specific language governing permissions and limitations under the License.
 """
 import datetime
 
-from apm_web.topo.constants import GraphViewType, SourceType, TopoLinkType
+from apm_web.topo.constants import (
+    BarChartDataType,
+    GraphViewType,
+    SourceType,
+    TopoLinkType,
+)
 from apm_web.topo.handle.bar_query import BarQuery, LinkHelper
 from apm_web.topo.handle.graph_query import GraphQuery
 from apm_web.topo.handle.relation.define import SourceSystem
@@ -25,6 +30,7 @@ from apm_web.topo.serializers import (
     NodeRelationSerializer,
     TopoQueryRequestSerializer,
 )
+from apm_web.utils import split_by_size
 from core.drf_resource import Resource
 
 
@@ -40,10 +46,82 @@ class DataTypeBarQueryResource(Resource):
     RequestSerializer = DataTypeBarQueryRequestSerializer
 
     def perform_request(self, validated_request_data):
-        return BarQuery(
+        response = BarQuery(
             **validated_request_data,
             endpoint_name=validated_request_data.pop("endpoint_name", None),
         ).execute()
+
+        series = response.get("series", [])
+        if validated_request_data["data_type"] != BarChartDataType.Alert.value:
+            # 如果这里不是告警 应前端要求 进行时间戳的补齐
+            series = self._fill_series(
+                response.get("series", []),
+                validated_request_data["start_time"],
+                validated_request_data["end_time"],
+            )
+
+        return {
+            "metrics": response.get("metrics"),
+            "series": series,
+        }
+
+    def _fill_series(self, series, start_time, end_time):
+        """调整时间戳 将无数据的柱子值设置为 0"""
+        timestamp_range = split_by_size(start_time, end_time)
+
+        # Algorithm: 根据 series 中数据时间 不丢失数据的前提下放入不完整对齐的时间切片中
+        res = []
+        for i in series:
+            result = [[None, int((t_e + t_s) / 2) * 1000] for t_e, t_s in timestamp_range]
+            for j, d in enumerate(i["datapoints"]):
+                value, timestamp = d
+                if j > 0:
+                    # 往前移动被覆盖元素
+                    if timestamp_range[j - 1][0] <= timestamp <= timestamp_range[j - 1][1]:
+                        result[j - 1] = d
+                        result[j - 2] = i["datapoints"][j - 1]
+                        continue
+
+                if result[j][0] is None:
+                    result[j] = d
+
+            res.append(
+                {
+                    **i,
+                    "datapoints": sorted(result, key=lambda t: t[-1]),
+                }
+            )
+
+        return res
+
+    def _fill_timestamps(self, existing_timestamps, start_time, end_time, interval):
+        existing_timestamps.sort()
+
+        filled_timestamps = []
+
+        current_time = start_time
+        while current_time < existing_timestamps[0]:
+            filled_timestamps.append(current_time)
+            current_time += interval * 1000
+
+        filled_timestamps.extend(existing_timestamps)
+
+        for i in range(len(existing_timestamps) - 1):
+            current_time = existing_timestamps[i]
+            next_time = existing_timestamps[i + 1]
+
+            while current_time + interval * 1000 < next_time:
+                current_time += interval * 1000
+                filled_timestamps.append(current_time)
+
+        current_time = existing_timestamps[-1]
+        while current_time + interval * 1000 <= end_time:
+            current_time += interval * 1000
+            filled_timestamps.append(current_time)
+
+        filled_timestamps = sorted(set(filled_timestamps))
+
+        return filled_timestamps
 
 
 class TopoViewResource(Resource):
