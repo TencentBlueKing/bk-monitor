@@ -1228,7 +1228,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     let currentTarget = { ...this.filters, ...this.variables };
     let compareTargets = this.compareType === 'target' ? targets : [];
     const selectortTarget = this.sceneData?.selectorPanel?.targets?.[0];
-    if (!!selectortTarget?.compareFieldsSort?.length) {
+    if (selectortTarget?.compareFieldsSort?.length) {
       currentTarget = selectortTarget?.handleCreateFilterDictValue(
         this.filters,
         true,
@@ -1240,14 +1240,26 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       );
     }
     const variables: Record<string, any> = {
-      ...this.filters,
       ...this.variables,
       compare_targets: compareTargets?.map(item => this.resetHostFields(item)),
       current_target: this.resetHostFields(currentTarget),
     };
+    const filters = {};
+    if (this.sceneData?.allVariables?.size) {
+      for (const key of this.sceneData.allVariables) {
+        filters[key] =
+          this.filters?.[key] ||
+          this.viewOptions?.filters?.[key] ||
+          this.$route.query[`filter-${key}`] ||
+          this.$route.query[`var-${key}`] ||
+          this.defaultViewOptions?.filters?.[key];
+      }
+      this.filters = filters;
+    }
     this.viewOptions = {
       // filter_dict: filterDict,
       ...variables,
+      ...filters,
       method: this.isEnableMethodSelect ? this.method : 'AVG',
 
       interval: this.interval || 'auto',

@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import copy
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Dict
 
 from django.conf import settings
 from django.utils.encoding import force_str
@@ -228,11 +229,58 @@ class DataAccessor(object):
                     fields=[],
                 )
 
+        # 检查结果表关键配置，如果没有修改，则不调用modify接口进行更新
+        modify_table_id_set = new_table_id_set & old_table_id_set
+        for result_table in result_table_list:
+            if result_table["table_id"] in modify_table_id_set:
+                if not self.check_table_modify(self.tables_info[result_table["table_id"]], result_table):
+                    modify_table_id_set.remove(result_table["table_id"])
+
         return {
             "create": new_table_id_set - old_table_id_set,
-            "modify": new_table_id_set & old_table_id_set,
+            "modify": modify_table_id_set,
             "clean": old_table_id_set - new_table_id_set,
         }
+
+    def check_table_modify(self, new_table_info: ResultTable, old_result_table: Dict) -> bool:
+        """判断表配置是否修改
+
+        :param new_table_info: 新提交的配置
+        :param old_result_table: 从接口获取的之前的配置
+        :return: 是否修改
+        """
+        if old_result_table["table_name_zh"] != new_table_info.description:
+            return True
+
+        if len(old_result_table["field_list"]) != len(new_table_info.fields):
+            return True
+
+        new_table_fields = {field["field_name"]: field for field in new_table_info.fields}
+        for old_field_info in old_result_table["field_list"]:
+            if old_field_info["field_name"] not in new_table_fields:
+                return True
+
+            if old_field_info["field_name"] in ORIGIN_PLUGIN_EXCLUDE_DIMENSION:
+                continue
+
+            # 有些属性的值虽然不想等，但是其实是同一个含义
+            special_value_mappings = {
+                "tag": {
+                    "group": "dimension",
+                }
+            }
+            old_field_info["field_type"] = old_field_info["type"]
+            for field_key in ["field_type", "tag", "description", "unit", "is_config_by_user"]:
+                old_field_value = special_value_mappings.get(field_key, {}).get(
+                    old_field_info[field_key], old_field_info[field_key]
+                )
+                new_field_value = new_table_fields[old_field_info["field_name"]][field_key]
+                new_field_value = special_value_mappings.get(field_key, {}).get(new_field_value, new_field_value)
+
+                if old_field_value != new_field_value:
+                    return True
+
+        return False
 
     def create_rt(self):
         """

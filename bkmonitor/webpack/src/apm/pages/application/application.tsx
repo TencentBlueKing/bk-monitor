@@ -95,7 +95,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   isReady = false;
   /** 当前tab */
   tabId = '';
-  tabName: TranslateResult | string = '';
+  tabName: string | TranslateResult = '';
   /** 定位详情文案 */
   subName = '';
   // menu list
@@ -140,6 +140,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   beforeRouteEnter(to, from, next) {
     const { query } = to;
     const appName = query['filter-app_name'] as string;
+
     next(async (vm: Application) => {
       vm.routeList = [
         {
@@ -167,7 +168,11 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
           },
         },
       ];
-      vm.viewOptions = {};
+      vm.viewOptions = {
+        filters: {
+          app_name: appName,
+        },
+      };
       const { query } = to;
       vm.appName = query['filter-app_name'] as string;
       applicationStore.getPluginList();
@@ -218,6 +223,11 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
       this.appName = item.id;
       this.getServiceList();
       const { to, from, interval, timezone, refleshInterval, dashboardId } = this.$route.query;
+      this.viewOptions = {
+        filters: {
+          app_name: this.appName,
+        },
+      };
       this.$router.replace({
         name: this.$route.name,
         query: {
