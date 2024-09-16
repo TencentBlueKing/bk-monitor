@@ -39,6 +39,7 @@
   <div class="retrieve-tab">
     <span
       v-for="item in panelList"
+      :key="item.label"
       :class="['retrieve-panel', { 'retrieve-after': isAfter(item) }, { activeClass: value === item.name }]"
       @click="handleActive(item.name)"
       >{{ item.label }}</span

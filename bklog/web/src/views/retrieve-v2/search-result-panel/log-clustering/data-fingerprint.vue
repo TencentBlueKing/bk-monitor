@@ -1203,11 +1203,11 @@
       color: #313238;
 
       :deep(.bk-table-body-wrapper) {
-        min-height: calc(100vh - 570px);
+        min-height: calc(100vh - 450px);
         margin-top: 32px;
 
         .bk-table-empty-block {
-          min-height: calc(100vh - 570px);
+          min-height: calc(100vh - 450px);
 
           @include flex-center;
         }

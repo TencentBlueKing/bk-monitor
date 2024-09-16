@@ -99,7 +99,7 @@
       return {
         timeRange: [],
         timer: null,
-        isFold: localStorage.getItem('chartIsFold'),
+        isFold: false,
         intervalArr: [
           { id: 'auto', name: 'auto' },
           { id: '1m', name: '1 min' },
@@ -111,6 +111,7 @@
           tool: {
             list: ['screenshot'],
           },
+          animation: false,
           useUTC: false,
           xAxis: {
             axisLine: {
@@ -214,12 +215,13 @@
       },
       searchTotal(newVal) {
         this.$emit('change-queue-res', !!newVal);
-      }
+      },
     },
     created() {
       this.handleLogChartCancel = debounce(300, this.logChartCancel);
-      localStorage.setItem('chartIsFold', true);
-      this.$emit('toggle-change', false);
+      this.isFold = JSON.parse(localStorage.getItem('chartIsFold') || 'false');
+      this.$emit('toggle-change', !this.isFold);
+      if (this.isFold) this.$store.commit('retrieve/updateChartKey');
     },
     mounted() {
       window.bus.$on('openChartLoading', this.openChartLoading);
@@ -374,8 +376,6 @@
         localStorage.setItem('chartIsFold', isFold);
         this.$refs.chartRef?.handleToggleExpand(isFold);
         this.$emit('toggle-change', !isFold);
-        // 现在下拉直接请求，不管有没有缓存
-        if (!isFold) this.$store.commit('retrieve/updateChartKey');
       },
       async changeTimeByChart(datePickerValue) {
         const tempList = handleTransformToTimestamp(datePickerValue);

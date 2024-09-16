@@ -109,14 +109,20 @@
 
         .search-result-panel {
           .search-result-content {
-            .result-table-container, .finger-container {
+            .result-table-container {
               height: calc(100vh - 380px);
               margin-top: 12px;
               overflow: auto;
             }
 
+            .finger-container {
+              height: calc(100vh - 370px);
+              margin-top: 12px;
+              overflow: auto;
+            }
+
             &.is-trend-chart-show {
-              .result-table-container, finger-container {
+              .result-table-container {
                 height: calc(100vh - 490px);
                 overflow: auto;
               }

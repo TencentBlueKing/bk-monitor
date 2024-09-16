@@ -60,7 +60,6 @@
       // 拉取完毕根据当前路由参数回填默认选中索引集
       store.dispatch('updateIndexItemByRoute', { route, list: resp[1] }).then(async () => {
         await store.dispatch('requestIndexSetFieldInfo');
-        store.commit('retrieve/updateChartKey');
         store.dispatch('requestIndexSetQuery');
       });
     });
@@ -98,8 +97,7 @@
     requestIndexSetFieldParams,
     (val, oldValue) => {
       if (!isEqual(val, oldValue ?? {})) {
-        store.commit('retrieve/updateChartKey');
-        // store.dispatch('requestIndexSetFieldInfo');
+        // store.commit('retrieve/updateChartKey');
       }
     },
     { deep: true, immediate: true },

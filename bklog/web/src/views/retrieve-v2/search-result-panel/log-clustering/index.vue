@@ -130,7 +130,7 @@
               :show-text="false"
               empty-type="empty"
             >
-              <p v-if="indexSetItem.scenario_id !== 'log' && !isHaveAnalyzed">
+              <p v-if="indexSetItem?.scenario_id !== 'log' && !isHaveAnalyzed">
                 <i18n path="无分词字段 请前往 {0} 调整清洗">
                   <span
                     class="empty-leave"
@@ -243,11 +243,13 @@
         isInitPage: true, // 是否是第一次进入数据指纹
         /** 是否创建过策略 */
         strategyHaveSubmit: false,
-        isShowClusterStep: false,
+        isShowClusterStep: true,
         clusterStepDataLoading: false,
         clusterStepData: {},
         isFieldInit: false,
         statusTimer: null,
+        isClickSearch: false,
+        isClusterActive: true,
       };
     },
     computed: {
@@ -337,27 +339,20 @@
       totalFields: {
         deep: true,
         immediate: true,
-        async handler(newList) {
+        handler() {
           // 当前nav为数据指纹且数据指纹开启点击指纹nav则不再重复请求
           this.fingerList = [];
           this.allFingerList = [];
-          this.isShowClusterStep = false;
           /**
            *  无字段提取或者聚类开关没开时直接不显示聚类nav和table
            *  来源如果是数据平台并且日志聚类大开关有打开则进入text判断
            *  有text则提示去开启日志聚类 无则显示跳转计算平台
            */
-          if (newList.length) {
-            this.isFieldInit = true;
-            // 确认是否需要展示step步骤
-            // 立即执行一次
-            this.startPolling();
-            await this.clusterPolling();
-            this.isFieldInit = false;
-          }
+          this.fieldsChangeQuery();
         },
       },
       isSearchIng(v) {
+        this.isClickSearch = true;
         if (this.exhibitAll && v) this.requestFinger();
       },
       isShowClusterStep(v) {
@@ -476,7 +471,7 @@
       },
       handleLeaveCurrent() {
         // 不显示字段提取时跳转计算平台
-        if (this.indexSetItem.scenario_id !== 'log' && !this.isHaveAnalyzed) {
+        if (this.indexSetItem?.scenario_id !== 'log' && !this.isHaveAnalyzed) {
           const jumpUrl = `${window.BKDATA_URL}`;
           window.open(jumpUrl, '_blank');
           return;
@@ -498,7 +493,7 @@
        */
       requestFinger() {
         // loading中，或者没有开启数据指纹功能，或当前页面初始化或者切换索引集时不允许起请求
-        if (this.tableLoading || !this.clusterSwitch) return;
+        if (this.tableLoading || !this.clusterSwitch || !this.isClusterActive) return;
         const {
           start_time,
           end_time,
@@ -542,6 +537,7 @@
             this.showScrollTop = false;
           })
           .finally(() => {
+            this.isClickSearch = false;
             this.tableLoading = false;
           });
       },
@@ -610,6 +606,7 @@
         this.statusTimer = setInterval(this.clusterPolling, pollingTime);
       },
       async confirmClusterStepStatus() {
+        if (!this.isShowClusterStep) return;
         try {
           this.clusterStepDataLoading = true;
           const res = await this.getClusterConfigStatus();
@@ -652,8 +649,22 @@
           this.statusTimer = null;
         }
       },
+      async fieldsChangeQuery() {
+        if (this.totalFields.length && !this.isFieldInit) {
+          this.isFieldInit = true;
+          this.startPolling();
+          await this.clusterPolling();
+          this.isFieldInit = false;
+          this.requestFinger();
+        }
+      },
+    },
+    activated() {
+      this.isClusterActive = true;
+      if (this.isClickSearch) this.requestFinger();
     },
     deactivated() {
+      this.isClusterActive = false;
       this.stopPolling(); // 停止状态轮询
     },
     beforeDestroy() {
@@ -686,7 +697,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: calc(100vh - 480px);
+      min-height: calc(100vh - 348px);
     }
 
     .empty-text {
