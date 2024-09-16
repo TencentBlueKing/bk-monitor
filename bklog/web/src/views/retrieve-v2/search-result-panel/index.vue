@@ -45,14 +45,16 @@
         { 'is-trend-chart-show': isTrendChartShow, 'is-show-field-statistics': isShowFieldStatistics },
       ]"
     >
-      <template v-if="activeTab === 'origin'">
-        <SearchResultChart
-          @change-queue-res="changeQueueRes"
-          @change-total-count="changeTotalCount"
-          @toggle-change="handleToggleChange"
-        ></SearchResultChart>
-        <div class="split-line"></div>
-      </template>
+      <SearchResultChart
+        v-show="activeTab === 'origin'"
+        @change-queue-res="changeQueueRes"
+        @change-total-count="changeTotalCount"
+        @toggle-change="handleToggleChange"
+      ></SearchResultChart>
+      <div
+        v-show="activeTab === 'origin'"
+        class="split-line"
+      ></div>
 
       <keep-alive>
         <OriginalLog

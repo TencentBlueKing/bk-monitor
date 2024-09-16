@@ -33,7 +33,6 @@
         v-bk-tooltips="queueStatus ? $t('导出') : undefined">
         <span class="icon bklog-icon bklog-xiazai"></span>
       </div> -->
-    <!-- v-bk-tooltips.top="{ content: $t('请打开趋势图，如打开请等待数据请求完毕'), disabled: queueStatus, }" -->
     <div
       :class="{ 'operation-icon': true, 'disabled-icon': !queueStatus }"
       data-test-id="fieldForm_div_exportData"
