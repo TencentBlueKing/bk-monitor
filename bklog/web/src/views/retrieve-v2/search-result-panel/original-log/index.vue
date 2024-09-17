@@ -25,7 +25,10 @@
 -->
 
 <template>
-  <div class="original-log-panel">
+  <div
+    :style="{ height: `calc(100% - ${height + 12}px)` }"
+    class="original-log-panel"
+  >
     <div class="original-log-panel-tools">
       <div class="left-operate">
         <div class="bk-button-group">
@@ -106,9 +109,9 @@
     </div>
 
     <table-log
-      :table-list="tableList"
       :retrieve-params="retrieveParams"
       :show-original="showOriginalLog"
+      :table-list="tableList"
     />
   </div>
 </template>
@@ -139,6 +142,9 @@
       queueStatus: {
         type: Boolean,
         default: true,
+      },
+      height: {
+        type: Number,
       },
     },
     data() {

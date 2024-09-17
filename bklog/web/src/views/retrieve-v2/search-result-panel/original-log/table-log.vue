@@ -25,27 +25,27 @@
 -->
 
 <template>
-  <div>
+  <div class="result-table-container-main">
     <div
+      ref="scrollContainer"
       class="result-table-container"
       data-test-id="retrieve_from_fieldForm"
-      ref="scrollContainer"
       @scroll.passive="handleOriginScroll"
     >
       <keep-alive>
         <component
           v-on="$listeners"
-          :is="`${showOriginal ? 'OriginalList' : 'TableList'}`"
-          :table-list="tableList"
-          :total-fields="totalFields"
-          :origin-table-list="originLogList"
-          :operator-config="indexSetOperatorConfig"
-          :show-field-alias="showFieldAlias"
-          :time-field="timeField"
-          :is-page-over="isPageOver"
           :handle-click-tools="handleClickTools"
+          :is="`${showOriginal ? 'OriginalList' : 'TableList'}`"
+          :is-page-over="isPageOver"
+          :operator-config="indexSetOperatorConfig"
+          :origin-table-list="originLogList"
           :retrieve-params="retrieveParams"
+          :show-field-alias="showFieldAlias"
+          :table-list="tableList"
           :table-loading="isContentLoading"
+          :time-field="timeField"
+          :total-fields="totalFields"
           :visible-fields="visibleFields"
         ></component>
       </keep-alive>
@@ -307,8 +307,13 @@
     padding: 0;
   }
 
+  .result-table-container-main {
+    height: calc(100% - 42px);
+  }
+
   .result-table-container {
     position: relative;
+    height: 100%;
     background: #fff;
 
     .is-hidden-table-header {

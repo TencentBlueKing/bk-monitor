@@ -12,7 +12,7 @@
   import TimeSetting from './time-setting';
   import UiInput from './ui-input';
 
-  const emit = defineEmits(['refresh']);
+  const emit = defineEmits(['refresh', 'height-change']);
   const store = useStore();
   const { $t } = useLocale();
   const queryTypeList = ref([$t('UI查询'), $t('语句查询')]);
@@ -127,9 +127,13 @@
     handleBtnQueryClick();
   };
 
-  const handleRefresh = (isRefresh) => {
+  const handleRefresh = isRefresh => {
     emit('refresh', isRefresh);
-  }
+  };
+
+  const handleHeightChange = height => {
+    emit('height-change', height);
+  };
 </script>
 <template>
   <div class="search-bar-container">
@@ -160,10 +164,12 @@
         v-if="activeIndex === 0"
         v-model="uiQueryValue"
         @change="handleQueryChange"
+        @height-change="handleHeightChange"
       ></UiInput>
       <SqlQuery
         v-if="activeIndex === 1"
         v-model="sqlQueryValue"
+        @height-change="handleHeightChange"
         @retrieve="handleSqlRetrieve"
       ></SqlQuery>
       <div class="search-tool items">
@@ -171,7 +177,10 @@
           class="bklog-icon bklog-brush"
           @click="handleClearBtnClick"
         ></span>
-        <BookmarkPop :sql="sqlQueryValue" @refresh="handleRefresh"></BookmarkPop>
+        <BookmarkPop
+          :sql="sqlQueryValue"
+          @refresh="handleRefresh"
+        ></BookmarkPop>
         <span class="disabled bklog-icon bklog-set-icon"></span>
       </div>
       <div
