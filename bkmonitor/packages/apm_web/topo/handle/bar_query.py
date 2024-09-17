@@ -230,6 +230,35 @@ class LinkHelper:
         )
 
     @classmethod
+    def get_service_instance_instance_tab_link(
+        cls,
+        bk_biz_id,
+        app_name,
+        service_name,
+        instance_name,
+        start_time,
+        end_time,
+        views=None,
+    ):
+        """获取服务实例的实例 Tab 页面并定位到具体的服务实例"""
+        if not views:
+            views = SceneViewModel.objects.filter(bk_biz_id=bk_biz_id, scene_id="apm_service")
+
+        dashboard_id = ApmBuiltinProcessor.get_dashboard_id(bk_biz_id, app_name, service_name, "instance", views)
+        if not dashboard_id:
+            return None
+
+        return (
+            f"?bizId={bk_biz_id}#/apm/service?"
+            f"filter-service_name={service_name}&"
+            f"filter-app_name={app_name}&"
+            f"from={start_time * 1000}&"
+            f"to={end_time * 1000}&"
+            f"dashboardId={dashboard_id}&"
+            f"filter-bk_instance_id={instance_name}"
+        )
+
+    @classmethod
     def get_host_monitor_link(cls, bk_host_id, start_time, end_time):
         """获取某主机的主机监控地址"""
         return f"/performance/detail/{bk_host_id}?from={start_time * 1000}&to={end_time * 1000}"
