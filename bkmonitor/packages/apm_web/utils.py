@@ -224,14 +224,11 @@ def merge_dicts(d1, d2):
 def fill_series(series, start_time, end_time):
     """
     调整时间戳 将无数据的柱子值设置为 None (适用于柱状图查询)
-    对于数据断点的 series 合并后的结果不是完全符合 interval 的但是可以避免图标不联动的问题
     """
     timestamp_range = split_by_size(start_time, end_time)
     if not series:
         return [{"datapoints": [[None, int((s + e) / 2) * 1000] for s, e in timestamp_range]}]
 
-    # Algorithm:
-    # 根据 series 中数据时间 如何在不丢失数据的前提下放入不完整对齐的时间切片中
     res = []
     for i in series:
         result = [[None, int((t_e + t_s) / 2) * 1000] for t_e, t_s in timestamp_range]
