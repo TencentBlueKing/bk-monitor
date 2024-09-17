@@ -591,9 +591,9 @@
               },
               {
                 "id": 4,
-                "title": "响应耗时",
+                "title": "耗时",
                 "type": "apm-timeseries-chart",
-                "alias": "响应耗时",
+                "alias": "耗时",
                 "targets": [
                   {
                     "data_type": "time_series",
@@ -1678,9 +1678,9 @@
               },
               {
                 "id": 4,
-                "title": "响应耗时",
+                "title": "耗时",
                 "type": "apm-timeseries-chart",
-                "alias": "响应耗时",
+                "alias": "耗时",
                 "targets": [
                   {
                     "data_type": "time_series",
