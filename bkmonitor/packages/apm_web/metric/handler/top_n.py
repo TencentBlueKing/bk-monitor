@@ -56,6 +56,15 @@ class TopNHandler:
         self.size = size
         self.filter_dict = filter_dict or {}
 
+        self.service_name_key = OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME)
+        self.service_name = self.filter_dict.get(self.service_name_key)
+        self.node = ServiceHandler.get_node(
+            self.application.bk_biz_id,
+            self.application.app_name,
+            self.service_name,
+            raise_exception=False,
+        )
+
     @property
     def is_service_filter(self):
         return "service_name" in self.filter_dict
@@ -76,6 +85,10 @@ class TopNHandler:
     def get_topo_n_data(
         self,
     ):
+        if self.filter_dict.get(self.service_name_key) and not self.node:
+            # 如果存在服务过滤但是没有查询到节点 说明此服务无数据
+            return []
+
         return self.top_n()[: self.size]
 
     def get_endpoint_split(self, item):
@@ -83,31 +96,28 @@ class TopNHandler:
 
     def get_condition(self):
         """如果是组件的话获取查询条件"""
-        service_name_key = OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME)
-        service_name = self.filter_dict.get(service_name_key)
         where_condition = []
-        if not service_name:
+        if not self.service_name:
             return self.filter_dict, where_condition
 
         # 服务页面下
-        node = ServiceHandler.get_node(self.application.bk_biz_id, self.application.app_name, service_name)
-        if ComponentHandler.is_component_by_node(node):
+        if ComponentHandler.is_component_by_node(self.node):
             # 在组件类型的服务页面下 需要添加组件的 predicate_value 进行查询
             where_condition.append(
                 json.loads(
-                    json.dumps(component_where_mapping[node["extra_data"]["category"]]).replace(
-                        "{predicate_value}", node["extra_data"]["predicate_value"]
+                    json.dumps(component_where_mapping[self.node["extra_data"]["category"]]).replace(
+                        "{predicate_value}", self.node["extra_data"]["predicate_value"]
                     )
                 )
             )
-            pure_service_name = ComponentHandler.get_component_belong_service(self.filter_dict[service_name_key])
-            self.filter_dict[service_name_key] = pure_service_name
+            pure_service_name = ComponentHandler.get_component_belong_service(self.filter_dict[self.service_name_key])
+            self.filter_dict[self.service_name_key] = pure_service_name
 
-        if ServiceHandler.is_remote_service_by_node(node):
+        if ServiceHandler.is_remote_service_by_node(self.node):
             # 自定义服务下 需要加上 peer_service 查询条件
-            pure_service_name = ServiceHandler.get_remote_service_origin_name(service_name)
+            pure_service_name = ServiceHandler.get_remote_service_origin_name(self.service_name)
             self.filter_dict["peer_service"] = pure_service_name
-            self.filter_dict.pop(service_name_key, None)
+            self.filter_dict.pop(self.service_name_key, None)
 
         return self.filter_dict, where_condition
 
@@ -141,10 +151,9 @@ class TopNHandler:
         if self._is_service_view():
             query_params["sceneId"] = "apm_service"
             query_params["dashboardId"] = "service-default-endpoint"
-            node = ServiceHandler.get_node(self.application.bk_biz_id, self.application.app_name, service_name)
 
-            if ComponentHandler.is_component_by_node(node):
-                predicate_views = f"component-{node['extra_info']['predicate_value']}-endpoint"
+            if ComponentHandler.is_component_by_node(self.node):
+                predicate_views = f"component-{self.node['extra_info']['predicate_value']}-endpoint"
                 if ApmBuiltinProcessor.exists_views(predicate_views):
                     query_params["dashboardId"] = predicate_views
                 else:
