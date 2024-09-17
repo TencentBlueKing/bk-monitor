@@ -176,7 +176,7 @@ class TraceChatsResource(Resource):
                         "data": {
                             "type": "range",
                             "stack": "all",
-                            "expression": "a / b",
+                            "expression": "(a / b) * 100",
                             "query_configs": [
                                 {
                                     "data_source_label": "custom",
