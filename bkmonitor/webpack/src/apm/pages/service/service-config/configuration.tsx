@@ -23,83 +23,104 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Prop, Provide } from 'vue-property-decorator';
-import * as tsx from 'vue-tsx-support';
+import { Component, Mixins, Provide } from 'vue-property-decorator';
 
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 
-import authorityMixinCreate from '../../mixins/authorityMixin';
-import DataGuide from '../application/app-add/data-guide';
-import * as authorityMap from './../home/authority-map';
+import authorityMixinCreate from '../../../mixins/authorityMixin';
+import * as authorityMap from '../../home/authority-map';
+import BasicInfo from './basic-info';
 
 import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
-import './service-add.scss';
+import './configuration.scss';
 
-interface IProps {
-  pluginId: string;
-  appName: string;
-}
-
-Component.registerHooks(['beforeRouteEnter']);
 @Component
-class ServiceAdd extends Mixins(authorityMixinCreate(authorityMap)) {
-  @Prop({ type: String, default: '' }) pluginId: IProps['pluginId'];
-  @Prop({ type: String, default: '' }) appName: IProps['appName'];
-
+export default class ApplicationConfiguration extends Mixins(authorityMixinCreate(authorityMap)) {
   @Provide('authority') authority;
   @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
 
+  activeMenu = 'baseInfo';
+  appName = '';
+  serviceName = '';
+  // 导航条设置
   routeList: INavItem[] = [];
+  menuList = [{ id: 'baseInfo', name: window.i18n.tc('基本设置') }];
 
   /** 页面权限校验实例资源 */
   get authorityResource() {
-    return { application_name: this.$route.params?.appName || '' };
+    return { application_name: this.$route.query?.app_name || '' };
+  }
+  get positonText() {
+    return `${window.i18n.tc('服务')}：${this.serviceName}`;
   }
 
   beforeRouteEnter(from, to, next) {
-    // const { params: formParams } = from;
-    // const appName = (formParams.appName as string) || '';
-    next((vm: ServiceAdd) => {
+    const { query: formQuery } = from;
+    const appName = (formQuery.app_name as string) || '';
+    const serviceName = (formQuery.service_name as string) || '';
+    next((vm: ApplicationConfiguration) => {
       vm.routeList = [
         // {
         //   id: 'home',
-        //   name: 'APM',
+        //   name: 'APM'
         // },
         // {
         //   id: 'application',
         //   name: `${window.i18n.tc('应用')}：${appName}`,
         //   query: {
-        //     'filter-app_name': appName,
-        //   },
+        //     'filter-app_name': appName
+        //   }
         // },
+        // {
+        //   id: 'service',
+        //   name: `${window.i18n.tc('服务')}：${serviceName}`,
+        //   query: {
+        //     'filter-app_name': appName,
+        //     'filter-service_name': serviceName
+        //   }
+        // },
+        // {
+        //   id: 'configuration',
+        //   name: window.i18n.tc('服务设置')
+        // }
         {
-          id: 'service-add',
-          name: vm.$t('接入服务'),
+          id: 'configuration',
+          name: window.i18n.tc('route-配置服务'),
         },
       ];
+      vm.appName = appName;
+      vm.serviceName = serviceName;
+    });
+  }
+
+  handleClickAlert() {
+    this.$router.push({
+      name: 'service',
+      query: {
+        'filter-app_name': this.appName,
+        'filter-service_name': this.serviceName,
+      },
     });
   }
 
   render() {
     return (
-      <div class='service-add'>
+      <div class='service-configuration'>
         <CommonNavBar
           class='service-configuration-nav'
           slot='nav'
           navMode={'display'}
           needBack={true}
+          needShadow={true}
+          positionText={this.positonText}
           routeList={this.routeList}
+          needCopyLink
         />
-        <div class='monitor-k8s-detail service-add-content'>
-          <DataGuide
-            appName={this.appName}
-            type='service'
-          />
+        <div class='configuration-content'>
+          <BasicInfo />
         </div>
       </div>
     );
   }
 }
-
-export default tsx.ofType<IProps>().convert(ServiceAdd);

@@ -56,6 +56,7 @@ interface IDashbordPanelProps {
   backToType?: SceneType;
   dashboardId?: string;
   singleChartNoPadding?: boolean;
+  layoutMargin?: [number, number];
 }
 interface IDashbordPanelEvents {
   onBackToOverview: () => void;
@@ -65,6 +66,8 @@ interface IDashbordPanelEvents {
 export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPanelEvents> {
   // 视图集合
   @Prop({ required: true, type: Array }) panels: IPanelModel[];
+  // 视图间距
+  @Prop({ type: Array, default: () => [16, 8] }) layoutMargin: [number, number];
   // dashboard id
   @Prop({ required: true, type: String }) id: string;
   // 自动展示初始化列数
@@ -585,7 +588,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
               isDraggable={true}
               isResizable={true}
               layout={this.layout}
-              margin={[16, 8]}
+              margin={this.layoutMargin}
               responsive={false}
               rowHeight={30}
               useCssTransforms={false}

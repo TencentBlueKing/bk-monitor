@@ -1,0 +1,13 @@
+.data-status-wrap {
+    .data-status-tab-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        margin-bottom: 24px;
+    
+        .data-status-time {
+            position: absolute;
+            right: 0;
+        }
+      }
+}
