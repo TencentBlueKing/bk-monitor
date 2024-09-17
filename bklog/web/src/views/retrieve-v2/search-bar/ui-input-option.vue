@@ -261,7 +261,7 @@
     }
 
     // 如果是空操作符禁止提交
-    if (result && !result.operator) {
+    if (result && (!result.operator || (isShowConditonValueSetting.value && result.value.length === 0))) {
       return;
     }
 
