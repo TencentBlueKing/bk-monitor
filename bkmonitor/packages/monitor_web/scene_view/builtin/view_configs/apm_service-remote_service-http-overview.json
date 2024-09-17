@@ -21,7 +21,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "被调数量",
+          "alias": "被调",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -355,7 +355,7 @@
     },
     {
       "id": 3,
-      "title": "响应耗时",
+      "title": "耗时",
       "gridPos": {
         "x": 16,
         "y": 0,

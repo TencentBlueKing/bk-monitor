@@ -215,7 +215,7 @@ class TraceChatsResource(Resource):
             },
             {
                 "id": 6,
-                "title": _lazy("响应耗时"),
+                "title": _lazy("耗时"),
                 "gridPos": {"x": 16, "y": 16, "w": 8, "h": 4},
                 "type": "graph",
                 "targets": [

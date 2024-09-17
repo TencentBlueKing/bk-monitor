@@ -811,7 +811,6 @@ class InstanceListResource(Resource):
         category = serializers.CharField(label="分类", required=False)
 
     def perform_request(self, validated_data):
-
         # 获取存储周期
         app = Application.objects.get(bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"])
         start_time, end_time = get_datetime_range(period="day", distance=app.es_retention, rounding=False)
@@ -1371,9 +1370,9 @@ class EndpointDetailListResource(Resource):
                     },
                 ],
                 "sort": [
-                    {"id": "request_count", "status": "request_count", "name": _lazy("请求数量"), "tips": _lazy("请求数量")},
-                    {"id": "error_count", "status": "error_count", "name": _lazy("错误数量"), "tips": _lazy("错误数量")},
-                    {"id": "avg_duration", "status": "avg_duration", "name": _lazy("响应耗时"), "tips": _lazy("响应耗时")},
+                    {"id": "request_count", "status": "request_count", "name": _lazy("请求数"), "tips": _lazy("请求数")},
+                    {"id": "error_count", "status": "error_count", "name": _lazy("错误数"), "tips": _lazy("错误数")},
+                    {"id": "avg_duration", "status": "avg_duration", "name": _lazy("耗时"), "tips": _lazy("耗时")},
                 ],
             }
 
@@ -1432,9 +1431,9 @@ class EndpointDetailListResource(Resource):
                 {"id": "disabled", "status": "disabled", "name": status_count["disabled"], "tips": _lazy("1小时内无数据")},
             ],
             "sort": [
-                {"id": "request_count", "status": "request_count", "name": _lazy("请求数量"), "tips": _lazy("请求数量")},
-                {"id": "error_count", "status": "error_count", "name": _lazy("错误数量"), "tips": _lazy("错误数量")},
-                {"id": "avg_duration", "status": "avg_duration", "name": _lazy("响应耗时"), "tips": _lazy("响应耗时")},
+                {"id": "request_count", "status": "request_count", "name": _lazy("请求数"), "tips": _lazy("请求数")},
+                {"id": "error_count", "status": "error_count", "name": _lazy("错误数"), "tips": _lazy("错误数")},
+                {"id": "avg_duration", "status": "avg_duration", "name": _lazy("耗时"), "tips": _lazy("耗时")},
             ],
         }
 

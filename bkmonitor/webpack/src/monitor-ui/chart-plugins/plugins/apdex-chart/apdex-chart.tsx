@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Inject, Prop } from 'vue-property-decorator';
+import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -84,6 +84,7 @@ export class ApdexChart extends LineChart {
   empty = true; // 是否为空
   emptyText = ''; // 空文案
   isFetchingData = false; // 是否正在获取数据
+
   async getPanelData(start_time?: string, end_time?: string) {
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
@@ -204,7 +205,6 @@ export class ApdexChart extends LineChart {
     this.cancelTokens = [];
     this.handleLoadingChange(false);
   }
-
   handleTransformSeries(series: ITimeSeriesItem[]): any {
     const legendData: ILegendItem[] = [];
     this.renderThresholds = false;
@@ -306,7 +306,6 @@ export class ApdexChart extends LineChart {
       color: '#2DCB56',
     };
   }
-
   /* 整个图的右键菜单 */
   handleChartContextmenu(event: MouseEvent) {
     if (this.enableContextmenu) {
@@ -365,7 +364,12 @@ export class ApdexChart extends LineChart {
             title={this.panel.title}
             onUpdateDragging={() => this.panel.updateDraging(false)}
           >
-            <div class='context-menu-info'>{this.$t('右键更多操作')}</div>
+            {this.enableContextmenu && (
+              <div class='context-menu-info'>
+                <i class='icon-monitor icon-mc-mouse mouse-icon' />
+                {this.$t('右键更多操作')}
+              </div>
+            )}
           </ChartHeader>
         )}
         {!this.empty ? (

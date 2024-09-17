@@ -68,7 +68,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "主调数量",
+          "alias": "主调",
           "data": {
             "app_name": "${app_name}",
             "query_configs": [
@@ -160,7 +160,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "被调数量",
+          "alias": "被调",
           "data": {
             "app_name": "${app_name}",
             "query_configs": [
@@ -481,7 +481,7 @@
     },
     {
       "id": 5,
-      "title": "响应耗时",
+      "title": "耗时",
       "gridPos": {
         "x": 16,
         "y": 4,

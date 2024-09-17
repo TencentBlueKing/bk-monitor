@@ -109,10 +109,22 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
   // goto page by name
   handleGotoPage(item: INavItem) {
     if (this.readonly || item.notLink) return;
-    const targetRoute = this.$router.resolve({ name: item.id, query: item.query || {} });
+    const targetRoute = this.$router.resolve({
+      name: item.id,
+      query: {
+        ...item.query,
+        dashboardId: this.$route.query.dashboardId,
+      },
+    });
     /** 防止出现跳转当前地址导致报错 */
     if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
-      this.$router.push({ name: item.id, query: item.query || {} });
+      this.$router.push({
+        name: item.id,
+        query: {
+          ...item.query,
+          dashboardId: this.$route.query.dashboardId,
+        },
+      });
     }
   }
   handleBackGotoPage() {

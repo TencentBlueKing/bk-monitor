@@ -2485,6 +2485,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         sourceStep={this.sourceData.step}
         onAddMetric={this.handleShowMetricContinue}
         onAddNullMetric={this.handleAddNullMetric}
+        onclearErr={() => (this.metricDataErrorMsg = '')}
         onDelete={this.handleDeleteMetric}
         onEditModeChange={this.handleEditModeChange}
         onExpFunctionsChange={this.handleExpFunctionsChange}
@@ -2504,7 +2505,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         onSourceChange={this.handleSourceChange}
         onTargetChange={this.handleTargetChange}
         onTargetTypeChange={this.handleTargetTypeChange}
-        onclearErr={() => (this.metricDataErrorMsg = '')}
       />
     );
   }

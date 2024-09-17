@@ -165,9 +165,9 @@ class ValuesPluginMixin:
 
     def add_endpoint_query(self, params, endpoint_names):
         if "service_name" not in self._runtime or "endpoint_names" not in self._runtime:
-            raise ValueError(f"查询接口指标时需要指定服务名称、接口名称")
+            raise ValueError("查询接口指标时需要指定服务名称、接口名称")
         if any(i.get("condition") == "or" for i in params.get("where", [])):
-            raise ValueError(f"当前接口查询包含 or 条件 会导致查询结果错误")
+            raise ValueError("当前接口查询包含 or 条件 会导致查询结果错误")
 
         return params
 
@@ -282,6 +282,25 @@ class EdgeAvgDuration(DurationUnitMixin, ValuesPluginMixin, PrePlugin):
 
     def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
         return self.get_instance_values_mapping()
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class EdgeDurationP50(DurationUnitMixin, ValuesPluginMixin, PrePlugin):
+    id: str = TopoEdgeDataType.DURATION_P50.value
+    type: GraphPluginType = GraphPluginType.EDGE
+    metric: Type[MetricHandler] = functools.partial(
+        ServiceFlowDurationBucket,
+        group_by=["from_apm_service_name", "to_apm_service_name"],
+        functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.5"}]}],
+    )
+
+    def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
+        return self.get_instance_values_mapping()
+
+    @classmethod
+    def _ignore_keys(cls):
+        return ["le"]
 
 
 @PluginProvider.pre_plugin
@@ -1579,7 +1598,7 @@ class HoverTipsMixin:
         data[key] = [
             {
                 "group": "request_count",
-                "name": _("主调调用量"),
+                "name": _("主调总量"),
                 "value": data.pop(BarChartDataType.REQUEST_COUNT_CALLER.value, "--"),
             },
             {
@@ -1594,7 +1613,7 @@ class HoverTipsMixin:
             },
             {
                 "group": "request_count",
-                "name": _("被调调用量"),
+                "name": _("被调总量"),
                 "value": data.pop(BarChartDataType.REQUEST_COUNT_CALLEE.value, "--"),
             },
             {

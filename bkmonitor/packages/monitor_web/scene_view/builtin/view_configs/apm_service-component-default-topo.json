@@ -92,7 +92,7 @@
                     "data_type": "time_series",
                     "api": "apm_metric.dynamicUnifyQuery",
                     "datasource": "time_series",
-                    "alias": "主调数量",
+                    "alias": "主调",
                     "data": {
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
@@ -187,7 +187,7 @@
                     "data_type": "time_series",
                     "api": "apm_metric.dynamicUnifyQuery",
                     "datasource": "time_series",
-                    "alias": "被调数量",
+                    "alias": "被调",
                     "data": {
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
@@ -514,9 +514,9 @@
               },
               {
                 "id": 4,
-                "title": "响应耗时",
+                "title": "耗时",
                 "type": "apm-timeseries-chart",
-                "alias": "响应耗时",
+                "alias": "耗时",
                 "targets": [
                   {
                     "data_type": "time_series",
@@ -1091,7 +1091,7 @@
                     "data_type": "time_series",
                     "api": "apm_metric.dynamicUnifyQuery",
                     "datasource": "time_series",
-                    "alias": "主调数量",
+                    "alias": "主调",
                     "data": {
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
@@ -1188,7 +1188,7 @@
                     "data_type": "time_series",
                     "api": "apm_metric.dynamicUnifyQuery",
                     "datasource": "time_series",
-                    "alias": "被调数量",
+                    "alias": "被调",
                     "data": {
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
@@ -1523,9 +1523,9 @@
               },
               {
                 "id": 4,
-                "title": "响应耗时",
+                "title": "耗时",
                 "type": "apm-timeseries-chart",
-                "alias": "响应耗时",
+                "alias": "耗时",
                 "targets": [
                   {
                     "data_type": "time_series",
