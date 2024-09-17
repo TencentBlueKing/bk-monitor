@@ -75,7 +75,7 @@ class GetIndexSetLogSeries(Resource, IndexSetQueryMixin):
 
         time_field = self.get_index_time_field(bk_biz_id, index_set_id)
         if validated_request_data.get("bar_count"):
-            interval = f"{get_bar_interval_number(start_time, end_time, validated_request_data['bar_count'])}"
+            interval = f"{get_bar_interval_number(start_time, end_time, validated_request_data['bar_count'])}s"
         else:
             interval = get_interval(start_time, end_time, interval)
 

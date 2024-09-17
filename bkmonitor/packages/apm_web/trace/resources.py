@@ -77,7 +77,7 @@ class TraceChatsResource(Resource):
                 "gridPos": {"x": 0, "y": 16, "w": 8, "h": 4},
                 "targets": [
                     {
-                        "alias": _lazy("请求数"),
+                        "alias": _lazy("主调数量"),
                         "data_type": "time_series",
                         "api": "grafana.graphUnifyQuery",
                         "datasource": "time_series",
@@ -91,7 +91,10 @@ class TraceChatsResource(Resource):
                                     "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "A"}],
                                     "group_by": [],
                                     "display": True,
-                                    "where": [],
+                                    "where": [
+                                        {"key": "kind", "method": "eq", "value": ["3"]},
+                                        {"condition": "or", "key": "kind", "method": "eq", "value": ["4"]},
+                                    ],
                                     "interval_unit": "s",
                                     "time_field": "time",
                                     "filter_dict": {},
@@ -99,7 +102,34 @@ class TraceChatsResource(Resource):
                                 }
                             ],
                         },
-                    }
+                    },
+                    {
+                        "alias": _lazy("被调数量"),
+                        "data_type": "time_series",
+                        "api": "grafana.graphUnifyQuery",
+                        "datasource": "time_series",
+                        "data": {
+                            "expression": "A",
+                            "query_configs": [
+                                {
+                                    "data_source_label": "custom",
+                                    "data_type_label": "time_series",
+                                    "table": f"{database}.__default__",
+                                    "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "A"}],
+                                    "group_by": [],
+                                    "display": True,
+                                    "where": [
+                                        {"key": "kind", "method": "eq", "value": ["2"]},
+                                        {"condition": "or", "key": "kind", "method": "eq", "value": ["5"]},
+                                    ],
+                                    "interval_unit": "s",
+                                    "time_field": "time",
+                                    "filter_dict": {},
+                                    "functions": [],
+                                }
+                            ],
+                        },
+                    },
                 ],
                 "options": {"time_series": {"type": "bar"}},
             },
@@ -113,6 +143,7 @@ class TraceChatsResource(Resource):
                         "data_type": "time_series",
                         "api": "grafana.graphUnifyQuery",
                         "datasource": "time_series",
+                        "alias": "错误数",
                         "data": {
                             "type": "range",
                             "stack": "all",
@@ -123,77 +154,10 @@ class TraceChatsResource(Resource):
                                     "data_type_label": "time_series",
                                     "table": f"{database}.__default__",
                                     "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "A"}],
-                                    "group_by": ["http_status_code"],
-                                    "display": True,
-                                    "where": [
-                                        {"key": "status_code", "method": "eq", "value": ["2"]},
-                                        {"key": "http_status_code", "method": "neq", "value": [""], "condition": "and"},
-                                    ],
-                                    "interval_unit": "s",
-                                    "time_field": "time",
-                                    "filter_dict": {},
-                                    "functions": [],
-                                }
-                            ],
-                        },
-                    },
-                    {
-                        "data_type": "time_series",
-                        "api": "grafana.graphUnifyQuery",
-                        "datasource": "time_series",
-                        "data": {
-                            "type": "range",
-                            "stack": "all",
-                            "expression": "A",
-                            "query_configs": [
-                                {
-                                    "data_source_label": "custom",
-                                    "data_type_label": "time_series",
-                                    "table": f"{database}.__default__",
-                                    "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "A"}],
-                                    "group_by": ["rpc_grpc_status_code"],
-                                    "display": True,
-                                    "where": [
-                                        {"key": "status_code", "method": "eq", "value": ["2"]},
-                                        {
-                                            "key": "rpc_grpc_status_code",
-                                            "method": "neq",
-                                            "value": [""],
-                                            "condition": "and",
-                                        },
-                                    ],
-                                    "interval_unit": "s",
-                                    "time_field": "time",
-                                    "filter_dict": {},
-                                    "functions": [],
-                                }
-                            ],
-                        },
-                    },
-                    {
-                        "data_type": "time_series",
-                        "api": "grafana.graphUnifyQuery",
-                        "datasource": "time_series",
-                        "alias": "OTHER",
-                        "data": {
-                            "stack": "all",
-                            "expression": "B",
-                            "query_configs": [
-                                {
-                                    "data_source_label": "custom",
-                                    "table": f"{database}.__default__",
-                                    "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "B"}],
                                     "group_by": [],
                                     "display": True,
                                     "where": [
-                                        {"key": "status_code", "method": "eq", "value": ["2"]},
-                                        {"key": "http_status_code", "method": "eq", "value": [""], "condition": "and"},
-                                        {
-                                            "key": "rpc_grpc_status_code",
-                                            "method": "eq",
-                                            "value": [""],
-                                            "condition": "and",
-                                        },
+                                        {"key": "status_code", "method": "eq", "value": ["2"], "condition": "and"}
                                     ],
                                     "interval_unit": "s",
                                     "time_field": "time",
@@ -202,6 +166,49 @@ class TraceChatsResource(Resource):
                                 }
                             ],
                         },
+                        "yAxisIndex": 0,
+                    },
+                    {
+                        "data_type": "time_series",
+                        "api": "grafana.graphUnifyQuery",
+                        "datasource": "time_series",
+                        "alias": "错误率",
+                        "data": {
+                            "type": "range",
+                            "stack": "all",
+                            "expression": "a / b",
+                            "query_configs": [
+                                {
+                                    "data_source_label": "custom",
+                                    "data_type_label": "time_series",
+                                    "table": f"{database}.__default__",
+                                    "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "a"}],
+                                    "group_by": [],
+                                    "display": True,
+                                    "where": [
+                                        {"key": "status_code", "method": "eq", "value": ["2"], "condition": "and"}
+                                    ],
+                                    "interval_unit": "s",
+                                    "time_field": "time",
+                                    "filter_dict": {},
+                                    "functions": [],
+                                },
+                                {
+                                    "data_source_label": "custom",
+                                    "data_type_label": "time_series",
+                                    "table": f"{database}.__default__",
+                                    "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "b"}],
+                                    "group_by": [],
+                                    "display": True,
+                                    "where": [],
+                                    "interval_unit": "s",
+                                    "time_field": "time",
+                                    "filter_dict": {},
+                                    "functions": [],
+                                },
+                            ],
+                        },
+                        "yAxisIndex": 1,
                     },
                 ],
                 "options": {"time_series": {"type": "bar"}},
@@ -214,19 +221,21 @@ class TraceChatsResource(Resource):
                 "targets": [
                     {
                         "data_type": "time_series",
-                        "api": "grafana.graphUnifyQuery",
+                        "api": "apm_metric.dynamicUnifyQuery",
                         "datasource": "time_series",
                         "alias": "AVG",
                         "data": {
+                            "app_name": validated_request_data["app_name"],
                             "unit": "ns",
                             "expression": "a / b",
-                            "query_configs": [
+                            "query_configs": [  # noqa
                                 {
                                     "data_source_label": "custom",
                                     "data_type_label": "time_series",
                                     "metrics": [{"field": "bk_apm_duration_sum", "method": "SUM", "alias": "a"}],
                                     "table": f"{database}.__default__",
                                     "data_label": "",
+                                    "index_set_id": None,
                                     "group_by": [],
                                     "where": [],
                                     "interval_unit": "s",
@@ -240,14 +249,48 @@ class TraceChatsResource(Resource):
                                     "metrics": [{"field": "bk_apm_total", "method": "SUM", "alias": "b"}],
                                     "table": f"{database}.__default__",
                                     "data_label": "",
+                                    "index_set_id": None,
                                     "group_by": [],
                                     "where": [],
                                     "interval_unit": "s",
-                                    "time_field": "time",
+                                    "time_field": None,
                                     "filter_dict": {},
                                     "functions": [{"id": "increase", "params": [{"id": "window", "value": "2m"}]}],
                                 },
                             ],
+                            "unify_query_param": {
+                                "expression": "a / b",
+                                "query_configs": [  # noqa
+                                    {
+                                        "data_source_label": "custom",
+                                        "data_type_label": "time_series",
+                                        "metrics": [{"field": "bk_apm_duration_sum", "method": "SUM", "alias": "a"}],
+                                        "table": f"{database}.__default__",
+                                        "data_label": "",
+                                        "index_set_id": None,
+                                        "group_by": [],
+                                        "where": [],
+                                        "interval_unit": "s",
+                                        "time_field": "time",
+                                        "filter_dict": {},
+                                        "functions": [{"id": "increase", "params": [{"id": "window", "value": "2m"}]}],
+                                    },
+                                    {
+                                        "data_source_label": "custom",
+                                        "data_type_label": "time_series",
+                                        "metrics": [{"field": "bk_apm_total", "method": "SUM", "alias": "b"}],
+                                        "table": f"{database}.__default__",
+                                        "data_label": "",
+                                        "index_set_id": None,
+                                        "group_by": [],
+                                        "where": [],
+                                        "interval_unit": "s",
+                                        "time_field": None,
+                                        "filter_dict": {},
+                                        "functions": [{"id": "increase", "params": [{"id": "window", "value": "2m"}]}],
+                                    },
+                                ],
+                            },
                         },
                     },
                     {

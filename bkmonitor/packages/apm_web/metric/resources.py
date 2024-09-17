@@ -172,7 +172,12 @@ class DynamicUnifyQueryResource(Resource):
                 config["interval"] = interval
 
         if not validate_data.get("service_name"):
-            return self.fill_unit(resource.grafana.graph_unify_query(unify_query_params), validate_data.get("unit"))
+            return self.fill_unit_and_series(
+                resource.grafana.graph_unify_query(unify_query_params),
+                validate_data.get("unit"),
+                validate_data["start_time"],
+                validate_data["end_time"],
+            )
 
         node = ServiceHandler.get_node(
             validate_data["bk_biz_id"],
@@ -181,7 +186,12 @@ class DynamicUnifyQueryResource(Resource):
             raise_exception=False,
         )
         if not node:
-            return self.fill_unit(resource.grafana.graph_unify_query(unify_query_params), validate_data.get("unit"))
+            return self.fill_unit_and_series(
+                resource.grafana.graph_unify_query(unify_query_params),
+                validate_data.get("unit"),
+                validate_data["start_time"],
+                validate_data["end_time"],
+            )
 
         if ComponentHandler.is_component_by_node(node):
             # 替换service_name
@@ -241,10 +251,19 @@ class DynamicUnifyQueryResource(Resource):
                 json.dumps(unify_query_params).replace(validate_data["service_name"], pure_service_name)
             )
 
-        return self.fill_unit(resource.grafana.graph_unify_query(unify_query_params), validate_data.get("unit"))
+        return self.fill_unit_and_series(
+            resource.grafana.graph_unify_query(unify_query_params),
+            validate_data.get("unit"),
+            validate_data["start_time"],
+            validate_data["end_time"],
+        )
 
     @classmethod
-    def fill_unit(cls, response, unit):
+    def fill_unit_and_series(cls, response, unit, start_time, end_time):
+        response = {
+            "metrics": response.get("metrics"),
+            "series": fill_series(response.get("series", []), start_time, end_time),
+        }
         if not unit:
             return response
 

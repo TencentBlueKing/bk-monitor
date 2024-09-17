@@ -163,8 +163,25 @@ class TopoLinkResource(Resource):
                     validated_request_data["start_time"],
                     validated_request_data["end_time"],
                 )
+            elif source_type == SourceType.APM_SERVICE_INSTANCE.value:
+                return LinkHelper.get_service_instance_instance_tab_link(
+                    validated_request_data["bk_biz_id"],
+                    validated_request_data["app_name"],
+                    validated_request_data["source_info"]["apm_service_name"],
+                    validated_request_data["source_info"]["apm_service_instance_name"],
+                    validated_request_data["start_time"],
+                    validated_request_data["end_time"],
+                )
+            elif source_type == SourceType.APM_SERVICE.value:
+                return LinkHelper.get_service_overview_tab_link(
+                    validated_request_data["bk_biz_id"],
+                    validated_request_data["app_name"],
+                    validated_request_data["source_info"]["apm_service_name"],
+                    validated_request_data["start_time"],
+                    validated_request_data["end_time"],
+                )
 
-        raise ValueError(f"不支持获取: {validated_request_data['link_type']}类型的链接")
+        raise ValueError(f"不支持获取: {validated_request_data['source_type']}类型的链接")
 
 
 class NodeEndpointsTopResource(Resource):

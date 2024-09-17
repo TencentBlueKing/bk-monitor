@@ -153,8 +153,8 @@ def split_by_size(start_time, end_time, size=30):
 
     segments = []
 
-    for i in range(size):
-        segment_start = start_dt + segment_duration * i
+    for index, i in enumerate(range(size), -1):
+        segment_start = start_dt + segment_duration * index
         segment_end = segment_start + segment_duration
         segments.append((int(segment_start.timestamp()), int(segment_end.timestamp())))
 
@@ -222,10 +222,13 @@ def merge_dicts(d1, d2):
 
 
 def fill_series(series, start_time, end_time):
-    """调整时间戳 将无数据的柱子值设置为 0 (适用于柱状图查询)"""
+    """
+    调整时间戳 将无数据的柱子值设置为 None (适用于柱状图查询)
+    """
     timestamp_range = split_by_size(start_time, end_time)
+    if not series:
+        return [{"datapoints": [[None, int((s + e) / 2) * 1000] for s, e in timestamp_range]}]
 
-    # Algorithm: 根据 series 中数据时间 不丢失数据的前提下放入不完整对齐的时间切片中
     res = []
     for i in series:
         result = [[None, int((t_e + t_s) / 2) * 1000] for t_e, t_s in timestamp_range]
@@ -233,6 +236,8 @@ def fill_series(series, start_time, end_time):
             value, timestamp = d
             if j > 0:
                 # 往前移动被覆盖元素
+                # 这里的情况可能是 UnifyQuery 返回的前 n 个元素 比 timestamp_range 中 n-1 位的开始时间要小的问题
+                # 所以这个 n 位元素应该放在 n-1 位 需要整个 time_range 往前移动
                 if timestamp_range[j - 1][0] <= timestamp <= timestamp_range[j - 1][1]:
                     result[j - 1] = d
                     result[j - 2] = i["datapoints"][j - 1]
