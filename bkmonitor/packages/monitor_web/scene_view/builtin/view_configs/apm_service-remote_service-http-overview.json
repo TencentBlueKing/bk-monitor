@@ -212,7 +212,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "bar_count": 30
           },
           "yAxisIndex": 0
         },
@@ -338,7 +339,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "bar_count": 30
           },
           "yAxisIndex": 1
         }

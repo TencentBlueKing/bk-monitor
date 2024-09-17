@@ -162,6 +162,7 @@ class DynamicUnifyQueryResource(Resource):
             "bk_biz_id": validate_data["bk_biz_id"],
         }
 
+        require_fill_series = False
         if validate_data.get("bar_count"):
             interval = get_bar_interval_number(
                 validate_data["start_time"],
@@ -171,12 +172,15 @@ class DynamicUnifyQueryResource(Resource):
             for config in unify_query_params["query_configs"]:
                 config["interval"] = interval
 
+            require_fill_series = True
+
         if not validate_data.get("service_name"):
             return self.fill_unit_and_series(
                 resource.grafana.graph_unify_query(unify_query_params),
                 validate_data.get("unit"),
                 validate_data["start_time"],
                 validate_data["end_time"],
+                require_fill_series,
             )
 
         node = ServiceHandler.get_node(
@@ -191,6 +195,7 @@ class DynamicUnifyQueryResource(Resource):
                 validate_data.get("unit"),
                 validate_data["start_time"],
                 validate_data["end_time"],
+                require_fill_series,
             )
 
         if ComponentHandler.is_component_by_node(node):
@@ -256,13 +261,16 @@ class DynamicUnifyQueryResource(Resource):
             validate_data.get("unit"),
             validate_data["start_time"],
             validate_data["end_time"],
+            require_fill_series,
         )
 
     @classmethod
-    def fill_unit_and_series(cls, response, unit, start_time, end_time):
+    def fill_unit_and_series(cls, response, unit, start_time, end_time, require_fill_series=False):
         response = {
             "metrics": response.get("metrics"),
-            "series": fill_series(response.get("series", []), start_time, end_time),
+            "series": fill_series(
+                response.get("series", []), start_time, end_time
+            ) if require_fill_series else response.get("series", []),
         }
         if not unit:
             return response

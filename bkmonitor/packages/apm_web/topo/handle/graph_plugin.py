@@ -1470,7 +1470,7 @@ class EndpointSize(PostPlugin):
         callee_value = endpoint_data.get(EndpointRequestCountCallee.id, 0)
         value = caller_value or 0 + callee_value or 0
 
-        if value == 0:
+        if not value:
             endpoint_data[self.id] = self.Size.NO_DATA
         elif value < 200:
             endpoint_data[self.id] = self.Size.SMALL
