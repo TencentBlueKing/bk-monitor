@@ -174,4 +174,4 @@ class EndpointListEntrance:
             for p in endpoint_post_plugins:
                 p.process(e)
 
-        return {"total": handler.total, "endpoints": sorted(endpoints, key=lambda i: i.get("value"), reverse=True)}
+        return {"total": handler.total, "endpoints": sorted(endpoints, key=lambda i: i.get("size"), reverse=True)}

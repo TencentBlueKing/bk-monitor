@@ -233,7 +233,7 @@
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
             "unit": "percent",
-            "expression": "a / b",
+            "expression":"(a / b) * 100",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1140,7 +1140,7 @@
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
             "unit": "percent",
-            "expression": "a / b",
+            "expression": "(a / b) * 100",
             "query_configs": [
               {
                 "data_source_label": "custom",

@@ -160,7 +160,7 @@ class ServiceInfoResource(Resource):
         query_instance_param = {
             "bk_biz_id": bk_biz_id,
             "app_name": app_name,
-            "service_name": [service_name],
+            "service_name": service_name,
             "start_time": validate_data["start_time"],
             "end_time": validate_data["end_time"],
         }

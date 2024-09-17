@@ -118,7 +118,7 @@ class BarQuery(BaseQuery):
                 else:
                     res.append([[3, 0], item[-1]])
 
-        return {"metrics": [], "series": {"datapoints": res}}
+        return {"metrics": [], "series": [{"datapoints": res}]}
 
     def get_apdex_series(self) -> Dict:
         return self.get_metric(

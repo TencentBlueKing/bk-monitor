@@ -307,7 +307,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "bar_count": 30
           },
           "yAxisIndex": 0
         },
@@ -320,7 +321,7 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "unit": "percent",
-            "expression": "a / b",
+            "expression": "(a / b) * 100",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -433,7 +434,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "bar_count": 30
           },
           "yAxisIndex": 1
         }
