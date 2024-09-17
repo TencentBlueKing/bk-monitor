@@ -153,8 +153,8 @@ def split_by_size(start_time, end_time, size=30):
 
     segments = []
 
-    for i in range(size):
-        segment_start = start_dt + segment_duration * i
+    for index, i in enumerate(range(size), -1):
+        segment_start = start_dt + segment_duration * index
         segment_end = segment_start + segment_duration
         segments.append((int(segment_start.timestamp()), int(segment_end.timestamp())))
 
@@ -227,6 +227,8 @@ def fill_series(series, start_time, end_time):
     对于数据断点的 series 合并后的结果不是完全符合 interval 的但是可以避免图标不联动的问题
     """
     timestamp_range = split_by_size(start_time, end_time)
+    if not series:
+        return [{"datapoints": [[None, int((s + e) / 2) * 1000] for s, e in timestamp_range]}]
 
     # Algorithm:
     # 根据 series 中数据时间 如何在不丢失数据的前提下放入不完整对齐的时间切片中
