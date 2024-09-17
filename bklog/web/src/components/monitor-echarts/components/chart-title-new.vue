@@ -173,6 +173,7 @@
 <style lang="scss" scoped>
   .title-wrapper {
     position: relative;
+    z-index: 999;
     flex: 1;
     width: 100%;
 
@@ -278,7 +279,7 @@
 
     .chart-spin {
       position: absolute;
-      top: 24px;
+      top: 27px;
       right: 36px;
     }
   }

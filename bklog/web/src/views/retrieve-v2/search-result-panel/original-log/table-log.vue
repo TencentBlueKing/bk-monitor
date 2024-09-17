@@ -191,12 +191,12 @@
         this.timer = setTimeout(() => {
           // this.showScrollTop = el.scrollTop > 550;
           if (el.scrollHeight - el.offsetHeight - el.scrollTop < 20) {
-            if (this.count === this.limitCount || this.finishPolling) return;
+            if (this.totalFields.length === this.limitCount || this.finishPolling) return;
             this.isPageOver = true;
             this.newScrollHeight = el.scrollTop;
             this.$store.dispatch('requestIndexSetQuery', { isPagination: true }).then(res => {
               this.isPageOver = false;
-              this.finishPolling = res.total < this.indexItem.begin;
+              this.finishPolling = res.data.total < this.indexItem.begin;
               this.$nextTick(() => {
                 this.$refs.scrollContainer.scrollTop = this.newScrollHeight;
               });

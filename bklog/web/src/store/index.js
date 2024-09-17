@@ -872,6 +872,7 @@ const store = new Vuex.Store({
       } = state.indexItem;
       let begin = state.indexItem.begin;
       const bk_biz_id = state.bkBizId;
+      if (!payload?.isPagination) store.commit('retrieve/updateChartKey');
       const searchCount = payload.searchCount ?? state.indexSetQueryResult.search_count + 1;
       commit(payload.isPagination ? 'updateIndexSetQueryResult' : 'resetIndexSetQueryResult', {
         is_loading: true,
@@ -970,7 +971,7 @@ const store = new Vuex.Store({
               if (!payload?.isPagination) dispatch('requestSearchTotal');
 
               return {
-                data: rsolvedData,
+                data,
                 message,
                 code,
                 result,
@@ -1099,7 +1100,7 @@ const store = new Vuex.Store({
      * @param {*} payload
      * @returns
      */
-    setQueryCondition({ state, dispatch, commit }, payload) {
+    setQueryCondition({ state, dispatch }, payload) {
       const { field, operator, value, isLink = false } = payload;
       const getFieldType = field => {
         const target = state.indexFieldInfo.fields?.find(item => item.field_name === field);
@@ -1195,7 +1196,6 @@ const store = new Vuex.Store({
           }
         }
       }
-      commit('retrieve/updateChartKey');
       return Promise.resolve(newAddition);
     },
 
