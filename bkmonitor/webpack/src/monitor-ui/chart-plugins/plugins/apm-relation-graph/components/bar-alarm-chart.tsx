@@ -505,11 +505,15 @@ export default class BarAlarmChart extends tsc<IProps> {
     if (isSelected) {
       color = alarmColorMap.selected[item.type];
     }
+    let height = isSelected || isHover ? this.activeItemHeight : this.itemHeight;
+    if (!item.value) {
+      height = 0;
+    }
     return (
       <div
         key={item.time}
         style={{
-          height: `${isSelected || isHover ? this.activeItemHeight : this.itemHeight}px`,
+          height: `${height}px`,
           background: `${color}`,
           cursor: item.type !== EAlarmType.gray ? 'pointer' : 'default',
         }}

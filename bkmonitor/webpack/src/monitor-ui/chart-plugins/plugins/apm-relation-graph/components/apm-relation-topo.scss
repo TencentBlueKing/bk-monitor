@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 .apm-relation-topo {
   position: relative;
   width: 100%;
@@ -31,7 +32,7 @@
       border-radius: 2px;
       box-shadow: 0 2px 6px 0 #0000001a;
 
-      li {
+      .topo-menu-action {
         display: flex;
         align-items: center;
         height: 32px;
@@ -45,6 +46,12 @@
         &:hover {
           color: #3a84ff;
           background: #e1ecff;
+        }
+
+        &.is-disabled {
+          color: #c4c6cc !important;
+          cursor: not-allowed !important;
+          background-color: transparent !important;
         }
       }
     }

@@ -155,7 +155,7 @@ export default class ApmTimeSeries extends TimeSeries {
     }
     try {
       this.unregisterOberver();
-      let series = [];
+      const series = [];
       const metrics = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       let params = {
@@ -202,13 +202,6 @@ export default class ApmTimeSeries extends TimeSeries {
               item.apiFunc
             ),
           };
-          // 主机监控ipv6特殊逻辑 用于去除不必要的group_by字段
-          if (item.ignore_group_by?.length && newPrarams.query_configs.some(set => set.group_by?.length)) {
-            newPrarams.query_configs = newPrarams.query_configs.map(config => ({
-              ...config,
-              group_by: config.group_by.filter(key => !item.ignore_group_by.includes(key)),
-            }));
-          }
           return (this as any).$api[item.apiModule]
             [item.apiFunc](newPrarams, {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
@@ -219,9 +212,7 @@ export default class ApmTimeSeries extends TimeSeries {
               res.metrics && metrics.push(...res.metrics);
               series.push(
                 ...res.series.map(set => {
-                  const name = `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
-                    this.handleSeriesName(item, set) || set.target
-                  }`;
+                  const name = `${this.handleSeriesName(item, set) || set.target}`;
                   if (this.apmMetric === EDataType.errorCount) {
                     this.errorCountCategory[name] = (item as any)?.apm_time_series_category || '';
                   }
@@ -248,23 +239,10 @@ export default class ApmTimeSeries extends TimeSeries {
         /* 派出图表数据包含的维度*/
         this.emitDimensions(series);
         this.series = Object.freeze(series) as any;
-        if (this.onlyOneResult) {
-          let hasResultSeries = false;
-          series = series.filter(item => {
-            const pass = !(hasResultSeries && item.alias === '_result_');
-            pass && (hasResultSeries = true);
-            return pass;
-          });
-        }
-        if (this.nearSeriesNum) {
-          series = series.slice(0, this.nearSeriesNum);
-        }
-        const seriesResult = series
-          .filter(item => ['extra_info', '_result_'].includes(item.alias))
-          .map(item => ({
-            ...item,
-            datapoints: item.datapoints.map(point => [JSON.parse(point[0])?.anomaly_score ?? point[0], point[1]]),
-          }));
+        const seriesResult = series.map(item => ({
+          ...item,
+          datapoints: item.datapoints.map(point => [JSON.parse(point[0])?.anomaly_score ?? point[0], point[1]]),
+        }));
         const isBar = this.panel.options?.time_series?.type === 'bar';
         let seriesList = this.handleTransformSeries(
           seriesResult.map((item, index) => ({
@@ -284,12 +262,6 @@ export default class ApmTimeSeries extends TimeSeries {
           })) as any,
           isBar ? COLOR_LIST_BAR : COLOR_LIST
         );
-        const boundarySeries = seriesResult
-          .map(item => this.handleBoundaryList(item, series))
-          .flat(Number.POSITIVE_INFINITY);
-        if (boundarySeries) {
-          seriesList = [...seriesList.map((item: any) => ({ ...item, z: 6 })), ...boundarySeries];
-        }
         seriesList = seriesList.map((item: any) => ({
           ...item,
           minBase: this.minBase,
@@ -509,10 +481,22 @@ export default class ApmTimeSeries extends TimeSeries {
             onSelectChild={this.handleSelectChildMenu}
             onUpdateDragging={() => this.panel.updateDraging(false)}
           >
-            <div class='context-menu-info'>
-              {/* <bk-button size='small'>{this.$t('查看详情')}</bk-button> */}
-              {this.$t('右键更多操作')}
-            </div>
+            {this.enableContextmenu && (
+              <div
+                class='context-menu-info'
+                onClick={e => e.stopPropagation()}
+              >
+                <i class='icon-monitor icon-mc-mouse mouse-icon' />
+                {this.$t('右键更多操作')}
+                <bk-button
+                  size='small'
+                  text
+                  onClick={() => this.handleClickMenuItem('details')}
+                >
+                  {this.$t('查看详情')}
+                </bk-button>
+              </div>
+            )}
           </ChartHeader>
         )}
         {this.panel.options?.logHeader && (
