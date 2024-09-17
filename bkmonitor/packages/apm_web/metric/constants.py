@@ -21,7 +21,7 @@ class StatisticsMetric(ChoicesEnum):
     _choices_labels = (
         (REQUEST_COUNT, "请求数"),
         (ERROR_COUNT, "错误数"),
-        (AVG_DURATION, "响应耗时"),
+        (AVG_DURATION, "耗时"),
     )
 
 
