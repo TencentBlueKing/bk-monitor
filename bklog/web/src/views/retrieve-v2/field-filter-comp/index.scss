@@ -1,10 +1,11 @@
 .field-filter-box {
-  .form-container {
+  >.form-container {
     display: flex;
     align-items: center;
     justify-content: space-between;
     width: 100%;
     height: 32px;
+    padding: 0 16px;
     margin: 16px 0 10px 0;
 
     .king-input {
@@ -58,23 +59,23 @@
   }
 
   .field-filter-container {
-    padding-right: 2px;
+    padding: 0 16px;
     overflow-y: auto;
     font-size: 12px;
     line-height: 20px;
     color: #63656e;
-  
+
     .is-selected {
       border-bottom: 1px solid #e1ecff;
     }
-  
+
     .field-filter-roll{
       overflow-y: auto;
     }
-  
+
     .fields-container {
       margin-bottom: 20px;
-  
+
       .all-field-item {
         display: inline-block;
         height: 26px;
@@ -82,7 +83,7 @@
         line-height: 26px;
         color: #63656e;
       }
-  
+
       .expand-all {
         margin-left: 22px;
         color: #3a84ff;

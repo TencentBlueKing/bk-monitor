@@ -114,7 +114,7 @@ export default class PopInstanceUtil {
         maxWidth: 800,
         zIndex: (window as any).__bk_zIndex_manager.nextZIndex(),
         onShow: () => {
-          this.onShowFn?.(this.tippyInstance);
+          return this.onShowFn?.(this.tippyInstance) ?? true;
         },
         onHidden: () => {
           this.onHiddenFn?.(this.tippyInstance);

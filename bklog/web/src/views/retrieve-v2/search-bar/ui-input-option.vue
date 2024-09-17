@@ -5,7 +5,7 @@
   import useStore from '@/hooks/use-store';
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
-  import { getInputQueryDefaultItem, getFieldConditonItem } from './const.common';
+  import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
   import PopInstanceUtil from './pop-instance-util';
   // @ts-ignore
   import { getCharLength } from '@/common/util';
@@ -97,7 +97,7 @@
     field_alias: t('全文检索'),
     field_operator: [
       {
-        operator: 'contains',
+        operator: FulltextOperator,
         label: t('包含'),
         placeholder: t('请选择或直接输入，Enter分隔'),
       },
@@ -156,8 +156,8 @@
   const restoreFieldAndCondition = () => {
     const matchedField = fieldList.value.find(field => field.field_name === props.value.field);
     Object.assign(activeFieldItem.value, matchedField ?? {});
-    const { operator, relation = 'AND', isInclude, value = [] } = props.value;
-    Object.assign(condition.value, { operator, relation, isInclude, value });
+    const { operator, relation = 'OR', isInclude, value = [] } = props.value;
+    Object.assign(condition.value, { operator, relation, isInclude, value: [...value] });
 
     let filterIndex = filterFieldList.value.findIndex(
       field =>
@@ -189,6 +189,17 @@
     },
     { immediate: true },
   );
+
+  watch(searchValue, () => {
+    nextTick(() => {
+      if (filterFieldList.value.length) {
+        activeIndex.value = 0;
+        return;
+      }
+
+      activeIndex.value = null;
+    });
+  });
 
   const getFieldIcon = fieldType => {
     return fieldTypeMap.value?.[fieldType] ? fieldTypeMap.value?.[fieldType]?.icon : 'bklog-icon bklog-unkown';
@@ -250,7 +261,7 @@
     }
 
     // 如果是空操作符禁止提交
-    if (result && !result.operator) {
+    if (result && (!result.operator || (isShowConditonValueSetting.value && result.value.length === 0))) {
       return;
     }
 
@@ -261,9 +272,27 @@
   const refValueTagInput = ref(null);
   const isConditionValueInputFocus = ref(false);
   const conditionValueActiveIndex = ref(-1);
+  const conditionValueInputVal = ref('');
 
   const activeItemMatchList = computed(() => {
-    return store.state.indexFieldInfo.aggs_items[activeFieldItem.value.field_name] ?? [];
+    const regExp = getRegExp(conditionValueInputVal.value);
+    return (store.state.indexFieldInfo.aggs_items[activeFieldItem.value.field_name] ?? []).filter(val =>
+      regExp.test(val),
+    );
+  });
+
+  /**
+   * 判定当前如果展示空状态
+   * 判定是搜索为空还是数据为空
+   */
+  const conditionValueEmptyType = computed(() => {
+    if (!(store.state.indexFieldInfo.aggs_items[activeFieldItem.value.field_name] ?? []).length) {
+      return 'empty';
+    }
+
+    if (conditionValueInputVal.value.length) {
+      return 'search-empty';
+    }
   });
 
   const handleConditionValueClick = () => {
@@ -304,6 +333,7 @@
       const value = input.value;
       const charLen = getCharLength(value);
       input.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
+      conditionValueInputVal.value = input.value;
     }
   };
 
@@ -319,9 +349,24 @@
     operatorInstance.show(refUiValueOperator.value);
   };
 
-  const handleTagItemClick = value => {
+  const appendConditionValue = value => {
     if (!condition.value.value.includes(value)) {
       condition.value.value.push(value);
+      return true;
+    }
+
+    return false;
+  };
+
+  /**
+   * 点击条件值下拉选项
+   * 如果条件列表已有此值，取消选中
+   * @param {*} value
+   * @param {*} index
+   */
+  const handleTagItemClick = (value, index) => {
+    if (!appendConditionValue(value)) {
+      condition.value.value.splice(index, 1);
     }
   };
 
@@ -375,7 +420,11 @@
     }
   };
 
+  /**
+   * 键盘enter键事件处理
+   */
   const resolveConditonValueInputEnter = () => {
+    // 判断当前操作符选择下拉是否激活
     if (isOperatorInstanceActive()) {
       operatorInstance?.hide();
       afterOperatorValueEnter();
@@ -391,9 +440,13 @@
       if (instance?.state.isShown) {
         const val = activeItemMatchList.value[conditionValueActiveIndex.value];
         if (val !== undefined) {
-          handleTagItemClick(val);
+          handleTagItemClick(val, conditionValueActiveIndex.value);
           refValueTagInput.value.value = '';
+
+          // 自动选中条件值列表的下一步个匹配项
           setConditionValueActiveIndex(true);
+
+          // 设置当前行样式，避免Vue实例渲染，这里直接操作DOM进行class赋值
           activeConditionValueOption();
           return;
         }
@@ -414,7 +467,7 @@
       // 如果是条件输入框内有数据执行数据填入操作
       // 清空输入框
       if (refValueTagInput.value.value) {
-        condition.value.value.push(refValueTagInput.value.value);
+        appendConditionValue(refValueTagInput.value.value);
         refValueTagInput.value.value = '';
         return;
       }
@@ -578,6 +631,7 @@
     document.removeEventListener('keydown', handleKeydownClick);
     handleFieldItemClick(filterFieldList.value[0], 0);
     isFocusFieldList.value = false;
+    searchValue.value = '';
   };
 
   const setActiveIndex = (index = 0) => {
@@ -588,16 +642,18 @@
     stopEventPreventDefault(e);
 
     if (e.target.value) {
-      condition.value.value.push(e.target.value);
+      const value = e.target.value;
       e.target.value = '';
+      appendConditionValue(value);
     }
   };
 
   const handleConditionValueInputBlur = e => {
     isConditionValueInputFocus.value = false;
     if (e.target.value) {
-      condition.value.value.push(e.target.value);
+      const value = e.target.value;
       e.target.value = '';
+      appendConditionValue(value);
     }
   };
 
@@ -725,8 +781,8 @@
             </div>
             <template v-if="activeFieldItem.field_name === '*'">
               <bk-input
-                v-model="condition.value[0]"
                 type="textarea"
+                v-model="condition.value[0]"
                 :rows="12"
               ></bk-input>
             </template>
@@ -768,10 +824,21 @@
                     class="condition-value-options"
                   >
                     <li
+                      v-if="!activeItemMatchList.length"
+                      class="empty-section"
+                    >
+                      <bk-exception
+                        :type="conditionValueEmptyType"
+                        scene="part"
+                        style="height: 100px"
+                      >
+                      </bk-exception>
+                    </li>
+                    <li
                       :class="{ active: (condition.value ?? []).includes(item) }"
                       v-for="(item, index) in activeItemMatchList"
                       :key="`${item}-${index}`"
-                      @click.stop="() => handleTagItemClick(item)"
+                      @click.stop="() => handleTagItemClick(item, index)"
                     >
                       <span>{{ item }}</span>
                     </li>
@@ -936,13 +1003,31 @@
         cursor: pointer;
         background: #ffffff;
 
-        &.active {
-          background: #f5f7fa;
+        &.empty-section {
+          height: 100px;
+
+          img {
+            width: 120px;
+            height: 60px;
+          }
+
+          .bk-exception {
+            .bk-exception-text {
+              display: flex;
+              justify-content: center;
+            }
+          }
         }
 
-        &.is-hover,
-        &:hover {
-          background: #e1ecff;
+        &:not(.empty-section) {
+          &.active {
+            background: #f5f7fa;
+          }
+
+          &.is-hover,
+          &:hover {
+            background: #e1ecff;
+          }
         }
       }
     }

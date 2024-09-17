@@ -23,10 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+/**
+ * 全文检索时，默认生成的查询数据结构
+ * @param value
+ * @returns
+ */
 export const getInputQueryDefaultItem = (value = []) => {
   return {
     field: '*',
-    operator: 'contains',
+    operator: 'contains match phrase',
     isInclude: false,
     value: [...(Array.isArray(value) ? value : [value])],
     relation: 'OR',
@@ -34,6 +40,10 @@ export const getInputQueryDefaultItem = (value = []) => {
   };
 };
 
+/**
+ * 字段检索条件配置默认数据结构
+ * @returns
+ */
 export const getFieldConditonItem = () => {
   return {
     field_name: '*',
@@ -43,3 +53,14 @@ export const getFieldConditonItem = () => {
     field_operator: [],
   };
 };
+
+/**
+ * 全文检索操作符
+ * 这里是固定的，只支持包含操作
+ */
+export const FulltextOperator = 'contains match phrase';
+
+/**
+ * 全文检索操作符字典Key
+ */
+export const FulltextOperatorKey = '*contains match phrase';

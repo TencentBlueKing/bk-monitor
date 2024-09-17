@@ -261,6 +261,15 @@ export default class QueryStatement extends tsc<object> {
     return list;
   }
 
+  get placeholderText() {
+    const childList = this.renderOptionList.map(item => item.children).flat();
+    if (this.selectedItemList.length || this.selectedItem?.index_set_name) {
+      return '';
+    }
+
+    return childList.length ? this.$t('请选择索引集') : this.$t('索引集为空');
+  }
+
   /** 获取可选的标签过滤列表 */
   get labelSelectList() {
     const labelMap = new Map();
@@ -330,6 +339,11 @@ export default class QueryStatement extends tsc<object> {
 
   get isOverSelect() {
     return this.selectTagCatchIDList.length >= MAX_UNION_INDEXSET_LIMIT;
+  }
+
+  @Watch('spaceUid', { immediate: true })
+  handleSpaceUidChanged() {
+    this.selectTagCatchIDList = [];
   }
 
   @Watch('unionIndexList', { immediate: true, deep: true })
@@ -1168,7 +1182,10 @@ export default class QueryStatement extends tsc<object> {
     return (
       <Select
         ref='selectInput'
-        class='retrieve-index-select'
+        class={[
+          'retrieve-index-select',
+          { 'is-default-trigger': !this.selectedItemList.length && !this.selectedItem.index_set_name },
+        ]}
         v-model={this.selectTagCatchIDList}
         v-bkloading={{ isLoading: this.basicLoading, size: 'mini', zIndex: 10 }}
         scopedSlots={{
@@ -1178,6 +1195,7 @@ export default class QueryStatement extends tsc<object> {
         data-test-id='dataQuery_div_indexSetSelect'
         display-tag={!this.isAloneType}
         ext-popover-cls='retrieve-index-select-popover'
+        placeholder={this.placeholderText}
         popover-min-width={600}
         popover-options={{ boundary: 'window' }}
         scroll-height={400}

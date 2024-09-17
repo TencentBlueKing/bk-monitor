@@ -375,6 +375,14 @@
     nextTick(() => {
       setOptionActive();
     });
+
+    return (
+      (showOption.value.showFields && fieldList.value.length) ||
+      (showOption.value.showValue && valueList.value.length) ||
+      showOption.value.showColon ||
+      showOption.value.showContinue ||
+      (showOption.value.showOperator && operatorSelectList.value.length)
+    );
   };
 
   const beforeHideFn = () => {
