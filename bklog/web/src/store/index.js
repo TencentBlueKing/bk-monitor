@@ -279,10 +279,13 @@ const store = new Vuex.Store({
      * @param {*} payload
      */
     resetIndexsetItemParams(state, payload) {
-      const defaultValue = { ...IndexsetItemParams };
-      if (payload?.addition?.length >= 0) {
-        state.indexItem.addition.splice(0, state.indexItem.addition.length, ...payload?.addition);
-      }
+      const defaultValue = { ...IndexsetItemParams, isUnionIndex: false, selectIsUnionSearch: false };
+      ['ids', 'items', 'catchUnionBeginList'].forEach(key => {
+        if (Array.isArray(state.indexItem[key])) {
+          state.indexItem[key].splice(0, state.indexItem[key].length, ...(payload?.[key] ?? []));
+        }
+      });
+
       Object.assign(state.indexItem, defaultValue, payload ?? {});
     },
 
@@ -501,6 +504,9 @@ const store = new Vuex.Store({
       state.storeIsShowClusterStep = val;
     },
     updateSqlQueryFieldList(state, payload) {
+      const target = {};
+      state.retrieveDropdownData = {};
+
       const recursiveIncreaseData = (dataItem, prefixFieldKey = '') => {
         dataItem &&
           Object.entries(dataItem).forEach(([field, value]) => {
@@ -508,11 +514,11 @@ const store = new Vuex.Store({
               recursiveIncreaseData(value, `${prefixFieldKey + field}.`);
             } else {
               const fullFieldKey = prefixFieldKey ? prefixFieldKey + field : field;
-              let fieldData = state.retrieveDropdownData[fullFieldKey];
+              let fieldData = target[fullFieldKey];
               if (fieldData) fieldData.__totalCount += 1;
               if (value || value === 0) {
                 if (!fieldData) {
-                  Object.assign(state.retrieveDropdownData, {
+                  Object.assign(target, {
                     [fullFieldKey]: Object.defineProperties(
                       {},
                       {
@@ -533,7 +539,7 @@ const store = new Vuex.Store({
                       },
                     ),
                   });
-                  fieldData = state.retrieveDropdownData[fullFieldKey];
+                  fieldData = target[fullFieldKey];
                 }
                 fieldData.__validCount += 1;
                 fieldData[value] += 1;
@@ -554,6 +560,10 @@ const store = new Vuex.Store({
       };
 
       computeRetrieveDropdownData(payload ?? []);
+
+      Object.keys(target).forEach(key => {
+        Vue.set(state.retrieveDropdownData, key, target[key]);
+      });
     },
     updateNotTextTypeFields(state, payload) {
       state.notTextTypeFields.length = [];
@@ -795,14 +805,16 @@ const store = new Vuex.Store({
       // @ts-ignore
       const { ids = [], start_time = '', end_time = '', isUnionIndex } = state.indexItem;
 
+      commit('resetIndexFieldInfo');
+      commit('updataOperatorDictionary', {});
+      commit('updateNotTextTypeFields', {});
+      commit('updateIndexSetFieldConfig', {});
+
       if (!ids.length) {
         return;
       }
 
       commit('resetIndexFieldInfo', { is_loading: true });
-      commit('updataOperatorDictionary', {});
-      commit('updateVisibleFields', []);
-
       const urlStr = isUnionIndex ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
       !isUnionIndex && commit('deleteApiError', urlStr);
       const queryData = {
@@ -856,6 +868,13 @@ const store = new Vuex.Store({
       { commit, state, dispatch },
       payload = { isPagination: false, cancelToken: null, searchCount: undefined },
     ) {
+      if (!state.indexId) {
+        state.searchTotal = 0;
+        commit('updateSqlQueryFieldList', []);
+        commit('updateIndexSetQueryResult', []);
+        return Promise.reject({ message: `index_set_id is undefined` });
+      }
+
       const {
         start_time,
         end_time,
@@ -896,7 +915,8 @@ const store = new Vuex.Store({
           return instance.getRequestParam();
         });
 
-      const searchParams = search_mode === 'sql' ? { keyword } : { addition: filterAddition };
+      const searchParams =
+        search_mode === 'sql' ? { keyword, addition: [] } : { addition: filterAddition, keyword: '*' };
       const baseData = {
         bk_biz_id,
         end_time,
@@ -1156,8 +1176,8 @@ const store = new Vuex.Store({
       };
 
       /** 判断条件是否已经在检索内 */
-      const additionIsExist = ({ field, value }) => {
-        const mapOperator = getAdditionMappingOperator({ field, value });
+      const isAdditionExist = ({ field, value, operator }) => {
+        const mapOperator = getAdditionMappingOperator({ field, value, operator });
         const isExist = state.indexItem.addition.some(addition => {
           return (
             addition.field === field &&
@@ -1168,7 +1188,7 @@ const store = new Vuex.Store({
         return isExist;
       };
 
-      const isExist = additionIsExist({ field, operator, value });
+      const isExist = isAdditionExist({ field, operator, value });
       // 已存在相同条件
       if (isExist) {
         return;

@@ -64,6 +64,7 @@ export default {
   actions: {
     getIndexSetList(ctx, payload) {
       ctx.commit('updateIndexSetLoading', true);
+      ctx.commit('updateIndexSetList', []);
       return http
         .request('retrieve/getIndexSetList', {
           query: {

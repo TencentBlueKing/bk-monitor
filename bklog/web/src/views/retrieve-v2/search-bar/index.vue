@@ -11,11 +11,11 @@
   import SqlQuery from './sql-query';
   import TimeSetting from './time-setting';
   import UiInput from './ui-input';
-  
+
   const emit = defineEmits(['refresh']);
   const store = useStore();
   const { $t } = useLocale();
-  const queryTypeList = ref([$t('UI语句'), $t('SQL语句')]);
+  const queryTypeList = ref([$t('UI查询'), $t('语句查询')]);
   const queryParams = ['ui', 'sql'];
   const btnQuery = $t('查询');
   const activeIndex = ref(0);
@@ -60,7 +60,7 @@
         search_mode: queryParams[activeIndex.value],
       });
     },
-    { immediate: true, deep: true },
+    { immediate: true },
   );
 
   const handleQueryTypeChange = index => {

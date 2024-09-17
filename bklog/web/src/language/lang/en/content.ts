@@ -885,9 +885,9 @@ export default {
     'The sudden abnormal increase in the number of a certain log pattern may indicate a sudden risk in some modules.',
   配置项命名空间不能为空: 'Configuration item namespace cannot be empty',
   收藏夹: 'Favorite clip',
-  UI语句: 'UI statement',
-  SQL语句: 'SQL statement',
-  历史查询: 'History query',
+  UI查询: 'UI Query',
+  语句查询: 'Statement Query',
+  历史查询: 'History Query',
   请输入关键字: 'Please enter keywords',
   请搜索: 'Please search',
   '可将想要检索的内容输入至搜索框中，并点击「Enter」键进行检索':

@@ -1,10 +1,9 @@
 <script setup>
-  import { ref, nextTick, computed, onMounted, watch } from 'vue';
+  import { ref, nextTick, onMounted, watch } from 'vue';
 
   import SqlQueryOptions from './sql-query-options';
   import useFocusInput from './use-focus-input';
   import CreateLuceneEditor from './codemirror-lucene';
-  // import useLocale from '@/hooks/use-locale';
 
   const props = defineProps({
     value: {
@@ -19,9 +18,11 @@
     emit('height-change', height);
   };
 
-  const placeholderText = 'log：error  AND "name=bklog"';
+  const placeholderText = 'Query Syntax: log：error  AND "name=bklog"';
   const refSqlQueryOption = ref(null);
   const refEditorParent = ref(null);
+
+  // SQL查询提示选中可选项索引
   const sqlActiveParamsIndex = ref(null);
 
   let editorInstance = null;
@@ -41,8 +42,12 @@
       maxWidth: 'none',
     },
     onShowFn: instance => {
-      refSqlQueryOption.value?.beforeShowndFn?.();
-      instance.popper?.style.setProperty('width', '100%');
+      if (refSqlQueryOption.value?.beforeShowndFn?.()) {
+        instance.popper?.style.setProperty('width', '100%');
+        return true;
+      }
+
+      return false;
     },
     onHiddenFn: () => {
       refSqlQueryOption.value?.beforeHideFn?.();
@@ -55,6 +60,9 @@
 
   const onEditorContextChange = doc => {
     emit('input', doc.text.join(''));
+    if (!(getTippyInstance()?.state?.isShown ?? false)) {
+      delayShowInstance(refEditorParent.value);
+    }
   };
 
   const debounceRetrieve = () => {
@@ -71,6 +79,8 @@
       target: refEditorParent.value,
       onChange: e => onEditorContextChange(e),
       onKeyEnter: () => {
+        // 键盘enter事件，如果当前没有选中任何可选项 或者当前没有联想提示
+        // 此时执行查询操作，如果有联想提示，关闭提示弹出
         if (!(getTippyInstance()?.state?.isShown ?? false) || sqlActiveParamsIndex.value === null) {
           getTippyInstance()?.hide();
           debounceRetrieve();
@@ -86,6 +96,10 @@
   };
 
   const handleEditorClick = () => {
+    if (editorInstance === null) {
+      createEditorInstance();
+    }
+
     if (!(getTippyInstance()?.state?.isShown ?? false) && editorInstance.view.hasFocus) {
       delayShowInstance(refEditorParent.value);
     }

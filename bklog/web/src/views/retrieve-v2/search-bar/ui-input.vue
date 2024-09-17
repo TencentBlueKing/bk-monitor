@@ -7,7 +7,7 @@
 
   import UiInputOptions from './ui-input-option.vue';
   import useFocusInput from './use-focus-input';
-  import { getInputQueryDefaultItem } from './const.common';
+  import { getInputQueryDefaultItem, FulltextOperatorKey, FulltextOperator } from './const.common';
 
   const props = defineProps({
     value: {
@@ -22,7 +22,7 @@
    * @param {*} item
    */
   const formatModelValueItem = item => {
-    const key = getOperatorKey(item.operator);
+    const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
     const label = operatorDictionary.value[key]?.label ?? item.operator;
     return { operator_label: label, disabled: false, ...item };
   };
@@ -37,7 +37,7 @@
 
   const operatorDictionary = computed(() => {
     const defVal = {
-      [getOperatorKey('containes')]: { label: $t('包含'), operator: 'contains' },
+      [getOperatorKey(FulltextOperatorKey)]: { label: $t('包含'), operator: FulltextOperator },
     };
     return {
       ...defVal,

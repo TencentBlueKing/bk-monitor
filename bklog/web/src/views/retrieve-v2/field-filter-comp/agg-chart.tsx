@@ -113,7 +113,7 @@ export default class AggChart extends tsc<object> {
   }
   addCondition(operator, value) {
     if (this.fieldType === '__virtual__') return;
-    this.$store.dispatch('setQueryCondition', { field: this.fieldName, operator, value });
+    this.$store.dispatch('setQueryCondition', { field: this.fieldName, operator, value: [value] });
   }
   getIconPopover(operator, value) {
     if (this.fieldType === '__virtual__') return this.$t('该字段为平台补充 不可检索');
