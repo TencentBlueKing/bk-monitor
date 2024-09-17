@@ -1351,8 +1351,8 @@ class EndpointDetailListResource(Resource):
                     },
                 ],
                 "sort": [
-                    {"id": "request_count", "status": "request_count", "name": _lazy("请求数量"), "tips": _lazy("请求数量")},
-                    {"id": "error_count", "status": "error_count", "name": _lazy("错误数量"), "tips": _lazy("错误数量")},
+                    {"id": "request_count", "status": "request_count", "name": _lazy("请求数"), "tips": _lazy("请求数")},
+                    {"id": "error_count", "status": "error_count", "name": _lazy("错误数"), "tips": _lazy("错误数")},
                     {"id": "avg_duration", "status": "avg_duration", "name": _lazy("耗时"), "tips": _lazy("耗时")},
                 ],
             }
@@ -1412,8 +1412,8 @@ class EndpointDetailListResource(Resource):
                 {"id": "disabled", "status": "disabled", "name": status_count["disabled"], "tips": _lazy("1小时内无数据")},
             ],
             "sort": [
-                {"id": "request_count", "status": "request_count", "name": _lazy("请求数量"), "tips": _lazy("请求数量")},
-                {"id": "error_count", "status": "error_count", "name": _lazy("错误数量"), "tips": _lazy("错误数量")},
+                {"id": "request_count", "status": "request_count", "name": _lazy("请求数"), "tips": _lazy("请求数")},
+                {"id": "error_count", "status": "error_count", "name": _lazy("错误数"), "tips": _lazy("错误数")},
                 {"id": "avg_duration", "status": "avg_duration", "name": _lazy("耗时"), "tips": _lazy("耗时")},
             ],
         }
