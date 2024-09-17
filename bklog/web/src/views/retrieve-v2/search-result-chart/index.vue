@@ -26,14 +26,15 @@
 
 <template>
   <div
+    ref="chartContainer"
     v-bkloading="{ isLoading: isLoading }"
     :class="['monitor-echarts-container', { 'is-fold': isFold }]"
     data-test-id="retrieve_div_generalTrendEcharts"
   >
     <chart-title
       ref="chartTitle"
-      :is-fold="isFold"
       :is-empty-chart="isEmptyChart"
+      :is-fold="isFold"
       :loading="isLoading || !finishPolling"
       :menu-list="chartOptions.tool.list"
       :title="$t('总趋势')"
@@ -220,7 +221,9 @@
     created() {
       this.handleLogChartCancel = debounce(300, this.logChartCancel);
       this.isFold = JSON.parse(localStorage.getItem('chartIsFold') || 'false');
-      this.$emit('toggle-change', !this.isFold);
+      this.$nextTick(() => {
+        this.$emit('toggle-change', !this.isFold, this.$refs.chartContainer?.offsetHeight);
+      });
       if (this.isFold) this.$store.commit('retrieve/updateChartKey');
     },
     mounted() {
@@ -375,7 +378,9 @@
         this.isFold = isFold;
         localStorage.setItem('chartIsFold', isFold);
         this.$refs.chartRef?.handleToggleExpand(isFold);
-        this.$emit('toggle-change', !isFold);
+        this.$nextTick(() => {
+          this.$emit('toggle-change', !isFold, this.$refs.chartContainer?.offsetHeight);
+        });
       },
       async changeTimeByChart(datePickerValue) {
         const tempList = handleTransformToTimestamp(datePickerValue);

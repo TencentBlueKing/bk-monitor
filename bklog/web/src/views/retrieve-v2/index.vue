@@ -32,10 +32,9 @@
   import { useRoute, useRouter } from 'vue-router/composables';
 
   import CollectFavorites from './collect/collect-index';
+  import SearchBar from './search-bar/index.vue';
   import SearchResultPanel from './search-result-panel/index.vue';
   import SearchResultTab from './search-result-tab/index.vue';
-
-  import SearchBar from './search-bar/index.vue';
   import SubBar from './sub-bar/index.vue';
 
   const store = useStore();
@@ -159,10 +158,15 @@
 
   const activeTab = ref('origin');
   const isRefreshList = ref(false);
+  const searchBarHeight = ref(0);
+  const resultRow = ref();
   /** 刷新收藏夹列表 */
-  const handleRefresh = (v) => {
+  const handleRefresh = v => {
     isRefreshList.value = v;
-  }
+  };
+  const handleHeightChange = height => {
+    searchBarHeight.value = height;
+  };
 </script>
 <template>
   <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]">
@@ -199,17 +203,24 @@
       <CollectFavorites
         ref="favoriteRef"
         class="collect-favorites"
+        :is-refresh.sync="isRefreshList"
         :is-show.sync="showFavorites"
         :width.sync="favoriteWidth"
-        :isRefresh.sync="isRefreshList"
         @handle-click-favorite="handleClickFavorite"
       ></CollectFavorites>
       <div
         :style="{ paddingLeft: `${showFavorites ? favoriteWidth : 0}px` }"
         class="retrieve-context"
       >
-        <SearchBar @refresh="handleRefresh"></SearchBar>
-        <div class="result-row">
+        <SearchBar
+          @height-change="handleHeightChange"
+          @refresh="handleRefresh"
+        ></SearchBar>
+        <div
+          ref="resultRow"
+          :style="{ height: `calc(100vh - ${searchBarHeight + 190}px)` }"
+          class="result-row"
+        >
           <SearchResultTab v-model="activeTab"></SearchResultTab>
           <SearchResultPanel :active-tab="activeTab"></SearchResultPanel>
         </div>

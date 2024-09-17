@@ -25,7 +25,7 @@
 -->
 
 <template>
-  <div>
+  <div class="log-cluster-table-container-main">
     <div
       v-if="!globalLoading"
       class="log-cluster-table-container"
@@ -198,6 +198,9 @@
       clusterRouteParams: {
         type: Object,
         default: () => ({}),
+      },
+      height: {
+        type: Number,
       },
     },
     data() {
@@ -676,8 +679,14 @@
 <style lang="scss">
   @import '@/scss/mixins/flex.scss';
 
+  .log-cluster-table-container-main {
+    height: 100%;
+  }
+
   /* stylelint-disable no-descending-specificity */
   .log-cluster-table-container {
+    height: 100%;
+
     .cluster-nav {
       flex-wrap: nowrap;
       align-items: center;

@@ -28,10 +28,10 @@
 
               font-size: 12px;
               line-height: 16px;
-              color: #979BA5;
+              color: #979ba5;
               text-align: center;
               letter-spacing: 0;
-              background: #F0F1F5;
+              background: #f0f1f5;
               border-radius: 8px;
             }
 
@@ -73,12 +73,12 @@
       height: 100%;
 
       font-size: 14px;
-      color: #63656E;
+      color: #63656e;
 
       cursor: pointer;
 
-      background: #FFFFFF;
-      border-right: solid 1px #DCDEE5;
+      background: #ffffff;
+      border-right: solid 1px #dcdee5;
       box-shadow: 0 3px 4px 0 #4070cb0f;
 
       .bklog-icon {
@@ -88,12 +88,11 @@
     }
   }
 
-
   .retrieve-body {
     width: 100%;
     height: calc(100vh - 104px);
     padding: 16px 24px;
-    background: #F5F7FA;
+    background: #f5f7fa;
 
     .retrieve-context {
       height: 100%;
@@ -103,14 +102,14 @@
         height: calc(100vh - 204px);
         min-height: 120px;
         margin-top: 16px;
-        background: #FFFFFF;
+        background: #ffffff;
         border-radius: 2px;
         box-shadow: 0 2px 4px 0 #1919290d;
 
         .search-result-panel {
           .search-result-content {
             .result-table-container {
-              height: calc(100vh - 380px);
+              height: 100%;
               margin-top: 12px;
               overflow: auto;
             }
@@ -123,7 +122,7 @@
 
             &.is-trend-chart-show {
               .result-table-container {
-                height: calc(100vh - 490px);
+                height: 100%;
                 overflow: auto;
               }
             }
@@ -131,6 +130,5 @@
         }
       }
     }
-
   }
 }

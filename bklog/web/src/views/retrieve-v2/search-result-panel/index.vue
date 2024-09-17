@@ -1,5 +1,5 @@
 <script setup>
-  import { computed, ref } from 'vue';
+  import { computed, ref, watch } from 'vue';
   import useStore from '@/hooks/use-store';
 
   import FieldFilter from './field-filter';
@@ -15,11 +15,11 @@
   const store = useStore();
   const isFilterLoading = computed(() => store.state.indexFieldInfo.is_loading);
   const retrieveParams = computed(() => store.getters.retrieveParams);
-
   const totalCount = ref(0);
   const queueStatus = ref(false);
   const isTrendChartShow = ref(true);
   const isShowFieldStatistics = ref(true);
+  const heightNum = ref();
 
   const changeTotalCount = count => {
     totalCount.value = count;
@@ -28,8 +28,9 @@
     queueStatus.value = status;
   };
 
-  const handleToggleChange = isShow => {
+  const handleToggleChange = (isShow, height) => {
     isTrendChartShow.value = isShow;
+    heightNum.value = height;
   };
 </script>
 
@@ -52,20 +53,22 @@
         @toggle-change="handleToggleChange"
       ></SearchResultChart>
       <div
-        v-show="activeTab === 'origin'"
         class="split-line"
+        v-show="activeTab === 'origin'"
       ></div>
 
       <keep-alive>
         <OriginalLog
           v-if="activeTab === 'origin'"
-          :retrieveParams="retrieveParams"
-          :totalCount="totalCount"
-          :queueStatus="queueStatus"
+          :height="heightNum"
+          :queue-status="queueStatus"
+          :retrieve-params="retrieveParams"
+          :total-count="totalCount"
         />
         <LogClustering
           v-if="activeTab === 'clustering'"
-          :retrieveParams="retrieveParams"
+          :height="heightNum"
+          :retrieve-params="retrieveParams"
         />
       </keep-alive>
     </div>
