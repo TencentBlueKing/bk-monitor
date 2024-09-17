@@ -56,16 +56,12 @@ $statusType2: 'green' 'red' 'yellow';
         }
 
         .item-content {
-          margin-bottom: 24px;
+          margin-bottom: 16px;
 
           &.form-content {
             padding-bottom: 20px;
             border-bottom: 1px solid #eaebf0;
           }
-        }
-
-        .editable-form-item {
-          margin-bottom: 4px;
         }
 
         .form-item-label {
@@ -247,6 +243,20 @@ $statusType2: 'green' 'red' 'yellow';
         border-left: 1px solid rgba(255, 255, 255, 0);
         outline: 0;
 
+        &:after {
+          position: absolute;
+          top: 50%;
+          right: 1px;
+          width: 2px;
+          height: 2px;
+          color: #63656E;
+          cursor: col-resize;
+          content: "";
+          background: currentColor;
+          box-shadow: 0 4px 0 0 currentColor, 0 8px 0 0 currentColor, 0 -4px 0 0 currentColor, 0 -8px 0 0 currentColor;
+          box-shadow: 0 4px 0 0 currentColor, 0 8px 0 0 currentColor, 0 -4px 0 0 currentColor, 0 -8px 0 0 currentColor;
+        }
+
         &.active {
           border-left: 1px solid #3a84ff;
         }
@@ -382,11 +392,12 @@ $statusType2: 'green' 'red' 'yellow';
       position: absolute;
       top: 0;
       left: 264px;
+      font-size: 14px;
       color: #979BA5;
 
       span {
-        margin-left: 8px;
-        font-size: 14px;
+        margin-left: 9px;
+        font-size: 12px;
         color: #63656E;
       }
     }
@@ -402,7 +413,7 @@ $statusType2: 'green' 'red' 'yellow';
   }
 
   .panel-tips {
-    margin: 16px 0 0 44px;
+    margin: 24px 0 0 44px;
 
     label {
       margin-right: 24px;
@@ -412,9 +423,9 @@ $statusType2: 'green' 'red' 'yellow';
 
   .panel-intro {
     position: absolute;
-    top: -12px;
-    padding-left: 68px;
-    margin: 6px 0;
+    margin-bottom: 16px;
+    // padding-left: 68px;
+    // margin: 4px 0px;
     line-height: 20px;
     color: #979ba5;
 
@@ -451,7 +462,7 @@ $statusType2: 'green' 'red' 'yellow';
     &.sampling-rules-item {
       align-items: normal;
       height: auto;
-      margin-top: 10px;
+      // margin-top: 10px;
     }
   }
 
@@ -470,10 +481,11 @@ $statusType2: 'green' 'red' 'yellow';
       top: 50%;
       left: -14px;
       display: inline-block;
-      height: 14px;
-      padding: 0 2px;
+      height: 16px;
+      padding: 0 4px;
       margin-top: -8px;
-      line-height: 14px;
+      font-size: 10px;
+      line-height: 16px;
       color: #FE9C00;
       background-color: #FFF3E1;
       border-radius: 2px;
@@ -642,17 +654,18 @@ $statusType2: 'green' 'red' 'yellow';
     ul {
       display: flex;
       flex-wrap: wrap;
-      line-height: 32px;
+      // line-height: 32px;
 
       .instanct-wrap {
+        height: 46px;
         text-align: center;
       }
 
       .drag-item {
         display: flex;
         align-items: center;
-        height: 32px;
-        line-height: 32px;
+        margin-bottom: 5px;
+        line-height: 22px;
       }
 
       .instance-card {
@@ -664,6 +677,10 @@ $statusType2: 'green' 'red' 'yellow';
         cursor: move;
         background-color: #f0f1f5;
         border-radius: 2px;
+
+        &:hover {
+          background-color: #DCDEE5;
+        }
 
         &.active-item {
           background-color: #dcdee5;
@@ -700,8 +717,8 @@ $statusType2: 'green' 'red' 'yellow';
 
       .alias-name {
         position: relative;
-        top: -6px;
         left: -4px;
+        line-height: 22px;
       }
 
       .instanct-wrap:last-child {
@@ -718,7 +735,7 @@ $statusType2: 'green' 'red' 'yellow';
 
       .add-button {
         position: relative;
-        top: 5px;
+        top: 0px;
         width: 22px;
         height: 22px;
         line-height: 20px;
@@ -727,6 +744,14 @@ $statusType2: 'green' 'red' 'yellow';
         background: #fff;
         border: 1px solid #c4c6cc;
         border-radius: 2px;
+
+        &:hover {
+          border-color: #3A84FF;
+
+          .icon-monitor  {
+            color: #3A84FF;
+          }
+        }
 
         .icon-monitor {
           color: #979ba5;
@@ -741,7 +766,20 @@ $statusType2: 'green' 'red' 'yellow';
 
       .instance-select {
         width: 160px;
+        margin-top: -5px;
         margin-left: 8px;
+      }
+
+      .add-instance-wrap-tips {
+        display: flex;
+        align-items: center;
+        height: 22px;
+        margin-left: 16px;
+        color: #EA3636;
+
+        i {
+          margin-right: 9px;
+        }
       }
     }
   }
@@ -770,9 +808,23 @@ $statusType2: 'green' 'red' 'yellow';
       width: 230px;
     }
   }
-
+  // todo 这里后续需要根据平台左侧菜单是否打开调整下宽度和位置
   .submit-handle {
-    padding-bottom: 38px;
+    // padding-bottom: 38px;
+    position: fixed;
+    bottom: 0px;
+    left: 0px;
+    z-index: 999;
+    width: 100vw;
+    height: 48px;
+    padding-left: 24px;
+    line-height: 48px;
+    background: #FAFBFD;
+    box-shadow: 0 -2px 6px 0 #00000014;
+
+    button {
+      width: 88px;
+    }
   }
 
   .header-tool {
@@ -1073,13 +1125,20 @@ $statusType2: 'green' 'red' 'yellow';
 
   .add-form {
     .bk-label {
+      height: 20px;
+      min-height: 20px;
+      margin-bottom: 6px;
       font-size: 12px;
+      line-height: 20px;
       color: #63656e;
+    }
+
+    .bk-form-item, .bk-form-item+.bk-form-item {
+      margin-top: 24px;
     }
 
     .match-type-select {
       width: 100%;
-      margin-top: 16px;
 
       .bk-button {
         width: 50%;
@@ -1145,8 +1204,6 @@ $statusType2: 'green' 'red' 'yellow';
   }
 
   .debugging-content {
-    margin-top: 8px;
-
     .header-tool {
       @include flex-align;
 
@@ -1157,7 +1214,7 @@ $statusType2: 'green' 'red' 'yellow';
         @include flex-align;
 
         .icon-monitor {
-          margin-right: 6px;
+          margin-right: 9px;
           font-size: 16px;
           color: #2dcb56;
         }
@@ -1169,9 +1226,9 @@ $statusType2: 'green' 'red' 'yellow';
     }
 
     .result-box {
-      height: 142px;
+      min-height: 80px;
       padding: 12px 24px;
-      margin-top: 24px;
+      margin-top: 16px;
       overflow: auto;
       font-size: 12px;
       color: #63656e;
@@ -1247,6 +1304,10 @@ $statusType2: 'green' 'red' 'yellow';
     width: 530px;
     margin-bottom: 12px;
 
+    &:first-child {
+      margin-bottom: 0px;
+    }
+
     .title-bar {
       display: flex;
       align-items: center;
@@ -1268,10 +1329,16 @@ $statusType2: 'green' 'red' 'yellow';
     }
 
     .card-container {
-      padding: 10px 0;
+      padding: 16px 24px;
       border: 1px solid #dcdee5;
       border-top: none;
       border-radius: 0 0 2px 2px;
+
+      .bk-form-item {
+        .bk-label {
+          text-align: left;
+        }
+      }
 
       .bk-radio-button-text {
         height: 26px;
@@ -1314,7 +1381,7 @@ $statusType2: 'green' 'red' 'yellow';
     }
 
     .text {
-      margin: 0 6px;
+      margin-right: 6px;
       font-size: 12px;
       color: #313238;
     }
@@ -1323,10 +1390,11 @@ $statusType2: 'green' 'red' 'yellow';
   .db-config-card-preview {
     display: inline-flex;
     flex-wrap: wrap;
+    margin-left: 42px;
 
     .db-config-card-preview-container {
       width: 320px;
-      margin: 0 16px 16px 0;
+      margin: 0 16px 0px 0;
 
       .db-config-card-preview-title {
         padding: 2px 12px;
@@ -1370,6 +1438,15 @@ $statusType2: 'green' 'red' 'yellow';
           }
         }
       }
+    }
+  }
+
+  .data-status-tab-wrap {
+    display: flex;
+    align-items: center;
+
+    .data-status-time {
+      flex: 1;
     }
   }
 }

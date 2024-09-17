@@ -29,7 +29,7 @@ const Service = () => import(/* webpackChunkName: "service" */ '../../pages/serv
 const ServiceDetail = () => import(/* webpackChunkName: "service-detial" */ '../../pages/service/service-detail');
 const ServiceAdd = () => import(/* webpackChunkName: "service-add" */ '../../pages/service/service-add');
 const ServiceConfig = () =>
-  import(/* webpackChunkName: "ServiceConfig" */ '../../pages/service/service-configuration/configuration');
+  import(/* webpackChunkName: "ServiceConfig" */ '../../pages/service/service-config/configuration');
 export default [
   {
     path: '/service',

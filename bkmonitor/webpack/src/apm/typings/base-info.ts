@@ -31,6 +31,15 @@ export interface IBaseParams {
   service_name: string;
 }
 
+export interface IBaseServiceInfo {
+  app_name: string;
+  category_name: string;
+  category_icon: string;
+  service_language: string;
+  application_id: string;
+  tag: string[];
+}
+
 export interface IBaseInfoList {
   label: TranslateResult;
   icon: null | string;
@@ -173,6 +182,11 @@ export interface IAppInfoItem {
 }
 
 export interface IIndexSetItem {
+  id: string;
+  name: string;
+}
+
+export interface IApplicationItem {
   id: string;
   name: string;
 }
