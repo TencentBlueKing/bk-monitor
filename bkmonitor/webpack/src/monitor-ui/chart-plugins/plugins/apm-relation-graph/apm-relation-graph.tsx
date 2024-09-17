@@ -305,7 +305,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   @Watch('refleshInterval')
   // 数据刷新间隔
-  handleRefleshIntervalChange(v: number) {
+  handleRefreshIntervalChange(v: number) {
     if (this.refleshIntervalInstance) {
       window.clearInterval(this.refleshIntervalInstance);
     }
@@ -322,12 +322,12 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   }
   @Watch('refleshImmediate')
   // 立刻刷新
-  handleRefleshImmediateChange(v: string) {
+  handleRefreshImmediateChange(v: string) {
     if (v) {
       this.refreshTopoLayout = false;
       this.needCache = false;
-      this.selectedServiceName = '';
-      this.expanded = [];
+      // this.selectedServiceName = '';
+      // this.expanded = [];
       this.getPanelData();
     }
   }
@@ -722,6 +722,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             data={this.graphData}
             dataType={this.dataType}
             edgeType={this.edgeDataType}
+            expandMenuList={this.expanded}
             filterCondition={this.filterCondition}
             refreshTopoLayout={this.refreshTopoLayout}
             showType={this.showType}

@@ -214,10 +214,16 @@ export default class Service extends tsc<object> {
     if (navId === 'application') {
       const { id } = this.routeList[1];
       this.appName = item.id;
-      const targetRoute = this.$router.resolve({ name: id, query: { 'filter-app_name': this.appName } });
+      const targetRoute = this.$router.resolve({
+        name: id,
+        query: { 'filter-app_name': this.appName, dashboardId: this.$route.query.dashboardId || this.dashboardId },
+      });
       /** 防止出现跳转当前地址导致报错 */
       if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
-        this.$router.push({ name: id, query: { 'filter-app_name': this.appName, dashboardId: this.dashboardId } });
+        this.$router.push({
+          name: id,
+          query: { 'filter-app_name': this.appName, dashboardId: this.$route.query.dashboardId || this.dashboardId },
+        });
       }
     } else {
       this.serviceName = item.id;
@@ -277,8 +283,9 @@ export default class Service extends tsc<object> {
   handleRouterBack() {
     this.backToOverviewKey = random(8);
   }
-  handleSecendTypeChange(type) {
+  handleSceneTypeChange(type) {
     this.sceneType = type;
+    this.dashboardId = '';
   }
   handleTitleChange(title) {
     this.subName = title;
@@ -301,7 +308,7 @@ export default class Service extends tsc<object> {
             sceneId={'apm_service'}
             sceneType={'overview'}
             tab2SceneType
-            onSceneTypeChange={this.handleSecendTypeChange}
+            onSceneTypeChange={this.handleSceneTypeChange}
             onTabChange={this.handleUpdateAppName}
             onTitleChange={this.handleTitleChange}
           >

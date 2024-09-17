@@ -560,7 +560,6 @@ export default class DataRetrieval extends tsc<object> {
       updateTimezone(timezone as string);
     }
     if (targets) {
-      debugger;
       try {
         targetsList = JSON.parse(decodeURIComponent(targets as string));
       } catch (error) {

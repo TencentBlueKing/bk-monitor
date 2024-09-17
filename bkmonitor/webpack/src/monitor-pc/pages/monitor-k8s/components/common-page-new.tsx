@@ -561,9 +561,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     };
     this.handleResetRouteQuery();
   }
-  created() {
-    this.dashboardId = this.defaultDashboardId;
-  }
   mounted() {
     this.timezone = getDefaultTimezone();
     this.initData();
@@ -739,13 +736,38 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     }
     /** 标题栏 */
     this.tabList = data;
+    this.setDefaultDashboardId();
     if (isInit) {
-      let [{ id } = { id: '' }] = data;
-      if (this.dashboardId) {
-        id = this.dashboardId;
-      }
-      await this.handleTabChange(id);
+      await this.handleTabChange(this.dashboardId);
     }
+  }
+  setDefaultDashboardId() {
+    let item = this.tabList.find(item => item.id === this.defaultDashboardId);
+    if (item?.id) {
+      this.dashboardId = item.id.toString();
+      return item.id;
+    }
+    item = this.tabList.find(item => item.id.toString().endsWith(`-${this.defaultDashboardId}`));
+    if (item?.id) {
+      this.dashboardId = item.id.toString();
+      return item.id;
+    }
+    item = this.tabList.find(item => `${this.defaultDashboardId}`.endsWith(`-${item.id.toString()}`));
+    if (item?.id) {
+      this.dashboardId = item.id.toString();
+      return item.id;
+    }
+    item = this.tabList.find(item => item.id === this.$route.query.dashboardId);
+    if (item?.id) {
+      this.dashboardId = item.id.toString();
+      return item.id;
+    }
+    item = this.tabList.find(item => item.id === this.dashboardId);
+    if (item?.id) {
+      return item.id;
+    }
+    this.dashboardId = (this.tabList?.[0]?.id || '').toString();
+    return this.dashboardId;
   }
   // 全屏设置
   async handleFullscreen() {
@@ -983,9 +1005,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.showSetting = isShow;
     if (this.isPanelChange) {
       await this.getTabList();
-      if (!this.tabList.some(item => item.id === this.dashboardId)) {
-        this.dashboardId = this.tabList[0].id.toString();
-      }
       await this.handleTabChange(this.dashboardId);
       this.handleResizeCollapse();
       this.isPanelChange = false;
@@ -1719,7 +1738,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
               <DashboardTools
                 downSampleRange={this.downSampleRange}
                 isSplitPanel={this.isSplitPanel}
-                menuList={this.$slots.buttonGroups ? [] : this.sceneData.dasbordToolMenuList}
+                menuList={this.$slots.buttonGroups ? [] : this.sceneData.dashboardToolMenuList}
                 refleshInterval={this.refleshInterval}
                 showDownSampleRange={false}
                 showListMenu={!this.readonly && this.localSceneType !== 'overview'}

@@ -489,9 +489,9 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
 
   get mergeMenuList() {
     if (this.isMergeMenuList) {
-      return [...this.sceneData.dasbordToolMenuList, ...this.menuList];
+      return [...this.sceneData.dashboardToolMenuList, ...this.menuList];
     }
-    return this.menuList.length ? this.menuList : this.sceneData.dasbordToolMenuList;
+    return this.menuList.length ? this.menuList : this.sceneData.dashboardToolMenuList;
   }
   // 派发到子孙组件内的一些视图配置变量
   // 数据时间间隔

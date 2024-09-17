@@ -244,7 +244,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   /** 根据表达式生成指标图的title */
   getMetricName() {
     // 字符串分隔成多个单词
-    const metricName = (this.expression || LETTERS.at(0)).replace(/\b\w+\b/g, alias => {
+    const metricName = this.getExpression().replace(/\b\w+\b/g, alias => {
       // 单词分隔成多个关键字
       return alias.replace(/and|or|\w/g, keyword => {
         if (keyword === 'and' || keyword === 'or') return keyword;
@@ -378,6 +378,9 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
     }
     return new PanelModel(data as any);
   }
+  getExpression() {
+    return this.expression || this.metricData?.length === 1 ? this.metricData[0].alias : LETTERS.at(0) || LETTERS.at(0);
+  }
   /**
    * 获取图表查询参数设置
    * @param isDetect 是否为智能检测算法 | 时序预测算法
@@ -387,7 +390,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
    */
   getQueryParams(isDetect = false, isMetric = true, metrics?) {
     const params = {
-      expression: this.expression || LETTERS.at(0),
+      expression: this.getExpression(),
       functions: this.expression ? this.expFunctions : [],
       target: this.strategyTarget || [],
       query_configs:

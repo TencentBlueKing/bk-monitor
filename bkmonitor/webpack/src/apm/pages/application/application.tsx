@@ -304,6 +304,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   }
   handleSceneTabChange(id, name = '') {
     this.tabId = id;
+    this.dashboardId = id;
     this.tabName = ['topo', 'overview'].includes(id) ? this.$t('应用') : name;
   }
   /** 更多设置 */

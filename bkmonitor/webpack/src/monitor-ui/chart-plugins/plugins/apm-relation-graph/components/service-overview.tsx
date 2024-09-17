@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { topoLink } from 'monitor-api/modules/apm_topo';
@@ -121,6 +121,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
     endpoint_name: '',
   };
   @ProvideReactive('customChartConnector') customChartConnector: CustomChartConnector = null;
+  @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
 
   get tabs() {
     if (this.curType === 'endpoint') {
@@ -170,6 +171,12 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
       this.moreLink = '';
     }
   }
+  @Watch('refleshImmediate')
+  // 立刻刷新
+  handleRefleshImmediateChange(v: string) {
+    if (v) this.initPanel();
+  }
+
   @Debounce(200)
   initPanel() {
     if (this.curType === 'endpoint') {
@@ -195,11 +202,14 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
       this.detailLoading = true;
       const typeKey = this.curType === 'endpoint' ? 'endpoint_detail' : 'service_detail';
       const apiItem = apiFn(this.data[typeKey].targets[0].api);
+      const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const result = await (this as any).$api[apiItem.apiModule]
         [apiItem.apiFunc]({
           app_name: this.appName,
           service_name: this.serviceName,
           endpoint_name: this.curType === 'endpoint' ? this.endpoint : undefined,
+          start_time: startTime,
+          end_time: endTime,
         })
         .catch(() => []);
       this.overviewDetail.others = result;

@@ -509,10 +509,22 @@ export default class ApmTimeSeries extends TimeSeries {
             onSelectChild={this.handleSelectChildMenu}
             onUpdateDragging={() => this.panel.updateDraging(false)}
           >
-            <div class='context-menu-info'>
-              {/* <bk-button size='small'>{this.$t('查看详情')}</bk-button> */}
-              {this.$t('右键更多操作')}
-            </div>
+            {this.enableContextmenu && (
+              <div
+                class='context-menu-info'
+                onClick={e => e.stopPropagation()}
+              >
+                <i class='icon-monitor icon-mc-mouse mouse-icon' />
+                {this.$t('右键更多操作')}
+                <bk-button
+                  size='small'
+                  text
+                  onClick={() => this.handleClickMenuItem('details')}
+                >
+                  {this.$t('查看详情')}
+                </bk-button>
+              </div>
+            )}
           </ChartHeader>
         )}
         {this.panel.options?.logHeader && (
