@@ -31,6 +31,7 @@ from apm.core.handlers.query.proxy import QueryProxy
 from apm.models import (
     ApdexConfig,
     ApmApplication,
+    ApmDataSourceConfigBase,
     ApmInstanceDiscover,
     ApmMetricDimension,
     ApmTopoDiscoverRule,
@@ -979,6 +980,12 @@ class QueryOptionValuesSerializer(serializers.Serializer):
     start_time = serializers.IntegerField(required=True, label="数据开始时间")
     end_time = serializers.IntegerField(required=True, label="数据开始时间")
     fields = serializers.ListField(child=serializers.CharField(), label="查询字段")
+    datasource_type = serializers.ChoiceField(
+        required=False,
+        label="数据源类型",
+        default=ApmDataSourceConfigBase.TRACE_DATASOURCE,
+        choices=(ApmDataSourceConfigBase.METRIC_DATASOURCE, ApmDataSourceConfigBase.TRACE_DATASOURCE),
+    )
 
 
 class QueryTraceOptionValues(Resource):
@@ -988,7 +995,11 @@ class QueryTraceOptionValues(Resource):
 
     def perform_request(self, validated_data):
         return QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"]).query_option_values(
-            QueryMode.TRACE, validated_data["start_time"], validated_data["end_time"], validated_data["fields"]
+            QueryMode.TRACE,
+            validated_data["datasource_type"],
+            validated_data["start_time"],
+            validated_data["end_time"],
+            validated_data["fields"],
         )
 
 
@@ -999,7 +1010,11 @@ class QuerySpanOptionValues(Resource):
 
     def perform_request(self, validated_data):
         return QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"]).query_option_values(
-            QueryMode.SPAN, validated_data["start_time"], validated_data["end_time"], validated_data["fields"]
+            QueryMode.SPAN,
+            validated_data["datasource_type"],
+            validated_data["start_time"],
+            validated_data["end_time"],
+            validated_data["fields"],
         )
 
 

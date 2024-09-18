@@ -108,7 +108,7 @@ class TraceQuery(BaseQuery):
         return self.time_range_queryset().add_query(q).first()
 
     def query_option_values(
-        self, start_time: Optional[int], end_time: Optional[int], fields: List[str]
+        self, datasource_type: str, start_time: Optional[int], end_time: Optional[int], fields: List[str]
     ) -> Dict[str, List[str]]:
         q: QueryConfigBuilder = self.q.filter(self.build_app_filter()).order_by(f"{self.DEFAULT_TIME_FIELD} desc")
         return self._query_option_values(q, fields, start_time, end_time)
