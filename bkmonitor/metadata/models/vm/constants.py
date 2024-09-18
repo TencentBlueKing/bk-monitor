@@ -34,11 +34,31 @@ class TimestampLen(Enum):
     MILLISECOND_LEN = 13
     NANOSECOND_LEN = 19
 
+    SECOND_NAME = 's'
+    MILLISECOND_NAME = 'ms'
+    NANOSECOND_NAME = 'ns'
+
+    # Note: 修复历史问题，应根据DataSourceOption中的ALIGN_TIME_UNIT来进行判断使用哪个时间戳格式接入计算平台
     _choices_labels = (
         (SECOND_LEN, "Unix Time Stamp(seconds)"),
         (MILLISECOND_LEN, "Unix Time Stamp(milliseconds)"),
         (NANOSECOND_LEN, "Unix Time Stamp(nanosecond)"),
     )
+
+    _len_choices_labels = (
+        (SECOND_NAME, SECOND_LEN),
+        (MILLISECOND_NAME, MILLISECOND_LEN),
+        (NANOSECOND_NAME, NANOSECOND_LEN),
+    )
+
+    @classmethod
+    def get_len_choices(cls, key: str) -> int:
+        """
+        根据DS Option中ALIGN_TIME_UNIT的值，获取时间戳长度
+        """
+        for item in TimestampLen._len_choices_labels.value:
+            if item[0] == key:
+                return item[1]
 
     @classmethod
     def get_choice_value(cls, key: int) -> str:

@@ -536,6 +536,7 @@ class UnifyQueryRawResource(ApiAuthResource):
         down_sample_range = serializers.CharField(label="降采样周期", default="", allow_blank=True)
         format = serializers.ChoiceField(choices=("time_series", "heatmap", "table"), default="time_series")
         type = serializers.ChoiceField(choices=("instant", "range"), default="range")
+        series_num = serializers.IntegerField(label="查询多少条数据", required=False)
 
         @classmethod
         def to_str(cls, value):
@@ -686,6 +687,81 @@ class UnifyQueryRawResource(ApiAuthResource):
             params["post_query_filter_dict"]["target"] = target_instances
         return True
 
+    def get_dimension_combination(self, data_source, params, query_config):
+        """获取指定数量的topk维度组合"""
+
+        if not (
+            (data_source.data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR
+             and data_source.data_type_label == DataTypeLabel.TIME_SERIES)
+            or (data_source.data_source_label == DataSourceLabel.BK_DATA
+                and data_source.data_type_label == DataTypeLabel.TIME_SERIES)
+        ):
+            return
+
+        series_num = params.get("series_num", None)
+        if series_num is None:
+            return
+
+        # 加上topk函数，以获取指定数量的维度组合
+        if not data_source.functions:
+            data_source.functions.append({"id": "topk", "params": [{"id": "k", "value": series_num}]})
+        else:
+            for function in data_source.functions:
+                if function["id"] == "topk":
+                    function["params"][0]["value"] = series_num
+                    break
+            else:
+                data_source.functions.append(
+                    {"id": "topk", "params": [{"id": "k", "value": series_num}]}
+                )
+        query = UnifyQuery(
+            bk_biz_id=params["bk_biz_id"],
+            data_sources=[data_source],
+            expression=params["expression"],
+            functions=params["functions"],
+        )
+        points = query.query_data(
+            start_time=(params["end_time"] - 5 * 60) * 1000,
+            end_time=params["end_time"] * 1000,
+            limit=params["limit"],
+            slimit=params["slimit"],
+            down_sample_range=params["down_sample_range"],
+        )
+
+        # 去掉排序函数topk
+        data_source.functions = [f for f in data_source.functions if f["id"] != "topk"]
+
+        # 提取topk维度组合
+        dimension_combination = []
+        seen_combinations = set()
+        for point in points:
+            combination = {}
+            for key, value in point.items():
+                if key in data_source.group_by:
+                    combination[key] = value
+            combination_tuple = tuple(combination.items())
+            if combination_tuple not in seen_combinations:
+                seen_combinations.add(combination_tuple)
+                dimension_combination.append(combination)
+
+        # 将维度组合条件加入where条件中
+        for index, combination in enumerate(dimension_combination):
+            for i, (key, value) in enumerate(combination.items()):
+                if index == 0 and i == 0:
+                    condition = "and"  # 第一个条件是 "and"
+                elif index > 0 and i == 0:
+                    condition = "or"  # 维度组合条件之间使用 "or"
+                else:
+                    condition = "and"  # 维度组合条件内使用 "and"
+
+                data_source.where.append({
+                    "condition": condition,
+                    "key": key,
+                    "method": "eq",
+                    "value": [value]
+                })
+        query_config["where"] = data_source.where
+
     def perform_request(self, params):
         # cookies filter
         cookies_filter = get_cookies_filter()
@@ -737,11 +813,17 @@ class UnifyQueryRawResource(ApiAuthResource):
 
         # 数据查询
         data_sources = []
-        for query_config in params["query_configs"]:
+        for query_config_index, query_config in enumerate(params["query_configs"]):
             data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
             data_source = data_source_class(bk_biz_id=params["bk_biz_id"], **query_config)
             if hasattr(data_source, "group_by"):
                 query_config["group_by"] = data_source.group_by
+
+            # 先获取指定数量的topk维度组合条件，后续将基于这些维度组合条件进行查询
+            # 目前只支持ui数据源的指标，如果有多个指标，只获取第一个指标的topk数量的维度组合条件，并将这些条件拼接回第一个指标的查询条件中
+            if query_config_index == 0:
+                self.get_dimension_combination(data_source, params, query_config)
+
             data_sources.append(data_source)
 
             try:

@@ -60,7 +60,7 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
   drag = {
     active: -1,
   };
-  isCreateNewTab = true;
+  isCreateNewTab = false;
   get pageNameList() {
     return this.bookMarkData.map(data => data.name);
   }
@@ -81,13 +81,16 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
   created() {
     this.tabActive = this.activeTab;
     this.updateCurTabFormLocal(this.tabActive);
+    if (this.needAutoAdd) {
+      this.isCreateNewTab = true;
+    }
   }
 
   @Watch('bookMarkData', { immediate: true, deep: true })
   handleBookMarkDataChange(val) {
     this.localTabData = deepClone(val);
     this.tabActive && this.updateCurTabFormLocal(this.tabActive);
-    if (this.needAutoAdd && this.isCreateNewTab) {
+    if (this.isCreateNewTab) {
       this.addTab();
     }
   }
@@ -337,7 +340,6 @@ export default class SettingsTab extends tsc<SettingsTabType.IProps, SettingsTab
           bookMarkData={this.bookMarkData}
           canAddTab={this.canAddTab}
           formData={this.curTabForm}
-          needAutoAdd={this.needAutoAdd}
           onChange={this.handleFiledChange}
           // onReset={this.handleReset}
           onDelete={this.handleDelete}

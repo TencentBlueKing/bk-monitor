@@ -103,7 +103,7 @@ class SourceSystem(Source):
         )
         if not response:
             if raise_exception:
-                raise ValueError(f"没有从本业务 CMDB 主机列表中找到 IP: {bk_target_ip} 的信息，" f"原因可能是此 IP 为历史快照数据或者不存在于本业务下")
+                raise ValueError("未找到 IP 相关信息（可能为历史快照数据或 IP 不在该业务下）")
             else:
                 return None
         return response[0].bk_host_id
@@ -153,6 +153,12 @@ class Node:
 
     def __post_init__(self):
         self.id = f"{self.source_type}-{self.source_info.id}"
+
+    def __eq__(self, other):
+        return self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id)
 
     @classmethod
     def list_nodes_by_level(cls, node: "Node", level, current_level=0):

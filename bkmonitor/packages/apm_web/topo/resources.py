@@ -10,7 +10,12 @@ specific language governing permissions and limitations under the License.
 """
 import datetime
 
-from apm_web.topo.constants import GraphViewType, SourceType, TopoLinkType
+from apm_web.topo.constants import (
+    BarChartDataType,
+    GraphViewType,
+    SourceType,
+    TopoLinkType,
+)
 from apm_web.topo.handle.bar_query import BarQuery, LinkHelper
 from apm_web.topo.handle.graph_query import GraphQuery
 from apm_web.topo.handle.relation.define import SourceSystem
@@ -25,6 +30,7 @@ from apm_web.topo.serializers import (
     NodeRelationSerializer,
     TopoQueryRequestSerializer,
 )
+from apm_web.utils import fill_series
 from core.drf_resource import Resource
 
 
@@ -40,10 +46,24 @@ class DataTypeBarQueryResource(Resource):
     RequestSerializer = DataTypeBarQueryRequestSerializer
 
     def perform_request(self, validated_request_data):
-        return BarQuery(
+        response = BarQuery(
             **validated_request_data,
             endpoint_name=validated_request_data.pop("endpoint_name", None),
         ).execute()
+
+        series = response.get("series", [])
+        if validated_request_data["data_type"] != BarChartDataType.Alert.value:
+            # 如果这里不是告警 应前端要求 进行时间戳的补齐
+            series = fill_series(
+                response.get("series", []),
+                validated_request_data["start_time"],
+                validated_request_data["end_time"],
+            )
+
+        return {
+            "metrics": response.get("metrics"),
+            "series": series,
+        }
 
 
 class TopoViewResource(Resource):
@@ -56,7 +76,7 @@ class TopoViewResource(Resource):
             "bk_biz_id": validated_data["bk_biz_id"],
             "app_name": validated_data["app_name"],
             "service_name": validated_data.get("service_name"),
-            "data_type": validated_data["data_type"],
+            "data_type": validated_data.get("data_type"),
         }
 
         # 时间范围 与 数据时间
@@ -143,8 +163,25 @@ class TopoLinkResource(Resource):
                     validated_request_data["start_time"],
                     validated_request_data["end_time"],
                 )
+            elif source_type == SourceType.APM_SERVICE_INSTANCE.value:
+                return LinkHelper.get_service_instance_instance_tab_link(
+                    validated_request_data["bk_biz_id"],
+                    validated_request_data["app_name"],
+                    validated_request_data["source_info"]["apm_service_name"],
+                    validated_request_data["source_info"]["apm_service_instance_name"],
+                    validated_request_data["start_time"],
+                    validated_request_data["end_time"],
+                )
+            elif source_type == SourceType.APM_SERVICE.value:
+                return LinkHelper.get_service_overview_tab_link(
+                    validated_request_data["bk_biz_id"],
+                    validated_request_data["app_name"],
+                    validated_request_data["source_info"]["apm_service_name"],
+                    validated_request_data["start_time"],
+                    validated_request_data["end_time"],
+                )
 
-        raise ValueError(f"不支持获取: {validated_request_data['link_type']}类型的链接")
+        raise ValueError(f"不支持获取: {validated_request_data['source_type']}类型的链接")
 
 
 class NodeEndpointsTopResource(Resource):

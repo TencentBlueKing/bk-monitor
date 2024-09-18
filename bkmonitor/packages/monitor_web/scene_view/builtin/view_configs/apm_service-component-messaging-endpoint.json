@@ -52,6 +52,9 @@
           "json_viewer_data_key": "data",
           "show_expand": true,
           "query_update_url": true
+        },
+        "header": {
+          "tips": "此表格展示了类型为 exception 的事件列表。<br>查询条件为: events.name=\"exception\""
         }
       }
     },
@@ -152,7 +155,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": null,
+          "alias": "错误数",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -170,7 +173,6 @@
                   }
                 ],
                 "group_by": [
-                  "http_status_code"
                 ],
                 "display": true,
                 "where": [
@@ -181,20 +183,12 @@
                       "2"
                     ],
                     "condition": "and"
-                  },
-                  {
-                    "key": "http_status_code",
-                    "method": "neq",
-                    "value": [
-                      ""
-                    ],
-                    "condition": "and"
                   }
                 ],
                 "interval_unit": "s",
                 "time_field": "time",
                 "filter_dict": {
-                  "service_name": "${service_name}"
+                  "service_name": "$service_name"
                 },
                 "functions": []
               }
@@ -216,7 +210,6 @@
                     }
                   ],
                   "group_by": [
-                    "http_status_code"
                   ],
                   "display": true,
                   "where": [
@@ -227,151 +220,46 @@
                         "2"
                       ],
                       "condition": "and"
-                    },
-                    {
-                      "key": "http_status_code",
-                      "method": "neq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
                     }
                   ],
                   "interval_unit": "s",
                   "time_field": "time",
                   "filter_dict": {
-                    "service_name": "${service_name}"
+                    "service_name": "$service_name"
                   },
                   "functions": []
                 }
               ]
             }
-          }
+          },
+          "yAxisIndex": 0
         },
         {
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": null,
+          "alias": "错误率",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "unit": "percent",
+            "expression": "(a / b) * 100",
             "query_configs": [
               {
                 "data_source_label": "custom",
                 "data_type_label": "time_series",
-                "table": "${table_id}",
                 "metrics": [
                   {
                     "field": "bk_apm_count",
                     "method": "SUM",
-                    "alias": "A"
+                    "alias": "a"
                   }
                 ],
-                "group_by": [
-                  "rpc_grpc_status_code"
-                ],
-                "display": true,
-                "where": [
-                  {
-                    "key": "status_code",
-                    "method": "eq",
-                    "value": [
-                      "2"
-                    ],
-                    "condition": "and"
-                  },
-                  {
-                    "key": "rpc_grpc_status_code",
-                    "method": "neq",
-                    "value": [
-                      ""
-                    ],
-                    "condition": "and"
-                  }
-                ],
-                "interval_unit": "s",
-                "time_field": "time",
-                "filter_dict": {
-                  "service_name": "${service_name}"
-                },
-                "functions": []
-              }
-            ],
-            "unify_query_param": {
-              "type": "range",
-              "stack": "all",
-              "expression": "A",
-              "query_configs": [
-                {
-                  "data_source_label": "custom",
-                  "data_type_label": "time_series",
-                  "table": "${table_id}",
-                  "metrics": [
-                    {
-                      "field": "bk_apm_count",
-                      "method": "SUM",
-                      "alias": "A"
-                    }
-                  ],
-                  "group_by": [
-                    "rpc_grpc_status_code"
-                  ],
-                  "display": true,
-                  "where": [
-                    {
-                      "key": "status_code",
-                      "method": "eq",
-                      "value": [
-                        "2"
-                      ],
-                      "condition": "and"
-                    },
-                    {
-                      "key": "rpc_grpc_status_code",
-                      "method": "neq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
-                    }
-                  ],
-                  "interval_unit": "s",
-                  "time_field": "time",
-                  "filter_dict": {
-                    "service_name": "${service_name}"
-                  },
-                  "functions": []
-                }
-              ]
-            }
-          }
-        },
-        {
-          "data_type": "time_series",
-          "api": "apm_metric.dynamicUnifyQuery",
-          "datasource": "time_series",
-          "alias": "总数量",
-          "data": {
-            "app_name": "${app_name}",
-            "service_name": "${service_name}",
-            "component_instance_id": "$bk_instance_id",
-            "query_configs": [
-              {
-                "data_source_label": "custom",
-                "data_type_label": "time_series",
                 "table": "${table_id}",
-                "metrics": [
-                  {
-                    "field": "bk_apm_count",
-                    "method": "SUM",
-                    "alias": "A"
-                  }
-                ],
-                "group_by": [
-                ],
-                "display": true,
+                "data_label": "",
+                "index_set_id": null,
+                "group_by": [],
                 "where": [
                   {
                     "key": "status_code",
@@ -385,29 +273,50 @@
                 "interval_unit": "s",
                 "time_field": "time",
                 "filter_dict": {
-                  "service_name": "${service_name}"
+                  "service_name": "$service_name"
+                },
+                "functions": []
+              },
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "b"
+                  }
+                ],
+                "table": "${table_id}",
+                "data_label": "",
+                "index_set_id": null,
+                "group_by": [],
+                "where": [],
+                "interval_unit": "s",
+                "time_field": null,
+                "filter_dict": {
+                  "service_name": "$service_name"
                 },
                 "functions": []
               }
             ],
             "unify_query_param": {
-              "stack": "all",
-              "expression": "A",
+              "expression": "a / b",
               "query_configs": [
                 {
                   "data_source_label": "custom",
                   "data_type_label": "time_series",
-                  "table": "${table_id}",
                   "metrics": [
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "A"
+                      "alias": "a"
                     }
                   ],
-                  "group_by": [
-                  ],
-                  "display": true,
+                  "table": "${table_id}",
+                  "data_label": "",
+                  "index_set_id": null,
+                  "group_by": [],
                   "where": [
                     {
                       "key": "status_code",
@@ -421,13 +330,36 @@
                   "interval_unit": "s",
                   "time_field": "time",
                   "filter_dict": {
-                    "service_name": "${service_name}"
+                    "service_name": "$service_name"
+                  },
+                  "functions": []
+                },
+                {
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "metrics": [
+                    {
+                      "field": "bk_apm_count",
+                      "method": "SUM",
+                      "alias": "b"
+                    }
+                  ],
+                  "table": "${table_id}",
+                  "data_label": "",
+                  "index_set_id": null,
+                  "group_by": [],
+                  "where": [],
+                  "interval_unit": "s",
+                  "time_field": null,
+                  "filter_dict": {
+                    "service_name": "$service_name"
                   },
                   "functions": []
                 }
               ]
             }
-          }
+          },
+          "yAxisIndex": 1
         }
       ],
       "options": {
@@ -438,7 +370,7 @@
     },
     {
       "id": 4,
-      "title": "响应耗时",
+      "title": "耗时",
       "gridPos": {
         "x": 0,
         "y": 12,
@@ -902,134 +834,6 @@
                       ]
                     }
                   ]
-                }
-              ]
-            }
-          }
-        },
-        {
-          "data_type": "time_series",
-          "api": "apm_metric.dynamicUnifyQuery",
-          "datasource": "time_series",
-          "alias": "MAX",
-          "data": {
-            "app_name": "${app_name}",
-            "service_name": "${service_name}",
-            "component_instance_id": "$bk_instance_id",
-            "query_configs": [
-              {
-                "data_source_label": "custom",
-                "data_type_label": "time_series",
-                "table": "${table_id}",
-                "metrics": [
-                  {
-                    "field": "bk_apm_duration_max",
-                    "method": "MAX",
-                    "alias": "C"
-                  }
-                ],
-                "group_by": [
-                ],
-                "display": true,
-                "where": [
-                ],
-                "interval_unit": "s",
-                "time_field": "time",
-                "filter_dict": {
-                  "service_name": "${service_name}"
-                },
-                "functions": []
-              }
-            ],
-            "unify_query_param": {
-              "expression": "C",
-              "query_configs": [
-                {
-                  "data_source_label": "custom",
-                  "data_type_label": "time_series",
-                  "table": "${table_id}",
-                  "metrics": [
-                    {
-                      "field": "bk_apm_duration_max",
-                      "method": "MAX",
-                      "alias": "C"
-                    }
-                  ],
-                  "group_by": [
-                  ],
-                  "display": true,
-                  "where": [
-                  ],
-                  "interval_unit": "s",
-                  "time_field": "time",
-                  "filter_dict": {
-                    "service_name": "${service_name}"
-                  },
-                  "functions": []
-                }
-              ]
-            }
-          }
-        },
-        {
-          "data_type": "time_series",
-          "api": "apm_metric.dynamicUnifyQuery",
-          "datasource": "time_series",
-          "alias": "MIN",
-          "data": {
-            "app_name": "${app_name}",
-            "service_name": "${service_name}",
-            "component_instance_id": "$bk_instance_id",
-            "query_configs": [
-              {
-                "data_source_label": "custom",
-                "data_type_label": "time_series",
-                "table": "${table_id}",
-                "metrics": [
-                  {
-                    "field": "bk_apm_duration_min",
-                    "method": "MIN",
-                    "alias": "C"
-                  }
-                ],
-                "group_by": [
-                ],
-                "display": true,
-                "where": [
-                ],
-                "interval_unit": "s",
-                "time_field": "time",
-                "filter_dict": {
-                  "service_name": "${service_name}"
-                },
-                "functions": []
-              }
-            ],
-            "unify_query_param": {
-              "expression": "C",
-              "query_configs": [
-                {
-                  "data_source_label": "custom",
-                  "data_type_label": "time_series",
-                  "table": "${table_id}",
-                  "metrics": [
-                    {
-                      "field": "bk_apm_duration_min",
-                      "method": "MIN",
-                      "alias": "C"
-                    }
-                  ],
-                  "group_by": [
-                  ],
-                  "display": true,
-                  "where": [
-                  ],
-                  "interval_unit": "s",
-                  "time_field": "time",
-                  "filter_dict": {
-                    "service_name": "${service_name}"
-                  },
-                  "functions": []
                 }
               ]
             }
@@ -1073,6 +877,9 @@
           "show_expand": false,
           "query_update_url": true,
           "need_title": true
+        },
+        "header": {
+          "tips": "此表格会对不同类型的 Span 进行归类统计（如 Http、DB、消息队列、Rpc 类型）。<br> 其中，支持配置正则表达式对 attributes.http.url 进行归类，可以前往 服务配置页 - Uri 设置 里进行配置。"
         }
       }
     }
@@ -1107,6 +914,9 @@
           "json_viewer_data_key": "data",
           "show_expand": true,
           "query_update_url": true
+        },
+        "header": {
+          "tips": "此表格展示了类型为 exception 的事件列表。<br>查询条件为: events.name=\"exception\""
         }
       }
     },
@@ -1209,7 +1019,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": null,
+          "alias": "错误数",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -1227,7 +1037,6 @@
                   }
                 ],
                 "group_by": [
-                  "http_status_code"
                 ],
                 "display": true,
                 "where": [
@@ -1238,20 +1047,12 @@
                       "2"
                     ],
                     "condition": "and"
-                  },
-                  {
-                    "key": "http_status_code",
-                    "method": "neq",
-                    "value": [
-                      ""
-                    ],
-                    "condition": "and"
                   }
                 ],
                 "interval_unit": "s",
                 "time_field": "time",
                 "filter_dict": {
-                  "service_name": "${service_name}",
+                  "service_name": "$service_name",
                   "span_name": "$endpoint_name"
                 },
                 "functions": []
@@ -1274,7 +1075,6 @@
                     }
                   ],
                   "group_by": [
-                    "http_status_code"
                   ],
                   "display": true,
                   "where": [
@@ -1285,154 +1085,47 @@
                         "2"
                       ],
                       "condition": "and"
-                    },
-                    {
-                      "key": "http_status_code",
-                      "method": "neq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
                     }
                   ],
                   "interval_unit": "s",
                   "time_field": "time",
                   "filter_dict": {
-                    "service_name": "${service_name}",
+                    "service_name": "$service_name",
                     "span_name": "$endpoint_name"
                   },
                   "functions": []
                 }
               ]
             }
-          }
+          },
+          "yAxisIndex": 0
         },
         {
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": null,
+          "alias": "错误率",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "component_instance_id": "$bk_instance_id",
+            "unit": "percent",
+            "expression": "(a / b) * 100",
             "query_configs": [
               {
                 "data_source_label": "custom",
                 "data_type_label": "time_series",
-                "table": "${table_id}",
                 "metrics": [
                   {
                     "field": "bk_apm_count",
                     "method": "SUM",
-                    "alias": "A"
+                    "alias": "a"
                   }
                 ],
-                "group_by": [
-                  "rpc_grpc_status_code"
-                ],
-                "display": true,
-                "where": [
-                  {
-                    "key": "status_code",
-                    "method": "eq",
-                    "value": [
-                      "2"
-                    ],
-                    "condition": "and"
-                  },
-                  {
-                    "key": "rpc_grpc_status_code",
-                    "method": "neq",
-                    "value": [
-                      ""
-                    ],
-                    "condition": "and"
-                  }
-                ],
-                "interval_unit": "s",
-                "time_field": "time",
-                "filter_dict": {
-                  "service_name": "${service_name}",
-                  "span_name": "$endpoint_name"
-                },
-                "functions": []
-              }
-            ],
-            "unify_query_param": {
-              "type": "range",
-              "stack": "all",
-              "expression": "A",
-              "query_configs": [
-                {
-                  "data_source_label": "custom",
-                  "data_type_label": "time_series",
-                  "table": "${table_id}",
-                  "metrics": [
-                    {
-                      "field": "bk_apm_count",
-                      "method": "SUM",
-                      "alias": "A"
-                    }
-                  ],
-                  "group_by": [
-                    "rpc_grpc_status_code"
-                  ],
-                  "display": true,
-                  "where": [
-                    {
-                      "key": "status_code",
-                      "method": "eq",
-                      "value": [
-                        "2"
-                      ],
-                      "condition": "and"
-                    },
-                    {
-                      "key": "rpc_grpc_status_code",
-                      "method": "neq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
-                    }
-                  ],
-                  "interval_unit": "s",
-                  "time_field": "time",
-                  "filter_dict": {
-                    "service_name": "${service_name}",
-                    "span_name": "$endpoint_name"
-                  },
-                  "functions": []
-                }
-              ]
-            }
-          }
-        },
-        {
-          "data_type": "time_series",
-          "api": "apm_metric.dynamicUnifyQuery",
-          "datasource": "time_series",
-          "alias": "总数量",
-          "data": {
-            "app_name": "${app_name}",
-            "service_name": "${service_name}",
-            "component_instance_id": "$bk_instance_id",
-            "query_configs": [
-              {
-                "data_source_label": "custom",
-                "data_type_label": "time_series",
                 "table": "${table_id}",
-                "metrics": [
-                  {
-                    "field": "bk_apm_count",
-                    "method": "SUM",
-                    "alias": "A"
-                  }
-                ],
-                "group_by": [
-                ],
-                "display": true,
+                "data_label": "",
+                "index_set_id": null,
+                "group_by": [],
                 "where": [
                   {
                     "key": "status_code",
@@ -1446,30 +1139,52 @@
                 "interval_unit": "s",
                 "time_field": "time",
                 "filter_dict": {
-                  "service_name": "${service_name}",
+                  "service_name": "$service_name",
+                  "span_name": "$endpoint_name"
+                },
+                "functions": []
+              },
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "b"
+                  }
+                ],
+                "table": "${table_id}",
+                "data_label": "",
+                "index_set_id": null,
+                "group_by": [],
+                "where": [],
+                "interval_unit": "s",
+                "time_field": null,
+                "filter_dict": {
+                  "service_name": "$service_name",
                   "span_name": "$endpoint_name"
                 },
                 "functions": []
               }
             ],
             "unify_query_param": {
-              "stack": "all",
-              "expression": "A",
+              "expression": "a / b",
               "query_configs": [
                 {
                   "data_source_label": "custom",
                   "data_type_label": "time_series",
-                  "table": "${table_id}",
                   "metrics": [
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "A"
+                      "alias": "a"
                     }
                   ],
-                  "group_by": [
-                  ],
-                  "display": true,
+                  "table": "${table_id}",
+                  "data_label": "",
+                  "index_set_id": null,
+                  "group_by": [],
                   "where": [
                     {
                       "key": "status_code",
@@ -1483,14 +1198,38 @@
                   "interval_unit": "s",
                   "time_field": "time",
                   "filter_dict": {
-                    "service_name": "${service_name}",
+                    "service_name": "$service_name",
+                    "span_name": "$endpoint_name"
+                  },
+                  "functions": []
+                },
+                {
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "metrics": [
+                    {
+                      "field": "bk_apm_count",
+                      "method": "SUM",
+                      "alias": "b"
+                    }
+                  ],
+                  "table": "${table_id}",
+                  "data_label": "",
+                  "index_set_id": null,
+                  "group_by": [],
+                  "where": [],
+                  "interval_unit": "s",
+                  "time_field": null,
+                  "filter_dict": {
+                    "service_name": "$service_name",
                     "span_name": "$endpoint_name"
                   },
                   "functions": []
                 }
               ]
             }
-          }
+          },
+          "yAxisIndex": 1
         }
       ],
       "options": {
@@ -1501,7 +1240,7 @@
     },
     {
       "id": 4,
-      "title": "响应耗时",
+      "title": "耗时",
       "gridPos": {
         "x": 0,
         "y": 12,
@@ -1979,138 +1718,6 @@
               ]
             }
           }
-        },
-        {
-          "data_type": "time_series",
-          "api": "apm_metric.dynamicUnifyQuery",
-          "datasource": "time_series",
-          "alias": "MAX",
-          "data": {
-            "app_name": "${app_name}",
-            "service_name": "${service_name}",
-            "component_instance_id": "$bk_instance_id",
-            "query_configs": [
-              {
-                "data_source_label": "custom",
-                "data_type_label": "time_series",
-                "table": "${table_id}",
-                "metrics": [
-                  {
-                    "field": "bk_apm_duration_max",
-                    "method": "MAX",
-                    "alias": "C"
-                  }
-                ],
-                "group_by": [
-                ],
-                "display": true,
-                "where": [
-                ],
-                "interval_unit": "s",
-                "time_field": "time",
-                "filter_dict": {
-                  "service_name": "${service_name}",
-                  "span_name": "$endpoint_name"
-                },
-                "functions": []
-              }
-            ],
-            "unify_query_param": {
-              "expression": "C",
-              "query_configs": [
-                {
-                  "data_source_label": "custom",
-                  "data_type_label": "time_series",
-                  "table": "${table_id}",
-                  "metrics": [
-                    {
-                      "field": "bk_apm_duration_max",
-                      "method": "MAX",
-                      "alias": "C"
-                    }
-                  ],
-                  "group_by": [
-                  ],
-                  "display": true,
-                  "where": [
-                  ],
-                  "interval_unit": "s",
-                  "time_field": "time",
-                  "filter_dict": {
-                    "service_name": "${service_name}",
-                    "span_name": "$endpoint_name"
-                  },
-                  "functions": []
-                }
-              ]
-            }
-          }
-        },
-        {
-          "data_type": "time_series",
-          "api": "apm_metric.dynamicUnifyQuery",
-          "datasource": "time_series",
-          "alias": "MIN",
-          "data": {
-            "app_name": "${app_name}",
-            "service_name": "${service_name}",
-            "component_instance_id": "$bk_instance_id",
-            "query_configs": [
-              {
-                "data_source_label": "custom",
-                "data_type_label": "time_series",
-                "table": "${table_id}",
-                "metrics": [
-                  {
-                    "field": "bk_apm_duration_min",
-                    "method": "MIN",
-                    "alias": "C"
-                  }
-                ],
-                "group_by": [
-                ],
-                "display": true,
-                "where": [
-                ],
-                "interval_unit": "s",
-                "time_field": "time",
-                "filter_dict": {
-                  "service_name": "${service_name}",
-                  "span_name": "$endpoint_name"
-                },
-                "functions": []
-              }
-            ],
-            "unify_query_param": {
-              "expression": "C",
-              "query_configs": [
-                {
-                  "data_source_label": "custom",
-                  "data_type_label": "time_series",
-                  "table": "${table_id}",
-                  "metrics": [
-                    {
-                      "field": "bk_apm_duration_min",
-                      "method": "MIN",
-                      "alias": "C"
-                    }
-                  ],
-                  "group_by": [
-                  ],
-                  "display": true,
-                  "where": [
-                  ],
-                  "interval_unit": "s",
-                  "time_field": "time",
-                  "filter_dict": {
-                    "service_name": "${service_name}",
-                    "span_name": "$endpoint_name"
-                  },
-                  "functions": []
-                }
-              ]
-            }
-          }
         }
       ]
     },
@@ -2144,6 +1751,9 @@
           "show_expand": false,
           "query_update_url": true,
           "need_title": true
+        },
+        "header": {
+          "tips": "此表格会对不同类型的 Span 进行归类统计（如 Http、DB、消息队列、Rpc 类型）。<br> 其中，支持配置正则表达式对 attributes.http.url 进行归类，可以前往 服务配置页 - Uri 设置 里进行配置。"
         }
       }
     }

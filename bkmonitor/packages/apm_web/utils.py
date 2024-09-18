@@ -133,9 +133,39 @@ def get_interval_number(start_time, end_time, interval="auto"):
     return 60 if not isinstance(interval, int) else interval
 
 
+def get_bar_interval_number(start_time, end_time, size=30):
+    """计算出柱状图（特殊处理的）的 interval 固定柱子数量"""
+    delta = end_time - start_time
+    if delta <= size:
+        # 如果间隔小于大小 按照一秒进行聚合 此时柱子数量不为 size
+        return 1
+
+    return int(delta // size)
+
+
+def split_by_size(start_time, end_time, size=30):
+    """切分开始时间和结束时间，按照个数返回"""
+    start_dt = datetime.datetime.fromtimestamp(start_time)
+    end_dt = datetime.datetime.fromtimestamp(end_time)
+
+    total_duration = end_dt - start_dt
+    segment_duration = total_duration / size
+
+    segments = []
+
+    for index, i in enumerate(range(size), -1):
+        segment_start = start_dt + segment_duration * index
+        segment_end = segment_start + segment_duration
+        segments.append((int(segment_start.timestamp()), int(segment_end.timestamp())))
+
+    return segments
+
+
 def split_by_interval(start_time, end_time, interval):
     """根据 interval 对开始时间和结束时间进行分割"""
-    if interval[-1] == "m":
+    if interval[-1] == "s":
+        interval_seconds = int(interval[:-1])
+    elif interval[-1] == "m":
         interval_seconds = int(interval[:-1]) * 60
     elif interval[-1] == "h":
         interval_seconds = int(interval[:-1]) * 3600
@@ -189,3 +219,38 @@ def merge_dicts(d1, d2):
         else:
             merged[key] = value
     return merged
+
+
+def fill_series(series, start_time, end_time):
+    """
+    调整时间戳 将无数据的柱子值设置为 None (适用于柱状图查询)
+    """
+    timestamp_range = split_by_size(start_time, end_time)
+    if not series:
+        return [{"datapoints": [[None, int((s + e) / 2) * 1000] for s, e in timestamp_range]}]
+
+    res = []
+    for i in series:
+        result = [[None, int((t_e + t_s) / 2) * 1000] for t_e, t_s in timestamp_range]
+        for j, d in enumerate(i["datapoints"]):
+            value, timestamp = d
+            if j > 0:
+                # 往前移动被覆盖元素
+                # 这里的情况可能是 UnifyQuery 返回的前 n 个元素 比 timestamp_range 中 n-1 位的开始时间要小的问题
+                # 所以这个 n 位元素应该放在 n-1 位 需要整个 time_range 往前移动
+                if timestamp_range[j - 1][0] <= timestamp <= timestamp_range[j - 1][1]:
+                    result[j - 1] = d
+                    result[j - 2] = i["datapoints"][j - 1]
+                    continue
+
+            if result[j][0] is None:
+                result[j] = d
+
+        res.append(
+            {
+                **i,
+                "datapoints": sorted(result, key=lambda t: t[-1]),
+            }
+        )
+
+    return res

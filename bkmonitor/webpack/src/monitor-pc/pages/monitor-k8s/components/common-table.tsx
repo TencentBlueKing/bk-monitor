@@ -730,7 +730,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       .map(column => {
         const showOverflowTooltip = ['tag', 'list', 'kv'].includes(column.type)
           ? false
-          : column.showOverflowTooltip ?? true;
+          : (column.showOverflowTooltip ?? true);
         // header-pre-icon
         const headerPreIcon = column[HEADER_PRE_ICON_NAME];
         return (

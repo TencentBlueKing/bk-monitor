@@ -18,7 +18,6 @@ from django.utils.translation import ugettext_lazy as _
 from apm_web.constants import CategoryEnum
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.topo.constants import RelationResourcePath
-from apm_web.topo.handle.graph_plugin import NodeColor
 from apm_web.topo.handle.relation.define import (
     Node,
     Source,
@@ -52,9 +51,9 @@ class Layer:
     @property
     def common_params(self):
         return {
+            "bk_biz_ids": [self._runtime["bk_biz_id"]],
             "start_time": self._runtime["start_time"],
             "end_time": self._runtime["end_time"],
-            # + 1s 使接口能够完全覆盖 start_time 和 end_time 保持只返回一个元素
             "step": f"{self._runtime['end_time'] - self._runtime['start_time']}s",
             "source_type": self.source_type.name,
             "target_type": self.target_type.name,
@@ -79,17 +78,19 @@ class ResourceLayer(Layer):
     source_path: List[str] = None
 
     def get_layer(self, nodes: List[Node]) -> List[Relation]:
-        response = api.unify_query.query_multi_resource_range(
-            **{
-                "query_list": [
-                    {
-                        **self.common_params,
-                        "source_info": node.source_info.to_source_info(),
-                    }
-                    for node in nodes
-                ]
-            }
-        )
+        query_lists = []
+        source_ids = []
+        for node in nodes:
+            if node.source_info.id in source_ids:
+                continue
+            query_lists.append(
+                {
+                    **self.common_params,
+                    "source_info": node.source_info.to_source_info(),
+                }
+            )
+
+        response = api.unify_query.query_multi_resource_range(**{"query_list": query_lists})
 
         res = []
         for item in response.get("data", []):
@@ -169,7 +170,7 @@ class ServiceGroup(SidebarGroup):
 @dataclass
 class HostGroup(SidebarGroup):
     id: str = "host"
-    name: str = _("主机/云平台")
+    name: str = _("Kubernetes")
 
 
 @dataclass
@@ -200,6 +201,8 @@ class PathTemplateSidebar:
         正常的节点会合并
         异常的节点不会合并
         """
+        # 去掉重复节点
+        unique_nodes = set(nodes)
 
         # 根据告警来区分出节点的状态 适用于: system, pod, service
         if self.bind_source_type.name == SourceSystem.name:
@@ -209,8 +212,8 @@ class PathTemplateSidebar:
                 "bk_target_ip",
                 "("
                 + " OR ".join(
-                    [f"ip: {getattr(i.source_info, 'bk_target_ip')}" for i in nodes]
-                    + [f"tags.ip: {getattr(i.source_info, 'bk_target_ip')}" for i in nodes]
+                    [f"ip: {getattr(i.source_info, 'bk_target_ip')}" for i in unique_nodes]
+                    + [f"tags.ip: {getattr(i.source_info, 'bk_target_ip')}" for i in unique_nodes]
                 )
                 + ")",
                 nodes,
@@ -227,7 +230,7 @@ class PathTemplateSidebar:
                         f"AND tags.bcs_cluster_id: {getattr(i.source_info, 'bcs_cluster_id')} "
                         f"AND tags.namespace: {getattr(i.source_info, 'namespace')}"
                         f")"
-                        for i in nodes
+                        for i in unique_nodes
                     ]
                 )
                 + ")",
@@ -245,7 +248,7 @@ class PathTemplateSidebar:
                         f"AND tags.bcs_cluster_id: {getattr(i.source_info, 'bcs_cluster_id')} "
                         f"AND tags.namespace: {getattr(i.source_info, 'namespace')}"
                         f")"
-                        for i in nodes
+                        for i in unique_nodes
                     ]
                 )
                 + ")",
@@ -266,17 +269,13 @@ class PathTemplateSidebar:
                         **i.info,
                         "sidebar_id": self.id,
                         "collapses": [],
-                        "color": NodeColor.Color.WHITE,
                         "category": node.get("extra_data", {}).get("category") if node else CategoryEnum.OTHER,
                         "status": "normal",
                     }
                 )
         else:
             # 其他类型不需要进行合并
-            r_nodes = [
-                {**i.info, "sidebar_id": self.id, "collapses": [], "color": NodeColor.Color.WHITE, "status": "normal"}
-                for i in nodes
-            ]
+            r_nodes = [{**i.info, "sidebar_id": self.id, "collapses": [], "status": "normal"} for i in nodes]
 
         return r_nodes
 
@@ -291,33 +290,30 @@ class PathTemplateSidebar:
                 if group_by_key in i["key"]:
                     mapping[i["value"]].append(item.get("severity"))
 
-        normal_nodes = []
-        error_nodes = []
+        normal_nodes = set()
+        error_nodes = set()
         for node in nodes:
             v = getattr(node.source_info, node_key, None)
             if v in mapping:
-                error_nodes.append(node)
+                error_nodes.add(node)
             else:
-                normal_nodes.append(node)
+                normal_nodes.add(node)
 
         res = []
         # 异常节点不需要折叠
         for n in error_nodes:
-            res.append(
-                {**n.info, "sidebar_id": self.id, "collapses": [], "color": NodeColor.Color.RED, "status": "abnormal"}
-            )
+            res.append({**n.info, "sidebar_id": self.id, "collapses": [], "status": "abnormal"})
         # 正常节点折叠
         if normal_nodes:
-            # 页面显示为第一个节点
-            first = normal_nodes[0]
+            # 页面显示为按照排序后的第一个
+            first = sorted(normal_nodes, key=lambda p: getattr(p.source_info, node_key))[0]
             res.append(
                 {
                     **first.info,
                     "sidebar_id": self.id,
-                    "collapses": [{**n.info, "color": NodeColor.Color.GREEN, "status": "normal"} for n in normal_nodes]
+                    "collapses": [{**n.info, "status": "normal"} for n in normal_nodes]
                     if len(normal_nodes) > 1
                     else [],
-                    "color": NodeColor.Color.GREEN,
                     "status": "normal",
                 }
             )
@@ -491,18 +487,15 @@ class PathTemplate:
 
             if from_node_merged != to_node_merged:
                 merged_edge = (from_node_merged, to_node_merged)
-                merged_edges_mapping[merged_edge].append(
-                    {
-                        "source": from_node,
-                        "target": to_node,
-                    }
-                )
+                merged_edges_mapping[merged_edge].append((from_node, to_node))
 
         return [
             {
                 "source": e[0],
                 "target": e[1],
-                "original": original_edges if len(original_edges) > 1 else [],
+                "original": [{"source": i[0], "target": i[1]} for i in set(original_edges)]
+                if len(original_edges) > 1
+                else [],
             }
             for e, original_edges in merged_edges_mapping.items()
         ]

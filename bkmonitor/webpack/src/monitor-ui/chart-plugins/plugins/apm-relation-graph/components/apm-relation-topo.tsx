@@ -33,6 +33,7 @@ import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
 import { nodeEndpointsTop } from 'monitor-api/modules/apm_topo';
 import { Debounce } from 'monitor-common/utils/utils';
+import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import CompareGraphTools from '../../apm-time-series/components/compare-topo-fullscreen/compare-graph-tools';
@@ -66,7 +67,8 @@ export interface INodeModel {
   color: string;
   size: number;
   menu: { name: string; action: string; url?: string; type?: string }[];
-  node_tips: { name: string; value: string }[];
+  node_tips: { name: string; value: string; group?: string }[];
+  endpoint_tips: { name: string; value: string; group?: string }[];
 }
 
 type IEdgeModel = {
@@ -76,6 +78,7 @@ type IEdgeModel = {
   duration_avg?: string;
   duration_p99?: string;
   duration_p95?: string;
+  duration_p50?: string;
   request_count?: number;
 };
 
@@ -89,9 +92,9 @@ type ApmRelationTopoProps = {
   refreshTopoLayout: boolean;
   filterCondition: {
     type: CategoryEnum;
-    showNoData: boolean;
     searchValue: string;
   };
+  expandMenuList: string[];
 };
 
 type ApmRelationTopoEvent = {
@@ -99,7 +102,7 @@ type ApmRelationTopoEvent = {
   onResourceDrilling: (node: INodeModel) => void;
   onEdgeTypeChange: (edgeType: EdgeDataType) => void;
   onServiceDetail: (node: INodeModel) => void;
-  onDrillingNodeClick: (node: INodeModel, name: string) => void;
+  onDrillingNodeClick: (node: INodeModel, drillingItem) => void;
 };
 
 type INodeModelConfig = ModelConfig & INodeModel;
@@ -120,9 +123,9 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   @Prop() showType: string;
   @Prop() appName: string;
   @Prop() dataType: string;
+  @Prop() expandMenuList: string[];
 
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
-
   @Ref('relationGraph') relationGraphRef: HTMLDivElement;
   @Ref('topoToolsPanel') topoToolsPanelRef: HTMLDivElement;
   @Ref('topoToolsPopover') topoToolsPopoverRef: HTMLDivElement;
@@ -133,17 +136,19 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   canvasHeight = 0; // 画布高度
   minZoomVal = 0.1; // 缩放滑动条最小值
   maxZoomVal = 2; // 缩放滑动条最大值
-  graph: Graph = null; // 拓扑图实例
+  // graph: Graph = null; // 拓扑图实例
   toolsPopoverInstance = null; // 工具栏弹窗实例
   /** 拓扑图是否渲染完成 */
   isRender = false;
   /** 图例筛选 */
   legendFilter = {
-    status: '',
+    color: '',
     size: '',
   };
   /** 接口下钻节点列表 */
   interfaceNodeList = [];
+  /** 选中的下钻节点 */
+  drillingNodeActive = '';
 
   /** 图表缩放大小 */
   scaleValue = 1;
@@ -196,6 +201,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     isDrilling: false,
     nodeModel: null,
     drillingList: [],
+    drillingTotal: 0,
   };
 
   layout = null;
@@ -221,10 +227,13 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         id: node.data.id,
       })),
       edges: edges.map(item => {
-        const common = {
+        return {
+          type: item.from_name === item.to_name ? 'apm-loop-dash' : 'apm-line-dash',
           source: item.from_name,
           target: item.to_name,
-          label: String(item.duration_avg || item.duration_p95 || item.duration_p99 || item.request_count),
+          label: String(
+            item.duration_avg || item.duration_p95 || item.duration_p99 || item.duration_p50 || item.request_count || 0
+          ),
           style: {
             lineWidth: item.edge_breadth,
             stroke: '#C4C6CC',
@@ -232,19 +241,10 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
             endArrow: {
               path: G6.Arrow.triangle(10, 10, 0), // 路径
               fill: '#C4C6CC', // 填充颜色
+              stroke: '#C4C6CC', // 描边颜色
+              strokeOpacity: 0, // 描边透明度
             },
           },
-        };
-
-        if (item.from_name === item.to_name) {
-          return {
-            type: 'apm-loop-dash',
-            ...common,
-          };
-        }
-        return {
-          type: 'apm-line-dash',
-          ...common,
         };
       }),
     };
@@ -263,7 +263,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   @Debounce(100)
   handleResize() {
-    if (!this.graph || this.graph.get('destroyed')) return;
+    if (!(this as any).graph || (this as any).graph.get('destroyed')) return;
     const { width, height } = (this.relationGraphRef as HTMLDivElement).getBoundingClientRect();
     this.showLegend = false;
     this.showThumbnail = false;
@@ -271,22 +271,13 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     this.canvasWidth = width;
     this.canvasHeight = height;
     // 修改画布大小
-    this.graph.changeSize(width, height);
-    // 将拓扑图移到画布中心
-    this.graph.fitCenter();
-
-    // 节点
-    if (this.menuCfg.show) {
-      const nodeTarget = this.graph.find('node', node => node.getModel().id === this.menuCfg.nodeModel.id);
-      const { x, y } = nodeTarget.getModel(); // 获得该节点的位置，对应 pointX/pointY 坐标
-      const canvasXY = this.graph.getCanvasByPoint(x, y);
-      this.menuCfg.x = canvasXY.x;
-      this.menuCfg.y = canvasXY.y;
-    }
+    (this as any).graph.changeSize(width, height);
+    this.updateMenuPosition();
   }
 
   @Watch('data')
   handleDataChange() {
+    this.hideMenu();
     this.initGraph();
   }
 
@@ -294,7 +285,18 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   handleFilterConditionChange() {
     if (this.showType === 'topo') this.handleHighlightNode();
   }
-
+  getMenuDisabled(action: string) {
+    if (!this.expandMenuList?.length) return false;
+    if (this.menuCfg?.nodeModel?.data?.id !== this.activeNode) return false;
+    if (!['resource_drilling', 'service_detail'].includes(action)) return false;
+    const actionMap = {
+      topo: 'resource_drilling',
+      overview: 'service_detail',
+    };
+    return this.expandMenuList.some(key => {
+      if (actionMap[key] === action) return true;
+    });
+  }
   /**
    * @description: 定义节点 tooltip 内容
    * @param { HTMLElement } e
@@ -353,36 +355,38 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     if (action === 'resource_drilling') {
       // 资源拓扑
       this.$emit('resourceDrilling', this.menuCfg.nodeModel);
-    }
-    if (action === 'service_detail') {
+    } else if (action === 'service_detail') {
       /** 服务概览 */
       this.$emit('serviceDetail', this.menuCfg.nodeModel);
     }
     if (type === 'link') {
-      this.$router.push({
+      const route = this.$router.resolve({
         path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${url}`.replace(/\/\//g, '/'),
       });
+      window.open(route.href, '_blank');
     }
 
     this.hideMenu();
   }
 
-  handleDrillingNodeClick(name: string) {
-    this.$emit('drillingNodeClick', this.menuCfg.nodeModel, name);
+  handleDrillingNodeClick(item) {
+    this.drillingNodeActive = item.name;
+    this.$emit('drillingNodeClick', this.menuCfg.nodeModel, item);
   }
 
   initGraph() {
-    if (this.graph && !this.refreshTopoLayout) {
-      this.graph.destroyLayout();
-      this.graph.changeData(this.formatData);
-      const activeNode = this.graph.findById(this.activeNode);
+    if ((this as any).graph && !this.refreshTopoLayout) {
+      (this as any).graph.destroyLayout();
+      (this as any).graph.changeData(this.formatData);
+      const activeNode = (this as any).graph.findById(this.activeNode);
       if (activeNode) {
         activeNode.setState('active', true);
       }
     } else {
-      if (this.graph) {
-        this.graph.destroy();
-        this.graph = null;
+      this.hideMenu();
+      if ((this as any).graph) {
+        (this as any).graph.destroy();
+        (this as any).graph = null;
       }
       setTimeout(() => {
         const { width, height } = this.relationGraphRef.getBoundingClientRect();
@@ -423,6 +427,19 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
              * @param  {Edge} edge 边
              */
             setState: (name, value, item: IEdge) => this.setEdgeState(name, value, item),
+            // afterDraw(cfg, group) {
+            //   const shape = group.get('children')[0];
+            //   const midPoint = shape.getPoint(0.5);
+            //   group.addShape('rect', {
+            //     attrs: {
+            //       width: 10,
+            //       height: 10,
+            //       fill: '#4051A3',
+            //       x: midPoint.x - 5,
+            //       y: midPoint.y - 5,
+            //     },
+            //   });
+            // },
           },
           'quadratic'
         );
@@ -446,7 +463,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
           size: [236, 146],
         });
         const plugins = [minimap];
-        this.graph = new G6.Graph({
+        (this as any).graph = new G6.Graph({
           container: this.relationGraphRef as HTMLElement, // 指定挂载容器
           width: this.canvasWidth,
           height: this.canvasHeight,
@@ -460,8 +477,12 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
             // 设置画布的交互模式
             default: [
               'drag-canvas', // 拖拽画布
-              'zoom-canvas', // 缩放画布
+              // 'zoom-canvas', // 缩放画布
               'drag-node', // 拖拽节点
+              {
+                type: 'scroll-canvas',
+                scalableRange: -0.92,
+              },
             ],
           },
           /** 图布局 */
@@ -488,16 +509,16 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
           },
           plugins,
         });
-        this.bindListener(this.graph); // 图监听事件
-        this.graph.read(this.formatData); // 读取数据源并渲染
+        this.bindListener((this as any).graph); // 图监听事件
+        (this as any).graph.read(this.formatData); // 读取数据源并渲染
       }, 30);
     }
   }
 
   drawNode(cfg: INodeModelConfig, group: IGroup) {
-    const { size = 36, color, data } = cfg;
+    const { size = 36, color = '#2DCB56', data } = cfg;
     const { type, category, name } = data;
-    const [fillType, borderType] = type.split('_');
+    const [borderType, fillType] = type.split('_');
 
     // 是否为残影节点
     const isGhost = fillType === NodeDisplayType.VOID;
@@ -517,7 +538,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     const keyShape = group.addShape('circle', {
       attrs: {
         fill: '#fff', // 填充颜色,
-        stroke: isGhost ? '#DCDEE5' : color, // 描边颜色
+        stroke: color, // 描边颜色
         lineWidth: isGhost ? 2 : 4, // 描边宽度
         r: size,
         cursor: 'pointer',
@@ -598,12 +619,13 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       for (const node of graph.getNodes()) {
         node.setState('active', item._cfg.id === node._cfg.id);
       }
-      const allEdges = this.graph.getEdges();
+      const allEdges = (this as any).graph.getEdges();
       const nodeEdges = (item as INode).getEdges();
       for (const edge of allEdges) {
         edge.setState('active', nodeEdges.includes(edge));
       }
       this.$emit('nodeClick', item.getModel());
+      this.hideMenu();
     });
 
     graph.on('node:mouseenter', evt => {
@@ -616,61 +638,71 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       graph.setItemState(item, 'hover', false);
     });
 
-    graph.on('node:mousedown', evt => {
-      const { originalEvent, canvasX, canvasY, item } = evt;
-      if ((originalEvent as MouseEvent).button === 2) {
-        for (const node of this.graph.getNodes()) {
-          node.setState('active', item._cfg.id === node._cfg.id);
-        }
-        this.showMenu(canvasX, canvasY, item as INode);
+    graph.on('node:contextmenu', evt => {
+      const { canvasX, canvasY, item } = evt;
+      for (const node of (this as any).graph.getNodes()) {
+        node.setState('active', item._cfg.id === node._cfg.id);
       }
+      this.showMenu(canvasX, canvasY, item as INode);
     });
 
     graph.on('wheelzoom', () => {
-      this.scaleValue = this.graph.getZoom();
+      this.scaleValue = (this as any).graph.getZoom();
+    });
+
+    graph.on('viewportchange', () => {
+      this.updateMenuPosition();
     });
 
     graph.on('afterrender', () => {
       this.isRender = true;
-      const zoom = this.graph.getZoom();
+      const zoom = (this as any).graph.getZoom();
       this.scaleValue = Number(zoom.toFixed(2));
       this.initScale = Number(zoom.toFixed(2));
       if (zoom >= 1) {
-        this.graph.zoomTo(1);
+        (this as any).graph.zoomTo(1);
         this.initScale = 1;
         this.scaleValue = 1;
+        (this as any).graph.fitCenter();
       }
-      const activeNode = this.graph.findById(this.activeNode);
+      const activeNode = (this as any).graph.findById(this.activeNode);
       if (activeNode) {
         activeNode.setState('active', true);
       }
       this.handleHighlightNode();
     });
+    // graph.on('edge:mouseenter', evt => {
+    //   if (['rect', 'text'].includes(evt.target.get('type'))) {
+    //     console.info(evt.item.getKeyShape().get('text'), '=========');
+    //     // debugger;
+    //   }
+    // });
   }
 
   showMenu(x: number, y: number, item: INode) {
+    const model = item.getModel();
+    if (model.id !== this.menuCfg.nodeModel?.id) {
+      this.drillingNodeActive = '';
+    }
     this.menuCfg = {
       show: true,
       x,
       y,
       drillingLoading: true,
-      nodeModel: item.getModel(),
+      nodeModel: model,
       isDrilling: false,
       drillingList: [],
+      drillingTotal: 0,
     };
     this.$nextTick(() => {
-      const { width: graphWidth } = this.relationGraphRef.getBoundingClientRect();
-      const { width, left } = this.menuListRef.getBoundingClientRect();
-      // 超出画布宽度，则调整菜单位置
-      if (width + left > graphWidth) {
-        this.menuCfg.x = x - width;
-      }
+      this.updateMenuPosition(x, y);
     });
     document.body.addEventListener('click', this.hideMenu);
   }
 
   hideMenu(e?: Event) {
     if (e && this.menuListRef.contains(e.target as HTMLElement)) return;
+    if (e && this.menuCfg.show && this.menuCfg.isDrilling) return;
     this.menuCfg = {
       x: 0,
       y: 0,
@@ -679,14 +711,45 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       drillingLoading: true,
       isDrilling: false,
       drillingList: [],
+      drillingTotal: 0,
     };
     document.body.removeEventListener('click', this.hideMenu);
+  }
+
+  /** 更新菜单位置 */
+  updateMenuPosition(x?: number, y?: number) {
+    // 节点
+    if (this.menuCfg.show) {
+      let resultX = x;
+      let resultY = y;
+      if (!resultX && !resultY) {
+        const nodeTarget = (this as any).graph.find('node', node => node.getModel().id === this.menuCfg.nodeModel.id);
+        const { x, y } = nodeTarget.getModel(); // 获得该节点的位置，对应 pointX/pointY 坐标
+        const canvasXY = (this as any).graph.getCanvasByPoint(x, y);
+        resultX = canvasXY.x;
+        resultY = canvasXY.y;
+      }
+      const { width: graphWidth, height: graphHeight } = this.relationGraphRef.getBoundingClientRect();
+      const { width, height } = this.menuListRef.getBoundingClientRect();
+      // 超出画布宽度，则调整菜单位置
+      if (width + resultX > graphWidth) {
+        this.menuCfg.x = resultX - width;
+      } else {
+        this.menuCfg.x = resultX;
+      }
+      if (height + resultY > graphHeight) {
+        this.menuCfg.y = resultY - height;
+      } else {
+        this.menuCfg.y = resultY;
+      }
+    }
   }
 
   /** 设置节点状态 */
   setNodeState(name: string, value: boolean | string, item: INode) {
     const group = item.get<IGroup>('group');
-    const { size = 36, color = '#2DCB56' } = item.getModel() as INodeModelConfig;
+    const { size = 36 } = item.getModel() as INodeModelConfig;
+
     const hoverCircle = group.find(e => e.get('name') === 'custom-node-hover-circle');
     if (name === 'hover' && !item.hasState('active')) {
       const edges = item.getEdges();
@@ -729,7 +792,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         value ? shape.show() : shape.hide();
       }
       if (value) {
-        const allEdges = this.graph.getEdges();
+        const allEdges = (this as any).graph.getEdges();
         const nodeEdges = item.getEdges();
         for (const edge of allEdges) {
           edge.setState('active', nodeEdges.includes(edge));
@@ -741,10 +804,19 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       const textShape = group.find(e => e.get('name') === 'text-shape');
       const nodeIcon = group.find(e => e.get('name') === 'node-icon');
       const nodeKeyShape = group.find(e => e.get('name') === 'custom-node-keyShape');
-      textShape.attr('opacity', value ? 0.4 : 1);
-      nodeIcon.attr('opacity', value ? 0.4 : 1);
-      nodeKeyShape.attr('stroke', value ? '#DCDEE5' : color);
-      nodeKeyShape.attr('lineWidth', value ? 2 : 4);
+      const nodeHoverShape = group.find(e => e.get('name') === 'custom-node-hover-circle');
+      textShape.attr({
+        opacity: value ? 0.2 : 1,
+      });
+      nodeIcon.attr({
+        opacity: value ? 0.2 : 1,
+      });
+      nodeKeyShape.attr({
+        opacity: value ? 0.2 : 1,
+      });
+      nodeHoverShape.attr({
+        opacity: value ? 0.2 : 1,
+      });
     }
   }
 
@@ -752,6 +824,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   setEdgeState(name: string, value: boolean | string, item: IEdge) {
     const group = item.get('group');
     const keyShape: IShape = group.get('children')[0];
+    const textRect: IShape = group.get('children')[1];
+    const text: IShape = group.get('children')[2];
 
     if (name === 'active') {
       if (value) {
@@ -780,7 +854,13 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
     if (name === 'no-select') {
       keyShape.attr({
-        opacity: value ? 0.4 : 1,
+        opacity: value ? 0.2 : 1,
+      });
+      textRect.attr({
+        opacity: value ? 0.2 : 1,
+      });
+      text.attr({
+        opacity: value ? 0.2 : 1,
       });
     }
   }
@@ -813,9 +893,9 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   /** 下载图片 */
   handleDownloadImage() {
-    if (!this.graph) return;
+    if (!(this as any).graph) return;
     const name = `${dayjs.tz().format('YYYY-MM-DD HH:mm:ss')}`;
-    this.graph.downloadFullImage(name, 'image/png', {
+    (this as any).graph.downloadFullImage(name, 'image/png', {
       backgroundColor: '#fff',
       padding: 30,
     });
@@ -823,11 +903,14 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   /** 缩放滑块切换 */
   handleScaleChange(ratio: number) {
-    if (!this.graph) return;
-    this.scaleValue = ratio;
+    if (!(this as any).graph) return;
     // 以画布中心为圆心放大/缩小
-    this.graph.zoomTo(ratio);
-    this.graph.fitCenter();
+    (this as any).graph.zoomTo(ratio);
+    // 手动拖拽缩放条，画布居中
+    if (this.scaleValue !== ratio) {
+      (this as any).graph.fitCenter();
+    }
+    this.scaleValue = ratio;
   }
 
   /**
@@ -852,7 +935,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
    * 展示缩略图
    */
   handleShowThumbnail() {
-    if (!this.graph) return;
+    if (!(this as any).graph) return;
     this.showThumbnail = !this.showThumbnail;
     this.showLegend = false;
     if (this.showThumbnail) {
@@ -871,8 +954,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
    * 回中
    */
   handleResetCenter() {
-    if (!this.graph) return;
-    this.graph.fitCenter();
+    if (!(this as any).graph) return;
+    (this as any).graph.fitCenter();
   }
 
   /**
@@ -909,19 +992,17 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   /** 根据筛选条件高亮节点 */
   handleHighlightNode() {
-    if (!this.graph) return;
-    const { type, searchValue, showNoData } = this.filterCondition;
+    if (!(this as any).graph) return;
+    const { type, searchValue } = this.filterCondition;
     const showAll = type === CategoryEnum.ALL;
     const targetNodes = []; // 所选分类节点
     const allEdges = []; // 所有边
-    const allNodes = this.graph.getNodes(); // 所有节点
+    const allNodes = (this as any).graph.getNodes(); // 所有节点
     for (const node of allNodes) {
-      const { data, have_data, request_count, color } = node.getModel() as INodeModelConfig;
+      const { data, request_count, color } = node.getModel() as INodeModelConfig;
       const { category, name, id } = data;
       // 关键字搜索匹配
       const isKeywordMatch = name.toLowerCase().includes(searchValue.toLowerCase());
-      // 是否展示无数据节点
-      const isShowNoDataNode = showNoData || have_data;
       // 节点类型过滤
       const isCategoryFilter = showAll || category === type;
       // 节点请求数过滤
@@ -941,26 +1022,12 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       }
       let isStatusFilter = true;
       // 节点颜色过滤
-      if (this.legendFilter.status) {
-        switch (this.legendFilter.status) {
-          case 'success':
-            isStatusFilter = color === '#2DCB56';
-            break;
-          case 'warning':
-            isStatusFilter = color === '#FF9C01';
-            break;
-          case 'error':
-            isStatusFilter = color === '#EA3636';
-            break;
-          case 'empty':
-            isStatusFilter = color === '#DCDEE5';
-            break;
-        }
+      if (this.legendFilter.color) {
+        isStatusFilter = color === this.legendFilter.color;
       }
-
       // 高亮当前分类的节点 根据分类、关键字搜索，节点类型匹配过滤
-      const isDisabled = !isKeywordMatch || !isShowNoDataNode || !isCategoryFilter || !isSizeFilter || !isStatusFilter;
-      this.graph.setItemState(node, 'no-select', isDisabled);
+      const isDisabled = !isKeywordMatch || !isCategoryFilter || !isSizeFilter || !isStatusFilter;
+      (this as any).graph.setItemState(node, 'no-select', isDisabled);
       // 保存高亮节点 用于设置关联边高亮
       if (!isDisabled) targetNodes.push(id);
 
@@ -973,7 +1040,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       const edgeModel = edge.getModel();
       // source、target均是高亮节点的边
       const isRelated = [edgeModel.source, edgeModel.target].every(item => targetNodes.includes(item));
-      this.graph.setItemState(edge, 'no-select', !isRelated);
+      (this as any).graph.setItemState(edge, 'no-select', !isRelated);
     }
   }
 
@@ -982,14 +1049,37 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     this.menuCfg.isDrilling = true;
     this.menuCfg.drillingLoading = true;
-    this.menuCfg.drillingList = await nodeEndpointsTop({
+    this.$nextTick(() => {
+      this.updateMenuPosition();
+    });
+    const { total, endpoints } = await nodeEndpointsTop({
       app_name: this.appName,
       start_time: startTime,
       end_time: endTime,
       node_name: nodeName,
       data_type: this.dataType,
-    }).catch(() => []);
+    }).catch(() => ({ total: 0, endpoints: [] }));
+    this.menuCfg.drillingList = endpoints;
+    this.menuCfg.drillingTotal = total;
     this.menuCfg.drillingLoading = false;
+    this.$nextTick(() => {
+      this.updateMenuPosition();
+    });
+  }
+
+  handleJumpToInterface() {
+    const { dashboardId, sliceEndTime, sliceStartTime, sceneId, sceneType, ...param } = this.$route.query;
+    const { href } = this.$router.resolve({
+      name: 'service',
+      query: {
+        ...param,
+        dashboardId: 'service-default-endpoint',
+        'filter-service_name': this.menuCfg.nodeModel.data.name,
+        sceneId: 'apm_service',
+        sceneType: 'overview',
+      },
+    });
+    window.open(href, '_blank');
   }
 
   reset() {
@@ -1000,128 +1090,198 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   render() {
     return (
-      <div
-        class='apm-relation-topo'
-        onContextmenu={e => {
-          e.stopPropagation();
-          e.preventDefault();
-        }}
-      >
+      <div class='apm-relation-topo'>
         <div
-          ref='relationGraph'
-          class='graph-wrap'
-        />
-        <div
-          ref='topoToolsPanel'
-          class='graph-tools-panel'
-        >
-          <CompareGraphTools
-            maxScale={this.maxZoomVal}
-            minScale={this.minZoomVal}
-            originScaleValue={this.initScale}
-            scaleValue={this.scaleValue}
-            showLegend={this.showLegend}
-            showThumbnail={this.showThumbnail}
-            onDownloadImage={this.handleDownloadImage}
-            onResetCenter={this.handleResetCenter}
-            onScaleChange={this.handleScaleChange}
-            onShowLegend={this.handleShowLegend}
-            onShowThumbnail={this.handleShowThumbnail}
-          />
-          <div style='display: none;'>
-            <div
-              ref='topoToolsPopover'
-              style={{
-                'min-width': `${this.graphToolsRect.width}px`,
-                'min-height': `${this.graphToolsRect.height}px`,
-              }}
-              class='topo-graph-content'
-            >
-              <div
-                ref='thumbnailTool'
-                style={{
-                  display: this.showThumbnail ? 'block' : 'none',
-                }}
-                class='topo-graph-thumbnail'
-              />
-
-              <ApmTopoLegend
-                style={{
-                  display: this.showLegend ? 'block' : 'none',
-                }}
-                edgeType={this.edgeType}
-                legendFilter={this.legendFilter}
-                onEdgeTypeChange={this.handleEdgeTypeChange}
-                onLegendFilterChange={this.handleLegendFilterChange}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div
-          ref='menuList'
-          style={{
-            display: this.menuCfg.show ? 'block' : 'none',
-            left: `${this.menuCfg.x}px`,
-            top: `${this.menuCfg.y}px`,
+          class='graph-container'
+          onContextmenu={e => {
+            e.stopPropagation();
+            e.preventDefault();
           }}
-          class='node-menu-list'
         >
           <div
-            style={{ display: this.menuCfg.isDrilling ? 'block' : 'none' }}
-            class='node-drilling-container'
-          >
-            <div class='header'>
-              <span>{this.menuCfg.nodeModel?.data.name}</span>
-              <div
-                class='close-icon topo-menu-action'
-                onClick={() => this.hideMenu()}
-              >
-                <div class='row-line' />
+            ref='relationGraph'
+            class='graph-wrap'
+          />
+
+          {this.formatData.nodes.length && (
+            <div
+              ref='topoToolsPanel'
+              class='graph-tools-panel'
+            >
+              <CompareGraphTools
+                maxScale={this.maxZoomVal}
+                minScale={this.minZoomVal}
+                originScaleValue={this.initScale}
+                scaleValue={this.scaleValue}
+                showLegend={this.showLegend}
+                showThumbnail={this.showThumbnail}
+                onDownloadImage={this.handleDownloadImage}
+                onResetCenter={this.handleResetCenter}
+                onScaleChange={this.handleScaleChange}
+                onShowLegend={this.handleShowLegend}
+                onShowThumbnail={this.handleShowThumbnail}
+              />
+              <div style='display: none;'>
+                <div
+                  ref='topoToolsPopover'
+                  style={{
+                    'min-width': `${this.graphToolsRect.width}px`,
+                    'min-height': `${this.graphToolsRect.height}px`,
+                  }}
+                  class='topo-graph-content'
+                >
+                  <div
+                    ref='thumbnailTool'
+                    style={{
+                      display: this.showThumbnail ? 'block' : 'none',
+                    }}
+                    class='topo-graph-thumbnail'
+                  />
+
+                  <ApmTopoLegend
+                    style={{
+                      display: this.showLegend ? 'block' : 'none',
+                    }}
+                    dataType={this.dataType}
+                    edgeType={this.edgeType}
+                    legendFilter={this.legendFilter}
+                    onEdgeTypeChange={this.handleEdgeTypeChange}
+                    onLegendFilterChange={this.handleLegendFilterChange}
+                  />
+                </div>
               </div>
             </div>
-            {this.menuCfg.drillingLoading ? (
-              <div
-                class='drilling-loading'
-                v-bkloading={{ isLoading: true, size: 'small', color: '#ecedf2' }}
-              />
-            ) : (
-              <ul class='node-list'>
-                {this.menuCfg.drillingList.map(item => (
-                  <li
-                    key={item.id}
-                    class='node-item topo-menu-action'
-                    onClick={() => this.handleDrillingNodeClick(item.name)}
-                  >
-                    <div
-                      style={{ 'border-color': item.color }}
-                      class='node'
-                    >
-                      <i class='icon-monitor icon-fx' />
-                    </div>
-                    <span class='node-text'>{item.name}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <ul
-            style={{ display: this.menuCfg.isDrilling ? 'none' : 'block' }}
-            class='topo-menu-list'
+          )}
+
+          <div
+            ref='menuList'
+            style={{
+              display: this.menuCfg.show ? 'block' : 'none',
+              left: `${this.menuCfg.x}px`,
+              top: `${this.menuCfg.y}px`,
+              transform: `scale(${this.menuCfg.isDrilling ? this.scaleValue : 1})`,
+            }}
+            class='node-menu-list'
           >
-            {this.menuCfg.nodeModel?.menu.map(target => (
-              <li
-                key={target.name}
-                class='topo-menu-action'
-                onClick={() => {
-                  this.handleNodeMenuClick(target);
+            <div
+              style={{
+                display: this.menuCfg.isDrilling ? 'block' : 'none',
+              }}
+              class='node-drilling-container'
+            >
+              <div class='header'>
+                <span
+                  class='name'
+                  v-bk-overflow-tips
+                >
+                  {this.menuCfg.nodeModel?.data.name}
+                </span>
+                <div
+                  class='close-icon topo-menu-action'
+                  onClick={() => this.hideMenu()}
+                >
+                  <div class='row-line' />
+                </div>
+              </div>
+
+              <div
+                class={{
+                  'node-list': true,
+                  more: this.menuCfg.drillingTotal > 5,
                 }}
+                v-bkloading={{ isLoading: this.menuCfg.drillingLoading, size: 'small', color: '#ecedf2' }}
               >
-                {target.name}
-              </li>
-            ))}
-          </ul>
+                {this.menuCfg.drillingList.length ? (
+                  this.menuCfg.drillingList.map(item => (
+                    <div
+                      key={item.id}
+                      class='node-item topo-menu-action'
+                      onClick={() => this.handleDrillingNodeClick(item)}
+                    >
+                      <div
+                        style={{
+                          'border-color': item.color,
+                          width: `${item.size * 2}px`,
+                          height: `${item.size * 2}px`,
+                        }}
+                        class={{
+                          node: true,
+                          active: this.drillingNodeActive === item.name,
+                        }}
+                      >
+                        <i class='icon-monitor icon-fx' />
+                      </div>
+                      <span
+                        class='node-text name'
+                        v-bk-overflow-tips
+                      >
+                        {item.name}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <EmptyStatus
+                    class='drilling-node-empty'
+                    textMap={{
+                      empty: this.$t('暂无接口'),
+                    }}
+                    type='empty'
+                  />
+                )}
+                {this.menuCfg.drillingTotal > 5 && (
+                  <bk-button
+                    style='width: 100%;'
+                    theme='primary'
+                    text
+                    onClick={this.handleJumpToInterface}
+                  >
+                    {this.$t('完整接口')}
+                    <i
+                      style='display: inline-flex; margin-left: 4px'
+                      class='icon-monitor icon-fenxiang'
+                    />
+                  </bk-button>
+                )}
+              </div>
+            </div>
+            <ul
+              style={{ display: this.menuCfg.isDrilling ? 'none' : 'block' }}
+              class='topo-menu-list'
+            >
+              {this.menuCfg.nodeModel?.menu.map(target => (
+                <li
+                  key={target.name}
+                  class={{
+                    'topo-menu-action': true,
+                    'is-disabled': this.getMenuDisabled(target.action),
+                  }}
+                  onClick={() => {
+                    !this.getMenuDisabled(target.action) && this.handleNodeMenuClick(target);
+                  }}
+                >
+                  {target.name}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
+
+        {!this.formatData.nodes.length && [
+          <EmptyStatus
+            key='empty'
+            class='apm-topo-empty'
+            type='empty'
+          />,
+        ]}
+        {this.formatData.nodes.length && (
+          <div
+            key='graph-tips'
+            class='apm-graph-tips'
+          >
+            <i class='icon-monitor icon-mc-mouse mouse-icon' />
+            {this.$t('在节点右键进行更多操作')}
+          </div>
+        )}
       </div>
     );
   }

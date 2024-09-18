@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from apm_web.decorators import user_visit_record
 from apm_web.models import Application
 from apm_web.topo.resources import (
     DataTypeBarQueryResource,
@@ -42,10 +43,10 @@ class GlobalViewSet(ResourceViewSet):
 
     resource_routes = [
         ResourceRoute("GET", DataTypeBarQueryResource, endpoint="bar"),
-        ResourceRoute("GET", TopoViewResource, endpoint="topo"),
+        ResourceRoute("GET", TopoViewResource, endpoint="topo", decorators=[user_visit_record]),
         ResourceRoute("POST", TopoLinkResource, endpoint="topo/link"),
         ResourceRoute("GET", GraphDiffResource, endpoint="topo/diff"),
-        ResourceRoute("GET", NodeEndpointsTopResource, endpoint="topo/node/endpoints"),
-        ResourceRoute("GET", NodeRelationResource, endpoint="relation"),
+        ResourceRoute("GET", NodeEndpointsTopResource, endpoint="topo/node/endpoints", decorators=[user_visit_record]),
+        ResourceRoute("GET", NodeRelationResource, endpoint="relation", decorators=[user_visit_record]),
         ResourceRoute("POST", NodeRelationDetailResource, endpoint="relation/detail"),
     ]

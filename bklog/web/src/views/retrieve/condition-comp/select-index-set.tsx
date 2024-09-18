@@ -137,6 +137,8 @@ export default class QueryStatement extends tsc<object> {
   /** 当前活跃的采样日志下标 */
   activeTab: ActiveType = 'history';
 
+  namePopoverInstance = null;
+
   verifyData = {
     favoriteName: '',
   };
@@ -740,6 +742,32 @@ export default class QueryStatement extends tsc<object> {
     return `${item.indexName}${item.lightenName}${item.tagSearchName ?? ''}`;
   }
 
+  handleHoverIndexName(e, item) {
+    const isOverflowing = e.target.scrollWidth > e.target.clientWidth;
+    const str = isOverflowing ? `${item.indexName} <br/> ${item.lightenName}` : item.lightenName;
+    this.destroyPopoverInstance();
+
+    if (!this.namePopoverInstance) {
+      this.namePopoverInstance = this.$bkPopover(e.target, {
+        content: `<span style='font-size: 12px;'>${str}</span>`,
+        arrow: true,
+        boundary: 'viewport',
+        placement: 'top-start',
+        zIndex: 9999,
+        onHidden: () => {
+          this.destroyPopoverInstance();
+        },
+      });
+      this.namePopoverInstance.show();
+    }
+  }
+
+  destroyPopoverInstance() {
+    this.namePopoverInstance?.hide();
+    this.namePopoverInstance?.destroy();
+    this.namePopoverInstance = null;
+  }
+
   render() {
     const labelFilter = () => {
       return (
@@ -1086,15 +1114,9 @@ export default class QueryStatement extends tsc<object> {
                         {item.isNotVal && <i class='not-val'></i>}
                         <span
                           class='index-name'
-                          v-bk-overflow-tips
+                          onMouseenter={e => this.handleHoverIndexName(e, item)}
                         >
                           {item.indexName}
-                        </span>
-                        <span
-                          class='lighten-name'
-                          v-bk-overflow-tips
-                        >
-                          {item.lightenName}
                         </span>
                       </span>
                       <div class='index-tags'>{getLabelDom(item.tags)}</div>

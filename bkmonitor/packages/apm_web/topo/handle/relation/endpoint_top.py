@@ -15,16 +15,18 @@ from opentelemetry.trace import StatusCode
 from apm_web.constants import AlertLevel, Apdex, CategoryEnum
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.service_handler import ServiceHandler
-from apm_web.metric_handler import ApdexInstance, RequestCountInstance
+from apm_web.metric_handler import ApdexInstance, RequestCountInstance, ServiceFlowCount
 from apm_web.models import Application
 from apm_web.topo.constants import BarChartDataType
 from apm_web.topo.handle.graph_plugin import NodeColor
 from constants.apm import OtlpKey, SpanKind
-from core.drf_resource import api, resource
+from core.drf_resource import resource
 
 
 class EndpointList:
     id: str = None
+    # 获取接口时是否有通过指标获取 (如果没有则会在数量不满足要求时使用指标来补充接口)
+    list_from_metric = True
 
     def __init__(self, bk_biz_id, app_name, start_time, end_time, service_name, size):
         self.bk_biz_id = bk_biz_id
@@ -34,6 +36,8 @@ class EndpointList:
         self.service_name = service_name
         self.size = size
         self.application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        # 总数据量
+        self.total = 0
 
     @property
     def common_params(self):
@@ -68,32 +72,37 @@ class EndpointList:
         else:
             return {"service_name": self.service_name}
 
-    def fill_endpoints(self, res, endpoint_names):
+    def fill_endpoints(self, endpoints):
+        endpoint_names = [i["name"] for i in endpoints]
 
-        node = ServiceHandler.get_node(self.bk_biz_id, self.app_name, self.service_name)
-        if ComponentHandler.is_component_by_node(node):
-            service_name = ComponentHandler.get_component_belong_service(self.service_name)
-        elif ServiceHandler.is_remote_service_by_node(node):
-            service_name = ServiceHandler.get_remote_service_origin_name(self.service_name)
-        else:
-            service_name = self.service_name
-
-        # 数量可能不够 用接口列表进行凑数
-        endpoints = api.apm_api.query_endpoint(
+        metric_response = ServiceFlowCount(
             **{
-                "bk_biz_id": self.bk_biz_id,
-                "app_name": self.app_name,
-                "service_name": service_name,
+                "application": self.application,
+                "start_time": self.start_time,
+                "end_time": self.end_time,
+                "group_by": ["from_span_name", "to_span_name"],
+                "where": [
+                    {"key": "from_apm_service_name", "method": "eq", "value": [self.service_name]},
+                    {"condition": "or", "key": "to_apm_service_name", "method": "eq", "value": [self.service_name]},
+                ],
             }
-        )
+        ).get_instance_values_mapping()
+        spans = set()
+        for key in metric_response.keys():
+            if key[0]:
+                spans.add(key[0])
+            if key[1]:
+                spans.add(key[1])
 
-        for index, item in enumerate(endpoints, len(res) + 1):
-            if len(res) >= self.size:
+        self.total = len(endpoints) + len([i for i in spans if i not in endpoint_names])
+
+        for index, item in enumerate(spans, len(endpoints) + 1):
+            if len(endpoints) >= self.size:
                 break
-            if item["endpoint_name"] not in endpoint_names:
-                res.append({"id": index, "name": item["endpoint_name"], "color": NodeColor.Color.GREEN, "value": 0})
+            if item not in endpoint_names:
+                endpoints.append({"id": index, "name": item, "color": NodeColor.Color.GREEN, "value": 0})
 
-        return sorted(res, key=lambda j: j["value"], reverse=True)
+        return sorted(endpoints, key=lambda j: j["value"], reverse=True)
 
 
 class ErrorRateMixin(EndpointList):
@@ -112,8 +121,8 @@ class ErrorRateMixin(EndpointList):
             total_mapping.setdefault(span, 0)
             total_mapping[span] += value
 
+            error_mapping.setdefault(span, 0)
             if status_code == str(StatusCode.ERROR.value):
-                error_mapping.setdefault(span, 0)
                 error_mapping[span] += value
 
             endpoint_names.add(span)
@@ -123,8 +132,7 @@ class ErrorRateMixin(EndpointList):
     def convert_mapping_to_list(self, total_mapping, error_mapping, endpoint_names):
         res = []
         for index, name in enumerate(endpoint_names, 1):
-
-            error_rate = round(error_mapping[name] / total_mapping[name], 2) if total_mapping[name] else 0
+            error_rate = round(error_mapping.get(name, 0) / total_mapping[name], 2) if total_mapping[name] else 0
             if error_rate == 0:
                 color = NodeColor.Color.GREEN
             elif error_rate < 0.1:
@@ -140,8 +148,9 @@ class ErrorRateMixin(EndpointList):
                     "value": error_rate,
                 }
             )
-
-        return sorted(res, key=lambda i: i["value"], reverse=True)[: self.size]
+        res = sorted(res, key=lambda i: i["value"], reverse=True)
+        self.total = len(res)
+        return res[: self.size]
 
     def get_where_kinds(self, call_type):
         node = ServiceHandler.get_node(self.bk_biz_id, self.app_name, self.service_name)
@@ -230,7 +239,6 @@ class ApdexList(EndpointList):
     metric = ApdexInstance
 
     def list(self):
-
         response = self.metric(
             **self.common_params, **{"filter_dict": self.get_filter_dict(), "group_by": ["span_name"]}
         ).get_instance_calculate_values_mapping(
@@ -266,11 +274,14 @@ class ApdexList(EndpointList):
                 return 1
             return 2
 
-        return sorted(res, key=_sort)[: self.size]
+        res = sorted(res, key=_sort)
+        self.total = len(res)
+        return res[: self.size]
 
 
 class AlertList(EndpointList):
     id: str = BarChartDataType.Alert.value
+    list_from_metric = False
 
     def list(self):
         # 查看出维度满足 filter_dict 条件的告警 同时需要要求告警维度中包含 span_name 维度 才认为这个接口产生了告警
@@ -310,7 +321,4 @@ class AlertList(EndpointList):
             )
             endpoint_names.append(item[0])
 
-        if len(res) >= self.size:
-            return res[: self.size]
-
-        return self.fill_endpoints(res, endpoint_names)
+        return res

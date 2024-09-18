@@ -594,10 +594,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       await Promise.all([vm.handleGetFilterData(), vm.handleGetTableData(true)]);
       vm.handleRefleshChange(vm.refleshInterval);
       // 正常进入告警页情况下不打开详情，只有通过告警通知进入的才展开详情
-      const queryString = vm.$route.query;
-      const paramString = vm.$route.params;
-      const needShowDetail = /(^id).+/g.test(queryString.queryString as string);
-      if ((Object.keys(queryString).length || Object.keys(paramString).length) && needShowDetail) {
+      const needShowDetail = !!vm.$route.query.collectId && location.search.includes('specEvent');
+      if (needShowDetail) {
         vm.handleFirstShowDetail();
       }
       // 批量弹窗 (batchAction=xxx并且queryString 包含action_id 搜索 则弹出弹窗)
@@ -2475,7 +2473,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               style={{ marginLeft: this.filterWidth > 200 ? '24px' : '0px' }}
               class='header-title'
             >
-              {this.$t(this.activeFilterName) || this.$t('事件中心')}
+              {this.$t(this.activeFilterName)}
             </span>
             <DashboardTools
               class='header-tools'

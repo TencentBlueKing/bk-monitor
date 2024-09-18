@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Inject } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive } from 'vue-property-decorator';
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
@@ -36,7 +36,7 @@ import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, MONITOR_LINE_OPTIONS } from '../../constants';
-import { createMenuList, reviewInterval } from '../../utils';
+import { createMenuList, type CustomChartConnector, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
@@ -53,6 +53,7 @@ export default class ApmTimeSeries extends TimeSeries {
     id: string,
     customRouterQuery: Record<string, number | string>
   ) => void;
+  @InjectReactive('customChartConnector') customChartConnector: CustomChartConnector;
 
   contextmenuInfo = {
     options: [
@@ -71,6 +72,9 @@ export default class ApmTimeSeries extends TimeSeries {
 
   /* 错误数图表维度分类 */
   errorCountCategory: Record<string, string> = {};
+
+  /* 用于customChartConnector */
+  chartId = random(8);
 
   get apmMetric(): EDataType {
     return (this.panel.options?.apm_time_series?.metric || '') as EDataType;
@@ -151,7 +155,7 @@ export default class ApmTimeSeries extends TimeSeries {
     }
     try {
       this.unregisterOberver();
-      let series = [];
+      const series = [];
       const metrics = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       let params = {
@@ -198,13 +202,6 @@ export default class ApmTimeSeries extends TimeSeries {
               item.apiFunc
             ),
           };
-          // 主机监控ipv6特殊逻辑 用于去除不必要的group_by字段
-          if (item.ignore_group_by?.length && newPrarams.query_configs.some(set => set.group_by?.length)) {
-            newPrarams.query_configs = newPrarams.query_configs.map(config => ({
-              ...config,
-              group_by: config.group_by.filter(key => !item.ignore_group_by.includes(key)),
-            }));
-          }
           return (this as any).$api[item.apiModule]
             [item.apiFunc](newPrarams, {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
@@ -215,9 +212,7 @@ export default class ApmTimeSeries extends TimeSeries {
               res.metrics && metrics.push(...res.metrics);
               series.push(
                 ...res.series.map(set => {
-                  const name = `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
-                    this.handleSeriesName(item, set) || set.target
-                  }`;
+                  const name = `${this.handleSeriesName(item, set) || set.target}`;
                   if (this.apmMetric === EDataType.errorCount) {
                     this.errorCountCategory[name] = (item as any)?.apm_time_series_category || '';
                   }
@@ -244,23 +239,10 @@ export default class ApmTimeSeries extends TimeSeries {
         /* 派出图表数据包含的维度*/
         this.emitDimensions(series);
         this.series = Object.freeze(series) as any;
-        if (this.onlyOneResult) {
-          let hasResultSeries = false;
-          series = series.filter(item => {
-            const pass = !(hasResultSeries && item.alias === '_result_');
-            pass && (hasResultSeries = true);
-            return pass;
-          });
-        }
-        if (this.nearSeriesNum) {
-          series = series.slice(0, this.nearSeriesNum);
-        }
-        const seriesResult = series
-          .filter(item => ['extra_info', '_result_'].includes(item.alias))
-          .map(item => ({
-            ...item,
-            datapoints: item.datapoints.map(point => [JSON.parse(point[0])?.anomaly_score ?? point[0], point[1]]),
-          }));
+        const seriesResult = series.map(item => ({
+          ...item,
+          datapoints: item.datapoints.map(point => [JSON.parse(point[0])?.anomaly_score ?? point[0], point[1]]),
+        }));
         const isBar = this.panel.options?.time_series?.type === 'bar';
         let seriesList = this.handleTransformSeries(
           seriesResult.map((item, index) => ({
@@ -280,12 +262,6 @@ export default class ApmTimeSeries extends TimeSeries {
           })) as any,
           isBar ? COLOR_LIST_BAR : COLOR_LIST
         );
-        const boundarySeries = seriesResult
-          .map(item => this.handleBoundaryList(item, series))
-          .flat(Number.POSITIVE_INFINITY);
-        if (boundarySeries) {
-          seriesList = [...seriesList.map((item: any) => ({ ...item, z: 6 })), ...boundarySeries];
-        }
         seriesList = seriesList.map((item: any) => ({
           ...item,
           minBase: this.minBase,
@@ -324,7 +300,7 @@ export default class ApmTimeSeries extends TimeSeries {
           }
         }
         const formatterFunc = this.handleSetFormatterFunc(seriesList[0].data);
-        const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
+        const { canScale, maxThreshold } = this.handleSetThreholds();
 
         let chartBaseOptions = MONITOR_LINE_OPTIONS;
         if (this.disableZoom) {
@@ -344,6 +320,8 @@ export default class ApmTimeSeries extends TimeSeries {
           { arrayMerge: (_, newArr) => newArr }
         );
         const xInterval = getTimeSeriesXInterval(maxXInterval, this.width, maxSeriesCount);
+        const width = (this.$refs?.baseChart as any)?.clientWidth;
+        const splitNumber = Math.ceil(width / 100);
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
@@ -365,17 +343,13 @@ export default class ApmTimeSeries extends TimeSeries {
               minInterval: 1,
               scale: this.height < 120 ? false : canScale,
               max: v => Math.max(v.max, +maxThreshold),
-              min: v => {
-                let min = Math.min(v.min, +minThreshold);
-                // 柱状图y轴不能以最小值作为起始点
-                if (isBar) min = min <= 10 ? 0 : min - 10;
-                return min;
-              },
+              min: 0,
             },
             xAxis: {
               axisLabel: {
                 formatter: formatterFunc || '{value}',
               },
+              splitNumber,
               ...xInterval,
               ...(this.xAxisSplitNumber ? { splitNumber: this.xAxisSplitNumber } : {}),
             },
@@ -396,6 +370,7 @@ export default class ApmTimeSeries extends TimeSeries {
         }
         setTimeout(() => {
           this.handleResize();
+          this.setChartInstance();
         }, 100);
       } else {
         this.inited = this.metrics.length > 0;
@@ -469,6 +444,18 @@ export default class ApmTimeSeries extends TimeSeries {
     this.detailsSideData.show = false;
   }
 
+  /* 与非echarts图联动时需要调用此函数（存储实例） */
+  setChartInstance() {
+    if (this.panel.dashboardId === this.customChartConnector?.groupId) {
+      this.customChartConnector.setChartInstance(this.chartId, this.$refs?.baseChart);
+    }
+  }
+  /* 与非echarts图联动时需要调用此函数 (联动动作) */
+  handleUpdateAxisPointer(event) {
+    if (this.panel.dashboardId === this.customChartConnector?.groupId) {
+      this.customChartConnector.updateAxisPointer(this.chartId, event?.axesInfo?.[0]?.value || 0);
+    }
+  }
   render() {
     const { legend } = this.panel?.options || { legend: {} };
     return (
@@ -493,7 +480,24 @@ export default class ApmTimeSeries extends TimeSeries {
             onMetricClick={this.handleMetricClick}
             onSelectChild={this.handleSelectChildMenu}
             onUpdateDragging={() => this.panel.updateDraging(false)}
-          />
+          >
+            {this.enableContextmenu && (
+              <div
+                class='context-menu-info'
+                onClick={e => e.stopPropagation()}
+              >
+                <i class='icon-monitor icon-mc-mouse mouse-icon' />
+                {this.$t('右键更多操作')}
+                <bk-button
+                  size='small'
+                  text
+                  onClick={() => this.handleClickMenuItem('details')}
+                >
+                  {this.$t('查看详情')}
+                </bk-button>
+              </div>
+            )}
+          </ChartHeader>
         )}
         {this.panel.options?.logHeader && (
           <div class='log-header'>
@@ -525,10 +529,12 @@ export default class ApmTimeSeries extends TimeSeries {
                   needTooltips={this.needTips}
                   options={this.options}
                   showRestore={this.showRestore}
+                  sortTooltipsValue={false}
                   tooltipsContentLastItemFn={this.tooltipsContentLastItem}
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}
                   onRestore={this.handleRestore}
+                  onUpdateAxisPointer={this.handleUpdateAxisPointer}
                 />
               )}
             </div>

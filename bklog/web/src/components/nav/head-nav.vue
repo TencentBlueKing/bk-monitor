@@ -67,7 +67,6 @@
       <bk-dropdown-menu
         v-if="isShowGlobalSetIcon"
         align="center"
-        trigger="click"
         @hide="dropdownGlobalHide"
         @show="dropdownGlobalShow"
       >
@@ -101,19 +100,20 @@
       <!-- 语言 -->
       <bk-dropdown-menu
         align="center"
-        trigger="click"
         @hide="dropdownLanguageHide"
         @show="dropdownLanguageShow"
       >
         <template #dropdown-trigger>
-          <div
-            class="icon-language-container"
-            :class="isShowLanguageDropdown && 'active'"
-          >
+          <div class="icon-language-container">
             <div class="icon-circle-container">
-              <img
-                class="icon-language"
-                :src="language === 'en' ? require('@/images/icons/en.svg') : require('@/images/icons/zh.svg')"
+              <div
+                :class="[
+                  'icon-language',
+                  {
+                    active: isShowLanguageDropdown,
+                  },
+                  language === 'en' ? 'bk-icon icon-english' : 'bk-icon icon-chinese',
+                ]"
               />
             </div>
           </div>
@@ -130,10 +130,7 @@
                 href="javascript:;"
                 @click="changeLanguage(item.id)"
               >
-                <img
-                  class="icon-language"
-                  :src="item.id === 'en' ? require('@/images/icons/en.svg') : require('@/images/icons/zh.svg')"
-                />
+                <span :class="['icon-language', getLanguageClass(item.id)]" />
                 {{ item.name }}
               </a>
             </li>
@@ -144,7 +141,6 @@
       <bk-dropdown-menu
         ref="dropdownHelp"
         align="center"
-        trigger="click"
         @hide="dropdownHelpHide"
         @show="dropdownHelpShow"
       >
@@ -190,7 +186,6 @@
       <log-version :dialog-show.sync="showLogVersion" />
       <bk-dropdown-menu
         align="center"
-        trigger="click"
         @hide="dropdownLogoutHide"
         @show="dropdownLogoutShow"
       >
@@ -202,7 +197,8 @@
             <span
               v-if="username"
               class="username"
-              >{{ username }}
+            >
+              {{ username }}
               <i class="bk-icon icon-down-shape"></i>
             </span>
           </div>
@@ -616,6 +612,9 @@
         this.$store.commit('updateGlobalActiveLabel', id);
         this.$store.commit('updateIsShowGlobalDialog', true);
       },
+      getLanguageClass(language) {
+        return language === 'en' ? 'bk-icon icon-english' : 'bk-icon icon-chinese';
+      },
     },
   };
 </script>
@@ -742,7 +741,7 @@
           width: 30px;
           height: 30px;
           content: '';
-          background: #424e5a;
+          background: #3b475e;
           border-radius: 50%;
           transform: translateX(-50%);
         }
@@ -761,6 +760,24 @@
 
         @include flex-center;
 
+        .username {
+          margin: 0 28px 0 6px;
+          font-size: 12px;
+          line-height: 20px;
+          color: #63656e;
+
+          &:hover {
+            color: #d3d9e4;
+            cursor: pointer;
+          }
+        }
+
+        &.active {
+          .username {
+            color: #d3d9e4;
+          }
+        }
+
         .icon-circle-container {
           width: 32px;
           height: 32px;
@@ -772,10 +789,6 @@
           .bklog-icon {
             font-size: 16px;
             transition: all 0.2s;
-          }
-
-          .icon-language {
-            width: 20px;
           }
         }
 
@@ -798,28 +811,11 @@
         cursor: pointer;
       }
 
-      .username {
-        margin: 0 28px 0 6px;
-        font-size: 12px;
-        line-height: 20px;
-        color: #63656e;
-
-        &:hover {
-          color: #3a84ff;
-          cursor: pointer;
-        }
-      }
-
       .bk-dropdown-list {
         .language-btn {
           a {
             display: flex;
             align-items: center;
-          }
-
-          .icon-language {
-            width: 20px;
-            margin-right: 2px;
           }
         }
 
@@ -827,6 +823,14 @@
           color: #3c96ff;
         }
       }
+    }
+
+    .icon-chinese::before {
+      content: '\e206';
+    }
+
+    .icon-english::before {
+      content: '\e207';
     }
   }
 

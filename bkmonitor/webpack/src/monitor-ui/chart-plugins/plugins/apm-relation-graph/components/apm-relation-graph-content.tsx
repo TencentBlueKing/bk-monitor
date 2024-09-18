@@ -28,8 +28,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './apm-relation-graph-content.scss';
 
-const sideTopoMinWidth = 400;
-const sideOverviewMinWidth = 320;
+const sideTopoMinWidth = 480;
+const sideOverviewMinWidth = 400;
 
 interface IProps {
   expanded?: string[];

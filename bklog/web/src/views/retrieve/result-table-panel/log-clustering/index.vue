@@ -355,9 +355,6 @@
         return this.exhibitAll && this.clusterSwitch && !this.isShowClusterStep;
       },
     },
-    mounted() {
-      this.requestFinger();
-    },
     watch: {
       totalFields: {
         deep: true,

@@ -83,7 +83,7 @@ export interface IBookMarkOptions {
   selector_panel?: IPanelModel;
   // 告警、策略统计数据
   overview_panel?: PanelModel;
-  // 动态获取panels 类似sevice_monitor
+  // 动态获取panels 类似service_monitor
   fetch_panels?: PanelModel;
   // 主机详情
   ai_panel?: PanelModel;
@@ -138,6 +138,7 @@ export class BookMarkModel implements IBookMark {
   aiPanel: PanelModel;
   // 策略、告警数据
   alarmPanel?: PanelModel;
+  allVariables: Set<string> = undefined;
   // 详情栏配置
   detailPanel?: PanelModel;
   // 动态获取panels 类似service_monitor的动态视图能力
@@ -178,9 +179,7 @@ export class BookMarkModel implements IBookMark {
   // 变量设置
   variables?: IVariableModel[] = [];
   constructor(public bookmark: IBookMark) {
-    Object.keys(bookmark).forEach(key => {
-      this[key] = bookmark[key];
-    });
+    Object.assign(this, { ...this.bookmark });
     if (this.options?.detail_panel) {
       this.detailPanel = new PanelModel(this.options.detail_panel);
     }
@@ -210,6 +209,20 @@ export class BookMarkModel implements IBookMark {
     if (bookmark.variables?.length) {
       this.variables = bookmark.variables.map(item => new VariableModel(item));
     }
+    this.allVariables = this.getAllVariables();
+  }
+  // dashboard tool menu list
+  get dashboardToolMenuList(): IMenuItem[] {
+    return [
+      { id: 'edit-tab', name: window.i18n.tc('编辑页签'), show: this.viewEditable },
+      { id: 'edit-variate', name: window.i18n.tc('编辑变量'), show: this.variableEditable },
+      { id: 'edit-dashboard', name: window.i18n.tc('编辑视图'), show: this.orderEditable },
+      {
+        id: 'view-demo',
+        name: window.i18n.tc('DEMO'),
+        show: window.space_list.some(item => item.is_demo),
+      },
+    ].filter(item => item.show);
   }
   // 所有视图ID
   // get allPanelId() {
@@ -225,19 +238,6 @@ export class BookMarkModel implements IBookMark {
   //   });
   //   return Array.from(tempSet) as string[];
   // }
-  // dashbord tool menu list
-  get dasbordToolMenuList(): IMenuItem[] {
-    return [
-      { id: 'edit-tab', name: window.i18n.tc('编辑页签'), show: this.viewEditable },
-      { id: 'edit-variate', name: window.i18n.tc('编辑变量'), show: this.variableEditable },
-      { id: 'edit-dashboard', name: window.i18n.tc('编辑视图'), show: this.orderEditable },
-      {
-        id: 'view-demo',
-        name: window.i18n.tc('DEMO'),
-        show: window.space_list.some(item => item.is_demo),
-      },
-    ].filter(item => item.show);
-  }
   // 左侧选择栏默认宽度
   get defaultSelectorPanelWidth() {
     return (this.selectorPanel.options?.selector_list?.status_filter ?? false) ? 400 : 240;
@@ -273,7 +273,7 @@ export class BookMarkModel implements IBookMark {
     // 自定义模式下特殊处理
     if (!this.hasGroup) {
       const list = [];
-      this.panels.forEach(item => {
+      for (const item of this.panels) {
         if (item.type === 'row') {
           list.push(
             ...item.panels
@@ -289,7 +289,7 @@ export class BookMarkModel implements IBookMark {
             name: item.title.toString(),
           });
         }
-      });
+      }
       return [
         {
           id: '__UN_GROUP__',
@@ -312,7 +312,7 @@ export class BookMarkModel implements IBookMark {
       }));
     }
     const list = [];
-    this.panels.forEach(item => {
+    for (const item of this.panels) {
       if (item.type === 'row') {
         list.push(
           ...item.panels.map(set => ({
@@ -325,7 +325,7 @@ export class BookMarkModel implements IBookMark {
           id: item.id.toString(),
           name: item.title.toString(),
         });
-    });
+    }
     return list;
   }
   // 设置视图的menu列表
@@ -360,8 +360,21 @@ export class BookMarkModel implements IBookMark {
   get viewEditable() {
     return !!this.options?.view_editable;
   }
+  getAllVariables() {
+    let str = JSON.stringify(this.bookmark);
+    const variableList = new Set<string>();
+    str = str.replace(/\${([^}]+)}/gm, (m, key) => {
+      variableList.add(key);
+      return key;
+    });
+    str.replace(/"\$([^"]+)"/gm, (m, key) => {
+      variableList.add(key);
+      return m;
+    });
+    return variableList;
+  }
   // 设置 和 判断是否有对应字段
-  hasPanelFileds(name: string, fieldName: string, panels: IPanelModel[]) {
+  hasPanelFields(name: string, fieldName: string, panels: IPanelModel[]) {
     if (!this[name]) {
       this[name] = panels.some(set => typeof set[fieldName] !== 'undefined');
     }
@@ -443,7 +456,7 @@ export interface IViewOptions {
   bk_target_ip?: string;
   // 用于动态判断panel是否显示
   matchFields?: Record<string, any>;
-  // 策略id 用于hostIntelligenAnomalyRange接口
+  // 策略id 用于hostIntelligentAnomalyRange接口
   strategy_id?: number | string;
   app_name?: string;
   service_name?: string;

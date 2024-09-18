@@ -3479,6 +3479,15 @@ class BkDataStorage(models.Model, StorageResultTable):
         """
         return {}
 
+    @property
+    def data_source(self):
+        """
+        对应的监控平台数据源ID
+        """
+        from metadata.models import DataSourceResultTable
+
+        return DataSourceResultTable.objects.filter(table_id=self.table_id).first().bk_data_id
+
     @classmethod
     def create_table(cls, table_id, is_sync_db=False, is_access_now=False, **kwargs):
         try:
@@ -3739,12 +3748,17 @@ class BkDataStorage(models.Model, StorageResultTable):
 
     def generate_bk_data_etl_config(self):
         from metadata.models.result_table import ResultTableField
+        from metadata.models.vm.constants import TimestampLen
+        from metadata.models.vm.utils import get_timestamp_len
 
         qs = ResultTableField.objects.filter(table_id=self.table_id)
         etl_dimension_assign = []
         etl_metric_assign = []
         etl_time_assign = []
         time_field_name = "time"
+
+        timestamp_len = get_timestamp_len(self.data_source)
+        time_format = TimestampLen.get_choice_value(timestamp_len)
 
         fields = []
         i = 1
@@ -3849,7 +3863,7 @@ class BkDataStorage(models.Model, StorageResultTable):
                 "conf": {
                     "timezone": 8,
                     "output_field_name": "timestamp",
-                    "time_format": "Unix Time Stamp(seconds)",
+                    "time_format": time_format,
                     "time_field_name": time_field_name,
                     "timestamp_len": 10,
                     "encoding": "UTF-8",

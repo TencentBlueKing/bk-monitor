@@ -946,18 +946,23 @@ export default class StrategyView extends tsc<IStrateViewProps> {
         {this.showViewContent
           ? [
               <strategy-view-tool
+                key='tool'
                 ref='tool'
                 on-change={this.handleToolPanelChange}
                 on-on-immediate-reflesh={this.handleRefreshView}
                 onTimezoneChange={this.handleRefreshView}
               />,
-              <div class='strategy-view-content'>
+              <div
+                key='strategy-view-content'
+                class='strategy-view-content'
+              >
                 {(this.metricQueryData.length > 0 &&
                   !this.loading &&
                   !this.metricQueryData.every(item => item.metricMetaId === 'bk_monitor|event')) ||
                 this.editMode === 'Source' ? (
                   [
                     <StrategyChart
+                      key={'chart'}
                       aiopsChartType={this.aiopsChartType}
                       chartType={this.chartType}
                       detectionConfig={this.detectionConfig}
@@ -980,7 +985,10 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                           onChange={this.handleShortcutsTypeChange}
                         >
                           {this.shortcutsList.map(sh => (
-                            <bk-radio value={sh.id}>
+                            <bk-radio
+                              key={sh.id}
+                              value={sh.id}
+                            >
                               {sh.id === EShortcutsType.NEAR ? (
                                 <i18n
                                   class='flex-center'
@@ -1060,6 +1068,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                   <div class='desc-content'>
                     {this.aiopsModelMdList.map((model, index) => (
                       <GroupPanel
+                        key={index}
                         defaultExpand={true}
                         expand={index === this.activeModelMd}
                         show-expand={true}
@@ -1106,6 +1115,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                 </div>
               ),
               <collect-chart
+                key='collect'
                 collect-list={this.collect.list}
                 show={this.collect.show}
                 total-count={this.collect.count}
@@ -1117,12 +1127,14 @@ export default class StrategyView extends tsc<IStrateViewProps> {
               if (this.isMultivariateAnomalyDetection && !!this.multivariateAnomalyDetectionParams?.metrics?.length) {
                 return [
                   <strategy-view-tool
+                    key='tool'
                     ref='tool'
                     on-change={this.handleToolPanelChange}
                     on-on-immediate-reflesh={this.handleRefreshView}
                     onTimezoneChange={this.handleRefreshView}
                   />,
                   <MultipleMetricView
+                    key='multiple'
                     metrics={this.multivariateAnomalyDetectionParams.metrics}
                     refleshKey={this.multivariateAnomalyDetectionParams.refleshKey}
                     strategyTarget={this.strategyTarget}
@@ -1132,6 +1144,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                       <div class='desc-content'>
                         {this.aiopsModelMdList.map((model, index) => (
                           <GroupPanel
+                            key={index}
                             defaultExpand={true}
                             expand={index === this.activeModelMd}
                             show-expand={true}
@@ -1170,6 +1183,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                     : allDescription
                   ).map(item => (
                     <div
+                      key={item.type}
                       class={[
                         'description-item',
                         { active: item.type === this.descriptionType && !this.isMultivariateAnomalyDetection },
