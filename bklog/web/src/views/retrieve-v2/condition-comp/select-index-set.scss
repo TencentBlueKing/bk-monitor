@@ -71,7 +71,7 @@
       width: 16px;
     }
 
-    .icon-star-shape {
+    .bklog-star-shape {
       color: #fe9c00;
     }
 
@@ -324,7 +324,7 @@
       @include flex-center();
     }
 
-    .top-label .icon-star-shape {
+    .top-label .bklog-star-shape {
       color: #ffb848;
     }
   }
@@ -516,7 +516,7 @@
       margin-right: 4px;
     }
 
-    .icon-star-shape {
+    .bklog-star-shape {
       color: #ffb848;
     }
 
@@ -598,7 +598,7 @@
     text-align: center;
   }
 
-  .icon-star-shape:before {
+  .bklog-star-shape:before {
     /* stylelint-disable-next-line declaration-no-important */
     content: '\e165' !important;
   }
