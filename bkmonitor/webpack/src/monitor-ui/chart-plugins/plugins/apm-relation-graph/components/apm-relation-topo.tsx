@@ -360,10 +360,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       this.$emit('serviceDetail', this.menuCfg.nodeModel);
     }
     if (type === 'link') {
-      const route = this.$router.resolve({
-        path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${url}`.replace(/\/\//g, '/'),
-      });
-      window.open(route.href, '_blank');
+      window.open(url, '_blank');
     }
 
     this.hideMenu();

@@ -84,7 +84,7 @@ export class ApdexChart extends LineChart {
   empty = true; // 是否为空
   emptyText = ''; // 空文案
   isFetchingData = false; // 是否正在获取数据
-
+  showMouseTips = false;
   async getPanelData(start_time?: string, end_time?: string) {
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
@@ -364,7 +364,7 @@ export class ApdexChart extends LineChart {
             title={this.panel.title}
             onUpdateDragging={() => this.panel.updateDraging(false)}
           >
-            {this.enableContextmenu && (
+            {this.enableContextmenu && this.showMouseTips && (
               <div class='context-menu-info'>
                 <i class='icon-monitor icon-mc-mouse mouse-icon' />
                 {this.$t('右键更多操作')}
@@ -378,6 +378,8 @@ export class ApdexChart extends LineChart {
               ref='chart'
               class='chart-instance'
               onContextmenu={this.handleChartContextmenu}
+              onMouseenter={() => (this.showMouseTips = true)}
+              onMouseleave={() => (this.showMouseTips = false)}
             >
               {this.inited && (
                 <BaseEchart
