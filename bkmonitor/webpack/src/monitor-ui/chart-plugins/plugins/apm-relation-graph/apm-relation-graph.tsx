@@ -34,7 +34,7 @@ import { dataTypeBarQuery } from 'monitor-api/modules/apm_topo';
 import { topoView } from 'monitor-api/modules/apm_topo';
 import { Debounce } from 'monitor-common/utils';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
-import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { getDateRange, getTimeDisplay, handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 
 import { CommonSimpleChart } from '../common-simple-chart';
@@ -205,7 +205,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   selectedIcon = '';
 
   nodeTipsMap = new Map();
-
+  timeTips = '';
   /* 展开列表 */
   get expandList() {
     return [
@@ -284,7 +284,18 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   get resourceDisable() {
     return this.showType === 'table' || !!this.selectedEndpoint || !this.selectedServiceName;
   }
-
+  setTimeTips() {
+    if (this.sliceTimeRange[0] && this.sliceTimeRange[1]) {
+      this.timeTips = getTimeDisplay(this.sliceTimeRange);
+      return;
+    }
+    if (this.timeRange.some(time => time.toString().includes('now'))) {
+      const dateRange = getDateRange(this.timeRange);
+      this.timeTips = getTimeDisplay([dateRange.startDate, dateRange.endDate]);
+      return;
+    }
+    this.timeTips = getTimeDisplay(this.timeRange);
+  }
   created() {
     this.getSliceTimeRange();
   }
@@ -341,6 +352,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.handleLoadingChange(true);
     try {
       this.unregisterOberver();
+      this.setTimeTips();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
@@ -402,8 +414,8 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.topoCancelFn?.();
     const cacheKey = JSON.stringify({
       ...params,
-      start_time: this.timeRange[0],
-      end_time: this.timeRange[1],
+      start_time: startTime,
+      end_time: endTime,
       metric_start_time: sliceTimeStart,
       metric_end_time: sliceTimeEnd,
     });
@@ -731,7 +743,9 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             onNodeClick={this.handleNodeClick}
             onResourceDrilling={this.handleResourceDrilling}
             onServiceDetail={this.handleServiceDetail}
-          />
+          >
+            <div slot='timeTips'>{this.timeTips}</div>
+          </ApmRelationTopo>
           {this.loading.topo && (
             <div class={{ 'apm-topo-empty-chart': true, 'all-loading': this.refreshTopoLayout }}>
               {this.refreshTopoLayout ? <div v-bkloading={{ isLoading: true }} /> : <bk-spin spinning />}

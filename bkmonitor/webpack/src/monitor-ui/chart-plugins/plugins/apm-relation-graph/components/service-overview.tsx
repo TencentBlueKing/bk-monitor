@@ -174,11 +174,12 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   @Watch('refleshImmediate')
   // 立刻刷新
   handleRefleshImmediateChange(v: string) {
-    if (v) this.initPanel();
+    if (v && this.serviceName && this.appName) this.initPanel();
   }
 
   @Debounce(200)
   initPanel() {
+    if (!this.serviceName || !this.appName) return;
     if (this.curType === 'endpoint') {
       this.tabActive = 'service';
     }
