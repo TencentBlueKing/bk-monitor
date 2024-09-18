@@ -51,6 +51,7 @@
     },
     onHiddenFn: () => {
       refSqlQueryOption.value?.beforeHideFn?.();
+      return true;
     },
   });
 
@@ -86,12 +87,16 @@
     editorInstance = CreateLuceneEditor({
       value: modelValue.value,
       target: refEditorParent.value,
+      stopDefaultKeyboard: () => {
+        return getTippyInstance()?.state?.isShown ?? false;
+      },
       onChange: e => onEditorContextChange(e),
       onKeyEnter: () => {
         closeAndRetrieve();
+        return true;
       },
       onFocusChange: isFocusing => {
-        if (isFocusing) {
+        if (isFocusing && !(getTippyInstance()?.state?.isShown ?? false)) {
           delayShowInstance(refEditorParent.value);
           return;
         }

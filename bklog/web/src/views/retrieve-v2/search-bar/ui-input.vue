@@ -72,6 +72,7 @@
 
         delayItemClickFn?.();
         delayItemClickFn = undefined;
+        return true;
       },
     });
 

@@ -158,7 +158,15 @@
     </div>
     <div
       class="search-input"
-      v-bkloading="{ isLoading: isInputLoading, size: 'mini' }"
+      v-bkloading="{
+        isLoading: isInputLoading,
+        size: 'mini',
+        mode: 'spin',
+        opacity: 1,
+        zIndex: 10,
+        theme: 'primary',
+        extCls: 'bklog-sql-input-loading',
+      }"
     >
       <UiInput
         v-if="activeIndex === 0"
@@ -194,4 +202,11 @@
 </template>
 <style scoped>
   @import './index.scss';
+</style>
+<style>
+  .bklog-sql-input-loading {
+    .bk-loading-wrapper {
+      left: 30px;
+    }
+  }
 </style>

@@ -75,6 +75,7 @@
     newInstance: true,
     onHiddenFn: () => {
       operatorActiveIndex.value = 0;
+      return true;
     },
     tippyOptions,
   });
@@ -83,10 +84,11 @@
   const conditionValueInstance = new PopInstanceUtil({
     refContent: refValueTagInputOptionList,
     arrow: false,
-    newInstance: true,
+    newInstance: false,
     watchElement: refConditionInput,
     onHiddenFn: () => {
       refValueTagInputOptionList.value?.querySelector('li.is-hover')?.classList.remove('is-hover');
+      return true;
     },
     tippyOptions,
   });
@@ -301,8 +303,10 @@
 
     if (activeItemMatchList.value.length > 0) {
       nextTick(() => {
-        const target = refValueTagInput.value.closest('.condition-value-container');
-        conditionValueInstance.show(target);
+        if (!conditionValueInstance.isShown()) {
+          const target = refValueTagInput.value.closest('.condition-value-container');
+          conditionValueInstance.show(target);
+        }
       });
     }
   };
@@ -365,6 +369,9 @@
    * @param {*} index
    */
   const handleTagItemClick = (value, index) => {
+    refValueTagInput.value.value = '';
+    conditionValueInputVal.value = '';
+
     if (!appendConditionValue(value)) {
       condition.value.value.splice(index, 1);
     }
@@ -404,7 +411,7 @@
    * 判断当前操作符选择下拉是否激活
    */
   const isOperatorInstanceActive = () => {
-    return operatorInstance.getTippyInstance()?.state?.isShown && activeFieldItem.value.field_operator?.length;
+    return operatorInstance.isShown() && activeFieldItem.value.field_operator?.length;
   };
 
   /**
@@ -649,6 +656,10 @@
   };
 
   const handleConditionValueInputBlur = e => {
+    if (conditionValueInstance.isShown()) {
+      return;
+    }
+
     isConditionValueInputFocus.value = false;
     if (e.target.value) {
       const value = e.target.value;
