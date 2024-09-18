@@ -3048,7 +3048,7 @@ class CollectorHandler(object):
             else:
                 collector_config_name = ""
 
-            is_collector_deleted = (
+            is_collector_deleted = bool(
                 collector["std_collector_config"].index_set_id and collector["path_collector_config"].index_set_id
             )
 
