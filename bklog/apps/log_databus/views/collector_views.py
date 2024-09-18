@@ -2108,11 +2108,7 @@ class CollectorViewSet(ModelViewSet):
             raise BkJwtVerifyException()
         data = self.params_valid(BCSCollectorSerializer)
         rule_id = int(collector_config_id)
-        return Response(
-            CollectorHandler().update_bcs_container_config(
-                data=data, rule_id=rule_id, bk_app_code=auth_info["bk_app_code"]
-            )
-        )
+        return Response(CollectorHandler().update_bcs_container_config(data=data, rule_id=rule_id))
 
     @detail_route(methods=["POST"], url_path="retry_bcs_collector")
     def retry_bcs_collector(self, request, collector_config_id=None):
