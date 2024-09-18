@@ -202,8 +202,8 @@ importers:
   src/fta-solutions:
     dependencies:
       '@blueking/bk-weweb':
-        specifier: 0.0.26-beta.1
-        version: 0.0.26-beta.1
+        specifier: 0.0.26-beta.5
+        version: 0.0.26-beta.5
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -345,8 +345,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/bk-weweb':
-        specifier: 0.0.26-beta.1
-        version: 0.0.26-beta.1
+        specifier: 0.0.26-beta.5
+        version: 0.0.26-beta.5
       '@blueking/bkui-library':
         specifier: 0.0.0-beta.4
         version: 0.0.0-beta.4
@@ -484,8 +484,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/monitor-resource-topo':
-        specifier: 0.0.1-beta.36
-        version: 0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16)
+        specifier: 0.0.1-beta.35
+        version: 0.0.1-beta.35(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16)
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.9
         version: 0.0.1-beta.9(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@1.0.3-beta.69)(vue@2.7.16)
@@ -2411,8 +2411,8 @@ packages:
     dev: true
     optional: true
 
-  /@blueking/bk-weweb@0.0.26-beta.1:
-    resolution: {integrity: sha512-rWN9XLacXGjM0WXQAXmUzF3/XylxrmqZ3vTZRTL+CBSFABlC2UMvI95Zy1FXjnMh4gk4/IoWuFRWp9CZP73a1Q==}
+  /@blueking/bk-weweb@0.0.26-beta.5:
+    resolution: {integrity: sha512-t2zoYKAbnydNdRpBXsN9TOaU8IEEsxSkjyhUQ1q6QBAHg0fyUhpNJvay1exP/FzFwHyGB++0mQ1rpzCnW//BUg==}
     engines: {node: '>=14.18.1'}
     dev: false
 
@@ -2670,8 +2670,8 @@ packages:
     resolution: {integrity: sha512-iTiajeVT+hm0f+X93sfnm98OD1lmr+Q3m4/Hv6vnh126ZWwhNBavgzcCBLnhog9T5mLWeZH9dq8g9ltM4fI3FA==}
     dev: false
 
-  /@blueking/monitor-resource-topo@0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16):
-    resolution: {integrity: sha512-Bfe2w5AnFKX35zuu9Y0f4B6e4nkEjRRFvnvXfi5xxfzNkSmhjk4plWh+iOgxUJF6BA3qyCkhSCszjjzLUeheFw==}
+  /@blueking/monitor-resource-topo@0.0.1-beta.35(@blueking/bkui-library@0.0.0-beta.4)(vue@2.7.16):
+    resolution: {integrity: sha512-ocE9dKShEA41hv4mRwZcBPCg1b3ERaeJjw2asRUOzVsb/xyARvEN3mBUOMgbvKRS73YszDoGssOZZsYc7pXrJQ==}
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
