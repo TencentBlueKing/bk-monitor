@@ -1969,7 +1969,7 @@ class AlertQueryResource(Resource):
             series = []
             for i in response["series"]:
                 # 查询告警这个接口会返回多一个点 这里将时间点控制为符合 bar_size 的个数
-                series.append({**i, "data": i["data"][: self.bar_size]})
+                series.append({**i, "data": i["data"]})
             alert_level_result[level] = {"series": series, "unit": ""}
         return alert_level_result
 
