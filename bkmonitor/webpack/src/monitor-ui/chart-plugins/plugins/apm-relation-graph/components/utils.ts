@@ -94,16 +94,17 @@ export const alarmBarChartDataTransform = (dataType: EDataType, series: any[]) =
   if (dataType === EDataType.Alert) {
     /* 1：致命 2：预警  其他：无告警 */
     return (
-      series?.[0]?.datapoints?.[0]?.map(item => {
+      series?.[0]?.datapoints?.map(item => {
         const typeValue = item[0][0];
         const value = item[0][1];
         const time = item[1];
         let type = EAlarmType.green;
         if (typeValue === 1) {
           type = EAlarmType.red;
-        }
-        if (typeValue === 2) {
+        } else if (typeValue === 2) {
           type = EAlarmType.yellow;
+        } else if (value === null) {
+          type = EAlarmType.gray;
         }
         return { type, time, value };
       }) || []
@@ -116,7 +117,9 @@ export const alarmBarChartDataTransform = (dataType: EDataType, series: any[]) =
         const typeValue = item[0];
         const time = item[1];
         let type = EAlarmType.yellow;
-        if (typeValue > 0.75) {
+        if (typeValue === null) {
+          type = EAlarmType.gray;
+        } else if (typeValue > 0.75) {
           type = EAlarmType.green;
         } else if (typeValue <= 0.25) {
           type = EAlarmType.red;
@@ -135,7 +138,9 @@ export const alarmBarChartDataTransform = (dataType: EDataType, series: any[]) =
       const typeValue = item[0];
       const time = item[1];
       let type = EAlarmType.red;
-      if (typeValue === 0) {
+      if (typeValue === null) {
+        type = EAlarmType.gray;
+      } else if (typeValue === 0) {
         type = EAlarmType.green;
       } else if (typeValue <= 0.1) {
         type = EAlarmType.yellow;

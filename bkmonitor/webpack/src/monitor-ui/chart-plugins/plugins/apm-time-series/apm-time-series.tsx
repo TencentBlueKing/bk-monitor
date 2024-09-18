@@ -75,6 +75,8 @@ export default class ApmTimeSeries extends TimeSeries {
 
   /* 用于customChartConnector */
   chartId = random(8);
+  /* 是否显示鼠标提示 */
+  showMouseTips = false;
 
   get apmMetric(): EDataType {
     return (this.panel.options?.apm_time_series?.metric || '') as EDataType;
@@ -220,6 +222,8 @@ export default class ApmTimeSeries extends TimeSeries {
                     ...set,
                     stack,
                     name: name,
+                    yAxisIndex: item.yAxisIndex || 0,
+                    chart_type: item.chart_type,
                   };
                 })
               );
@@ -239,10 +243,16 @@ export default class ApmTimeSeries extends TimeSeries {
         /* 派出图表数据包含的维度*/
         this.emitDimensions(series);
         this.series = Object.freeze(series) as any;
+        const xAxisSet = new Set<number>();
         const seriesResult = series.map(item => ({
           ...item,
-          datapoints: item.datapoints.map(point => [JSON.parse(point[0])?.anomaly_score ?? point[0], point[1]]),
+          datapoints: item.datapoints.map(point => {
+            xAxisSet.add(point[1]);
+            return [JSON.parse(point[0])?.anomaly_score ?? point[0], point[1]];
+          }),
         }));
+        const xAxisList = Array.from(xAxisSet).sort();
+        console.info(xAxisList);
         const isBar = this.panel.options?.time_series?.type === 'bar';
         let seriesList = this.handleTransformSeries(
           seriesResult.map((item, index) => ({
@@ -259,6 +269,8 @@ export default class ApmTimeSeries extends TimeSeries {
             markArea: this.createMarkArea(item, index),
             z: 1,
             traceData: item.trace_data ?? '',
+            yAxisIndex: item.yAxisIndex || 0,
+            chart_type: item.chart_type || undefined,
           })) as any,
           isBar ? COLOR_LIST_BAR : COLOR_LIST
         );
@@ -274,6 +286,7 @@ export default class ApmTimeSeries extends TimeSeries {
               value: [set.value[0], set.value[1] !== null ? set.value[1] + this.minBase : null],
             };
           }),
+          type: item.chart_type || item.type,
         }));
         this.seriesList = Object.freeze(seriesList) as any;
         // 1、echarts animation 配置会影响数量大时的图表性能 掉帧
@@ -327,24 +340,44 @@ export default class ApmTimeSeries extends TimeSeries {
             animation: hasShowSymbol,
             color: isBar ? COLOR_LIST_BAR : COLOR_LIST,
             animationThreshold: 1,
-            yAxis: {
-              axisLabel: {
-                formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
-                  ? (v: any) => {
-                      if (seriesList[0].unit !== 'none') {
-                        const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
-                        return obj.text + (this.yAxisNeedUnitGetter ? obj.suffix : '');
-                      }
-                      return v;
+            yAxis: [
+              {
+                axisLabel: {
+                  formatter: (v: any) => {
+                    const item = seriesList.find(item => item.yAxisIndex === 0);
+                    if (item.unit !== 'none') {
+                      const obj = getValueFormat(item.unit)(v, item.precision);
+                      return obj.text + (this.yAxisNeedUnitGetter ? obj.suffix : '');
                     }
-                  : (v: number) => this.handleYxisLabelFormatter(v - this.minBase),
+                    return v;
+                  },
+                },
+                splitNumber: this.height < 120 ? 2 : 4,
+                minInterval: 1,
+                scale: this.height < 120 ? false : canScale,
+                max: v => Math.max(v.max, +maxThreshold),
+                min: 0,
+                position: 'left',
               },
-              splitNumber: this.height < 120 ? 2 : 4,
-              minInterval: 1,
-              scale: this.height < 120 ? false : canScale,
-              max: v => Math.max(v.max, +maxThreshold),
-              min: 0,
-            },
+              {
+                axisLabel: {
+                  formatter: (v: any) => {
+                    const item = seriesList.find(item => item.yAxisIndex === 1);
+                    if (item.unit !== 'none') {
+                      const obj = getValueFormat(item.unit)(v, item.precision);
+                      return obj.text + (this.yAxisNeedUnitGetter ? obj.suffix : '');
+                    }
+                    return v;
+                  },
+                },
+                position: 'right',
+                splitNumber: this.height < 120 ? 2 : 4,
+                minInterval: 1,
+                scale: this.height < 120 ? false : canScale,
+                max: v => Math.max(v.max, +maxThreshold),
+                min: 0,
+              },
+            ],
             xAxis: {
               axisLabel: {
                 formatter: formatterFunc || '{value}',
@@ -456,10 +489,13 @@ export default class ApmTimeSeries extends TimeSeries {
       this.customChartConnector.updateAxisPointer(this.chartId, event?.axesInfo?.[0]?.value || 0);
     }
   }
+  handleBaseChartMouseover(v: boolean) {
+    this.showMouseTips = v;
+  }
   render() {
     const { legend } = this.panel?.options || { legend: {} };
     return (
-      <div class='time-series'>
+      <div class='time-series apm-time-series'>
         {this.showChartHeader && (
           <ChartHeader
             class='draggable-handle'
@@ -486,8 +522,14 @@ export default class ApmTimeSeries extends TimeSeries {
                 class='context-menu-info'
                 onClick={e => e.stopPropagation()}
               >
-                <i class='icon-monitor icon-mc-mouse mouse-icon' />
-                {this.$t('右键更多操作')}
+                {this.showMouseTips && [
+                  <i
+                    key='1'
+                    class='icon-monitor icon-mc-mouse mouse-icon'
+                  />,
+                  this.$t('右键更多操作'),
+                ]}
+
                 <bk-button
                   size='small'
                   text
@@ -517,6 +559,8 @@ export default class ApmTimeSeries extends TimeSeries {
               ref='chart'
               class={`chart-instance ${legend?.displayMode === 'table' ? 'is-table-legend' : ''}`}
               onContextmenu={this.handleChartContextmenu}
+              onMouseenter={() => this.handleBaseChartMouseover(true)}
+              onMouseleave={() => this.handleBaseChartMouseover(false)}
             >
               {this.inited && (
                 <BaseEchart
