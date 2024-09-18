@@ -286,21 +286,23 @@
   @import 'tippy.js/dist/tippy.css';
 </style>
 <style>
-  [data-theme='log-light'] {
-    color: #63656e;
-    background-color: #fff;
-    box-shadow: 0 2px 6px 0 #0000001a;
+  .tippy-box {
+    &[data-theme='log-light'] {
+      color: #63656e;
+      background-color: #fff;
+      box-shadow: 0 2px 6px 0 #0000001a;
 
-    .tippy-content {
-      padding: 0;
-    }
+      .tippy-content {
+        padding: 0;
+      }
 
-    .tippy-arrow {
-      color: #fff;
+      .tippy-arrow {
+        color: #fff;
 
-      &::after {
-        background-color: #fff;
-        box-shadow: 0 2px 6px 0 #0000001a;
+        &::after {
+          background-color: #fff;
+          box-shadow: 0 2px 6px 0 #0000001a;
+        }
       }
     }
   }
