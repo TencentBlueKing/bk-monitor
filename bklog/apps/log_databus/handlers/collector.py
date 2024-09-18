@@ -3283,16 +3283,14 @@ class CollectorHandler(object):
 
         return {
             "rule_id": bcs_rule.id,
-            "rule_file_index_set_id": path_collector_config.index_set_id if path_collector_config else "",
-            "rule_file_collector_config_id": path_collector_config.collector_config_id if path_collector_config else "",
-            "rule_std_index_set_id": std_collector_config.index_set_id if std_collector_config else "",
-            "rule_std_collector_config_id": std_collector_config.collector_config_id if std_collector_config else "",
-            "file_index_set_id": path_collector_config.index_set_id
-            if path_collector_config
-            else "",  # TODO: 兼容代码4.8需删除
-            "std_index_set_id": std_collector_config.index_set_id if std_collector_config else "",  # TODO: 兼容代码4.8需删除
-            "bk_data_id": path_collector_config.bk_data_id if path_collector_config else "",
-            "stdout_conf": {"bk_data_id": std_collector_config.bk_data_id if std_collector_config else ""},
+            "rule_file_index_set_id": path_collector_config.index_set_id if path_collector_config else 0,
+            "rule_file_collector_config_id": path_collector_config.collector_config_id if path_collector_config else 0,
+            "rule_std_index_set_id": std_collector_config.index_set_id if std_collector_config else 0,
+            "rule_std_collector_config_id": std_collector_config.collector_config_id if std_collector_config else 0,
+            "file_index_set_id": path_collector_config.index_set_id if path_collector_config else 0,  # TODO: 兼容代码4.8需删除
+            "std_index_set_id": std_collector_config.index_set_id if std_collector_config else 0,  # TODO: 兼容代码4.8需删除
+            "bk_data_id": path_collector_config.bk_data_id if path_collector_config else 0,
+            "stdout_conf": {"bk_data_id": std_collector_config.bk_data_id if std_collector_config else 0},
         }
 
     def sync_bcs_container_task(self, data: Dict[str, Any]):
@@ -3568,12 +3566,12 @@ class CollectorHandler(object):
 
         return {
             "rule_id": rule_id,
-            "rule_file_index_set_id": path_collector.index_set_id if path_collector else "",
-            "rule_std_index_set_id": std_collector.index_set_id if std_collector else "",
-            "file_index_set_id": path_collector.index_set_id if path_collector else "",  # TODO: 兼容代码4.8需删除
-            "std_index_set_id": std_collector.index_set_id if std_collector else "",  # TODO: 兼容代码4.8需删除
-            "bk_data_id": path_collector.bk_data_id if path_collector else "",
-            "stdout_conf": {"bk_data_id": std_collector.bk_data_id if std_collector else ""},
+            "rule_file_index_set_id": path_collector.index_set_id if path_collector else 0,
+            "rule_std_index_set_id": std_collector.index_set_id if std_collector else 0,
+            "file_index_set_id": path_collector.index_set_id if path_collector else 0,  # TODO: 兼容代码4.8需删除
+            "std_index_set_id": std_collector.index_set_id if std_collector else 0,  # TODO: 兼容代码4.8需删除
+            "bk_data_id": path_collector.bk_data_id if path_collector else 0,
+            "stdout_conf": {"bk_data_id": std_collector.bk_data_id if std_collector else 0},
         }
 
     def deal_self_call(self, **kwargs):
