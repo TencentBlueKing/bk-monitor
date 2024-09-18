@@ -2974,6 +2974,9 @@ class CollectorHandler(object):
                         "match_labels": container_config.match_labels,
                         "match_expressions": container_config.match_expressions,
                     },
+                    "annotation_selector": {
+                        "match_annotations": container_config.match_annotations,
+                    },
                     "all_container": container_config.all_container,
                     "status": container_config.status,
                     "status_detail": container_config.status_detail,
@@ -3024,6 +3027,7 @@ class CollectorHandler(object):
             path_container_config_dict[path_container_config.collector_config_id].append(path_container_config)
         for std_container_config in std_container_config_list:
             std_container_config_dict[std_container_config.parent_container_config_id].append(std_container_config)
+            std_container_config_dict[std_container_config.collector_config_id].append(std_container_config)
 
         result = []
         for rule_id, collector in rule_dict.items():
@@ -3071,7 +3075,10 @@ class CollectorHandler(object):
                 "container_config": [],
             }
 
-            collector_config_id = collector["path_collector_config"].collector_config_id
+            collector_config_id = (
+                collector["path_collector_config"].collector_config_id
+                or collector["std_collector_config"].collector_config_id
+            )
             container_configs = path_container_config_dict.get(collector_config_id) or std_container_config_dict.get(
                 collector_config_id
             )
@@ -3097,6 +3104,9 @@ class CollectorHandler(object):
                         "label_selector": {
                             "match_labels": container_config.match_labels,
                             "match_expressions": container_config.match_expressions,
+                        },
+                        "annotation_selector": {
+                            "match_annotations": container_config.match_annotations,
                         },
                         "all_container": container_config.all_container,
                         "status": container_config.status,
@@ -3225,8 +3235,11 @@ class CollectorHandler(object):
             container_name = config["container"].get("container_name", "")
             match_labels = config["label_selector"].get("match_labels", [])
             match_expressions = config["label_selector"].get("match_expressions", [])
+            match_annotations = config["annotation_selector"].get("match_annotations", [])
 
-            is_all_container = not any([workload_type, workload_name, container_name, match_labels, match_expressions])
+            is_all_container = not any(
+                [workload_type, workload_name, container_name, match_labels, match_expressions, match_annotations]
+            )
 
             if config["paths"]:
                 # 配置了文件路径才需要下发路径采集
@@ -3249,6 +3262,7 @@ class CollectorHandler(object):
                         container_name=container_name,
                         match_labels=match_labels,
                         match_expressions=match_expressions,
+                        match_annotations=match_annotations,
                         all_container=is_all_container,
                         rule_id=bcs_rule.id,
                     )
@@ -3274,6 +3288,7 @@ class CollectorHandler(object):
                         container_name=container_name,
                         match_labels=match_labels,
                         match_expressions=match_expressions,
+                        match_annotations=match_annotations,
                         all_container=is_all_container,
                         rule_id=bcs_rule.id,
                         parent_container_config_id=parent_container_config_id,
