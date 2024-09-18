@@ -30,7 +30,6 @@ from django.db import IntegrityError, transaction
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
 from rest_framework import serializers
-from six.moves import map
 
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.request import get_request
@@ -77,6 +76,7 @@ from monitor_web.plugin.serializers import (
     DataDogSerializer,
     ExporterSerializer,
     JmxSerializer,
+    K8sSerializer,
     LogSerializer,
     PluginRegisterRequestSerializer,
     ProcessSerializer,
@@ -203,6 +203,7 @@ class CreatePluginResource(Resource):
         CollectorPluginMeta.PluginType.PROCESS: ProcessSerializer,
         CollectorPluginMeta.PluginType.SNMP_TRAP: SNMPTrapSerializer,
         CollectorPluginMeta.PluginType.SNMP: SNMPSerializer,
+        CollectorPluginMeta.PluginType.K8S: K8sSerializer,
     }
 
     def validate_request_data(self, request_data):
@@ -212,32 +213,30 @@ class CreatePluginResource(Resource):
             raise UnsupportedPluginTypeError({"plugin_type", request_data.get("plugin_type")})
         return super(CreatePluginResource, self).validate_request_data(request_data)
 
-    def perform_request(self, validated_request_data):
-        plugin_id = validated_request_data["plugin_id"]
-        plugin_type = validated_request_data["plugin_type"]
-        import_plugin_metric_json = validated_request_data.get("import_plugin_metric_json")
+    def perform_request(self, params):
+        plugin_id = params["plugin_id"]
+        plugin_type = params["plugin_type"]
+        import_plugin_metric_json = params.get("import_plugin_metric_json")
         with transaction.atomic():
             plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=plugin_type)
-            plugin_manager.validate_config_info(
-                validated_request_data["collector_json"], validated_request_data["config_json"]
-            )
+            plugin_manager.validate_config_info(params["collector_json"], params["config_json"])
             try:
                 self.request_serializer.save()
             except IntegrityError:
                 raise PluginIDExist({"msg": plugin_id})
-            version, need_debug = plugin_manager.create_version(validated_request_data)
+            version, need_debug = plugin_manager.create_version(params)
 
             # 如果是新导入的插件，则需要保存其metric_json
             if import_plugin_metric_json:
                 version.info.metric_json = import_plugin_metric_json
                 version.info.save()
 
-        validated_request_data["config_version"] = version.config_version
-        validated_request_data["info_version"] = version.info_version
-        validated_request_data["os_type_list"] = version.os_type_list
-        validated_request_data["need_debug"] = check_skip_debug(need_debug)
-        validated_request_data["signature"] = Signature(version.signature).dumps2yaml() if version.signature else ""
-        return validated_request_data
+        params["config_version"] = version.config_version
+        params["info_version"] = version.info_version
+        params["os_type_list"] = version.os_type_list
+        params["need_debug"] = check_skip_debug(need_debug)
+        params["signature"] = Signature(version.signature).dumps2yaml() if version.signature else ""
+        return params
 
 
 class PluginRegisterResource(Resource):

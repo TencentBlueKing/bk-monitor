@@ -8,9 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import logging
+import os
 from copy import copy
 from typing import Any, Dict
 
+from django.conf import settings
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
@@ -49,6 +51,8 @@ from monitor_web.models import (
 )
 from monitor_web.plugin.constant import PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
+from monitor_web.plugin.manager.log import LogPluginManager
+from monitor_web.plugin.manager.process import ProcessPluginManager
 from monitor_web.strategies.loader.datalink_loader import (
     DatalinkDefaultAlarmStrategyLoader,
 )
@@ -950,24 +954,58 @@ class SaveCollectConfigResource(Resource):
             rules = data["params"]["log"]["rules"]
             if "id" not in data:
                 plugin_id = "log_" + str(shortuuid.uuid())
-                plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=PluginType.LOG)
+                plugin_manager: LogPluginManager = PluginManagerFactory.get_manager(
+                    plugin=plugin_id, plugin_type=PluginType.LOG
+                )
                 params = plugin_manager.get_params(plugin_id, bk_biz_id, label, rules=rules)
                 resource.plugin.create_plugin(params)
             else:
-                plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=PluginType.LOG)
+                plugin_manager: LogPluginManager = PluginManagerFactory.get_manager(
+                    plugin=plugin_id, plugin_type=PluginType.LOG
+                )
                 params = plugin_manager.get_params(plugin_id, bk_biz_id, label, rules=rules)
                 plugin_manager.update_version(params)
         # 虚拟进程采集器
         elif data["collect_type"] == CollectConfigMeta.CollectType.PROCESS:
-            plugin_manager = PluginManagerFactory.get_manager("bkprocessbeat", plugin_type=PluginType.PROCESS)
+            plugin_manager: ProcessPluginManager = PluginManagerFactory.get_manager(
+                "bkprocessbeat", plugin_type=PluginType.PROCESS
+            )
             # 全局唯一
             plugin_manager.touch()
             plugin_id = plugin_manager.plugin.plugin_id
         elif data["collect_type"] == CollectConfigMeta.CollectType.SNMP_TRAP:
             plugin_id = resource.collecting.get_trap_collector_plugin(data)
         elif data["collect_type"] == CollectConfigMeta.CollectType.K8S:
-            # TODO: 自动创建k8s插件
-            pass
+            qcloud_exporter_image = os.getenv("QCLOUD_EXPORTER_IMAGE", "")
+            if not qcloud_exporter_image:
+                raise ValueError("QCLOUD_EXPORTER_IMAGE is not set")
+
+            with open(os.path.join(settings.BASE_DIR, "support-files/qcloud-exporter-template.yaml.jinja2"), "r") as f:
+                template = f.read()
+                values = {
+                    "image": qcloud_exporter_image,
+                    "requests": {"cpu": "10m", "memory": "20Mi"},
+                    "limits": {"cpu": "50m", "memory": "50Mi"},
+                }
+
+            plugin_id = f"qcloud_exporter_{data['bk_biz_id']}"
+            resource.plugin.create_plugin(
+                {
+                    "plugin_id": plugin_id,
+                    "bk_biz_id": bk_biz_id,
+                    "plugin_type": PluginType.K8S,
+                    "label": "other",
+                    "plugin_display_name": _("腾讯云指标采集"),
+                    "description_md": "",
+                    "logo": "",
+                    "version_log": "",
+                    "metric_json": [],
+                    "collector_json": {
+                        "template": template,
+                        "values": values,
+                    },
+                }
+            )
 
         collector_plugin = CollectorPluginMeta.objects.get(plugin_id=plugin_id)
         return collector_plugin

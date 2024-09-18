@@ -197,6 +197,14 @@ class ProcessSerializer(CollectorMetaSerializer):
     # labels = serializers.DictField(required=False, default={}, label="自定义标签")
 
 
+class K8sSerializer(CollectorMetaSerializer):
+    class CollectorJsonSerializer(serializers.Serializer):
+        template = serializers.CharField(label="模板文件")
+        values = serializers.JSONField(label="默认配置", default=dict)
+
+    collector_json = CollectorJsonSerializer(required=True, label="采集器配置")
+
+
 class DataDogSerializer(CollectorMetaSerializer):
     class CollectorJsonSerializer(serializers.Serializer):
         class OsSerializer(serializers.Serializer):

@@ -23,6 +23,13 @@ class K8sPluginManager(BasePluginManager):
         """
         # 数据接入
         current_version = self.plugin.get_version(config_version, info_version)
+
+        # k8s插件需要开启字段黑名单
+        if not current_version.info.enable_field_blacklist:
+            current_version.info.enable_field_blacklist = True
+            current_version.info.save()
+
+        # 数据接入
         PluginDataAccessor(current_version, self.operator).access()
 
         # 标记为已发布
@@ -46,3 +53,9 @@ class K8sPluginManager(BasePluginManager):
         todo: 目前暂时不需要实现
         """
         return ""
+
+    def create_version(self, data):
+        version, _ = super().create_version(data)
+        # 创建版本后直接发布
+        self.release(version.config.id, version.info.id)
+        return version, False

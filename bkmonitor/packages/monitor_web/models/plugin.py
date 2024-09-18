@@ -211,7 +211,7 @@ class CollectorPluginMeta(OperateRecordModelBase):
             if config is None:
                 config = CollectorPluginConfig.objects.create()
             if info is None:
-                info = CollectorPluginInfo.objects.create()
+                info: CollectorPluginInfo = CollectorPluginInfo.objects.create()
             version = self.versions.create(
                 config_version=config_version,
                 info_version=info_version,

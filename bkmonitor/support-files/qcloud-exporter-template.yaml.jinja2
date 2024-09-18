@@ -23,7 +23,19 @@ metadata:
     app.kubernetes.io/managed-by: bk-monitor
 data:
   config.yaml: |
-    {{ config | to_yaml | safe }}
+    credential:
+      access_key: "{{ values.secret_id}}"
+      secret_key: "{{ values.secret_key }}"
+      region: "{{ values.region }}"
+
+    rate_limit: 15
+
+    products:
+    {% for ns in values.namespaces.split(',') %}
+      - namespace: "{{ ns }}"
+        all_metrics: true
+        all_instances: true
+    {% endfor %}
 ---
 # Source: qcloud-exporter/templates/service.yaml
 apiVersion: v1
@@ -79,11 +91,11 @@ spec:
           image: {{ values.image }}
           imagePullPolicy: IfNotPresent
           command:
-            - qcloud-exporter
-            - --config.file="/app/config.yaml"
+            - qcloud_exporter
+            - --config.file=/app/config.yaml
           ports:
             - name: http
-              containerPort: 80
+              containerPort: 9123
               protocol: TCP
           livenessProbe:
             httpGet:
@@ -104,6 +116,12 @@ spec:
             - name: config
               mountPath: /app/config.yaml
               readOnly: true
+              subPath: config.yaml
+      volumes:
+        - name: config
+          configMap:
+            name: {{ release_name }}-qcloud-exporter
+            defaultMode: 420
 ---
 # Source: qcloud-exporter/templates/servicemonitor.yaml
 apiVersion: monitoring.coreos.com/v1
@@ -122,15 +140,15 @@ spec:
       app.kubernetes.io/instance: {{ release_name }}
   endpoints:
     - port: http
-      path: /metrics/
+      path: /metrics
       interval: {{ collect.period }}s
-      scrape_timeout: {{ collect.timeout }}s
-      honor_labels: false
+      scrapeTimeout: {{ collect.timeout }}s
+      honorLabels: false
       # 插入采集配置ID及业务ID
       relabelings:
-        - target_label: "collect_config_id"
+        - targetLabel: "collect_config_id"
           replacement: "{{ collect.id }}"
-        - target_label: "bk_biz_id"
+        - targetLabel: "bk_biz_id"
           replacement: "{{ bk_biz_id }}"
   namespaceSelector:
     matchNames:
