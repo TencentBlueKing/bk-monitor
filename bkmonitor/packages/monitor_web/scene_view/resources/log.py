@@ -64,7 +64,6 @@ class GetIndexSetLogSeries(Resource, IndexSetQueryMixin):
         end_time = serializers.IntegerField()
         interval = serializers.CharField(default="auto")
         keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-        bar_count = serializers.IntegerField(label="图表柱子数量(用于特殊配置的场景 仅影响 interval)", required=False)
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
@@ -75,7 +74,7 @@ class GetIndexSetLogSeries(Resource, IndexSetQueryMixin):
 
         time_field = self.get_index_time_field(bk_biz_id, index_set_id)
         if validated_request_data.get("bar_count"):
-            interval = f"{get_bar_interval_number(start_time, end_time, validated_request_data['bar_count'])}s"
+            interval = f"{get_bar_interval_number(start_time, end_time)}s"
         else:
             interval = get_interval(start_time, end_time, interval)
 
