@@ -27,6 +27,9 @@
 
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
   const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
+  const isNotIpSelectShow = computed(() =>
+    indexFieldInfo.value.fields?.some(item => item.field_name === '__ext.container_id'),
+  );
 
   const svgImg = ref({ imgUpDownKey, imgEnterKey });
 
@@ -67,6 +70,8 @@
       ],
     },
   };
+
+  const filedValueMapping = {};
 
   // 操作符下拉实例
   const operatorInstance = new PopInstanceUtil({
@@ -113,7 +118,18 @@
     return new RegExp(`${searchValue}`.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), flags);
   };
 
-  const fieldList = computed(() => [fullTextField.value].concat(indexFieldInfo.value.fields));
+  const fieldList = computed(() => {
+    let list = [fullTextField.value];
+    list = list.concat(indexFieldInfo.value.fields);
+    if (!isNotIpSelectShow.value) {
+      list.push({
+        field_name: '_ip-select_',
+        is_full_text: true,
+        field_alias: t('IP目标'),
+      });
+    }
+    return list;
+  });
 
   // 需要排除的字段
   const excludesFields = ['__ext', '__module__', ' __set__', '__ipv6__'];
@@ -175,7 +191,12 @@
     activeIndex.value = filterIndex;
   };
 
-  const showFulltextMsg = computed(() => activeIndex.value === 0 && props.isInputFocus);
+  const showFulltextMsg = computed(() => {
+    if (props.isInputFocus) {
+      return activeIndex.value === 0 || activeIndex.value === filterFieldList.value.length - 1;
+    }
+    return false;
+  });
 
   watch(
     activeIndex,
@@ -241,6 +262,12 @@
   };
 
   const handelSaveBtnClick = () => {
+    const isIpSelect = activeFieldItem.value.field_name === '_ip-select_';
+    if (isIpSelect) {
+      resetActiveFieldItem();
+      emit('save', 'ip-select-show');
+      return;
+    }
     // 如果条件值为空 并且当前条件需要条件值
     // 禁止提交
     if (isShowConditonValueSetting.value && !condition.value.value.length && !showFulltextMsg) {
@@ -686,6 +713,9 @@
       needDeleteItem = true;
     }
   };
+  const getValueLabelShow = fieldName => {
+    return filedValueMapping[fieldName] ?? t('检索内容');
+  };
 
   onBeforeUnmount(() => {
     afterHideFn();
@@ -739,15 +769,27 @@
       </div>
       <div :class="['value-list', { 'is-full-text': showFulltextMsg }]">
         <template v-if="showFulltextMsg">
-          <div class="full-text-title">{{ $t('全文检索') }}</div>
-          <div class="full-text-sub-title">
-            <img :src="svgImg.imgEnterKey" /><span>{{ $t('Enter 键') }}</span>
-          </div>
-          <div class="full-text-content">{{ $t('可将想要检索的内容输入至搜索框中，并点击「Enter」键进行检索') }}</div>
-          <div class="full-text-sub-title">
-            <img :src="svgImg.imgUpDownKey" /><span>{{ $t('上下键') }}</span>
-          </div>
-          <div class="full-text-content">{{ $t('可通过上下键快速切换选择「Key」值') }}</div>
+          <template v-if="activeIndex === 0">
+            <div class="full-text-title">{{ $t('全文检索') }}</div>
+            <div class="full-text-sub-title">
+              <img :src="svgImg.imgEnterKey" /><span>{{ $t('Enter 键') }}</span>
+            </div>
+            <div class="full-text-content">{{ $t('输入文本后按 [Enter] 键进行检索') }}</div>
+            <div class="full-text-sub-title">
+              <img :src="svgImg.imgUpDownKey" /><span>{{ $t('上下键') }}</span>
+            </div>
+            <div class="full-text-content">{{ $t('可通过上下键快速切换选择字段值') }}</div>
+          </template>
+          <template v-if="activeIndex === filterFieldList.length - 1 && !isNotIpSelectShow">
+            <div class="full-text-title">{{ $t('IP目标') }}</div>
+            <div class="full-text-content">
+              {{ $t('平台获取蓝鲸 CMDB 主机信息，您可通过 IP 选择器选择主机，快速过滤日志') }}
+            </div>
+            <div class="full-text-sub-title">
+              <img :src="svgImg.imgEnterKey" /><span>{{ $t('Enter 键') }}</span>
+            </div>
+            <div class="full-text-content">{{ $t('点击确认，唤起 IP 选择器。点击取消，关闭窗口') }}</div>
+          </template>
         </template>
         <template v-else>
           <div
@@ -785,10 +827,10 @@
             v-if="isShowConditonValueSetting"
           >
             <div class="ui-value-label">
-              <span>Value</span
-              ><span v-show="['text', 'string'].includes(activeFieldItem.field_type)"
-                ><bk-checkbox v-model="condition.isInclude">{{ $t('使用通配符') }}</bk-checkbox></span
-              >
+              <span>{{ getValueLabelShow(activeFieldItem.field_name) }}</span>
+              <span v-show="['text', 'string'].includes(activeFieldItem.field_type)">
+                <bk-checkbox v-model="condition.isInclude">{{ $t('使用通配符') }}</bk-checkbox>
+              </span>
             </div>
             <template v-if="activeFieldItem.field_name === '*'">
               <bk-input
@@ -880,7 +922,7 @@
     <div class="ui-query-option-footer">
       <div class="ui-shortcut-key">
         <span><img :src="svgImg.imgUpDownKey" />{{ $t('移动光标') }}</span>
-        <span><img :src="svgImg.imgEnterKey" />{{ $t('确认结果') }}</span>
+        <span><img :src="svgImg.imgEnterKey" />{{ $t('选中/提交') }}</span>
       </div>
       <div class="ui-btn-opts">
         <bk-button

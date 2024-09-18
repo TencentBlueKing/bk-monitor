@@ -47,7 +47,7 @@
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
-  const indexSetParams = computed(() => store.getters.retrieveParams);
+  const indexSetParams = computed(() => store.state.indexItem);
 
   store.dispatch('updateIndexItemByRoute', { route, list: [] });
 
@@ -58,7 +58,7 @@
     store.dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value }).then(resp => {
       // 拉取完毕根据当前路由参数回填默认选中索引集
       store.dispatch('updateIndexItemByRoute', { route, list: resp[1] }).then(() => {
-        store.dispatch('requestIndexSetFieldInfo').then(() =>{
+        store.dispatch('requestIndexSetFieldInfo').then(() => {
           store.dispatch('requestIndexSetQuery');
         });
       });
