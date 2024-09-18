@@ -38,32 +38,32 @@ class TestParseFilter:
                                 {
                                     "bool": {
                                         "must": [
-                                            {"terms": {"bk_target_ip": ["127.0.0.1"]}},
                                             {"terms": {"bk_target_cloud_id": [0]}},
+                                            {"terms": {"bk_target_ip": ["127.0.0.1"]}},
                                         ]
                                     }
                                 },
                                 {
                                     "bool": {
                                         "must": [
+                                            {"terms": {"bk_target_cloud_id": [0]}},
                                             {"terms": {"bk_target_ip": ["127.0.0.2"]}},
-                                            {"terms": {"bk_target_cloud_id": [0]}},
                                         ]
                                     }
                                 },
                                 {
                                     "bool": {
                                         "must": [
-                                            {"terms": {"bk_target_ip": ["127.0.0.1"]}},
                                             {"terms": {"bk_target_cloud_id": [1]}},
+                                            {"terms": {"bk_target_ip": ["127.0.0.1"]}},
                                         ]
                                     }
                                 },
                                 {
                                     "bool": {
                                         "must": [
-                                            {"terms": {"bk_target_ip": ["127.0.0.2"]}},
                                             {"terms": {"bk_target_cloud_id": [2]}},
+                                            {"terms": {"bk_target_ip": ["127.0.0.2"]}},
                                         ]
                                     }
                                 },

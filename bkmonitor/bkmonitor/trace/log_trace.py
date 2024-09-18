@@ -98,6 +98,8 @@ class BluekingInstrumentor(BaseInstrumentor):
             "service.version": settings.VERSION,
             "bk.data.token": os.getenv("BKAPP_OTLP_BK_DATA_TOKEN", ""),
             "service.environment": settings.ENVIRONMENT,
+            "net.host.ip": get_local_ip(),
+            "net.host.name": socket.gethostname(),
         }
         if settings.IS_CONTAINER_MODE and os.getenv("BKAPP_OTLP_BCS_CLUSTER_ID"):
             resource_info.update(
@@ -106,13 +108,6 @@ class BluekingInstrumentor(BaseInstrumentor):
                     "k8s.namespace.name": os.getenv("BKAPP_OTLP_BCS_CLUSTER_NAMESPACE", ""),
                     "k8s.pod.ip": get_local_ip(),
                     "k8s.pod.name": socket.gethostname(),
-                }
-            )
-        else:
-            resource_info.update(
-                {
-                    "net.host.ip": get_local_ip(),
-                    "net.host.name": socket.gethostname(),
                 }
             )
         tracer_provider = TracerProvider(resource=Resource.create(resource_info), sampler=sampler)

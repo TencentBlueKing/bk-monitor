@@ -236,7 +236,7 @@ BKM_SPACE_INJECT_REQUEST_ENABLED = False
 # 返回参数是否需要注入空间属性
 BKM_SPACE_INJECT_RESPONSE_ENABLED = False
 # 项目空间API类模块路径
-BKM_SPACE_API_CLASS = "monitor_web.commons.biz.space_api.InjectSpaceApi"
+BKM_SPACE_API_CLASS = "bkmonitor.space.space_api.InjectSpaceApi"
 
 #
 # Database
@@ -1065,10 +1065,14 @@ BK_IAM_SAAS_HOST = os.getenv("BK_IAM_SITE_URL") or get_service_url(BK_IAM_APP_CO
 
 # 文档中心地址
 BK_DOCS_SITE_URL = os.getenv("BK_DOCS_SITE_URL") or get_service_url("bk_docs_center", bk_paas_host=BK_PAAS_HOST)
+if not BK_DOCS_SITE_URL.endswith("/"):
+    BK_DOCS_SITE_URL += "/"
+
+# 文档中心地址
 DOC_HOST = "https://bk.tencent.com/docs/"
 
 # 版本差异变量
-if PLATFORM == "community":
+if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
     BK_DOCS_SITE_URL = DOC_HOST
 
 # monitor api base url:

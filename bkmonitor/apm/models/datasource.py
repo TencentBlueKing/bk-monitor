@@ -893,6 +893,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
             "avg_duration": {"avg": {"field": OtlpKey.ELAPSED_TIME}},
             "max_duration": {"max": {"field": OtlpKey.ELAPSED_TIME}},
             "min_duration": {"min": {"field": OtlpKey.ELAPSED_TIME}},
+            "sum_duration": {"sum": {"field": OtlpKey.ELAPSED_TIME}},
         }
         return metric_aggs
 

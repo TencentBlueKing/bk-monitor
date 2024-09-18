@@ -26,7 +26,7 @@
   "overview_panels": [
     {
       "id": 1,
-      "title": "错误信息",
+      "title": "错误详情",
       "type": "api_message",
       "targets": [
         {
@@ -51,6 +51,9 @@
         "table_chart": {
           "json_viewer_data_key": "data",
           "show_expand": true
+        },
+        "header": {
+          "tips": "此表格展示状态为异常的 span，同时异常信息来自于 span 的 status.message 以及 events 字段。"
         }
       }
     },
@@ -117,7 +120,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "错误信息",
+      "title": "错误详情",
       "type": "api_message",
       "targets": [
         {
@@ -144,6 +147,9 @@
         "table_chart": {
           "json_viewer_data_key": "data",
           "show_expand": true
+        },
+        "header": {
+          "tips": "此表格展示状态为异常的 span，同时异常信息来自于 span 的 status.message 以及 events 字段。"
         }
       }
     },
@@ -244,10 +250,7 @@
             "endpoint": "endpoint",
             "app_name": "app_name",
             "service_name": "service",
-            "exception_type": "exception_type",
-            "category": "service_category",
-            "kind": "service_kind",
-            "predicate_value": "service_predicate_value"
+            "exception_type": "exception_type"
           }
         }
       ]

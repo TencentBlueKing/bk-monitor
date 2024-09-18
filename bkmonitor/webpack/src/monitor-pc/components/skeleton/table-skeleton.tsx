@@ -31,7 +31,7 @@ import './table-skeleton.scss';
 interface IConfigModel {
   colWidths: number[];
   rowHeights: number[];
-  config: (Record<string, string> | number)[][];
+  config: (number | Record<string, string>)[][];
   rowGap?: number;
 }
 
@@ -48,7 +48,7 @@ function getWrapStyle(config) {
     };
   }
   return {
-    paddingRight: `40px`,
+    paddingRight: '40px',
   };
 }
 const config01 = {
@@ -189,7 +189,7 @@ export default class TableSkeleton extends tsc<IProps> {
                     ...getSkeStyle(pItem),
                   }}
                   class='skeleton-element'
-                ></div>
+                />
               </div>
             ))}
           </div>

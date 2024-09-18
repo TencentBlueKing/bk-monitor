@@ -805,9 +805,9 @@
                     spaceUid: this.$store.state.spaceUid,
                     bizId: this.$store.state.bkBizId,
                   };
-                  if (this.$route.query.from) {
-                    queryObj.from = this.$route.query.from;
-                  }
+                  // if (this.$route.query.from) {
+                  //   queryObj.from = this.$route.query.from;
+                  // }
                   this.setRouteParams(
                     'retrieve',
                     {
@@ -826,9 +826,9 @@
                 spaceUid: this.$store.state.spaceUid,
                 bizId: this.$store.state.bkBizId,
               };
-              if (this.$route.query.from) {
-                queryObj.from = this.$route.query.from;
-              }
+              // if (this.$route.query.from) {
+              //   queryObj.from = this.$route.query.from;
+              // }
               this.setRouteParams(
                 'retrieve',
                 {
@@ -903,7 +903,6 @@
           } else {
             // 之前是单选
             this.indexId = ids[0];
-            this.initIndexSetChangeFn(ids[0]);
             if (isChangeIndexId || isFavoriteSearch) this.retrieveLog(params);
           }
           this.$store.commit('updateUnionIndexList', []);

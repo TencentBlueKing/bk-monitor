@@ -510,7 +510,7 @@ export class RelationGraph extends CommonSimpleChart {
           default: [
             'drag-canvas', // 拖拽画布
             'zoom-canvas', // 缩放画布
-            !!this.serviceName ? '' : 'drag-node', // 拖拽节点 服务拓扑不可拖拽节点
+            this.serviceName ? '' : 'drag-node', // 拖拽节点 服务拓扑不可拖拽节点
           ],
         },
         /** 图布局 */

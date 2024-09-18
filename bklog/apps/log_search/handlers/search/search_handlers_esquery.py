@@ -44,7 +44,10 @@ from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
 from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
 from apps.log_esquery.esquery.esquery import EsQuery
-from apps.log_esquery.serializers import EsQuerySearchAttrSerializer
+from apps.log_esquery.serializers import (
+    EsQueryDslAttrSerializer,
+    EsQuerySearchAttrSerializer,
+)
 from apps.log_search.constants import (
     ASYNC_SORTED,
     CHECK_FIELD_LIST,
@@ -178,6 +181,9 @@ class SearchHandler(object):
         self.storage_cluster_id: int = -1
 
         self.index_set_obj = None
+
+        # 是否使用了聚类代理查询
+        self.using_clustering_proxy = False
 
         # 构建索引集字符串, 并初始化scenario_id、storage_cluster_id
         self.indices: str = self._init_indices_str(index_set_id)
@@ -343,7 +349,16 @@ class SearchHandler(object):
 
     def fields(self, scope="default"):
         is_union_search = self.search_dict.get("is_union_search", False)
-        field_result, display_fields = self.mapping_handlers.get_all_fields_by_index_id(
+        mapping_handlers = MappingHandlers(
+            self.origin_indices,
+            self.index_set_id,
+            self.origin_scenario_id,
+            self.storage_cluster_id,
+            self.time_field,
+            start_time=self.start_time,
+            end_time=self.end_time,
+        )
+        field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(
             scope=scope, is_union_search=is_union_search
         )
 
@@ -385,9 +400,10 @@ class SearchHandler(object):
         ]:
             result_dict["config"].append(fields_config)
         # 将用户当前使用的配置id传递给前端
-        result_dict["config_id"] = UserIndexSetFieldsConfig.get_config(
+        config_obj = UserIndexSetFieldsConfig.get_config(
             index_set_id=self.index_set_id, username=self.request_username, scope=scope
-        ).id
+        )
+        result_dict["config_id"] = config_obj.id if config_obj else ""
 
         return result_dict
 
@@ -592,7 +608,11 @@ class SearchHandler(object):
         if self.scenario_id == Scenario.LOG:
             gse_index = "gseIndex"
             iteration_index = "iterationIndex"
-        elif self.scenario_id == Scenario.BKDATA and not (target_fields and sort_fields):
+        elif (
+            self.scenario_id == Scenario.BKDATA
+            and not (target_fields and sort_fields)
+            and not self.using_clustering_proxy
+        ):
             gse_index = "gseindex"
             iteration_index = "_iteration_idx"
         else:
@@ -625,6 +645,11 @@ class SearchHandler(object):
     def direct_esquery_search(cls, params):
         data = custom_params_valid(EsQuerySearchAttrSerializer, params)
         return EsQuery(data).search()
+
+    @classmethod
+    def direct_esquery_dsl(cls, params):
+        data = custom_params_valid(EsQueryDslAttrSerializer, params)
+        return EsQuery(data).dsl()
 
     def _multi_search(self, once_size: int):
         """
@@ -906,6 +931,89 @@ class SearchHandler(object):
         @return:
         """
         if self.scenario_id == Scenario.ES:
+            if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
+                result = self.direct_esquery_search(
+                    {
+                        "indices": self.indices,
+                        "scenario_id": self.scenario_id,
+                        "storage_cluster_id": self.storage_cluster_id,
+                        "start_time": self.start_time,
+                        "end_time": self.end_time,
+                        "query_string": self.query_string,
+                        "filter": self.filter,
+                        "sort_list": self.sort_list,
+                        "start": self.start,
+                        "size": size,
+                        "aggs": self.aggs,
+                        "highlight": self.highlight,
+                        "time_zone": self.time_zone,
+                        "time_range": self.time_range,
+                        "use_time_range": self.use_time_range,
+                        "time_field": self.time_field,
+                        "time_field_type": self.time_field_type,
+                        "time_field_unit": self.time_field_unit,
+                        "scroll": SCROLL,
+                        "collapse": self.collapse,
+                    }
+                )
+            else:
+                result = BkLogApi.search(
+                    {
+                        "indices": self.indices,
+                        "scenario_id": self.scenario_id,
+                        "storage_cluster_id": self.storage_cluster_id,
+                        "start_time": self.start_time,
+                        "end_time": self.end_time,
+                        "query_string": self.query_string,
+                        "filter": self.filter,
+                        "sort_list": self.sort_list,
+                        "start": self.start,
+                        "size": size,
+                        "aggs": self.aggs,
+                        "highlight": self.highlight,
+                        "time_zone": self.time_zone,
+                        "time_range": self.time_range,
+                        "use_time_range": self.use_time_range,
+                        "time_field": self.time_field,
+                        "time_field_type": self.time_field_type,
+                        "time_field_unit": self.time_field_unit,
+                        "scroll": SCROLL,
+                        "collapse": self.collapse,
+                    },
+                    data_api_retry_cls=DataApiRetryClass.create_retry_obj(
+                        exceptions=[BaseException],
+                        stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY,
+                    ),
+                )
+            return result
+
+        sorted_list = self._get_user_sorted_list(sorted_fields)
+        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
+            result = self.direct_esquery_search(
+                {
+                    "indices": self.indices,
+                    "scenario_id": self.scenario_id,
+                    "storage_cluster_id": self.storage_cluster_id,
+                    "start_time": self.start_time,
+                    "end_time": self.end_time,
+                    "query_string": self.query_string,
+                    "filter": self.filter,
+                    "sort_list": sorted_list,
+                    "start": self.start,
+                    "size": size,
+                    "aggs": self.aggs,
+                    "highlight": self.highlight,
+                    "time_zone": self.time_zone,
+                    "time_range": self.time_range,
+                    "time_field": self.time_field,
+                    "use_time_range": self.use_time_range,
+                    "time_field_type": self.time_field_type,
+                    "time_field_unit": self.time_field_unit,
+                    "scroll": None,
+                    "collapse": self.collapse,
+                }
+            )
+        else:
             result = BkLogApi.search(
                 {
                     "indices": self.indices,
@@ -915,56 +1023,24 @@ class SearchHandler(object):
                     "end_time": self.end_time,
                     "query_string": self.query_string,
                     "filter": self.filter,
-                    "sort_list": self.sort_list,
+                    "sort_list": sorted_list,
                     "start": self.start,
                     "size": size,
                     "aggs": self.aggs,
                     "highlight": self.highlight,
                     "time_zone": self.time_zone,
                     "time_range": self.time_range,
-                    "use_time_range": self.use_time_range,
                     "time_field": self.time_field,
+                    "use_time_range": self.use_time_range,
                     "time_field_type": self.time_field_type,
                     "time_field_unit": self.time_field_unit,
-                    "scroll": SCROLL,
+                    "scroll": None,
                     "collapse": self.collapse,
                 },
                 data_api_retry_cls=DataApiRetryClass.create_retry_obj(
-                    exceptions=[BaseException],
-                    stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY,
+                    exceptions=[BaseException], stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY
                 ),
             )
-            return result
-
-        sorted_list = self._get_user_sorted_list(sorted_fields)
-
-        result = BkLogApi.search(
-            {
-                "indices": self.indices,
-                "scenario_id": self.scenario_id,
-                "storage_cluster_id": self.storage_cluster_id,
-                "start_time": self.start_time,
-                "end_time": self.end_time,
-                "query_string": self.query_string,
-                "filter": self.filter,
-                "sort_list": sorted_list,
-                "start": self.start,
-                "size": size,
-                "aggs": self.aggs,
-                "highlight": self.highlight,
-                "time_zone": self.time_zone,
-                "time_range": self.time_range,
-                "time_field": self.time_field,
-                "use_time_range": self.use_time_range,
-                "time_field_type": self.time_field_type,
-                "time_field_unit": self.time_field_unit,
-                "scroll": None,
-                "collapse": self.collapse,
-            },
-            data_api_retry_cls=DataApiRetryClass.create_retry_obj(
-                exceptions=[BaseException], stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY
-            ),
-        )
         return result
 
     def search_after_result(self, search_result, sorted_fields):
@@ -1326,9 +1402,7 @@ class SearchHandler(object):
                 raise BaseSearchSortListException(BaseSearchSortListException.MESSAGE.format(sort_item=field))
 
     def search_context(self):
-        if self.scenario_id == Scenario.ES and not (
-            self.index_set_obj.target_fields and self.index_set_obj.sort_fields
-        ):
+        if self.scenario_id == Scenario.ES and not (self.index_set_obj.target_fields or self.index_set_obj.sort_fields):
             return {"total": 0, "took": 0, "list": []}
 
         context_indice = IndicesOptimizerContextTail(
@@ -1361,12 +1435,17 @@ class SearchHandler(object):
         if record_obj:
             dsl_params_base.update({"storage_cluster_id": record_obj.storage_cluster_id})
 
+        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
+            exec_func = self.direct_esquery_dsl
+        else:
+            exec_func = BkLogApi.dsl
+
         if self.zero:
             # up
             body: dict = self._get_context_body("-")
             dsl_params_up = copy.deepcopy(dsl_params_base)
             dsl_params_up.update({"body": body})
-            result_up: dict = BkLogApi.dsl(dsl_params_up)
+            result_up: dict = exec_func(dsl_params_up)
             result_up: dict = self._deal_query_result(result_up)
             result_up.update(
                 {
@@ -1380,7 +1459,7 @@ class SearchHandler(object):
 
             dsl_params_down = copy.deepcopy(dsl_params_base)
             dsl_params_down.update({"body": body})
-            result_down: Dict = BkLogApi.dsl(dsl_params_down)
+            result_down: Dict = exec_func(dsl_params_down)
 
             result_down: dict = self._deal_query_result(result_down)
             result_down.update({"list": result_down.get("list"), "origin_log_list": result_down.get("origin_log_list")})
@@ -1390,7 +1469,7 @@ class SearchHandler(object):
             origin_log_list = result_up["origin_log_list"] + result_down["origin_log_list"]
             target_fields = self.index_set_obj.target_fields if self.index_set_obj else []
             sort_fields = self.index_set_obj.sort_fields if self.index_set_obj else []
-            if self.scenario_id in [Scenario.ES, Scenario.BKDATA] and target_fields and sort_fields:
+            if sort_fields:
                 analyze_result_dict: dict = self._analyze_context_result(
                     new_list, target_fields=target_fields, sort_fields=sort_fields
                 )
@@ -1417,7 +1496,7 @@ class SearchHandler(object):
 
             dsl_params_up = copy.deepcopy(dsl_params_base)
             dsl_params_up.update({"body": body})
-            result_up = BkLogApi.dsl(dsl_params_up)
+            result_up = exec_func(dsl_params_up)
 
             result_up: dict = self._deal_query_result(result_up)
             result_up.update(
@@ -1438,7 +1517,7 @@ class SearchHandler(object):
 
             dsl_params_down = copy.deepcopy(dsl_params_base)
             dsl_params_down.update({"body": body})
-            result_down = BkLogApi.dsl(dsl_params_down)
+            result_down = exec_func(dsl_params_down)
 
             result_down = self._deal_query_result(result_down)
             result_down.update({"list": result_down.get("list"), "origin_log_list": result_down.get("origin_log_list")})
@@ -1456,7 +1535,17 @@ class SearchHandler(object):
         target_fields = self.index_set_obj.target_fields
         sort_fields = self.index_set_obj.sort_fields
 
-        if self.scenario_id == Scenario.BKDATA and not (target_fields and sort_fields):
+        if sort_fields:
+            return DslCreateSearchContextBodyCustomField(
+                size=self.size,
+                start=self.start,
+                order=order,
+                target_fields=target_fields,
+                sort_fields=sort_fields,
+                params=self.search_dict,
+            ).body
+
+        elif self.scenario_id == Scenario.BKDATA:
             return DslCreateSearchContextBodyScenarioBkData(
                 size=self.size,
                 start=self.start,
@@ -1472,7 +1561,7 @@ class SearchHandler(object):
                 sort_list=["dtEventTimeStamp", "gseindex", "_iteration_idx"],
             ).body
 
-        if self.scenario_id == Scenario.LOG:
+        elif self.scenario_id == Scenario.LOG:
             return DslCreateSearchContextBodyScenarioLog(
                 size=self.size,
                 start=self.start,
@@ -1486,16 +1575,6 @@ class SearchHandler(object):
                 logfile=self.logfile,
                 order=order,
                 sort_list=["dtEventTimeStamp", "gseIndex", "iterationIndex"],
-            ).body
-
-        if self.scenario_id in [Scenario.ES, Scenario.BKDATA]:
-            return DslCreateSearchContextBodyCustomField(
-                size=self.size,
-                start=self.start,
-                order=order,
-                target_fields=self.index_set_obj.target_fields,
-                sort_fields=self.index_set_obj.sort_fields,
-                params=self.search_dict,
             ).body
 
         return {}
@@ -1512,7 +1591,18 @@ class SearchHandler(object):
             target_fields = self.index_set_obj.target_fields if self.index_set_obj else []
             sort_fields = self.index_set_obj.sort_fields if self.index_set_obj else []
 
-            if self.scenario_id == Scenario.BKDATA and not (target_fields and sort_fields):
+            if sort_fields:
+                body: Dict = DslCreateSearchTailBodyCustomField(
+                    start=self.start,
+                    size=self.size,
+                    zero=self.zero,
+                    time_field=self.time_field,
+                    target_fields=target_fields,
+                    sort_fields=sort_fields,
+                    params=self.search_dict,
+                ).body
+
+            elif self.scenario_id == Scenario.BKDATA:
                 body: Dict = DslCreateSearchTailBodyScenarioBkData(
                     sort_list=["dtEventTimeStamp", "gseindex", "_iteration_idx"],
                     size=self.size,
@@ -1525,7 +1615,7 @@ class SearchHandler(object):
                     logfile=self.logfile,
                     zero=self.zero,
                 ).body
-            if self.scenario_id == Scenario.LOG:
+            elif self.scenario_id == Scenario.LOG:
                 body: Dict = DslCreateSearchTailBodyScenarioLog(
                     sort_list=["dtEventTimeStamp", "gseIndex", "iterationIndex"],
                     size=self.size,
@@ -1537,20 +1627,6 @@ class SearchHandler(object):
                     container_id=self.container_id,
                     logfile=self.logfile,
                     zero=self.zero,
-                ).body
-
-            if self.scenario_id in [Scenario.ES, Scenario.BKDATA]:
-                if not target_fields or not sort_fields:
-                    return {"total": 0, "took": 0, "list": []}
-
-                body: Dict = DslCreateSearchTailBodyCustomField(
-                    start=self.start,
-                    size=self.size,
-                    zero=self.zero,
-                    time_field=self.time_field,
-                    target_fields=target_fields,
-                    sort_fields=sort_fields,
-                    params=self.search_dict,
                 ).body
 
             dsl_params = {"indices": tail_indice, "scenario_id": self.scenario_id, "body": body}
@@ -1605,6 +1681,7 @@ class SearchHandler(object):
                     if clustering_config and clustering_config.clustered_rt:
                         # 如果是查询bkbase端的表，即场景需要对应改为bkdata
                         self.scenario_id = Scenario.BKDATA
+                        self.using_clustering_proxy = True
                         return clustering_config.clustered_rt
             return self.origin_indices
         raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
@@ -2084,7 +2161,19 @@ class SearchHandler(object):
 
         # find the search one
         _index: int = -1
-        if self.scenario_id == Scenario.BKDATA and not (target_fields and sort_fields):
+
+        target_fields = target_fields or []
+        sort_fields = sort_fields or []
+
+        if sort_fields:
+            for index, item in enumerate(log_list):
+                for field in sort_fields + target_fields:
+                    if str(item.get(field)) != str(self.search_dict.get(field)):
+                        break
+                else:
+                    _index = index
+                    break
+        elif self.scenario_id == Scenario.BKDATA:
             for index, item in enumerate(log_list):
                 gseindex: str = item.get("gseindex")
                 ip: str = item.get("ip")
@@ -2116,7 +2205,6 @@ class SearchHandler(object):
                 ):
                     _index = index
                     break
-
         elif self.scenario_id == Scenario.LOG:
             for index, item in enumerate(log_list):
                 gseIndex: str = item.get("gseIndex")  # pylint: disable=invalid-name
@@ -2136,15 +2224,6 @@ class SearchHandler(object):
                     and self.path == path
                     and self.iterationIndex == str(iterationIndex)
                 ):
-                    _index = index
-                    break
-
-        elif self.scenario_id in [Scenario.ES, Scenario.BKDATA] and target_fields and sort_fields:
-            for index, item in enumerate(log_list):
-                for field in sort_fields + target_fields:
-                    if str(item.get(field)) != str(self.search_dict.get(field)):
-                        break
-                else:
                     _index = index
                     break
 

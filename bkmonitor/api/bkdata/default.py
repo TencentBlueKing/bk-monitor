@@ -1109,6 +1109,14 @@ class GetDataLink(DataAccessAPIResource):
         name = serializers.CharField(label="资源名称")
 
 
+class NotifyLogDataIdChanged(DataAccessAPIResource):
+    action = "/v4/tmp/notify_log_dataid_changed/"
+    method = "PUT"
+
+    class RequestSerializer(serializers.Serializer):
+        data_id = serializers.IntegerField(label="数据ID")
+
+
 class ApplyDataFlow(DataAccessAPIResource):
     """创建计算平台流程"""
 

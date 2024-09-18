@@ -18,7 +18,6 @@ from apm.models import ApmInstanceDiscover, ApmMetricDimension, ApmTopoDiscoverR
 
 
 def init_builtin_config(apps, schema_editor):
-    ApmTopoDiscoverRule.init_builtin_config()
     ApmInstanceDiscover.init_builtin_config()
     ApmMetricDimension.init_builtin_config()
 

@@ -137,7 +137,7 @@
         :key="group.key"
         v-else
       >
-        <template v-for="item in group.panels">
+        <template v-for="(item, index) in group.panels">
           <div
             class="common-chart"
             :id="!!item.group ? `${item.group}${!!item.index ? '-' + item.index : ''}` : `${item.index}`"
@@ -193,8 +193,8 @@
               :chart-type="getPanelChartType(item)"
               :title="item.title"
               :subtitle="item.subTitle"
-              :error-msg="errorMsg"
-              :get-series-data="getSeriesData(item)"
+              :error-msg="errorMsg[index]"
+              :get-series-data="getSeriesData(item, index)"
               :reflesh-interval="compareValue.tools.refleshInterval"
               :get-alarm-status="getAlarmStatus"
               :group-id="groupId"
@@ -322,7 +322,7 @@ export default class DashboardPanels extends Vue {
   isSingleChart = false;
   showViewDetail = false;
   viewQueryConfig = {};
-  errorMsg = '';
+  errorMsg = [];
   onlyChartHeight = 210;
   get chartOptions() {
     return deepMerge(
@@ -403,7 +403,7 @@ export default class DashboardPanels extends Vue {
     return this.isOnlyChart ? Math.max(height / 2 - 54, 210) : 210;
   }
   // 获取图表数据
-  getSeriesData(config) {
+  getSeriesData(config, index) {
     return async (startTime?, endTime?) => {
       const dataList = await Promise.all(
         (config.targets || []).map(async item => {
@@ -455,7 +455,7 @@ export default class DashboardPanels extends Vue {
                   message: tips,
                 });
               }
-              this.errorMsg = '';
+              this.$set(this.errorMsg, index, '');
               const series = data?.series || [];
               return series.map(({ target, datapoints, ...setData }) => ({
                 datapoints,
@@ -474,7 +474,7 @@ export default class DashboardPanels extends Vue {
               }));
             })
             .catch(err => {
-              this.errorMsg = err.message || err.msg;
+              this.$set(this.errorMsg, index, err.message || err.msg);
             });
         })
       );

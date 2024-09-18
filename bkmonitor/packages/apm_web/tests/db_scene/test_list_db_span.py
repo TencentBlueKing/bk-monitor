@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 import django
 import mock
 import pytest
+
 from apm_web.db.resources import ListDbSpanResource
 
 pytestmark = pytest.mark.django_db
@@ -128,7 +129,6 @@ class TestListDbSpan(django.test.TestCase):
         request_data = {
             "app_name": "apm_demo",
             "filter_params": {"resource.service.name": "bk_monitorv3_web", "attributes.db.system": "mysql"},
-            "service_params": {"category": "db", "kind": "component", "predicate_value": ""},
             "component_instance_id": ["mysql::::"],
             "start_time": 1694517684,
             "end_time": 1894521284,

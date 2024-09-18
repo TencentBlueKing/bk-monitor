@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from django.utils.translation import ugettext as _
 
 from alarm_backends.core.cache.result_table import ResultTableCacheManager
 from alarm_backends.service.alert.enricher.translator.base import BaseTranslator
@@ -31,5 +32,5 @@ class ResultTableTranslator(BaseTranslator):
             translated_name = field_alias_mapping.get(name) or name
             if field.display_name == field.name:
                 # 如果没有翻译过，才使用字段别名
-                field.display_name = translated_name
+                field.display_name = _(translated_name)
         return data

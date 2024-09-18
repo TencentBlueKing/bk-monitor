@@ -281,6 +281,9 @@ export default {
   '存在关联的策略，不可删除': 'There are associated policies that cannot be deleted',
   '若添加进程，请前往配置平台 - 业务拓扑，在对应模块下新增':
     'If adding a process, please go to the configuration platform - business topology and add it under the corresponding module',
+  请求数: 'Request count',
+  对比时间: 'Comparison time',
+  参照时间: 'Reference time',
   告警系统事件: 'Alarm System Event',
   故障系统事件: 'Fault System Event',
   '关闭 AI 小鲸会话': 'Close the AI ​​Assistant session',
@@ -292,4 +295,9 @@ export default {
   '智能检测目前能支持哪些场景？': 'What scenarios are currently supported by intelligent detection?',
   '你好，我是AI小鲸，你可以向我提问蓝鲸监控产品使用相关的问题。':
     'Hello, I am AI ​​Assistant. You can ask me questions related to the use of the Blue Whale monitoring product.',
+  地图: 'Map',
+  图例: 'Legend',
+  下载: 'Download',
+  原始大小: 'Original size',
+  查看完整接口: 'View complete interface',
 };
