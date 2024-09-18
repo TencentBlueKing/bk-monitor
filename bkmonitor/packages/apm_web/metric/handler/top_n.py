@@ -153,7 +153,7 @@ class TopNHandler:
             query_params["dashboardId"] = "service-default-endpoint"
 
             if ComponentHandler.is_component_by_node(self.node):
-                predicate_views = f"component-{self.node['extra_info']['predicate_value']}-endpoint"
+                predicate_views = f"component-{self.node['extra_data']['predicate_value']}-endpoint"
                 if ApmBuiltinProcessor.exists_views(predicate_views):
                     query_params["dashboardId"] = predicate_views
                 else:

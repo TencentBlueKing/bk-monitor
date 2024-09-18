@@ -7,31 +7,30 @@
   justify-content: center;
   width: 16px;
   height: 16px;
+  margin: 0 4px;
+  overflow: hidden;
   font-size: 12px;
   color: #63656e;
-  overflow: hidden;
-  margin: 0 4px;
 }
 
 .header-setting-modal {
-  display: flex;
+  position: relative;
   top: 52px;
-  background-color: white;
+  top: inherit;
+  right: inherit;
+  bottom: inherit;
+  left: inherit;
+  display: flex;
   flex-direction: column;
   width: 100%;
+  background-color: white;
   background-color: transparent;
-  position: relative;
-  top: inherit;
-  bottom: inherit;
-  right: inherit;
-  left: inherit;
-
 
   .monitor-dialog {
-    padding: 0;
-    min-height: inherit !important;
-    height: inherit !important;
     bottom: inherit !important;
+    height: inherit !important;
+    min-height: inherit !important;
+    padding: 0;
 
     &.full-screen {
       top: 52px;
@@ -45,43 +44,43 @@
     height: 100%;
 
     &-left {
+      position: relative;
       flex: 0 0 400px;
       width: 400px;
       background-color: #f5f7fa;
-      position: relative;
 
       .left-route {
-        display: flex;
-        flex-direction: column;
-        width: 152px;
         position: absolute;
         top: 24px;
         right: 16px;
         bottom: 15px;
+        display: flex;
+        flex-direction: column;
+        width: 152px;
 
         &-title {
           display: flex;
-          width: 100%;
           align-items: center;
-          color: #313238;
-          font-size: 16px;
-          line-height: 24px;
-          font-weight: bold;
+          width: 100%;
           margin-bottom: 16px;
+          font-size: 16px;
+          font-weight: bold;
+          line-height: 24px;
+          color: #313238;
 
           .route-count {
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #979ba5;
-            padding: 4px 8px;
             min-width: 24px;
-            border-radius: 2px;
-            background-color: #eaebf0;
             height: 16px;
+            padding: 4px 8px;
             margin-left: 8px;
             font-size: 12px;
             font-weight: normal;
+            color: #979ba5;
+            background-color: #eaebf0;
+            border-radius: 2px;
           }
         }
 
@@ -93,14 +92,14 @@
 
           &-item {
             display: flex;
-            width: 100%;
             flex: 0 0 32px;
             align-items: center;
+            width: 100%;
+            margin-bottom: 8px;
             font-size: 14px;
             color: #313238;
-            border-radius: 2px;
-            margin-bottom: 8px;
             user-select: none;
+            border-radius: 2px;
 
             &.is-dragover {
               background-color: #e1ecff;
@@ -117,28 +116,28 @@
             }
 
             .item-close {
-              margin-left: auto;
               display: flex;
+              display: none;
               align-items: center;
               justify-content: center;
               width: 16px;
               height: 16px;
-              font-size: 20px;
-              overflow: hidden;
-              color: #979ba5;
               margin-right: 10px;
-              display: none;
+              margin-left: auto;
+              overflow: hidden;
+              font-size: 20px;
+              color: #979ba5;
 
               &:hover {
-                cursor: pointer;
                 color: #3a84ff;
+                cursor: pointer;
               }
             }
 
             &:hover {
-              border-color: transparent;
-              background-color: #eaebf0;
               cursor: move;
+              background-color: #eaebf0;
+              border-color: transparent;
 
               .item-drag {
                 display: flex;
@@ -158,39 +157,39 @@
     }
 
     &-right {
-      flex: 1;
-      background-color: white;
       display: flex;
+      flex: 1;
       flex-direction: column;
-      padding: 0 40px;
       min-width: 920px;
+      padding: 0 40px;
+      background-color: white;
 
       .content-header {
         display: flex;
         align-items: center;
         width: 100%;
+        padding: 22px 0 18px 0;
+        padding-left: 12px;
         font-size: 14px;
         font-weight: bold;
-        padding: 22px 0 18px 0;
-        border-bottom: 1px solid #eaebf0;
         line-height: 22px;
-        padding-left: 12px;
+        border-bottom: 1px solid #eaebf0;
 
         .latest-list {
           display: flex;
+          height: 22px;
           margin-left: 16px;
           font-size: 12px;
           font-weight: normal;
-          height: 22px;
 
           .latest-item {
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 0 10px;
+            margin-right: 8px;
             background-color: #f0f1f5;
             border-radius: 2px;
-            margin-right: 8px;
           }
         }
       }
@@ -203,18 +202,18 @@
 
         .route-content {
           display: flex;
-          flex-direction: column;
           flex: 0 0 180px;
-          margin-bottom: 40px;
+          flex-direction: column;
           width: 180px;
-          font-size: 12px;
           margin-right: 52px;
+          margin-bottom: 40px;
+          font-size: 12px;
 
           .route-title {
+            padding-bottom: 8px;
+            padding-left: 12px;
             font-weight: bold;
             line-height: 20px;
-            padding-left: 12px;
-            padding-bottom: 8px;
             border-bottom: 1px solid #dcdee5;
           }
 
@@ -227,8 +226,8 @@
             .route-item {
               display: flex;
               flex: 0 0 32px;
-              height: 32px;
               align-items: center;
+              height: 32px;
               padding-left: 12px;
               color: #313238;
 
@@ -246,12 +245,12 @@
               }
 
               &.is-stored {
-                background-color: #e1ecff;
                 color: #3a84ff;
+                background-color: #e1ecff;
 
                 .route-check {
-                  visibility: visible !important;
                   color: #3a84ff;
+                  visibility: visible !important;
                 }
               }
 
@@ -259,14 +258,14 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 14px;
                 width: 14px;
                 height: 14px;
-                overflow: hidden;
-                margin-left: auto;
                 margin-right: 12px;
-                visibility: hidden;
+                margin-left: auto;
+                overflow: hidden;
+                font-size: 14px;
                 color: #979ba5;
+                visibility: hidden;
               }
             }
           }

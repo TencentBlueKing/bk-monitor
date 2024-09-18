@@ -10,12 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import datetime
 
-from apm_web.topo.constants import (
-    BarChartDataType,
-    GraphViewType,
-    SourceType,
-    TopoLinkType,
-)
+from apm_web.topo.constants import GraphViewType, SourceType, TopoLinkType
 from apm_web.topo.handle.bar_query import BarQuery, LinkHelper
 from apm_web.topo.handle.graph_query import GraphQuery
 from apm_web.topo.handle.relation.define import SourceSystem
@@ -51,18 +46,13 @@ class DataTypeBarQueryResource(Resource):
             endpoint_name=validated_request_data.pop("endpoint_name", None),
         ).execute()
 
-        series = response.get("series", [])
-        if validated_request_data["data_type"] != BarChartDataType.Alert.value:
-            # 如果这里不是告警 应前端要求 进行时间戳的补齐
-            series = fill_series(
+        return {
+            "metrics": response.get("metrics"),
+            "series": fill_series(
                 response.get("series", []),
                 validated_request_data["start_time"],
                 validated_request_data["end_time"],
-            )
-
-        return {
-            "metrics": response.get("metrics"),
-            "series": series,
+            ),
         }
 
 

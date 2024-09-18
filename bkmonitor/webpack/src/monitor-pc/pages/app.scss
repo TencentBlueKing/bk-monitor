@@ -4,7 +4,7 @@
 @import '../theme/index.scss';
 @import './header-setting-modal.scss';
 
-@mixin globel-icon-mixin($color: #3A84FF) {
+@mixin global-icon-mixin($color: #3a84ff) {
   position: relative;
   display: flex;
   align-items: center;
@@ -14,15 +14,21 @@
   margin-left: 16px;
   font-size: 14px;
   color: $color;
+
+  .icon-monitor {
+    display: flex;
+    align-items: center;
+    width: 14px;
+    height: 14px;
+  }
 }
 
-@mixin globel-icon-hover-mixin {
-  color: #3A84FF;
+@mixin global-icon-hover-mixin {
+  color: #3a84ff;
   cursor: pointer;
-  background: #2F3975;
+  background: #2f3975;
   border-radius: 2px;
 }
-
 
 .bk-monitor {
   width: 100vw;
@@ -471,11 +477,11 @@
     justify-content: center;
   }
 
-  .header-globel {
-    @include globel-icon-mixin;
+  .header-global {
+    @include global-icon-mixin;
 
     &:hover {
-      @include globel-icon-hover-mixin;
+      @include global-icon-hover-mixin;
     }
   }
 

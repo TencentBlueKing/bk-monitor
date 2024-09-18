@@ -140,6 +140,8 @@ class ApdexCalculation(Calculation):
     @classmethod
     def calculate(cls, *data):
         satisfied_count, tolerating_count, frustrated_count, error_count, total_count = data
+        if not total_count:
+            return None
 
         apdex_rate = (satisfied_count * 1 + tolerating_count * 0.5 + (tolerating_count + error_count) * 0) / total_count
         if apdex_rate > cls.SATISFIED_RATE:
