@@ -2431,8 +2431,8 @@ class ESStorage(models.Model, StorageResultTable):
 
                 # 创建索引需要增加一个请求超时的防御
                 logger.info("index->[{}] trying to create, index_body->[{}]".format(index_name, self.index_body))
-                es_client.indices.create(index=current_index, body=self.index_body, params={"request_timeout": 30})
-                logger.info("index->[{}] now is created.".format(current_index))
+                response = self._create_index_with_retry(es_client, current_index)
+                logger.info("index->[{}] now is created, response->[{}]".format(index_name, response))
 
                 # 需要将对应的别名指向这个新建的index
                 # 新旧类型的alias都会创建，防止transfer未更新导致异常
@@ -2486,6 +2486,18 @@ class ESStorage(models.Model, StorageResultTable):
             try:
                 round_alias_name = f"write_{round_time_str}_{index_name}"
                 round_read_alias_name = f"{index_name}_{round_time_str}_read"
+
+                # 检查即将指向的索引是否存在
+                try:
+                    es_client.indices.get(index=last_index_name)
+                except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
+                    logger.warning(
+                        "table_id->[%s] index->[%s] does not exist, will skip alias creation.",
+                        self.table_id,
+                        last_index_name,
+                    )
+                    now_gap += self.slice_gap
+                    continue
 
                 # 3.1 判断这个别名是否有指向旧的index，如果存在则需要解除
                 try:
@@ -2568,8 +2580,10 @@ class ESStorage(models.Model, StorageResultTable):
         es_client = self.get_client()
         new_index_name = self.make_index_name(now_datetime_object, 0, "v2")
         # 创建index
-        es_client.indices.create(index=new_index_name, body=self.index_body, params={"request_timeout": 30})
-        logger.info("table_id->[%s] has created new index->[%s]", self.table_id, new_index_name)
+        response = self._create_index_with_retry(es_client, new_index_name)
+        logger.info(
+            "table_id->[%s] has created new index->[%s],response->[%s]", self.table_id, new_index_name, response
+        )
         return True
 
     def update_index_v2(self):
