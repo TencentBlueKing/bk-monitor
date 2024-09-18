@@ -34,6 +34,7 @@ from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 from pytz import timezone
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 from bkmonitor.dataflow import auth
 from bkmonitor.dataflow.task.cmdblevel import CMDBPrepareAggregateTask
@@ -2193,6 +2194,7 @@ class ESStorage(models.Model, StorageResultTable):
         """
         return self._get_index_infos(ESNamespacedClientType.INDICES.value)
 
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def current_index_info(self):
         """
         返回当前使用的最新index相关的信息
@@ -2282,6 +2284,7 @@ class ESStorage(models.Model, StorageResultTable):
             return f"v2_{self.index_name}_{datetime_object.strftime(self.date_format)}_{index}"
         return f"{self.index_name}_{datetime_object.strftime(self.date_format)}_{index}"
 
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def get_client(self):
         """获取该结果表的客户端句柄"""
         return es_tools.get_client(self.storage_cluster_id)
@@ -2685,10 +2688,23 @@ class ESStorage(models.Model, StorageResultTable):
         new_index_name = self.make_index_name(now_datetime_object, new_index, "v2")
         logger.info("table_id->[%s] will create new index->[%s]", self.table_id, new_index_name)
 
-        # 2.1 创建新的index
-        response = es_client.indices.create(index=new_index_name, body=self.index_body, params={"request_timeout": 30})
+        # 2.1 创建新的index,添加重试机制
+        response = self._create_index_with_retry(es_client, new_index_name)
         logger.info("table_id->[%s] create new index_name->[%s] response [%s]", self.table_id, new_index_name, response)
         return True
+
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+    def _create_index_with_retry(self, es_client, new_index_name):
+        logger.info("Attempting to create index: %s", new_index_name)
+        try:
+            response = es_client.indices.create(
+                index=new_index_name, body=self.index_body, params={"request_timeout": 30}
+            )
+            logger.info("Successfully created index: %s with response: %s", new_index_name, response)
+            return response
+        except Exception as e:
+            logger.error("Failed to create index: %s with error: %s", new_index_name, str(e))
+            raise
 
     def clean_index(self):
         """
