@@ -207,6 +207,7 @@ export class DataQuery implements IDataQuery {
   alias?: string;
   // 数据api
   api?: string;
+  chart_type: 'bar' | 'line' = undefined;
   /** 目标对比的字段映射 */
   compareFieldsSort?: FieldsSortType = [];
   // 查询图表配置
@@ -224,6 +225,7 @@ export class DataQuery implements IDataQuery {
   ignore_group_by?: string[];
   isMultiple?: boolean;
   options?: DataQueryOptions;
+  yAxisIndex?: number;
   constructor(model: IDataQuery, isMultiple = false) {
     this.isMultiple = isMultiple;
     Object.keys(model || {}).forEach(key => {
