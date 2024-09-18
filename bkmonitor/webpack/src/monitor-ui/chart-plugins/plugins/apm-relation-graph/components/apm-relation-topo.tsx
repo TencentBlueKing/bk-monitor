@@ -1270,11 +1270,15 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
             type='empty'
           />,
         ]}
+        <div
+          style='top: 16px; bottom: initial'
+          class='apm-graph-tips'
+          slot='timeTips'
+        >
+          {this.$slots.timeTips}
+        </div>
         {this.formatData.nodes.length && (
-          <div
-            key='graph-tips'
-            class='apm-graph-tips'
-          >
+          <div class='apm-graph-tips'>
             <i class='icon-monitor icon-mc-mouse mouse-icon' />
             {this.$t('在节点右键进行更多操作')}
           </div>
