@@ -69,6 +69,15 @@
     emit('retrieve', modelValue.value);
   };
 
+  const closeAndRetrieve = () => {
+    // 键盘enter事件，如果当前没有选中任何可选项 或者当前没有联想提示
+    // 此时执行查询操作，如果有联想提示，关闭提示弹出
+    if (!(getTippyInstance()?.state?.isShown ?? false) || sqlActiveParamsIndex.value === null) {
+      getTippyInstance()?.hide();
+      debounceRetrieve();
+    }
+  };
+
   watch(modelValue, () => {
     setEditorContext(modelValue.value);
   });
@@ -79,12 +88,7 @@
       target: refEditorParent.value,
       onChange: e => onEditorContextChange(e),
       onKeyEnter: () => {
-        // 键盘enter事件，如果当前没有选中任何可选项 或者当前没有联想提示
-        // 此时执行查询操作，如果有联想提示，关闭提示弹出
-        if (!(getTippyInstance()?.state?.isShown ?? false) || sqlActiveParamsIndex.value === null) {
-          getTippyInstance()?.hide();
-          debounceRetrieve();
-        }
+        closeAndRetrieve();
       },
       onFocusChange: isFocusing => {
         if (isFocusing) {
@@ -105,11 +109,14 @@
     }
   };
 
-  const handleQueryChange = value => {
+  const handleQueryChange = (value, retrieve) => {
     if (modelValue.value !== value) {
       setEditorContext(value);
       nextTick(() => {
         handleContainerClick();
+        if (retrieve) {
+          closeAndRetrieve();
+        }
       });
     }
   };

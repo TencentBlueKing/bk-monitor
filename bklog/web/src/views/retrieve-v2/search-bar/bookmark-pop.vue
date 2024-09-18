@@ -16,6 +16,9 @@
   const emit = defineEmits(['refresh']);
   const { $t } = useLocale();
   const store = useStore();
+
+  const indexSetItem = computed(() => store.state.indexItem);
+
   // 用于展示索引集
   // 这里返回数组，展示 index_set_name 字段
   const indexSetItemList = computed(() => store.state.indexItem.items);
@@ -168,8 +171,7 @@
 
   // 新建提交逻辑
   const handleCreateRequest = async () => {
-    const { index_set_id, name, group_id, display_fields, visible_type, id, is_enable_display_fields } =
-      favoriteData.value;
+    const { name, group_id, display_fields, visible_type, id, is_enable_display_fields } = favoriteData.value;
     const data = {
       name,
       group_id,
@@ -178,11 +180,23 @@
       keyword: props.sql,
       is_enable_display_fields,
       index_set_name: indexSetName.value,
+      search_mode: 'sql',
+      index_set_ids: [],
+      index_set_names: [],
     };
+
     Object.assign(data, {
-      index_set_id,
+      index_set_id: store.state.indexId,
       space_uid: spaceUid.value,
     });
+
+    if (indexSetItem.value.isUnionIndex) {
+      Object.assign(data, {
+        index_set_ids: indexSetItem.value.ids,
+        index_set_names: indexSetItemList.value?.map(item => item?.index_set_name),
+        space_uid: spaceUid.value,
+      });
+    }
 
     const requestStr = 'createFavorite';
     try {
@@ -232,11 +246,11 @@
   const showPopover = () => {
     popoverShow.value = true;
     popoverContentRef.value.showHandler();
-  }
+  };
   const hidePopover = () => {
     popoverShow.value = false;
     popoverContentRef.value.hideHandler();
-  }
+  };
   const handlePopoverShow = () => {
     // 界面初始化隐藏弹窗样式
     nextTick(() => {
@@ -335,9 +349,7 @@
                         ></bk-input>
                       </bk-form-item>
                     </bk-form>
-                    <div
-                      class="operate-button"
-                    >
+                    <div class="operate-button">
                       <span
                         style="color: #33d05c"
                         class="bk-icon icon-check-line"

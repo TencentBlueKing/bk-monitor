@@ -422,7 +422,7 @@
   ]);
 
   const handleFavoriteClick = item => {
-    emits('change', item.keyword);
+    emits('change', item.params?.keyword, true);
   };
 
   defineExpose({

@@ -6,21 +6,18 @@
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
 
   const store = useStore();
-  const emit = defineEmits(['change'])
+  const emit = defineEmits(['change']);
 
   const indexSetItemIdList = computed(() => store.state.indexItem.ids);
+  const favoriteGroupList = computed(() => store.state.favoriteList.map(f => f.favorites).flat());
 
   // 数据格式: [{ group_id: '', group_name: '', group_type: '' }]
   const favoriteList = computed(() =>
-    store.state.favoriteList
-      .map(list => list.favorites)
-      .flat()
-      .filter(
-        item =>
-          item.search_mode === 'sql' &&
-          indexSetItemIdList.value.includes(`${item.index_set_id}`) ||
-          item.index_set_ids?.some(id => indexSetItemIdList.value.includes(`${id}`)),
-      ),
+    favoriteGroupList.value.filter(
+      item =>
+        (item.search_mode === 'sql' && indexSetItemIdList.value.includes(`${item.index_set_id}`)) ||
+        item.index_set_ids?.some(id => indexSetItemIdList.value.includes(`${id}`)),
+    ),
   );
 
   const svgImg = ref({ imgUpDownKey, imgEnterKey });
@@ -42,7 +39,7 @@
           >
             <div><span class="active bklog-icon bklog-lc-star-shape"></span></div>
             <div class="list-item-type">检索语句</div>
-            <div class="list-item-information">{{ item.keyword }}</div>
+            <div class="list-item-information">{{ item.params?.keyword }}</div>
           </div>
         </template>
         <template v-else>
