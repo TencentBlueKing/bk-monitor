@@ -487,18 +487,15 @@ class PathTemplate:
 
             if from_node_merged != to_node_merged:
                 merged_edge = (from_node_merged, to_node_merged)
-                merged_edges_mapping[merged_edge].append(
-                    {
-                        "source": from_node,
-                        "target": to_node,
-                    }
-                )
+                merged_edges_mapping[merged_edge].append((from_node, to_node))
 
         return [
             {
                 "source": e[0],
                 "target": e[1],
-                "original": original_edges if len(original_edges) > 1 else [],
+                "original": [{"source": i[0], "target": i[1]} for i in set(original_edges)]
+                if len(original_edges) > 1
+                else [],
             }
             for e, original_edges in merged_edges_mapping.items()
         ]

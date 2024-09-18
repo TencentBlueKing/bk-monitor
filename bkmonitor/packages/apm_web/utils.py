@@ -135,12 +135,12 @@ def get_interval_number(start_time, end_time, interval="auto"):
 
 def get_bar_interval_number(start_time, end_time, size=30):
     """计算出柱状图（特殊处理的）的 interval 固定柱子数量"""
-    delta = end_time - start_time
-    if delta <= size:
-        # 如果间隔小于大小 按照一秒进行聚合 此时柱子数量不为 size
-        return 1
+    # 最低聚合为一分钟
+    c = (end_time - start_time) / 60
+    if c < size:
+        return 60
 
-    return int(delta // size)
+    return int((end_time - start_time) // size)
 
 
 def split_by_size(start_time, end_time, size=30):
@@ -153,8 +153,8 @@ def split_by_size(start_time, end_time, size=30):
 
     segments = []
 
-    for i in range(size):
-        segment_start = start_dt + segment_duration * i
+    for index, i in enumerate(range(size), -1):
+        segment_start = start_dt + segment_duration * index
         segment_end = segment_start + segment_duration
         segments.append((int(segment_start.timestamp()), int(segment_end.timestamp())))
 
@@ -222,17 +222,31 @@ def merge_dicts(d1, d2):
 
 
 def fill_series(series, start_time, end_time):
-    """调整时间戳 将无数据的柱子值设置为 0 (适用于柱状图查询)"""
-    timestamp_range = split_by_size(start_time, end_time)
+    """
+    调整时间戳 将无数据的柱子值设置为 None (适用于柱状图查询)
+    """
+    # 检查按照最低一分钟聚合的话 是否少于默认数量 30个 如果小于则需要按照原本的数量进行切分
+    default_size = 30
+    c = int(math.ceil((end_time - start_time) / 60))
+    size = default_size if c > default_size else c
 
-    # Algorithm: 根据 series 中数据时间 不丢失数据的前提下放入不完整对齐的时间切片中
+    timestamp_range = split_by_size(start_time, end_time, size=size)
+    if not series:
+        return [{"datapoints": [[None, int((s + e) / 2) * 1000] for s, e in timestamp_range]}]
+
     res = []
     for i in series:
         result = [[None, int((t_e + t_s) / 2) * 1000] for t_e, t_s in timestamp_range]
-        for j, d in enumerate(i["datapoints"]):
+        # 如果数据点数量比切分的时间范围数量大 说明有数据点不能放入时间范围中 去掉尾部元素
+        dps = (
+            i["datapoints"] if len(i["datapoints"]) <= len(timestamp_range) else i["datapoints"][: len(timestamp_range)]
+        )
+        for j, d in enumerate(dps):
             value, timestamp = d
             if j > 0:
                 # 往前移动被覆盖元素
+                # 这里的情况可能是 UnifyQuery 返回的前 n 个元素 比 timestamp_range 中 n-1 位的开始时间要小的问题
+                # 所以这个 n 位元素应该放在 n-1 位 需要整个 time_range 往前移动
                 if timestamp_range[j - 1][0] <= timestamp <= timestamp_range[j - 1][1]:
                     result[j - 1] = d
                     result[j - 2] = i["datapoints"][j - 1]

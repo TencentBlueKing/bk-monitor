@@ -12,8 +12,7 @@ import copy
 import itertools
 import json
 import urllib.parse
-from dataclasses import asdict, dataclass, field
-from typing import Dict, List
+from typing import Dict
 from urllib.parse import urljoin
 
 from django.conf import settings
@@ -29,25 +28,10 @@ from apm_web.metric_handler import (
 from apm_web.models import Application, AppServiceRelation
 from apm_web.topo.constants import BarChartDataType
 from apm_web.topo.handle import BaseQuery
-from apm_web.utils import get_bar_interval_number
+from apm_web.utils import fill_series, get_bar_interval_number
 from core.drf_resource import resource
 from monitor_web.models.scene_view import SceneViewModel
 from monitor_web.scene_view.builtin.apm import ApmBuiltinProcessor
-
-
-@dataclass
-class BarSeries:
-    datapoints: List = field(default_factory=list)
-    dimensions: Dict = field(default_factory=dict)
-    target: str = ""
-    type: str = "bar"
-    unit: str = ""
-
-
-@dataclass
-class BarResponse:
-    metrics: List = field(default_factory=list)
-    series: List[BarSeries] = field(default_factory=list)
 
 
 class BarQuery(BaseQuery):
@@ -55,7 +39,7 @@ class BarQuery(BaseQuery):
         if not self.params.get("endpoint_name"):
             if self.application.data_status == DataStatus.NO_DATA and self.data_type != BarChartDataType.Alert.value:
                 # 如果应用无数据 则柱状图显示为无数据
-                return asdict(BarResponse())
+                return {"metrics": [], "series": []}
 
             return getattr(self, f"get_{self.data_type}_series")()
         else:
@@ -107,20 +91,34 @@ class BarQuery(BaseQuery):
                 for j in i.get("data", [])
             }
 
-        res = []
-        for t in all_ts:
+        origin_series = []
+        for t in all_ts[:-1]:
             info_count = ts_mapping[AlertLevel.INFO].get(t, 0)
             warn_count = ts_mapping[AlertLevel.WARN].get(t, 0)
             error_count = ts_mapping[AlertLevel.ERROR].get(t, 0)
-            if error_count > 0:
-                # 致命级别优先级最高
-                res.append([[1, error_count], t])
-            elif info_count > 0 or warn_count > 0:
-                res.append([[2, info_count + warn_count], t])
-            else:
-                res.append([[3, 0], t])
 
-        return asdict(BarResponse(series=[BarSeries(datapoints=[res])]))
+            if info_count or warn_count or error_count:
+                origin_series.append([(error_count, info_count, warn_count), t])
+
+        # 将告警数据使用统一的时间戳补充逻辑
+        origin_series = fill_series([{"datapoints": origin_series}], self.start_time, self.end_time)
+        res = []
+        for item in origin_series[0]["datapoints"]:
+
+            if item[0] is None:
+                res.append([[3, 0], item[-1]])
+            else:
+                # 有告警
+                error_count, info_count, warn_count = item[0]
+                if error_count > 0:
+                    # 致命级别优先级最高
+                    res.append([[1, error_count], item[-1]])
+                elif info_count > 0 or warn_count > 0:
+                    res.append([[2, info_count + warn_count], item[-1]])
+                else:
+                    res.append([[3, 0], item[-1]])
+
+        return {"metrics": [], "series": [{"datapoints": res}]}
 
     def get_apdex_series(self) -> Dict:
         return self.get_metric(
@@ -227,6 +225,35 @@ class LinkHelper:
             f"from={start_time * 1000}&"
             f"to={end_time * 1000}&"
             f"dashboardId={dashboard_id}"
+        )
+
+    @classmethod
+    def get_service_instance_instance_tab_link(
+        cls,
+        bk_biz_id,
+        app_name,
+        service_name,
+        instance_name,
+        start_time,
+        end_time,
+        views=None,
+    ):
+        """获取服务实例的实例 Tab 页面并定位到具体的服务实例"""
+        if not views:
+            views = SceneViewModel.objects.filter(bk_biz_id=bk_biz_id, scene_id="apm_service")
+
+        dashboard_id = ApmBuiltinProcessor.get_dashboard_id(bk_biz_id, app_name, service_name, "instance", views)
+        if not dashboard_id:
+            return None
+
+        return (
+            f"?bizId={bk_biz_id}#/apm/service?"
+            f"filter-service_name={service_name}&"
+            f"filter-app_name={app_name}&"
+            f"from={start_time * 1000}&"
+            f"to={end_time * 1000}&"
+            f"dashboardId={dashboard_id}&"
+            f"filter-bk_instance_id={instance_name}"
         )
 
     @classmethod

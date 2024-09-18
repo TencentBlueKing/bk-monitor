@@ -1289,6 +1289,7 @@ RT_RESERVED_WORD_EXAC = [
     "iterationIndex",
     "__ext",
     "__ext_json",
+    "__parse_failure",
     "log",
     "dtEventTimeStamp",
     "datetime",
@@ -1569,7 +1570,7 @@ OPERATORS = {
         OperatorEnum.EXISTS,
         OperatorEnum.NOT_EXISTS,
     ],
-    "bool": [OperatorEnum.IS_TRUE, OperatorEnum.IS_FALSE, OperatorEnum.EXISTS, OperatorEnum.NOT_EXISTS],
+    "boolean": [OperatorEnum.IS_TRUE, OperatorEnum.IS_FALSE, OperatorEnum.EXISTS, OperatorEnum.NOT_EXISTS],
     "conflict": [
         OperatorEnum.EQ,
         OperatorEnum.NE,

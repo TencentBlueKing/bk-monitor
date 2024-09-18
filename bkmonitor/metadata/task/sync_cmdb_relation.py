@@ -20,7 +20,6 @@ from bkmonitor.utils.cipher import transform_data_id_to_token
 from metadata.models import (
     ClusterInfo,
     DataSource,
-    DataSourceResultTable,
     Label,
     ResultTable,
     Space,
@@ -36,6 +35,8 @@ def sync_relation_redis_data():
     """
     同步cmdb-relation内置数据
     """
+    logger.info("sync_relation_redis_data started")
+    # 获取对应的Redis数据
     redis_key = settings.BUILTIN_DATA_RT_REDIS_KEY
     redis_data = RedisTools.hgetall(redis_key)
     # 批量获取所有内置RT对象
@@ -45,21 +46,24 @@ def sync_relation_redis_data():
         value_dict = json.loads(value)  # 获取对应的field与value
         key = field.decode('utf-8')
         space_type, space_id = key.split('__')  # 分割出space_type和space_id
+        # 转义出对应的业务ID，容器等非业务类型ID为负数
         biz_id = space_id if space_type == "bkcc" else Space.objects.get_biz_id_by_space(space_type, space_id)
-        # bkmonitor_{space_type}_{space_id}_built_in_time_series.__default__
-        data_name = "bkmonitor_{}_{}_built_in_time_series".format(space_type, space_id)
-        table_id = "bkmonitor_{}_{}_built_in_time_series.__default__".format(space_type, space_id)
+        # {biz_id}_{space_type}_built_in_time_series.__default__
+        data_name = "{}_{}_built_in_time_series".format(biz_id, space_type)
+        table_id = "{}_{}_built_in_time_series.__default__".format(biz_id, space_type)  # table_id有限制，必须以业务ID数字开头
         token = value_dict.get('token')
         modify_time = value_dict.get('modifyTime')  # noqa
-        logger.info("Start sync builtin redis data, field={}".format(key))
+        logger.info("sync_relation_redis_data start sync builtin redis data, field={}".format(key))
 
         rt = existing_rts_dict.get(table_id)
         if rt:
-            if not token:
+            if not token:  # RT存在，但是token不存在场景 -> 生成对应Token，写入Redis
                 try:
-                    logger.info("Field {} RT exist but token is empty,start generate token".format(key))
-                    dsrt = DataSourceResultTable.objects.get(table_id=table_id)  # 根据RT查询data_id
-                    data_id = dsrt.bk_data_id
+                    logger.info(
+                        "sync_relation_redis_data Field {} RT exist but token is empty,start generate token".format(key)
+                    )
+                    ds = DataSource.objects.get(data_name=data_name)
+                    data_id = ds.bk_data_id
                     new_modify_time = str(int(time.time()))
                     generated_token = transform_data_id_to_token(
                         metric_data_id=data_id, bk_biz_id=biz_id, app_name=data_name
@@ -67,16 +71,18 @@ def sync_relation_redis_data():
                     # 更新Redis中的Token和modifyTime
                     value_dict['token'] = generated_token
                     # DS中的Token也需要更新
-                    ds = DataSource.objects.get(bk_data_id=dsrt.bk_data_id)
+                    ds = DataSource.objects.get(bk_data_id=data_id)
                     ds.token = generated_token
                     ds.save()
                     value_dict['modifyTime'] = new_modify_time
                     RedisTools.hset_to_redis(redis_key, key, json.dumps(value_dict))
-                    logger.info("Generate Token For Field {} has completed".format(key))
+                    logger.info("sync_relation_redis_data Generate Token For Field {} has completed".format(key))
                 except Exception as e:
-                    logger.error(f"Error: Failed to write data to redis, error={e}, field={key}")
+                    logger.error(
+                        f"sync_relation_redis_data error: Failed to write data to redis, error={e}, field={key}"
+                    )
         else:
-            if not token:
+            if not token:  # RT不存在，Token不存在场景 -> 创建新DS&RT -> 写入Redis
                 try:
                     logger.info(
                         "Field {} RT not exist and token is empty,start generate token and create new datalink".format(
@@ -118,7 +124,7 @@ def sync_relation_redis_data():
                     value_dict['modifyTime'] = new_rt.last_modify_time
                     RedisTools.hset_to_redis(redis_key, key, json.dumps(value_dict))
                 except Exception as e:
-                    logger.error(f"Error: Failed to create new DS&RT, error={e}, field={key}")
+                    logger.error(f"sync_relation_redis_data error: Failed to create new DS&RT, error={e}, field={key}")
                     continue
 
-    logger.info("Sync built-in data to Redis and update ResultTable model successfully")
+    logger.info("sync_relation_redis_data finished successfully")

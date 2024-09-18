@@ -305,6 +305,25 @@ class EdgeDurationP50(DurationUnitMixin, ValuesPluginMixin, PrePlugin):
 
 @PluginProvider.pre_plugin
 @dataclass
+class EdgeDurationP50(DurationUnitMixin, ValuesPluginMixin, PrePlugin):
+    id: str = TopoEdgeDataType.DURATION_P50.value
+    type: GraphPluginType = GraphPluginType.EDGE
+    metric: Type[MetricHandler] = functools.partial(
+        ServiceFlowDurationBucket,
+        group_by=["from_apm_service_name", "to_apm_service_name"],
+        functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.50"}]}],
+    )
+
+    def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
+        return self.get_instance_values_mapping()
+
+    @classmethod
+    def _ignore_keys(cls):
+        return ["le"]
+
+
+@PluginProvider.pre_plugin
+@dataclass
 class EdgeDurationP95(DurationUnitMixin, ValuesPluginMixin, PrePlugin):
     id: str = TopoEdgeDataType.DURATION_P95.value
     type: GraphPluginType = GraphPluginType.EDGE
@@ -1451,7 +1470,7 @@ class EndpointSize(PostPlugin):
         callee_value = endpoint_data.get(EndpointRequestCountCallee.id, 0)
         value = caller_value or 0 + callee_value or 0
 
-        if value == 0:
+        if not value:
             endpoint_data[self.id] = self.Size.NO_DATA
         elif value < 200:
             endpoint_data[self.id] = self.Size.SMALL

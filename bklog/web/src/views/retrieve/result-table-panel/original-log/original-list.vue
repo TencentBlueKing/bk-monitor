@@ -58,15 +58,15 @@
       <!-- 显示字段 -->
       <template>
         <bk-table-column
-          width="160"
+          :width="originFieldWidth"
           class-name="original-time"
         >
           <template #default="{ row }">
             <span
               class="time-field"
-              :title="isWrap ? '' : formatDate(Number(row[timeField]))"
+              :title="isWrap ? '' : getOriginTimeShow(row[timeField])"
             >
-              {{ formatDate(Number(row[timeField]) || '') }}
+              {{ getOriginTimeShow(row[timeField]) }}
             </span>
           </template>
         </bk-table-column>
