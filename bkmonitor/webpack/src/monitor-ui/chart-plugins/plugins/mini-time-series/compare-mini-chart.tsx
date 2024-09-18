@@ -42,6 +42,7 @@ export enum EDropType {
   refer = 'refer',
 }
 
+/* 用于两点对比 */
 @Component
 export default class CompareMiniChart extends MiniTimeSeries {
   /* 对比点 */

@@ -33,12 +33,12 @@ import { formatTimeUnitAndValue } from '../../utils/utils';
 
 import './mini-time-series.scss';
 
-export enum EPointType {
+enum EPointType {
   compare = 'compare',
   end = 'end',
   refer = 'refer',
 }
-export enum EDropType {
+enum EDropType {
   compare = 'compare',
   end = 'end',
   refer = 'refer',
@@ -54,6 +54,7 @@ interface IProps {
   valueTitle?: string;
   unit?: string;
   showLastMarkPoint?: boolean;
+  /* 以下参数为对比图专用 */
   compareX?: number;
   referX?: number;
   pointType?: EPointType;
