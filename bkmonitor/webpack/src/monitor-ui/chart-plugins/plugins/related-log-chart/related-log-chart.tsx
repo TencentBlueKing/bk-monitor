@@ -366,8 +366,8 @@ class RelatedLogChart extends CommonSimpleChart {
     try {
       this.unregisterOberver();
 
-      let startTime;
-      let endTime;
+      let startTime = undefined;
+      let endTime = undefined;
       if (this.isScrollLoadTableData) {
         // 分页请求
         [startTime, endTime] = this.localTimeRange;
@@ -414,7 +414,7 @@ class RelatedLogChart extends CommonSimpleChart {
               this.handleLoadingChange(false);
             })
         );
-    } catch (e) {}
+    } catch {}
   }
   /** 滚动至底部分页加载 */
   handleScrollEnd() {
@@ -492,7 +492,7 @@ class RelatedLogChart extends CommonSimpleChart {
   }
 
   get selectedOptionAlias() {
-    const target = this.relatedIndexSetList.find(item => item.index_set_id == this.relatedIndexSetId);
+    const target = this.relatedIndexSetList.find(item => item.index_set_id === this.relatedIndexSetId);
     return target?.index_set_name ?? '';
   }
 
@@ -561,7 +561,12 @@ class RelatedLogChart extends CommonSimpleChart {
               />
             </div>
           ) : (
-            <div class='empty-chart empty-chart-text'>{this.$t('查无数据')}</div>
+            <bk-exception
+              scene='part'
+              type='empty'
+            >
+              {this.$t('暂无数据')}
+            </bk-exception>
           )}
         </div>
       );

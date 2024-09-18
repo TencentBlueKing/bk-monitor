@@ -57,7 +57,7 @@ export default class ApmTimeSeries extends TimeSeries {
 
   contextmenuInfo = {
     options: [
-      { id: 'details', name: window.i18n.tc('查看详情') },
+      // { id: 'details', name: window.i18n.tc('查看详情') },
       { id: 'topo', name: window.i18n.tc('查看拓扑') },
     ],
     sliceStartTime: 0, // 当前切片起始时间
