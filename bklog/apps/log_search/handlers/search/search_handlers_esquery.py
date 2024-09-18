@@ -643,17 +643,17 @@ class SearchHandler(object):
         return new_sort_list
 
     @classmethod
-    def direct_esquery_search(cls, params):
+    def direct_esquery_search(cls, params, **kwargs):
         data = custom_params_valid(EsQuerySearchAttrSerializer, params)
         return EsQuery(data).search()
 
     @classmethod
-    def direct_esquery_dsl(cls, params):
+    def direct_esquery_dsl(cls, params, **kwargs):
         data = custom_params_valid(EsQueryDslAttrSerializer, params)
         return EsQuery(data).dsl()
 
     @classmethod
-    def direct_esquery_scroll(cls, params):
+    def direct_esquery_scroll(cls, params, **kwargs):
         data = custom_params_valid(EsQueryScrollAttrSerializer, params)
         return EsQuery(data).scroll()
 
@@ -936,91 +936,12 @@ class SearchHandler(object):
         @param size:
         @return:
         """
-        if self.scenario_id == Scenario.ES:
-            if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
-                result = self.direct_esquery_search(
-                    {
-                        "indices": self.indices,
-                        "scenario_id": self.scenario_id,
-                        "storage_cluster_id": self.storage_cluster_id,
-                        "start_time": self.start_time,
-                        "end_time": self.end_time,
-                        "query_string": self.query_string,
-                        "filter": self.filter,
-                        "sort_list": self.sort_list,
-                        "start": self.start,
-                        "size": size,
-                        "aggs": self.aggs,
-                        "highlight": self.highlight,
-                        "time_zone": self.time_zone,
-                        "time_range": self.time_range,
-                        "use_time_range": self.use_time_range,
-                        "time_field": self.time_field,
-                        "time_field_type": self.time_field_type,
-                        "time_field_unit": self.time_field_unit,
-                        "scroll": SCROLL,
-                        "collapse": self.collapse,
-                    }
-                )
-            else:
-                result = BkLogApi.search(
-                    {
-                        "indices": self.indices,
-                        "scenario_id": self.scenario_id,
-                        "storage_cluster_id": self.storage_cluster_id,
-                        "start_time": self.start_time,
-                        "end_time": self.end_time,
-                        "query_string": self.query_string,
-                        "filter": self.filter,
-                        "sort_list": self.sort_list,
-                        "start": self.start,
-                        "size": size,
-                        "aggs": self.aggs,
-                        "highlight": self.highlight,
-                        "time_zone": self.time_zone,
-                        "time_range": self.time_range,
-                        "use_time_range": self.use_time_range,
-                        "time_field": self.time_field,
-                        "time_field_type": self.time_field_type,
-                        "time_field_unit": self.time_field_unit,
-                        "scroll": SCROLL,
-                        "collapse": self.collapse,
-                    },
-                    data_api_retry_cls=DataApiRetryClass.create_retry_obj(
-                        exceptions=[BaseException],
-                        stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY,
-                    ),
-                )
-            return result
-
-        sorted_list = self._get_user_sorted_list(sorted_fields)
         if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
-            result = self.direct_esquery_search(
-                {
-                    "indices": self.indices,
-                    "scenario_id": self.scenario_id,
-                    "storage_cluster_id": self.storage_cluster_id,
-                    "start_time": self.start_time,
-                    "end_time": self.end_time,
-                    "query_string": self.query_string,
-                    "filter": self.filter,
-                    "sort_list": sorted_list,
-                    "start": self.start,
-                    "size": size,
-                    "aggs": self.aggs,
-                    "highlight": self.highlight,
-                    "time_zone": self.time_zone,
-                    "time_range": self.time_range,
-                    "time_field": self.time_field,
-                    "use_time_range": self.use_time_range,
-                    "time_field_type": self.time_field_type,
-                    "time_field_unit": self.time_field_unit,
-                    "scroll": None,
-                    "collapse": self.collapse,
-                }
-            )
+            exec_func = self.direct_esquery_search
         else:
-            result = BkLogApi.search(
+            exec_func = BkLogApi.search
+        if self.scenario_id == Scenario.ES:
+            result = exec_func(
                 {
                     "indices": self.indices,
                     "scenario_id": self.scenario_id,
@@ -1029,24 +950,55 @@ class SearchHandler(object):
                     "end_time": self.end_time,
                     "query_string": self.query_string,
                     "filter": self.filter,
-                    "sort_list": sorted_list,
+                    "sort_list": self.sort_list,
                     "start": self.start,
                     "size": size,
                     "aggs": self.aggs,
                     "highlight": self.highlight,
                     "time_zone": self.time_zone,
                     "time_range": self.time_range,
-                    "time_field": self.time_field,
                     "use_time_range": self.use_time_range,
+                    "time_field": self.time_field,
                     "time_field_type": self.time_field_type,
                     "time_field_unit": self.time_field_unit,
-                    "scroll": None,
+                    "scroll": SCROLL,
                     "collapse": self.collapse,
                 },
                 data_api_retry_cls=DataApiRetryClass.create_retry_obj(
-                    exceptions=[BaseException], stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY
+                    exceptions=[BaseException],
+                    stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY,
                 ),
             )
+            return result
+
+        sorted_list = self._get_user_sorted_list(sorted_fields)
+        result = exec_func(
+            {
+                "indices": self.indices,
+                "scenario_id": self.scenario_id,
+                "storage_cluster_id": self.storage_cluster_id,
+                "start_time": self.start_time,
+                "end_time": self.end_time,
+                "query_string": self.query_string,
+                "filter": self.filter,
+                "sort_list": sorted_list,
+                "start": self.start,
+                "size": size,
+                "aggs": self.aggs,
+                "highlight": self.highlight,
+                "time_zone": self.time_zone,
+                "time_range": self.time_range,
+                "time_field": self.time_field,
+                "use_time_range": self.use_time_range,
+                "time_field_type": self.time_field_type,
+                "time_field_unit": self.time_field_unit,
+                "scroll": None,
+                "collapse": self.collapse,
+            },
+            data_api_retry_cls=DataApiRetryClass.create_retry_obj(
+                exceptions=[BaseException], stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY
+            ),
+        )
         return result
 
     def search_after_result(self, search_result, sorted_fields):
@@ -1056,6 +1008,10 @@ class SearchHandler(object):
         @param sorted_fields:
         @return:
         """
+        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
+            exec_func = self.direct_esquery_search
+        else:
+            exec_func = BkLogApi.search
         search_after_size = len(search_result["hits"]["hits"])
         result_size = search_after_size
         max_result_window = self.index_set_obj.result_window
@@ -1064,61 +1020,34 @@ class SearchHandler(object):
             search_after = []
             for sorted_field in sorted_list:
                 search_after.append(search_result["hits"]["hits"][-1]["_source"].get(sorted_field[0]))
-            if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
-                search_result = self.direct_esquery_search(
-                    {
-                        "indices": self.indices,
-                        "scenario_id": self.scenario_id,
-                        "storage_cluster_id": self.storage_cluster_id,
-                        "start_time": self.start_time,
-                        "end_time": self.end_time,
-                        "query_string": self.query_string,
-                        "filter": self.filter,
-                        "sort_list": sorted_list,
-                        "start": self.start,
-                        "size": max_result_window,
-                        "aggs": self.aggs,
-                        "highlight": self.highlight,
-                        "time_zone": self.time_zone,
-                        "time_range": self.time_range,
-                        "use_time_range": self.use_time_range,
-                        "time_field": self.time_field,
-                        "time_field_type": self.time_field_type,
-                        "time_field_unit": self.time_field_unit,
-                        "scroll": self.scroll,
-                        "collapse": self.collapse,
-                        "search_after": search_after,
-                    },
-                )
-            else:
-                search_result = BkLogApi.search(
-                    {
-                        "indices": self.indices,
-                        "scenario_id": self.scenario_id,
-                        "storage_cluster_id": self.storage_cluster_id,
-                        "start_time": self.start_time,
-                        "end_time": self.end_time,
-                        "query_string": self.query_string,
-                        "filter": self.filter,
-                        "sort_list": sorted_list,
-                        "start": self.start,
-                        "size": max_result_window,
-                        "aggs": self.aggs,
-                        "highlight": self.highlight,
-                        "time_zone": self.time_zone,
-                        "time_range": self.time_range,
-                        "use_time_range": self.use_time_range,
-                        "time_field": self.time_field,
-                        "time_field_type": self.time_field_type,
-                        "time_field_unit": self.time_field_unit,
-                        "scroll": self.scroll,
-                        "collapse": self.collapse,
-                        "search_after": search_after,
-                    },
-                    data_api_retry_cls=DataApiRetryClass.create_retry_obj(
-                        exceptions=[BaseException], stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY
-                    ),
-                )
+            search_result = exec_func(
+                {
+                    "indices": self.indices,
+                    "scenario_id": self.scenario_id,
+                    "storage_cluster_id": self.storage_cluster_id,
+                    "start_time": self.start_time,
+                    "end_time": self.end_time,
+                    "query_string": self.query_string,
+                    "filter": self.filter,
+                    "sort_list": sorted_list,
+                    "start": self.start,
+                    "size": max_result_window,
+                    "aggs": self.aggs,
+                    "highlight": self.highlight,
+                    "time_zone": self.time_zone,
+                    "time_range": self.time_range,
+                    "use_time_range": self.use_time_range,
+                    "time_field": self.time_field,
+                    "time_field_type": self.time_field_type,
+                    "time_field_unit": self.time_field_unit,
+                    "scroll": self.scroll,
+                    "collapse": self.collapse,
+                    "search_after": search_after,
+                },
+                data_api_retry_cls=DataApiRetryClass.create_retry_obj(
+                    exceptions=[BaseException], stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY
+                ),
+            )
 
             search_after_size = len(search_result["hits"]["hits"])
             result_size += search_after_size
@@ -1130,34 +1059,27 @@ class SearchHandler(object):
         @param scroll_result:
         @return:
         """
+        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
+            exec_func = self.direct_esquery_scroll
+        else:
+            exec_func = BkLogApi.scroll
         scroll_size = len(scroll_result["hits"]["hits"])
         result_size = scroll_size
         max_result_window = self.index_set_obj.result_window
         while scroll_size == max_result_window and result_size < self.size:
             _scroll_id = scroll_result["_scroll_id"]
-            if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
-                scroll_result = self.direct_esquery_scroll(
-                    {
-                        "indices": self.indices,
-                        "scenario_id": self.scenario_id,
-                        "storage_cluster_id": self.storage_cluster_id,
-                        "scroll": SCROLL,
-                        "scroll_id": _scroll_id,
-                    },
-                )
-            else:
-                scroll_result = BkLogApi.scroll(
-                    {
-                        "indices": self.indices,
-                        "scenario_id": self.scenario_id,
-                        "storage_cluster_id": self.storage_cluster_id,
-                        "scroll": SCROLL,
-                        "scroll_id": _scroll_id,
-                    },
-                    data_api_retry_cls=DataApiRetryClass.create_retry_obj(
-                        exceptions=[BaseException], stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY
-                    ),
-                )
+            scroll_result = exec_func(
+                {
+                    "indices": self.indices,
+                    "scenario_id": self.scenario_id,
+                    "storage_cluster_id": self.storage_cluster_id,
+                    "scroll": SCROLL,
+                    "scroll_id": _scroll_id,
+                },
+                data_api_retry_cls=DataApiRetryClass.create_retry_obj(
+                    exceptions=[BaseException], stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY
+                ),
+            )
             scroll_size = len(scroll_result["hits"]["hits"])
             result_size += scroll_size
             yield self._deal_query_result(scroll_result)
