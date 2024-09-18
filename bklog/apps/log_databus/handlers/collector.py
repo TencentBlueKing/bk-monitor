@@ -3048,8 +3048,9 @@ class CollectorHandler(object):
             else:
                 collector_config_name = ""
 
-            is_collector_deleted = collector["std_collector_config"].index_set_id\
-                         and collector["path_collector_config"].index_set_id
+            is_collector_deleted = (
+                collector["std_collector_config"].index_set_id and collector["path_collector_config"].index_set_id
+            )
 
             rule = {
                 "rule_id": rule_id,
