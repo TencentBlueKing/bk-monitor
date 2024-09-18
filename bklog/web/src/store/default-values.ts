@@ -27,7 +27,7 @@
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 export const getDefaultRetrieveParams = () => {
   return {
-    keyword: '*',
+    keyword: '',
     host_scopes: { modules: [], ips: '', target_nodes: [], target_node_type: '' },
     ip_chooser: {},
     addition: [],

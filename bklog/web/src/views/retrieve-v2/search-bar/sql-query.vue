@@ -9,7 +9,7 @@
     value: {
       type: String,
       required: true,
-      default: '*',
+      default: '',
     },
   });
 
@@ -28,7 +28,7 @@
   let editorInstance = null;
 
   const formatModelValueItem = item => {
-    return item.replace(/^\s*\*\s*$/, '');
+    return item;
   };
 
   const { modelValue, delayShowInstance, getTippyInstance, handleContainerClick } = useFocusInput(props, {

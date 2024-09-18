@@ -286,6 +286,8 @@ const store = new Vuex.Store({
         }
       });
 
+      state.indexItem.isUnionIndex = false;
+      state.unionIndexList.splice(0, state.unionIndexList.length);
       Object.assign(state.indexItem, defaultValue, payload ?? {});
     },
 

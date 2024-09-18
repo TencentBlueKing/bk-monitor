@@ -118,7 +118,7 @@
   };
 
   const handleClearBtnClick = () => {
-    sqlQueryValue.value = '*';
+    sqlQueryValue.value = '';
     uiQueryValue.value.splice(0);
     handleBtnQueryClick();
   };

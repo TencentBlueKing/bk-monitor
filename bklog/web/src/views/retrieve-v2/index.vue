@@ -80,10 +80,6 @@
     }
   };
 
-  const requestIndexSetFieldParams = computed(() => {
-    const { start_time, end_time, keyword, addition } = store.state.indexItem;
-    return { start_time, end_time, keyword, addition };
-  });
 
   watch(
     indexSetParams,
@@ -98,7 +94,7 @@
     () => {
       const routeQuery = route.query ?? {};
       if (routeQuery.spaceUid !== spaceUid.value || routeQuery.bizId !== bkBizId.value) {
-        router.replace({
+        router.push({
           params: {
             indexId: undefined,
           },
