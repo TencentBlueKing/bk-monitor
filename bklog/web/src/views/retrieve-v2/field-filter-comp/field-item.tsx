@@ -172,7 +172,6 @@ export default class FieldItem extends tsc<object> {
           class={{ 'filed-title': true }}
           onClick={() => this.handleClickItem()}
         >
-          <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]}></span>
           {/* 三角符号 */}
           <div class={{ 'filed-item-triangle': true, expanded: this.isExpand }}>
             <span class={{ 'icon-right-shape': this.showFieldsChart, 'bk-icon': true }}></span>
@@ -255,6 +254,10 @@ export default class FieldItem extends tsc<object> {
               }}
             >
               <i class={['bk-icon include-icon', `${this.type !== 'visible' ? 'icon-eye' : 'icon-eye-slash'}`]}></i>
+            </div>
+            {/* 拖动字段位置按钮 */}
+            <div>
+              <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]}></span>
             </div>
           </div>
         </div>
