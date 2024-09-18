@@ -9,33 +9,39 @@
   &.is-close {
     /* stylelint-disable-next-line declaration-no-important */
     position: absolute !important;
-    z-index: 999;
+    z-index: 9;
     display: flex;
     align-items: center;
     width: auto;
+    height: 26px;
     padding: 8px 0 0 16px;
+
     box-shadow: none;
 
     .field-filter-title {
       display: flex;
       align-items: center;
+      justify-content: flex-start;
+      width: 110px;
+      padding: 0;
       font-size: 12px;
       line-height: 20px;
       color: #313238;
+      cursor: pointer;
 
       .close-total {
         position: relative;
         cursor: pointer;
+      }
 
-        &::after {
-          position: absolute;
-          right: -16px;
-          display: inline-block;
-          font-size: 16px;
-          color: #dcdee5;
-          pointer-events: none;
-          content: '|';
-        }
+      &::after {
+        position: absolute;
+        right: 16px;
+        display: inline-block;
+        font-size: 16px;
+        color: #dcdee5;
+        pointer-events: none;
+        content: '|';
       }
 
       .bklog-collapse-small {
