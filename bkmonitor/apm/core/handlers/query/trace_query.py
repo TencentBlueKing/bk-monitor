@@ -44,10 +44,6 @@ class TraceQuery(BaseQuery):
 
     KEY_REPLACE_FIELDS = {"duration": "trace_duration"}
 
-    def __init__(self, bk_biz_id: int, app_name: str, result_table_id: str, retention: int):
-        self.app_name: str = app_name
-        super().__init__(bk_biz_id, result_table_id, retention)
-
     @classmethod
     def _get_select_fields(cls, exclude_fields: Optional[List[str]]) -> List[str]:
         all_fields: Set[str] = {field_info["field_name"] for field_info in PrecalculateStorage.TABLE_SCHEMA}
@@ -140,7 +136,7 @@ class TraceQuery(BaseQuery):
         end_time: Optional[int],
     ) -> List[Dict[str, Any]]:
         base_q: QueryConfigBuilder = (
-            QueryConfigBuilder(cls.USING)
+            QueryConfigBuilder(cls.USING_LOG)
             .filter(trace_id__eq=trace_ids)
             .values("trace_id", "app_name", "error", "trace_duration", "root_service_category", "root_span_id")
             .time_field(cls.DEFAULT_TIME_FIELD)

@@ -19,7 +19,7 @@ import html
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
@@ -301,14 +301,15 @@ class FieldTransformer(TreeTransformer):
 class OptionValues:
     API = None
     FIELDS = []
+    API_FIELD_MAPPING = {}
 
     class Source:
         """数据来源"""
 
         # 从方法中获取
         METHOD = "method"
-        # 从ES中获取
-        ES = "es"
+        # 从 API 中获取
+        API = "api"
 
     @dataclass
     class Field:
@@ -321,65 +322,66 @@ class OptionValues:
         self.bk_biz_id = bk_biz_id
         self.app_name = app_name
 
-    @classmethod
-    def get_option_values(cls, option: "OptionValues", start_time, end_time):
+    def get_option_values(self, start_time, end_time):
         res = {}
-        query_es_fields = []
-        for field in option.FIELDS:
-            if field.source == OptionValues.Source.METHOD:
-                res[field.id] = getattr(option, f"get_{field.id.replace('.', '_')}")()
+        query_api_fields = []
+        for field in self.FIELDS:
+            if field.source == self.Source.METHOD:
+                res[field.id] = getattr(self, f"get_{field.id.replace('.', '_')}")()
             else:
-                query_es_fields.append(field.id)
+                query_api_fields.append(field.id)
+
+        value_from_api = self.get_field_option_values(query_api_fields, start_time, end_time)
+        res.update(value_from_api)
+
+        return res
+
+    def get_field_option_values(self, fields: List[str], start_time: int, end_time: int):
+
+        field_mapping: Dict[str, str] = {}
+        query_api_fields: List[str, str] = []
+        for field in fields:
+            api_field = self.transform_field_to_api_field(field)
+            field_mapping[api_field] = field
+            query_api_fields.append(api_field)
 
         params = {
-            "bk_biz_id": option.bk_biz_id,
-            "app_name": option.app_name,
+            "bk_biz_id": self.bk_biz_id,
+            "app_name": self.app_name,
             "start_time": start_time,
             "end_time": end_time,
-            "fields": query_es_fields,
+            "fields": query_api_fields,
         }
 
-        value_from_es = option.API(params)
-        if not value_from_es:
+        res = {}
+        value_from_api = self.API(params)
+        if not value_from_api:
             return res
 
-        # 处理ES数据保持格式一致
-        for field_name, field_values in value_from_es.items():
-            res[field_name] = [{"value": i, "text": i} for i in field_values]
+        for field_name, field_values in value_from_api.items():
+            res[field_mapping[field_name]] = [{"value": i, "text": i} for i in field_values]
 
         return res
 
     @classmethod
-    def get_field_option_values(cls, option, fields, start_time, end_time):
-        params = {
-            "bk_biz_id": option.bk_biz_id,
-            "app_name": option.app_name,
-            "start_time": start_time,
-            "end_time": end_time,
-            "fields": fields,
-        }
-
-        res = {}
-        value_from_es = option.API(params)
-        if not value_from_es:
-            return res
-
-        for field_name, field_values in value_from_es.items():
-            res[field_name] = [{"value": i, "text": i} for i in field_values]
-
-        return res
+    def transform_field_to_api_field(cls, field: str) -> str:
+        return cls.API_FIELD_MAPPING.get(field, field)
 
 
 class TraceOptionValues(OptionValues):
     API = api.apm_api.query_trace_option_values
+    API_FIELD_MAPPING = {
+        field: f"{TraceQueryTransformer.PRE_CALC_STANDARD_FIELD_PREFIX}.{field}"
+        for field in ["span_name", "resource.service.name"]
+    }
 
     FIELDS = [
-        OptionValues.Field(id="root_service", source=OptionValues.Source.ES, label=_("入口服务")),
-        OptionValues.Field(id="root_service_span_name", source=OptionValues.Source.ES, label=_("入口接口")),
-        OptionValues.Field(id="root_service_status_code", source=OptionValues.Source.ES, label=_("入口状态码")),
+        OptionValues.Field(id="root_service", source=OptionValues.Source.API, label=_("入口服务")),
+        OptionValues.Field(id="root_service_span_name", source=OptionValues.Source.API, label=_("入口接口")),
+        OptionValues.Field(id="root_service_status_code", source=OptionValues.Source.API, label=_("入口状态码")),
         OptionValues.Field(id="root_service_category", source=OptionValues.Source.METHOD, label=_("入口类型")),
-        OptionValues.Field(id="root_span_name", source=OptionValues.Source.ES, label=_("根Span接口")),
-        OptionValues.Field(id="root_span_service", source=OptionValues.Source.ES, label=_("根Span服务")),
+        OptionValues.Field(id="root_span_name", source=OptionValues.Source.API, label=_("根Span接口")),
+        OptionValues.Field(id="root_span_service", source=OptionValues.Source.API, label=_("根Span服务")),
     ]
 
     def get_root_service_category(self):
@@ -394,14 +396,19 @@ class TraceOptionValues(OptionValues):
 
 class SpanOptionValues(OptionValues):
     API = api.apm_api.query_span_option_values
+    API_FIELD_MAPPING = {
+        "resource.telemetry.sdk.version": "telemetry_sdk_version",
+        "resource.service.name": "service_name",
+        "resource.bk.instance.id": "bk_instance_id",
+    }
 
     FIELDS = [
-        OptionValues.Field(id="span_name", source=OptionValues.Source.ES, label="Span Name"),
+        OptionValues.Field(id="span_name", source=OptionValues.Source.API, label="Span Name"),
         OptionValues.Field(id="status.code", source=OptionValues.Source.METHOD, label=_("状态")),
         OptionValues.Field(id="kind", source=OptionValues.Source.METHOD, label=_("类型")),
-        OptionValues.Field(id="resource.telemetry.sdk.version", source=OptionValues.Source.ES, label=_("版本")),
-        OptionValues.Field(id="resource.service.name", source=OptionValues.Source.ES, label=_("服务")),
-        OptionValues.Field(id="resource.bk.instance.id", source=OptionValues.Source.ES, label=_("实例")),
+        OptionValues.Field(id="resource.telemetry.sdk.version", source=OptionValues.Source.API, label=_("版本")),
+        OptionValues.Field(id="resource.service.name", source=OptionValues.Source.API, label=_("服务")),
+        OptionValues.Field(id="resource.bk.instance.id", source=OptionValues.Source.API, label=_("实例")),
     ]
 
     def get_kind(self):
@@ -472,7 +479,7 @@ class QueryHandler:
         else:
             option = SpanOptionValues(bk_biz_id, app_name)
 
-        return OptionValues.get_option_values(option, start_time, end_time)
+        return option.get_option_values(start_time, end_time)
 
     @classmethod
     def get_file_option_values(cls, bk_biz_id, app_name, fields, start_time, end_time, mode):
@@ -482,13 +489,7 @@ class QueryHandler:
         else:
             option = SpanOptionValues(bk_biz_id, app_name)
 
-        fields = [f"{TraceQueryTransformer.PRE_CALC_STANDARD_FIELD_PREFIX}.{i}" for i in fields]
-        response = OptionValues.get_field_option_values(option, fields, start_time, end_time)
-        # 去除前缀
-        res = {}
-        for k, v in response.items():
-            res[k.replace(f"{TraceQueryTransformer.PRE_CALC_STANDARD_FIELD_PREFIX}.", "")] = v
-        return res
+        return option.get_field_option_values(fields, start_time, end_time)
 
     @classmethod
     def handle_trace_list(cls, trace_list):

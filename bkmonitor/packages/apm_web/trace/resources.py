@@ -830,7 +830,8 @@ class GetFieldOptionValuesResource(Resource):
         start_time = serializers.IntegerField()
         end_time = serializers.IntegerField()
         fields = serializers.ListField(child=serializers.CharField(), label="查询字段列表")
-        mode = serializers.ChoiceField(label="查询表", choices=mode_choices, default="pre_calculate")
+        # 前端没有传递该值，span 模式下走 unify-query tag values 查询，性能优于 es
+        mode = serializers.ChoiceField(label="查询表", choices=mode_choices, default="span")
 
     @using_cache(CacheType.APM(60 * 1))
     def perform_request(self, validated_request_data):
