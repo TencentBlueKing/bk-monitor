@@ -2,13 +2,23 @@
   padding: 2px 12px;
   // background-color: #FAFBFD;
   .title {
-    padding: 8px 0 4px;
+    padding-bottom: 4px;
     color: #979ba5;
   }
 
   .disable {
     /* stylelint-disable-next-line declaration-no-important */
     color: #dcdee5 !important;
+  }
+
+  .error-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #ea3636;
   }
 
   .chart-list {

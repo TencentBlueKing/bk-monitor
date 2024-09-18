@@ -120,6 +120,9 @@
   const handleClearBtnClick = () => {
     sqlQueryValue.value = '';
     uiQueryValue.value.splice(0);
+    store.commit('updateIndexItemParams', {
+      ip_chooser: {},
+    });
     handleBtnQueryClick();
   };
 

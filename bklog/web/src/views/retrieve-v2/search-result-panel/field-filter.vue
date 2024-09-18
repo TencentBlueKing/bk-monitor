@@ -86,7 +86,7 @@
         :class="{ 'is-text-click': !isShowFieldStatistics }"
         @click="handleCloseFilterTitle(true)"
       >
-        {{ $t('字段列表') }}
+        {{ $t('字段统计') }}
       </div>
       <div
         class="close-total"

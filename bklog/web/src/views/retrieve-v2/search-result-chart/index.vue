@@ -199,7 +199,6 @@
       chartKey: {
         handler() {
           this.handleLogChartCancel();
-          this.localAddition = this.retrieveParams.addition;
           this.$refs.chartRef?.handleCloseTimer();
           this.totalCount = 0;
           this.isRenderChart = true;
@@ -299,7 +298,6 @@
           const urlStr = this.isUnionSearch ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
           const queryData = {
             ...this.retrieveParams,
-            addition: this.localAddition,
             time_range: 'customized',
             interval: this.interval,
             // 每次轮循的起始时间

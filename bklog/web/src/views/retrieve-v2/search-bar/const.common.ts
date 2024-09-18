@@ -39,7 +39,16 @@ export const getInputQueryDefaultItem = (value = []) => {
     disabled: false,
   };
 };
-
+export const getInputQueryIpSelectItem = value => {
+  return {
+    field: '_ip-select_',
+    operator: '',
+    isInclude: false,
+    value: [value],
+    relation: '',
+    disabled: true,
+  };
+};
 /**
  * 字段检索条件配置默认数据结构
  * @returns
