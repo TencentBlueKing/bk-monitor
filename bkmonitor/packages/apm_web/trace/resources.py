@@ -167,6 +167,7 @@ class TraceChatsResource(Resource):
                             ],
                         },
                         "yAxisIndex": 0,
+                        "chart_type": "bar",
                     },
                     {
                         "data_type": "time_series",
@@ -209,6 +210,7 @@ class TraceChatsResource(Resource):
                             ],
                         },
                         "yAxisIndex": 1,
+                        "chart_type": "line",
                     },
                 ],
                 "options": {"time_series": {"type": "bar"}},

@@ -109,7 +109,7 @@
                 }
               ]
             },
-            "bar_count": 30
+            "fill_bar": true
           }
         }
       ],
@@ -213,9 +213,10 @@
                 }
               ]
             },
-            "bar_count": 30
+            "fill_bar": true
           },
-          "yAxisIndex": 0
+          "yAxisIndex": 0,
+          "chart_type": "bar"
         },
         {
           "data_type": "time_series",
@@ -225,8 +226,8 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "unit": "percent",
-            "expression": "(a / b) * 100",
+            "unit": "percentunit",
+            "expression": "a / b",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -340,9 +341,10 @@
                 }
               ]
             },
-            "bar_count": 30
+            "fill_bar": true
           },
-          "yAxisIndex": 1
+          "yAxisIndex": 1,
+          "chart_type": "line"
         }
       ],
       "options": {
@@ -511,7 +513,7 @@
                 }
               ]
             },
-            "bar_count": 30
+            "fill_bar": true
           }
         },
         {
@@ -615,7 +617,7 @@
                 }
               ]
             },
-            "bar_count": 30
+            "fill_bar": true
           }
         },
         {
@@ -719,7 +721,7 @@
                 }
               ]
             },
-            "bar_count": 30
+            "fill_bar": true
           }
         },
         {
@@ -823,7 +825,7 @@
                 }
               ]
             },
-            "bar_count": 30
+            "fill_bar": true
           }
         }
       ],
