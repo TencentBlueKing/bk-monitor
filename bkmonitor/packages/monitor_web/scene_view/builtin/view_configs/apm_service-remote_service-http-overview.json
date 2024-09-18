@@ -116,7 +116,8 @@
       "options": {
         "apm_time_series": {
           "metric": "request_count",
-          "unit": "number"
+          "unit": "number",
+          "enableContextmenu": true
         },
         "time_series": {
           "type": "bar"
@@ -350,7 +351,8 @@
       "options": {
         "apm_time_series": {
           "metric": "error_count",
-          "unit": "number"
+          "unit": "number",
+          "enableContextmenu": true
         },
         "time_series": {
           "type": "bar"
@@ -832,7 +834,8 @@
       "options": {
         "apm_time_series": {
           "metric": "avg_duration",
-          "unit": "μs"
+          "unit": "μs",
+          "enableContextmenu": true
         }
       }
     },

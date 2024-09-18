@@ -144,7 +144,7 @@
     {
       "id": 3,
       "title": "错误数",
-      "type": "graph",
+      "type": "apm-timeseries-chart",
       "gridPos": {
         "x": 8,
         "y": 6,
@@ -1020,7 +1020,7 @@
     {
       "id": 3,
       "title": "错误数",
-      "type": "graph",
+      "type": "apm-timeseries-chart",
       "gridPos": {
         "x": 8,
         "y": 6,
