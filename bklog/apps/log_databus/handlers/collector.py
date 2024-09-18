@@ -3048,6 +3048,9 @@ class CollectorHandler(object):
             else:
                 collector_config_name = ""
 
+            is_collector_deleted = collector["std_collector_config"].index_set_id\
+                         and collector["path_collector_config"].index_set_id
+
             rule = {
                 "rule_id": rule_id,
                 "collector_config_name": collector_config_name,
@@ -3062,8 +3065,8 @@ class CollectorHandler(object):
                 "rule_std_index_set_id": collector["std_collector_config"].index_set_id,
                 "file_index_set_id": collector["path_collector_config"].index_set_id,  # TODO: 兼容代码4.8需删除
                 "std_index_set_id": collector["std_collector_config"].index_set_id,  # TODO: 兼容代码4.8需删除
-                "is_std_deleted": False if collector["std_collector_config"].index_set_id else True,
-                "is_file_deleted": False if collector["path_collector_config"].index_set_id else True,
+                "is_std_deleted": is_collector_deleted,
+                "is_file_deleted": is_collector_deleted,
                 "container_config": [],
             }
 
