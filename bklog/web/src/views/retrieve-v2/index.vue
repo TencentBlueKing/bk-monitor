@@ -153,7 +153,7 @@
       search_mode: v.search_mode,
     });
 
-    store.dispatch('requestIndexSetFieldInfo');
+    store.dispatch('requestIndexSetFieldInfo'); //requestIndexSetValueList
   };
 
   const activeTab = ref('origin');
