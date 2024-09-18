@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import type { IOverseasConfig } from '../../types/common/common';
@@ -34,44 +34,39 @@ interface IOverseasLogoProps {
   globalList: [] | IOverseasConfig[];
 }
 
-interface IOverseasLogoEvent {
-  onClickItem: (config: IOverseasConfig) => void;
-}
-
 @Component
-export default class OverseasLogo extends tsc<IOverseasLogoProps, IOverseasLogoEvent> {
+export default class OverseasLogo extends tsc<IOverseasLogoProps> {
   @Prop({ default: [] }) globalList: [] | IOverseasConfig[];
-
-  @Emit('clickItem')
   // 处理链接跳转
-  handleLink(item: IOverseasConfig): IOverseasConfig {
-    return item;
+  handleLink(item: IOverseasConfig) {
+    item.url && window.open(item.url, '_blank');
   }
 
   render() {
     return (
       <bk-popover
+        always={false}
         arrow={false}
         offset='15'
         placement='bottom-start'
-        theme='common-monitor'
+        theme='light common-monitor overseas-logo'
       >
-        <div class='header-globel'>{<span class='icon-monitor icon-global' />}</div>
+        <div class='header-global'>
+          <span class='icon-monitor icon-mc-global' />
+        </div>
         <div
-          class='monitor-navigation-globel'
+          class='monitor-navigation-global'
           slot='content'
         >
           {this.globalList.map((config, index) => (
             <div
-              key={config.url + index}
+              key={index}
               class='nav-item'
               onClick={() => this.handleLink(config)}
             >
-              <div class='nav-item-left'>
-                <div>{config.title}</div>
-                <span class='nav-item-subtitle'>{config.subtitle}</span>
-              </div>
-              {config.icon && <div class={`nav-item-right icon-monitor ${config.icon}`} />}
+              <div>{config.title}</div>
+              <span class='nav-item-subtitle'>{config.subtitle}</span>
+              {config.icon && <div class='nav-item-icon icon-monitor icon-mc-goto' />}
             </div>
           ))}
         </div>
