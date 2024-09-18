@@ -570,6 +570,14 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     );
   }
 
+  // checkIcon 类型
+  // checkIconFormatter(value: ITableItem<'check_icon'>) {
+  //   if (value) {
+  //     return <i class='icon-monitor icon-mc-check-small' />;
+  //   } else {
+  // return <i class='icon-monitor icon-tixing' />}
+  // }
+
   @Emit('pageChange')
   handlePageChange(v: number) {
     return v;
@@ -667,6 +675,8 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
         return this.relationFormatter(value as ITableItem<'relation'>);
       case 'more_operate':
         return this.moreOperateFormatter(value as ITableItem<'more_operate'>);
+      // case 'check_icon':
+      //   return this.checkIconFormatter(value as ITableItem<'check_icon'>);
       default:
         return this.commonFormatter(value as ITableItem<'string'>, column);
     }

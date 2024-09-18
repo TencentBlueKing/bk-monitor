@@ -47,6 +47,7 @@ import ApmHomeSkeleton from './skeleton/apm-home-skeleton';
 import { SEARCH_KEYS, charColor, OPERATE_OPTIONS } from './utils';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import type { ICommonTableProps } from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import type { IFilterDict, INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './apm-home.scss';
@@ -131,44 +132,6 @@ export default class AppList extends tsc<object> {
 
   searchQuery = '';
 
-  filterList = [
-    {
-      id: 'strategy_status',
-      name: '状态',
-      data: [
-        {
-          id: 'ALERT',
-          name: '告警中',
-          count: 24,
-          icon: 'icon-mc-chart-alert',
-        },
-        {
-          id: 'INVALID',
-          name: '策略已失效',
-          count: 18,
-          icon: 'icon-shixiao',
-        },
-        {
-          id: 'OFF',
-          name: '已停用',
-          count: 94,
-          icon: 'icon-zanting1',
-        },
-        {
-          id: 'ON',
-          name: '已启用',
-          count: 114,
-          icon: 'icon-kaishi1',
-        },
-        {
-          id: 'SHIELDED',
-          name: '屏蔽中',
-          count: 1,
-          icon: 'icon-menu-shield',
-        },
-      ],
-    },
-  ];
   searchCondition = [];
 
   get alarmToolsPanel() {
@@ -208,19 +171,18 @@ export default class AppList extends tsc<object> {
       });
     }
     const setSearchCondition = (keys: string[]) => {
-      keys.forEach(key => {
-        if (query?.[key]) {
-          const { name, children } = SEARCH_KEYS.find(item => item.id === key);
-          const matchingStatus = children.find(s => s.id === query[key]);
-          if (matchingStatus) {
-            this.searchCondition.push({
-              id: key,
-              name,
-              values: [{ ...matchingStatus }],
-            });
-          }
+      for (const key of keys) {
+        const matchingStatus =
+          query?.[key] && SEARCH_KEYS.find(item => item.id === key)?.children.find(s => s.id === query[key]);
+        if (matchingStatus) {
+          const { name } = SEARCH_KEYS.find(item => item.id === key) || {};
+          this.searchCondition.push({
+            id: key,
+            name,
+            values: [{ ...matchingStatus }],
+          });
         }
-      });
+      }
     };
     setSearchCondition(['profiling_data_status', 'is_enabled_profiling']);
     this.getLimitOfHeight();
@@ -257,18 +219,17 @@ export default class AppList extends tsc<object> {
     let queryString = '';
     let profilingDataStatus = '';
     let isEnabledProfiling = null;
-    this.searchCondition.forEach(item => {
+    for (const item of this.searchCondition) {
       if (item?.values?.length) {
         if (item.id === 'profiling_data_status') {
           profilingDataStatus = item.values[0].id;
-        }
-        if (item.id === 'is_enabled_profiling') {
+        } else if (item.id === 'is_enabled_profiling') {
           isEnabledProfiling = item.values[0].id === 'true';
         }
       } else {
         queryString = item.id;
       }
-    });
+    }
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const params = {
       start_time: startTime,
@@ -348,22 +309,22 @@ export default class AppList extends tsc<object> {
 
   /* 获取服务数量 */
   getAsyncData(fields: string[], appIds: number[]) {
-    fields.forEach(field => {
+    for (const field of fields) {
       const params = {
         column: field,
         application_ids: appIds,
       };
       listApplicationAsync(params).then(res => {
-        const dataMap = {};
-        res?.forEach(item => {
-          dataMap[String(item.application_id)] = item[field];
-        });
+        const dataMap = res?.reduce((map, item) => {
+          map[String(item.application_id)] = item[field];
+          return map;
+        }, {});
         this.appList = this.appList.map(app => ({
           ...app,
           [field]: app[field] || dataMap[String(app.application_id)] || null,
         }));
       });
-    });
+    }
   }
   /**
    * @description 获取服务列表

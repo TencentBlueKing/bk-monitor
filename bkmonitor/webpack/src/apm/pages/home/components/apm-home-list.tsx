@@ -293,6 +293,7 @@ export default class ApmHomeList extends tsc<object> {
                 <div class='app-list-content'>
                   <div class='app-list-content-top'>
                     <bk-button
+                      class={[{ 'ml-16': !this.showFilterPanel }]}
                       theme='primary'
                       outline
                     >
@@ -327,6 +328,7 @@ export default class ApmHomeList extends tsc<object> {
                                   // 列名接口返回
                                   <CommonTable
                                     {...{ props: this.itemRow.tableData }}
+                                    hasColnumSetting={false}
                                     onCollect={val => this.handleCollect(val, this.itemRow)}
                                     onFilterChange={val => this.handleFilterChange(val, this.itemRow)}
                                     onScrollEnd={() => this.handleScrollEnd(this.itemRow)}
@@ -346,21 +348,6 @@ export default class ApmHomeList extends tsc<object> {
                       </div>
                     </div>
                   </div>
-                  {/* {!(this.pagination.current === 1 && this.loading) && (
-                    <div class='bottom-loading-status'>
-                      {(this.loading || this.pagination.isEnd) && (
-                        <div class='loading-box'>
-                          {this.loading && <div class='spinner' />}
-                          {(() => {
-                            if (!this.appList.length) {
-                              return this.$t('暂无数据');
-                            }
-                            return this.pagination.isEnd ? this.$t('到底了') : this.$t('正加载更多内容…');
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                  )} */}
                 </div>
               )}
             </div>
@@ -369,7 +356,10 @@ export default class ApmHomeList extends tsc<object> {
               slot='collapse-trigger'
               onClick={this.handleHidePanel}
             >
-              <div v-show={!this.showFilterPanel}>
+              <div
+                class='rotate'
+                v-show={!this.showFilterPanel}
+              >
                 <i class='icon-monitor icon-double-up' />
               </div>
             </div>
