@@ -71,7 +71,7 @@
     const params = isUnionIndex ? route.params : { ...route.params, indexId: ids?.[0] };
     const query = isUnionIndex
       ? { ...route.query, unionList: encodeURIComponent(JSON.stringify(ids.map(item => String(item)))) }
-      : route.query;
+      : { ...route.query, unionList: undefined };
 
     if (!isEqual(params, route.params) || !isEqual(query, route.query)) {
       router.replace({

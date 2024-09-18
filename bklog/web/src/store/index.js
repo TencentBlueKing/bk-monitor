@@ -272,10 +272,6 @@ const store = new Vuex.Store({
         state.indexItem.addition.splice(0, state.indexItem.addition.length, ...payload?.addition);
       }
       Object.assign(state.indexItem, payload ?? {});
-      state.unionIndexList = [];
-      if (payload.isUnionIndex) {
-        state.unionIndexList = payload.ids;
-      }
     },
 
     updateIndexSetOperatorConfig(state, payload) {
@@ -412,8 +408,8 @@ const store = new Vuex.Store({
       state.indexId = indexId;
     },
     updateUnionIndexList(state, unionIndexList) {
-      state.unionIndexList = unionIndexList;
-      state.indexItem.ids = unionIndexList;
+      state.unionIndexList.splice(0, state.unionIndexList.length, ...unionIndexList);
+      state.indexItem.ids.splice(0, state.indexItem.ids.length, ...unionIndexList);
     },
     updateUnionIndexItemList(state, unionIndexItemList) {
       state.unionIndexItemList = unionIndexItemList;
@@ -965,9 +961,8 @@ const store = new Vuex.Store({
                 ? state.tookTime + Number(data?.took || 0)
                 : Number(data?.took || 0);
               // 更新页数
-              commit('updateIndexItem', { begin: payload.isPagination ? begin : 0 });
               commit('updateSqlQueryFieldList', logList);
-              commit('updateIndexItem', { catchUnionBeginList });
+              commit('updateIndexItem', { catchUnionBeginList, begin: payload.isPagination ? begin : 0 });
               commit('updateIndexSetQueryResult', rsolvedData);
               commit('updateIsSetDefaultTableColumn');
               if (!payload?.isPagination) dispatch('requestSearchTotal');
