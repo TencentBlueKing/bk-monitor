@@ -53,7 +53,7 @@ class DataTypeBarQueryResource(Resource):
 
         series = response.get("series", [])
         if validated_request_data["data_type"] != BarChartDataType.Alert.value:
-            # 如果这里不是告警 应前端要求 进行时间戳的补齐
+            # 如果这里不是告警 应前端要求 进行时间戳补齐
             series = fill_series(
                 response.get("series", []),
                 validated_request_data["start_time"],

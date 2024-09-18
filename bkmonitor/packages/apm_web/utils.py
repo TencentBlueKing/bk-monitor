@@ -225,7 +225,12 @@ def fill_series(series, start_time, end_time):
     """
     调整时间戳 将无数据的柱子值设置为 None (适用于柱状图查询)
     """
-    timestamp_range = split_by_size(start_time, end_time)
+    # 检查按照最低一分钟聚合的话 是否少于默认数量 30个 如果小于则需要按照原本的数量进行切分
+    default_size = 30
+    c = (end_time - start_time) / 60
+    size = default_size if c > default_size else c
+
+    timestamp_range = split_by_size(start_time, end_time, size=int(size))
     if not series:
         return [{"datapoints": [[None, int((s + e) / 2) * 1000] for s, e in timestamp_range]}]
 
