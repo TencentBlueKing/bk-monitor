@@ -288,6 +288,9 @@ export default class MiniTimeSeries extends tsc<IProps> {
     };
   }
 
+  /**
+   * @description 其他附加的初始化动作
+   */
   otherInitFn() {}
 
   /**
