@@ -223,21 +223,30 @@ const store = new Vuex.Store({
         ip_chooser,
         host_scopes,
         interval,
-        ids,
+        search_mode,
       } = state.indexItem;
 
+      const filterAddition = addition
+        .filter(item => !item.disabled)
+        .map(item => {
+          const instance = new ConditionOperator(item);
+          return instance.getRequestParam();
+        });
+
+      const searchParams =
+        search_mode === 'sql' ? { keyword, addition: [] } : { addition: filterAddition, keyword: '*' };
       return {
         start_time,
         end_time,
         isUnionIndex,
-        addition,
+        addition: filterAddition,
         begin,
         size,
-        keyword,
         ip_chooser,
         host_scopes,
         interval,
-        ids,
+        search_mode,
+        ...searchParams,
       };
     },
     storeIsShowClusterStep: state => state.storeIsShowClusterStep,
@@ -867,7 +876,7 @@ const store = new Vuex.Store({
      * 执行查询
      */
     requestIndexSetQuery(
-      { commit, state, dispatch },
+      { commit, state, getters, dispatch },
       payload = { isPagination: false, cancelToken: null, searchCount: undefined },
     ) {
       if (
@@ -879,23 +888,8 @@ const store = new Vuex.Store({
         commit('updateIndexSetQueryResult', []);
         return Promise.reject({ message: `index_set_id is undefined` });
       }
-
-      const {
-        start_time,
-        end_time,
-        isUnionIndex,
-        addition,
-        size,
-        keyword = '*',
-        ip_chooser,
-        host_scopes,
-        interval,
-        timezone,
-        search_mode,
-        sort_list,
-      } = state.indexItem;
       let begin = state.indexItem.begin;
-      const bk_biz_id = state.bkBizId;
+      const { size, ...otherPrams } = getters.retrieveParams;
       if (!payload?.isPagination) store.commit('retrieve/updateChartKey');
       const searchCount = payload.searchCount ?? state.indexSetQueryResult.search_count + 1;
       commit(payload.isPagination ? 'updateIndexSetQueryResult' : 'resetIndexSetQueryResult', {
@@ -909,31 +903,14 @@ const store = new Vuex.Store({
       const requestCancelToken = payload.cancelToken ?? RequestPool.getCancelToken(cancelTokenKey);
 
       // 区分联合查询和单选查询
-      const searchUrl = !isUnionIndex
+      const searchUrl = !state.indexItem.isUnionIndex
         ? `/search/index_set/${state.indexId}/search/`
         : '/search/index_set/union_search/';
 
-      const filterAddition = addition
-        .filter(item => !item.disabled)
-        .map(item => {
-          const instance = new ConditionOperator(item);
-          return instance.getRequestParam();
-        });
-
-      const searchParams =
-        search_mode === 'sql' ? { keyword, addition: [] } : { addition: filterAddition, keyword: '*' };
       const baseData = {
-        bk_biz_id,
-        end_time,
-        host_scopes,
-        interval,
-        ip_chooser,
+        bk_biz_id: state.bkBizId,
         size,
-        start_time,
-        timezone,
-        search_mode,
-        sort_list,
-        ...searchParams,
+        ...otherPrams,
       };
 
       // 更新联合查询的begin

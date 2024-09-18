@@ -890,13 +890,12 @@ export default {
   历史查询: 'History Query',
   请输入关键字: 'Please enter keywords',
   请搜索: 'Please search',
-  '可将想要检索的内容输入至搜索框中，并点击「Enter」键进行检索':
-    'You can enter the content you want to search into the search box and click the "Enter" key to search',
-  '可通过上下键快速切换选择「Key」值': 'You can quickly switch the "Key" value through the up and down keys',
+  '输入文本后按 [Enter] 键进行检索': 'Enter text and press [Enter] to search',
+  可通过上下键快速切换选择字段值: 'You can quickly switch the fields value through the up and down keys',
   'Enter 键': 'Enter key',
   上下键: 'Up and down keys',
   移动光标: 'Move the cursor',
-  确认结果: 'Confirm the result',
+  '选中/提交': 'Confirm / Submit',
   '请选择或直接输入，Enter分隔': 'Please select or enter directly, Enter to separate',
   搜索名称: 'Search for name',
   '导入的集群已被删除，请手动选择集群。': 'Imported cluster has been deleted, please manually select a cluster.',
@@ -904,6 +903,7 @@ export default {
     'To reduce transmission and storage costs, some content can be filtered out. More complex operations can be completed in the "Cleaning" feature.',
   请选择需要同步的配置: 'Please select the configuration to be synchronized',
   字段列表: 'Field List',
+  字段统计: 'Field Statistics',
   如何查询: 'How to query',
   '精确匹配(支持AND、OR):': 'Exact match (supports AND, OR):',
   '字段名匹配(*代表通配符):': 'Field name match (* represents wildcard):',
@@ -914,4 +914,6 @@ export default {
   '使用LIKE、NOT LINK操作符时请在过滤值前后增加%':
     'When using the LIKE and NOT LINK operators, please add % before and after the filter value.',
   手动输入annotation: 'Manually enter annotation',
+  获取字段列表失败: 'Failed to get field list',
+  检索内容: 'Retrieval content',
 };
