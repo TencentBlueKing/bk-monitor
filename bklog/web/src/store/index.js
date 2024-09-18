@@ -584,9 +584,9 @@ const store = new Vuex.Store({
     updateIsSetDefaultTableColumn(state, payload) {
       // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
       if (!state.isSetDefaultTableColumn) {
-        const storageKey = state.isUnionSearch ? 'TABLE_UNION_COLUMN_WIDTH' : 'table_column_width_obj';
+        const storageKey = state.indexItem.isUnionIndex ? 'TABLE_UNION_COLUMN_WIDTH' : 'table_column_width_obj';
         const columnWidth = JSON.parse(localStorage.getItem(storageKey));
-        const indexKey = state.isUnionSearch ? state.unionIndexList.sort().join('-') : state.indexId;
+        const indexKey = state.indexItem.isUnionIndex ? state.unionIndexList.sort().join('-') : state.indexId;
         const catchFieldsWidthObj = columnWidth?.[state.bkBizId]?.fields[indexKey];
         state.isSetDefaultTableColumn = setDefaultTableWidth(
           state.visibleFields,
@@ -868,7 +868,10 @@ const store = new Vuex.Store({
       { commit, state, dispatch },
       payload = { isPagination: false, cancelToken: null, searchCount: undefined },
     ) {
-      if (!state.indexId) {
+      if (
+        (!state.indexItem.isUnionIndex && !state.indexId) ||
+        (state.indexItem.isUnionIndex && !state.indexItem.ids.length)
+      ) {
         state.searchTotal = 0;
         commit('updateSqlQueryFieldList', []);
         commit('updateIndexSetQueryResult', []);
@@ -943,7 +946,7 @@ const store = new Vuex.Store({
 
       const queryData = Object.assign(
         baseData,
-        !state.isUnionSearch
+        !state.indexItem.isUnionIndex
           ? {
               begin: queryBegin, // 单选检索的begin
             }
@@ -1024,9 +1027,11 @@ const store = new Vuex.Store({
           'retrieve/getFieldsListConfig',
           {
             data: {
-              ...(state.isUnionSearch ? { index_set_ids: state.unionIndexList } : { index_set_id: state.indexId }),
+              ...(state.indexItem.isUnionIndex
+                ? { index_set_ids: state.unionIndexList }
+                : { index_set_id: state.indexId }),
               scope: 'default',
-              index_set_type: state.isUnionSearch ? 'union' : 'single',
+              index_set_type: state.indexItem.isUnionIndex ? 'union' : 'single',
             },
           },
           {
@@ -1071,7 +1076,7 @@ const store = new Vuex.Store({
       if (!fields.length) return;
 
       const { start_time, end_time } = state.indexItem;
-      const urlStr = state.isUnionSearch ? 'unionSearch/unionTerms' : 'retrieve/getAggsTerms';
+      const urlStr = state.indexItem.isUnionIndex ? 'unionSearch/unionTerms' : 'retrieve/getAggsTerms';
       const queryData = {
         keyword: '*',
         fields,
@@ -1079,7 +1084,7 @@ const store = new Vuex.Store({
         end_time: formatDate(end_time * 1000),
       };
 
-      if (state.isUnionSearch) {
+      if (state.indexItem.isUnionIndex) {
         Object.assign(queryData, {
           index_set_ids: state.unionIndexList,
         });
@@ -1227,7 +1232,7 @@ const store = new Vuex.Store({
     /** 日志来源显隐操作 */
     showShowUnionSource({ state }, { keepLastTime = false }) {
       // 非联合查询 或者清空了所有字段 不走逻辑
-      if (!state.isUnionSearch || !state.visibleFields.length) return;
+      if (!state.indexItem.isUnionIndex || !state.visibleFields.length) return;
       const isExist = state.visibleFields.some(item => item.tag === 'union-source');
       // 保持之前的逻辑
       if (keepLastTime) {
