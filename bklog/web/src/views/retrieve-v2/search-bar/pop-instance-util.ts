@@ -140,7 +140,7 @@ export default class PopInstanceUtil {
   }
 
   repositionTippyInstance() {
-    if (!this.newInstance && this.getTippyInstance()?.state.isShown) {
+    if (this.getTippyInstance()?.state.isShown) {
       this.getTippyInstance()?.popperInstance?.update();
     }
   }

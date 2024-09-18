@@ -633,11 +633,11 @@ const store = new Vuex.Store({
       // 字段设置的参数传到实时日志和上下文
       let indexSetValue;
       if (!state.indexItem.isUnionIndex) {
-        const items = state.indexItem.items[0];
+        const item = state.indexItem.items[0];
         indexSetValue = {
-          scenarioID: items.scenario_id,
-          sortFields: items.sort_fields ?? [],
-          targetFields: items.target_fields ?? [],
+          scenarioID: item?.scenario_id,
+          sortFields: item?.sort_fields ?? [],
+          targetFields: item?.target_fields ?? [],
         };
       } else {
         indexSetValue = {};

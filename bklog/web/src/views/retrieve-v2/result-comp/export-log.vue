@@ -33,7 +33,7 @@
         v-bk-tooltips="queueStatus ? $t('导出') : undefined">
         <span class="icon bklog-icon bklog-xiazai"></span>
       </div> -->
-    <div
+    <div v-if="!isUnionSearch"
       :class="{ 'operation-icon': true, 'disabled-icon': !queueStatus }"
       data-test-id="fieldForm_div_exportData"
       @mouseenter="handleShowAlarmPopover"

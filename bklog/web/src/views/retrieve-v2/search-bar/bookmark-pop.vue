@@ -3,11 +3,22 @@
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+  import { ConditionOperator } from '@/store/condition-operator';
 
   import $http from '../../../api';
 
   const props = defineProps({
     sql: {
+      default: '',
+      type: String,
+      required: true,
+    },
+    addition: {
+      default: () => [],
+      type: Array,
+      required: true,
+    },
+    searchMode: {
       default: '',
       type: String,
       required: true,
@@ -169,20 +180,51 @@
     }
   };
 
+  const formatAddition = computed(() =>
+    props.addition
+      .filter(item => !item.disabled)
+      .map(item => {
+        const instance = new ConditionOperator(item);
+        return instance.getRequestParam();
+      }),
+  );
+
+  const additionString = computed(() => {
+    return `* AND (${formatAddition.value
+      .map(({ field, operator, value }) => {
+        return `${field} ${operator} [${value?.toString() ?? ''}]`;
+      })
+      .join(' AND ')})`;
+  });
+
+  const sqlString = computed(() => {
+    if (props.searchMode === 'sql') {
+      return props.sql;
+    }
+
+    return additionString.value;
+  });
+
   // 新建提交逻辑
   const handleCreateRequest = async () => {
     const { name, group_id, display_fields, visible_type, id, is_enable_display_fields } = favoriteData.value;
+
+    const searchParams =
+      props.searchMode === 'sql'
+        ? { keyword: props.sql, addition: [] }
+        : { addition: formatAddition.value, keyword: '*' };
+
     const data = {
       name,
       group_id,
       display_fields,
       visible_type,
-      keyword: props.sql,
       is_enable_display_fields,
       index_set_name: indexSetName.value,
-      search_mode: 'sql',
+      search_mode: props.searchMode,
       index_set_ids: [],
       index_set_names: [],
+      ...searchParams,
     };
 
     Object.assign(data, {
@@ -381,7 +423,7 @@
 
           <bk-form-item label="查询语句">
             <bk-input
-              :value="props.sql"
+              :value="sqlString"
               type="textarea"
               readonly
               show-overflow-tooltips

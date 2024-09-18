@@ -15,10 +15,12 @@
 
   const store = useStore();
   const isFilterLoading = computed(() => store.state.indexFieldInfo.is_loading);
+  const isSearchRersultLoading = computed(() => store.state.indexSetQueryResult.is_loading);
+
   const retrieveParams = computed(() => store.getters.retrieveParams);
   const isNoIndexSet = computed(() => !store.state.retrieve.indexSetList.length);
   const isOriginShow = computed(() => props.activeTab === 'origin');
-  const pageLoading = computed(() => store.getters.pageLoading);
+  const pageLoading = computed(() => isFilterLoading.value || isSearchRersultLoading.value);
 
   const totalCount = ref(0);
   const queueStatus = ref(false);
@@ -46,7 +48,7 @@
     <template v-else>
       <FieldFilter
         v-show="isOriginShow"
-        v-bkloading="{ isLoading: isFilterLoading }"
+        v-bkloading="{ isLoading: isFilterLoading && isOriginShow }"
         :is-show-field-statistics.sync="isShowFieldStatistics"
       ></FieldFilter>
       <div

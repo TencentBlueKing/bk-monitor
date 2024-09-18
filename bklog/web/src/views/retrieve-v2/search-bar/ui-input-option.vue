@@ -89,7 +89,7 @@
   const conditionValueInstance = new PopInstanceUtil({
     refContent: refValueTagInputOptionList,
     arrow: false,
-    newInstance: false,
+    newInstance: true,
     watchElement: refConditionInput,
     onHiddenFn: () => {
       refValueTagInputOptionList.value?.querySelector('li.is-hover')?.classList.remove('is-hover');
@@ -329,12 +329,10 @@
     conditionValueActiveIndex.value = -1;
 
     if (activeItemMatchList.value.length > 0) {
-      nextTick(() => {
-        if (!conditionValueInstance.isShown()) {
-          const target = refValueTagInput.value.closest('.condition-value-container');
-          conditionValueInstance.show(target);
-        }
-      });
+      if (!conditionValueInstance.isShown()) {
+        const target = refConditionInput.value.parentNode;
+        conditionValueInstance.show(target);
+      }
     }
   };
 

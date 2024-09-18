@@ -61,9 +61,9 @@
 
   const onEditorContextChange = doc => {
     emit('input', doc.text.join(''));
-    if (!(getTippyInstance()?.state?.isShown ?? false)) {
-      delayShowInstance(refEditorParent.value);
-    }
+    // if (!(getTippyInstance()?.state?.isShown ?? false)) {
+    //   delayShowInstance(refEditorParent.value);
+    // }
   };
 
   const debounceRetrieve = () => {
@@ -105,6 +105,7 @@
   };
 
   const handleEditorClick = () => {
+    console.log('handleEditorClick')
     if (editorInstance === null) {
       createEditorInstance();
     }

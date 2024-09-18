@@ -35,6 +35,7 @@
   });
   const keyword = computed(() => indexItem.value.keyword);
   const addition = computed(() => indexItem.value.addition);
+  const searchMode = computed(() => indexItem.value.search_mode);
 
   watch(
     keyword,
@@ -52,6 +53,13 @@
     },
     { immediate: true, deep: true },
   );
+
+  watch(searchMode, () => {
+    const idex = queryParams.findIndex(m => m === searchMode.value);
+    if (idex >= 0) {
+      activeIndex.value = idex;
+    }
+  });
 
   watch(
     activeIndex,
@@ -106,7 +114,9 @@
       }
     }
 
-    store.dispatch('requestIndexSetQuery');
+    setTimeout(() => {
+      store.dispatch('requestIndexSetQuery');
+    });
   };
 
   const handleSqlRetrieve = value => {
@@ -186,17 +196,19 @@
       <div class="search-tool items">
         <span
           class="bklog-icon bklog-brush"
-          @click="handleClearBtnClick"
+          @click.stop="handleClearBtnClick"
         ></span>
         <BookmarkPop
           :sql="sqlQueryValue"
+          :addition="uiQueryValue"
+          :searchMode="queryParams[activeIndex]"
           @refresh="handleRefresh"
         ></BookmarkPop>
         <span class="disabled bklog-icon bklog-set-icon"></span>
       </div>
       <div
         class="search-tool search-btn"
-        @click="handleBtnQueryClick"
+        @click.stop="handleBtnQueryClick"
       >
         {{ btnQuery }}
       </div>

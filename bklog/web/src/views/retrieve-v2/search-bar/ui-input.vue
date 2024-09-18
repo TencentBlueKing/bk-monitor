@@ -224,10 +224,10 @@
     if (isInputFocus.value) {
       inputValue.value = '';
 
-      nextTick(() => {
-        refSearchInput.value?.focus();
-        handleFocusInput({ target: refSearchInput.value });
-      });
+      // nextTick(() => {
+      //   refSearchInput.value?.focus();
+      //   handleFocusInput({ target: refSearchInput.value });
+      // });
     }
 
     if (activeIndex.value !== null && activeIndex.value >= 0) {
@@ -272,10 +272,10 @@
           emitChange(modelValue.value);
 
           hideTippyInstance();
-          setTimeout(() => {
-            refSearchInput.value?.focus();
-            handleFocusInput({ target: refSearchInput.value });
-          }, 300);
+          // setTimeout(() => {
+          //   refSearchInput.value?.focus();
+          //   handleFocusInput({ target: refSearchInput.value });
+          // }, 300);
         }
       }
 
