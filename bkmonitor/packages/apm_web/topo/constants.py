@@ -71,6 +71,7 @@ class TopoEdgeDataType(ChoicesEnum):
     DURATION_AVG = "duration_avg"
     DURATION_P99 = "duration_p99"
     DURATION_P95 = "duration_p95"
+    DURATION_P50 = "duration_p50"
     ERROR_RATE = "error_rate"
 
     _choices_labels = (
@@ -78,6 +79,7 @@ class TopoEdgeDataType(ChoicesEnum):
         (DURATION_AVG, _("平均耗时")),
         (DURATION_P99, _("P99耗时")),
         (DURATION_P95, _("P95耗时")),
+        (DURATION_P50, _("P50耗时")),
         (ERROR_RATE, _("错误率")),
     )
 

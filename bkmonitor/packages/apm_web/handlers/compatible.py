@@ -38,7 +38,7 @@ class CompatibleQuery:
             query = f'tags.service_name: "{service_name}"'
 
         if endpoint_name:
-            query += f' AND tags.span_name: {endpoint_name}'
+            query += f' AND tags.span_name: "{endpoint_name}"'
 
         return f"{res} AND {query}"
 

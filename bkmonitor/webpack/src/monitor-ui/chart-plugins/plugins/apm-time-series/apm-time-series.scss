@@ -34,10 +34,25 @@
       }
     }
   }
+
   .common-legend-item {
     .legend-icon {
       width: 8px;
       height: 8px;
+    }
+  }
+
+  &.apm-time-series {
+    .title-center {
+      position: absolute;
+      right: 30px;
+      z-index: 99;
+    }
+
+    .more-icon {
+      position: absolute;
+      top: 2px;
+      right: 10px;
     }
   }
 }

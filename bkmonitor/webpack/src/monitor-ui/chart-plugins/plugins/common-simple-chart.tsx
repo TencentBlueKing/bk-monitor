@@ -92,7 +92,7 @@ export class CommonSimpleChart
   }
   @Watch('refleshInterval')
   // 数据刷新间隔
-  handleRefleshIntervalChange(v: number) {
+  handleRefreshIntervalChange(v: number) {
     if (this.refleshIntervalInstance) {
       window.clearInterval(this.refleshIntervalInstance);
     }
@@ -103,7 +103,7 @@ export class CommonSimpleChart
   }
   @Watch('refleshImmediate')
   // 立刻刷新
-  handleRefleshImmediateChange(v: string) {
+  handleRefreshImmediateChange(v: string) {
     if (v) this.getPanelData();
   }
   @Watch('timezone')

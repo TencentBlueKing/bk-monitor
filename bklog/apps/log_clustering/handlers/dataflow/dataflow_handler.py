@@ -944,6 +944,12 @@ class DataFlowHandler(BaseAiopsHandler):
 
     def update_predict_node(self, index_set_id):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+
+        st_list = OnlineTaskTrainingArgs.ST_LIST
+        if clustering_config.max_log_length == OnlineTaskTrainingArgs.MAX_DIST_LIST_OLD:
+            # 旧版参数兼容
+            st_list = OnlineTaskTrainingArgs.ST_LIST_OLD
+
         predict_change_args = {
             "min_members": clustering_config.min_members,
             # 单词不一致 注意
@@ -951,7 +957,7 @@ class DataFlowHandler(BaseAiopsHandler):
             "delimeter": clustering_config.delimeter,
             "max_log_length": clustering_config.max_log_length,
             "is_case_sensitive": clustering_config.is_case_sensitive,
-            "st_list": OnlineTaskTrainingArgs.ST_LIST,
+            "st_list": st_list,
             "max_dist_list": clustering_config.max_dist_list,
         }
 
@@ -1408,6 +1414,12 @@ class DataFlowHandler(BaseAiopsHandler):
         """在线任务请求参数"""
 
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+
+        st_list = OnlineTaskTrainingArgs.ST_LIST
+        if clustering_config.max_log_length == OnlineTaskTrainingArgs.MAX_DIST_LIST_OLD:
+            # 旧版参数兼容
+            st_list = OnlineTaskTrainingArgs.ST_LIST_OLD
+
         pipeline_params = {
             # data_set_id  聚类预测结果 output_name
             "data_set_id": clustering_config.predict_flow['clustering_predict']['result_table_id'],
@@ -1416,8 +1428,8 @@ class DataFlowHandler(BaseAiopsHandler):
             "sampling_conditions": [{"field_name": "is_new", "value": OnlineTaskTrainingArgs.IS_NEW}],
             "training_args": [
                 {"field_name": "min_members", "value": clustering_config.min_members},
-                {"field_name": "max_dist_list", "value": OnlineTaskTrainingArgs.MAX_DIST_LIST},
-                {"field_name": "st_list", "value": OnlineTaskTrainingArgs.ST_LIST},
+                {"field_name": "max_dist_list", "value": clustering_config.max_dist_list},
+                {"field_name": "st_list", "value": st_list},
                 {
                     "field_name": "predefined_variables",
                     "value": clustering_config.predefined_varibles,  # 单词错误 predefined_variables

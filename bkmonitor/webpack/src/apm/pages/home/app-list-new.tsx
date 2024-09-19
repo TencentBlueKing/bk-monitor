@@ -609,7 +609,7 @@ export default class AppList extends tsc<object> {
    * @description 滚动加载
    * @param event
    */
-  handleScroll(event: Event | any) {
+  handleScroll(event: any | Event) {
     if (!this.loading && !this.pagination.isEnd) {
       const { clientHeight } = event.target;
       const { scrollTop } = event.target;
@@ -913,7 +913,17 @@ export default class AppList extends tsc<object> {
                       {this.loading && <div class='spinner' />}
                       {(() => {
                         if (!this.appList.length) {
-                          return this.$t('暂无数据');
+                          return (
+                            <div class='empty-status-box'>
+                              <EmptyStatus
+                                textMap={{
+                                  empty: this.$t('暂无数据'),
+                                }}
+                                type={this.searchCondition.length ? 'search-empty' : 'empty'}
+                                onOperation={() => this.handleSearchCondition([])}
+                              />
+                            </div>
+                          );
                         }
                         return this.pagination.isEnd ? this.$t('到底了') : this.$t('正加载更多内容…');
                       })()}

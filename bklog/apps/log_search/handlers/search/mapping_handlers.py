@@ -684,9 +684,6 @@ class MappingHandlers(object):
                     if not merge_dict[property_key].get("latest_field_type"):
                         merge_dict[property_key]["latest_field_type"] = property_define["type"]
                     continue
-                if merge_dict[property_key]["type"] != property_define["type"]:
-                    merge_dict[property_key]["type"] = "conflict"
-                    merge_dict[property_key]["is_conflict"] = True
         return {property_key: property for property_key, property in merge_dict.items()}
 
     def _mapping_group(self, index_result_tables: list, mapping_result: list):

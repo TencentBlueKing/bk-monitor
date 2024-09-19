@@ -390,11 +390,11 @@
         }
 
         .cell {
-          padding: 10px 14px 0 14px;
+          padding: 10px 14px 0 2px;
         }
 
         &.is-wrap .cell {
-          padding: 10px 14px 8px;
+          padding: 10px 14px 8px 2px;
         }
       }
 

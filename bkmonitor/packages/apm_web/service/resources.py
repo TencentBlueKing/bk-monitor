@@ -25,7 +25,6 @@ from apm_web.constants import (
     CMDBCategoryIconMap,
     ServiceDetailReqTypeChoices,
     ServiceRelationLogTypeChoices,
-    TopoNodeKind,
 )
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.handlers.span_handler import SpanHandler
@@ -45,6 +44,7 @@ from apm_web.service.serializers import (
     LogServiceRelationOutputSerializer,
     ServiceConfigSerializer,
 )
+from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import ThreadPool
@@ -160,14 +160,13 @@ class ServiceInfoResource(Resource):
         query_instance_param = {
             "bk_biz_id": bk_biz_id,
             "app_name": app_name,
-            "service_name": [service_name],
-            "filters": {
-                "instance_topo_kind": TopoNodeKind.SERVICE,
-            },
+            "service_name": service_name,
+            "start_time": validate_data["start_time"],
+            "end_time": validate_data["end_time"],
         }
         pool = ThreadPool()
         topo_node_res = pool.apply_async(ServiceHandler.list_nodes, kwds={"bk_biz_id": bk_biz_id, "app_name": app_name})
-        instance_res = pool.apply_async(api.apm_api.query_instance, kwds=query_instance_param)
+        instance_res = pool.apply_async(RelationMetricHandler.list_instances, kwds=query_instance_param)
         app_relation = pool.apply_async(self.get_app_relation_info, args=(bk_biz_id, app_name, service_name))
         log_relation = pool.apply_async(self.get_log_relation_info, args=(bk_biz_id, app_name, service_name))
         cmdb_relation = pool.apply_async(self.get_cmdb_relation_info, args=(bk_biz_id, app_name, service_name))
@@ -217,8 +216,8 @@ class ServiceInfoResource(Resource):
         if second_category:
             service_info["extra_data"]["predicate_value_icon"] = get_icon(second_category)
         # 实例数
-        instance_map = instance_res.get()
-        service_info["instance_count"] = instance_map.get("total", 0)
+        instances = instance_res.get()
+        service_info["instance_count"] = len(instances)
         # 响应
         return service_info
 

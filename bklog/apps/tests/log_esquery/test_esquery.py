@@ -237,17 +237,31 @@ NESTED_FIELDS_MAPPING = [
 STRING_WITHOUT_FIELD_DSL = {
     "bool": {
         "should": [
-            {"query_string": {"query": "Spongebob", "analyze_wildcard": True, "fields": ["*", "__*"]}},
+            {"query_string": {"query": "Spongebob", "analyze_wildcard": True, "fields": ["*", "__*"], "lenient": True}},
             {
                 "nested": {
                     "path": "address",
-                    "query": {"query_string": {"query": "Spongebob", "analyze_wildcard": True, "fields": ["*", "__*"]}},
+                    "query": {
+                        "query_string": {
+                            "query": "Spongebob",
+                            "analyze_wildcard": True,
+                            "fields": ["*", "__*"],
+                            "lenient": True,
+                        }
+                    },
                 }
             },
             {
                 "nested": {
                     "path": "school",
-                    "query": {"query_string": {"query": "Spongebob", "analyze_wildcard": True, "fields": ["*", "__*"]}},
+                    "query": {
+                        "query_string": {
+                            "query": "Spongebob",
+                            "analyze_wildcard": True,
+                            "fields": ["*", "__*"],
+                            "lenient": True,
+                        }
+                    },
                 }
             },
         ]
@@ -265,7 +279,7 @@ STRING_WITH_NESTED_FIELD_DSL = {
 }
 
 STRING_WITH_FIELD_DSL = {
-    "query_string": {"query": 'name: "Spongebob"', "analyze_wildcard": True, "fields": ["*", "__*"]}
+    "query_string": {"query": 'name: "Spongebob"', "analyze_wildcard": True, "fields": ["*", "__*"], "lenient": True}
 }
 
 SERIALIZER_PARAMS = {

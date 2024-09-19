@@ -746,7 +746,7 @@
               // 如果都没有权限或者路由带过来的索引集无权限则显示索引集无权限
 
               if (!indexSetList[0]?.permission?.[authorityMap.SEARCH_LOG_AUTH] || isRouteIndex) {
-                const authIndexID = indexId || indexSetList[0].index_set_id;
+                const authIndexID = indexId || this.getHaveValueIndexItem(indexSetList);
                 this.$store
                   .dispatch('getApplyData', {
                     action_ids: [authorityMap.SEARCH_LOG_AUTH],
@@ -782,7 +782,7 @@
               if (indexId) {
                 // 1、初始进入页面带ID；2、检索ID时切换业务；
                 const indexItem = indexSetList.find(item => item.index_set_id === indexId);
-                this.indexId = indexItem ? indexItem.index_set_id : indexSetList[0].index_set_id;
+                this.indexId = indexItem ? indexItem.index_set_id : this.getHaveValueIndexItem(indexSetList);
                 this.retrieveLog();
               } else if (this.isInitPage && this.checkIsUnionSearch()) {
                 // 初始化联合查询
@@ -791,7 +791,7 @@
                 // 直接进入检索页
                 this.indexId = indexSetList.some(item => item.index_set_id === this.storedIndexID)
                   ? this.storedIndexID
-                  : indexSetList[0].index_set_id;
+                  : this.getHaveValueIndexItem(indexSetList);
                 if (this.isAsIframe) {
                   // 监控 iframe
                   if (this.localIframeQuery.indexId) {
@@ -1731,7 +1731,7 @@
           // 更新联合查询的begin
           const unionConfigs = this.unionIndexList.map(item => ({
             begin: this.isTablePagination
-              ? this.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0
+              ? (this.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0)
               : 0,
             index_set_id: item,
           }));
@@ -2125,6 +2125,9 @@
         //   params,
         //   query: newQuery,
         // });
+      },
+      getHaveValueIndexItem(indexList) {
+        return indexList.find(item => !item.tags.map(item => item.tag_id).includes(4))?.index_set_id || indexList[0].index_set_id;
       },
     },
   };
