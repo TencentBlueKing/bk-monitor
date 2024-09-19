@@ -804,7 +804,7 @@
                 class="ui-value-operator"
                 @click.stop="handleOperatorBtnClick"
               >
-                {{ activeOperator.label }}
+                {{ $t(activeOperator.label) }}
               </div>
               <div style="display: none">
                 <div
@@ -812,13 +812,26 @@
                   class="ui-value-select"
                 >
                   <div
-                    v-for="option in activeFieldItem.field_operator"
-                    :class="['ui-value-option', { active: condition.operator === option.operator }]"
-                    :key="option.operator"
-                    @click="() => handleUiValueOptionClick(option)"
+                    v-if="!activeFieldItem.field_operator.length"
+                    class="empty-section"
                   >
-                    {{ option.label }}
+                    <bk-exception
+                      style="height: 100px"
+                      :type="conditionValueEmptyType"
+                      scene="part"
+                    >
+                    </bk-exception>
                   </div>
+                  <template v-else>
+                    <div
+                      v-for="option in activeFieldItem.field_operator"
+                      :class="['ui-value-option', { active: condition.operator === option.operator }]"
+                      :key="option.operator"
+                      @click="() => handleUiValueOptionClick(option)"
+                    >
+                      {{ option.label }}
+                    </div>
+                  </template>
                 </div>
               </div>
             </div>
