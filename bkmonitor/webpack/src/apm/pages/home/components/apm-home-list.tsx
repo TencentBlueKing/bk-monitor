@@ -36,12 +36,23 @@ import introduceData from 'monitor-pc/router/space';
 
 import { SEARCH_KEYS } from '../utils';
 
-import type { IAppListItem } from '../apm-home';
+import type { PartialAppListItem } from '../apm-home';
 import type { IFilterDict } from 'monitor-pc/pages/monitor-k8s/typings';
 
+interface IProps {
+  itemRow: PartialAppListItem;
+  showGuidePage?: boolean;
+}
+
+interface IEvent {
+  onGetServiceData?: (appIds: number[], isScrollEnd?: boolean, isRefresh?: boolean) => void;
+  onHandleSearchCondition?: (value) => void;
+  onHandleToConfig?: (row: PartialAppListItem) => void;
+  onLinkToOverview?: (row: PartialAppListItem) => void;
+}
 @Component({})
-export default class ApmHomeList extends tsc<object> {
-  @Prop({ type: Object }) itemRow;
+export default class ApmHomeList extends tsc<IProps, IEvent> {
+  @Prop() itemRow: PartialAppListItem;
   @Prop({ default: false, type: Boolean }) showGuidePage: boolean;
   @Ref() mainResize: any;
 
@@ -171,7 +182,7 @@ export default class ApmHomeList extends tsc<object> {
    * @param val
    * @param row
    */
-  handleCollect(val, item: IAppListItem) {
+  handleCollect(val, item: PartialAppListItem) {
     const apis = val.api.split('.');
     (this as any).$api[apis[0]][apis[1]](val.params).then(() => {
       item.tableData.paginationData.current = 1;
@@ -185,7 +196,7 @@ export default class ApmHomeList extends tsc<object> {
    * @param filters
    * @param item
    */
-  handleFilterChange(filters: IFilterDict, item: IAppListItem) {
+  handleFilterChange(filters: IFilterDict, item: PartialAppListItem) {
     item.tableFilters = filters;
     item.tableData.paginationData.current = 1;
     item.tableData.paginationData.isEnd = false;
@@ -196,7 +207,7 @@ export default class ApmHomeList extends tsc<object> {
    * @description 表格滚动到底部
    * @param row
    */
-  handleScrollEnd(item: IAppListItem) {
+  handleScrollEnd(item: PartialAppListItem) {
     item.tableData.paginationData.current += 1;
     this.handleEmit('getServiceData', [item.application_id], true);
   }
@@ -206,7 +217,7 @@ export default class ApmHomeList extends tsc<object> {
    * @param param0
    * @param item
    */
-  handleSortChange({ prop, order }, item: IAppListItem) {
+  handleSortChange({ prop, order }, item: PartialAppListItem) {
     switch (order) {
       case 'ascending':
         item.tableSortKey = prop;
@@ -317,7 +328,7 @@ export default class ApmHomeList extends tsc<object> {
                         key={this.itemRow.application_id}
                         class='item-expand-wrap'
                       >
-                        {this.itemRow.isExpan && (
+                        {
                           <div class='expand-content'>
                             {this.itemRow.tableData.data.length || this.itemRow.tableData.loading ? (
                               (() => {
@@ -344,7 +355,7 @@ export default class ApmHomeList extends tsc<object> {
                               />
                             )}
                           </div>
-                        )}
+                        }
                       </div>
                     </div>
                   </div>

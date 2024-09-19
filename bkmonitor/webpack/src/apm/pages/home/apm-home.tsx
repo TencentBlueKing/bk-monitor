@@ -54,7 +54,6 @@ import './apm-home.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
 export interface IAppListItem {
-  isExpan: boolean;
   app_alias: {
     value: string;
   };
@@ -84,6 +83,8 @@ export interface IAppListItem {
   data_status: string;
 }
 
+export type PartialAppListItem = Partial<IAppListItem>;
+
 @Component({})
 export default class AppList extends tsc<object> {
   @Ref() mainResize: any;
@@ -108,8 +109,6 @@ export default class AppList extends tsc<object> {
   showGuideDialog = false;
   /** 搜索关键词 */
   searchKeyword = '';
-  /* 是否展开 */
-  isExpan = false;
   /* 应用分类数据 */
   appList: IAppListItem[] = [];
   pagination = {
@@ -122,8 +121,7 @@ export default class AppList extends tsc<object> {
 
   refreshInstance = null;
 
-  itemRow = {};
-
+  itemRow: PartialAppListItem = {};
   hasSelected = false;
 
   showFilterPanel = true;
@@ -192,7 +190,7 @@ export default class AppList extends tsc<object> {
   @Watch('appList')
   changeAppList(newItems) {
     if (newItems.length > 0 && !this.hasSelected) {
-      this.handleExpanChange(this.appList[0]);
+      this.handleAppClick(this.appList[0]);
       this.hasSelected = true;
     }
   }
@@ -258,7 +256,6 @@ export default class AppList extends tsc<object> {
       const firstCode = item.app_alias?.value?.slice(0, 1) || '-';
       return {
         ...item,
-        isExpan: false,
         firstCodeColor: charColor(firstCode),
         firstCode,
         loading: false,
@@ -332,96 +329,132 @@ export default class AppList extends tsc<object> {
    * @param isScrollEnd
    * @param isReflesh
    */
-  getServiceData(appIds: number[], isScrollEnd = false, isReflesh = false) {
+  getServiceData(appIds: number[], isScrollEnd = false, isRefresh = false) {
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const appIdsSet = new Set(appIds);
-    this.appList.forEach(item => {
-      if (item.tableDataLoading || item.tableData.paginationData.isEnd) {
-        return;
-      }
-      if (!isScrollEnd && item.tableData.data.length && !isReflesh) {
-        return;
+    for (const item of this.appList) {
+      const isDataLoading = item.tableDataLoading || item.tableData.paginationData.isEnd;
+      const isInitialLoad = !isScrollEnd && item.tableData.data.length && !isRefresh;
+      // 如果数据正在加载或不需要加载，则返回
+      if (isDataLoading || isInitialLoad) {
+        continue;
       }
       if (appIdsSet.has(item.application_id)) {
-        if (isScrollEnd) {
-          item.tableDataLoading = true;
-          item.tableData.scrollLoading = true;
-        } else {
-          item.tableData.loading = true;
-        }
-        serviceList({
-          app_name: item.app_name,
-          start_time: startTime,
-          end_time: endTime,
-          filter: '',
-          sort: item.tableSortKey,
-          filter_dict: item.tableFilters,
-          check_filter_dict: {},
-          page: item.tableData.paginationData.current,
-          page_size: item.tableData.paginationData.limit,
-          keyword: '',
-          condition_list: [],
-          view_mode: 'page_home',
-          view_options: {
-            app_name: item.app_name,
-            compare_targets: [],
-            current_target: {},
-            method: 'AVG',
-            interval: 'auto',
-            group_by: [],
-            filters: {
-              app_name: item.app_name,
-            },
-          },
-          bk_biz_id: this.$store.getters.bizId,
-        })
+        // 设置加载状态
+        this.setLoadingState(item, isScrollEnd);
+        serviceList(this.createServiceRequest(item, startTime, endTime))
           .then(({ columns, data, total }) => {
-            if (item.tableData.paginationData.current > 1) {
-              item.tableData.data.push(...(data || []));
-            } else {
-              item.tableData.data = data || [];
-            }
-            item.tableData.columns = columns || [];
-            item.tableData.paginationData.count = total;
-            item.tableData.paginationData.isEnd = (data || []).length < item.tableData.paginationData.limit;
-            const fields = (columns || []).filter(col => col.asyncable).map(val => val.id);
-            const services = (data || []).map(d => d.service_name.value);
-            fields.forEach(field => {
-              serviceListAsync({
-                app_name: item.app_name,
-                start_time: startTime,
-                end_time: endTime,
-                column: field,
-                service_names: services,
-                bk_biz_id: this.$store.getters.bizId,
-              })
-                .then(serviceData => {
-                  const dataMap = {};
-                  serviceData?.forEach(item => {
-                    if (item.service_name) {
-                      dataMap[String(item.service_name)] = item[field];
-                    }
-                  });
-                  item.tableData.data = item.tableData.data.map(d => ({
-                    ...d,
-                    [field]: d[field] || dataMap[String(d.service_name.value || '')] || null,
-                  }));
-                })
-                .finally(() => {
-                  item.tableData.columns = item.tableData.columns.map(col => ({
-                    ...col,
-                    asyncable: col.id === field ? false : col.asyncable,
-                  }));
-                });
-            });
+            this.updateTableData(item, data, columns, total);
+            this.loadAsyncData(item, data, columns, startTime, endTime);
           })
           .finally(() => {
-            item.tableData.scrollLoading = false;
-            item.tableDataLoading = false;
-            item.tableData.loading = false;
+            this.resetLoadingState(item);
           });
       }
-    });
+    }
+  }
+
+  setLoadingState(item, isScrollEnd) {
+    if (isScrollEnd) {
+      item.tableDataLoading = true;
+      item.tableData.scrollLoading = true;
+    } else {
+      item.tableData.loading = true;
+    }
+  }
+
+  createServiceRequest(item, startTime, endTime) {
+    return {
+      app_name: item.app_name,
+      start_time: startTime,
+      end_time: endTime,
+      filter: '',
+      sort: item.tableSortKey,
+      filter_dict: item.tableFilters,
+      check_filter_dict: {},
+      page: item.tableData.paginationData.current,
+      page_size: item.tableData.paginationData.limit,
+      keyword: '',
+      condition_list: [],
+      view_mode: 'page_home',
+      view_options: {
+        app_name: item.app_name,
+        compare_targets: [],
+        current_target: {},
+        method: 'AVG',
+        interval: 'auto',
+        group_by: [],
+        filters: {
+          app_name: item.app_name,
+        },
+      },
+      bk_biz_id: this.$store.getters.bizId,
+    };
+  }
+
+  updateTableData(item, data, columns, total) {
+    if (item.tableData.paginationData.current > 1) {
+      item.tableData.data.push(...(data || []));
+    } else {
+      item.tableData.data = data || [];
+    }
+    item.tableData.columns = columns || [];
+    item.tableData.paginationData.count = total;
+    item.tableData.paginationData.isEnd = (data || []).length < item.tableData.paginationData.limit;
+  }
+
+  loadAsyncData(item, data, columns, startTime, endTime) {
+    const fields = (columns || []).filter(col => col.asyncable).map(val => val.id);
+    const services = (data || []).map(d => d.service_name.value);
+
+    for (const field of fields) {
+      serviceListAsync(this.createAsyncRequest(item, field, services, startTime, endTime))
+        .then(serviceData => {
+          this.mapAsyncData(item, serviceData, field);
+        })
+        .finally(() => {
+          this.updateColumnAsyncAbleState(item, field);
+        });
+    }
+  }
+
+  createAsyncRequest(item, field, services, startTime, endTime) {
+    return {
+      app_name: item.app_name,
+      start_time: startTime,
+      end_time: endTime,
+      column: field,
+      service_names: services,
+      bk_biz_id: this.$store.getters.bizId,
+    };
+  }
+
+  mapAsyncData(item, serviceData, field) {
+    const dataMap = {};
+    if (serviceData) {
+      for (const serviceItem of serviceData) {
+        if (serviceItem.service_name) {
+          dataMap[String(serviceItem.service_name)] = serviceItem[field];
+        }
+      }
+    }
+    item.tableData.data = item.tableData.data.map(d => ({
+      ...d,
+      [field]: d[field] || dataMap[String(d.service_name.value || '')] || null,
+    }));
+  }
+
+  updateColumnAsyncAbleState(item, field) {
+    item.tableData.columns = item.tableData.columns.map(col => ({
+      ...col,
+      asyncable: col.id === field ? false : col.asyncable,
+    }));
+  }
+
+  resetLoadingState(item) {
+    item.tableData.scrollLoading = false;
+    item.tableDataLoading = false;
+    item.tableData.loading = false;
   }
 
   /**
@@ -437,7 +470,7 @@ export default class AppList extends tsc<object> {
   /**
    * @description 手动刷新
    */
-  handleImmediateReflesh() {
+  handleImmediateRefresh() {
     this.pagination.current = 1;
     this.pagination.isEnd = false;
     this.getAppList();
@@ -447,7 +480,7 @@ export default class AppList extends tsc<object> {
    * @description 自动刷新
    * @param val
    */
-  handleRefleshChange(val: number) {
+  handleRefreshChange(val: number) {
     window.clearInterval(this.refreshInstance);
     if (val > 0) {
       this.refreshInstance = setInterval(() => {
@@ -479,20 +512,16 @@ export default class AppList extends tsc<object> {
   handleSearch() {}
 
   /**
-   * @description 展开
+   * @description 应用列表点击
    * @param row
    */
-  handleExpanChange(row: IAppListItem) {
-    row.isExpan = !row.isExpan;
+  handleAppClick(row: PartialAppListItem) {
     this.itemRow = row;
-
-    if (row.isExpan) {
-      this.getServiceData([row.application_id]);
-    }
+    this.getServiceData([row.application_id]);
   }
 
   /** 跳转服务概览 */
-  linkToOverview(row) {
+  linkToOverview(row: PartialAppListItem) {
     const routeData = this.$router.resolve({
       name: 'application',
       query: {
@@ -506,7 +535,7 @@ export default class AppList extends tsc<object> {
    * @description 跳转到配置页
    * @param row
    */
-  handleToConfig(row) {
+  handleToConfig(row: PartialAppListItem) {
     const routeData = this.$router.resolve({
       name: 'application-config',
       params: {
@@ -621,10 +650,11 @@ export default class AppList extends tsc<object> {
                 panel={this.alarmToolsPanel}
               />
               <DashboardTools
+                isSplitPanel={false}
                 showListMenu={false}
                 timeRange={this.timeRange}
-                onImmediateReflesh={() => this.handleImmediateReflesh()}
-                onRefleshChange={this.handleRefleshChange}
+                onImmediateReflesh={() => this.handleImmediateRefresh()}
+                onRefleshChange={this.handleRefreshChange}
                 onTimeRangeChange={this.handleTimeRangeChange}
               />
               <ListMenu
@@ -675,7 +705,7 @@ export default class AppList extends tsc<object> {
                   <li
                     key={item.application_id}
                     class={['data-item', { selected: this.itemRow?.application_id === item.application_id }]}
-                    onClick={() => this.handleExpanChange(item)}
+                    onClick={() => this.handleAppClick(item)}
                   >
                     <div
                       style={{
