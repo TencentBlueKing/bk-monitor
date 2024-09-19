@@ -93,7 +93,7 @@ export const logSourceField = () => {
     description: null,
     es_doc_values: false,
     field_alias: '',
-    field_name: (window as any).$t('日志来源'),
+    field_name: window.mainComponent.$t('日志来源'),
     field_operator: [],
     field_type: 'union',
     filterExpand: false,

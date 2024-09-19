@@ -36,6 +36,7 @@
   const keyword = computed(() => indexItem.value.keyword);
   const addition = computed(() => indexItem.value.addition);
   const searchMode = computed(() => indexItem.value.search_mode);
+  const clearSearchValueNum = computed(() => store.state.clearSearchValueNum);
 
   watch(
     keyword,
@@ -44,6 +45,10 @@
     },
     { immediate: true },
   );
+
+  watch(clearSearchValueNum, () => {
+    handleClearBtnClick();
+  });
 
   watch(
     addition,

@@ -786,7 +786,7 @@
             <div class="full-text-sub-title">
               <img :src="svgImg.imgEnterKey" /><span>{{ $t('Enter 键') }}</span>
             </div>
-            <div class="full-text-content">{{ $t('点击确认，唤起 IP 选择器。点击取消，关闭窗口') }}</div>
+            <div class="full-text-content">{{ $t('按【Enter】或点击【确定】，唤起IP选择器点击取消，关闭窗口') }}</div>
           </template>
         </template>
         <template v-else>
@@ -920,7 +920,7 @@
     <div class="ui-query-option-footer">
       <div class="ui-shortcut-key">
         <span><img :src="svgImg.imgUpDownKey" />{{ $t('移动光标') }}</span>
-        <span><img :src="svgImg.imgEnterKey" />{{ $t('选中/提交') }}</span>
+        <span><img :src="svgImg.imgEnterKey" />{{ $t('选中/检索') }}</span>
       </div>
       <div class="ui-btn-opts">
         <bk-button
