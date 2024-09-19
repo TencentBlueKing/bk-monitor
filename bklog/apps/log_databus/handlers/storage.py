@@ -867,7 +867,7 @@ class StorageHandler(object):
                 node = node_info.get('settings', {}).get('node', {})
                 name = node.get('name')
                 # 是否存在 data 键
-                if node.get('data'):
+                if 'data' in node:
                     # data == 'true' 添加
                     if node['data'] == 'true':
                         filter_datanode_name.append(name)
