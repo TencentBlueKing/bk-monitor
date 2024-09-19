@@ -569,7 +569,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
         if bk_biz_id > 0:
             return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{app_name}"
         else:
-            return f"{cls.TABLE_SPACE_PREFIX}_" f"{-bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{app_name}"
+            return f"{cls.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{app_name}"
 
     def create_or_update_result_table(self, **option):
         table_id = self.table_id

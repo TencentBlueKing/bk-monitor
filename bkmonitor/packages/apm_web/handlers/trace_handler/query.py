@@ -390,11 +390,11 @@ class OptionValues:
     ) -> Dict[str, List[Dict[str, Any]]]:
         option_values: Dict[str, List[Dict[str, Any]]] = {}
         value_source_fields: Dict[str, List[str]] = self._get_value_source_fields(fields)
-        for source, fields in value_source_fields.items():
-            if source == ValueSource.METHOD:
+        for value_source, fields in value_source_fields.items():
+            if value_source == ValueSource.METHOD:
                 option_values.update(self._get_option_values_from_method(fields))
             else:
-                option_values.update(self._get_option_values_from_api(source, fields, start_time, end_time))
+                option_values.update(self._get_option_values_from_api(value_source, fields, start_time, end_time))
         return option_values
 
 
