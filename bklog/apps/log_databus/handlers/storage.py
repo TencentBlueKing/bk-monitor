@@ -27,8 +27,16 @@ from collections import defaultdict
 from typing import List, Union
 
 import arrow
+from django.conf import settings
+from django.db.models import Q, Sum
+from django.utils.translation import ugettext as _
+
 from apps.api import BkDataResourceCenterApi, BkLogApi, TransferApi
-from apps.constants import UserOperationActionEnum, UserOperationTypeEnum, SpacePropertyEnum
+from apps.constants import (
+    SpacePropertyEnum,
+    UserOperationActionEnum,
+    UserOperationTypeEnum,
+)
 from apps.decorators import user_operation_record
 from apps.iam import Permission, ResourceEnum
 from apps.log_databus.constants import (
@@ -67,9 +75,6 @@ from apps.utils.time_handler import format_user_time_zone
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid, parse_space_uid
-from django.conf import settings
-from django.db.models import Q, Sum
-from django.utils.translation import ugettext as _
 
 CACHE_EXPIRE_TIME = 300
 
@@ -849,18 +854,39 @@ class StorageHandler(object):
         es_client = get_es_client(
             version="", hosts=[domain_name], username=username, password=password, scheme=schema, port=port
         )
-        nodes = es_client.cat.nodeattrs(format="json", h="name,host,attr,value,id,ip")
+        original_nodes = es_client.cat.nodeattrs(format="json", h="name,host,attr,value,id,ip")
+        # 数据节点
+        filter_datanode_name = []
+        filter_datanode_list = []
+        # 尝试获取节点设置
+        try:
+            data = es_client.transport.perform_request('GET', '/_nodes/settings')
+            nodes = data['nodes']
+            for node_name, node_info in nodes.items():
+                # 从 node_info 中获取 settings 和 node
+                node = node_info.get('settings', {}).get('node', {})
+                name = node.get('name')
+                # 是否存在 data 键
+                if node.get('data'):
+                    # data == 'true' 添加
+                    if node['data'] == 'true':
+                        filter_datanode_name.append(name)
+                # 不存在 data 键也添加
+                else:
+                    filter_datanode_name.append(name)
+        except Exception as e:
+            logger.error(f"Error retrieving nodes settings: {e}")
+        else:
+            # 筛选节点
+            for node in original_nodes:
+                # 对节点属性进行过滤，有些是内置的，需要忽略
+                if any(node["attr"].startswith(prefix) for prefix in NODE_ATTR_PREFIX_BLACKLIST):
+                    continue  # 如果以黑名单前缀开头则跳过
 
-        # 对节点属性进行过滤，有些是内置的，需要忽略
-        filtered_nodes = []
-        for node in nodes:
-            for prefix in NODE_ATTR_PREFIX_BLACKLIST:
-                if node["attr"].startswith(prefix):
-                    break
-            else:
-                filtered_nodes.append(node)
-
-        return filtered_nodes
+                # 如果节点名称在过滤后的名称列表中，则添加到结果列表
+                if node['name'] in filter_datanode_name:
+                    filter_datanode_list.append(node)
+        return filter_datanode_list
 
     @classmethod
     def batch_connectivity_detect(cls, cluster_list, bk_biz_id):
