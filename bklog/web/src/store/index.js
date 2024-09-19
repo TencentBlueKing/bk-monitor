@@ -49,9 +49,9 @@ import {
   IndexSetQueryResult,
   IndexFieldInfo,
   IndexItem,
-  IndexsetItemParams,
   logSourceField,
   indexSetClusteringData,
+  getDefaultRetrieveParams,
 } from './default-values.ts';
 import globals from './globals';
 import RequestPool from './request-pool';
@@ -268,9 +268,12 @@ const store = new Vuex.Store({
       state.favoriteList.push(...(payload ?? []));
     },
     updateIndexItem(state, payload) {
-      if (payload?.addition?.length >= 0) {
-        state.indexItem.addition.splice(0, state.indexItem.addition.length, ...payload?.addition);
-      }
+      ['ids', 'items', 'catchUnionBeginList'].forEach(key => {
+        if (Array.isArray(state.indexItem[key]) && Array.isArray(payload?.[key] ?? false)) {
+          state.indexItem[key].splice(0, state.indexItem[key].length, ...(payload?.[key] ?? []));
+        }
+      });
+
       Object.assign(state.indexItem, payload ?? {});
     },
 
@@ -284,7 +287,7 @@ const store = new Vuex.Store({
      * @param {*} payload
      */
     resetIndexsetItemParams(state, payload) {
-      const defaultValue = { ...IndexsetItemParams, isUnionIndex: false, selectIsUnionSearch: false };
+      const defaultValue = { ...getDefaultRetrieveParams(), isUnionIndex: false, selectIsUnionSearch: false };
       ['ids', 'items', 'catchUnionBeginList'].forEach(key => {
         if (Array.isArray(state.indexItem[key])) {
           state.indexItem[key].splice(0, state.indexItem[key].length, ...(payload?.[key] ?? []));
@@ -783,7 +786,6 @@ const store = new Vuex.Store({
 
       if (route.params.indexId) {
         ids.push(route.params.indexId);
-        commit('updateIndexId', route.params.indexId);
       }
 
       if ((route.query?.unionList?.length ?? 0) > 0) {
@@ -792,7 +794,6 @@ const store = new Vuex.Store({
       }
 
       if (!isUnionIndex && !ids.length && list?.length) {
-        commit('updateIndexId', list[0].index_set_id);
         ids.push(list[0].index_set_id);
       }
 
@@ -800,10 +801,11 @@ const store = new Vuex.Store({
         const payload = {
           ids,
           selectIsUnionSearch: isUnionIndex,
-          items: ids.map(val => (list || []).find(item => item.index_set_id === val)),
+          items: ids.map(val => (list || []).find(item => item.index_set_id === val)).filter(val => val !== undefined),
           isUnionIndex,
         };
 
+        commit('updateIndexId', isUnionIndex ? undefined : ids[0]);
         commit('updateIndexItem', payload);
       }
     },

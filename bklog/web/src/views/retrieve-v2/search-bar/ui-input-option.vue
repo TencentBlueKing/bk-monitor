@@ -1,5 +1,5 @@
 <script setup>
-  import { computed, ref, watch, onBeforeUnmount, nextTick, getCurrentInstance } from 'vue';
+  import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
@@ -145,7 +145,7 @@
     const filterFn = field =>
       field.field_type !== '__virtual__' &&
       !excludesFields.includes(field.field_name) &&
-      (field.is_full_text || regExp.test(field.field_alias) || regExp.test(field.field_name));
+      (regExp.test(field.field_alias) || regExp.test(field.field_name));
     return fieldList.value.filter(filterFn);
   });
 
@@ -156,6 +156,7 @@
         operator: condition.value.operator,
       },
   );
+
   const scrollActiveItemIntoView = () => {
     if (activeIndex.value >= 0) {
       const target = refSearchResultList.value?.querySelector(`[data-tab-index="${activeIndex.value}"]`);
@@ -217,6 +218,7 @@
     nextTick(() => {
       if (filterFieldList.value.length) {
         activeIndex.value = 0;
+        handleFieldItemClick(filterFieldList.value[0], 0);
         return;
       }
 

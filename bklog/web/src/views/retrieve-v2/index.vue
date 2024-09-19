@@ -50,8 +50,6 @@
   const bkBizId = computed(() => store.state.bkBizId);
   const indexSetParams = computed(() => store.state.indexItem);
 
-  store.dispatch('updateIndexItemByRoute', { route, list: [] });
-
   /**
    * 拉取索引集列表
    */
@@ -81,6 +79,19 @@
     }
   };
 
+  const handleSpaceIdChange = (resetParams = true) => {
+    if (resetParams) {
+      store.commit('resetIndexsetItemParams');
+      store.commit('updateIndexId');
+    }
+
+    getIndexSetList();
+    store.dispatch('requestFavoriteList');
+  };
+
+  handleSpaceIdChange();
+  store.dispatch('updateIndexItemByRoute', { route, list: [] });
+
   watch(
     indexSetParams,
     () => {
@@ -89,41 +100,35 @@
     { deep: true },
   );
 
-  watch(
-    spaceUid,
-    () => {
-      const routeQuery = route.query ?? {};
-      if (routeQuery.spaceUid !== spaceUid.value || routeQuery.bizId !== bkBizId.value) {
-        router.push({
-          params: {
-            indexId: undefined,
-          },
-          query: {
-            ...routeQuery,
-            spaceUid: spaceUid.value,
-            bizId: bkBizId.value,
-            unionList: undefined,
-          },
-        });
-      }
+  watch(spaceUid, () => {
+    const routeQuery = route.query ?? {};
+    if (routeQuery.spaceUid !== spaceUid.value || routeQuery.bizId !== bkBizId.value) {
+      router.push({
+        params: {
+          indexId: undefined,
+        },
+        query: {
+          ...routeQuery,
+          spaceUid: spaceUid.value,
+          bizId: bkBizId.value,
+          unionList: undefined,
+        },
+      });
+    }
 
-      store.commit('resetIndexsetItemParams');
-      store.commit('updateIndexId');
-
-      getIndexSetList();
-      store.dispatch('requestFavoriteList');
-    },
-    { immediate: true },
-  );
+    handleSpaceIdChange();
+  });
 
   const handleFavoritesClick = () => {
     if (showFavorites.value) return;
     showFavorites.value = true;
   };
+
   const handleFavoritesClose = e => {
     e.stopPropagation();
     showFavorites.value = false;
   };
+
   const handleEditFavoriteGroup = e => {
     e.stopPropagation();
     favoriteRef.value.isShowManageDialog = true;

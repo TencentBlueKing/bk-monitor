@@ -46,7 +46,6 @@ import {
 import $http from '../../../api';
 import * as authorityMap from '../../../common/authority-map';
 import EmptyStatus from '../../../components/empty-status/index.vue';
-import { DEFAULT_RETRIEVE_PARAMS } from '../../../store/default-values';
 import SelectIndexSetInput from './select-index-set-input';
 
 import './select-index-set.scss';
@@ -361,7 +360,6 @@ export default class QueryStatement extends tsc<object> {
     const ids = this.isAloneType ? this.selectAloneVal : this.selectedItemIDlist;
     const { start_time, end_time, timezone } = this.indexItem;
     const payload = {
-      ...DEFAULT_RETRIEVE_PARAMS,
       start_time,
       end_time,
       timezone,
