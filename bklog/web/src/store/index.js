@@ -419,9 +419,7 @@ const store = new Vuex.Store({
     updateUnionIndexList(state, unionIndexList) {
       state.unionIndexList.splice(0, state.unionIndexList.length, ...unionIndexList);
       state.indexItem.ids.splice(0, state.indexItem.ids.length, ...unionIndexList);
-      const unionIndexItemList = state.retrieve.indexSetList.filter(item =>
-        unionIndexList.includes(Number(item.index_set_id)),
-      );
+      const unionIndexItemList = state.retrieve.indexSetList.filter(item => unionIndexList.includes(item.index_set_id));
       state.unionIndexItemList.splice(0, state.unionIndexItemList.length, ...unionIndexItemList);
     },
     updateUnionIndexItemList(state, unionIndexItemList) {
@@ -798,13 +796,12 @@ const store = new Vuex.Store({
       let isUnionIndex = false;
       commit('resetIndexSetQueryResult', { search_count: 0 });
 
-      if (route.params.indexId) {
-        ids.push(route.params.indexId);
-      }
-
       if ((route.query?.unionList?.length ?? 0) > 0) {
         isUnionIndex = true;
         ids.push(...JSON.parse(decodeURIComponent(route.query?.unionList ?? '[]')));
+        commit('updateUnionIndexList', ids);
+      } else {
+        if (route.params.indexId) ids.push(route.params.indexId);
       }
 
       if (!isUnionIndex && !ids.length && list?.length) {

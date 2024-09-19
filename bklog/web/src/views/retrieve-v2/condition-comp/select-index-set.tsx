@@ -189,17 +189,17 @@ export default class QueryStatement extends tsc<object> {
 
   /** 单选时候的索引集 */
   get selectedItem() {
-    return this.indexSetList.find(item => String(item.index_set_id) === this.indexId) || {};
+    return this.indexSetList.find(item => item.index_set_id === this.indexId) || {};
   }
 
   /** 多选的选中的索引集值 */
   get selectedItemList() {
-    return this.indexSetList.filter(item => this.selectTagCatchIDList.includes(String(item.index_set_id)));
+    return this.indexSetList.filter(item => this.selectTagCatchIDList.includes(item.index_set_id));
   }
 
   /** 多选的选中的索引集ID */
   get selectedItemIDlist() {
-    return this.selectedItemList.map(item => String(item.index_set_id));
+    return this.selectedItemList.map(item => item.index_set_id);
   }
 
   get spaceUid() {
@@ -356,11 +356,7 @@ export default class QueryStatement extends tsc<object> {
   @Watch('unionIndexList', { immediate: true, deep: true })
   initUnionList(val) {
     this.indexSearchType = !!val.length ? 'union' : 'single';
-    this.selectTagCatchIDList = !!val.length
-      ? val.map(item => String(item))
-      : this.routeParamIndexId
-        ? [this.routeParamIndexId]
-        : [];
+    this.selectTagCatchIDList = !!val.length ? val : this.routeParamIndexId ? [this.routeParamIndexId] : [];
   }
 
   @Emit('selected')

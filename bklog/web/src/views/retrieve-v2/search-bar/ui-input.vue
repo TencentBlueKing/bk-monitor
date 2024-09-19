@@ -30,6 +30,8 @@
   const formatModelValueItem = item => {
     const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
     const label = operatorDictionary.value[key]?.label ?? item.operator;
+    if (!Array.isArray(item.value)) item.value = item.value.split(',');
+    if (!item.relation) item.relation = 'OR';
     return { operator_label: label, disabled: false, ...item };
   };
 
@@ -186,6 +188,8 @@
     }
     queryItem.value = {};
     isInputFocus.value = false;
+    if (!Array.isArray(item.value)) item.value = item.value.split(',');
+    if (!item.relation) item.relation = 'OR';
     Object.assign(queryItem.value, item);
     const target = e.target.closest('.search-item');
     activeIndex.value = isInputFocus.value ? null : index;
@@ -256,7 +260,7 @@
     if (!(getTippyInstance().state.isShown ?? false)) {
       handleSaveQueryClick(undefined);
     }
-  }
+  };
   const handleFullTextInputBlur = e => {
     if (!getTippyInstance()?.state?.isShown) {
       inputValue.value = '';
