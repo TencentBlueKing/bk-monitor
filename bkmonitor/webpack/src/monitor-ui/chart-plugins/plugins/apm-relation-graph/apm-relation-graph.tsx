@@ -360,7 +360,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.handleLoadingChange(true);
     try {
       this.unregisterOberver();
-      this.setTimeTips();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
@@ -401,6 +400,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   }
 
   async getTopoData() {
+    this.setTimeTips();
     this.requestId += 1;
     const requestId = this.requestId;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
