@@ -179,7 +179,8 @@
 
   const handleTagItemClick = (e, item, index) => {
     if (item.field === '_ip-select_') {
-      dialogIpChooser.value = ipChooser.value;
+      const isHaveIpChooser = !!Object.keys(ipChooser.value).length;
+      dialogIpChooser.value = isHaveIpChooser ? ipChooser.value : cacheIpChooser;
       showIpSelectorDialog.value = true;
       return;
     }
@@ -215,7 +216,8 @@
     const isPayloadValueEmpty = !(payload?.value?.length ?? 0);
     const isFulltextEnterVlaue = isInputFocus.value && isPayloadValueEmpty && !payload?.field;
     if (payload === 'ip-select-show') {
-      dialogIpChooser.value = ipChooser.value;
+      const isHaveIpChooser = !!Object.keys(ipChooser.value).length;
+      dialogIpChooser.value = isHaveIpChooser ? ipChooser.value : cacheIpChooser;
       showIpSelectorDialog.value = true;
       getTippyInstance()?.hide();
       return;

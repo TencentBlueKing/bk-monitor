@@ -37,9 +37,6 @@
       item.minWidth = 0;
       item.filterExpand = false; // 字段过滤展开
       item.filterVisible = true;
-      // if (item.field_type !== 'text') {
-      //   notTextTypeFields.push(item.field_name);
-      // }
       fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
     });
     return fieldAliasMap;

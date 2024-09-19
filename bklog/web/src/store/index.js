@@ -166,6 +166,7 @@ const store = new Vuex.Store({
     tookTime: 0,
     searchTotal: 0,
     showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
+    clearSearchValueNum: 0,
     // 存放接口报错信息的对象
     apiErrorInfo: {},
   },
@@ -215,7 +216,6 @@ const store = new Vuex.Store({
       const {
         start_time,
         end_time,
-        isUnionIndex,
         addition,
         begin,
         size,
@@ -238,7 +238,6 @@ const store = new Vuex.Store({
       return {
         start_time,
         end_time,
-        isUnionIndex,
         addition: filterAddition,
         begin,
         size,
@@ -410,6 +409,8 @@ const store = new Vuex.Store({
     updateUnionIndexList(state, unionIndexList) {
       state.unionIndexList.splice(0, state.unionIndexList.length, ...unionIndexList);
       state.indexItem.ids.splice(0, state.indexItem.ids.length, ...unionIndexList);
+      const unionIndexItemList = state.retrieve.indexSetList.filter(item => unionIndexList.includes(item.index_set_id));
+      state.unionIndexItemList.splice(0, state.unionIndexItemList.length, ...unionIndexItemList);
     },
     updateUnionIndexItemList(state, unionIndexItemList) {
       state.unionIndexItemList = unionIndexItemList;
@@ -619,6 +620,7 @@ const store = new Vuex.Store({
           .filter(Boolean) ?? [];
       store.commit('updateVisibleFields', visibleFields);
       store.commit('updateIsNotVisibleFieldsShow', !visibleFields.length);
+      if (state.indexItem.isUnionIndex) store.dispatch('showShowUnionSource', { keepLastTime: true });
     },
     resetIndexSetOperatorConfig(state) {
       const {
@@ -653,6 +655,9 @@ const store = new Vuex.Store({
             : contextAndRealtime?.extra?.reason,
         },
       });
+    },
+    updateClearSearchValueNum(state, payload) {
+      state.clearSearchValueNum = payload;
     },
   },
   actions: {

@@ -176,7 +176,7 @@ export default class FieldFilterComp extends tsc<object> {
   }
   /** 展示的内置字段 */
   get showIndexSetFields() {
-    return this.isShowAllIndexSet ? this.indexSetFields : this.indexSetFields().slice(0, 9);
+    return this.isShowAllIndexSet ? this.indexSetFields() : this.indexSetFields().slice(0, 9);
   }
   get filterTypeCount() {
     // 过滤的条件数量

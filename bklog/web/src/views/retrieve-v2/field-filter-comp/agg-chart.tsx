@@ -216,10 +216,7 @@ export default class AggChart extends tsc<object> {
                       </span>
                     )}
                   </div>
-                  <span>
-                    {/* <i class='bk-icon icon-download'></i>
-                <span>{this.$t('下载')}</span> */}
-                  </span>
+                  <span>{/* <i class='bk-icon icon-download'></i> <span>{this.$t('下载')}</span> */}</span>
                 </li>
               }
             </ul>
