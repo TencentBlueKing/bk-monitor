@@ -224,6 +224,7 @@ const store = new Vuex.Store({
         host_scopes,
         interval,
         search_mode,
+        sort_list,
       } = state.indexItem;
 
       const filterAddition = addition
@@ -250,6 +251,7 @@ const store = new Vuex.Store({
         host_scopes,
         interval,
         search_mode,
+        sort_list,
         ...searchParams,
       };
     },
@@ -417,7 +419,9 @@ const store = new Vuex.Store({
     updateUnionIndexList(state, unionIndexList) {
       state.unionIndexList.splice(0, state.unionIndexList.length, ...unionIndexList);
       state.indexItem.ids.splice(0, state.indexItem.ids.length, ...unionIndexList);
-      const unionIndexItemList = state.retrieve.indexSetList.filter(item => unionIndexList.includes(item.index_set_id));
+      const unionIndexItemList = state.retrieve.indexSetList.filter(item =>
+        unionIndexList.includes(Number(item.index_set_id)),
+      );
       state.unionIndexItemList.splice(0, state.unionIndexItemList.length, ...unionIndexItemList);
     },
     updateUnionIndexItemList(state, unionIndexItemList) {

@@ -295,7 +295,7 @@
       },
       /** 日志聚类开关 */
       clusterSwitch() {
-        return this.clusteringConfig?.is_active;
+        return this.clusteringConfig?.is_active || false;
       },
       exhibitAll() {
         /**

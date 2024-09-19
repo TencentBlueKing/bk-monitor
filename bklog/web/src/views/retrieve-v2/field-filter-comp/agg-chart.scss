@@ -1,8 +1,9 @@
 .field-data {
-  padding: 2px 12px;
-  // background-color: #FAFBFD;
+  padding: 2px 0;
+  background-color: #FAFBFD;
+
   .title {
-    padding-bottom: 4px;
+    padding: 0 12px 4px;
     color: #979ba5;
   }
 
@@ -15,13 +16,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 40px;
-    font-size: 14px;
-    font-weight: 700;
-    color: #ea3636;
+    height: 34px;
+    font-size: 12px;
+    color: #63656E;
   }
 
   .chart-list {
+    padding: 0 12px;
+
     .chart-item {
       display: flex;
       align-items: center;

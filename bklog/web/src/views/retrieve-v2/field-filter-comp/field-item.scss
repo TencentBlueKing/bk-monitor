@@ -39,6 +39,14 @@
     cursor: pointer;
     border-radius: 2px;
 
+    &.expanded {
+      background-color: #f0f1f5;
+
+      .icon-right-shape {
+        transform: rotate(90deg);
+      }
+    }
+
     .filed-item-triangle {
       width: 32px;
 
@@ -46,14 +54,6 @@
         display: block;
         margin: 0 5px;
         transition: transform 0.3s;
-      }
-
-      &.expanded {
-        background-color: #f0f1f5;
-
-        .icon-right-shape {
-          transform: rotate(90deg);
-        }
       }
     }
 
