@@ -183,7 +183,7 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         plugin_ids = list({item.plugin.plugin_id for item in return_version})
         plugin_queryset = CollectConfigMeta.objects.filter(plugin_id__in=plugin_ids)
         if bk_biz_id:
-            plugin_queryset.filter(bk_biz_id=bk_biz_id)
+            plugin_queryset = plugin_queryset.filter(bk_biz_id=bk_biz_id)
         plugin_count_queryset = plugin_queryset.values("plugin_id").annotate(count=Count("plugin_id"))
         plugin_counts = {item["plugin_id"]: item["count"] for item in plugin_count_queryset}
         version_count_queryset = (
