@@ -11,6 +11,7 @@
   import SqlQuery from './sql-query';
   import TimeSetting from './time-setting';
   import UiInput from './ui-input';
+  import { ConditionOperator } from '@/store/condition-operator';
 
   const emit = defineEmits(['refresh', 'height-change']);
   const store = useStore();
@@ -101,10 +102,14 @@
   };
   const updateSearchParam = payload => {
     const { keyword, addition, ip_chooser, search_mode } = payload;
+    const foramtAddition = (addition ?? []).map(item => {
+      const instance = new ConditionOperator(item);
+      return instance.formatApiOperatorToFront();
+    })
 
     store.commit('updateIndexItemParams', {
       keyword,
-      addition,
+      addition: foramtAddition,
       ip_chooser,
       begin: 0,
       search_mode,
