@@ -101,10 +101,6 @@
 
       @include flex-justify(space-between);
 
-      > :last-child {
-        margin-left: 8px;
-      }
-
       .analysis-disabled {
         color: #979ba5;
 
