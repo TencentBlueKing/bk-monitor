@@ -107,8 +107,7 @@ export default class AggChart extends tsc<object> {
   computePercent(count) {
     const percentageNum = count / this.showTotalCount;
     // 当百分比 大于1 的时候 不显示后面的小数点， 若小于1% 则展示0.xx 保留两位小数
-    const showPercentageStr =
-      percentageNum >= 0.01 ? Math.round(+percentageNum.toFixed(2) * 100) : (percentageNum * 100).toFixed(2);
+    const showPercentageStr = percentageNum >= 0.01 ? Math.round(+percentageNum.toFixed(2) * 100) : 0.01;
     return `${showPercentageStr}%`;
   }
   addCondition(operator, value) {
@@ -165,69 +164,69 @@ export default class AggChart extends tsc<object> {
         class='field-data'
         v-bkloading={{ isLoading: this.listLoading }}
       >
-        <div class='title'>
-          <i18n path='{0}/{1}条记录中数量排名前 {2} 的数据值'>
-            <span>{this.showValidCount}</span>
-            <span>{this.showTotalCount}</span>
-            <span>{this.limitSize}</span>
-          </i18n>
-        </div>
-        <ul class='chart-list'>
-          {this.showFiveList.map(item => (
-            <li class='chart-item'>
-              <div class='chart-content'>
-                <div class='text-container'>
-                  <div
-                    class='text-value'
-                    v-bk-overflow-tips
-                  >
-                    {item[0]}
+        {!!this.showFiveList.length ? (
+          <div>
+            <div class='title'>{this.$t('字段内容分布')}</div>
+            <ul class='chart-list'>
+              {this.showFiveList.map(item => (
+                <li class='chart-item'>
+                  <div class='chart-content'>
+                    <div class='text-container'>
+                      <div
+                        class='text-value'
+                        v-bk-overflow-tips
+                      >
+                        {item[0]}
+                      </div>
+                      <div class='percent-value'>{this.computePercent(item[1])}</div>
+                    </div>
+                    <div class='percent-bar-container'>
+                      <div
+                        style={{ width: this.computePercent(item[1]) }}
+                        class='percent-bar'
+                      ></div>
+                    </div>
                   </div>
-                  <div class='percent-value'>{this.computePercent(item[1])}</div>
-                </div>
-                <div class='percent-bar-container'>
-                  <div
-                    style={{ width: this.computePercent(item[1]) }}
-                    class='percent-bar'
-                  ></div>
-                </div>
-              </div>
-              <div class='operation-container'>
-                <span
-                  class={['bk-icon icon-enlarge-line', this.filterIsExist('is', item[0]) ? 'disable' : '']}
-                  v-bk-tooltips={this.getIconPopover('=', item[0])}
-                  onClick={() => this.addCondition('is', item[0])}
-                ></span>
-                <span
-                  class={['bk-icon icon-narrow-line', this.filterIsExist('is not', item[0]) ? 'disable' : '']}
-                  v-bk-tooltips={this.getIconPopover('!=', item[0])}
-                  onClick={() => this.addCondition('is not', item[0])}
-                ></span>
-              </div>
-            </li>
-          ))}
-          {
-            <li class='more-item'>
-              <div>
-                {!this.showAllList && this.shouldShowMore && (
-                  <span
-                    onClick={() => {
-                      this.showAllList = !this.showAllList;
-                      if (this.isFrontStatistics) return;
-                      this.queryFieldFetchTopList(100);
-                    }}
-                  >
-                    {this.$t('更多')}
-                  </span>
-                )}
-              </div>
-              <span>
-                {/* <i class='bk-icon icon-download'></i>
+                  <div class='operation-container'>
+                    <span
+                      class={['bk-icon icon-enlarge-line', this.filterIsExist('is', item[0]) ? 'disable' : '']}
+                      v-bk-tooltips={this.getIconPopover('=', item[0])}
+                      onClick={() => this.addCondition('is', item[0])}
+                    ></span>
+                    <span
+                      class={['bk-icon icon-narrow-line', this.filterIsExist('is not', item[0]) ? 'disable' : '']}
+                      v-bk-tooltips={this.getIconPopover('!=', item[0])}
+                      onClick={() => this.addCondition('is not', item[0])}
+                    ></span>
+                  </div>
+                </li>
+              ))}
+              {
+                <li class='more-item'>
+                  <div>
+                    {!this.showAllList && this.shouldShowMore && (
+                      <span
+                        onClick={() => {
+                          this.showAllList = !this.showAllList;
+                          if (this.isFrontStatistics) return;
+                          this.queryFieldFetchTopList(100);
+                        }}
+                      >
+                        {this.$t('更多')}
+                      </span>
+                    )}
+                  </div>
+                  <span>
+                    {/* <i class='bk-icon icon-download'></i>
                 <span>{this.$t('下载')}</span> */}
-              </span>
-            </li>
-          }
-        </ul>
+                  </span>
+                </li>
+              }
+            </ul>
+          </div>
+        ) : (
+          <div class='error-container'>{!this.listLoading && this.$t('暂无字段内容')}</div>
+        )}
       </div>
     );
   }

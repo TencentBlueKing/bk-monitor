@@ -35,6 +35,7 @@
   });
   const keyword = computed(() => indexItem.value.keyword);
   const addition = computed(() => indexItem.value.addition);
+  const searchMode = computed(() => indexItem.value.search_mode);
 
   watch(
     keyword,
@@ -52,6 +53,13 @@
     },
     { immediate: true, deep: true },
   );
+
+  watch(searchMode, () => {
+    const idex = queryParams.findIndex(m => m === searchMode.value);
+    if (idex >= 0) {
+      activeIndex.value = idex;
+    }
+  });
 
   watch(
     activeIndex,
@@ -78,6 +86,7 @@
 
   const handleIndexSetSelected = payload => {
     if (!isEqual(indexItem.value.ids, payload.ids) || indexItem.value.isUnionIndex !== payload.isUnionIndex) {
+      store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids : []);
       store.dispatch('requestIndexSetItemChanged', Object.assign({}, payload, { addition: [] })).then(() => {
         store.commit('retrieve/updateChartKey');
         store.dispatch('requestIndexSetQuery');
@@ -106,7 +115,9 @@
       }
     }
 
-    store.dispatch('requestIndexSetQuery');
+    setTimeout(() => {
+      store.dispatch('requestIndexSetQuery');
+    });
   };
 
   const handleSqlRetrieve = value => {
@@ -120,6 +131,9 @@
   const handleClearBtnClick = () => {
     sqlQueryValue.value = '';
     uiQueryValue.value.splice(0);
+    store.commit('updateIndexItemParams', {
+      ip_chooser: {},
+    });
     handleBtnQueryClick();
   };
 
@@ -158,7 +172,15 @@
     </div>
     <div
       class="search-input"
-      v-bkloading="{ isLoading: isInputLoading, size: 'mini' }"
+      v-bkloading="{
+        isLoading: isInputLoading,
+        size: 'mini',
+        mode: 'spin',
+        opacity: 1,
+        zIndex: 10,
+        theme: 'primary',
+        extCls: 'bklog-sql-input-loading',
+      }"
     >
       <UiInput
         v-if="activeIndex === 0"
@@ -175,17 +197,19 @@
       <div class="search-tool items">
         <span
           class="bklog-icon bklog-brush"
-          @click="handleClearBtnClick"
+          @click.stop="handleClearBtnClick"
         ></span>
         <BookmarkPop
           :sql="sqlQueryValue"
+          :addition="uiQueryValue"
+          :searchMode="queryParams[activeIndex]"
           @refresh="handleRefresh"
         ></BookmarkPop>
         <span class="disabled bklog-icon bklog-set-icon"></span>
       </div>
       <div
         class="search-tool search-btn"
-        @click="handleBtnQueryClick"
+        @click.stop="handleBtnQueryClick"
       >
         {{ btnQuery }}
       </div>
@@ -194,4 +218,11 @@
 </template>
 <style scoped>
   @import './index.scss';
+</style>
+<style>
+  .bklog-sql-input-loading {
+    .bk-loading-wrapper {
+      left: 30px;
+    }
+  }
 </style>

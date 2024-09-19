@@ -51,6 +51,7 @@
     },
     onHiddenFn: () => {
       refSqlQueryOption.value?.beforeHideFn?.();
+      return true;
     },
   });
 
@@ -60,9 +61,9 @@
 
   const onEditorContextChange = doc => {
     emit('input', doc.text.join(''));
-    if (!(getTippyInstance()?.state?.isShown ?? false)) {
-      delayShowInstance(refEditorParent.value);
-    }
+    // if (!(getTippyInstance()?.state?.isShown ?? false)) {
+    //   delayShowInstance(refEditorParent.value);
+    // }
   };
 
   const debounceRetrieve = () => {
@@ -86,12 +87,16 @@
     editorInstance = CreateLuceneEditor({
       value: modelValue.value,
       target: refEditorParent.value,
+      stopDefaultKeyboard: () => {
+        return getTippyInstance()?.state?.isShown ?? false;
+      },
       onChange: e => onEditorContextChange(e),
       onKeyEnter: () => {
         closeAndRetrieve();
+        return true;
       },
       onFocusChange: isFocusing => {
-        if (isFocusing) {
+        if (isFocusing && !(getTippyInstance()?.state?.isShown ?? false)) {
           delayShowInstance(refEditorParent.value);
           return;
         }
@@ -100,6 +105,7 @@
   };
 
   const handleEditorClick = () => {
+    console.log('handleEditorClick')
     if (editorInstance === null) {
       createEditorInstance();
     }

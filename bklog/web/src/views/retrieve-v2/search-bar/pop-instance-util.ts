@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref, Ref, onMounted, onUnmounted } from 'vue';
+import { ref, Ref } from 'vue';
 
 import { debounce } from 'lodash';
 import tippy from 'tippy.js';
@@ -39,6 +39,7 @@ export default class PopInstanceUtil {
   private resizeObserver: ResizeObserver | null = null;
 
   private delayShowInstance;
+  private watchElement = ref(null);
 
   constructor({
     refContent,
@@ -56,6 +57,7 @@ export default class PopInstanceUtil {
     this.arrow = arrow;
     this.newInstance = newInstance;
     this.tippyOptions = tippyOptions;
+    this.watchElement = watchElement;
 
     /**
      * 处理多次点击触发多次请求的事件
@@ -64,21 +66,21 @@ export default class PopInstanceUtil {
       this.initInistance(target);
       this.getTippyInstance()?.show();
     });
+  }
 
-    // 初始化监听器
-    onMounted(() => {
-      // 在 onMounted 中判断 watchElement 是否存在
-      if (watchElement.value) {
-        this.resizeObserver = new ResizeObserver(() => {
-          this.repositionTippyInstance();
-        });
-        this.resizeObserver.observe(watchElement.value);
-      }
-    });
+  // 初始化监听器
+  onMounted() {
+    // 在 onMounted 中判断 watchElement 是否存在
+    if (this.watchElement.value) {
+      this.resizeObserver = new ResizeObserver(() => {
+        this.repositionTippyInstance();
+      });
+      this.resizeObserver.observe(this.watchElement.value);
+    }
+  }
 
-    onUnmounted(() => {
-      this.resizeObserver?.disconnect();
-    });
+  onUnmounted() {
+    this.resizeObserver?.disconnect();
   }
 
   setContent(refContent) {
@@ -87,6 +89,10 @@ export default class PopInstanceUtil {
 
   getTippyInstance() {
     return this.tippyInstance;
+  }
+
+  isShown() {
+    return this.getTippyInstance()?.state?.isShown ?? false;
   }
 
   uninstallInstance = () => {
@@ -114,10 +120,15 @@ export default class PopInstanceUtil {
         maxWidth: 800,
         zIndex: (window as any).__bk_zIndex_manager.nextZIndex(),
         onShow: () => {
+          this.onMounted();
           return this.onShowFn?.(this.tippyInstance) ?? true;
         },
-        onHidden: () => {
-          this.onHiddenFn?.(this.tippyInstance);
+        onHide: () => {
+          if (!this.onHiddenFn?.(this.tippyInstance) ?? true) {
+            return false;
+          }
+
+          this.onUnmounted();
         },
         ...(this.tippyOptions ?? {}),
       });
@@ -129,7 +140,7 @@ export default class PopInstanceUtil {
   }
 
   repositionTippyInstance() {
-    if (!this.newInstance && this.getTippyInstance()?.state.isShown) {
+    if (this.getTippyInstance()?.state.isShown) {
       this.getTippyInstance()?.popperInstance?.update();
     }
   }

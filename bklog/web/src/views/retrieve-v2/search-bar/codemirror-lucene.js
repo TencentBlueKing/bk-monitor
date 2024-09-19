@@ -28,7 +28,15 @@ import { EditorState } from '@codemirror/state';
 import { keymap } from '@codemirror/view';
 import { EditorView, minimalSetup } from 'codemirror';
 
-export default ({ target, onChange, onFocusChange, onKeyEnter, value }) => {
+export default ({ target, onChange, onFocusChange, onKeyEnter, value, stopDefaultKeyboard }) => {
+  // 键盘操作事件处理函数
+  // 这里通过回调函数处理，如果 stopDefaultKeyboard 返回true，则会阻止编辑器默认的监盘行为
+  const stopKeyboardList = ['ArrowUp', 'ArrowDown'].map(keymap => ({
+    key: keymap,
+    run: () => {
+      return stopDefaultKeyboard?.() ?? false;
+    },
+  }));
   const state = EditorState.create({
     doc: value,
     extensions: [
@@ -36,10 +44,10 @@ export default ({ target, onChange, onFocusChange, onKeyEnter, value }) => {
         {
           key: 'Enter',
           run: view => {
-            onKeyEnter?.(view);
-            return true;
+            return onKeyEnter?.(view) ?? false;
           },
         },
+        ...stopKeyboardList,
       ]),
       minimalSetup,
       sql(),
@@ -82,7 +90,7 @@ export default ({ target, onChange, onFocusChange, onKeyEnter, value }) => {
           head: view.state.doc.length,
         },
       });
-    }, 300);
+    });
   };
 
   return { state, view, appendText, setValue };

@@ -7,7 +7,13 @@
 
   import UiInputOptions from './ui-input-option.vue';
   import useFocusInput from './use-focus-input';
-  import { getInputQueryDefaultItem, FulltextOperatorKey, FulltextOperator } from './const.common';
+  import LogIpSelector from '@/components/log-ip-selector/log-ip-selector';
+  import {
+    getInputQueryDefaultItem,
+    getInputQueryIpSelectItem,
+    FulltextOperatorKey,
+    FulltextOperator,
+  } from './const.common';
 
   const props = defineProps({
     value: {
@@ -30,6 +36,33 @@
   const emit = defineEmits(['input', 'change', 'height-change']);
   const store = useStore();
   const { $t } = useLocale();
+
+  const showIpSelectorDialog = ref(false);
+  const ipChooser = ref({});
+  const bkBizId = computed(() => store.state.bkBizId);
+  const catchIpChooser = computed(() => store.getters.retrieveParams.ip_chooser);
+
+  const nodeType = computed(() => {
+    // 当前选择的ip类型
+    return Object.keys(catchIpChooser.value || [])?.[0] ?? '';
+  });
+
+  const nodeCount = computed(() => {
+    // ip选择的数量
+    return catchIpChooser.value[nodeType.value]?.length ?? 0;
+  });
+
+  const nodeUnit = computed(() => {
+    // ip单位
+    const nodeTypeTextMap = {
+      node_list: $t('节点'),
+      host_list: $t('IP'),
+      service_template_list: $t('服务模板'),
+      set_template_list: $t('集群模板'),
+      dynamic_group_list: $t('动态分组'),
+    };
+    return nodeTypeTextMap[nodeType.value] || '';
+  });
 
   const handleHeightChange = height => {
     emit('height-change', height);
@@ -72,6 +105,7 @@
 
         delayItemClickFn?.();
         delayItemClickFn = undefined;
+        return true;
       },
     });
 
@@ -93,6 +127,41 @@
     delayShowInstance(target);
   };
 
+  const handleIpSelectorValueChange = value => {
+    const IPSelectIndex = modelValue.value.findIndex(item => item.field === '_ip-select_');
+    store.commit('updateIndexItemParams', {
+      ip_chooser: value,
+    });
+    if (!nodeCount.value && IPSelectIndex >= 0) {
+      handleDeleteTagItem(IPSelectIndex);
+      store.commit('updateIndexItemParams', {
+        ip_chooser: {},
+      });
+      return;
+    }
+    if (IPSelectIndex >= 0) {
+      modelValue.value[IPSelectIndex].value = [$t('已选择 {0} 个{1}', { 0: nodeCount.value, 1: nodeUnit.value })];
+    } else {
+      if (!nodeCount.value) {
+        store.commit('updateIndexItemParams', {
+          ip_chooser: {},
+        });
+        return;
+      }
+      let targetValue = formatModelValueItem(
+        getInputQueryIpSelectItem($t('已选择 {0} 个{1}', { 0: nodeCount.value, 1: nodeUnit.value })),
+      );
+      modelValue.value.push({ ...targetValue, disabled: false });
+    }
+    emitChange(modelValue.value);
+  };
+
+  const getMatchName = field => {
+    if (field === '*') return $t('全文');
+    if (field === '_ip-select_') return $t('IP目标');
+    return field;
+  };
+
   const emitChange = value => {
     emit('input', value);
     emit('change', value);
@@ -107,6 +176,11 @@
   };
 
   const handleTagItemClick = (e, item, index) => {
+    if (item.field === '_ip-select_') {
+      ipChooser.value = catchIpChooser.value;
+      showIpSelectorDialog.value = true;
+      return;
+    }
     queryItem.value = {};
     isInputFocus.value = false;
     Object.assign(queryItem.value, item);
@@ -120,7 +194,12 @@
     emitChange(modelValue.value);
   };
 
-  const handleDeleteTagItem = index => {
+  const handleDeleteTagItem = (index, item) => {
+    if (item?.field === '_ip-select_') {
+      store.commit('updateIndexItemParams', {
+        ip_chooser: {},
+      });
+    }
     modelValue.value.splice(index, 1);
     emitChange(modelValue.value);
   };
@@ -128,7 +207,11 @@
   const handleSaveQueryClick = payload => {
     const isPayloadValueEmpty = !(payload?.value?.length ?? 0);
     const isFulltextEnterVlaue = isInputFocus.value && isPayloadValueEmpty && !payload?.field;
-
+    if (payload === 'ip-select-show') {
+      showIpSelectorDialog.value = true;
+      getTippyInstance()?.hide();
+      return;
+    }
     // 如果是全文检索，未输入任何内容就点击回车
     // 此时提交无任何意义，禁止后续逻辑
     if (isFulltextEnterVlaue && !inputValue.value) {
@@ -141,10 +224,10 @@
     if (isInputFocus.value) {
       inputValue.value = '';
 
-      nextTick(() => {
-        refSearchInput.value?.focus();
-        handleFocusInput({ target: refSearchInput.value });
-      });
+      // nextTick(() => {
+      //   refSearchInput.value?.focus();
+      //   handleFocusInput({ target: refSearchInput.value });
+      // });
     }
 
     if (activeIndex.value !== null && activeIndex.value >= 0) {
@@ -189,10 +272,10 @@
           emitChange(modelValue.value);
 
           hideTippyInstance();
-          setTimeout(() => {
-            refSearchInput.value?.focus();
-            handleFocusInput({ target: refSearchInput.value });
-          }, 300);
+          // setTimeout(() => {
+          //   refSearchInput.value?.focus();
+          //   handleFocusInput({ target: refSearchInput.value });
+          // }, 300);
         }
       }
 
@@ -220,7 +303,7 @@
       @click.stop="e => handleTagItemClick(e, item, index)"
     >
       <div class="tag-row match-name">
-        {{ item.field !== '*' ? item.field : $t('全文') }}
+        {{ getMatchName(item.field) }}
         <span
           class="symbol"
           :data-operator="item.operator"
@@ -255,7 +338,7 @@
         ></span>
         <span
           class="bk-icon icon-close"
-          @click.stop="() => handleDeleteTagItem(index)"
+          @click.stop="() => handleDeleteTagItem(index, item)"
         ></span>
       </div>
     </li>
@@ -279,6 +362,15 @@
         @save="handleSaveQueryClick"
       ></UiInputOptions>
     </div>
+    <!-- 目标选择器 -->
+    <LogIpSelector
+      :height="670"
+      :key="bkBizId"
+      :show-dialog.sync="showIpSelectorDialog"
+      :value="ipChooser"
+      mode="dialog"
+      @change="handleIpSelectorValueChange"
+    />
   </ul>
 </template>
 <style scoped>
