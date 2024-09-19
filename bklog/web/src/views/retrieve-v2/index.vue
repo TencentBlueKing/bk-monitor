@@ -36,7 +36,6 @@
   import SearchResultPanel from './search-result-panel/index.vue';
   import SearchResultTab from './search-result-tab/index.vue';
   import SubBar from './sub-bar/index.vue';
-  import { ConditionOperator } from '@/store/condition-operator';
 
   const store = useStore();
   const router = useRouter();
@@ -134,32 +133,6 @@
     favoriteRef.value.isShowManageDialog = true;
   };
 
-  const handleClickFavorite = v => {
-    if (!v) {
-      return;
-    }
-    store.commit('resetIndexsetItemParams');
-    store.commit('updateIndexId', v.index_set_id);
-    const isUnionIndex = v.index_set_ids.length > 0;
-    const keyword = v.params.keyword;
-    const addition = v.params.addition.map(item => {
-      const instance = new ConditionOperator(item);
-      return instance?.formatApiOperatorToFront();
-    });
-    const ip_chooser = Object.assign({}, v.params.ip_chooser ?? {});
-
-    store.commit('updateIndexItem', {
-      keyword,
-      addition,
-      ip_chooser,
-      index_set_id: v.index_set_id,
-      ids: isUnionIndex ? v.index_set_ids : [v.index_set_id],
-      isUnionIndex,
-      search_mode: v.search_mode,
-    });
-
-    store.dispatch('requestIndexSetFieldInfo'); //requestIndexSetValueList
-  };
 
   const activeTab = ref('origin');
   const isRefreshList = ref(false);
@@ -211,7 +184,6 @@
         :is-refresh.sync="isRefreshList"
         :is-show.sync="showFavorites"
         :width.sync="favoriteWidth"
-        @handle-click-favorite="handleClickFavorite"
       ></CollectFavorites>
       <div
         :style="{ paddingLeft: `${showFavorites ? favoriteWidth : 0}px` }"

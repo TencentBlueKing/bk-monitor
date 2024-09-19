@@ -99,6 +99,7 @@ export default class QueryStatement extends tsc<IProps> {
   }
 
   splitParticipleWithStr(str: string, delimiterPattern: string) {
+    if (!str) return [];
     // 转义特殊字符，并构建用于分割的正则表达式
     const regexPattern = delimiterPattern
       .split('')

@@ -895,7 +895,7 @@ export default {
   'Enter 键': 'Enter key',
   上下键: 'Up and down keys',
   移动光标: 'Move the cursor',
-  '选中/提交': 'Confirm / Submit',
+  '选中/检索': 'Confirm / Search',
   '请选择或直接输入，Enter分隔': 'Please select or enter directly, Enter to separate',
   搜索名称: 'Search for name',
   '导入的集群已被删除，请手动选择集群。': 'Imported cluster has been deleted, please manually select a cluster.',
@@ -916,4 +916,8 @@ export default {
   手动输入annotation: 'Manually enter annotation',
   获取字段列表失败: 'Failed to get field list',
   检索内容: 'Retrieval content',
+  '平台获取蓝鲸 CMDB 主机信息，您可通过 IP 选择器选择主机，快速过滤日志':
+    'To obtain host information from the Blue Whale CMDB on the platform, you can use the IP selector to choose hosts and quickly filter logs.',
+  '按【Enter】或点击【确定】，唤起IP选择器点击取消，关闭窗口':
+    'Press “Enter” or click “OK” to bring up the IP selector. Click “Cancel” to close the window.',
 };

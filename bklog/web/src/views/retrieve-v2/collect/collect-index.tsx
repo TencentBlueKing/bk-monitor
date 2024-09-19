@@ -213,11 +213,6 @@ export default class CollectIndex extends tsc<IProps> {
     this.handleInitFavoriteList(value);
   }
 
-  @Emit('handle-click-favorite')
-  handleClickFavorite(value) {
-    return value;
-  }
-
   @Emit('is-refresh-favorite')
   handleUpdateActiveFavoriteData(value) {
     return value;
@@ -263,34 +258,35 @@ export default class CollectIndex extends tsc<IProps> {
   }
 
   // 点击收藏列表的收藏
-  async handleClickFavoriteItem(value?) {
-    // if (!value) {
-    //   // 点击为新检索时 清空收藏
-    //   this.activeFavorite = null;
-    //   return;
-    // }
-    const data = deepClone(value);
-    // if (!Object.keys(data.params.ip_chooser || []).length) {
-    //   data.params.ip_chooser = {};
-    // }
-    this.activeFavorite = data;
-    // const { index_set_id: indexSetID, params } = data;
-    // const selectIsUnionSearch = value.index_set_type === 'union';
-    // const ids = selectIsUnionSearch ? value.index_set_ids.map(item => String(item)) : [String(indexSetID)];
-    // const filterIDs = (this.indexSetList as any)
-    //   ?.filter(item => ids.includes(item.index_set_id))
-    //   .map(item => item.index_set_id);
-    // if (filterIDs.length) {
-    //   const setChangeValue = {
-    //     ids: filterIDs,
-    //     selectIsUnionSearch,
-    //   };
-    //   const favoriteParams = { ...params, from_favorite_id: this.activeFavoriteID };
-    //   this.handleSelectIndex(setChangeValue, favoriteParams, true);
-    // } else {
-    //   this.messageError(this.$t('没有找到该记录下相关索引集'));
-    // }
-    this.handleClickFavorite(value);
+  handleClickFavoriteItem(value?) {
+    if (!value) {
+      this.activeFavorite = null;
+      let clearSearchValueNum = this.$store.state.clearSearchValueNum;
+      // 清空当前检索条件
+      this.$store.commit('updateClearSearchValueNum', (clearSearchValueNum += 1));
+      return;
+    }
+    this.activeFavorite = value;
+    this.$store.commit('resetIndexsetItemParams');
+    this.$store.commit('updateIndexId', value.index_set_id);
+    const isUnionIndex = value.index_set_ids.length > 0;
+    const keyword = value.params.keyword;
+    const addition = value.params.addition;
+    const ip_chooser = Object.assign({}, value.params.ip_chooser ?? {});
+
+    this.$store.commit('updateIndexItem', {
+      keyword,
+      addition,
+      ip_chooser,
+      index_set_id: value.index_set_id,
+      ids: isUnionIndex ? value.index_set_ids : [value.index_set_id],
+      isUnionIndex,
+      search_mode: value.search_mode,
+    });
+
+    this.$store.dispatch('requestIndexSetFieldInfo').then(() => {
+      this.$store.dispatch('requestIndexSetQuery');
+    });
   }
 
   /**
@@ -779,7 +775,7 @@ export default class CollectIndex extends tsc<IProps> {
           </div>
           <div
             class={`new-search ${this.activeFavoriteID === -1 && 'active'}`}
-            onClick={() => this.handleClickFavorite(undefined)}
+            onClick={() => this.handleClickFavoriteItem()}
           >
             <span class='bk-icon icon-enlarge-line'></span>
             <span>{this.$t('新检索')}</span>

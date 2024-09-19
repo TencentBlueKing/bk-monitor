@@ -175,7 +175,7 @@ export default class QueryStatement extends tsc<object> {
   }
 
   get indexId() {
-    return this.$route.params.indexId;
+    return String(this.$route.params.indexId);
   }
 
   /** 索引集权限 */
