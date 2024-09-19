@@ -232,7 +232,7 @@ export default class FieldFilterComp extends tsc<object> {
     this.isShowAllIndexSet = false;
   }
 
-  @Watch('visibleFields.length')
+  @Watch('visibleFields', { immediate: true, deep: true })
   watchVisibleFields() {
     this.dragVisibleFields = this.visibleFields.map(item => item.field_name);
   }

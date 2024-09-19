@@ -84,7 +84,7 @@ export default class FieldItem extends tsc<object> {
   /** 冲突字段索引集名称*/
   get unionConflictFieldsName() {
     return this.unionIndexItemList
-      .filter(item => this.unionIndexList.includes(item.index_set_id))
+      .filter(item => this.unionIndexList.includes(Number(item.index_set_id)))
       .map(item => item.indexName);
   }
 
@@ -169,11 +169,11 @@ export default class FieldItem extends tsc<object> {
     return (
       <li class='filed-item'>
         <div
-          class={{ 'filed-title': true }}
+          class={{ 'filed-title': true, expanded: this.isExpand }}
           onClick={() => this.handleClickItem()}
         >
           {/* 三角符号 */}
-          <div class={{ 'filed-item-triangle': true, expanded: this.isExpand }}>
+          <div class={{ 'filed-item-triangle': true }}>
             <span class={{ 'icon-right-shape': this.showFieldsChart, 'bk-icon': true }}></span>
           </div>
 

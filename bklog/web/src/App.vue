@@ -141,6 +141,7 @@
   import NoticeComponent from '@blueking/notice-component-vue2';
   import jsCookie from 'js-cookie';
   import { mapState, mapGetters } from 'vuex';
+  import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
   import '@blueking/notice-component-vue2/dist/style.css';
 
@@ -249,8 +250,12 @@
 
       const defaultTime = localStorage.getItem('SEARCH_DEFAULT_TIME');
       if (defaultTime) {
+        const datePickerValue = JSON.parse(defaultTime)
+        const timeList = handleTransformToTimestamp(datePickerValue);
         this.$store.commit('updateIndexItemParams', {
-          datePickerValue: JSON.parse(defaultTime),
+          datePickerValue,
+          start_time: timeList[0],
+          end_time: timeList[1],
         });
       }
 
