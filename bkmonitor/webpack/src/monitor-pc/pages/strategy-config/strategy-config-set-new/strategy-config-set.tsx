@@ -1379,6 +1379,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
 
   // 根据 监控数据 修改 判断条件 相关配置
   changeTriggerConfigCount(type: 'alert' | 'event' | 'log' | 'MultivariateAnomalyDetection' | 'time_series'): void {
+    // 仅在新建时，调整默认值
+    if (this.$route.name !== 'strategy-config-add') return;
     switch (type) {
       case 'log':
       case 'event':
