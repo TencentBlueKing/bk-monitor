@@ -38,7 +38,7 @@ class CompatibleQuery:
             query = f'tags.service_name: "{service_name}"'
 
         if endpoint_name:
-            query += f' AND tags.span_name: {endpoint_name}'
+            query += f' AND tags.span_name: "{endpoint_name}"'
 
         return f"{res} AND {query}"
 
@@ -80,7 +80,7 @@ class CompatibleQuery:
         return wheres
 
     @classmethod
-    def list_flow_metric_wheres(cls, bk_biz_id, app_name, mode, service_name=None):
+    def list_flow_metric_wheres(cls, mode, service_name=None):
         """[获取 flow 指标的 where 条件列表]"""
         if mode not in ["full", "caller", "callee"]:
             raise ValueError(f"mode: {mode} not supported")
@@ -88,64 +88,14 @@ class CompatibleQuery:
         if not service_name:
             return []
 
-        node = ServiceHandler.get_node(bk_biz_id, app_name, service_name, raise_exception=False)
-        if ComponentHandler.is_component_by_node(node):
-            category_value = ComponentHandler.get_flow_metric_category_value(node)
-            if mode == "full":
-                wheres = [
-                    {
-                        "condition": "and",
-                        "key": "from_apm_service_name",
-                        "method": "eq",
-                        "value": [ComponentHandler.get_component_belong_service(service_name)],
-                    },
-                    {"condition": "and", "key": "from_span_category_value", "method": "eq", "value": [category_value]},
-                    {
-                        "condition": "or",
-                        "key": "to_apm_service_name",
-                        "method": "eq",
-                        "value": [ComponentHandler.get_component_belong_service(service_name)],
-                    },
-                    {
-                        "condition": "and",
-                        "key": "to_span_service_category_value",
-                        "method": "eq",
-                        "value": [
-                            f"{ComponentHandler.get_dimension_key(node)}-{node['extra_data']['predicate_value']}"
-                        ],
-                    },
-                ]
-
-            elif mode == "caller":
-                wheres = [
-                    {
-                        "key": "from_apm_service_name",
-                        "method": "eq",
-                        "value": [ComponentHandler.get_component_belong_service(service_name)],
-                    },
-                    {"key": "from_span_service_category_value", "method": "eq", "value": [category_value]},
-                ]
-
-            else:
-                wheres = [
-                    {
-                        "key": "to_apm_service_name",
-                        "method": "eq",
-                        "value": [ComponentHandler.get_component_belong_service(service_name)],
-                    },
-                    {"key": "to_span_service_category_value", "method": "eq", "value": [category_value]},
-                ]
-
+        if mode == "full":
+            wheres = [
+                {"key": "from_apm_service_name", "method": "eq", "value": [service_name]},
+                {"condition": "or", "key": "to_apm_service_name", "method": "eq", "value": [service_name]},
+            ]
+        elif mode == "caller":
+            wheres = [{"key": "from_apm_service_name", "method": "eq", "value": [service_name]}]
         else:
-            # 自定义服务 | 普通服务 直接查询
-            if mode == "full":
-                wheres = [
-                    {"key": "from_apm_service_name", "method": "eq", "value": [service_name]},
-                    {"condition": "or", "key": "to_apm_service_name", "method": "eq", "value": [service_name]},
-                ]
-            elif mode == "caller":
-                wheres = [{"key": "from_apm_service_name", "method": "eq", "value": [service_name]}]
-            else:
-                wheres = [{"key": "to_apm_service_name", "method": "eq", "value": [service_name]}]
+            wheres = [{"key": "to_apm_service_name", "method": "eq", "value": [service_name]}]
 
         return wheres

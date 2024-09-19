@@ -181,7 +181,7 @@ class DataAccessHandler(BaseAiopsHandler):
             "result_table_name": result_table_name,
             "result_table_name_alias": collector_config.collector_config_name_en,
             "clean_config_name": collector_config.collector_config_name,
-            "description": collector_config.description,
+            "description": collector_config.description or collector_config.collector_config_name,
             "bk_biz_id": bk_biz_id,
             "fields": [
                 {

@@ -413,11 +413,8 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
 
   render() {
     // 查询语句的提示内容
-    const tipsContentTpl = () => (
-      <div
-        id='tips-content'
-        class='query-tips-content-wrapper'
-      >
+    const tipsContent = () => (
+      <div class='tips-content-main'>
         <div class='tips-content-title'>
           {this.$t('可输入SQL语句进行快速查询')}
           <a
@@ -449,6 +446,14 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
             </li>
           ))}
         </ul>
+      </div>
+    );
+    const tipsContentTpl = () => (
+      <div
+        id='tips-content'
+        class='query-tips-content-wrapper'
+      >
+        {this.groupByLoading ? <TableSkeleton type={4} /> : tipsContent()}
       </div>
     );
     return (
@@ -560,7 +565,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
             this.groupByList = list;
           }}
         />
-        {this.groupByLoading ? <TableSkeleton type={4} /> : tipsContentTpl()}
+        {tipsContentTpl()}
       </div>
     );
   }

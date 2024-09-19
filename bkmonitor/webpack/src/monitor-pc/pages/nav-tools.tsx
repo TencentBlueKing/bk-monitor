@@ -347,6 +347,9 @@ class NavTools extends DocumentLinkMixin {
         }
         <bk-popover
           ref='popoverlanguage'
+          tippy-options={{
+            trigger: 'click',
+          }}
           arrow={false}
           offset='-10, 4'
           placement='bottom-start'

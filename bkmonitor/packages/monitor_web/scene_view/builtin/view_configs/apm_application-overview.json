@@ -68,7 +68,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "主调数量",
+          "alias": "主调",
           "data": {
             "app_name": "${app_name}",
             "query_configs": [
@@ -152,14 +152,15 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "fill_bar": true
           }
         },
         {
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "被调数量",
+          "alias": "被调",
           "data": {
             "app_name": "${app_name}",
             "query_configs": [
@@ -243,14 +244,16 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "fill_bar": true
           }
         }
       ],
       "options": {
         "apm_time_series": {
           "metric": "request_count",
-          "unit": "number"
+          "unit": "number",
+          "enableContextmenu": true
         },
         "time_series": {
           "type": "bar"
@@ -272,7 +275,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": null,
+          "alias": "错误数",
           "data": {
             "app_name": "${app_name}",
             "query_configs": [
@@ -288,7 +291,6 @@
                   }
                 ],
                 "group_by": [
-                  "http_status_code"
                 ],
                 "display": true,
                 "where": [
@@ -299,24 +301,14 @@
                       "2"
                     ],
                     "condition": "and"
-                  },
-                  {
-                    "key": "http_status_code",
-                    "method": "neq",
-                    "value": [
-                      ""
-                    ],
-                    "condition": "and"
                   }
                 ],
                 "interval_unit": "s",
                 "time_field": "time",
-                "filter_dict": {
-                },
+                "filter_dict": {},
                 "functions": []
               }
             ],
-            "stack": "all",
             "unify_query_param": {
               "type": "range",
               "stack": "all",
@@ -334,7 +326,6 @@
                     }
                   ],
                   "group_by": [
-                    "http_status_code"
                   ],
                   "display": true,
                   "where": [
@@ -345,64 +336,50 @@
                         "2"
                       ],
                       "condition": "and"
-                    },
-                    {
-                      "key": "http_status_code",
-                      "method": "neq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
                     }
                   ],
                   "interval_unit": "s",
                   "time_field": "time",
-                  "filter_dict": {
-                  },
+                  "filter_dict": {},
                   "functions": []
                 }
               ]
-            }
+            },
+            "fill_bar": true
           },
-          "apm_time_series_category": "http"
+          "yAxisIndex": 0,
+          "chart_type": "bar"
         },
         {
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": null,
+          "alias": "错误率",
           "data": {
             "app_name": "${app_name}",
+            "unit": "percentunit",
+            "expression": "a / b",
             "query_configs": [
               {
                 "data_source_label": "custom",
                 "data_type_label": "time_series",
-                "table": "${table_id}",
                 "metrics": [
                   {
                     "field": "bk_apm_count",
                     "method": "SUM",
-                    "alias": "A"
+                    "alias": "a"
                   }
                 ],
-                "group_by": [
-                  "rpc_grpc_status_code"
-                ],
-                "display": true,
+                "table": "${table_id}",
+                "data_label": "",
+                "index_set_id": null,
+                "group_by": [],
                 "where": [
                   {
                     "key": "status_code",
                     "method": "eq",
                     "value": [
                       "2"
-                    ],
-                    "condition": "and"
-                  },
-                  {
-                    "key": "rpc_grpc_status_code",
-                    "method": "neq",
-                    "value": [
-                      ""
                     ],
                     "condition": "and"
                   }
@@ -412,43 +389,52 @@
                 "filter_dict": {
                 },
                 "functions": []
+              },
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "b"
+                  }
+                ],
+                "table": "${table_id}",
+                "data_label": "",
+                "index_set_id": null,
+                "group_by": [],
+                "where": [],
+                "interval_unit": "s",
+                "time_field": null,
+                "filter_dict": {
+                },
+                "functions": []
               }
             ],
-            "stack": "all",
             "unify_query_param": {
-              "type": "range",
-              "stack": "all",
-              "expression": "A",
+              "expression": "a / b",
               "query_configs": [
                 {
                   "data_source_label": "custom",
                   "data_type_label": "time_series",
-                  "table": "${table_id}",
                   "metrics": [
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "A"
+                      "alias": "a"
                     }
                   ],
-                  "group_by": [
-                    "rpc_grpc_status_code"
-                  ],
-                  "display": true,
+                  "table": "${table_id}",
+                  "data_label": "",
+                  "index_set_id": null,
+                  "group_by": [],
                   "where": [
                     {
                       "key": "status_code",
                       "method": "eq",
                       "value": [
                         "2"
-                      ],
-                      "condition": "and"
-                    },
-                    {
-                      "key": "rpc_grpc_status_code",
-                      "method": "neq",
-                      "value": [
-                        ""
                       ],
                       "condition": "and"
                     }
@@ -458,128 +444,41 @@
                   "filter_dict": {
                   },
                   "functions": []
+                },
+                {
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "metrics": [
+                    {
+                      "field": "bk_apm_count",
+                      "method": "SUM",
+                      "alias": "b"
+                    }
+                  ],
+                  "table": "${table_id}",
+                  "data_label": "",
+                  "index_set_id": null,
+                  "group_by": [],
+                  "where": [],
+                  "interval_unit": "s",
+                  "time_field": null,
+                  "filter_dict": {
+                  },
+                  "functions": []
                 }
               ]
-            }
+            },
+            "fill_bar": true
           },
-          "apm_time_series_category": "rpc"
-        },
-        {
-          "data_type": "time_series",
-          "api": "apm_metric.dynamicUnifyQuery",
-          "datasource": "time_series",
-          "alias": "其他错误",
-          "data": {
-            "app_name": "${app_name}",
-            "query_configs": [
-              {
-                "data_source_label": "custom",
-                "data_type_label": "time_series",
-                "table": "${table_id}",
-                "metrics": [
-                  {
-                    "field": "bk_apm_count",
-                    "method": "SUM",
-                    "alias": "A"
-                  }
-                ],
-                "group_by": [
-                ],
-                "display": true,
-                "where": [
-                  {
-                    "key": "status_code",
-                    "method": "eq",
-                    "value": [
-                      "2"
-                    ],
-                    "condition": "and"
-                  },
-                  {
-                    "key": "rpc_grpc_status_code",
-                    "method": "eq",
-                    "value": [
-                      ""
-                    ],
-                    "condition": "and"
-                  },
-                  {
-                    "key": "http_status_code",
-                    "method": "eq",
-                    "value": [
-                      ""
-                    ],
-                    "condition": "and"
-                  }
-                ],
-                "interval_unit": "s",
-                "time_field": "time",
-                "filter_dict": {
-                },
-                "functions": []
-              }
-            ],
-            "stack": "all",
-            "unify_query_param": {
-              "type": "range",
-              "stack": "all",
-              "expression": "A",
-              "query_configs": [
-                {
-                  "data_source_label": "custom",
-                  "data_type_label": "time_series",
-                  "table": "${table_id}",
-                  "metrics": [
-                    {
-                      "field": "bk_apm_count",
-                      "method": "SUM",
-                      "alias": "A"
-                    }
-                  ],
-                  "group_by": [
-                  ],
-                  "display": true,
-                  "where": [
-                    {
-                      "key": "status_code",
-                      "method": "eq",
-                      "value": [
-                        "2"
-                      ],
-                      "condition": "and"
-                    },
-                    {
-                      "key": "rpc_grpc_status_code",
-                      "method": "eq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
-                    },
-                    {
-                      "key": "http_status_code",
-                      "method": "eq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
-                    }
-                  ],
-                  "interval_unit": "s",
-                  "time_field": "time",
-                  "filter_dict": {
-                  },
-                  "functions": []
-                }
-              ]
-            }
-          }
+          "yAxisIndex": 1,
+          "chart_type": "line"
         }
       ],
       "options": {
         "apm_time_series": {
           "metric": "error_count",
-          "unit": "number"
+          "unit": "number",
+          "enableContextmenu": true
         },
         "time_series": {
           "type": "bar"
@@ -588,7 +487,7 @@
     },
     {
       "id": 5,
-      "title": "响应耗时",
+      "title": "耗时",
       "gridPos": {
         "x": 16,
         "y": 4,
@@ -732,7 +631,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "fill_bar": true
           }
         },
         {
@@ -832,7 +732,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "fill_bar": true
           }
         },
         {
@@ -932,7 +833,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "fill_bar": true
           }
         },
         {
@@ -1032,134 +934,16 @@
                   ]
                 }
               ]
-            }
-          }
-        },
-        {
-          "data_type": "time_series",
-          "api": "apm_metric.dynamicUnifyQuery",
-          "datasource": "time_series",
-          "alias": "MAX",
-          "data": {
-            "app_name": "${app_name}",
-            "query_configs": [
-              {
-                "data_source_label": "custom",
-                "data_type_label": "time_series",
-                "table": "${table_id}",
-                "metrics": [
-                  {
-                    "field": "bk_apm_duration_max",
-                    "method": "MAX",
-                    "alias": "A"
-                  }
-                ],
-                "group_by": [
-                ],
-                "display": true,
-                "where": [
-                ],
-                "interval_unit": "s",
-                "time_field": "time",
-                "filter_dict": {
-                },
-                "functions": []
-              }
-            ],
-            "unify_query_param": {
-              "expression": "A",
-              "query_configs": [
-                {
-                  "data_source_label": "custom",
-                  "data_type_label": "time_series",
-                  "table": "${table_id}",
-                  "metrics": [
-                    {
-                      "field": "bk_apm_duration_max",
-                      "method": "MAX",
-                      "alias": "A"
-                    }
-                  ],
-                  "group_by": [
-                  ],
-                  "display": true,
-                  "where": [
-                  ],
-                  "interval_unit": "s",
-                  "time_field": "time",
-                  "filter_dict": {
-                  },
-                  "functions": []
-                }
-              ]
-            }
-          }
-        },
-        {
-          "data_type": "time_series",
-          "api": "apm_metric.dynamicUnifyQuery",
-          "datasource": "time_series",
-          "alias": "MIN",
-          "data": {
-            "app_name": "${app_name}",
-            "query_configs": [
-              {
-                "data_source_label": "custom",
-                "data_type_label": "time_series",
-                "table": "${table_id}",
-                "metrics": [
-                  {
-                    "field": "bk_apm_duration_min",
-                    "method": "MIN",
-                    "alias": "A"
-                  }
-                ],
-                "group_by": [
-                ],
-                "display": true,
-                "where": [
-                ],
-                "interval_unit": "s",
-                "time_field": "time",
-                "filter_dict": {
-                },
-                "functions": []
-              }
-            ],
-            "unify_query_param": {
-              "expression": "A",
-              "query_configs": [
-                {
-                  "data_source_label": "custom",
-                  "data_type_label": "time_series",
-                  "table": "${table_id}",
-                  "metrics": [
-                    {
-                      "field": "bk_apm_duration_min",
-                      "method": "MIN",
-                      "alias": "A"
-                    }
-                  ],
-                  "group_by": [
-                  ],
-                  "display": true,
-                  "where": [
-                  ],
-                  "interval_unit": "s",
-                  "time_field": "time",
-                  "filter_dict": {
-                  },
-                  "functions": []
-                }
-              ]
-            }
+            },
+            "fill_bar": true
           }
         }
       ],
       "options": {
         "apm_time_series": {
           "metric": "avg_duration",
-          "unit": "μs"
+          "unit": "μs",
+          "enableContextmenu": true
         }
       }
     },

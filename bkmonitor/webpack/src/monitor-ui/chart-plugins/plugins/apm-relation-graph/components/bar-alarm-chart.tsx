@@ -27,9 +27,11 @@ import { Component, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-propert
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { random } from 'monitor-common/utils';
 
 import { EAlarmType, type IAlarmDataItem, type EDataType, alarmColorMap, getAlarmItemStatusTips } from './utils';
 
+import type { CustomChartConnector } from '../../../utils/utils';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './bar-alarm-chart.scss';
@@ -61,6 +63,7 @@ interface IProps {
   enableSelect?: boolean;
   needRestoreEvent?: boolean;
   enableZoom?: boolean;
+  groupId?: string;
   getData?: TGetData;
   onDataZoom?: () => void;
   onSliceTimeRangeChange?: (v: number[]) => void;
@@ -86,6 +89,7 @@ export default class BarAlarmChart extends tsc<IProps> {
   @Prop({ type: Function, default: null }) getData: TGetData;
   @Prop({ type: Boolean, default: false }) needRestoreEvent: boolean;
   @Prop({ type: Boolean, default: false }) enableZoom: boolean;
+  @Prop({ type: String, default: '' }) groupId: string;
 
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
@@ -93,6 +97,8 @@ export default class BarAlarmChart extends tsc<IProps> {
   @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
+
+  @InjectReactive({ from: 'customChartConnector', default: () => null }) customChartConnector: CustomChartConnector;
 
   loading = false;
 
@@ -104,10 +110,6 @@ export default class BarAlarmChart extends tsc<IProps> {
   curActive = -1;
   // x轴刻度
   xAxis = [];
-
-  /* tooltip 实例 */
-  popInstance = null;
-  timer = null;
   /* tooltip 内容状态 */
   statusList = [{ color: '#FF9C01', text: '错误率 < 10%' }];
   /*  */
@@ -126,6 +128,77 @@ export default class BarAlarmChart extends tsc<IProps> {
   };
 
   selectedTimeRange = [];
+
+  chartInstance = null;
+  chartId = random(8);
+
+  intersectionObserver: IntersectionObserver;
+  isIntersecting = true;
+
+  tipsInfo = {
+    left: 0,
+    top: 0,
+    show: false,
+  };
+
+  created() {
+    this.chartInstance = {
+      dispatchAction: this.dispatchAction,
+    };
+  }
+
+  mounted() {
+    setTimeout(this.registerObserver, 20);
+    document.addEventListener('wheel', this.tipsHide);
+  }
+
+  beforeDestroy() {
+    this.unregisterOberver();
+    document.removeEventListener('wheel', this.tipsHide);
+  }
+
+  registerObserver() {
+    if (this.intersectionObserver) {
+      this.unregisterOberver();
+    }
+    this.intersectionObserver = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        this.isIntersecting = !!entry.isIntersecting;
+        if (!this.isIntersecting) {
+          this.tipsHide();
+        }
+      }
+    });
+    this.intersectionObserver.observe(this.$el);
+  }
+
+  unregisterOberver() {
+    if (this.intersectionObserver) {
+      this.intersectionObserver.unobserve(this.$el);
+      this.intersectionObserver.disconnect();
+      this.intersectionObserver = null;
+    }
+  }
+
+  /* 联动操作 */
+  dispatchAction(obj) {
+    if (!this.isIntersecting) {
+      return;
+    }
+    if (obj.type === 'showTip') {
+      const time = obj.x || -1;
+      const item = this.localData.find(v => v.time === time);
+      const target = this?.$el?.querySelector?.(`.time-cube______${time}`);
+      if (item && target) {
+        this.getTips(item);
+        this.curHover = item.time;
+        this.tipsShow();
+      } else {
+        this.curHover = -1;
+        this.tipsHide();
+      }
+    }
+  }
 
   @Watch('timeRange')
   handleWatchTimeRange() {
@@ -157,6 +230,9 @@ export default class BarAlarmChart extends tsc<IProps> {
         this.loading = false;
         this.localData = Object.freeze(data);
         this.curActive = -1;
+        if (this.customChartConnector?.groupId === this.groupId) {
+          this.customChartConnector.setCustomChartInstance(this.chartId, this.chartInstance);
+        }
         if (this.localData.length) {
           const len = this.localData.length;
           const start = this.localData[0].time;
@@ -207,27 +283,20 @@ export default class BarAlarmChart extends tsc<IProps> {
     }
     this.getTips(item);
     this.curHover = item.time;
-    this.timer = setTimeout(() => {
-      this.popInstance = this.$bkPopover(event.target, {
-        content: this.tipsRef,
-        placement: 'top',
-        boundary: 'window',
-        arrow: true,
-        trigger: 'click',
-        theme: 'bar-alarm-chart-tooltip-theme',
-      });
-      this.popInstance.show();
-    }, 200);
+    if (this.customChartConnector?.groupId === this.groupId) {
+      this.customChartConnector.updateCustomAxisPointer(this.chartId, item.time);
+    }
+    this.tipsShow();
   }
   /**
    * @description 鼠标离开事件
    */
   handleMouseLeave() {
     this.curHover = -1;
-    clearTimeout(this.timer);
-    this.popInstance?.hide?.(0);
-    this.popInstance?.destroy?.();
-    this.popInstance = null;
+    this.tipsHide();
+    if (this.customChartConnector?.groupId === this.groupId) {
+      this.customChartConnector.updateCustomAxisPointer(this.chartId, 0);
+    }
   }
   /**
    * @description 点击事件
@@ -377,6 +446,55 @@ export default class BarAlarmChart extends tsc<IProps> {
     this.handleRestoreEvent();
   }
 
+  alarmChartWrap() {
+    if (this.loading) {
+      return <div class='skeleton-element bar-loading' />;
+    }
+    if (!this.localData.length) {
+      return <div class='no-data'>{this.$t('暂无数据')}</div>;
+    }
+    return this.localData.map(item => this.alarmListRender(item));
+  }
+
+  tipsShow() {
+    try {
+      if (this.curHover <= 0) {
+        this.tipsInfo.show = false;
+        return;
+      }
+      const target = this.$el.querySelector(`.time-cube______${this.curHover}`);
+      const wrapTarget = this.$el.querySelector('.alarm-chart-wrap');
+      if (target && wrapTarget) {
+        const tipTarget = this.$el.querySelector('.bar-alarm-chart-tooltip');
+        const tipWidth = tipTarget?.clientWidth || 137;
+        const { x } = target.getBoundingClientRect();
+        const { y } = wrapTarget.getBoundingClientRect();
+        const left = x - tipWidth / 2;
+        const top = y - 60;
+        let tLeft = left;
+        const tTop = top;
+        const { clientWidth } = document.body;
+        if (tLeft >= clientWidth - tipWidth) {
+          tLeft = clientWidth - tipWidth;
+        } else if (tLeft <= 0) {
+          tLeft = 0;
+        }
+        this.tipsInfo = {
+          left: tLeft,
+          top: tTop,
+          show: true,
+        };
+      } else {
+        this.tipsInfo.show = false;
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  tipsHide() {
+    this.tipsInfo.show = false;
+  }
+
   alarmListRender(item) {
     const isSelected = this.curActive === item.time;
     const isHover = this.curHover === item.time && item.type !== EAlarmType.gray;
@@ -387,30 +505,24 @@ export default class BarAlarmChart extends tsc<IProps> {
     if (isSelected) {
       color = alarmColorMap.selected[item.type];
     }
+    const height = isSelected || isHover ? this.activeItemHeight : this.itemHeight;
+    // if (item.value === null) {
+    //   height = 0;
+    // }
     return (
       <div
         key={item.time}
         style={{
-          height: `${isSelected || isHover ? this.activeItemHeight : this.itemHeight}px`,
+          height: `${height}px`,
           background: `${color}`,
           cursor: item.type !== EAlarmType.gray ? 'pointer' : 'default',
         }}
-        class={['time-cube', { 'adaptive-width': this.isAdaption }]}
+        class={['time-cube', `time-cube______${item.time}`, { 'adaptive-width': this.isAdaption }]}
         onClick={() => this.handleClick(item)}
         onMouseenter={event => this.handleMouseEnter(event, item)}
-        onMouseleave={() => this.handleMouseLeave()}
+        // onMouseleave={() => this.handleMouseLeave()}
       />
     );
-  }
-
-  alarmChartWrap() {
-    if (this.loading) {
-      return <div class='skeleton-element bar-loading' />;
-    }
-    if (!this.localData.length) {
-      return <div class='no-data'>{this.$t('暂无数据')}</div>;
-    }
-    return this.localData.map(item => this.alarmListRender(item));
   }
 
   render() {
@@ -441,14 +553,15 @@ export default class BarAlarmChart extends tsc<IProps> {
           }}
           class='alarm-chart-wrap'
           onMousedown={this.handleMouseDown}
+          onMouseleave={() => this.handleMouseLeave()}
         >
           {this.alarmChartWrap()}
         </div>
         {this.showXAxis && (
           <div class='alarm-footer-wrap'>
-            {this.xAxis.map(item => (
+            {this.xAxis.map((item, index) => (
               <div
-                key={item}
+                key={`${item}_${index}`}
                 class='x-axis-item'
               >
                 {item}
@@ -456,7 +569,7 @@ export default class BarAlarmChart extends tsc<IProps> {
             ))}
           </div>
         )}
-        <div
+        {/* <div
           style={{
             display: 'none',
           }}
@@ -481,7 +594,37 @@ export default class BarAlarmChart extends tsc<IProps> {
               </div>
             ))}
           </div>
+        </div> */}
+        <div
+          style={{
+            display: this.tipsInfo.show ? 'block' : 'none',
+          }}
+        >
+          <div
+            style={{
+              left: `${this.tipsInfo.left}px`,
+              top: `${this.tipsInfo.top}px`,
+            }}
+            class='bar-alarm-chart-tooltip'
+          >
+            <div class='time-text'>{dayjs.tz(this.curHover).format('YYYY-MM-DD HH:mm:ss')}</div>
+            {this.statusList.map((item, index) => (
+              <div
+                key={index}
+                class='status-wrap'
+              >
+                <div
+                  style={{
+                    background: item.color,
+                  }}
+                  class='status-color'
+                />
+                <div class='status-text'>{item.text}</div>
+              </div>
+            ))}
+          </div>
         </div>
+
         <div
           style={{
             height: `${this.activeItemHeight + 14}px`,

@@ -76,7 +76,7 @@ class MonitorTranslateEnricher(BaseAlertEnricher):
             key = dimension["key"][5:]
             if key not in dimension_translation:
                 continue
-            dimension["display_key"] = dimension_translation[key]["display_name"]
+            dimension["display_key"] = _(dimension_translation[key]["display_name"])
             dimension["display_value"] = dimension_translation[key]["display_value"]
             dimension["value"] = dimension_translation[key]["value"]
 

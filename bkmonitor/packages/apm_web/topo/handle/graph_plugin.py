@@ -98,7 +98,6 @@ class PostPlugin(Plugin):
 
 class ValuesPluginMixin:
     def get_increase_values_mapping(self, **kwargs) -> Dict[Tuple[Union[str, Tuple]], Dict]:
-
         params = {
             "application": self._runtime["application"],
             "start_time": self._runtime["start_time"],
@@ -118,7 +117,6 @@ class ValuesPluginMixin:
         return dict(res)
 
     def get_instance_values_mapping(self, **kwargs) -> Dict[Tuple[Union[str, Tuple]], Dict]:
-
         params = {
             "application": self._runtime["application"],
             "start_time": self._runtime["start_time"],
@@ -167,9 +165,9 @@ class ValuesPluginMixin:
 
     def add_endpoint_query(self, params, endpoint_names):
         if "service_name" not in self._runtime or "endpoint_names" not in self._runtime:
-            raise ValueError(f"查询接口指标时需要指定服务名称、接口名称")
+            raise ValueError("查询接口指标时需要指定服务名称、接口名称")
         if any(i.get("condition") == "or" for i in params.get("where", [])):
-            raise ValueError(f"当前接口查询包含 or 条件 会导致查询结果错误")
+            raise ValueError("当前接口查询包含 or 条件 会导致查询结果错误")
 
         return params
 
@@ -284,6 +282,44 @@ class EdgeAvgDuration(DurationUnitMixin, ValuesPluginMixin, PrePlugin):
 
     def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
         return self.get_instance_values_mapping()
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class EdgeDurationP50(DurationUnitMixin, ValuesPluginMixin, PrePlugin):
+    id: str = TopoEdgeDataType.DURATION_P50.value
+    type: GraphPluginType = GraphPluginType.EDGE
+    metric: Type[MetricHandler] = functools.partial(
+        ServiceFlowDurationBucket,
+        group_by=["from_apm_service_name", "to_apm_service_name"],
+        functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.5"}]}],
+    )
+
+    def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
+        return self.get_instance_values_mapping()
+
+    @classmethod
+    def _ignore_keys(cls):
+        return ["le"]
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class EdgeDurationP50(DurationUnitMixin, ValuesPluginMixin, PrePlugin):
+    id: str = TopoEdgeDataType.DURATION_P50.value
+    type: GraphPluginType = GraphPluginType.EDGE
+    metric: Type[MetricHandler] = functools.partial(
+        ServiceFlowDurationBucket,
+        group_by=["from_apm_service_name", "to_apm_service_name"],
+        functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.50"}]}],
+    )
+
+    def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
+        return self.get_instance_values_mapping()
+
+    @classmethod
+    def _ignore_keys(cls):
+        return ["le"]
 
 
 @PluginProvider.pre_plugin
@@ -754,7 +790,6 @@ class ErrorCountStatusCodeMixin(PrePlugin, ValuesPluginMixin):
 
     @classmethod
     def diff(cls, attrs, other_attrs):
-
         # 处理 Http 状态码
         http_status_code_items_1 = {k for k in attrs if k.startswith(f"{cls.status_code_key}http_")}
         http_status_code_items_2 = {k for k in other_attrs if k.startswith(f"{cls.status_code_key}http_")}
@@ -1287,6 +1322,8 @@ class BreadthEdge(PostPlugin):
         sorted_values = sorted(set(metric_values))
         position = sorted_values.index(value)
         total = len(sorted_values)
+        if total <= 1:
+            return self._min_width
 
         return round((self._min_width + (self._max_width - self._min_width) * (position / (total - 1))), 2)
 
@@ -1311,7 +1348,6 @@ class NodeColor(PostPlugin):
         WHITE = "#DCDEE5"
 
     def process(self, data_type, edge_data_type, node_data, graph):
-
         # 如果节点无数据 那么颜色就是灰色
         if not node_data.get(NodeHaveData.id):
             node_data[self.id] = self.Color.WHITE
@@ -1354,7 +1390,6 @@ class NodeColor(PostPlugin):
 
             node_data[self.id] = color
         elif data_type == BarChartDataType.Apdex.value:
-
             apdex = node_data.get(NodeApdex.metric.metric_id, None)
             if not apdex:
                 color = self.Color.WHITE
@@ -1435,7 +1470,7 @@ class EndpointSize(PostPlugin):
         callee_value = endpoint_data.get(EndpointRequestCountCallee.id, 0)
         value = caller_value or 0 + callee_value or 0
 
-        if value == 0:
+        if not value:
             endpoint_data[self.id] = self.Size.NO_DATA
         elif value < 200:
             endpoint_data[self.id] = self.Size.SMALL
@@ -1467,13 +1502,25 @@ class NodeMenu(PostPlugin):
                     "name": _("接口下钻"),
                     "action": "span_drilling",
                 },
-                {
-                    "name": _("查看三方应用"),
-                    "type": "link",
-                    "action": "blank",
-                    "url": ServiceHandler.build_url(self._runtime["application"].app_name, node_name),
-                },
             ]
+            if not self._runtime.get("service_name"):
+                relation_link = LinkHelper.get_relation_app_link(
+                    self._runtime["application"].bk_biz_id,
+                    self._runtime["application"].app_name,
+                    node_name,
+                    self._runtime["start_time"],
+                    self._runtime["end_time"],
+                )
+                if relation_link:
+                    # 如果没有服务名称的过滤 增加跳转链接
+                    node_data[self.id].append(
+                        {
+                            "name": _("查看三方应用"),
+                            "type": "link",
+                            "action": "blank",
+                            "url": relation_link,
+                        }
+                    )
         else:
             node_data[self.id] = [
                 {
@@ -1485,33 +1532,49 @@ class NodeMenu(PostPlugin):
                     "name": _("资源拓扑"),
                     "action": "resource_drilling",
                 },
-                {
-                    "name": _("查看日志"),
-                    "action": "self",
-                    "type": "link",
-                    "url": LinkHelper.get_service_log_tab_link(
-                        self._runtime["application"].bk_biz_id,
-                        self._runtime["application"].app_name,
-                        node_name,
-                        self._runtime["start_time"],
-                        self._runtime["end_time"],
-                        views=self.views,
-                    ),
-                },
-                {
-                    "name": _("查看服务"),
-                    "action": "self",
-                    "type": "link",
-                    "url": LinkHelper.get_service_overview_tab_link(
-                        self._runtime["application"].bk_biz_id,
-                        self._runtime["application"].app_name,
-                        node_name,
-                        self._runtime["start_time"],
-                        self._runtime["end_time"],
-                        views=self.views,
-                    ),
-                },
             ]
+
+            log_link = LinkHelper.get_service_log_tab_link(
+                self._runtime["application"].bk_biz_id,
+                self._runtime["application"].app_name,
+                node_name,
+                self._runtime["start_time"],
+                self._runtime["end_time"],
+                views=self.views,
+            )
+            if not self._runtime.get("service_name"):
+                # 如果没有服务名称的过滤 增加菜单
+                node_data[self.id].append(
+                    {
+                        "name": _("查看服务"),
+                        "action": "self",
+                        "type": "link",
+                        "url": LinkHelper.get_service_overview_tab_link(
+                            self._runtime["application"].bk_biz_id,
+                            self._runtime["application"].app_name,
+                            node_name,
+                            self._runtime["start_time"],
+                            self._runtime["end_time"],
+                            views=self.views,
+                        ),
+                    },
+                )
+                if log_link:
+                    node_data[self.id].append(
+                        {
+                            "name": _("查看日志"),
+                            "action": "self",
+                            "type": "link",
+                            "url": LinkHelper.get_service_log_tab_link(
+                                self._runtime["application"].bk_biz_id,
+                                self._runtime["application"].app_name,
+                                node_name,
+                                self._runtime["start_time"],
+                                self._runtime["end_time"],
+                                views=self.views,
+                            ),
+                        },
+                    )
 
 
 class HoverTipsMixin:
@@ -1535,7 +1598,7 @@ class HoverTipsMixin:
         data[key] = [
             {
                 "group": "request_count",
-                "name": _("主调调用量"),
+                "name": _("主调总量"),
                 "value": data.pop(BarChartDataType.REQUEST_COUNT_CALLER.value, "--"),
             },
             {
@@ -1550,7 +1613,7 @@ class HoverTipsMixin:
             },
             {
                 "group": "request_count",
-                "name": _("被调调用量"),
+                "name": _("被调总量"),
                 "value": data.pop(BarChartDataType.REQUEST_COUNT_CALLEE.value, "--"),
             },
             {
@@ -1651,7 +1714,6 @@ class ViewConverter:
 class TopoViewConverter(ViewConverter):
     _extra_pre_plugins = PluginProvider.Container(
         _plugins=[
-            NodeInstanceCount,
             NodeRequestCountCaller,
             NodeRequestCountCallee,
             NodeAvgDurationCaller,
@@ -1833,7 +1895,14 @@ class TableViewConverter(ViewConverter):
                 "name": s,
                 "category": s_category,
                 "target": "self",
-                "url": ServiceHandler.build_url(self.app_name, s),
+                "url": LinkHelper.get_service_overview_tab_link(
+                    self.bk_biz_id,
+                    self.app_name,
+                    s,
+                    self.runtime["start_time"],
+                    self.runtime["end_time"],
+                    views=self.views,
+                ),
             },
             "other_service": {
                 "name": o_s,

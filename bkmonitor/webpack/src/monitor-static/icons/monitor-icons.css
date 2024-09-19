@@ -10,10 +10,22 @@
 
 .icon-monitor {
   font-family: 'icon-monitor' !important;
-  font-size: 16px;
+  font-size: 1em;
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-mc-goto:before {
+  content: '\e7b1';
+}
+
+.icon-zhibiao:before {
+  content: '\e7a9';
+}
+
+.icon-mc-global:before {
+  content: '\e600';
 }
 
 .icon-mc-service-all:before {

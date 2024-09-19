@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from django.db import transaction
-from django.db.models import Count, Prefetch
+from django.db.models import Count
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import permissions, serializers, viewsets
 from rest_framework.authentication import SessionAuthentication
@@ -114,11 +114,7 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         # 获取全量的插件数据（包含外键数据）
         all_versions = (
             PluginVersionHistory.objects.exclude(plugin__plugin_type__in=CollectorPluginMeta.VIRTUAL_PLUGIN_TYPE)
-            .select_related("plugin", "info")
-            .prefetch_related(
-                Prefetch("plugin__versions", queryset=PluginVersionHistory.objects.defer("signature")),
-                Prefetch("plugin__collect_configs", queryset=CollectConfigMeta.objects.defer("cache_data")),
-            )
+            .select_related("plugin", "config", "info")
             .defer("info__metric_json", "info__description_md")
         )
         if bk_biz_id:
@@ -183,13 +179,19 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
             return_version = return_version[(page - 1) * page_size: page * page_size]
             # fmt: on
 
-        # 生产插件配置的统计值
+        # 生产插件采集的统计值和插件发布版本数量的统计值
         plugin_ids = list({item.plugin.plugin_id for item in return_version})
         plugin_queryset = CollectConfigMeta.objects.filter(plugin_id__in=plugin_ids)
         if bk_biz_id:
             plugin_queryset.filter(bk_biz_id=bk_biz_id)
         plugin_count_queryset = plugin_queryset.values("plugin_id").annotate(count=Count("plugin_id"))
         plugin_counts = {item["plugin_id"]: item["count"] for item in plugin_count_queryset}
+        version_count_queryset = (
+            PluginVersionHistory.objects.filter(plugin_id__in=plugin_ids, stage=PluginVersionHistory.Stage.RELEASE)
+            .values("plugin_id")
+            .annotate(count=Count("plugin_id"))
+        )
+        version_counts = {item["plugin_id"]: item["count"] for item in version_count_queryset}
 
         search_list = []
         for value in return_version:
@@ -210,8 +212,9 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
                     "config_version": value.config_version,
                     "info_version": value.info_version,
                     "edit_allowed": value.plugin.edit_allowed if not value.is_official else False,
-                    "delete_allowed": value.plugin.delete_allowed,
-                    "export_allowed": value.plugin.export_allowed,
+                    # 没有被任何采集关联的插件才可以被删除（旧逻辑使用delete_allowed属性）
+                    "delete_allowed": plugin_counts.get(value.plugin.plugin_id, 0) == 0,
+                    "export_allowed": version_counts.get(value.plugin.plugin_id, 0),
                     "label_info": resource.commons.get_label_msg(value.plugin.label),
                     "logo": value.info.logo_content,
                     "is_official": value.is_official,

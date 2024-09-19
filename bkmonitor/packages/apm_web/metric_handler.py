@@ -425,7 +425,7 @@ class ErrorRateInstance(MetricHandler):
 class ApdexInstance(MetricHandler):
     metric_id = CalculationMethod.APDEX
     aggs_method = "SUM"
-    default_group_by = [OtlpKey.get_metric_dimension_key(OtlpKey.STATUS_CODE), Apdex.DIMENSION_KEY]
+    default_group_by = [Apdex.DIMENSION_KEY]
     calculation = ApdexCalculation
     metric_field = "bk_apm_count"
 
@@ -433,7 +433,7 @@ class ApdexInstance(MetricHandler):
 class ApdexRange(MetricHandler):
     metric_id = CalculationMethod.APDEX
     aggs_method = "SUM"
-    default_group_by = [OtlpKey.get_metric_dimension_key(OtlpKey.STATUS_CODE), Apdex.DIMENSION_KEY]
+    default_group_by = [Apdex.DIMENSION_KEY]
     calculation = ApdexCalculation
     metric_field = "bk_apm_count"
 

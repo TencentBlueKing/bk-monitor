@@ -178,7 +178,7 @@ class K8sPodDetail(ResourceDetail):
                 "raws": [
                     {
                         "name": _("错误信息"),
-                        "value": _("没有从集群 ") + bcs_cluster_id + _(" 中获取到此 Pod 信息，原因可能为此 Pod 为历史数据或者当前已经销毁"),
+                        "value": _("该 POD 不在集群 ") + bcs_cluster_id + _(" 中，可能已销毁"),
                     }
                 ],
             }

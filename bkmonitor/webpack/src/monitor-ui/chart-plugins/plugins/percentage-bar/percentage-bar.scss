@@ -50,7 +50,7 @@
             padding: 0 12px;
             font-size: 16px;
             color: #699df3;
-            transition: font-size .2s;
+            transition: font-size 0.2s;
 
             .num {
               font-weight: 700;
@@ -79,11 +79,14 @@
             .content-label {
               margin-top: 4px;
               margin-bottom: 4px;
+              overflow: hidden;
               font-size: 12px;
               font-weight: 400;
               line-height: 20px;
               color: #63656e;
-              transition: font-size .2s;
+              text-overflow: ellipsis;
+              word-break: break-all;
+              transition: font-size 0.2s;
             }
 
             .link-label {

@@ -56,6 +56,7 @@ from apm_web.db.db_utils import build_filter_params, get_service_from_params
 from apm_web.handlers.application_handler import ApplicationHandler
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.db_handler import DbComponentHandler
+from apm_web.handlers.endpoint_handler import EndpointHandler
 from apm_web.handlers.instance_handler import InstanceHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.handlers.span_handler import SpanHandler
@@ -101,6 +102,7 @@ from apm_web.service.serializers import (
     AppServiceRelationSerializer,
     LogServiceRelationOutputSerializer,
 )
+from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from apm_web.trace.service_color import ServiceColorClassifier
 from apm_web.utils import get_interval, group_by, span_time_strft
 from bkmonitor.iam import ActionEnum
@@ -1029,6 +1031,8 @@ class ServiceDetailResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称")
         service_name = serializers.CharField(label="服务名称")
+        start_time = serializers.IntegerField(required=True, label="开始时间")
+        end_time = serializers.IntegerField(required=True, label="开始时间")
 
     def key_name_map(self):
         return {
@@ -1048,7 +1052,6 @@ class ServiceDetailResource(Resource):
                 "app_related_app_name": _("关联应用(应用名称)"),
             },
             TopoNodeKind.COMPONENT: {
-                "topo_key": _("服务名称"),
                 "category": _("服务分类"),
                 "predicate_value": _("分类名称"),
                 "kind": _("服务类型"),
@@ -1058,7 +1061,12 @@ class ServiceDetailResource(Resource):
         }
 
     def perform_request(self, data):
-        node_info = ServiceHandler.get_node(data["bk_biz_id"], data["app_name"], data["service_name"])
+        node_info = ServiceHandler.get_node(
+            data["bk_biz_id"],
+            data["app_name"],
+            data["service_name"],
+            raise_exception=False,
+        )
         if not node_info:
             return [
                 {
@@ -1068,14 +1076,13 @@ class ServiceDetailResource(Resource):
                 }
             ]
 
-        instance_count = api.apm_api.query_instance(
-            bk_biz_id=data["bk_biz_id"],
-            app_name=data["app_name"],
-            service_name=[data["service_name"]],
-            page_size=1,
+        instances = RelationMetricHandler.list_instances(
+            data["bk_biz_id"],
+            data["app_name"],
+            data["start_time"],
+            data["end_time"],
+            service_name=data["service_name"],
         )
-        if instance_count:
-            instance_count = instance_count.get("total")
 
         extra_data = node_info.get("extra_data", {})
         if extra_data.get("kind") == TopoNodeKind.COMPONENT:
@@ -1086,12 +1093,11 @@ class ServiceDetailResource(Resource):
                     "value": v or "--",
                 }
                 for k, v in {
-                    "topo_key": data["service_name"],
                     "category": StandardFieldCategory.get_label_by_key(extra_data.get("category")),
                     "predicate_value": extra_data.get("predicate_value"),
                     "kind": TopoNodeKind.get_label_by_key(extra_data.get("kind")),
                     "belong_service": ComponentHandler.get_component_belong_service(data["service_name"]),
-                    "instance_count": instance_count,
+                    "instance_count": len(instances),
                 }.items()
             ]
 
@@ -1107,7 +1113,7 @@ class ServiceDetailResource(Resource):
                 "category": StandardFieldCategory.get_label_by_key(extra_data.get("category")),
                 "predicate_value": extra_data.get("predicate_value"),
                 "service_language": TopoNodeKind.get_label_by_key(extra_data.get("service_language")),
-                "instance_count": instance_count,
+                "instance_count": len(instances),
             }.items()
             if item in self.key_name_map()[TopoNodeKind.SERVICE].keys()
         ]
@@ -1167,17 +1173,21 @@ class EndpointDetailResource(Resource):
         endpoint_name = serializers.CharField(label="接口名称")
 
     def perform_request(self, validated_data):
-        endpoint_info = api.apm_api.query_endpoint(
-            **{
-                "bk_biz_id": validated_data["bk_biz_id"],
-                "app_name": validated_data["app_name"],
-                "service_name": validated_data["service_name"],
-                "filters": {"endpoint_name": validated_data["endpoint_name"]},
-            }
+        endpoint_info = EndpointHandler.get_endpoint(
+            validated_data["bk_biz_id"],
+            validated_data["app_name"],
+            validated_data["service_name"],
+            validated_data["endpoint_name"],
         )
+
         if not endpoint_info:
-            raise ValueError(f"服务: {validated_data['service_name']} 下暂未发现 {validated_data['endpoint_name']} 接口")
-        endpoint_info = endpoint_info[0]
+            return [
+                {
+                    "name": _("数据状态"),
+                    "type": "string",
+                    "value": _("无数据（暂未发现此接口）"),
+                }
+            ]
 
         return [
             {

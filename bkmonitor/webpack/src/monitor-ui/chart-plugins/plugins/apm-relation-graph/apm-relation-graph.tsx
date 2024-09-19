@@ -34,7 +34,7 @@ import { dataTypeBarQuery } from 'monitor-api/modules/apm_topo';
 import { topoView } from 'monitor-api/modules/apm_topo';
 import { Debounce } from 'monitor-common/utils';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
-import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { getDateRange, getTimeDisplay, handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 
 import { CommonSimpleChart } from '../common-simple-chart';
@@ -65,7 +65,6 @@ import './apm-relation-graph.scss';
 })
 export default class ApmRelationGraph extends CommonSimpleChart {
   @Ref('content-wrap') contentWrap: ApmRelationGraphContent;
-  @Ref('apmRelationTopo') apmRelationTopoRef: ApmRelationTopo;
 
   // 框选事件范围后需应用到所有图表(包含三个数据 框选方法 是否展示复位  复位方法)
   @Inject({ from: 'enableSelectionRestoreAll', default: false }) readonly enableSelectionRestoreAll: boolean;
@@ -150,8 +149,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   filterCondition = {
     /** 筛选类型 */
     type: CategoryEnum.ALL,
-    /** 展示无数据节点 */
-    showNoData: true,
     /** 搜索值 */
     searchValue: '',
   };
@@ -208,7 +205,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   selectedIcon = '';
 
   nodeTipsMap = new Map();
-
+  timeTips = '';
   /* 展开列表 */
   get expandList() {
     return [
@@ -287,7 +284,18 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   get resourceDisable() {
     return this.showType === 'table' || !!this.selectedEndpoint || !this.selectedServiceName;
   }
-
+  setTimeTips() {
+    if (this.sliceTimeRange[0] && this.sliceTimeRange[1]) {
+      this.timeTips = getTimeDisplay(this.sliceTimeRange);
+      return;
+    }
+    if (this.timeRange.some(time => time.toString().includes('now'))) {
+      const dateRange = getDateRange(this.timeRange);
+      this.timeTips = getTimeDisplay([dateRange.startDate, dateRange.endDate]);
+      return;
+    }
+    this.timeTips = getTimeDisplay(this.timeRange);
+  }
   created() {
     this.getSliceTimeRange();
   }
@@ -308,7 +316,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   @Watch('refleshInterval')
   // 数据刷新间隔
-  handleRefleshIntervalChange(v: number) {
+  handleRefreshIntervalChange(v: number) {
     if (this.refleshIntervalInstance) {
       window.clearInterval(this.refleshIntervalInstance);
     }
@@ -325,12 +333,12 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   }
   @Watch('refleshImmediate')
   // 立刻刷新
-  handleRefleshImmediateChange(v: string) {
+  handleRefreshImmediateChange(v: string) {
     if (v) {
       this.refreshTopoLayout = false;
       this.needCache = false;
-      this.selectedServiceName = '';
-      this.expanded = [];
+      // this.selectedServiceName = '';
+      // this.expanded = [];
       this.getPanelData();
     }
   }
@@ -344,6 +352,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.handleLoadingChange(true);
     try {
       this.unregisterOberver();
+      this.setTimeTips();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
@@ -396,22 +405,23 @@ export default class ApmRelationGraph extends CommonSimpleChart {
       metric_start_time: sliceTimeStart / 1000 || startTime,
       metric_end_time: sliceTimeEnd / 1000 || endTime,
       service_name: this.serviceName,
-      data_type: this.dataType,
       edge_data_type: this.edgeDataType,
       export_type: exportType,
+      ...(this.showType === 'topo' && {
+        data_type: this.dataType,
+      }),
     };
     this.topoCancelFn?.();
     const cacheKey = JSON.stringify({
       ...params,
-      start_time: this.timeRange[0],
-      end_time: this.timeRange[1],
+      start_time: startTime,
+      end_time: endTime,
       metric_start_time: sliceTimeStart,
       metric_end_time: sliceTimeEnd,
     });
     let data = null;
     this.loading[exportType] = true;
     this.refreshTopoLayout = this.refreshTopoLayout || (!this.graphData.nodes.length && !this.graphData.edges.length);
-    if (this.refreshTopoLayout) this.apmRelationTopoRef.hideMenu();
     if (this.needCache && this.graphAndTableDataCache.has(cacheKey)) {
       data = this.graphAndTableDataCache.get(cacheKey);
       this.loading[exportType] = false;
@@ -474,11 +484,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   @Debounce(200)
   handleSearch(v) {
     this.filterCondition.searchValue = v;
-    this.pagination.current = 1;
-  }
-
-  handleShowNoDataChange(val) {
-    this.filterCondition.showNoData = val;
     this.pagination.current = 1;
   }
 
@@ -641,6 +646,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               class='type-selector'
               v-model={this.dataType}
               clearable={false}
+              disabled={this.showType === 'table'}
               onChange={this.handleDataTypeChange}
             >
               {DATA_TYPE_LIST.map(item => (
@@ -674,17 +680,10 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               value={this.filterCondition.type}
               onChange={this.handleFilterChange}
             />
-            <bk-checkbox
-              class='ml-24'
-              value={this.filterCondition.showNoData}
-              onChange={this.handleShowNoDataChange}
-            >
-              {this.$t('无数据节点')}
-            </bk-checkbox>
             <bk-input
               class='ml-24'
               behavior='simplicity'
-              placeholder={'搜索服务、接口'}
+              placeholder={'搜索服务'}
               right-icon='bk-icon icon-search'
               value={this.filterCondition.searchValue}
               clearable
@@ -695,7 +694,12 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             />
           </div>
           <div class='header-tool-wrap'>
-            <div class='tool-btns'>
+            <div
+              style={{
+                display: this.showType === 'topo' ? 'flex' : 'none',
+              }}
+              class='tool-btns'
+            >
               {this.expandList.map(item => (
                 <div
                   key={item.id}
@@ -725,12 +729,12 @@ export default class ApmRelationGraph extends CommonSimpleChart {
           expanded={this.expanded}
         >
           <ApmRelationTopo
-            ref='apmRelationTopo'
             activeNode={this.selectedServiceName}
             appName={this.appName}
             data={this.graphData}
             dataType={this.dataType}
             edgeType={this.edgeDataType}
+            expandMenuList={this.expanded}
             filterCondition={this.filterCondition}
             refreshTopoLayout={this.refreshTopoLayout}
             showType={this.showType}
@@ -739,7 +743,9 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             onNodeClick={this.handleNodeClick}
             onResourceDrilling={this.handleResourceDrilling}
             onServiceDetail={this.handleServiceDetail}
-          />
+          >
+            <div slot='timeTips'>{this.timeTips}</div>
+          </ApmRelationTopo>
           {this.loading.topo && (
             <div class={{ 'apm-topo-empty-chart': true, 'all-loading': this.refreshTopoLayout }}>
               {this.refreshTopoLayout ? <div v-bkloading={{ isLoading: true }} /> : <bk-spin spinning />}
@@ -793,34 +799,36 @@ export default class ApmRelationGraph extends CommonSimpleChart {
           class='apm-relation-graph-table-wrap'
         >
           <div class='table-wrap'>
-            {this.loading.table ? (
-              <TableSkeleton type={2} />
-            ) : (
-              <CommonTable
-                pagination={{
-                  ...this.pagination,
-                  count: this.filterTableData.length,
-                }}
-                scopedSlots={{
-                  type: row => (
-                    <div class='call-type-column'>
-                      <span>{this.callColumn[row.type]?.name}</span>
-                      <div class={`icon ${row.type}`}>
-                        <i class={`icon-monitor ${this.callColumn[row.type]?.icon}`} />
+            <keep-alive>
+              {this.loading.table ? (
+                <TableSkeleton type={2} />
+              ) : (
+                <CommonTable
+                  pagination={{
+                    ...this.pagination,
+                    count: this.filterTableData.length,
+                  }}
+                  scopedSlots={{
+                    type: row => (
+                      <div class='call-type-column'>
+                        <span>{this.callColumn[row.type]?.name}</span>
+                        <div class={`icon ${row.type}`}>
+                          <i class={`icon-monitor ${this.callColumn[row.type]?.icon}`} />
+                        </div>
                       </div>
-                    </div>
-                  ),
-                }}
-                checkable={false}
-                columns={this.tableColumns}
-                data={this.showTableData}
-                paginationType={'simple'}
-                onFilterChange={this.handleTableFilterChange}
-                onLimitChange={this.handleTableLimitChange}
-                onPageChange={this.handleTablePageChange}
-                onSortChange={this.handleTableSortChange}
-              />
-            )}
+                    ),
+                  }}
+                  checkable={false}
+                  columns={this.tableColumns}
+                  data={this.showTableData}
+                  paginationType={'simple'}
+                  onFilterChange={this.handleTableFilterChange}
+                  onLimitChange={this.handleTableLimitChange}
+                  onPageChange={this.handleTablePageChange}
+                  onSortChange={this.handleTableSortChange}
+                />
+              )}
+            </keep-alive>
           </div>
         </div>
       </div>

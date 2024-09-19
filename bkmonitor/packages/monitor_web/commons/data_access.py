@@ -9,6 +9,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import copy
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Dict
 
 from django.conf import settings
 from django.utils.encoding import force_str
@@ -227,18 +229,67 @@ class DataAccessor(object):
                     fields=[],
                 )
 
+        # 检查结果表关键配置，如果没有修改，则不调用modify接口进行更新
+        modify_table_id_set = new_table_id_set & old_table_id_set
+        for result_table in result_table_list:
+            if result_table["table_id"] in modify_table_id_set:
+                if not self.check_table_modify(self.tables_info[result_table["table_id"]], result_table):
+                    modify_table_id_set.remove(result_table["table_id"])
+
         return {
             "create": new_table_id_set - old_table_id_set,
-            "modify": new_table_id_set & old_table_id_set,
+            "modify": modify_table_id_set,
             "clean": old_table_id_set - new_table_id_set,
         }
+
+    def check_table_modify(self, new_table_info: ResultTable, old_result_table: Dict) -> bool:
+        """判断表配置是否修改
+
+        :param new_table_info: 新提交的配置
+        :param old_result_table: 从接口获取的之前的配置
+        :return: 是否修改
+        """
+        if old_result_table["table_name_zh"] != new_table_info.description:
+            return True
+
+        if len(old_result_table["field_list"]) != len(new_table_info.fields):
+            return True
+
+        new_table_fields = {field["field_name"]: field for field in new_table_info.fields}
+        for old_field_info in old_result_table["field_list"]:
+            if old_field_info["field_name"] not in new_table_fields:
+                return True
+
+            if old_field_info["field_name"] in ORIGIN_PLUGIN_EXCLUDE_DIMENSION:
+                continue
+
+            # 有些属性的值虽然不想等，但是其实是同一个含义
+            special_value_mappings = {
+                "tag": {
+                    "group": "dimension",
+                }
+            }
+            old_field_info["field_type"] = old_field_info["type"]
+            for field_key in ["field_type", "tag", "description", "unit", "is_config_by_user"]:
+                old_field_value = special_value_mappings.get(field_key, {}).get(
+                    old_field_info[field_key], old_field_info[field_key]
+                )
+                new_field_value = new_table_fields[old_field_info["field_name"]][field_key]
+                new_field_value = special_value_mappings.get(field_key, {}).get(new_field_value, new_field_value)
+
+                if old_field_value != new_field_value:
+                    return True
+
+        return False
 
     def create_rt(self):
         """
         创建结果表
         """
-        create_rt_result_list = []
         contrast_result = self.contrast_rt()
+        func_list = []
+        params_list = []
+
         for operation in contrast_result:
             param = {
                 "bk_data_id": self.data_id,
@@ -269,13 +320,12 @@ class DataAccessor(object):
                 if operation == "create":
                     if self.etl_config == "bk_exporter":
                         param.update({"option": {"enable_default_value": False}})
-                    create_rt_result = api.metadata.create_result_table(param)
+                    func_list.append(api.metadata.create_result_table)
                 else:
-                    create_rt_result = api.metadata.modify_result_table(param)
+                    func_list.append(api.metadata.modify_result_table)
+                params_list.append(copy.deepcopy(param))
 
-                create_rt_result_list.append(create_rt_result)
-
-        return create_rt_result_list
+        return self.request_multi_thread(func_list, params_list, get_data=lambda x: x)
 
     def access(self):
         """
@@ -298,6 +348,7 @@ class DataAccessor(object):
         修改label
         """
         result_table_list = api.metadata.list_result_table({"datasource_type": self.tsdb_name})
+        params_list = []
         for table in result_table_list:
             external_storage = {"kafka": {"expired_time": 1800000}}
             if settings.IS_ACCESS_BK_DATA:
@@ -314,9 +365,32 @@ class DataAccessor(object):
                 "table_name_zh": table["table_name_zh"],
                 "external_storage": external_storage,
             }
-            api.metadata.modify_result_table(param)
+            params_list.append(param)
+
+        self.request_multi_thread(
+            [api.metadata.modify_result_table] * len(params_list), params_list, get_data=lambda x: x
+        )
 
         return "success"
+
+    def request_multi_thread(self, func_list, params_list, get_data=lambda x: []):
+        """
+        并发请求接口，每次按不同参数请求最后叠加请求结果
+        :param func: 请求方法
+        :param params_list: 参数列表
+        :param get_data: 获取数据函数，通常CMDB的批量接口应该设置为 get_data=lambda x: x["info"]，其它场景视情况而定
+        :return: 请求结果累计
+        """
+        result = []
+        with ThreadPoolExecutor(max_workers=12) as executor:
+            tasks = [executor.submit(func, **params) for func, params in zip(func_list, params_list)]
+        for future in as_completed(tasks):
+            _result = get_data(future.result())
+            if isinstance(_result, list):
+                result.extend(_result)
+            else:
+                result.append(_result)
+        return result
 
 
 class PluginDataAccessor(DataAccessor):

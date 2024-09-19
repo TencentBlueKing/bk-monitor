@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 .apm-relation-topo {
   position: relative;
   width: 100%;
@@ -21,6 +22,7 @@
 
   .node-menu-list {
     position: absolute;
+    transform-origin: 0 0;
 
     .topo-menu-list {
       width: 120px;
@@ -30,7 +32,7 @@
       border-radius: 2px;
       box-shadow: 0 2px 6px 0 #0000001a;
 
-      li {
+      .topo-menu-action {
         display: flex;
         align-items: center;
         height: 32px;
@@ -44,6 +46,12 @@
         &:hover {
           color: #3a84ff;
           background: #e1ecff;
+        }
+
+        &.is-disabled {
+          color: #c4c6cc !important;
+          cursor: not-allowed !important;
+          background-color: transparent !important;
         }
       }
     }
@@ -94,9 +102,13 @@
       }
 
       .node-list {
-        padding-top: 16px;
+        padding: 16px 0 20px 0;
         background: #ecedf2;
         border-radius: 0 0 8px 8px;
+
+        &.more {
+          padding-bottom: 0;
+        }
 
         .node-item {
           display: flex;
@@ -138,8 +150,8 @@
             position: absolute;
             top: 50%;
             left: 50%;
-            width: 40px;
-            height: 40px;
+            width: calc(100% + 8px);
+            height: calc(100% + 8px);
             content: '';
             border-radius: 50%;
             transform: translate(-50%, -50%);
@@ -154,16 +166,21 @@
           }
         }
 
+        .bk-tooltip {
+          margin-top: 10px;
+        }
+
+        .bk-tooltip,
+        .bk-tooltip-ref {
+          width: 100%;
+        }
+
         .footer {
           display: flex;
           align-items: center;
           justify-content: center;
           height: 24px;
-
-          &.has-more {
-            margin-top: 10px;
-            cursor: pointer;
-          }
+          cursor: pointer;
 
           &:hover {
             .more-icon .dot {
@@ -215,8 +232,29 @@
     width: 100%;
     transform: translateY(-50%);
   }
+
+  .apm-graph-tips {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    z-index: 9;
+    display: flex;
+    color: #979ba5;
+  }
 }
 
 .apm-topo-tools-popover-theme {
   padding: 0;
+}
+
+.drilling-more-popover-theme.tippy-tooltip {
+  cursor: pointer;
+
+  .drilling-more-popover-content {
+    .icon-fenxiang {
+      margin-left: 2px;
+      font-size: 16px;
+      color: #3a84ff;
+    }
+  }
 }

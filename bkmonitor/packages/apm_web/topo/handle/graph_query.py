@@ -25,6 +25,7 @@ from apm_web.topo.handle import NodeDisplayType as Display
 from apm_web.topo.handle.graph_plugin import PluginProvider, ViewConverter
 from apm_web.utils import merge_dicts
 from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.time_tools import get_datetime_range
 
 logger = logging.getLogger("apm")
 
@@ -331,11 +332,14 @@ class GraphQuery(BaseQuery):
         )
 
     def execute(self, edge_data_type, converter):
+        converter_plugin_runtime = self.common_params()
+        if converter.filter_params:
+            converter_plugin_runtime.update(converter.filter_params)
         return self.create_graph(
             with_data_type_plugin=True,
             edge_data_type=edge_data_type,
-            extra_plugins=converter.extra_pre_plugins(self.common_params()),
-            extra_converter_plugins=converter.extra_pre_convert_plugins(self.common_params()),
+            extra_plugins=converter.extra_pre_plugins(converter_plugin_runtime),
+            extra_converter_plugins=converter.extra_pre_convert_plugins(converter_plugin_runtime),
         )
 
     def create_graph(
@@ -349,7 +353,7 @@ class GraphQuery(BaseQuery):
         flow_nodes, flow_edges = self._list_nodes_and_edges_from_flow()
 
         plugins = PluginProvider.Container()
-        if with_data_type_plugin:
+        if with_data_type_plugin and self.data_type:
             plugins += PluginProvider.node_plugins(self.data_type, self.common_params())
         if edge_data_type:
             plugins += PluginProvider.edge_plugins(edge_data_type, self.common_params())
@@ -410,10 +414,20 @@ class GraphQuery(BaseQuery):
         return nodes
 
     def _list_nodes_and_edges_from_flow(self) -> [NodeContainer, EdgeContainer]:
+        """
+        从 flow 指标中获取节点和边
+        数据需要为完整数据 查询周期为应用存储周期
+        """
+        retention = self.application.es_retention
+        start_time, end_time = get_datetime_range(period="day", distance=retention, rounding=False)
         nodes = NodeContainer()
         edges = EdgeContainer()
         dimension_mapping = self.get_metric(
             ServiceFlowCount,
+            params=self.common_params(
+                start_time=int(start_time.timestamp()),
+                end_time=int(end_time.timestamp()),
+            ),
             group_by=[
                 "from_apm_service_name",
                 "from_apm_service_category",

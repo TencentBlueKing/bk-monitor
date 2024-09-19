@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import copy
-import datetime
 import logging
 import operator
 from collections import defaultdict
@@ -36,6 +35,7 @@ from apm_web.models import ApdexServiceRelation, Application, ApplicationCustomS
 from apm_web.utils import group_by
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.time_tools import get_datetime_range
 from constants.apm import OtlpKey
 from core.drf_resource import api
 from core.errors.api import BKAPIError
@@ -296,12 +296,12 @@ class ServiceHandler:
 
         # 从 flow 指标中找
         application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        now = datetime.datetime.now()
+        start_time, end_time = get_datetime_range(period="day", distance=application.es_retention, rounding=False)
         flow_response = ServiceFlowCount(
             **{
                 "application": application,
-                "start_time": int((now - datetime.timedelta(hours=1)).timestamp()),
-                "end_time": int(now.timestamp()),
+                "start_time": int(start_time.timestamp()),
+                "end_time": int(end_time.timestamp()),
                 "where": [
                     {"key": "from_apm_service_name", "method": "eq", "value": [service_name]},
                     {"condition": "or", "key": "to_apm_service_name", "method": "eq", "value": [service_name]},
@@ -310,11 +310,9 @@ class ServiceHandler:
                     "from_apm_service_name",  # index: 0
                     "from_apm_service_category",  # index: 1
                     "from_apm_service_kind",  # index: 2
-                    "from_apm_service_category_value",  # index: 3
-                    "to_apm_service_name",  # index: 4
-                    "to_apm_service_category",  # index: 5
-                    "to_apm_service_kind",  # index: 6
-                    "to_apm_service_category_value",  # index: 7
+                    "to_apm_service_name",  # index: 3
+                    "to_apm_service_category",  # index: 4
+                    "to_apm_service_kind",  # index: 5
                 ],
             }
         ).get_instance_values_mapping()
@@ -327,11 +325,9 @@ class ServiceHandler:
 
         for keys in flow_response.keys():
             if keys[0] == service_name:
-                c_v = keys[3]
                 predicate_value = None
-                if c_v:
-                    # 有此维度 说明是组件类服务
-                    predicate_value = ComponentHandler.get_predicate_value_from_flow_metric_category_value(c_v)
+                if keys[2] == TopoNodeKind.COMPONENT:
+                    predicate_value = ComponentHandler.get_component_belong_predicate_value(service_name)
                 return {
                     "topo_key": keys[0],
                     "extra_data": {
@@ -340,17 +336,16 @@ class ServiceHandler:
                         "predicate_value": predicate_value,
                     },
                 }
-            if keys[4] == service_name:
-                c_v = keys[7]
+            if keys[3] == service_name:
                 predicate_value = None
-                if c_v:
-                    # 有此维度 说明是组件类服务
-                    predicate_value = ComponentHandler.get_predicate_value_from_flow_metric_category_value(c_v)
+                if keys[5] == TopoNodeKind.COMPONENT:
+                    # 组件类服务
+                    predicate_value = ComponentHandler.get_component_belong_predicate_value(service_name)
                 return {
-                    "topo_key": keys[4],
+                    "topo_key": keys[3],
                     "extra_data": {
-                        "category": keys[5],
-                        "kind": keys[6],
+                        "category": keys[4],
+                        "kind": keys[5],
                         "predicate_value": predicate_value,
                     },
                 }
@@ -373,8 +368,3 @@ class ServiceHandler:
             return response
         except BKAPIError as e:
             raise ValueError(f"[ServiceHandler] 查询拓扑节点列表失败， 错误: {e}")
-
-    @classmethod
-    def build_url(cls, app_name, service_name):
-        """构建服务页面跳转 url"""
-        return f"/service/?filter-service_name={service_name}&filter-app_name={app_name}"
