@@ -117,3 +117,14 @@ export const indexSetClusteringData = {
     clustering_field: '',
   },
 };
+
+export const routeQueryKeys = [
+  'addition',
+  'bizId',
+  'end_time',
+  'keyword',
+  'spaceUid',
+  'start_time',
+  'timezone',
+  'unionList',
+];

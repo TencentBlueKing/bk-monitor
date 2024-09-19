@@ -136,7 +136,7 @@ ul.search-items {
             padding: 0 4px;
             color: #FF9C01;
 
-            &[data-operator='not contains'] {
+            &[data-operator^='not contains'] {
               color: #EA3636;
             }
           }

@@ -25,6 +25,10 @@
     },
   });
 
+  const emit = defineEmits(['input', 'change', 'height-change']);
+  const store = useStore();
+  const { $t } = useLocale();
+
   /**
    * 格式化搜索标签渲染格式
    * @param {*} item
@@ -34,12 +38,8 @@
     const label = operatorDictionary.value[key]?.label ?? item.operator;
     if (!Array.isArray(item.value)) item.value = item.value.split(',');
     if (!item.relation) item.relation = 'OR';
-    return { operator_label: label, disabled: false, ...item };
+    return { operator_label: $t(label), disabled: false, ...item };
   };
-
-  const emit = defineEmits(['input', 'change', 'height-change']);
-  const store = useStore();
-  const { $t } = useLocale();
 
   const showIpSelectorDialog = ref(false);
   const cacheIpChooser = ref({});

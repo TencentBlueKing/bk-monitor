@@ -791,7 +791,7 @@ const store = new Vuex.Store({
      * @param {*} param0
      * @param {*} param1
      */
-    updateIndexItemByRoute({ commit }, { route, list }) {
+    updateIndexItemByRoute({ commit, state }, { route, list }) {
       const ids = [];
       let isUnionIndex = false;
       commit('resetIndexSetQueryResult', { search_count: 0 });
@@ -808,8 +808,19 @@ const store = new Vuex.Store({
         ids.push(list[0].index_set_id);
       }
 
+      const appendParamKeys = ['addition', 'end_time', 'keyword', 'start_time', 'timezone'];
+      const appendObj = {};
+      appendParamKeys.forEach(key => {
+        if (route.query[key] !== undefined) {
+          const isJson = typeof state.indexItem[key] === 'object';
+          const value = isJson ? JSON.parse(decodeURIComponent(route.query[key])) : route.query[key];
+          Object.assign(appendObj, { [key]: value });
+        }
+      });
+
       if (ids.length) {
         const payload = {
+          ...appendObj,
           ids,
           selectIsUnionSearch: isUnionIndex,
           items: ids.map(val => (list || []).find(item => item.index_set_id === val)).filter(val => val !== undefined),
