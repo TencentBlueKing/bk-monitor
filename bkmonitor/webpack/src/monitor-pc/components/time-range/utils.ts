@@ -157,3 +157,7 @@ export const DEFAULT_TIME_RANGE: TimeRangeType = ['now-1h', 'now'];
 export const getTimeDisplay = timeRange => {
   return new DateRange(timeRange, 'YYYY-MM-DD HH:mm:ss', window.timezone).toDisplayString();
 };
+
+export const getDateRange = timeRange => {
+  return new DateRange(timeRange, 'YYYY-MM-DD HH:mm:ss', window.timezone);
+};

@@ -130,6 +130,7 @@ interface ICommonPageProps {
   toggleTabSearchFilterKeys?: string[];
   // 默认汇聚方法
   defalutMethod?: string;
+  defaultDashboardId?: string;
 }
 interface ICommonPageEvent {
   onTitleChange: string;
@@ -150,6 +151,8 @@ const customRouterQueryKeys = ['sliceStartTime', 'sliceEndTime'];
 export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEvent> {
   // 场景id
   @Prop({ default: 'host', type: String }) readonly sceneId: string;
+  // dashboard Id
+  @Prop({ type: String }) readonly defaultDashboardId: string;
   // 场景类型
   @Prop({ default: 'detail', type: String }) readonly sceneType: SceneType;
   // 默认viewoptions 视图变量等
@@ -733,13 +736,38 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     }
     /** 标题栏 */
     this.tabList = data;
+    this.setDefaultDashboardId();
     if (isInit) {
-      let [{ id } = { id: '' }] = data;
-      if (this.dashboardId) {
-        id = this.dashboardId;
-      }
-      await this.handleTabChange(id);
+      await this.handleTabChange(this.dashboardId);
     }
+  }
+  setDefaultDashboardId() {
+    let item = this.tabList.find(item => item.id === this.defaultDashboardId);
+    if (item?.id) {
+      this.dashboardId = item.id.toString();
+      return item.id;
+    }
+    item = this.tabList.find(item => item.id.toString().endsWith(`-${this.defaultDashboardId}`));
+    if (item?.id) {
+      this.dashboardId = item.id.toString();
+      return item.id;
+    }
+    item = this.tabList.find(item => `${this.defaultDashboardId}`.endsWith(`-${item.id.toString()}`));
+    if (item?.id) {
+      this.dashboardId = item.id.toString();
+      return item.id;
+    }
+    item = this.tabList.find(item => item.id === this.$route.query.dashboardId);
+    if (item?.id) {
+      this.dashboardId = item.id.toString();
+      return item.id;
+    }
+    item = this.tabList.find(item => item.id === this.dashboardId);
+    if (item?.id) {
+      return item.id;
+    }
+    this.dashboardId = (this.tabList?.[0]?.id || '').toString();
+    return this.dashboardId;
   }
   // 全屏设置
   async handleFullscreen() {
@@ -778,7 +806,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       type: this.localSceneType,
       id: this.dashboardId,
     };
-
     /** 注入侧栏的变量 或 apm自定义服务变量 */
     if (this.hasOtherParams || this.isApmServiceOverview) {
       const variablesService = new VariablesService(this.filters);
@@ -978,9 +1005,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.showSetting = isShow;
     if (this.isPanelChange) {
       await this.getTabList();
-      if (!this.tabList.some(item => item.id === this.dashboardId)) {
-        this.dashboardId = this.tabList[0].id.toString();
-      }
       await this.handleTabChange(this.dashboardId);
       this.handleResizeCollapse();
       this.isPanelChange = false;
@@ -1228,7 +1252,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     let currentTarget = { ...this.filters, ...this.variables };
     let compareTargets = this.compareType === 'target' ? targets : [];
     const selectortTarget = this.sceneData?.selectorPanel?.targets?.[0];
-    if (!!selectortTarget?.compareFieldsSort?.length) {
+    if (selectortTarget?.compareFieldsSort?.length) {
       currentTarget = selectortTarget?.handleCreateFilterDictValue(
         this.filters,
         true,
@@ -1240,14 +1264,26 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       );
     }
     const variables: Record<string, any> = {
-      ...this.filters,
       ...this.variables,
       compare_targets: compareTargets?.map(item => this.resetHostFields(item)),
       current_target: this.resetHostFields(currentTarget),
     };
+    const filters = {};
+    if (this.sceneData?.allVariables?.size) {
+      for (const key of this.sceneData.allVariables) {
+        filters[key] =
+          this.filters?.[key] ||
+          this.viewOptions?.filters?.[key] ||
+          this.$route.query[`filter-${key}`] ||
+          this.$route.query[`var-${key}`] ||
+          this.defaultViewOptions?.filters?.[key];
+      }
+      this.filters = filters;
+    }
     this.viewOptions = {
       // filter_dict: filterDict,
       ...variables,
+      ...filters,
       method: this.isEnableMethodSelect ? this.method : 'AVG',
 
       interval: this.interval || 'auto',
@@ -1702,7 +1738,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
               <DashboardTools
                 downSampleRange={this.downSampleRange}
                 isSplitPanel={this.isSplitPanel}
-                menuList={this.$slots.buttonGroups ? [] : this.sceneData.dasbordToolMenuList}
+                menuList={this.$slots.buttonGroups ? [] : this.sceneData.dashboardToolMenuList}
                 refleshInterval={this.refleshInterval}
                 showDownSampleRange={false}
                 showListMenu={!this.readonly && this.localSceneType !== 'overview'}

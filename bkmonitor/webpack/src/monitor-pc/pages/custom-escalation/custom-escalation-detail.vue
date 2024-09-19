@@ -70,19 +70,31 @@
           </div>
           <div class="detail-information-row">
             <span class="row-label">{{ $t('数据ID') }} : </span>
-            <span class="row-content">{{ detailData.bk_data_id }}</span>
+            <span
+              class="row-content"
+              v-bk-overflow-tips
+              >{{ detailData.bk_data_id }}</span
+            >
           </div>
           <div class="detail-information-row">
             <span class="row-label">Token : </span>
-            <span class="row-content">{{ detailData.access_token }}</span>
+            <span
+              class="row-content"
+              v-bk-overflow-tips
+              >{{ detailData.access_token }}</span
+            >
           </div>
           <div class="detail-information-row">
             <span class="row-label">{{ $t('名称') }} : </span>
             <div
               v-if="!isShowEditName"
-              style="display: flex"
+              style="display: flex; min-width: 0"
             >
-              <span class="row-content">{{ detailData.name }}</span>
+              <span
+                class="row-content"
+                v-bk-overflow-tips
+                >{{ detailData.name }}</span
+              >
               <i
                 v-if="detailData.name && !isReadonly"
                 class="icon-monitor icon-bianji edit-name"
@@ -101,9 +113,13 @@
             <span class="row-label">{{ $t('英文名') }} : </span>
             <div
               v-if="!isShowEditDataLabel"
-              style="display: flex"
+              style="display: flex; min-width: 0"
             >
-              <span class="row-content">{{ detailData.data_label || '--' }}</span>
+              <span
+                class="row-content"
+                v-bk-overflow-tips
+                >{{ detailData.data_label || '--' }}</span
+              >
               <i
                 v-if="!isShowEditDataLabel && !isReadonly"
                 class="icon-monitor icon-bianji edit-name"
@@ -120,7 +136,11 @@
           </div>
           <div class="detail-information-row">
             <span class="row-label">{{ $t('监控对象') }} : </span>
-            <span class="row-content">{{ scenario }}</span>
+            <span
+              class="row-content"
+              v-bk-overflow-tips
+              >{{ scenario }}</span
+            >
           </div>
           <div
             v-if="type !== 'customEvent'"
@@ -130,6 +150,7 @@
             <span
               v-if="detailData.protocol"
               class="row-content"
+              v-bk-overflow-tips
             >
               {{ detailData.protocol === 'json' ? 'JSON' : 'Prometheus' }}
             </span>
@@ -149,6 +170,7 @@
             <span
               v-else
               class="row-content"
+              v-bk-overflow-tips
             >
               {{ copyIsPlatform === false ? $t('本业务') : $t('全平台') }}
             </span>
@@ -160,9 +182,13 @@
             <span class="row-label">{{ $t('描述') }} : </span>
             <div
               v-if="!isShowEditDesc"
-              style="display: flex"
+              style="display: flex; min-width: 0"
             >
-              <span class="row-content">{{ detailData.desc || '--' }}</span>
+              <span
+                class="row-content"
+                v-bk-overflow-tips
+                >{{ detailData.desc || '--' }}</span
+              >
               <i
                 v-if="!isReadonly"
                 class="icon-monitor icon-bianji edit-name"
@@ -1917,7 +1943,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       time_series_group_id: this.detailData.time_series_group_id,
       desc: this.copyDescribe,
     };
-    return await modifyCustomTimeSeriesDesc(params).catch(({message}) => {
+    return await modifyCustomTimeSeriesDesc(params).catch(({ message }) => {
       this.$bkMessage({ message, theme: 'error' });
     });
   }
@@ -2589,9 +2615,14 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
           text-align: right;
           width: 100px;
           margin-right: 26px;
+          flex-shrink: 0;
         }
         .row-content {
           color: #313238;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
         .edit-name {
           color: $defaultBorderColor;

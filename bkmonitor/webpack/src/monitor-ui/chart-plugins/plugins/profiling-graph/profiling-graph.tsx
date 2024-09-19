@@ -129,7 +129,7 @@ class ProfilingChart extends CommonSimpleChart {
   }
 
   getParams(args: Record<string, any> = {}, start_time = '', end_time = '') {
-    const { app_name, service_name } = this.viewOptions as any;
+    const { app_name, service_name } = this.viewOptions.filters as any;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const params = {
       ...args,
@@ -156,7 +156,7 @@ class ProfilingChart extends CommonSimpleChart {
 
     if (this.isFirstLoad) {
       const [start, end] = handleTransformToTimestamp(this.timeRange);
-      const { app_name, service_name } = this.viewOptions as any;
+      const { app_name, service_name } = this.viewOptions.filters as any;
 
       await serviceInfo({
         start_time: (start_time ? dayjs.tz(start_time).unix() : start) * 1000,
@@ -188,7 +188,7 @@ class ProfilingChart extends CommonSimpleChart {
 
   async getServiceDetail(start_time = '', end_time = '') {
     const [start, end] = handleTransformToTimestamp(this.timeRange);
-    const { app_name, service_name } = this.viewOptions as any;
+    const { app_name, service_name } = this.viewOptions.filters as any;
 
     await queryServicesDetail({
       start_time: start_time ? dayjs.tz(start_time).unix() : start,

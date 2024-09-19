@@ -1,0 +1,51 @@
+/* stylelint-disable declaration-no-important */
+.tippy-tooltip.light-theme.overseas-logo-theme {
+  background: #182233 !important;
+  border: 1px solid #434e68 !important;
+  border-radius: 2px !important;
+  box-shadow: 0px 3px 4px 0px rgba(64, 112, 203, 0.06) !important;
+
+  .tippy-backdrop,
+  .tippy-content {
+    transition-property: none !important;
+  }
+
+  .monitor-navigation-global {
+    display: flex;
+    flex-direction: column;
+    width: 200px;
+    padding: 4px 0;
+    margin: 0;
+    font-size: 12px;
+    background: #182233;
+
+    .nav-item {
+      position: relative;
+      display: flex;
+      flex: 0 0 48px;
+      flex-direction: column;
+      justify-content: center;
+      height: 48px;
+      padding-left: 10px;
+      line-height: 20px;
+      color: #ffffff;
+
+      &-subtitle {
+        height: 20px;
+        color: #66768e;
+      }
+
+      &:hover {
+        cursor: pointer;
+        background-color: #434e68;
+      }
+
+      &-icon {
+        position: absolute;
+        right: 12px;
+        font-size: 16px;
+        color: #3a84ff;
+      }
+    }
+  }
+}

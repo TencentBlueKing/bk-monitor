@@ -37,12 +37,13 @@ import bus from 'monitor-common/utils/event-bus';
 import { docCookies, getUrlParam, random } from 'monitor-common/utils/utils';
 import AuthorityModal from 'monitor-ui/authority-modal';
 
+import OverseasLogo from '../components/overseas-logo/overseas-logo';
 import introduce from '../common/introduce';
 import UserConfigMixin from '../mixins/userStoreConfig';
 import { isAuthority } from '../router/router';
 import { GLOAB_FEATURE_LIST, type IRouteConfigItem, getRouteConfig } from '../router/router-config';
 import { SET_NAV_ROUTE_LIST } from '../store/modules/app';
-import type { ISpaceItem } from '../types';
+import type { IOverseasConfig, ISpaceItem } from '../types';
 import { useCheckVersion } from './check-version';
 import DashboardContainer from './grafana/dashboard-container/dashboard-container';
 import { getDashboardCache } from './grafana/utils';
@@ -61,6 +62,7 @@ import HeaderSettingModal from './header-setting-modal';
 import './app.scss';
 // import NoticeComponent from '@blueking/notice-component-vue2';
 import '@blueking/notice-component-vue2/dist/style.css';
+import GlobalConfigMixin from '../mixins/globalConfig';
 const changeNoticeRouteList = [
   'strategy-config-add',
   'strategy-config-edit',
@@ -76,7 +78,9 @@ const PATCH_ROUTES = ['event-center-detail', 'incident-detail'];
 
 const microRouteNameList = ['alarm-shield'];
 const userConfigModal = new UserConfigMixin();
+const globalConfigModal = new GlobalConfigMixin();
 const NEW_UER_GUDE_KEY = 'NEW_UER_GUDE_KEY';
+const OVERSEAS_SITES_MENU = 'OVERSEAS_SITES_MENU';
 const STORE_USER_MENU_KEY = 'USER_STORE_MENU_KEY';
 const ERROR_PAGE_ROUTE_NAME = 'error-exception';
 export const WATCH_SPACE_STICKY_LIST = 'WATCH_SPACE_STICKY_LIST'; /** 监听空间置顶列表数据事件key */
@@ -109,6 +113,7 @@ export default class App extends tsc<object> {
   needBack = false;
   headerNav = 'home';
   headerNavChange = true;
+  overseaGlobalList: IOverseasConfig[] = [];
   menuStore = '';
   hideNavCount = 0;
   spacestickyList: string[] = []; /** 置顶的空间列表 */
@@ -254,6 +259,7 @@ export default class App extends tsc<object> {
     this.handleFetchStickyList();
     bus.$on(WATCH_SPACE_STICKY_LIST, this.handleWatchSpaceStickyList);
     process.env.NODE_ENV === 'production' && process.env.APP === 'pc' && useCheckVersion();
+    this.getGlobalConfig();
   }
   beforeDestroy() {
     this.needMenu && removeListener(this.navHeaderRef, this.handleNavHeaderResize);
@@ -669,6 +675,12 @@ export default class App extends tsc<object> {
   showAlertChange(v: boolean) {
     this.showAlert = v;
   }
+
+  // 获取配置
+  async getGlobalConfig() {
+    this.overseaGlobalList = await globalConfigModal.handleGetGlobalConfig<IOverseasConfig[]>(OVERSEAS_SITES_MENU);
+  }
+
   render() {
     /** 页面内容部分 */
     const pageMain = [
@@ -928,10 +940,20 @@ export default class App extends tsc<object> {
             // #endif
           }
           <div
-            style={`background-image: url(${this.platformData.logo})`}
-            class='monitor-logo'
-            slot='side-icon'
-          />
+            class='monitor-head'
+            slot='side-header'
+          >
+            <div
+              style={`background-image: url(${this.platformData.logo})`}
+              class='monitor-logo'
+            />
+            {<div class='title-desc'>{this.platformData.name}</div>}
+            {
+              // #if APP !== 'external'
+              this.overseaGlobalList.length > 0 && <OverseasLogo globalList={this.overseaGlobalList} />
+              // #endif
+            }
+          </div>
         </bk-navigation>
         {
           // #if APP !== 'external'

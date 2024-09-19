@@ -775,25 +775,27 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
           </CardsContainer>
         ) : (
           [
-            <CardsContainer
-              key='task'
-              style={{ marginTop: '20px' }}
-              title={this.$tc('拨测任务组')}
-              showSeeAll
-            >
-              {this.loading
-                ? new Array(2).fill(null).map((_item, index) => <TaskCardSkeleton key={index} />)
-                : this.searchGroupData.map(item => (
-                    <GroupCard
-                      key={item.id}
-                      data={item}
-                      dragStatus={this.dragStatus}
-                      onCardClick={(id: number) => this.handleGroupCardClick(id)}
-                      onDropItem={v => this.handleDropItem(v)}
-                      onOperate={(v: IGroupCardOperate) => this.handleGroupCardOperate(v, item.id)}
-                    />
-                  ))}
-            </CardsContainer>,
+            this.loading || this.searchGroupData.length ? (
+              <CardsContainer
+                key='task'
+                style={{ marginTop: '20px' }}
+                title={this.$tc('拨测任务组')}
+                showSeeAll
+              >
+                {this.loading
+                  ? new Array(2).fill(null).map((_item, index) => <TaskCardSkeleton key={index} />)
+                  : this.searchGroupData.map(item => (
+                      <GroupCard
+                        key={item.id}
+                        data={item}
+                        dragStatus={this.dragStatus}
+                        onCardClick={(id: number) => this.handleGroupCardClick(id)}
+                        onDropItem={v => this.handleDropItem(v)}
+                        onOperate={(v: IGroupCardOperate) => this.handleGroupCardOperate(v, item.id)}
+                      />
+                    ))}
+              </CardsContainer>
+            ) : undefined,
             this.loading || this.searchTaskData.length ? (
               <CardsContainer
                 key='task_1'
@@ -820,8 +822,9 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
             ) : undefined,
           ]
         )}
-        {this.isShowNodata ? (
+        {!this.loading && this.isShowNodata ? (
           <EmptyStatus
+            style={{ paddingTop: '8%' }}
             type={this.emptyStatusType}
             onOperation={this.handleOperation}
           />

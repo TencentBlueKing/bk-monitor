@@ -71,6 +71,7 @@ class TopoEdgeDataType(ChoicesEnum):
     DURATION_AVG = "duration_avg"
     DURATION_P99 = "duration_p99"
     DURATION_P95 = "duration_p95"
+    DURATION_P50 = "duration_p50"
     ERROR_RATE = "error_rate"
 
     _choices_labels = (
@@ -78,6 +79,7 @@ class TopoEdgeDataType(ChoicesEnum):
         (DURATION_AVG, _("平均耗时")),
         (DURATION_P99, _("P99耗时")),
         (DURATION_P95, _("P95耗时")),
+        (DURATION_P50, _("P50耗时")),
         (ERROR_RATE, _("错误率")),
     )
 
@@ -89,11 +91,15 @@ class GraphPluginType(ChoicesEnum):
     NODE = "node_data"
     # 边数据插件
     EDGE = "edge_data"
+    # 接口节点数据插件
+    ENDPOINT = "endpoint_data"
 
     # 节点 UI 插件
     NODE_UI = "node_ui"
     # 边 UI 插件
     EDGE_UI = "edge_ui"
+    # 接口 UI 插件
+    ENDPOINT_UI = "endpoint_ui"
 
 
 class GraphViewType(ChoicesEnum):
@@ -160,8 +166,6 @@ class TopoLinkType(ChoicesEnum):
     TOPO_SOURCE = "topo_source"
 
     _choices_labels = (
-        ALERT,
-        _("跳转到告警中心"),
-        TOPO_SOURCE,
-        _("资源拓扑链接跳转处理"),
+        (ALERT, _("跳转到告警中心")),
+        (TOPO_SOURCE, _("资源拓扑链接跳转处理")),
     )

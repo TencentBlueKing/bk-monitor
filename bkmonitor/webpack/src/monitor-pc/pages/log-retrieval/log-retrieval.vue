@@ -92,13 +92,15 @@ export default class LogRetrieval extends Vue {
   }
   receiveMessage(event) {
     // 检查消息来源是否可信
-    if (event.origin !== location.origin) return;
-    // 获取来自iframe的内容
     const data = event.data;
-    if ('params' in data) {
+    // if (data._MONITOR_URL_ !== location.origin) return;
+    // 获取来自iframe的内容
+    if ('_LOG_TO_MONITOR_' in data) {
+      // 测试代码，验证成功后就删除
+      console.log(event.data, event.origin, location.origin);
       this.$router
         .replace({
-          query: { ...data.params, ...data.query },
+          query: { ...data._MONITOR_URL_PARAMS_, ...data._MONITOR_URL_QUERY_ },
         })
         .catch(err => err);
     }

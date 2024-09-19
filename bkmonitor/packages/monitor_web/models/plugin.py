@@ -23,6 +23,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
 
+from bkmonitor.commons.storage import get_default_image_storage
 from bkmonitor.utils.db.fields import JsonField, YamlField
 from bkmonitor.utils.user import get_global_user
 from core.drf_resource import api
@@ -688,7 +689,7 @@ class CollectorPluginInfo(OperateRecordModelBase):
     plugin_display_name = models.CharField("插件别名", max_length=64, default="")
     metric_json = JsonField("指标配置", default=[])
     description_md = models.TextField("插件描述，markdown文本", default="")
-    logo = models.ImageField("logo文件", null=True)
+    logo = models.ImageField("logo文件", null=True, storage=get_default_image_storage())
     enable_field_blacklist = models.BooleanField("是否开启黑名单", default=False)
 
     def __str__(self):
@@ -825,7 +826,8 @@ class PluginVersionHistory(OperateRecordModelBase):
 
     @property
     def is_official(self):
-        return Signature(self.signature).verificate("official", self)
+        # 官方插件ID都是以bkplugin_作为前缀
+        return self.plugin.plugin_id.startswith("bkplugin_")
 
     @property
     def is_safety(self):

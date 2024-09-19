@@ -71,15 +71,18 @@ from apm_web.resources import (
     ServiceAndComponentCompatibleResource,
 )
 from apm_web.serializers import AsyncSerializer, ComponentInstanceIdDynamicField
+from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from apm_web.utils import (
     Calculator,
-    get_interval_number,
+    fill_series,
+    get_bar_interval_number,
     group_by,
     handle_filter_fields,
 )
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.time_tools import get_datetime_range
 from constants.apm import ApmMetrics, OtlpKey, SpanKind
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
@@ -149,6 +152,7 @@ class DynamicUnifyQueryResource(Resource):
         end_time = serializers.IntegerField(label="结束时间")
         component_instance_id = ComponentInstanceIdDynamicField(required=False, label="组件实例id(组件页面下有效)")
         unit = serializers.CharField(label="图表单位(多指标计算时手动返回)", default=False)
+        fill_bar = serializers.BooleanField(label="是否需要补充柱子(用于特殊配置的场景 仅影响 interval)", required=False)
 
     def perform_request(self, validate_data):
         unify_query_params = {
@@ -158,8 +162,25 @@ class DynamicUnifyQueryResource(Resource):
             "bk_biz_id": validate_data["bk_biz_id"],
         }
 
+        require_fill_series = False
+        if validate_data.get("fill_bar"):
+            interval = get_bar_interval_number(
+                validate_data["start_time"],
+                validate_data["end_time"],
+            )
+            for config in unify_query_params["query_configs"]:
+                config["interval"] = interval
+
+            require_fill_series = True
+
         if not validate_data.get("service_name"):
-            return self.fill_unit(resource.grafana.graph_unify_query(unify_query_params), validate_data.get("unit"))
+            return self.fill_unit_and_series(
+                resource.grafana.graph_unify_query(unify_query_params),
+                validate_data.get("unit"),
+                validate_data["start_time"],
+                validate_data["end_time"],
+                require_fill_series,
+            )
 
         node = ServiceHandler.get_node(
             validate_data["bk_biz_id"],
@@ -168,7 +189,13 @@ class DynamicUnifyQueryResource(Resource):
             raise_exception=False,
         )
         if not node:
-            return self.fill_unit(resource.grafana.graph_unify_query(unify_query_params), validate_data.get("unit"))
+            return self.fill_unit_and_series(
+                resource.grafana.graph_unify_query(unify_query_params),
+                validate_data.get("unit"),
+                validate_data["start_time"],
+                validate_data["end_time"],
+                require_fill_series,
+            )
 
         if ComponentHandler.is_component_by_node(node):
             # 替换service_name
@@ -228,10 +255,22 @@ class DynamicUnifyQueryResource(Resource):
                 json.dumps(unify_query_params).replace(validate_data["service_name"], pure_service_name)
             )
 
-        return self.fill_unit(resource.grafana.graph_unify_query(unify_query_params), validate_data.get("unit"))
+        return self.fill_unit_and_series(
+            resource.grafana.graph_unify_query(unify_query_params),
+            validate_data.get("unit"),
+            validate_data["start_time"],
+            validate_data["end_time"],
+            require_fill_series,
+        )
 
     @classmethod
-    def fill_unit(cls, response, unit):
+    def fill_unit_and_series(cls, response, unit, start_time, end_time, require_fill_series=False):
+        response = {
+            "metrics": response.get("metrics"),
+            "series": fill_series(response.get("series", []), start_time, end_time)
+            if require_fill_series
+            else response.get("series", []),
+        }
         if not unit:
             return response
 
@@ -779,32 +818,17 @@ class InstanceListResource(Resource):
         category = serializers.CharField(label="分类", required=False)
 
     def perform_request(self, validated_data):
-        params = {
-            "bk_biz_id": validated_data["bk_biz_id"],
-            "app_name": validated_data["app_name"],
-        }
-        if validated_data.get("service_name") and validated_data.get("category") == "db":
-            # 服务页面的 DB Tab 页面会传递 DB 分类，步骤为先此服务查询发现的 DB 类型，再查询这些类型下面的实例组合后返回
-            from apm_web.db.resources import ListDbSystemResource
+        # 获取存储周期
+        app = Application.objects.get(bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"])
+        start_time, end_time = get_datetime_range(period="day", distance=app.es_retention, rounding=False)
 
-            db_types = ListDbSystemResource()(
-                **{
-                    "bk_biz_id": validated_data["bk_biz_id"],
-                    "app_name": validated_data["app_name"],
-                    "group_by_key": OtlpKey.get_attributes_key(SpanAttributes.DB_SYSTEM),
-                    "service_name": validated_data["service_name"],
-                }
-            )
-            type_service_names = [f"{validated_data['service_name']}-{i['name']}" for i in db_types]
-            params["service_name"] = type_service_names
-        else:
-            if "service_name" in validated_data:
-                params["service_name"] = [validated_data["service_name"]]
-            else:
-                # 如果没有指定服务名称 则为应用页面下 此时获取实例需要过滤掉组件类的实例
-                params["filters"] = {"instance_topo_kind": "service"}
-
-        instances = api.apm_api.query_instance(params).get("data", [])
+        instances = RelationMetricHandler.list_instances(
+            validated_data["bk_biz_id"],
+            validated_data["app_name"],
+            int(start_time.timestamp()),
+            int(end_time.timestamp()),
+            service_name=validated_data.get("service_name"),
+        )
         return self.convert_to_response(validated_data["app_name"], validated_data.get("keyword"), instances)
 
     def convert_to_response(self, app_name, keyword, instances):
@@ -812,10 +836,8 @@ class InstanceListResource(Resource):
         for instance in instances:
             data.append(
                 {
-                    "id": instance["instance_id"],
-                    "name": instance["instance_id"],
-                    "topo_node_key": instance["topo_node_key"],
-                    "service_name": instance["topo_node_key"],
+                    "id": instance["apm_service_instance_name"],
+                    "name": instance["apm_service_instance_name"],
                     "app_name": app_name,
                 }
             )
@@ -1218,9 +1240,11 @@ class ApdexQueryResource(ApiAuthResource):
             raise ValueError("Application does not exist")
 
         if ApplicationHandler.have_data(application, start_time, end_time):
-            return ApdexRange(
-                application, start_time, end_time, interval=get_interval_number(start_time, end_time)
+            response = ApdexRange(
+                application, start_time, end_time, interval=get_bar_interval_number(start_time, end_time)
             ).query_range()
+            return {"metrics": [], "series": fill_series(response.get("series", []), start_time, end_time)}
+
         return {"metrics": [], "series": []}
 
 
@@ -1353,9 +1377,9 @@ class EndpointDetailListResource(Resource):
                     },
                 ],
                 "sort": [
-                    {"id": "request_count", "status": "request_count", "name": _lazy("请求数量"), "tips": _lazy("请求数量")},
-                    {"id": "error_count", "status": "error_count", "name": _lazy("错误数量"), "tips": _lazy("错误数量")},
-                    {"id": "avg_duration", "status": "avg_duration", "name": _lazy("响应耗时"), "tips": _lazy("响应耗时")},
+                    {"id": "request_count", "status": "request_count", "name": _lazy("请求数"), "tips": _lazy("请求数")},
+                    {"id": "error_count", "status": "error_count", "name": _lazy("错误数"), "tips": _lazy("错误数")},
+                    {"id": "avg_duration", "status": "avg_duration", "name": _lazy("耗时"), "tips": _lazy("耗时")},
                 ],
             }
 
@@ -1414,9 +1438,9 @@ class EndpointDetailListResource(Resource):
                 {"id": "disabled", "status": "disabled", "name": status_count["disabled"], "tips": _lazy("1小时内无数据")},
             ],
             "sort": [
-                {"id": "request_count", "status": "request_count", "name": _lazy("请求数量"), "tips": _lazy("请求数量")},
-                {"id": "error_count", "status": "error_count", "name": _lazy("错误数量"), "tips": _lazy("错误数量")},
-                {"id": "avg_duration", "status": "avg_duration", "name": _lazy("响应耗时"), "tips": _lazy("响应耗时")},
+                {"id": "request_count", "status": "request_count", "name": _lazy("请求数"), "tips": _lazy("请求数")},
+                {"id": "error_count", "status": "error_count", "name": _lazy("错误数"), "tips": _lazy("错误数")},
+                {"id": "avg_duration", "status": "avg_duration", "name": _lazy("耗时"), "tips": _lazy("耗时")},
             ],
         }
 
@@ -1925,7 +1949,7 @@ class AlertQueryResource(Resource):
             "bk_biz_ids": [bk_biz_id],
             "start_time": start_time,
             "end_time": end_time,
-            "interval": get_interval_number(start_time, end_time),
+            "interval": get_bar_interval_number(start_time, end_time),
             "query_string": f"metric: custom.{application.metric_result_table_id}.*",
             "conditions": [
                 {"key": "severity", "value": [level]},
@@ -1941,8 +1965,12 @@ class AlertQueryResource(Resource):
         alert_level_result = {}
         for level in alert_level:
             para = self.get_alert_params(application, bk_biz_id, start_time, end_time, level, strategy_id)
-            series = resource.fta_web.alert.alert_date_histogram(para)
-            alert_level_result[level] = series
+            response = resource.fta_web.alert.alert_date_histogram(para)
+            series = []
+            for i in response["series"]:
+                # 查询告警这个接口会返回多一个点 这里将时间点控制为符合 bar_size 的个数
+                series.append({**i, "data": i["data"]})
+            alert_level_result[level] = {"series": series, "unit": ""}
         return alert_level_result
 
     def perform_request(self, validated_request_data):
@@ -1960,7 +1988,7 @@ class AlertQueryResource(Resource):
         if ApplicationHandler.have_data(application, start_time, end_time):
             format_alert_data = self.get_alert_data(application, bk_biz_id, start_time, end_time, strategy_id)
             time_list = self.format_alert_data(format_alert_data)
-            series = [{"datapoints": time_list, "dimensions": {}, "target": "alert", "type": "bar", "unit": ""}]
+            series = [{"datapoints": time_list[:-1], "dimensions": {}, "target": "alert", "type": "bar", "unit": ""}]
 
         return {
             "metrics": [],
@@ -2085,14 +2113,20 @@ class ServiceInstancesResource(ServiceAndComponentCompatibleResource):
                 end_time=validated_request_data["end_time"],
             )
 
-        instances = api.apm_api.query_instance(query_dict).get("data", [])
+        instances = RelationMetricHandler.list_instances(
+            validated_request_data["bk_biz_id"],
+            validated_request_data["app_name"],
+            validated_request_data["start_time"],
+            validated_request_data["end_time"],
+            service_name=validated_request_data["service_name"],
+        )
 
         for instance in instances:
             instance["app_name"] = validated_request_data["app_name"]
-            instance["bk_instance_id"] = instance.pop("instance_id")
+            instance["bk_instance_id"] = instance["apm_service_instance_name"]
             instance["service"] = validated_request_data["service_name"]
 
-            instance.update(metric_data.get(instance["bk_instance_id"], {}))
+            instance.update(metric_data.get(instance["apm_service_instance_name"], {}))
 
         instances = handle_filter_fields(instances, validated_request_data.get("filter_fields"))
         return self.get_pagination_data(instances, validated_request_data)
