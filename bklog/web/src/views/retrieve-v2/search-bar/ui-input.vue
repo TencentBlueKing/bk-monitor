@@ -38,18 +38,19 @@
   const { $t } = useLocale();
 
   const showIpSelectorDialog = ref(false);
-  const ipChooser = ref({});
+  const cacheIpChooser = ref({});
+  const dialogIpChooser = ref({});
   const bkBizId = computed(() => store.state.bkBizId);
-  const catchIpChooser = computed(() => store.getters.retrieveParams.ip_chooser);
+  const ipChooser = computed(() => store.getters.retrieveParams.ip_chooser);
 
   const nodeType = computed(() => {
     // 当前选择的ip类型
-    return Object.keys(catchIpChooser.value || [])?.[0] ?? '';
+    return Object.keys(ipChooser.value || [])?.[0] ?? '';
   });
 
   const nodeCount = computed(() => {
     // ip选择的数量
-    return catchIpChooser.value[nodeType.value]?.length ?? 0;
+    return ipChooser.value[nodeType.value]?.length ?? 0;
   });
 
   const nodeUnit = computed(() => {
@@ -129,6 +130,7 @@
 
   const handleIpSelectorValueChange = value => {
     const IPSelectIndex = modelValue.value.findIndex(item => item.field === '_ip-select_');
+    cacheIpChooser.value = value;
     store.commit('updateIndexItemParams', {
       ip_chooser: value,
     });
@@ -177,7 +179,7 @@
 
   const handleTagItemClick = (e, item, index) => {
     if (item.field === '_ip-select_') {
-      ipChooser.value = catchIpChooser.value;
+      dialogIpChooser.value = ipChooser.value;
       showIpSelectorDialog.value = true;
       return;
     }
@@ -191,6 +193,11 @@
 
   const handleDisabledTagItem = (item, e) => {
     set(item, 'disabled', !item.disabled);
+    if (item.field === '_ip-select_') {
+      store.commit('updateIndexItemParams', {
+        ip_chooser: item.disabled ? {} : cacheIpChooser.value,
+      });
+    }
     emitChange(modelValue.value);
   };
 
@@ -208,6 +215,7 @@
     const isPayloadValueEmpty = !(payload?.value?.length ?? 0);
     const isFulltextEnterVlaue = isInputFocus.value && isPayloadValueEmpty && !payload?.field;
     if (payload === 'ip-select-show') {
+      dialogIpChooser.value = ipChooser.value;
       showIpSelectorDialog.value = true;
       getTippyInstance()?.hide();
       return;
@@ -367,7 +375,7 @@
       :height="670"
       :key="bkBizId"
       :show-dialog.sync="showIpSelectorDialog"
-      :value="ipChooser"
+      :value="dialogIpChooser"
       mode="dialog"
       @change="handleIpSelectorValueChange"
     />
