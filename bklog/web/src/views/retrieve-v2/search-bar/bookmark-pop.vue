@@ -301,6 +301,10 @@
       }
     });
   };
+   // 隐藏弹窗样式
+  const handlePopovreHide = () => {
+    popoverShow.value = false;
+  }
   const tippyOptions = {
     theme: 'light',
     placement: 'bottom-end',
@@ -312,16 +316,18 @@
     ref="popoverContentRef"
     width="400"
     ext-cls="collection-favorite-popover"
-    :always="true"
     :on-show="handlePopoverShow"
+    :on-hide="handlePopovreHide"
+    trigger="click"
     :tippy-options="tippyOptions"
+    :forceClickoutside="true"
   >
     <span
       :style="{
         color: popoverShow ? '#3a84ff' : '',
       }"
       class="bklog-icon bklog-star-line"
-      @click="handleCollection"
+      @click.stop="handleCollection"
     ></span>
     <template #content>
       <div>
