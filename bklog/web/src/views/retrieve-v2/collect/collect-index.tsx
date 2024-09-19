@@ -266,22 +266,28 @@ export default class CollectIndex extends tsc<IProps> {
       this.$store.commit('updateClearSearchValueNum', (clearSearchValueNum += 1));
       return;
     }
-    this.activeFavorite = value;
+    const cloneValue = deepClone(value);
+    this.activeFavorite = cloneValue;
     this.$store.commit('resetIndexsetItemParams');
-    this.$store.commit('updateIndexId', value.index_set_id);
-    const isUnionIndex = value.index_set_ids.length > 0;
-    const keyword = value.params.keyword;
-    const addition = value.params.addition;
-    const ip_chooser = Object.assign({}, value.params.ip_chooser ?? {});
-
+    this.$store.commit('updateIndexId', cloneValue.index_set_id);
+    this.$store.commit('updateIsSetDefaultTableColumn', false);
+    const isUnionIndex = cloneValue.index_set_ids.length > 0;
+    const keyword = cloneValue.params.keyword;
+    const addition = cloneValue.params.addition;
+    const ip_chooser = Object.assign({}, cloneValue.params.ip_chooser ?? {});
+    if (isUnionIndex)
+      this.$store.commit(
+        'updateUnionIndexList',
+        cloneValue.index_set_ids.map(item => String(item)),
+      );
     this.$store.commit('updateIndexItem', {
       keyword,
       addition,
       ip_chooser,
-      index_set_id: value.index_set_id,
-      ids: isUnionIndex ? value.index_set_ids : [value.index_set_id],
+      index_set_id: cloneValue.index_set_id,
+      ids: isUnionIndex ? cloneValue.index_set_ids : [cloneValue.index_set_id],
       isUnionIndex,
-      search_mode: value.search_mode,
+      search_mode: cloneValue.search_mode,
     });
 
     this.$store.dispatch('requestIndexSetFieldInfo').then(() => {

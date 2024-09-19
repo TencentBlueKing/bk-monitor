@@ -65,7 +65,7 @@
 
   const setRouteParams = () => {
     const { ids, isUnionIndex } = indexSetParams.value;
-    const params = isUnionIndex ? route.params : { ...route.params, indexId: ids?.[0] };
+    const params = isUnionIndex ? route.params : { ...route.params, indexId: ids?.[0] ?? route.params?.indexId };
     const query = isUnionIndex
       ? { ...route.query, unionList: encodeURIComponent(JSON.stringify(ids.map(item => String(item)))) }
       : { ...route.query, unionList: undefined };

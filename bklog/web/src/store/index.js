@@ -224,6 +224,7 @@ const store = new Vuex.Store({
         host_scopes,
         interval,
         search_mode,
+        sort_list,
       } = state.indexItem;
 
       const filterAddition = addition
@@ -250,6 +251,7 @@ const store = new Vuex.Store({
         host_scopes,
         interval,
         search_mode,
+        sort_list,
         ...searchParams,
       };
     },
@@ -794,13 +796,12 @@ const store = new Vuex.Store({
       let isUnionIndex = false;
       commit('resetIndexSetQueryResult', { search_count: 0 });
 
-      if (route.params.indexId) {
-        ids.push(route.params.indexId);
-      }
-
       if ((route.query?.unionList?.length ?? 0) > 0) {
         isUnionIndex = true;
         ids.push(...JSON.parse(decodeURIComponent(route.query?.unionList ?? '[]')));
+        commit('updateUnionIndexList', ids);
+      } else {
+        if (route.params.indexId) ids.push(route.params.indexId);
       }
 
       if (!isUnionIndex && !ids.length && list?.length) {
@@ -1145,24 +1146,10 @@ const store = new Vuex.Store({
       const getSqlAdditionMappingOperator = ({ operator, field }) => {
         let mappingKey = {
           // is is not 值映射
-          is: ':',
-          'is not': '!=',
+          is: val => `${field}: "${val}"`,
+          'is not': val => `NOT ${field}: "${val}"`,
         };
 
-        /** text类型字段类型的下钻映射 */
-        const textMappingKey = {
-          is: ':',
-          'is not': 'not contains match phrase',
-        };
-
-        const textType = getFieldType(field);
-        switch (textType) {
-          case 'text':
-            mappingKey = textMappingKey;
-            break;
-          default:
-            break;
-        }
         return mappingKey[operator] ?? operator; // is is not 值映射
       };
 
@@ -1194,15 +1181,13 @@ const store = new Vuex.Store({
         }
 
         if (state.indexItem.search_mode === 'sql') {
-          const sqlMapOperator = getSqlAdditionMappingOperator({ field, operator });
+          const appendText = getSqlAdditionMappingOperator({ field, operator })?.(value);
 
           const keyword = state.indexItem.keyword.replace(/^\s*\*\s*$/, '');
-          const valString = /^-?\d+\.?\d*$/.test(value) ? value : `"${value}"`;
-          const appendText = `${field} ${sqlMapOperator} ${valString}`;
           if (keyword.indexOf(appendText) === -1) {
             const keywords = keyword.length > 0 ? [keyword] : [];
             keywords.push(appendText);
-            state.indexItem.keyword = keywords.join(' and ');
+            state.indexItem.keyword = keywords.join(' AND ');
             dispatch('requestIndexSetQuery');
           }
         }

@@ -222,7 +222,7 @@ export default class AggChart extends tsc<object> {
             </ul>
           </div>
         ) : (
-          <div class='error-container'>{!this.listLoading && this.$t('暂无字段内容')}</div>
+          <div class='error-container'>{!this.listLoading && this.$t('暂无字段数据')}</div>
         )}
       </div>
     );

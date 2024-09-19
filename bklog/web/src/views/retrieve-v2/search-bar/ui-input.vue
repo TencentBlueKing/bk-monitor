@@ -1,19 +1,19 @@
 <script setup>
-  import { ref, computed, nextTick, set } from 'vue';
+  import { ref, computed, set } from 'vue';
 
   import { getOperatorKey } from '@/common/util';
+  import LogIpSelector from '@/components/log-ip-selector/log-ip-selector';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
 
-  import UiInputOptions from './ui-input-option.vue';
-  import useFocusInput from './use-focus-input';
-  import LogIpSelector from '@/components/log-ip-selector/log-ip-selector';
   import {
     getInputQueryDefaultItem,
     getInputQueryIpSelectItem,
     FulltextOperatorKey,
     FulltextOperator,
   } from './const.common';
+  import UiInputOptions from './ui-input-option.vue';
+  import useFocusInput from './use-focus-input';
 
   import { debounce } from 'lodash';
 
@@ -32,6 +32,8 @@
   const formatModelValueItem = item => {
     const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
     const label = operatorDictionary.value[key]?.label ?? item.operator;
+    if (!Array.isArray(item.value)) item.value = item.value.split(',');
+    if (!item.relation) item.relation = 'OR';
     return { operator_label: label, disabled: false, ...item };
   };
 
@@ -193,13 +195,15 @@
     }
     queryItem.value = {};
     isInputFocus.value = false;
+    if (!Array.isArray(item.value)) item.value = item.value.split(',');
+    if (!item.relation) item.relation = 'OR';
     Object.assign(queryItem.value, item);
     const target = e.target.closest('.search-item');
     activeIndex.value = isInputFocus.value ? null : index;
     showTagListItems(target);
   };
 
-  const handleDisabledTagItem = (item, e) => {
+  const handleDisabledTagItem = item => {
     set(item, 'disabled', !item.disabled);
     if (item.field === '_ip-select_') {
       store.commit('updateIndexItemParams', {

@@ -29,7 +29,7 @@
       flex: 1;
       min-width: 150px;
       padding: 0 8px;
-      font-family: "Roboto Mono", Consolas, Menlo, Courier, monospace;
+      font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
       color: #63656e;
     }
 
@@ -40,14 +40,14 @@
 
       .item-callout {
         padding: 0 4px;
-        font-family: "Roboto Mono", Consolas, Menlo, Courier, monospace;
+        font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
         color: #313238;
         background-color: #f4f6fa;
       }
     }
 
     &.active {
-      background-color: #f4f6fa;
+      background-color: #eaf3ff;
 
       .item-text {
         color: #313238;
@@ -61,7 +61,7 @@
     &:not(.active) {
       &:hover {
         cursor: pointer;
-        background-color: #eaf3ff;
+        background-color: #f4f6fa;
       }
     }
   }

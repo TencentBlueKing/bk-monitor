@@ -920,4 +920,6 @@ export default {
     'To obtain host information from the Blue Whale CMDB on the platform, you can use the IP selector to choose hosts and quickly filter logs.',
   '按【Enter】或点击【确定】，唤起IP选择器点击取消，关闭窗口':
     'Press “Enter” or click “OK” to bring up the IP selector. Click “Cancel” to close the window.',
+  暂无字段数据: 'No field data yet',
+  索引集为空: 'Index collection is empty',
 };

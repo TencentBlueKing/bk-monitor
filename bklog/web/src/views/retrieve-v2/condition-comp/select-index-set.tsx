@@ -199,7 +199,7 @@ export default class QueryStatement extends tsc<object> {
 
   /** 多选的选中的索引集ID */
   get selectedItemIDlist() {
-    return this.selectedItemList.map(item => String(item.index_set_id));
+    return this.selectedItemList.map(item => item.index_set_id);
   }
 
   get spaceUid() {

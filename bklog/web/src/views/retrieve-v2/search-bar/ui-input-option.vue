@@ -1,14 +1,15 @@
 <script setup>
   import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue';
 
+  // @ts-ignore
+  import { getCharLength } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
+
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
   import PopInstanceUtil from './pop-instance-util';
-  // @ts-ignore
-  import { getCharLength } from '@/common/util';
   const INPUT_MIN_WIDTH = 12;
 
   const props = defineProps({
@@ -272,7 +273,7 @@
     }
     // 如果条件值为空 并且当前条件需要条件值
     // 禁止提交
-    if (isShowConditonValueSetting.value && !condition.value.value.length && !showFulltextMsg) {
+    if (isShowConditonValueSetting.value && !condition.value.value.length && !showFulltextMsg.value) {
       return;
     }
 
@@ -733,9 +734,9 @@
       <div class="field-list">
         <div class="ui-search-input">
           <bk-input
+            ref="refFilterInput"
             style="width: 100%"
             v-model="searchValue"
-            ref="refFilterInput"
             :placeholder="$t('请输入关键字')"
             behavior="simplicity"
             left-icon="bk-icon icon-search"
@@ -793,8 +794,8 @@
         </template>
         <template v-else>
           <div
-            class="ui-value-row"
             v-if="activeFieldItem.field_name !== '*'"
+            class="ui-value-row"
           >
             <div class="ui-value-label">{{ $t('条件') }}</div>
             <div class="ui-value-component">
@@ -803,7 +804,7 @@
                 class="ui-value-operator"
                 @click.stop="handleOperatorBtnClick"
               >
-                {{ activeOperator.label }}
+                {{ $t(activeOperator.label) }}
               </div>
               <div style="display: none">
                 <div
@@ -811,20 +812,33 @@
                   class="ui-value-select"
                 >
                   <div
-                    v-for="option in activeFieldItem.field_operator"
-                    :class="['ui-value-option', { active: condition.operator === option.operator }]"
-                    :key="option.operator"
-                    @click="() => handleUiValueOptionClick(option)"
+                    v-if="!activeFieldItem.field_operator.length"
+                    class="empty-section"
                   >
-                    {{ option.label }}
+                    <bk-exception
+                      style="height: 100px"
+                      :type="conditionValueEmptyType"
+                      scene="part"
+                    >
+                    </bk-exception>
                   </div>
+                  <template v-else>
+                    <div
+                      v-for="option in activeFieldItem.field_operator"
+                      :class="['ui-value-option', { active: condition.operator === option.operator }]"
+                      :key="option.operator"
+                      @click="() => handleUiValueOptionClick(option)"
+                    >
+                      {{ option.label }}
+                    </div>
+                  </template>
                 </div>
               </div>
             </div>
           </div>
           <div
-            class="ui-value-row"
             v-if="isShowConditonValueSetting"
+            class="ui-value-row"
           >
             <div class="ui-value-label">
               <span>{{ getValueLabelShow(activeFieldItem.field_name) }}</span>
@@ -834,9 +848,9 @@
             </div>
             <template v-if="activeFieldItem.field_name === '*'">
               <bk-input
-                type="textarea"
                 v-model="condition.value[0]"
                 :rows="12"
+                type="textarea"
               ></bk-input>
             </template>
             <div
@@ -844,13 +858,13 @@
               :class="['condition-value-container', { 'is-focus': isConditionValueInputFocus }]"
             >
               <ul
-                class="condition-value-input"
                 ref="refConditionInput"
+                class="condition-value-input"
                 @click.stop="handleConditionValueClick"
               >
                 <li
-                  class="tag-item"
                   v-for="(item, index) in condition.value"
+                  class="tag-item"
                   :key="`${item}-${index}`"
                 >
                   <span class="tag-item-text">{{ item }}</span>
@@ -861,14 +875,14 @@
                 </li>
                 <li>
                   <input
-                    type="text"
                     ref="refValueTagInput"
                     class="tag-option-focus-input"
-                    @keyup.enter="handleValueInputEnter"
-                    @keyup.delete="handleDeleteInputValue"
+                    type="text"
                     @blur.stop="handleConditionValueInputBlur"
-                    @input.stop="handleInputVlaueChange"
                     @focus.stop="handleConditionValueInputFocus"
+                    @input.stop="handleInputVlaueChange"
+                    @keyup.delete="handleDeleteInputValue"
+                    @keyup.enter="handleValueInputEnter"
                   />
                 </li>
                 <div style="display: none">
@@ -881,15 +895,15 @@
                       class="empty-section"
                     >
                       <bk-exception
+                        style="height: 100px"
                         :type="conditionValueEmptyType"
                         scene="part"
-                        style="height: 100px"
                       >
                       </bk-exception>
                     </li>
                     <li
-                      :class="{ active: (condition.value ?? []).includes(item) }"
                       v-for="(item, index) in activeItemMatchList"
+                      :class="{ active: (condition.value ?? []).includes(item) }"
                       :key="`${item}-${index}`"
                       @click.stop="() => handleTagItemClick(item, index)"
                     >

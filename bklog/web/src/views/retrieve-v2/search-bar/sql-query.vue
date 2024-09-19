@@ -1,9 +1,9 @@
 <script setup>
   import { ref, nextTick, onMounted, watch } from 'vue';
 
+  import CreateLuceneEditor from './codemirror-lucene';
   import SqlQueryOptions from './sql-query-options';
   import useFocusInput from './use-focus-input';
-  import CreateLuceneEditor from './codemirror-lucene';
 
   const props = defineProps({
     value: {
@@ -106,7 +106,6 @@
   };
 
   const handleEditorClick = () => {
-    console.log('handleEditorClick');
     if (editorInstance === null) {
       createEditorInstance();
     }

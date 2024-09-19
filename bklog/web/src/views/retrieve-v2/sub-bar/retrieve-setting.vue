@@ -58,10 +58,10 @@
   });
 
   const accessList = ref([
-    {
-      id: 'logMasking',
-      name: $t('日志脱敏'),
-    },
+    // {
+    //   id: 'logMasking',
+    //   name: $t('日志脱敏'),
+    // },
     {
       id: 'logInfo',
       name: $t('采集详情'),
