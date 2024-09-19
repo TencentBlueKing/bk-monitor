@@ -178,6 +178,10 @@ export default class QueryStatement extends tsc<object> {
     return String(this.$route.params.indexId);
   }
 
+  get routeParamIndexId() {
+    return this.$route.params.indexId;
+  }
+
   /** 索引集权限 */
   get authorityMap() {
     return authorityMap;
@@ -352,7 +356,7 @@ export default class QueryStatement extends tsc<object> {
   @Watch('unionIndexList', { immediate: true, deep: true })
   initUnionList(val) {
     this.indexSearchType = !!val.length ? 'union' : 'single';
-    this.selectTagCatchIDList = !!val.length ? val : this.indexId ? [this.indexId] : [];
+    this.selectTagCatchIDList = !!val.length ? val : this.routeParamIndexId ? [this.routeParamIndexId] : [];
   }
 
   @Emit('selected')
@@ -532,12 +536,14 @@ export default class QueryStatement extends tsc<object> {
 
   /** 已选tag中的删除事件 */
   handleCloseSelectTag(item) {
+    console.log('@handleCloseSelectTag--');
     this.selectTagCatchIDList = this.selectTagCatchIDList.filter(catchVal => catchVal !== item.index_set_id);
     this.multipleFavoriteSelectID = null;
   }
 
   /** 切换多选或者单选 */
   handleClickSetType(type: IndexSetType) {
+    console.log('@handleClickSetType--');
     this.indexSearchType = type;
     this.multipleHistorySelectID = null;
     this.getIndexSetHistoryList(type);

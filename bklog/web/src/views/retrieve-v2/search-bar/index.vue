@@ -22,7 +22,7 @@
   const activeIndex = ref(0);
 
   const uiQueryValue = ref([]);
-  const sqlQueryValue = ref('*');
+  const sqlQueryValue = ref('');
 
   const indexItem = computed(() => store.state.indexItem);
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
@@ -84,16 +84,15 @@
   const handleBtnQueryClick = () => {
     store.commit('updateIndexItemParams', {
       addition: uiQueryValue.value.filter(val => !val.is_focus_input),
-      keyword: sqlQueryValue.value ?? '*',
+      keyword: sqlQueryValue.value ?? '',
     });
 
     store.dispatch('requestIndexSetQuery');
   };
 
   const handleIndexSetSelected = payload => {
-    console.log('handleIndexSetSelected payload', payload)
     if (!isEqual(indexItem.value.ids, payload.ids) || indexItem.value.isUnionIndex !== payload.isUnionIndex) {
-      store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids : []);
+      store.commit('updateUnionIndexList', payload.isUnionIndex ? (payload.ids ?? []) : []);
       store.dispatch('requestIndexSetItemChanged', payload ?? {}).then(() => {
         store.commit('retrieve/updateChartKey');
         store.dispatch('requestIndexSetQuery');

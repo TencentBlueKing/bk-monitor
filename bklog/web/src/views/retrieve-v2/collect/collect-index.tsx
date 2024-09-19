@@ -306,7 +306,7 @@ export default class CollectIndex extends tsc<IProps> {
     }
     if (selectIsUnionSearch) {
       if (!this.compareArrays(ids, this.unionIndexList) || isFavoriteSearch) {
-        this.$store.commit('updateUnionIndexList', ids);
+        this.$store.commit('updateUnionIndexList', ids ?? []);
       }
     } else {
       // 单选时弹窗关闭时 判断之前是否是多选 如果是多选 则直接检索

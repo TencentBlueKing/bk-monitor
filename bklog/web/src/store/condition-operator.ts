@@ -99,8 +99,20 @@ class ConditionOperator {
     return this.wildcardList.includes(this.item.operator);
   }
 
+  /**
+   * 是否为全文检索
+   */
+  get isFulltextField() {
+    return this.item.field === '*';
+  }
+
   /** 获取text类型操作符所需的值 */
   FormatOpetatorFrontToApi() {
+    // 如果是全文检索这里不做任何处理
+    if (this.isFulltextField) {
+      return this.item.operator;
+    }
+
     // 在前端的逻辑中，只有Text String类型的字段才支持配置是否启用通配符
     if (typeof this.item.isInclude === 'boolean') {
       let value = '';
@@ -126,7 +138,7 @@ class ConditionOperator {
   formatApiOperatorToFront() {
     // allContainsStrList 列表中包含的操作关系说明是 string | text 字段类型
     // 这些类型需要反向解析 FormatOpetatorFrontToApi 方法生成的语法
-    if (this.allContainsStrList.includes(this.item.operator)) {
+    if (!this.isFulltextField && this.allContainsStrList.includes(this.item.operator)) {
       const [key] = Object.entries(this.textMappingKey).find(([, value]) => value === this.item.operator);
 
       // this.containOperatorList 列表中所包含的操作关系说明是 OR 操作

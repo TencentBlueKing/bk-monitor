@@ -215,6 +215,7 @@
   const handleSaveQueryClick = payload => {
     const isPayloadValueEmpty = !(payload?.value?.length ?? 0);
     const isFulltextEnterVlaue = isInputFocus.value && isPayloadValueEmpty && !payload?.field;
+
     if (payload === 'ip-select-show') {
       const isHaveIpChooser = !!Object.keys(ipChooser.value).length;
       dialogIpChooser.value = isHaveIpChooser ? ipChooser.value : cacheIpChooser;
@@ -222,6 +223,7 @@
       getTippyInstance()?.hide();
       return;
     }
+
     // 如果是全文检索，未输入任何内容就点击回车
     // 此时提交无任何意义，禁止后续逻辑
     if (isFulltextEnterVlaue && !inputValue.value) {
@@ -250,6 +252,11 @@
     emitChange(modelValue.value);
   };
 
+  const handleInputValueEnter = () => {
+    if (!(getTippyInstance().state.isShown ?? false)) {
+      handleSaveQueryClick(undefined);
+    }
+  }
   const handleFullTextInputBlur = e => {
     if (!getTippyInstance()?.state?.isShown) {
       inputValue.value = '';
@@ -361,6 +368,7 @@
         @blur="handleFullTextInputBlur"
         @focus.stop="handleFocusInput"
         @keyup.delete="handleDeleteItem"
+        @keyup.enter="handleInputValueEnter"
       />
     </li>
     <div style="display: none">

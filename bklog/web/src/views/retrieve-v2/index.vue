@@ -81,7 +81,8 @@
   const handleSpaceIdChange = (resetParams = true) => {
     if (resetParams) {
       store.commit('resetIndexsetItemParams');
-      store.commit('updateIndexId');
+      store.commit('updateIndexId', '');
+      store.commit('updateUnionIndexList', []);
     }
 
     getIndexSetList();
@@ -100,6 +101,7 @@
   );
 
   watch(spaceUid, () => {
+    handleSpaceIdChange();
     const routeQuery = route.query ?? {};
     if (routeQuery.spaceUid !== spaceUid.value || routeQuery.bizId !== bkBizId.value) {
       router.push({
@@ -114,8 +116,6 @@
         },
       });
     }
-
-    handleSpaceIdChange();
   });
 
   const handleFavoritesClick = () => {
@@ -132,7 +132,6 @@
     e.stopPropagation();
     favoriteRef.value.isShowManageDialog = true;
   };
-
 
   const activeTab = ref('origin');
   const isRefreshList = ref(false);

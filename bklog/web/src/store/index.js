@@ -235,6 +235,11 @@ const store = new Vuex.Store({
 
       const searchParams =
         search_mode === 'sql' ? { keyword, addition: [] } : { addition: filterAddition, keyword: '*' };
+
+      if (searchParams.keyword.replace(/\s*/, '') === '') {
+        searchParams.keyword = '*';
+      }
+
       return {
         start_time,
         end_time,
