@@ -424,7 +424,11 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.refreshTopoLayout = this.refreshTopoLayout || (!this.graphData.nodes.length && !this.graphData.edges.length);
     if (this.needCache && this.graphAndTableDataCache.has(cacheKey)) {
       data = this.graphAndTableDataCache.get(cacheKey);
-      this.loading[exportType] = false;
+      if (exportType === 'topo' && data?.nodes?.length > 100) {
+        setTimeout(() => (this.loading[exportType] = false), 500);
+      } else {
+        this.loading[exportType] = false;
+      }
     } else {
       data = await topoView(params, {
         cancelToken: new CancelToken(c => {
@@ -438,7 +442,11 @@ export default class ApmRelationGraph extends CommonSimpleChart {
       /** 两个请求ID不一样， 说明是取消请求， 不关闭loading */
       if (this.requestId !== requestId) return;
       this.graphAndTableDataCache.set(cacheKey, data);
-      this.loading[exportType] = false;
+      if (exportType === 'topo' && data?.nodes?.length > 100) {
+        setTimeout(() => (this.loading[exportType] = false), 500);
+      } else {
+        this.loading[exportType] = false;
+      }
     }
     if (this.showType === 'topo') {
       this.graphData = data;
