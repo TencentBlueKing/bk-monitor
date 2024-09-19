@@ -103,8 +103,12 @@
   watch(spaceUid, () => {
     handleSpaceIdChange();
     const routeQuery = route.query ?? {};
+
     if (routeQuery.spaceUid !== spaceUid.value || routeQuery.bizId !== bkBizId.value) {
-      router.push({
+      const appendParamKeys = ['addition', 'end_time', 'keyword', 'start_time', 'timezone', 'unionList'];
+      const undefinedQuery = appendParamKeys.reduce((out, key) => Object.assign(out, { [key]: undefined }), {});
+
+      router.replace({
         params: {
           indexId: undefined,
         },
@@ -112,7 +116,7 @@
           ...routeQuery,
           spaceUid: spaceUid.value,
           bizId: bkBizId.value,
-          unionList: undefined,
+          ...undefinedQuery,
         },
       });
     }
