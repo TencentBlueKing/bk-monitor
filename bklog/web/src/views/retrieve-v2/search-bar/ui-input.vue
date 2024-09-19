@@ -1,19 +1,19 @@
 <script setup>
-  import { ref, computed, nextTick, set } from 'vue';
+  import { ref, computed, set } from 'vue';
 
   import { getOperatorKey } from '@/common/util';
+  import LogIpSelector from '@/components/log-ip-selector/log-ip-selector';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
 
-  import UiInputOptions from './ui-input-option.vue';
-  import useFocusInput from './use-focus-input';
-  import LogIpSelector from '@/components/log-ip-selector/log-ip-selector';
   import {
     getInputQueryDefaultItem,
     getInputQueryIpSelectItem,
     FulltextOperatorKey,
     FulltextOperator,
   } from './const.common';
+  import UiInputOptions from './ui-input-option.vue';
+  import useFocusInput from './use-focus-input';
 
   const props = defineProps({
     value: {
@@ -196,7 +196,7 @@
     showTagListItems(target);
   };
 
-  const handleDisabledTagItem = (item, e) => {
+  const handleDisabledTagItem = item => {
     set(item, 'disabled', !item.disabled);
     if (item.field === '_ip-select_') {
       store.commit('updateIndexItemParams', {
