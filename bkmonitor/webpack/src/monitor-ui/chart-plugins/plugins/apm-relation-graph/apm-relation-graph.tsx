@@ -704,6 +704,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               right-icon='bk-icon icon-search'
               value={this.filterCondition.searchValue}
               clearable
+              show-clear-only-hove
               onBlur={this.handleSearch}
               onChange={this.handleSearch}
               onClear={this.handleSearch}

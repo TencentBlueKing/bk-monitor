@@ -480,6 +480,12 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
                 type: 'scroll-canvas',
                 scalableRange: -0.92,
               },
+              {
+                type: 'edge-tooltip',
+                formatText: model => {
+                  return `${this.$t(this.edgeType === 'request_count' ? '请求量' : '耗时')}: ${model.label}`; // 自定义提示文本
+                },
+              },
             ],
           },
           /** 图布局 */
@@ -667,6 +673,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         activeNode.setState('active', true);
       }
       this.handleHighlightNode();
+      this.handleShowLegend();
     });
     // graph.on('edge:mouseenter', evt => {
     //   if (['rect', 'text'].includes(evt.target.get('type'))) {
@@ -750,7 +757,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     const hoverCircle = group.find(e => e.get('name') === 'custom-node-hover-circle');
     if (name === 'hover' && !item.hasState('active')) {
       const edges = item.getEdges();
-      item.toBack();
       hoverCircle.stopAnimate();
       if (value) {
         hoverCircle.animate(
