@@ -271,12 +271,15 @@
 
   // 取消提交逻辑
   const handleCancelRequest = () => {
+    initialization();
+    popoverContentRef.value.hideHandler();
+  };
+  const initialization =()=>{
     popoverShow.value = false;
     favoriteData.value.name = '';
     favoriteData.value.group_id = undefined;
     verifyData.value.groupName = '';
-    popoverContentRef.value.hideHandler();
-  };
+  }
   // popover组件Ref
   const popoverContentRef = ref();
   // 弹窗显示字段控制
@@ -305,16 +308,22 @@
     theme: 'light',
     placement: 'bottom-end',
     offset: '22',
+    interactive: true,
+    trigger: 'manual',
   };
+  const handlePopoverHide = () => {
+    initialization()
+  };
+
 </script>
 <template>
   <bk-popover
     ref="popoverContentRef"
     width="400"
     ext-cls="collection-favorite-popover"
-    :always="true"
-    :on-show="handlePopoverShow"
     :tippy-options="tippyOptions"
+    :on-hide="handlePopoverHide"
+    :on-show="handlePopoverShow"
   >
     <span
       :style="{
@@ -351,9 +360,10 @@
           >
             <bk-select
               v-model="favoriteData.group_id"
-              ext-popover-cls="add-popover-new-page-container"
+              ext-cls="add-popover-new-page-container"
               placeholder="未编组"
               searchable
+              :popover-options="{ appendTo: 'parent' }"
               @change="handleSelectGroup"
             >
               <bk-option
