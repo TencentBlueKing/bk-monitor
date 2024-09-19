@@ -39,8 +39,8 @@ import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import { isEnFn } from 'monitor-pc/utils';
 
 import { formatTimeUnitAndValue } from '../../../utils/utils';
+import CompareMiniChart, { EPointType } from '../../mini-time-series/compare-mini-chart';
 import CompareTopoFullscreen from './compare-topo-fullscreen/compare-topo-fullscreen';
-import MiniChart, { EPointType } from './mini-chart';
 
 import type { ITableColumn, ITablePagination, TableRow } from 'monitor-pc/pages/monitor-k8s/typings/table';
 
@@ -752,7 +752,7 @@ export default class DetailsSide extends tsc<IProps> {
                         key={row.id}
                         class='chart-wrap'
                       >
-                        <MiniChart
+                        <CompareMiniChart
                           compareX={this.compareX}
                           data={row.datapoints}
                           disableHover={!this.isCompare}
