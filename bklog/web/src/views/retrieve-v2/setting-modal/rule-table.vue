@@ -376,7 +376,7 @@
         dragOptions: {
           animation: 150,
           tag: 'ul',
-          handle: '.icon-drag-dots',
+          handle: '.bklog-drag-dots',
           'ghost-class': 'sortable-ghost-class',
         },
         /** 快速导入的dom */
@@ -791,7 +791,7 @@
         margin: 0 10px 0 4px;
       }
 
-      .icon-drag-dots {
+      .bklog-drag-dots {
         width: 16px;
         font-size: 14px;
         color: #979ba5;
@@ -810,7 +810,7 @@
         background: #eaf3ff;
         transition: background 0.2s linear;
 
-        .icon-drag-dots {
+        .bklog-drag-dots {
           opacity: 1;
           transition: opacity 0.2s linear;
         }
