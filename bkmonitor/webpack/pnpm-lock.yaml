@@ -345,8 +345,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/bk-weweb':
-        specifier: 0.0.26-beta.1
-        version: 0.0.26-beta.1
+        specifier: 0.0.26-beta.6
+        version: 0.0.26-beta.6
       '@blueking/bkui-library':
         specifier: 0.0.0-beta.4
         version: 0.0.0-beta.4
@@ -2413,6 +2413,11 @@ packages:
 
   /@blueking/bk-weweb@0.0.26-beta.1:
     resolution: {integrity: sha512-rWN9XLacXGjM0WXQAXmUzF3/XylxrmqZ3vTZRTL+CBSFABlC2UMvI95Zy1FXjnMh4gk4/IoWuFRWp9CZP73a1Q==}
+    engines: {node: '>=14.18.1'}
+    dev: false
+
+  /@blueking/bk-weweb@0.0.26-beta.6:
+    resolution: {integrity: sha512-hU4pbmQedYWaHKUSUJUmDJI/MJO59cGypkOemjsSHCSJ0fxjtNb5+CmBJJlRRwpTbIo5s8Y6TilvUuwYnd+HHg==}
     engines: {node: '>=14.18.1'}
     dev: false
 

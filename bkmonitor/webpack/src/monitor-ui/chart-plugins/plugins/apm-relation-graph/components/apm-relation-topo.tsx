@@ -170,7 +170,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   baseLayoutConf = {
     center: [this.canvasWidth / 2, this.canvasHeight / 2], // 布局的中心
     linkDistance: 400, // 边长度
-    maxIteration: 1000, // 最大迭代次数
+    maxIteration: 100, // 最大迭代次数
     preventOverlap: true, // 是否防止重叠
     nodeSize: 40, // 节点大小（直径）
     nodeSpacing: 500, // preventOverlap 为 true 时生效, 防止重叠时节点边缘间距的最小值

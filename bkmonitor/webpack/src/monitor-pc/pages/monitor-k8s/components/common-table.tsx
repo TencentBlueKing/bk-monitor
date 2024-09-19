@@ -390,7 +390,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     );
   }
   // link格式化
-  statckLinkFormatter(column: ITableColumn, val: ITableItem<'stack_link'>, row: TableRow) {
+  stackLinkFormatter(column: ITableColumn, val: ITableItem<'stack_link'>, row: TableRow) {
     const hasPermission = row.permission?.[column.actionId] ?? true;
     return (
       <div class='stack-link-col'>
@@ -491,6 +491,12 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       } else {
         // 跳转路径和当前路径一致，不进行跳转
         if (route.fullPath === this.$route.fullPath) {
+          return;
+        }
+        if (urlStr.startsWith('?')) {
+          this.$router.push({
+            path: urlStr,
+          });
           return;
         }
         this.$router.push({
@@ -662,7 +668,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       case 'link_list':
         return this.linkListFormatter(column, value as ITableItem<'link_list'>, row);
       case 'stack_link':
-        return this.statckLinkFormatter(column, value as ITableItem<'stack_link'>, row);
+        return this.stackLinkFormatter(column, value as ITableItem<'stack_link'>, row);
       case 'relation':
         return this.relationFormatter(value as ITableItem<'relation'>);
       case 'more_operate':
