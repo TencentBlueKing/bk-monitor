@@ -1698,6 +1698,10 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
     EXTRA_DISTINCT_FIELD = None
     EXTRA_AGG_DIMENSIONS = []
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.use_full_index_names = True
+
     @classmethod
     def init_by_query_config(cls, query_config: Dict, *args, **kwargs):
         return cls(
