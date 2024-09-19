@@ -1088,6 +1088,7 @@ class SearchHandler(object):
                         "scroll": self.scroll,
                         "collapse": self.collapse,
                         "search_after": search_after,
+                        "track_total_hits": False,
                     },
                 )
             else:
@@ -1114,6 +1115,7 @@ class SearchHandler(object):
                         "scroll": self.scroll,
                         "collapse": self.collapse,
                         "search_after": search_after,
+                        "track_total_hits": False,
                     },
                     data_api_retry_cls=DataApiRetryClass.create_retry_obj(
                         exceptions=[BaseException], stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY
