@@ -100,7 +100,7 @@ class ImportConfigResource(Resource):
         # 构建审计上报的参数
         event_name = "导入导出审计"
         event_content = f"导入{len(params['configs']['action'])}个自愈套餐, {len(params['configs']['rule'])}条策略, {len(params['configs']['notice'])}个告警组, {len(params['configs']['assign_group'])}个告警分派, {len(params['configs']['grafana'])}条仪表盘"
-        timestamp=params.get("timestamp", int(time.time() * 1000))
+        timestamp = params.get("timestamp", int(time.time() * 1000))
         params["dimensions"]["resource"] = f"{Path(inspect.getabsfile(self.__class__)).parent.name}.{self.__class__.__name__}"
         params["dimensions"]["user_name"] = get_request().user.username
 
@@ -446,7 +446,7 @@ class ExportConfigFileResource(ExportConfigResource):
         timestamp = serializers.IntegerField(label="事件时间戳(ms)", required=False)
 
     @classmethod
-    def create_tarfile(cls, configs: Dict[str, Iterable[Tuple[str, str, str]]]) -> Tuple[str, Dict[str,int]]:
+    def create_tarfile(cls, configs: Dict[str, Iterable[Tuple[str, str, str]]]) -> Tuple[str, Dict[str, int]]:
         """
         生成配置压缩包
 
