@@ -2974,6 +2974,9 @@ class CollectorHandler(object):
                         "match_labels": container_config.match_labels,
                         "match_expressions": container_config.match_expressions,
                     },
+                    "annotation_selector": {
+                        "match_annotations": container_config.match_annotations,
+                    },
                     "all_container": container_config.all_container,
                     "status": container_config.status,
                     "status_detail": container_config.status_detail,
@@ -3024,6 +3027,7 @@ class CollectorHandler(object):
             path_container_config_dict[path_container_config.collector_config_id].append(path_container_config)
         for std_container_config in std_container_config_list:
             std_container_config_dict[std_container_config.parent_container_config_id].append(std_container_config)
+            std_container_config_dict[std_container_config.collector_config_id].append(std_container_config)
 
         result = []
         for rule_id, collector in rule_dict.items():
@@ -3048,6 +3052,10 @@ class CollectorHandler(object):
             else:
                 collector_config_name = ""
 
+            is_collector_deleted = not bool(
+                collector["std_collector_config"].index_set_id or collector["path_collector_config"].index_set_id
+            )
+
             rule = {
                 "rule_id": rule_id,
                 "collector_config_name": collector_config_name,
@@ -3062,12 +3070,15 @@ class CollectorHandler(object):
                 "rule_std_index_set_id": collector["std_collector_config"].index_set_id,
                 "file_index_set_id": collector["path_collector_config"].index_set_id,  # TODO: 兼容代码4.8需删除
                 "std_index_set_id": collector["std_collector_config"].index_set_id,  # TODO: 兼容代码4.8需删除
-                "is_std_deleted": False if collector["std_collector_config"].index_set_id else True,
-                "is_file_deleted": False if collector["path_collector_config"].index_set_id else True,
+                "is_std_deleted": is_collector_deleted,
+                "is_file_deleted": is_collector_deleted,
                 "container_config": [],
             }
 
-            collector_config_id = collector["path_collector_config"].collector_config_id
+            collector_config_id = (
+                collector["path_collector_config"].collector_config_id
+                or collector["std_collector_config"].collector_config_id
+            )
             container_configs = path_container_config_dict.get(collector_config_id) or std_container_config_dict.get(
                 collector_config_id
             )
@@ -3093,6 +3104,9 @@ class CollectorHandler(object):
                         "label_selector": {
                             "match_labels": container_config.match_labels,
                             "match_expressions": container_config.match_expressions,
+                        },
+                        "annotation_selector": {
+                            "match_annotations": container_config.match_annotations,
                         },
                         "all_container": container_config.all_container,
                         "status": container_config.status,
@@ -3221,8 +3235,11 @@ class CollectorHandler(object):
             container_name = config["container"].get("container_name", "")
             match_labels = config["label_selector"].get("match_labels", [])
             match_expressions = config["label_selector"].get("match_expressions", [])
+            match_annotations = config["annotation_selector"].get("match_annotations", [])
 
-            is_all_container = not any([workload_type, workload_name, container_name, match_labels, match_expressions])
+            is_all_container = not any(
+                [workload_type, workload_name, container_name, match_labels, match_expressions, match_annotations]
+            )
 
             if config["paths"]:
                 # 配置了文件路径才需要下发路径采集
@@ -3245,6 +3262,7 @@ class CollectorHandler(object):
                         container_name=container_name,
                         match_labels=match_labels,
                         match_expressions=match_expressions,
+                        match_annotations=match_annotations,
                         all_container=is_all_container,
                         rule_id=bcs_rule.id,
                     )
@@ -3270,6 +3288,7 @@ class CollectorHandler(object):
                         container_name=container_name,
                         match_labels=match_labels,
                         match_expressions=match_expressions,
+                        match_annotations=match_annotations,
                         all_container=is_all_container,
                         rule_id=bcs_rule.id,
                         parent_container_config_id=parent_container_config_id,
@@ -3283,16 +3302,14 @@ class CollectorHandler(object):
 
         return {
             "rule_id": bcs_rule.id,
-            "rule_file_index_set_id": path_collector_config.index_set_id if path_collector_config else "",
-            "rule_file_collector_config_id": path_collector_config.collector_config_id if path_collector_config else "",
-            "rule_std_index_set_id": std_collector_config.index_set_id if std_collector_config else "",
-            "rule_std_collector_config_id": std_collector_config.collector_config_id if std_collector_config else "",
-            "file_index_set_id": path_collector_config.index_set_id
-            if path_collector_config
-            else "",  # TODO: 兼容代码4.8需删除
-            "std_index_set_id": std_collector_config.index_set_id if std_collector_config else "",  # TODO: 兼容代码4.8需删除
-            "bk_data_id": path_collector_config.bk_data_id if path_collector_config else "",
-            "stdout_conf": {"bk_data_id": std_collector_config.bk_data_id if std_collector_config else ""},
+            "rule_file_index_set_id": path_collector_config.index_set_id if path_collector_config else 0,
+            "rule_file_collector_config_id": path_collector_config.collector_config_id if path_collector_config else 0,
+            "rule_std_index_set_id": std_collector_config.index_set_id if std_collector_config else 0,
+            "rule_std_collector_config_id": std_collector_config.collector_config_id if std_collector_config else 0,
+            "file_index_set_id": path_collector_config.index_set_id if path_collector_config else 0,  # TODO: 兼容代码4.8需删除
+            "std_index_set_id": std_collector_config.index_set_id if std_collector_config else 0,  # TODO: 兼容代码4.8需删除
+            "bk_data_id": path_collector_config.bk_data_id if path_collector_config else 0,
+            "stdout_conf": {"bk_data_id": std_collector_config.bk_data_id if std_collector_config else 0},
         }
 
     def sync_bcs_container_task(self, data: Dict[str, Any]):
@@ -3568,12 +3585,12 @@ class CollectorHandler(object):
 
         return {
             "rule_id": rule_id,
-            "rule_file_index_set_id": path_collector.index_set_id if path_collector else "",
-            "rule_std_index_set_id": std_collector.index_set_id if std_collector else "",
-            "file_index_set_id": path_collector.index_set_id if path_collector else "",  # TODO: 兼容代码4.8需删除
-            "std_index_set_id": std_collector.index_set_id if std_collector else "",  # TODO: 兼容代码4.8需删除
-            "bk_data_id": path_collector.bk_data_id if path_collector else "",
-            "stdout_conf": {"bk_data_id": std_collector.bk_data_id if std_collector else ""},
+            "rule_file_index_set_id": path_collector.index_set_id if path_collector else 0,
+            "rule_std_index_set_id": std_collector.index_set_id if std_collector else 0,
+            "file_index_set_id": path_collector.index_set_id if path_collector else 0,  # TODO: 兼容代码4.8需删除
+            "std_index_set_id": std_collector.index_set_id if std_collector else 0,  # TODO: 兼容代码4.8需删除
+            "bk_data_id": path_collector.bk_data_id if path_collector else 0,
+            "stdout_conf": {"bk_data_id": std_collector.bk_data_id if std_collector else 0},
         }
 
     def deal_self_call(self, **kwargs):
