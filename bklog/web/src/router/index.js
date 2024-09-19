@@ -1039,8 +1039,10 @@ router.beforeEach(async (to, from, next) => {
   if (to.name === 'retrieve') {
     window.parent.postMessage(
       {
-        params: to.params,
-        query: to.query,
+        _MONITOR_URL_PARAMS_: to.params,
+        _MONITOR_URL_QUERY_: to.query,
+        _LOG_TO_MONITOR_: true,
+        _MONITOR_URL_: window.MONITOR_URL,
       },
       window.MONITOR_URL,
     );
