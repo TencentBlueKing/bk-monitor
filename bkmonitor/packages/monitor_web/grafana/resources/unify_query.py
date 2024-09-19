@@ -1378,27 +1378,31 @@ class DimensionUnifyQuery(Resource):
 
     @classmethod
     def query_dimensions(cls, params) -> List:
-        # 支持多字段查询
+        # 1、支持多维度字段值的查询
+        # 与GetVariableValue.query_dimension接口一样
         fields = params["dimension_field"].split("|")
 
-        # 如果是要查询"拓扑节点名称(bk_inst_id)"，则需要把"拓扑节点类型(bk_obj_id)"一并带上
+        # 2、如果是要查询"拓扑节点名称(bk_inst_id)"，则需要把"拓扑节点类型(bk_obj_id)"一并带上
+        # 与GetVariableValue.query_dimension接口一样
         if "bk_inst_id" in fields:
             # 确保bk_obj_id在bk_inst_id之前，为后面的dimensions翻译做准备
             fields = [f for f in fields if f != "bk_obj_id"]
             fields.insert(0, "bk_obj_id")
 
-        # 数据查询
+        # 3、数据查询
         data_sources = []
         for query_config in params["query_configs"]:
             metric = query_config["metrics"][0]
 
-            # http拨测，响应码和响应消息指标转换
+            # 3.1 http拨测，响应码和响应消息指标转换
+            # 与GetVariableValue.query_dimension接口一样
             if str(query_config["table"]).startswith("uptimecheck."):
                 query_config["where"] = []
                 if metric["field"] in ["response_code", "message"]:
                     metric["field"] = "available"
 
-            # 事件型指标特殊处理
+            # 3.2 事件型指标特殊处理
+            # 比GetVariableValue.query_dimension接口少了指标字段为系统时间主机重启、进程端口、PING不可达、自定义字符型的处理
             if query_config["table"] == SYSTEM_EVENT_RT_TABLE_ID:
                 # 特殊处理corefile signal的维度可选值
                 if metric["field"] == "corefile-gse" and params["dimension_field"] == "signal":
@@ -1406,18 +1410,27 @@ class DimensionUnifyQuery(Resource):
                 else:
                     return []
 
-            # 如果指标与待查询维度相同，则返回空
+            # 3.3 如果指标与待查询维度相同，则返回空
+            # 与GetVariableValue.query_dimension接口一样
             if metric["field"] == params["dimension_field"]:
                 return []
 
-            # 聚合字段设置为待查询字段
+            # 3.4 聚合字段设置为待查询字段
+            # 与GetVariableValue.query_dimension接口一样
             query_config["group_by"] = fields
-            # 扩大聚合周期
+            # 3.5 扩大聚合周期
+            # GetVariableValue.query_dimension中时间间隔根据传入的参数 interval 确定，
+            # 如果没有传入，则时间间隔基于开始时间和结束时间的范围而定
             query_config["interval"] = 600
 
             data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
             data_sources.append(data_source_class(bk_biz_id=params["bk_biz_id"], **query_config))
 
+        # 3.6 查询维度的值，会先调用UnifyQuery的query_dimensions方法
+        # 3.6.1 当只有一个data_source对象时，实际上与GetVariableValue.query_dimension中调用查询方法一样，
+        # 都是调用对应data_source的query_dimensions方法查询
+        # 3.6.2 比GetVariableValue.query_dimension多支持有多个data_source对象的查询
+        # 3.6.3 GetVariableValue.query_dimension查询时没有传expression参数
         expression = "+".join(q["metrics"][0]["alias"] for q in params["query_configs"])
         query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=data_sources, expression=expression)
         points = query.query_dimensions(
@@ -1428,13 +1441,17 @@ class DimensionUnifyQuery(Resource):
             interval=600,
         )
 
-        # 处理数据，支持多字段查找
+        # 4、 处理数据，支持多字段查找
+        # 与GetVariableValue.query_dimension调用的接口一样
         dimensions = resource.grafana.get_variable_value.assemble_dimensions(fields, points)
 
         return list(dimensions)
 
     def perform_request(self, params):
+        # 1、查询维度值
         dimensions = self.query_dimensions(params)
+        # 2、对维度值进行翻译并返回
+        # 与GetVariableValue.query_dimension调用的接口一样
         return resource.grafana.get_variable_value.dimension_translate(
             params["bk_biz_id"],
             {"field": params["dimension_field"], "result_table_id": params["query_configs"][0]["table"]},
