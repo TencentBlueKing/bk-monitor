@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, nextTick, onMounted, watch } from 'vue';
+  import { ref, nextTick, onMounted, onBeforeUnmount, watch } from 'vue';
 
   import CreateLuceneEditor from './codemirror-lucene';
   import SqlQueryOptions from './sql-query-options';
@@ -31,7 +31,18 @@
     return item;
   };
 
-  const { modelValue, delayShowInstance, getTippyInstance, handleContainerClick } = useFocusInput(props, {
+  const handleWrapperClick = e => {
+    return refEditorParent.value?.contains(e.target) ?? false;
+  };
+
+  const {
+    modelValue,
+    isDocumentMousedown,
+    setIsDocumentMousedown,
+    delayShowInstance,
+    getTippyInstance,
+    handleContainerClick,
+  } = useFocusInput(props, {
     onHeightChange: handleHeightChange,
     formatModelValueItem,
     refContent: refSqlQueryOption,
@@ -50,9 +61,15 @@
       return false;
     },
     onHiddenFn: () => {
+      if (isDocumentMousedown.value) {
+        setIsDocumentMousedown(false);
+        return false;
+      }
+
       refSqlQueryOption.value?.beforeHideFn?.();
       return true;
     },
+    handleWrapperClick,
   });
 
   const setEditorContext = val => {
@@ -135,10 +152,6 @@
     getTippyInstance()?.hide();
     handleContainerClick();
   };
-
-  onMounted(() => {
-    createEditorInstance();
-  });
 </script>
 <template>
   <div

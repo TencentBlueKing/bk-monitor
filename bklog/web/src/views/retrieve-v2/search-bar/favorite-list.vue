@@ -1,9 +1,18 @@
 <script setup>
   import { computed, ref } from 'vue';
   import useStore from '@/hooks/use-store';
+  // @ts-ignore
+  import { getRegExp } from '@/common/util';
 
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
+
+  const props = defineProps({
+    searchValue: {
+      type: String,
+      default: '',
+    },
+  });
 
   const store = useStore();
   const emit = defineEmits(['change']);
@@ -11,13 +20,21 @@
   const indexSetItemIdList = computed(() => store.state.indexItem.ids);
   const favoriteGroupList = computed(() => store.state.favoriteList.map(f => f.favorites).flat());
 
+  const regExpString = computed(() => props.value?.replace(/$\s*|\s*$/ig, '') ?? '');
+
   // 数据格式: [{ group_id: '', group_name: '', group_type: '' }]
   const favoriteList = computed(() =>
-    favoriteGroupList.value.filter(
-      item =>
-        (item.search_mode === 'sql' && indexSetItemIdList.value.includes(`${item.index_set_id}`)) ||
-        item.index_set_ids?.some(id => indexSetItemIdList.value.includes(`${id}`)),
-    ),
+    favoriteGroupList.value
+      .filter(item => {
+        return (
+          (item.search_mode === 'sql' && indexSetItemIdList.value.includes(`${item.index_set_id}`)) ||
+          item.index_set_ids?.some(id => indexSetItemIdList.value.includes(`${id}`))
+        );
+      })
+      .filter(child => {
+        const regExp = getRegExp(regExpString.value);
+        return regExp.test(child.params?.keyword);
+      }),
   );
 
   const svgImg = ref({ imgUpDownKey, imgEnterKey });

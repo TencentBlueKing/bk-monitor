@@ -599,7 +599,10 @@
           </div>
         </template>
       </ul>
-      <FavoriteList @change="handleFavoriteClick"></FavoriteList>
+      <FavoriteList
+        @change="handleFavoriteClick"
+        :searchValue="value"
+      ></FavoriteList>
     </div>
     <div :class="['sql-syntax-tips', { 'is-show': isRetractShow }]">
       <span

@@ -1160,3 +1160,7 @@ export const sessionShowFieldObj = () => {
   const showFieldStr = sessionStorage.getItem('showFieldSession');
   return !showFieldStr ? {} : JSON.parse(showFieldStr);
 };
+
+export const getRegExp = (searchValue, flags = 'ig') => {
+  return new RegExp(`${searchValue}`.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), flags);
+};

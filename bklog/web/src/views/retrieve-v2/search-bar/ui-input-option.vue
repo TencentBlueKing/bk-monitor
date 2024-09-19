@@ -2,7 +2,7 @@
   import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue';
 
   // @ts-ignore
-  import { getCharLength } from '@/common/util';
+  import { getCharLength, getRegExp } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import imgEnterKey from '@/images/icons/enter-key.svg';
@@ -115,10 +115,6 @@
   const activeFieldItem = ref(getFieldConditonItem());
   const condition = ref(getInputQueryDefaultItem());
 
-  const getRegExp = (searchValue, flags = 'ig') => {
-    return new RegExp(`${searchValue}`.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), flags);
-  };
-
   const fieldList = computed(() => {
     let list = [fullTextField.value];
     list = list.concat(indexFieldInfo.value.fields);
@@ -193,11 +189,23 @@
     activeIndex.value = filterIndex;
   };
 
+  /**
+   * 接口返回结果是否为空
+   */
+  const isFieldListEmpty = computed(() => !indexFieldInfo.value.fields.length);
+  const isSearchEmpty = computed(() => !isFieldListEmpty.value && !filterFieldList.value.length);
+  const exceptionType = computed(() => (isFieldListEmpty.value ? 'empty' : 'search-empty'));
+
+  /**
+   * 是否显示全文检索文本 & 快捷键使用说明
+   * 如果当前是光标在input输入框之内 & 当前激活字段索引为0时，说明当前选中的是全文检索
+   * 如果当前激活条目为IP目标，此时判定也为生效，用于展示IP选择器使用说明
+   */
   const showFulltextMsg = computed(() => {
-    if (props.isInputFocus) {
-      return activeIndex.value === 0 || activeIndex.value === filterFieldList.value.length - 1;
-    }
-    return false;
+    return (
+      activeFieldItem.value.field_name === '_ip-select_' ||
+      (props.isInputFocus && activeFieldItem.value.field_name === '*')
+    );
   });
 
   watch(
@@ -766,10 +774,27 @@
               >({{ item.field_name }})</span
             >
           </div>
+          <template v-if="isFieldListEmpty || isSearchEmpty">
+            <bk-exception
+              :type="exceptionType"
+              style=" justify-content: center;height: 260px"
+              scene="part"
+            >
+            </bk-exception>
+          </template>
         </div>
       </div>
       <div :class="['value-list', { 'is-full-text': showFulltextMsg }]">
-        <template v-if="showFulltextMsg">
+        <template v-if="isSearchEmpty">
+          <bk-exception
+            type="500"
+            scene="part"
+            style=" justify-content: center;height: 260px"
+          >
+            搜索为空，无需条件设置
+          </bk-exception>
+        </template>
+        <template v-else-if="showFulltextMsg">
           <template v-if="activeIndex === 0">
             <div class="full-text-title">{{ $t('全文检索') }}</div>
             <div class="full-text-sub-title">
@@ -907,7 +932,7 @@
                       :key="`${item}-${index}`"
                       @click.stop="() => handleTagItemClick(item, index)"
                     >
-                      <span>{{ item }}</span>
+                      <div>{{ item }}</div>
                     </li>
                   </ul>
                 </div>
@@ -1050,6 +1075,8 @@
     }
 
     .condition-value-options {
+      display: inline-flex;
+      flex-direction: column;
       width: 338px;
       max-height: 300px;
       overflow: auto;
@@ -1062,13 +1089,16 @@
         max-width: 100%;
         height: 32px;
         padding: 6px 8px;
-        overflow: hidden;
         font-size: 12px;
         color: #63656e;
-        text-overflow: ellipsis;
-        white-space: nowrap;
         cursor: pointer;
         background: #ffffff;
+
+        > div {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
 
         &.empty-section {
           height: 100px;

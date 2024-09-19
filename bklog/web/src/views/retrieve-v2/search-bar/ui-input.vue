@@ -92,31 +92,50 @@
   const isOptionShowing = ref(false);
   let delayItemClickFn = undefined;
 
-  const { modelValue, inputValue, hideTippyInstance, getTippyInstance, handleInputBlur, delayShowInstance } =
-    useFocusInput(props, {
-      onHeightChange: handleHeightChange,
-      formatModelValueItem,
-      refContent: refPopInstance,
-      onShowFn: () => {
-        isOptionShowing.value = true;
-        refPopInstance.value?.beforeShowndFn?.();
-      },
-      onHiddenFn: () => {
-        refPopInstance.value?.afterHideFn?.();
-        isOptionShowing.value = false;
+  // const handleWrapperClick = (e, { getTippyInstance }) => {
+  //   const instance = getTippyInstance();
 
-        // inputValue.value = '';
-        handleInputBlur();
+  //   if (instance?.state?.isShown) {
+  //     return e.target.contains(instance?.reference);
+  //   }
 
-        delayItemClickFn?.();
-        delayItemClickFn = undefined;
-        return true;
-      },
-    });
+  //   return false;
+  // };
+
+  const {
+    modelValue,
+    inputValue,
+
+    hideTippyInstance,
+    getTippyInstance,
+    handleInputBlur,
+    delayShowInstance,
+  } = useFocusInput(props, {
+    onHeightChange: handleHeightChange,
+    formatModelValueItem,
+    refContent: refPopInstance,
+    onShowFn: () => {
+      isOptionShowing.value = true;
+      refPopInstance.value?.beforeShowndFn?.();
+    },
+    onHiddenFn: () => {
+      refPopInstance.value?.afterHideFn?.();
+      isOptionShowing.value = false;
+
+      // inputValue.value = '';
+      handleInputBlur();
+
+      delayItemClickFn?.();
+      delayItemClickFn = undefined;
+      return true;
+    },
+  });
 
   const debounceShowInstance = debounce(() => {
-    const target = refSearchInput.value.closest('.search-item');
-    delayShowInstance(target);
+    const target = refSearchInput.value?.closest('.search-item');
+    if (target) {
+      delayShowInstance(target);
+    }
   }, 300);
 
   /**
@@ -270,7 +289,6 @@
   };
 
   const handleFullTextInputBlur = e => {
-    console.log('handleFullTextInputBlur')
     if (!getTippyInstance()?.state?.isShown) {
       inputValue.value = '';
       handleInputBlur(e);
@@ -312,6 +330,10 @@
 
       needDeleteItem.value = true;
     }
+  };
+
+  const handleWrapperClickCapture = e => {
+    isEditorContainerClick = refEditorParent.value?.contains(e.target) ?? false;
   };
 </script>
 

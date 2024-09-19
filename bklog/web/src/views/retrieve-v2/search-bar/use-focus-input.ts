@@ -42,11 +42,13 @@ export default (
     tippyOptions = {},
     onHeightChange,
     addInputListener = true,
+    handleWrapperClick = undefined,
   },
 ) => {
   const modelValue = ref([]);
   const inputValue = ref('');
   const sectionHeight = ref(0);
+  const isDocumentMousedown = ref(false);
 
   let resizeObserver = null;
   const INPUT_MIN_WIDTH = 12;
@@ -144,9 +146,17 @@ export default (
     { deep: true, immediate: true },
   );
 
+  const handleWrapperClickCapture = e => {
+    isDocumentMousedown.value = handleWrapperClick?.(e, { getTippyInstance }) ?? true;
+  };
+
+  const setIsDocumentMousedown = val => {
+    isDocumentMousedown.value = val;
+  };
+
   onMounted(() => {
     instance = getCurrentInstance();
-
+    document.addEventListener('mousedown', handleWrapperClickCapture, { capture: true });
     document?.addEventListener('click', handleContainerClick);
     if (addInputListener) {
       document?.addEventListener('input', handleFulltextInput);
@@ -160,12 +170,16 @@ export default (
     if (addInputListener) {
       document?.removeEventListener('input', handleFulltextInput);
     }
+
+    document.removeEventListener('mousedown', handleWrapperClickCapture);
     resizeObserver?.disconnect();
   });
 
   return {
     modelValue,
     inputValue,
+    isDocumentMousedown,
+    setIsDocumentMousedown,
     hideTippyInstance,
     getTippyInstance,
     handleContainerClick,
