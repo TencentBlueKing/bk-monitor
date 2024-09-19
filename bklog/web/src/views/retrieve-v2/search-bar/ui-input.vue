@@ -15,6 +15,8 @@
     FulltextOperator,
   } from './const.common';
 
+  import { debounce } from 'lodash';
+
   const props = defineProps({
     value: {
       type: Array,
@@ -101,7 +103,7 @@
         refPopInstance.value?.afterHideFn?.();
         isOptionShowing.value = false;
 
-        inputValue.value = '';
+        // inputValue.value = '';
         handleInputBlur();
 
         delayItemClickFn?.();
@@ -109,6 +111,11 @@
         return true;
       },
     });
+
+  const debounceShowInstance = debounce(() => {
+    const target = refSearchInput.value.closest('.search-item');
+    delayShowInstance(target);
+  }, 300);
 
   /**
    * 执行点击弹出操作项方法
@@ -256,8 +263,10 @@
     if (!(getTippyInstance().state.isShown ?? false)) {
       handleSaveQueryClick(undefined);
     }
-  }
+  };
+
   const handleFullTextInputBlur = e => {
+    console.log('handleFullTextInputBlur')
     if (!getTippyInstance()?.state?.isShown) {
       inputValue.value = '';
       handleInputBlur(e);
@@ -268,12 +277,17 @@
     getTippyInstance()?.hide();
   };
 
-  const handleFocusInput = e => {
+  const handleFocusInput = () => {
     isInputFocus.value = true;
     activeIndex.value = null;
     queryItem.value = '';
-    const target = e.target.closest('.search-item');
-    showTagListItems(target);
+    debounceShowInstance();
+  };
+
+  const handleInputValueChange = () => {
+    if (inputValue.value.length && !getTippyInstance()?.state?.isShown) {
+      debounceShowInstance();
+    }
   };
 
   const needDeleteItem = ref(false);
@@ -289,10 +303,6 @@
           emitChange(modelValue.value);
 
           hideTippyInstance();
-          // setTimeout(() => {
-          //   refSearchInput.value?.focus();
-          //   handleFocusInput({ target: refSearchInput.value });
-          // }, 300);
         }
       }
 
@@ -369,6 +379,7 @@
         @focus.stop="handleFocusInput"
         @keyup.delete="handleDeleteItem"
         @keyup.enter="handleInputValueEnter"
+        @input="handleInputValueChange"
       />
     </li>
     <div style="display: none">
