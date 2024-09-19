@@ -11,7 +11,7 @@
     "fix": "npm run lint"
   },
   "dependencies": {
-    "@blueking/bk-weweb": "0.0.26-beta.1",
+    "@blueking/bk-weweb": "0.0.26-beta.6",
     "@blueking/bkui-library": "0.0.0-beta.4",
     "@blueking/date-picker": "2.0.0-beta.32",
     "@blueking/fork-resize-detector": "^0.0.2",
@@ -51,10 +51,7 @@
     "vuex-module-decorators": "^1.2.0",
     "xlsx": "^0.18.5"
   },
-  "keywords": [
-    "monitor",
-    "pc"
-  ],
+  "keywords": ["monitor", "pc"],
   "author": "bk fe",
   "license": "MIT",
   "devDependencies": {
