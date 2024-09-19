@@ -48,7 +48,7 @@
   </div>
 </template>
 <script>
-import { ConditionOperator } from '@/store/condition-operator';
+  import { ConditionOperator } from '@/store/condition-operator';
   export default {
     data() {
       return {
@@ -131,14 +131,16 @@ import { ConditionOperator } from '@/store/condition-operator';
             params,
           })
           .then(res => {
-            this.historyRecords = res.data.map(item => {
-              item.params.addition = item.params.addition.map(element => {
-                const instance = new ConditionOperator(element);
-                return instance.formatApiOperatorToFront();
-              });
+            this.historyRecords = res.data
+              .filter(item => item.query_string !== '*')
+              .map(item => {
+                item.params.addition = item.params.addition.map(element => {
+                  const instance = new ConditionOperator(element);
+                  return instance.formatApiOperatorToFront();
+                });
 
-              return item;
-            });
+                return item;
+              });
             this.isHistoryRecords = !!this.historyRecords.length;
           })
           .finally(() => {
