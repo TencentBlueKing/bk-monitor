@@ -1033,7 +1033,8 @@ class TestBkMonitorLogDataSource:
         }
 
         data_source = BkMonitorLogDataSource.init_by_query_config(query_config)
-        data = data_source.query_data(start_time=1614334800000, end_time=1614334860000)
+        # limit=200000 验证 limit 始终为 None
+        data = data_source.query_data(start_time=1614334800000, end_time=1614334860000, limit=200000)
 
         assert len(data) == 2
         assert data == [

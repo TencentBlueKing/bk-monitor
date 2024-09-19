@@ -1560,6 +1560,10 @@ class BkMonitorLogDataSource(DataSource):
     def _process_log_queryset(self, queryset):
         return queryset
 
+    @classmethod
+    def handle_limit(cls, limit) -> Optional[int]:
+        return None
+
     def query_data(
         self,
         start_time: int = None,
@@ -1594,7 +1598,7 @@ class BkMonitorLogDataSource(DataSource):
                 order_by=self.order_by,
                 interval=self.interval,
                 where=self._get_filter_dict(bk_obj_id, bk_inst_ids),
-                limit=limit,
+                limit=self.handle_limit(limit),
                 time_field=self.time_field,
                 start_time=start_time,
                 end_time=end_time,
@@ -1742,6 +1746,10 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
         if self.interval:
             return queryset
         return queryset.dsl_date_histogram(False)
+
+    @classmethod
+    def handle_limit(cls, limit) -> int:
+        return limit
 
     def query_data(
         self,
