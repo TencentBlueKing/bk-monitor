@@ -244,14 +244,19 @@
         }
 
         .toggle-wrap {
-          margin-left: 6px;
-          font-size: 22px;
+          position: relative;
+          margin: 8px 0 0 12px;
           color: #979ba5;
           cursor: pointer;
-          transform: rotate(90deg);
+
+          .rotate {
+            transform: rotate(90deg);
+          }
 
           .icon-double-up {
-            font-size: 22px;
+
+            font-size: 24px;
+
           }
         }
 
@@ -296,6 +301,10 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
+
+        .ml-16 {
+          margin-left: 16px;
+        }
 
         .icon-mc-full-screen,
         .icon-mc-merge {

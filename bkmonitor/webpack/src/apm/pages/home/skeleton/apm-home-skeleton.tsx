@@ -41,7 +41,7 @@ export default class AppListSkeleton extends tsc<IProps> {
         {new Array(this.count).fill(null).map((_, index) => (
           <div
             key={index}
-            class='expan-header'
+            class='expand-header'
           >
             <div class='header-left'>
               <div class='skeleton skeleton-element' />

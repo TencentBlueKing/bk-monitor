@@ -36,12 +36,23 @@ import introduceData from 'monitor-pc/router/space';
 
 import { SEARCH_KEYS } from '../utils';
 
-import type { IAppListItem } from '../apm-home';
+import type { PartialAppListItem } from '../apm-home';
 import type { IFilterDict } from 'monitor-pc/pages/monitor-k8s/typings';
 
+interface IProps {
+  itemRow: PartialAppListItem;
+  showGuidePage?: boolean;
+}
+
+interface IEvent {
+  onGetServiceData?: (appIds: number[], isScrollEnd?: boolean, isRefresh?: boolean) => void;
+  onHandleSearchCondition?: (value) => void;
+  onHandleToConfig?: (row: PartialAppListItem) => void;
+  onLinkToOverview?: (row: PartialAppListItem) => void;
+}
 @Component({})
-export default class ApmHomeList extends tsc<object> {
-  @Prop({ type: Object }) itemRow;
+export default class ApmHomeList extends tsc<IProps, IEvent> {
+  @Prop() itemRow: PartialAppListItem;
   @Prop({ default: false, type: Boolean }) showGuidePage: boolean;
   @Ref() mainResize: any;
 
@@ -171,7 +182,7 @@ export default class ApmHomeList extends tsc<object> {
    * @param val
    * @param row
    */
-  handleCollect(val, item: IAppListItem) {
+  handleCollect(val, item: PartialAppListItem) {
     const apis = val.api.split('.');
     (this as any).$api[apis[0]][apis[1]](val.params).then(() => {
       item.tableData.paginationData.current = 1;
@@ -185,7 +196,7 @@ export default class ApmHomeList extends tsc<object> {
    * @param filters
    * @param item
    */
-  handleFilterChange(filters: IFilterDict, item: IAppListItem) {
+  handleFilterChange(filters: IFilterDict, item: PartialAppListItem) {
     item.tableFilters = filters;
     item.tableData.paginationData.current = 1;
     item.tableData.paginationData.isEnd = false;
@@ -196,7 +207,7 @@ export default class ApmHomeList extends tsc<object> {
    * @description 表格滚动到底部
    * @param row
    */
-  handleScrollEnd(item: IAppListItem) {
+  handleScrollEnd(item: PartialAppListItem) {
     item.tableData.paginationData.current += 1;
     this.handleEmit('getServiceData', [item.application_id], true);
   }
@@ -206,7 +217,7 @@ export default class ApmHomeList extends tsc<object> {
    * @param param0
    * @param item
    */
-  handleSortChange({ prop, order }, item: IAppListItem) {
+  handleSortChange({ prop, order }, item: PartialAppListItem) {
     switch (order) {
       case 'ascending':
         item.tableSortKey = prop;
@@ -293,6 +304,7 @@ export default class ApmHomeList extends tsc<object> {
                 <div class='app-list-content'>
                   <div class='app-list-content-top'>
                     <bk-button
+                      class={[{ 'ml-16': !this.showFilterPanel }]}
                       theme='primary'
                       outline
                     >
@@ -316,7 +328,7 @@ export default class ApmHomeList extends tsc<object> {
                         key={this.itemRow.application_id}
                         class='item-expand-wrap'
                       >
-                        {this.itemRow.isExpan && (
+                        {
                           <div class='expand-content'>
                             {this.itemRow.tableData.data.length || this.itemRow.tableData.loading ? (
                               (() => {
@@ -327,6 +339,7 @@ export default class ApmHomeList extends tsc<object> {
                                   // 列名接口返回
                                   <CommonTable
                                     {...{ props: this.itemRow.tableData }}
+                                    hasColnumSetting={false}
                                     onCollect={val => this.handleCollect(val, this.itemRow)}
                                     onFilterChange={val => this.handleFilterChange(val, this.itemRow)}
                                     onScrollEnd={() => this.handleScrollEnd(this.itemRow)}
@@ -342,25 +355,10 @@ export default class ApmHomeList extends tsc<object> {
                               />
                             )}
                           </div>
-                        )}
+                        }
                       </div>
                     </div>
                   </div>
-                  {/* {!(this.pagination.current === 1 && this.loading) && (
-                    <div class='bottom-loading-status'>
-                      {(this.loading || this.pagination.isEnd) && (
-                        <div class='loading-box'>
-                          {this.loading && <div class='spinner' />}
-                          {(() => {
-                            if (!this.appList.length) {
-                              return this.$t('暂无数据');
-                            }
-                            return this.pagination.isEnd ? this.$t('到底了') : this.$t('正加载更多内容…');
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                  )} */}
                 </div>
               )}
             </div>
@@ -369,7 +367,10 @@ export default class ApmHomeList extends tsc<object> {
               slot='collapse-trigger'
               onClick={this.handleHidePanel}
             >
-              <div v-show={!this.showFilterPanel}>
+              <div
+                class='rotate'
+                v-show={!this.showFilterPanel}
+              >
                 <i class='icon-monitor icon-double-up' />
               </div>
             </div>
