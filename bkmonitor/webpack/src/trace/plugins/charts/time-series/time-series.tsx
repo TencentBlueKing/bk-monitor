@@ -492,6 +492,17 @@ export default defineComponent({
           break;
       }
     }
+
+    function handleSetThreholds() {
+      const { markLine } = props.panel?.options?.time_series || {};
+      const thresholdList = markLine?.data?.map?.(item => item.yAxis) || [];
+      const max = Math.max(...thresholdList);
+      return {
+        canScale: thresholdList.length > 0 && thresholdList.every((set: number) => set > 0),
+        minThreshold: Math.min(...thresholdList),
+        maxThreshold: max + max * 0.1, // 防止阈值最大值过大时title显示不全
+      };
+    }
     // 获取图表数据
     const getPanelData = debounce(300, async (start_time?: string, end_time?: string) => {
       cancelTokens.forEach(cb => cb?.());
@@ -648,7 +659,7 @@ export default defineComponent({
             });
           }
           const formatterFunc = handleSetFormatterFunc(seriesList[0].data);
-          // const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
+          const { maxThreshold } = handleSetThreholds();
 
           const chartBaseOptions = MONITOR_LINE_OPTIONS;
 
@@ -706,6 +717,8 @@ export default defineComponent({
                   minInterval: 1,
                   scale: !(height.value < 120),
                   position: 'right',
+                  max: v => Math.max(v.max, +maxThreshold),
+                  min: 0,
                 },
               ],
               xAxis: {
