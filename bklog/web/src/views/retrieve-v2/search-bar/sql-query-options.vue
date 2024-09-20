@@ -651,7 +651,6 @@
       position: relative;
       width: 240px;
       background: #fafbfd;
-      border: 1px solid #dcdee5;
       border-radius: 0 2px 2px 0;
 
       .sql-query-retract {
@@ -677,8 +676,8 @@
         height: 100%;
         padding: 12px;
         background: #fafbfd;
-        border: 1px solid #dcdee5;
         border-radius: 0 2px 2px 0;
+        outline:1px solid #dcdee5;
 
         .sql-query-fold-title {
           display: flex;
