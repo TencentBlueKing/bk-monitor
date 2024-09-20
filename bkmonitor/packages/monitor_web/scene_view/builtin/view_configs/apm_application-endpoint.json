@@ -146,7 +146,7 @@
     {
       "id": 3,
       "title": "错误数",
-      "type": "graph",
+      "type": "apm-timeseries-chart",
       "gridPos": {
         "x": 8,
         "y": 6,
@@ -238,7 +238,8 @@
               ]
             }
           },
-          "yAxisIndex": 0
+          "yAxisIndex": 0,
+          "chart_type": "bar"
         },
         {
           "data_type": "time_series",
@@ -248,8 +249,8 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "unit": "percent",
-            "expression": "(a / b) * 100",
+            "unit": "percentunit",
+            "expression": "a / b",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -372,7 +373,8 @@
               ]
             }
           },
-          "yAxisIndex": 1
+          "yAxisIndex": 1,
+          "chart_type": "line"
         }
       ],
       "options": {
@@ -1023,7 +1025,7 @@
     {
       "id": 3,
       "title": "错误数",
-      "type": "graph",
+      "type": "apm-timeseries-chart",
       "gridPos": {
         "x": 8,
         "y": 6,
@@ -1110,7 +1112,8 @@
               ]
             }
           },
-          "yAxisIndex": 0
+          "yAxisIndex": 0,
+          "chart_type": "bar"
         },
         {
           "data_type": "time_series",
@@ -1119,8 +1122,8 @@
           "alias": "错误率",
           "data": {
             "app_name": "${app_name}",
-            "unit": "percent",
-            "expression": "(a / b) * 100",
+            "unit": "percentunit",
+            "expression": "a / b",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1233,7 +1236,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "chart_type": "line"
           },
           "yAxisIndex": 1
         }

@@ -152,7 +152,7 @@ class DynamicUnifyQueryResource(Resource):
         end_time = serializers.IntegerField(label="结束时间")
         component_instance_id = ComponentInstanceIdDynamicField(required=False, label="组件实例id(组件页面下有效)")
         unit = serializers.CharField(label="图表单位(多指标计算时手动返回)", default=False)
-        bar_count = serializers.IntegerField(label="图表柱子数量(用于特殊配置的场景 仅影响 interval)", required=False)
+        fill_bar = serializers.BooleanField(label="是否需要补充柱子(用于特殊配置的场景 仅影响 interval)", required=False)
 
     def perform_request(self, validate_data):
         unify_query_params = {
@@ -163,11 +163,10 @@ class DynamicUnifyQueryResource(Resource):
         }
 
         require_fill_series = False
-        if validate_data.get("bar_count"):
+        if validate_data.get("fill_bar"):
             interval = get_bar_interval_number(
                 validate_data["start_time"],
                 validate_data["end_time"],
-                size=validate_data["bar_count"],
             )
             for config in unify_query_params["query_configs"]:
                 config["interval"] = interval
@@ -268,9 +267,9 @@ class DynamicUnifyQueryResource(Resource):
     def fill_unit_and_series(cls, response, unit, start_time, end_time, require_fill_series=False):
         response = {
             "metrics": response.get("metrics"),
-            "series": fill_series(
-                response.get("series", []), start_time, end_time
-            ) if require_fill_series else response.get("series", []),
+            "series": fill_series(response.get("series", []), start_time, end_time)
+            if require_fill_series
+            else response.get("series", []),
         }
         if not unit:
             return response
@@ -1891,8 +1890,6 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
 
 
 class AlertQueryResource(Resource):
-    bar_size = 30
-
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
@@ -1952,7 +1949,7 @@ class AlertQueryResource(Resource):
             "bk_biz_ids": [bk_biz_id],
             "start_time": start_time,
             "end_time": end_time,
-            "interval": get_bar_interval_number(start_time, end_time, size=self.bar_size),
+            "interval": get_bar_interval_number(start_time, end_time),
             "query_string": f"metric: custom.{application.metric_result_table_id}.*",
             "conditions": [
                 {"key": "severity", "value": [level]},
@@ -1972,7 +1969,7 @@ class AlertQueryResource(Resource):
             series = []
             for i in response["series"]:
                 # 查询告警这个接口会返回多一个点 这里将时间点控制为符合 bar_size 的个数
-                series.append({**i, "data": i["data"][: self.bar_size]})
+                series.append({**i, "data": i["data"]})
             alert_level_result[level] = {"series": series, "unit": ""}
         return alert_level_result
 
@@ -1991,7 +1988,7 @@ class AlertQueryResource(Resource):
         if ApplicationHandler.have_data(application, start_time, end_time):
             format_alert_data = self.get_alert_data(application, bk_biz_id, start_time, end_time, strategy_id)
             time_list = self.format_alert_data(format_alert_data)
-            series = [{"datapoints": time_list, "dimensions": {}, "target": "alert", "type": "bar", "unit": ""}]
+            series = [{"datapoints": time_list[:-1], "dimensions": {}, "target": "alert", "type": "bar", "unit": ""}]
 
         return {
             "metrics": [],

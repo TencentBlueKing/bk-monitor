@@ -95,6 +95,7 @@ from constants.strategy import (
     HOST_SCENARIO,
     SERVICE_SCENARIO,
     SYSTEM_EVENT_RT_TABLE_ID,
+    SYSTEM_PROC_PORT_METRIC_ID,
     AdvanceConditionMethod,
     DataTarget,
     TargetFieldType,
@@ -152,6 +153,9 @@ def get_metric_id(
             DataTypeLabel.TIME_SERIES: f"{data_source_label}.{result_table_id}.{metric_field}",
         },
     }
+    # 特殊事件: 进程端口
+    if kwargs.get("metric_id") == SYSTEM_PROC_PORT_METRIC_ID:
+        return SYSTEM_PROC_PORT_METRIC_ID
     return metric_id_map.get(data_source_label, {}).get(data_type_label, "")
 
 

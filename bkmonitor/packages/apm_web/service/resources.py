@@ -48,6 +48,7 @@ from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.time_tools import get_datetime_range
 from core.drf_resource import Resource, api
 
 
@@ -131,14 +132,10 @@ class ServiceInfoResource(Resource):
             return {}
         return ServiceApdexConfigSerializer(instance=instance).data
 
-    def get_profiling_info(self, bk_biz_id, app_name, service_name, start_time, end_time):
+    def get_profiling_info(self, app, bk_biz_id, app_name, service_name, start_time, end_time):
         """获取服务的 profiling 状态"""
 
         res = {}
-        # 获取应用是否开启 Profiling
-        app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if not app:
-            raise ValueError("应用不存在")
         res["application_id"] = app.application_id
 
         res["is_enabled_profiling"] = app.is_enabled_profiling
@@ -156,6 +153,16 @@ class ServiceInfoResource(Resource):
         bk_biz_id = validate_data["bk_biz_id"]
         app_name = validate_data["app_name"]
         service_name = validate_data["service_name"]
+        app = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+
+        if not validate_data["start_time"] and not validate_data["end_time"]:
+            start_time, end_time = get_datetime_range(
+                period="day",
+                distance=app.es_retention,
+                rounding=False,
+            )
+            validate_data["start_time"] = int(start_time.timestamp())
+            validate_data["end_time"] = int(end_time.timestamp())
 
         query_instance_param = {
             "bk_biz_id": bk_biz_id,
@@ -176,7 +183,7 @@ class ServiceInfoResource(Resource):
         if validate_data.get("start_time") and validate_data.get("end_time"):
             profiling_info = pool.apply_async(
                 self.get_profiling_info,
-                args=(bk_biz_id, app_name, service_name, validate_data["start_time"], validate_data["end_time"]),
+                args=(app, bk_biz_id, app_name, service_name, validate_data["start_time"], validate_data["end_time"]),
             )
         pool.close()
         pool.join()

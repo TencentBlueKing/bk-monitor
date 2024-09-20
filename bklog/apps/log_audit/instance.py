@@ -55,7 +55,7 @@ class BaseLogInstance(object):
 
     @property
     def extend_data(self):
-        return {"action_name": self.action.name}
+        return {"action_name": str(self.action.name)}
 
     @property
     def resource_type(self):
@@ -119,7 +119,7 @@ def push_event(request):
         resource_type=instance.resource_type,
         audit_context=context,
         instance=instance.instance,
-        extend_data=extend_data,
+        extend_data=json.dumps(extend_data),
     )
     bk_audit_client.export_events()
 

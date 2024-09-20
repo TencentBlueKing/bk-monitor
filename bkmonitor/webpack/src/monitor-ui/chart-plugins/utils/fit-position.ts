@@ -23,8 +23,37 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export * from './fit-position';
-export * from './icon-map';
-export * from './menu';
-export * from './tooltips';
-export * from './utils';
+export interface ITipsPosition {
+  left: number;
+  top: number;
+}
+export function fitPosition(portions: ITipsPosition, width = 400, height = 200) {
+  const { left, top } = portions;
+  const { innerWidth, innerHeight } = window;
+
+  // 计算新的位置
+  let newLeft = left;
+  let newTop = top;
+
+  // 检查是否超出右边界
+  if (newLeft + width > innerWidth) {
+    newLeft = innerWidth - width;
+  }
+
+  // 检查是否超出下边界
+  if (newTop + height > innerHeight) {
+    newTop = innerHeight - height;
+  }
+
+  // 检查是否超出左边界
+  if (newLeft < 0) {
+    newLeft = 0;
+  }
+
+  // 检查是否超出上边界
+  if (newTop < 0) {
+    newTop = 0;
+  }
+
+  return { left: newLeft, top: newTop };
+}

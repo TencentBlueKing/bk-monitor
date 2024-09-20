@@ -379,7 +379,9 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
     return new PanelModel(data as any);
   }
   getExpression() {
-    return this.expression || this.metricData?.length === 1 ? this.metricData[0].alias : LETTERS.at(0) || LETTERS.at(0);
+    return (
+      this.expression || (this.metricData?.length === 1 ? this.metricData[0].alias : LETTERS.at(0)) || LETTERS.at(0)
+    );
   }
   /**
    * 获取图表查询参数设置

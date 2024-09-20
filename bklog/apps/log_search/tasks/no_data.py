@@ -27,7 +27,10 @@ def no_data_check():
             "index_set_id", flat=True
         )
     )
-    index_set_id_list = LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True).values_list(
+    space_uid_list = set(
+        LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True).values_list("space_uid", flat=True)
+    )
+    index_set_id_list = LogIndexSet.objects.filter(space_uid__in=space_uid_list, is_active=True).values_list(
         "index_set_id", flat=True
     )
     multi_execute_func = MultiExecuteFunc()

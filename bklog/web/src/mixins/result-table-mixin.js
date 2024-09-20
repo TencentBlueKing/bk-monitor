@@ -26,7 +26,14 @@
 
 import TextHighlight from 'vue-text-highlight';
 
-import { formatDate, random, copyMessage, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
+import {
+  formatDate,
+  random,
+  copyMessage,
+  setDefaultTableWidth,
+  TABLE_LOG_FIELDS_SORT_REGULAR,
+  formatDateNanos,
+} from '@/common/util';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import RetrieveLoader from '@/skeleton/retrieve-loader';
 import OriginalLightHeight from '@/views/retrieve/result-comp/original-light-height.tsx';
@@ -176,6 +183,12 @@ export default {
     /** 是否展示数据来源 */
     isShowSourceField() {
       return this.operatorConfig?.isShowSourceField ?? false;
+    },
+    timeFieldType() {
+      return this.totalFields.find(item => item.field_name === this.timeField)?.field_type;
+    },
+    originFieldWidth() {
+      return this.timeFieldType === 'date_nanos' ? 210 : 174;
     },
   },
   watch: {
@@ -450,6 +463,18 @@ export default {
     getLimitState(index) {
       if (this.isLimitExpandView) return false;
       return !this.cacheExpandStr.includes(index);
+    },
+    getOriginTimeShow(data) {
+      if (this.timeFieldType === 'date') {
+        return formatDate(Number(data)) || data;
+      }
+
+      // 处理纳秒精度的UTC时间格式
+      if (this.timeFieldType === 'date_nanos') {
+        return formatDateNanos(data);
+      }
+
+      return data;
     },
   },
 };

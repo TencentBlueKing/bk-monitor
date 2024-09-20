@@ -135,12 +135,12 @@ def get_interval_number(start_time, end_time, interval="auto"):
 
 def get_bar_interval_number(start_time, end_time, size=30):
     """计算出柱状图（特殊处理的）的 interval 固定柱子数量"""
-    delta = end_time - start_time
-    if delta <= size:
-        # 如果间隔小于大小 按照一秒进行聚合 此时柱子数量不为 size
-        return 1
+    # 最低聚合为一分钟
+    c = (end_time - start_time) / 60
+    if c < size:
+        return 60
 
-    return int(delta // size)
+    return int((end_time - start_time) // size)
 
 
 def split_by_size(start_time, end_time, size=30):
@@ -225,14 +225,23 @@ def fill_series(series, start_time, end_time):
     """
     调整时间戳 将无数据的柱子值设置为 None (适用于柱状图查询)
     """
-    timestamp_range = split_by_size(start_time, end_time)
+    # 检查按照最低一分钟聚合的话 是否少于默认数量 30个 如果小于则需要按照原本的数量进行切分
+    default_size = 30
+    c = int(math.ceil((end_time - start_time) / 60))
+    size = default_size if c > default_size else c
+
+    timestamp_range = split_by_size(start_time, end_time, size=size)
     if not series:
         return [{"datapoints": [[None, int((s + e) / 2) * 1000] for s, e in timestamp_range]}]
 
     res = []
     for i in series:
         result = [[None, int((t_e + t_s) / 2) * 1000] for t_e, t_s in timestamp_range]
-        for j, d in enumerate(i["datapoints"]):
+        # 如果数据点数量比切分的时间范围数量大 说明有数据点不能放入时间范围中 去掉尾部元素
+        dps = (
+            i["datapoints"] if len(i["datapoints"]) <= len(timestamp_range) else i["datapoints"][: len(timestamp_range)]
+        )
+        for j, d in enumerate(dps):
             value, timestamp = d
             if j > 0:
                 # 往前移动被覆盖元素
