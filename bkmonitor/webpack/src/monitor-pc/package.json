@@ -20,7 +20,7 @@
     "@blueking/login-modal": "^1.0.5",
     "@blueking/notice-component-vue2": "^2.0.5",
     "@blueking/platform-config": "^1.0.3",
-    "@blueking/search-select-v3": "0.0.1-beta.9",
+    "@blueking/search-select-v3": "0.0.1-beta.10",
     "@blueking/user-selector": "^1.0.14",
     "@prometheus-io/lezer-promql": "0.51.2",
     "apm": "workspace:*",
