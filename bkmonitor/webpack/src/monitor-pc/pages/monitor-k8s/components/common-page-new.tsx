@@ -882,7 +882,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.selectorPanelKey = oldSelectPanel === newSelectPanel ? this.selectorPanelKey : random(10);
     const variables = {};
     this.sceneData.variables.forEach(item => {
-      variables[item.fieldsKey] = this.variables[item.fieldsKey];
+      variables[item.fieldsKey] = this.variables[item.fieldsKey] || this.filters[item.fieldsKey];
     });
     /* 少量图表的索引默认收起来 */
     if (this.sceneData?.panelCount <= 6) {
@@ -1282,13 +1282,14 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     }
     this.viewOptions = {
       // filter_dict: filterDict,
-      ...variables,
       ...filters,
+      ...variables,
       method: this.isEnableMethodSelect ? this.method : 'AVG',
 
       interval: this.interval || 'auto',
       group_by: this.group_by ? [...this.group_by] : [],
       filters: this.filters,
+      variables: this.variables,
     };
     this.handleResetRouteQuery();
   }
