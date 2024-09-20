@@ -41,6 +41,11 @@
     return { operator_label: $t(label), disabled: false, ...item };
   };
 
+  const getOperatorLabel = (item) => {
+    const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
+    return operatorDictionary.value[key]?.label ?? item.operator;
+  }
+
   const showIpSelectorDialog = ref(false);
   const cacheIpChooser = ref({});
   const dialogIpChooser = ref({});
@@ -365,7 +370,7 @@
         <span
           class="symbol"
           :data-operator="item.operator"
-          >{{ item.operator_label }}</span
+          >{{ getOperatorLabel(item) }}</span
         >
       </div>
       <div class="tag-row match-value">
