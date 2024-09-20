@@ -603,6 +603,9 @@
       operatorInstance?.hide();
       return;
     }
+
+    emit('cancel');
+    return;
   };
 
   const stopEventPreventDefault = e => {
@@ -630,7 +633,7 @@
     }
 
     // key enter
-    if (e.keyCode === 13) {
+    if (e.keyCode === 13 || e.code === 'NumpadEnter') {
       stopEventPreventDefault(e);
       resolveConditonValueInputEnter();
       return;
@@ -777,7 +780,7 @@
           <template v-if="isFieldListEmpty || isSearchEmpty">
             <bk-exception
               :type="exceptionType"
-              style=" justify-content: center;height: 260px"
+              style="justify-content: center; height: 260px"
               scene="part"
             >
             </bk-exception>
@@ -789,7 +792,7 @@
           <bk-exception
             type="500"
             scene="part"
-            style=" justify-content: center;height: 260px"
+            style="justify-content: center; height: 260px"
           >
             搜索为空，无需条件设置
           </bk-exception>

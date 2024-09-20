@@ -46,7 +46,6 @@ export default (
   },
 ) => {
   const modelValue = ref([]);
-  const inputValue = ref('');
   const sectionHeight = ref(0);
   const isDocumentMousedown = ref(false);
 
@@ -178,7 +177,6 @@ export default (
 
   return {
     modelValue,
-    inputValue,
     isDocumentMousedown,
     setIsDocumentMousedown,
     repositionTippyInstance,

@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, nextTick, onMounted, onBeforeUnmount, watch, getCurrentInstance } from 'vue';
+  import { ref, nextTick, onMounted } from 'vue';
 
   import CreateLuceneEditor from './codemirror-lucene';
   import SqlQueryOptions from './sql-query-options';
@@ -18,7 +18,7 @@
     emit('height-change', height);
   };
 
-  const placeholderText = 'Query Syntax: log：error  AND "name=bklog"';
+  const placeholderText = 'log：error  AND "name=bklog"';
   const refSqlQueryOption = ref(null);
   const refEditorParent = ref(null);
 
@@ -152,9 +152,6 @@
 
   onMounted(() => {
     createEditorInstance();
-    setTimeout(() => {
-      getCurrentInstance()?.proxy?.$el?.click();
-    }, 300);
   })
 </script>
 <template>

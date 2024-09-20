@@ -94,12 +94,41 @@
   const queryItem = ref('');
   const activeIndex = ref(null);
   const isInputFocus = ref(false);
-  const isOptionShowing = ref(false);
-  let delayItemClickFn = undefined;
+
+  const getSearchInputValue = () => {
+    return refSearchInput.value?.value ?? '';
+  };
+
+  let inputValueLength = 0;
+
+  const setSearchInputValue = val => {
+    refSearchInput.value.value = val ?? '';
+    inputValueLength = refSearchInput.value?.value?.length ?? 0;
+  };
+
+  const handleWrapperClickCapture = (e, { getTippyInstance }) => {
+    const instance = getTippyInstance();
+    const reference = instance?.reference;
+
+    const target = refSearchInput.value?.closest('.search-item');
+    if (reference) {
+      // 如果当前是input focus激活的弹出提示
+      // 判定当前是否为点击 ui 搜索框
+      if (reference === target) {
+        return e.target === refUlRoot.value;
+      }
+
+      // 判定当前点击是否为某一个条件选项
+      return reference.contains(e.target);
+    }
+
+    return false;
+  };
 
   const {
     modelValue,
-    inputValue,
+    isDocumentMousedown,
+    setIsDocumentMousedown,
     hideTippyInstance,
     getTippyInstance,
     handleInputBlur,
@@ -111,28 +140,32 @@
     formatModelValueItem,
     refContent: refPopInstance,
     onShowFn: () => {
-      isOptionShowing.value = true;
+      setIsDocumentMousedown(true);
       refPopInstance.value?.beforeShowndFn?.();
     },
     onHiddenFn: () => {
+      if (isDocumentMousedown.value) {
+        setIsDocumentMousedown(false);
+        return false;
+      }
+
       refPopInstance.value?.afterHideFn?.();
-      isOptionShowing.value = false;
-
-      // inputValue.value = '';
-      handleInputBlur();
-
-      delayItemClickFn?.();
-      delayItemClickFn = undefined;
       return true;
     },
+    handleWrapperClick: handleWrapperClickCapture,
   });
 
-  const debounceShowInstance = debounce(() => {
+  const debounceShowInstance = () => {
     const target = refSearchInput.value?.closest('.search-item');
     if (target) {
       delayShowInstance(target);
     }
-  }, 300);
+  };
+
+  const closeTippyInstance = () => {
+    setIsDocumentMousedown(false);
+    getTippyInstance()?.hide();
+  };
 
   /**
    * 执行点击弹出操作项方法
@@ -245,21 +278,23 @@
       const isHaveIpChooser = !!Object.keys(ipChooser.value).length;
       dialogIpChooser.value = isHaveIpChooser ? ipChooser.value : cacheIpChooser;
       showIpSelectorDialog.value = true;
-      getTippyInstance()?.hide();
+      closeTippyInstance();
       return;
     }
 
+    const inputVal = getSearchInputValue();
     // 如果是全文检索，未输入任何内容就点击回车
     // 此时提交无任何意义，禁止后续逻辑
-    if (isFulltextEnterVlaue && !inputValue.value) {
+    if (isFulltextEnterVlaue && !inputVal.length) {
       return;
     }
 
-    let targetValue = formatModelValueItem(isFulltextEnterVlaue ? getInputQueryDefaultItem(inputValue.value) : payload);
-    getTippyInstance()?.hide();
+    let targetValue = formatModelValueItem(isFulltextEnterVlaue ? getInputQueryDefaultItem(inputVal) : payload);
+
+    closeTippyInstance();
 
     if (isInputFocus.value) {
-      inputValue.value = '';
+      setSearchInputValue('');
     }
 
     if (activeIndex.value !== null && activeIndex.value >= 0) {
@@ -278,15 +313,9 @@
     }
   };
 
-  const handleFullTextInputBlur = e => {
-    if (!getTippyInstance()?.state?.isShown) {
-      inputValue.value = '';
-      handleInputBlur(e);
-    }
-  };
-
   const handleCancelClick = () => {
-    getTippyInstance()?.hide();
+    closeTippyInstance();
+    setSearchInputValue('');
   };
 
   const handleFocusInput = () => {
@@ -296,12 +325,19 @@
     debounceShowInstance();
   };
 
-  const handleInputValueChange = () => {
-    if (inputValue.value.length && !getTippyInstance()?.state?.isShown) {
+  const handleFullTextInputBlur = e => {
+    handleInputBlur(e);
+    inputValueLength = 0;
+  };
+
+  const handleInputValueChange = e => {
+    if (inputValueLength === 0 && e.target.value.length > 0) {
+      inputValueLength = e.target.value.length;
       debounceShowInstance();
     }
   };
 
+  // 键盘删除键
   const needDeleteItem = ref(false);
   const handleDeleteItem = e => {
     if (e.target.value) {
@@ -313,8 +349,7 @@
         if (modelValue.value.length >= 1) {
           modelValue.value.splice(-1, 1);
           emitChange(modelValue.value);
-
-          hideTippyInstance();
+          closeTippyInstance();
         }
       }
 
@@ -385,7 +420,6 @@
       <input
         ref="refSearchInput"
         class="tag-option-focus-input"
-        v-model="inputValue"
         type="text"
         @blur="handleFullTextInputBlur"
         @focus.stop="handleFocusInput"
