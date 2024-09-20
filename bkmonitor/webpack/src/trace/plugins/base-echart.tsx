@@ -64,6 +64,14 @@ export const BaseChartProps = {
     type: Boolean,
     default: false,
   },
+  hoverAllTooltips: {
+    type: Boolean,
+    default: false,
+  },
+  tooltipsContentLastItemFn: {
+    type: Function as PropType<(params: any) => string>,
+    default: null,
+  },
 };
 export default defineComponent({
   name: 'BaseEchart',
@@ -76,7 +84,7 @@ export default defineComponent({
     // echarts 实例
     const instance = shallowRef<echarts.ECharts>();
     // 当前图表配置取消监听函数
-    let unwatchOptions: WatchStopHandle | null = null;
+    let unwatchOptions: null | WatchStopHandle = null;
     // dblclick模拟 间隔
     const clickTimer = ref(0);
     // 当前视图是否hover
@@ -183,7 +191,7 @@ export default defineComponent({
     onBeforeUnmount(destroy);
     // 设置tooltip
     function handleSetTooltip(params: any) {
-      if (!isMouseOver.value) return undefined;
+      if (!isMouseOver.value && !props.hoverAllTooltips) return undefined;
       if (!params || params.length < 1 || params.every((item: any) => item.value[1] === null)) {
         curPoint.value = {
           color: '',
@@ -256,12 +264,14 @@ export default defineComponent({
           ulStyle = `display:flex; flex-wrap:wrap; width: ${5 + cols * tableToolSize}px;`;
         }
       }
+      const lastItem = props.tooltipsContentLastItemFn?.(params);
       return `<div class="monitor-chart-tooltips">
             <p class="tooltips-header">
                 ${pointTime}
             </p>
             <ul class="tooltips-content" style="${ulStyle}">
                 ${liHtmls?.join('')}
+                ${lastItem || ''}
             </ul>
             </div>`;
     }
