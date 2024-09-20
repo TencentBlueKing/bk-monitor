@@ -452,7 +452,7 @@ class TransferCountSeriesResource(BaseStatusResource):
             interval = 1440
             interval_unit = "m"
 
-        # 读取采集相关的指标列表
+        # 读取采集相关的指标列表, 最多20个表
         promqls = [
             """sum(count_over_time({{
                 __name__=~"bkmonitor:{table_id}:.*",
@@ -463,7 +463,7 @@ class TransferCountSeriesResource(BaseStatusResource):
                 interval=interval,
                 unit=interval_unit,
             )
-            for table in {t["table_id"] for t in self.get_metrics_json()}
+            for table in {t["table_id"] for t in self.get_metrics_json()[-20:]}
         ]
 
         # 没有指标配置，返回空序列
