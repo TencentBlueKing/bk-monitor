@@ -95,6 +95,7 @@ export default (
   };
 
   const repositionTippyInstance = () => popInstanceUtil.repositionTippyInstance();
+  const isInstanceShown = () => popInstanceUtil.isShown();
 
   const handleFulltextInput = e => {
     const input = getTargetInput();
@@ -180,10 +181,12 @@ export default (
     inputValue,
     isDocumentMousedown,
     setIsDocumentMousedown,
+    repositionTippyInstance,
     hideTippyInstance,
     getTippyInstance,
     handleContainerClick,
     handleInputBlur,
     delayShowInstance,
+    isInstanceShown,
   };
 };

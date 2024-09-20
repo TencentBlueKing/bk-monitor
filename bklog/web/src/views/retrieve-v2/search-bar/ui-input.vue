@@ -5,6 +5,7 @@
   import LogIpSelector from '@/components/log-ip-selector/log-ip-selector';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+  import { debounce } from 'lodash';
 
   import {
     getInputQueryDefaultItem,
@@ -14,8 +15,6 @@
   } from './const.common';
   import UiInputOptions from './ui-input-option.vue';
   import useFocusInput from './use-focus-input';
-
-  import { debounce } from 'lodash';
 
   const props = defineProps({
     value: {
@@ -41,10 +40,10 @@
     return { operator_label: $t(label), disabled: false, ...item };
   };
 
-  const getOperatorLabel = (item) => {
+  const getOperatorLabel = item => {
     const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
     return operatorDictionary.value[key]?.label ?? item.operator;
-  }
+  };
 
   const showIpSelectorDialog = ref(false);
   const cacheIpChooser = ref({});
@@ -98,24 +97,15 @@
   const isOptionShowing = ref(false);
   let delayItemClickFn = undefined;
 
-  // const handleWrapperClick = (e, { getTippyInstance }) => {
-  //   const instance = getTippyInstance();
-
-  //   if (instance?.state?.isShown) {
-  //     return e.target.contains(instance?.reference);
-  //   }
-
-  //   return false;
-  // };
-
   const {
     modelValue,
     inputValue,
-
     hideTippyInstance,
     getTippyInstance,
     handleInputBlur,
+    isInstanceShown,
     delayShowInstance,
+    repositionTippyInstance,
   } = useFocusInput(props, {
     onHeightChange: handleHeightChange,
     formatModelValueItem,
@@ -149,13 +139,8 @@
    * @param {*} target 目标元素
    */
   const showTagListItems = target => {
-    // 如果当前实例是弹出状态
-    // 本次弹出操作需要在当前弹出实例收起之后再执行
-    // delayItemClickFn 函数会在实例 onHidden 之后执行
-    if (isOptionShowing.value) {
-      delayItemClickFn = () => {
-        delayShowInstance(target);
-      };
+    if (isInstanceShown()) {
+      repositionTippyInstance();
       return;
     }
 
@@ -275,11 +260,6 @@
 
     if (isInputFocus.value) {
       inputValue.value = '';
-
-      // nextTick(() => {
-      //   refSearchInput.value?.focus();
-      //   handleFocusInput({ target: refSearchInput.value });
-      // });
     }
 
     if (activeIndex.value !== null && activeIndex.value >= 0) {
@@ -340,10 +320,6 @@
 
       needDeleteItem.value = true;
     }
-  };
-
-  const handleWrapperClickCapture = e => {
-    isEditorContainerClick = refEditorParent.value?.contains(e.target) ?? false;
   };
 </script>
 
@@ -413,9 +389,9 @@
         type="text"
         @blur="handleFullTextInputBlur"
         @focus.stop="handleFocusInput"
+        @input="handleInputValueChange"
         @keyup.delete="handleDeleteItem"
         @keyup.enter="handleInputValueEnter"
-        @input="handleInputValueChange"
       />
     </li>
     <div style="display: none">
