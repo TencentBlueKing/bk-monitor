@@ -58,7 +58,12 @@
                   "data_type": "alert"
                 }
               }
-            ]
+            ],
+            "options": {
+              "time_series": {
+                "hoverAllTooltips": true
+              }
+            }
           },
           "service_tabs_service": {
             "name": "服务",
@@ -80,7 +85,12 @@
                       "data_type": "apdex"
                     }
                   }
-                ]
+                ],
+                "options": {
+                  "time_series": {
+                    "hoverAllTooltips": true
+                  }
+                }
               },
               {
                 "id": 2,
@@ -284,7 +294,8 @@
                     "type": "bar"
                   },
                   "apm_time_series": {
-                    "metric": "request_count"
+                    "metric": "request_count",
+                    "hoverAllTooltips": true
                   }
                 }
               },
@@ -512,7 +523,8 @@
                     "type": "bar"
                   },
                   "apm_time_series": {
-                    "metric": "error"
+                    "metric": "error",
+                    "hoverAllTooltips": true
                   }
                 }
               },
@@ -981,7 +993,8 @@
                 ],
                 "options": {
                   "apm_time_series": {
-                    "metric": "duration"
+                    "metric": "duration",
+                    "hoverAllTooltips": true
                   }
                 }
               }
@@ -1060,7 +1073,12 @@
                   "endpoint_name": "$endpoint_name"
                 }
               }
-            ]
+            ],
+            "options": {
+              "time_series": {
+                "hoverAllTooltips": true
+              }
+            }
           },
           "endpoint_tabs_service": {
             "name": "服务",
@@ -1083,7 +1101,12 @@
                       "endpoint_name": "$endpoint_name"
                     }
                   }
-                ]
+                ],
+                "options": {
+                  "time_series": {
+                    "hoverAllTooltips": true
+                  }
+                }
               },
               {
                 "id": 2,
@@ -1288,7 +1311,8 @@
                 ],
                 "options": {
                   "time_series": {
-                    "type": "bar"
+                    "type": "bar",
+                    "hoverAllTooltips": true
                   },
                   "apm_time_series": {
                     "metric": "request_count"
@@ -1520,7 +1544,8 @@
                 ],
                 "options": {
                   "time_series": {
-                    "type": "bar"
+                    "type": "bar",
+                    "hoverAllTooltips": true
                   },
                   "apm_time_series": {
                     "metric": "error"
@@ -1999,6 +2024,9 @@
                   }
                 ],
                 "options": {
+                  "time_series": {
+                    "hoverAllTooltips": true
+                  },
                   "apm_time_series": {
                     "metric": "duration"
                   }
