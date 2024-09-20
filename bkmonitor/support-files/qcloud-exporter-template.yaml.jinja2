@@ -35,6 +35,18 @@ data:
       - namespace: "{{ ns }}"
         all_metrics: true
         all_instances: true
+        req_params: |
+          {
+            "InstanceTags": [
+            {% for tag in values.tags %}
+              {
+                "TagKey": "{{ tag.key }}",
+                "TagValue": "{{ tag.value }}"
+              }{% if not loop.last %},{% endif %}
+            {% endfor %}
+            ]
+          }
+
     {% endfor %}
 ---
 # Source: qcloud-exporter/templates/service.yaml
