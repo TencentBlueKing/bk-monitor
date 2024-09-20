@@ -132,8 +132,8 @@ class BaseQuery:
     # 默认时间字段
     DEFAULT_TIME_FIELD = "end_time"
 
-    # 字段候选值最多获取500个
-    OPTION_VALUES_MAX_SIZE = 500
+    # 字段候选值最多获取 800 个
+    OPTION_VALUES_MAX_SIZE = 800
 
     # 查询字段映射
     KEY_REPLACE_FIELDS: Dict[str, str] = {}
@@ -233,15 +233,6 @@ class BaseQuery:
         def _fill_data():
             _q: QueryConfigBuilder = q.values(*select_fields)
             page_data["data"] = list(queryset.add_query(_q).offset(offset).limit(limit))
-
-        # TODO 数量并没有被使用，获取近 6 h 文档数量在 4w spans / min 的应用下需要 2～3s，先行去除，等完全不需要时将代码删除
-        # def _fill_total():
-        #     _q: QueryConfigBuilder = q.metric(field=count_field, method="count", alias="total")
-        #     page_data["total"] = queryset.add_query(_q)[0]["total"]
-
-        # 为什么要分开获取数据和总数？
-        # 并不是所有的 DB 都能在一次查询里，同时返回数据和命中总数，此处对查询场景进行原子逻辑拆分，同时并发加速
-        # run_threads([InheritParentThread(target=_fill_total), InheritParentThread(target=_fill_data)])
 
         page_data: Dict[str, Union[int, List[Dict[str, Any]]]] = {"total": 0}
 

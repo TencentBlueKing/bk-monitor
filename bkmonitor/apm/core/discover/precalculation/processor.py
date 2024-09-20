@@ -236,6 +236,9 @@ class PrecalculateProcessor:
     def init_collections(self):
         res = {}
         for f in SpanStandardField.COMMON_STANDARD_FIELDS:
+            if f.is_hidden:
+                continue
+
             if f.source == f.key:
                 res[f.source] = []
             else:
@@ -248,6 +251,9 @@ class PrecalculateProcessor:
 
     def collect(self, collections, span):
         for f in SpanStandardField.COMMON_STANDARD_FIELDS:
+            if f.is_hidden:
+                continue
+
             v = span[f.source]
             if isinstance(v, dict):
                 if v.get(f.key) and v[f.key] not in collections[f.source][f.key]:
