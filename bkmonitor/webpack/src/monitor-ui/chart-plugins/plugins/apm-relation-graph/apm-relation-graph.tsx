@@ -95,11 +95,13 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   showTypes = [
     {
       id: 'topo',
-      icon: 'icon-mc-overview',
+      icon: 'icon-mc-apm-topo',
+      size: '18px',
     },
     {
       id: 'table',
       icon: 'icon-mc-list',
+      size: '16px',
     },
   ];
   showType = 'topo';
@@ -651,6 +653,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               {this.showTypes.map(item => (
                 <div
                   key={item.id}
+                  style={{ fontSize: item.size }}
                   class={['data-type-item', { active: this.showType === item.id }]}
                   onClick={() => this.handleShowTypeChange(item)}
                 >
