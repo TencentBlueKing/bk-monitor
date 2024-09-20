@@ -61,7 +61,7 @@
         v-show="isOriginShow"
         v-bkloading="{ isLoading: isFilterLoading && isShowFieldStatistics }"
         v-model="isShowFieldStatistics"
-        v-monitor-drag="{
+        v-log-drag="{
           minWidth: 160,
           maxWidth: 500,
           defaultWidth: DEFAULT_FIELDS_WIDTH,

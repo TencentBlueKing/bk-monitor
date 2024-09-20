@@ -115,7 +115,7 @@ const dragMouseDown = (evt: MouseEvent) => {
   document.addEventListener('mouseup', handleMouseUp);
 };
 
-const monitorDrag: DirectiveOptions = {
+const logDrag: DirectiveOptions = {
   inserted(el: IDragHtmlElement, bind: DirectiveBinding) {
     const key = random(8);
     // 设置父元素样式
@@ -180,6 +180,6 @@ const monitorDrag: DirectiveOptions = {
 };
 
 export default {
-  install: (Vue: VueConstructor) => Vue.directive('monitor-drag', monitorDrag),
-  directive: monitorDrag,
+  install: (Vue: VueConstructor) => Vue.directive('log-drag', logDrag),
+  directive: logDrag,
 };
