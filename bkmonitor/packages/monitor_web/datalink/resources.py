@@ -458,12 +458,12 @@ class TransferCountSeriesResource(BaseStatusResource):
                 __name__=~"bkmonitor:{table_id}:.*",
                 bk_collect_config_id="{collect_config_id}"}}[{interval}{unit}])) or vector(0)
             """.format(
-                table_id=table,
+                table_id=table.split('.')[0],
                 collect_config_id=self.collect_config_id,
                 interval=interval,
                 unit=interval_unit,
             )
-            for table in {t["table_id"] for t in self.get_metrics_json()[-20:]}
+            for table in {t["table_id"] for t in self.get_metrics_json()[-1:]}
         ]
 
         # 没有指标配置，返回空序列

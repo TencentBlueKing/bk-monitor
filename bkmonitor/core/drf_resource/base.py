@@ -92,8 +92,6 @@ class Resource(six.with_metaclass(abc.ABCMeta, object)):
     def __call__(self, *args, **kwargs):
         # thread safe
         tmp_resource = self.__class__()
-        if hasattr(self, "stage"):
-            tmp_resource.set_stage(self.stage)
         from core.drf_resource.models import ResourceData
 
         return ResourceData.objects.request(tmp_resource, args, kwargs)
