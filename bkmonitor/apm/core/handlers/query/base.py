@@ -132,8 +132,8 @@ class BaseQuery:
     # 默认时间字段
     DEFAULT_TIME_FIELD = "end_time"
 
-    # 字段候选值最多获取 800 个
-    OPTION_VALUES_MAX_SIZE = 800
+    # 字段候选值最多获取500个
+    OPTION_VALUES_MAX_SIZE = 500
 
     # 查询字段映射
     KEY_REPLACE_FIELDS: Dict[str, str] = {}
