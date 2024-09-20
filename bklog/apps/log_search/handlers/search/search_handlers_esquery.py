@@ -1789,7 +1789,7 @@ class SearchHandler(object):
                 value = ",".join(value) if isinstance(value, list) else value
                 if value:
                     if field == "*":
-                        value = value.replace('"', '\\"')
+                        value = "\"" + value.replace('"', '\\"') + "\""
                     self.query_string = value
                 continue
 
