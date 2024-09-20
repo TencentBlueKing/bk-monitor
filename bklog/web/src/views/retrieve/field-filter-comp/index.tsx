@@ -83,10 +83,10 @@ export default class FieldFilterComp extends tsc<object> {
     return this.totalFields.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
   }
   /** 内置字段 */
-  indexSetFields() {
+  get indexSetFields() {
     const underlineFieldList = []; // 下划线的字段
     const otherList = []; // 其他字段
-    const { indexHiddenFields } = this.hiddenFilterFields();
+    const { indexHiddenFields } = this.hiddenFilterFields;
     // 类似__xxx__的字段放最后展示
     indexHiddenFields.forEach(fieldItem => {
       if (/^[_]{1,2}/g.test(fieldItem.field_name)) {
@@ -98,7 +98,7 @@ export default class FieldFilterComp extends tsc<object> {
     return this.sortHiddenList([otherList, underlineFieldList]);
   }
   /** 非已选字段 分别生成内置字段和索引字段 */
-  hiddenFilterFields() {
+  get hiddenFilterFields() {
     const builtInHiddenFields = [];
     const indexHiddenFields = [];
     this.hiddenFields.forEach(item => {
@@ -114,8 +114,8 @@ export default class FieldFilterComp extends tsc<object> {
     };
   }
   /** 排序后的内置字段 */
-  builtInFields() {
-    const { builtInHiddenFields } = this.hiddenFilterFields();
+  get builtInFields() {
+    const { builtInHiddenFields } = this.hiddenFilterFields;
     const { headerList, filterHeaderBuiltFields } = builtInHiddenFields.reduce(
       (acc, cur) => {
         // 判断内置字段需要排在前面几个字段
@@ -138,8 +138,8 @@ export default class FieldFilterComp extends tsc<object> {
     return [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])];
   }
   /** 内置字段展示对象 */
-  builtInFieldsShowObj() {
-    const { initHiddenList, otherList } = this.builtInFields().reduce(
+  get builtInFieldsShowObj() {
+    const { initHiddenList, otherList } = this.builtInFields.reduce(
       (acc, cur) => {
         if (this.builtInInitHiddenList.includes(cur.field_name)) {
           acc.initHiddenList.push(cur);
@@ -153,7 +153,7 @@ export default class FieldFilterComp extends tsc<object> {
         otherList: [],
       },
     );
-    const visibleBuiltLength = this.builtInFields().filter(item => item.filterVisible).length;
+    const visibleBuiltLength = this.builtInFields.filter(item => item.filterVisible).length;
     const hiddenFieldVisible = !!initHiddenList.filter(item => item.filterVisible).length;
     return {
       // 若没找到初始隐藏的内置字段且内置字段不足10条则不展示展开按钮
@@ -163,11 +163,11 @@ export default class FieldFilterComp extends tsc<object> {
     };
   }
   get getIsShowIndexSetExpand() {
-    return this.indexSetFields().filter(item => item.filterVisible).length > 10;
+    return this.indexSetFields.filter(item => item.filterVisible).length > 10;
   }
   /** 展示的内置字段 */
   get showIndexSetFields() {
-    return this.isShowAllIndexSet ? this.indexSetFields() : this.indexSetFields().slice(0, 9);
+    return this.isShowAllIndexSet ? this.indexSetFields : this.indexSetFields.slice(0, 9);
   }
   get filterTypeCount() {
     // 过滤的条件数量
@@ -442,11 +442,11 @@ export default class FieldFilterComp extends tsc<object> {
           </div>
         )}
 
-        {!!this.builtInFields().length && (
+        {!!this.builtInFields.length && (
           <div class='fields-container not-selected'>
             <div class='title'>{(this.$t('label-内置字段') as string).replace('label-', '')}</div>
             <ul class='filed-list'>
-              {this.builtInFieldsShowObj().builtInShowFields.map(item => (
+              {this.builtInFieldsShowObj.builtInShowFields.map(item => (
                 <FieldItem
                   v-show={item.filterVisible}
                   date-picker-value={this.datePickerValue}
@@ -461,7 +461,7 @@ export default class FieldFilterComp extends tsc<object> {
                   onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
                 />
               ))}
-              {this.builtInFieldsShowObj().isShowBuiltExpandBtn && (
+              {this.builtInFieldsShowObj.isShowBuiltExpandBtn && (
                 <div
                   class='expand-all'
                   onClick={() => (this.isShowAllBuiltIn = !this.isShowAllBuiltIn)}
