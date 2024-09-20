@@ -642,6 +642,17 @@ class SearchHandler(object):
 
         return new_sort_list
 
+    def fetch_esquery_method(self, method_name="search"):
+        """
+        根据特性开关和传入方法名，返回不同方式的调用方法
+        :param method_name: 默认返回esquery的search方法
+        :return: esquery中定义的方法
+        """
+        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
+            return getattr(self, f"direct_esquery_{method_name}")
+        else:
+            return getattr(BkLogApi, f"{method_name}")
+
     @classmethod
     def direct_esquery_search(cls, params, **kwargs):
         data = custom_params_valid(EsQuerySearchAttrSerializer, params)
@@ -702,10 +713,8 @@ class SearchHandler(object):
             except Exception as e:  # pylint: disable=broad-except
                 logger.exception(f"[_multi_search] parse time error -> e: {e}")
 
-        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
-            exec_func = self.direct_esquery_search
-        else:
-            exec_func = BkLogApi.search
+        # 获取search对应的esquery方法
+        exec_func = self.fetch_esquery_method(method_name="search")
 
         if not storage_cluster_record_objs:
             try:
@@ -936,10 +945,8 @@ class SearchHandler(object):
         @param size:
         @return:
         """
-        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
-            exec_func = self.direct_esquery_search
-        else:
-            exec_func = BkLogApi.search
+        # 获取search对应的esquery方法
+        exec_func = self.fetch_esquery_method(method_name="search")
         if self.scenario_id == Scenario.ES:
             result = exec_func(
                 {
@@ -1008,10 +1015,8 @@ class SearchHandler(object):
         @param sorted_fields:
         @return:
         """
-        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
-            exec_func = self.direct_esquery_search
-        else:
-            exec_func = BkLogApi.search
+        # 获取search对应的esquery方法
+        exec_func = self.fetch_esquery_method(method_name="search")
         search_after_size = len(search_result["hits"]["hits"])
         result_size = search_after_size
         max_result_window = self.index_set_obj.result_window
@@ -1043,6 +1048,7 @@ class SearchHandler(object):
                     "scroll": self.scroll,
                     "collapse": self.collapse,
                     "search_after": search_after,
+                    "track_total_hits": False,
                 },
                 data_api_retry_cls=DataApiRetryClass.create_retry_obj(
                     exceptions=[BaseException], stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY
@@ -1059,10 +1065,8 @@ class SearchHandler(object):
         @param scroll_result:
         @return:
         """
-        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
-            exec_func = self.direct_esquery_scroll
-        else:
-            exec_func = BkLogApi.scroll
+        # 获取scroll对应的esquery方法
+        exec_func = self.fetch_esquery_method(method_name="scroll")
         scroll_size = len(scroll_result["hits"]["hits"])
         result_size = scroll_size
         max_result_window = self.index_set_obj.result_window
@@ -1401,10 +1405,8 @@ class SearchHandler(object):
         if record_obj:
             dsl_params_base.update({"storage_cluster_id": record_obj.storage_cluster_id})
 
-        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
-            exec_func = self.direct_esquery_dsl
-        else:
-            exec_func = BkLogApi.dsl
+        # 获取dsl对应的esquery方法
+        exec_func = self.fetch_esquery_method(method_name="dsl")
 
         if self.zero:
             # up
