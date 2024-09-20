@@ -1751,6 +1751,18 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
     def handle_limit(cls, limit) -> int:
         return limit
 
+    def _process_time_range(
+        self, start_time: Optional[int], end_time: Optional[int]
+    ) -> Tuple[Optional[int], Optional[int]]:
+        if self.time_field == self.DEFAULT_TIME_FIELD:
+            return start_time, end_time
+
+        if start_time:
+            start_time = start_time * 1000
+        if end_time:
+            end_time = end_time * 1000
+        return start_time, end_time
+
     def query_data(
         self,
         start_time: int = None,
@@ -1762,7 +1774,15 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
     ) -> List:
         if limit is not None:
             limit = min(limit, 10000)
+
+        start_time, end_time = self._process_time_range(start_time, end_time)
         return super().query_data(start_time, end_time, limit, search_after_key, *args, **kwargs)
+
+    def query_log(
+        self, start_time: int = None, end_time: int = None, limit: int = None, offset: int = None, *args, **kwargs
+    ) -> Tuple[List, int]:
+        start_time, end_time = self._process_time_range(start_time, end_time)
+        return super().query_log(start_time, end_time, limit, offset, *args, **kwargs)
 
 
 class BkApmTraceTimeSeriesDataSource(BkApmTraceDataSource):

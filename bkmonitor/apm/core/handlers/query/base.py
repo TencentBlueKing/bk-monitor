@@ -15,19 +15,20 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
-
+import copy
 import datetime
 import logging
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from django.db.models import Q
-from django.utils.functional import classproperty
+from django.utils.functional import cached_property, classproperty
 from django.utils.translation import ugettext_lazy as _
 
 from apm import types
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
+from apm.models import ApmDataSourceConfigBase, MetricDataSource, TraceDataSource
 from bkmonitor.data_source import dict_to_q
-from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 logger = logging.getLogger("apm")
@@ -107,8 +108,20 @@ class LogicSupportOperator:
 
 class BaseQuery:
 
-    # datasource 类型
-    USING: Tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_APM)
+    USING_LOG: Tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_APM)
+
+    USING_METRIC: Tuple[str, str] = (DataTypeLabel.TIME_SERIES, DataSourceLabel.CUSTOM)
+
+    DEFAULT_DATASOURCE_CONFIGS: Dict[str, Dict[str, Any]] = {
+        ApmDataSourceConfigBase.METRIC_DATASOURCE: {
+            "using": USING_METRIC,
+            "get_table_id_func": MetricDataSource.get_table_id,
+        },
+        ApmDataSourceConfigBase.TRACE_DATASOURCE: {
+            "using": USING_LOG,
+            "get_table_id_func": TraceDataSource.get_table_id,
+        },
+    }
 
     # 时间填充，单位 s
     TIME_PADDING = 5
@@ -125,10 +138,17 @@ class BaseQuery:
     # 查询字段映射
     KEY_REPLACE_FIELDS: Dict[str, str] = {}
 
-    def __init__(self, bk_biz_id: int, result_table_id: str, retention: int):
+    def __init__(
+        self,
+        bk_biz_id: int,
+        app_name: str,
+        retention: int,
+        overwrite_datasource_configs: Optional[Dict[str, Dict[str, Any]]] = None,
+    ):
         self.bk_biz_id: int = bk_biz_id
-        self.result_table_id: str = result_table_id
+        self.app_name: str = app_name
         self.retention: int = retention
+        self.overwrite_datasource_configs: Dict[str, Dict[str, Any]] = overwrite_datasource_configs or {}
 
     @classproperty
     def operator_mapping(self) -> Dict[str, Callable[[QueryConfigBuilder, str, types.FilterValue], Q]]:
@@ -143,9 +163,32 @@ class BaseQuery:
             LogicSupportOperator.LOGIC: lambda q, field, value: self._add_logic_filter(q, field, value),
         }
 
+    @cached_property
+    def _datasource_configs(self) -> Dict[str, Dict[str, Any]]:
+        datasource_configs: Dict[str, Dict[str, Any]] = copy.deepcopy(self.DEFAULT_DATASOURCE_CONFIGS)
+        for datasource_type, conf in self.overwrite_datasource_configs.items():
+            datasource_configs.setdefault(datasource_type, {}).update(conf)
+        return datasource_configs
+
+    def _get_table_id(self, datasource_type: str) -> str:
+        get_table_id_func: Callable[[int, str], str] = self._datasource_configs[datasource_type]["get_table_id_func"]
+        return get_table_id_func(self.bk_biz_id, self.app_name)
+
+    def _get_q(self, datasource_type: str):
+        datasource_config: Dict[str, Any] = self._datasource_configs[datasource_type]
+        return QueryConfigBuilder(datasource_config["using"]).table(self._get_table_id(datasource_type))
+
     @property
     def q(self) -> QueryConfigBuilder:
-        return QueryConfigBuilder(self.USING).table(self.result_table_id).time_field(self.DEFAULT_TIME_FIELD)
+        return self.log_q
+
+    @property
+    def log_q(self) -> QueryConfigBuilder:
+        return self._get_q(ApmDataSourceConfigBase.TRACE_DATASOURCE).time_field(self.DEFAULT_TIME_FIELD)
+
+    @property
+    def metric_q(self) -> QueryConfigBuilder:
+        return self._get_q(ApmDataSourceConfigBase.METRIC_DATASOURCE)
 
     def time_range_queryset(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
         start_time, end_time = self._get_time_range(self.retention, start_time, end_time)
@@ -169,7 +212,11 @@ class BaseQuery:
     def _collect_option_values(
         cls, q: QueryConfigBuilder, queryset: UnifyQuerySet, field: str, option_values: Dict[str, List[str]]
     ):
-        q = q.metric(field=field, method="count").group_by(field)
+        if q.using == cls.USING_LOG:
+            q = q.metric(field=field, method="count").group_by(field)
+        else:
+            q = q.metric(field="bk_apm_count", method="count").tag_values(field)
+
         for bucket in queryset.add_query(q):
             option_values.setdefault(field, []).append(bucket[field])
 
@@ -183,18 +230,22 @@ class BaseQuery:
         offset: int,
         limit: int,
     ) -> types.Page:
-        def _fill_total():
-            _q: QueryConfigBuilder = q.metric(field=count_field, method="count", alias="total")
-            page_data["total"] = queryset.add_query(_q)[0]["total"]
-
         def _fill_data():
             _q: QueryConfigBuilder = q.values(*select_fields)
             page_data["data"] = list(queryset.add_query(_q).offset(offset).limit(limit))
 
+        # TODO 数量并没有被使用，获取近 6 h 文档数量在 4w spans / min 的应用下需要 2～3s，先行去除，等完全不需要时将代码删除
+        # def _fill_total():
+        #     _q: QueryConfigBuilder = q.metric(field=count_field, method="count", alias="total")
+        #     page_data["total"] = queryset.add_query(_q)[0]["total"]
+
         # 为什么要分开获取数据和总数？
         # 并不是所有的 DB 都能在一次查询里，同时返回数据和命中总数，此处对查询场景进行原子逻辑拆分，同时并发加速
-        page_data: Dict[str, Union[int, List[Dict[str, Any]]]] = {}
-        run_threads([InheritParentThread(target=_fill_total), InheritParentThread(target=_fill_data)])
+        # run_threads([InheritParentThread(target=_fill_total), InheritParentThread(target=_fill_data)])
+
+        page_data: Dict[str, Union[int, List[Dict[str, Any]]]] = {"total": 0}
+
+        _fill_data()
 
         return page_data
 
