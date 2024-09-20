@@ -49,7 +49,8 @@
 
   const nodeType = computed(() => {
     // 当前选择的ip类型
-    return Object.keys(ipChooser.value || [])?.[0] ?? '';
+    const selectType = Object.keys(ipChooser.value).find(item => ipChooser.value[item].length);
+    return selectType ?? '';
   });
 
   const nodeCount = computed(() => {
@@ -158,15 +159,19 @@
 
   const handleIpSelectorValueChange = value => {
     const IPSelectIndex = modelValue.value.findIndex(item => item.field === '_ip-select_');
-    cacheIpChooser.value = value;
+    const ipChooserValue = {}; // 新的ip选择的值
+    const nodeType = Object.keys(value).find(item => value[item].length);
+    if (nodeType) ipChooserValue[nodeType] = value[nodeType];
+    cacheIpChooser.value = ipChooserValue;
     store.commit('updateIndexItemParams', {
-      ip_chooser: value,
+      ip_chooser: ipChooserValue,
     });
     if (!nodeCount.value && IPSelectIndex >= 0) {
       handleDeleteTagItem(IPSelectIndex);
       store.commit('updateIndexItemParams', {
         ip_chooser: {},
       });
+      dialogIpChooser.value = {};
       return;
     }
     if (IPSelectIndex >= 0) {

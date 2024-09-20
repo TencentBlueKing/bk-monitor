@@ -84,7 +84,7 @@ export default class FieldItem extends tsc<object> {
   /** 冲突字段索引集名称*/
   get unionConflictFieldsName() {
     return this.unionIndexItemList
-      .filter(item => this.unionIndexList.includes(Number(item.index_set_id)))
+      .filter(item => this.unionIndexList.includes(item.index_set_id))
       .map(item => item.indexName);
   }
 
