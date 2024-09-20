@@ -75,7 +75,6 @@ export default class CollectIndex extends tsc<IProps> {
   @PropSync('isShow', { type: Boolean }) isShowCollect: boolean;
   @PropSync('isRefresh', { type: Boolean }) isRefreshCollect: boolean;
 
-  @Prop({ type: Object, default: () => ({}) }) indexSetList: object;
   @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
 
   collectMinWidth = 160; // 收藏最小栏宽度
@@ -184,6 +183,10 @@ export default class CollectIndex extends tsc<IProps> {
     return this.$store.state.unionIndexList;
   }
 
+  get indexSetList() {
+    return this.$store.state.retrieve.indexSetList ?? [];
+  }
+
   @Watch('isShowCollect')
   handleShowCollect(value) {
     if (value) {
@@ -280,12 +283,14 @@ export default class CollectIndex extends tsc<IProps> {
         'updateUnionIndexList',
         cloneValue.index_set_ids.map(item => String(item)),
       );
+    const ids = isUnionIndex ? cloneValue.index_set_ids : [cloneValue.index_set_id];
     this.$store.commit('updateIndexItem', {
       keyword,
       addition,
       ip_chooser,
       index_set_id: cloneValue.index_set_id,
-      ids: isUnionIndex ? cloneValue.index_set_ids : [cloneValue.index_set_id],
+      ids,
+      items: ids.map(id => this.indexSetList.find(item => item.index_set_id === `${id}`)),
       isUnionIndex,
       search_mode: cloneValue.search_mode,
     });
