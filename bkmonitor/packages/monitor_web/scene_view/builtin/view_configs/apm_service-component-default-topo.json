@@ -102,8 +102,8 @@
                     "data_type": "time_series",
                     "api": "apm_metric.dynamicUnifyQuery",
                     "datasource": "time_series",
-                    "alias": "主调",
                     "data": {
+                      "alias_prefix": "caller",
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
                       "query_configs": [
@@ -197,8 +197,8 @@
                     "data_type": "time_series",
                     "api": "apm_metric.dynamicUnifyQuery",
                     "datasource": "time_series",
-                    "alias": "被调",
                     "data": {
+                      "alias_prefix": "callee",
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
                       "query_configs": [
@@ -1120,8 +1120,8 @@
                     "data_type": "time_series",
                     "api": "apm_metric.dynamicUnifyQuery",
                     "datasource": "time_series",
-                    "alias": "主调",
                     "data": {
+                      "alias_prefix": "caller",
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
                       "query_configs": [
@@ -1217,8 +1217,8 @@
                     "data_type": "time_series",
                     "api": "apm_metric.dynamicUnifyQuery",
                     "datasource": "time_series",
-                    "alias": "被调",
                     "data": {
+                      "alias_prefix": "callee",
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
                       "query_configs": [

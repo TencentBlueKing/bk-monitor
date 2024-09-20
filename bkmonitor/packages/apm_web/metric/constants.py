@@ -39,3 +39,22 @@ class ErrorMetricCategory(ChoicesEnum):
         (HTTP, "http 错误码"),
         (GRPC, "错误数"),
     )
+
+
+class SeriesAliasType(ChoicesEnum):
+    """
+    指标图表里面的显示名称分类
+    如果不能固定显示名称需要动态判断 就需要传递这个参数（例如组件类服务时）
+    """
+
+    CALLER = "caller"
+    CALLEE = "callee"
+
+    _choices_labels = ((CALLER, "主调"), (CALLEE, "被调"))
+
+    @classmethod
+    def get_opposite(cls, s):
+        if s == cls.CALLER.value:
+            return cls.CALLEE
+        if s == cls.CALLEE.value:
+            return cls.CALLER
