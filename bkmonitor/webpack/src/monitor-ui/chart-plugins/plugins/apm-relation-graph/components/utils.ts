@@ -156,6 +156,7 @@ export const getAlarmItemStatusTips = (dataType: EDataType, item: IAlarmDataItem
       [EAlarmType.green]: window.i18n.t('无告警'),
       [EAlarmType.red]: window.i18n.t('致命'),
       [EAlarmType.yellow]: window.i18n.t('预警'),
+      [EAlarmType.gray]: window.i18n.t('无请求数据'),
     };
     return {
       color: alarmColorMap.default[item.type],
@@ -167,6 +168,7 @@ export const getAlarmItemStatusTips = (dataType: EDataType, item: IAlarmDataItem
       [EAlarmType.yellow]: `${window.i18n.t('可容忍')}：0.25 < Apdex(${item.value}) <= 0.75`,
       [EAlarmType.green]: `${window.i18n.t('满意')}：Apdex(${item.value}) > 0.75`,
       [EAlarmType.red]: `${window.i18n.t('烦躁')}：Apdex(${item.value}) <= 0.25`,
+      [EAlarmType.gray]: window.i18n.t('无请求数据'),
     };
     return {
       color: alarmColorMap.default[item.type],
@@ -177,6 +179,7 @@ export const getAlarmItemStatusTips = (dataType: EDataType, item: IAlarmDataItem
     [EAlarmType.green]: `${window.i18n.tc('错误率')}：${(item.value * 100).toFixed(2)}%`,
     [EAlarmType.yellow]: `${window.i18n.tc('错误率')}：${(item.value * 100).toFixed(2)}%`,
     [EAlarmType.red]: `${window.i18n.tc('错误率')}：${(item.value * 100).toFixed(2)}%`,
+    [EAlarmType.gray]: window.i18n.t('无请求数据'),
   };
   return {
     color: alarmColorMap.default[item.type],

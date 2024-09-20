@@ -16,6 +16,10 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-mc-apm-topo:before {
+  content: '\e7b2';
+}
+
 .icon-mc-goto:before {
   content: '\e7b1';
 }

@@ -278,9 +278,9 @@ export default class BarAlarmChart extends tsc<IProps> {
    * @returns
    */
   handleMouseEnter(event: Event, item: IAlarmDataItem) {
-    if (item.type === EAlarmType.gray) {
-      return;
-    }
+    // if (item.type === EAlarmType.gray) {
+    //   return;
+    // }
     this.getTips(item);
     this.curHover = item.time;
     if (this.customChartConnector?.groupId === this.groupId) {

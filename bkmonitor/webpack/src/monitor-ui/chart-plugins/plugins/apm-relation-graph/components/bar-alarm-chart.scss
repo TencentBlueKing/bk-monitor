@@ -96,12 +96,15 @@
     z-index: 9999;
     min-width: 137px;
     padding: 8px;
+    font: 12px / 18px "Microsoft YaHei";
     font-size: 12px;
-    background: #000000cc;
+    color: rgb(190, 192, 198);
+    background-color: rgba(54, 58, 67, 0.88);
     border-radius: 5px;
   
     .time-text {
-      color: #FFF;
+      font-weight: bold;
+      color: #f1f3fa;
     }
   
     .status-wrap {

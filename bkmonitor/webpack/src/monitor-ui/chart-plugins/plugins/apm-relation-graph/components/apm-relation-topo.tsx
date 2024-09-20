@@ -170,7 +170,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   baseLayoutConf = {
     center: [this.canvasWidth / 2, this.canvasHeight / 2], // 布局的中心
     linkDistance: 400, // 边长度
-    maxIteration: 1000, // 最大迭代次数
+    maxIteration: 1, // 最大迭代次数
     preventOverlap: true, // 是否防止重叠
     nodeSize: 40, // 节点大小（直径）
     nodeSpacing: 500, // preventOverlap 为 true 时生效, 防止重叠时节点边缘间距的最小值
@@ -189,7 +189,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     type: 'gForce',
     linkDistance: 200,
     nodeSpacing: 200,
-    maxIteration: 4000,
+    maxIteration: 200,
     workerEnabled: true, // 可选，开启 web-worker
   };
 
@@ -215,6 +215,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     return Object.assign(this.radialLayoutConf, {
       // 当节点数量大于 LIMIT_WORKER_ENABLED 开启
       workerEnabled: curNodeLen > LIMIT_WORKER_ENABLED,
+      maxIteration: curNodeLen < 100 ? 100 : 10,
+      maxPreventOverlapIteration: curNodeLen < 100 ? 1000 : 100,
     });
   }
 
@@ -267,7 +269,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     const { width, height } = (this.relationGraphRef as HTMLDivElement).getBoundingClientRect();
     this.showLegend = false;
     this.showThumbnail = false;
-    this.toolsPopoverInstance?.hide();
+    this.toolsPopoverInstance?.hide?.();
     this.canvasWidth = width;
     this.canvasHeight = height;
     // 修改画布大小
@@ -386,6 +388,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         (this as any).graph = null;
       }
       setTimeout(() => {
+        console.time('initGraph');
         const { width, height } = this.relationGraphRef.getBoundingClientRect();
         this.canvasWidth = width;
         this.canvasHeight = height - 6;
@@ -480,6 +483,12 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
                 type: 'scroll-canvas',
                 scalableRange: -0.92,
               },
+              {
+                type: 'edge-tooltip',
+                formatText: model => {
+                  return `${this.$t(this.edgeType === 'request_count' ? '请求量' : '耗时')}: ${model.label}`; // 自定义提示文本
+                },
+              },
             ],
           },
           /** 图布局 */
@@ -499,10 +508,12 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
                 },
               },
             },
+            zIndex: 1,
           },
           defaultNode: {
             // 节点配置
             type: 'apm-custom-node',
+            zIndex: 2,
           },
           plugins,
         });
@@ -628,6 +639,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     graph.on('node:mouseenter', evt => {
       const { item } = evt;
       graph.setItemState(item, 'hover', true);
+      item.toFront();
     });
 
     graph.on('node:mouseleave', evt => {
@@ -642,16 +654,19 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       }
       this.showMenu(canvasX, canvasY, item as INode);
     });
-
-    graph.on('wheelzoom', () => {
-      this.scaleValue = (this as any).graph.getZoom();
-    });
-
-    graph.on('viewportchange', () => {
+    /** 监听手势缩放联动缩放轴数据 */
+    graph.on('viewportchange', ({ action }) => {
+      if (action === 'zoom') {
+        this.scaleValue = graph.getZoom();
+      }
       this.updateMenuPosition();
     });
-
+    graph.on('afterchangedata', () => {
+      console.log('afterchangedata');
+      graph.getNodes().forEach(node => node.toFront());
+    });
     graph.on('afterrender', () => {
+      console.timeEnd('initGraph');
       this.isRender = true;
       const zoom = (this as any).graph.getZoom();
       this.scaleValue = Number(zoom.toFixed(2));
@@ -667,6 +682,8 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         activeNode.setState('active', true);
       }
       this.handleHighlightNode();
+      this.handleShowLegend();
+      graph.getNodes().forEach(node => node.toFront());
     });
     // graph.on('edge:mouseenter', evt => {
     //   if (['rect', 'text'].includes(evt.target.get('type'))) {
@@ -750,7 +767,6 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     const hoverCircle = group.find(e => e.get('name') === 'custom-node-hover-circle');
     if (name === 'hover' && !item.hasState('active')) {
       const edges = item.getEdges();
-      item.toBack();
       hoverCircle.stopAnimate();
       if (value) {
         hoverCircle.animate(
