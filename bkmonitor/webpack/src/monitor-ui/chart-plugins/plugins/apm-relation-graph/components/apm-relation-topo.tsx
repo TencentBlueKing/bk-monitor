@@ -505,10 +505,12 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
                 },
               },
             },
+            zIndex: 1,
           },
           defaultNode: {
             // 节点配置
             type: 'apm-custom-node',
+            zIndex: 2,
           },
           plugins,
         });
@@ -634,6 +636,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
     graph.on('node:mouseenter', evt => {
       const { item } = evt;
       graph.setItemState(item, 'hover', true);
+      item.toFront();
     });
 
     graph.on('node:mouseleave', evt => {
@@ -648,16 +651,19 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       }
       this.showMenu(canvasX, canvasY, item as INode);
     });
-
-    graph.on('wheelzoom', () => {
-      this.scaleValue = (this as any).graph.getZoom();
-    });
-
-    graph.on('viewportchange', () => {
+    /** 监听手势缩放联动缩放轴数据 */
+    graph.on('viewportchange', ({ action }) => {
+      if (action === 'zoom') {
+        this.scaleValue = graph.getZoom();
+      }
       this.updateMenuPosition();
     });
-
+    graph.on('afterchangedata', () => {
+      console.log('afterchangedata');
+      graph.getNodes().forEach(node => node.toFront());
+    });
     graph.on('afterrender', () => {
+      console.log('afterrender');
       this.isRender = true;
       const zoom = (this as any).graph.getZoom();
       this.scaleValue = Number(zoom.toFixed(2));
@@ -674,6 +680,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       }
       this.handleHighlightNode();
       this.handleShowLegend();
+      graph.getNodes().forEach(node => node.toFront());
     });
     // graph.on('edge:mouseenter', evt => {
     //   if (['rect', 'text'].includes(evt.target.get('type'))) {
