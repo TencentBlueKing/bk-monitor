@@ -117,6 +117,11 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
         message: window.i18n.t('输入1-50个字符'),
         trigger: 'blur',
       },
+      {
+        validator: val => /^[a-z0-9_-]+$/.test(val),
+        message: window.i18n.t('仅支持小写字母、数字、_- 中任意一条件即可'),
+        trigger: ['change', 'blur'],
+      },
     ],
   };
   created() {
@@ -242,6 +247,7 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
               <bk-input
                 class='input'
                 v-model={this.formData.name}
+                placeholder={this.$t('1-50字符，由小写字母、数字、下划线(_)、中划线(-)组成')}
                 onBlur={() => this.handleCheckDuplicateName()}
               />
             </bk-form-item>
