@@ -5,9 +5,10 @@
   import FieldFilter from './field-filter';
   import SearchResultChart from '../search-result-chart/index.vue';
   import NoIndexSet from '../result-comp/no-index-set';
-
   import LogClustering from './log-clustering/index';
   import OriginalLog from './original-log/index';
+
+  const DEFAULT_FIELDS_WIDTH = 290;
 
   const props = defineProps({
     activeTab: { type: String, default: '' },
@@ -28,6 +29,7 @@
   const queueStatus = ref(false);
   const isTrendChartShow = ref(true);
   const isShowFieldStatistics = ref(true);
+  const fieldFilterWidth = ref(DEFAULT_FIELDS_WIDTH);
   const heightNum = ref();
 
   const changeTotalCount = count => {
@@ -41,6 +43,13 @@
     isTrendChartShow.value = isShow;
     heightNum.value = height;
   };
+  const handleFieldsShowChange = status => {
+    if (status) fieldFilterWidth.value = DEFAULT_FIELDS_WIDTH;
+    isShowFieldStatistics.value = status;
+  };
+  const handleFilterWidthChange = width => {
+    fieldFilterWidth.value = width;
+  };
 </script>
 
 <template>
@@ -51,7 +60,19 @@
       <FieldFilter
         v-show="isOriginShow"
         v-bkloading="{ isLoading: isFilterLoading && isShowFieldStatistics }"
-        :is-show-field-statistics.sync="isShowFieldStatistics"
+        v-model="isShowFieldStatistics"
+        v-monitor-drag="{
+          minWidth: 160,
+          maxWidth: 500,
+          defaultWidth: DEFAULT_FIELDS_WIDTH,
+          autoHidden: false,
+          theme: 'dotted',
+          placement: 'left',
+          isShow: isShowFieldStatistics,
+          onHidden: () => (isShowFieldStatistics = false),
+          onWidthChange: handleFilterWidthChange,
+        }"
+        @field-status-change="handleFieldsShowChange"
       ></FieldFilter>
       <div
         :class="[
@@ -61,6 +82,7 @@
             'is-show-field-statistics': isShowFieldStatistics && isOriginShow,
           },
         ]"
+        :style="{ flex: 1, width: `calc(100% - ${fieldFilterWidth}px)` }"
       >
         <SearchResultChart
           v-show="isOriginShow"
