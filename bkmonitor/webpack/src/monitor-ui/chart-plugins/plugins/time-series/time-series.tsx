@@ -406,14 +406,15 @@ export class LineChart
             .then(res => {
               this.$emit('seriesData', res);
               res.metrics && metrics.push(...res.metrics);
-              series.push(
-                ...res.series.map(set => ({
-                  ...set,
-                  name: `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
-                    this.handleSeriesName(item, set) || set.target
-                  }`,
-                }))
-              );
+              res.series &&
+                series.push(
+                  ...res.series.map(set => ({
+                    ...set,
+                    name: `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
+                      this.handleSeriesName(item, set) || set.target
+                    }`,
+                  }))
+                );
               this.clearErrorMsg();
               return true;
             })
