@@ -1788,6 +1788,8 @@ class SearchHandler(object):
                 value = item.get("value", [])
                 value = ",".join(value) if isinstance(value, list) else value
                 if value:
+                    if field == "*":
+                        value = value.replace('"', '\\"')
                     self.query_string = value
                 continue
 
