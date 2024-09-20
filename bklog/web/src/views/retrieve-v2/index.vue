@@ -30,6 +30,7 @@
   import useStore from '@/hooks/use-store';
   import { isEqual } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
+  import RouteUrlResolver from '@/store/url-resolver';
 
   import CollectFavorites from './collect/collect-index';
   import SearchBar from './search-bar/index.vue';
@@ -105,18 +106,16 @@
     const routeQuery = route.query ?? {};
 
     if (routeQuery.spaceUid !== spaceUid.value || routeQuery.bizId !== bkBizId.value) {
-      const appendParamKeys = ['addition', 'end_time', 'keyword', 'start_time', 'timezone', 'unionList'];
-      const undefinedQuery = appendParamKeys.reduce((out, key) => Object.assign(out, { [key]: undefined }), {});
+      const resolver = new RouteUrlResolver({ route });
 
       router.replace({
         params: {
           indexId: undefined,
         },
         query: {
-          ...routeQuery,
+          ...resolver.getDefUrlQuery(),
           spaceUid: spaceUid.value,
           bizId: bkBizId.value,
-          ...undefinedQuery,
         },
       });
     }

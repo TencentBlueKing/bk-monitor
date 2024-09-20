@@ -56,6 +56,7 @@ import {
 import globals from './globals';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
+import RouteUrlResolver from './url-resolver';
 import http from '@/api';
 
 Vue.use(Vuex);
@@ -339,6 +340,13 @@ const store = new Vuex.Store({
         state.indexSetFieldConfigList.data.length = 0;
         state.indexSetFieldConfigList.data.push(...(payload ?? []));
       }
+    },
+
+    updateAddition(state) {
+      state.indexItem.addition.forEach(item => {
+        const instance = new ConditionOperator(item);
+        Object.assign(item, instance.formatApiOperatorToFront());
+      });
     },
 
     updataOperatorDictionary(state, payload) {
@@ -791,36 +799,32 @@ const store = new Vuex.Store({
      * @param {*} param0
      * @param {*} param1
      */
-    updateIndexItemByRoute({ commit, state }, { route, list }) {
+    updateIndexItemByRoute({ commit }, { route, list }) {
       const ids = [];
       let isUnionIndex = false;
       commit('resetIndexSetQueryResult', { search_count: 0 });
+      const resolver = new RouteUrlResolver({ route });
+      const result = resolver.convertQueryToStore();
 
-      if ((route.query?.unionList?.length ?? 0) > 0) {
+      if ((result?.unionList?.length ?? 0) > 0) {
         isUnionIndex = true;
-        ids.push(...JSON.parse(decodeURIComponent(route.query?.unionList ?? '[]')));
+        ids.push(...result?.unionList);
         commit('updateUnionIndexList', ids);
       } else {
-        if (route.params.indexId) ids.push(route.params.indexId);
+        if (route.params.indexId) {
+          ids.push(route.params.indexId);
+        }
       }
 
       if (!isUnionIndex && !ids.length && list?.length) {
         ids.push(list[0].index_set_id);
       }
 
-      const appendParamKeys = ['addition', 'end_time', 'keyword', 'start_time', 'timezone'];
-      const appendObj = {};
-      appendParamKeys.forEach(key => {
-        if (route.query[key] !== undefined) {
-          const isJson = typeof state.indexItem[key] === 'object';
-          const value = isJson ? JSON.parse(decodeURIComponent(route.query[key])) : route.query[key];
-          Object.assign(appendObj, { [key]: value });
-        }
-      });
-
       if (ids.length) {
+        delete result.unionList;
+
         const payload = {
-          ...appendObj,
+          ...result,
           ids,
           selectIsUnionSearch: isUnionIndex,
           items: ids.map(val => (list || []).find(item => item.index_set_id === val)).filter(val => val !== undefined),
@@ -872,6 +876,7 @@ const store = new Vuex.Store({
         .then(res => {
           commit('updateIndexFieldInfo', res.data ?? {});
           commit('updataOperatorDictionary', res.data ?? {});
+          // commit('updateAddition');
           commit('updateNotTextTypeFields', res.data ?? {});
           commit('updateIndexSetFieldConfig', res.data ?? {});
           commit('retrieve/updateFiledSettingConfigID', res.data?.config_id ?? -1); // 当前字段配置configID

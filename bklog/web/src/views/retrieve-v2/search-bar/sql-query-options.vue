@@ -128,7 +128,7 @@
    * @return {string[]}
    */
   const getValueList = (valueMap: { __fieldType?: any }) => {
-    let valueMapList = Object.keys(valueMap);
+    let valueMapList = Object.keys(valueMap ?? {});
     if (valueMap.__fieldType === 'string') {
       valueMapList = valueMapList // 清除mark标签
         .map(item => `"${item.replace(/<mark>/g, '').replace(/<\/mark>/g, '')}"`);

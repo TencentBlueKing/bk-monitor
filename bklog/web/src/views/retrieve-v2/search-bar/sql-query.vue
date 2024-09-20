@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, nextTick, onMounted, onBeforeUnmount, watch } from 'vue';
+  import { ref, nextTick, onMounted, onBeforeUnmount, watch, getCurrentInstance } from 'vue';
 
   import CreateLuceneEditor from './codemirror-lucene';
   import SqlQueryOptions from './sql-query-options';
@@ -27,11 +27,16 @@
 
   let editorInstance = null;
 
+  const setEditorContext = val => {
+    editorInstance?.setValue(val);
+  };
+
   const formatModelValueItem = item => {
+    setEditorContext(item);
     return item;
   };
 
-  const handleWrapperClick = e => {
+  const handleWrapperClickCapture = e => {
     return refEditorParent.value?.contains(e.target) ?? false;
   };
 
@@ -69,12 +74,8 @@
       refSqlQueryOption.value?.beforeHideFn?.();
       return true;
     },
-    handleWrapperClick,
+    handleWrapperClick: handleWrapperClickCapture,
   });
-
-  const setEditorContext = val => {
-    editorInstance.setValue(val);
-  };
 
   const onEditorContextChange = doc => {
     const val = doc.text.join('');
@@ -96,10 +97,6 @@
       debounceRetrieve();
     }
   };
-
-  watch(modelValue, () => {
-    setEditorContext(modelValue.value);
-  });
 
   const createEditorInstance = () => {
     editorInstance = CreateLuceneEditor({
@@ -152,6 +149,13 @@
     getTippyInstance()?.hide();
     handleContainerClick();
   };
+
+  onMounted(() => {
+    createEditorInstance();
+    setTimeout(() => {
+      getCurrentInstance()?.proxy?.$el?.click();
+    }, 300);
+  })
 </script>
 <template>
   <div
@@ -174,6 +178,7 @@
         @active-change="handleSqlParamsActiveChange"
         @cancel="handleCancel"
         @change="handleQueryChange"
+        @retrieve="closeAndRetrieve"
       ></SqlQueryOptions>
     </div>
   </div>
