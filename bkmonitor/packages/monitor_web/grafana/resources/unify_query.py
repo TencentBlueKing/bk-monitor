@@ -691,10 +691,14 @@ class UnifyQueryRawResource(ApiAuthResource):
         """获取指定数量的topk维度组合"""
 
         if not (
-            (data_source.data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR
-             and data_source.data_type_label == DataTypeLabel.TIME_SERIES)
-            or (data_source.data_source_label == DataSourceLabel.BK_DATA
-                and data_source.data_type_label == DataTypeLabel.TIME_SERIES)
+            (
+                data_source.data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR
+                and data_source.data_type_label == DataTypeLabel.TIME_SERIES
+            )
+            or (
+                data_source.data_source_label == DataSourceLabel.BK_DATA
+                and data_source.data_type_label == DataTypeLabel.TIME_SERIES
+            )
         ):
             return
 
@@ -711,9 +715,7 @@ class UnifyQueryRawResource(ApiAuthResource):
                     function["params"][0]["value"] = series_num
                     break
             else:
-                data_source.functions.append(
-                    {"id": "topk", "params": [{"id": "k", "value": series_num}]}
-                )
+                data_source.functions.append({"id": "topk", "params": [{"id": "k", "value": series_num}]})
         query = UnifyQuery(
             bk_biz_id=params["bk_biz_id"],
             data_sources=[data_source],
@@ -754,12 +756,7 @@ class UnifyQueryRawResource(ApiAuthResource):
                 else:
                     condition = "and"  # 维度组合条件内使用 "and"
 
-                data_source.where.append({
-                    "condition": condition,
-                    "key": key,
-                    "method": "eq",
-                    "value": [value]
-                })
+                data_source.where.append({"condition": condition, "key": key, "method": "eq", "value": [value]})
         query_config["where"] = data_source.where
 
     def perform_request(self, params):
@@ -1344,6 +1341,7 @@ class DimensionUnifyQuery(Resource):
             data_type_label = serializers.CharField(
                 label="数据类型", default="time_series", allow_null=True, allow_blank=True
             )
+            data_label = serializers.CharField(label="数据标签", allow_blank=True, required=False)
             metrics = serializers.ListField(label="查询指标", allow_empty=False, child=MetricSerializer())
             table = serializers.CharField(label="结果表名", required=False, allow_blank=True)
             group_by = serializers.ListField(label="聚合字段")
@@ -1447,16 +1445,30 @@ class DimensionUnifyQuery(Resource):
 
         return list(dimensions)
 
-    def perform_request(self, params):
-        # 1、查询维度值
-        dimensions = self.query_dimensions(params)
-        # 2、对维度值进行翻译并返回
-        # 与GetVariableValue.query_dimension调用的接口一样
-        return resource.grafana.get_variable_value.dimension_translate(
-            params["bk_biz_id"],
-            {"field": params["dimension_field"], "result_table_id": params["query_configs"][0]["table"]},
-            dimensions,
-        )
+    def perform_request(self, request_params):
+        query_configs = request_params["query_configs"]
+        if not query_configs:
+            return []
+
+        query_config = query_configs[0]
+        params = {
+            "bk_biz_id": request_params["bk_biz_id"],
+            "type": "dimension",
+            "scenario": "os",
+            "params": {
+                "data_label": query_config["data_label"],
+                "data_source_label": query_config["data_source_label"],
+                "data_type_label": query_config["data_type_label"],
+                "result_table_id": query_config["table"],
+                "where": query_config["where"],
+                "start_time": request_params["start_time"],
+                "end_time": request_params["end_time"],
+                "interval": 600,
+                "field": request_params["dimension_field"],
+                "metric_field": query_config["metrics"][0]["field"],
+            },
+        }
+        return resource.grafana.get_variable_value(params)
 
 
 class DimensionCountUnifyQuery(DimensionUnifyQuery):
