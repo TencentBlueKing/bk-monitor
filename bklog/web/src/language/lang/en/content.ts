@@ -922,4 +922,5 @@ export default {
     'Press “Enter” or click “OK” to bring up the IP selector. Click “Cancel” to close the window.',
   暂无字段数据: 'No field data yet',
   索引集为空: 'Index collection is empty',
+  字段内容分布: 'Field content assignment',
 };

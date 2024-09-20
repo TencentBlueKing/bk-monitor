@@ -151,6 +151,6 @@
   };
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss" >
   @import './query-history.scss';
 </style>
