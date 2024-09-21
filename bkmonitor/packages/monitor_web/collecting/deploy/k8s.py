@@ -219,6 +219,7 @@ class K8sInstaller(BaseInstaller):
             "values": values,
             "collect": {
                 "id": self.collect_config.id,
+                "version": target_version.id,
                 "period": collect_params.get("collector", {}).get("period", 60),
                 "timeout": collect_params.get("collector", {}).get("timeout", 60),
             },

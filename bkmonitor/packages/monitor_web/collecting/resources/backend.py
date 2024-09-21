@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import logging
-import os
 from copy import copy
 from typing import Any, Dict
 
@@ -976,36 +975,40 @@ class SaveCollectConfigResource(Resource):
         elif data["collect_type"] == CollectConfigMeta.CollectType.SNMP_TRAP:
             plugin_id = resource.collecting.get_trap_collector_plugin(data)
         elif data["collect_type"] == CollectConfigMeta.CollectType.K8S:
-            qcloud_exporter_image = os.getenv("QCLOUD_EXPORTER_IMAGE", "")
-            if not qcloud_exporter_image:
-                raise ValueError("QCLOUD_EXPORTER_IMAGE is not set")
+            qcloud_exporter_plugin_id = f"qcloud_exporter_{data['bk_biz_id']}"
 
-            with open(os.path.join(settings.BASE_DIR, "support-files/qcloud-exporter-template.yaml.jinja2"), "r") as f:
-                template = f.read()
-                values = {
-                    "image": qcloud_exporter_image,
-                    "requests": {"cpu": "10m", "memory": "20Mi"},
-                    "limits": {"cpu": "50m", "memory": "50Mi"},
-                }
+            # 仅支持腾讯云指标采集
+            if plugin_id not in ["tencent_cloud_metric", qcloud_exporter_plugin_id]:
+                raise ValueError("Only support tencent_cloud_metric k8s collector")
 
-            plugin_id = f"qcloud_exporter_{data['bk_biz_id']}"
-            resource.plugin.create_plugin(
-                {
-                    "plugin_id": plugin_id,
-                    "bk_biz_id": bk_biz_id,
-                    "plugin_type": PluginType.K8S,
-                    "label": "other",
-                    "plugin_display_name": _("腾讯云指标采集"),
-                    "description_md": "",
-                    "logo": "",
-                    "version_log": "",
-                    "metric_json": [],
-                    "collector_json": {
-                        "template": template,
-                        "values": values,
-                    },
-                }
-            )
+            if plugin_id == "tencent_cloud_metric":
+                plugin_id = qcloud_exporter_plugin_id
+
+                # 检查是否已经创建了腾讯云指标采集插件
+                if CollectorPluginMeta.objects.filter(plugin_id=plugin_id).exists():
+                    return CollectorPluginMeta.objects.get(plugin_id=plugin_id)
+
+                # 检查是否配置了腾讯云指标插件配置
+                if not settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG:
+                    raise ValueError("TENCENT_CLOUD_METRIC_PLUGIN_CONFIG is not set, please contact administrator")
+
+                plugin_config: Dict[str, Any] = settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG
+
+                # 创建腾讯云指标采集插件
+                resource.plugin.create_plugin(
+                    {
+                        "plugin_id": plugin_id,
+                        "bk_biz_id": data['bk_biz_id'],
+                        "plugin_type": PluginType.K8S,
+                        "label": plugin_config.get("label", "os"),
+                        "plugin_display_name": _(plugin_config.get("plugin_display_name", "腾讯云指标采集")),
+                        "description_md": plugin_config.get("description_md", ""),
+                        "logo": plugin_config.get("logo", ""),
+                        "version_log": "",
+                        "metric_json": [],
+                        "collector_json": plugin_config["collector_json"],
+                    }
+                )
 
         collector_plugin = CollectorPluginMeta.objects.get(plugin_id=plugin_id)
         return collector_plugin
