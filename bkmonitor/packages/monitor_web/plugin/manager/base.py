@@ -278,7 +278,7 @@ class BasePluginManager:
         :param debug: 是否为调试模式
         """
 
-    def create_version(self, data):
+    def create_version(self, data) -> Tuple[PluginVersionHistory, bool]:
         version = self.plugin.generate_version(data["config_version"], data["info_version"])
         version.version_log = data.get("version_log", "")
         version.save()

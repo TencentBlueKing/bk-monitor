@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from monitor_web.commons.data_access import PluginDataAccessor
 from monitor_web.models.plugin import PluginVersionHistory
@@ -63,7 +63,7 @@ class K8sPluginManager(BasePluginManager):
         """
         return ""
 
-    def create_version(self, data):
+    def create_version(self, data) -> Tuple[PluginVersionHistory, bool]:
         version, _ = super().create_version(data)
         # 创建版本后直接发布
         self._release(version)

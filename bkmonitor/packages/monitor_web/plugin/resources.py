@@ -220,10 +220,13 @@ class CreatePluginResource(Resource):
         with transaction.atomic():
             plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=plugin_type)
             plugin_manager.validate_config_info(params["collector_json"], params["config_json"])
+
             try:
-                self.request_serializer.save()
+                plugin = self.request_serializer.save()
             except IntegrityError:
                 raise PluginIDExist({"msg": plugin_id})
+
+            plugin_manager = PluginManagerFactory.get_manager(plugin=plugin)
             version, need_debug = plugin_manager.create_version(params)
 
             # 如果是新导入的插件，则需要保存其metric_json
