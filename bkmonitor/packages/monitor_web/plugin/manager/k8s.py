@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional
 
 from monitor_web.commons.data_access import PluginDataAccessor
-from monitor_web.models import PluginVersionHistory
+from monitor_web.models.plugin import PluginVersionHistory
 
 from .base import BasePluginManager
 
@@ -23,20 +23,29 @@ class K8sPluginManager(BasePluginManager):
         """
         # 数据接入
         current_version = self.plugin.get_version(config_version, info_version)
+        return self._release(current_version, token, debug)
+
+    def _release(
+        self, version: PluginVersionHistory, token: List[str] = None, debug: bool = True
+    ) -> PluginVersionHistory:
+        """
+        插件发布
+        """
 
         # k8s插件需要开启字段黑名单
-        if not current_version.info.enable_field_blacklist:
-            current_version.info.enable_field_blacklist = True
-            current_version.info.save()
+        if not version.info.enable_field_blacklist:
+            version.info.enable_field_blacklist = True
+            version.info.save()
 
         # 数据接入
-        PluginDataAccessor(current_version, self.operator).access()
+        PluginDataAccessor(version, self.operator).access()
 
         # 标记为已发布
-        current_version.stage = PluginVersionHistory.Stage.RELEASE
-        current_version.is_packaged = True
-        current_version.save()
-        return current_version
+        version.stage = PluginVersionHistory.Stage.RELEASE
+        version.is_packaged = True
+        version.save()
+
+        return version
 
     def make_package(
         self,
@@ -57,5 +66,5 @@ class K8sPluginManager(BasePluginManager):
     def create_version(self, data):
         version, _ = super().create_version(data)
         # 创建版本后直接发布
-        self.release(version.config.id, version.info.id)
+        self._release(version)
         return version, False

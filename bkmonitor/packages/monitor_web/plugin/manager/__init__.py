@@ -32,6 +32,7 @@ from monitor_web.plugin.manager.exporter import (
     ExporterPluginManager,
 )
 from monitor_web.plugin.manager.jmx import JMXPluginManager
+from monitor_web.plugin.manager.k8s import K8sPluginManager
 from monitor_web.plugin.manager.log import LogPluginManager
 from monitor_web.plugin.manager.process import ProcessPluginManager
 from monitor_web.plugin.manager.pushgateway import PushgatewayPluginManager
@@ -51,6 +52,7 @@ SUPPORTED_PLUGINS = {
     CollectorPluginMeta.PluginType.SNMP_TRAP: SNMPTrapPluginManager,
     CollectorPluginMeta.PluginType.PROCESS: ProcessPluginManager,
     CollectorPluginMeta.PluginType.SNMP: SNMPPluginManager,
+    CollectorPluginMeta.PluginType.K8S: K8sPluginManager,
 }
 
 FILE_PLUGINS_FACTORY = {

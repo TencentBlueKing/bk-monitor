@@ -1016,7 +1016,7 @@ class SaveCollectConfigResource(Resource):
     @staticmethod
     def roll_back_result_table(collector_plugin):
         plugin_type = collector_plugin.plugin_type
-        if plugin_type in collector_plugin.VIRTUAL_PLUGIN_TYPE:
+        if plugin_type in collector_plugin.VIRTUAL_PLUGIN_TYPE and plugin_type != PluginType.K8S:
             plugin_manager = PluginManagerFactory.get_manager(collector_plugin, plugin_type)
             plugin_manager.delete_result_table(collector_plugin.release_version)
 
