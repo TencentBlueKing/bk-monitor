@@ -112,6 +112,7 @@ class PluginType(object):
     PROCESS = "Process"
     SNMP_TRAP = "SNMP_Trap"
     SNMP = "SNMP"
+    K8S = "K8S"
 
 
 class ConflictMap(object):
