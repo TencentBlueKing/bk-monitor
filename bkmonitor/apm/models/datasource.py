@@ -86,6 +86,10 @@ class ApmDataSourceConfigBase(models.Model):
         raise NotImplementedError
 
     @classmethod
+    def get_table_id(cls, bk_biz_id: int, app_name: str, **kwargs) -> str:
+        raise NotImplementedError
+
+    @classmethod
     def start(cls, bk_biz_id, app_name):
         cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name).switch_result_table(True)
 
@@ -178,16 +182,16 @@ class MetricDataSource(ApmDataSourceConfigBase):
     @property
     def table_id(self) -> str:
         bk_biz_id = int(self.bk_biz_id)
+        return self.get_table_id(bk_biz_id, self.app_name)
 
+    @classmethod
+    def get_table_id(cls, bk_biz_id: int, app_name: str, **kwargs) -> str:
         if bk_biz_id > 0:
-            return (
-                f"{bk_biz_id}_{self.DATA_NAME_PREFIX}_"
-                f"{self.DATASOURCE_TYPE}_{self.app_name}.{self.DEFAULT_MEASUREMENT}"
-            )
+            return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}_" f"{cls.DATASOURCE_TYPE}_{app_name}.{cls.DEFAULT_MEASUREMENT}"
         else:
             return (
-                f"{self.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{self.DATA_NAME_PREFIX}_"
-                f"{self.DATASOURCE_TYPE}_{self.app_name}.{self.DEFAULT_MEASUREMENT}"
+                f"{cls.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{cls.DATA_NAME_PREFIX}_"
+                f"{cls.DATASOURCE_TYPE}_{app_name}.{cls.DEFAULT_MEASUREMENT}"
             )
 
     def create_or_update_result_table(self, **option):
@@ -558,15 +562,14 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     @property
     def table_id(self) -> str:
-        bk_biz_id = int(self.bk_biz_id)
+        return self.get_table_id(int(self.bk_biz_id), self.app_name)
 
+    @classmethod
+    def get_table_id(cls, bk_biz_id: int, app_name: str, **kwargs) -> str:
         if bk_biz_id > 0:
-            return f"{bk_biz_id}_{self.DATA_NAME_PREFIX}.{self.DATASOURCE_TYPE}_{self.app_name}"
+            return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{app_name}"
         else:
-            return (
-                f"{self.TABLE_SPACE_PREFIX}_"
-                f"{-bk_biz_id}_{self.DATA_NAME_PREFIX}.{self.DATASOURCE_TYPE}_{self.app_name}"
-            )
+            return f"{cls.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{app_name}"
 
     def create_or_update_result_table(self, **option):
         table_id = self.table_id
@@ -725,7 +728,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
                 index_names=[i["index"] for i in routes if i.get("index")],
             )
             if not index_names:
-                raise ValueError(f"[IndexName] valid indexName not found!")
+                raise ValueError("[IndexName] valid indexName not found!")
             return ",".join(index_names)
         except Exception as e:  # noqa
             res = f"{self.result_table_id.replace('.', '_')}_*"
@@ -1028,8 +1031,11 @@ class ProfileDataSource(ApmDataSourceConfigBase):
 
     @property
     def table_id(self) -> str:
-        bk_biz_id = int(self.bk_biz_id)
-        return f"{bk_biz_id}_{self.DATA_NAME_PREFIX}.{self.DATASOURCE_TYPE}_{self.app_name}"
+        return self.get_table_id(int(self.bk_biz_id), self.app_name)
+
+    @classmethod
+    def get_table_id(cls, bk_biz_id: int, app_name: str, **kwargs) -> str:
+        return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{app_name}"
 
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
