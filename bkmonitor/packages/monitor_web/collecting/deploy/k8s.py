@@ -380,7 +380,7 @@ class K8sInstaller(BaseInstaller):
         self.collect_config.save()
 
         try:
-            self._undeploy(self.collect_config.deployment_config)
+            self._undeploy()
         except k8s_client.exceptions.ApiException as e:
             logger.error(f"undeploy k8s resource failed: {e}")
             self.collect_config.operation_result = OperationResult.FAILED
