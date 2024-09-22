@@ -235,7 +235,7 @@
 
   const setDefaultActiveIndex = () => {
     activeIndex.value = compSearchValue.value.length ? null : 0;
-  }
+  };
 
   watch(
     activeIndex,
@@ -752,6 +752,7 @@
     if (conditionValueInstance.isShown()) {
       return;
     }
+
     isConditionValueInputFocus.value = false;
 
     if (e.target.value) {
@@ -1127,10 +1128,11 @@
       }
     }
   }
+
   .tag-error-text {
+    margin: -20px 0 6px 0px;
     font-size: 12px;
     color: red;
-    margin: -20px 0 6px 0px;
   }
 </style>
 <style lang="scss">
