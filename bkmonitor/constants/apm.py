@@ -498,8 +498,8 @@ class SpanStandardField:
             ValueSource.METRIC,
         ),
         StandardField(
-            OtlpKey.STATUS_CODE,
-            OtlpKey.STATUS_CODE,
+            OtlpKey.STATUS,
+            "code",
             _("状态"),
             StandardFieldDisplayLevel.BASE,
             StandardFieldCategory.BASE,
