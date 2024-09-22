@@ -1166,7 +1166,7 @@ class GraphTraceQueryResource(ApiAuthResource):
 
     def perform_request(self, params):
         data = api.unify_query.query_data_by_exemplar(params)
-        for item in data["series"]:
+        for item in data.get("series") or []:
             item["data_points"] = item.pop("values", [])
         return data
 
