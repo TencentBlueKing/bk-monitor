@@ -12,6 +12,7 @@
   import TimeSetting from './time-setting';
   import UiInput from './ui-input';
   import { ConditionOperator } from '@/store/condition-operator';
+  import { getInputQueryIpSelectItem } from './const.common';
 
   const emit = defineEmits(['refresh', 'height-change']);
   const store = useStore();
@@ -25,19 +26,16 @@
   const sqlQueryValue = ref('');
 
   const indexItem = computed(() => store.state.indexItem);
-  const indexFieldInfo = computed(() => store.state.indexFieldInfo);
-  const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
-  const isInputLoading = computed(() => {
-    if (activeIndex.value === 0) {
-      return false;
-    }
 
-    return indexFieldInfo.value.is_loading || indexSetQueryResult.value.is_loading;
-  });
   const keyword = computed(() => indexItem.value.keyword);
   const addition = computed(() => indexItem.value.addition);
   const searchMode = computed(() => indexItem.value.search_mode);
   const clearSearchValueNum = computed(() => store.state.clearSearchValueNum);
+
+  const indexFieldInfo = computed(() => store.state.indexFieldInfo);
+  const isInputLoading = computed(() => {
+    return indexFieldInfo.value.is_loading;
+  });
 
   watch(
     keyword,
@@ -82,12 +80,15 @@
   };
 
   const handleBtnQueryClick = () => {
-    store.commit('updateIndexItemParams', {
-      addition: uiQueryValue.value.filter(val => !val.is_focus_input),
-      keyword: sqlQueryValue.value ?? '',
-    });
+    if (!isInputLoading.value) {
+      store.commit('updateIndexItemParams', {
+        addition: uiQueryValue.value.filter(val => !val.is_focus_input),
+        keyword: sqlQueryValue.value ?? '',
+        ip_chooser: uiQueryValue.value.find(item => item.field === '_ip-select_')?.value?.[0] ?? {},
+      });
 
-    store.dispatch('requestIndexSetQuery');
+      store.dispatch('requestIndexSetQuery');
+    }
   };
 
   const handleIndexSetSelected = payload => {
@@ -104,7 +105,11 @@
     const foramtAddition = (addition ?? []).map(item => {
       const instance = new ConditionOperator(item);
       return instance.formatApiOperatorToFront();
-    })
+    });
+
+    if (Object.keys(ip_chooser).length) {
+      foramtAddition.unshift(getInputQueryIpSelectItem(ip_chooser));
+    }
 
     store.commit('updateIndexItemParams', {
       keyword,
@@ -182,15 +187,7 @@
     </div>
     <div
       class="search-input"
-      v-bkloading="{
-        isLoading: isInputLoading,
-        size: 'mini',
-        mode: 'spin',
-        opacity: 1,
-        zIndex: 10,
-        theme: 'primary',
-        extCls: 'bklog-sql-input-loading',
-      }"
+      :class="{ disabled: isInputLoading }"
     >
       <UiInput
         v-if="activeIndex === 0"
@@ -206,10 +203,11 @@
       ></SqlQuery>
       <div class="search-tool items">
         <span
-          class="bklog-icon bklog-brush"
+          :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
           @click.stop="handleClearBtnClick"
         ></span>
         <BookmarkPop
+          :class="{ disabled: isInputLoading }"
           :sql="sqlQueryValue"
           :addition="uiQueryValue"
           :searchMode="queryParams[activeIndex]"
@@ -221,7 +219,13 @@
         class="search-tool search-btn"
         @click.stop="handleBtnQueryClick"
       >
-        {{ btnQuery }}
+        <bk-button
+          :loading="isInputLoading"
+          size="large"
+          theme="primary"
+          style=" width: 100%;height: 100%"
+          >{{ btnQuery }}</bk-button
+        >
       </div>
     </div>
   </div>

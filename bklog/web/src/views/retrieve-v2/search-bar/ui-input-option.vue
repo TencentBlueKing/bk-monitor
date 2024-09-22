@@ -137,8 +137,20 @@
   // 判定当前选中条件是否需要设置Value
   const isShowConditonValueSetting = computed(() => !withoutValueConditionList.includes(condition.value.operator));
 
+  const compSearchValue = computed(() => {
+    if (searchValue.value.length) {
+      return searchValue.value;
+    }
+
+    if (typeof props.value === 'string') {
+      return props.value;
+    }
+
+    return '';
+  });
+
   const filterFieldList = computed(() => {
-    const regExp = getRegExp(searchValue.value);
+    const regExp = getRegExp(compSearchValue.value);
     const filterFn = field =>
       field.field_type !== '__virtual__' &&
       !excludesFields.includes(field.field_name) &&
@@ -208,6 +220,10 @@
     );
   });
 
+  const setDefaultActiveIndex = () => {
+    activeIndex.value = compSearchValue.value.length ? null : 0;
+  }
+
   watch(
     activeIndex,
     () => {
@@ -223,17 +239,15 @@
     { immediate: true },
   );
 
-  watch(searchValue, () => {
-    nextTick(() => {
-      if (filterFieldList.value.length) {
-        activeIndex.value = 0;
-        handleFieldItemClick(filterFieldList.value[0], 0);
-        return;
-      }
-
-      activeIndex.value = null;
-    });
-  });
+  watch(
+    compSearchValue,
+    () => {
+      nextTick(() => {
+        setDefaultActiveIndex();
+      });
+    },
+    { immediate: true },
+  );
 
   const getFieldIcon = fieldType => {
     return fieldTypeMap.value?.[fieldType] ? fieldTypeMap.value?.[fieldType]?.icon : 'bklog-icon bklog-unkown';
@@ -246,12 +260,12 @@
   const resetActiveFieldItem = () => {
     activeFieldItem.value = getFieldConditonItem();
     condition.value = getInputQueryDefaultItem();
-    activeIndex.value = 0;
+    activeIndex.value = null;
   };
 
   const handleFieldItemClick = (item, index) => {
     // 避免重复提交设置
-    if (activeFieldItem.value.field_name === item.field_name) {
+    if (!item || activeFieldItem.value.field_name === item?.field_name) {
       return;
     }
 
@@ -337,7 +351,7 @@
 
   const handleConditionValueClick = () => {
     refValueTagInput.value.focus();
-    conditionValueActiveIndex.value = -1;
+    conditionValueActiveIndex.value = null;
 
     if (activeItemMatchList.value.length > 0) {
       if (!conditionValueInstance.isShown()) {
@@ -418,6 +432,10 @@
    */
   const setActiveObjectIndex = (objIndex, matchList, isIncrease = true) => {
     const maxIndex = matchList.length - 1;
+    if (objIndex.value === null) {
+      objIndex.value = -1;
+    }
+
     if (isIncrease) {
       if (objIndex.value < maxIndex) {
         objIndex.value++;
@@ -551,7 +569,7 @@
    * 字段列表键盘上下键响应事件
    */
   const handleFieldListKeyupAndKeydown = () => {
-    if (!isConditionValueFocus() && !isOperatorInstanceActive()) {
+    if (filterFieldList.value.length && !isConditionValueFocus() && !isOperatorInstanceActive()) {
       if (activeIndex.value < filterFieldList.value.length && activeIndex.value >= 0) {
         handleFieldItemClick(filterFieldList.value[activeIndex.value], activeIndex.value);
         scrollActiveItemIntoView();
@@ -660,6 +678,7 @@
 
   const beforeShowndFn = () => {
     isFocusFieldList.value = true;
+    setDefaultActiveIndex();
     document.addEventListener('keydown', handleKeydownClick);
 
     restoreFieldAndCondition();
@@ -676,12 +695,10 @@
   const afterHideFn = () => {
     document.removeEventListener('keydown', handleKeydownClick);
     handleFieldItemClick(filterFieldList.value[0], 0);
+    resetActiveFieldItem();
     isFocusFieldList.value = false;
     searchValue.value = '';
-  };
-
-  const setActiveIndex = (index = 0) => {
-    activeIndex.value = index;
+    activeIndex.value = 0;
   };
 
   const handleValueInputEnter = e => {
@@ -736,7 +753,6 @@
   defineExpose({
     beforeShowndFn,
     afterHideFn,
-    setActiveIndex,
   });
 </script>
 <template>
@@ -944,7 +960,7 @@
           </div>
           <div
             class="ui-value-row"
-            v-show="condition.value.length > 1"
+            v-show="condition.value.length > 1 && activeFieldItem.field_type === 'text'"
           >
             <div class="ui-value-label">{{ $t('组间关系') }}</div>
             <div>

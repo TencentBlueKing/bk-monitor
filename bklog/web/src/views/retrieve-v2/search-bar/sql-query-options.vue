@@ -63,8 +63,7 @@
   });
 
   // 检索后的日志数据如果字段在字段接口找不到则不展示联想的key
-  const originFieldList = () =>
-    Object.keys(retrieveDropdownData.value).filter(v => totalFieldsNameList.value.includes(v));
+  const originFieldList = () => totalFieldsNameList.value;
 
   const activeType: Ref<string[]> = ref([]);
   const separator = /\s(AND|OR)\s/i; // 区分查询语句条件
@@ -128,8 +127,9 @@
    * @return {string[]}
    */
   const getValueList = (valueMap: { __fieldType?: any }) => {
-    let valueMapList = Object.keys(valueMap ?? {});
-    if (valueMap.__fieldType === 'string') {
+    const resolveValueMap = valueMap ?? {};
+    let valueMapList = Object.keys(resolveValueMap);
+    if (resolveValueMap.__fieldType === 'string') {
       valueMapList = valueMapList // 清除mark标签
         .map(item => `"${item.replace(/<mark>/g, '').replace(/<\/mark>/g, '')}"`);
     }
@@ -677,7 +677,7 @@
         padding: 12px;
         background: #fafbfd;
         border-radius: 0 2px 2px 0;
-        outline:1px solid #dcdee5;
+        outline: 1px solid #dcdee5;
 
         .sql-query-fold-title {
           display: flex;

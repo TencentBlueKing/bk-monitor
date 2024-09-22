@@ -2,10 +2,8 @@
   import { ref, computed, set } from 'vue';
 
   import { getOperatorKey } from '@/common/util';
-  import LogIpSelector from '@/components/log-ip-selector/log-ip-selector';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import { debounce } from 'lodash';
 
   import {
     getInputQueryDefaultItem,
@@ -15,6 +13,7 @@
   } from './const.common';
   import UiInputOptions from './ui-input-option.vue';
   import useFocusInput from './use-focus-input';
+  import IPSelector from './ip-selector';
 
   const props = defineProps({
     value: {
@@ -28,51 +27,33 @@
   const store = useStore();
   const { $t } = useLocale();
 
+  const bkBizId = computed(() => store.state.bkBizId);
+
   /**
    * 格式化搜索标签渲染格式
    * @param {*} item
    */
   const formatModelValueItem = item => {
-    const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
-    const label = operatorDictionary.value[key]?.label ?? item.operator;
-    if (!Array.isArray(item.value)) item.value = item.value.split(',');
+    if (typeof item.value === 'string') {
+      item.value = item.value.split(',');
+    }
+
     if (!item.relation) item.relation = 'OR';
-    return { operator_label: $t(label), disabled: false, ...item };
+    return { disabled: false, ...item };
   };
 
+  /**
+   * 获取操作符展示文本
+   * @param {*} item
+   */
   const getOperatorLabel = item => {
+    if (item.field === '_ip-select_') {
+      return '';
+    }
+
     const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
     return operatorDictionary.value[key]?.label ?? item.operator;
   };
-
-  const showIpSelectorDialog = ref(false);
-  const cacheIpChooser = ref({});
-  const dialogIpChooser = ref({});
-  const bkBizId = computed(() => store.state.bkBizId);
-  const ipChooser = computed(() => store.getters.retrieveParams.ip_chooser);
-
-  const nodeType = computed(() => {
-    // 当前选择的ip类型
-    const selectType = Object.keys(ipChooser.value).find(item => ipChooser.value[item].length);
-    return selectType ?? '';
-  });
-
-  const nodeCount = computed(() => {
-    // ip选择的数量
-    return ipChooser.value[nodeType.value]?.length ?? 0;
-  });
-
-  const nodeUnit = computed(() => {
-    // ip单位
-    const nodeTypeTextMap = {
-      node_list: $t('节点'),
-      host_list: $t('IP'),
-      service_template_list: $t('服务模板'),
-      set_template_list: $t('集群模板'),
-      dynamic_group_list: $t('动态分组'),
-    };
-    return nodeTypeTextMap[nodeType.value] || '';
-  });
 
   const handleHeightChange = height => {
     emit('height-change', height);
@@ -94,6 +75,7 @@
   const queryItem = ref('');
   const activeIndex = ref(null);
   const isInputFocus = ref(false);
+  const showIpSelector = ref(false);
 
   const getSearchInputValue = () => {
     return refSearchInput.value?.value ?? '';
@@ -125,11 +107,14 @@
     return false;
   };
 
+  // 是否为自动foucus到input
+  // 自动focus不用弹出选择提示
+  const isAutoFocus = ref(false);
+
   const {
     modelValue,
     isDocumentMousedown,
     setIsDocumentMousedown,
-    hideTippyInstance,
     getTippyInstance,
     handleInputBlur,
     isInstanceShown,
@@ -150,6 +135,14 @@
       }
 
       refPopInstance.value?.afterHideFn?.();
+      if (refSearchInput.value) {
+        isAutoFocus.value = true;
+        refSearchInput.value?.focus();
+        setTimeout(() => {
+          isAutoFocus.value = false;
+        });
+      }
+
       return true;
     },
     handleWrapperClick: handleWrapperClickCapture,
@@ -180,40 +173,6 @@
     delayShowInstance(target);
   };
 
-  const handleIpSelectorValueChange = value => {
-    const IPSelectIndex = modelValue.value.findIndex(item => item.field === '_ip-select_');
-    const ipChooserValue = {}; // 新的ip选择的值
-    const nodeType = Object.keys(value).find(item => value[item].length);
-    if (nodeType) ipChooserValue[nodeType] = value[nodeType];
-    cacheIpChooser.value = ipChooserValue;
-    store.commit('updateIndexItemParams', {
-      ip_chooser: ipChooserValue,
-    });
-    if (!nodeCount.value && IPSelectIndex >= 0) {
-      handleDeleteTagItem(IPSelectIndex);
-      store.commit('updateIndexItemParams', {
-        ip_chooser: {},
-      });
-      dialogIpChooser.value = {};
-      return;
-    }
-    if (IPSelectIndex >= 0) {
-      modelValue.value[IPSelectIndex].value = [$t('已选择 {0} 个{1}', { 0: nodeCount.value, 1: nodeUnit.value })];
-    } else {
-      if (!nodeCount.value) {
-        store.commit('updateIndexItemParams', {
-          ip_chooser: {},
-        });
-        return;
-      }
-      let targetValue = formatModelValueItem(
-        getInputQueryIpSelectItem($t('已选择 {0} 个{1}', { 0: nodeCount.value, 1: nodeUnit.value })),
-      );
-      modelValue.value.push({ ...targetValue, disabled: false });
-    }
-    emitChange(modelValue.value);
-  };
-
   const getMatchName = field => {
     if (field === '*') return $t('全文');
     if (field === '_ip-select_') return $t('IP目标');
@@ -235,11 +194,10 @@
 
   const handleTagItemClick = (e, item, index) => {
     if (item.field === '_ip-select_') {
-      const isHaveIpChooser = !!Object.keys(ipChooser.value).length;
-      dialogIpChooser.value = isHaveIpChooser ? ipChooser.value : cacheIpChooser;
-      showIpSelectorDialog.value = true;
+      showIpSelector.value = true;
       return;
     }
+
     queryItem.value = {};
     isInputFocus.value = false;
     if (!Array.isArray(item.value)) item.value = item.value.split(',');
@@ -252,35 +210,30 @@
 
   const handleDisabledTagItem = item => {
     set(item, 'disabled', !item.disabled);
-    if (item.field === '_ip-select_') {
-      store.commit('updateIndexItemParams', {
-        ip_chooser: item.disabled ? {} : cacheIpChooser.value,
-      });
-    }
     emitChange(modelValue.value);
   };
 
   const handleDeleteTagItem = (index, item) => {
-    if (item?.field === '_ip-select_') {
-      store.commit('updateIndexItemParams', {
-        ip_chooser: {},
-      });
-    }
     modelValue.value.splice(index, 1);
     emitChange(modelValue.value);
   };
 
   const handleSaveQueryClick = payload => {
-    const isPayloadValueEmpty = !(payload?.value?.length ?? 0);
-    const isFulltextEnterVlaue = isInputFocus.value && isPayloadValueEmpty && !payload?.field;
-
     if (payload === 'ip-select-show') {
-      const isHaveIpChooser = !!Object.keys(ipChooser.value).length;
-      dialogIpChooser.value = isHaveIpChooser ? ipChooser.value : cacheIpChooser;
-      showIpSelectorDialog.value = true;
+      const copyValue = getInputQueryIpSelectItem();
+      if (!modelValue.value.some(f => f.field === copyValue.field)) {
+        modelValue.value.push({ ...copyValue, disabled: false });
+      }
+
       closeTippyInstance();
+      setTimeout(() => {
+        showIpSelector.value = true;
+      }, 100);
       return;
     }
+
+    const isPayloadValueEmpty = !(payload?.value?.length ?? 0);
+    const isFulltextEnterVlaue = isInputFocus.value && isPayloadValueEmpty && !payload?.field;
 
     const inputVal = getSearchInputValue();
     // 如果是全文检索，未输入任何内容就点击回车
@@ -322,12 +275,20 @@
     isInputFocus.value = true;
     activeIndex.value = null;
     queryItem.value = '';
+
+    if (isAutoFocus.value) {
+      return;
+    }
+
     debounceShowInstance();
   };
 
   const handleFullTextInputBlur = e => {
-    handleInputBlur(e);
-    inputValueLength = 0;
+    if (!isInstanceShown()) {
+      handleInputBlur(e);
+      inputValueLength = 0;
+      queryItem.value = '';
+    }
   };
 
   const handleInputValueChange = e => {
@@ -335,6 +296,8 @@
       inputValueLength = e.target.value.length;
       debounceShowInstance();
     }
+
+    queryItem.value = e.target.value;
   };
 
   // 键盘删除键
@@ -355,6 +318,10 @@
 
       needDeleteItem.value = true;
     }
+  };
+
+  const handleIPChange = () => {
+    emitChange(modelValue.value);
   };
 </script>
 
@@ -385,7 +352,17 @@
         >
       </div>
       <div class="tag-row match-value">
-        <template v-if="Array.isArray(item.value)">
+        <template v-if="item.field === '_ip-select_'">
+          <span class="match-value-text">
+            <IPSelector
+              v-model="item.value[0]"
+              :isShow.sync="showIpSelector"
+              :bkBizId="bkBizId"
+              @change="handleIPChange"
+            ></IPSelector>
+          </span>
+        </template>
+        <template v-else-if="Array.isArray(item.value)">
           <span
             v-for="(child, childInex) in item.value"
             :key="childInex"
@@ -437,15 +414,6 @@
         @save="handleSaveQueryClick"
       ></UiInputOptions>
     </div>
-    <!-- 目标选择器 -->
-    <LogIpSelector
-      :height="670"
-      :key="bkBizId"
-      :show-dialog.sync="showIpSelectorDialog"
-      :value="dialogIpChooser"
-      mode="dialog"
-      @change="handleIpSelectorValueChange"
-    />
   </ul>
 </template>
 <style scoped>

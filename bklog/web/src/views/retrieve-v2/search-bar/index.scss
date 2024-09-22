@@ -63,6 +63,19 @@
     border-radius: 2px;
     box-shadow: 0 2px 4px 0 #1919290d;
 
+    &.disabled {
+      &::after {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        cursor: not-allowed;
+        content: "";
+        background-color: transparent;
+      }
+    }
+
     .search-tool {
       position: absolute;
       top: 0;
@@ -72,8 +85,8 @@
         display: inline-flex;
       }
 
-      &.items .disabled  {
-        color: #dcdee5 ;
+      &.items .disabled {
+        color: #dcdee5;
         cursor: not-allowed;
       }
 
@@ -127,7 +140,7 @@
       left: 0;
       width: 1px;
       height: 14px;
-      content: '';
+      content: "";
       background-color: #dcdee5;
     }
   }
@@ -174,7 +187,7 @@
       left: 0;
       width: 1px;
       height: 14px;
-      content: '';
+      content: "";
       background-color: #dcdee5;
     }
   }

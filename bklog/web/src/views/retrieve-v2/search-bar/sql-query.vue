@@ -56,6 +56,7 @@
     addInputListener: false,
     tippyOptions: {
       maxWidth: 'none',
+      offset: [0, 15]
     },
     onShowFn: instance => {
       if (refSqlQueryOption.value?.beforeShowndFn?.()) {

@@ -39,14 +39,15 @@ export const getInputQueryDefaultItem = (value = []) => {
     disabled: false,
   };
 };
+
 export const getInputQueryIpSelectItem = value => {
   return {
     field: '_ip-select_',
     operator: '',
     isInclude: false,
-    value: [value],
+    value: [value ?? {}],
     relation: '',
-    disabled: true,
+    disabled: false,
   };
 };
 /**

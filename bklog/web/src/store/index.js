@@ -229,7 +229,7 @@ const store = new Vuex.Store({
       } = state.indexItem;
 
       const filterAddition = addition
-        .filter(item => !item.disabled)
+        .filter(item => !item.disabled && item.field !== '_ip-select_')
         .map(item => {
           const instance = new ConditionOperator(item);
           return instance.getRequestParam();
@@ -328,6 +328,7 @@ const store = new Vuex.Store({
       if (payload?.addition?.length >= 0) {
         state.indexItem.addition.splice(0, state.indexItem.addition.length, ...payload?.addition);
       }
+
       Object.assign(state.indexItem, payload ?? {});
     },
 
