@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
   import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue';
 
   // @ts-ignore
@@ -157,6 +157,19 @@
       (regExp.test(field.field_alias) || regExp.test(field.field_name));
     return fieldList.value.filter(filterFn);
   });
+
+  const isExitErrorTag = ref(false);
+
+  const tagValidateFun = index => {
+    // 如果是数值类型， 返回一个检验的函数
+    if (['long', 'integer', 'float'].includes(activeFieldItem.value.field_type)) {
+      let regex = new RegExp(/^-?\d+\.?\d*$/);
+      const result = condition.value.value.map(val => regex.test(val));
+      isExitErrorTag.value = result.some(val => !val);
+      return result[index];
+    }
+    return true;
+  };
 
   const activeOperator = computed(
     () =>
@@ -347,9 +360,26 @@
     if (conditionValueInputVal.value.length) {
       return 'search-empty';
     }
+
+    return 'empty';
   });
 
-  const handleConditionValueClick = () => {
+  const currentEditTagIndex = ref();
+
+  const handleEditTagClick = (e, tagContent, tagIndex) => {
+    const parent = e.target.parentNode;
+
+    currentEditTagIndex.value = tagIndex;
+    setTimeout(() => {
+      parent.querySelector('input').focus();
+    }, 300);
+  };
+
+  const handleConditionValueClick = e => {
+    if (e?.target !== refConditionInput.value || !e) {
+      return;
+    }
+
     refValueTagInput.value.focus();
     conditionValueActiveIndex.value = null;
 
@@ -361,6 +391,13 @@
     }
   };
 
+  const handleTagInputBlur = () => {
+    currentEditTagIndex.value = '';
+  };
+
+  const handleTagInputEnter = () => {
+    currentEditTagIndex.value = '';
+  };
   /**
    * 当前快捷键操作是否命中条件相关弹出
    */
@@ -715,8 +752,8 @@
     if (conditionValueInstance.isShown()) {
       return;
     }
-
     isConditionValueInputFocus.value = false;
+
     if (e.target.value) {
       const value = e.target.value;
       e.target.value = '';
@@ -795,8 +832,8 @@
           </div>
           <template v-if="isFieldListEmpty || isSearchEmpty">
             <bk-exception
-              :type="exceptionType"
               style="justify-content: center; height: 260px"
+              :type="exceptionType"
               scene="part"
             >
             </bk-exception>
@@ -806,9 +843,9 @@
       <div :class="['value-list', { 'is-full-text': showFulltextMsg }]">
         <template v-if="isSearchEmpty">
           <bk-exception
-            type="500"
-            scene="part"
             style="justify-content: center; height: 260px"
+            scene="part"
+            type="500"
           >
             搜索为空，无需条件设置
           </bk-exception>
@@ -909,13 +946,29 @@
                 <li
                   v-for="(item, index) in condition.value"
                   class="tag-item"
-                  :key="`${item}-${index}`"
+                  :key="`-${index}`"
                 >
-                  <span class="tag-item-text">{{ item }}</span>
-                  <span
-                    class="tag-item-del bk-icon icon-close"
-                    @click.stop="e => hanleDeleteTagItem(index)"
-                  ></span>
+                  <template v-if="currentEditTagIndex === index">
+                    <input
+                      style="border: 1px solid #c4c6cc"
+                      v-model="condition.value[index]"
+                      type="text"
+                      @blur.stop="handleTagInputBlur"
+                      @keyup.enter="handleTagInputEnter"
+                    />
+                  </template>
+                  <template v-else>
+                    <span
+                      class="tag-item-text"
+                      :class="!tagValidateFun(index) ? 'tag-validate-error' : ''"
+                      @dblclick.stop="e => handleEditTagClick(e, item, index)"
+                      >{{ item }}</span
+                    >
+                    <span
+                      class="tag-item-del bk-icon icon-close"
+                      @click.stop="e => hanleDeleteTagItem(index)"
+                    ></span>
+                  </template>
                 </li>
                 <li>
                   <input
@@ -957,6 +1010,12 @@
                 </div>
               </ul>
             </div>
+          </div>
+          <div
+            v-if="isExitErrorTag"
+            class="tag-error-text"
+          >
+            当前搜索条件输入校验有误
           </div>
           <div
             class="ui-value-row"
@@ -1036,7 +1095,7 @@
           border-color: #f0f1f5;
 
           .tag-item-text {
-            max-width: 80px;
+            max-width: 100%;
             padding: 0 4px;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -1051,6 +1110,11 @@
             font-size: 16px;
             cursor: pointer;
           }
+
+          .tag-validate-error {
+            border-color: red;
+            border-style: dashed;
+          }
         }
 
         input.tag-option-focus-input {
@@ -1062,6 +1126,11 @@
         }
       }
     }
+  }
+  .tag-error-text {
+    font-size: 12px;
+    color: red;
+    margin: -20px 0 6px 0px;
   }
 </style>
 <style lang="scss">
