@@ -1,6 +1,6 @@
 {
   "*.(ts|tsx|js)": [
-    "npx biome check --write --files-ignore-unknown=true --no-errors-on-unmatched",
+    "npx biome check --write --files-ignore-unknown=true --no-errors-on-unmatched --colors=force --max-diagnostics=1000 --diagnostic-level=warn",
     "npx eslint --cache --fix"
   ],
   "src/**/*.(vue|scss|css|sass)": ["npx stylelint --cache --fix"],

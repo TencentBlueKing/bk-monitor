@@ -82,6 +82,7 @@ const router = new VueRouter({
   routes,
 });
 export const isAuthority = async (page: string | string[]) => {
+  if (!page) return true;
   const data: { isAllowed: boolean }[] = await authorityStore.checkAllowedByActionIds({
     action_ids: Array.isArray(page) ? page : [page],
   });

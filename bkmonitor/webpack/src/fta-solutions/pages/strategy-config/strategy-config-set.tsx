@@ -41,10 +41,6 @@ export default class FtaStrategyConfigSet extends Mixins(authorityMixinCreate(ru
   @Prop({ type: [String, Number], default: '' }) readonly id: number | string;
   needCheck = true;
   fromRouteName = '';
-
-  @Provide('authority') authority: Record<string, boolean>;
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
-  @Provide('authorityMap') authorityMap;
   @Provide('strategyType') strategyType: strategyType = 'fta';
 
   beforeRouteEnter(to, from, next) {
