@@ -253,7 +253,8 @@ class LinkHelper:
             f"from={start_time * 1000}&"
             f"to={end_time * 1000}&"
             f"dashboardId={dashboard_id}&"
-            f"filter-bk_instance_id={instance_name}"
+            f"filter-bk_instance_id={instance_name}&"
+            f"sceneId=apm_service&sceneType=detail"
         )
 
     @classmethod

@@ -136,7 +136,7 @@ class TopoLinkResource(Resource):
                     validated_request_data["end_time"],
                 )
             elif source_type == SourceType.POD.value:
-                return LinkHelper.get_service_monitor_link(
+                return LinkHelper.get_pod_monitor_link(
                     validated_request_data["source_info"]["bcs_cluster_id"],
                     validated_request_data["source_info"]["namespace"],
                     validated_request_data["source_info"]["pod"],
