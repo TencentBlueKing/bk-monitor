@@ -364,9 +364,9 @@
     return 'empty';
   });
 
-  const currentEditTagIndex = ref();
+  const currentEditTagIndex = ref(null);
 
-  const handleEditTagClick = (e, tagContent, tagIndex) => {
+  const handleEditTagDBClick = (e, tagContent, tagIndex) => {
     const parent = e.target.parentNode;
 
     currentEditTagIndex.value = tagIndex;
@@ -374,6 +374,16 @@
       parent.querySelector('input').focus();
     }, 300);
   };
+
+  // const handleEditTagClick = (e, tagContent, tagIndex) => {
+  //   const parent = e.target.parentNode;
+
+  //   setTimeout(() => {
+  //     const value = parent.querySelector('input').value;
+  //     const charLen = getCharLength(value);
+  //     parent.querySelector('input').style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
+  //   }, 300);
+  // };
 
   const handleConditionValueClick = e => {
     if (e?.target !== refConditionInput.value || !e) {
@@ -947,11 +957,12 @@
                 <li
                   v-for="(item, index) in condition.value"
                   class="tag-item"
+                  :class="!tagValidateFun(index) ? 'tag-validate-error' : ''"
                   :key="`-${index}`"
                 >
                   <template v-if="currentEditTagIndex === index">
                     <input
-                      style="border: 1px solid #c4c6cc"
+                      class="tag-item-input"
                       v-model="condition.value[index]"
                       type="text"
                       @blur.stop="handleTagInputBlur"
@@ -961,8 +972,7 @@
                   <template v-else>
                     <span
                       class="tag-item-text"
-                      :class="!tagValidateFun(index) ? 'tag-validate-error' : ''"
-                      @dblclick.stop="e => handleEditTagClick(e, item, index)"
+                      @dblclick.stop="e => handleEditTagDBClick(e, item, index)"
                       >{{ item }}</span
                     >
                     <span
@@ -1111,11 +1121,11 @@
             font-size: 16px;
             cursor: pointer;
           }
+        }
 
-          .tag-validate-error {
-            border-color: red;
-            border-style: dashed;
-          }
+        &.tag-validate-error {
+          border-color: red;
+          border-style: dashed;
         }
 
         input.tag-option-focus-input {
@@ -1124,6 +1134,11 @@
           font-size: 12px;
           color: #63656e;
           border: none;
+        }
+
+        input.tag-item-input {
+          max-width: 100%;
+          border: 1px solid #c4c6cc;
         }
       }
     }
