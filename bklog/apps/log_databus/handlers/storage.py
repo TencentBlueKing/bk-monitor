@@ -53,7 +53,7 @@ from apps.log_databus.constants import (
 from apps.log_databus.exceptions import (
     BKBaseStorageSyncFailed,
     ESClusterAlreadyExistException,
-    NodeSettingError,
+    NodeSettingException,
     StorageHaveResource,
     StorageNotExistException,
     StorageNotPermissionException,
@@ -880,7 +880,7 @@ class StorageHandler(object):
                 else:
                     datanode_list.extend(result)
         except Exception as e:
-            raise NodeSettingError(f"ES集群节点配置获取失败 ==> {e}")
+            raise NodeSettingException(NodeSettingException.MESSAGE.format(error_info=e))
         else:
             # 筛选节点
             for node in datanode_list:

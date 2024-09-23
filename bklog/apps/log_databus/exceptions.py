@@ -413,6 +413,6 @@ class VclusterNodeNotAllowedException(BaseCollectorConfigException):
 # =================================================
 
 
-class NodeSettingError(BaseCollectorConfigException):
+class NodeSettingException(BaseCollectorConfigException):
     ERROR_CODE = "910"
-    MESSAGE = _("ES集群节点配置获取失败")
+    MESSAGE = _("ES集群节点配置获取失败：{error_info}")
