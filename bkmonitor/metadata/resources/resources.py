@@ -16,6 +16,8 @@ from itertools import chain
 from typing import Dict, List
 
 import yaml
+from confluent_kafka import Consumer as ConfluentConsumer
+from confluent_kafka import KafkaError, KafkaException
 from django.conf import settings
 from django.db.models import Q
 from django.db.models.query import QuerySet
@@ -1777,6 +1779,10 @@ class EsRouteResource(Resource):
 
 
 class KafkaTailResource(Resource):
+    """
+    根据table_id消费kafka数据
+    """
+
     class RequestSerializer(serializers.Serializer):
         table_id = serializers.CharField(required=True, label="结果表ID")
         size = serializers.IntegerField(required=False, label="拉取条数", default=10)
@@ -1786,7 +1792,60 @@ class KafkaTailResource(Resource):
             result_table = models.ResultTable.objects.get(table_id=validated_request_data["table_id"])
         except models.ResultTable.DoesNotExist:
             raise ValidationError(_("结果表不存在"))
+
         datasource = result_table.data_source
+        size = validated_request_data["size"]
+
+        if datasource.mq_cluster_id in settings.BKBASE_KAFKA_CLUSTER_ID_LIST:
+            result = self._consume_with_confluent_kafka(datasource, size)
+        else:
+            result = self._consume_with_kafka_python(datasource, size)
+
+        result.reverse()
+        return result
+
+    def _consume_with_confluent_kafka(self, datasource, size):
+        """
+        使用confluent_kafka库消费kafka数据，针对SCRAM-SHA-512认证的集群
+        """
+        consumer_config = {
+            'bootstrap.servers': f"{datasource.mq_cluster.domain_name}:{datasource.mq_cluster.port}",
+            'group.id': 'my_group',
+            'session.timeout.ms': 6000,  # 10秒超时
+            'auto.offset.reset': 'earliest',
+            'security.protocol': 'SASL_PLAINTEXT',
+            'sasl.mechanisms': 'SCRAM-SHA-512',
+            'sasl.username': datasource.mq_cluster.username,
+            'sasl.password': datasource.mq_cluster.password,
+        }
+
+        consumer = ConfluentConsumer(consumer_config)
+        topic = datasource.mq_config.topic
+        consumer.subscribe([topic])
+
+        result = []
+        while len(result) < size:
+            msg = consumer.poll(timeout=1.0)
+            if msg is None:
+                continue
+            if msg.error():
+                if msg.error().code() == KafkaError._PARTITION_EOF:
+                    break
+                elif msg.error():
+                    raise KafkaException(msg.error())
+            else:
+                try:
+                    result.append(json.loads(msg.value().decode()))
+                except Exception:  # pylint: disable=broad-except
+                    pass
+
+        consumer.close()
+        return result
+
+    def _consume_with_kafka_python(self, datasource, size):
+        """
+        使用kafka-python库消费kafka数据，针对PLAIN认证的集群
+        """
         param = {
             "bootstrap_servers": f"{datasource.mq_cluster.domain_name}:{datasource.mq_cluster.port}",
             "request_timeout_ms": 1000,
@@ -1797,12 +1856,13 @@ class KafkaTailResource(Resource):
             param["sasl_plain_password"] = datasource.mq_cluster.password
             param["security_protocol"] = "SASL_PLAINTEXT"
             param["sasl_mechanism"] = "PLAIN"
+
         consumer = KafkaConsumer(datasource.mq_config.topic, **param)
-        size = validated_request_data["size"]
         consumer.poll(size)
         topic_partitions = consumer.partitions_for_topic(datasource.mq_config.topic)
         if not topic_partitions:
             raise ValueError(_("partition获取失败"))
+
         result = []
         for partition in topic_partitions:
             # 获取该分区最大偏移量
@@ -1826,7 +1886,7 @@ class KafkaTailResource(Resource):
                 if msg.offset == end_offset - 1:
                     break
 
-        return result.reverse()
+        return result
 
 
 class QueryResultTableStorageDetailResource(Resource):
