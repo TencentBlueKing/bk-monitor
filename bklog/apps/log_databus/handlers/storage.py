@@ -53,6 +53,7 @@ from apps.log_databus.constants import (
 from apps.log_databus.exceptions import (
     BKBaseStorageSyncFailed,
     ESClusterAlreadyExistException,
+    NodeSettingError,
     StorageHaveResource,
     StorageNotExistException,
     StorageNotPermissionException,
@@ -878,8 +879,8 @@ class StorageHandler(object):
                 # 不存在 data key 也添加
                 else:
                     datanode_list.extend(result)
-        except Exception as e:
-            logger.error(f"Error retrieving nodes settings: {e}")
+        except Exception:
+            raise NodeSettingError()
         else:
             # 筛选节点
             for node in datanode_list:
