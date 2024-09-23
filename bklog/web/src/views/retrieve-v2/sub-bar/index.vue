@@ -1,16 +1,16 @@
 <script setup>
   import { ref, computed } from 'vue';
 
-  import BizMenuSelect from '@/components/biz-menu';
-  import { isEqual } from 'lodash';
-  import ClusterSetting from '../setting-modal/index.vue';
-  import RetrieveSetting from './retrieve-setting.vue';
-  import SelectIndexSet from '../condition-comp/select-index-set.tsx';
-  import QueryHistory from '../search-bar/query-history';
-  import TimeSetting from '../search-bar/time-setting';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
+  import { isEqual } from 'lodash';
+
+  import SelectIndexSet from '../condition-comp/select-index-set.tsx';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
+  import QueryHistory from '../search-bar/query-history';
+  import TimeSetting from '../search-bar/time-setting';
+  import ClusterSetting from '../setting-modal/index.vue';
+  import RetrieveSetting from './retrieve-setting.vue';
 
   const store = useStore();
   const isShowClusterSetting = ref(false);
