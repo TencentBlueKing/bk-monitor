@@ -347,6 +347,7 @@
       showHeadNaviBizSelect() {
         if (this.$route.name === 'retrieve') {
           const isDebug = window.FEATURE_TOGGLE.bklog_search_new === 'debug';
+          const isOn = window.FEATURE_TOGGLE.bklog_search_new === 'on';
           if (isDebug) {
             const whiteList = (window.FEATURE_TOGGLE_WHITE_LIST.bklog_search_new ?? []).map(id => `${id}`);
             const bkBizId = this.$route.query.bizId;
@@ -354,7 +355,8 @@
               return true;
             }
           }
-          return false;
+
+          return isOn;
         }
       },
     },

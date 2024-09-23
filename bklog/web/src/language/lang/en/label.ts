@@ -96,6 +96,7 @@ export default {
   全选: 'Select all',
   支持: 'Support',
   存在: 'Exists',
+  不存在: 'Not Exists',
   收藏: 'Favorite',
   刷新: 'Refresh',
   类型: 'Type',
@@ -677,4 +678,6 @@ export default {
   开启新类告警: 'Enable New Class Alert',
   开启数量突增告警: 'Enable Surge Alert',
   添加正则: 'Add Regex',
+  全部包含: 'All Inclusive',
+  全部不包含: 'All Not Included',
 };

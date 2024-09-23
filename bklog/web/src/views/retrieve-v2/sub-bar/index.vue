@@ -45,17 +45,6 @@
       search_mode,
     });
 
-    activeIndex.value = queryParams.findIndex(m => m === search_mode);
-    if (activeIndex.value === -1) {
-      if (keyword?.length) {
-        activeIndex.value = 1;
-      }
-
-      if (addition.length) {
-        activeIndex.value = 0;
-      }
-    }
-
     setTimeout(() => {
       store.dispatch('requestIndexSetQuery');
     });
@@ -64,7 +53,6 @@
 <template>
   <div class="subbar-container">
     <div class="box-biz-select">
-      <!-- <BizMenuSelect theme="light" style="width: 296px;"></BizMenuSelect> -->
       <SelectIndexSet
         style="min-width: 300px;"
         @selected="handleIndexSetSelected"

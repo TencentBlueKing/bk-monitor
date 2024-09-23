@@ -49,7 +49,15 @@
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
-  const indexSetParams = computed(() => store.state.indexItem);
+
+  const routeQueryParams = computed(() => {
+    const { ids, isUnionIndex } = store.state.indexItem;
+    return {
+      ...(store.getters.retrieveParams ?? {}),
+      ids,
+      isUnionIndex,
+    };
+  });
 
   /**
    * 拉取索引集列表
@@ -65,13 +73,54 @@
     });
   };
 
+  const routeQueryMap = {
+    host_scopes: val => {
+      const isEmpty = !Object.keys(val ?? {}).some(k => {
+        if (typeof val[k] === 'object') {
+          return Array.isArray(val[k]) ? val[k].length : Object.keys(val[k] ?? {}).length;
+        }
+
+        return val[k]?.length;
+      });
+
+      return isEmpty ? undefined : encodeURIComponent(JSON.stringify(val));
+    },
+    start_time: () => store.state.indexItem.datePickerValue[0],
+    end_time: () => store.state.indexItem.datePickerValue[1],
+  };
+
+  const getRouteQueryValue = () => {
+    const urlEncodeString = key => {
+      const val = routeQueryParams.value[key];
+      if (routeQueryMap[key] !== undefined) {
+        return routeQueryMap[key](val);
+      }
+
+      if (typeof val === 'object' && val !== null) {
+        return encodeURIComponent(JSON.stringify(val));
+      }
+
+      return val;
+    };
+
+    return Object.keys(routeQueryParams.value)
+      .filter(key => {
+        return !['ids', 'isUnionIndex', 'unionList'].includes(key);
+      })
+      .reduce((result, key) => {
+        const value = urlEncodeString(key);
+        return Object.assign(result, { [key]: value });
+      }, {});
+  };
+
   const setRouteParams = () => {
-    const { ids, isUnionIndex } = indexSetParams.value;
+    const { ids, isUnionIndex } = routeQueryParams.value;
     const params = isUnionIndex ? route.params : { ...route.params, indexId: ids?.[0] ?? route.params?.indexId };
     const query = isUnionIndex
       ? { ...route.query, unionList: encodeURIComponent(JSON.stringify(ids.map(item => String(item)))) }
       : { ...route.query, unionList: undefined };
 
+    Object.assign(query, getRouteQueryValue());
     if (!isEqual(params, route.params) || !isEqual(query, route.query)) {
       router.replace({
         params,
@@ -95,7 +144,7 @@
   store.dispatch('updateIndexItemByRoute', { route, list: [] });
 
   watch(
-    indexSetParams,
+    routeQueryParams,
     () => {
       setRouteParams();
     },
@@ -177,7 +226,6 @@
         <template v-else>
           <span :class="['bklog-icon bklog-collapse-small', { active: showFavorites }]"></span>{{ $t('收藏夹') }}
         </template>
-
       </div>
       <SubBar :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 110}px` }" />
     </div>
