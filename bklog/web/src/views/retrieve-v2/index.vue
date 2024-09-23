@@ -87,28 +87,23 @@
     },
     start_time: () => store.state.indexItem.datePickerValue[0],
     end_time: () => store.state.indexItem.datePickerValue[1],
-  };
-
-  const getRouteQueryValue = () => {
-    const urlEncodeString = key => {
-      const val = routeQueryParams.value[key];
-      if (routeQueryMap[key] !== undefined) {
-        return routeQueryMap[key](val);
-      }
-
+    default: val => {
       if (typeof val === 'object' && val !== null) {
         return encodeURIComponent(JSON.stringify(val));
       }
 
       return val;
-    };
+    },
+  };
 
+  const getRouteQueryValue = () => {
     return Object.keys(routeQueryParams.value)
       .filter(key => {
         return !['ids', 'isUnionIndex', 'unionList'].includes(key);
       })
       .reduce((result, key) => {
-        const value = urlEncodeString(key);
+        const val = routeQueryParams.value[key];
+        const value = routeQueryMap[key]?.(val) ?? routeQueryMap.default(val);
         return Object.assign(result, { [key]: value });
       }, {});
   };
