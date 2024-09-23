@@ -15,7 +15,6 @@ from typing import Dict
 from django.conf import settings
 from django.utils.encoding import force_str
 from django.utils.translation import ugettext as _
-from six.moves import map
 
 from bkmonitor.utils.common_utils import safe_int
 from core.drf_resource import api

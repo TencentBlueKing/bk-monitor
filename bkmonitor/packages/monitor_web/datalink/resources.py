@@ -321,12 +321,15 @@ class UpdateAlertUserGroupsResource(BaseStatusResource):
 
 class CollectingTargetStatusResource(BaseStatusResource):
     class RequestSerilizer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         collect_config_id = serializers.IntegerField(required=True, label="采集配置ID")
 
     def perform_request(self, validated_request_data: Dict) -> Dict:
         self.init_data(validated_request_data["collect_config_id"], DataLinkStage.COLLECTING)
 
-        instance_status = resource.collecting.collect_instance_status(id=self.collect_config_id)
+        instance_status = resource.collecting.collect_instance_status(
+            id=self.collect_config_id, bk_biz_id=self.collect_config.bk_biz_id
+        )
         # 提取关联的所有主机ID
         bk_host_ids = []
         for group in instance_status["contents"]:

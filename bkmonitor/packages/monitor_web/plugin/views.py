@@ -386,27 +386,27 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
 
     @action(methods=["GET"], detail=True)
     def export_plugin(self, request, *args, **kwargs):
-        instance = self.get_object()
+        instance: CollectorPluginMeta = self.get_object()
         plugin_manager = PluginManagerFactory.get_manager(plugin=instance)
-        config_version, info_version, is_version_exist = plugin_manager.version_check()
-        if not is_version_exist:
+        release_version = instance.release_version
+        if not release_version.is_packaged:
             with transaction.atomic():
                 register_info = {
                     "plugin_id": plugin_manager.plugin.plugin_id,
-                    "config_version": config_version,
-                    "info_version": info_version,
+                    "config_version": release_version.config_version,
+                    "info_version": release_version.info_version,
                 }
                 ret = resource.plugin.plugin_register(**register_info)
                 plugin_manager.release(
-                    config_version=config_version,
-                    info_version=info_version,
+                    config_version=release_version.config_version,
+                    info_version=release_version.info_version,
                     token=ret["token"],
                     debug=False,
                 )
 
         # 刷新metric json
         instance.refresh_metric_json()
-        return Response(plugin_manager.run_export())
+        return Response({"download_url": plugin_manager.run_export()})
 
     @action(methods=["GET"], detail=False)
     def check_id(self, request, *args, **kwargs):

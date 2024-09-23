@@ -305,6 +305,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ENABLE_UPTIMECHECK_TEST", slz.BooleanField(label="是否开启拨测联通性测试", default=True)),
         ("CHECK_RESULT_TTL_HOURS", slz.CharField(label="检测结果缓存 TTL(小时)", default=1)),
         ("ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST", slz.ListField(label="启用新链路的集群ID列表", default=[])),
+        ("K8S_PLUGIN_COLLECT_CLUSTER_ID", slz.CharField(label="默认K8S插件采集集群ID", default="")),
+        ("TENCENT_CLOUD_METRIC_PLUGIN_CONFIG", slz.JSONField(label="腾讯云监控插件配置", default={})),
     ]
 )
 

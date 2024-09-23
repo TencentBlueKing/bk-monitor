@@ -79,7 +79,7 @@ class TestExporterPlugin(object):
         get_version_mock = mocker.patch.object(
             CollectorPluginMeta, "get_version", return_value=update_plugin_manager.version
         )
-        assert update_plugin_manager.get_debug_config_context(1, 1, params) == {
+        assert update_plugin_manager._get_debug_config_context(1, 1, params) == {
             "bkmonitorbeat_debug.yaml": {"period": "10"},
             "env.yaml": {"cmd_args": "param_pos_cmd 11 params_opt_cmd 33 ", "params_env": "22"},
         }

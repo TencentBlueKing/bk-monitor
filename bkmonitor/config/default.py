@@ -1414,3 +1414,9 @@ BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")
 
 # 监控平台apigw代码
 BK_APIGW_NAME = os.getenv("BK_APIGW_NAME", "bk-monitor")
+
+# 默认K8S插件采集集群ID
+K8S_PLUGIN_COLLECT_CLUSTER_ID = ""
+
+# 腾讯云指标插件配置
+TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {}
