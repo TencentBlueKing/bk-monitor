@@ -879,8 +879,8 @@ class StorageHandler(object):
                 # 不存在 data key 也添加
                 else:
                     datanode_list.extend(result)
-        except Exception:
-            raise NodeSettingError("ES集群_nodes/settings接口数据解析失败，节点配置获取失败")
+        except Exception as e:
+            raise NodeSettingError(f"ES集群节点配置获取失败 ==> {e}")
         else:
             # 筛选节点
             for node in datanode_list:
