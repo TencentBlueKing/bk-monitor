@@ -1518,7 +1518,7 @@ class DataViewConfigResource(Resource):
                                 {
                                     "data_source_label": "bk_apm",
                                     "data_type_label": "log",
-                                    "table": app.trace_result_table_id.replace(".", "_"),
+                                    "table": app.trace_result_table_id,
                                     "metrics": [{"field": "span_name", "method": "COUNT", "alias": "A"}],
                                     "group_by": [],
                                     "display": True,
@@ -1551,7 +1551,7 @@ class DataViewConfigResource(Resource):
                                 {
                                     "data_source_label": "bk_apm",
                                     "data_type_label": "log",
-                                    "table": app.trace_result_table_id.replace(".", "_"),
+                                    "table": app.trace_result_table_id,
                                     "metrics": [{"field": "span_name", "method": "COUNT", "alias": "A"}],
                                     "group_by": [],
                                     "display": True,

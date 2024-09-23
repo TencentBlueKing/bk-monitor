@@ -67,7 +67,7 @@ class I18N(six.with_metaclass(Singleton, object)):
     def locale_best_match(locale):
         """兼容不同编码"""
         # cc接口变更，导致返回值变成"1"
-        if locale.lower() in ["zh", "zh_cn", "zh-cn", "1"]:
+        if locale.lower() in ["zh", "zh_cn", "zh-cn", "1", "zh-hans"]:
             humanize.i18n.activate("zh_CN", path="bkmonitor/utils/humanize_locale")
             return "zh_Hans_CN"
 

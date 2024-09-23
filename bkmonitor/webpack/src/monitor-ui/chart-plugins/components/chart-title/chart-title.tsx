@@ -232,12 +232,15 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
       if (!this.showMore) return;
       this.showMenu = !this.showMenu;
       const rect = this.chartTitleRef.getBoundingClientRect();
+      const { innerWidth } = window;
+      // 自身宽度 + 距离右侧浏览器窗口宽度（innerWidth - rect.right）
+      const rightWidth = 180 + innerWidth - rect.right;
       const postion = fitPosition(
         {
           left: e.x,
           top: e.y,
         },
-        190
+        rightWidth
       );
       this.menuLeft = postion.left - rect.x;
     }
