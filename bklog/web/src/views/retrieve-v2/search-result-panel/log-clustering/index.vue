@@ -599,7 +599,7 @@
         const isActiveCluster = await this.confirmClusterStepStatus();
         if (isActiveCluster) {
           this.filterGroupList();
-          this.initTableOperator(); // 初始化分组下拉列表
+          await this.initTableOperator(); // 初始化分组下拉列表
           this.requestFinger();
           this.stopPolling();
         }
