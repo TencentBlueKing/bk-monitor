@@ -574,8 +574,8 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   // checkIconFormatter(value: ITableItem<'check_icon'>) {
   //   if (value) {
   //     return <i class='icon-monitor icon-mc-check-small' />;
-  //   } else {
-  // return <i class='icon-monitor icon-tixing' />}
+  //   }
+  //   return <i class='icon-monitor icon-tixing' />
   // }
 
   @Emit('pageChange')

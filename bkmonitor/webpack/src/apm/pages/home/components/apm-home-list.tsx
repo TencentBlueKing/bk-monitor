@@ -39,6 +39,8 @@ import { SEARCH_KEYS } from '../utils';
 import type { PartialAppListItem } from '../apm-home';
 import type { IFilterDict } from 'monitor-pc/pages/monitor-k8s/typings';
 
+import './apm-home-list.scss';
+
 interface IProps {
   itemRow: PartialAppListItem;
   showGuidePage?: boolean;
@@ -234,7 +236,7 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
   }
   render() {
     return (
-      <div>
+      <div class='apm-home-list'>
         <div class='header'>
           <div class='header-left'>{this.itemRow.app_alias?.value}</div>
           <div class='header-right'>
