@@ -108,6 +108,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
 
     def push_data(self):
         current_time = time.time()
+        max_latency = 0
         for data_points in self.outputs.values():
             for data_point in data_points:
                 if not data_point["data"].get("access_time"):
@@ -118,6 +119,14 @@ class DetectProcess(BaseAbnormalPushProcessor):
                 data_point["data"]["detect_time"] = current_time
                 if latency > 0:
                     metrics.DETECT_PROCESS_LATENCY.labels(strategy_id=metrics.TOTAL_TAG).observe(latency)
+                if latency > max_latency:
+                    max_latency = latency
+        if max_latency > 60:
+            logger.warning(
+                "[access to detect]big latency %s,  strategy(%s)",
+                max_latency,
+                self.strategy_id,
+            )
         anomaly_count = self.push_abnormal_data(self.outputs, self.strategy_id)
         if any(self.inputs.values()):
             logger.info("[detect] strategy({}) 异常检测完成: 异常记录数({})".format(self.strategy_id, anomaly_count))
