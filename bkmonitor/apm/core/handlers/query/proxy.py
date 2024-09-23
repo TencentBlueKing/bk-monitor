@@ -30,7 +30,7 @@ from apm.core.handlers.query.origin_trace_query import OriginTraceQuery
 from apm.core.handlers.query.span_query import SpanQuery
 from apm.core.handlers.query.statistics_query import StatisticsQuery
 from apm.core.handlers.query.trace_query import TraceQuery
-from apm.models import ApmApplication
+from apm.models import ApmApplication, ApmDataSourceConfigBase
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from constants.apm import OtlpKey, TraceWaterFallDisplayKey
 
@@ -48,22 +48,23 @@ class QueryProxy:
             QueryMode.SPAN: self.span_query,
         }
 
-    @cached_property
-    def span_query(self):
-        return SpanQuery(
+    def _get_trace_query(self, result_table_id: str) -> TraceQuery:
+        return TraceQuery(
             self.bk_biz_id,
-            self.application.trace_datasource.result_table_id,
+            self.app_name,
             self.application.trace_datasource.retention,
+            overwrite_datasource_configs={
+                ApmDataSourceConfigBase.TRACE_DATASOURCE: {"get_table_id_func": lambda *args, **kwargs: result_table_id}
+            },
         )
 
     @cached_property
+    def span_query(self):
+        return SpanQuery(self.bk_biz_id, self.app_name, self.application.trace_datasource.retention)
+
+    @cached_property
     def origin_trace_query(self):
-        return OriginTraceQuery(
-            self.bk_biz_id,
-            self.app_name,
-            self.application.trace_datasource.result_table_id,
-            self.application.trace_datasource.retention,
-        )
+        return OriginTraceQuery(self.bk_biz_id, self.app_name, self.application.trace_datasource.retention)
 
     @cached_property
     def trace_query(self):
@@ -72,12 +73,7 @@ class QueryProxy:
             logger.info(f"[QueryProxy] {self.bk_biz_id} - {self.app_name} use fake trace query")
             trace_query = FakeQuery()
         else:
-            trace_query = TraceQuery(
-                self.bk_biz_id,
-                self.app_name,
-                precalculate.result_table_id,
-                self.application.trace_datasource.retention,
-            )
+            trace_query = self._get_trace_query(result_table_id=precalculate.result_table_id)
 
         return trace_query
 
@@ -132,7 +128,7 @@ class QueryProxy:
             if relation_app:
                 span_query = SpanQuery(
                     relation_app.bk_biz_id,
-                    relation_app.trace_datasource.result_table_id,
+                    relation_app.app_name,
                     relation_app.trace_datasource.retention,
                 )
                 relation_spans = span_query.query_by_trace_id(trace_id)
@@ -158,9 +154,9 @@ class QueryProxy:
     def query_span_detail(self, span_id):
         return self.span_query.query_by_span_id(span_id)
 
-    def query_option_values(self, query_mode, start_time, end_time, fields):
+    def query_option_values(self, query_mode, datasource_type: str, start_time, end_time, fields):
         """获取候选值"""
-        return self.query_mode[query_mode].query_option_values(start_time, end_time, fields)
+        return self.query_mode[query_mode].query_option_values(datasource_type, start_time, end_time, fields)
 
     def query_statistics(self, query_mode, start_time, end_time, limit, offset, filters=None, es_dsl=None):
         return self.statistics_query.query_statistics(query_mode, start_time, end_time, limit, offset, filters, es_dsl)
@@ -177,9 +173,7 @@ class QueryProxy:
             logger.warning(f"[QueryProxy] {self.bk_biz_id}:{self.app_name} trace: {trace_id} not in pre_recalculation!")
 
         for result_table_id in PrecalculateStorage.fetch_result_table_ids(self.bk_biz_id):
-            trace_query = TraceQuery(
-                self.bk_biz_id, self.app_name, result_table_id, self.application.trace_datasource.retention
-            )
+            trace_query = self._get_trace_query(result_table_id)
             relation = trace_query.query_relation_by_trace_id(trace_id, start_time, end_time)
             if relation:
                 logger.info(f"[QueryProxy] find relation on {trace_id}({relation['bk_biz_id']}:{relation['app_name']})")

@@ -56,7 +56,7 @@ class CollectorPluginMeta(OperateRecordModelBase):
         (PluginType.SNMP, PluginType.SNMP),
     )
 
-    VIRTUAL_PLUGIN_TYPE = [PluginType.LOG, PluginType.PROCESS, PluginType.SNMP_TRAP]
+    VIRTUAL_PLUGIN_TYPE = [PluginType.LOG, PluginType.PROCESS, PluginType.SNMP_TRAP, PluginType.K8S]
 
     plugin_id = models.CharField("插件ID", max_length=64, primary_key=True)
     bk_biz_id = models.IntegerField("业务ID", default=0, blank=True, db_index=True)
