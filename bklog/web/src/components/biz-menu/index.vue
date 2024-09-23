@@ -207,7 +207,7 @@
         return this.mySpaceList.find(item => item.space_uid === this.spaceUid)?.space_name;
       },
       bizNameIcon() {
-        return this.bizName[0].toLocaleUpperCase();
+        return this.bizName?.length && this.bizName[0].toLocaleUpperCase();
       },
       showSpaceTypeIdList() {
         // 外部版不展示空间分类
@@ -414,7 +414,7 @@
       align-items: center;
       height: 32px;
       padding: 0 4px 0 8px;
-      background-color: #2b354d;
+      background-color: #182132;
       border-radius: 2px;
 
       &-name {

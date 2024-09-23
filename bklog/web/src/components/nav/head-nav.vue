@@ -39,6 +39,7 @@
         />
         <span class="logo-text">{{ platformData.name }}</span>
       </div>
+      <BizMenuSelect></BizMenuSelect>
     </div>
     <div
       class="nav-center fl"
@@ -257,12 +258,14 @@
 
   import { menuArr } from './complete-menu';
   import LogVersion from './log-version';
+  import BizMenuSelect from '@/components/biz-menu';
 
   export default {
     name: 'HeaderNav',
     components: {
       LogVersion,
       GlobalDialog,
+      BizMenuSelect,
     },
     mixins: [navMenuMixin],
     props: {
@@ -634,7 +637,7 @@
     .nav-left {
       display: flex;
       align-items: center;
-      width: 278px;
+      width: 345px;
       height: 100%;
       padding-left: 16px;
       font-size: 18px;

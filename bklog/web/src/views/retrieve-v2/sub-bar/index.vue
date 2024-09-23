@@ -64,9 +64,8 @@
 <template>
   <div class="subbar-container">
     <div class="box-biz-select">
-      <!-- <BizMenuSelect theme="light" style="width: 296px;"></BizMenuSelect> -->
       <SelectIndexSet
-        style="width: 500px; margin: 0 12px"
+        style="width: 500px; margin: 0 12px 0 0"
         @selected="handleIndexSetSelected"
       ></SelectIndexSet>
       <QueryHistory @change="updateSearchParam"></QueryHistory>
