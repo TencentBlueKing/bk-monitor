@@ -330,7 +330,9 @@ class MetricHandler:
             if 'upstreamService' in k:
                 print("dd")
             calculate_v = self.calculation.range_cal({"series": series_list})
-            res[k] = calculate_v
+            series_response = calculate_v.get("series")
+            if series_response:
+                res[k] = series_response[0].get("datapoints")
 
         return res
 
