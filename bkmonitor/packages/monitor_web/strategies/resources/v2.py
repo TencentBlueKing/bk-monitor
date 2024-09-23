@@ -5,10 +5,11 @@ import re
 import time
 import typing
 from collections import defaultdict
+from copy import deepcopy
 from functools import reduce
 from itertools import chain, product, zip_longest
 from typing import Any, Callable, Dict, List, Optional, Tuple
-from copy import deepcopy
+
 import arrow
 from django.conf import settings
 from django.db.models import Count, Q, QuerySet
@@ -2032,6 +2033,9 @@ class UpdatePartialStrategyV2Resource(Resource):
         更新策略标签
         """
         strategy.labels = labels
+        strategy.save_labels()
+
+        return None, [], []
 
     @staticmethod
     def update_is_enabled(strategy: Strategy, is_enabled: bool):
@@ -2039,6 +2043,7 @@ class UpdatePartialStrategyV2Resource(Resource):
         更新策略启停状态
         """
         strategy.is_enabled = is_enabled
+        return StrategyModel, ["is_enabled"], [strategy.instance]
 
     @staticmethod
     def update_notice_group_list(strategy: Strategy, notice_group_list: List[int]):
@@ -2050,6 +2055,8 @@ class UpdatePartialStrategyV2Resource(Resource):
 
         strategy.notice.user_groups = notice_group_list
 
+        return StrategyActionConfigRelation, ["user_groups"], [action.instance, strategy.notice.instance]
+
     @staticmethod
     def update_trigger_config(strategy: Strategy, trigger_config: Dict):
         """
@@ -2058,12 +2065,16 @@ class UpdatePartialStrategyV2Resource(Resource):
         for detect in strategy.detects:
             detect.trigger_config.update(trigger_config)
 
+        return DetectModel, ["trigger_config"], [detect.instance for detect in strategy.detects]
+
     @staticmethod
     def update_alarm_interval(strategy: Strategy, alarm_interval: int):
         """
         更新通知间隔
         """
         strategy.notice.config["notify_interval"] = alarm_interval * 60
+
+        return StrategyActionConfigRelation, ["config"], [strategy.notice.instance]
 
     @staticmethod
     def update_send_recovery_alarm(strategy: Strategy, send_recovery_alarm: bool):
@@ -2076,6 +2087,8 @@ class UpdatePartialStrategyV2Resource(Resource):
         if not send_recovery_alarm and ActionSignal.RECOVERED in strategy.notice.signal:
             strategy.notice.signal.remove(ActionSignal.RECOVERED)
 
+        return StrategyActionConfigRelation, ["signal"], [strategy.notice.instance]
+
     @staticmethod
     def update_recovery_config(strategy: Strategy, recovery_config: Dict):
         """
@@ -2083,6 +2096,8 @@ class UpdatePartialStrategyV2Resource(Resource):
         """
         for detect in strategy.detects:
             detect.recovery_config = recovery_config
+
+        return DetectModel, ["recovery_config"], [detect.instance for detect in strategy.detects]
 
     @staticmethod
     def update_target(strategy: Strategy, target: List[List[Dict]]):
@@ -2095,11 +2110,16 @@ class UpdatePartialStrategyV2Resource(Resource):
         for item in strategy.items:
             item.target = target
 
+        return ItemModel, ["target"], [item.instance for item in strategy.items]
+
     @staticmethod
     def update_algorithms(strategy: Strategy, algorithms: List[dict]):
         """更新检测算法。"""
         for item in strategy.items:
             item.algorithms = [Algorithm(strategy.id, item.id, **data) for data in algorithms]
+            item.save_algorithms()
+
+        return None, [], []
 
     @staticmethod
     def update_message_template(strategy: Strategy, message_template: str):
@@ -2109,10 +2129,14 @@ class UpdatePartialStrategyV2Resource(Resource):
         for template in strategy.notice.config["template"]:
             template["message_tmpl"] = message_template
 
+        return StrategyActionConfigRelation, ["config"], [strategy.notice.instance]
+
     @staticmethod
     def update_no_data_config(strategy: Strategy, no_data_config: Dict):
         for item in strategy.items:
             UpdatePartialStrategyV2Resource.update_dict_recursive(item.no_data_config, no_data_config)
+
+        return ItemModel, ["no_data_config"], [item.instance for item in strategy.items]
 
     @staticmethod
     def update_notice(strategy: Strategy, notice: Dict):
@@ -2165,6 +2189,13 @@ class UpdatePartialStrategyV2Resource(Resource):
                 }
             )
 
+        strategy.save_notice()
+        return (
+            StrategyActionConfigRelation,
+            ["user_groups", "options"],
+            [action.instance for action in strategy.actions],
+        )
+
     @staticmethod
     def update_actions(strategy: Strategy, actions: List[Dict]):
         new_actions = []
@@ -2184,19 +2215,30 @@ class UpdatePartialStrategyV2Resource(Resource):
 
         strategy.actions = new_actions
 
+        strategy.save_actions()
+        return None, [], []
+
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
         config: Dict = params["edit_data"]
 
         strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=params["ids"])
 
+        updates_data = defaultdict(lambda: {"cls": None, "keys": [], "objs": []})
         for strategy in Strategy.from_models(strategies):
             for key, value in config.items():
                 update_method: Callable[[Strategy, Any], None] = getattr(self, f"update_{key}", None)
                 if not update_method:
                     continue
-                update_method(strategy, value)
-            strategy.save()
+                update_cls, update_keys, update_objs = update_method(strategy, value)
+                if update_cls:
+                    updates_data[key]["cls"] = update_cls
+                    updates_data[key]["keys"] = update_keys
+                    updates_data[key]["objs"].extend(update_objs)
+
+        for update_data in updates_data.values():
+            update_cls.objects.bulk_update(update_data["objs"], update_data["keys"])
+
         # 编辑后需要重置AsCode相关配置
         strategies.update(hash="", snippet="")
 
