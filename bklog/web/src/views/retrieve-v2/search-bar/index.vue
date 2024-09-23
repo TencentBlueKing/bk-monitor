@@ -117,12 +117,12 @@
 </script>
 <template>
   <div class="search-bar-container">
-    <div class="search-options">
+    <div
+      class="search-options"
+      @click="handleQueryTypeChange"
+    >
       <span class="mode-text">{{ queryText }}</span>
-      <span
-        class="bklog-icon bklog-double-arrow"
-        @click="handleQueryTypeChange"
-      ></span>
+      <span class="bklog-icon bklog-double-arrow"></span>
     </div>
     <div
       class="search-input"

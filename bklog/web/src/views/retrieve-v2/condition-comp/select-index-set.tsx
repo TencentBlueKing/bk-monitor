@@ -25,7 +25,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import {
@@ -57,6 +57,8 @@ const MAX_UNION_INDEXSET_LIMIT = 20;
 
 @Component
 export default class QueryStatement extends tsc<object> {
+  @Prop({ default: {} }) popoverOptions;
+
   /** 表示集合数据是否正在加载 */
   isCollectionLoading = false;
 
@@ -1229,7 +1231,7 @@ export default class QueryStatement extends tsc<object> {
         ext-popover-cls='retrieve-index-select-popover'
         placeholder={this.placeholderText}
         popover-min-width={600}
-        popover-options={{ boundary: 'window' }}
+        popover-options={{ boundary: 'window', ...(this.popoverOptions ?? {}) }}
         scroll-height={400}
         multiple
         searchable

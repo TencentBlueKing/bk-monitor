@@ -39,6 +39,10 @@
         />
         <span class="logo-text">{{ platformData.name }}</span>
       </div>
+      <BizMenuSelect
+        v-if="showHeadNaviBizSelect"
+        class="head-navi-left"
+      ></BizMenuSelect>
     </div>
     <div
       class="nav-center fl"
@@ -252,6 +256,7 @@
   import logoImg from '@/images/log-logo.png';
   import navMenuMixin from '@/mixins/nav-menu-mixin';
   import platformConfigStore from '@/store/modules/platform-config';
+  import BizMenuSelect from '@/components/biz-menu';
   import jsCookie from 'js-cookie';
   import { mapState, mapGetters } from 'vuex';
 
@@ -263,6 +268,7 @@
     components: {
       LogVersion,
       GlobalDialog,
+      BizMenuSelect,
     },
     mixins: [navMenuMixin],
     props: {
@@ -337,6 +343,19 @@
       },
       isShowGlobalSetIcon() {
         return !this.welcomeData && !this.isExternal;
+      },
+      showHeadNaviBizSelect() {
+        if (this.$route.name === 'retrieve') {
+          const isDebug = window.FEATURE_TOGGLE.bklog_search_new === 'debug';
+          if (isDebug) {
+            const whiteList = (window.FEATURE_TOGGLE_WHITE_LIST.bklog_search_new ?? []).map(id => `${id}`);
+            const bkBizId = this.$route.query.bizId;
+            if (bkBizId && whiteList.includes(bkBizId)) {
+              return true;
+            }
+          }
+          return false;
+        }
       },
     },
     watch: {
@@ -634,9 +653,11 @@
     .nav-left {
       display: flex;
       align-items: center;
-      width: 278px;
+      min-width: max-content;
+      max-width: 180px;
       height: 100%;
       padding-left: 16px;
+      margin-right: 80px;
       font-size: 18px;
 
       .log-logo-container {
@@ -656,6 +677,15 @@
           width: 40px;
           height: 40px;
           margin-right: 10px;
+        }
+      }
+
+      .head-navi-left {
+        &.biz-menu-select {
+          .menu-select-list {
+            top: 52px;
+            left: 138px;
+          }
         }
       }
     }

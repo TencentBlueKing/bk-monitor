@@ -66,8 +66,9 @@
     <div class="box-biz-select">
       <!-- <BizMenuSelect theme="light" style="width: 296px;"></BizMenuSelect> -->
       <SelectIndexSet
-        style="width: 500px; margin: 0 12px"
+        style="min-width: 300px;"
         @selected="handleIndexSetSelected"
+        :popoverOptions="{ offset: '-6,10' }"
       ></SelectIndexSet>
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>
