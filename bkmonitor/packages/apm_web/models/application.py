@@ -529,6 +529,12 @@ class Application(AbstractRecordModel):
         }
         ApmMetaConfig.application_config_setup(self.application_id, self.SAMPLER_CONFIG_KEY, sampler_value)
 
+    def fetch_datasource_info(self, config_type: str, config_name: str):
+        if getattr(self, f"{config_type}_{config_name}", None):
+            return getattr(self, f"{config_type}_{config_name}")
+        datasource_config = api.apm_api.detail_application({"application_id": self.application_id})
+        return datasource_config.get(f"{config_type}_config", {}).get(config_name)
+
     def authorization(self):
         try:
             permission = Permission()

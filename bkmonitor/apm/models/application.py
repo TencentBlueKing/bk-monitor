@@ -169,6 +169,11 @@ class ApmApplication(AbstractRecordModel):
     def profile_datasource(self):
         return ProfileDataSource.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
 
+    @cached_property
+    def log_datasource(self):
+        # Todo: 补充
+        return None
+
     def get_bk_data_token(self):
         if not self.metric_datasource:
             return ""
