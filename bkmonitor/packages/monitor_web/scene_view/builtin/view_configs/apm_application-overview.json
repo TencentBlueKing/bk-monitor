@@ -58,7 +58,7 @@
           }
         }
       ],
-      "descrition": "根据告警事件的数量进行划分，划分范围为：<br>1.红：发生了致命告警<br>2.黄：发生了预警或提醒<br>3.绿：无告警",
+      "descrition": "根据告警事件的数量进行划分，划分范围为：<br>1.红：发生了致命告警<br>2.黄：发生了预警<br>3.蓝：发生了提醒<br>4.绿：无告警",
       "options": {
         "apdex_chart": {
           "enableContextmenu": true

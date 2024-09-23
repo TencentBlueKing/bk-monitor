@@ -1925,6 +1925,8 @@ class AlertQueryResource(Resource):
         red_time_list = {}
         # 黄色预警-时刻
         yellow_time_list = {}
+        # 蓝色提醒-时刻
+        blue_time_list = {}
         # 存储各个时刻的颜色
         result_time = []
         for level in alert_level_result:
@@ -1941,8 +1943,10 @@ class AlertQueryResource(Resource):
                             if level == AlertLevel.ERROR:
                                 red_time_list[item_data[0]] = num
                                 # red_time_list.append(item_data[0])
-                            else:
+                            elif level == AlertLevel.WARN:
                                 yellow_time_list[item_data[0]] = num
+                            else:
+                                blue_time_list[item_data[0]] = num
                                 # yellow_time_list.append(item_data[0])
                 # 用"提示"-"已恢复"的时刻列表，去获取所有的时刻列表
                 elif level == AlertLevel.INFO and name == AlertStatus.RECOVERED:
@@ -1952,14 +1956,13 @@ class AlertQueryResource(Resource):
 
         for time, value in all_time_list.items():
             if time in red_time_list:
-                # item = {"value": [time, 1], "status": AlertColor.RED}
                 item = [[1, red_time_list[time]], time]
             elif time in yellow_time_list:
-                # item = {"value": [time, 1], "status": AlertColor.YELLOW}
                 item = [[2, yellow_time_list[time]], time]
+            elif time in blue_time_list:
+                item = [[3, blue_time_list[time]], time]
             else:
-                # item = {"value": [time, 1], "status": AlertColor.GREEN}
-                item = [[3, 0], time]
+                item = [[4, 0], time]
             result_time.append(item)
 
         return result_time
