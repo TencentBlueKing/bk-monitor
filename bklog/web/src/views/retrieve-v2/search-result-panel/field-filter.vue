@@ -1,5 +1,5 @@
 <script setup>
-  import { computed, ref, nextTick, watch } from 'vue';
+  import { computed, nextTick } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
@@ -9,9 +9,9 @@
   const store = useStore();
   const { $t } = useLocale();
   const props = defineProps({
-    isShowFieldStatistics: { type: Boolean, default: true },
+    value: { type: Boolean, default: true },
   });
-  const emit = defineEmits(['update:is-show-field-statistics']);
+  const emit = defineEmits(['input', 'field-status-change']);
   /** 时间选择器绑定的值 */
   const datePickerValue = computed(() => {
     const { start_time = 'now-15m', end_time = 'now' } = store.state.indexItem;
@@ -69,18 +69,19 @@
     store.commit('resetVisibleFields', displayFieldNames);
   };
   const handleCloseFilterTitle = isTextClick => {
-    if (isTextClick && props.isShowFieldStatistics) return;
-    emit('update:is-show-field-statistics', !props.isShowFieldStatistics);
+    if (isTextClick && props.value) return;
+    emit('field-status-change', !props.value);
+    emit('input', !props.value);
   };
 </script>
 
 <template>
-  <div :class="['search-field-filter', { 'is-close': !isShowFieldStatistics }]">
+  <div :class="['search-field-filter', { 'is-close': !value }]">
     <!-- 字段过滤 -->
     <div class="tab-item-title field-filter-title">
       <div
         class="left-title"
-        :class="{ 'is-text-click': !isShowFieldStatistics }"
+        :class="{ 'is-text-click': !value }"
         @click="handleCloseFilterTitle(true)"
       >
         {{ $t('字段统计') }}
@@ -90,7 +91,7 @@
         @click="handleCloseFilterTitle(false)"
       >
         <span
-          v-show="isShowFieldStatistics"
+          v-show="value"
           class="collect-title"
         >
           {{ $t('收起') }}
@@ -100,7 +101,7 @@
     </div>
     <FieldFilterComp
       ref="fieldFilterRef"
-      v-show="isShowFieldStatistics"
+      v-show="value"
       :date-picker-value="datePickerValue"
       :field-alias-map="fieldAliasMap"
       :index-set-item="indexSetItem"

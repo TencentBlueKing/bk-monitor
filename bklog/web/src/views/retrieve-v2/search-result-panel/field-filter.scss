@@ -13,11 +13,18 @@
     display: flex;
     align-items: center;
     width: auto;
-    height: 26px;
-    height: 30px;
-    padding: 8px 0 0 16px;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    height: 30px !important;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    padding: 8px 0 0 16px !important;
 
     box-shadow: none;
+
+    .bk-log-drag {
+      display: none;
+    }
 
     .field-filter-title {
       display: flex;
@@ -37,7 +44,7 @@
 
       &::after {
         position: absolute;
-        right: 16px;
+        right: -8px;
         display: inline-block;
         font-size: 16px;
         color: #dcdee5;
