@@ -24,30 +24,39 @@
  * IN THE SOFTWARE.
  */
 
-import VueJsonPretty from 'vue-json-pretty';
 import { Component, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
-import {
-  dataSampling,
-  dataViewConfig,
-  noDataStrategyDisable,
-  noDataStrategyEnable,
-  noDataStrategyInfo,
-} from 'monitor-api/modules/apm_meta';
-import { copyText } from 'monitor-common/utils/utils';
 import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
-import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
-import { ApdexChart } from 'monitor-ui/chart-plugins/plugins/apdex-chart/apdex-chart';
-import { type IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
-import PanelItem from '../../../components/panel-item/panel-item';
+import Metric from './dataStatus/metric';
+import TabList from './tabList';
 
-import type { IStrategyData } from './type';
+import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
-import 'vue-json-pretty/lib/styles.css';
+import './data-status.scss';
+
+const TAB_LIST = [
+  {
+    name: 'metric',
+    label: '指标',
+  },
+  {
+    name: 'log',
+    label: '日志',
+  },
+
+  {
+    name: 'trace',
+    label: '调用链',
+  },
+  {
+    name: 'performance',
+    label: '性能分析',
+  },
+];
 
 @Component
 export default class DataStatus extends tsc<object> {
@@ -55,25 +64,10 @@ export default class DataStatus extends tsc<object> {
     dayjs(new Date()).add(-1, 'd').format('YYYY-MM-DD'),
     dayjs(new Date()).format('YYYY-MM-DD'),
   ];
+
+  /** 选择的tab*/
+  activeTab = 'metric';
   strategyLoading = false;
-  tableLoading = false;
-  apdexChartPanel: PanelModel;
-  /** 日志上报侧栏配置 */
-  sideslider = { show: false, log: null };
-  /** 无数据告警信息 */
-  strategyInfo: IStrategyData = {
-    id: 0, // 策略id
-    name: '', // 告警名称
-    alert_status: 0, // 告警状态
-    alert_graph: null,
-    is_enabled: true, // 启停
-    notice_group: [], // 告警组
-  };
-  expandIndex = -1; // 采样数据展开项索引
-  dashboardPanels = []; // 数据量趋势面板配置
-  samplingList = []; // 采样数据
-  collapseRowIndexs: number[] = []; // 采样数据记录展开收起的行
-  healthMaps = { 1: this.$t('健康'), 2: this.$t('有告警') };
 
   // 派发到子孙组件内的视图配置变量
   // 视图变量
@@ -89,353 +83,65 @@ export default class DataStatus extends tsc<object> {
   get appId() {
     return Number(this.$route.params?.id || 0);
   }
-  /** 告警icon颜色 */
-  get strategyStautsColor() {
-    return this.strategyInfo.alert_status === 1 ? 'green' : 'red';
-  }
 
   created() {
     this.timezone = getDefaultTimezone();
-    this.getNoDataStrategyInfo();
-    this.getDataView();
-    this.getsamplingList();
+  }
+  /** 获取选择的tab组件 */
+  getActiveComponent() {
+    return <Metric activeTab={this.activeTab} />;
   }
 
-  /**
-   * @desc 获取无数据告警信息
-   */
-  async getNoDataStrategyInfo() {
-    this.strategyLoading = true;
-    const params = {
-      application_id: this.appId,
-      start_time: Date.parse(this.pickerTimeRange[0]) / 1000,
-      end_time: Date.parse(this.pickerTimeRange[1]) / 1000,
-    };
-    const data = await noDataStrategyInfo(params).catch(() => {});
-    Object.assign(this.strategyInfo, data);
-    this.apdexChartPanel = new PanelModel(this.strategyInfo.alert_graph);
-    this.strategyLoading = false;
-  }
-  /**
-   * @desc 获取图表数据
-   */
-  async getDataView() {
-    this.dashboardPanels = await dataViewConfig(this.appId).catch(() => []);
-  }
-  /**
-   * @desc 获取采样数据
-   */
-  async getsamplingList() {
-    this.tableLoading = true;
-    const params = {
-      application_id: this.appId,
-      size: 10,
-      log_type: 'trace',
-    };
-    const data = await dataSampling(this.appId, params).catch(() => []);
-    this.collapseRowIndexs = [];
-    this.samplingList = data?.map(item => {
-      const date = dayjs.tz(dayjs(item.sampling_time));
-      return {
-        ...item,
-        sampling_time: date.isValid() ? date.format('YYYY-MM-DD HH:mm:ssZ') : '--',
-      };
-    });
-    this.tableLoading = false;
-  }
   /**
    * @desc 日期范围改变
    * @param { array } date 日期范围
    */
   handleTimeRangeChange(date) {
     this.timeRange = date;
-    this.getNoDataStrategyInfo();
   }
   handleTimezoneChange(timezone: string) {
     updateTimezone(timezone);
     this.timezone = timezone;
-    this.getNoDataStrategyInfo();
-    this.getDataView();
-    this.getsamplingList();
   }
-  /**
-   * @desc 展开全部原始日志
-   * @param { Object } props 展开元素
-   */
-  handleClickLog(props) {
-    if (this.expandIndex !== props.$index) {
-      this.handleViewDetail(props.row.raw_log);
-      this.expandIndex = props.$index;
-    } else {
-      this.expandIndex = -1;
-    }
-  }
-  /**
-   * @desc 展开/收起采样原始数据
-   */
-  handleCollapse(e, index) {
-    e.stopPropagation();
-    if (this.collapseRowIndexs.includes(index)) {
-      this.collapseRowIndexs = this.collapseRowIndexs.filter(item => item !== index);
-      return;
-    }
-    this.collapseRowIndexs.push(index);
-  }
-  /**
-   * @desc 复制原始日志
-   * @param { string } text 复制文本
-   */
-  handleCopyLog(text: string) {
-    copyText(text, msg => {
-      this.$bkMessage({
-        message: msg,
-        theme: 'error',
-      });
-      return;
-    });
-    this.$bkMessage({
-      message: this.$t('复制成功'),
-      theme: 'success',
-    });
-  }
-  /**
-   * @desc 查看上报日志
-   * @param { object } log 日志内容
-   */
-  handleViewDetail(log: object) {
-    this.sideslider = {
-      show: true,
-      log,
-    };
-  }
-  /**
-   * @desc 开关前置校验
-   * @param { boolean } value 当前开关状态
-   */
-  preCheckChange(value: boolean) {
-    const applicationId = this.appId;
-    return new Promise((resolve, reject) => {
-      this.$bkInfo({
-        title: value ? this.$t('你确认要关闭？') : this.$t('你确认要开启？'),
-        confirmLoading: true,
 
-        confirmFn: async () => {
-          const api = value ? noDataStrategyDisable : noDataStrategyEnable;
-          const isPass = await api({ application_id: applicationId })
-            .then(() => {
-              this.getNoDataStrategyInfo();
-              return true;
-            })
-            .catch(() => false);
-          isPass ? resolve(true) : reject();
-        },
-        cancelFn: () => {
-          reject();
-        },
-      });
-    });
-  }
-  /**
-   * @desc 告警跳转
-   * @param { string } option
-   */
-  handlePageChange(option: string) {
-    const { id } = this.strategyInfo;
-    const hash =
-      option === 'edit' ? `#/strategy-config/edit/${String(id)}` : `#/event-center?queryString=strategy_id:${id}`;
-    const url = location.href.replace(location.hash, hash);
-    window.open(url, '_blank');
-  }
-  handleRefresh() {
-    this.getsamplingList();
+  /** tab切换时 */
+  handleChangeActiveTab(active: string) {
+    this.activeTab = active;
+    switch (active) {
+      case 'log':
+        // this.getIndicesList();
+        break;
+      case 'metric':
+        // this.getStoreList();
+        break;
+      case 'trace':
+        // this.getMetaConfigInfo();
+        // this.getIndicesList();
+        // this.getFieldList();
+        break;
+      default: {
+      }
+    }
   }
 
   render() {
-    const logSlots = {
-      default: props => [
-        <div
-          class={['text-log', { 'expand-row': this.collapseRowIndexs.includes(props.$index) }]}
-          onClick={() => this.handleClickLog(props)}
-        >
-          <span>{JSON.stringify(props.row.raw_log)}</span>
-          <span
-            class='collapse-btn'
-            onClick={e => this.handleCollapse(e, props.$index)}
-          >
-            {this.collapseRowIndexs.includes(props.$index) ? this.$t('收起') : this.$t('展开全部')}
-          </span>
-        </div>,
-      ],
-    };
-    const operatorSlot = {
-      default: props => [
-        <bk-button
-          class='mr10'
-          theme='primary'
-          text
-          onClick={() => this.handleCopyLog(JSON.stringify(props.row.raw_log))}
-        >
-          {this.$t('复制')}
-        </bk-button>,
-        <bk-button
-          class='mr10'
-          theme='primary'
-          text
-          onClick={() => this.handleViewDetail(props.row.raw_log)}
-        >
-          {this.$t('查看上报数据')}
-        </bk-button>,
-      ],
-    };
-
     return (
       <div class='conf-content data-status-wrap'>
-        <PanelItem title={this.$t('告警策略')}>
+        <div class='data-status-tab-wrap'>
+          <TabList
+            activeTab={this.activeTab}
+            tabList={TAB_LIST}
+            onChange={this.handleChangeActiveTab}
+          />
           <TimeRange
-            slot='headerTool'
+            class='data-status-time'
             timezone={this.timezone}
             value={this.timeRange}
             onChange={this.handleTimeRangeChange}
             onTimezoneChange={this.handleTimezoneChange}
           />
-          <div
-            class='form-content'
-            v-bkloading={{ isLoading: this.strategyLoading }}
-          >
-            <div class='content-card'>
-              <div class='msg-item'>
-                <span
-                  class='tip-label'
-                  v-bk-tooltips={{ content: this.$t('当没有收到任何数据可以进行告警通知。'), allowHTML: false }}
-                >
-                  {this.$t('无数据告警')}
-                </span>
-                <bk-switcher
-                  pre-check={() => this.preCheckChange(this.strategyInfo.is_enabled)}
-                  size='small'
-                  theme='primary'
-                  value={this.strategyInfo.is_enabled}
-                />
-              </div>
-              <div class='msg-item'>
-                <span class='label'>{this.$t('告警状态')} : </span>
-                <span class={['status-icon', `status-${this.strategyStautsColor}`]} />
-                <span class='status-name'>{this.healthMaps[this.strategyInfo.alert_status]}</span>
-              </div>
-              <div class='msg-item'>
-                <span class='label'>{this.$t('告警组')} : </span>
-                {this.strategyInfo.notice_group.map(group => (
-                  <span class='group-tag'>{group.name}</span>
-                ))}
-              </div>
-              <div class='msg-item'>
-                <span class='label'>{this.$t('告警状态')} : </span>
-                <div class='apdex-chart-box'>
-                  {this.apdexChartPanel && (
-                    <ApdexChart
-                      panel={this.apdexChartPanel}
-                      showChartHeader={false}
-                      split-number={2}
-                    />
-                  )}
-                </div>
-              </div>
-              <div class='card-tool'>
-                <span
-                  class='tool-btn'
-                  onClick={() => this.handlePageChange('edit')}
-                >
-                  {this.$t('button-编辑')}
-                </span>
-                <span
-                  class='tool-btn'
-                  onClick={() => this.handlePageChange('event')}
-                >
-                  {this.$t('历史告警')}
-                  <span class='icon-monitor icon-fenxiang' />
-                </span>
-              </div>
-            </div>
-          </div>
-        </PanelItem>
-        <PanelItem title={this.$t('数据量趋势')}>
-          <div class='form-content'>
-            <DashboardPanel
-              id={'volumeTrend'}
-              panels={this.dashboardPanels}
-            />
-          </div>
-        </PanelItem>
-        <PanelItem title={this.$t('数据采样')}>
-          <span
-            class='right-btn-wrap'
-            slot='headerTool'
-            onClick={() => this.handleRefresh()}
-          >
-            <i class='icon-monitor icon-shuaxin' />
-            {this.$t('button-刷新')}
-          </span>
-          <bk-table
-            class={'sampling-table'}
-            v-bkloading={{ isLoading: this.tableLoading }}
-            data={this.samplingList}
-            outer-border={false}
-            row-auto-height={true}
-          >
-            <bk-table-column
-              width='80'
-              label={this.$t('序号')}
-              type='index'
-            />
-            <bk-table-column
-              label={this.$t('原始数据')}
-              scopedSlots={logSlots}
-            />
-            <bk-table-column
-              width='200'
-              label={this.$t('采样时间')}
-              scopedSlots={{ default: props => props.row.sampling_time }}
-            />
-            <bk-table-column
-              width='180'
-              label={this.$t('查看')}
-              scopedSlots={operatorSlot}
-            />
-          </bk-table>
-        </PanelItem>
-
-        <bk-sideslider
-          ext-cls='origin-log-sideslider'
-          isShow={this.sideslider.show}
-          transfer={true}
-          {...{ on: { 'update:isShow': v => (this.sideslider.show = v) } }}
-          width={596}
-          quick-close={true}
-        >
-          <div
-            class='title-wrap'
-            slot='header'
-          >
-            <span>{this.$t('上报日志详情')}</span>
-            <bk-button
-              class='mr10'
-              onClick={() => this.handleCopyLog(JSON.stringify(this.sideslider.log))}
-            >
-              {this.$t('复制')}
-            </bk-button>
-          </div>
-          <div
-            class='json-text-style'
-            slot='content'
-          >
-            <VueJsonPretty
-              data={this.sideslider.log}
-              deep={5}
-              virtual={true}
-              virtualLines={80}
-            />
-          </div>
-        </bk-sideslider>
+        </div>
+        <div class='storage-content'>{this.getActiveComponent()}</div>
       </div>
     );
   }

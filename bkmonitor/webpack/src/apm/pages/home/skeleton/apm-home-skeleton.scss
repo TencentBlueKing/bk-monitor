@@ -1,0 +1,27 @@
+/* stylelint-disable declaration-no-important */
+.app-list-skeleton {
+  display: flex;
+  flex-direction: column;
+  padding-top: 16px;
+
+  .expand-header {
+    display: flex;
+    align-items: center;
+    height: 36px;
+    margin-bottom: 16px;
+    border-radius: 2px;
+
+    .header-left {
+      display: flex;
+      flex: 1;
+      align-items: center;
+
+      .skeleton {
+        max-width: 268px;
+        height: 24px;
+        margin-right: 16px;
+        margin-left: 16px;
+      }
+    }
+  }
+}

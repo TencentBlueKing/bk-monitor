@@ -23,25 +23,40 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { RouteConfig } from 'vue-router';
-// import * as HomeAuth from '../../pages/home/authority-map';
-const AppList = () => import(/* webpackChunkName: "AppList" */ '../../pages/home/apm-home');
-export default [
-  {
-    path: '/home',
-    name: 'home',
-    props: true,
-    components: {
-      noCache: AppList,
-    },
-    meta: {
-      title: '首页',
-      navId: 'home',
-      // authority: {
-      //   map: HomeAuth,
-      //   page: [HomeAuth.VIEW_AUTH]
-      // },
-      noNavBar: true,
-    },
-  },
-] as RouteConfig[];
+
+import { Component, Emit, Model } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+interface IProps {
+  value?: boolean;
+}
+
+@Component
+export default class DebuggerDialog extends tsc<IProps> {
+  @Model('change', { type: Boolean, default: false }) value: IProps['value'];
+
+  @Emit('change')
+  handleShowChange(val?: boolean) {
+    return val ?? !this.value;
+  }
+
+  handleConfirm() {}
+  handleCancel() {
+    this.handleShowChange(false);
+  }
+
+  render() {
+    return (
+      <bk-dialog
+        width={640}
+        ext-cls='add-service-dialog'
+        confirm-fn={this.handleConfirm}
+        header-position='left'
+        title={this.$t('调试')}
+        value={this.value}
+        onCancel={this.handleCancel}
+        onValueChange={this.handleShowChange}
+      />
+    );
+  }
+}

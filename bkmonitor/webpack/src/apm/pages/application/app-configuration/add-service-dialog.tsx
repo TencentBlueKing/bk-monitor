@@ -38,7 +38,7 @@ interface IProps {
 }
 
 interface IEvents {
-  onRefresh: void;
+  onRefresh: () => any;
 }
 
 @Component
@@ -302,7 +302,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
 
       if (this.debuggerResult?.length)
         return this.debuggerResult.map(item => (
-          <span>
+          <span key={item}>
             {item}
             <br />
           </span>
@@ -439,8 +439,8 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                         class='bk-dropdown-list'
                         slot='dropdown-content'
                       >
-                        {Object.keys(this.operatorMaps).map(operator => (
-                          <li>
+                        {Object.keys(this.operatorMaps).map((operator, index) => (
+                          <li key={`operator_${this.operatorMaps[operator]}_${index}`}>
                             <a
                               href='javascript:;'
                               onClick={() => this.triggerHandler('domainDropdown', operator)}
@@ -453,7 +453,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                     </bk-dropdown-menu>
                   </bk-input>
                 </bk-form-item>
-                <bk-form-item label='PATH'>
+                <bk-form-item label='URL'>
                   <bk-input vModel={this.formData.rules.path.value}>
                     <bk-dropdown-menu
                       ref='uriDropdown'
@@ -475,8 +475,8 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                         class='bk-dropdown-list'
                         slot='dropdown-content'
                       >
-                        {Object.keys(this.operatorMaps).map(operator => (
-                          <li>
+                        {Object.keys(this.operatorMaps).map((operator, index) => (
+                          <li key={`operator_${this.operatorMaps[operator]}_${index}`}>
                             <a
                               href='javascript:;'
                               onClick={() => this.triggerHandler('uriDropdown', operator)}
@@ -492,7 +492,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                 <bk-form-item label={this.$t('参数')}>
                   {paramsList.map((param, index) => (
                     <div
-                      key={index}
+                      key={`${param.name}_${index}`}
                       class='params-list'
                     >
                       <bk-input

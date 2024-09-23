@@ -86,6 +86,7 @@ export interface IRelationItem {
 export type TableRow = Record<string, ITableItem<TableColumnType>>;
 // 字段数据类型
 export type TableColumnType =
+  // | 'check_icon'
   | 'collect'
   | 'id'
   | 'kv'
@@ -143,15 +144,17 @@ export interface ITableItemMap {
   // 操作 （点击弹出选择项 格式和多个链接一样）
   more_operate: ILinkItem[];
   permission?: IPermission;
+  // 选中icon
+  // check_icon: boolean;
 }
 /** 正常 | 异常 | 成功状态 | 失败状态 | 禁用状态 | 等待*/
 export type ITableItemStatus =
-  | 'NODATA'
-  | 'SUCCESS'
   | 'disabled'
   | 'failed'
+  | 'NODATA'
   | 'normal'
   | 'stoped'
+  | 'SUCCESS'
   | 'success'
   | 'waiting'
   | 'warning';

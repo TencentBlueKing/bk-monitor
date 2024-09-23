@@ -78,6 +78,7 @@ export interface INoticeGroupItem {
 export interface IClusterConfig {
   cluster_id: number;
   cluster_name: string;
+  storage_cluster_id: string;
 }
 
 export interface IFormatsItem {
@@ -189,6 +190,14 @@ export interface IFieldItem {
   analysis_field: number;
 }
 
+export interface IStoreItem {
+  es_storage_index_name: string;
+  es_storage_cluster: string;
+  validity: string;
+  health: string;
+  create_user: string;
+  create_time: string;
+}
 export interface IUnitItme {
   name: string;
   formats: IFormatsItem[];
