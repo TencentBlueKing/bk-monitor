@@ -38,7 +38,7 @@ import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import { isEnFn } from 'monitor-pc/utils';
 
-import { formatTimeUnitAndValue } from '../../../utils/utils';
+import { getValueFormat } from '../../../../monitor-echarts/valueFormats/valueFormats';
 import CompareMiniChart, { EPointType } from '../../mini-time-series/compare-mini-chart';
 import CompareTopoFullscreen from './compare-topo-fullscreen/compare-topo-fullscreen';
 
@@ -154,10 +154,19 @@ export default class DetailsSide extends tsc<IProps> {
 
   emptyStatus = 'empty';
   get unit() {
-    if (this.pointValueUnit === 'number') {
+    if (this.dataType === EDataType.errorCount) {
+      return this.selected === 'error_rate' ? 'percentunit' : 'none';
+    }
+    if (!this.pointValueUnit || this.pointValueUnit === 'number') {
       return '';
     }
-    return this.pointValueUnit || '';
+    return this.pointValueUnit;
+  }
+  get unitDecimal() {
+    if (this.dataType === EDataType.errorCount) {
+      return this.selected === 'error_rate' ? 2 : 0;
+    }
+    return 2;
   }
   get selectOptions() {
     if (this.dataType === EDataType.errorCount) {
@@ -750,6 +759,7 @@ export default class DetailsSide extends tsc<IProps> {
                           pointType={this.pointType}
                           referX={this.referX}
                           unit={this.unit}
+                          unitDecimal={this.unitDecimal}
                           valueTitle={this.panelTitle}
                           onCompareXChange={this.handleCompareXChange}
                           onPointTypeChange={this.handlePointTypeChange}
@@ -761,16 +771,16 @@ export default class DetailsSide extends tsc<IProps> {
                   [EColumn.CompareCount]: row => {
                     if (typeof row[EColumn.CompareCount] === 'object') {
                       const rowItem = row[EColumn.CompareCount];
-                      const timeItem = formatTimeUnitAndValue(rowItem.value, rowItem.unit);
-                      return <span>{`${timeItem.value}${timeItem.unit}`}</span>;
+                      const timeItem = getValueFormat(rowItem.unit)(rowItem.value, this.unitDecimal);
+                      return <span>{`${timeItem.text}${timeItem.suffix}`}</span>;
                     }
                     return row[EColumn.CompareCount];
                   },
                   [EColumn.ReferCount]: row => {
                     if (typeof row[EColumn.ReferCount] === 'object') {
                       const rowItem = row[EColumn.ReferCount];
-                      const timeItem = formatTimeUnitAndValue(rowItem.value, rowItem.unit);
-                      return <span>{`${timeItem.value}${timeItem.unit}`}</span>;
+                      const timeItem = getValueFormat(rowItem.unit)(rowItem.value, this.unitDecimal);
+                      return <span>{`${timeItem.text}${timeItem.suffix}`}</span>;
                     }
                     return row[EColumn.ReferCount];
                   },
