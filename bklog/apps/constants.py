@@ -536,6 +536,11 @@ class ViewSetActionEnum(ChoicesEnum):
         # ======================================= 聚合-AggsViewSet =======================================
         AGGS_VIEWSET_TERMS,
         AGGS_VIEWSET_DATE_HISTOGRAM,
+        # ======================================= 字段分析-FieldViewSet =======================================
+        FIELD_VIEWSET_INFO,
+        FIELD_VIEWSET_TOTAL,
+        FIELD_VIEWSET_GRAPH,
+        FIELD_VIEWSET_TOPK,
         # ======================================= 收藏-FavoriteViewSet =======================================
         FAVORITE_VIEWSET_RETRIEVE,
         FAVORITE_VIEWSET_LIST,
