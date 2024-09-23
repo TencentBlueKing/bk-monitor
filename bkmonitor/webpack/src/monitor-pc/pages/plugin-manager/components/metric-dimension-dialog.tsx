@@ -111,7 +111,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
   localPluginType = null;
   transFromAll = random(8);
   /** 自动采集新增指标是否开启 */
-  isAutoCollect = true;
+  isAutoCollect = false;
   /** 是否隐藏切换自动采集功能时的提示 */
   isHiddenTip = true;
 
@@ -258,6 +258,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
       const detailData = await retrieveCollectorPlugin(this.$route.params.pluginId).catch(() => ({}));
       this.localMetricData = detailData.metric_json;
       this.localPluginType = detailData.plugin_type;
+      this.isAutoCollect = detailData.enable_field_blacklist;
       this.isHiddenTip = detailData.is_split_measurement;
       this.localMetricData = this.localMetricData.map(group => ({
         ...group,
@@ -292,6 +293,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
         config_version: this.pluginData.config_version,
         info_version: this.pluginData.info_version,
       };
+      this.isAutoCollect = this.pluginData.enable_field_blacklist;
       this.isHiddenTip = this.pluginData.is_split_measurement;
       this.localPluginType = this.pluginType;
     }
