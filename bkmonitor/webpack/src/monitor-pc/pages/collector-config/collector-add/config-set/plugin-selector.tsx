@@ -30,6 +30,8 @@ import './plugin-selector.scss';
 
 export const LOG_PLUGIN_ID = 'LOG_PLUGIN_ID'; // 只做为前端标识使用
 export const PROCESS_PLUGIN_ID = 'default_process';
+export const CLOUD_METRIC_PLUGIN_ID = 'tencent_cloud_metric';
+
 /* 插件类型名 */
 const pluginTypeMap = {
   Exporter: 'Exporter',
@@ -41,6 +43,7 @@ const pluginTypeMap = {
   Process: 'Process',
   SNMP_Trap: 'SNMP Trap',
   SNMP: 'SNMP',
+  K8S: 'K8S',
 };
 
 const colorMap = {
@@ -54,6 +57,7 @@ const colorMap = {
   SNMP_Trap: '#B6CAEC',
   Log: '#B6CAEC',
   Process: '#B6CAEC',
+  K8S: '#B6CAEC',
 };
 /* snmptrap类型插件(固定) */
 const snmpTrapPluginList = [
@@ -94,6 +98,15 @@ const processPluginList = [
     logo: '',
   },
 ];
+/** 云监控  */
+const cloudMetricCollectPluginList = [
+  {
+    plugin_id: CLOUD_METRIC_PLUGIN_ID,
+    plugin_display_name: window.i18n.tc('腾讯云指标采集插件'),
+    plugin_type: 'K8S',
+    logo: '',
+  },
+];
 
 export interface IPluginItem {
   logo: string;
@@ -130,7 +143,13 @@ export default class PluginSelector extends tsc<IProps, IEvents> {
   realList: IPluginItem[] = [];
 
   created() {
-    this.realList = [...this.list, ...snmpTrapPluginList, ...logPluginList, ...processPluginList];
+    this.realList = [
+      ...this.list,
+      ...snmpTrapPluginList,
+      ...logPluginList,
+      ...processPluginList,
+      ...cloudMetricCollectPluginList,
+    ];
     if (this.id) {
       this.pluginId = this.id;
     }

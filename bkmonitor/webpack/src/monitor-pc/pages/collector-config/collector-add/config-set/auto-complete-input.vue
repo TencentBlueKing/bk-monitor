@@ -161,6 +161,29 @@
           </bk-select>
         </div>
       </template>
+      <template v-else-if="allConfig.key === 'tencent_cloud_product'">
+        <div class="auto-complete-input-select">
+          <slot name="prepend" />
+          <bk-select
+            :clearable="false"
+            :disabled="false"
+            v-model="params"
+            multiple
+            @change="handleSelectSecurity"
+            ext-cls="select-custom"
+            ext-popover-cls="select-popover-custom"
+            :allow-create="true"
+            :display-tag="true"
+          >
+            <bk-option
+              v-for="option in allConfig.election"
+              :key="option.id"
+              :id="option.id"
+              :name="option.name"
+            />
+          </bk-select>
+        </div>
+      </template>
       <!-- 普通选项 -->
       <template v-else>
         <div class="auto-complete-input-select">

@@ -27,7 +27,10 @@
   <div class="done">
     <done :options="options">
       <template #text>
-        <div v-if="nodeType === 'INSTANCE'">
+        <div v-if="isTencentCloudPlugin">
+          {{ $tc('已成功下发采集配置') }}
+        </div>
+        <div v-else-if="nodeType === 'INSTANCE'">
           <span class="text">
             <i18n :path="`共成功{0}了{1}${suffixName}`">
               {{ $t(options.type) }}
@@ -85,6 +88,7 @@
   </div>
 </template>
 <script>
+import { CLOUD_METRIC_PLUGIN_ID } from '../config-set/plugin-selector';
 import Done from './loading-done';
 
 export default {
@@ -135,6 +139,10 @@ export default {
     suffixName() {
       return this.hosts.config_info.target_object_type === 'HOST' ? '台主机' : '个实例';
     },
+    // 是否是腾讯云插件
+    isTencentCloudPlugin() {
+      return this.config.set.data.plugin.id === CLOUD_METRIC_PLUGIN_ID;
+    },
   },
   created() {
     const type = {
@@ -148,6 +156,7 @@ export default {
     };
     this.options.type = type[this.type];
     this.options.title = this.$t(`配置已${type[this.type]}`);
+    if (this.isTencentCloudPlugin) return;
     this.nodeType = this.data.nodeType;
     this.options.successTotal = this.hosts.headerData.successNum;
     this.options.failTotal = this.hosts.headerData.failedNum;

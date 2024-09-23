@@ -29,7 +29,6 @@
       <ul class="step-list">
         <li
           v-for="(item, index) in stepConf.list"
-          :key="index"
           class="step-list-item"
           :class="[
             `step-list-item-${index + 1}`,
@@ -38,6 +37,7 @@
               'is-done': item.done,
             },
           ]"
+          :key="index"
         >
           <div
             :class="[
@@ -54,16 +54,17 @@
     </div>
     <div class="add-container">
       <component
-        :is="currentView"
-        :hosts.sync="hosts"
-        :is-clone="isClone"
         :config.sync="config"
+        :hosts.sync="hosts"
+        :is="currentView"
+        :is-clone="isClone"
         :password-input-change-set="passwordInputChangeSet"
         :type.sync="componentType"
-        @target="target"
-        @previous="handlePrevious"
         @next="handleNext"
         @passwordInputName="handlePasswordInputName"
+        @previous="handlePrevious"
+        @target="target"
+        @tencentCloudNext="handleTencentCloudNext"
       />
     </div>
   </div>
@@ -205,6 +206,10 @@ export default {
       this.changeView(active + 1);
       stepConf.list[active].done = true;
     },
+    handleTencentCloudNext() {
+      this.changeView(2);
+      this.stepConf.list[1].done = true;
+    },
     target(v) {
       this.config.target = v;
     },
@@ -219,23 +224,23 @@ export default {
 @import '../../home/common/mixins';
 
 .collector-add {
-  min-height: calc(100vh - 110px);
-  background: #fff;
   display: flex;
-  border-radius: 2px;
+  min-height: calc(100vh - 110px);
+  margin: 20px;
+  background: #fff;
   border: 1px solid #dcdee5;
   border-right: 0;
-  margin: 20px;
+  border-radius: 2px;
 
   .add-step {
     flex: 0 0 202px;
     background: $defaultBgColor;
-    border-radius: 2px 0px 0px 0px;
     border-right: 1px solid $defaultBorderColor;
+    border-radius: 2px 0px 0px 0px;
 
     .step-list {
-      margin-left: 45px;
       padding: 40px 0 0 0;
+      margin-left: 45px;
 
       @for $i from 1 through 4 {
         &-item-#{$i} {
@@ -251,23 +256,23 @@ export default {
 
       .step-list-item {
         position: relative;
-        border-left: 1px dashed $defaultBorderColor;
         height: 70px;
         padding-left: 25px;
         color: $defaultFontColor;
+        border-left: 1px dashed $defaultBorderColor;
 
         &:before {
+          position: absolute;
+          top: -5px;
+          left: -15px;
+          display: inline-block;
           width: 26px;
           height: 26px;
           line-height: 26px;
-          display: inline-block;
-          position: absolute;
-          border-radius: 50%;
-          left: -15px;
-          top: -5px;
+          color: $defaultFontColor;
           text-align: center;
           background: #fff;
-          color: $defaultFontColor;
+          border-radius: 50%;
 
           @include border-1px(#c4c6cc);
         }
@@ -301,8 +306,8 @@ export default {
 
           /* stylelint-disable-next-line */
           font-family: 'icon-monitor' !important;
-          background: #dcdee5;
           color: #fff;
+          background: #dcdee5;
           border: 1px solid #dcdee5;
         }
 

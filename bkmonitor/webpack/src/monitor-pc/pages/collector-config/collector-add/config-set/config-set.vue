@@ -233,10 +233,7 @@
                   @blur="validateHost"
                 >
                   <template slot="prepend">
-                    <bk-popover
-                      :tippy-options="tippyOptions"
-                      placement="top"
-                    >
+                    <bk-popover placement="top">
                       <div class="prepend-text">${host}=</div>
                       <div slot="content">
                         <div>{{ $t('参数名称') }} : {{ info.host.name }}</div>
@@ -306,6 +303,7 @@
           v-if="info.plugin.configJson.length"
           class="item-container"
         >
+          <!-- {{ info.plugin.id ===  }} -->
           <div class="container-tips">
             {{ $t('参数的填写也可以使用CMDB变量') }}&nbsp;&nbsp;<span @click="handleVariableTable">
               {{ $t('点击查看推荐变量') }}
@@ -501,14 +499,24 @@
             >
               {{ $t('button-预览') }}
             </bk-button>
-            <bk-button
-              :class="['btn-next', { disabled: !canNext }]"
-              :disabled="!canNext"
-              theme="primary"
-              @click="handleNext"
+            <bk-popconfirm
+              width="200"
+              :content="$tc('确认采集下发?')"
+              :disabled="!canNext || info.plugin.id !== cloudMetricPluginId"
+              :tippy-options="tippyOptions"
+              placement="top"
+              trigger="click"
+              @confirm="handleTencentCloudNext"
             >
-              {{ $t('下一步') }}
-            </bk-button>
+              <bk-button
+                :class="['btn-next', { disabled: !canNext }]"
+                :disabled="!canNext"
+                theme="primary"
+                @click="handleNext"
+              >
+                {{ $t('下一步') }}
+              </bk-button>
+            </bk-popconfirm>
             <bk-button @click="handleCancel">
               {{ $t('取消') }}
             </bk-button>
@@ -576,7 +584,7 @@ import CollectorIntroduction from './collector-introduction';
 import CollectorLog from './collector-log';
 import PERIOD_LIST from './data';
 import IndicatorPreview from './indicator-preview';
-import PluginSelector, { LOG_PLUGIN_ID, PROCESS_PLUGIN_ID } from './plugin-selector.tsx';
+import PluginSelector, { LOG_PLUGIN_ID, PROCESS_PLUGIN_ID, CLOUD_METRIC_PLUGIN_ID } from './plugin-selector.tsx';
 import ProcessParams from './process-params.vue';
 import * as snmp from './snmp';
 import VariableTable from './variable-table';
@@ -806,6 +814,7 @@ export default {
         objectIdDisable: false,
       },
       pluginListLoading: false, // 新增情况下判断是否正在获取插件列表
+      cloudMetricPluginId: CLOUD_METRIC_PLUGIN_ID,
     };
   },
   computed: {
@@ -1550,6 +1559,7 @@ export default {
       return true;
     },
     handleNext() {
+      if (this.info.plugin.id === CLOUD_METRIC_PLUGIN_ID) return;
       // 清空缓存的info
       this[SET_INFO_DATA](null);
       if (this.validate() && this.validateProcessParams()) {
@@ -1564,6 +1574,16 @@ export default {
           set: { data: this.info, others: this.others, mode: 'edit', supportRemote: this.info.plugin.supportRemote },
         });
         this.$emit('next');
+      }
+    },
+    handleTencentCloudNext() {
+      this[SET_INFO_DATA](null);
+      if (this.validate() && this.validateProcessParams()) {
+        this.$emit('update:config', {
+          ...this.config,
+          set: { data: this.info, others: this.others, mode: 'edit', supportRemote: this.info.plugin.supportRemote },
+        });
+        this.$emit('tencentCloudNext');
       }
     },
     async setEditOrCloneConfig(v, collectDetail) {
@@ -2068,6 +2088,83 @@ export default {
           this.info.plugin.id = PROCESS_PLUGIN_ID;
           this.pluginSelectorObj.objectIdDisable = true;
           this.info.objectId = 'host_process';
+        } else if (pluginInfo.plugin_type === 'K8S') {
+          /** 腾讯云指标采集插件 */
+          this.info.plugin.id = CLOUD_METRIC_PLUGIN_ID;
+          this.pluginSelectorObj.objectIdDisable = true;
+          this.info.objectId = 'os';
+          this.info.plugin.configJson = [
+            {
+              name: this.$tc('云产品'),
+              required: true,
+              type: 'list',
+              key: 'tencent_cloud_product',
+              field: 'products',
+              default: [],
+              election: [
+                { id: 'QCE/CMONGO', name: '数据库MongoDB' },
+                { id: 'QCE/CDB', name: '数据库MySQL(CDB)' },
+                { id: 'QCE/REDIS', name: 'Redis标准版' },
+                { id: 'QCE/REDIS_CLUSTER', name: 'Redis集群版' },
+                { id: 'QCE/REDIS_MEM', name: '数据库Redis(内存版)' },
+                { id: 'QCE/CVM', name: '云服务器CVM' },
+                { id: 'QCE/COS', name: 'COS' },
+                { id: 'QCE/CDN', name: 'CDN' },
+                { id: 'QCE/LB_PUBLIC', name: '负载均衡CLB(公网)' },
+                { id: 'QCE/LOADBALANCE', name: '负载均衡CLB(7层)' },
+                { id: 'QCE/NAT_GATEWAY', name: 'NAT网关' },
+                { id: 'QCE/DC', name: '物理专线' },
+                { id: 'QCE/DCX', name: '专用通道' },
+                { id: 'QCE/CBS', name: '云硬盘' },
+                { id: 'QCE/SQLSERVER', name: '数据库SQL Server' },
+                { id: 'QCE/MARIADB', name: '数据库MariaDB' },
+                { id: 'QCE/CES', name: 'Elasticsearch' },
+                { id: 'QCE/CMQ', name: 'CMQ 队列服务' },
+                { id: 'QCE/CMQTOPIC', name: 'CMQ 主题订阅' },
+                { id: 'QCE/POSTGRES', name: '数据库PostgreSQL' },
+                { id: 'QCE/CKAFKA', name: 'CKafka 实例' },
+                { id: 'QCE/MEMCACHED', name: 'Memcached' },
+                { id: 'QCE/LIGHTHOUSE', name: '轻量应用服务器Lighthouse' },
+                { id: 'QCE/TDMYSQL', name: '分布式数据库 TDSQL MySQL' },
+                { id: 'QCE/LB', name: '弹性公网 IP' },
+                { id: 'QCE/TDMQ', name: '消息队列RocketMQ版' },
+                { id: 'QCE/VPNGW', name: 'VPN 网关' },
+                { id: 'QCE/VPNX', name: 'VPN 通道' },
+                { id: 'QCE/CYNOSDB_MYSQL', name: 'CYNOSDB_MYSQL' },
+                { id: 'QCE/VBC', name: '云联网' },
+                { id: 'QCE/DTS', name: '数据传输' },
+                { id: 'QCE/DCG', name: '专线网关' },
+                { id: 'QCE/QAAP', name: '全球应用加速' },
+                { id: 'QCE/WAF', name: 'Web应用防火墙' },
+                { id: 'QCE/LB_PRIVATE', name: '负载均衡CLB(内网)' },
+              ],
+              validate: { isValidate: false, content: '' },
+            },
+            {
+              name: 'secretId',
+              required: true,
+              type: 'text',
+              field: 'secret_id',
+              default: '',
+              validate: { isValidate: false, content: '' },
+            },
+            {
+              name: 'secretKey',
+              required: true,
+              type: 'text',
+              field: 'secret_key',
+              default: '',
+              validate: { isValidate: false, content: '' },
+            },
+            {
+              name: 'region',
+              required: true,
+              type: 'text',
+              field: 'region',
+              default: '',
+              validate: { isValidate: false, content: '' },
+            },
+          ];
         }
       }
       this.handleSetObjTypeById(this.info.objectId);
@@ -2084,17 +2181,21 @@ export default {
     handleInput(item) {
       const valid = {
         content: '',
-        isValidate: false,
+        validate: false,
       };
       if (item.required) {
         if (typeof item.default === 'object') {
-          valid.isValidate = Array.isArray(item.default) ? !item.default.length : !Object.keys(item.default).length;
+          valid.validate = Array.isArray(item.default) ? !item.default.length : !Object.keys(item.default).length;
         } else {
-          valid.isValidate = !item.default;
+          valid.validate = !item.default;
         }
-        valid.isValidate && (valid.content = this.$t('必填项'));
+
+        valid.validate && (valid.content = this.$t('必填项'));
       }
-      item.validate = valid;
+      item.validate = {
+        content: valid.content,
+        isValidate: valid.validate,
+      };
       return valid;
     },
   },
