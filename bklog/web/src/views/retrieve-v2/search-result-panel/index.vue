@@ -72,6 +72,7 @@
           onHidden: () => (isShowFieldStatistics = false),
           onWidthChange: handleFilterWidthChange,
         }"
+        :class="{ 'filet-hidden': !isShowFieldStatistics }"
         @field-status-change="handleFieldsShowChange"
       ></FieldFilter>
       <div

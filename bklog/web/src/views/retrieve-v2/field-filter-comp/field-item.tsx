@@ -253,7 +253,7 @@ export default class FieldItem extends tsc<object> {
                 this.handleShowOrHiddenItem();
               }}
             >
-              <i class={['bk-icon include-icon', `${this.type !== 'visible' ? 'icon-eye' : 'icon-eye-slash'}`]}></i>
+              <i class={['bk-icon include-icon', `${this.type === 'visible' ? 'icon-eye' : 'icon-eye-slash'}`]}></i>
             </div>
             {/* 拖动字段位置按钮 */}
             <div>

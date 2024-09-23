@@ -10,7 +10,7 @@
     cursor: pointer;
   }
 
-  .search-container {
+  .search-container-new {
     padding: 0 16px 16px;
 
     .search-title,
@@ -60,7 +60,7 @@
     }
   }
 
-  .group-container {
+  .group-container-new {
     height: calc(100vh - 210px);
     margin-right: 2px;
     overflow-y: auto;
@@ -139,7 +139,8 @@
   }
 
   .sort-group-container {
-    display: flex;
+    /* stylelint-disable-next-line declaration-no-important */
+    display: flex !important;
     flex-direction: column;
     align-items: flex-start;
     justify-content: space-between;

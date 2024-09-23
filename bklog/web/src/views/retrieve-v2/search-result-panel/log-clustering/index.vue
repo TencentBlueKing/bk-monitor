@@ -37,6 +37,7 @@
       >
         <strategy
           :cluster-switch="clusterSwitch"
+          :is-cluster-active="isClusterActive"
           :strategy-submit-status="watchStrategySubmitStatus"
         />
 
@@ -46,6 +47,7 @@
           :total-fields="totalFields"
           :cluster-switch="clusterSwitch"
           :strategy-have-submit="strategyHaveSubmit"
+          :is-cluster-active="isClusterActive"
           @handle-finger-operate="handleFingerOperate"
         />
       </div>
@@ -331,6 +333,9 @@
       isShowTopNav() {
         return this.exhibitAll && this.clusterSwitch && !this.isShowClusterStep;
       },
+      indexId() {
+        return this.$store.state.indexId;
+      },
       indexSetItem() {
         return this.$store.state.IndexItem;
       },
@@ -357,6 +362,9 @@
       isSearchIng(v) {
         this.isClickSearch = true;
         if (this.exhibitAll && v) this.requestFinger();
+      },
+      indexId() {
+        this.isShowClusterStep = true;
       },
       isShowClusterStep(v) {
         this.$store.commit('updateStoreIsShowClusterStep', v);
@@ -664,7 +672,7 @@
     },
     activated() {
       this.isClusterActive = true;
-      if (this.isClickSearch) this.requestFinger();
+      if (this.isClickSearch) this.requestFinger(5);
     },
     deactivated() {
       this.isClusterActive = false;
