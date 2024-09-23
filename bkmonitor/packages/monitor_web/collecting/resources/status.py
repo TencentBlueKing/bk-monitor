@@ -250,6 +250,9 @@ class CollectTargetStatusTopoResource(Resource):
         )
         target_node_type = collect_config.deployment_config.target_node_type
 
+        if target_node_type == TargetNodeType.CLUSTER:
+            return []
+
         # 获取拓扑信息用于后续处理
         if collect_config.deployment_config.target_node_type in self.topo_node_types:
             topo_tree: TopoTree = api.cmdb.get_topo_tree(bk_biz_id=collect_config.bk_biz_id)
