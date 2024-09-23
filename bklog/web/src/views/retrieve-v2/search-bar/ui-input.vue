@@ -34,12 +34,12 @@
    * @param {*} item
    */
   const formatModelValueItem = item => {
-    if (typeof item.value === 'string') {
+    if (typeof item?.value === 'string') {
       item.value = item.value.split(',');
     }
 
-    if (!item.relation) item.relation = 'OR';
-    return { disabled: false, ...item };
+    if (!item?.relation) item.relation = 'OR';
+    return { disabled: false, ...(item ?? {}) };
   };
 
   /**

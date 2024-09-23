@@ -89,12 +89,12 @@
       </template>
     </bk-popover> -->
     <!-- 手动刷新 -->
-    <span
+    <!-- <span
       class="search-refresh"
       v-bk-tooltips="{ content: $t('刷新') }"
       @click="handleRefresh"
     >
       <i class="bklog-icon bklog-log-refresh"></i>
-    </span>
+    </span> -->
   </span>
 </template>

@@ -3,15 +3,8 @@
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import { ConditionOperator } from '@/store/condition-operator';
-  import { isEqual } from 'lodash';
-
-  import SelectIndexSet from '../condition-comp/select-index-set.tsx';
   import BookmarkPop from './bookmark-pop';
-  import { getInputQueryIpSelectItem } from './const.common';
-  import QueryHistory from './query-history';
   import SqlQuery from './sql-query';
-  import TimeSetting from './time-setting';
   import UiInput from './ui-input';
 
   const emit = defineEmits(['refresh', 'height-change']);
@@ -31,6 +24,7 @@
   const addition = computed(() => indexItem.value.addition);
   const searchMode = computed(() => indexItem.value.search_mode);
   const clearSearchValueNum = computed(() => store.state.clearSearchValueNum);
+  const queryText = computed(() => queryTypeList.value[activeIndex.value]);
 
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
   const isInputLoading = computed(() => {
@@ -75,10 +69,6 @@
     { immediate: true },
   );
 
-  const handleQueryTypeChange = index => {
-    activeIndex.value = index;
-  };
-
   const handleBtnQueryClick = () => {
     if (!isInputLoading.value) {
       store.commit('updateIndexItemParams', {
@@ -89,50 +79,6 @@
 
       store.dispatch('requestIndexSetQuery');
     }
-  };
-
-  const handleIndexSetSelected = payload => {
-    if (!isEqual(indexItem.value.ids, payload.ids) || indexItem.value.isUnionIndex !== payload.isUnionIndex) {
-      store.commit('updateUnionIndexList', payload.isUnionIndex ? (payload.ids ?? []) : []);
-      store.dispatch('requestIndexSetItemChanged', payload ?? {}).then(() => {
-        store.commit('retrieve/updateChartKey');
-        store.dispatch('requestIndexSetQuery');
-      });
-    }
-  };
-  const updateSearchParam = payload => {
-    const { keyword, addition, ip_chooser, search_mode } = payload;
-    const foramtAddition = (addition ?? []).map(item => {
-      const instance = new ConditionOperator(item);
-      return instance.formatApiOperatorToFront();
-    });
-
-    if (Object.keys(ip_chooser).length) {
-      foramtAddition.unshift(getInputQueryIpSelectItem(ip_chooser));
-    }
-
-    store.commit('updateIndexItemParams', {
-      keyword,
-      addition: foramtAddition,
-      ip_chooser,
-      begin: 0,
-      search_mode,
-    });
-
-    activeIndex.value = queryParams.findIndex(m => m === search_mode);
-    if (activeIndex.value === -1) {
-      if (keyword?.length) {
-        activeIndex.value = 1;
-      }
-
-      if (addition.length) {
-        activeIndex.value = 0;
-      }
-    }
-
-    setTimeout(() => {
-      store.dispatch('requestIndexSetQuery');
-    });
   };
 
   const handleSqlRetrieve = value => {
@@ -163,27 +109,17 @@
   const handleHeightChange = height => {
     emit('height-change', height);
   };
+
+  const handleQueryTypeChange = () => {};
 </script>
 <template>
   <div class="search-bar-container">
     <div class="search-options">
-      <div class="query-type">
-        <span
-          v-for="(item, index) in queryTypeList"
-          :class="['item', { active: activeIndex === index }]"
-          :key="index"
-          @click="() => handleQueryTypeChange(index)"
-        >
-          {{ item }}
-        </span>
-      </div>
-
-      <SelectIndexSet
-        style="width: 500px; margin: 0 12px"
-        @selected="handleIndexSetSelected"
-      ></SelectIndexSet>
-      <QueryHistory @change="updateSearchParam"></QueryHistory>
-      <TimeSetting></TimeSetting>
+      <span class="mode-text">{{ queryText }}</span>
+      <span
+        @click="handleQueryTypeChange"
+        class="bklog-icon bklog-double-arrow"
+      ></span>
     </div>
     <div
       class="search-input"

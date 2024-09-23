@@ -36,6 +36,7 @@
   import SearchBar from './search-bar/index.vue';
   import SearchResultPanel from './search-result-panel/index.vue';
   import SearchResultTab from './search-result-tab/index.vue';
+
   import SubBar from './sub-bar/index.vue';
 
   const store = useStore();
@@ -176,6 +177,7 @@
         <template v-else>
           <span :class="['bklog-icon bklog-collapse-small', { active: showFavorites }]"></span>{{ $t('收藏夹') }}
         </template>
+
       </div>
       <SubBar :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 110}px` }" />
     </div>
