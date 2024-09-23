@@ -1335,7 +1335,7 @@ class SearchHandler(object):
                         search_type="default",
                         index_set_type=IndexSetType.SINGLE.value,
                     )
-                    .order_by("-rank", "-created_at")[:10]
+                    .order_by("-rank", "-created_at")
                     .values("id", "params")
                 )
             else:
@@ -1357,7 +1357,7 @@ class SearchHandler(object):
                     index_set_ids=index_set_ids,
                     index_set_type=IndexSetType.UNION.value,
                 )
-                .order_by("-rank", "-created_at")[:10]
+                .order_by("-rank", "-created_at")
                 .values("id", "params", "created_by", "created_at")
             )
         history_obj = SearchHandler._deal_repeat_history(history_obj)
@@ -1402,6 +1402,8 @@ class SearchHandler(object):
 
         for _history_obj in history_obj:
             _not_repeat(_history_obj)
+            if len(not_repeat_history) >= 10:
+                break
         return not_repeat_history
 
     @staticmethod
