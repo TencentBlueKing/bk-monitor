@@ -39,7 +39,7 @@ import type { IMetricDetail } from '../strategy-config/strategy-config-set-new/t
 
 import './metrics-table.scss';
 
-export const dataSouceLabes = [
+export const dataSourceLabels = [
   { id: 'bk_monitor', name: window.i18n.tc('监控采集指标') },
   { id: 'bk_data', name: window.i18n.tc('计算平台指标') },
   { id: 'custom', name: window.i18n.tc('自定义指标') },
@@ -59,8 +59,8 @@ interface IEvents {
   onDataRetrieval?: string;
   onDataSourceChange?: string[][];
   onEnableChange?: (value: string) => void;
-  onClearFilter?: void;
-  onRefresh?: void;
+  onClearFilter?: () => void;
+  onRefresh?: () => void;
 }
 
 const tableSettingsKey = 'METRICS_MANAGER_TABLE_SETTINGS';
@@ -280,7 +280,7 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
         ];
       }
       if (id === 'data_source_label') {
-        this.filterPopover.list = dataSouceLabes.map(item => ({
+        this.filterPopover.list = dataSourceLabels.map(item => ({
           name: item.name,
           value: '',
           checked: item.id,
@@ -486,7 +486,7 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
                   !row.metric_field_name || row.metric_field_name === row.metric_field ? '' : row.metric_field_name;
                 return <span>{alias || '--'}</span>;
               },
-              dataSourceLabel: row => dataSouceLabes.find(item => item.id === row.data_source_label)?.name || '--',
+              dataSourceLabel: row => dataSourceLabels.find(item => item.id === row.data_source_label)?.name || '--',
               resultTableName: row => row.result_table_name || '--',
               interval: row => {
                 const collectInterval = row.collect_interval < 5 ? 60 : row.collect_interval;
@@ -499,6 +499,7 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
               enable: () => this.$t('启用'),
               operate: row => [
                 <bk-button
+                  key='1'
                   text
                   onClick={() => this.handleToDataRetrieval(row.metric_id)}
                 >

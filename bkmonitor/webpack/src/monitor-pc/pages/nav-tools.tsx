@@ -347,6 +347,9 @@ class NavTools extends DocumentLinkMixin {
         }
         <bk-popover
           ref='popoverlanguage'
+          tippy-options={{
+            trigger: 'click',
+          }}
           arrow={false}
           offset='-10, 4'
           placement='bottom-start'
@@ -372,14 +375,10 @@ class NavTools extends DocumentLinkMixin {
               {this.languageList.map((item, index) => (
                 <li
                   key={index}
-                  class='nav-item'
+                  class={`nav-item ${item.id === this.$store.getters.lang ? 'nav-item-active' : ''}`}
                   onClick={() => this.handleLanguageChange(item)}
                 >
-                  <img
-                    class='language-icon'
-                    alt='language'
-                    src={item.id === 'en' ? enIcon : zhIcon}
-                  />
+                  <span class={`bk-icon ${item.id === 'en' ? 'icon-english' : 'icon-chinese'} language-icon`} />
                   {item.name}
                 </li>
               ))}

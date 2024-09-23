@@ -102,6 +102,7 @@ from apm_web.service.serializers import (
     AppServiceRelationSerializer,
     LogServiceRelationOutputSerializer,
 )
+from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from apm_web.trace.service_color import ServiceColorClassifier
 from apm_web.utils import get_interval, group_by, span_time_strft
 from bkmonitor.iam import ActionEnum
@@ -1030,6 +1031,8 @@ class ServiceDetailResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称")
         service_name = serializers.CharField(label="服务名称")
+        start_time = serializers.IntegerField(required=True, label="开始时间")
+        end_time = serializers.IntegerField(required=True, label="开始时间")
 
     def key_name_map(self):
         return {
@@ -1073,14 +1076,13 @@ class ServiceDetailResource(Resource):
                 }
             ]
 
-        instance_count = api.apm_api.query_instance(
-            bk_biz_id=data["bk_biz_id"],
-            app_name=data["app_name"],
-            service_name=[data["service_name"]],
-            page_size=1,
+        instances = RelationMetricHandler.list_instances(
+            data["bk_biz_id"],
+            data["app_name"],
+            data["start_time"],
+            data["end_time"],
+            service_name=data["service_name"],
         )
-        if instance_count:
-            instance_count = instance_count.get("total")
 
         extra_data = node_info.get("extra_data", {})
         if extra_data.get("kind") == TopoNodeKind.COMPONENT:
@@ -1095,7 +1097,7 @@ class ServiceDetailResource(Resource):
                     "predicate_value": extra_data.get("predicate_value"),
                     "kind": TopoNodeKind.get_label_by_key(extra_data.get("kind")),
                     "belong_service": ComponentHandler.get_component_belong_service(data["service_name"]),
-                    "instance_count": instance_count,
+                    "instance_count": len(instances),
                 }.items()
             ]
 
@@ -1111,7 +1113,7 @@ class ServiceDetailResource(Resource):
                 "category": StandardFieldCategory.get_label_by_key(extra_data.get("category")),
                 "predicate_value": extra_data.get("predicate_value"),
                 "service_language": TopoNodeKind.get_label_by_key(extra_data.get("service_language")),
-                "instance_count": instance_count,
+                "instance_count": len(instances),
             }.items()
             if item in self.key_name_map()[TopoNodeKind.SERVICE].keys()
         ]
@@ -1516,7 +1518,7 @@ class DataViewConfigResource(Resource):
                                 {
                                     "data_source_label": "bk_apm",
                                     "data_type_label": "log",
-                                    "table": app.trace_result_table_id.replace(".", "_"),
+                                    "table": app.trace_result_table_id,
                                     "metrics": [{"field": "span_name", "method": "COUNT", "alias": "A"}],
                                     "group_by": [],
                                     "display": True,
@@ -1549,7 +1551,7 @@ class DataViewConfigResource(Resource):
                                 {
                                     "data_source_label": "bk_apm",
                                     "data_type_label": "log",
-                                    "table": app.trace_result_table_id.replace(".", "_"),
+                                    "table": app.trace_result_table_id,
                                     "metrics": [{"field": "span_name", "method": "COUNT", "alias": "A"}],
                                     "group_by": [],
                                     "display": True,

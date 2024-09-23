@@ -134,39 +134,47 @@
     padding: 0;
     overflow: hidden;
   }
+
   .log-chart-simple {
-    min-height: 112px;
     position: relative;
+    min-height: 112px;
+
     .chart-simple-header {
+      position: relative;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      position: relative;
       margin-bottom: 8px;
+
       .left {
-        overflow: hidden;
         display: flex;
+        flex: 1;
         align-items: center;
+        overflow: hidden;
         color: #313238;
+
         .name-text {
-          max-width: 85%;
           display: inline-block;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
+
         .icon-fenxiang {
           display: none;
         }
+
         &:hover {
+          color: #3a84ff;
           cursor: pointer;
-          color: #3A84FF;
+
           .icon-fenxiang {
             display: inline-block;
             margin-left: 4px;
           }
         }
       }
+
       .right {
         .bk-form-checkbox {
           display: flex;
@@ -174,6 +182,7 @@
         }
       }
     }
+
     .chart-instance {
       height: 84px;
     }
@@ -181,21 +190,24 @@
 }
 
 .log-chart-simple-chart-tooltip {
-  background: #000000cc !important;
   padding: 8px;
+  background: #000000cc !important;
+
   .time-text {
-    color: #FFFFFF;
+    color: #ffffff;
   }
+
   .value-text {
     display: flex;
     align-items: center;
-    color: #FFFFFF;
     margin-top: 8px;
+    color: #ffffff;
+
     .color-point {
       width: 8px;
       height: 8px;
-      background: #3A84FF;
       margin-right: 4px;
+      background: #3a84ff;
     }
   }
 }

@@ -49,11 +49,11 @@ export const DATA_TYPE_LIST = [
   },
   {
     id: EDataType.ErrorRateCaller,
-    name: `${window.i18n.tc('调用错误率')} - ${window.i18n.tc('主调')}`,
+    name: window.i18n.tc('主调错误率'),
   },
   {
     id: EDataType.ErrorRateCallee,
-    name: `${window.i18n.tc('调用错误率')} - ${window.i18n.tc('被调')}`,
+    name: window.i18n.tc('被调错误率'),
   },
   {
     id: EDataType.ErrorRate,
@@ -94,16 +94,17 @@ export const alarmBarChartDataTransform = (dataType: EDataType, series: any[]) =
   if (dataType === EDataType.Alert) {
     /* 1：致命 2：预警  其他：无告警 */
     return (
-      series?.[0]?.datapoints?.[0]?.map(item => {
+      series?.[0]?.datapoints?.map(item => {
         const typeValue = item[0][0];
         const value = item[0][1];
         const time = item[1];
         let type = EAlarmType.green;
         if (typeValue === 1) {
           type = EAlarmType.red;
-        }
-        if (typeValue === 2) {
+        } else if (typeValue === 2) {
           type = EAlarmType.yellow;
+        } else if (value === null) {
+          type = EAlarmType.gray;
         }
         return { type, time, value };
       }) || []
@@ -116,7 +117,9 @@ export const alarmBarChartDataTransform = (dataType: EDataType, series: any[]) =
         const typeValue = item[0];
         const time = item[1];
         let type = EAlarmType.yellow;
-        if (typeValue > 0.75) {
+        if (typeValue === null) {
+          type = EAlarmType.gray;
+        } else if (typeValue > 0.75) {
           type = EAlarmType.green;
         } else if (typeValue <= 0.25) {
           type = EAlarmType.red;
@@ -135,7 +138,9 @@ export const alarmBarChartDataTransform = (dataType: EDataType, series: any[]) =
       const typeValue = item[0];
       const time = item[1];
       let type = EAlarmType.red;
-      if (typeValue === 0) {
+      if (typeValue === null) {
+        type = EAlarmType.gray;
+      } else if (typeValue === 0) {
         type = EAlarmType.green;
       } else if (typeValue <= 0.1) {
         type = EAlarmType.yellow;
@@ -151,6 +156,7 @@ export const getAlarmItemStatusTips = (dataType: EDataType, item: IAlarmDataItem
       [EAlarmType.green]: window.i18n.t('无告警'),
       [EAlarmType.red]: window.i18n.t('致命'),
       [EAlarmType.yellow]: window.i18n.t('预警'),
+      [EAlarmType.gray]: window.i18n.t('无请求数据'),
     };
     return {
       color: alarmColorMap.default[item.type],
@@ -162,6 +168,7 @@ export const getAlarmItemStatusTips = (dataType: EDataType, item: IAlarmDataItem
       [EAlarmType.yellow]: `${window.i18n.t('可容忍')}：0.25 < Apdex(${item.value}) <= 0.75`,
       [EAlarmType.green]: `${window.i18n.t('满意')}：Apdex(${item.value}) > 0.75`,
       [EAlarmType.red]: `${window.i18n.t('烦躁')}：Apdex(${item.value}) <= 0.25`,
+      [EAlarmType.gray]: window.i18n.t('无请求数据'),
     };
     return {
       color: alarmColorMap.default[item.type],
@@ -172,6 +179,7 @@ export const getAlarmItemStatusTips = (dataType: EDataType, item: IAlarmDataItem
     [EAlarmType.green]: `${window.i18n.tc('错误率')}：${(item.value * 100).toFixed(2)}%`,
     [EAlarmType.yellow]: `${window.i18n.tc('错误率')}：${(item.value * 100).toFixed(2)}%`,
     [EAlarmType.red]: `${window.i18n.tc('错误率')}：${(item.value * 100).toFixed(2)}%`,
+    [EAlarmType.gray]: window.i18n.t('无请求数据'),
   };
   return {
     color: alarmColorMap.default[item.type],
@@ -239,4 +247,4 @@ export const nodeLanguageMap = {
     'data:image/svg+xml;base64,PHN2ZyBjbGFzcz0iaWNvbiIgdmlld0JveD0iMCAwIDEwMjQgMTAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCI+PHBhdGggZD0iTTEwMDIuMjEzIDM4NC42MDdjLTE3LjU1NS03MC4yMTktNTEuMDY4LTEyMi44ODMtMTIxLjI4Ny0xMjIuODgzaC05MC45NjV2MTA4LjUyYzAgODQuNTgyLTcxLjgxNSAxNTQuOC0xNTEuNjA5IDE1NC44aC0yNDQuMTdjLTY3LjAyNyAwLTEyMS4yODYgNTcuNDUyLTEyMS4yODYgMTI0LjQ4djIzMS40MDJjMCA2NS40MzEgNTcuNDUxIDEwNS4zMjggMTIxLjI4NiAxMjQuNDc5IDc2LjYwMyAyMi4zNDIgMTUxLjYxIDI3LjEzIDI0NC4xNyAwIDYwLjY0NC0xNy41NTUgMTIxLjI4Ny01NC4yNiAxMjEuMjg3LTEyNC40Nzl2LTkyLjU2MUg1MTUuNDd2LTMwLjMyMmgzNjUuNDU3YzcwLjIxOSAwIDk3LjM0OS00OS40NzIgMTIxLjI4Ny0xMjIuODgzIDI1LjUzNC03OS43OTQgMjUuNTM0LTE1My4yMDQgMC0yNTAuNTUzek02NTIuNzE1IDg0Ny40MTJjMjUuNTM0IDAgNDYuMjggMjAuNzQ3IDQ2LjI4IDQ2LjI4MXMtMjAuNzQ2IDQ2LjI4LTQ2LjI4IDQ2LjI4Yy0yNS41MzQgMS41OTYtNDYuMjgtMjAuNzQ2LTQ2LjI4LTQ2LjI4IDAtMjUuNTM0IDIwLjc0Ni00Ni4yOCA0Ni4yOC00Ni4yOHpNMzgzLjAxMSA0OTMuMTI3aDI0NC4xN2M2Ny4wMjcgMCAxMjEuMjg3LTU1Ljg1NiAxMjEuMjg3LTEyNC40NzlWMTM3LjI0NmMwLTY1LjQzMS01NS44NTYtMTE0LjkwNC0xMjEuMjg3LTEyNi4wNzUtODEuMzktMTIuNzY3LTE3MC43Ni0xMi43NjctMjQ0LjE3IDBDMjc5LjI4IDI4LjcyNiAyNjEuNzI0IDY3LjAyNyAyNjEuNzI0IDEzNy4yNDZ2OTIuNTZoMjQ0LjE3djMwLjMyM0gxNzAuNzZjLTcwLjIxOSAwLTEzMi40NTggNDMuMDg4LTE1MS42MDggMTIyLjg4Mi0yMi4zNDMgOTIuNTYxLTIzLjkzOSAxNTAuMDEzIDAgMjQ3LjM2MiAxNy41NTQgNzEuODE0IDU5LjA0NyAxMjIuODgzIDEyOS4yNjYgMTIyLjg4M2g4Mi45ODZWNjQxLjU0NGMtMS41OTYtNzguMTk4IDY4LjYyMy0xNDguNDE3IDE1MS42MDgtMTQ4LjQxN3ptLTE1Ljk1OS0zMjUuNTZjLTI1LjUzNCAwLTQ2LjI4LTIwLjc0Ni00Ni4yOC00Ni4yOCAwLTI1LjUzNCAyMC43NDYtNDYuMjggNDYuMjgtNDYuMjggMjUuNTM1IDAgNDYuMjgxIDIwLjc0NiA0Ni4yODEgNDYuMjhzLTIwLjc0NiA0Ni4yOC00Ni4yOCA0Ni4yOHoiIGZpbGw9IiM2MzY1NkUiLz48L3N2Zz4=',
 };
 
-export type EdgeDataType = 'duration_avg' | 'duration_p95' | 'duration_p99' | 'request_count';
+export type EdgeDataType = 'duration_avg' | 'duration_p50' | 'duration_p95' | 'duration_p99' | 'request_count';

@@ -691,10 +691,14 @@ class UnifyQueryRawResource(ApiAuthResource):
         """获取指定数量的topk维度组合"""
 
         if not (
-            (data_source.data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR
-             and data_source.data_type_label == DataTypeLabel.TIME_SERIES)
-            or (data_source.data_source_label == DataSourceLabel.BK_DATA
-                and data_source.data_type_label == DataTypeLabel.TIME_SERIES)
+            (
+                data_source.data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR
+                and data_source.data_type_label == DataTypeLabel.TIME_SERIES
+            )
+            or (
+                data_source.data_source_label == DataSourceLabel.BK_DATA
+                and data_source.data_type_label == DataTypeLabel.TIME_SERIES
+            )
         ):
             return
 
@@ -711,13 +715,11 @@ class UnifyQueryRawResource(ApiAuthResource):
                     function["params"][0]["value"] = series_num
                     break
             else:
-                data_source.functions.append(
-                    {"id": "topk", "params": [{"id": "k", "value": series_num}]}
-                )
+                data_source.functions.append({"id": "topk", "params": [{"id": "k", "value": series_num}]})
         query = UnifyQuery(
             bk_biz_id=params["bk_biz_id"],
             data_sources=[data_source],
-            expression=params["expression"],
+            expression=data_source.metrics[0].get("alias") or "a",
             functions=params["functions"],
         )
         points = query.query_data(
@@ -754,12 +756,7 @@ class UnifyQueryRawResource(ApiAuthResource):
                 else:
                     condition = "and"  # 维度组合条件内使用 "and"
 
-                data_source.where.append({
-                    "condition": condition,
-                    "key": key,
-                    "method": "eq",
-                    "value": [value]
-                })
+                data_source.where.append({"condition": condition, "key": key, "method": "eq", "value": [value]})
         query_config["where"] = data_source.where
 
     def perform_request(self, params):
@@ -1169,7 +1166,7 @@ class GraphTraceQueryResource(ApiAuthResource):
 
     def perform_request(self, params):
         data = api.unify_query.query_data_by_exemplar(params)
-        for item in data["series"]:
+        for item in data.get("series") or []:
             item["data_points"] = item.pop("values", [])
         return data
 

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import List
 
 from django.db.models import TextChoices
 from django.utils.translation import ugettext_lazy as _
@@ -95,6 +96,14 @@ class OtlpKey:
 # ==============================================================================
 # Span标准字段枚举
 # ==============================================================================
+class ValueSource:
+    """数据来源"""
+
+    METHOD = "method"
+    TRACE = "trace"
+    METRIC = "metric"
+
+
 class StandardFieldCategory:
     BASE = "base"
     HTTP = "http"
@@ -125,6 +134,16 @@ class StandardField:
     value: str
     display_level: str
     category: str
+    value_source: str
+    is_hidden: bool = False
+
+    @property
+    def field(self) -> str:
+        return [f"{self.source}.{self.key}", self.source][self.source == self.key]
+
+    @property
+    def metric_dimension(self) -> str:
+        return OtlpKey.get_metric_dimension_key(self.field)
 
 
 class StandardFieldDisplayLevel:
@@ -156,6 +175,7 @@ class SpanStandardField:
             "HTTP Host",
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.HTTP,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -163,6 +183,7 @@ class SpanStandardField:
             "HTTP URL",
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.HTTP,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -170,6 +191,7 @@ class SpanStandardField:
             _("服务地址"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.HTTP,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -177,6 +199,7 @@ class SpanStandardField:
             _("HTTP协议"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.HTTP,
+            ValueSource.METRIC,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -184,6 +207,7 @@ class SpanStandardField:
             _("HTTP服务名称"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.HTTP,
+            ValueSource.METRIC,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -191,6 +215,7 @@ class SpanStandardField:
             _("HTTP方法"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.HTTP,
+            ValueSource.METRIC,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -198,6 +223,7 @@ class SpanStandardField:
             _("HTTP状态码"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.HTTP,
+            ValueSource.METRIC,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -205,6 +231,7 @@ class SpanStandardField:
             _("RPC方法"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.RPC,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -212,6 +239,7 @@ class SpanStandardField:
             _("RPC服务"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.RPC,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -219,6 +247,7 @@ class SpanStandardField:
             _("RPC系统名"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.RPC,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -226,6 +255,7 @@ class SpanStandardField:
             _("gRPC状态码"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.RPC,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -233,6 +263,7 @@ class SpanStandardField:
             _("数据库名称"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.DB,
+            ValueSource.METRIC,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -240,6 +271,7 @@ class SpanStandardField:
             _("数据库操作"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.DB,
+            ValueSource.METRIC,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -247,6 +279,7 @@ class SpanStandardField:
             _("数据库类型"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.DB,
+            ValueSource.METRIC,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -254,6 +287,7 @@ class SpanStandardField:
             _("数据库语句"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.DB,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -261,6 +295,7 @@ class SpanStandardField:
             _("数据库实例ID"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.DB,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -268,6 +303,7 @@ class SpanStandardField:
             _("消息系统"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.MESSAGING,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -275,6 +311,7 @@ class SpanStandardField:
             _("消息目的地"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.MESSAGING,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -282,6 +319,7 @@ class SpanStandardField:
             _("消息目的地类型"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.MESSAGING,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -289,6 +327,7 @@ class SpanStandardField:
             _("Celery操作名称"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.MESSAGING,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -296,6 +335,7 @@ class SpanStandardField:
             _("Celery任务名称"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.MESSAGING,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -303,6 +343,7 @@ class SpanStandardField:
             _("远程服务器名称"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.HTTP,
+            ValueSource.METRIC,
         ),
         StandardField(
             OtlpKey.ATTRIBUTES,
@@ -310,6 +351,7 @@ class SpanStandardField:
             _("远程服务名"),
             StandardFieldDisplayLevel.ADVANCES,
             StandardFieldCategory.HTTP,
+            ValueSource.METRIC,
         ),
         StandardField(
             OtlpKey.RESOURCE,
@@ -317,6 +359,7 @@ class SpanStandardField:
             _("服务名"),
             StandardFieldDisplayLevel.BASE,
             StandardFieldCategory.BASE,
+            ValueSource.METRIC,
         ),
         StandardField(
             OtlpKey.RESOURCE,
@@ -324,6 +367,7 @@ class SpanStandardField:
             _("服务版本"),
             StandardFieldDisplayLevel.BASE,
             StandardFieldCategory.BASE,
+            ValueSource.METRIC,
         ),
         StandardField(
             OtlpKey.RESOURCE,
@@ -331,6 +375,7 @@ class SpanStandardField:
             _("SDK语言"),
             StandardFieldDisplayLevel.BASE,
             StandardFieldCategory.BASE,
+            ValueSource.METRIC,
         ),
         StandardField(
             OtlpKey.RESOURCE,
@@ -338,6 +383,7 @@ class SpanStandardField:
             _("SDK名称"),
             StandardFieldDisplayLevel.BASE,
             StandardFieldCategory.BASE,
+            ValueSource.METRIC,
         ),
         StandardField(
             OtlpKey.RESOURCE,
@@ -345,6 +391,7 @@ class SpanStandardField:
             _("SDK版本"),
             StandardFieldDisplayLevel.BASE,
             StandardFieldCategory.BASE,
+            ValueSource.METRIC,
         ),
         StandardField(
             OtlpKey.RESOURCE,
@@ -352,6 +399,7 @@ class SpanStandardField:
             _("服务命名空间"),
             StandardFieldDisplayLevel.BASE,
             StandardFieldCategory.BASE,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.RESOURCE,
@@ -359,6 +407,7 @@ class SpanStandardField:
             _("服务实例ID"),
             StandardFieldDisplayLevel.BASE,
             StandardFieldCategory.BASE,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.RESOURCE,
@@ -366,9 +415,15 @@ class SpanStandardField:
             _("主机IP(net.host.ip)"),
             StandardFieldDisplayLevel.BASE,
             StandardFieldCategory.BASE,
+            ValueSource.TRACE,
         ),
         StandardField(
-            OtlpKey.RESOURCE, "host.ip", _("主机IP(host.ip)"), StandardFieldDisplayLevel.BASE, StandardFieldCategory.BASE
+            OtlpKey.RESOURCE,
+            "host.ip",
+            _("主机IP(host.ip)"),
+            StandardFieldDisplayLevel.BASE,
+            StandardFieldCategory.BASE,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.RESOURCE,
@@ -376,6 +431,7 @@ class SpanStandardField:
             _("K8S BCS 集群 ID"),
             StandardFieldDisplayLevel.BASE,
             StandardFieldCategory.BASE,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.RESOURCE,
@@ -383,9 +439,15 @@ class SpanStandardField:
             _("K8S 命名空间"),
             StandardFieldDisplayLevel.BASE,
             StandardFieldCategory.BASE,
+            ValueSource.TRACE,
         ),
         StandardField(
-            OtlpKey.RESOURCE, "k8s.pod.ip", _("K8S Pod Ip"), StandardFieldDisplayLevel.BASE, StandardFieldCategory.BASE
+            OtlpKey.RESOURCE,
+            "k8s.pod.ip",
+            _("K8S Pod Ip"),
+            StandardFieldDisplayLevel.BASE,
+            StandardFieldCategory.BASE,
+            ValueSource.TRACE,
         ),
         StandardField(
             OtlpKey.RESOURCE,
@@ -393,36 +455,63 @@ class SpanStandardField:
             _("K8S Pod 名称"),
             StandardFieldDisplayLevel.BASE,
             StandardFieldCategory.BASE,
+            ValueSource.TRACE,
         ),
         StandardField(
-            OtlpKey.RESOURCE, "net.host.port", _("主机端口"), StandardFieldDisplayLevel.BASE, StandardFieldCategory.BASE
+            OtlpKey.RESOURCE,
+            "net.host.port",
+            _("主机端口"),
+            StandardFieldDisplayLevel.BASE,
+            StandardFieldCategory.BASE,
+            ValueSource.TRACE,
         ),
         StandardField(
-            OtlpKey.RESOURCE, "net.host.name", _("主机名称"), StandardFieldDisplayLevel.BASE, StandardFieldCategory.BASE
+            OtlpKey.RESOURCE,
+            "net.host.name",
+            _("主机名称"),
+            StandardFieldDisplayLevel.BASE,
+            StandardFieldCategory.BASE,
+            ValueSource.TRACE,
         ),
         StandardField(
-            OtlpKey.RESOURCE, "bk.instance.id", _("实例"), StandardFieldDisplayLevel.BASE, StandardFieldCategory.BASE
+            OtlpKey.RESOURCE,
+            "bk.instance.id",
+            _("实例"),
+            StandardFieldDisplayLevel.BASE,
+            StandardFieldCategory.BASE,
+            ValueSource.METRIC,
         ),
-        StandardField(OtlpKey.KIND, OtlpKey.KIND, _("类型"), StandardFieldDisplayLevel.BASE, StandardFieldCategory.BASE),
+        StandardField(
+            OtlpKey.KIND,
+            OtlpKey.KIND,
+            _("类型"),
+            StandardFieldDisplayLevel.BASE,
+            StandardFieldCategory.BASE,
+            ValueSource.METHOD,
+        ),
         StandardField(
             OtlpKey.SPAN_NAME,
             OtlpKey.SPAN_NAME,
             _("接口名称"),
             StandardFieldDisplayLevel.BASE,
             StandardFieldCategory.BASE,
+            ValueSource.METRIC,
+        ),
+        StandardField(
+            OtlpKey.STATUS,
+            "code",
+            _("状态"),
+            StandardFieldDisplayLevel.BASE,
+            StandardFieldCategory.BASE,
+            ValueSource.METHOD,
+            is_hidden=True,
         ),
     ]
 
     @classmethod
-    def standard_fields(cls):
+    def standard_fields(cls) -> List[str]:
         """获取标准字段"""
-        res = []
-        for i in cls.COMMON_STANDARD_FIELDS:
-            if i.source == i.key:
-                res.append(i.source)
-            else:
-                res.append(f"{i.source}.{i.key}")
-        return res
+        return [field_info.field for field_info in cls.COMMON_STANDARD_FIELDS if not field_info.is_hidden]
 
     @classmethod
     def list_standard_fields(cls):
@@ -431,16 +520,13 @@ class SpanStandardField:
         advances_fields = []
 
         for i in cls.COMMON_STANDARD_FIELDS:
-            if i.source == i.key:
-                if i.display_level == StandardFieldDisplayLevel.BASE:
-                    base_fields.append({"name": i.value, "id": i.source})
-                else:
-                    advances_fields.append({"name": i.value, "id": i.source, "category": i.category})
+            if i.is_hidden:
+                continue
+
+            if i.display_level == StandardFieldDisplayLevel.BASE:
+                base_fields.append({"name": i.value, "id": i.field})
             else:
-                if i.display_level == StandardFieldDisplayLevel.BASE:
-                    base_fields.append({"name": i.value, "id": f"{i.source}.{i.key}"})
-                else:
-                    advances_fields.append({"name": i.value, "id": f"{i.source}.{i.key}", "category": i.category})
+                advances_fields.append({"name": i.value, "id": i.field, "category": i.category})
 
         res = []
         for i in base_fields:
@@ -473,18 +559,19 @@ class SpanStandardField:
 
         res = []
         # 基础字段放在前面 高级字段放在后面
-        base_fields = [i for i in cls.COMMON_STANDARD_FIELDS if i.display_level == StandardFieldDisplayLevel.BASE]
-        ad_fields = [i for i in cls.COMMON_STANDARD_FIELDS if i.display_level == StandardFieldDisplayLevel.ADVANCES]
+        base_fields = [
+            i
+            for i in cls.COMMON_STANDARD_FIELDS
+            if i.display_level == StandardFieldDisplayLevel.BASE and not i.is_hidden
+        ]
+        ad_fields = [
+            i
+            for i in cls.COMMON_STANDARD_FIELDS
+            if i.display_level == StandardFieldDisplayLevel.ADVANCES and not i.is_hidden
+        ]
 
         for item in base_fields + ad_fields:
-            k = f"{item.source}.{item.key}" if item.source != item.key else item.key
-            res.append(
-                {
-                    "name": f"{item.value}({k})",
-                    "key": k,
-                    "type": "string",
-                }
-            )
+            res.append({"name": f"{item.value}({item.field})", "key": item.field, "type": "string"})
 
         return res
 

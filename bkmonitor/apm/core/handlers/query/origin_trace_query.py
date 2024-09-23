@@ -24,7 +24,7 @@ from opentelemetry.trace import StatusCode
 from apm import constants, types
 from apm.core.discover.precalculation.processor import PrecalculateProcessor
 from apm.core.handlers.query.base import BaseQuery, QueryConfigBuilder, UnifyQuerySet
-from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import OtlpKey
 
 
@@ -32,10 +32,6 @@ class OriginTraceQuery(BaseQuery):
     DEFAULT_TIME_FIELD = "end_time"
 
     KEY_REPLACE_FIELDS = {"duration": "elapsed_time"}
-
-    def __init__(self, bk_biz_id: int, app_name: str, result_table_id: str, retention: int):
-        self.app_name: str = app_name
-        super().__init__(bk_biz_id, result_table_id, retention)
 
     def list(
         self,
@@ -47,14 +43,10 @@ class OriginTraceQuery(BaseQuery):
         es_dsl: Optional[Dict[str, Any]] = None,
         exclude_fields: Optional[List[str]] = None,
     ):
-        page_data: Dict[str, Union[int, List[str]]] = {}
+        page_data: Dict[str, Union[int, List[str]]] = {"total": 0}
         queryset: UnifyQuerySet = self.time_range_queryset(start_time, end_time)
         q: QueryConfigBuilder = self.q.filter(self._build_filters(filters))
         q = self._add_filters_from_dsl(q, es_dsl)
-
-        def _fill_total():
-            _q: QueryConfigBuilder = q.metric(field=OtlpKey.TRACE_ID, method="distinct", alias="total")
-            page_data["total"] = queryset.add_query(_q)[0]["total"]
 
         def _fill_data():
             _trace_ids: List[str] = []
@@ -66,7 +58,14 @@ class OriginTraceQuery(BaseQuery):
                 _trace_ids.append(_trace_id)
             page_data["data"] = _trace_ids
 
-        run_threads([InheritParentThread(target=_fill_total), InheritParentThread(target=_fill_data)])
+        # TODO(crayon) 先注释，上线确认完全没有问题后删除代码
+        # def _fill_total():
+        #     _q: QueryConfigBuilder = q.metric(field=OtlpKey.TRACE_ID, method="distinct", alias="total")
+        #     page_data["total"] = queryset.add_query(_q)[0]["total"]
+
+        # run_threads([InheritParentThread(target=_fill_total), InheritParentThread(target=_fill_data)])
+
+        _fill_data()
 
         pool = ThreadPool()
         processor = PrecalculateProcessor(None, self.bk_biz_id, self.app_name)

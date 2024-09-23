@@ -130,6 +130,7 @@ interface ICommonPageProps {
   toggleTabSearchFilterKeys?: string[];
   // 默认汇聚方法
   defalutMethod?: string;
+  defaultDashboardId?: string;
 }
 interface ICommonPageEvent {
   onTitleChange: string;
@@ -150,6 +151,8 @@ const customRouterQueryKeys = ['sliceStartTime', 'sliceEndTime'];
 export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEvent> {
   // 场景id
   @Prop({ default: 'host', type: String }) readonly sceneId: string;
+  // dashboard Id
+  @Prop({ type: String }) readonly defaultDashboardId: string;
   // 场景类型
   @Prop({ default: 'detail', type: String }) readonly sceneType: SceneType;
   // 默认viewoptions 视图变量等
@@ -733,13 +736,38 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     }
     /** 标题栏 */
     this.tabList = data;
+    this.setDefaultDashboardId();
     if (isInit) {
-      let [{ id } = { id: '' }] = data;
-      if (this.dashboardId) {
-        id = this.dashboardId;
-      }
-      await this.handleTabChange(id);
+      await this.handleTabChange(this.dashboardId);
     }
+  }
+  setDefaultDashboardId() {
+    let item = this.tabList.find(item => item.id === this.defaultDashboardId);
+    if (item?.id) {
+      this.dashboardId = item.id.toString();
+      return item.id;
+    }
+    item = this.tabList.find(item => item.id.toString().endsWith(`-${this.defaultDashboardId}`));
+    if (item?.id) {
+      this.dashboardId = item.id.toString();
+      return item.id;
+    }
+    item = this.tabList.find(item => `${this.defaultDashboardId}`.endsWith(`-${item.id.toString()}`));
+    if (item?.id) {
+      this.dashboardId = item.id.toString();
+      return item.id;
+    }
+    item = this.tabList.find(item => item.id === this.$route.query.dashboardId);
+    if (item?.id) {
+      this.dashboardId = item.id.toString();
+      return item.id;
+    }
+    item = this.tabList.find(item => item.id === this.dashboardId);
+    if (item?.id) {
+      return item.id;
+    }
+    this.dashboardId = (this.tabList?.[0]?.id || '').toString();
+    return this.dashboardId;
   }
   // 全屏设置
   async handleFullscreen() {
@@ -778,7 +806,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       type: this.localSceneType,
       id: this.dashboardId,
     };
-
     /** 注入侧栏的变量 或 apm自定义服务变量 */
     if (this.hasOtherParams || this.isApmServiceOverview) {
       const variablesService = new VariablesService(this.filters);
@@ -788,40 +815,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       };
     }
     const data: IBookMark = await getSceneView(params).catch(() => ({ id: '', panels: [], name: '' }));
-    /* ------apm视图特殊处理-------start */
-    for (const item of data?.overview_panels || []) {
-      if (['apm_application', 'apm_service'].includes(this.sceneId)) {
-        if (item.type === 'apm-timeseries-chart') {
-          item.options = {
-            ...item.options,
-            time_series: {
-              ...(item.options?.time_series || {}),
-              hoverAllTooltips: true,
-            },
-            apm_time_series: {
-              ...(item.options?.apm_time_series || {}),
-              enableContextmenu: true,
-              sceneType: this.localSceneType,
-            },
-          };
-        }
-        if (item.type === 'apdex-chart') {
-          item.options = {
-            ...(item?.options || {}),
-            time_series: {
-              ...(item.options?.time_series || {}),
-              hoverAllTooltips: true,
-            },
-            apdex_chart: {
-              ...(item?.options?.apdex_chart || {}),
-              enableContextmenu: true,
-              sceneType: this.localSceneType,
-            },
-          };
-        }
-      }
-    }
-    /* ----------apm视图特殊处理-----------end */
     const oldSelectPanel = this.sceneData?.options?.selector_panel?.targets
       ? JSON.stringify(this.sceneData.options.selector_panel.targets)
       : '';
@@ -855,7 +848,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.selectorPanelKey = oldSelectPanel === newSelectPanel ? this.selectorPanelKey : random(10);
     const variables = {};
     this.sceneData.variables.forEach(item => {
-      variables[item.fieldsKey] = this.variables[item.fieldsKey];
+      variables[item.fieldsKey] = this.variables[item.fieldsKey] || this.filters[item.fieldsKey];
     });
     /* 少量图表的索引默认收起来 */
     if (this.sceneData?.panelCount <= 6) {
@@ -978,9 +971,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.showSetting = isShow;
     if (this.isPanelChange) {
       await this.getTabList();
-      if (!this.tabList.some(item => item.id === this.dashboardId)) {
-        this.dashboardId = this.tabList[0].id.toString();
-      }
       await this.handleTabChange(this.dashboardId);
       this.handleResizeCollapse();
       this.isPanelChange = false;
@@ -1258,13 +1248,14 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     }
     this.viewOptions = {
       // filter_dict: filterDict,
-      ...variables,
       ...filters,
+      ...variables,
       method: this.isEnableMethodSelect ? this.method : 'AVG',
 
       interval: this.interval || 'auto',
       group_by: this.group_by ? [...this.group_by] : [],
       filters: this.filters,
+      variables: this.variables,
     };
     this.handleResetRouteQuery();
   }
@@ -1714,7 +1705,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
               <DashboardTools
                 downSampleRange={this.downSampleRange}
                 isSplitPanel={this.isSplitPanel}
-                menuList={this.$slots.buttonGroups ? [] : this.sceneData.dasbordToolMenuList}
+                menuList={this.$slots.buttonGroups ? [] : this.sceneData.dashboardToolMenuList}
                 refleshInterval={this.refleshInterval}
                 showDownSampleRange={false}
                 showListMenu={!this.readonly && this.localSceneType !== 'overview'}

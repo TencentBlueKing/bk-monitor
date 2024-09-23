@@ -487,7 +487,7 @@ class ServiceTemplate(Template):
         if not node_list:
             return result
 
-        node_list = [node for node in node_list if node["service_template_id"] == template_id]
+        node_list = [node for node in node_list if node.get("service_template_id") == template_id]
         result["data"] = node_list
         return result
 

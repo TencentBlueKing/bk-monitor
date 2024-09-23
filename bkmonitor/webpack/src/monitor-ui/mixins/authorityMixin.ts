@@ -24,109 +24,114 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, ProvideReactive, Provide } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+// @ts-ignore
 import authorityStore from '@store/modules/authority';
+import { getAuthById, setAuthById } from 'monitor-pc/common/auth-store';
 
 Component.registerHooks(['beforeRouteEnter']);
 
-export default (authMap: { [propsName: string]: string }) =>
-  Component(
-    class authorityMixin extends tsc<object> {
-      __bizIdUnWatch__: any;
-      get __BizId__() {
-        return this.$store.getters.bizId;
+export default (authMap: { [propsName: string]: string }, inCreated = true) => {
+  class authorityMixin extends tsc<undefined> {
+    __bizIdUnWatch__: any;
+    authLoading = false;
+    dataLoading = false;
+    isQueryAuthDone = false;
+    @ProvideReactive('authority') authority: { [propsName: string]: boolean } = {};
+    @Provide('authorityMap') authorityMap = authMap;
+    constructor() {
+      super();
+      this.authority = Object.keys(authMap).reduce((pre: any, cur: string) => {
+        pre[cur] = false;
+        return pre;
+      }, {});
+    }
+    get __BizId__() {
+      return this.$store.getters.bizId;
+    }
+    get hasPageViewAuth() {
+      if (this.$store.getters.is_superuser) return true;
+      const actionId = this.$route.meta?.authority?.page;
+      if (!actionId) return true;
+      // if (this.authority.VIEW_AUTH) return false;
+      return getAuthById(actionId, this.__BizId__) || this.authority.VIEW_AUTH;
+    }
+    // 显示申请权限的详情
+    @Provide('handleShowAuthorityDetail')
+    handleShowAuthorityDetail(actionId: string) {
+      authorityStore.getAuthorityDetail(actionId || this.$route.meta.authority?.map?.MANAGE_AUTH);
+    }
+    created() {
+      if (inCreated) {
+        this.getAuthCreated();
       }
-      authority: Record<string, boolean>;
-      constructor() {
-        super();
-        this.authority = Object.keys(authMap).reduce((pre: any, cur: string) => ((pre[cur] = false), pre), {});
+    }
+
+    async getAuthCreated() {
+      const authorityMap: any = authMap || (this.$route.meta.authority?.map ? this.$route.meta.authority.map : false);
+      const isSpecialEvent =
+        ['event-center', 'event-center-detail'].includes(this.$route.name) && location.search.indexOf('specEvent') > -1;
+      if (!authorityMap) {
+        return;
       }
-      // beforeRouteEnter(to: any, from: any, next: any) {
-      //   next((vm: any) => {
-      //     if (vm?.showGuidePage) return;
-      //     const authorityMap: any = authMap || (to.meta.authority?.map ? to.meta.authority.map : false);
-      //     const isSpecialEvent =
-      //       ['event-center', 'event-center-detail'].includes(to.name) && location.search.indexOf('specEvent') > -1;
-      //     authorityMap &&
-      //       vm.handleInitPageAuthority(
-      //         Array.from(new Set((Object.values(authorityMap) as any).flat(2))),
-      //         isSpecialEvent
-      //       );
-      //   });
-      // }
-      created() {
-        // if (this?.showGuidePage) return;
-        const authorityMap: any = authMap || (this.$route.meta.authority?.map ? this.$route.meta.authority.map : false);
-        const isSpecialEvent =
-          ['event-center', 'event-center-detail'].includes(this.$route.name) &&
-          location.search.indexOf('specEvent') > -1;
-        authorityMap &&
-          this.handleInitPageAuthority(
-            Array.from(new Set((Object.values(authorityMap) as any).flat(2))),
-            isSpecialEvent
-          );
-      }
-      // created() {
-      //   if ((this as any).showGuide) return;
-      //   if (
-      //     !location.hash.includes('#/share/') &&
-      //     !(window.__POWERED_BY_BK_WEWEB__ && window.token) &&
-      //     attachMethod === 'created'
-      //   ) {
-      //     authMap && this.handleInitPageAuthority(Array.from(new Set((Object.values(authMap) as any).flat(2))), false);
-      //   }
-      // }
-      // mounted() {
-      //   console.info(this.$route.name, '+++++++++++++++++');
-      //   this.__bizIdUnWatch__ = this.$watch('__BizId__', (v, old) => {
-      //     if (this?.showGuidePage) return;
-      //     const authorityMap: any = authMap || this.$route.meta.authority?.map;
-      //     const isSpecialEvent =
-      //       ['event-center', 'event-center-detail'].includes(this.$route.name) &&
-      //       location.search.indexOf('specEvent') > -1;
-      //     authorityMap &&
-      //       this.handleInitPageAuthority(
-      //         Array.from(new Set((Object.values(authorityMap) as any).flat(2))),
-      //         isSpecialEvent
-      //       );
-      //   });
-      // }
-      // 初始化通用页面权限
-      public async handleInitPageAuthority(actionList: string[], isSpecialEvent: boolean) {
+      await this.handleInitPageAuthority(
+        Array.from(new Set((Object.values(authorityMap) as any).flat(2))),
+        isSpecialEvent
+      );
+    }
+    // 初始化通用页面权限
+    async handleInitPageAuthority(actionList: string[], isSpecialEvent: boolean) {
+      this.authLoading = true;
+      this.isQueryAuthDone = false;
+      try {
         // 临时分享模式下 前端不再做权限校验 一致交由api判断
-        const isShareView = window.__POWERED_BY_BK_WEWEB__ && window.token;
+        const isShareView = (window.__POWERED_BY_BK_WEWEB__ && window.token) || window.is_superuser;
         let data: {
           actionId: string;
           isAllowed: boolean;
         }[] = [];
-        if (!isShareView) {
+        const realFetchActionIds = actionList.filter(actionId => !getAuthById(actionId));
+        if (!isShareView && realFetchActionIds.length) {
           data = await authorityStore.checkAllowedByActionIds({
-            action_ids: actionList,
+            action_ids: realFetchActionIds,
           });
         }
-        Object.entries(authMap).forEach(entry => {
-          const [key, value] = entry;
+        for (const [key, value] of Object.entries(authMap)) {
+          if (getAuthById(value)) {
+            this.$set(this.authority, key, true);
+            continue;
+          }
           if (isShareView) {
             this.$set(this.authority, key, true);
+            setAuthById(authMap[key], true);
           } else {
             const isViewAuth = key.indexOf('VIEW_AUTH') > -1;
             if (Array.isArray(value)) {
-              const filterData = data?.filter(item => value.includes(item.actionId));
-              const hasAuth = filterData?.every(item => item.isAllowed);
-              filterData.length && this.$set(this.authority, key, isViewAuth ? isSpecialEvent || hasAuth : hasAuth);
+              const filterData = data?.filter(item => value.includes(item.actionId)) || [];
+              if (filterData.length) {
+                const hasAuth = !!filterData.length && filterData.every(item => item.isAllowed);
+                filterData.length && this.$set(this.authority, key, isViewAuth ? isSpecialEvent || hasAuth : hasAuth);
+                setAuthById(authMap[key], isViewAuth ? isSpecialEvent || hasAuth : hasAuth);
+              }
             } else {
               const curEntry = data.find(item => item.actionId === value);
-              curEntry &&
-                this.$set(this.authority, key, isViewAuth ? isSpecialEvent || curEntry.isAllowed : curEntry.isAllowed);
+              if (curEntry) {
+                const hasAuth = isViewAuth ? isSpecialEvent || curEntry.isAllowed : curEntry.isAllowed;
+                this.$set(this.authority, key, hasAuth);
+                setAuthById(authMap[key], hasAuth);
+              }
             }
           }
-        });
-      }
-      // 显示申请权限的详情
-      public handleShowAuthorityDetail(actionId: string) {
-        authorityStore.getAuthorityDetail(actionId || this.$route.meta.authority?.map?.MANAGE_AUTH);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        this.authLoading = false;
+        this.isQueryAuthDone = true;
       }
     }
-  );
+  }
+  return Component(authorityMixin);
+};

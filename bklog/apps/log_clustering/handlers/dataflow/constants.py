@@ -482,7 +482,9 @@ class OnlineTaskTrainingArgs(object):
     IS_NEW = 1
     USE_OFFLINE_MODEL = 0
     ST_LIST = "0.875"
+    ST_LIST_OLD = "0.9,0.8875,0.875,0.8625,0.85"
     MAX_DIST_LIST = "0.5"
+    MAX_DIST_LIST_OLD = "0.1,0.3,0.5,0.7,0.9"
     DEPTH = 7
     MIN_MEMBERS = 1
     DELIMETER = "IlwifFxcXHUzMDAyfFxcXHVmZjFhfFxcO3xcXCx8XFwsfFxcW3xcXF18XFw6fFxcc3xcXCh8XFwpfFxcPXxcXHx8XFx7fFxcfXxcXD58XFw8fFxcfHwnfFxcXHVmZjA4fFxcXHVmZjBjfFxcXHVmZjA5fFxcL3xcXFx1ZmYwY3xcXFx1MzAxMHxcXFx1MzAxMXxcXFxccnxcXFxcbnxcXFxcdHxcXFxcfFxcLS0tfFxcLS18XFxgfFxcLT58XFwhfFxcXHVmZjAxfFxcXHVmZjFmfFxcP3xcXF58XFwkfFxcLiAi"

@@ -54,7 +54,7 @@ export default class TopoLegend extends tsc<TopoLegendProps, TopoLegendEvent> {
         { color: '#3A84FF', label: window.i18n.tc('提醒') },
         { color: '#FF9C01', label: window.i18n.tc('预警') },
         { color: '#EA3636', label: window.i18n.tc('致命') },
-        { color: '#DCDEE5', label: window.i18n.tc('无数据') },
+        // { color: '#DCDEE5', label: window.i18n.tc('无请求数据') },
       ];
     }
 
@@ -63,7 +63,7 @@ export default class TopoLegend extends tsc<TopoLegendProps, TopoLegendEvent> {
         { color: '#2DCB56', label: window.i18n.tc('满意') },
         { color: '#FF9C01', label: window.i18n.tc('可容忍') },
         { color: '#EA3636', label: window.i18n.tc('烦躁期') },
-        { color: '#DCDEE5', label: window.i18n.tc('无数据') },
+        { color: '#DCDEE5', label: window.i18n.tc('无请求数据') },
       ];
     }
 
@@ -71,7 +71,7 @@ export default class TopoLegend extends tsc<TopoLegendProps, TopoLegendEvent> {
       { color: '#2DCB56', label: window.i18n.tc('正常') },
       { color: '#FF9C01', label: window.i18n.tc('错误率 < 10%') },
       { color: '#EA3636', label: window.i18n.tc('错误率 ≥ 10%') },
-      { color: '#DCDEE5', label: window.i18n.tc('无数据') },
+      { color: '#DCDEE5', label: window.i18n.tc('无请求数据') },
     ];
   }
 
@@ -90,9 +90,10 @@ export default class TopoLegend extends tsc<TopoLegendProps, TopoLegendEvent> {
     },
   ];
   durationList: { id: EdgeDataType; label: string }[] = [
-    { id: 'duration_avg', label: window.i18n.tc('平均耗时') },
-    { id: 'duration_p99', label: window.i18n.tc('P99 耗时') },
-    { id: 'duration_p95', label: window.i18n.tc('P95 耗时') },
+    { id: 'duration_avg', label: window.i18n.tc('AVG') },
+    { id: 'duration_p50', label: window.i18n.tc('P50') },
+    { id: 'duration_p95', label: window.i18n.tc('P95') },
+    { id: 'duration_p99', label: window.i18n.tc('P99') },
   ];
 
   get scene() {

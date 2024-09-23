@@ -149,14 +149,6 @@ def run_init_builtin(bk_biz_id):
 
 
 @task(ignore_result=True)
-def update_config_status():
-    """
-    周期性查询节点管理任务状态，更新执行中的采集配置的状态
-    """
-    resource.collecting.update_config_status()
-
-
-@task(ignore_result=True)
 def update_config_instance_count():
     """
     周期性查询节点管理任务状态，更新启用中的采集配置的主机数和异常数

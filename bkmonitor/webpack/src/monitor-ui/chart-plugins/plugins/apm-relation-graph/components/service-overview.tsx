@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { topoLink } from 'monitor-api/modules/apm_topo';
@@ -35,13 +35,14 @@ import { echartsConnect, echartsDisconnect } from 'monitor-ui/monitor-echarts/ut
 
 import { PanelModel } from '../../../../chart-plugins/typings';
 import ChartWrapper from '../../../components/chart-wrapper';
-import { CustomChartConnector } from '../../../utils/utils';
 import BarAlarmChart from './bar-alarm-chart';
 import { alarmBarChartDataTransform, EDataType } from './utils';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './service-overview.scss';
+
+const customMenuList = ['more', 'fullscreen', 'explore', 'set', 'area', 'drill-down', 'relate-alert', 'strategy'];
 
 type TNodeTipsMap = Map<
   string,
@@ -62,6 +63,7 @@ type ServiceOverviewProps = {
   detailIcon?: string;
   nodeTipsMap?: TNodeTipsMap;
   sliceTimeRange?: number[];
+  dashboardId?: string;
   onSliceTimeRangeChange?: (timeRange: [number, number]) => void;
 };
 
@@ -83,6 +85,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   @Prop({ type: String, default: '' }) detailIcon: string;
   @Prop({ type: Map, default: () => new Map() }) nodeTipsMap: TNodeTipsMap;
   @Prop({ type: Array, default: () => [] }) sliceTimeRange: number[];
+  @Prop({ type: String, default: random(8) }) dashboardId: string;
 
   tabActive = 'service';
   panels = {};
@@ -108,8 +111,6 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
     panels: [],
   };
 
-  dashboardId = random(8);
-
   moreLink = '';
 
   curType: 'endpoint' | 'service' = 'service';
@@ -120,7 +121,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
     service_name: '',
     endpoint_name: '',
   };
-  @ProvideReactive('customChartConnector') customChartConnector: CustomChartConnector = null;
+  @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
 
   get tabs() {
     if (this.curType === 'endpoint') {
@@ -134,14 +135,6 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
 
   get name() {
     return this.curType === 'endpoint' ? this.endpoint : this.serviceName;
-  }
-
-  created() {
-    this.customChartConnector = new CustomChartConnector(this.dashboardId);
-  }
-
-  beforeDestroy() {
-    this.customChartConnector?.removeChartInstance();
   }
 
   @Watch('serviceName')
@@ -170,8 +163,15 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
       this.moreLink = '';
     }
   }
+  @Watch('refleshImmediate')
+  // 立刻刷新
+  handleRefleshImmediateChange(v: string) {
+    if (v && this.serviceName && this.appName) this.initPanel();
+  }
+
   @Debounce(200)
   initPanel() {
+    if (!this.serviceName || !this.appName) return;
     if (this.curType === 'endpoint') {
       this.tabActive = 'service';
     }
@@ -195,11 +195,14 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
       this.detailLoading = true;
       const typeKey = this.curType === 'endpoint' ? 'endpoint_detail' : 'service_detail';
       const apiItem = apiFn(this.data[typeKey].targets[0].api);
+      const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const result = await (this as any).$api[apiItem.apiModule]
         [apiItem.apiFunc]({
           app_name: this.appName,
           service_name: this.serviceName,
           endpoint_name: this.curType === 'endpoint' ? this.endpoint : undefined,
+          start_time: startTime,
+          end_time: endTime,
         })
         .catch(() => []);
       this.overviewDetail.others = result;
@@ -277,7 +280,6 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
                   ...(panel?.options?.apm_time_series || {}),
                   xAxisSplitNumber: 3,
                   disableZoom: true,
-                  sceneType: 'overview',
                 },
               },
               dashboardId: this.dashboardId,
@@ -365,8 +367,11 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
   }
 
   handleServiceConfig() {
-    const url = `/service-config?app_name=${this.appName}&service_name=${this.serviceName}`;
-    window.open(`${location.origin}${location.pathname}${location.search}#/apm${url}`);
+    const url = `service-config?app_name=${this.appName}&service_name=${this.serviceName}`;
+    window.open(
+      `${location.origin}${location.pathname}${location.search}#/${window.__POWERED_BY_BK_WEWEB__ ? 'apm/' : ''}${url}`,
+      '_blank'
+    );
   }
 
   handleMoreLinkClick() {
@@ -434,7 +439,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
                 class={['chart-item', `${this.tabActive}-type`]}
               >
                 <ChartWrapper
-                  customMenuList={['more', 'fullscreen', 'explore', 'set', 'area', 'drill-down', 'relate-alert']}
+                  customMenuList={customMenuList}
                   panel={panel}
                   onChartCheck={v => this.handleChartCheck(v, panel)}
                   onCollectChart={() => this.handleCollectChart(panel)}
@@ -467,7 +472,7 @@ export default class ServiceOverview extends tsc<ServiceOverviewProps> {
               class={['chart-item', `${this.tabActive}-type`]}
             >
               <ChartWrapper
-                customMenuList={['more', 'fullscreen', 'explore', 'set', 'area', 'drill-down', 'relate-alert']}
+                customMenuList={customMenuList}
                 panel={panel}
                 onChartCheck={v => this.handleChartCheck(v, panel)}
                 onCollectChart={() => this.handleCollectChart(panel)}

@@ -278,9 +278,9 @@ export default class BarAlarmChart extends tsc<IProps> {
    * @returns
    */
   handleMouseEnter(event: Event, item: IAlarmDataItem) {
-    if (item.type === EAlarmType.gray) {
-      return;
-    }
+    // if (item.type === EAlarmType.gray) {
+    //   return;
+    // }
     this.getTips(item);
     this.curHover = item.time;
     if (this.customChartConnector?.groupId === this.groupId) {
@@ -505,11 +505,15 @@ export default class BarAlarmChart extends tsc<IProps> {
     if (isSelected) {
       color = alarmColorMap.selected[item.type];
     }
+    const height = isSelected || isHover ? this.activeItemHeight : this.itemHeight;
+    // if (item.value === null) {
+    //   height = 0;
+    // }
     return (
       <div
         key={item.time}
         style={{
-          height: `${isSelected || isHover ? this.activeItemHeight : this.itemHeight}px`,
+          height: `${height}px`,
           background: `${color}`,
           cursor: item.type !== EAlarmType.gray ? 'pointer' : 'default',
         }}
@@ -603,7 +607,7 @@ export default class BarAlarmChart extends tsc<IProps> {
             }}
             class='bar-alarm-chart-tooltip'
           >
-            <div class='time-text'>{dayjs(this.curHover).format('YYYY-MM-DD HH:mm:ss')}</div>
+            <div class='time-text'>{dayjs.tz(this.curHover).format('YYYY-MM-DD HH:mm:ss')}</div>
             {this.statusList.map((item, index) => (
               <div
                 key={index}

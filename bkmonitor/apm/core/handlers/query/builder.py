@@ -8,9 +8,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
+import itertools
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 from bkmonitor.data_source import load_data_source
 from bkmonitor.data_source.backends.base.compiler import SQLCompiler
@@ -50,13 +50,16 @@ logger = logging.getLogger("apm")
 class QueryConfig(Query):
     def __init__(self, using: Tuple[str, str], where: Type[WhereNode] = WhereNode):
         super().__init__(using, where)
+
         self.reference_name: str = ""
         self.metrics: List[Dict[str, Any]] = []
+        self.dimension_fields: List[str] = []
 
     def clone(self) -> "QueryConfig":
         obj: "QueryConfig" = super().clone()
         obj.reference_name = self.reference_name
         obj.metrics = self.metrics[:]
+        obj.dimension_fields = self.dimension_fields[:]
         return obj
 
     def set_reference_name(self, reference_name: Optional[str]):
@@ -65,6 +68,10 @@ class QueryConfig(Query):
 
     def add_metric(self, field: str, method: str, alias: Optional[str] = ""):
         self.metrics.append({"field": field, "alias": alias or method, "method": method})
+
+    def add_dimension_fields(self, field: str):
+        if field not in self.dimension_fields:
+            self.dimension_fields.append(field)
 
 
 class QueryConfigBuilder(BaseDataQuery, QueryMixin, DslMixin):
@@ -78,6 +85,12 @@ class QueryConfigBuilder(BaseDataQuery, QueryMixin, DslMixin):
     def metric(self, field: str, method: str, alias: Optional[str] = "") -> "QueryConfigBuilder":
         clone = self._clone()
         clone.query.add_metric(field, method, alias)
+        return clone
+
+    def tag_values(self, *fields) -> "QueryConfigBuilder":
+        clone = self._clone()
+        for field in fields:
+            clone.query.add_dimension_fields(field)
         return clone
 
     """以下只是显示声明支持方法，同时供 IDE 补全"""
@@ -106,7 +119,7 @@ class QueryConfigBuilder(BaseDataQuery, QueryMixin, DslMixin):
 
 class QueryHelper:
     @classmethod
-    def query_log(cls, unify_query: UnifyQuery, query_body: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _query_log(cls, unify_query: UnifyQuery, query_body: Dict[str, Any]) -> List[Dict[str, Any]]:
         data, __ = unify_query.query_log(
             start_time=query_body["start_time"],
             end_time=query_body["end_time"],
@@ -117,7 +130,7 @@ class QueryHelper:
         return data
 
     @classmethod
-    def query_data(cls, unify_query: UnifyQuery, query_body: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _query_data(cls, unify_query: UnifyQuery, query_body: Dict[str, Any]) -> List[Dict[str, Any]]:
         data = unify_query.query_data(
             start_time=query_body["start_time"],
             end_time=query_body["end_time"],
@@ -128,16 +141,50 @@ class QueryHelper:
         return data
 
     @classmethod
+    def _query_dimensions(cls, unify_query: UnifyQuery, query_body: Dict[str, Any]) -> List[Dict[str, Any]]:
+        dimension_fields: List[str] = query_body["dimension_fields"]
+        data = unify_query.query_dimensions(
+            dimension_field=dimension_fields,
+            start_time=query_body["start_time"],
+            end_time=query_body["end_time"],
+            limit=query_body["limit"],
+        )
+
+        values_list: List[List[str]] = []
+        dimension_field_values_mapping: Dict[str] = data.get("values") or {}
+        for dimension_field in dimension_fields:
+            values_list.append(dimension_field_values_mapping.get(dimension_field) or [])
+
+        # ["a", "b", "c"] + [["a1", "b2", "b3"]] -> [{"a": "a1", "b": "b1", "c": "c1"}]
+        dimensions: List[Dict[str, Any]] = []
+        for dimension_values in itertools.product(*values_list):
+            # refer: https://stackoverflow.com/questions/209840
+            dimensions.append(dict(zip(dimension_fields, dimension_values)))
+        return dimensions
+
+    @classmethod
+    def _get_query_func(
+        cls, query_body: Dict[str, Any]
+    ) -> Callable[[UnifyQuery, Dict[str, Any]], List[Dict[str, Any]]]:
+        # 1. Dimensions
+        if query_body.get("dimension_fields"):
+            return cls._query_dimensions
+
+        # 2. Data
+        for query_config in query_body.get("query_configs") or []:
+            if query_config.get("metrics"):
+                return cls._query_data
+
+        # 3. Log
+        return cls._query_log
+
+    @classmethod
     def query(cls, table_id: str, query_body: Dict[str, Any]) -> List[Dict[str, Any]]:
 
-        logger.info("[QueryHelper] query_body -> %s", query_body)
+        logger.info("[QueryHelper] table_id -> %s query_body -> %s", table_id, query_body)
 
-        is_metric: bool = False
         data_sources: List[DataSource] = []
         for query_config in query_body["query_configs"]:
-            if query_config["metrics"]:
-                is_metric = True
-
             data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
             data_source = data_source_class(
                 bk_biz_id=query_body["bk_biz_id"], use_full_index_names=True, **query_config
@@ -151,10 +198,7 @@ class QueryHelper:
             functions=query_body["functions"],
         )
 
-        if is_metric:
-            return cls.query_data(unify_query, query_body)
-        else:
-            return cls.query_log(unify_query, query_body)
+        return cls._get_query_func(query_body)(unify_query, query_body)
 
 
 class UnifyQueryCompiler(SQLCompiler):
@@ -172,6 +216,7 @@ class UnifyQueryCompiler(SQLCompiler):
                 "where": [],
                 "metrics": query_config_obj.metrics,
                 "group_by": query_config_obj.group_by,
+                "dimension_fields": query_config_obj.dimension_fields or [],
                 "filter_dict": q_to_dict(query_config_obj.where),
                 "query_string": query_config_obj.raw_query_string or "*",
                 "nested_paths": query_config_obj.nested_paths,
@@ -180,14 +225,15 @@ class UnifyQueryCompiler(SQLCompiler):
             query_configs.append(query_config)
 
         return "unifyquery", {
-            "bk_biz_id": 0,
+            "bk_biz_id": None,
             "query_configs": query_configs,
+            "dimension_fields": query_configs[0]["dimension_fields"],
             "functions": self.query.functions,
             "expression": self.query.expression or query_configs[0]["reference_name"],
             "limit": self.query.get_limit(),
             "offset": self.query.offset,
-            "start_time": self.query.start_time * 1000,
-            "end_time": self.query.end_time * 1000,
+            "start_time": self.query.start_time,
+            "end_time": self.query.end_time,
             "search_after_key": self.query.search_after_key,
         }
 

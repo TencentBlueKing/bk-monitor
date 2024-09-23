@@ -84,7 +84,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
       app.use(store).use(router).use(i18n).use(directives).mount('#app');
       app.config.globalProperties = {
         $api: Api,
-        $Message: Message,
+        $Message: bkUiMessage,
         $authorityStore: useAuthorityStore(),
       } as any;
       Api.model

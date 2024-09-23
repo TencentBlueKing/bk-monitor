@@ -16,7 +16,6 @@ from typing import Callable, List, Type
 from django.utils.translation import ugettext_lazy as _
 
 from apm_web.constants import TopoNodeKind
-from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.metric.constants import ErrorMetricCategory, StatisticsMetric
 from apm_web.metric_handler import (
     MetricHandler,
@@ -27,11 +26,13 @@ from apm_web.metric_handler import (
     ServiceFlowDurationMin,
 )
 from apm_web.topo.handle import BaseQuery
+from apm_web.topo.handle.bar_query import LinkHelper
 from apm_web.topo.handle.graph_query import GraphQuery
 
 # 请求数表格列
 from apm_web.utils import get_interval_number
 from core.unit import load_unit
+from monitor_web.models.scene_view import SceneViewModel
 
 REQUEST_COUNT_COLUMNS = [
     {"id": "service", "name": "服务名称", "type": "link"},
@@ -287,6 +288,7 @@ class ServiceMetricStatistics(BaseQuery):
     def __init__(self, *args, **kwargs):
         super(ServiceMetricStatistics, self).__init__(*args, **kwargs)
         self.graph = GraphQuery(*args, **kwargs).create_graph()
+        self.views = SceneViewModel.objects.filter(bk_biz_id=self.bk_biz_id, scene_id="apm_service")
 
     def list(self, template: Template):
 
@@ -339,7 +341,14 @@ class ServiceMetricStatistics(BaseQuery):
                 service_1_url = ""
                 service_1_name = self.virtual_service_name
             else:
-                service_1_url = ServiceHandler.build_url(self.app_name, service_1)
+                service_1_url = LinkHelper.get_service_overview_tab_link(
+                    self.bk_biz_id,
+                    self.app_name,
+                    service_1,
+                    self.start_time,
+                    self.end_time,
+                    views=self.views,
+                )
                 service_1_name = service_1
 
             if service_2_kind == TopoNodeKind.VIRTUAL_SERVICE:

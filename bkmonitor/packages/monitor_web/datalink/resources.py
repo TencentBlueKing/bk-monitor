@@ -321,27 +321,35 @@ class UpdateAlertUserGroupsResource(BaseStatusResource):
 
 class CollectingTargetStatusResource(BaseStatusResource):
     class RequestSerilizer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         collect_config_id = serializers.IntegerField(required=True, label="采集配置ID")
 
     def perform_request(self, validated_request_data: Dict) -> Dict:
         self.init_data(validated_request_data["collect_config_id"], DataLinkStage.COLLECTING)
 
-        instance_status = resource.collecting.collect_instance_status(id=self.collect_config_id)
+        instance_status = resource.collecting.collect_instance_status(
+            id=self.collect_config_id, bk_biz_id=self.collect_config.bk_biz_id
+        )
         # 提取关联的所有主机ID
         bk_host_ids = []
         for group in instance_status["contents"]:
             for child in group["child"]:
+                if "bk_host_id" not in child:
+                    continue
                 bk_host_ids.append(str(child["bk_host_id"]))
 
         targets_alert_histogram = {}
-        if self.has_strategies():
+        if self.has_strategies() and bk_host_ids:
             alert_histogram = self.search_target_alert_histogram(bk_host_ids)
             targets_alert_histogram = alert_histogram["targets"]
 
         # 填充主机的告警信息
         for group in instance_status["contents"]:
             for child in group["child"]:
-                child["alert_histogram"] = targets_alert_histogram.get(str(child["bk_host_id"]), None)
+                if "bk_host_id" not in child:
+                    child["alert_histogram"] = None
+                else:
+                    child["alert_histogram"] = targets_alert_histogram.get(str(child["bk_host_id"]), None)
         return instance_status
 
     def search_target_alert_histogram(self, targets: List[str], time_range: int = 3600) -> Dict:
@@ -452,18 +460,18 @@ class TransferCountSeriesResource(BaseStatusResource):
             interval = 1440
             interval_unit = "m"
 
-        # 读取采集相关的指标列表
+        # 读取采集相关的指标列表, 最多20个表
         promqls = [
             """sum(count_over_time({{
                 __name__=~"bkmonitor:{table_id}:.*",
                 bk_collect_config_id="{collect_config_id}"}}[{interval}{unit}])) or vector(0)
             """.format(
-                table_id=table,
+                table_id=table.split('.')[0],
                 collect_config_id=self.collect_config_id,
                 interval=interval,
                 unit=interval_unit,
             )
-            for table in {t["table_id"] for t in self.get_metrics_json()}
+            for table in {t["table_id"] for t in self.get_metrics_json()[-1:]}
         ]
 
         # 没有指标配置，返回空序列

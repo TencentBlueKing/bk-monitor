@@ -58,8 +58,8 @@ interface IApdexChartProps {
   splitNumber?: number;
 }
 interface IApdexChartEvent {
-  onDataZoom: void;
-  onDblClick: void;
+  onDataZoom: () => void;
+  onDblClick: () => void;
 }
 @Component
 export class ApdexChart extends LineChart {
@@ -84,6 +84,7 @@ export class ApdexChart extends LineChart {
   empty = true; // 是否为空
   emptyText = ''; // 空文案
   isFetchingData = false; // 是否正在获取数据
+  showMouseTips = false;
   async getPanelData(start_time?: string, end_time?: string) {
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
@@ -110,7 +111,7 @@ export class ApdexChart extends LineChart {
       const promiseList = [];
       const timeShiftList = ['', ...this.timeOffset];
       const variablesService = new VariablesService(this.viewOptions);
-      timeShiftList.forEach(time_shift => {
+      for (const time_shift of timeShiftList) {
         const list = this.panel.targets.map(item =>
           (this as any).$api[item.apiModule]
             [item.apiFunc](
@@ -147,13 +148,14 @@ export class ApdexChart extends LineChart {
             })
         );
         promiseList.push(...list);
-      });
+      }
       await Promise.all(promiseList).catch(() => false);
       if (series.length) {
         const seriesList = this.handleTransformSeries(
           series.map(item => ({
             name: item.target,
             cursor: 'auto',
+            // biome-ignore lint/style/noCommaOperator: <explanation>
             data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
             stack: item.stack || random(10),
             unit: item.unit,
@@ -204,7 +206,6 @@ export class ApdexChart extends LineChart {
     this.cancelTokens = [];
     this.handleLoadingChange(false);
   }
-
   handleTransformSeries(series: ITimeSeriesItem[]): any {
     const legendData: ILegendItem[] = [];
     this.renderThresholds = false;
@@ -300,13 +301,19 @@ export class ApdexChart extends LineChart {
         tips,
         color: '#FFB848',
       };
+
+    if (v[0] === 3)
+      return {
+        name: '提醒',
+        tips,
+        color: '#699DF4',
+      };
     return {
       name: '无告警',
       tips,
       color: '#2DCB56',
     };
   }
-
   /* 整个图的右键菜单 */
   handleChartContextmenu(event: MouseEvent) {
     if (this.enableContextmenu) {
@@ -364,7 +371,14 @@ export class ApdexChart extends LineChart {
             subtitle={this.panel.subTitle || ''}
             title={this.panel.title}
             onUpdateDragging={() => this.panel.updateDraging(false)}
-          />
+          >
+            {this.enableContextmenu && this.showMouseTips && (
+              <div class='context-menu-info'>
+                <i class='icon-monitor icon-mc-mouse mouse-icon' />
+                {this.$t('右键更多操作')}
+              </div>
+            )}
+          </ChartHeader>
         )}
         {!this.empty ? (
           <div class={`apdex-chart-content ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
@@ -372,6 +386,8 @@ export class ApdexChart extends LineChart {
               ref='chart'
               class='chart-instance'
               onContextmenu={this.handleChartContextmenu}
+              onMouseenter={() => (this.showMouseTips = true)}
+              onMouseleave={() => (this.showMouseTips = false)}
             >
               {this.inited && (
                 <BaseEchart

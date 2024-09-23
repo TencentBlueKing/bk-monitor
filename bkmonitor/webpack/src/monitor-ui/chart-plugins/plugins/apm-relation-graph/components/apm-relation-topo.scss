@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 .apm-relation-topo {
   position: relative;
   width: 100%;
@@ -31,7 +32,7 @@
       border-radius: 2px;
       box-shadow: 0 2px 6px 0 #0000001a;
 
-      li {
+      .topo-menu-action {
         display: flex;
         align-items: center;
         height: 32px;
@@ -45,6 +46,12 @@
         &:hover {
           color: #3a84ff;
           background: #e1ecff;
+        }
+
+        &.is-disabled {
+          color: #c4c6cc !important;
+          cursor: not-allowed !important;
+          background-color: transparent !important;
         }
       }
     }
@@ -224,6 +231,25 @@
     left: 0;
     width: 100%;
     transform: translateY(-50%);
+  }
+
+  .apm-graph-tips {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    z-index: 9;
+    display: flex;
+    color: #979ba5;
+  }
+
+  .g6-tooltip {
+    padding: 6px;
+    color: white;
+    background-color: rgba(54, 58, 67, 0.88);
+    border: 1px solid #e2e2e2;
+    border-width: 0px;
+    border-radius: 4px;
+    box-shadow: rgba(0, 0, 0, 0.2) 1px 2px 10px;
   }
 }
 

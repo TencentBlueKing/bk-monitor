@@ -172,6 +172,10 @@ class ResourceTopo extends CommonSimpleChart {
       link_type: 'topo_source',
     }).catch(() => '');
     if (url) {
+      if (url.startsWith('?bizId')) {
+        window.open(url, '_blank');
+        return;
+      }
       window.open(location.href.replace(location.hash, `#${url}`), '_blank');
     }
   }

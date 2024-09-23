@@ -681,11 +681,6 @@ export default class App extends tsc<object> {
     this.overseaGlobalList = await globalConfigModal.handleGetGlobalConfig<IOverseasConfig[]>(OVERSEAS_SITES_MENU);
   }
 
-  // 处理链接跳转
-  handleLink(item: IOverseasConfig): void {
-    item.url && window.open(item.url);
-  }
-
   render() {
     /** 页面内容部分 */
     const pageMain = [
@@ -955,12 +950,7 @@ export default class App extends tsc<object> {
             {<div class='title-desc'>{this.platformData.name}</div>}
             {
               // #if APP !== 'external'
-              this.overseaGlobalList.length > 0 && (
-                <OverseasLogo
-                  globalList={this.overseaGlobalList}
-                  onClickItem={this.handleLink}
-                />
-              )
+              this.overseaGlobalList.length > 0 && <OverseasLogo globalList={this.overseaGlobalList} />
               // #endif
             }
           </div>
