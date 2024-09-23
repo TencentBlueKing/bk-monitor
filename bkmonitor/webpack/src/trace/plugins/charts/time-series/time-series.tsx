@@ -543,6 +543,7 @@ export default defineComponent({
         timeShiftList.forEach(time_shift => {
           const list =
             props.panel?.targets?.map?.(item => {
+              const stack = item?.data?.stack || '';
               const newPrarams = {
                 ...params,
                 ...variablesService.transformVariables(item.data, {
@@ -576,6 +577,7 @@ export default defineComponent({
                   series.push(
                     ...res.series.map(set => ({
                       ...set,
+                      stack,
                       name: `${
                         timeOffset?.value.length
                           ? `${handleTransformTimeShift((time_shift as string) || 'current')}-`
