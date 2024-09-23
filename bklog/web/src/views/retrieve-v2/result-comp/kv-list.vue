@@ -252,11 +252,12 @@
        * @param { string } field
        */
       handleViewMonitor(field) {
+        const key = field.toLowerCase();
         let path = '';
-        switch (field) {
+        switch (key) {
           // trace检索
           case 'trace_id':
-          case 'traceID':
+          case 'traceid':
             if (this.apmRelation.is_active) {
               const { app_name: appName, bk_biz_id: bkBizId } = this.apmRelation.extra;
               path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${this.data[field]}`;
@@ -268,7 +269,7 @@
             }
             break;
           // 主机监控
-          case 'serverIp':
+          case 'serverip':
           case 'ip':
           case 'bk_host_id':
             {
