@@ -3,6 +3,7 @@
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+
   import BookmarkPop from './bookmark-pop';
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
@@ -110,15 +111,17 @@
     emit('height-change', height);
   };
 
-  const handleQueryTypeChange = () => {};
+  const handleQueryTypeChange = () => {
+    activeIndex.value = activeIndex.value === 0 ? 1 : 0;
+  };
 </script>
 <template>
   <div class="search-bar-container">
     <div class="search-options">
       <span class="mode-text">{{ queryText }}</span>
       <span
-        @click="handleQueryTypeChange"
         class="bklog-icon bklog-double-arrow"
+        @click="handleQueryTypeChange"
       ></span>
     </div>
     <div
@@ -149,7 +152,7 @@
           :sql="sqlQueryValue"
           @refresh="handleRefresh"
         ></BookmarkPop>
-        <span class="disabled bklog-icon bklog-set-icon"></span>
+        <!-- <span class="disabled bklog-icon bklog-set-icon"></span> -->
       </div>
       <div
         class="search-tool search-btn"
