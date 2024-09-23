@@ -281,23 +281,37 @@ class Graph:
         other_node_mapping = {k: v for k, v in other.nodes}
         other_edge_mapping = {(f, t): a for f, t, a in other.edges}
 
+        # [!] 不能直接对 graph 进行更新 因为会有残留数据
+        remove_nodes = []
+        update_nodes = {}
         for base_node, attrs in self.nodes:
             if base_node in other_node_mapping:
-                self._graph.add_node(base_node, **other_node_mapping[base_node])
+                update_nodes[base_node] = other_node_mapping[base_node]
             else:
-                self._graph.add_node(base_node, **{"data": attrs["data"]})
+                # 如果 node 不在 other_node 说明在 other_graph 中此 node 已经无数据
+                remove_nodes.append(base_node)
+        for k, v in update_nodes.items():
+            self._graph.remove_node(k)
+            self._graph.add_node(k, **v)
+        for i in remove_nodes:
+            self._graph.remove_node(i)
+            self._graph.add_node(i, **{"data": {}})
 
         remove_edges = []
-
+        update_edges = {}
         for from_node, to_node, attrs in self.edges:
             key = (from_node, to_node)
             if key in other_edge_mapping:
-                self._graph.add_edge(*key, **other_edge_mapping[key])
+                update_edges[key] = other_edge_mapping[key]
             else:
+                # 如果 edge 不在 other_edge 说明在 other_graph 中此 edge 已经无数据
                 remove_edges.append(key)
-
-        for key in remove_edges:
-            self._graph.remove_edge(*key)
+        for k, v in update_edges.items():
+            self._graph.remove_edge(*k)
+            self._graph.add_edge(*k, **v)
+        for i in remove_edges:
+            self._graph.remove_edge(*i)
+            self._graph.add_edge(*i)
 
         return self
 

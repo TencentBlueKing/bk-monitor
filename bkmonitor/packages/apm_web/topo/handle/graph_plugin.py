@@ -637,7 +637,7 @@ class NodeErrorRateCaller(PrePlugin, ValuesPluginMixin):
             total_count = attr[self.id]
             caller_count = caller_error_mapping.get(node, {}).get(self.id, 0)
 
-            res[node] = {self.id: round((caller_count / total_count), 2) if total_count else None}
+            res[node] = {self.id: round((caller_count / total_count), 6) if total_count else None}
 
         return res
 
@@ -661,7 +661,7 @@ class NodeErrorRateCallee(PrePlugin, ValuesPluginMixin):
             total_count = attr[self.id]
             callee_count = callee_error_mapping.get(node, {}).get(self.id, 0)
 
-            res[node] = {self.id: round((callee_count / total_count) if total_count else None, 2)}
+            res[node] = {self.id: round((callee_count / total_count) if total_count else None, 6)}
 
         return res
 
@@ -684,7 +684,7 @@ class NodeErrorRateFull(PrePlugin, ValuesPluginMixin):
             total_count = attr[self.id]
             error_count = error_mapping.get(node, {}).get(self.id, 0)
 
-            res[node] = {self.id: round((error_count / total_count) if total_count else None, 2)}
+            res[node] = {self.id: round((error_count / total_count) if total_count else None, 6)}
 
         return res
 
