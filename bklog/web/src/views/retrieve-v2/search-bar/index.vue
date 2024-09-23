@@ -3,16 +3,16 @@
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+  import { ConditionOperator } from '@/store/condition-operator';
   import { isEqual } from 'lodash';
 
   import SelectIndexSet from '../condition-comp/select-index-set.tsx';
   import BookmarkPop from './bookmark-pop';
+  import { getInputQueryIpSelectItem } from './const.common';
   import QueryHistory from './query-history';
   import SqlQuery from './sql-query';
   import TimeSetting from './time-setting';
   import UiInput from './ui-input';
-  import { ConditionOperator } from '@/store/condition-operator';
-  import { getInputQueryIpSelectItem } from './const.common';
 
   const emit = defineEmits(['refresh', 'height-change']);
   const store = useStore();
@@ -207,10 +207,10 @@
           @click.stop="handleClearBtnClick"
         ></span>
         <BookmarkPop
-          :class="{ disabled: isInputLoading }"
-          :sql="sqlQueryValue"
           :addition="uiQueryValue"
-          :searchMode="queryParams[activeIndex]"
+          :class="{ disabled: isInputLoading }"
+          :search-mode="queryParams[activeIndex]"
+          :sql="sqlQueryValue"
           @refresh="handleRefresh"
         ></BookmarkPop>
         <span class="disabled bklog-icon bklog-set-icon"></span>
@@ -220,10 +220,10 @@
         @click.stop="handleBtnQueryClick"
       >
         <bk-button
+          style="width: 100%; height: 100%"
           :loading="isInputLoading"
           size="large"
           theme="primary"
-          style=" width: 100%;height: 100%"
           >{{ btnQuery }}</bk-button
         >
       </div>

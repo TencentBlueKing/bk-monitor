@@ -28,9 +28,9 @@
   import { computed, ref, watch } from 'vue';
 
   import useStore from '@/hooks/use-store';
+  import RouteUrlResolver from '@/store/url-resolver';
   import { isEqual } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
-  import RouteUrlResolver from '@/store/url-resolver';
 
   import CollectFavorites from './collect/collect-index';
   import SearchBar from './search-bar/index.vue';
