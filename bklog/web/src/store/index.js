@@ -1011,7 +1011,7 @@ const store = new Vuex.Store({
         .catch(() => {
           state.searchTotal = 0;
           commit('updateSqlQueryFieldList', []);
-          commit('updateIndexSetQueryResult', []);
+          commit('updateIndexSetQueryResult', [{ is_error: true }]);
         })
         .finally(() => {
           commit('updateIndexSetQueryResult', { is_loading: false });

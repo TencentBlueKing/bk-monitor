@@ -45,6 +45,7 @@ export default class Strategy extends tsc<object> {
   @Prop({ type: Function }) strategySubmitStatus: (v: boolean) => boolean;
   /** 日志聚类总开关 */
   @Prop({ type: Boolean, default: false }) clusterSwitch: boolean;
+  @Prop({ type: Boolean, default: false }) isClusterActive: boolean;
 
   isShowDialog = false;
   formLoading = false;
@@ -152,6 +153,7 @@ export default class Strategy extends tsc<object> {
   }
 
   mounted() {
+    if (!this.clusterSwitch || !this.isClusterActive) return;
     this.baseAlarmFormData = deepClone(this.alarmFormData);
     this.baseIncreaseFormData = deepClone(this.increaseFormData);
     this.initStrategyInfo();

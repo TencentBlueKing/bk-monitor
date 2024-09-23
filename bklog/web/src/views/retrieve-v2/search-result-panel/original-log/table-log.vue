@@ -106,6 +106,7 @@
   import RealTimeLog from '../../result-comp/real-time-log';
   import OriginalList from './original-list';
   import TableList from './table-list';
+  import { bigNumberToString } from '../../../../common/util';
 
   export default {
     components: {
@@ -172,6 +173,12 @@
       isContentLoading() {
         return this.indexSetQueryResult.is_loading;
       },
+      isSearchFinish() {
+        return this.tableList.length === bigNumberToString(this.indexSetQueryResult.total);
+      },
+      isSearchError() {
+        return this.indexSetQueryResult?.[0]?.is_error || bigNumberToString(this.indexSetQueryResult.total) === 0;
+      },
     },
     watch: {
       'indexItem.begin'(v) {
@@ -185,7 +192,7 @@
       },
       handleOriginScroll() {
         const el = this.$refs.scrollContainer;
-        if (this.isPageOver || !el.scrollTop) return;
+        if (this.isPageOver || !el.scrollTop || this.isSearchFinish || this.isSearchError) return;
         clearTimeout(this.timer);
 
         this.timer = setTimeout(() => {

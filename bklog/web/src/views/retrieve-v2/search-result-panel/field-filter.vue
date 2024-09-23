@@ -76,7 +76,7 @@
 </script>
 
 <template>
-  <div :class="['search-field-filter', { 'is-close': !value }]">
+  <div :class="['search-field-filter-new', { 'is-close': !value }]">
     <!-- 字段过滤 -->
     <div class="tab-item-title field-filter-title">
       <div

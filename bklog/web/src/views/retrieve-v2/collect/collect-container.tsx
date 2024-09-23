@@ -93,7 +93,7 @@ export default class CollectContainer extends tsc<IProps> {
       <div class='retrieve-collect-container'>
         {this.$slots.default}
         <div
-          class='group-container'
+          class='group-container-new'
           v-bkloading={{ isLoading: this.collectLoading }}
         >
           {!this.isSearchEmpty ? (

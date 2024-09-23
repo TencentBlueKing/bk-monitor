@@ -27,20 +27,7 @@
 import { Component, Emit, Prop, Ref, Model } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import {
-  Dialog,
-  Form,
-  FormItem,
-  Input,
-  RadioGroup,
-  Radio,
-  Select,
-  Option,
-  CheckboxGroup,
-  Checkbox,
-  Switcher,
-  Tag,
-} from 'bk-magic-vue';
+import { Dialog, Form, FormItem, Input, Select, Option } from 'bk-magic-vue';
 
 import $http from '../../../api';
 
@@ -294,7 +281,6 @@ export default class CollectDialog extends tsc<IProps> {
         await this.getFavoriteData(this.favoriteID); // 获取收藏详情
       }
       this.isDisableSelect = this.favoriteData.visible_type === 'private';
-      await this.getSearchFieldsList(this.favoriteData.params.keyword); // 获取表单模式显示字段
       this.formLoading = false;
     } else {
       this.favoriteData = this.baseFavoriteData;
@@ -326,49 +312,12 @@ export default class CollectDialog extends tsc<IProps> {
     });
   }
 
-  handleClickRadio(value: string) {
-    if (value === 'private') {
-      this.isDisableSelect = true;
-      this.favoriteData.group_id = this.privateGroupID;
-      this.favoriteData.visible_type = 'private';
-    } else {
-      this.isDisableSelect = false;
-      this.favoriteData.group_id = this.unknownGroupID;
-      this.favoriteData.visible_type = 'public';
-    }
-  }
-
   handleSubmitFormData() {
     this.validateFormRef.validate().then(() => {
       if (!this.unknownGroupID) return;
       if (!this.favoriteData.group_id) this.favoriteData.group_id = this.unknownGroupID;
       this.handleUpdateFavorite(this.favoriteData);
     });
-  }
-
-  handleClickDisplayFields(value) {
-    if (value) {
-      // 如果关闭 则更新当前显示的显示字段
-      if (this.isCreateFavorite || this.isClickFavoriteEdit) {
-        this.favoriteData.display_fields = this.visibleFields.map(item => item.field_name);
-      }
-    }
-  }
-
-  async getSearchFieldsList(keyword: string) {
-    keyword === '' && (keyword = '*');
-    try {
-      const res = await $http.request('favorite/getSearchFields', {
-        data: { keyword },
-      });
-      this.searchFieldsList = res.data.map(item => ({
-        ...item,
-        name: item.is_full_text_field
-          ? `${this.$t('全文检索')}${!!item.repeat_count ? `(${item.repeat_count})` : ''}`
-          : item.name,
-        chName: item.name,
-      }));
-    } catch (error) {}
   }
 
   /** 更新收藏 */
@@ -454,10 +403,10 @@ export default class CollectDialog extends tsc<IProps> {
   }
 
   render() {
-    const indexSetName = () => {
-      const { index_set_name: indexSetName, index_set_names: indexSetNames } = this.favoriteData;
-      return !this.isUnionSearch ? indexSetName : indexSetNames?.map(item => <Tag>{item}</Tag>) || '';
-    };
+    // const indexSetName = () => {
+    //   const { index_set_name: indexSetName, index_set_names: indexSetNames } = this.favoriteData;
+    //   return !this.isUnionSearch ? indexSetName : indexSetNames?.map(item => <Tag>{item}</Tag>) || '';
+    // };
     return (
       <Dialog
         width={640}
@@ -483,17 +432,17 @@ export default class CollectDialog extends tsc<IProps> {
             },
           }}
         >
-          <div class='edit-information'>
+          {/* <div class='edit-information'>
             <span>{this.$t('索引集')}</span>
             <span>{indexSetName()}</span>
           </div>
           <div class='edit-information'>
             <span>{this.$t('查询语句')}</span>
             <span>{this.favoriteData.params.keyword}</span>
-          </div>
-          <div class='form-item-container'>
+          </div> */}
+          <div class='form-item-container-new'>
             <FormItem
-              label={this.$t('收藏名')}
+              label={this.$t('收藏名称')}
               property='name'
               required
             >
@@ -503,29 +452,9 @@ export default class CollectDialog extends tsc<IProps> {
                 placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('填写收藏名') })}
               ></Input>
             </FormItem>
-            <FormItem
-              class='collect-radio'
-              label={this.$t('可见范围')}
-              required
-            >
-              <RadioGroup
-                vModel={this.favoriteData.visible_type}
-                on-change={this.handleClickRadio}
-              >
-                <Radio value={'public'}>
-                  {this.$t('公开')}({this.$t('本业务可见')})
-                </Radio>
-                <Radio
-                  disabled={this.isCannotChangeVisible}
-                  value={'private'}
-                >
-                  {this.$t('私有')}({this.$t('仅个人可见')})
-                </Radio>
-              </RadioGroup>
-            </FormItem>
           </div>
-          <div class='form-item-container'>
-            <FormItem label={this.$t('所属组')}>
+          <div class='form-item-container-new'>
+            <FormItem label={this.$t('所属分组')}>
               <span
                 v-bk-tooltips={{ content: this.$t('私有的只支持默认的“个人收藏”'), disabled: !this.isDisableSelect }}
               >
@@ -597,43 +526,25 @@ export default class CollectDialog extends tsc<IProps> {
               </span>
             </FormItem>
           </div>
-          <FormItem label={this.$t('表单模式')}>
-            <div class='explanation-field'>
-              {this.$t(
-                '该功能指从查询语句中获取相应的字段，当勾选对应的字段时，将以表单的填写方式显示给收藏的使用者。（字段说明：没有字段时，为全文检索；重复的字段增加显示序号(N) ，默认不勾选任何字段)',
-              )}
-            </div>
-            <CheckboxGroup vModel={this.favoriteData.params.search_fields}>
-              {this.searchFieldsList.map(item => (
-                <Checkbox value={item.chName}>{item.name}</Checkbox>
-              ))}
-            </CheckboxGroup>
-          </FormItem>
-          <FormItem
-            ext-cls='filed-label'
-            desc={{
-              content: `${this.$t('当打开时，使用该收藏将同时显示如下字段，不影响用户字段显示设置。')}`,
-              placements: ['right'],
-            }}
-            desc-icon='bk-icon icon-info'
-            desc-type='icon'
-            label={this.$t('是否同时显示字段')}
-            labelWidth={400}
-          >
-            <div class='filed-container'>
-              <Switcher
-                vModel={this.favoriteData.is_enable_display_fields}
-                theme='primary'
-                on-change={value => this.handleClickDisplayFields(value)}
-              ></Switcher>
-              <span class='current-filed'>{this.showFieldsLabel}: </span>
-              {this.favoriteData.display_fields.length ? (
-                this.favoriteData.display_fields.map(item => <Tag>{item}</Tag>)
-              ) : (
-                <span class='current-filed'>{this.$t('显示全部字段')}</span>
-              )}
-            </div>
-          </FormItem>
+          <div class='form-item-container-new'>
+            <FormItem label={this.$t('索引集')}>
+              <bk-input
+                // value='indexSetName'
+                readonly
+                show-overflow-tooltips
+              ></bk-input>
+            </FormItem>
+          </div>
+          <div class='form-item-container-new'>
+            <FormItem label={this.$t('查询语句')}>
+              <bk-input
+                type='textarea'
+                value='sqlString'
+                readonly
+                show-overflow-tooltips
+              ></bk-input>
+            </FormItem>
+          </div>
         </Form>
       </Dialog>
     );

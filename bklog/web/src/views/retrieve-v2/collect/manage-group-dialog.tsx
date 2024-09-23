@@ -30,7 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import {
   Dialog,
-  Switcher,
+  // Switcher,
   Option,
   Table,
   TableColumn,
@@ -771,56 +771,56 @@ export default class GroupDialog extends tsc<IProps> {
         </Select>,
       ],
     };
-    const visibleSlot = {
-      default: ({ row }) => [
-        <Select
-          vModel={row.visible_type}
-          clearable={false}
-          on-selected={nVal => this.handleSelectVisible(row, nVal)}
-        >
-          {row.visible_option.map(item => (
-            <Option
-              id={item.id}
-              key={item.id}
-              name={item.name}
-            ></Option>
-          ))}
-        </Select>,
-      ],
-    };
-    const selectTagSlot = {
-      default: ({ row }) => [
-        <Select
-          vModel={row.search_fields}
-          clearable={false}
-          placeholder={this.$t('未设置')}
-          display-tag
-          multiple
-          searchable
-          on-change={nVal => this.handleChangeSearchList(row, nVal)}
-          on-toggle={status => this.handleClickFieldsList(row, status)}
-        >
-          {row.search_fields_select_list.map(item => (
-            <Option
-              id={item.chName}
-              key={item.name}
-              name={item.name}
-            ></Option>
-          ))}
-        </Select>,
-      ],
-    };
-    const switchSlot = {
-      default: ({ row }) => [
-        <div class='switch-container'>
-          <Switcher
-            vModel={row.is_enable_display_fields}
-            theme='primary'
-            on-change={value => this.handleSwitchChange(row, value)}
-          ></Switcher>
-        </div>,
-      ],
-    };
+    // const visibleSlot = {
+    //   default: ({ row }) => [
+    //     <Select
+    //       vModel={row.visible_type}
+    //       clearable={false}
+    //       on-selected={nVal => this.handleSelectVisible(row, nVal)}
+    //     >
+    //       {row.visible_option.map(item => (
+    //         <Option
+    //           id={item.id}
+    //           key={item.id}
+    //           name={item.name}
+    //         ></Option>
+    //       ))}
+    //     </Select>,
+    //   ],
+    // };
+    // const selectTagSlot = {
+    //   default: ({ row }) => [
+    //     <Select
+    //       vModel={row.search_fields}
+    //       clearable={false}
+    //       placeholder={this.$t('未设置')}
+    //       display-tag
+    //       multiple
+    //       searchable
+    //       on-change={nVal => this.handleChangeSearchList(row, nVal)}
+    //       on-toggle={status => this.handleClickFieldsList(row, status)}
+    //     >
+    //       {row.search_fields_select_list.map(item => (
+    //         <Option
+    //           id={item.chName}
+    //           key={item.name}
+    //           name={item.name}
+    //         ></Option>
+    //       ))}
+    //     </Select>,
+    //   ],
+    // };
+    // const switchSlot = {
+    //   default: ({ row }) => [
+    //     <div class='switch-container'>
+    //       <Switcher
+    //         vModel={row.is_enable_display_fields}
+    //         theme='primary'
+    //         on-change={value => this.handleSwitchChange(row, value)}
+    //       ></Switcher>
+    //     </div>,
+    //   ],
+    // };
     const deleteSlot = {
       default: ({ row }) => [
         <div class='switcher-box'>
@@ -835,7 +835,7 @@ export default class GroupDialog extends tsc<IProps> {
     };
     return (
       <Dialog
-        width={960}
+        width={462}
         ext-cls='manage-group'
         confirm-fn={this.handleSubmitTableData}
         header-position='left'
@@ -935,7 +935,7 @@ export default class GroupDialog extends tsc<IProps> {
             ></TableColumn>
           ) : undefined}
 
-          {this.checkFields('visible_type') ? (
+          {/* {this.checkFields('visible_type') ? (
             <TableColumn
               key={'column_visible_type'}
               width='112'
@@ -946,9 +946,9 @@ export default class GroupDialog extends tsc<IProps> {
               render-header={this.$renderHeader}
               scopedSlots={visibleSlot}
             ></TableColumn>
-          ) : undefined}
+          ) : undefined} */}
 
-          {this.checkFields('display_fields') ? (
+          {/* {this.checkFields('display_fields') ? (
             <TableColumn
               key={'column_search_fields'}
               class-name='group-select'
@@ -958,7 +958,7 @@ export default class GroupDialog extends tsc<IProps> {
               render-header={this.renderHeaderTable}
               scopedSlots={selectTagSlot}
             ></TableColumn>
-          ) : undefined}
+          ) : undefined} */}
 
           {this.checkFields('updated_by') ? (
             <TableColumn
@@ -1001,7 +1001,7 @@ export default class GroupDialog extends tsc<IProps> {
             ></TableColumn>
           ) : undefined}
 
-          {this.checkFields('is_show_switch') ? (
+          {/* {this.checkFields('is_show_switch') ? (
             <TableColumn
               key={'column_switch'}
               class-name='group-input'
@@ -1011,7 +1011,7 @@ export default class GroupDialog extends tsc<IProps> {
               render-header={this.renderHeaderFields}
               scopedSlots={switchSlot}
             ></TableColumn>
-          ) : undefined}
+          ) : undefined} */}
 
           <TableColumn
             key={'column_delete'}

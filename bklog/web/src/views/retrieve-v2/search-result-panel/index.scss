@@ -3,6 +3,11 @@
   height: calc(100% - 42px);
   overflow: hidden;
 
+  .filet-hidden {
+    /* stylelint-disable-next-line declaration-no-important */
+    width: 100px  !important;
+  }
+
   .search-result-content {
     z-index: 8;
     width: 100%;

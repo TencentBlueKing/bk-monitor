@@ -221,14 +221,6 @@ export default class CollectIndex extends tsc<IProps> {
     return value;
   }
 
-  @Emit('favorite-dialog-submit')
-  handleSubmitFavoriteData({ isCreate, resValue }) {
-    return {
-      isCreate,
-      resValue,
-    };
-  }
-
   /** 获取收藏列表 */
   async getFavoriteList() {
     // 第一次显示收藏列表时因路由更变原因 在本页面第一次请求
@@ -463,9 +455,9 @@ export default class CollectIndex extends tsc<IProps> {
               index_set_type: 'union',
             });
           }
-          $http.request('favorite/createFavorite', { data }).then(res => {
+          $http.request('favorite/createFavorite', { data }).then(() => {
             this.showMessagePop(this.$t('创建成功'));
-            this.handleSubmitFavoriteData({ isCreate: true, resValue: res.data });
+            this.getFavoriteList();
           });
         }
         break;
@@ -700,7 +692,7 @@ export default class CollectIndex extends tsc<IProps> {
           isSearchFilter={this.isSearchFilter}
           on-change={this.handleUserOperate}
         >
-          <div class='search-container'>
+          <div class='search-container-new'>
             <div class='search-box fl-jcsb'>
               <Input
                 vModel={this.searchVal}
@@ -806,7 +798,6 @@ export default class CollectIndex extends tsc<IProps> {
           favoriteList={this.favoriteList}
           isClickFavoriteEdit={this.isClickFavoriteEdit}
           visibleFields={this.visibleFields}
-          onSubmit={this.handleSubmitFavoriteData}
         />
       </div>
     );
