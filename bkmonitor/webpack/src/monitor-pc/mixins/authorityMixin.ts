@@ -43,8 +43,10 @@ export default (authMap: { [propsName: string]: string }, inCreated = true) => {
     @Provide('authorityMap') authorityMap = authMap;
     constructor() {
       super();
-      // biome-ignore lint/style/noCommaOperator: <explanation>
-      this.authority = Object.keys(authMap).reduce((pre: any, cur: string) => ((pre[cur] = false), pre), {});
+      this.authority = Object.keys(authMap).reduce((pre: any, cur: string) => {
+        pre[cur] = false;
+        return pre;
+      }, {});
     }
     get __BizId__() {
       return this.$store.getters.bizId;

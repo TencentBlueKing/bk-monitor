@@ -402,6 +402,19 @@ class ViewSetActionEnum(ChoicesEnum):
     AGGS_VIEWSET_DATE_HISTOGRAM = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="AggsViewSet", view_action="date_histogram"
     )
+    # ======================================= 字段分析-FieldViewSet =======================================
+    FIELD_VIEWSET_TOTAL = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FieldViewSet", view_action="fetch_statistics_total"
+    )
+    FIELD_VIEWSET_GRAPH = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FieldViewSet", view_action="fetch_statistics_graph"
+    )
+    FIELD_VIEWSET_INFO = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FieldViewSet", view_action="fetch_statistics_info"
+    )
+    FIELD_VIEWSET_TOPK = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FieldViewSet", view_action="fetch_topk_list"
+    )
     # ======================================= 收藏-FavoriteViewSet =======================================
     FAVORITE_VIEWSET_RETRIEVE = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteViewSet", view_action="retrieve"
@@ -523,6 +536,11 @@ class ViewSetActionEnum(ChoicesEnum):
         # ======================================= 聚合-AggsViewSet =======================================
         AGGS_VIEWSET_TERMS,
         AGGS_VIEWSET_DATE_HISTOGRAM,
+        # ======================================= 字段分析-FieldViewSet =======================================
+        FIELD_VIEWSET_INFO,
+        FIELD_VIEWSET_TOTAL,
+        FIELD_VIEWSET_GRAPH,
+        FIELD_VIEWSET_TOPK,
         # ======================================= 收藏-FavoriteViewSet =======================================
         FAVORITE_VIEWSET_RETRIEVE,
         FAVORITE_VIEWSET_LIST,

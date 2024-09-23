@@ -334,17 +334,22 @@ class CollectingTargetStatusResource(BaseStatusResource):
         bk_host_ids = []
         for group in instance_status["contents"]:
             for child in group["child"]:
+                if "bk_host_id" not in child:
+                    continue
                 bk_host_ids.append(str(child["bk_host_id"]))
 
         targets_alert_histogram = {}
-        if self.has_strategies():
+        if self.has_strategies() and bk_host_ids:
             alert_histogram = self.search_target_alert_histogram(bk_host_ids)
             targets_alert_histogram = alert_histogram["targets"]
 
         # 填充主机的告警信息
         for group in instance_status["contents"]:
             for child in group["child"]:
-                child["alert_histogram"] = targets_alert_histogram.get(str(child["bk_host_id"]), None)
+                if "bk_host_id" not in child:
+                    child["alert_histogram"] = None
+                else:
+                    child["alert_histogram"] = targets_alert_histogram.get(str(child["bk_host_id"]), None)
         return instance_status
 
     def search_target_alert_histogram(self, targets: List[str], time_range: int = 3600) -> Dict:
