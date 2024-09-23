@@ -651,7 +651,7 @@ class SearchHandler(object):
         if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
             return getattr(self, f"direct_esquery_{method_name}")
         else:
-            return getattr(BkLogApi, f"{method_name}")
+            return getattr(BkLogApi, method_name)
 
     @classmethod
     def direct_esquery_search(cls, params, **kwargs):
@@ -714,11 +714,11 @@ class SearchHandler(object):
                 logger.exception(f"[_multi_search] parse time error -> e: {e}")
 
         # 获取search对应的esquery方法
-        exec_func = self.fetch_esquery_method(method_name="search")
+        search_func = self.fetch_esquery_method(method_name="search")
 
         if not storage_cluster_record_objs:
             try:
-                data = exec_func(params)
+                data = search_func(params)
                 return data
             except ApiResultError as e:
                 raise ApiResultError(_("搜索出错，请检查查询语句是否正确") + f" => {e}", code=e.code, errors=e.errors)
@@ -734,7 +734,7 @@ class SearchHandler(object):
         params["size"] = once_size + self.start
 
         # 获取当前使用的存储集群数据
-        multi_execute_func.append(result_key=f"multi_search_{multi_num}", func=exec_func, params=params)
+        multi_execute_func.append(result_key=f"multi_search_{multi_num}", func=search_func, params=params)
 
         # 获取历史使用的存储集群数据
         for storage_cluster_record_obj in storage_cluster_record_objs:
@@ -742,7 +742,7 @@ class SearchHandler(object):
                 multi_params = copy.deepcopy(params)
                 multi_params["storage_cluster_id"] = storage_cluster_record_obj.storage_cluster_id
                 multi_num += 1
-                multi_execute_func.append(result_key=f"multi_search_{multi_num}", func=exec_func, params=multi_params)
+                multi_execute_func.append(result_key=f"multi_search_{multi_num}", func=search_func, params=multi_params)
                 storage_cluster_ids.add(storage_cluster_record_obj.storage_cluster_id)
 
         multi_result = multi_execute_func.run()
@@ -946,9 +946,9 @@ class SearchHandler(object):
         @return:
         """
         # 获取search对应的esquery方法
-        exec_func = self.fetch_esquery_method(method_name="search")
+        search_func = self.fetch_esquery_method(method_name="search")
         if self.scenario_id == Scenario.ES:
-            result = exec_func(
+            result = search_func(
                 {
                     "indices": self.indices,
                     "scenario_id": self.scenario_id,
@@ -979,7 +979,7 @@ class SearchHandler(object):
             return result
 
         sorted_list = self._get_user_sorted_list(sorted_fields)
-        result = exec_func(
+        result = search_func(
             {
                 "indices": self.indices,
                 "scenario_id": self.scenario_id,
@@ -1016,7 +1016,7 @@ class SearchHandler(object):
         @return:
         """
         # 获取search对应的esquery方法
-        exec_func = self.fetch_esquery_method(method_name="search")
+        search_func = self.fetch_esquery_method(method_name="search")
         search_after_size = len(search_result["hits"]["hits"])
         result_size = search_after_size
         max_result_window = self.index_set_obj.result_window
@@ -1025,7 +1025,7 @@ class SearchHandler(object):
             search_after = []
             for sorted_field in sorted_list:
                 search_after.append(search_result["hits"]["hits"][-1]["_source"].get(sorted_field[0]))
-            search_result = exec_func(
+            search_result = search_func(
                 {
                     "indices": self.indices,
                     "scenario_id": self.scenario_id,
@@ -1066,13 +1066,13 @@ class SearchHandler(object):
         @return:
         """
         # 获取scroll对应的esquery方法
-        exec_func = self.fetch_esquery_method(method_name="scroll")
+        scroll_func = self.fetch_esquery_method(method_name="scroll")
         scroll_size = len(scroll_result["hits"]["hits"])
         result_size = scroll_size
         max_result_window = self.index_set_obj.result_window
         while scroll_size == max_result_window and result_size < self.size:
             _scroll_id = scroll_result["_scroll_id"]
-            scroll_result = exec_func(
+            scroll_result = scroll_func(
                 {
                     "indices": self.indices,
                     "scenario_id": self.scenario_id,
@@ -1406,14 +1406,14 @@ class SearchHandler(object):
             dsl_params_base.update({"storage_cluster_id": record_obj.storage_cluster_id})
 
         # 获取dsl对应的esquery方法
-        exec_func = self.fetch_esquery_method(method_name="dsl")
+        dsl_func = self.fetch_esquery_method(method_name="dsl")
 
         if self.zero:
             # up
             body: dict = self._get_context_body("-")
             dsl_params_up = copy.deepcopy(dsl_params_base)
             dsl_params_up.update({"body": body})
-            result_up: dict = exec_func(dsl_params_up)
+            result_up: dict = dsl_func(dsl_params_up)
             result_up: dict = self._deal_query_result(result_up)
             result_up.update(
                 {
@@ -1427,7 +1427,7 @@ class SearchHandler(object):
 
             dsl_params_down = copy.deepcopy(dsl_params_base)
             dsl_params_down.update({"body": body})
-            result_down: Dict = exec_func(dsl_params_down)
+            result_down: Dict = dsl_func(dsl_params_down)
 
             result_down: dict = self._deal_query_result(result_down)
             result_down.update({"list": result_down.get("list"), "origin_log_list": result_down.get("origin_log_list")})
@@ -1464,7 +1464,7 @@ class SearchHandler(object):
 
             dsl_params_up = copy.deepcopy(dsl_params_base)
             dsl_params_up.update({"body": body})
-            result_up = exec_func(dsl_params_up)
+            result_up = dsl_func(dsl_params_up)
 
             result_up: dict = self._deal_query_result(result_up)
             result_up.update(
@@ -1485,7 +1485,7 @@ class SearchHandler(object):
 
             dsl_params_down = copy.deepcopy(dsl_params_base)
             dsl_params_down.update({"body": body})
-            result_down = exec_func(dsl_params_down)
+            result_down = dsl_func(dsl_params_down)
 
             result_down = self._deal_query_result(result_down)
             result_down.update({"list": result_down.get("list"), "origin_log_list": result_down.get("origin_log_list")})
