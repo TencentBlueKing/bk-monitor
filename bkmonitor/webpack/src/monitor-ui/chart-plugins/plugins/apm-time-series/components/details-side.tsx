@@ -166,6 +166,7 @@ export default class DetailsSide extends tsc<IProps> {
     if (this.dataType === EDataType.errorCount) {
       return this.selected === 'error_rate' ? 2 : 0;
     }
+    if (this.dataType === EDataType.requestCount) return 0;
     return 2;
   }
   get selectOptions() {
