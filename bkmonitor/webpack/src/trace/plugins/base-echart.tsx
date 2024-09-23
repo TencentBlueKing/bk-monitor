@@ -25,6 +25,7 @@
  */
 import {
   type PropType,
+  type ShallowRef,
   type WatchStopHandle,
   defineComponent,
   onActivated,
@@ -80,7 +81,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const chartRef = ref<HTMLDivElement>();
     // 当前图表配置
-    let curChartOption: MonitorEchartOptions | null = null;
+    const curChartOption: ShallowRef<MonitorEchartOptions | null> = shallowRef(null);
     // echarts 实例
     const instance = shallowRef<echarts.ECharts>();
     // 当前图表配置取消监听函数
@@ -237,7 +238,7 @@ export default defineComponent({
                 };
               }
               if (item.value[1] === null) return '';
-              const curSeries: any = curChartOption!.series?.[+item.seriesIndex];
+              const curSeries: any = curChartOption.value.series?.[+item.seriesIndex];
               const unitFormater = curSeries.unitFormatter || ((v: string) => ({ text: v }));
               const minBase = curSeries.minBase || 0;
               const precision =
@@ -299,7 +300,7 @@ export default defineComponent({
         initPropsWatcher();
         initChartEvent();
         initChartAction();
-        curChartOption = instance.value.getOption();
+        curChartOption.value = instance.value.getOption();
         props.groupId && (instance.value.group = props.groupId);
         instance.value.on('dataZoom', handleDataZoom);
       }
@@ -341,7 +342,7 @@ export default defineComponent({
               },
               { notMerge: true, lazyUpdate: false, silent: true }
             );
-            curChartOption = instance.value.getOption();
+            curChartOption.value = instance.value.getOption();
           }
           initChartAction();
         },
