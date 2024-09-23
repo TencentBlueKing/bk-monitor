@@ -160,7 +160,7 @@ class CollectTargetStatusTopoResource(Resource):
                 db_name = "{plugin_type}_{plugin_id}".format(
                     plugin_type=collect_config.plugin.plugin_type, plugin_id=collect_config.plugin.plugin_id
                 )
-                latest_info_version = cls.fetch_latest_version_by_config()
+                latest_info_version = cls.fetch_latest_version_by_config(collect_config)
                 metric_json = latest_info_version.info.metric_json
             result_tables = [ResultTable.new_result_table(table) for table in metric_json]
 
@@ -300,7 +300,7 @@ class CollectTargetStatusTopoResource(Resource):
                 for module_id in instance.get("bk_module_ids") or [instance["bk_module_id"]]:
                     module_mapping[module_id].append(instance_info)
             self.create_topo_tree(topo_tree, module_mapping, result)
-        elif target_node_type == TargetNodeType.HOST:
+        elif target_node_type == TargetNodeType.INSTANCE:
             for instance in instance_status.values():
                 result.append(self.get_instance_info(instance))
         else:

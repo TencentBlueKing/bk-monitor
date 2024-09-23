@@ -213,7 +213,10 @@ class NodeManInstaller(BaseInstaller):
         """
         部署插件采集
         """
-        last_version = self.collect_config.deployment_config
+        if self.collect_config.deployment_config_id:
+            last_version: DeploymentConfigVersion = self.collect_config.deployment_config
+        else:
+            last_version = None
 
         # 判断是否需要重建订阅任务
         if last_version and last_version.subscription_id:
@@ -261,7 +264,7 @@ class NodeManInstaller(BaseInstaller):
             # 卸载上一次订阅任务
             api.node_man.run_subscription(
                 subscription_id=last_version.subscription_id,
-                actions=[{step["id"]: "UNINSTALL"} for step in subscription_params["steps"]],
+                actions={step["id"]: "UNINSTALL" for step in subscription_params["steps"]},
             )
             api.node_man.delete_subscription(subscription_id=last_version.subscription_id)
 
@@ -307,7 +310,7 @@ class NodeManInstaller(BaseInstaller):
             "params": install_config["params"],
             "remote_collecting_host": install_config.get("remote_collecting_host"),
             "config_meta_id": self.collect_config.pk or 0,
-            "parent_id": self.collect_config.deployment_config.pk if self.collect_config.deployment_config else 0,
+            "parent_id": self.collect_config.deployment_config_id or 0,
         }
         new_version = DeploymentConfigVersion.objects.create(**deployment_config_params)
 
@@ -647,7 +650,7 @@ class NodeManInstaller(BaseInstaller):
 
             # 状态转换
             if instance["status"] in [TaskStatus.DEPLOYING, TaskStatus.RUNNING]:
-                instance["status"] = self.running_status.get(self.collect_config.last_operation, TaskStatus.DEPLOYING)
+                instance["status"] = self.running_status.get(self.collect_config.last_operation, TaskStatus.RUNNING)
 
             # 处理scope
             for scope in instance_result["instance_info"].get("scope", []):
@@ -697,8 +700,8 @@ class NodeManInstaller(BaseInstaller):
         instance_statuses = self._process_nodeman_task_result(result)
 
         # 差异比对/不比对数据结构
-        current_version = self.collect_config.deployment_config
-        last_version = current_version.last_version
+        current_version: DeploymentConfigVersion = self.collect_config.deployment_config
+        last_version: Optional[DeploymentConfigVersion] = current_version.last_version
 
         # 将模板转换为节点
         template_to_nodes = defaultdict(list)
@@ -760,7 +763,7 @@ class NodeManInstaller(BaseInstaller):
                 ]
 
         # 差异比对
-        if diff and last_version:
+        if diff:
             # 如果存在上一个版本，且需要显示差异
             # {
             #     "is_modified": true,
@@ -769,14 +772,14 @@ class NodeManInstaller(BaseInstaller):
             #     "removed": [{"bk_host_id": 51985}],
             #     "unchanged": [{"bk_host_id": 96886},{"bk_host_id": 96887}]
             # }
-            node_diff = last_version.show_diff(current_version)["nodes"]
+            if last_version:
+                node_diff = last_version.show_diff(current_version)["nodes"]
+            else:
+                node_diff = {"added": current_version.target_nodes}
 
             # removed目前不会显示出来，如果后续需要显示，还需要处理父节点的数据，通知节点管理也需要查询目标范围外的任务结果
             node_diff.pop("removed", None)
-
-            # 如果没有差异，直接返回
-            if not node_diff.pop("is_modified", True):
-                return []
+            node_diff.pop("is_modified", None)
 
             node_diff = {
                 new_diff_type: node_diff.get(diff_type, [])

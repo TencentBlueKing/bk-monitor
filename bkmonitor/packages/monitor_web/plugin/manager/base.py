@@ -84,8 +84,7 @@ class BasePluginManager:
             plugin_id=self.plugin.plugin_id
         ).last()
 
-    @staticmethod
-    def _update_version_params(data, version, current_version, stag=None):
+    def _update_version_params(self, data, version, current_version, stag=None):
         """
         更新插件版本参数
         """
@@ -540,7 +539,7 @@ class PluginManager(BasePluginManager):
     @staticmethod
     def _get_error_message(message):
         err_message = ""
-        error_code = message.get("error_code", 0)
+        error_code = message.get("error_code") or 0
         if error_code in BEAT_ERR:
             err_message = "\n\n\n{}".format(BEAT_ERR[error_code].format(message.get("message", "UNKNOWN")))
         elif "error" in message and message["error"]:
@@ -652,8 +651,7 @@ class PluginManager(BasePluginManager):
         }
         api.node_man.release_config(param)
 
-    @staticmethod
-    def _update_version_params(data, version, current_version, stag=None):
+    def _update_version_params(self, data, version, current_version, stag=None):
         """
         更新插件版本参数
         """

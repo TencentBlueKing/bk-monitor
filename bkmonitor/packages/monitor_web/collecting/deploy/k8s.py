@@ -244,7 +244,7 @@ class K8sInstaller(BaseInstaller):
             "target_nodes": [],
             "params": install_config["params"],
             "config_meta_id": self.collect_config.pk or 0,
-            "parent_id": self.collect_config.deployment_config.pk if self.collect_config.pk else None,
+            "parent_id": self.collect_config.deployment_config_id or 0,
         }
         new_version = DeploymentConfigVersion.objects.create(**deployment_config_params)
 
