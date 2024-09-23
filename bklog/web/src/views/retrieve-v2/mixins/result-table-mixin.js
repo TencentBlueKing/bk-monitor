@@ -33,6 +33,7 @@ import {
   setDefaultTableWidth,
   TABLE_LOG_FIELDS_SORT_REGULAR,
   sessionShowFieldObj,
+  formatDateNanos,
 } from '@/common/util';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import RetrieveLoader from '@/skeleton/retrieve-loader';
@@ -196,6 +197,12 @@ export default {
         (out, field) => ({ ...out, [field.field_name]: field.field_alias || field.field_name }),
         {},
       );
+    },
+    timeFieldType() {
+      return this.totalFields.find(item => item.field_name === this.timeField)?.field_type;
+    },
+    originFieldWidth() {
+      return this.timeFieldType === 'date_nanos' ? 210 : 174;
     },
   },
   watch: {
@@ -546,6 +553,16 @@ export default {
     getLimitState(index) {
       if (this.isLimitExpandView) return false;
       return !this.cacheExpandStr.includes(index);
+    },
+    getOriginTimeShow(data) {
+      if (this.timeFieldType === 'date') {
+        return formatDate(Number(data)) || data;
+      }
+      // 处理纳秒精度的UTC时间格式
+      if (this.timeFieldType === 'date_nanos') {
+        return formatDateNanos(data);
+      }
+      return data;
     },
     handleOriginScroll() {
       if (this.isPageOver) return;

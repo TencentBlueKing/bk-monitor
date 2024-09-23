@@ -34,12 +34,12 @@
    * @param {*} item
    */
   const formatModelValueItem = item => {
-    if (typeof item.value === 'string') {
+    if (typeof item?.value === 'string') {
       item.value = item.value.split(',');
     }
 
-    if (!item.relation) item.relation = 'OR';
-    return { disabled: false, ...item };
+    if (!item?.relation) item.relation = 'OR';
+    return { disabled: false, ...(item ?? {}) };
   };
 
   /**
@@ -218,6 +218,10 @@
     emitChange(modelValue.value);
   };
 
+  /**
+   * 点击查询
+   * @param payload
+   */
   const handleSaveQueryClick = payload => {
     if (payload === 'ip-select-show') {
       const copyValue = getInputQueryIpSelectItem();
@@ -244,8 +248,6 @@
 
     let targetValue = formatModelValueItem(isFulltextEnterVlaue ? getInputQueryDefaultItem(inputVal) : payload);
 
-    closeTippyInstance();
-
     if (isInputFocus.value) {
       setSearchInputValue('');
     }
@@ -253,17 +255,34 @@
     if (activeIndex.value !== null && activeIndex.value >= 0) {
       Object.assign(modelValue.value[activeIndex.value], targetValue);
       emitChange(modelValue.value);
+      closeTippyInstance();
       return;
     }
 
     modelValue.value.push({ ...targetValue, disabled: false });
     emitChange(modelValue.value);
+    closeTippyInstance();
   };
 
+  // 用于判定当前 key.enter 是全局绑定触发还是 input.key.enter触发
+  const isGlobalKeyEnter = ref(false);
+  const handleGlobalSaveQueryClick = payload => {
+    isGlobalKeyEnter.value = true;
+    handleSaveQueryClick(payload);
+  };
+
+  /**
+   * input key enter
+   * @param e
+   */
   const handleInputValueEnter = () => {
-    if (!(getTippyInstance().state.isShown ?? false)) {
-      handleSaveQueryClick(undefined);
+    if (!isGlobalKeyEnter.value) {
+      if (!(getTippyInstance().state.isShown ?? false)) {
+        handleSaveQueryClick(undefined);
+      }
     }
+
+    isGlobalKeyEnter.value = false;
   };
 
   const handleCancelClick = () => {
@@ -411,7 +430,7 @@
         :is-input-focus="isInputFocus"
         :value="queryItem"
         @cancel="handleCancelClick"
-        @save="handleSaveQueryClick"
+        @save="handleGlobalSaveQueryClick"
       ></UiInputOptions>
     </div>
   </ul>

@@ -137,11 +137,11 @@
   import GlobalSettingDialog from '@/components/global-setting';
   import headNav from '@/components/nav/head-nav';
   import NoviceGuide from '@/components/novice-guide';
+  import { handleTransformToTimestamp } from '@/components/time-range/utils';
   import platformConfigStore from '@/store/modules/platform-config';
   import NoticeComponent from '@blueking/notice-component-vue2';
   import jsCookie from 'js-cookie';
   import { mapState, mapGetters } from 'vuex';
-  import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
   import '@blueking/notice-component-vue2/dist/style.css';
 
@@ -250,7 +250,7 @@
 
       const defaultTime = localStorage.getItem('SEARCH_DEFAULT_TIME');
       if (defaultTime) {
-        const datePickerValue = JSON.parse(defaultTime)
+        const datePickerValue = JSON.parse(defaultTime);
         const timeList = handleTransformToTimestamp(datePickerValue);
         this.$store.commit('updateIndexItemParams', {
           datePickerValue,

@@ -192,6 +192,13 @@
   const additionString = computed(() => {
     return `* AND (${formatAddition.value
       .map(({ field, operator, value }) => {
+        if (field === '_ip-select_') {
+          return Object.keys(value ?? {})
+            .reduce((output, key) => {
+              return [...output, `${key}:[${value[key].toString()}]`];
+            }, [])
+            .join(' AND ');
+        }
         return `${field} ${operator} [${value?.toString() ?? ''}]`;
       })
       .join(' AND ')})`;
@@ -212,7 +219,7 @@
     const searchParams =
       props.searchMode === 'sql'
         ? { keyword: props.sql, addition: [] }
-        : { addition: formatAddition.value, keyword: '*' };
+        : { addition: formatAddition.value.filter(v => v.field !== '_ip-select_'), keyword: '*' };
 
     const data = {
       name,
@@ -222,6 +229,7 @@
       is_enable_display_fields,
       index_set_name: indexSetName.value,
       search_mode: props.searchMode,
+      ip_chooser: formatAddition.value.find(item => item.field === '_ip-select_')?.value?.[0] ?? {},
       index_set_ids: [],
       index_set_names: [],
       ...searchParams,
@@ -274,12 +282,12 @@
     initialization();
     popoverContentRef.value.hideHandler();
   };
-  const initialization =()=>{
+  const initialization = () => {
     popoverShow.value = false;
     favoriteData.value.name = '';
     favoriteData.value.group_id = undefined;
     verifyData.value.groupName = '';
-  }
+  };
   // popover组件Ref
   const popoverContentRef = ref();
   // 弹窗显示字段控制
@@ -312,18 +320,17 @@
     trigger: 'manual',
   };
   const handlePopoverHide = () => {
-    initialization()
+    initialization();
   };
-
 </script>
 <template>
   <bk-popover
     ref="popoverContentRef"
     width="400"
     ext-cls="collection-favorite-popover"
-    :tippy-options="tippyOptions"
     :on-hide="handlePopoverHide"
     :on-show="handlePopoverShow"
+    :tippy-options="tippyOptions"
   >
     <span
       :style="{
@@ -359,11 +366,11 @@
             label="所属分组"
           >
             <bk-select
-              v-model="favoriteData.group_id"
               ext-cls="add-popover-new-page-container"
+              v-model="favoriteData.group_id"
+              :popover-options="{ appendTo: 'parent' }"
               placeholder="未编组"
               searchable
-              :popover-options="{ appendTo: 'parent' }"
               @change="handleSelectGroup"
             >
               <bk-option

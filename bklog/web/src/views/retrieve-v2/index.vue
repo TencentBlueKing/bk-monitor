@@ -28,14 +28,15 @@
   import { computed, ref, watch } from 'vue';
 
   import useStore from '@/hooks/use-store';
+  import RouteUrlResolver from '@/store/url-resolver';
   import { isEqual } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
-  import RouteUrlResolver from '@/store/url-resolver';
 
   import CollectFavorites from './collect/collect-index';
   import SearchBar from './search-bar/index.vue';
   import SearchResultPanel from './search-result-panel/index.vue';
   import SearchResultTab from './search-result-tab/index.vue';
+
   import SubBar from './sub-bar/index.vue';
 
   const store = useStore();
@@ -176,6 +177,7 @@
         <template v-else>
           <span :class="['bklog-icon bklog-collapse-small', { active: showFavorites }]"></span>{{ $t('收藏夹') }}
         </template>
+
       </div>
       <SubBar :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 110}px` }" />
     </div>

@@ -43,7 +43,6 @@
   const activeIndex = ref(0);
   const refSearchResultList = ref(null);
   const refFilterInput = ref(null);
-  const isFocusFieldList = ref(true);
   // 条件Value选择列表
   const refValueTagInputOptionList = ref(null);
 
@@ -222,6 +221,11 @@
   const exceptionType = computed(() => (isFieldListEmpty.value ? 'empty' : 'search-empty'));
 
   /**
+   * 全文检索输入是否为空值
+   */
+  const isFulltextInput = computed(() => typeof props.value === 'string' && props.value.length > 0);
+
+  /**
    * 是否显示全文检索文本 & 快捷键使用说明
    * 如果当前是光标在input输入框之内 & 当前激活字段索引为0时，说明当前选中的是全文检索
    * 如果当前激活条目为IP目标，此时判定也为生效，用于展示IP选择器使用说明
@@ -276,6 +280,13 @@
     activeIndex.value = null;
   };
 
+  const resetParams = () => {
+    resetActiveFieldItem();
+    searchValue.value = '';
+    activeIndex.value = null;
+    isConditionValueInputFocus.value = false;
+  };
+
   const handleFieldItemClick = (item, index) => {
     // 避免重复提交设置
     if (!item || activeFieldItem.value.field_name === item?.field_name) {
@@ -295,20 +306,27 @@
   };
 
   const handleCancelBtnClick = () => {
-    resetActiveFieldItem();
+    resetParams();
     emit('cancel');
   };
 
   const handelSaveBtnClick = () => {
     const isIpSelect = activeFieldItem.value.field_name === '_ip-select_';
     if (isIpSelect) {
-      resetActiveFieldItem();
+      resetParams();
       emit('save', 'ip-select-show');
       return;
     }
     // 如果条件值为空 并且当前条件需要条件值
     // 禁止提交
-    if (isShowConditonValueSetting.value && !condition.value.value.length && !showFulltextMsg.value) {
+    if (
+      isShowConditonValueSetting.value &&
+      !condition.value.value.length &&
+      !showFulltextMsg.value &&
+      !isFieldListEmpty.value &&
+      !isFulltextInput.value &&
+      !isSearchEmpty.value
+    ) {
       return;
     }
 
@@ -318,8 +336,8 @@
       field: activeFieldItem.value.field_name,
     };
 
-    // 如果是全文检索
-    if (isFulltextValue) {
+    // 如果是全文检索 | 字段列表为空 | 搜索结果为空
+    if (isFulltextValue || isFieldListEmpty.value || isSearchEmpty.value || isFulltextInput.value) {
       // 全文检索值为空，说明是是新增全文检索
       // 此时，检索值还在Input输入框内，这里result设置为 undefined；
       if (!condition.value.value.length) {
@@ -332,7 +350,7 @@
       return;
     }
 
-    resetActiveFieldItem();
+    resetParams();
     emit('save', result);
   };
 
@@ -375,17 +393,7 @@
     }, 300);
   };
 
-  // const handleEditTagClick = (e, tagContent, tagIndex) => {
-  //   const parent = e.target.parentNode;
-
-  //   setTimeout(() => {
-  //     const value = parent.querySelector('input').value;
-  //     const charLen = getCharLength(value);
-  //     parent.querySelector('input').style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
-  //   }, 300);
-  // };
-
-  const handleConditionValueClick = e => {
+  const handleConditionValueClick = (e = null) => {
     if (e?.target !== refConditionInput.value || !e) {
       return;
     }
@@ -541,7 +549,13 @@
 
     // 如果需要设置条件
     // 条件选择或者输入框已经渲染出来
-    if (refValueTagInput.value) {
+    if (
+      refValueTagInput.value &&
+      !isSearchEmpty.value &&
+      !isFieldListEmpty.value &&
+      activeIndex.value !== null &&
+      activeIndex.value >= 0
+    ) {
       const instance = conditionValueInstance.getTippyInstance();
 
       // 如果是条件选择下拉已经展开，查询当前选中项
@@ -562,14 +576,14 @@
 
       // 如果当前没有自动focus条件选择
       if (!isConditionValueInputFocus.value) {
-        handleConditionValueClick();
+        handleConditionValueClick({ target: refConditionInput.value });
         return;
       }
 
       // 如果有可以自动联想的内容 & 没有自动展开下拉提示
       // 此时，自动展开下拉提示
       if (!instance?.state.isShown && activeItemMatchList.value.length) {
-        handleConditionValueClick();
+        handleConditionValueClick({ target: refConditionInput.value });
       }
 
       // 如果是条件输入框内有数据执行数据填入操作
@@ -680,17 +694,14 @@
   };
 
   const handleKeydownClick = e => {
-    if (!isFocusFieldList.value) {
-      return;
-    }
-    // key up
+    // key arrow-up
     if (e.keyCode === 38) {
       stopEventPreventDefault(e);
       handleArrowUpKeyEvent();
       return;
     }
 
-    // key down
+    // key arrow-down
     if (e.keyCode === 40) {
       stopEventPreventDefault(e);
       handleArrowDownKeyEvent();
@@ -715,8 +726,8 @@
   const handleUiValueOptionClick = option => {
     if (condition.value.operator !== option.operator) {
       condition.value.operator = option.operator;
-      condition.value.value.length = 0;
-      condition.value.value = [];
+      // condition.value.value.length = 0;
+      // condition.value.value = [];
     }
 
     operatorInstance.hide();
@@ -724,7 +735,6 @@
   };
 
   const beforeShowndFn = () => {
-    isFocusFieldList.value = true;
     setDefaultActiveIndex();
     document.addEventListener('keydown', handleKeydownClick);
 
@@ -742,10 +752,7 @@
   const afterHideFn = () => {
     document.removeEventListener('keydown', handleKeydownClick);
     handleFieldItemClick(filterFieldList.value[0], 0);
-    resetActiveFieldItem();
-    isFocusFieldList.value = false;
-    searchValue.value = '';
-    activeIndex.value = 0;
+    resetParams();
   };
 
   const handleValueInputEnter = e => {
