@@ -50,10 +50,13 @@
     list-style: none;
 
     &:hover {
-      color: #3a84ff;
       cursor: pointer;
       background-color: #eaf3ff;
     }
+  }
+
+  .nav-item-active {
+    color: #3a84ff;
   }
 }
 
@@ -154,6 +157,7 @@
 
   .language-icon {
     width: 20px;
+    font-size: 20px;
   }
 }
 
