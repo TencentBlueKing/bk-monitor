@@ -16,11 +16,15 @@ class StatisticsMetric(ChoicesEnum):
 
     REQUEST_COUNT = "request_count"
     ERROR_COUNT = "error_count"
+    ERROR_RATE = "error_rate"
+    ERROR_COUNT_CODE = "error_count_code"
     AVG_DURATION = "avg_duration"
 
     _choices_labels = (
         (REQUEST_COUNT, "请求数"),
         (ERROR_COUNT, "错误数"),
+        (ERROR_RATE, "错误率"),
+        (ERROR_COUNT_CODE, "错误数维度"),
         (AVG_DURATION, "耗时"),
     )
 

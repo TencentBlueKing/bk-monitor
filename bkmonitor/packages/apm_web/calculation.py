@@ -168,7 +168,7 @@ class FlowMetricErrorRateCalculation(Calculation):
         此方法会忽略掉除 from_span_error / to_span_error 以外的维度
         所以如果查询中有其他维度不要使用此 Calculation
         """
-        normal_ts = defaultdict(int)
+        total_ts = defaultdict(int)
         error_ts = defaultdict(int)
 
         series = metric_result.get("series", [])
@@ -188,14 +188,12 @@ class FlowMetricErrorRateCalculation(Calculation):
             from_span_error, to_span_error = self.str_to_bool(dimensions["from_span_error"]), self.str_to_bool(
                 dimensions["to_span_error"]
             )
-            is_normal = not from_span_error and not to_span_error
 
             for value, timestamp in item["datapoints"]:
                 if not value:
                     continue
 
-                if is_normal:
-                    normal_ts[timestamp] = value
+                total_ts[timestamp] += value
 
                 if (
                     (self.calculate_type == "callee" and to_span_error)
@@ -209,11 +207,9 @@ class FlowMetricErrorRateCalculation(Calculation):
             "series": [
                 {
                     "datapoints": [
-                        (round(error_ts.get(t, 0) / (normal_ts.get(t, 0) + error_ts.get(t, 0)), 6), t)
-                        for t in all_ts
-                        if (normal_ts.get(t, 0) + error_ts.get(t, 0))
+                        (round(error_ts.get(t, 0) / total_ts.get(t), 6), t) for t in all_ts if total_ts.get(t)
                     ]
-                    if normal_ts or error_ts
+                    if total_ts
                     else [],
                     "dimensions": {},
                     "target": "flow",

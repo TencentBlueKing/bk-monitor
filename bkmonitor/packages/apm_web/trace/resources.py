@@ -416,6 +416,7 @@ class TraceChatsResource(Resource):
                         "alias": "P50",
                         "data": {
                             "app_name": app.app_name,
+                            "unit": "ns",
                             "query_configs": [
                                 {
                                     "data_source_label": "custom",
@@ -464,6 +465,7 @@ class TraceChatsResource(Resource):
                         "alias": "P95",
                         "data": {
                             "app_name": app.app_name,
+                            "unit": "ns",
                             "query_configs": [
                                 {
                                     "data_source_label": "custom",
@@ -512,6 +514,7 @@ class TraceChatsResource(Resource):
                         "alias": "P99",
                         "data": {
                             "app_name": app.app_name,
+                            "unit": "ns",
                             "query_configs": [
                                 {
                                     "data_source_label": "custom",
