@@ -880,7 +880,7 @@ class StorageHandler(object):
                 else:
                     datanode_list.extend(result)
         except Exception:
-            raise NodeSettingError()
+            raise NodeSettingError("ES集群_nodes/settings接口数据解析失败，节点配置获取失败")
         else:
             # 筛选节点
             for node in datanode_list:
