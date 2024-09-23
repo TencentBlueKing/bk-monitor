@@ -231,12 +231,8 @@
                     v-authority="{
                       active: !authority.MANAGE_AUTH && !(scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus),
                     }"
-                    :class="{ 'btn-disabled': scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus }"
-                    @click="
-                      authority.MANAGE_AUTH || scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus
-                        ? scope.row.taskStatus !== 'STOPPED' && !scope.row.doingStatus && handleUpdateTarget(scope.row)
-                        : handleShowAuthorityDetail()
-                    "
+                    :class="{ 'btn-disabled': checkUpdateTargetDisabled(scope.row) }"
+                    @click="authority.MANAGE_AUTH ? handleUpdateTarget(scope.row) : handleShowAuthorityDetail()"
                   >
                     {{ $t('增删目标') }}
                   </span>
@@ -418,6 +414,7 @@ import TableSkeleton from '../../components/skeleton/table-skeleton.tsx';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import { SET_ADD_DATA, SET_ADD_MODE, SET_OBJECT_TYPE } from '../../store/modules/collector-config';
 import * as collectAuth from './authority-map';
+import { CLOUD_METRIC_PLUGIN_ID } from './collector-add/config-set/plugin-selector';
 import CollectorConfigDetail from './collector-config-detail/collector-config-detail';
 import CollectorConfigUpdate from './collector-config-update/collector-config-update';
 import DeleteCollector from './collector-dialog-delete/collector-dialog-delete';
@@ -894,6 +891,8 @@ export default {
               [item.totalInstanceCount]
             )}）`;
           }
+        } else if (item.objectTypeEn === 'CLUSTER') {
+          item.targetString = this.$t('{0}个集群', [item.totalInstanceCount]);
         }
       });
       return tableData;
@@ -982,7 +981,11 @@ export default {
         ),
       });
     },
+    checkUpdateTargetDisabled(row) {
+      return row.taskStatus === 'STOPPED' || row.doingStatus || row.plugin_id === CLOUD_METRIC_PLUGIN_ID;
+    },
     handleUpdateTarget(data) {
+      if (this.checkUpdateTargetDisabled(data)) return;
       if (data.needUpdate) {
         this.updataInfo(data);
         return false;
