@@ -48,7 +48,7 @@
     }
 
     .filed-item-triangle {
-      width: 32px;
+      min-width: 32px;
 
       .bk-icon {
         display: block;
@@ -61,7 +61,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 16px;
+      min-width: 16px;
       height: 16px;
       margin: 0 5px 0 0;
       font-size: 12px;
@@ -71,6 +71,7 @@
 
     .field-name {
       display: flex;
+      padding-right: 12px;
 
       span:first-child {
         overflow: hidden;
@@ -94,10 +95,11 @@
     }
 
     .operation-text {
+      /* stylelint-disable-next-line declaration-no-important */
+      display: none !important;
       flex-shrink: 0;
       padding-right: 6px;
       font-size: 14px;
-      visibility: hidden;
 
       @include flex-justify(space-between);
 
@@ -138,7 +140,8 @@
 
     .analysis-active {
       &.operation-text {
-        visibility: visible;
+        /* stylelint-disable-next-line declaration-no-important */
+        display: flex !important;
 
         > :first-child {
           color: #3a84ff;
@@ -151,7 +154,8 @@
       background-color: #f4f5f8;
 
       .operation-text {
-        visibility: visible;
+        /* stylelint-disable-next-line declaration-no-important */
+        display: flex !important;
 
         .operation-icon-box:hover {
           color: #3a84ff;
