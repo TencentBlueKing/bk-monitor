@@ -80,11 +80,6 @@ interface IProps {
   onClose?: () => void;
 }
 
-const selectDefaultValueMap = {
-  [EDataType.errorCount]: window.i18n.tc('总错误数'),
-  [EDataType.avgDuration]: window.i18n.tc('平均响应耗时'),
-};
-
 @Component
 export default class DetailsSide extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -103,8 +98,6 @@ export default class DetailsSide extends tsc<IProps> {
   /* 时间 */
   localTimeRange: TimeRangeType = ['now-1h', 'now'];
   timezone: string = getDefaultTimezone();
-  /* 主体切换 */
-  selectOptions = [];
   selected = 'default';
   /* 类型切换 */
   typeOptions = [
@@ -160,18 +153,35 @@ export default class DetailsSide extends tsc<IProps> {
   };
 
   emptyStatus = 'empty';
-
-  get showSelectOptions() {
-    return this.dataType !== EDataType.requestCount;
-  }
-
   get unit() {
     if (this.pointValueUnit === 'number') {
       return '';
     }
     return this.pointValueUnit || '';
   }
-
+  get selectOptions() {
+    if (this.dataType === EDataType.errorCount) {
+      return [
+        {
+          id: 'error_count',
+          name: window.i18n.tc('错误数'),
+        },
+        {
+          id: 'error_rate',
+          name: window.i18n.tc('错误率'),
+        },
+      ];
+    }
+    if (this.dataType === EDataType.avgDuration) {
+      return this.dimensions.map(dim => {
+        return {
+          id: dim,
+          name: dim,
+        };
+      });
+    }
+    return [];
+  }
   initData() {
     this.compareTimeInfo = [
       {
@@ -188,7 +198,7 @@ export default class DetailsSide extends tsc<IProps> {
       },
     ];
     this.curType = EOptionKind.caller;
-    this.selected = 'default';
+    this.selected = '';
     this.isCompare = false;
     this.compareX = 0;
     this.referX = 0;
@@ -214,27 +224,10 @@ export default class DetailsSide extends tsc<IProps> {
   @Watch('show')
   handleWatchShow(val: boolean) {
     if (val) {
-      if (this.dataType === EDataType.requestCount) {
-        this.selectOptions = [];
-      } else {
-        const dimensions = [];
-        const defaultItem = selectDefaultValueMap[this.dataType] || 'default';
-        dimensions.push({
-          id: 'default',
-          name: defaultItem,
-        });
-        dimensions.push(
-          ...this.dimensions
-            .filter(item => !['总数量', 'AVG'].includes(item))
-            .map(item => {
-              return {
-                id: item,
-                name: item,
-              };
-            })
-        );
-
-        this.selectOptions = dimensions;
+      this.selected = this.selectOptions[0]?.id || 'default';
+      if (this.dataType === EDataType.avgDuration) {
+        // 响应耗时默认是 平均响应耗时
+        this.selected = 'AVG';
       }
       this.getData();
     } else {
@@ -249,17 +242,14 @@ export default class DetailsSide extends tsc<IProps> {
     this.loading = true;
     this.tableKey = random(8);
     const [startTime, endTime] = handleTransformToTimestamp(this.localTimeRange);
-    const dimensionCategory =
-      this.dataType === EDataType.errorCount ? this.errorCountCategory?.[this.selected] || '' : '';
     const data = await metricDetailStatistics({
       app_name: this.appName,
       start_time: startTime,
       end_time: endTime,
       option_kind: this.curType,
-      data_type: this.dataType,
-      dimension: this.selected,
+      data_type: this.dataType === EDataType.errorCount ? this.selected : this.dataType,
+      dimension: this.dataType === EDataType.errorCount ? undefined : this.selected,
       service_name: this.serviceName,
-      dimension_category: dimensionCategory || undefined,
     }).catch(() => ({ data: [], columns: [] }));
     this.sourceTableData = Object.freeze(
       data.data.map(item => {
@@ -661,7 +651,7 @@ export default class DetailsSide extends tsc<IProps> {
               <div class='skeleton-element w-336 h-32' />
             ) : (
               <div class='left-wrap'>
-                {this.showSelectOptions && (
+                {this.selectOptions.length > 0 && (
                   <bk-select
                     class='theme-select-wrap'
                     v-model={this.selected}
