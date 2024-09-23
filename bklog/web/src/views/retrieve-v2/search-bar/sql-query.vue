@@ -18,7 +18,7 @@
     emit('height-change', height);
   };
 
-  const placeholderText = 'log：error  AND "name=bklog"';
+  const placeholderText = 'log: error AND "name=bklog"';
   const refSqlQueryOption = ref(null);
   const refEditorParent = ref(null);
 

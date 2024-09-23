@@ -197,7 +197,7 @@
   const restoreFieldAndCondition = () => {
     const matchedField = fieldList.value.find(field => field.field_name === props.value.field);
     Object.assign(activeFieldItem.value, matchedField ?? {});
-    const { operator, relation = 'OR', isInclude, value = [] } = props.value;
+    const { operator, relation = 'OR', isInclude, value = [] } = (props.value ?? {}) as Record<string, any>;
     Object.assign(condition.value, { operator, relation, isInclude, value: [...value] });
 
     let filterIndex = filterFieldList.value.findIndex(
