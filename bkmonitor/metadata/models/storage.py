@@ -79,6 +79,7 @@ class ClusterInfo(models.Model):
     集群信息配置
     此处的集群信息，主要是指对于外部使用监控kafka集群或者influxDB-proxy集群的信息
     如果需要看到influxDB-proxy后面的实际集群信息，请看InfluxDBClusterInfo记录
+    Note： 若涉及Kafka协议问题，需在SCRAM_SHA_512_KAFKA_CLUSTER_ID_LIST中添加对应的集群ID
     """
 
     CONSUL_PREFIX_PATH = "%s/unify-query/data/storage" % config.CONSUL_PATH

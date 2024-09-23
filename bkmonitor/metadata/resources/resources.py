@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 import base64
 import json
 import logging
+import uuid
 from itertools import chain
 from typing import Dict, List
 
@@ -1795,8 +1796,9 @@ class KafkaTailResource(Resource):
 
         datasource = result_table.data_source
         size = validated_request_data["size"]
+        mq_ins = models.ClusterInfo.objects.get(cluster_id=datasource.mq_cluster_id)
 
-        if datasource.mq_cluster_id in settings.BKBASE_KAFKA_CLUSTER_ID_LIST:
+        if mq_ins.registered_system == 'bkdata':
             result = self._consume_with_confluent_kafka(datasource, size)
         else:
             result = self._consume_with_kafka_python(datasource, size)
@@ -1810,9 +1812,9 @@ class KafkaTailResource(Resource):
         """
         consumer_config = {
             'bootstrap.servers': f"{datasource.mq_cluster.domain_name}:{datasource.mq_cluster.port}",
-            'group.id': 'my_group',
+            'group.id': f'bkmonitor-{uuid.uuid4()}',
             'session.timeout.ms': 6000,  # 10秒超时
-            'auto.offset.reset': 'earliest',
+            'auto.offset.reset': 'latest',  # 设置为latest或earliest，避免无效配置项
             'security.protocol': 'SASL_PLAINTEXT',
             'sasl.mechanisms': 'SCRAM-SHA-512',
             'sasl.username': datasource.mq_cluster.username,
@@ -1821,23 +1823,53 @@ class KafkaTailResource(Resource):
 
         consumer = ConfluentConsumer(consumer_config)
         topic = datasource.mq_config.topic
-        consumer.subscribe([topic])
+
+        # 获取该主题的所有分区
+        metadata = consumer.list_topics(topic)
+        partitions = metadata.topics[topic].partitions.keys()
+        topic_partitions = [TopicPartition(topic, partition) for partition in partitions]
+
+        # 分配指定的分区
+        consumer.assign(topic_partitions)
+
+        # 在 assign 之后调用一次 poll 使 consumer 进入正确的状态
+        consumer.poll(0)
 
         result = []
-        while len(result) < size:
-            msg = consumer.poll(timeout=1.0)
-            if msg is None:
+        for tp in topic_partitions:
+            # 获取该分区最大偏移量
+            low, high = consumer.get_watermark_offsets(tp)
+            end_offset = high
+            if not end_offset:
                 continue
-            if msg.error():
-                if msg.error().code() == KafkaError._PARTITION_EOF:
-                    break
-                elif msg.error():
-                    raise KafkaException(msg.error())
+
+            # 设置消息消费偏移量
+            if end_offset >= size:
+                consumer.seek(TopicPartition(topic, tp.partition, end_offset - size))
             else:
-                try:
-                    result.append(json.loads(msg.value().decode()))
-                except Exception:  # pylint: disable=broad-except
-                    pass
+                consumer.seek(TopicPartition(topic, tp.partition, 0))
+
+            while len(result) < size:
+                messages = consumer.consume(num_messages=size - len(result), timeout=1.0)
+                if not messages:
+                    break
+
+                for msg in messages:
+                    if msg.error():
+                        if msg.error().code() == KafkaError._PARTITION_EOF:
+                            break
+                        else:
+                            raise KafkaException(msg.error())
+                    else:
+                        try:
+                            result.append(json.loads(msg.value().decode()))
+                            if len(result) >= size:
+                                consumer.close()
+                                return result
+                        except Exception:  # pylint: disable=broad-except
+                            pass
+                    if msg.offset() == end_offset - 1:
+                        break
 
         consumer.close()
         return result
@@ -1856,13 +1888,11 @@ class KafkaTailResource(Resource):
             param["sasl_plain_password"] = datasource.mq_cluster.password
             param["security_protocol"] = "SASL_PLAINTEXT"
             param["sasl_mechanism"] = "PLAIN"
-
         consumer = KafkaConsumer(datasource.mq_config.topic, **param)
         consumer.poll(size)
         topic_partitions = consumer.partitions_for_topic(datasource.mq_config.topic)
         if not topic_partitions:
             raise ValueError(_("partition获取失败"))
-
         result = []
         for partition in topic_partitions:
             # 获取该分区最大偏移量
