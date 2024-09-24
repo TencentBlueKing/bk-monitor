@@ -292,7 +292,10 @@ export default class CollectGroup extends tsc<IProps> {
                   },
                 }}
               >
-                <FormItem property='groupEditName'>
+                <FormItem
+                  error-display-type='normal'
+                  property='groupEditName'
+                >
                   <Input
                     vModel={this.verifyData.groupEditName}
                     placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入组名') })}

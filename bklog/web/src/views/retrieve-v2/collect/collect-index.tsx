@@ -802,6 +802,10 @@ export default class CollectIndex extends tsc<IProps> {
           favoriteID={this.editFavoriteID}
           favoriteList={this.favoriteList}
           visibleFields={this.visibleFields}
+          on-change-favorite={async value => {
+            await this.getFavoriteList();
+            this.handleClickFavoriteItem(value);
+          }}
         />
       </div>
     );
