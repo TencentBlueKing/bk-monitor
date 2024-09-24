@@ -300,6 +300,8 @@ class ApplicationInfoResource(Resource):
                 data["trace_config"] = instance.trace_datasource.to_json()
             if instance.profile_datasource:
                 data["profiling_config"] = instance.profile_datasource.to_json()
+            if instance.log_datasource:
+                data["log_config"] = instance.log_datasource.to_json()
             return data
 
     def perform_request(self, validated_request_data):

@@ -52,6 +52,7 @@ from apm_web.meta.resources import (
     StartResource,
     StopResource,
     StorageFieldInfoResource,
+    StorageInfoResource,
 )
 from apm_web.models import Application
 from bkmonitor.iam import ActionEnum, ResourceEnum
@@ -214,6 +215,7 @@ class ApplicationViewSet(ResourceViewSet):
         ResourceRoute("POST", NoDataStrategyDisableResource, endpoint="nodata_strategy_disable"),
         ResourceRoute("POST", DataViewConfigResource, endpoint="data_view_config", pk_field="application_id"),
         ResourceRoute("POST", DataSamplingResource, "data_sampling", pk_field="application_id"),
+        ResourceRoute("POST", StorageInfoResource, endpoint="storage_info", pk_field="application_id"),
         ResourceRoute("POST", StorageFieldInfoResource, endpoint="storage_field_info", pk_field="application_id"),
         # --- 自定义远程服务
         ResourceRoute("GET", CustomServiceListResource, endpoint="custom_service_list"),
