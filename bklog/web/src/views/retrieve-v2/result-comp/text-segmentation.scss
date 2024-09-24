@@ -21,14 +21,19 @@
     }
   }
 
-  .new-link {
-    width: 24px;
-    height: 24px;
-
+  .new-link-container {
+    min-width: 40px;
     @include flex-center();
 
-    &:hover {
-      color: #3a84ff;
+    .new-link {
+      width: 24px;
+      height: 24px;
+  
+      @include flex-center();
+  
+      &:hover {
+        color: #3a84ff;
+      }
     }
   }
 
