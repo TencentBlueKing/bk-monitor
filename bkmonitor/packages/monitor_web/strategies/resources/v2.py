@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import datetime
 import logging
 import operator
 import re
@@ -11,6 +12,7 @@ from itertools import chain, product, zip_longest
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import arrow
+import pytz
 from django.conf import settings
 from django.db.models import Count, Q, QuerySet
 from django.utils.translation import ugettext_lazy as _
@@ -53,6 +55,7 @@ from bkmonitor.strategy.new_strategy import (
 )
 from bkmonitor.utils.request import get_source_app
 from bkmonitor.utils.time_format import duration_string, parse_duration
+from bkmonitor.utils.user import get_global_user
 from constants.alert import EventStatus
 from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.common import SourceApp
@@ -2225,6 +2228,8 @@ class UpdatePartialStrategyV2Resource(Resource):
         strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=params["ids"])
 
         updates_data = defaultdict(lambda: {"cls": None, "keys": [], "objs": []})
+        updates_data["update_time"]["cls"] = StrategyModel
+        updates_data["update_time"]["keys"] = ["update_time", "update_user"]
         for strategy in Strategy.from_models(strategies):
             for key, value in config.items():
                 update_method: Callable[[Strategy, Any], None] = getattr(self, f"update_{key}", None)
@@ -2236,8 +2241,12 @@ class UpdatePartialStrategyV2Resource(Resource):
                     updates_data[key]["keys"] = update_keys
                     updates_data[key]["objs"].extend(update_objs)
 
+            strategy.instance.update_time = datetime.datetime.now(tz=pytz.timezone(settings.TIME_ZONE))
+            strategy.instance.update_user = get_global_user()
+            updates_data["update_time"]["objs"].append(strategy.instance)
+
         for update_data in updates_data.values():
-            update_cls.objects.bulk_update(update_data["objs"], update_data["keys"])
+            update_data["cls"].objects.bulk_update(update_data["objs"], update_data["keys"])
 
         # 编辑后需要重置AsCode相关配置
         strategies.update(hash="", snippet="")

@@ -15,6 +15,13 @@ import sys
 import monkey
 from config.tools.environment import ENVIRONMENT, ROLE
 
+try:
+    import MySQLdb
+except ImportError:
+    import pymysql
+    pymysql.install_as_MySQLdb()
+
+
 # settings加载顺序 config.default -> blueapps.patch -> config.{env} -> config.role.{role}
 
 patch_module = ['json', 'shutil', 'furl', 're']

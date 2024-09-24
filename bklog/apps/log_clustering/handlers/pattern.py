@@ -170,7 +170,7 @@ class PatternHandler:
                     "count": count,
                     "signature": signature,
                     "percentage": self.percentage(count, sum_count),
-                    "is_new_class": new_class_group_key in new_class,
+                    "is_new_class": new_class_group_key in new_class or (signature,) in new_class,
                     "year_on_year_count": year_on_year_compare,
                     "year_on_year_percentage": self._year_on_year_calculate_percentage(count, year_on_year_compare),
                     "group": group,
@@ -299,16 +299,28 @@ class PatternHandler:
             NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
         )
         if self._clustering_config.new_cls_strategy_output:
-            select_fields = NEW_CLASS_QUERY_FIELDS + self._clustering_config.group_fields
             # 新类异常检测逻辑适配
-            new_classes = (
-                BkData(self._clustering_config.new_cls_strategy_output)
-                .select(*select_fields)
-                .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
-                .where(IS_NEW_PATTERN_PREFIX, "=", 1)
-                .time_range(start_time.timestamp, end_time.timestamp)
-                .query()
-            )
+            try:
+                select_fields = NEW_CLASS_QUERY_FIELDS + self._clustering_config.group_fields
+                new_classes = (
+                    BkData(self._clustering_config.new_cls_strategy_output)
+                    .select(*select_fields)
+                    .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
+                    .where(IS_NEW_PATTERN_PREFIX, "=", 1)
+                    .time_range(start_time.timestamp, end_time.timestamp)
+                    .query()
+                )
+            except Exception:  # pylint: disable=broad-except
+                # 分组字段不存在导致查询失败时，退化到不按分组聚合
+                select_fields = NEW_CLASS_QUERY_FIELDS
+                new_classes = (
+                    BkData(self._clustering_config.new_cls_strategy_output)
+                    .select(*select_fields)
+                    .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
+                    .where(IS_NEW_PATTERN_PREFIX, "=", 1)
+                    .time_range(start_time.timestamp, end_time.timestamp)
+                    .query()
+                )
         else:
             select_fields = NEW_CLASS_QUERY_FIELDS
             new_classes = (

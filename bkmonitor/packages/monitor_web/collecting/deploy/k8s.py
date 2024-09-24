@@ -137,6 +137,9 @@ class K8sInstaller(BaseInstaller):
         # 创建namespace和dataid资源
         self._create_namespace_and_dataid()
 
+        # 卸载旧的资源配置
+        self._undeploy()
+
         cluster_id, namespace = self._get_default_cluster()
         with k8s_client.ApiClient(self._get_k8s_config(cluster_id)) as api_client:
             client = k8s_dynamic.DynamicClient(api_client)
@@ -409,11 +412,32 @@ class K8sInstaller(BaseInstaller):
         """
         状态查询
         """
+
+        if self.collect_config.last_operation == OperationType.STOP:
+            return [
+                {
+                    "child": [
+                        {
+                            "instance_id": "default",
+                            "instance_name": _("公共采集集群"),
+                            "status": "SUCCESS",
+                            "plugin_version": self.collect_config.deployment_config.plugin_version.version,
+                            "log": "",
+                            "action": "",
+                            "steps": {},
+                        }
+                    ],
+                    "node_path": _("集群"),
+                    "label_name": "",
+                    "is_label": False,
+                }
+            ]
+
         cluster_id, namespace = self._get_default_cluster()
         with k8s_client.ApiClient(self._get_k8s_config(cluster_id)) as api_client:
             client = k8s_dynamic.DynamicClient(api_client)
 
-            children = []
+            status, log = "SUCCESS", ""
             for resource in yaml.safe_load_all(self._render_yaml(self.collect_config.deployment_config)):
                 if not resource:
                     continue
@@ -424,36 +448,41 @@ class K8sInstaller(BaseInstaller):
                 resource_client = client.resources.get(api_version=api_version, kind=kind)
                 try:
                     result = resource_client.get(namespace=namespace, name=resource["metadata"]["name"])
-                    status = "SUCCESS"
                 except k8s_client.exceptions.ApiException as e:
-                    logger.error(f"get k8s resource failed: {e}")
-                    result = None
                     status = "FAILED"
-
-                log: str = ""
+                    log = f"query {kind}/{resource['metadata']['name']} status failed, {e}"
+                    break
 
                 # 如果是Deployment或StatefulSet，进一步判断是否正常运行
-                if status == "SUCCESS" and kind.lower() in ["deployment", "statefulset"]:
+                if kind.lower() in ["deployment", "statefulset"]:
                     replicas = result["status"]["replicas"]
                     ready_replicas = result["status"]["readyReplicas"]
                     if replicas != ready_replicas:
                         status = "RUNNING"
-                        log = f"replicas: {replicas}, readyReplicas: {ready_replicas}"
+                        log = (
+                            f"{kind}/{resource['metadata']['name']} is running, "
+                            f"replicas: {replicas}, readyReplicas: {ready_replicas}"
+                        )
+                        break
 
-                instance_id = f"{kind}/{resource['metadata']['name']}"
-                children.append(
+        return [
+            {
+                "child": [
                     {
-                        "instance_id": instance_id,
-                        "instance_name": instance_id,
+                        "instance_id": "default",
+                        "instance_name": _("公共采集集群"),
                         "status": status,
                         "plugin_version": self.collect_config.deployment_config.plugin_version.version,
                         "log": log,
                         "action": "",
                         "steps": {},
                     }
-                )
-
-        return [{"child": children, "node_path": _("公共采集集群"), "label_name": "", "is_label": False}]
+                ],
+                "node_path": _("集群"),
+                "label_name": "",
+                "is_label": False,
+            }
+        ]
 
     def instance_status(self, instance_id: str):
         return {"log_detail": ""}

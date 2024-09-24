@@ -1419,4 +1419,25 @@ BK_APIGW_NAME = os.getenv("BK_APIGW_NAME", "bk-monitor")
 K8S_PLUGIN_COLLECT_CLUSTER_ID = ""
 
 # 腾讯云指标插件配置
+# {
+#     "label": "",
+#     "plugin_display_name": "",
+#     "description_md": "",
+#     "logo": "",
+#     "collect_json": {
+#         "values": {
+#             "limits": {
+#                 "cpu": "100m",
+#                 "memory": "100Mi"
+#             },
+#             "requests": {
+#                 "cpu": "10m",
+#                 "memory": "15Mi"
+#             }
+#         },
+#         "template": ""
+#     },
+#     "config_json": []
+# }
 TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {}
+TENCENT_CLOUD_METRIC_PLUGIN_ID = "qcloud_exporter"

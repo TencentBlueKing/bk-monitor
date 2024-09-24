@@ -116,7 +116,8 @@
       ],
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -344,7 +345,8 @@
       ],
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -815,7 +817,12 @@
             }
           }
         }
-      ]
+      ],
+      "options": {
+        "time_series": {
+          "hoverAllTooltips": true
+        }
+      }
     }
   ],
   "panels": [
@@ -931,7 +938,8 @@
       ],
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -1161,7 +1169,8 @@
       ],
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -1636,7 +1645,12 @@
             }
           }
         }
-      ]
+      ],
+      "options": {
+        "time_series": {
+          "hoverAllTooltips": true
+        }
+      }
     }
   ],
   "order": [],
