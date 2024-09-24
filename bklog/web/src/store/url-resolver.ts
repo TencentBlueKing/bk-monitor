@@ -166,8 +166,13 @@ class RouteUrlResolver {
 
 class RetrieveUrlResolver {
   routeQueryParams;
+  storeFieldKeyMap;
   constructor(params) {
     this.routeQueryParams = params;
+    // store中缓存的字段和URL中参数的字段key映射
+    this.storeFieldKeyMap = {
+      bk_biz_id: 'bizId',
+    };
   }
 
   resolveParamsToUrl() {
@@ -225,7 +230,8 @@ class RetrieveUrlResolver {
           const val = this.routeQueryParams[key];
           const valueFn = typeof routeQueryMap[key] === 'function' ? routeQueryMap[key] : routeQueryMap.default;
           const value = valueFn(val);
-          return Object.assign(result, { [key]: value });
+          const fieldName = this.storeFieldKeyMap[key] ?? key;
+          return Object.assign(result, { [fieldName]: value });
         }, {});
     };
 

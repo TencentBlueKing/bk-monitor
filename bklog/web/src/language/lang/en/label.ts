@@ -680,4 +680,6 @@ export default {
   添加正则: 'Add Regex',
   全部包含: 'All Inclusive',
   全部不包含: 'All Not Included',
+  新建检索: 'New Search',
+  所属分组: 'Group',
 };
