@@ -1818,7 +1818,7 @@ class KafkaTailResource(Resource):
             'bootstrap.servers': f"{datasource.mq_cluster.domain_name}:{datasource.mq_cluster.port}",
             'group.id': f'bkmonitor-{uuid.uuid4()}',
             'session.timeout.ms': 6000,  # 10秒超时
-            'auto.offset.reset': 'latest',  # 设置为latest或earliest，避免无效配置项
+            'auto.offset.reset': 'latest',
             'security.protocol': mq_ins.schema,
             'sasl.mechanisms': mq_ins.ssl_verification_mode,
             'sasl.username': datasource.mq_cluster.username,
