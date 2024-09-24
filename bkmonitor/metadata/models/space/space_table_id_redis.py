@@ -47,6 +47,7 @@ from metadata.models.space.ds_rt import (
     get_table_id_cluster_id,
     get_table_info_for_influxdb_and_vm,
 )
+from metadata.models.space.utils import get_biz_ids_by_space_ids, get_related_spaces
 from metadata.utils.db import filter_model_by_in_page, filter_query_set_by_in_page
 from metadata.utils.redis_tools import RedisTools
 
@@ -280,9 +281,12 @@ class SpaceTableIDRedis:
         """推送 bkcc 类型空间数据"""
         logger.info("start to push bkcc space table_id, space_type: %s, space_id: %s", space_type, space_id)
         _values = self._compose_data(space_type, space_id, from_authorization=from_authorization)
-        _values.update(self._compose_record_rule_table_ids(space_type, space_id))
-        _values.update(self._compose_es_table_ids(space_type, space_id))
         # 追加预计算结果表
+        _values.update(self._compose_record_rule_table_ids(space_type, space_id))
+        # 追加ES结果表
+        _values.update(self._compose_es_table_ids(space_type, space_id))
+        # 追加关联的BKCI的ES结果表，适配ES多空间功能
+        _values.update(self._compose_related_bkci_es_table_ids(space_type, space_id))
         # 推送数据
         if _values and can_push_data:
             redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
@@ -682,6 +686,19 @@ class SpaceTableIDRedis:
         biz_id = models.Space.objects.get_biz_id_by_space(space_type, space_id)
         tids = models.ResultTable.objects.filter(
             bk_biz_id=biz_id, default_storage=models.ClusterInfo.TYPE_ES, is_deleted=False, is_enable=True
+        ).values_list("table_id", flat=True)
+        return {tid: {"filters": []} for tid in tids}
+
+    def _compose_related_bkci_es_table_ids(self, space_type: str, space_id: str):
+        """
+        组装关联的BKCI类型的ES结果表
+        """
+        space_ids = get_related_spaces(
+            space_type_id=space_type, space_id=space_id, target_space_type_id=SpaceTypes.BKCI.value
+        )
+        biz_ids = get_biz_ids_by_space_ids(SpaceTypes.BKCI.value, space_ids)
+        tids = models.ResultTable.objects.filter(
+            bk_biz_id__in=biz_ids, default_storage=models.ClusterInfo.TYPE_ES, is_deleted=False, is_enable=True
         ).values_list("table_id", flat=True)
         return {tid: {"filters": []} for tid in tids}
 
