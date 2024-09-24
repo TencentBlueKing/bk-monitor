@@ -414,7 +414,9 @@
       align-items: center;
       height: 32px;
       padding: 0 4px 0 8px;
-      background-color: #182132;
+
+      /* stylelint-disable-next-line declaration-no-important */
+      background-color: #182132 !important;
       border-radius: 2px;
 
       &-name {
