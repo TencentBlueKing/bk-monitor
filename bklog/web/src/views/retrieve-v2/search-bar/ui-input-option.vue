@@ -137,17 +137,20 @@
   // 判定当前选中条件是否需要设置Value
   const isShowConditonValueSetting = computed(() => !withoutValueConditionList.includes(condition.value.operator));
 
-  // const compSearchValue = computed(() => {
-  //   if (searchValue.value.length) {
-  //     return searchValue.value;
-  //   }
+  /**
+   * 确定按钮是否激活
+   */
+  const isSaveBtnActive = computed(() => {
+    if (typeof props.value === 'string' && props.value.length) {
+      return true;
+    }
 
-  //   if (typeof props.value === 'string') {
-  //     return props.value;
-  //   }
+    if (isShowConditonValueSetting.value) {
+      return condition.value.value.length > 0;
+    }
 
-  //   return '';
-  // });
+    return condition.value.operator.length > 0;
+  });
 
   const filterFieldList = computed(() => {
     const regExp = getRegExp(searchValue.value);
@@ -1062,6 +1065,7 @@
       </div>
       <div class="ui-btn-opts">
         <bk-button
+          :disabled="!isSaveBtnActive"
           style="width: 64px; margin-right: 8px"
           theme="primary"
           @click.stop="handelSaveBtnClick"
