@@ -9,10 +9,6 @@ from .base import BasePluginManager
 class K8sPluginManager(BasePluginManager):
     """
     K8s插件管理器
-    collector_json: {
-        "template.yaml": "",
-        "values"
-    }
     """
 
     def release(

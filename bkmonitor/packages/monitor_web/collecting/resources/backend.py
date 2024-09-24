@@ -1018,13 +1018,13 @@ class SaveCollectConfigResource(Resource):
         elif data["collect_type"] == CollectConfigMeta.CollectType.SNMP_TRAP:
             plugin_id = resource.collecting.get_trap_collector_plugin(data)
         elif data["collect_type"] == CollectConfigMeta.CollectType.K8S:
-            qcloud_exporter_plugin_id = f"qcloud_exporter_{data['bk_biz_id']}"
+            qcloud_exporter_plugin_id = f"{settings.TENCENT_CLOUD_METRIC_PLUGIN_ID}_{data['bk_biz_id']}"
 
             # 仅支持腾讯云指标采集
-            if plugin_id not in ["tencent_cloud_metric", qcloud_exporter_plugin_id]:
-                raise ValueError("Only support tencent_cloud_metric k8s collector")
+            if plugin_id not in [settings.TENCENT_CLOUD_METRIC_PLUGIN_ID, qcloud_exporter_plugin_id]:
+                raise ValueError(f"Only support {settings.TENCENT_CLOUD_METRIC_PLUGIN_ID} k8s collector")
 
-            if plugin_id == "tencent_cloud_metric":
+            if plugin_id == settings.TENCENT_CLOUD_METRIC_PLUGIN_ID:
                 plugin_id = qcloud_exporter_plugin_id
 
                 # 检查是否已经创建了腾讯云指标采集插件
@@ -1047,10 +1047,11 @@ class SaveCollectConfigResource(Resource):
                         "plugin_display_name": _(plugin_config.get("plugin_display_name", "腾讯云指标采集")),
                         "description_md": plugin_config.get("description_md", ""),
                         "logo": plugin_config.get("logo", ""),
-                        "version_log": "",
+                        "version_log": plugin_config.get("version_log", ""),
                         "metric_json": [],
                         "collector_json": plugin_config["collector_json"],
-                        "data_label": "qcloud_exporter",
+                        "config_json": plugin_config.get("config_json", []),
+                        "data_label": settings.TENCENT_CLOUD_METRIC_PLUGIN_ID,
                     }
                 )
 
