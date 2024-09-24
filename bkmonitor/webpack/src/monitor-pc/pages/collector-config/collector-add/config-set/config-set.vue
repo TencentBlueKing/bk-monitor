@@ -756,7 +756,7 @@ export default {
         dms_insert: this.$t('维度注入'),
       },
       tippyOptions: {
-        distance: 0,
+        distance: 10,
       },
       others: {},
       introduce: {
