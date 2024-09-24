@@ -1768,7 +1768,7 @@ class NoDataStrategyStatusResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         application_id = serializers.IntegerField(label="应用ID")
-        telemetry_data_type = serializers.CharField(
+        telemetry_data_type = serializers.ChoiceField(
             label="数据类型", choices=TelemetryDataType.values(), default=TelemetryDataType.TRACING.value
         )
 
