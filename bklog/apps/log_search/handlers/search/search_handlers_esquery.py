@@ -642,18 +642,29 @@ class SearchHandler(object):
 
         return new_sort_list
 
+    def fetch_esquery_method(self, method_name="search"):
+        """
+        根据特性开关和传入方法名，返回不同方式的调用方法
+        :param method_name: 默认返回esquery的search方法
+        :return: esquery中定义的方法
+        """
+        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
+            return getattr(self, f"direct_esquery_{method_name}")
+        else:
+            return getattr(BkLogApi, method_name)
+
     @classmethod
-    def direct_esquery_search(cls, params):
+    def direct_esquery_search(cls, params, **kwargs):
         data = custom_params_valid(EsQuerySearchAttrSerializer, params)
         return EsQuery(data).search()
 
     @classmethod
-    def direct_esquery_dsl(cls, params):
+    def direct_esquery_dsl(cls, params, **kwargs):
         data = custom_params_valid(EsQueryDslAttrSerializer, params)
         return EsQuery(data).dsl()
 
     @classmethod
-    def direct_esquery_scroll(cls, params):
+    def direct_esquery_scroll(cls, params, **kwargs):
         data = custom_params_valid(EsQueryScrollAttrSerializer, params)
         return EsQuery(data).scroll()
 
@@ -702,14 +713,12 @@ class SearchHandler(object):
             except Exception as e:  # pylint: disable=broad-except
                 logger.exception(f"[_multi_search] parse time error -> e: {e}")
 
-        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
-            exec_func = self.direct_esquery_search
-        else:
-            exec_func = BkLogApi.search
+        # 获取search对应的esquery方法
+        search_func = self.fetch_esquery_method(method_name="search")
 
         if not storage_cluster_record_objs:
             try:
-                data = exec_func(params)
+                data = search_func(params)
                 return data
             except ApiResultError as e:
                 raise ApiResultError(_("搜索出错，请检查查询语句是否正确") + f" => {e}", code=e.code, errors=e.errors)
@@ -725,7 +734,7 @@ class SearchHandler(object):
         params["size"] = once_size + self.start
 
         # 获取当前使用的存储集群数据
-        multi_execute_func.append(result_key=f"multi_search_{multi_num}", func=exec_func, params=params)
+        multi_execute_func.append(result_key=f"multi_search_{multi_num}", func=search_func, params=params)
 
         # 获取历史使用的存储集群数据
         for storage_cluster_record_obj in storage_cluster_record_objs:
@@ -733,7 +742,7 @@ class SearchHandler(object):
                 multi_params = copy.deepcopy(params)
                 multi_params["storage_cluster_id"] = storage_cluster_record_obj.storage_cluster_id
                 multi_num += 1
-                multi_execute_func.append(result_key=f"multi_search_{multi_num}", func=exec_func, params=multi_params)
+                multi_execute_func.append(result_key=f"multi_search_{multi_num}", func=search_func, params=multi_params)
                 storage_cluster_ids.add(storage_cluster_record_obj.storage_cluster_id)
 
         multi_result = multi_execute_func.run()
@@ -936,66 +945,10 @@ class SearchHandler(object):
         @param size:
         @return:
         """
+        # 获取search对应的esquery方法
+        search_func = self.fetch_esquery_method(method_name="search")
         if self.scenario_id == Scenario.ES:
-            if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
-                result = self.direct_esquery_search(
-                    {
-                        "indices": self.indices,
-                        "scenario_id": self.scenario_id,
-                        "storage_cluster_id": self.storage_cluster_id,
-                        "start_time": self.start_time,
-                        "end_time": self.end_time,
-                        "query_string": self.query_string,
-                        "filter": self.filter,
-                        "sort_list": self.sort_list,
-                        "start": self.start,
-                        "size": size,
-                        "aggs": self.aggs,
-                        "highlight": self.highlight,
-                        "time_zone": self.time_zone,
-                        "time_range": self.time_range,
-                        "use_time_range": self.use_time_range,
-                        "time_field": self.time_field,
-                        "time_field_type": self.time_field_type,
-                        "time_field_unit": self.time_field_unit,
-                        "scroll": SCROLL,
-                        "collapse": self.collapse,
-                    }
-                )
-            else:
-                result = BkLogApi.search(
-                    {
-                        "indices": self.indices,
-                        "scenario_id": self.scenario_id,
-                        "storage_cluster_id": self.storage_cluster_id,
-                        "start_time": self.start_time,
-                        "end_time": self.end_time,
-                        "query_string": self.query_string,
-                        "filter": self.filter,
-                        "sort_list": self.sort_list,
-                        "start": self.start,
-                        "size": size,
-                        "aggs": self.aggs,
-                        "highlight": self.highlight,
-                        "time_zone": self.time_zone,
-                        "time_range": self.time_range,
-                        "use_time_range": self.use_time_range,
-                        "time_field": self.time_field,
-                        "time_field_type": self.time_field_type,
-                        "time_field_unit": self.time_field_unit,
-                        "scroll": SCROLL,
-                        "collapse": self.collapse,
-                    },
-                    data_api_retry_cls=DataApiRetryClass.create_retry_obj(
-                        exceptions=[BaseException],
-                        stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY,
-                    ),
-                )
-            return result
-
-        sorted_list = self._get_user_sorted_list(sorted_fields)
-        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
-            result = self.direct_esquery_search(
+            result = search_func(
                 {
                     "indices": self.indices,
                     "scenario_id": self.scenario_id,
@@ -1004,49 +957,55 @@ class SearchHandler(object):
                     "end_time": self.end_time,
                     "query_string": self.query_string,
                     "filter": self.filter,
-                    "sort_list": sorted_list,
+                    "sort_list": self.sort_list,
                     "start": self.start,
                     "size": size,
                     "aggs": self.aggs,
                     "highlight": self.highlight,
                     "time_zone": self.time_zone,
                     "time_range": self.time_range,
-                    "time_field": self.time_field,
                     "use_time_range": self.use_time_range,
+                    "time_field": self.time_field,
                     "time_field_type": self.time_field_type,
                     "time_field_unit": self.time_field_unit,
-                    "scroll": None,
-                    "collapse": self.collapse,
-                }
-            )
-        else:
-            result = BkLogApi.search(
-                {
-                    "indices": self.indices,
-                    "scenario_id": self.scenario_id,
-                    "storage_cluster_id": self.storage_cluster_id,
-                    "start_time": self.start_time,
-                    "end_time": self.end_time,
-                    "query_string": self.query_string,
-                    "filter": self.filter,
-                    "sort_list": sorted_list,
-                    "start": self.start,
-                    "size": size,
-                    "aggs": self.aggs,
-                    "highlight": self.highlight,
-                    "time_zone": self.time_zone,
-                    "time_range": self.time_range,
-                    "time_field": self.time_field,
-                    "use_time_range": self.use_time_range,
-                    "time_field_type": self.time_field_type,
-                    "time_field_unit": self.time_field_unit,
-                    "scroll": None,
+                    "scroll": SCROLL,
                     "collapse": self.collapse,
                 },
                 data_api_retry_cls=DataApiRetryClass.create_retry_obj(
-                    exceptions=[BaseException], stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY
+                    exceptions=[BaseException],
+                    stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY,
                 ),
             )
+            return result
+
+        sorted_list = self._get_user_sorted_list(sorted_fields)
+        result = search_func(
+            {
+                "indices": self.indices,
+                "scenario_id": self.scenario_id,
+                "storage_cluster_id": self.storage_cluster_id,
+                "start_time": self.start_time,
+                "end_time": self.end_time,
+                "query_string": self.query_string,
+                "filter": self.filter,
+                "sort_list": sorted_list,
+                "start": self.start,
+                "size": size,
+                "aggs": self.aggs,
+                "highlight": self.highlight,
+                "time_zone": self.time_zone,
+                "time_range": self.time_range,
+                "time_field": self.time_field,
+                "use_time_range": self.use_time_range,
+                "time_field_type": self.time_field_type,
+                "time_field_unit": self.time_field_unit,
+                "scroll": None,
+                "collapse": self.collapse,
+            },
+            data_api_retry_cls=DataApiRetryClass.create_retry_obj(
+                exceptions=[BaseException], stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY
+            ),
+        )
         return result
 
     def search_after_result(self, search_result, sorted_fields):
@@ -1056,6 +1015,8 @@ class SearchHandler(object):
         @param sorted_fields:
         @return:
         """
+        # 获取search对应的esquery方法
+        search_func = self.fetch_esquery_method(method_name="search")
         search_after_size = len(search_result["hits"]["hits"])
         result_size = search_after_size
         max_result_window = self.index_set_obj.result_window
@@ -1064,63 +1025,35 @@ class SearchHandler(object):
             search_after = []
             for sorted_field in sorted_list:
                 search_after.append(search_result["hits"]["hits"][-1]["_source"].get(sorted_field[0]))
-            if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
-                search_result = self.direct_esquery_search(
-                    {
-                        "indices": self.indices,
-                        "scenario_id": self.scenario_id,
-                        "storage_cluster_id": self.storage_cluster_id,
-                        "start_time": self.start_time,
-                        "end_time": self.end_time,
-                        "query_string": self.query_string,
-                        "filter": self.filter,
-                        "sort_list": sorted_list,
-                        "start": self.start,
-                        "size": max_result_window,
-                        "aggs": self.aggs,
-                        "highlight": self.highlight,
-                        "time_zone": self.time_zone,
-                        "time_range": self.time_range,
-                        "use_time_range": self.use_time_range,
-                        "time_field": self.time_field,
-                        "time_field_type": self.time_field_type,
-                        "time_field_unit": self.time_field_unit,
-                        "scroll": self.scroll,
-                        "collapse": self.collapse,
-                        "search_after": search_after,
-                        "track_total_hits": False,
-                    },
-                )
-            else:
-                search_result = BkLogApi.search(
-                    {
-                        "indices": self.indices,
-                        "scenario_id": self.scenario_id,
-                        "storage_cluster_id": self.storage_cluster_id,
-                        "start_time": self.start_time,
-                        "end_time": self.end_time,
-                        "query_string": self.query_string,
-                        "filter": self.filter,
-                        "sort_list": sorted_list,
-                        "start": self.start,
-                        "size": max_result_window,
-                        "aggs": self.aggs,
-                        "highlight": self.highlight,
-                        "time_zone": self.time_zone,
-                        "time_range": self.time_range,
-                        "use_time_range": self.use_time_range,
-                        "time_field": self.time_field,
-                        "time_field_type": self.time_field_type,
-                        "time_field_unit": self.time_field_unit,
-                        "scroll": self.scroll,
-                        "collapse": self.collapse,
-                        "search_after": search_after,
-                        "track_total_hits": False,
-                    },
-                    data_api_retry_cls=DataApiRetryClass.create_retry_obj(
-                        exceptions=[BaseException], stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY
-                    ),
-                )
+            search_result = search_func(
+                {
+                    "indices": self.indices,
+                    "scenario_id": self.scenario_id,
+                    "storage_cluster_id": self.storage_cluster_id,
+                    "start_time": self.start_time,
+                    "end_time": self.end_time,
+                    "query_string": self.query_string,
+                    "filter": self.filter,
+                    "sort_list": sorted_list,
+                    "start": self.start,
+                    "size": max_result_window,
+                    "aggs": self.aggs,
+                    "highlight": self.highlight,
+                    "time_zone": self.time_zone,
+                    "time_range": self.time_range,
+                    "use_time_range": self.use_time_range,
+                    "time_field": self.time_field,
+                    "time_field_type": self.time_field_type,
+                    "time_field_unit": self.time_field_unit,
+                    "scroll": self.scroll,
+                    "collapse": self.collapse,
+                    "search_after": search_after,
+                    "track_total_hits": False,
+                },
+                data_api_retry_cls=DataApiRetryClass.create_retry_obj(
+                    exceptions=[BaseException], stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY
+                ),
+            )
 
             search_after_size = len(search_result["hits"]["hits"])
             result_size += search_after_size
@@ -1132,34 +1065,25 @@ class SearchHandler(object):
         @param scroll_result:
         @return:
         """
+        # 获取scroll对应的esquery方法
+        scroll_func = self.fetch_esquery_method(method_name="scroll")
         scroll_size = len(scroll_result["hits"]["hits"])
         result_size = scroll_size
         max_result_window = self.index_set_obj.result_window
         while scroll_size == max_result_window and result_size < self.size:
             _scroll_id = scroll_result["_scroll_id"]
-            if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
-                scroll_result = self.direct_esquery_scroll(
-                    {
-                        "indices": self.indices,
-                        "scenario_id": self.scenario_id,
-                        "storage_cluster_id": self.storage_cluster_id,
-                        "scroll": SCROLL,
-                        "scroll_id": _scroll_id,
-                    },
-                )
-            else:
-                scroll_result = BkLogApi.scroll(
-                    {
-                        "indices": self.indices,
-                        "scenario_id": self.scenario_id,
-                        "storage_cluster_id": self.storage_cluster_id,
-                        "scroll": SCROLL,
-                        "scroll_id": _scroll_id,
-                    },
-                    data_api_retry_cls=DataApiRetryClass.create_retry_obj(
-                        exceptions=[BaseException], stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY
-                    ),
-                )
+            scroll_result = scroll_func(
+                {
+                    "indices": self.indices,
+                    "scenario_id": self.scenario_id,
+                    "storage_cluster_id": self.storage_cluster_id,
+                    "scroll": SCROLL,
+                    "scroll_id": _scroll_id,
+                },
+                data_api_retry_cls=DataApiRetryClass.create_retry_obj(
+                    exceptions=[BaseException], stop_max_attempt_number=MAX_EXPORT_REQUEST_RETRY
+                ),
+            )
             scroll_size = len(scroll_result["hits"]["hits"])
             result_size += scroll_size
             yield self._deal_query_result(scroll_result)
@@ -1481,17 +1405,15 @@ class SearchHandler(object):
         if record_obj:
             dsl_params_base.update({"storage_cluster_id": record_obj.storage_cluster_id})
 
-        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.search_dict.get("bk_biz_id")):
-            exec_func = self.direct_esquery_dsl
-        else:
-            exec_func = BkLogApi.dsl
+        # 获取dsl对应的esquery方法
+        dsl_func = self.fetch_esquery_method(method_name="dsl")
 
         if self.zero:
             # up
             body: dict = self._get_context_body("-")
             dsl_params_up = copy.deepcopy(dsl_params_base)
             dsl_params_up.update({"body": body})
-            result_up: dict = exec_func(dsl_params_up)
+            result_up: dict = dsl_func(dsl_params_up)
             result_up: dict = self._deal_query_result(result_up)
             result_up.update(
                 {
@@ -1505,7 +1427,7 @@ class SearchHandler(object):
 
             dsl_params_down = copy.deepcopy(dsl_params_base)
             dsl_params_down.update({"body": body})
-            result_down: Dict = exec_func(dsl_params_down)
+            result_down: Dict = dsl_func(dsl_params_down)
 
             result_down: dict = self._deal_query_result(result_down)
             result_down.update({"list": result_down.get("list"), "origin_log_list": result_down.get("origin_log_list")})
@@ -1542,7 +1464,7 @@ class SearchHandler(object):
 
             dsl_params_up = copy.deepcopy(dsl_params_base)
             dsl_params_up.update({"body": body})
-            result_up = exec_func(dsl_params_up)
+            result_up = dsl_func(dsl_params_up)
 
             result_up: dict = self._deal_query_result(result_up)
             result_up.update(
@@ -1563,7 +1485,7 @@ class SearchHandler(object):
 
             dsl_params_down = copy.deepcopy(dsl_params_base)
             dsl_params_down.update({"body": body})
-            result_down = exec_func(dsl_params_down)
+            result_down = dsl_func(dsl_params_down)
 
             result_down = self._deal_query_result(result_down)
             result_down.update({"list": result_down.get("list"), "origin_log_list": result_down.get("origin_log_list")})
