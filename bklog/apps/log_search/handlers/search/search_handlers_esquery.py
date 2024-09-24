@@ -1400,7 +1400,8 @@ class SearchHandler(object):
                     return
             not_repeat_history.append(history)
 
-        for _history_obj in history_obj:
+        # 使用 iterator() 逐行处理记录
+        for _history_obj in history_obj.iterator():
             _not_repeat(_history_obj)
             if len(not_repeat_history) >= 10:
                 break
