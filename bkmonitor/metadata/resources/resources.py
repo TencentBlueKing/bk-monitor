@@ -1869,9 +1869,6 @@ class KafkaTailResource(Resource):
                     else:
                         try:
                             result.append(json.loads(msg.value().decode()))
-                            if len(result) >= size:
-                                consumer.close()
-                                return result
                         except Exception:  # pylint: disable=broad-except
                             pass
                     if msg.offset() == end_offset - 1:
