@@ -16,10 +16,19 @@
       display: flex;
       align-items: center;
       height: 100%;
+      cursor: pointer;
       border: none;
-      border-right: solid 1px #dcdee5;
+
+      &.retrieve-index-select {
+        background: #fff9eb;
+
+        .bk-select-dropdown {
+          padding: 0 6px;
+        }
+      }
 
       &:last-child {
+        padding-left: 16px;
         border-right: none;
       }
     }

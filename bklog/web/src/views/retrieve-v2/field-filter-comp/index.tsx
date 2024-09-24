@@ -264,18 +264,11 @@ export default class FieldFilterComp extends tsc<object> {
   }
   // 按过滤条件对字段进行过滤
   filterListByCondition() {
-    const { polymerizable, fieldType, searchKeyword } = this;
+    const { searchKeyword } = this;
     [this.visibleFields, this.hiddenFields].forEach(fieldList => {
       fieldList.forEach(fieldItem => {
         fieldItem.filterVisible =
-          fieldItem.field_name.includes(searchKeyword) &&
-          !(
-            (polymerizable === '1' && !fieldItem.es_doc_values) ||
-            (polymerizable === '2' && fieldItem.es_doc_values) ||
-            (fieldType === 'number' && !['long', 'integer'].includes(fieldItem.field_type)) ||
-            (fieldType === 'date' && !['date', 'date_nanos'].includes(fieldItem.field_type)) ||
-            (!['any', 'number', 'date'].includes(fieldType) && fieldItem.field_type !== fieldType)
-          );
+          fieldItem.field_name.includes(searchKeyword) || fieldItem.field_alias.includes(searchKeyword);
       });
     });
   }

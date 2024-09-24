@@ -277,6 +277,10 @@
         type: Object,
         require: true,
       },
+      isClusterActive: {
+        type: Boolean,
+        default: false,
+      },
       requestData: {
         type: Object,
         require: true,
@@ -345,6 +349,7 @@
       this.checkReportIsExistedDebounce = debounce(1000, this.checkReportIsExisted);
     },
     mounted() {
+      if (!this.isClusterActive) return;
       this.handleShowMorePopover();
       this.checkReportIsExistedDebounce();
     },

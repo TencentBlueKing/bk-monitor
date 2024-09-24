@@ -55,7 +55,7 @@ class RouteUrlResolver {
    */
   public convertQueryToStore() {
     return this.resolveFieldList.reduce((output, key) => {
-      const value = this.resolver.get(key)?.(this.query?.[key]) ?? this.commonRresolver(this.query?.[key]);
+      const value = this.resolver.get(key)?.(this.query?.[key]) ?? this.commonResolver(this.query?.[key]);
       if (value !== undefined) {
         return Object.assign(output, { [key]: value });
       }
@@ -94,7 +94,7 @@ class RouteUrlResolver {
     ];
   }
 
-  private commonRresolver(str, next?) {
+  private commonResolver(str, next?) {
     if (str !== undefined && str !== null) {
       const val = decodeURIComponent(str);
       return next?.(str) ?? val;
@@ -104,7 +104,7 @@ class RouteUrlResolver {
   }
 
   private objectResolver(str) {
-    return this.commonRresolver(str, val => JSON.parse(val));
+    return this.commonResolver(str, val => JSON.parse(decodeURIComponent(val)));
   }
 
   private arrayResolver(str) {
@@ -116,7 +116,8 @@ class RouteUrlResolver {
    * @param timeRange [start_time, end_time]
    */
   private dateTimeRangeResolver(timeRange: string[]) {
-    const result = handleTransformToTimestamp(timeRange);
+    const regExp = /^\d+$/;
+    const result = timeRange.every(t => regExp.test(`${t}`)) ? timeRange : handleTransformToTimestamp(timeRange);
     return { start_time: result[0], end_time: result[1] };
   }
 
@@ -129,22 +130,22 @@ class RouteUrlResolver {
 
     // datePicker默认直接获取URL中的 start_time, end_time
     this.resolver.set('datePickerValue', () => {
-      return this.commonRresolver(this.query.start_time, value => {
-        const endTime = this.commonRresolver(this.query.end_time) ?? value;
+      return this.commonResolver(this.query.start_time, value => {
+        const endTime = this.commonResolver(this.query.end_time) ?? value;
         return [value, endTime];
       });
     });
 
     this.resolver.set('start_time', val => {
-      return this.commonRresolver(val, value => {
-        const end_time = this.commonRresolver(this.query?.end_time) ?? value;
+      return this.commonResolver(val, value => {
+        const end_time = this.commonResolver(this.query?.end_time) ?? value;
         return this.dateTimeRangeResolver([value, end_time]).start_time;
       });
     });
 
     this.resolver.set('end_time', val => {
-      return this.commonRresolver(val, value => {
-        const start_time = this.commonRresolver(this.query?.start_time) ?? value;
+      return this.commonResolver(val, value => {
+        const start_time = this.commonResolver(this.query?.start_time) ?? value;
         return this.dateTimeRangeResolver([start_time, value]).end_time;
       });
     });

@@ -39,7 +39,10 @@
         />
         <span class="logo-text">{{ platformData.name }}</span>
       </div>
-      <BizMenuSelect></BizMenuSelect>
+      <BizMenuSelect
+        v-if="showHeadNaviBizSelect"
+        class="head-navi-left"
+      ></BizMenuSelect>
     </div>
     <div
       class="nav-center fl"
@@ -341,6 +344,21 @@
       isShowGlobalSetIcon() {
         return !this.welcomeData && !this.isExternal;
       },
+      showHeadNaviBizSelect() {
+        if (this.$route.name === 'retrieve') {
+          const isDebug = window.FEATURE_TOGGLE.bklog_search_new === 'debug';
+          const isOn = window.FEATURE_TOGGLE.bklog_search_new === 'on';
+          if (isDebug) {
+            const whiteList = (window.FEATURE_TOGGLE_WHITE_LIST.bklog_search_new ?? []).map(id => `${id}`);
+            const bkBizId = this.$route.query.bizId;
+            if (bkBizId && whiteList.includes(bkBizId)) {
+              return true;
+            }
+          }
+
+          return isOn;
+        }
+      },
     },
     watch: {
       $route() {
@@ -637,9 +655,11 @@
     .nav-left {
       display: flex;
       align-items: center;
-      width: 345px;
+      min-width: max-content;
+      max-width: 180px;
       height: 100%;
       padding-left: 16px;
+      margin-right: 80px;
       font-size: 18px;
 
       .log-logo-container {
@@ -659,6 +679,15 @@
           width: 40px;
           height: 40px;
           margin-right: 10px;
+        }
+      }
+
+      .head-navi-left {
+        &.biz-menu-select {
+          .menu-select-list {
+            top: 52px;
+            left: 138px;
+          }
         }
       }
     }

@@ -45,17 +45,6 @@
       search_mode,
     });
 
-    activeIndex.value = queryParams.findIndex(m => m === search_mode);
-    if (activeIndex.value === -1) {
-      if (keyword?.length) {
-        activeIndex.value = 1;
-      }
-
-      if (addition.length) {
-        activeIndex.value = 0;
-      }
-    }
-
     setTimeout(() => {
       store.dispatch('requestIndexSetQuery');
     });
@@ -65,8 +54,9 @@
   <div class="subbar-container">
     <div class="box-biz-select">
       <SelectIndexSet
-        style="width: 500px; margin: 0 12px 0 0"
+        style="min-width: 300px"
         @selected="handleIndexSetSelected"
+        :popoverOptions="{ offset: '-6,10' }"
       ></SelectIndexSet>
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>

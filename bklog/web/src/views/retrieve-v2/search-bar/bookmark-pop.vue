@@ -193,9 +193,10 @@
     return `* AND (${formatAddition.value
       .map(({ field, operator, value }) => {
         if (field === '_ip-select_') {
-          return Object.keys(value ?? {})
+          const target = value?.[0] ?? {};
+          return Object.keys(target)
             .reduce((output, key) => {
-              return [...output, `${key}:[${value[key].toString()}]`];
+              return [...output, `${key}:[${(target[key] ?? []).map(c => c.ip ?? c.objectId ?? c.id).join(' ')}]`];
             }, [])
             .join(' AND ');
         }

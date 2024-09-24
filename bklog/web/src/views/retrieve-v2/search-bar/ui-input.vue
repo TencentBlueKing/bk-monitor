@@ -2,6 +2,7 @@
   import { ref, computed, set } from 'vue';
 
   import { getOperatorKey } from '@/common/util';
+  import { operatorMapping, translateKeys } from './const-values';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
 
@@ -42,19 +43,6 @@
     return { disabled: false, ...(item ?? {}) };
   };
 
-  /**
-   * 获取操作符展示文本
-   * @param {*} item
-   */
-  const getOperatorLabel = item => {
-    if (item.field === '_ip-select_') {
-      return '';
-    }
-
-    const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
-    return operatorDictionary.value[key]?.label ?? item.operator;
-  };
-
   const handleHeightChange = height => {
     emit('height-change', height);
   };
@@ -68,6 +56,23 @@
       ...store.state.operatorDictionary,
     };
   });
+
+  /**
+   * 获取操作符展示文本
+   * @param {*} item
+   */
+  const getOperatorLabel = item => {
+    if (item.field === '_ip-select_') {
+      return '';
+    }
+
+    const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
+    if (translateKeys.includes(item.operator)) {
+      return $t(operatorMapping[item.operator] ?? item.operator);
+    }
+
+    return operatorDictionary.value[key]?.label ?? operatorMapping[item.operator] ?? item.operator;
+  };
 
   const refPopInstance = ref(null);
   const refUlRoot = ref(null);
