@@ -1531,6 +1531,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
           : [
               {
                 ...this.pluginData,
+                enable_field_blacklist: true,
                 import_plugin_config: importPluginConfig,
                 import_plugin_metric_json: importPluginMetricJson || [],
               },
