@@ -50,7 +50,6 @@ export const createUptimeCheckGroup = request('POST', 'rest/v2/uptime_check/upti
 export const destroyUptimeCheckGroup = request('DELETE', 'rest/v2/uptime_check/uptime_check_group/{pk}/');
 export const listUptimeCheckGroup = request('GET', 'rest/v2/uptime_check/uptime_check_group/');
 export const partialUpdateUptimeCheckGroup = request('PATCH', 'rest/v2/uptime_check/uptime_check_group/{pk}/');
-export const removeTaskUptimeCheckGroup = request('POST', 'rest/v2/uptime_check/uptime_check_group/{pk}/remove_task/');
 export const retrieveUptimeCheckGroup = request('GET', 'rest/v2/uptime_check/uptime_check_group/{pk}/');
 export const updateUptimeCheckGroup = request('PUT', 'rest/v2/uptime_check/uptime_check_group/{pk}/');
 export const checkIdCollectorPlugin = request('GET', 'rest/v2/collector_plugin/check_id/');
@@ -77,9 +76,6 @@ export const batchDeleteIpChooserConfig = request('POST', 'rest/v2/commons/ip_ch
 export const batchGetIpChooserConfig = request('POST', 'rest/v2/commons/ip_chooser_config/batch_get/');
 export const globalConfigIpChooserConfig = request('GET', 'rest/v2/commons/ip_chooser_config/global_config/');
 export const updateConfigIpChooserConfig = request('POST', 'rest/v2/commons/ip_chooser_config/update_config/');
-export const agentStatisticsIpChooserDynamicGroup = request('POST', 'rest/v2/commons/ip_chooser_dynamic_group/agent_statistics/');
-export const dynamicGroupsIpChooserDynamicGroup = request('POST', 'rest/v2/commons/ip_chooser_dynamic_group/groups/');
-export const executeDynamicGroupIpChooserDynamicGroup = request('POST', 'rest/v2/commons/ip_chooser_dynamic_group/execute/');
 export const checkIpChooserHost = request('POST', 'rest/v2/commons/ip_chooser_host/check/');
 export const detailsIpChooserHost = request('POST', 'rest/v2/commons/ip_chooser_host/details/');
 export const detailsIpChooserServiceInstance = request('POST', 'rest/v2/commons/ip_chooser_service_instance/details/');
@@ -95,6 +91,9 @@ export const queryPathIpChooserTopo = request('POST', 'rest/v2/commons/ip_choose
 export const queryServiceInstancesIpChooserTopo = request('POST', 'rest/v2/commons/ip_chooser_topo/query_service_instances/');
 export const serviceInstanceCountIpChooserTopo = request('POST', 'rest/v2/commons/ip_chooser_topo/service_instance_count/');
 export const treesIpChooserTopo = request('POST', 'rest/v2/commons/ip_chooser_topo/trees/');
+export const groupsIpChooserDynamicGroup = request('POST', 'rest/v2/commons/ip_chooser_dynamic_group/groups/');
+export const executeIpChooserDynamicGroup = request('POST', 'rest/v2/commons/ip_chooser_dynamic_group/execute/');
+export const agentStatisticsIpChooserDynamicGroup = request('POST', 'rest/v2/commons/ip_chooser_dynamic_group/agent_statistics/');
 export const enhancedContext = request('GET', 'rest/v2/commons/context/enhanced/');
 export const listUsersUser = request('GET', 'rest/v2/commons/user/list_users/');
 export const createFavoriteGroup = request('POST', 'rest/v2/favorite_group/');
@@ -216,7 +215,6 @@ export default {
   destroyUptimeCheckGroup,
   listUptimeCheckGroup,
   partialUpdateUptimeCheckGroup,
-  removeTaskUptimeCheckGroup,
   retrieveUptimeCheckGroup,
   updateUptimeCheckGroup,
   checkIdCollectorPlugin,
@@ -243,9 +241,6 @@ export default {
   batchGetIpChooserConfig,
   globalConfigIpChooserConfig,
   updateConfigIpChooserConfig,
-  agentStatisticsIpChooserDynamicGroup,
-  dynamicGroupsIpChooserDynamicGroup,
-  executeDynamicGroupIpChooserDynamicGroup,
   checkIpChooserHost,
   detailsIpChooserHost,
   detailsIpChooserServiceInstance,
@@ -261,6 +256,9 @@ export default {
   queryServiceInstancesIpChooserTopo,
   serviceInstanceCountIpChooserTopo,
   treesIpChooserTopo,
+  groupsIpChooserDynamicGroup,
+  executeIpChooserDynamicGroup,
+  agentStatisticsIpChooserDynamicGroup,
   enhancedContext,
   listUsersUser,
   createFavoriteGroup,

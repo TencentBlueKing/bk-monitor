@@ -39,5 +39,5 @@ export default {
   editIncident,
   feedbackIncidentRoot,
   incidentAlertList,
-  incidentAlertView,
+  incidentAlertView
 };
