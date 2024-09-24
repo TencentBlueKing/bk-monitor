@@ -440,6 +440,20 @@ class StatusTableFormat(TableFormat):
         return status
 
 
+class DataStatusTableFormat(TableFormat):
+    """
+    数据状态列 用于显示功能的数据状态
+    1. 绿色勾: 开启了功能并且此功能有数据
+    2. 红色感叹号: 开启了功能但是功能无数据
+    3. 灰色叉叉: 未开启功能
+    """
+
+    column_type = "data_status"
+
+    def format(self, row):
+        return {"icon": row.get(self.id)}
+
+
 class CollectTableFormat(TableFormat):
     column_type = "collect"
     collect_map = {True: _lazy("已收藏"), False: _lazy("未收藏")}
