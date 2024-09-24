@@ -568,12 +568,25 @@ class StorageStatusResource(BaseStatusResource):
     class RequestSerilizer(serializers.Serializer):
         collect_config_id = serializers.IntegerField(required=True, label="采集配置ID")
 
-    def perform_request(self, validated_request_data):
-        self.init_data(validated_request_data["collect_config_id"])
-        metric_json = self.get_metrics_json()
-        if not metric_json:
+    def perform_request(self, params):
+        try:
+            collect_config = CollectConfigMeta.objects.select_related("plugin").get(id=params["collect_config_id"])
+        except CollectConfigMeta.DoesNotExist:
             return {}
 
+        plugin = collect_config.plugin
+
+        group_list = api.metadata.query_time_series_group(
+            time_series_group_name=f"{plugin.plugin_type}_{plugin.plugin_id}"
+        )
+        if group_list:
+            table_id = PluginVersionHistory.get_result_table_id(plugin, "__default__")
+        else:
+            metric_json = collect_config.deployment_config.metrics
+            if not metric_json:
+                return {}
+            table_id = PluginVersionHistory.get_result_table_id(plugin, metric_json[0]["table_name"])
+
         # 同一个采集项下所有表存储配置都是一致的，取第一个结果表即可
-        storager = get_storager(metric_json[0]["table_id"])
+        storager = get_storager(table_id=table_id)
         return {"info": storager.get_info(), "status": storager.get_status()}

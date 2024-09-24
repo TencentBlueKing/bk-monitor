@@ -135,6 +135,49 @@ class CollectConfigListResource(Resource):
                 config.cache_data = cache_data
                 config.operation_result = operation_result
 
+        # 更新k8s插件采集配置的状态
+        for collect_config in config_data_list:
+            # 跳过非k8s插件
+            if collect_config.plugin.plugin_type != PluginType.K8S:
+                continue
+
+            if collect_config.operation_result not in [OperationResult.PREPARING, OperationResult.DEPLOYING]:
+                continue
+
+            error_count, total_count, pending_count, running_count = 0, 0, 0, 0
+            installer = get_collect_installer(collect_config)
+            for node in installer.status():
+                for instance in node["child"]:
+                    if instance["status"] == CollectStatus.RUNNING:
+                        running_count += 1
+                    elif instance["status"] == CollectStatus.PENDING:
+                        pending_count += 1
+                    elif instance["status"] in [CollectStatus.FAILED, CollectStatus.UNKNOWN]:
+                        error_count += 1
+                    total_count += 1
+
+            if error_count == total_count:
+                operation_result = OperationResult.FAILED
+            elif running_count + pending_count != 0:
+                operation_result = OperationResult.DEPLOYING
+            elif error_count == 0:
+                operation_result = OperationResult.SUCCESS
+            else:
+                operation_result = OperationResult.WARNING
+
+            # 更新缓存
+            cache_data = {
+                "error_instance_count": error_count,
+                "total_instance_count": total_count,
+            }
+            if config.cache_data != cache_data or config.operation_result != operation_result:
+                CollectConfigMeta.objects.filter(id=config.id).update(
+                    cache_data=cache_data, operation_result=operation_result
+                )
+                # 更新内存数据
+                config.cache_data = cache_data
+                config.operation_result = operation_result
+
     def update_cache_data(self, config):
         # 更新采集配置的缓存数据（总数、异常数）
         subscription_id = config.deployment_config.subscription_id
@@ -1007,6 +1050,7 @@ class SaveCollectConfigResource(Resource):
                         "version_log": "",
                         "metric_json": [],
                         "collector_json": plugin_config["collector_json"],
+                        "data_label": "qcloud_exporter",
                     }
                 )
 
