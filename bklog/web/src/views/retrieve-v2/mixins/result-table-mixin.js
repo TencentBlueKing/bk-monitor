@@ -449,7 +449,7 @@ export default {
       }; // 新的query对象
       const newIPChooser = ip_chooser;
 
-      if (newIPChooser && Object.keys(newIPChooser).length) {
+      if (newIPChooser && Object.keys(newIPChooser).length && !isNewLink) {
         // ip值更新
         Object.assign(newQueryObj, {
           ip_chooser: this.getIPChooserStr(newIPChooser),

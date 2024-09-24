@@ -821,6 +821,14 @@ const store = new Vuex.Store({
         ids.push(list[0].index_set_id);
       }
 
+      if (result.ip_chooser) {
+        result.addition.push({
+          field: '_ip-select_',
+          operator: '',
+          value: [result.ip_chooser],
+        });
+      }
+
       if (ids.length) {
         delete result.unionList;
 
