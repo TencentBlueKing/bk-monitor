@@ -253,6 +253,7 @@ const store = new Vuex.Store({
         interval,
         search_mode,
         sort_list,
+        bk_biz_id: state.bkBizId,
         ...searchParams,
       };
     },
@@ -800,7 +801,7 @@ const store = new Vuex.Store({
      * @param {*} param0
      * @param {*} param1
      */
-    updateIndexItemByRoute({ commit }, { route, list }) {
+    updateIndexItemByRoute({ commit, state }, { route, list }) {
       const ids = [];
       let isUnionIndex = false;
       commit('resetIndexSetQueryResult', { search_count: 0 });
@@ -819,6 +820,10 @@ const store = new Vuex.Store({
 
       if (!isUnionIndex && !ids.length && list?.length) {
         ids.push(list[0].index_set_id);
+      }
+
+      if (route.query?.bizId) {
+        state.bkBizId = route.query?.bizId;
       }
 
       if (ids.length) {

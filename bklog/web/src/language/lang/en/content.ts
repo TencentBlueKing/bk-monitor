@@ -884,9 +884,9 @@ export default {
   '表示某日志模式数量突然异常增长，可能某些模块突发风险':
     'The sudden abnormal increase in the number of a certain log pattern may indicate a sudden risk in some modules.',
   配置项命名空间不能为空: 'Configuration item namespace cannot be empty',
-  收藏夹: 'Favorite clip',
-  UI查询: 'UI Query',
-  语句查询: 'Statement Query',
+  收藏夹: 'Favorite',
+  UI查询: 'UI',
+  语句查询: 'Lucene',
   历史查询: 'History Query',
   请输入关键字: 'Please enter keywords',
   请搜索: 'Please search',
