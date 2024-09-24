@@ -45,7 +45,7 @@ export interface whereItem {
 
 export interface IOption {
   id: number | string;
-  name: TranslateResult | string;
+  name: string | TranslateResult;
 }
 // 收藏列表
 export declare namespace IFavList {
@@ -83,7 +83,7 @@ export declare namespace IDataRetrieval {
   type tabId = 'event' | 'log' | 'monitor'; // 数据检索 | 日志检索 | 事件检索
   interface ITabList {
     id: tabId;
-    name: TranslateResult | string;
+    name: string | TranslateResult;
   }
 
   type IOption = 'copy' | 'delete' | 'enable' | 'source'; // 对应的操作：源码、开启、复制、删除
@@ -249,7 +249,7 @@ export declare namespace IDataRetrievalView {
   }
   interface IOptionItem {
     id?: string;
-    name: TranslateResult | string;
+    name: string | TranslateResult;
     value?: number | string;
   }
 }
@@ -359,7 +359,7 @@ export declare namespace IEventRetrieval {
   }
 
   interface ITipsContentListItem {
-    label: TranslateResult | string;
+    label: string | TranslateResult;
     value: string[];
   }
 

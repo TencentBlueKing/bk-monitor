@@ -517,6 +517,8 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
   handleToDataRetrieval() {
     const targets = this.detail.graph_panel?.targets;
     if (targets) {
+      debugger;
+      console.info(targets, '===================');
       const { bizId } = this.$store.getters;
       const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${
         this.detail.bk_biz_id || bizId
