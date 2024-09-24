@@ -425,7 +425,8 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
         ];
         // 这里计算整个 告警组 容器内是否会出现 换行 的可能，若换行就显示 +n。
         item.overflow = ref && ref.clientHeight > 32;
-        item.overflowCount = (item.overflow && countElementsNotInFirstRow(ref)) || 0;
+        const overflowCount = (item.overflow && countElementsNotInFirstRow(ref)) || 0;
+        this.$set(item, 'overflowCount', overflowCount);
         /* 标签组 */
         const refLabel = (this.$refs.strategyTable as Element & { $refs: Record<string, HTMLDivElement> })?.$refs[
           `table-labels-${index}`
@@ -433,7 +434,8 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
         // 这里计算整个 label 容器内是否会出现 换行 的可能，若换行就显示 +n。
         /* 标签组样式 */
         item.overflowLabel = refLabel && refLabel.clientHeight > 32;
-        item.overflowLabelCount = (item.overflowLabel && countElementsNotInFirstRow(refLabel)) || 0;
+        const overflowLabelCount = (item.overflowLabel && countElementsNotInFirstRow(refLabel)) || 0;
+        this.$set(item, 'overflowLabelCount', overflowLabelCount);
         const overflowMap = ['signals', 'levels', 'detectionTypes', 'mealNames'];
         for (const key of overflowMap) {
           // 通用数据样式
