@@ -279,6 +279,25 @@ export default class QueryStatement extends tsc<IProps> {
                 <i class='bklog-icon bklog-jump'></i>
               </div>
             </div>
+            <div class='event-box'>
+              <span
+                class='event-btn'
+                onClick={() => this.handleMenuClick('new-search-page', true)}
+              >
+                <i class='icon bk-icon icon-plus-circle'></i>
+                <span>{this.$t('新建检索')}</span>
+              </span>
+              <div
+                class='new-link'
+                v-bk-tooltips={this.$t('新开标签页')}
+                onClick={e => {
+                  e.stopPropagation();
+                  this.handleMenuClick('new-search-page', true);
+                }}
+              >
+                <i class='bklog-icon bklog-jump'></i>
+              </div>
+            </div>
           </div>
         </div>
       </span>

@@ -162,7 +162,8 @@
         });
         if (res.result) {
           // 获取最新组列表
-          store.dispatch('requestFavoriteList');
+          await store.dispatch('requestFavoriteList');
+          favoriteData.value.group_id = res.data.id;
           window.mainComponent.messageSuccess($t('操作成功'));
         }
       } catch (error) {
