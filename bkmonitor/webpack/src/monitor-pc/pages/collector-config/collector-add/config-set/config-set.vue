@@ -584,6 +584,7 @@ import CollectorIntroduction from './collector-introduction';
 import CollectorLog from './collector-log';
 import PERIOD_LIST from './data';
 import IndicatorPreview from './indicator-preview';
+import { getK8sPluginParams } from './k8s.ts';
 import PluginSelector, { LOG_PLUGIN_ID, PROCESS_PLUGIN_ID, CLOUD_METRIC_PLUGIN_ID } from './plugin-selector.tsx';
 import ProcessParams from './process-params.vue';
 import * as snmp from './snmp';
@@ -765,6 +766,7 @@ export default {
         introduction: true,
       },
       methodMd:
+        // biome-ignore lint/style/useTemplate: <explanation>
         `${this.$t('插件类型是蓝鲸监控丰富支持采集能力的一种表现，插件的类型将越来越丰富。 往下具体介绍当前每种类型特点')}。\n\n` +
         '### Exporter\n\n' +
         `${this.$t('Exporter是用于暴露第三方服务的metrics给Prometheus。是Prometheus中重要的一个组件。按蓝鲸监控插件的规范就可以将开源的Exporter插件变成蓝鲸监控的采集能力。 运行的Exporter是go的二进制程序，需要启动进程和占用端口')}。\n\n` +
@@ -1041,6 +1043,7 @@ export default {
         isSafety: true,
         osTypeList: ['linux', 'windows'],
         content:
+          // biome-ignore lint/style/useTemplate: <explanation>
           `## ${this.$t('功能介绍')}\n\n` +
           `${this.$t('日志关键字插件，通过对于日志文件的关键匹配进行计数，并且存储最近一条原始日志内容。')}\n\n` +
           `${this.$t('采集后的日志关键字数据可以在视图中查看变化趋势，也可以在策略里面配置告警规则。')}\n\n` +
@@ -1056,6 +1059,7 @@ export default {
     getSnmpIntroduction() {
       const snmpIntroduction = {
         snmp_v1:
+          // biome-ignore lint/style/useTemplate: <explanation>
           '## SNMP Trap V1\n\n' +
           `### ${this.$t('功能介绍')}\n\n` +
           `${this.$t('snmp trap 将默认搭建 snmp trap server 接收不同设备的发送的事件数据。默认端口为 162。注意选择对应的 snmp 版本,本版本为 V1。')}\n\n` +
@@ -1067,6 +1071,7 @@ export default {
           `* ${this.$t('团体名')}： Community\n\n` +
           `* ${this.$t('是否汇聚')}：${this.$t('默认是开启的，采集周期内默认相同的内容会汇聚到成一条并且计数。')}\n\n\n`,
         snmp_v2c:
+          // biome-ignore lint/style/useTemplate: <explanation>
           '## SNMP Trap V2c\n\n' +
           `### ${this.$t('功能介绍')}\n\n` +
           `${this.$t('snmp trap 将默认搭建 snmp trap server 接收不同设备的发送的事件数据。默认端口为 162。注意选择对应的 snmp 版本, 本版本为 V2c。')}\n\n` +
@@ -1078,6 +1083,7 @@ export default {
           `* ${this.$t('团体名')}： Community \n` +
           `* ${this.$t('是否汇聚')}：${this.$t('默认是开启的，采集周期内默认相同的内容会汇聚到成一条并且计数。')}\n\n\n`,
         snmp_v3:
+          // biome-ignore lint/style/useTemplate: <explanation>
           `## ${this.$t('SNMP Trap V3')}\n\n` +
           `### ${this.$t('功能介绍')}\n\n` +
           `${this.$t('snmp trap 将默认搭建 snmp trap server 接收不同设备的发送的事件数据。默认端口为 162。注意选择对应的 snmp 版本, 本版本为 V3。')}\n\n` +
@@ -1119,10 +1125,10 @@ export default {
         }
         this.resizeState.show = true;
         const rect = e.target.getBoundingClientRect();
-        document.onselectstart = function () {
+        document.onselectstart = () => {
           return false;
         };
-        document.ondragstart = function () {
+        document.ondragstart = () => {
           return false;
         };
         const handleMouseMove = event => {
@@ -1221,15 +1227,14 @@ export default {
       const { info } = this;
       const { rules } = this;
       const includeFields = ['bizId', 'name', 'objectType', 'period', 'collectType', 'timeout'];
-      const keys = Object.keys(rules);
-      keys.forEach(item => {
+      for (const item of Object.keys(rules)) {
         // validate=false 时需要重新触发校验，不校验运行参数部分
         !rules[item].validate && includeFields.includes(item) && this.validateField(info[item], rules[item]);
-      });
+      }
       let configValidate = false;
       if (this.info?.plugin?.configJson) {
         const configValidateList = [];
-        this.info.plugin.configJson.forEach(item => {
+        for (const item of this.info.plugin.configJson) {
           if (!(item.auth_json === undefined)) {
             configValidateList.push(this.handleParamValidate(item));
           }
@@ -1238,7 +1243,7 @@ export default {
           } else {
             configValidateList.push(this.handleInput(item));
           }
-        });
+        }
         configValidate = configValidateList.some(item => item.validate);
       }
       return keys.every(item => rules[item].validate === false) && !configValidate;
@@ -1375,6 +1380,7 @@ export default {
       this.SnmpVersionValidate();
     },
     // 选择插件时触发
+    // biome-ignore lint/style/useDefaultParameterLast: <explanation>
     async handlePluginClick(val, loading = true, needSetConfig = true, curPluginType) {
       const { mode } = this.config;
       if (curPluginType === 'SNMP_Trap') {
@@ -1461,13 +1467,13 @@ export default {
                 if (item.auth_json !== undefined) {
                   if (this.config.mode === 'edit' || this.isClone) {
                     const authJson = item.auth_json;
-                    authJson.forEach(set => {
-                      set.forEach(p => {
+                    for (const item of authJson) {
+                      for (const p of set) {
                         const mode = p.mode === 'collector' ? 'collector' : 'plugin';
                         const paramDefault = this.info.params[mode][p.key];
                         p.default = paramDefault;
-                      });
-                    });
+                      }
+                    }
                     return item;
                   }
                   return {
@@ -1497,6 +1503,7 @@ export default {
                 };
               });
             } else {
+              console.info(plugin, '============');
               plugin.configJson = (configJson || []).map(item => {
                 try {
                   if (this.config.mode === 'edit' || this.isClone) {
@@ -1620,9 +1627,9 @@ export default {
       };
       // 编辑的时候只获取单个插件
       if (this.config.mode === 'edit') {
-        const pulginId = this.config.data?.updateParams?.pluginId;
+        const pluginId = this.config.data?.updateParams?.pluginId;
         promiseList.push(
-          retrieveCollectorPlugin(pulginId)
+          retrieveCollectorPlugin(pluginId)
             .then(v => {
               this.pluginSelectorObj.list = [v];
               this.pluginSelectorObj.key = random(8);
@@ -1696,13 +1703,13 @@ export default {
       const { collector, plugin } = data.params;
       const tmpConfigJson = pluginInfo.config_json;
       // 将插件信息中 configJson 的值，改为 data.params 中对应的值
-      tmpConfigJson.forEach(item => {
+      for (const item of tmpConfigJson) {
         if (item.mode === 'collector') {
           item.default = collector[item.name];
         } else {
           item.default = plugin[item.name];
         }
-      });
+      }
       const { configJson, host, port, isShowHost, isShowPort } = this.handlePluginConfigJson(
         pluginInfo.plugin_type,
         tmpConfigJson
@@ -1777,7 +1784,7 @@ export default {
             const { list } = data;
             if (count) {
               const collectTypeList = [];
-              Object.keys(count).forEach(item => {
+              for (const item of Object.keys(count)) {
                 const set = this.pluginTypeMap[item];
                 if (set) {
                   collectTypeList.push({
@@ -1785,7 +1792,7 @@ export default {
                     alias: set,
                   });
                 }
-              });
+              }
               this.collectTypeList = collectTypeList;
             }
             this.pluginSelectorObj.list = list;
@@ -1802,7 +1809,7 @@ export default {
     handlePluginList(data) {
       const res = [];
       if (data.length) {
-        data.forEach(item => {
+        for (const item of data) {
           res.push({
             pluginId: item.plugin_id,
             pluginDisplayName: item.plugin_display_name,
@@ -1813,7 +1820,7 @@ export default {
             updateTime: item.update_time,
             labelInfo: item.label_info,
           });
-        });
+        }
       }
       return res;
     },
@@ -1873,14 +1880,14 @@ export default {
           });
       });
     },
-    handlePluginConfigJson(type, data = []) {
+    handlePluginConfigJson(type, configs = []) {
       let configJson = [];
       // snmp 多用户
       const snmpAuthJson = [];
       let host = null;
       let port = null;
       // 如果是插件类型为 'Exporter'，则显示绑定主机和绑定端口
-      data = data.map(item => {
+      data = configs.map(item => {
         if (item.type === 'file' && typeof item.default === 'object' && item.key !== 'yaml') {
           const temp = deepClone(item.default);
           item.default = temp.filename;
@@ -1889,7 +1896,7 @@ export default {
         return item;
       });
       if (type === 'Exporter') {
-        data.forEach(item => {
+        for (const item of data) {
           if (item.mode === 'collector' && item.name === 'host') {
             host = item;
           } else if (item.mode === 'collector' && item.name === 'port') {
@@ -1897,7 +1904,7 @@ export default {
           } else {
             configJson.push(item);
           }
-        });
+        }
       } else if (type === 'SNMP_Trap') {
         configJson.push(...data);
         // data.forEach((item) => {
@@ -2019,6 +2026,9 @@ export default {
       } else if (data.collect_type === 'SNMP_Trap') {
         this.pluginSelectorObj.id = `snmp_${data.params.snmp_trap.version}`;
         this.pluginSelectorObj.objectIdDisable = false;
+      } else if (data.collect_type === 'K8S') {
+        this.pluginSelectorObj.id = CLOUD_METRIC_PLUGIN_ID;
+        this.pluginSelectorObj.objectIdDisable = true;
       } else {
         this.pluginSelectorObj.id = data.plugin_info.plugin_id;
         this.pluginSelectorObj.objectIdDisable = true;
@@ -2093,78 +2103,7 @@ export default {
           this.info.plugin.id = CLOUD_METRIC_PLUGIN_ID;
           this.pluginSelectorObj.objectIdDisable = true;
           this.info.objectId = 'os';
-          this.info.plugin.configJson = [
-            {
-              name: this.$tc('云产品'),
-              required: true,
-              type: 'list',
-              key: 'tencent_cloud_product',
-              field: 'products',
-              default: [],
-              election: [
-                { id: 'QCE/CMONGO', name: '数据库MongoDB' },
-                { id: 'QCE/CDB', name: '数据库MySQL(CDB)' },
-                { id: 'QCE/REDIS', name: 'Redis标准版' },
-                { id: 'QCE/REDIS_CLUSTER', name: 'Redis集群版' },
-                { id: 'QCE/REDIS_MEM', name: '数据库Redis(内存版)' },
-                { id: 'QCE/CVM', name: '云服务器CVM' },
-                { id: 'QCE/COS', name: 'COS' },
-                { id: 'QCE/CDN', name: 'CDN' },
-                { id: 'QCE/LB_PUBLIC', name: '负载均衡CLB(公网)' },
-                { id: 'QCE/LOADBALANCE', name: '负载均衡CLB(7层)' },
-                { id: 'QCE/NAT_GATEWAY', name: 'NAT网关' },
-                { id: 'QCE/DC', name: '物理专线' },
-                { id: 'QCE/DCX', name: '专用通道' },
-                { id: 'QCE/CBS', name: '云硬盘' },
-                { id: 'QCE/SQLSERVER', name: '数据库SQL Server' },
-                { id: 'QCE/MARIADB', name: '数据库MariaDB' },
-                { id: 'QCE/CES', name: 'Elasticsearch' },
-                { id: 'QCE/CMQ', name: 'CMQ 队列服务' },
-                { id: 'QCE/CMQTOPIC', name: 'CMQ 主题订阅' },
-                { id: 'QCE/POSTGRES', name: '数据库PostgreSQL' },
-                { id: 'QCE/CKAFKA', name: 'CKafka 实例' },
-                { id: 'QCE/MEMCACHED', name: 'Memcached' },
-                { id: 'QCE/LIGHTHOUSE', name: '轻量应用服务器Lighthouse' },
-                { id: 'QCE/TDMYSQL', name: '分布式数据库 TDSQL MySQL' },
-                { id: 'QCE/LB', name: '弹性公网 IP' },
-                { id: 'QCE/TDMQ', name: '消息队列RocketMQ版' },
-                { id: 'QCE/VPNGW', name: 'VPN 网关' },
-                { id: 'QCE/VPNX', name: 'VPN 通道' },
-                { id: 'QCE/CYNOSDB_MYSQL', name: 'CYNOSDB_MYSQL' },
-                { id: 'QCE/VBC', name: '云联网' },
-                { id: 'QCE/DTS', name: '数据传输' },
-                { id: 'QCE/DCG', name: '专线网关' },
-                { id: 'QCE/QAAP', name: '全球应用加速' },
-                { id: 'QCE/WAF', name: 'Web应用防火墙' },
-                { id: 'QCE/LB_PRIVATE', name: '负载均衡CLB(内网)' },
-              ],
-              validate: { isValidate: false, content: '' },
-            },
-            {
-              name: 'secretId',
-              required: true,
-              type: 'text',
-              field: 'secret_id',
-              default: '',
-              validate: { isValidate: false, content: '' },
-            },
-            {
-              name: 'secretKey',
-              required: true,
-              type: 'text',
-              field: 'secret_key',
-              default: '',
-              validate: { isValidate: false, content: '' },
-            },
-            {
-              name: 'region',
-              required: true,
-              type: 'text',
-              field: 'region',
-              default: '',
-              validate: { isValidate: false, content: '' },
-            },
-          ];
+          this.info.plugin.configJson = getK8sPluginParams();
         }
       }
       this.handleSetObjTypeById(this.info.objectId);
