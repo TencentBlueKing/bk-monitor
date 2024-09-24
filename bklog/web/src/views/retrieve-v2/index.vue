@@ -28,7 +28,7 @@
   import { computed, ref, watch } from 'vue';
 
   import useStore from '@/hooks/use-store';
-  import RouteUrlResolver from '@/store/url-resolver';
+  import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
   import { isEqual } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
 
@@ -76,63 +76,63 @@
     });
   };
 
-  const getEncodeString = val => encodeURIComponent(JSON.stringify(val));
+  // const getEncodeString = val => encodeURIComponent(JSON.stringify(val));
 
-  /**
-   * 路由参数格式化字典函数
-   * 不同的字段需要不同的格式化函数
-   */
-  const routeQueryMap = {
-    host_scopes: val => {
-      const isEmpty = !Object.keys(val ?? {}).some(k => {
-        if (typeof val[k] === 'object') {
-          return Array.isArray(val[k]) ? val[k].length : Object.keys(val[k] ?? {}).length;
-        }
+  // /**
+  //  * 路由参数格式化字典函数
+  //  * 不同的字段需要不同的格式化函数
+  //  */
+  // const routeQueryMap = {
+  //   host_scopes: val => {
+  //     const isEmpty = !Object.keys(val ?? {}).some(k => {
+  //       if (typeof val[k] === 'object') {
+  //         return Array.isArray(val[k]) ? val[k].length : Object.keys(val[k] ?? {}).length;
+  //       }
 
-        return val[k]?.length;
-      });
+  //       return val[k]?.length;
+  //     });
 
-      return isEmpty ? undefined : getEncodeString(val);
-    },
-    start_time: () => store.state.indexItem.datePickerValue[0],
-    end_time: () => store.state.indexItem.datePickerValue[1],
-    keyword: val => (/^\s*\*\s*$/.test(val) ? undefined : val),
-    unionList: val => {
-      if (routeQueryParams.value.isUnionIndex && val?.length) {
-        return getEncodeString(val);
-      }
+  //     return isEmpty ? undefined : getEncodeString(val);
+  //   },
+  //   start_time: () => store.state.indexItem.datePickerValue[0],
+  //   end_time: () => store.state.indexItem.datePickerValue[1],
+  //   keyword: val => (/^\s*\*\s*$/.test(val) ? undefined : val),
+  //   unionList: val => {
+  //     if (routeQueryParams.value.isUnionIndex && val?.length) {
+  //       return getEncodeString(val);
+  //     }
 
-      return undefined;
-    },
-    default: val => {
-      if (typeof val === 'object' && val !== null) {
-        if (Array.isArray(val) && val.length) {
-          return getEncodeString(val);
-        }
+  //     return undefined;
+  //   },
+  //   default: val => {
+  //     if (typeof val === 'object' && val !== null) {
+  //       if (Array.isArray(val) && val.length) {
+  //         return getEncodeString(val);
+  //       }
 
-        if (Object.keys(val).length) {
-          return getEncodeString(val);
-        }
+  //       if (Object.keys(val).length) {
+  //         return getEncodeString(val);
+  //       }
 
-        return undefined;
-      }
+  //       return undefined;
+  //     }
 
-      return val?.length ? val : undefined;
-    },
-  };
+  //     return val?.length ? val : undefined;
+  //   },
+  // };
 
-  const getRouteQueryValue = () => {
-    return Object.keys(routeQueryParams.value)
-      .filter(key => {
-        return !['ids', 'isUnionIndex'].includes(key);
-      })
-      .reduce((result, key) => {
-        const val = routeQueryParams.value[key];
-        const valueFn = typeof routeQueryMap[key] === 'function' ? routeQueryMap[key] : routeQueryMap.default;
-        const value = valueFn(val);
-        return Object.assign(result, { [key]: value });
-      }, {});
-  };
+  // const getRouteQueryValue = () => {
+  //   return Object.keys(routeQueryParams.value)
+  //     .filter(key => {
+  //       return !['ids', 'isUnionIndex'].includes(key);
+  //     })
+  //     .reduce((result, key) => {
+  //       const val = routeQueryParams.value[key];
+  //       const valueFn = typeof routeQueryMap[key] === 'function' ? routeQueryMap[key] : routeQueryMap.default;
+  //       const value = valueFn(val);
+  //       return Object.assign(result, { [key]: value });
+  //     }, {});
+  // };
 
   const setRouteParams = () => {
     const { ids, isUnionIndex } = routeQueryParams.value;
@@ -141,8 +141,12 @@
       : { ...route.params, indexId: ids?.[0] ?? route.params?.indexId };
 
     const query = { ...route.query };
+    const resolver = new RetrieveUrlResolver({
+      ...routeQueryParams.value,
+      datePickerValue: store.state.indexItem.datePickerValue,
+    });
 
-    Object.assign(query, getRouteQueryValue());
+    Object.assign(query, resolver.resolveParamsToUrl());
     if (!isEqual(params, route.params) || !isEqual(query, route.query)) {
       router.replace({
         params,

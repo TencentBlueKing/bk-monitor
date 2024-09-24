@@ -28,6 +28,7 @@
 import { Component, Emit, Prop, PropSync, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { Input, Popover, Button, Radio, RadioGroup, Form, FormItem } from 'bk-magic-vue';
 
 import $http from '../../../api';
@@ -399,26 +400,35 @@ export default class CollectIndex extends tsc<IProps> {
       case 'share':
       case 'new-link':
         {
-          const { ip_chooser, addition, keyword } = value.params;
+          // const { ip_chooser, addition, keyword } = value.params;
           const params = { indexId: value.index_set_id };
-          const filterQuery = {
-            keyword,
-            addition: JSON.stringify(addition),
-            ip_chooser: JSON.stringify(ip_chooser),
-          };
-          if (value.index_set_type === 'union') {
-            Object.assign(filterQuery, {
-              unionList: JSON.stringify(value.index_set_ids.map((item: number) => String(item))),
-            });
-          }
+          // const filterQuery = {
+          //   keyword,
+          //   addition: JSON.stringify(addition),
+          //   ip_chooser: JSON.stringify(ip_chooser),
+          // };
+          // if (value.index_set_type === 'union') {
+          //   Object.assign(filterQuery, {
+          //     unionList: JSON.stringify(value.index_set_ids.map((item: number) => String(item))),
+          //   });
+          // }
+
+          const resolver = new RetrieveUrlResolver({
+            ...value.params,
+            unionList: value.index_set_ids.map((item: number) => String(item)),
+            isUnionIndex: value.index_set_type === 'union',
+          });
+
           const routeData = {
             name: 'retrieve',
             params,
-            query: filterQuery,
+            query: resolver.resolveParamsToUrl(),
           };
+
           let shareUrl = window.SITE_URL;
           if (!shareUrl.startsWith('/')) shareUrl = `/${shareUrl}`;
           if (!shareUrl.endsWith('/')) shareUrl += '/';
+
           shareUrl = `${window.location.origin + shareUrl}${this.$router.resolve(routeData).href}`;
           if (type === 'new-link') {
             window.open(shareUrl, '_blank');
