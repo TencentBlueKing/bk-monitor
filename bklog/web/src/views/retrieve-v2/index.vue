@@ -195,7 +195,10 @@
           <span :class="['bklog-icon bklog-collapse-small', { active: showFavorites }]"></span>{{ $t('收藏夹') }}
         </template>
       </div>
-      <SubBar :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 92}px` }" />
+      <SubBar
+        :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 92}px` }"
+        showFavorites
+      />
     </div>
     <div class="retrieve-body">
       <CollectFavorites
