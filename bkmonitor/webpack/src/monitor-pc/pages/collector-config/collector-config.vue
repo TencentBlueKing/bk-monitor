@@ -414,7 +414,6 @@ import TableSkeleton from '../../components/skeleton/table-skeleton.tsx';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import { SET_ADD_DATA, SET_ADD_MODE, SET_OBJECT_TYPE } from '../../store/modules/collector-config';
 import * as collectAuth from './authority-map';
-import { CLOUD_METRIC_PLUGIN_ID } from './collector-add/config-set/plugin-selector';
 import CollectorConfigDetail from './collector-config-detail/collector-config-detail';
 import CollectorConfigUpdate from './collector-config-update/collector-config-update';
 import DeleteCollector from './collector-dialog-delete/collector-dialog-delete';
@@ -982,7 +981,7 @@ export default {
       });
     },
     checkUpdateTargetDisabled(row) {
-      return row.taskStatus === 'STOPPED' || row.doingStatus || row.plugin_id === CLOUD_METRIC_PLUGIN_ID;
+      return row.taskStatus === 'STOPPED' || row.doingStatus || row.type === 'K8S';
     },
     handleUpdateTarget(data) {
       if (this.checkUpdateTargetDisabled(data)) return;

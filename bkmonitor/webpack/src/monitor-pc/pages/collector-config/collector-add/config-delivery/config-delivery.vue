@@ -100,7 +100,6 @@ import {
 
 import { TARGET_TABEL_EXPAND_MAX } from '../../../../constant/constant';
 import ConfigDeploy from '../../config-deploy/config-deploy';
-import { CLOUD_METRIC_PLUGIN_ID } from '../config-set/plugin-selector';
 import EmptyTarget from './empty-target';
 import TaskReady from './task-ready';
 
@@ -149,7 +148,7 @@ export default {
     },
     // 是否是腾讯云插件
     isTencentCloudPlugin() {
-      return this.config.set.data.plugin.id === CLOUD_METRIC_PLUGIN_ID;
+      return this.config.set.data.plugin.type === 'K8S';
     },
   },
   watch: {
@@ -181,7 +180,6 @@ export default {
   },
   methods: {
     async taskReadyStatus() {
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.taskReadyTimer = setTimeout(async () => {
         clearTimeout(this.taskReadyTimer);
         if (this.taskReady.show) {
@@ -348,7 +346,7 @@ export default {
     async taskReadyStatusPromise(id) {
       clearTimeout(timer);
       let timer = null;
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      // biome-ignore lint/suspicious/noAsyncPromiseExecutor: <explanation>
       return new Promise(async resolve => {
         const isShow = await isTaskReady({ collect_config_id: id }).catch(() => false);
         if (isShow) {

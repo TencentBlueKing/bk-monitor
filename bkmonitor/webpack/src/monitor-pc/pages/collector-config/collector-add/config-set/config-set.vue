@@ -502,7 +502,7 @@
             <bk-popconfirm
               width="200"
               :content="$tc('确认采集下发?')"
-              :disabled="!canNext || info.plugin.id !== cloudMetricPluginId"
+              :disabled="!canNext || info?.plugin?.type !== 'K8S'"
               :tippy-options="tippyOptions"
               placement="top"
               trigger="click"
@@ -549,7 +549,10 @@
         @mousemove="handleMouseMove"
         @mouseout="handleMouseOut"
       >
-        <collector-introduction :introduction="introduction" />
+        <collector-introduction
+          :introduction="introduction"
+          :key="introduction.content"
+        />
         <div
           :style="{ left: descWidth - resizeState.left + 'px' }"
           class="resize-line"
@@ -584,8 +587,7 @@ import CollectorIntroduction from './collector-introduction';
 import CollectorLog from './collector-log';
 import PERIOD_LIST from './data';
 import IndicatorPreview from './indicator-preview';
-import { getK8sPluginParams } from './k8s.ts';
-import PluginSelector, { LOG_PLUGIN_ID, PROCESS_PLUGIN_ID, CLOUD_METRIC_PLUGIN_ID } from './plugin-selector.tsx';
+import PluginSelector, { LOG_PLUGIN_ID, PROCESS_PLUGIN_ID } from './plugin-selector.tsx';
 import ProcessParams from './process-params.vue';
 import * as snmp from './snmp';
 import VariableTable from './variable-table';
@@ -816,7 +818,6 @@ export default {
         objectIdDisable: false,
       },
       pluginListLoading: false, // 新增情况下判断是否正在获取插件列表
-      cloudMetricPluginId: CLOUD_METRIC_PLUGIN_ID,
     };
   },
   computed: {
@@ -877,10 +878,11 @@ export default {
         return introduction;
       }
       const { configJson, metricJson, id, descMd, ...others } = this.info.plugin;
+
       if (id) {
         introduction = {
           ...others,
-          content: descMd,
+          content: descMd || this.methodMd,
           pluginId: id,
           type: 'bkmonitor.models.fta.plugin',
         };
@@ -1227,7 +1229,8 @@ export default {
       const { info } = this;
       const { rules } = this;
       const includeFields = ['bizId', 'name', 'objectType', 'period', 'collectType', 'timeout'];
-      for (const item of Object.keys(rules)) {
+      const keys = Object.keys(rules);
+      for (const item of keys) {
         // validate=false 时需要重新触发校验，不校验运行参数部分
         !rules[item].validate && includeFields.includes(item) && this.validateField(info[item], rules[item]);
       }
@@ -1503,7 +1506,6 @@ export default {
                 };
               });
             } else {
-              console.info(plugin, '============');
               plugin.configJson = (configJson || []).map(item => {
                 try {
                   if (this.config.mode === 'edit' || this.isClone) {
@@ -1566,7 +1568,7 @@ export default {
       return true;
     },
     handleNext() {
-      if (this.info.plugin.id === CLOUD_METRIC_PLUGIN_ID) return;
+      if (this.info.plugin.type === 'K8S') return;
       // 清空缓存的info
       this[SET_INFO_DATA](null);
       if (this.validate() && this.validateProcessParams()) {
@@ -1585,7 +1587,7 @@ export default {
     },
     handleTencentCloudNext() {
       this[SET_INFO_DATA](null);
-      if (this.validate() && this.validateProcessParams()) {
+      if (this.validate()) {
         this.$emit('update:config', {
           ...this.config,
           set: { data: this.info, others: this.others, mode: 'edit', supportRemote: this.info.plugin.supportRemote },
@@ -1775,6 +1777,7 @@ export default {
         page_size: 1000,
         order: '-update_time',
         status: 'release',
+        with_virtual: true,
       };
       return new Promise((resolve, reject) => {
         listCollectorPlugin(params)
@@ -1887,7 +1890,7 @@ export default {
       let host = null;
       let port = null;
       // 如果是插件类型为 'Exporter'，则显示绑定主机和绑定端口
-      data = configs.map(item => {
+      const data = configs.map(item => {
         if (item.type === 'file' && typeof item.default === 'object' && item.key !== 'yaml') {
           const temp = deepClone(item.default);
           item.default = temp.filename;
@@ -2026,9 +2029,6 @@ export default {
       } else if (data.collect_type === 'SNMP_Trap') {
         this.pluginSelectorObj.id = `snmp_${data.params.snmp_trap.version}`;
         this.pluginSelectorObj.objectIdDisable = false;
-      } else if (data.collect_type === 'K8S') {
-        this.pluginSelectorObj.id = CLOUD_METRIC_PLUGIN_ID;
-        this.pluginSelectorObj.objectIdDisable = true;
       } else {
         this.pluginSelectorObj.id = data.plugin_info.plugin_id;
         this.pluginSelectorObj.objectIdDisable = true;
@@ -2098,12 +2098,6 @@ export default {
           this.info.plugin.id = PROCESS_PLUGIN_ID;
           this.pluginSelectorObj.objectIdDisable = true;
           this.info.objectId = 'host_process';
-        } else if (pluginInfo.plugin_type === 'K8S') {
-          /** 腾讯云指标采集插件 */
-          this.info.plugin.id = CLOUD_METRIC_PLUGIN_ID;
-          this.pluginSelectorObj.objectIdDisable = true;
-          this.info.objectId = 'os';
-          this.info.plugin.configJson = getK8sPluginParams();
         }
       }
       this.handleSetObjTypeById(this.info.objectId);

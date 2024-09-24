@@ -30,7 +30,6 @@ import './plugin-selector.scss';
 
 export const LOG_PLUGIN_ID = 'LOG_PLUGIN_ID'; // 只做为前端标识使用
 export const PROCESS_PLUGIN_ID = 'default_process';
-export const CLOUD_METRIC_PLUGIN_ID = 'tencent_cloud_metric';
 
 /* 插件类型名 */
 const pluginTypeMap = {
@@ -98,15 +97,15 @@ const processPluginList = [
     logo: '',
   },
 ];
-/** 云监控  */
-const cloudMetricCollectPluginList = [
-  {
-    plugin_id: CLOUD_METRIC_PLUGIN_ID,
-    plugin_display_name: window.i18n.tc('腾讯云指标采集插件'),
-    plugin_type: 'K8S',
-    logo: '',
-  },
-];
+// /** 云监控  */
+// const cloudMetricCollectPluginList = [
+//   {
+//     plugin_id: CLOUD_METRIC_PLUGIN_ID,
+//     plugin_display_name: window.i18n.tc('腾讯云指标采集插件'),
+//     plugin_type: 'K8S',
+//     logo: '',
+//   },
+// ];
 
 export interface IPluginItem {
   logo: string;
@@ -143,13 +142,7 @@ export default class PluginSelector extends tsc<IProps, IEvents> {
   realList: IPluginItem[] = [];
 
   created() {
-    this.realList = [
-      ...this.list,
-      ...snmpTrapPluginList,
-      ...logPluginList,
-      ...processPluginList,
-      ...cloudMetricCollectPluginList,
-    ];
+    this.realList = [...this.list, ...snmpTrapPluginList, ...logPluginList, ...processPluginList];
     if (this.id) {
       this.pluginId = this.id;
     }

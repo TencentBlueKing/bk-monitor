@@ -88,7 +88,6 @@
   </div>
 </template>
 <script>
-import { CLOUD_METRIC_PLUGIN_ID } from '../config-set/plugin-selector';
 import Done from './loading-done';
 
 export default {
@@ -141,7 +140,7 @@ export default {
     },
     // 是否是腾讯云插件
     isTencentCloudPlugin() {
-      return this.config.set.data.plugin.id === CLOUD_METRIC_PLUGIN_ID;
+      return this.config.set.data.plugin.type === 'K8S';
     },
   },
   created() {
