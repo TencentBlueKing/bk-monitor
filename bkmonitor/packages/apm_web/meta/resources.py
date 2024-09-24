@@ -39,7 +39,6 @@ from apm_web.constants import (
     DEFAULT_DIMENSION_DATA_PERIOD,
     DEFAULT_NO_DATA_PERIOD,
     NODATA_ERROR_STRATEGY_CONFIG_KEY,
-    Apdex,
     BizConfigKey,
     CategoryEnum,
     CustomServiceMatchType,
@@ -105,7 +104,6 @@ from apm_web.service.serializers import (
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from apm_web.trace.service_color import ServiceColorClassifier
 from apm_web.utils import get_interval, group_by, span_time_strft
-from bkmonitor.iam import ActionEnum
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.ip import is_v6
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
@@ -134,8 +132,6 @@ from monitor_web.scene_view.table_format import (
     LinkListTableFormat,
     LinkTableFormat,
     NumberTableFormat,
-    ScopedSlotsFormat,
-    StatusTableFormat,
     StringTableFormat,
 )
 from monitor_web.strategies.user_groups import get_or_create_ops_notice_group
@@ -811,32 +807,13 @@ class ListApplicationResource(PageListResource):
 
     def get_columns(self, column_type=None):
         return [
-            ScopedSlotsFormat(
-                url_format="/application?filter-app_name={app_name}",
-                id="app_alias",
-                name=_("应用别名"),
-                checked=True,
-                action_id=ActionEnum.VIEW_APM_APPLICATION.id,
-                disabled=True,
-            ),
-            StringTableFormat(id="app_name", name=_("应用名"), checked=False),
-            StringTableFormat(id="description", name=_("应用描述"), checked=False),
-            StringTableFormat(id="retention", name=_("存储计划"), checked=False),
-            LinkTableFormat(
-                id="service_count",
-                name=_("服务数量"),
-                url_format="/application?filter-app_name={app_name}&dashboardId=service",
-                sortable=True,
-                action_id=ActionEnum.VIEW_APM_APPLICATION.id,
-                asyncable=True,
-            ),
-            StatusTableFormat(id="apdex", name="Apdex", status_map_cls=Apdex, filterable=True, asyncable=True),
-            NumberTableFormat(id="request_count", name=_("调用次数"), sortable=True, asyncable=True),
-            NumberTableFormat(id="avg_duration", name=_("平均响应耗时"), sortable=True, unit="ns", decimal=2, asyncable=True),
-            NumberTableFormat(id="error_rate", name=_("错误率"), sortable=True, decimal=2, unit="percent", asyncable=True),
-            NumberTableFormat(id="error_count", name=_("错误次数"), checked=False, sortable=True, asyncable=True),
-            StringTableFormat(id="is_enabled", name=_("应用是否启用"), checked=False),
-            StringTableFormat(id="is_enabled_profiling", name=_("Profiling是否启用"), checked=False),
+            StringTableFormat(id="app_alias", name=_("应用别名"), checked=True),
+            StringTableFormat(id="app_name", name=_("应用名"), checked=True),
+            StringTableFormat(id="description", name=_("应用描述"), checked=True),
+            StringTableFormat(id="retention", name=_("存储计划"), checked=True),
+            StringTableFormat(id="service_count", name=_("服务数量")),
+            StringTableFormat(id="is_enabled", name=_("应用是否启用"), checked=True),
+            StringTableFormat(id="is_enabled_profiling", name=_("Profiling是否启用"), checked=True),
             StringTableFormat(
                 id="profiling_data_status",
                 name=_("Profiling数据状态"),
@@ -886,6 +863,9 @@ class ListApplicationResource(PageListResource):
     def perform_request(self, validate_data):
         applications = Application.objects.filter(bk_biz_id=validate_data["bk_biz_id"])
         data = self.ApplicationSerializer(applications, many=True).data
+        service_count_mapping = ServiceHandler.batch_query_service_count(data)
+        for i in data:
+            i["service_count"] = service_count_mapping.get(str(i["application_id"]), 0)
         data = sorted(
             data,
             key=lambda i: (
@@ -895,13 +875,13 @@ class ListApplicationResource(PageListResource):
             ),
             reverse=True,
         )
-
         return self.get_pagination_data(data, validate_data)
 
 
 class ListApplicationAsyncResource(AsyncColumnsListResource):
     """
     应用列表页异步接口
+    (目前新版应用列表 前端没有使用这个接口)
     """
 
     METRIC_MAP = {
