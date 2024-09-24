@@ -14,6 +14,7 @@
   const isExternal = computed(() => store.state.isExternal);
   const spaceUid = computed(() => store.state.spaceUid);
   const indexSetItem = computed(() => store.state.indexItem.items[0]);
+  const isPopoverShow = ref(false);
 
   const isUnionSearch = computed(() => store.isUnionSearch);
   const isShowRetrieveSetting = computed(() => !isExternal.value && !isUnionSearch.value);
@@ -139,6 +140,12 @@
     window.open(href, '_blank');
   };
 
+  const handlePopShow = val => {
+    isPopoverShow.value = val;
+    console.log('isPopoverShow', isPopoverShow.value)
+    return true;
+  }
+
   watch(
     [indexSetItem, clusterIsActive, storeIsShowClusterStep],
     () => {
@@ -155,6 +162,8 @@
     v-if="isShowRetrieveSetting"
     :distance="11"
     :offset="0"
+    :on-show="() => handlePopShow(true)"
+    :on-hide="() => handlePopShow(false)"
     animation="slide-toggle"
     placement="bottom-end"
     theme="light bk-select-dropdown"
