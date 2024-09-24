@@ -35,6 +35,7 @@ export const noDataStrategyEnable = request('POST', 'apm/meta/application/nodata
 export const noDataStrategyDisable = request('POST', 'apm/meta/application/nodata_strategy_disable/');
 export const dataViewConfig = request('POST', 'apm/meta/application/{pk}/data_view_config/');
 export const dataSampling = request('POST', 'apm/meta/application/{pk}/data_sampling/');
+export const storageInfo = request('POST', 'apm/meta/application/{pk}/storage_info/');
 export const storageFieldInfo = request('POST', 'apm/meta/application/{pk}/storage_field_info/');
 export const customServiceList = request('GET', 'apm/meta/application/custom_service_list/');
 export const customServiceConfig = request('POST', 'apm/meta/application/custom_service_config/');
@@ -81,6 +82,7 @@ export default {
   noDataStrategyDisable,
   dataViewConfig,
   dataSampling,
+  storageInfo,
   storageFieldInfo,
   customServiceList,
   customServiceConfig,
