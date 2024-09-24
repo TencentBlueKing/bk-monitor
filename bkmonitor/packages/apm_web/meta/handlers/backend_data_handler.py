@@ -34,7 +34,7 @@ class BackendRegistry:
         self.registry = {}
 
     def register(self, adapter_cls):
-        adapter_name = str(adapter_cls.__class__).lower().split("Adapter")[0]
+        adapter_name = str(adapter_cls.__name__).split("BackendHandler")[0].lower()
         if adapter_name:
             self.registry[adapter_name] = adapter_cls
             return self.registry[adapter_name]
