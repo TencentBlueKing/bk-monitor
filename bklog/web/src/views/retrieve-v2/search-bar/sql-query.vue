@@ -216,7 +216,8 @@
         }
 
         .cm-scroller {
-          font-family: 'Microsoft Yahei', pingFang-SC-Regular, Helvetica, Aria, sans-serif;
+          font-family: monospace, pingFang-SC-Regular, sans-serif, Helvetica, Aria, 'Microsoft Yahei';
+          font-size: 12px;
 
           .cm-gutters {
             display: none;
