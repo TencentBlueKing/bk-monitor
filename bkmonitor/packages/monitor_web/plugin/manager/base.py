@@ -299,6 +299,9 @@ class BasePluginManager:
             "description_md": data["description_md"],
             "metric_json": data["metric_json"],
         }
+        # 兼容在新建插件时，默认开启自动发现
+        if data.get("enable_field_blacklist", False):
+            info_data["enable_field_blacklist"] = True
         for attr, value in list(info_data.items()):
             setattr(version.info, attr, value)
         version.info.save()

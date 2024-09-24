@@ -48,7 +48,6 @@ for _setting in dir(_module):
 
 ROOT_URLCONF = "urls"
 
-
 INSTALLED_APPS = locals().get("INSTALLED_APPS", tuple())
 INSTALLED_APPS += (
     "django_elasticsearch_dsl",
@@ -78,12 +77,10 @@ INSTALLED_APPS += (
     'bk_notice_sdk',
 )
 
-
 # 切换session的backend后， 需要设置该中间件，确保新的 csrftoken 被设置到新的session中
 ensure_csrf_cookie = "django.views.decorators.csrf._EnsureCsrfCookie"
 # 切换backend一段时候后， 再使用如下配置进行csrf保护
 csrf_protect = "django.middleware.csrf.CsrfViewMiddleware"
-
 
 MIDDLEWARE = (
     "bkmonitor.middlewares.pyinstrument.ProfilerMiddleware",
@@ -119,7 +116,6 @@ MIDDLEWARE = (
     "bkm_space.middleware.ParamInjectMiddleware",
     "bkmonitor.middlewares.prometheus.MetricsAfterMiddleware",  # 必须放到最后面
 )
-
 
 DATABASES = locals()["DATABASES"]
 # 未配置节点管理，默认和监控 SaaS 共用 DB
@@ -267,7 +263,6 @@ SESSION_COOKIE_NAME = APP_CODE + "_sessionid"
 #
 AUTH_USER_MODEL = "account.User"
 
-
 LOG_LEVEL = os.environ.get("BKAPP_LOG_LEVEL", "INFO")
 
 if PAAS_VERSION == "V2":
@@ -371,6 +366,11 @@ CELERYBEAT_SCHEDULE = {
         "schedule": crontab(),
         "enabled": True,
     },
+    "monitor_web.tasks.update_metric_json_from_ts_group": {
+        "task": "monitor_web.tasks.update_metric_json_from_ts_group",
+        "schedule": crontab(minute="*/50"),
+        "enabled": True,
+    }
 }
 
 *_, BROKER_URL = get_rabbitmq_settings(APP_CODE)
