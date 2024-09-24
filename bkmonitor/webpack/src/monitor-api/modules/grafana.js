@@ -47,6 +47,11 @@ export const addCustomMetric = request('POST', 'rest/v2/grafana/add_custom_metri
 export const queryAlarmEventGraph = request('POST', 'rest/v2/grafana/query_alarm_event_graph/');
 export const getAlarmEventField = request('GET', 'rest/v2/grafana/get_alarm_event_field/');
 export const getAlarmEventDimensionValue = request('GET', 'rest/v2/grafana/get_alarm_event_dimension_value/');
+export const queryGraphProfile = request('POST', 'rest/v2/grafana/query_graph_profile/');
+export const getProfileApplicationService = request('GET', 'rest/v2/grafana/get_profile_application_service/');
+export const getProfileType = request('GET', 'rest/v2/grafana/get_profile_type/');
+export const getProfileLabel = request('GET', 'rest/v2/grafana/get_profile_label/');
+export const getProfileLabelValues = request('GET', 'rest/v2/grafana/get_profile_label_values/');
 
 export default {
   test,
@@ -96,4 +101,9 @@ export default {
   queryAlarmEventGraph,
   getAlarmEventField,
   getAlarmEventDimensionValue,
+  queryGraphProfile,
+  getProfileApplicationService,
+  getProfileType,
+  getProfileLabel,
+  getProfileLabelValues,
 };
