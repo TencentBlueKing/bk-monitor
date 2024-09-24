@@ -28,6 +28,7 @@
 import { Component, Emit, Prop, PropSync, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { ConditionOperator } from '@/store/condition-operator';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { Input, Popover, Button, Radio, RadioGroup, Form, FormItem } from 'bk-magic-vue';
 
@@ -400,21 +401,15 @@ export default class CollectIndex extends tsc<IProps> {
       case 'share':
       case 'new-link':
         {
-          // const { ip_chooser, addition, keyword } = value.params;
           const params = { indexId: value.index_set_id };
-          // const filterQuery = {
-          //   keyword,
-          //   addition: JSON.stringify(addition),
-          //   ip_chooser: JSON.stringify(ip_chooser),
-          // };
-          // if (value.index_set_type === 'union') {
-          //   Object.assign(filterQuery, {
-          //     unionList: JSON.stringify(value.index_set_ids.map((item: number) => String(item))),
-          //   });
-          // }
-
           const resolver = new RetrieveUrlResolver({
             ...value.params,
+            addition: (value.params.addition ?? []).map(val => {
+              const instance = new ConditionOperator(val);
+              return instance.formatApiOperatorToFront();
+            }),
+            search_mode: value.search_mode,
+            spaceUid: value.space_uid,
             unionList: value.index_set_ids.map((item: number) => String(item)),
             isUnionIndex: value.index_set_type === 'union',
           });
@@ -433,6 +428,7 @@ export default class CollectIndex extends tsc<IProps> {
           if (type === 'new-link') {
             window.open(shareUrl, '_blank');
           } else {
+            console.log('routeData', `${shareUrl}`);
             copyMessage(shareUrl, this.$t('复制成功'));
           }
         }
