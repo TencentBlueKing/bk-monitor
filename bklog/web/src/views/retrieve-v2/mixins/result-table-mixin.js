@@ -431,7 +431,7 @@ export default {
     },
     // 获取有效的字段条件字符串
     getFiledAdditionStr(linkAdditionList = null) {
-      const filterAddition = this.indexItem.addition;
+      const filterAddition = this.indexItem.addition.filter(item => item.field !== '_ip-select_');
       if (!filterAddition.length && !linkAdditionList) return undefined;
       return JSON.stringify(linkAdditionList?.length ? filterAddition.concat(...linkAdditionList) : filterAddition);
     },
@@ -485,7 +485,7 @@ export default {
       } else if (type === 'copy') {
         // 复制单元格内容
         copyMessage(value);
-      } else if (['is', 'is not', 'new-search-page-is', 'new-search-page-not'].includes(type)) {
+      } else if (['is', 'is not', 'new-search-page-is'].includes(type)) {
         this.handleAddCondition(field.field_name, type, value === '--' ? [] : [value], isLink);
       }
     },

@@ -1139,9 +1139,8 @@ const store = new Vuex.Store({
      */
     setQueryCondition({ state, dispatch }, payload) {
       const { field, value, isLink = false } = payload;
-      const isNewSearchPage = ['new-search-page-is', 'new-search-page-not'].includes(payload.operator);
-      const getNewSearchOperatorKey = payload.operator === 'new-search-page-is' ? 'is' : 'is not';
-      const operator = isNewSearchPage ? getNewSearchOperatorKey : payload.operator;
+      const isNewSearchPage = payload.operator === 'new-search-page-is';
+      const operator = isNewSearchPage ? 'is' : payload.operator;
       const getFieldType = field => {
         const target = state.indexFieldInfo.fields?.find(item => item.field_name === field);
         return target ? target.field_type : '';
