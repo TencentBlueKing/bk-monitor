@@ -21,7 +21,6 @@ from api.log_search.default import (
     DataBusCollectorsResource,
     LogSearchIndexSetResource,
 )
-from apm_web.meta.resources import IndicesInfoResource
 from apm_web.models import Application
 from core.drf_resource import api
 
@@ -141,7 +140,7 @@ class TracingBackendHandler(TelemetryBackendHandler):
     def storage_info(self):
         datasource_config = self.app.get_config_by_key(self.app.APPLICATION_DATASOURCE_CONFIG_KEY).config_value
         if "es_shards" not in datasource_config:
-            indices_data = IndicesInfoResource()(application_id=self.app.application_id)
+            indices_data = self.indices_info()
             if indices_data:
                 shards_count = indices_data[0]["pri"]
                 datasource_config = {**datasource_config, "es_shards": shards_count}
