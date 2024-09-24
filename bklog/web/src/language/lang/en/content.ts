@@ -926,4 +926,5 @@ export default {
   字段内容分布: 'Field content assignment',
   确认结果: 'Confirmation',
   副本: 'copy',
+  新建检索: 'New search',
 };
