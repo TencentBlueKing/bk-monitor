@@ -787,10 +787,10 @@ export default class CollectIndex extends tsc<IProps> {
             <span class='bk-icon icon-enlarge-line'></span>
             <span>{this.$t('新检索')}</span>
           </div>
-          <div
+          {/* <div
             class={['drag-border', { 'drag-ing': this.isChangingWidth }]}
             onMousedown={this.dragBegin}
-          ></div>
+          ></div> */}
         </CollectContainer>
         <ManageGroupDialog
           vModel={this.isShowManageDialog}

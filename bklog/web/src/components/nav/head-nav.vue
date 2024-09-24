@@ -660,7 +660,7 @@
       max-width: 180px;
       height: 100%;
       padding-left: 16px;
-      margin-right: 179px;
+      margin-right: 315px;
       font-size: 18px;
 
       .log-logo-container {
@@ -691,6 +691,10 @@
 
       .head-navi-left {
         &.biz-menu-select {
+          .menu-select {
+            background-color: #182132;
+          }
+
           .menu-select-list {
             top: 52px;
             left: 138px;

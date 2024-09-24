@@ -269,7 +269,7 @@
         ></SearchBar>
         <div
           ref="resultRow"
-          :style="{ height: `calc(100vh - ${searchBarHeight + 160}px)` }"
+          :style="{ height: `calc(100vh - ${searchBarHeight + 130}px)` }"
           class="result-row"
         >
           <SearchResultTab v-model="activeTab"></SearchResultTab>
