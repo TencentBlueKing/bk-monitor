@@ -120,7 +120,8 @@
           "enableContextmenu": true
         },
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -355,7 +356,8 @@
           "enableContextmenu": true
         },
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -836,6 +838,9 @@
           "metric": "avg_duration",
           "unit": "μs",
           "enableContextmenu": true
+        },
+        "time_series": {
+          "hoverAllTooltips": true
         }
       }
     },
