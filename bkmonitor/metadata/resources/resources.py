@@ -1837,7 +1837,7 @@ class KafkaTailResource(Resource):
         consumer.assign(topic_partitions)
 
         # 在 assign 之后调用一次 poll 使 consumer 进入正确的状态
-        consumer.poll(0)
+        consumer.poll(0.5)
 
         result = []
         for tp in topic_partitions:
