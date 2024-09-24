@@ -485,7 +485,7 @@ export default {
       } else if (type === 'copy') {
         // 复制单元格内容
         copyMessage(value);
-      } else if (['is', 'is not', 'new-search-page'].includes(type)) {
+      } else if (['is', 'is not', 'new-search-page-is', 'new-search-page-not'].includes(type)) {
         this.handleAddCondition(field.field_name, type, value === '--' ? [] : [value], isLink);
       }
     },
