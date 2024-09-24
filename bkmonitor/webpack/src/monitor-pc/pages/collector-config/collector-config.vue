@@ -981,7 +981,7 @@ export default {
       });
     },
     checkUpdateTargetDisabled(row) {
-      return row.taskStatus === 'STOPPED' || row.doingStatus || row.type === 'K8S';
+      return row.taskStatus === 'STOPPED' || row.doingStatus || row.collectType === 'K8S';
     },
     handleUpdateTarget(data) {
       if (this.checkUpdateTargetDisabled(data)) return;
