@@ -127,13 +127,7 @@ class CollectConfigListResource(Resource):
                 "total_instance_count": subscription_status_data.get("total_instance_count", 0),
             }
             if config.cache_data != cache_data or config.operation_result != operation_result:
-                CollectConfigMeta.objects.filter(id=config.id).update(
-                    cache_data=cache_data, operation_result=operation_result
-                )
-
-                # 更新内存数据
-                config.cache_data = cache_data
-                config.operation_result = operation_result
+                config.save(not_update_user=True, update_fields=["cache_data", "operation_result"])
 
         # 更新k8s插件采集配置的状态
         for collect_config in config_data_list:
@@ -174,9 +168,7 @@ class CollectConfigListResource(Resource):
                 CollectConfigMeta.objects.filter(id=collect_config.id).update(
                     cache_data=cache_data, operation_result=operation_result
                 )
-                # 更新内存数据
-                collect_config.cache_data = cache_data
-                collect_config.operation_result = operation_result
+                collect_config.save(not_update_user=True, update_fields=["cache_data", "operation_result"])
 
     def update_cache_data(self, config):
         # 更新采集配置的缓存数据（总数、异常数）

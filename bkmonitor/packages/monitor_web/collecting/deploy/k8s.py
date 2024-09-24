@@ -420,7 +420,7 @@ class K8sInstaller(BaseInstaller):
                         {
                             "instance_id": "default",
                             "instance_name": _("公共采集集群"),
-                            "status": "STOPPED",
+                            "status": "SUCCESS",
                             "plugin_version": self.collect_config.deployment_config.plugin_version.version,
                             "log": "",
                             "action": "",
