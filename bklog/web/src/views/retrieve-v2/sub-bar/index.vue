@@ -54,7 +54,7 @@
   <div class="subbar-container">
     <div class="box-biz-select">
       <SelectIndexSet
-        style="min-width: 300px"
+        style="min-width: 500px"
         @selected="handleIndexSetSelected"
         :popoverOptions="{ offset: '-6,10' }"
       ></SelectIndexSet>

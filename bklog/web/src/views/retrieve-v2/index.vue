@@ -51,11 +51,14 @@
   const bkBizId = computed(() => store.state.bkBizId);
 
   const routeQueryParams = computed(() => {
-    const { ids, isUnionIndex } = store.state.indexItem;
+    const { ids, isUnionIndex, search_mode } = store.state.indexItem;
+    const unionList = store.state.unionIndexList;
     return {
       ...(store.getters.retrieveParams ?? {}),
+      search_mode,
       ids,
       isUnionIndex,
+      unionList,
     };
   });
 
@@ -73,6 +76,12 @@
     });
   };
 
+  const getEncodeString = val => encodeURIComponent(JSON.stringify(val));
+
+  /**
+   * 路由参数格式化字典函数
+   * 不同的字段需要不同的格式化函数
+   */
   const routeQueryMap = {
     host_scopes: val => {
       const isEmpty = !Object.keys(val ?? {}).some(k => {
@@ -83,37 +92,55 @@
         return val[k]?.length;
       });
 
-      return isEmpty ? undefined : encodeURIComponent(JSON.stringify(val));
+      return isEmpty ? undefined : getEncodeString(val);
     },
     start_time: () => store.state.indexItem.datePickerValue[0],
     end_time: () => store.state.indexItem.datePickerValue[1],
-    default: val => {
-      if (typeof val === 'object' && val !== null) {
-        return encodeURIComponent(JSON.stringify(val));
+    keyword: val => (/^\s*\*\s*$/.test(val) ? undefined : val),
+    unionList: val => {
+      if (routeQueryParams.value.isUnionIndex && val?.length) {
+        return getEncodeString(val);
       }
 
-      return val;
+      return undefined;
+    },
+    default: val => {
+      if (typeof val === 'object' && val !== null) {
+        if (Array.isArray(val) && val.length) {
+          return getEncodeString(val);
+        }
+
+        if (Object.keys(val).length) {
+          return getEncodeString(val);
+        }
+
+        return undefined;
+      }
+
+      return val?.length ? val : undefined;
     },
   };
 
   const getRouteQueryValue = () => {
     return Object.keys(routeQueryParams.value)
       .filter(key => {
-        return !['ids', 'isUnionIndex', 'unionList'].includes(key);
+        return !['ids', 'isUnionIndex'].includes(key);
       })
       .reduce((result, key) => {
         const val = routeQueryParams.value[key];
-        const value = routeQueryMap[key]?.(val) ?? routeQueryMap.default(val);
+        const valueFn = typeof routeQueryMap[key] === 'function' ? routeQueryMap[key] : routeQueryMap.default;
+        const value = valueFn(val);
         return Object.assign(result, { [key]: value });
       }, {});
   };
 
   const setRouteParams = () => {
     const { ids, isUnionIndex } = routeQueryParams.value;
-    const params = isUnionIndex ? route.params : { ...route.params, indexId: ids?.[0] ?? route.params?.indexId };
-    const query = isUnionIndex
-      ? { ...route.query, unionList: encodeURIComponent(JSON.stringify(ids.map(item => String(item)))) }
-      : { ...route.query, unionList: undefined };
+    const params = isUnionIndex
+      ? { ...route.params, indexId: undefined }
+      : { ...route.params, indexId: ids?.[0] ?? route.params?.indexId };
+
+    const query = { ...route.query };
 
     Object.assign(query, getRouteQueryValue());
     if (!isEqual(params, route.params) || !isEqual(query, route.query)) {
@@ -197,7 +224,7 @@
   <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]">
     <div class="sub-head">
       <div
-        :style="{ width: `${showFavorites ? favoriteWidth : 110}px` }"
+        :style="{ width: `${showFavorites ? favoriteWidth : 94}px` }"
         class="box-favorites"
         @click="handleFavoritesClick"
       >
@@ -222,7 +249,7 @@
           <span :class="['bklog-icon bklog-collapse-small', { active: showFavorites }]"></span>{{ $t('收藏夹') }}
         </template>
       </div>
-      <SubBar :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 110}px` }" />
+      <SubBar :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 92}px` }" />
     </div>
     <div class="retrieve-body">
       <CollectFavorites

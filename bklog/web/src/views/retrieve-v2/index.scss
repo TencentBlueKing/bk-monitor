@@ -62,23 +62,20 @@
 
   .sub-head {
     display: flex;
-    height: 52px;
+    height: 48px;
 
     .box-favorites {
       display: flex;
       flex: 1;
       align-items: center;
       justify-content: center;
-      min-width: 110px;
+      min-width: 94px;
       height: 100%;
-
       font-size: 14px;
       color: #63656e;
-
       cursor: pointer;
 
       background: #ffffff;
-      border-right: solid 1px #dcdee5;
       box-shadow: 0 3px 4px 0 #4070cb0f;
 
       .bklog-icon {
@@ -91,7 +88,7 @@
   .retrieve-body {
     width: 100%;
     height: calc(100vh - 104px);
-    padding: 16px 24px;
+    padding: 8px;
     background: #f5f7fa;
 
     .retrieve-context {
@@ -99,9 +96,9 @@
 
       .result-row {
         width: 100%;
-        height: calc(100vh - 204px);
+        height: 100%;
         min-height: 120px;
-        margin-top: 16px;
+        margin-top: 8px;
         background: #ffffff;
         border-radius: 2px;
         box-shadow: 0 2px 4px 0 #1919290d;
