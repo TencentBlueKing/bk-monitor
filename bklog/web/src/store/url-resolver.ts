@@ -26,6 +26,9 @@
 
 // @ts-ignore
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
+
+import { ConditionOperator } from './condition-operator';
+
 class RouteUrlResolver {
   private route;
   private resolver: Map<string, (str) => unknown>;
@@ -121,8 +124,17 @@ class RouteUrlResolver {
     return { start_time: result[0], end_time: result[1] };
   }
 
+  private additionResolver(str) {
+    return this.commonResolver(str, val => {
+      return (JSON.parse(decodeURIComponent(val)) ?? []).map(val => {
+        const instance = new ConditionOperator(val);
+        return instance.formatApiOperatorToFront();
+      });
+    });
+  }
+
   private setDefaultResolver() {
-    this.resolver.set('addition', this.arrayResolver.bind(this));
+    this.resolver.set('addition', this.additionResolver.bind(this));
     this.resolver.set('unionList', this.arrayResolver.bind(this));
     this.resolver.set('host_scopes', this.objectResolver.bind(this));
     this.resolver.set('ip_chooser', this.objectResolver.bind(this));
@@ -159,7 +171,7 @@ class RetrieveUrlResolver {
   }
 
   resolveParamsToUrl() {
-    const getEncodeString = val => encodeURIComponent(JSON.stringify(val));
+    const getEncodeString = val => JSON.stringify(val);
 
     /**
      * 路由参数格式化字典函数
@@ -207,7 +219,7 @@ class RetrieveUrlResolver {
     const getRouteQueryValue = () => {
       return Object.keys(this.routeQueryParams)
         .filter(key => {
-          return !['ids', 'isUnionIndex'].includes(key);
+          return !['ids', 'isUnionIndex', 'datePickerValue'].includes(key);
         })
         .reduce((result, key) => {
           const val = this.routeQueryParams[key];
