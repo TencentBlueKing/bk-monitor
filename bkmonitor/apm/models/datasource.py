@@ -18,7 +18,6 @@ from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
 from elasticsearch_dsl import Q
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
@@ -45,17 +44,28 @@ from .doris import BkDataDorisProvider
 
 
 class ApmDataSourceConfigBase(models.Model):
+    LOG_DATASOURCE = "log"
     TRACE_DATASOURCE = "trace"
     METRIC_DATASOURCE = "metric"
     PROFILE_DATASOURCE = "profile"
 
     TABLE_SPACE_PREFIX = "space"
 
-    DATASOURCE_CHOICE = ((TRACE_DATASOURCE, "Trace"), (METRIC_DATASOURCE, _("指标")))
+    DATASOURCE_CHOICE = (
+        (TRACE_DATASOURCE, "Log"),
+        (TRACE_DATASOURCE, "Trace"),
+        (METRIC_DATASOURCE, "Metric"),
+        (PROFILE_DATASOURCE, "Profile"),
+    )
 
     DATA_NAME_PREFIX = "bkapm"
 
-    DATASOURCE_TYPE_MAP = {METRIC_DATASOURCE: "metric", TRACE_DATASOURCE: "trace"}
+    DATASOURCE_TYPE_MAP = {
+        METRIC_DATASOURCE: "metric",
+        LOG_DATASOURCE: "log",
+        TRACE_DATASOURCE: "trace",
+        PROFILE_DATASOURCE: "profile",
+    }
 
     # target字段配置
     DATA_ID_PARAM = None
@@ -244,6 +254,35 @@ class MetricDataSource(ApmDataSourceConfigBase):
                 "operator": get_global_user(),
             }
         )
+
+
+class LogDataSource(ApmDataSourceConfigBase):
+    DATASOURCE_TYPE = ApmDataSourceConfigBase.LOG_DATASOURCE
+
+    DATA_NAME_PREFIX = "bklog"
+
+    collector_config_id = models.IntegerField("索引集id", null=True)
+    index_set_id = models.IntegerField("索引集id", null=True)
+
+    def to_json(self):
+        return {
+            "bk_data_id": self.bk_data_id,
+            "result_table_id": self.result_table_id,
+            "collector_config_id": self.collector_config_id,
+            "index_set_id": self.index_set_id,
+        }
+
+    @property
+    def table_id(self) -> str:
+        return self.get_table_id(int(self.bk_biz_id), self.app_name)
+
+    @classmethod
+    def get_table_id(cls, bk_biz_id: int, app_name: str, **kwargs) -> str:
+        valid_app_name = app_name.replace("-", "_")
+        if bk_biz_id > 0:
+            return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}.{valid_app_name}"
+        else:
+            return f"{cls.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{cls.DATA_NAME_PREFIX}.{valid_app_name}"
 
 
 class TraceDataSource(ApmDataSourceConfigBase):

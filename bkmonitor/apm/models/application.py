@@ -17,7 +17,12 @@ from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 
 from apm.constants import DATABASE_CONNECTION_NAME
-from apm.models.datasource import MetricDataSource, ProfileDataSource, TraceDataSource
+from apm.models.datasource import (
+    LogDataSource,
+    MetricDataSource,
+    ProfileDataSource,
+    TraceDataSource,
+)
 from bkmonitor.utils.cipher import (
     transform_data_id_to_token,
     transform_data_id_to_v1_token,
@@ -30,7 +35,15 @@ class ApmApplication(AbstractRecordModel):
     app_name = models.CharField("应用名称", max_length=50)
     app_alias = models.CharField("应用别名", max_length=128)
     description = models.CharField("应用描述", max_length=255)
+
+    token = models.CharField("应用 Token", max_length=256, default="")
+
     is_enabled = models.BooleanField("是否启用", default=True)
+
+    # 数据源开关
+    is_enabled_log = models.BooleanField("是否开启 Logs 功能", default=True)
+    is_enabled_trace = models.BooleanField("是否开启 Traces 功能", default=True)
+    is_enabled_metric = models.BooleanField("是否开启 Metrics 功能", default=True)
     is_enabled_profiling = models.BooleanField("是否开启 Profiling 功能", default=False)
 
     class Meta:
@@ -171,8 +184,7 @@ class ApmApplication(AbstractRecordModel):
 
     @cached_property
     def log_datasource(self):
-        # Todo: 补充
-        return None
+        return LogDataSource.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
 
     def get_bk_data_token(self):
         if not self.metric_datasource:
