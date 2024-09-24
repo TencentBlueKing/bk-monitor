@@ -18,14 +18,14 @@ class Command(BaseCommand):
     """
     将指定 data id 切换到新的 transfer 集群
     # 用法1 ：切换特定的一批 data_id 到 test 集群
-    bin/manage.sh switch_transfer_for_dataid default --data_id 1573837
+    bin/manage.sh switch_transfer_for_dataid test --data_id 1500001 1500002
 
     # 用法2：切换来源系统为 bk_monitor 的所有 data_id 到 test 集群
     bin/manage.sh switch_transfer_for_dataid test --source_system bk_monitor
     """
 
     def add_arguments(self, parser):
-        parser.add_argument("transfer_cluster_id", type=str, help="target transfer cluster id")  #
+        parser.add_argument("transfer_cluster_id", type=str, help="target transfer cluster id")
         parser.add_argument("--data_id", type=int, nargs="*", help="data_id to switch")
         parser.add_argument("--bk_data_ids", type=str, help="data_ids, split by comma")
         parser.add_argument("--source_system", type=str, help="data_id for source system to switch")
