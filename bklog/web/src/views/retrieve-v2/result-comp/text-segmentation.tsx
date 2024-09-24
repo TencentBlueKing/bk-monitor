@@ -249,15 +249,27 @@ export default class QueryStatement extends tsc<IProps> {
                 <i class='icon bk-icon icon-plus-circle'></i>
                 <span>{this.$t('添加到本次检索')}</span>
               </span>
-              <div
-                class='new-link'
-                v-bk-tooltips={this.$t('新开标签页')}
-                onClick={e => {
-                  e.stopPropagation();
-                  this.handleMenuClick('is', true);
-                }}
-              >
-                <i class='bklog-icon bklog-jump'></i>
+              <div class='new-link-container'>
+                <div
+                  class='new-link'
+                  v-bk-tooltips={this.$t('新开标签页')}
+                  onClick={e => {
+                    e.stopPropagation();
+                    this.handleMenuClick('is', true);
+                  }}
+                >
+                  <i class='bklog-icon bklog-jump'></i>
+                </div>
+                <div
+                  class='new-link'
+                  v-bk-tooltips={this.$t('新建检索')}
+                  onClick={e => {
+                    e.stopPropagation();
+                    this.handleMenuClick('new-search-page-is', true);
+                  }}
+                >
+                  <i class='bklog-icon bklog-jump'></i>
+                </div>
               </div>
             </div>
             <div class='event-box'>
@@ -268,15 +280,27 @@ export default class QueryStatement extends tsc<IProps> {
                 <i class='icon bk-icon icon-minus-circle'></i>
                 <span>{this.$t('从本次检索中排除')}</span>
               </span>
-              <div
-                class='new-link'
-                v-bk-tooltips={this.$t('新开标签页')}
-                onClick={e => {
-                  e.stopPropagation();
-                  this.handleMenuClick('not', true);
-                }}
-              >
-                <i class='bklog-icon bklog-jump'></i>
+              <div class='new-link-container'>
+                <div
+                  class='new-link'
+                  v-bk-tooltips={this.$t('新开标签页')}
+                  onClick={e => {
+                    e.stopPropagation();
+                    this.handleMenuClick('not', true);
+                  }}
+                >
+                  <i class='bklog-icon bklog-jump'></i>
+                </div>
+                <div
+                  class='new-link'
+                  v-bk-tooltips={this.$t('新建检索')}
+                  onClick={e => {
+                    e.stopPropagation();
+                    this.handleMenuClick('new-search-page-not', true);
+                  }}
+                >
+                  <i class='bklog-icon bklog-jump'></i>
+                </div>
               </div>
             </div>
           </div>

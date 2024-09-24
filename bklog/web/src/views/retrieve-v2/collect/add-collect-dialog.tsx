@@ -255,6 +255,11 @@ export default class CollectDialog extends tsc<IProps> {
     return value;
   }
 
+  @Emit('change-favorite')
+  handleChangeFavorite(value) {
+    return value;
+  }
+
   checkName() {
     if (this.verifyData.groupName.trim() === '') return true;
     return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
@@ -268,7 +273,7 @@ export default class CollectDialog extends tsc<IProps> {
 
   /** 判断是否收藏名是否重复 */
   checkRepeatName() {
-    if (this.isClickFavoriteEdit || this.currentFavoriteName === this.favoriteData.name) return true;
+    if (this.currentFavoriteName === this.favoriteData.name) return true;
     return !this.favStrList.includes(this.favoriteData.name);
   }
   /** 检查收藏语法是否正确 */
@@ -379,6 +384,7 @@ export default class CollectDialog extends tsc<IProps> {
       if (res.result) {
         this.messageSuccess(this.$t('保存成功'));
         this.handleShowChange();
+        this.handleChangeFavorite(res.data);
       }
     } catch (error) {}
   }
@@ -556,7 +562,7 @@ export default class CollectDialog extends tsc<IProps> {
             <FormItem label={this.$t('查询语句')}>
               <bk-input
                 type='textarea'
-                value={this.additionString}
+                value={this.sqlString}
                 readonly
                 show-overflow-tooltips
               ></bk-input>

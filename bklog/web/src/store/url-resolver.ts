@@ -152,4 +152,74 @@ class RouteUrlResolver {
   }
 }
 
+class RetrieveUrlResolver {
+  routeQueryParams;
+  constructor(params) {
+    this.routeQueryParams = params;
+  }
+
+  resolveParamsToUrl() {
+    const getEncodeString = val => encodeURIComponent(JSON.stringify(val));
+
+    /**
+     * 路由参数格式化字典函数
+     * 不同的字段需要不同的格式化函数
+     */
+    const routeQueryMap = {
+      host_scopes: val => {
+        const isEmpty = !Object.keys(val ?? {}).some(k => {
+          if (typeof val[k] === 'object') {
+            return Array.isArray(val[k]) ? val[k].length : Object.keys(val[k] ?? {}).length;
+          }
+
+          return val[k]?.length;
+        });
+
+        return isEmpty ? undefined : getEncodeString(val);
+      },
+      start_time: () => this.routeQueryParams.datePickerValue[0],
+      end_time: () => this.routeQueryParams.datePickerValue[1],
+      keyword: val => (/^\s*\*\s*$/.test(val) ? undefined : val),
+      unionList: val => {
+        if (this.routeQueryParams.isUnionIndex && val?.length) {
+          return getEncodeString(val);
+        }
+
+        return undefined;
+      },
+      default: val => {
+        if (typeof val === 'object' && val !== null) {
+          if (Array.isArray(val) && val.length) {
+            return getEncodeString(val);
+          }
+
+          if (Object.keys(val).length) {
+            return getEncodeString(val);
+          }
+
+          return undefined;
+        }
+
+        return val?.length ? val : undefined;
+      },
+    };
+
+    const getRouteQueryValue = () => {
+      return Object.keys(this.routeQueryParams)
+        .filter(key => {
+          return !['ids', 'isUnionIndex'].includes(key);
+        })
+        .reduce((result, key) => {
+          const val = this.routeQueryParams[key];
+          const valueFn = typeof routeQueryMap[key] === 'function' ? routeQueryMap[key] : routeQueryMap.default;
+          const value = valueFn(val);
+          return Object.assign(result, { [key]: value });
+        }, {});
+    };
+
+    return getRouteQueryValue();
+  }
+}
+
 export default RouteUrlResolver;
+export { RetrieveUrlResolver };
