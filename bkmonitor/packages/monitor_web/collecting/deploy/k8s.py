@@ -137,6 +137,9 @@ class K8sInstaller(BaseInstaller):
         # 创建namespace和dataid资源
         self._create_namespace_and_dataid()
 
+        # 卸载旧的资源配置
+        self._undeploy()
+
         cluster_id, namespace = self._get_default_cluster()
         with k8s_client.ApiClient(self._get_k8s_config(cluster_id)) as api_client:
             client = k8s_dynamic.DynamicClient(api_client)

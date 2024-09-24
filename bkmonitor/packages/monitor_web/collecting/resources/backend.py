@@ -170,13 +170,13 @@ class CollectConfigListResource(Resource):
                 "error_instance_count": error_count,
                 "total_instance_count": total_count,
             }
-            if config.cache_data != cache_data or config.operation_result != operation_result:
-                CollectConfigMeta.objects.filter(id=config.id).update(
+            if collect_config.cache_data != cache_data or collect_config.operation_result != operation_result:
+                CollectConfigMeta.objects.filter(id=collect_config.id).update(
                     cache_data=cache_data, operation_result=operation_result
                 )
                 # 更新内存数据
-                config.cache_data = cache_data
-                config.operation_result = operation_result
+                collect_config.cache_data = cache_data
+                collect_config.operation_result = operation_result
 
     def update_cache_data(self, config):
         # 更新采集配置的缓存数据（总数、异常数）
