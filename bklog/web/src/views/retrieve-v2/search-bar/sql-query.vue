@@ -56,7 +56,7 @@
     addInputListener: false,
     tippyOptions: {
       maxWidth: 'none',
-      offset: [0, 15]
+      offset: [0, 15],
     },
     onShowFn: instance => {
       if (refSqlQueryOption.value?.beforeShowndFn?.()) {
@@ -87,8 +87,8 @@
   };
 
   const isEmptySqlString = computed(() => {
-    return /^\s*\*\s*$/.test(modelValue.value) || !modelValue.value.length
-  })
+    return /^\s*\*\s*$/.test(modelValue.value) || !modelValue.value.length;
+  });
 
   const debounceRetrieve = () => {
     emit('retrieve', modelValue.value);
@@ -157,7 +157,7 @@
 
   onMounted(() => {
     createEditorInstance();
-  })
+  });
 </script>
 <template>
   <div
@@ -216,6 +216,8 @@
         }
 
         .cm-scroller {
+          font-family: 'Microsoft Yahei', pingFang-SC-Regular, Helvetica, Aria, sans-serif;
+
           .cm-gutters {
             display: none;
 
