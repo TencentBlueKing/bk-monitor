@@ -39,6 +39,7 @@
         />
         <span class="logo-text">{{ platformData.name }}</span>
       </div>
+      <div class="nav-separator">|</div>
       <BizMenuSelect
         v-if="showHeadNaviBizSelect"
         class="head-navi-left"
@@ -256,12 +257,12 @@
   import logoImg from '@/images/log-logo.png';
   import navMenuMixin from '@/mixins/nav-menu-mixin';
   import platformConfigStore from '@/store/modules/platform-config';
-  import BizMenuSelect from '@/components/biz-menu';
   import jsCookie from 'js-cookie';
   import { mapState, mapGetters } from 'vuex';
 
   import { menuArr } from './complete-menu';
   import LogVersion from './log-version';
+  import BizMenuSelect from '@/components/biz-menu';
 
   export default {
     name: 'HeaderNav',
@@ -659,7 +660,7 @@
       max-width: 180px;
       height: 100%;
       padding-left: 16px;
-      margin-right: 80px;
+      margin-right: 179px;
       font-size: 18px;
 
       .log-logo-container {
@@ -680,6 +681,12 @@
           height: 40px;
           margin-right: 10px;
         }
+      }
+
+      .nav-separator {
+        margin: -4px 2px 0 18px;
+        font-size: 20px;
+        color: #5f616b;
       }
 
       .head-navi-left {

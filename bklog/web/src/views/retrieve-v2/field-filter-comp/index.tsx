@@ -163,7 +163,8 @@ export default class FieldFilterComp extends tsc<object> {
       },
     );
     const visibleBuiltLength = this.builtInFields().filter(item => item.filterVisible).length;
-    const hiddenFieldVisible = !!initHiddenList.filter(item => item.filterVisible).length;
+    const hiddenFieldVisible =
+      !!initHiddenList.filter(item => item.filterVisible).length && visibleBuiltLength === this.builtInFields().length;
     return {
       // 若没找到初始隐藏的内置字段且内置字段不足10条则不展示展开按钮
       isShowBuiltExpandBtn: visibleBuiltLength > 10 || hiddenFieldVisible,
