@@ -334,7 +334,7 @@ export default class CollectGroup extends tsc<IProps> {
           class='dropdown-list'
         >
           <li onClick={() => this.handleClickLi('share')}>{this.$t('分享')}</li>
-          {/* <li onClick={() => this.handleClickLi('edit-favorite')}>{this.$t('编辑')}</li> */}
+          <li onClick={() => this.handleClickLi('edit-favorite')}>{this.$t('编辑')}</li>
           <li onClick={() => this.handleClickLi('create-copy')}>{this.$t('克隆')}</li>
           <li
             class='move-group'
