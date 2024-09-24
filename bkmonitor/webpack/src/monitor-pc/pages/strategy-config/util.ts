@@ -61,6 +61,53 @@ export const handleMouseDown = (e, tag: string, resetWidth = 200, option: IDragO
   document.addEventListener('mousemove', handleMouseMove);
   document.addEventListener('mouseup', handleMouseUp);
 };
+// 新版本（推荐使用）
+export const handleMouseDownV2 = (
+  e: MouseEvent,
+  tag: string,
+  option: IDragOption,
+  setWidth: (width: number) => void,
+  resetWidth = 200 // 将默认参数放在最后
+): void => {
+  let target = e.target as HTMLElement;
+
+  // 查找具有指定数据标签的祖先节点
+  while (target && target.dataset.tag !== tag) {
+    target = target.parentNode as HTMLElement;
+  }
+
+  if (!target) {
+    return;
+  }
+
+  const rect = target.getBoundingClientRect();
+
+  // 禁止文本选择和拖动
+  document.onselectstart = () => false;
+  document.ondragstart = () => false;
+
+  const handleMouseMove = (event: MouseEvent) => {
+    const newWidth = event.clientX - rect.left;
+    if (newWidth < resetWidth) {
+      setWidth(0);
+    } else {
+      setWidth(Math.min(Math.max(option.min, newWidth), option.max));
+    }
+  };
+
+  const handleMouseUp = () => {
+    document.body.style.cursor = '';
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+    document.onselectstart = null;
+    document.ondragstart = null;
+  };
+
+  // 添加事件监听器
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mouseup', handleMouseUp);
+};
+
 export const handleMouseMove = e => {
   let { target } = e;
   while (target && target.dataset.tag !== 'resizeTarget') {
@@ -79,3 +126,20 @@ export const compareObjectsInArray = arr => {
     );
   });
 };
+
+/**
+ * 计算容器中不在第一行的子元素数量
+ * @param container - 包含子元素的容器元素
+ * @returns 不在第一行的子元素数量
+ */
+export function countElementsNotInFirstRow(container: HTMLElement): number {
+  const children = container.children || [];
+
+  if (children.length === 0) {
+    return 0;
+  }
+
+  const firstElementTop = (children[0] as HTMLElement).offsetTop;
+
+  return Array.from(children).filter(item => (item as HTMLElement).offsetTop > firstElementTop).length;
+}
