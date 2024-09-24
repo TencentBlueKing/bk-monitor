@@ -837,8 +837,6 @@ class ListApplicationResource(PageListResource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")
         keyword = serializers.CharField(required=False, label="查询关键词", allow_blank=True)
-        page = serializers.IntegerField(required=False, label="页码")
-        page_size = serializers.IntegerField(required=False, label="每页条数")
         filter_dict = serializers.JSONField(required=False, label="筛选字典")
         sort = serializers.CharField(required=False, label="排序条件", allow_blank=True)
 
@@ -883,6 +881,8 @@ class ListApplicationResource(PageListResource):
             ),
             reverse=True,
         )
+        # 不分页
+        validate_data["page_size"] = len(data)
         return self.get_pagination_data(data, validate_data)
 
 
@@ -1100,7 +1100,7 @@ class ServiceDetailResource(Resource):
             for item, value in {
                 "category": StandardFieldCategory.get_label_by_key(extra_data.get("category")),
                 "predicate_value": extra_data.get("predicate_value"),
-                "service_language": TopoNodeKind.get_label_by_key(extra_data.get("service_language")),
+                "service_language": extra_data.get("service_language") or _("其他语言"),
                 "instance_count": len(instances),
             }.items()
             if item in self.key_name_map()[TopoNodeKind.SERVICE].keys()
