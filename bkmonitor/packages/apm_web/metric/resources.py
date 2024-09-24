@@ -43,7 +43,11 @@ from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.icon import get_icon
-from apm_web.metric.constants import ErrorMetricCategory, StatisticsMetric
+from apm_web.metric.constants import (
+    ErrorMetricCategory,
+    SeriesAliasType,
+    StatisticsMetric,
+)
 from apm_web.metric.handler.statistics import ServiceMetricStatistics
 from apm_web.metric.handler.top_n import get_top_n_query_type, load_top_n_handler
 from apm_web.metric_handler import (
@@ -153,6 +157,12 @@ class DynamicUnifyQueryResource(Resource):
         component_instance_id = ComponentInstanceIdDynamicField(required=False, label="组件实例id(组件页面下有效)")
         unit = serializers.CharField(label="图表单位(多指标计算时手动返回)", default=False)
         fill_bar = serializers.BooleanField(label="是否需要补充柱子(用于特殊配置的场景 仅影响 interval)", required=False)
+        alias_prefix = serializers.ChoiceField(
+            label="动态主被调当前值",
+            choices=SeriesAliasType.get_choices(),
+            required=False,
+        )
+        alias_suffix = serializers.CharField(label="动态 alias 后缀", required=False)
 
     def perform_request(self, validate_data):
         unify_query_params = {
@@ -176,9 +186,7 @@ class DynamicUnifyQueryResource(Resource):
         if not validate_data.get("service_name"):
             return self.fill_unit_and_series(
                 resource.grafana.graph_unify_query(unify_query_params),
-                validate_data.get("unit"),
-                validate_data["start_time"],
-                validate_data["end_time"],
+                validate_data,
                 require_fill_series,
             )
 
@@ -191,9 +199,7 @@ class DynamicUnifyQueryResource(Resource):
         if not node:
             return self.fill_unit_and_series(
                 resource.grafana.graph_unify_query(unify_query_params),
-                validate_data.get("unit"),
-                validate_data["start_time"],
-                validate_data["end_time"],
+                validate_data,
                 require_fill_series,
             )
 
@@ -257,25 +263,40 @@ class DynamicUnifyQueryResource(Resource):
 
         return self.fill_unit_and_series(
             resource.grafana.graph_unify_query(unify_query_params),
-            validate_data.get("unit"),
-            validate_data["start_time"],
-            validate_data["end_time"],
+            validate_data,
             require_fill_series,
+            node=node,
         )
 
     @classmethod
-    def fill_unit_and_series(cls, response, unit, start_time, end_time, require_fill_series=False):
-        response = {
-            "metrics": response.get("metrics"),
-            "series": fill_series(response.get("series", []), start_time, end_time)
-            if require_fill_series
-            else response.get("series", []),
-        }
-        if not unit:
-            return response
+    def fill_unit_and_series(cls, response, validate_data, require_fill_series=False, node=None):
+        """补充单位、时间点、展示名称"""
+        unit = validate_data.get("unit")
+        start_time = validate_data["start_time"]
+        end_time = validate_data["end_time"]
 
-        for i in response.get("series", []):
-            i["unit"] = unit
+        if require_fill_series:
+            response = {
+                "metrics": response.get("metrics"),
+                "series": fill_series(response.get("series", []), start_time, end_time),
+            }
+
+        if validate_data.get("unit"):
+            for i in response.get("series", []):
+                i["unit"] = unit
+
+        if validate_data.get("alias_prefix") and node:
+            # 如果同时配置了 alias 判断类型和后缀 则进行更名
+            prefix = validate_data["alias_prefix"]
+            suffix = validate_data.get("alias_suffix", "")
+
+            if ComponentHandler.is_component_by_node(node) or ServiceHandler.is_remote_service_by_node(node):
+                prefix = SeriesAliasType.get_choice_label(SeriesAliasType.get_opposite(prefix).value)
+                # 如果是组件类服务或者自定义服务 将图表的主调改为被调
+            else:
+                prefix = SeriesAliasType.get_choice_label(prefix)
+            for i in response.get("series", []):
+                i["target"] = prefix + _(f"{suffix}")
 
         return response
 
@@ -1904,6 +1925,8 @@ class AlertQueryResource(Resource):
         red_time_list = {}
         # 黄色预警-时刻
         yellow_time_list = {}
+        # 蓝色提醒-时刻
+        blue_time_list = {}
         # 存储各个时刻的颜色
         result_time = []
         for level in alert_level_result:
@@ -1920,8 +1943,10 @@ class AlertQueryResource(Resource):
                             if level == AlertLevel.ERROR:
                                 red_time_list[item_data[0]] = num
                                 # red_time_list.append(item_data[0])
-                            else:
+                            elif level == AlertLevel.WARN:
                                 yellow_time_list[item_data[0]] = num
+                            else:
+                                blue_time_list[item_data[0]] = num
                                 # yellow_time_list.append(item_data[0])
                 # 用"提示"-"已恢复"的时刻列表，去获取所有的时刻列表
                 elif level == AlertLevel.INFO and name == AlertStatus.RECOVERED:
@@ -1931,14 +1956,13 @@ class AlertQueryResource(Resource):
 
         for time, value in all_time_list.items():
             if time in red_time_list:
-                # item = {"value": [time, 1], "status": AlertColor.RED}
                 item = [[1, red_time_list[time]], time]
             elif time in yellow_time_list:
-                # item = {"value": [time, 1], "status": AlertColor.YELLOW}
                 item = [[2, yellow_time_list[time]], time]
+            elif time in blue_time_list:
+                item = [[3, blue_time_list[time]], time]
             else:
-                # item = {"value": [time, 1], "status": AlertColor.GREEN}
-                item = [[3, 0], time]
+                item = [[4, 0], time]
             result_time.append(item)
 
         return result_time

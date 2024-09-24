@@ -88,7 +88,7 @@ ujson==1.35
 schematics==2.0.1
 Pillow==8.4.0
 PyYAML==5.4.1
-PyMySQL==0.6.7
+PyMySQL==1.0.2
 coreapi==2.3.3
 kafka-python==1.4.6
 babel==2.5.1
@@ -103,7 +103,6 @@ dnspython==1.16.0
 furl==2.0.0
 jinja2==2.11.3
 humanize==3.14.0
-mysqlclient==2.0.3
 jedi==0.17.2
 ply==3.11
 pypinyin==0.46.0
