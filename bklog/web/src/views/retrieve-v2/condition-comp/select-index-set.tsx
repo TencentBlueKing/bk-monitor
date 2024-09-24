@@ -1213,6 +1213,7 @@ export default class QueryStatement extends tsc<object> {
         selected-item-list={this.selectedItemList}
       />
     );
+
     return (
       <Select
         ref='selectInput'

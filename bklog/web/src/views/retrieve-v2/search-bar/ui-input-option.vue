@@ -122,6 +122,7 @@
         field_name: '_ip-select_',
         is_full_text: true,
         field_alias: t('IP目标'),
+        field_operator: [],
       });
     }
     return list;
@@ -136,20 +137,20 @@
   // 判定当前选中条件是否需要设置Value
   const isShowConditonValueSetting = computed(() => !withoutValueConditionList.includes(condition.value.operator));
 
-  const compSearchValue = computed(() => {
-    if (searchValue.value.length) {
-      return searchValue.value;
-    }
+  // const compSearchValue = computed(() => {
+  //   if (searchValue.value.length) {
+  //     return searchValue.value;
+  //   }
 
-    if (typeof props.value === 'string') {
-      return props.value;
-    }
+  //   if (typeof props.value === 'string') {
+  //     return props.value;
+  //   }
 
-    return '';
-  });
+  //   return '';
+  // });
 
   const filterFieldList = computed(() => {
-    const regExp = getRegExp(compSearchValue.value);
+    const regExp = getRegExp(searchValue.value);
     const filterFn = field =>
       field.field_type !== '__virtual__' &&
       !excludesFields.includes(field.field_name) &&
@@ -238,7 +239,7 @@
   });
 
   const setDefaultActiveIndex = () => {
-    activeIndex.value = compSearchValue.value.length ? null : 0;
+    activeIndex.value = searchValue.value.length ? null : 0;
   };
 
   watch(
@@ -257,7 +258,7 @@
   );
 
   watch(
-    compSearchValue,
+    searchValue,
     () => {
       nextTick(() => {
         setDefaultActiveIndex();
@@ -869,7 +870,7 @@
           </bk-exception>
         </template>
         <template v-else-if="showFulltextMsg">
-          <template v-if="activeIndex === 0">
+          <template v-if="activeIndex === 0 || activeIndex === null">
             <div class="full-text-title">{{ $t('全文检索') }}</div>
             <div class="full-text-sub-title">
               <img :src="svgImg.imgEnterKey" /><span>{{ $t('Enter 键') }}</span>

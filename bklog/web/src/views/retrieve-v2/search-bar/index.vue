@@ -141,10 +141,10 @@
         @retrieve="handleSqlRetrieve"
       ></SqlQuery>
       <div class="search-tool items">
-        <span
+        <div
           :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
           @click.stop="handleClearBtnClick"
-        ></span>
+        ></div>
         <BookmarkPop
           :addition="uiQueryValue"
           :class="{ disabled: isInputLoading }"
