@@ -79,7 +79,6 @@ class ClusterInfo(models.Model):
     集群信息配置
     此处的集群信息，主要是指对于外部使用监控kafka集群或者influxDB-proxy集群的信息
     如果需要看到influxDB-proxy后面的实际集群信息，请看InfluxDBClusterInfo记录
-    Note： 若涉及Kafka协议问题，需在SCRAM_SHA_512_KAFKA_CLUSTER_ID_LIST中添加对应的集群ID
     """
 
     CONSUL_PREFIX_PATH = "%s/unify-query/data/storage" % config.CONSUL_PATH
@@ -105,7 +104,7 @@ class ClusterInfo(models.Model):
     # 默认注册系统名
     DEFAULT_REGISTERED_SYSTEM = "_default"
     LOG_PLATFORM_REGISTERED_SYSTEM = "log-search-4"
-    BKDATA_REGISTERED_SYSTEM = "bkdata"  # 计算平台来源的Kafka
+    BKDATA_REGISTERED_SYSTEM = "bkdata"
 
     cluster_id = models.AutoField("集群ID", primary_key=True)
     # 集群中文名，便于管理员维护
@@ -127,7 +126,7 @@ class ClusterInfo(models.Model):
     custom_option = models.TextField("自定义标签", default="")
     # 供部分http协议连接方案的存储使用，配置可以为http或者https等
     schema = models.CharField("访问协议", max_length=32, default=None, null=True)
-    # ssl/tls 校验参数相关，Kafka场景下，使用了schema和ssl_verfictaion_mode两个字段
+    # ssl/tls 校验参数相关，Kafka场景下，使用了schema和ssl_verification_mode两个字段
     is_ssl_verify = models.BooleanField("SSL验证是否强验证", default=False)
     ssl_verification_mode = models.CharField("CA 校验模式", max_length=16, null=True, default="none")
     ssl_certificate_authorities = models.TextField("CA 内容", null=True, default="")

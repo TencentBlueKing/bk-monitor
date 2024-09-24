@@ -1380,7 +1380,6 @@ ENABLE_V2_BKDATA_GSE_RESOURCE = False
 ENABLE_V2_VM_DATA_LINK = False
 ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST = []
 
-
 # 创建 vm 链路资源所属的命名空间
 DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
 # grafana和策略导出是否支持data_label转换
