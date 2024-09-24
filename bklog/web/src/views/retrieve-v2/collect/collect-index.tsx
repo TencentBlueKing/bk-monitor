@@ -167,10 +167,6 @@ export default class CollectIndex extends tsc<IProps> {
     return this.activeFavorite?.id || -1;
   }
 
-  get isClickFavoriteEdit() {
-    return this.editFavoriteID === this.activeFavoriteID;
-  }
-
   get allFavoriteNumber() {
     return this.favoriteList.reduce((pre: number, cur) => ((pre += cur.favorites.length), pre), 0);
   }
@@ -270,11 +266,19 @@ export default class CollectIndex extends tsc<IProps> {
     const keyword = cloneValue.params.keyword;
     const addition = cloneValue.params.addition;
     const ip_chooser = Object.assign({}, cloneValue.params.ip_chooser ?? {});
-    if (isUnionIndex)
+    if (isUnionIndex) {
       this.$store.commit(
         'updateUnionIndexList',
         cloneValue.index_set_ids.map(item => String(item)),
       );
+    }
+    if (JSON.stringify(ip_chooser) !== '{}') {
+      addition.push({
+        field: '_ip-select_',
+        operator: '',
+        value: [ip_chooser],
+      });
+    }
     const ids = isUnionIndex ? cloneValue.index_set_ids : [cloneValue.index_set_id];
     this.$store.commit('updateIndexItem', {
       keyword,
@@ -794,9 +798,9 @@ export default class CollectIndex extends tsc<IProps> {
         />
         <AddCollectDialog
           vModel={this.isShowAddNewFavoriteDialog}
+          activeFavoriteID={this.activeFavoriteID}
           favoriteID={this.editFavoriteID}
           favoriteList={this.favoriteList}
-          isClickFavoriteEdit={this.isClickFavoriteEdit}
           visibleFields={this.visibleFields}
         />
       </div>

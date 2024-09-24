@@ -18,10 +18,10 @@ def transform_contains_addition(contains_addition: dict):
     value = value if isinstance(value, list) else value.split(",")
 
     op = (
-        "contains"
+        "eq"
         if operator
         in [OperatorEnum.CONTAINS_MATCH_PHRASE["operator"], OperatorEnum.ALL_CONTAINS_MATCH_PHRASE["operator"]]
-        else "ncontains"
+        else "ne"
     )
     field_list = [{"field_name": field, "op": op, "value": [v]} for v in value]
     condition_list = ["and"] * (len(value) - 1)
