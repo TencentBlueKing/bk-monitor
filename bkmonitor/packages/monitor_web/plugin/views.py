@@ -394,6 +394,7 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         serializer.validated_data["stage"] = version.stage
         serializer.validated_data["need_debug"] = check_skip_debug(need_debug)
         serializer.validated_data["signature"] = Signature(version.signature).dumps2yaml()
+        serializer.validated_data["enable_field_blacklist"] = version.info.enable_field_blacklist
         return Response(serializer.validated_data)
 
     @action(methods=["POST"], detail=False)

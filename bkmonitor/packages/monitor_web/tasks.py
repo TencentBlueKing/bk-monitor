@@ -50,7 +50,7 @@ from bkmonitor.strategy.new_strategy import QueryConfig, get_metric_id
 from bkmonitor.strategy.serializers import MultivariateAnomalyDetectionSerializer
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from bkmonitor.utils.sql import sql_format_params
-from bkmonitor.utils.user import set_local_username
+from bkmonitor.utils.user import set_local_username, get_global_user
 from constants.aiops import SCENE_NAME_MAPPING
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.dataflow import ConsumingMode
@@ -60,6 +60,7 @@ from core.errors.bkmonitor.dataflow import DataFlowNotExists
 from core.prometheus import metrics
 from fta_web.tasks import run_init_builtin_action_config
 from monitor_web.commons.cc.utils import CmdbUtil
+from monitor_web.commons.data_access import PluginDataAccessor
 from monitor_web.constants import (
     AIOPS_ACCESS_MAX_RETRIES,
     AIOPS_ACCESS_RETRY_INTERVAL,
@@ -72,6 +73,7 @@ from monitor_web.extend_account.models import UserAccessRecord
 from monitor_web.models.custom_report import CustomEventGroup, CustomTSTable
 from monitor_web.models.plugin import CollectorPluginMeta
 from monitor_web.strategies.built_in import run_build_in
+from monitor_web.plugin.constant import PLUGIN_REVERSED_DIMENSION
 from utils import business, count_md5
 
 logger = logging.getLogger("monitor_web")
@@ -245,7 +247,7 @@ def update_metric_list():
 
     # 记录有容器集群的cmdb业务列表
     k8s_biz_set = set()
-    for biz in businesses[offset * biz_num : (offset + 1) * biz_num]:
+    for biz in businesses[offset * biz_num: (offset + 1) * biz_num]:
         biz_count += 1
         for source_type in source_type_use_biz + source_type_add_biz_0:
             # 非容器平台项目，不需要缓存容器指标：
@@ -1307,3 +1309,32 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
     if rt_query_config.intelligent_detect.get("retries", 0) == 0:
         rt_query_config.intelligent_detect["message"] = ""
     rt_query_config.save()
+
+
+@task(ignore_result=True)
+def update_metric_json_from_ts_group():
+    """
+    对开启了自动发现的插件指标进行保存
+    """
+    # 排除掉plugin_id为"snmp_v1"，"snmp_v2c"，"snmp_v3"]的插件数据
+    queryset = CollectorPluginMeta.objects.exclude(plugin_id__in=["snmp_v1", "snmp_v2c", "snmp_v3"])
+
+    for instance in queryset:
+        # 如果未开启黑名单或没有超过刷新周期（默认五分钟），直接返回
+        if not instance.current_version.info.enable_field_blacklist or not instance.should_refresh_metric_json(
+                timeout=5 * 60):
+            continue
+
+        plugin_data_info = PluginDataAccessor(instance.current_version, get_global_user())
+        # 查询TSGroup
+        group_list = api.metadata.query_time_series_group(
+            time_series_group_name=plugin_data_info.db_name, label=plugin_data_info.label
+        )
+
+        # 仅对有数据做处理
+        if len(group_list) == 0:
+            return
+        instance.reserved_dimension_list = [
+            field_name for field_name, _ in PLUGIN_REVERSED_DIMENSION + plugin_data_info.dms_field
+        ]
+        instance.update_metric_json_from_ts_group(group_list)
