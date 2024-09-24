@@ -19,6 +19,7 @@ from typing import Dict, List
 import yaml
 from confluent_kafka import Consumer as ConfluentConsumer
 from confluent_kafka import KafkaError, KafkaException
+from confluent_kafka import TopicPartition as ConfluentTopicPartition
 from django.conf import settings
 from django.db.models import Q
 from django.db.models.query import QuerySet
@@ -1782,6 +1783,8 @@ class EsRouteResource(Resource):
 class KafkaTailResource(Resource):
     """
     根据table_id消费kafka数据
+    Note: 由于存在第三方Kafka的场景（如计算平台Kafka），接口中使用了confluent_kafka和kafka_python两个SDK，使用时需要注意Confluent和kafka的函数调用
+    如Consumer和ConfluentConsumer，其中confluent_kafka相关主要针对2.4+版本的Kafka鉴权，如SCRAM-SHA-512
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -1798,25 +1801,26 @@ class KafkaTailResource(Resource):
         size = validated_request_data["size"]
         mq_ins = models.ClusterInfo.objects.get(cluster_id=datasource.mq_cluster_id)
 
-        if mq_ins.registered_system == 'bkdata':
-            result = self._consume_with_confluent_kafka(datasource, size)
+        # 若Kafka集群注册自计算平台，说明使用2.4+鉴权，使用confluent_kafka库
+        if mq_ins.registered_system == models.ClusterInfo.BKDATA_REGISTERED_SYSTEM:
+            result = self._consume_with_confluent_kafka(mq_ins, datasource, size)
         else:
             result = self._consume_with_kafka_python(datasource, size)
 
         result.reverse()
         return result
 
-    def _consume_with_confluent_kafka(self, datasource, size):
+    def _consume_with_confluent_kafka(self, mq_ins, datasource, size):
         """
-        使用confluent_kafka库消费kafka数据，针对SCRAM-SHA-512认证的集群
+        使用confluent_kafka库消费kafka数据，针对2.4+鉴权认证的集群，如SCRAM-SHA-512
         """
         consumer_config = {
             'bootstrap.servers': f"{datasource.mq_cluster.domain_name}:{datasource.mq_cluster.port}",
             'group.id': f'bkmonitor-{uuid.uuid4()}',
             'session.timeout.ms': 6000,  # 10秒超时
             'auto.offset.reset': 'latest',  # 设置为latest或earliest，避免无效配置项
-            'security.protocol': 'SASL_PLAINTEXT',
-            'sasl.mechanisms': 'SCRAM-SHA-512',
+            'security.protocol': mq_ins.schema,
+            'sasl.mechanisms': mq_ins.ssl_verification_mode,
             'sasl.username': datasource.mq_cluster.username,
             'sasl.password': datasource.mq_cluster.password,
         }
@@ -1827,7 +1831,7 @@ class KafkaTailResource(Resource):
         # 获取该主题的所有分区
         metadata = consumer.list_topics(topic)
         partitions = metadata.topics[topic].partitions.keys()
-        topic_partitions = [TopicPartition(topic, partition) for partition in partitions]
+        topic_partitions = [ConfluentTopicPartition(topic, partition) for partition in partitions]
 
         # 分配指定的分区
         consumer.assign(topic_partitions)
@@ -1845,9 +1849,9 @@ class KafkaTailResource(Resource):
 
             # 设置消息消费偏移量
             if end_offset >= size:
-                consumer.seek(TopicPartition(topic, tp.partition, end_offset - size))
+                consumer.seek(ConfluentTopicPartition(topic, tp.partition, end_offset - size))
             else:
-                consumer.seek(TopicPartition(topic, tp.partition, 0))
+                consumer.seek(ConfluentTopicPartition(topic, tp.partition, 0))
 
             while len(result) < size:
                 messages = consumer.consume(num_messages=size - len(result), timeout=1.0)
