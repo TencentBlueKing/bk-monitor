@@ -162,7 +162,7 @@
   >
     <slot name="trigger">
       <div class="more-operation">
-        <span class="bklog-icon bklog-ellipsis-more"></span>
+        <span class="bklog-icon">{{ $t('设置') }}</span>
       </div>
     </slot>
     <template #content>
