@@ -412,6 +412,27 @@ class K8sInstaller(BaseInstaller):
         """
         状态查询
         """
+
+        if self.collect_config.last_operation == OperationType.STOP:
+            return [
+                {
+                    "child": [
+                        {
+                            "instance_id": "default",
+                            "instance_name": _("公共采集集群"),
+                            "status": "STOPPED",
+                            "plugin_version": self.collect_config.deployment_config.plugin_version.version,
+                            "log": "",
+                            "action": "",
+                            "steps": {},
+                        }
+                    ],
+                    "node_path": _("集群"),
+                    "label_name": "",
+                    "is_label": False,
+                }
+            ]
+
         cluster_id, namespace = self._get_default_cluster()
         with k8s_client.ApiClient(self._get_k8s_config(cluster_id)) as api_client:
             client = k8s_dynamic.DynamicClient(api_client)
