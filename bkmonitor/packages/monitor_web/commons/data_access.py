@@ -19,7 +19,6 @@ from django.utils.translation import ugettext as _
 from bkmonitor.utils.common_utils import safe_int
 from core.drf_resource import api
 from core.errors.api import BKAPIError
-from monitor_web.models.plugin import PluginVersionHistory
 from monitor_web.plugin.constant import (
     ORIGIN_PLUGIN_EXCLUDE_DIMENSION,
     PLUGIN_REVERSED_DIMENSION,
@@ -397,7 +396,7 @@ class DataAccessor(object):
 
 
 class PluginDataAccessor(DataAccessor):
-    def __init__(self, plugin_version: PluginVersionHistory, operator: str, data_label: str = None):
+    def __init__(self, plugin_version, operator: str, data_label: str = None):
         def get_field_instance(field):
             # 将field字典转化为ResultTableField对象
             return ResultTableField(
