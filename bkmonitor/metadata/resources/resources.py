@@ -1817,7 +1817,7 @@ class KafkaTailResource(Resource):
         consumer_config = {
             'bootstrap.servers': f"{datasource.mq_cluster.domain_name}:{datasource.mq_cluster.port}",
             'group.id': f'bkmonitor-{uuid.uuid4()}',
-            'session.timeout.ms': 6000,  # 10秒超时
+            'session.timeout.ms': 6000,
             'auto.offset.reset': 'latest',
             'security.protocol': mq_ins.schema,
             'sasl.mechanisms': mq_ins.ssl_verification_mode,
@@ -1840,6 +1840,8 @@ class KafkaTailResource(Resource):
         consumer.poll(0.5)
 
         result = []
+        errors = []
+
         for tp in topic_partitions:
             # 获取该分区最大偏移量
             low, high = consumer.get_watermark_offsets(tp)
@@ -1863,7 +1865,7 @@ class KafkaTailResource(Resource):
                         if msg.error().code() == KafkaError._PARTITION_EOF:
                             break
                         else:
-                            raise KafkaException(msg.error())
+                            errors.append(msg.error())  # 记录错误信息
                     else:
                         try:
                             result.append(json.loads(msg.value().decode()))
@@ -1876,6 +1878,11 @@ class KafkaTailResource(Resource):
                         break
 
         consumer.close()
+
+        # 检查是否有错误并且没有成功读取到数据
+        if not result and errors:
+            raise KafkaException(errors)
+
         return result
 
     def _consume_with_kafka_python(self, datasource, size):
