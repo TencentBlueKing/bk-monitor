@@ -71,7 +71,7 @@
       width: 16px;
     }
 
-    .icon-star-shape {
+    .bklog-lc-star-shape {
       color: #fe9c00;
     }
 
@@ -325,7 +325,7 @@
       @include flex-center();
     }
 
-    .top-label .icon-star-shape {
+    .top-label .bklog-lc-star-shape {
       color: #ffb848;
     }
   }
@@ -517,7 +517,7 @@
       margin-right: 4px;
     }
 
-    .icon-star-shape {
+    .bklog-lc-star-shape {
       color: #ffb848;
     }
 
@@ -597,11 +597,6 @@
     top: 220px;
     width: 100%;
     text-align: center;
-  }
-
-  .icon-star-shape:before {
-    /* stylelint-disable-next-line declaration-no-important */
-    content: '\e165' !important;
   }
 
   .new-favorite-popover {
