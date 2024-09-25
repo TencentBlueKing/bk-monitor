@@ -532,7 +532,7 @@ export default class QueryStatement extends tsc<object> {
           },
         })
         .then(() => {
-          this.$store.dispatch('retrieve/getIndexSetList', { spaceUid: this.spaceUid, bkBizId: this.bkBizId });
+          this.$store.dispatch('retrieve/getIndexSetList', { spaceUid: this.spaceUid, isLoading: false });
         });
     } finally {
       this.isCollectionLoading = false;
