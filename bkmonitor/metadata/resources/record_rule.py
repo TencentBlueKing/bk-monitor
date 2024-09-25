@@ -64,7 +64,7 @@ class CreatePrecomputationRecordResource(Resource):
         flow = BkDataFlow(space_type, space_id, table_id)
         res = flow.start_flow()
         logger.info("CreatePrecomputationRecordResource: start flow result: %s" % res)
-        if not res:
+        if not res:  # 若res为False，说明预计算任务启动失败
             raise BKAPIError("CreatePrecomputationRecordResource: start flow error")
         # 预计算指标检索表达式
         new_expr = f"bkmonitor_{space_type}_{space_id}_tsdb:{table_id}:{metric_name}"
