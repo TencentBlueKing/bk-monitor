@@ -104,7 +104,7 @@ class LogPluginManager(BuiltInPluginManager):
         )
         return version, need_debug
 
-    def update_version(self, data):
+    def update_version(self, data, target_config_version: int = None, target_info_version: int = None):
         event_list = self.get_dimensions(data["rules"])
         self.full_request_data(data, event_list)
         return self._update_version(data, event_list)

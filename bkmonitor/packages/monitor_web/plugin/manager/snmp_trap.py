@@ -82,7 +82,7 @@ class SNMPTrapPluginManager(LogPluginManager):
         self.full_request_data(data)
         return self._create_version(data, event_list)
 
-    def update_version(self, data):
+    def update_version(self, data, target_config_version: int = None, target_info_version: int = None):
         event_list = self.get_dimensions(data["yaml"])
         self.full_request_data(data)
         return self._update_version(data, event_list)
