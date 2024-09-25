@@ -2201,6 +2201,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
                     content: () => props.row.labels.join('、 '),
                     delay: 200,
                     allowHTML: false,
+                    extCls: 'ext-cls',
                   }}
                 >
                   +{props.row.overflowLabelCount}
@@ -2245,6 +2246,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
                   delay: 200,
                   allowHTML: false,
                   disabled: !props.row.overflow,
+                  extCls: 'ext-cls',
                 }}
               >
                 +{props.row.overflowCount}
