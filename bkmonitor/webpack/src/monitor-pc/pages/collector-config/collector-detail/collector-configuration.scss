@@ -114,6 +114,8 @@
                 border-right: 1px solid #dcdee5;
 
                 .name-text {
+                  white-space: wrap;
+
                   &.required {
                     position: relative;
 
