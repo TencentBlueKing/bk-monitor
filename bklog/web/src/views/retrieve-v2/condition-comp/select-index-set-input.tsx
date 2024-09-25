@@ -43,6 +43,10 @@ export default class SelectIndexSetInput extends tsc<object> {
     return `${this.isShowSelectPopover} ${this.selectedItemList.length}`;
   }
 
+  get arrowClassName() {
+    return this.isShowSelectPopover ? 'bk-icon icon-angle-up' : 'bk-icon icon-angle-down';
+  }
+
   @Watch('watchCalcOverflowVal', { immediate: true })
   initCalcOverflow() {
     if (!this.isAloneType) this.calcOverflow();
@@ -137,6 +141,7 @@ export default class SelectIndexSetInput extends tsc<object> {
           >
             <span>{(this.selectedItem as any).indexName}</span>
             <span style='color: #979ba5;'>{(this.selectedItem as any).lightenName}</span>
+            <span class={[this.arrowClassName, 'bklog-select-arrow']}></span>
           </div>
         );
       }
@@ -160,6 +165,7 @@ export default class SelectIndexSetInput extends tsc<object> {
               </span>
             </div>
           ))}
+          <span class={[this.arrowClassName, 'bklog-select-arrow']}></span>
         </div>
       );
     };

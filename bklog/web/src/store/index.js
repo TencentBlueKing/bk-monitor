@@ -253,6 +253,7 @@ const store = new Vuex.Store({
         interval,
         search_mode,
         sort_list,
+        bk_biz_id: state.bkBizId,
         ...searchParams,
       };
     },
@@ -800,7 +801,7 @@ const store = new Vuex.Store({
      * @param {*} param0
      * @param {*} param1
      */
-    updateIndexItemByRoute({ commit }, { route, list }) {
+    updateIndexItemByRoute({ commit, state }, { route, list }) {
       const ids = [];
       let isUnionIndex = false;
       commit('resetIndexSetQueryResult', { search_count: 0 });
@@ -819,6 +820,23 @@ const store = new Vuex.Store({
 
       if (!isUnionIndex && !ids.length && list?.length) {
         ids.push(list[0].index_set_id);
+      }
+
+      if (route.query?.bizId) {
+        state.bkBizId = route.query?.bizId;
+      }
+
+      if (result.ip_chooser) {
+        const ipSelectValue = result.addition.find(c => c.field === '_ip-select_');
+        if (ipSelectValue) {
+          ipSelectValue.value = [result.ip_chooser];
+        } else {
+          result.addition.push({
+            field: '_ip-select_',
+            operator: '',
+            value: [result.ip_chooser],
+          });
+        }
       }
 
       if (ids.length) {
@@ -1130,7 +1148,9 @@ const store = new Vuex.Store({
      * @returns
      */
     setQueryCondition({ state, dispatch }, payload) {
-      const { field, operator, value, isLink = false } = payload;
+      const { field, value, isLink = false } = payload;
+      const isNewSearchPage = payload.operator === 'new-search-page-is';
+      const operator = isNewSearchPage ? 'is' : payload.operator;
       const getFieldType = field => {
         const target = state.indexFieldInfo.fields?.find(item => item.field_name === field);
         return target ? target.field_type : '';
@@ -1209,7 +1229,7 @@ const store = new Vuex.Store({
           }
         }
       }
-      return Promise.resolve(newAddition);
+      return Promise.resolve([newAddition, isNewSearchPage]);
     },
 
     changeShowUnionSource({ commit, dispatch, state }) {

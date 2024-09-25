@@ -28,6 +28,8 @@
 import { Component, Emit, Prop, PropSync, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { ConditionOperator } from '@/store/condition-operator';
+import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { Input, Popover, Button, Radio, RadioGroup, Form, FormItem } from 'bk-magic-vue';
 
 import $http from '../../../api';
@@ -167,10 +169,6 @@ export default class CollectIndex extends tsc<IProps> {
     return this.activeFavorite?.id || -1;
   }
 
-  get isClickFavoriteEdit() {
-    return this.editFavoriteID === this.activeFavoriteID;
-  }
-
   get allFavoriteNumber() {
     return this.favoriteList.reduce((pre: number, cur) => ((pre += cur.favorites.length), pre), 0);
   }
@@ -270,11 +268,19 @@ export default class CollectIndex extends tsc<IProps> {
     const keyword = cloneValue.params.keyword;
     const addition = cloneValue.params.addition;
     const ip_chooser = Object.assign({}, cloneValue.params.ip_chooser ?? {});
-    if (isUnionIndex)
+    if (isUnionIndex) {
       this.$store.commit(
         'updateUnionIndexList',
         cloneValue.index_set_ids.map(item => String(item)),
       );
+    }
+    if (JSON.stringify(ip_chooser) !== '{}') {
+      addition.push({
+        field: '_ip-select_',
+        operator: '',
+        value: [ip_chooser],
+      });
+    }
     const ids = isUnionIndex ? cloneValue.index_set_ids : [cloneValue.index_set_id];
     this.$store.commit('updateIndexItem', {
       keyword,
@@ -395,30 +401,34 @@ export default class CollectIndex extends tsc<IProps> {
       case 'share':
       case 'new-link':
         {
-          const { ip_chooser, addition, keyword } = value.params;
           const params = { indexId: value.index_set_id };
-          const filterQuery = {
-            keyword,
-            addition: JSON.stringify(addition),
-            ip_chooser: JSON.stringify(ip_chooser),
-          };
-          if (value.index_set_type === 'union') {
-            Object.assign(filterQuery, {
-              unionList: JSON.stringify(value.index_set_ids.map((item: number) => String(item))),
-            });
-          }
+          const resolver = new RetrieveUrlResolver({
+            ...value.params,
+            addition: (value.params.addition ?? []).map(val => {
+              const instance = new ConditionOperator(val);
+              return instance.formatApiOperatorToFront();
+            }),
+            search_mode: value.search_mode,
+            spaceUid: value.space_uid,
+            unionList: value.index_set_ids.map((item: number) => String(item)),
+            isUnionIndex: value.index_set_type === 'union',
+          });
+
           const routeData = {
             name: 'retrieve',
             params,
-            query: filterQuery,
+            query: resolver.resolveParamsToUrl(),
           };
+
           let shareUrl = window.SITE_URL;
           if (!shareUrl.startsWith('/')) shareUrl = `/${shareUrl}`;
           if (!shareUrl.endsWith('/')) shareUrl += '/';
+
           shareUrl = `${window.location.origin + shareUrl}${this.$router.resolve(routeData).href}`;
           if (type === 'new-link') {
             window.open(shareUrl, '_blank');
           } else {
+            console.log('routeData', `${shareUrl}`);
             copyMessage(shareUrl, this.$t('复制成功'));
           }
         }
@@ -794,10 +804,14 @@ export default class CollectIndex extends tsc<IProps> {
         />
         <AddCollectDialog
           vModel={this.isShowAddNewFavoriteDialog}
+          activeFavoriteID={this.activeFavoriteID}
           favoriteID={this.editFavoriteID}
           favoriteList={this.favoriteList}
-          isClickFavoriteEdit={this.isClickFavoriteEdit}
           visibleFields={this.visibleFields}
+          on-change-favorite={async value => {
+            await this.getFavoriteList();
+            this.handleClickFavoriteItem(value);
+          }}
         />
       </div>
     );

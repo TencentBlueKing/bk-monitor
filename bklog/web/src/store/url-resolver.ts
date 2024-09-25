@@ -26,6 +26,9 @@
 
 // @ts-ignore
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
+
+import { ConditionOperator } from './condition-operator';
+
 class RouteUrlResolver {
   private route;
   private resolver: Map<string, (str) => unknown>;
@@ -121,8 +124,17 @@ class RouteUrlResolver {
     return { start_time: result[0], end_time: result[1] };
   }
 
+  private additionResolver(str) {
+    return this.commonResolver(str, val => {
+      return (JSON.parse(decodeURIComponent(val)) ?? []).map(val => {
+        const instance = new ConditionOperator(val);
+        return instance.formatApiOperatorToFront();
+      });
+    });
+  }
+
   private setDefaultResolver() {
-    this.resolver.set('addition', this.arrayResolver.bind(this));
+    this.resolver.set('addition', this.additionResolver.bind(this));
     this.resolver.set('unionList', this.arrayResolver.bind(this));
     this.resolver.set('host_scopes', this.objectResolver.bind(this));
     this.resolver.set('ip_chooser', this.objectResolver.bind(this));
@@ -152,4 +164,80 @@ class RouteUrlResolver {
   }
 }
 
+class RetrieveUrlResolver {
+  routeQueryParams;
+  storeFieldKeyMap;
+  constructor(params) {
+    this.routeQueryParams = params;
+    // store中缓存的字段和URL中参数的字段key映射
+    this.storeFieldKeyMap = {
+      bk_biz_id: 'bizId',
+    };
+  }
+
+  resolveParamsToUrl() {
+    const getEncodeString = val => JSON.stringify(val);
+
+    /**
+     * 路由参数格式化字典函数
+     * 不同的字段需要不同的格式化函数
+     */
+    const routeQueryMap = {
+      host_scopes: val => {
+        const isEmpty = !Object.keys(val ?? {}).some(k => {
+          if (typeof val[k] === 'object') {
+            return Array.isArray(val[k]) ? val[k].length : Object.keys(val[k] ?? {}).length;
+          }
+
+          return val[k]?.length;
+        });
+
+        return isEmpty ? undefined : getEncodeString(val);
+      },
+      start_time: () => this.routeQueryParams.datePickerValue[0],
+      end_time: () => this.routeQueryParams.datePickerValue[1],
+      keyword: val => (/^\s*\*\s*$/.test(val) ? undefined : val),
+      unionList: val => {
+        if (this.routeQueryParams.isUnionIndex && val?.length) {
+          return getEncodeString(val);
+        }
+
+        return undefined;
+      },
+      default: val => {
+        if (typeof val === 'object' && val !== null) {
+          if (Array.isArray(val) && val.length) {
+            return getEncodeString(val);
+          }
+
+          if (Object.keys(val).length) {
+            return getEncodeString(val);
+          }
+
+          return undefined;
+        }
+
+        return val?.length ? val : undefined;
+      },
+    };
+
+    const getRouteQueryValue = () => {
+      return Object.keys(this.routeQueryParams)
+        .filter(key => {
+          return !['ids', 'isUnionIndex', 'datePickerValue'].includes(key);
+        })
+        .reduce((result, key) => {
+          const val = this.routeQueryParams[key];
+          const valueFn = typeof routeQueryMap[key] === 'function' ? routeQueryMap[key] : routeQueryMap.default;
+          const value = valueFn(val);
+          const fieldName = this.storeFieldKeyMap[key] ?? key;
+          return Object.assign(result, { [fieldName]: value });
+        }, {});
+    };
+
+    return getRouteQueryValue();
+  }
+}
+
 export default RouteUrlResolver;
+export { RetrieveUrlResolver };

@@ -28,7 +28,7 @@
   import { computed, ref, watch } from 'vue';
 
   import useStore from '@/hooks/use-store';
-  import RouteUrlResolver from '@/store/url-resolver';
+  import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
   import { isEqual } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
 
@@ -51,11 +51,14 @@
   const bkBizId = computed(() => store.state.bkBizId);
 
   const routeQueryParams = computed(() => {
-    const { ids, isUnionIndex } = store.state.indexItem;
+    const { ids, isUnionIndex, search_mode } = store.state.indexItem;
+    const unionList = store.state.unionIndexList;
     return {
       ...(store.getters.retrieveParams ?? {}),
+      search_mode,
       ids,
       isUnionIndex,
+      unionList,
     };
   });
 
@@ -73,49 +76,19 @@
     });
   };
 
-  const routeQueryMap = {
-    host_scopes: val => {
-      const isEmpty = !Object.keys(val ?? {}).some(k => {
-        if (typeof val[k] === 'object') {
-          return Array.isArray(val[k]) ? val[k].length : Object.keys(val[k] ?? {}).length;
-        }
-
-        return val[k]?.length;
-      });
-
-      return isEmpty ? undefined : encodeURIComponent(JSON.stringify(val));
-    },
-    start_time: () => store.state.indexItem.datePickerValue[0],
-    end_time: () => store.state.indexItem.datePickerValue[1],
-    default: val => {
-      if (typeof val === 'object' && val !== null) {
-        return encodeURIComponent(JSON.stringify(val));
-      }
-
-      return val;
-    },
-  };
-
-  const getRouteQueryValue = () => {
-    return Object.keys(routeQueryParams.value)
-      .filter(key => {
-        return !['ids', 'isUnionIndex', 'unionList'].includes(key);
-      })
-      .reduce((result, key) => {
-        const val = routeQueryParams.value[key];
-        const value = routeQueryMap[key]?.(val) ?? routeQueryMap.default(val);
-        return Object.assign(result, { [key]: value });
-      }, {});
-  };
-
   const setRouteParams = () => {
     const { ids, isUnionIndex } = routeQueryParams.value;
-    const params = isUnionIndex ? route.params : { ...route.params, indexId: ids?.[0] ?? route.params?.indexId };
-    const query = isUnionIndex
-      ? { ...route.query, unionList: encodeURIComponent(JSON.stringify(ids.map(item => String(item)))) }
-      : { ...route.query, unionList: undefined };
+    const params = isUnionIndex
+      ? { ...route.params, indexId: undefined }
+      : { ...route.params, indexId: ids?.[0] ?? route.params?.indexId };
 
-    Object.assign(query, getRouteQueryValue());
+    const query = { ...route.query };
+    const resolver = new RetrieveUrlResolver({
+      ...routeQueryParams.value,
+      datePickerValue: store.state.indexItem.datePickerValue,
+    });
+
+    Object.assign(query, resolver.resolveParamsToUrl());
     if (!isEqual(params, route.params) || !isEqual(query, route.query)) {
       router.replace({
         params,
@@ -197,7 +170,7 @@
   <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]">
     <div class="sub-head">
       <div
-        :style="{ width: `${showFavorites ? favoriteWidth : 110}px` }"
+        :style="{ width: `${showFavorites ? favoriteWidth : 94}px` }"
         class="box-favorites"
         @click="handleFavoritesClick"
       >
@@ -222,7 +195,10 @@
           <span :class="['bklog-icon bklog-collapse-small', { active: showFavorites }]"></span>{{ $t('收藏夹') }}
         </template>
       </div>
-      <SubBar :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 110}px` }" />
+      <SubBar
+        :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 92}px` }"
+        showFavorites
+      />
     </div>
     <div class="retrieve-body">
       <CollectFavorites
@@ -242,7 +218,7 @@
         ></SearchBar>
         <div
           ref="resultRow"
-          :style="{ height: `calc(100vh - ${searchBarHeight + 190}px)` }"
+          :style="{ height: `calc(100vh - ${searchBarHeight + 130}px)` }"
           class="result-row"
         >
           <SearchResultTab v-model="activeTab"></SearchResultTab>

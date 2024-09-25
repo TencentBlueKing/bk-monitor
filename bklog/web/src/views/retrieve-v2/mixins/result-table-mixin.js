@@ -431,43 +431,28 @@ export default {
     },
     // 获取有效的字段条件字符串
     getFiledAdditionStr(linkAdditionList = null) {
-      const filterAddition = this.indexItem.addition.filter(item => {
-        if (item.conditionType === 'filed') {
-          // 如果是有exists操作符则不判断是否有值 直接回填路由
-          if (this.isExistsOperator(item.operator)) return true;
-          return !!item.value.filter(Boolean).length;
-        }
-        return false;
-      });
+      const filterAddition = this.indexItem.addition.filter(item => item.field !== '_ip-select_');
       if (!filterAddition.length && !linkAdditionList) return undefined;
-      const stringifyList = filterAddition.map(item => ({
-        field: item.id,
-        operator: item.operator,
-        value: item.value,
-        isInclude: item.isInclude,
-      }));
-      if (linkAdditionList?.length) {
-        stringifyList.push(...linkAdditionList);
-      }
-      return JSON.stringify(stringifyList);
+      return JSON.stringify(linkAdditionList?.length ? filterAddition.concat(...linkAdditionList) : filterAddition);
     },
     getIPChooserStr(ipChooser) {
       if (typeof ipChooser === 'object') return JSON.stringify(ipChooser);
       return ipChooser;
     },
-    getConditionRouterParams(linkAdditionList = null) {
+    getConditionRouterParams(linkAdditionList = null, isNewLink = false) {
       const { params, query } = this.$route;
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      const { ip_chooser, isIPChooserOpen, addition, ...reset } = query;
+      const { ip_chooser, addition, ...reset } = query;
       const filterQuery = reset; // 给query排序 让addition和ip_chooser排前面
-      const newQueryObj = { addition: this.getFiledAdditionStr(linkAdditionList) }; // 新的query对象
+      const newQueryObj = {
+        addition: isNewLink ? JSON.stringify(linkAdditionList) : this.getFiledAdditionStr(linkAdditionList),
+      }; // 新的query对象
       const newIPChooser = ip_chooser;
 
-      if (newIPChooser && Object.keys(newIPChooser).length) {
+      if (newIPChooser && Object.keys(newIPChooser).length && !isNewLink) {
         // ip值更新
         Object.assign(newQueryObj, {
           ip_chooser: this.getIPChooserStr(newIPChooser),
-          isIPChooserOpen: this.ipChooserIsOpen,
         });
       }
 
@@ -480,12 +465,14 @@ export default {
       return this.$router.resolve(routeData).href;
     },
     handleAddCondition(field, operator, value, isLink = false) {
-      this.$store.dispatch('setQueryCondition', { field, operator, value, isLink }).then(newAddition => {
-        if (isLink) {
-          const openUrl = this.getConditionRouterParams([newAddition]);
-          window.open(openUrl, '_blank');
-        }
-      });
+      this.$store
+        .dispatch('setQueryCondition', { field, operator, value, isLink })
+        .then(([newAddition, isNewSearchPage]) => {
+          if (isLink) {
+            const openUrl = this.getConditionRouterParams([newAddition], isNewSearchPage);
+            window.open(openUrl, '_blank');
+          }
+        });
     },
     handleIconClick(type, content, field, row, isLink) {
       let value = field.field_type === 'date' ? row[field.field_name] : content;
@@ -498,7 +485,7 @@ export default {
       } else if (type === 'copy') {
         // 复制单元格内容
         copyMessage(value);
-      } else if (['is', 'is not'].includes(type)) {
+      } else if (['is', 'is not', 'new-search-page-is'].includes(type)) {
         this.handleAddCondition(field.field_name, type, value === '--' ? [] : [value], isLink);
       }
     },

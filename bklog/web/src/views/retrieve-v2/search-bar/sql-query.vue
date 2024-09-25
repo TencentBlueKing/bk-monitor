@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, nextTick, onMounted } from 'vue';
+  import { ref, nextTick, onMounted, computed } from 'vue';
 
   import CreateLuceneEditor from './codemirror-lucene';
   import SqlQueryOptions from './sql-query-options';
@@ -56,7 +56,7 @@
     addInputListener: false,
     tippyOptions: {
       maxWidth: 'none',
-      offset: [0, 15]
+      offset: [0, 15],
     },
     onShowFn: instance => {
       if (refSqlQueryOption.value?.beforeShowndFn?.()) {
@@ -86,6 +86,10 @@
     }
   };
 
+  const isEmptySqlString = computed(() => {
+    return /^\s*\*\s*$/.test(modelValue.value) || !modelValue.value.length;
+  });
+
   const debounceRetrieve = () => {
     emit('retrieve', modelValue.value);
   };
@@ -101,7 +105,7 @@
 
   const createEditorInstance = () => {
     editorInstance = CreateLuceneEditor({
-      value: modelValue.value,
+      value: /^\s*\*\s*$/.test(modelValue.value) ? '' : modelValue.value,
       target: refEditorParent.value,
       stopDefaultKeyboard: () => {
         return getTippyInstance()?.state?.isShown ?? false;
@@ -153,7 +157,7 @@
 
   onMounted(() => {
     createEditorInstance();
-  })
+  });
 </script>
 <template>
   <div
@@ -166,7 +170,7 @@
     ></div>
     <span
       class="empty-placeholder-text"
-      v-show="!modelValue.length"
+      v-show="isEmptySqlString"
       >{{ placeholderText }}</span
     >
     <div style="display: none">
@@ -212,6 +216,9 @@
         }
 
         .cm-scroller {
+          font-family: monospace, pingFang-SC-Regular, sans-serif, Helvetica, Aria, 'Microsoft Yahei';
+          font-size: 12px;
+
           .cm-gutters {
             display: none;
 

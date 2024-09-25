@@ -41,6 +41,10 @@
     &:hover {
       color: #3a84ff;
     }
+
+    .new-link {
+      transform: translateY(1px);
+    }
   }
 
   .tippy-tooltip {

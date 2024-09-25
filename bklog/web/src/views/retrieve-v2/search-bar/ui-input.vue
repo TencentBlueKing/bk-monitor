@@ -67,11 +67,11 @@
     }
 
     const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
-    if (translateKeys.includes(item.operator)) {
+    if (translateKeys.includes(operatorMapping[item.operator])) {
       return $t(operatorMapping[item.operator] ?? item.operator);
     }
 
-    return operatorDictionary.value[key]?.label ?? operatorMapping[item.operator] ?? item.operator;
+    return (operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label) ??  item.operator;
   };
 
   const refPopInstance = ref(null);

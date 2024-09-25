@@ -187,7 +187,10 @@
     border-top: solid 1px #dcdee5;
 
     .ui-shortcut-key {
-      span {
+      display: flex;
+      align-items: center;
+
+      > span {
         display: inline-flex;
         align-items: center;
         margin-right: 24px;
@@ -196,8 +199,15 @@
         color: #63656e;
         letter-spacing: 0;
 
-        img {
+        .key-esc {
+          font-size: 8px;
+        }
+
+        img,
+        .key-esc  {
           display: inline-flex;
+          align-items: center;
+          justify-content: center;
           width: 16px;
           height: 16px;
           margin-right: 4px;

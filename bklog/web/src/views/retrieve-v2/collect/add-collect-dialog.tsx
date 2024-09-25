@@ -27,18 +27,19 @@
 import { Component, Emit, Prop, Ref, Model } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { ConditionOperator } from '@/store/condition-operator';
 import { Dialog, Form, FormItem, Input, Select, Option } from 'bk-magic-vue';
 
 import $http from '../../../api';
+import { deepClone } from '../../../common/util';
 
 import './add-collect-dialog.scss';
 
 interface IProps {
   value: boolean;
   favoriteID: number;
-  addFavoriteData: object;
   replaceData?: object;
-  isClickFavoriteEdit?: boolean;
+  activeFavoriteID: number;
   visibleFields: Array<any>;
   favoriteList: Array<any>;
 }
@@ -47,9 +48,8 @@ interface IProps {
 export default class CollectDialog extends tsc<IProps> {
   @Model('change', { type: Boolean, default: false }) value: IProps['value'];
   @Prop({ type: Number, default: -1 }) favoriteID: number; // 编辑收藏ID
-  @Prop({ type: Object, default: () => ({}) }) addFavoriteData: object; // 新建收藏的数据
   @Prop({ type: Object, default: () => ({}) }) replaceData: object; // 替换收藏的params数据
-  @Prop({ type: Boolean, default: false }) isClickFavoriteEdit: boolean; // 当前编辑的收藏是否是点击活跃的
+  @Prop({ type: Number, default: -1 }) activeFavoriteID: number; // 当前编辑的收藏是否是点击活跃的
   @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>; // 字段
   @Prop({ type: Array, default: () => [] }) favoriteList: Array<any>; // 收藏列表
   @Ref('validateForm') validateFormRef: Form;
@@ -57,34 +57,13 @@ export default class CollectDialog extends tsc<IProps> {
   searchFieldsList = []; // 表单模式显示字段
   isDisableSelect = false; // 是否禁用 所属组下拉框
   isShowAddGroup = true;
+  currentFavoriteName = '';
+  currentFavoriteID = -1;
+  isClickFavoriteEdit = false; // 当前编辑的收藏是否是点击活跃的
   verifyData = {
     groupName: '',
   };
-  baseFavoriteData = {
-    // 收藏参数
-    space_uid: -1,
-    index_set_id: -1,
-    name: '',
-    group_id: null,
-    created_by: '',
-    params: {
-      host_scopes: {
-        modules: [],
-        ips: '',
-        target_nodes: [],
-        target_node_type: '',
-      },
-      addition: [],
-      keyword: null,
-      search_fields: [],
-    },
-    is_enable_display_fields: false,
-    index_set_ids: [],
-    index_set_name: '',
-    index_set_names: [],
-    visible_type: 'public',
-    display_fields: [],
-  };
+  baseFavoriteData = null;
   favoriteData = {
     // 收藏参数
     space_uid: -1,
@@ -92,17 +71,17 @@ export default class CollectDialog extends tsc<IProps> {
     name: '',
     group_id: null,
     created_by: '',
-    params: {
-      host_scopes: {
-        modules: [],
-        ips: '',
-        target_nodes: [],
-        target_node_type: '',
-      },
-      addition: [],
-      keyword: null,
-      search_fields: [],
+    host_scopes: {
+      modules: [],
+      ips: '',
+      target_nodes: [],
+      target_node_type: '',
     },
+    addition: [],
+    keyword: null,
+    search_fields: [],
+    ip_chooser: {},
+    search_mode: 'ui',
     is_enable_display_fields: false,
     index_set_ids: [],
     index_set_name: '',
@@ -117,7 +96,6 @@ export default class CollectDialog extends tsc<IProps> {
   privateGroupID = 0;
   groupList = []; // 组列表
   formLoading = false;
-  isInitShowDisplayFields = false; // 编辑初始化时 是否显示字段
   groupNameMap = {
     unknown: window.mainComponent.$t('未分组'),
     private: window.mainComponent.$t('个人收藏'),
@@ -180,20 +158,6 @@ export default class CollectDialog extends tsc<IProps> {
     return this.$store.state.spaceUid;
   }
 
-  get isCreateFavorite() {
-    // 根据传参判断新增还是编辑
-    return Boolean(Object.keys(this.addFavoriteData).length);
-  }
-
-  get userName() {
-    // 当前用户数据
-    return this.$store.state.userMeta?.username;
-  }
-
-  get isCannotChangeVisible() {
-    return !this.isCreateFavorite && this.favoriteData.created_by !== this.userName;
-  }
-
   get showGroupList() {
     return this.favoriteData.visible_type === 'public' ? this.publicGroupList : this.privateGroupList;
   }
@@ -206,16 +170,80 @@ export default class CollectDialog extends tsc<IProps> {
     }, []);
   }
 
-  get showFieldsLabel() {
-    return this.favoriteData.is_enable_display_fields ? this.$t('显示字段') : this.$t('当前字段');
-  }
-
   get unionIndexList() {
     return this.$store.state.unionIndexList;
   }
 
   get isUnionSearch() {
     return this.$store.getters.isUnionSearch;
+  }
+
+  get indexItem() {
+    return this.$store.state.indexItem;
+  }
+
+  get indexSetItemList() {
+    return this.$store.state.indexItem.items;
+  }
+
+  get currentParamsValue() {
+    return this.isClickFavoriteEdit ? Object.assign({}, this.favoriteData, this.indexItem) : this.favoriteData;
+  }
+
+  get formDataIndexName() {
+    const indexSetList = this.$store.state.retrieve.indexSetList;
+    const { index_set_ids, index_set_name } = this.favoriteData;
+    const indexSetIds = index_set_ids.map(item => String(item));
+    const unionName = indexSetList
+      .filter(item => indexSetIds.includes(item.index_set_id))
+      .map(item => item?.index_set_name)
+      .join(',');
+    return index_set_ids.length ? unionName : index_set_name;
+  }
+
+  get indexSetName() {
+    const currentIndexName = this.indexSetItemList?.map(item => item?.index_set_name).join(',');
+    return this.isClickFavoriteEdit ? currentIndexName : this.formDataIndexName;
+  }
+
+  get showAddition() {
+    const { addition = [], ip_chooser } = this.currentParamsValue;
+    return this.getAdditionValue(addition, ip_chooser);
+  }
+
+  get formatAddition() {
+    return this.showAddition
+      .filter(item => {
+        if (!Object.keys(item).includes('disabled')) return true;
+        return !item.disabled;
+      })
+      .map(item => {
+        const instance = new ConditionOperator(item);
+        return instance.getRequestParam();
+      });
+  }
+
+  get additionString() {
+    return `* AND (${this.formatAddition
+      .map(({ field, operator, value }) => {
+        if (field === '_ip-select_') {
+          const target = value?.[0] ?? {};
+          return Object.keys(target)
+            .reduce((output, key) => {
+              return [...output, `${key}:[${(target[key] ?? []).map(c => c.ip ?? c.objectId ?? c.id).join(' ')}]`];
+            }, [])
+            .join(' AND ');
+        }
+        return `${field} ${operator} [${value?.toString() ?? ''}]`;
+      })
+      .join(' AND ')})`;
+  }
+
+  get sqlString() {
+    if (this.currentParamsValue.search_mode === 'sql') {
+      return this.currentParamsValue.keyword;
+    }
+    return this.additionString;
   }
 
   mounted() {
@@ -227,12 +255,9 @@ export default class CollectDialog extends tsc<IProps> {
     return value;
   }
 
-  @Emit('submit')
-  handleSubmitChange(isCreate: boolean, resValue?: object) {
-    return {
-      isCreate,
-      resValue,
-    };
+  @Emit('change-favorite')
+  handleChangeFavorite(value) {
+    return value;
   }
 
   checkName() {
@@ -248,7 +273,7 @@ export default class CollectDialog extends tsc<IProps> {
 
   /** 判断是否收藏名是否重复 */
   checkRepeatName() {
-    if (!this.isCreateFavorite) return true;
+    if (this.currentFavoriteName === this.favoriteData.name) return true;
     return !this.favStrList.includes(this.favoriteData.name);
   }
   /** 检查收藏语法是否正确 */
@@ -270,16 +295,11 @@ export default class CollectDialog extends tsc<IProps> {
 
   async handleValueChange(value) {
     if (value) {
+      this.isClickFavoriteEdit = this.favoriteID === this.activeFavoriteID;
+      this.baseFavoriteData = deepClone(this.favoriteData);
       this.formLoading = true;
       await this.requestGroupList(); // 获取组列表
-      if (this.isCreateFavorite) {
-        // 判断是否是新增
-        Object.assign(this.favoriteData, this.addFavoriteData); // 合并新建收藏详情
-        this.favoriteData.params.search_fields = [];
-        this.favoriteData.group_id = null;
-      } else {
-        await this.getFavoriteData(this.favoriteID); // 获取收藏详情
-      }
+      await this.getFavoriteData(this.favoriteID); // 获取收藏详情
       this.isDisableSelect = this.favoriteData.visible_type === 'private';
       this.formLoading = false;
     } else {
@@ -316,47 +336,55 @@ export default class CollectDialog extends tsc<IProps> {
     this.validateFormRef.validate().then(() => {
       if (!this.unknownGroupID) return;
       if (!this.favoriteData.group_id) this.favoriteData.group_id = this.unknownGroupID;
-      this.handleUpdateFavorite(this.favoriteData);
+      this.handleUpdateFavorite();
     });
   }
 
   /** 更新收藏 */
-  async handleUpdateFavorite(subData) {
-    const { index_set_id, params, name, group_id, display_fields, visible_type, id, is_enable_display_fields } =
-      subData;
-    const { ip_chooser, addition, keyword, search_fields } = params;
+  async handleUpdateFavorite() {
+    const {
+      ip_chooser,
+      addition,
+      keyword,
+      search_fields,
+      name,
+      group_id,
+      display_fields,
+      visible_type,
+      search_mode,
+      is_enable_display_fields,
+    } = this.currentParamsValue;
+    const searchParams =
+      search_mode === 'sql'
+        ? { keyword, addition: [] }
+        : { addition: addition.filter(v => v.field !== '_ip-select_'), keyword: '*' };
+
     const data = {
       name,
       group_id,
       display_fields,
       visible_type,
       ip_chooser,
-      addition,
-      keyword,
       search_fields,
       is_enable_display_fields,
+      search_mode,
+      ...searchParams,
     };
-    if (this.isCreateFavorite) {
-      Object.assign(data, {
-        index_set_id,
-        space_uid: this.spaceUid,
-      });
-    }
     if (this.isUnionSearch) {
       Object.assign(data, {
         index_set_ids: this.unionIndexList,
         index_set_type: 'union',
       });
     }
-    const requestStr = this.isCreateFavorite ? 'createFavorite' : 'updateFavorite';
     try {
-      const res = await $http.request(`favorite/${requestStr}`, {
-        params: { id },
+      const res = await $http.request('favorite/updateFavorite', {
+        params: { id: this.currentFavoriteID },
         data,
       });
       if (res.result) {
-        this.handleSubmitChange(this.isCreateFavorite, res.data);
+        this.messageSuccess(this.$t('保存成功'));
         this.handleShowChange();
+        this.handleChangeFavorite(res.data);
       }
     } catch (error) {}
   }
@@ -388,35 +416,38 @@ export default class CollectDialog extends tsc<IProps> {
   async getFavoriteData(id) {
     try {
       const res = await $http.request('favorite/getFavorite', { params: { id } });
-      const assignData = res.data;
-      this.isInitShowDisplayFields = assignData.is_enable_display_fields;
-      // 有点击收藏列表并且与编辑的收藏id一致时，且为是否显示字段为关闭时  重新拉取检索显示字段
-      if (this.isClickFavoriteEdit && !assignData.is_enable_display_fields) {
-        assignData.display_fields = this.visibleFields.map(item => item.field_name);
-      }
-      if (JSON.stringify(this.replaceData) !== '{}') {
-        // 替换收藏 会把检索的params传过来
-        Object.assign(assignData.params, this.replaceData.params);
-      }
-      Object.assign(this.favoriteData, assignData);
+      Object.assign(this.favoriteData, {
+        ...res.data,
+        ...res.data.params,
+      });
+      this.currentFavoriteName = this.favoriteData.name;
+      this.currentFavoriteID = this.favoriteData.id;
     } catch {}
   }
 
+  getAdditionValue(addition, ipChooser) {
+    const newAddition = addition.filter(item => item.field !== '_ip-select_');
+    if (JSON.stringify(ipChooser) !== '{}') {
+      newAddition.push({
+        field: '_ip-select_',
+        operator: '',
+        value: [ipChooser],
+      });
+    }
+    return newAddition;
+  }
+
   render() {
-    // const indexSetName = () => {
-    //   const { index_set_name: indexSetName, index_set_names: indexSetNames } = this.favoriteData;
-    //   return !this.isUnionSearch ? indexSetName : indexSetNames?.map(item => <Tag>{item}</Tag>) || '';
-    // };
     return (
       <Dialog
         width={640}
         ext-cls='add-collect-dialog'
         auto-close={false}
         header-position='left'
-        ok-text={this.isCreateFavorite ? this.$t('确定') : this.$t('保存')}
+        ok-text={this.$t('保存')}
         position={{ top: this.positionTop }}
         render-directive='if'
-        title={this.isCreateFavorite ? this.$t('新建收藏') : this.$t('编辑收藏')}
+        title={this.$t('编辑收藏')}
         value={this.value}
         on-confirm={this.handleSubmitFormData}
         on-value-change={this.handleValueChange}
@@ -432,14 +463,6 @@ export default class CollectDialog extends tsc<IProps> {
             },
           }}
         >
-          {/* <div class='edit-information'>
-            <span>{this.$t('索引集')}</span>
-            <span>{indexSetName()}</span>
-          </div>
-          <div class='edit-information'>
-            <span>{this.$t('查询语句')}</span>
-            <span>{this.favoriteData.params.keyword}</span>
-          </div> */}
           <div class='form-item-container-new'>
             <FormItem
               label={this.$t('收藏名称')}
@@ -529,7 +552,7 @@ export default class CollectDialog extends tsc<IProps> {
           <div class='form-item-container-new'>
             <FormItem label={this.$t('索引集')}>
               <bk-input
-                // value='indexSetName'
+                value={this.indexSetName}
                 readonly
                 show-overflow-tooltips
               ></bk-input>
@@ -539,7 +562,7 @@ export default class CollectDialog extends tsc<IProps> {
             <FormItem label={this.$t('查询语句')}>
               <bk-input
                 type='textarea'
-                value='sqlString'
+                value={this.sqlString}
                 readonly
                 show-overflow-tooltips
               ></bk-input>

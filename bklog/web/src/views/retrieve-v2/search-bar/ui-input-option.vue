@@ -7,6 +7,8 @@
   import useStore from '@/hooks/use-store';
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
+  import { translateKeys } from './const-values';
+  import { excludesFields } from './const.common';
 
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
   import PopInstanceUtil from './pop-instance-util';
@@ -73,6 +75,14 @@
 
   const filedValueMapping = {};
 
+  const getOperatorLable = operator => {
+    if (translateKeys.includes(operator)) {
+      return t(operator);
+    }
+
+    return operator;
+  };
+
   // 操作符下拉实例
   const operatorInstance = new PopInstanceUtil({
     refContent: refUiValueOperatorList,
@@ -122,13 +132,11 @@
         field_name: '_ip-select_',
         is_full_text: true,
         field_alias: t('IP目标'),
+        field_operator: [],
       });
     }
     return list;
   });
-
-  // 需要排除的字段
-  const excludesFields = ['__ext', '__module__', ' __set__', '__ipv6__'];
 
   // 无需配置值（Value）的条件列表
   const withoutValueConditionList = ['does not exists', 'exists'];
@@ -136,20 +144,36 @@
   // 判定当前选中条件是否需要设置Value
   const isShowConditonValueSetting = computed(() => !withoutValueConditionList.includes(condition.value.operator));
 
-  const compSearchValue = computed(() => {
-    if (searchValue.value.length) {
-      return searchValue.value;
+  /**
+   * 是否有检验错误
+   */
+  const isExitErrorTag = computed(() => {
+    if (['long', 'integer', 'float'].includes(activeFieldItem.value.field_type)) {
+      let regex = new RegExp(/^-?\d+\.?\d*$/);
+      const result = condition.value.value.map(val => regex.test(val));
+      return result.some(val => !val);
     }
 
-    if (typeof props.value === 'string') {
-      return props.value;
+    return false;
+  });
+
+  /**
+   * 确定按钮是否激活
+   */
+  const isSaveBtnActive = computed(() => {
+    if (typeof props.value === 'string' && props.value.length) {
+      return true;
     }
 
-    return '';
+    if (isShowConditonValueSetting.value) {
+      return condition.value.value.length > 0 && !isExitErrorTag.value;
+    }
+
+    return condition.value.operator.length > 0;
   });
 
   const filterFieldList = computed(() => {
-    const regExp = getRegExp(compSearchValue.value);
+    const regExp = getRegExp(searchValue.value);
     const filterFn = field =>
       field.field_type !== '__virtual__' &&
       !excludesFields.includes(field.field_name) &&
@@ -157,16 +181,12 @@
     return fieldList.value.filter(filterFn);
   });
 
-  const isExitErrorTag = ref(false);
-
-  const tagValidateFun = index => {
+  const tagValidateFun = item => {
     // 如果是数值类型， 返回一个检验的函数
     if (['long', 'integer', 'float'].includes(activeFieldItem.value.field_type)) {
-      let regex = new RegExp(/^-?\d+\.?\d*$/);
-      const result = condition.value.value.map(val => regex.test(val));
-      isExitErrorTag.value = result.some(val => !val);
-      return result[index];
+      return /^-?\d+\.?\d*$/.test(item);
     }
+
     return true;
   };
 
@@ -238,7 +258,7 @@
   });
 
   const setDefaultActiveIndex = () => {
-    activeIndex.value = compSearchValue.value.length ? null : 0;
+    activeIndex.value = searchValue.value.length ? null : 0;
   };
 
   watch(
@@ -257,7 +277,7 @@
   );
 
   watch(
-    compSearchValue,
+    searchValue,
     () => {
       nextTick(() => {
         setDefaultActiveIndex();
@@ -346,7 +366,11 @@
     }
 
     // 如果是空操作符禁止提交
-    if (result && (!result.operator || (isShowConditonValueSetting.value && result.value.length === 0))) {
+    // 或者当前校验不通过禁止提交
+    if (
+      (result && (!result.operator || (isShowConditonValueSetting.value && result.value.length === 0))) ||
+      isExitErrorTag.value
+    ) {
       return;
     }
 
@@ -382,9 +406,9 @@
     return 'empty';
   });
 
-  const currentEditTagIndex = ref();
+  const currentEditTagIndex = ref(null);
 
-  const handleEditTagClick = (e, tagContent, tagIndex) => {
+  const handleEditTagDBClick = (e, tagContent, tagIndex) => {
     const parent = e.target.parentNode;
 
     currentEditTagIndex.value = tagIndex;
@@ -869,7 +893,7 @@
           </bk-exception>
         </template>
         <template v-else-if="showFulltextMsg">
-          <template v-if="activeIndex === 0">
+          <template v-if="activeIndex === 0 || activeIndex === null">
             <div class="full-text-title">{{ $t('全文检索') }}</div>
             <div class="full-text-sub-title">
               <img :src="svgImg.imgEnterKey" /><span>{{ $t('Enter 键') }}</span>
@@ -903,7 +927,7 @@
                 class="ui-value-operator"
                 @click.stop="handleOperatorBtnClick"
               >
-                {{ $t(activeOperator.label) }}
+                {{ getOperatorLable(activeOperator.label) }}
               </div>
               <div style="display: none">
                 <div
@@ -964,11 +988,12 @@
                 <li
                   v-for="(item, index) in condition.value"
                   class="tag-item"
+                  :class="!tagValidateFun(item) ? 'tag-validate-error' : ''"
                   :key="`-${index}`"
                 >
                   <template v-if="currentEditTagIndex === index">
                     <input
-                      style="border: 1px solid #c4c6cc"
+                      class="tag-item-input"
                       v-model="condition.value[index]"
                       type="text"
                       @blur.stop="handleTagInputBlur"
@@ -978,8 +1003,7 @@
                   <template v-else>
                     <span
                       class="tag-item-text"
-                      :class="!tagValidateFun(index) ? 'tag-validate-error' : ''"
-                      @dblclick.stop="e => handleEditTagClick(e, item, index)"
+                      @dblclick.stop="e => handleEditTagDBClick(e, item, index)"
                       >{{ item }}</span
                     >
                     <span
@@ -1033,7 +1057,7 @@
             v-if="isExitErrorTag"
             class="tag-error-text"
           >
-            当前搜索条件输入校验有误
+            {{ $t('仅支持输入数值类型') }}
           </div>
           <div
             class="ui-value-row"
@@ -1058,9 +1082,11 @@
       <div class="ui-shortcut-key">
         <span><img :src="svgImg.imgUpDownKey" />{{ $t('移动光标') }}</span>
         <span><img :src="svgImg.imgEnterKey" />{{ $t('选中/检索') }}</span>
+        <span><span class="key-esc">Esc</span>{{ $t('收起查询/弹出选项') }}</span>
       </div>
       <div class="ui-btn-opts">
         <bk-button
+          :disabled="!isSaveBtnActive"
           style="width: 64px; margin-right: 8px"
           theme="primary"
           @click.stop="handelSaveBtnClick"
@@ -1128,11 +1154,11 @@
             font-size: 16px;
             cursor: pointer;
           }
+        }
 
-          .tag-validate-error {
-            border-color: red;
-            border-style: dashed;
-          }
+        &.tag-validate-error {
+          border-color: red;
+          border-style: dashed;
         }
 
         input.tag-option-focus-input {
@@ -1141,6 +1167,11 @@
           font-size: 12px;
           color: #63656e;
           border: none;
+        }
+
+        input.tag-item-input {
+          max-width: 100%;
+          border: 1px solid #c4c6cc;
         }
       }
     }

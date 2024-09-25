@@ -12,6 +12,13 @@
   import ClusterSetting from '../setting-modal/index.vue';
   import RetrieveSetting from './retrieve-setting.vue';
 
+  const props = defineProps({
+    showFavorites: {
+      type: Boolean,
+      default: true,
+    },
+  });
+
   const store = useStore();
   const isShowClusterSetting = ref(false);
   const indexSetParams = computed(() => store.state.indexItem);
@@ -52,9 +59,12 @@
 </script>
 <template>
   <div class="subbar-container">
-    <div class="box-biz-select">
+    <div
+      class="box-biz-select"
+      :style="{ 'margin-left': props.showFavorites ? '4px' : '0' }"
+    >
       <SelectIndexSet
-        style="min-width: 300px;"
+        style="min-width: 500px"
         @selected="handleIndexSetSelected"
         :popoverOptions="{ offset: '-6,10' }"
       ></SelectIndexSet>

@@ -328,7 +328,9 @@
         return this.requestData.year_on_year_hour ? `${this.$t('同比')} : ${this.requestData.year_on_year_hour}h` : '';
       },
       isShowGroupTag() {
-        return this.clusterSwitch && (this.getGroupStr || this.getDimensionStr || this.getYearStr);
+        return (
+          this.clusterSwitch && !this.isShowClusterStep && (this.getGroupStr || this.getDimensionStr || this.getYearStr)
+        );
       },
       isShowTopNav() {
         return this.exhibitAll && this.clusterSwitch && !this.isShowClusterStep;
