@@ -264,7 +264,7 @@ class BaseQuery:
                 raise ValueError(_("不支持的查询操作符: %s") % (f['operator']))
 
             key = cls._translate_field(f["key"])
-            return cls.operator_mapping[f["operator"]](q, key, f["value"])
+            q = cls.operator_mapping[f["operator"]](q, key, f["value"])
 
         return q
 
