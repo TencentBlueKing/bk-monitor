@@ -257,6 +257,20 @@ const store = new Vuex.Store({
         ...searchParams,
       };
     },
+    isNewRetrieveRoute: state => {
+      const isDebug = window.FEATURE_TOGGLE.bklog_search_new === 'debug';
+      if (window.FEATURE_TOGGLE.bklog_search_new === 'on') {
+        return true;
+      }
+
+      if (isDebug) {
+        const whiteList = (window.FEATURE_TOGGLE_WHITE_LIST.bklog_search_new ?? []).map(id => `${id}`);
+        const bkBizId = state.bkBizId;
+        return bkBizId && whiteList.includes(bkBizId);
+      }
+
+      return false;
+    },
     storeIsShowClusterStep: state => state.storeIsShowClusterStep,
     getApiError: state => apiName => {
       return state.apiErrorInfo[apiName];
@@ -406,8 +420,8 @@ const store = new Vuex.Store({
     },
     updateSpace(state, spaceUid) {
       state.space = state.mySpaceList.find(item => item.space_uid === spaceUid) || {};
-      state.spaceUid = spaceUid;
       state.bkBizId = state.space.bk_biz_id;
+      state.spaceUid = spaceUid;
     },
     updateMySpaceList(state, spaceList) {
       state.mySpaceList = spaceList.map(item => {

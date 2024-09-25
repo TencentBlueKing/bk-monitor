@@ -123,7 +123,7 @@
     handleSpaceIdChange();
     const routeQuery = route.query ?? {};
 
-    if (routeQuery.spaceUid !== spaceUid.value || routeQuery.bizId !== bkBizId.value) {
+    if (routeQuery.spaceUid !== spaceUid.value) {
       const resolver = new RouteUrlResolver({ route });
 
       router.replace({

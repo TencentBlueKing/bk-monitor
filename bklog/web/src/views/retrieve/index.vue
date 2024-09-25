@@ -497,7 +497,7 @@
         isExternal: state => state.isExternal,
         externalMenu: state => state.externalMenu,
       }),
-      ...mapGetters(['asIframe', 'iframeQuery']),
+      ...mapGetters(['asIframe', 'iframeQuery', 'isNewRetrieveRoute']),
       ...mapGetters({
         authMainPageInfo: 'globals/authContainerInfo',
         unionIndexList: 'unionIndexList',
@@ -538,14 +538,27 @@
         this.initIndexSetChangeFn(val);
       },
       spaceUid: {
-        async handler() {
+        async handler(val, oldVal) {
           this.indexId = '';
           this.indexSetList.splice(0);
           this.totalFields.splice(0);
           this.retrieveParams.bk_biz_id = this.bkBizId;
+
           // 外部版 无检索权限跳转后不更新页面数据
           if (!this.isExternal || (this.isExternal && this.externalMenu.includes('retrieve'))) {
-            this.fetchPageData();
+            // 当前改变目标不是新版首页
+            if (!this.isNewRetrieveRoute) {
+              this.fetchPageData();
+            } else {
+              this.$router.replace({
+                query: {
+                  spaceUid: this.spaceUid,
+                  bizId: this.bkBizId,
+                },
+              });
+
+              return;
+            }
           }
           this.resetFavoriteValue();
           this.$store.commit('updateUnionIndexList', []);
@@ -704,7 +717,7 @@
       },
       // 初始化索引集
       requestIndexSetList() {
-        const spaceUid = this.$route.query.spaceUid && this.isFirstLoad ? this.$route.query.spaceUid : this.spaceUid;
+        const spaceUid = this.spaceUid;
         this.basicLoading = true;
         this.$http
           .request('retrieve/getIndexSetList', {
@@ -2100,7 +2113,10 @@
         // });
       },
       getHaveValueIndexItem(indexList) {
-        return indexList.find(item => !item.tags.map(item => item.tag_id).includes(4))?.index_set_id || indexList[0].index_set_id;
+        return (
+          indexList.find(item => !item.tags.map(item => item.tag_id).includes(4))?.index_set_id ||
+          indexList[0].index_set_id
+        );
       },
     },
   };
