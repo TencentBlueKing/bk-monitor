@@ -538,7 +538,22 @@
         this.initIndexSetChangeFn(val);
       },
       spaceUid: {
-        async handler(val, oldVal) {
+        async handler() {
+          // 当前改变目标是新版首页
+          if (this.isNewRetrieveRoute) {
+            this.$router.replace({
+              params: {
+                indexId: undefined,
+              },
+              query: {
+                spaceUid: this.spaceUid,
+                bizId: this.bkBizId,
+              },
+            });
+
+            return;
+          }
+
           this.indexId = '';
           this.indexSetList.splice(0);
           this.totalFields.splice(0);
@@ -546,19 +561,7 @@
 
           // 外部版 无检索权限跳转后不更新页面数据
           if (!this.isExternal || (this.isExternal && this.externalMenu.includes('retrieve'))) {
-            // 当前改变目标不是新版首页
-            if (!this.isNewRetrieveRoute) {
-              this.fetchPageData();
-            } else {
-              this.$router.replace({
-                query: {
-                  spaceUid: this.spaceUid,
-                  bizId: this.bkBizId,
-                },
-              });
-
-              return;
-            }
+            this.fetchPageData();
           }
           this.resetFavoriteValue();
           this.$store.commit('updateUnionIndexList', []);
