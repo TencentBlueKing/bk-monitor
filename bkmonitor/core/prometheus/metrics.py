@@ -268,6 +268,17 @@ ALERT_PROCESS_PUSH_DATA_COUNT = Counter(
     labelnames=("bk_data_id", "topic", "strategy_id", "is_saved"),
 )
 
+PROCESS_BIG_LATENCY = Histogram(
+    name="bkmonitor_detect_process_latency",
+    documentation="处理延迟过大",
+    labelnames=(
+        "strategy_id",
+        "module",
+        "bk_biz_id",
+    ),
+    buckets=(1, 2, 3, 5, 10, 15, 20, 30, 60, 180, 300, INF),
+)
+
 DETECT_PROCESS_LATENCY = Histogram(
     name="bkmonitor_detect_process_latency",
     documentation="告警从 access 到 detect 模块的整体处理延迟",

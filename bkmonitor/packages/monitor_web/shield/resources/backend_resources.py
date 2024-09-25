@@ -438,6 +438,7 @@ class BulkAddAlertShieldResource(AddShieldResource):
                     bk_biz_id=data["bk_biz_id"],
                     category=data["category"],
                     create_user=shield_operator,
+                    update_user=shield_operator,
                     begin_time=time_result["begin_time"],
                     end_time=time_result["end_time"],
                     failure_time=time_result["end_time"],
