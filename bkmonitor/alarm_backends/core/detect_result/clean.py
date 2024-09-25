@@ -44,7 +44,11 @@ class CleanResult(object):
         pipeline = client.pipeline()
         total = len(strategies)
         step = int(total / 100)
-        wait_signals = list(range(step, total, step))
+        if step < 5:
+            wait_signals = []
+        else:
+            wait_signals = list(range(step, total, step))
+        last_sleep_time = time.time()
         for s_id, strategy in enumerate(strategies):
             # 按照策略的检测与恢复周期配置，决定保留多少个周期的检测结果
             point_remain = detect_result_point_required(strategy)
@@ -101,7 +105,11 @@ class CleanResult(object):
 
             # redis 性能缓冲, 避免清理任务占满redis cpu
             if s_id in wait_signals:
-                time.sleep(1)
+                now = time.time()
+                clean_duration = now - last_sleep_time
+                if clean_duration > 1:
+                    time.sleep(clean_duration)
+                    last_sleep_time = now
 
     @staticmethod
     def clean_md5_to_dimension_cache():
