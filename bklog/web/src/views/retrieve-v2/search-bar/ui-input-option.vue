@@ -7,7 +7,8 @@
   import useStore from '@/hooks/use-store';
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
-  import { operatorMapping, translateKeys } from './const-values';
+  import { translateKeys } from './const-values';
+  import { excludesFields } from './const.common';
 
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
   import PopInstanceUtil from './pop-instance-util';
@@ -136,9 +137,6 @@
     }
     return list;
   });
-
-  // 需要排除的字段
-  const excludesFields = ['__ext', '__module__', ' __set__', '__ipv6__'];
 
   // 无需配置值（Value）的条件列表
   const withoutValueConditionList = ['does not exists', 'exists'];

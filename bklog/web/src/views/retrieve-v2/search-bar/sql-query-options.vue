@@ -10,6 +10,8 @@
   // @ts-ignore
   import FavoriteList from './favorite-list';
 
+  import { excludesFields } from './const.common';
+
   const props = defineProps({
     value: {
       type: String,
@@ -59,7 +61,8 @@
 
   /** 所有字段的字段名 */
   const totalFieldsNameList = computed(() => {
-    return totalFields.value.map((item: { field_name: any }) => item.field_name);
+    const filterFn = field => field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
+    return totalFields.value.filter(filterFn).map((item: { field_name: any }) => item.field_name);
   });
 
   // 检索后的日志数据如果字段在字段接口找不到则不展示联想的key
@@ -597,6 +600,17 @@
               </div>
             </li>
           </div>
+        </template>
+        <template
+          v-if="!showOption.showFields && !showOption.showValue && !showOption.showColon && !showOption.showContinue"
+        >
+          <bk-exception
+            style="height: 40px"
+            type="search-empty"
+            scene="part"
+          >
+            当前页面未获取到该字段信息，无法获取联想内容，请手动输入查询内容
+          </bk-exception>
         </template>
       </ul>
       <FavoriteList
