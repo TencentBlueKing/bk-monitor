@@ -7,6 +7,7 @@
   import useStore from '@/hooks/use-store';
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
+  import { operatorMapping, translateKeys } from './const-values';
 
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
   import PopInstanceUtil from './pop-instance-util';
@@ -73,6 +74,14 @@
 
   const filedValueMapping = {};
 
+  const getOperatorLable = operator => {
+    if (translateKeys.includes(operator)) {
+      return t(operator);
+    }
+
+    return operator;
+  };
+
   // 操作符下拉实例
   const operatorInstance = new PopInstanceUtil({
     refContent: refUiValueOperatorList,
@@ -138,6 +147,19 @@
   const isShowConditonValueSetting = computed(() => !withoutValueConditionList.includes(condition.value.operator));
 
   /**
+   * 是否有检验错误
+   */
+  const isExitErrorTag = computed(() => {
+    if (['long', 'integer', 'float'].includes(activeFieldItem.value.field_type)) {
+      let regex = new RegExp(/^-?\d+\.?\d*$/);
+      const result = condition.value.value.map(val => regex.test(val));
+      return result.some(val => !val);
+    }
+
+    return false;
+  });
+
+  /**
    * 确定按钮是否激活
    */
   const isSaveBtnActive = computed(() => {
@@ -146,7 +168,7 @@
     }
 
     if (isShowConditonValueSetting.value) {
-      return condition.value.value.length > 0;
+      return condition.value.value.length > 0 && !isExitErrorTag.value;
     }
 
     return condition.value.operator.length > 0;
@@ -161,16 +183,12 @@
     return fieldList.value.filter(filterFn);
   });
 
-  const isExitErrorTag = ref(false);
-
-  const tagValidateFun = index => {
+  const tagValidateFun = item => {
     // 如果是数值类型， 返回一个检验的函数
     if (['long', 'integer', 'float'].includes(activeFieldItem.value.field_type)) {
-      let regex = new RegExp(/^-?\d+\.?\d*$/);
-      const result = condition.value.value.map(val => regex.test(val));
-      isExitErrorTag.value = result.some(val => !val);
-      return result[index];
+      return /^-?\d+\.?\d*$/.test(item);
     }
+
     return true;
   };
 
@@ -350,7 +368,11 @@
     }
 
     // 如果是空操作符禁止提交
-    if (result && (!result.operator || (isShowConditonValueSetting.value && result.value.length === 0))) {
+    // 或者当前校验不通过禁止提交
+    if (
+      (result && (!result.operator || (isShowConditonValueSetting.value && result.value.length === 0))) ||
+      isExitErrorTag.value
+    ) {
       return;
     }
 
@@ -907,7 +929,7 @@
                 class="ui-value-operator"
                 @click.stop="handleOperatorBtnClick"
               >
-                {{ $t(activeOperator.label) }}
+                {{ getOperatorLable(activeOperator.label) }}
               </div>
               <div style="display: none">
                 <div
@@ -968,7 +990,7 @@
                 <li
                   v-for="(item, index) in condition.value"
                   class="tag-item"
-                  :class="!tagValidateFun(index) ? 'tag-validate-error' : ''"
+                  :class="!tagValidateFun(item) ? 'tag-validate-error' : ''"
                   :key="`-${index}`"
                 >
                   <template v-if="currentEditTagIndex === index">
@@ -1037,7 +1059,7 @@
             v-if="isExitErrorTag"
             class="tag-error-text"
           >
-            当前搜索条件输入校验有误
+            {{ $t('仅支持输入数值类型') }}
           </div>
           <div
             class="ui-value-row"
@@ -1062,6 +1084,7 @@
       <div class="ui-shortcut-key">
         <span><img :src="svgImg.imgUpDownKey" />{{ $t('移动光标') }}</span>
         <span><img :src="svgImg.imgEnterKey" />{{ $t('选中/检索') }}</span>
+        <span><span class="key-esc">Esc</span>{{ $t('收起查询/弹出选项') }}</span>
       </div>
       <div class="ui-btn-opts">
         <bk-button

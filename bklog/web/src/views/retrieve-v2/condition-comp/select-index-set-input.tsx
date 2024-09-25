@@ -165,6 +165,7 @@ export default class SelectIndexSetInput extends tsc<object> {
               </span>
             </div>
           ))}
+          <span class={[this.arrowClassName, 'bklog-select-arrow']}></span>
         </div>
       );
     };
