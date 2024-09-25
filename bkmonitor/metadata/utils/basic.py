@@ -55,6 +55,5 @@ def get_biz_id_by_space_uid(space_uid):
         )
         return int(bk_biz_id)
     except Exception as e:  # pylint: disable=broad-except
-        logger.error("get_biz_id_by_space_uid failed,space_uid->{}".format(space_uid))
-        logger.exception(e)
+        logger.error("get_biz_id_by_space_uid failed,space_uid->{},error->{}".format(space_uid, e))
         return
