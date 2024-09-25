@@ -56,6 +56,10 @@
     background: #FAFBFD;
   }
 
+  .apm-home-content {
+    height: calc(100vh - 100px);
+  }
+
   /*应用列表*/
   .app-list {
     height: calc(100vh - 114px);
@@ -75,7 +79,7 @@
       display: flex;
       margin: 0 16px 12px;
 
-      .bk-form-control {
+      .app-list-search-select {
         flex: 1;
       }
 
@@ -164,9 +168,17 @@
           overflow: hidden;
           font-size: 12px;
           line-height: 1;
-          color: #313238;
           text-overflow: ellipsis;
           white-space: nowrap;
+
+          span:first-child {
+            color: #313238;
+          }
+
+          span:last-child {
+            display: inline-block;
+            color: #979ba5;
+          }
         }
 
         .item-content {

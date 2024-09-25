@@ -26,81 +26,95 @@
 import { Component, Ref, Prop, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import SearchSelect from '@blueking/search-select-v3/vue2';
+import { serviceList, serviceListAsync } from 'monitor-api/modules/apm_metric';
+import { Debounce } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import GuidePage from 'monitor-pc/components/guide-page/guide-page';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
-import FilterPanel from 'monitor-pc/pages/strategy-config/strategy-config-list/filter-panel';
+import FilterPanel, { type IFilterData } from 'monitor-pc/pages/strategy-config/strategy-config-list/filter-panel';
 import introduceData from 'monitor-pc/router/space';
 
-import { SEARCH_KEYS } from '../utils';
-
 import type { PartialAppListItem } from '../apm-home';
-import type { IFilterDict } from 'monitor-pc/pages/monitor-k8s/typings';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import type { ICommonTableProps } from 'monitor-pc/pages/monitor-k8s/components/common-table';
+import type { IFilterDict, ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings';
+import type { IGroupData } from 'monitor-pc/pages/strategy-config/strategy-config-list/group';
 
 import './apm-home-list.scss';
-
 interface IProps {
-  itemRow: PartialAppListItem;
+  appData: PartialAppListItem;
   showGuidePage?: boolean;
+  timeRange?: TimeRangeType;
 }
 
 interface IEvent {
-  onGetServiceData?: (appIds: number[], isScrollEnd?: boolean, isRefresh?: boolean) => void;
-  onHandleSearchCondition?: (value) => void;
   onHandleToConfig?: (row: PartialAppListItem) => void;
   onLinkToOverview?: (row: PartialAppListItem) => void;
 }
+
+interface TableConfigData {
+  tableData: ICommonTableProps;
+  tableSortKey: string;
+  tableFilters: IFilterDict;
+}
+
 @Component({})
 export default class ApmHomeList extends tsc<IProps, IEvent> {
-  @Prop() itemRow: PartialAppListItem;
+  @Prop() appData: PartialAppListItem;
   @Prop({ default: false, type: Boolean }) showGuidePage: boolean;
+  @Prop() timeRange: TimeRangeType;
   @Ref() mainResize: any;
 
-  searchCondition = [];
+  /** 搜索关键词 */
+  searchKeyWord = '';
   showFilterPanel = true;
+  loading = true;
+  searchEmpty = false;
 
-  /** mock数据 */
+  /** 分页数据 */
+  pagination: ITablePagination = {
+    current: 1,
+    count: 500,
+    limit: 10,
+    showTotalCount: true,
+  };
 
-  filterList = [
-    {
-      id: 'strategy_status',
-      name: '状态',
-      data: [
-        {
-          id: 'ALERT',
-          name: '告警中',
-          count: 24,
-          icon: 'icon-mc-chart-alert',
-        },
-        {
-          id: 'INVALID',
-          name: '策略已失效',
-          count: 18,
-          icon: 'icon-shixiao',
-        },
-        {
-          id: 'OFF',
-          name: '已停用',
-          count: 94,
-          icon: 'icon-zanting1',
-        },
-        {
-          id: 'ON',
-          name: '已启用',
-          count: 114,
-          icon: 'icon-kaishi1',
-        },
-        {
-          id: 'SHIELDED',
-          name: '屏蔽中',
-          count: 1,
-          icon: 'icon-menu-shield',
-        },
-      ],
+  /** 服务表格数据 */
+  tableConfigData: TableConfigData = {
+    tableData: {
+      pagination: {
+        count: 100,
+        current: 1,
+        limit: 0,
+        showTotalCount: true,
+      },
+      columns: [],
+      data: [],
+      checkable: false,
+      outerBorder: true,
+      scrollLoading: false,
+      hasColnumSetting: false,
     },
-  ];
+    tableSortKey: '',
+    tableFilters: {},
+  };
+
+  /* 左侧统计数据 */
+  leftFilter: {
+    checkedData: IFilterData[];
+    filterList: IGroupData[];
+    defaultActiveName: string[];
+    show: boolean;
+    isShowSkeleton: boolean;
+  } = {
+    filterList: [],
+    checkedData: [],
+    defaultActiveName: ['category', 'language', 'apply_module', 'have_data'],
+    show: true,
+    isShowSkeleton: true,
+  };
 
   @Emit()
   handleEmit(...args: any[]) {
@@ -109,15 +123,7 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
   }
 
   created() {
-    const { query } = this.$route;
-    if (query?.queryString) {
-      this.searchCondition.push({
-        id: query.queryString,
-        name: query.queryString,
-      });
-    }
-    // 批量设置搜索条件
-    this.setSearchConditions(['profiling_data_status', 'is_enabled_profiling'], query);
+    this.getLimitOfHeight();
   }
 
   get apmIntroduceData() {
@@ -126,33 +132,16 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
     apmData.data.buttons[0].url = window.__POWERED_BY_BK_WEWEB__ ? '#/apm/application/add' : '#/application/add';
     return apmData;
   }
-  /* 查找搜索键 */
-  findSearchKey(key) {
-    return SEARCH_KEYS.find(item => item.id === key) || { name: '', children: [] };
-  }
 
-  /* 批量设置搜索条件 */
-  setSearchConditions(keys, query) {
-    keys.reduce((acc, key) => {
-      if (query?.[key]) {
-        const { name, children } = this.findSearchKey(key);
-        const matchingStatus = children.find(s => s.id === query[key]);
-        if (matchingStatus) {
-          acc.push({
-            id: key,
-            name,
-            values: [{ ...matchingStatus }],
-          });
-        }
-      }
-      return acc;
-    }, this.searchCondition);
-  }
-
-  /* 候选搜索列表过滤 */
-  conditionListFilter() {
-    const allKey = this.searchCondition.map(item => item.id);
-    return SEARCH_KEYS.filter(item => !allKey.includes(item.id));
+  /**
+   * @description: 筛选面板勾选change事件
+   * @param {*} data
+   * @return {*}
+   */
+  handleSearchSelectChange(data = []) {
+    this.leftFilter.checkedData = data;
+    this.tableConfigData.tableData.pagination.current = 1;
+    this.getServiceList(this.appData, true);
   }
 
   /* 筛选展开收起 */
@@ -171,47 +160,164 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
       }, 350);
     }
   }
+
   /**
    * @description 条件搜索
    * @param value
    */
-  handleSearchCondition(value) {
-    this.handleEmit('handleSearchCondition', value);
+  @Debounce(300)
+  handleSearchCondition() {
+    this.searchEmpty = !!this.searchKeyWord;
+    this.getServiceList(this.appData, true);
+  }
+
+  /**
+   *@description 获取服务列表
+   *@param appData
+   *@param isRefresh
+   *@param isAppClick
+   */
+  getServiceList(appData, isRefresh = false, isAppClick = false) {
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const {
+      tableData: { data },
+    } = this.tableConfigData;
+    if (data.length && !isRefresh) {
+      return;
+    }
+    // 设置加载状态
+    this.loading = true;
+    if (isAppClick) this.leftFilter.isShowSkeleton = true;
+
+    serviceList(this.createServiceRequest(appData, startTime, endTime))
+      .then(({ columns, data, total, filter }) => {
+        this.updateTableData(data, columns, total, filter);
+        this.loadAsyncData(appData, data, columns, startTime, endTime);
+      })
+      .finally(() => {
+        this.loading = false;
+        this.leftFilter.isShowSkeleton = false;
+      });
+  }
+
+  createServiceRequest(item, startTime, endTime) {
+    const transformedArray = this.leftFilter.checkedData?.map(({ id, values }) => ({
+      key: id,
+      value: values.map(({ id }) => id),
+    }));
+    const { tableSortKey, tableFilters, tableData } = this.tableConfigData;
+    const { current, limit } = tableData.pagination;
+    return {
+      app_name: item.app_name,
+      start_time: startTime,
+      end_time: endTime,
+      filter: 'all',
+      sort: tableSortKey,
+      filter_dict: tableFilters,
+      field_conditions: transformedArray,
+      check_filter_dict: {},
+      page: current,
+      page_size: limit,
+      keyword: this.searchKeyWord,
+      condition_list: [],
+      view_mode: 'page_home',
+      view_options: {
+        app_name: item.app_name,
+        compare_targets: [],
+        current_target: {},
+        method: 'AVG',
+        interval: 'auto',
+        group_by: [],
+        filters: {
+          app_name: item.app_name,
+        },
+      },
+      bk_biz_id: this.$store.getters.bizId,
+    };
+  }
+
+  updateTableData(data, columns, total, filter) {
+    const { tableData } = this.tableConfigData;
+    tableData.data = data;
+    tableData.columns = columns;
+    tableData.pagination.count = total;
+    const updatedCategories = filter.map(category => {
+      return {
+        ...category,
+        data: category.fields,
+      };
+    });
+    this.leftFilter.filterList = updatedCategories;
+  }
+
+  loadAsyncData(item, data, columns, startTime, endTime) {
+    const fields = (columns || []).filter(col => col.asyncable).map(val => val.id);
+    const services = (data || []).map(d => d.service_name.value);
+
+    for (const field of fields) {
+      serviceListAsync(this.createAsyncRequest(item, field, services, startTime, endTime))
+        .then(serviceData => {
+          this.mapAsyncData(serviceData, field);
+        })
+        .finally(() => {
+          this.updateColumnAsyncAbleState(field);
+        });
+    }
+  }
+
+  createAsyncRequest(item, field, services, startTime, endTime) {
+    return {
+      app_name: item.app_name,
+      start_time: startTime,
+      end_time: endTime,
+      column: field,
+      service_names: services,
+      bk_biz_id: this.$store.getters.bizId,
+    };
+  }
+
+  mapAsyncData(serviceData, field) {
+    const dataMap = {};
+    if (serviceData) {
+      for (const serviceItem of serviceData) {
+        if (serviceItem.service_name) {
+          dataMap[String(serviceItem.service_name)] = serviceItem[field];
+        }
+      }
+    }
+    this.tableConfigData.tableData.data = this.tableConfigData.tableData.data.map(d => ({
+      ...d,
+      [field]: d[field] || dataMap[String(d.service_name.value || '')] || null,
+    }));
+  }
+
+  updateColumnAsyncAbleState(field) {
+    this.tableConfigData.tableData.columns = this.tableConfigData.tableData.columns.map(col => ({
+      ...col,
+      asyncable: col.id === field ? false : col.asyncable,
+    }));
   }
 
   /**
    * @description 收藏
    * @param val
-   * @param row
    */
-  handleCollect(val, item: PartialAppListItem) {
+  handleCollect(val) {
     const apis = val.api.split('.');
     (this as any).$api[apis[0]][apis[1]](val.params).then(() => {
-      item.tableData.paginationData.current = 1;
-      item.tableData.paginationData.isEnd = false;
-      this.handleEmit('getServiceData', [item.application_id], false, true);
+      this.tableConfigData.tableData.pagination.current = 1;
+      this.getServiceList(this.appData, true);
     });
   }
 
   /**
    * @description 表格筛选
    * @param filters
-   * @param item
    */
-  handleFilterChange(filters: IFilterDict, item: PartialAppListItem) {
-    item.tableFilters = filters;
-    item.tableData.paginationData.current = 1;
-    item.tableData.paginationData.isEnd = false;
-    this.handleEmit('getServiceData', [item.application_id], false, true);
-  }
-
-  /**
-   * @description 表格滚动到底部
-   * @param row
-   */
-  handleScrollEnd(item: PartialAppListItem) {
-    item.tableData.paginationData.current += 1;
-    this.handleEmit('getServiceData', [item.application_id], true);
+  handleFilterChange(filters: IFilterDict) {
+    this.tableConfigData.tableFilters = filters;
+    this.tableConfigData.tableData.pagination.current = 1;
+    this.getServiceList(this.appData, true);
   }
 
   /**
@@ -219,7 +325,7 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
    * @param param0
    * @param item
    */
-  handleSortChange({ prop, order }, item: PartialAppListItem) {
+  handleSortChange({ prop, order }, item) {
     switch (order) {
       case 'ascending':
         item.tableSortKey = prop;
@@ -230,21 +336,76 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
       default:
         item.tableSortKey = undefined;
     }
-    item.tableData.paginationData.current = 1;
-    item.tableData.paginationData.isEnd = false;
-    this.handleEmit('getServiceData', [item.application_id], false, true);
+    this.tableConfigData.tableData.pagination.current = 1;
+    this.getServiceList(item, true);
+  }
+
+  /**
+   * @description 表格页数事件
+   * @param page
+   */
+  handlePageChange(page: number) {
+    this.tableConfigData.tableData.pagination.current = page;
+    this.getServiceList(this.appData, true);
+  }
+
+  /**
+   * @description 表格页码事件
+   * @param limit
+   */
+  handlePageLimitChange(limit: number) {
+    this.tableConfigData.tableData.pagination.limit = limit;
+    this.getServiceList(this.appData, true);
+  }
+
+  /**
+   * @description 动态计算当前每页数量
+   */
+  getLimitOfHeight() {
+    const itemHeight = 54;
+    const limit = Math.ceil((window.screen.height - 361) / itemHeight);
+    const closestValue = this.findClosestValue(limit, [10, 20, 50, 100]);
+    this.tableConfigData.tableData.pagination.limit = closestValue;
+  }
+
+  /**
+   * @description 找到最接近的值
+   * @param value
+   * @param values
+   */
+  findClosestValue(value: number, values: number[]): number {
+    return values.reduce((prev, curr) => {
+      return Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev;
+    });
+  }
+
+  /**
+   * @description 清空搜索条件
+   * @param value
+   * @param values
+   */
+  handleClearSearch() {
+    this.searchKeyWord = '';
+    this.tableConfigData.tableData.pagination.current = 1;
+    this.getServiceList(this.appData, true);
+    this.$nextTick(() => {
+      this.searchEmpty = false;
+    });
   }
   render() {
     return (
       <div class='apm-home-list'>
         <div class='header'>
-          <div class='header-left'>{this.itemRow.app_alias?.value}</div>
+          <div class='header-left'>
+            <span>{this.appData.app_alias}</span>
+            {this.appData.app_name ? <span>（{this.appData.app_name}）</span> : null}
+          </div>
           <div class='header-right'>
             <bk-button
               class='mr-8'
               onClick={(event: Event) => {
                 event.stopPropagation();
-                this.handleEmit('linkToOverview', this.itemRow);
+                this.handleEmit('linkToOverview', this.appData);
               }}
             >
               {this.$t('应用详情')}
@@ -252,7 +413,7 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
             <bk-button
               onClick={(event: Event) => {
                 event.stopPropagation();
-                this.handleEmit('handleToConfig', this.itemRow);
+                this.handleEmit('handleToConfig', this.appData);
               }}
             >
               {this.$t('应用配置')}
@@ -275,9 +436,12 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
               slot='aside'
             >
               <FilterPanel
-                data={this.filterList}
-                show={true}
-                // showSkeleton={this.authLoading || this.loading}
+                checkedData={this.leftFilter.checkedData}
+                data={this.leftFilter.filterList}
+                defaultActiveName={this.leftFilter.defaultActiveName}
+                show={this.leftFilter.show}
+                showSkeleton={this.leftFilter.isShowSkeleton}
+                on-change={this.handleSearchSelectChange}
               >
                 <div
                   class='filter-panel-header'
@@ -316,10 +480,13 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
                       </span>
                     </bk-button>
                     <div class='app-list-search'>
-                      <SearchSelect
-                        v-model={this.searchCondition}
-                        data={this.conditionListFilter()}
+                      <bk-input
+                        v-model={this.searchKeyWord}
                         placeholder={this.$t('请输入服务搜索')}
+                        right-icon='bk-icon icon-search'
+                        clearable
+                        show-clear-only-hover
+                        on-right-icon-click={this.handleSearchCondition}
                         onChange={this.handleSearchCondition}
                       />
                     </div>
@@ -327,25 +494,25 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
                   <div class='app-right-content'>
                     <div class='app-list-content-data'>
                       <div
-                        key={this.itemRow.application_id}
+                        key={this.appData.application_id}
                         class='item-expand-wrap'
                       >
                         {
                           <div class='expand-content'>
-                            {this.itemRow.tableData.data.length || this.itemRow.tableData.loading ? (
+                            {this.tableConfigData.tableData?.data.length || this.loading ? (
                               (() => {
-                                if (!this.itemRow.tableData.data.length) {
+                                if (this.loading) {
                                   return <TableSkeleton class='table-skeleton' />;
                                 }
                                 return (
-                                  // 列名接口返回
                                   <CommonTable
-                                    {...{ props: this.itemRow.tableData }}
+                                    {...{ props: this.tableConfigData.tableData }}
                                     hasColnumSetting={false}
-                                    onCollect={val => this.handleCollect(val, this.itemRow)}
-                                    onFilterChange={val => this.handleFilterChange(val, this.itemRow)}
-                                    onScrollEnd={() => this.handleScrollEnd(this.itemRow)}
-                                    onSortChange={val => this.handleSortChange(val as any, this.itemRow)}
+                                    onCollect={val => this.handleCollect(val)}
+                                    onFilterChange={val => this.handleFilterChange(val)}
+                                    onLimitChange={this.handlePageLimitChange}
+                                    onPageChange={this.handlePageChange}
+                                    onSortChange={val => this.handleSortChange(val as any, this.appData)}
                                   />
                                 );
                               })()
@@ -354,6 +521,8 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
                                 textMap={{
                                   empty: this.$t('暂无数据'),
                                 }}
+                                type={this.searchEmpty ? 'search-empty' : 'empty'}
+                                onOperation={() => this.handleClearSearch()}
                               />
                             )}
                           </div>

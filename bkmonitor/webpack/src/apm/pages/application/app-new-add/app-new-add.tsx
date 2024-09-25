@@ -284,14 +284,14 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
           </bk-form>
           <div class='footer-wrap'>
             <bk-button
-              class='mr10'
+              class='mr8'
               theme='primary'
               onClick={this.handleSave}
             >
               {this.$t('保存')}
             </bk-button>
             <bk-button
-              class='mr10'
+              class='mr8'
               theme='primary'
               onClick={() => this.handleSave(true)}
             >
