@@ -61,16 +61,7 @@ class ConditionOperator {
     };
 
     /** 所有的包含,非包含情况下的类型操作符字符串 */
-    this.allContainsStrList = [
-      'contains match phrase',
-      'not contains match phrase',
-      'all contains match phrase',
-      'all not contains match phrase',
-      '=~',
-      '!=~',
-      '&=~',
-      '&!=~',
-    ];
+    this.allContainsStrList = Object.values(this.textMappingKey);
 
     /**
      * 包含情况下的text类型操作符
@@ -139,14 +130,14 @@ class ConditionOperator {
     // allContainsStrList 列表中包含的操作关系说明是 string | text 字段类型
     // 这些类型需要反向解析 FormatOpetatorFrontToApi 方法生成的语法
     if (!this.isFulltextField && this.allContainsStrList.includes(this.item.operator)) {
-      const [key] = Object.entries(this.textMappingKey).find(([, value]) => value === this.item.operator);
+      const value = this.allContainsStrList.find(value => value === this.item.operator);
 
       // this.containOperatorList 列表中所包含的操作关系说明是 OR 操作
       // OR 操作才支持这些查询
-      const relation = this.containOperatorList.includes(key) ? 'OR' : 'AND';
+      const relation = this.containOperatorList.includes(value) ? 'OR' : 'AND';
 
       // 包含和不包含操作符只有这两种，其他逻辑不走这个分支
-      const operator = this.containsStrList.includes(key) ? 'contains match phrase' : 'not contains match phrase';
+      const operator = this.containsStrList.includes(value) ? 'contains match phrase' : 'not contains match phrase';
 
       return {
         operator,
