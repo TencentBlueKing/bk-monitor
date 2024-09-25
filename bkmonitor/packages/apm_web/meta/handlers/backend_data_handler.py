@@ -13,6 +13,7 @@ import datetime
 import json
 
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 
 from api.bkdata.default import GetDataBusSamplingData, GetDataBusStoragesInfo
@@ -21,8 +22,13 @@ from api.log_search.default import (
     DataBusCollectorsResource,
     LogSearchIndexSetResource,
 )
+from apm.constants import TelemetryDataType
 from apm_web.models import Application
 from core.drf_resource import api
+
+
+def handler_name(handler_cls: type):
+    return str(handler_cls.__name__).split("BackendHandler")[0].lower()
 
 
 class BackendRegistry:
@@ -34,7 +40,7 @@ class BackendRegistry:
         self.registry = {}
 
     def register(self, adapter_cls):
-        adapter_name = str(adapter_cls.__name__).split("BackendHandler")[0].lower()
+        adapter_name = handler_name(adapter_cls)
         if adapter_name:
             self.registry[adapter_name] = adapter_cls
             return self.registry[adapter_name]
@@ -50,6 +56,15 @@ class TelemetryBackendHandler:
 
     def __init__(self, app: "Application", *args, **kwargs):
         self.app = app
+        self.telemetry: TelemetryDataType = TelemetryDataType(handler_name(self.__class__))
+
+    @cached_property
+    def bk_data_id(self):
+        return self.app.fetch_datasource_info(self.telemetry.datasource_type, attr_name="bk_data_id")
+
+    @cached_property
+    def result_table_id(self):
+        return self.app.fetch_datasource_info(self.telemetry.datasource_type, attr_name="result_table_id")
 
     @classmethod
     def build_data_view_config(cls, data_type_label, data_source_label, table_name):
@@ -187,8 +202,7 @@ class TracingBackendHandler(TelemetryBackendHandler):
         return [{"raw_log": log, "sampling_time": log.get("datetime", "")} for log in resp]
 
     def get_data_view_config(self):
-        # Todo: 根据实际配置确定table_name和label
-        table_name = (self.app.trace_result_table_id.replace(".", "_"),)
+        table_name = (self.result_table_id.replace(".", "_"),)
         return self.build_data_view_config(
             data_type_label="time_series", data_source_label="custom", table_name=table_name
         )
@@ -200,32 +214,31 @@ class LogBackendHandler(TelemetryBackendHandler):
     日志后端适配器
     """
 
+    @cached_property
+    def collector_config_id(self):
+        return self.app.fetch_datasource_info(self.telemetry.datasource_type, attr_name="collector_config_id")
+
+    @cached_property
+    def index_set_id(self):
+        return self.app.fetch_datasource_info(self.telemetry.datasource_type, attr_name="index_set_id")
+
     def storage_info(self):
-        # Todo: 从app中获取 collector_config_id
-        collector_config_id = getattr(self.app, "log_data_source.collector_config_id", None)
-        return DataBusCollectorsResource().request(collector_config_id=collector_config_id)
+        return DataBusCollectorsResource().request(collector_config_id=self.collector_config_id)
 
     def storage_field_info(self):
-        # Todo: 从app中获取 index_set_id
-        index_set_id = getattr(self.app, "log_data_source.index_set_id", None)
-        return LogSearchIndexSetResource().request(index_set_id=index_set_id)
+        return LogSearchIndexSetResource().request(index_set_id=self.index_set_id)
 
     def indices_info(self):
-        # Todo: 从app中获取 collector_config_id
-        collector_config_id = getattr(self.app, "log_data_source.collector_config_id", None)
-        return DataBusCollectorsIndicesResource().request(collector_config_id=collector_config_id)
+        return DataBusCollectorsIndicesResource().request(collector_config_id=self.collector_config_id)
 
     def data_sampling(self, size: int = 10, **kwargs):
-        # Todo: 从app中获取data_id
-        bk_data_id = getattr(self.app, "log_data_source.data_id", None)
-        resp = api.metadata.metadata_get_data_id({"bk_data_id": bk_data_id})
+        resp = api.metadata.metadata_get_data_id({"bk_data_id": self.bk_data_id})
         table_id = resp.result_table_list[0].get("result_table")
         resp = api.metadata.kafka_tail({"table_id": table_id, "size": size})
         return [{"raw_log": log, "sampling_time": log.get("datetime", "")} for log in resp]
 
     def get_data_view_config(self):
-        # Todo: 根据实际配置确定table_name和label
-        table_name = (self.app.log_result_table_id.replace(".", "_"),)
+        table_name = (self.result_table_id.replace(".", "_"),)
         return self.build_data_view_config(data_type_label="log", data_source_label="bk_apm", table_name=table_name)
 
 
@@ -235,15 +248,19 @@ class MetricBackendHandler(TelemetryBackendHandler):
     指标后端适配器
     """
 
+    @cached_property
+    def bk_base_data_id(self):
+        # Todo: APM_APPLY 临时方案，待接口支持
+        from metadata import models
+
+        vm_record = models.AccessVMRecord.objects.filter(result_table_id=self.result_table_id).first()
+        return vm_record.bk_base_data_id if vm_record else None
+
     def storage_info(self):
-        # Todo: 从app中获取data_id
-        bk_data_id = getattr(self.app, "metric_data_source.data_id", None)
-        return GetDataBusStoragesInfo().request(raw_data_id=bk_data_id)
+        return GetDataBusStoragesInfo().request(raw_data_id=self.bk_base_data_id)
 
     def data_sampling(self, **kwargs):
-        # Todo: 从app中获取data_id
-        bk_data_id = getattr(self.app, "metric_data_source.data_id", None)
-        resp = GetDataBusSamplingData().request(data_id=bk_data_id)
+        resp = GetDataBusSamplingData().request(data_id=self.bk_base_data_id)
         resp_data = []
         for log in resp:
             log_content = json.loads(log["value"])
@@ -254,8 +271,7 @@ class MetricBackendHandler(TelemetryBackendHandler):
         return resp_data
 
     def get_data_view_config(self):
-        # Todo: 根据实际配置确定table_name和label
-        table_name = (self.app.metric_result_table_id.replace(".", "_"),)
+        table_name = (self.result_table_id.replace(".", "_"),)
         return self.build_data_view_config(
             data_type_label="time_series", data_source_label="custom", table_name=table_name
         )
@@ -268,14 +284,10 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
     """
 
     def storage_info(self):
-        # Todo: 从app中获取data_id
-        bk_data_id = getattr(self.app, "profiling_data_source.data_id", None)
-        return GetDataBusStoragesInfo().request(raw_data_id=bk_data_id)
+        return GetDataBusStoragesInfo().request(raw_data_id=self.bk_data_id)
 
     def data_sampling(self):
-        # Todo: 从app中获取data_id
-        bk_data_id = getattr(self.app, "profiling_data_source.data_id", None)
-        resp = GetDataBusSamplingData().request(data_id=bk_data_id)
+        resp = GetDataBusSamplingData().request(data_id=self.bk_data_id)
         resp_data = []
         for log in resp:
             log_content = json.loads(log["value"])
