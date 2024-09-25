@@ -1,14 +1,15 @@
 @import '@/scss/mixins/flex.scss';
 
-.retrieve-tab-item-title {
+.retrieve-tab-item-title-old {
   align-items: center;
+  margin: 16px 0 6px;
   font-size: 12px;
   line-height: 20px;
   color: #63656e;
 
   @include flex-justify(space-between);
 
-  .icon-help {
+  .bklog-help {
     margin-left: 7px;
     font-size: 14px;
     color: #979ba5;

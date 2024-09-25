@@ -300,7 +300,7 @@
         dragOptions: {
           animation: 150,
           tag: 'ul',
-          handle: '.icon-drag-dots',
+          handle: '.bklog-drag-dots',
           'ghost-class': 'sortable-ghost-class',
         },
       };
@@ -838,7 +838,7 @@
           color: #313238;
           border-bottom: 1px solid #dcdee5;
 
-          .icon-info-fill {
+          .bklog-info-fill {
             margin-left: 8px;
             font-size: 14px;
             color: #979ba5;
@@ -867,7 +867,7 @@
             font-size: 12px;
             line-height: 32px;
 
-            .icon-drag-dots {
+            .bklog-drag-dots {
               width: 16px;
               font-size: 14px;
               color: #979ba5;
@@ -886,7 +886,7 @@
               background: #eaf3ff;
               transition: background 0.2s linear;
 
-              .icon-drag-dots {
+              .bklog-drag-dots {
                 opacity: 1;
                 transition: opacity 0.2s linear;
               }
@@ -904,7 +904,7 @@
           white-space: nowrap;
         }
 
-        .icon-filled-right-arrow {
+        .bklog-filled-right-arrow {
           width: 24px;
           font-size: 16px;
           color: #3a84ff;
@@ -916,7 +916,7 @@
           transform-origin: right center;
         }
 
-        &:hover .icon-filled-right-arrow {
+        &:hover .bklog-filled-right-arrow {
           opacity: 1;
           transition: opacity 0.2s linear;
         }
@@ -997,7 +997,7 @@
         justify-content: center;
         width: 35px;
 
-        .icon-double-arrow {
+        .bklog-double-arrow {
           font-size: 12px;
           color: #989ca5;
         }

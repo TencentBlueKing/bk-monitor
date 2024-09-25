@@ -100,7 +100,7 @@ export default class QueryStatement extends tsc<object> {
     return (
       <div
         ref='tabTitleRef'
-        class='retrieve-tab-item-title'
+        class='retrieve-tab-item-title-old'
       >
         <div class='flex-div'>
           {this.$t('查询语句')}

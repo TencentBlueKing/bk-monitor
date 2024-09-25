@@ -59,7 +59,7 @@ export default class FieldFilterComp extends tsc<object> {
   dragOptions = {
     animation: 150,
     tag: 'ul',
-    handle: '.icon-drag-dots',
+    handle: '.bklog-drag-dots',
     'ghost-class': 'sortable-ghost-class',
   };
   dragVisibleFields = [];
@@ -382,7 +382,7 @@ export default class FieldFilterComp extends tsc<object> {
                 v-model={this.dragVisibleFields}
                 v-bind={this.dragOptions}
                 animation='150'
-                handle='.icon-drag-dots'
+                handle='.bklog-drag-dots'
                 on-end={this.handleVisibleMoveEnd}
               >
                 <transition-group>
