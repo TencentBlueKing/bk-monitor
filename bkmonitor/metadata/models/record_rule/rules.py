@@ -293,6 +293,7 @@ class ResultTableFlow(BaseModelWithTime):
         req_data = {
             "consuming_mode": consuming_mode,
             "cluster_group": settings.BK_DATA_FLOW_CLUSTER_GROUP,
+            "check_and_start_clean_task": True,
             "flow_id": flow_id,
         }
         try:
