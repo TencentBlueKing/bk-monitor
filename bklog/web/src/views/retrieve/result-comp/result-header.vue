@@ -140,7 +140,7 @@
             class="more-operation"
             id="more-operator"
           >
-            <i class="bk-icon log-icon icon-ellipsis-more"></i>
+            <i class="bklog-icon bklog-ellipsis-more"></i>
           </div>
         </slot>
         <template #content>
@@ -751,7 +751,7 @@
       white-space: nowrap;
       cursor: pointer;
 
-      .icon-ellipsis-more {
+      .bklog-ellipsis-more {
         display: flex;
         align-items: center;
         justify-content: center;
