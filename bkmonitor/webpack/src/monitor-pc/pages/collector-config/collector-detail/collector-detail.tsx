@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Provide } from 'vue-property-decorator';
+import { Component, Mixins } from 'vue-property-decorator';
 
 import {
   collectConfigList,
@@ -54,12 +54,6 @@ import './collector-detail.scss';
 Component.registerHooks(['beforeRouteEnter']);
 @Component
 export default class CollectorDetail extends Mixins(authorityMixinCreate(collectAuth)) {
-  static defaultStrategyKey = Symbol('defaultStrategyKey');
-
-  @Provide('authority') authority: Record<string, boolean> = {};
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
-  @Provide('authorityMap') authorityMap;
-
   active = TabEnum.Configuration;
   collectId = 0;
 
@@ -95,43 +89,6 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
       topicKey: '',
     },
   };
-  getDataByTabStrategy: Record<symbol | TabEnum, { getData?: () => any; afterRequest?: () => void }> = {
-    [TabEnum.Configuration]: {
-      getData: () => {
-        this.getCollectConfigListItem();
-        this.getDetails();
-      },
-      afterRequest: () => {},
-    },
-    [TabEnum.TargetDetail]: {
-      getData: async () => {
-        this.getAlarmGroupList();
-        await this.getHosts(this.allData[this.active].pollingCount);
-      },
-    },
-    [TabEnum.StorageState]: {
-      getData: () => {
-        this.getAlarmGroupList();
-        this.getStorageStateData();
-      },
-    },
-    [TabEnum.DataLink]: {
-      getData: () => {
-        this.getAlarmGroupList();
-      },
-    },
-    [TabEnum.FieldDetails]: {
-      getData: () => {
-        this.getDetails();
-      },
-      afterRequest: () => {},
-    },
-    [CollectorDetail.defaultStrategyKey]: {
-      afterRequest: () => {
-        this.allData[this.active].topicKey = random(8);
-      },
-    },
-  };
 
   // 告警组
   alarmGroupList: IAlarmGroupList[] = [];
@@ -158,20 +115,49 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
       this.handleTabChange(tab, true);
     }
   }
-
   async handleTabChange(v: TabEnum, init = false) {
     this.active = v;
-    const tabToStrategyHandle = this.getDataByTabStrategy[this.active];
-    await tabToStrategyHandle?.getData?.();
-    const afterRequest =
-      tabToStrategyHandle?.afterRequest || this.getDataByTabStrategy[CollectorDetail.defaultStrategyKey].afterRequest;
-    afterRequest();
+    window.clearTimeout(this.allData[TabEnum.TargetDetail].timer);
+    switch (v) {
+      case TabEnum.Configuration:
+        {
+          this.getCollectConfigListItem();
+          this.getDetails();
+        }
+        break;
+      case TabEnum.TargetDetail:
+        {
+          this.getAlarmGroupList();
+          this.getHosts(this.allData[this.active].pollingCount);
+        }
+        break;
+      case TabEnum.StorageState:
+        {
+          this.getAlarmGroupList();
+          this.getStorageStateData();
+        }
+        break;
+      case TabEnum.DataLink:
+        {
+          this.getAlarmGroupList();
+        }
+        break;
+      case TabEnum.FieldDetails:
+        {
+          this.getDetails();
+        }
+        break;
+    }
+    if (this.allData[v] && 'topicKey' in this.allData[v]) {
+      this.allData[v].topicKey = random(8);
+    }
     if (!init) {
-      Object.keys(this.$route.query)?.length &&
-        this.$router.replace({
-          name: this.$route.name,
-          query: {},
-        });
+      this.$router.replace({
+        name: this.$route.name,
+        query: {
+          tab: v,
+        },
+      });
     }
   }
 
@@ -199,6 +185,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
    * @description 获取配置信息
    */
   getDetails() {
+    if (!this.collectId || this.detailData.basic_info?.name) return;
     this.loading = true;
     frontendCollectConfigDetail({ id: this.collectId })
       .then(res => {
@@ -222,6 +209,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
   }
 
   getAlarmGroupList() {
+    if (this.alarmGroupList.length) return;
     return listUserGroup({ exclude_detail_info: 1 })
       .then(data => {
         this.alarmGroupList = data.map(item => ({
