@@ -1596,7 +1596,7 @@ class NoDataStrategyInfoResource(Resource):
         # 获取告警组
         group_id = cls.get_notice_group(bk_biz_id, app, strategy_config)
         result_table_id = app.fetch_datasource_info(
-            TelemetryDataType(telemetry_data_type).datasource_type, config_name="result_table_id"
+            TelemetryDataType(telemetry_data_type).datasource_type, attr_name="result_table_id"
         )
         if not result_table_id:
             raise ValueError(_("获取strategy result_table_id 失败"))
