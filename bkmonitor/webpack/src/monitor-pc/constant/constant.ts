@@ -40,6 +40,7 @@ export const THRESHOLD_METHOD_LIST = [
 // 监控条件方法列表
 export const CONDITION_METHOD_LIST = [
   { id: 'eq', name: '=' },
+  { id: 'contains', name: '=' }, // 存在部分脏数据 等价 eq
   { id: 'gt', name: '>' },
   { id: 'gte', name: '>=' },
   { id: 'lt', name: '<' },
