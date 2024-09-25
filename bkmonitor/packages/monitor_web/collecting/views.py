@@ -56,6 +56,8 @@ class CollectingConfigViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.collecting.frontend_target_status_topo, endpoint="target_status_topo"),
         # 获取采集配置详情信息(前端接口)
         ResourceRoute("GET", resource.collecting.frontend_collect_config_detail, endpoint="frontend_config_detail"),
+        # 获取采集目标信息(前端接口)
+        ResourceRoute("GET", resource.collecting.frontend_collect_config_target_info, endpoint="frontend_target_info"),
         # 配置执行详情列表接口（被datalink模块使用，对数据进行二次加工，用于策略详情展示）
         ResourceRoute("GET", resource.collecting.collect_instance_status, endpoint="collect_instance_status"),
         # 获取采集下发状态（状态轮询）
