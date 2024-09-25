@@ -28,7 +28,6 @@ from django.utils.translation import ugettext_lazy as _
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
 from apps.log_clustering.exceptions import ClusteringClosedException
-from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_measure.events import NOTIFY_EVENT
 from apps.log_search.handlers.search.aggs_handlers import AggsViewAdapter
@@ -147,6 +146,8 @@ def notify_access_not_finished():
     """
     30分钟内接入未完成接入的，触发事件
     """
+    from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
+
     half_hours_ago = arrow.now().shift(minutes=-30).datetime
     clustering_configs = ClusteringConfig.objects.filter(
         signature_enable=True, access_finished=False, created_at__lte=half_hours_ago
