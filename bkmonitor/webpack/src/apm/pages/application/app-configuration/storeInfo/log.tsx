@@ -31,7 +31,7 @@ import { byteConvert } from 'monitor-common/utils/utils';
 import EditableFormItem from '../../../../components/editable-form-item/editable-form-item';
 import PanelItem from '../../../../components/panel-item/panel-item';
 
-import type { IAppInfo, IndicesItem } from '../type';
+import type { ETelemetryDataType, IAppInfo, IndicesItem, ITracingStorageInfo } from '../type';
 
 import './log.scss';
 interface IProps {
@@ -39,6 +39,8 @@ interface IProps {
   dataLoading?: boolean;
   indicesLoading: boolean;
   indicesList: IndicesItem[];
+  storageInfo?: ITracingStorageInfo;
+  telemetryDataType?: ETelemetryDataType;
 }
 @Component
 export default class Log extends tsc<IProps> {
@@ -46,6 +48,9 @@ export default class Log extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) indicesList: IndicesItem[];
   @Prop({ type: Boolean }) dataLoading: boolean;
   @Prop({ type: Boolean }) indicesLoading: boolean;
+  // 存储信息
+  @Prop({ type: Object, default: () => null }) storageInfo: ITracingStorageInfo;
+  @Prop({ type: String, default: '' }) telemetryDataType: ETelemetryDataType;
   healthMaps = {
     green: this.$t('健康'),
     yellow: this.$t('部分异常'),

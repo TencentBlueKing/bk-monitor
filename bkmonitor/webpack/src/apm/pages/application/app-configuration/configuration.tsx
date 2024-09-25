@@ -310,6 +310,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
       case 'storageState': // 存储状态
         return (
           <StorageState
+            appId={this.appId}
             clusterList={this.clusterList}
             data={this.appInfo}
             on-change={this.getAppBaseInfo}

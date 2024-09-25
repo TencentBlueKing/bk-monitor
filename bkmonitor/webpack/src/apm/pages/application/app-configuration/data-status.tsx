@@ -87,10 +87,6 @@ export default class DataStatus extends tsc<object> {
   created() {
     this.timezone = getDefaultTimezone();
   }
-  /** 获取选择的tab组件 */
-  getActiveComponent() {
-    return <Metric activeTab={this.activeTab} />;
-  }
 
   /**
    * @desc 日期范围改变
@@ -122,6 +118,11 @@ export default class DataStatus extends tsc<object> {
       default: {
       }
     }
+  }
+
+  /** 获取选择的tab组件 */
+  getActiveComponent() {
+    return <Metric activeTab={this.activeTab} />;
   }
 
   render() {

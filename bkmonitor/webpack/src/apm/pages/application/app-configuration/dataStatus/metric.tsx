@@ -43,7 +43,7 @@ import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import PanelItem from '../../../../components/panel-item/panel-item';
 
-import type { IStrategyData } from '../../type';
+import type { IStrategyData } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import 'vue-json-pretty/lib/styles.css';
