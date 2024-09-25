@@ -169,7 +169,8 @@ export default class FieldFilterComp extends tsc<object> {
       // 若没找到初始隐藏的内置字段且内置字段不足10条则不展示展开按钮
       isShowBuiltExpandBtn: visibleBuiltLength > 10 || hiddenFieldVisible,
       // 非初始隐藏的字段展示小于10条的 并且不把初始隐藏的字段带上
-      builtInShowFields: this.isShowAllBuiltIn ? [...otherList, ...initHiddenList] : otherList.slice(0, 9),
+      builtInShowFields:
+        this.isShowAllBuiltIn || this.searchKeyword ? [...otherList, ...initHiddenList] : otherList.slice(0, 9),
     };
   }
   getIsShowIndexSetExpand() {
@@ -177,6 +178,7 @@ export default class FieldFilterComp extends tsc<object> {
   }
   /** 展示的内置字段 */
   get showIndexSetFields() {
+    if (this.searchKeyword) return this.indexSetFields();
     return this.isShowAllIndexSet ? this.indexSetFields() : this.indexSetFields().slice(0, 9);
   }
   get filterTypeCount() {

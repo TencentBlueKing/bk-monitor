@@ -165,7 +165,7 @@ export default class FieldItem extends tsc<object> {
 
   render() {
     return (
-      <li class='filed-item'>
+      <li class='filed-item-old'>
         <div
           class={{ 'filed-title': true, expanded: this.isExpand }}
           onClick={() => this.handleClickItem()}

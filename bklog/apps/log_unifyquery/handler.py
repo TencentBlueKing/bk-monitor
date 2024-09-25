@@ -134,7 +134,7 @@ class UnifyQueryHandler(object):
                 "reference_name": REFERENCE_ALIAS[index],
                 "dimensions": [],
                 "time_field": "time",
-                "conditions": self.transform_additions(),
+                "conditions": self.transform_additions(index_set["scenario_id"]),
                 "function": [],
             }
 
@@ -184,16 +184,25 @@ class UnifyQueryHandler(object):
                 raise e
             return {"series": []}
 
-    def transform_additions(self):
+    def transform_additions(self, scenario_id):
         field_list = []
         condition_list = []
         for addition in self.search_params.get("addition", []):
+            # 全文检索key & 存量query_string转换
+            if addition["field"] in ["*", "__query_string__"]:
+                value = addition["value"] if isinstance(addition["value"], list) else addition["value"].split(",")
+                if value:
+                    if addition["field"] == "*":
+                        value = "\"" + value.replace('"', '\\"') + "\""
+                    self.query_string = value
+                continue
             if addition["operator"] in BASE_OP_MAP:
                 field_list.append(
                     {
                         "field_name": addition["field"],
                         "op": BASE_OP_MAP[addition["operator"]],
-                        "value": addition["value"] if isinstance(addition["value"], list)
+                        "value": addition["value"]
+                        if isinstance(addition["value"], list)
                         else addition["value"].split(","),
                     }
                 )

@@ -827,10 +827,11 @@ const store = new Vuex.Store({
       }
 
       if (result.ip_chooser) {
-        const ipSelectValue = result.addition.find(c => c.field === '_ip-select_');
+        const ipSelectValue = result.addition?.find(c => c.field === '_ip-select_');
         if (ipSelectValue) {
           ipSelectValue.value = [result.ip_chooser];
         } else {
+          if (!result.addition) result.addition = [];
           result.addition.push({
             field: '_ip-select_',
             operator: '',
@@ -1203,16 +1204,16 @@ const store = new Vuex.Store({
         return isExist;
       };
 
+      const mapOperator = getAdditionMappingOperator({ field, operator });
+      const newAddition = { field, operator: mapOperator, value };
       const isExist = isAdditionExist({ field, operator, value });
       // 已存在相同条件
       if (isExist) {
-        return;
+        return Promise.resolve([newAddition, isNewSearchPage]);
       }
-      const mapOperator = getAdditionMappingOperator({ field, operator });
-      const startIndex = state.indexItem.addition.length;
-      const newAddition = { field, operator: mapOperator, value };
       if (!isLink) {
         if (state.indexItem.search_mode === 'ui') {
+          const startIndex = state.indexItem.addition.length;
           state.indexItem.addition.splice(startIndex, 0, newAddition);
           dispatch('requestIndexSetQuery');
         }

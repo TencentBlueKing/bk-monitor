@@ -74,3 +74,6 @@ export const FulltextOperator = 'contains match phrase';
  * 全文检索操作符字典Key
  */
 export const FulltextOperatorKey = '*contains match phrase';
+
+// 需要排除的字段
+export const excludesFields = ['__ext', '__module__', ' __set__', '__ipv6__'];
