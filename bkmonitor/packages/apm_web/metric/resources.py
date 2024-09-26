@@ -1934,7 +1934,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             if request_count:
                 request_count_percent = round((request_count / request_all_count) * 100, 2) if request_all_count else 0
                 endpoint["request_count"] = {"value": request_count_percent, "label": request_count}
-            elif request_count == 0:
+            else:
                 endpoint["request_count"] = {"value": 0, "label": 0}
 
             error_count = metric.get("error_count")
@@ -1942,12 +1942,13 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 error_count_percent = round((error_count / error_all_count) * 100, 2) if error_all_count else 0
                 endpoint["error_count"] = {"value": error_count_percent, "label": error_count}
             else:
-                if request_count:
-                    endpoint["error_count"] = {"value": 0, "label": 0}
+                endpoint["error_count"] = {"value": 0, "label": 0}
 
-            avg_duration = metric.get("avg_duration", 0)
+            avg_duration = metric.get("avg_duration")
             if avg_duration:
                 endpoint["avg_duration"] = avg_duration
+            else:
+                endpoint["avg_duration"] = None
 
             endpoint["origin_kind"] = endpoint["kind"]
             endpoint["kind"] = SpanKind.get_label_by_key(endpoint["kind"])
@@ -1960,8 +1961,12 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             endpoint["service"] = endpoint["service_name"]
             if metric.get("apdex"):
                 endpoint["apdex"] = metric.get("apdex")
+            else:
+                endpoint["apdex"] = None
             if metric.get("error_rate") is not None:
                 endpoint["error_rate"] = metric.get("error_rate")
+            else:
+                endpoint["error_rate"] = None
 
         return endpoints, endpoints_metric
 
