@@ -314,9 +314,7 @@ class ServiceListResource(PageListResource):
                 name=_lazy("服务名称"),
                 checked=True,
                 url_format="/service/?filter-service_name={service_name}&filter-app_name={app_name}",
-                icon_get=lambda row: get_icon(row["service_name"].split(":")[0])
-                if row["kind"] == TopoNodeKind.REMOTE_SERVICE
-                else get_icon(row["category"]),
+                icon_get=lambda row: get_icon(row["category"]),
                 sortable=True,
                 disabled=True,
             ),
