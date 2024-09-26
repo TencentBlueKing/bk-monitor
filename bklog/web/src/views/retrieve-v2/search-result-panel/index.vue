@@ -1,5 +1,5 @@
 <script setup>
-  import { computed, ref, watch } from 'vue';
+  import { computed, ref } from 'vue';
   import useStore from '@/hooks/use-store';
 
   import FieldFilter from './field-filter';
@@ -13,6 +13,7 @@
   const props = defineProps({
     activeTab: { type: String, default: '' },
   });
+  const emit = defineEmits(['update:active-tab']);
 
   const store = useStore();
   const isFilterLoading = computed(() => store.state.indexFieldInfo.is_loading);
@@ -49,6 +50,9 @@
   };
   const handleFilterWidthChange = width => {
     fieldFilterWidth.value = width;
+  };
+  const handleUpdateActiveTab = active => {
+    emit('update:active-tab', active);
   };
 </script>
 
@@ -107,7 +111,9 @@
           <LogClustering
             v-if="activeTab === 'clustering'"
             :height="heightNum"
+            :active-tab="activeTab"
             :retrieve-params="retrieveParams"
+            @show-change="handleUpdateActiveTab"
           />
         </keep-alive>
       </div>

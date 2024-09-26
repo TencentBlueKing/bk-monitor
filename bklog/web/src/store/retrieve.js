@@ -63,12 +63,12 @@ export default {
   },
   actions: {
     getIndexSetList(ctx, payload) {
-      ctx.commit('updateIndexSetLoading', true);
-      ctx.commit('updateIndexSetList', []);
+      const { spaceUid, isLoading = true } = payload;
+      if (isLoading) ctx.commit('updateIndexSetLoading', true);
       return http
         .request('retrieve/getIndexSetList', {
           query: {
-            space_uid: payload.spaceUid,
+            space_uid: spaceUid,
           },
         })
         .then(res => {

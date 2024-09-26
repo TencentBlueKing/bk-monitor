@@ -262,15 +262,14 @@
     />
     <!-- 聚类设置全屏弹窗 -->
     <setting-modal
+      v-model="isShowSettingModal"
       :clean-config="cleanConfig"
       :config-data="clusteringData"
       :date-picker-value="datePickerValue"
       :index-set-item="indexSetItem"
-      :is-show-dialog="isShowSettingModal"
       :retrieve-params="retrieveParams"
       :select-choice="clickSettingChoice"
       :total-fields="totalFields"
-      @close-setting="isShowSettingModal = false"
       @update-log-fields="requestFields"
     />
     <!-- 收藏更新弹窗 -->
@@ -2400,4 +2399,3 @@
     }
   }
 </style>
-./condition-comp/select-index-set

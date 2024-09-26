@@ -177,7 +177,7 @@
         return this.tableList.length === bigNumberToString(this.indexSetQueryResult.total);
       },
       isSearchError() {
-        return this.indexSetQueryResult?.[0]?.is_error || bigNumberToString(this.indexSetQueryResult.total) === 0;
+        return this.indexSetQueryResult?.is_error || bigNumberToString(this.indexSetQueryResult.total) === 0;
       },
     },
     watch: {
