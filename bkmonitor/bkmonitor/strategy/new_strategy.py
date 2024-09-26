@@ -2284,9 +2284,7 @@ class Strategy(AbstractConfig):
         for query_config in chain(*(item.query_configs for item in self.items)):
             self.check_and_access_aiops_query_config(query_config, intelligent_algorithm)
 
-    def check_and_access_aiops_query_config(
-        self, query_config: QueryConfig, algorithm: AlgorithmModel.AlgorithmChoices
-    ):
+    def check_and_access_aiops_query_config(self, query_config: QueryConfig, algorithm: str):
         from monitor_web.tasks import get_aiops_access_func
 
         # 4.1 如果数据类型不是时序数据，则跳过不处理
@@ -2307,12 +2305,9 @@ class Strategy(AbstractConfig):
             need_access = True
 
         # 4.3.2 如果数据来源是计算平台，则需要先进行授权给监控项目，再标记需要接入智能检测算法
-        elif query_config.data_source_label == DataSourceLabel.BK_DATA:
+        if query_config.data_source_label == DataSourceLabel.BK_DATA:
             # 授权给监控项目(以创建或更新策略的用户来请求一次授权)
-            if (
-                algorithm in AlgorithmModel.AIOPS_ALGORITHMS
-                and algorithm not in AlgorithmModel.AUTHORIZED_SOURCE_ALGORITHMS
-            ):
+            if algorithm in (set(AlgorithmModel.AIOPS_ALGORITHMS) - set(AlgorithmModel.AUTHORIZED_SOURCE_ALGORITHMS)):
                 # 主机异常检测使用业务主机观测场景的flow，因此不需要授权
                 from bkmonitor.dataflow import auth
 
@@ -2321,7 +2316,6 @@ class Strategy(AbstractConfig):
                     rt_id=query_config.result_table_id,
                     project_id=settings.BK_DATA_PROJECT_ID,
                 )
-            need_access = True
 
         # 4.4 接入智能检测算法
         if need_access:
