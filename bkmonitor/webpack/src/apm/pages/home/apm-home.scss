@@ -226,17 +226,18 @@
 }
 
 .table-operate-options-component-more-items {
+  padding: 4px 0;
+
   & :hover {
     color: #63656E !important;
   }
 
   & :nth-last-child(2) {
     position: relative;
-    margin-bottom: 4px;
 
     &::after {
       position: absolute;
-      bottom: 0;
+      bottom: -5px;
       left: 10;
       width: 80%;
       height: 1px;
@@ -246,7 +247,7 @@
   }
 
   & :last-child {
-    margin-top: 4px;
+    margin-top: 10px;
     color: red;
     border-color: #DCDEE5;
   }

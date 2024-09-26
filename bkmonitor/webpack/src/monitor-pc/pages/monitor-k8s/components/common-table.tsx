@@ -30,6 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
+import CompareMiniChart from 'monitor-ui/chart-plugins/plugins/mini-time-series/compare-mini-chart';
 
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import { Storage } from '../../../utils';
@@ -576,13 +577,24 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     );
   }
 
-  // checkIcon 类型
-  // checkIconFormatter(value: ITableItem<'check_icon'>) {
-  //   if (value) {
-  //     return <i class='icon-monitor icon-mc-check-small' />;
-  //   }
-  //   return <i class='icon-monitor icon-tixing' />
-  // }
+  // data_status 类型
+  dataStatusFormatter(value: ITableItem<'data_status'>) {
+    const icons = {
+      normal: 'icon-mc-check-small',
+      no_data: 'icon-tixing',
+    };
+    return value?.icon ? <i class={`icon-monitor ${icons[value.icon] || ''}`} /> : '';
+  }
+
+  // datapoints 类型
+  datapointsFormatter(value: ITableItem<'datapoints'>) {
+    return (
+      <CompareMiniChart
+        data={value.datapoints}
+        disableHover={true}
+      />
+    );
+  }
 
   @Emit('pageChange')
   handlePageChange(v: number) {
@@ -681,8 +693,10 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
         return this.relationFormatter(value as ITableItem<'relation'>);
       case 'more_operate':
         return this.moreOperateFormatter(value as ITableItem<'more_operate'>);
-      // case 'check_icon':
-      //   return this.checkIconFormatter(value as ITableItem<'check_icon'>);
+      case 'data_status':
+        return this.dataStatusFormatter(value as ITableItem<'data_status'>);
+      case 'datapoints':
+        return this.datapointsFormatter(value as ITableItem<'datapoints'>);
       default:
         return this.commonFormatter(value as ITableItem<'string'>, column);
     }
