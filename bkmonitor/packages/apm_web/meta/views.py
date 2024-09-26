@@ -32,6 +32,7 @@ from apm_web.meta.resources import (
     ListApplicationResource,
     ListEsClusterGroupsResource,
     MetaConfigInfoResource,
+    MetaInstrumentGuides,
     MetricInfoResource,
     ModifyMetricResource,
     NoDataStrategyDisableResource,
@@ -72,6 +73,7 @@ class MetaInfoViewSet(ResourceViewSet):
     resource_routes = [
         ResourceRoute("GET", api.apm_api.list_meta_es_cluster_info, endpoint="list_es_cluster_info"),
         ResourceRoute("GET", MetaConfigInfoResource, endpoint="meta_config_info"),
+        ResourceRoute("POST", MetaInstrumentGuides, endpoint="meta_instrument_guides"),
         ResourceRoute("GET", PushUrlResource, endpoint="push_url"),
         ResourceRoute("GET", ListEsClusterGroupsResource, endpoint="list_cluster_groups"),
     ]
