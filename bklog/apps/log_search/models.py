@@ -389,8 +389,8 @@ class LogIndexSet(SoftDeleteModel):
 
     list_operate.__name__ = "操作列表"
 
-    def save(self, *args, validate_unique=True, **kwargs):
-        if validate_unique:
+    def save(self, *args, **kwargs):
+        if self.pk is None:
             queryset = LogIndexSet.objects.filter(
                 space_uid=self.space_uid, index_set_name=self.index_set_name, is_deleted=False
             )
@@ -593,7 +593,7 @@ class LogIndexSet(SoftDeleteModel):
             self.fields_snapshot = self.fields_snapshot or fields
             raise e
         finally:
-            self.save(validate_unique=False, update_fields=["fields_snapshot"])
+            self.save(update_fields=["fields_snapshot"])
         return fields
 
     @classmethod
@@ -605,7 +605,7 @@ class LogIndexSet(SoftDeleteModel):
         for add_tag_id in add_tag_ids:
             tag_ids.add(add_tag_id)
         index_set.tag_ids = list(tag_ids)
-        index_set.save(validate_unique=False)
+        index_set.save()
 
     @classmethod
     def delete_tag_by_name(cls, index_set_id, tag_name):
@@ -620,7 +620,7 @@ class LogIndexSet(SoftDeleteModel):
         delete_tag_ids = {str(tag_id) for tag_id in tag_ids}
         remain_tag_ids = original_tag_ids - delete_tag_ids
         index_set.tag_ids = list(remain_tag_ids)
-        index_set.save(validate_unique=False)
+        index_set.save()
 
     def mark_favorite(self, username: str):
         IndexSetUserFavorite.mark(username, self.index_set_id)
