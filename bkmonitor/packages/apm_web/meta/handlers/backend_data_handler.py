@@ -180,7 +180,7 @@ class TracingBackendHandler(TelemetryBackendHandler):
         ]
 
     def indices_info(self):
-        es_index_name = self.app.trace_result_table_id.replace(".", "_")
+        es_index_name = self.result_table_id.replace(".", "_")
         data = api.metadata.es_route(
             {
                 "es_storage_cluster": self.app.es_storage_cluster,
@@ -240,12 +240,14 @@ class LogBackendHandler(TelemetryBackendHandler):
         return fields
 
     def indices_info(self):
-        return DataBusCollectorsIndicesResource().request(collector_config_id=self.collector_config_id)
+        data = DataBusCollectorsIndicesResource().request(collector_config_id=self.collector_config_id)
+        result = []
+        for item in data:
+            result.append({key.replace(".", "_"): value for key, value in item.items()})
+        return result
 
     def data_sampling(self, size: int = 10, **kwargs):
-        resp = api.metadata.metadata_get_data_id({"bk_data_id": self.bk_data_id})
-        table_id = resp.result_table_list[0].get("result_table")
-        resp = api.metadata.kafka_tail({"table_id": table_id, "size": size})
+        resp = api.metadata.kafka_tail({"table_id": self.result_table_id, "size": size}) if self.result_table_id else []
         return [{"raw_log": log, "sampling_time": log.get("datetime", "")} for log in resp]
 
     def get_data_view_config(self):
