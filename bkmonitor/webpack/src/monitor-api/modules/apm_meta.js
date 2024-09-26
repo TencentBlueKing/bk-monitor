@@ -1,6 +1,5 @@
 import { request } from '../base';
 
-export const listMetaEsClusterInfo = request('GET', 'apm/meta/meta_info/list_es_cluster_info/');
 export const metaConfigInfo = request('GET', 'apm/meta/meta_info/meta_config_info/');
 export const pushUrl = request('GET', 'apm/meta/meta_info/push_url/');
 export const listEsClusterGroups = request('GET', 'apm/meta/meta_info/list_cluster_groups/');
@@ -47,7 +46,6 @@ export const getDataEncoding = request('GET', 'apm/meta/application/data_encodin
 export const simpleServiceList = request('POST', 'apm/meta/application/simple_service_list/');
 
 export default {
-  listMetaEsClusterInfo,
   metaConfigInfo,
   pushUrl,
   listEsClusterGroups,
