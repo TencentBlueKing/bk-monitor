@@ -927,4 +927,5 @@ export default {
   确认结果: 'Confirmation',
   副本: 'copy',
   新建检索: 'New search',
+  '收起查询/弹出选项': 'Collapse query/Popup options',
 };

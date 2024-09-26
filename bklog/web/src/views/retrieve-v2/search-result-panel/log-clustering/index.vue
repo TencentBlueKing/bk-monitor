@@ -364,7 +364,7 @@
       },
       isSearchIng(v) {
         this.isClickSearch = true;
-        if (this.exhibitAll && v) this.requestFinger();
+        if (this.exhibitAll && !this.isInitPage && v) this.requestFinger();
       },
       indexId() {
         this.isShowClusterStep = true;
@@ -664,13 +664,13 @@
           this.startPolling();
           await this.clusterPolling();
           this.isFieldInit = false;
-          this.requestFinger();
         }
       },
     },
     activated() {
       this.isClusterActive = true;
-      if (this.isClickSearch) this.requestFinger();
+      if (this.isClickSearch && !this.isInitPage) this.requestFinger();
+      if (!this.isInitPage) this.$store.commit('updateClusterParams', this.requestData);
     },
     deactivated() {
       this.isClusterActive = false;
