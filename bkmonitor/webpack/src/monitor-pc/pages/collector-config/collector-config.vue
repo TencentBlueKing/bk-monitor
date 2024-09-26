@@ -380,6 +380,7 @@
           >{{ popover.status === 'STOPPED' ? $t('启用') : $t('停用') }}</span
         >
         <span
+          v-if="popover.collectType !== 'K8S'"
           class="operator-group-btn"
           @click="handleCloneConfig"
         >

@@ -391,7 +391,7 @@ export default {
         plugin: {},
       };
       pluginData.configJson.forEach(item => {
-        param.plugin[item.field] = item.default;
+        param.plugin[item.field || item.name] = item.default;
       });
 
       const params = {

@@ -82,7 +82,7 @@
                   />
                   <verify-input
                     v-else
-                    class="params-item"
+                    :class="{ 'params-item': true, 'params-item-code': item.type === 'code' }"
                     :key="index"
                     :show-validate.sync="item.validate.isValidate"
                     :validator="item.validate"
@@ -530,7 +530,8 @@ export default {
 
       &-wrap {
         min-height: 272px;
-        // overflow: auto;
+        overflow: auto;
+
         .mb10 {
           margin-bottom: 10px;
         }
@@ -569,6 +570,10 @@ export default {
 
           .auto-complete-input-select {
             height: 100%;
+          }
+
+          &.params-item-code {
+            align-items: flex-start;
           }
         }
 
@@ -675,6 +680,26 @@ export default {
         }
       }
     }
+  }
+}
+</style>
+<style lang="scss">
+.params-item-code {
+  align-items: flex-start;
+
+  .group-text {
+    position: relative;
+    padding: 0 20px;
+    overflow: hidden;
+    line-height: 30px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: #f2f4f8;
+    border: 1px solid#c4c6cc;
+  }
+
+  .code-select-editor {
+    margin-top: 0px;
   }
 }
 </style>
