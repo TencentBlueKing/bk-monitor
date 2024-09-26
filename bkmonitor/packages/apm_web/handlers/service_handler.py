@@ -25,7 +25,6 @@ from apm_web.constants import (
     APM_APPLICATION_METRIC,
     APM_APPLICATION_METRIC_DEFAULT_EXPIRED_TIME,
     ApdexCategoryMapping,
-    ApplyModule,
     CategoryEnum,
     CustomServiceMatchType,
     DataStatus,
@@ -38,7 +37,7 @@ from apm_web.utils import group_by
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import get_datetime_range
-from constants.apm import OtlpKey
+from constants.apm import OtlpKey, TelemetryDataType
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 
@@ -507,17 +506,17 @@ class ServiceHandler:
         """获取应用下各个服务的数据状态"""
         status = {}
         if not application.is_enabled_metric:
-            status[ApplyModule.METRIC] = DataStatus.DISABLED
+            status[TelemetryDataType.METRIC.value] = DataStatus.DISABLED
         if not application.is_enabled_log:
-            status[ApplyModule.LOG] = DataStatus.DISABLED
+            status[TelemetryDataType.LOG.value] = DataStatus.DISABLED
         if not application.is_enabled:
-            status[ApplyModule.TRACE] = DataStatus.DISABLED
+            status[TelemetryDataType.TRACING.value] = DataStatus.DISABLED
         if not application.is_enabled_profiling:
-            status[ApplyModule.PROFILING] = DataStatus.DISABLED
+            status[TelemetryDataType.PROFILING.value] = DataStatus.DISABLED
 
         res = defaultdict(lambda: copy.deepcopy(status))
         # Metric 数据状态: 通过 bk_apm_count 指标判断
-        if ApplyModule.METRIC not in status:
+        if TelemetryDataType.METRIC.value not in status:
             metric_response = cls.get_service_metric_range_mapping(
                 RequestCountInstance,
                 application,
@@ -525,16 +524,16 @@ class ServiceHandler:
                 end_time,
             )
             for service_name in metric_response.keys():
-                res[service_name].update({ApplyModule.METRIC: DataStatus.NORMAL})
+                res[service_name].update({TelemetryDataType.METRIC.value: DataStatus.NORMAL})
 
         # Log 数据状态 TODO
-        if ApplyModule.LOG not in status:
+        if TelemetryDataType.LOG.value not in status:
             pass
 
         # Trace 数据状态: 通过 flow 指标判断
         # (有 flow 指标 证明有 span 并且经过了 collector 处理
         # 但是是否正常被 transfer 消费未知除非查 ES 但是查 ES 太重了这里直接查 flow 指标)
-        if ApplyModule.TRACE not in status:
+        if TelemetryDataType.TRACING.value not in status:
             metric_response = ServiceFlowCount(
                 **{
                     "application": application,
@@ -545,27 +544,29 @@ class ServiceHandler:
             ).get_instance_values_mapping()
             for keys in metric_response.keys():
                 if keys[0]:
-                    res[keys[0]].update({ApplyModule.TRACE: DataStatus.NORMAL})
+                    res[keys[0]].update({TelemetryDataType.TRACING.value: DataStatus.NORMAL})
                 if keys[-1]:
-                    res[keys[-1]].update({ApplyModule.TRACE: DataStatus.NORMAL})
+                    res[keys[-1]].update({TelemetryDataType.TRACING.value: DataStatus.NORMAL})
 
         # Profiling 数据状态
-        if ApplyModule.PROFILING not in status:
+        if TelemetryDataType.PROFILING.value not in status:
             services = api.apm_api.query_profile_services_detail(
                 bk_biz_id=application.bk_biz_id,
                 app_name=application.app_name,
                 last_check_time__gt=start_time,
             )
             for i in services:
-                res[i["name"]].update({ApplyModule.PROFILING: DataStatus.NORMAL})
+                res[i["name"]].update({TelemetryDataType.PROFILING.value: DataStatus.NORMAL})
 
         for i in all_services:
             if i["topo_key"] not in res:
                 res[i["topo_key"]] = {
-                    ApplyModule.METRIC: status.get(ApplyModule.METRIC, DataStatus.NO_DATA),
-                    ApplyModule.LOG: status.get(ApplyModule.LOG, DataStatus.NO_DATA),
-                    ApplyModule.TRACE: status.get(ApplyModule.TRACE, DataStatus.NO_DATA),
-                    ApplyModule.PROFILING: status.get(ApplyModule.PROFILING, DataStatus.NO_DATA),
+                    TelemetryDataType.METRIC.value: status.get(TelemetryDataType.METRIC.value, DataStatus.NO_DATA),
+                    TelemetryDataType.LOG.value: status.get(TelemetryDataType.LOG.value, DataStatus.NO_DATA),
+                    TelemetryDataType.TRACING.value: status.get(TelemetryDataType.TRACING.value, DataStatus.NO_DATA),
+                    TelemetryDataType.PROFILING.value: status.get(
+                        TelemetryDataType.PROFILING.value, DataStatus.NO_DATA
+                    ),
                 }
 
         return res

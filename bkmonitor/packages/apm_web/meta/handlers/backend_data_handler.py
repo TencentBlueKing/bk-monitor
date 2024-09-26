@@ -22,8 +22,8 @@ from api.log_search.default import (
     DataBusCollectorsResource,
     LogSearchIndexSetResource,
 )
-from apm.constants import TelemetryDataType
 from apm_web.models import Application
+from constants.apm import TelemetryDataType
 from core.drf_resource import api
 
 

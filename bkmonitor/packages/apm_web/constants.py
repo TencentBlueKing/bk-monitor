@@ -12,9 +12,8 @@ from django.utils.translation import ugettext_lazy as _
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
-from apm.constants import TelemetryDataType
 from constants.alert import EventSeverity
-from constants.apm import OtlpKey, SpanKindKey
+from constants.apm import OtlpKey, SpanKindKey, TelemetryDataType
 
 GLOBAL_CONFIG_BK_BIZ_ID = 0
 DEFAULT_EMPTY_NUMBER = 0
@@ -237,24 +236,6 @@ class Apdex:
             cls.TOLERATING: {"type": Status.WAITING, "text": cls.get_label_by_key(key)},
             cls.FRUSTRATED: {"type": Status.FAILED, "text": cls.get_label_by_key(key)},
         }.get(key, {"type": None, "text": "--"})
-
-
-class ApplyModule:
-    """功能项"""
-
-    METRIC = "metric"
-    LOG = "log"
-    TRACE = "trace"
-    PROFILING = "profiling"
-
-    @classmethod
-    def get_filter_fields(cls):
-        return [
-            {"id": cls.METRIC, "name": _("指标")},
-            {"id": cls.LOG, "name": _("日志")},
-            {"id": cls.TRACE, "name": _("调用链")},
-            {"id": cls.PROFILING, "name": _("性能分析")},
-        ]
 
 
 class Status:

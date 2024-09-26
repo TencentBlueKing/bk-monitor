@@ -30,7 +30,6 @@ from opentelemetry.semconv.trace import SpanAttributes
 from rest_framework import serializers
 
 from api.cmdb.define import Business
-from apm.constants import TelemetryDataType
 from apm_web.constants import (
     APM_APPLICATION_DEFAULT_METRIC,
     DB_SYSTEM_TUPLE,
@@ -120,6 +119,7 @@ from constants.apm import (
     SpanStandardField,
     StandardFieldCategory,
     TailSamplingSupportMethod,
+    TelemetryDataType,
 )
 from constants.data_source import (
     ApplicationsResultTableLabel,
@@ -184,16 +184,14 @@ class CreateApplicationResource(Resource):
             allow_empty=True,
             default=[LanguageEnum.PYTHON.id],
         )
-        datasource_option = DatasourceOptionSerializer(required=True)
+        datasource_option = DatasourceOptionSerializer(required=False)
+        # ↓ Log-Trace 配置 目前页面上没有开放
         plugin_config = PluginConfigSerializer(required=False)
-        enable_profiling = serializers.BooleanField(label="是否开启 Profiling 功能", required=False, default=False)
-        enable_tracing = serializers.BooleanField(label="是否开启 Tracing 功能", required=False, default=True)
-
-        def validate(self, attrs):
-            res = super(CreateApplicationResource.RequestSerializer, self).validate(attrs)
-            if not attrs["enable_tracing"]:
-                raise ValueError(_("目前暂不支持关闭 Tracing 功能"))
-            return res
+        # ↓ 四个 Module 的开关
+        enable_profiling = serializers.BooleanField(label="是否开启 Profiling 功能", required=True)
+        enable_tracing = serializers.BooleanField(label="是否开启 Tracing 功能", required=True)
+        enable_metric = serializers.BooleanField(label="是否开启 Metric 功能", required=True)
+        enable_log = serializers.BooleanField(label="是否开启 Log 功能", required=True)
 
     class ResponseSerializer(serializers.ModelSerializer):
         class Meta:
@@ -212,7 +210,6 @@ class CreateApplicationResource(Resource):
         ).exists():
             raise ValueError(_("应用名称: {}已被创建").format(validated_request_data['app_name']))
 
-        plugin_config = validated_request_data.get("plugin_config")
         app = Application.create_application(
             bk_biz_id=validated_request_data["bk_biz_id"],
             app_name=validated_request_data["app_name"],
@@ -224,7 +221,7 @@ class CreateApplicationResource(Resource):
             # TODO: enable_profiling vs enabled_profiling, 前后需要完全统一
             enabled_profiling=validated_request_data["enable_profiling"],
             datasource_option=validated_request_data["datasource_option"],
-            plugin_config=plugin_config,
+            plugin_config=validated_request_data.get("plugin_config"),
         )
 
         from apm_web.tasks import APMEvent, report_apm_application_event

@@ -26,7 +26,6 @@ from apm_web.constants import (
     AlertLevel,
     AlertStatus,
     Apdex,
-    ApplyModule,
     CategoryEnum,
     DataStatus,
     SceneEventKey,
@@ -75,7 +74,7 @@ from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import get_datetime_range
-from constants.apm import ApmMetrics, OtlpKey, SpanKind
+from constants.apm import ApmMetrics, OtlpKey, SpanKind, TelemetryDataType
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
 from monitor_web.scene_view.resources.base import PageListResource
@@ -376,7 +375,7 @@ class ServiceListResource(PageListResource):
             NumberTableFormat(
                 id="strategy_count",
                 name=_lazy("策略数"),
-                checked=False,
+                checked=True,
                 decimal=0,
                 asyncable=True,
                 display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_SERVICES,
@@ -384,7 +383,7 @@ class ServiceListResource(PageListResource):
             StatusTableFormat(
                 id="alert_status",
                 name=_lazy("告警状态"),
-                checked=False,
+                checked=True,
                 status_map_cls=ServiceStatus,
                 asyncable=True,
                 display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_SERVICES,
@@ -402,7 +401,7 @@ class ServiceListResource(PageListResource):
                 ],
                 disabled=True,
                 link_handler=lambda i: i.get("kind") in [TopoNodeKind.SERVICE, TopoNodeKind.REMOTE_SERVICE],
-                display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_SERVICES,
+                display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_HOME,
             ),
         ]
 
@@ -520,7 +519,7 @@ class ServiceListResource(PageListResource):
                 if item.get("profiling_data_status") in valid_data_status:
                     count_mapping["profiling"] += 1
             res = []
-            for f in ApplyModule.get_filter_fields():
+            for f in TelemetryDataType.get_filter_fields():
                 res.append(
                     {
                         "id": f["id"],
@@ -646,10 +645,16 @@ class ServiceListResource(PageListResource):
                     "service_name": name,
                     "type": CategoryEnum.get_label_by_key(service["extra_data"]["category"]),
                     "language": service["extra_data"]["service_language"] or _("其他语言"),
-                    "metric_data_status": data_status_mapping[name].get(ApplyModule.METRIC, DataStatus.DISABLED),
-                    "log_data_status": data_status_mapping[name].get(ApplyModule.LOG, DataStatus.DISABLED),
-                    "trace_data_status": data_status_mapping[name].get(ApplyModule.TRACE, DataStatus.DISABLED),
-                    "profiling_data_status": data_status_mapping[name].get(ApplyModule.PROFILING, DataStatus.DISABLED),
+                    "metric_data_status": data_status_mapping[name].get(
+                        TelemetryDataType.METRIC.value, DataStatus.DISABLED
+                    ),
+                    "log_data_status": data_status_mapping[name].get(TelemetryDataType.LOG.value, DataStatus.DISABLED),
+                    "trace_data_status": data_status_mapping[name].get(
+                        TelemetryDataType.TRACING.value, DataStatus.DISABLED
+                    ),
+                    "profiling_data_status": data_status_mapping[name].get(
+                        TelemetryDataType.PROFILING.value, DataStatus.DISABLED
+                    ),
                     "operation": {
                         "config": _lazy("配置"),
                     },

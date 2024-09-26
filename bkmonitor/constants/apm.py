@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import Enum
 from typing import List
 
 from django.db.models import TextChoices
@@ -760,4 +761,42 @@ class OtlpProtocol:
         return [
             (cls.GRPC, _("gRPC 上报")),
             (cls.HTTP_JSON, _("HTTP/Protobuf 上报")),
+        ]
+
+
+class TelemetryDataType(Enum):
+    METRIC = "metric"
+    LOG = "log"
+    TRACING = "tracing"
+    PROFILING = "profiling"
+
+    @property
+    def alias(self):
+        return {
+            self.METRIC.value: _("指标"),
+            self.LOG.value: _("日志"),
+            self.TRACING.value: _("调用链"),
+            self.PROFILING.value: _("性能分析"),
+        }.get(self.value, self.value)
+
+    @property
+    def datasource_type(self):
+        return {
+            self.METRIC.value: "metric",
+            self.LOG.value: "log",
+            self.TRACING.value: "trace",
+            self.PROFILING.value: "profiling",
+        }.get(self.value)
+
+    @classmethod
+    def values(cls):
+        return [i.value for i in cls]
+
+    @classmethod
+    def get_filter_fields(cls):
+        return [
+            {"id": cls.METRIC.value, "name": _("指标")},
+            {"id": cls.LOG.value, "name": _("日志")},
+            {"id": cls.TRACING.value, "name": _("调用链")},
+            {"id": cls.PROFILING.value, "name": _("性能分析")},
         ]
