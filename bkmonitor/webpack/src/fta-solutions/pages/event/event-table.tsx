@@ -885,7 +885,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   }
   /** 关联信息提示信息 */
   handleExtendInfoEnter(e, info) {
-    let tplStr = '--';
+    let tplStr = '';
     switch (info.type) {
       case 'host':
         tplStr = `<div class="extend-content">${this.$t('主机名:')}${info.hostname || '--'}</div>
@@ -904,7 +904,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
       default:
         break;
     }
-    this.handlePopoverShow(e, tplStr);
+    tplStr && this.handlePopoverShow(e, tplStr);
   }
   /**
    * @description: 关联信息组件
@@ -1099,6 +1099,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         interactive: true,
         distance: 0,
         duration: [200, 0],
+        extCls: 'ext-cls',
       });
       this.metricPopoverIns?.show?.(100);
     } else {

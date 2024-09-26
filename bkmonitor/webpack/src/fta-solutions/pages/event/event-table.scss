@@ -18,7 +18,7 @@ $statusColors: #ea3635 #ff9c00 #699df4;
 
     &-count {
       margin: 0 4px;
-      font-weight: bold;  
+      font-weight: bold;
     }
 
     &-clear {
@@ -350,4 +350,8 @@ $statusColors: #ea3635 #ff9c00 #699df4;
       cursor: not-allowed;
     }
   }
+}
+
+.ext-cls {
+  max-width: 280px;
 }
