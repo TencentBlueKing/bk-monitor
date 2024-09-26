@@ -27,15 +27,16 @@
 import { Component, Emit, Prop, PropSync } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { indicesInfo, metaConfigInfo, storageFieldInfo } from 'monitor-api/modules/apm_meta';
+import { indicesInfo, metaConfigInfo, storageFieldInfo, storageInfo } from 'monitor-api/modules/apm_meta';
 
 import Log from './storeInfo/log';
 import Metric from './storeInfo/metric';
 import Trace from './storeInfo/trace';
 import TabList from './tabList';
+import { ETelemetryDataType } from './type';
 
 import type { ISetupData } from '../app-add/app-add';
-import type { IAppInfo, IClusterItem, IFieldFilterItem, IFieldItem, IndicesItem, IStoreItem } from './type';
+import type { IAppInfo, IClusterItem, IFieldFilterItem, IFieldItem, IndicesItem } from './type';
 
 import './storage-state.scss';
 interface IStorageStateProps {
@@ -43,36 +44,40 @@ interface IStorageStateProps {
   clusterList: IClusterItem[];
 }
 
-const TAB_LIST = [
-  {
-    name: 'metric',
-    label: '指标',
-  },
-  {
-    name: 'log',
-    label: '日志',
-  },
-
-  {
-    name: 'trace',
-    label: '调用链',
-  },
-  {
-    name: 'performance',
-    label: '性能分析',
-  },
-];
-
 @Component
 export default class StorageState extends tsc<IStorageStateProps> {
   @PropSync('data', { type: Object, required: true }) appInfo: IAppInfo;
   @Prop({ type: Array, required: true }) clusterList: any[];
+  @Prop({ type: String, required: true }) tabStatus: string;
 
+  tabList = [
+    {
+      name: ETelemetryDataType.metric,
+      label: window.i18n.tc('指标'),
+    },
+    {
+      name: ETelemetryDataType.log,
+      label: window.i18n.tc('日志'),
+    },
+    {
+      name: ETelemetryDataType.tracing,
+      label: window.i18n.tc('调用链'),
+    },
+    {
+      name: ETelemetryDataType.profiling,
+      label: window.i18n.tc('性能分析'),
+    },
+  ];
   /** 选择的tab*/
-  activeTab = 'metric';
-  /** 存储信息列表 */
-  storeList: IStoreItem[] = [];
-  storeListLoading = false;
+  activeTab = ETelemetryDataType.metric;
+  /* 存储信息 */
+  storageInfo = {
+    [ETelemetryDataType.metric]: null,
+    [ETelemetryDataType.log]: null,
+    [ETelemetryDataType.tracing]: null,
+    [ETelemetryDataType.profiling]: null,
+  };
+  storageLoading = false;
   indicesLoading = false;
   fieldLoading = false;
   indicesList: IndicesItem[] = []; // 物理索引
@@ -94,62 +99,25 @@ export default class StorageState extends tsc<IStorageStateProps> {
     },
   };
 
-  /** 获取选择的tab组件 */
-  getActiveComponent() {
-    switch (this.activeTab) {
-      case 'metric':
-        return (
-          <Metric
-            appInfo={this.appInfo}
-            data={this.storeList}
-            dataLoading={this.storeListLoading}
-          />
-        );
-      case 'log':
-        return (
-          <Log
-            appInfo={this.appInfo}
-            indicesList={this.indicesList}
-            indicesLoading={this.indicesLoading}
-          />
-        );
-      case 'performance':
-      case 'trace':
-        return (
-          <Trace
-            appInfo={this.appInfo}
-            clusterList={this.clusterList}
-            fieldFilterList={this.fieldFilterList}
-            fieldList={this.fieldList}
-            fieldLoading={this.fieldLoading}
-            indicesList={this.indicesList}
-            indicesLoading={this.indicesLoading}
-            setupData={this.setupData}
-            onChange={this.handleBaseInfoChange}
-          />
-        );
-    }
-  }
-
   @Emit('change')
   handleBaseInfoChange() {
     return true;
   }
 
   created() {
-    this.getStoreList();
+    this.getStorageInfo();
   }
 
   /**
    * 获取存储信息列表
    */
-  async getStoreList() {
-    this.storeListLoading = true;
-    const data: IStoreItem[] = await new Promise(resolve => {
-      resolve([]);
-    });
-    this.storeList = data;
-    this.storeListLoading = false;
+  async getStorageInfo() {
+    this.storageLoading = true;
+    const data = await storageInfo(this.appInfo.application_id, {
+      telemetry_data_type: this.activeTab,
+    }).catch(() => null);
+    this.storageInfo[this.activeTab] = data;
+    this.storageLoading = false;
   }
   /**
    * @desc 获取过期时间最大值
@@ -164,7 +132,9 @@ export default class StorageState extends tsc<IStorageStateProps> {
    */
   async getIndicesList() {
     this.indicesLoading = true;
-    this.indicesList = await indicesInfo(this.appInfo.application_id).catch(() => []);
+    this.indicesList = await indicesInfo(this.appInfo.application_id, {
+      telemetry_data_type: this.activeTab,
+    }).catch(() => []);
     this.indicesLoading = false;
   }
   /**
@@ -172,7 +142,9 @@ export default class StorageState extends tsc<IStorageStateProps> {
    */
   async getFieldList() {
     this.fieldLoading = true;
-    this.fieldList = await storageFieldInfo(this.appInfo.application_id).catch(() => []);
+    this.fieldList = await storageFieldInfo(this.appInfo.application_id, {
+      telemetry_data_type: this.activeTab,
+    }).catch(() => []);
     this.fieldFilterList = this.getFieldFilterList(this.fieldList);
     this.fieldLoading = false;
   }
@@ -184,7 +156,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
   getFieldFilterList(list) {
     const setList = new Set();
     const filterList = [];
-    list.forEach(item => {
+    for (const item of list) {
       if (!setList.has(item.field_type)) {
         setList.add(item.field_type);
         filterList.push({
@@ -192,22 +164,20 @@ export default class StorageState extends tsc<IStorageStateProps> {
           value: item.field_type,
         });
       }
-    });
+    }
     return filterList;
   }
 
   /** tab切换时 */
-  handleChangeActiveTab(active: string) {
+  handleChangeActiveTab(active: ETelemetryDataType) {
     this.activeTab = active;
+    this.getStorageInfo();
     switch (active) {
-      case 'log':
+      case ETelemetryDataType.log:
         this.getIndicesList();
         break;
-      case 'metric':
-        this.getStoreList();
-        break;
-      case 'trace':
-      case 'performance':
+      case ETelemetryDataType.tracing:
+      case ETelemetryDataType.profiling:
         this.getMetaConfigInfo();
         this.getIndicesList();
         this.getFieldList();
@@ -216,13 +186,55 @@ export default class StorageState extends tsc<IStorageStateProps> {
       }
     }
   }
+
+  /** 获取选择的tab组件 */
+  getActiveComponent() {
+    switch (this.activeTab) {
+      case ETelemetryDataType.metric:
+        return (
+          <Metric
+            appInfo={this.appInfo}
+            data={this.storageInfo[ETelemetryDataType.metric]}
+            dataLoading={this.storageLoading}
+          />
+        );
+      case ETelemetryDataType.log:
+        return (
+          <Log
+            appInfo={this.appInfo}
+            indicesList={this.indicesList}
+            indicesLoading={this.indicesLoading}
+            storageInfo={this.storageInfo[this.activeTab]}
+            telemetryDataType={this.activeTab}
+          />
+        );
+      case ETelemetryDataType.tracing:
+      case ETelemetryDataType.profiling:
+        return (
+          <Trace
+            appInfo={this.appInfo}
+            clusterList={this.clusterList}
+            fieldFilterList={this.fieldFilterList}
+            fieldList={this.fieldList}
+            fieldLoading={this.fieldLoading}
+            indicesList={this.indicesList}
+            indicesLoading={this.indicesLoading}
+            setupData={this.setupData}
+            storageInfo={this.storageInfo[this.activeTab]}
+            telemetryDataType={this.activeTab}
+            onChange={this.handleBaseInfoChange}
+          />
+        );
+    }
+  }
+
   render() {
     return (
       <div class='conf-content storage-state-wrap'>
         <div class='storage-tab-wrap'>
           <TabList
             activeTab={this.activeTab}
-            tabList={TAB_LIST}
+            tabList={this.tabList}
             onChange={this.handleChangeActiveTab}
           />
         </div>
