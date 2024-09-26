@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import datetime
+import functools
 import json
 import logging
 import operator
@@ -22,8 +23,6 @@ from rest_framework import serializers
 
 from apm_web.constants import (
     COLLECT_SERVICE_CONFIG_KEY,
-    COLUMN_KEY_PROFILING_DATA_COUNT,
-    COLUMN_KEY_PROFILING_DATA_STATUS,
     AlertLevel,
     AlertStatus,
     Apdex,
@@ -53,19 +52,12 @@ from apm_web.metric_handler import (
     ApdexInstance,
     ApdexRange,
     AvgDurationInstance,
-    ErrorCountInstance,
+    DurationBucket,
     ErrorRateInstance,
     RequestCountInstance,
 )
-from apm_web.metrics import (
-    ENDPOINT_DETAIL_LIST,
-    ENDPOINT_LIST,
-    INSTANCE_LIST,
-    REMOTE_SERVICE_LIST,
-    SERVICE_LIST,
-)
+from apm_web.metrics import ENDPOINT_DETAIL_LIST, ENDPOINT_LIST, INSTANCE_LIST
 from apm_web.models import ApmMetaConfig, Application
-from apm_web.profile.doris.querier import QueryTemplate
 from apm_web.resources import (
     AsyncColumnsListResource,
     ServiceAndComponentCompatibleResource,
@@ -83,13 +75,14 @@ from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import get_datetime_range
-from constants.apm import OtlpKey, SpanKind
+from constants.apm import ApmMetrics, OtlpKey, SpanKind
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
 from monitor_web.scene_view.resources.base import PageListResource
 from monitor_web.scene_view.table_format import (
     CollectTableFormat,
     CustomProgressTableFormat,
+    DataPointsTableFormat,
     DataStatusTableFormat,
     LinkListTableFormat,
     LinkTableFormat,
@@ -342,14 +335,37 @@ class ServiceListResource(PageListResource):
                 filterable=True,
                 display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_SERVICES,
             ),
-            NumberTableFormat(id="request_count", name=_lazy("调用次数"), checked=True, asyncable=True),
-            ProgressTableFormat(id="error_rate", name=_lazy("错误率"), checked=True, asyncable=True),
-            NumberTableFormat(
+            DataPointsTableFormat(id="request_count", name=_lazy("调用次数"), checked=True, asyncable=True),
+            DataPointsTableFormat(
+                id="error_rate",
+                name=_lazy("错误率"),
+                checked=True,
+                asyncable=True,
+                unit="percent",
+            ),
+            DataPointsTableFormat(
                 id="avg_duration",
                 name=_lazy("平均响应耗时"),
                 checked=True,
                 unit="ns",
+                asyncable=True,
+            ),
+            NumberTableFormat(
+                id="p50",
+                name=_lazy("P50"),
+                checked=True,
+                unit="ns",
                 decimal=2,
+                sortable=True,
+                asyncable=True,
+            ),
+            NumberTableFormat(
+                id="p90",
+                name=_lazy("P90"),
+                checked=True,
+                unit="ns",
+                decimal=2,
+                sortable=True,
                 asyncable=True,
             ),
             # 四个数据状态 ↓
@@ -581,7 +597,7 @@ class ServiceListResource(PageListResource):
         fields = [self.StatisticsCategory, self.StatisticsLanguage, self.StatisticsApplyModule, self.StatisticsHaveData]
         res = []
         for f in fields:
-            res.append({"id": f.key, "name": f.name, "fields": f.list_filter_fields(services)})
+            res.append({"id": f.key, "name": f.name, "data": f.list_filter_fields(services)})
         return res
 
     def _filter_by_fields(self, services, field_conditions):
@@ -603,11 +619,6 @@ class ServiceListResource(PageListResource):
 
         return list({i["service_name"]: i for i in res}.values())
 
-    def _get_data_status(self, switch_value, data_status_value):
-        if not switch_value:
-            return DataStatus.DISABLED
-        return data_status_value
-
     def perform_request(self, validate_data):
         application = Application.objects.get(bk_biz_id=validate_data["bk_biz_id"], app_name=validate_data["app_name"])
 
@@ -617,26 +628,28 @@ class ServiceListResource(PageListResource):
         collects = CollectServiceResource.get_collect_config(application).config_value
 
         res = []
+        data_status_mapping = ServiceHandler.get_service_data_status_mapping(
+            application,
+            validate_data["start_time"],
+            validate_data["end_time"],
+            services,
+        )
         for service in services:
             # 分类过滤
             if validate_data["filter"] != "all" and validate_data["filter"] != service["extra_data"]["category"]:
                 continue
-
+            name = service["topo_key"]
             res.append(
                 {
                     "app_name": application.app_name,
-                    "collect": service["topo_key"] in collects,
-                    "service_name": service["topo_key"],
+                    "collect": name in collects,
+                    "service_name": name,
                     "type": CategoryEnum.get_label_by_key(service["extra_data"]["category"]),
                     "language": service["extra_data"]["service_language"] or _("其他语言"),
-                    "metric_data_status": self._get_data_status(
-                        application.is_enabled_metric, application.metric_data_status
-                    ),
-                    "log_data_status": self._get_data_status(application.is_enabled_log, application.log_data_status),
-                    "trace_data_status": self._get_data_status(application.is_enabled, application.data_status),
-                    "profiling_data_status": self._get_data_status(
-                        application.is_enabled_profiling, application.profiling_data_status
-                    ),
+                    "metric_data_status": data_status_mapping[name].get(ApplyModule.METRIC, DataStatus.DISABLED),
+                    "log_data_status": data_status_mapping[name].get(ApplyModule.LOG, DataStatus.DISABLED),
+                    "trace_data_status": data_status_mapping[name].get(ApplyModule.TRACE, DataStatus.DISABLED),
+                    "profiling_data_status": data_status_mapping[name].get(ApplyModule.PROFILING, DataStatus.DISABLED),
                     "operation": {
                         "config": _lazy("配置"),
                     },
@@ -666,10 +679,29 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
     """
 
     METRIC_MAP = {
-        "avg_duration": AvgDurationInstance,
-        "error_count": ErrorCountInstance,
-        "request_count": RequestCountInstance,
-        "error_rate": ErrorRateInstance,
+        "avg_duration": {"metric": AvgDurationInstance},
+        "request_count": {"metric": RequestCountInstance},
+        "error_rate": {"metric": ErrorRateInstance, "ignore_keys": ["status_code"]},
+        "p50": {
+            "metric": functools.partial(
+                DurationBucket,
+                functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.5"}]}],
+            ),
+            "ignore_keys": ["le"],
+            "type": "instant",
+        },
+        "p90": {
+            "metric": functools.partial(
+                DurationBucket,
+                functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.9"}]}],
+            ),
+            "ignore_keys": ["le"],
+            "type": "instant",
+        },
+        # strategy_count 特殊处理
+        "strategy_count": None,
+        # alert_status 特殊处理
+        "alert_status": None,
     }
 
     SyncResource = ServiceListResource
@@ -681,107 +713,143 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         end_time = serializers.IntegerField(required=True, label="数据结束时间")
 
     @classmethod
-    def get_metric_service_data(cls, validated_data, app: Application, column: str):
+    def _get_column_data_mapping(cls, app: Application, column: str, start_time, end_time):
         """
-        获取指标数据及服务数据
-        只查单个指标
+        获取服务异步列数据映射
         """
-        if column in [COLUMN_KEY_PROFILING_DATA_COUNT, COLUMN_KEY_PROFILING_DATA_STATUS]:
-            services = ServiceHandler.list_services(app)
-            return {}, {}, services
+        if column not in cls.METRIC_MAP:
+            return {}
 
-        metric_handler_cls = []
-        if column in cls.METRIC_MAP:
-            metric_handler_cls.append(cls.METRIC_MAP[column])
-
-        service_metric_param = {
+        metric_params = {
             "application": app,
-            "start_time": validated_data["start_time"],
-            "end_time": validated_data["end_time"],
+            "start_time": start_time,
+            "end_time": end_time,
         }
 
-        component_metric_param = {
-            "app": app,
-            "start_time": validated_data["start_time"],
-            "end_time": validated_data["end_time"],
-        }
+        if column in ["strategy_count", "alert_status"]:
+            return cls._get_service_strategy_mapping(**metric_params)
 
-        if metric_handler_cls:
-            service_metric_param["metric_handler_cls"] = metric_handler_cls
-            component_metric_param["metric_handler_cls"] = metric_handler_cls
+        m = cls.METRIC_MAP[column]
+        if m.get("type") == "instant":
+            return ServiceHandler.get_service_metric_instant_mapping(
+                m["metric"],
+                **metric_params,
+                ignore_keys=m.get("ignore_keys"),
+            )
 
-        pool = ThreadPool()
-        service_list_res = pool.apply_async(SERVICE_LIST, kwds=service_metric_param)
-        remote_service_list_res = pool.apply_async(REMOTE_SERVICE_LIST, kwds=service_metric_param)
-        component_metric_res = pool.apply_async(
-            ComponentHandler.get_service_component_metrics, kwds=component_metric_param
+        return ServiceHandler.get_service_metric_range_mapping(
+            m["metric"],
+            **metric_params,
+            ignore_keys=m.get("ignore_keys"),
         )
-        services_res = pool.apply_async(ServiceHandler.list_services, args=(app,))
-        pool.close()
-        pool.join()
 
-        service_metric_info = {**service_list_res.get(), **remote_service_list_res.get()}
-        component_metric_info = component_metric_res.get()
-        services = services_res.get()
-        return service_metric_info, component_metric_info, services
+    @classmethod
+    def _get_condition_service_names(cls, strategy: dict):
+        """获取策略配置的条件，检查是否有配置 service_name=xxx"""
+        service_names = []
+        for item in strategy.get("items", []):
+            for query_config in item.get("query_configs", []):
+                for condition in query_config.get("agg_condition", []):
+                    if condition.get("key") == "service_name" and condition.get("value"):
+                        service_names.extend(condition["value"])
+        return service_names
+
+    @classmethod
+    def _get_service_strategy_mapping(cls, application, start_time, end_time):
+        """获取服务的策略和告警信息"""
+        query_params = {
+            "bk_biz_id": application.bk_biz_id,
+            "conditions": [
+                {
+                    "key": "metric_id",
+                    "value": [f"custom.{application.metric_result_table_id}.{m}" for m, _, _ in ApmMetrics.all()],
+                }
+            ],
+            "page": 0,
+            "page_size": 1000,
+        }
+        strategies = resource.strategies.get_strategy_list_v2(**query_params).get("strategy_config_list", [])
+        # 获取指标的告警事件
+        query_params = {
+            "bk_biz_ids": [application.bk_biz_id],
+            "query_string": f"metric: custom.{application.metric_result_table_id}.*",
+            "start_time": start_time,
+            "end_time": end_time,
+            "page_size": 1000,
+        }
+        alert_infos = resource.fta_web.alert.search_alert(**query_params).get("alerts", [])
+
+        strategy_events_mapping = {}
+        service_alert_level_count_mapping = defaultdict(
+            lambda: {
+                AlertLevel.ERROR: 0,
+                AlertLevel.WARN: 0,
+                AlertLevel.INFO: 0,
+            }
+        )
+        for strategy in strategies:
+            events = [i for i in alert_infos if i["strategy_id"] == strategy["id"]]
+            strategy_events_mapping[strategy["id"]] = {
+                "info": strategy,
+                "events": events,
+            }
+
+        service_strategy_count_mapping = defaultdict(int)
+        for strategy_id, items in strategy_events_mapping.items():
+            # Step1: 检查策略配置中是否包含服务的值 记录为服务的策略数
+            service_names = cls._get_condition_service_names(items["info"])
+            for name in service_names:
+                service_strategy_count_mapping[name] += 1
+
+            # Step2: 检查告警事件中是否包含服务的值 记录为服务的告警数
+            for alert in items["events"]:
+                alert_service_name = next(
+                    (i.get("value") for i in alert.get("dimensions", []) if i.get("key") == "tags.service_name"), None
+                )
+                if not alert_service_name:
+                    continue
+
+                service_alert_level_count_mapping[alert_service_name][alert["severity"]] += 1
+
+        service_alert_status_mapping = defaultdict(int)
+        for svr, alert_status in service_alert_level_count_mapping.items():
+            err_count = alert_status[AlertLevel.ERROR]
+            warn_count = alert_status[AlertLevel.WARN]
+            info_count = alert_status[AlertLevel.INFO]
+            if err_count:
+                service_alert_status_mapping[svr] = ServiceStatus.FATAL
+            elif warn_count:
+                service_alert_status_mapping[svr] = ServiceStatus.WARNING
+            elif info_count:
+                service_alert_status_mapping[svr] = ServiceStatus.REMIND
+            else:
+                service_alert_status_mapping[svr] = ServiceStatus.NORMAL
+
+        return service_strategy_count_mapping, service_alert_status_mapping
 
     def perform_request(self, validated_data):
+        column = validated_data["column"]
+
         res = []
         if not validated_data.get("service_names"):
             return res
 
-        app = Application.objects.filter(
-            bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
-        ).first()
-        if not app:
-            raise ValueError(_("应用{}不存在").format(validated_data['app_name']))
+        app = Application.objects.get(bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"])
 
-        column = validated_data["column"]
-        service_metric_info, component_metric_info, services = self.get_metric_service_data(validated_data, app, column)
-
-        if app.is_enabled_profiling and column in [COLUMN_KEY_PROFILING_DATA_COUNT, COLUMN_KEY_PROFILING_DATA_STATUS]:
-            profiling_metric_info = QueryTemplate(
-                validated_data["bk_biz_id"], validated_data["app_name"]
-            ).list_services_request_info(validated_data["start_time"] * 1000, validated_data["end_time"] * 1000)
-        else:
-            profiling_metric_info = {}
+        service_metric_mapping = self._get_column_data_mapping(
+            app,
+            column,
+            validated_data["start_time"],
+            validated_data["end_time"],
+        )
 
         for service_name in validated_data["service_names"]:
-            service = next((i for i in services if i["topo_key"] == service_name), None)
-            if not service:
-                continue
-
-            metric_info = {}
-            if service["extra_data"]["kind"] == TopoNodeKind.REMOTE_SERVICE:
-                metric_info = service_metric_info.get(ServiceHandler.get_remote_service_origin_name(service_name), {})
-            elif service["extra_data"]["kind"] == TopoNodeKind.SERVICE:
-                metric_info = service_metric_info.get(service_name, {})
-            elif service["extra_data"]["kind"] == TopoNodeKind.COMPONENT:
-                info = service_name.rsplit("-", 1)
-                if len(info) == 2:
-                    origin_service, predicate_value = info
-                    metric_info = component_metric_info.get(origin_service, {}).get(predicate_value, {})
-                else:
-                    metric_info = {}
-
-            if service["topo_key"] in profiling_metric_info:
-                # 补充 profiling 数据
-                metric_info.update(profiling_metric_info[service["topo_key"]])
-
-            # profiling_data_status
-            metric_info.update(
+            res.append(
                 {
-                    "profiling_data_status": (
-                        DataStatus.NORMAL
-                        if profiling_metric_info.get(service["topo_key"], {}).get("profiling_data_count")
-                        else DataStatus.NO_DATA
-                    )
-                    if app.is_enabled_profiling
-                    else DataStatus.DISABLED,
+                    "service_name": service_name,
+                    **self.get_async_column_item({column: service_metric_mapping.get(service_name, {})}, column),
                 }
             )
-
-            res.append({"service_name": service_name, **self.get_async_column_item(metric_info, column)})
 
         return self.get_async_data(res, validated_data["column"])
 

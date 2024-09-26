@@ -454,6 +454,23 @@ class DataStatusTableFormat(TableFormat):
         return {"icon": row.get(self.id)}
 
 
+class DataPointsTableFormat(TableFormat):
+    """
+    趋势图列
+    会在表格上显示趋势图
+    """
+
+    column_type = "datapoints"
+
+    def __init__(self, unit: str = None, *args, **kwargs):
+        super(DataPointsTableFormat, self).__init__(*args, **kwargs)
+        self.unit = unit
+
+    def format(self, row: dict) -> any:
+        series = row.get(self.id)
+        return {"datapoints": series, "unit": self.unit}
+
+
 class CollectTableFormat(TableFormat):
     column_type = "collect"
     collect_map = {True: _lazy("已收藏"), False: _lazy("未收藏")}

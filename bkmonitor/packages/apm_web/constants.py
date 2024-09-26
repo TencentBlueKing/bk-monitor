@@ -202,6 +202,8 @@ class CalculationMethod:
     INSTANCE_COUNT = "instance_count"
     # 健康度
     APDEX = "apdex"
+    # 耗时 Bucket
+    DURATION_BUCKET = "duration_bucket"
 
     # 服务间调用错误率
     SERVICE_FLOW_ERROR_RATE = "service_flow_error_rate"
