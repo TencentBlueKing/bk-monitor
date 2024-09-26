@@ -122,7 +122,9 @@ class Permission(object):
             app_code, secret_key = settings.SAAS_APP_CODE, settings.SAAS_SECRET_KEY
 
         bk_apigateway_url = (
-            settings.IAM_API_BASE_URL if settings.IAM_API_BASE_URL else f"{settings.BK_COMPONENT_API_URL}/api/bk-iam/"
+            settings.IAM_API_BASE_URL
+            if settings.IAM_API_BASE_URL
+            else f"{settings.BK_COMPONENT_API_URL}/api/bk-iam/prod/"
         )
         return CompatibleIAM(app_code, secret_key, settings.BK_IAM_INNER_HOST, None, bk_apigateway_url)
 
