@@ -45,6 +45,7 @@ import EmptyView from '../search-result-panel/original-log/empty-view';
 import ExpandView from '../search-result-panel/original-log/expand-view.vue';
 import OperatorTools from '../search-result-panel/original-log/operator-tools';
 import TimeFormatterSwitcher from '../search-result-panel/original-log/time-formatter-switcher';
+import { getConditionRouterParams } from '../search-result-panel/panel-util';
 
 export default {
   components: {
@@ -429,47 +430,12 @@ export default {
       // 是否是包含和不包含
       return ['exists', 'does not exists'].includes(operator);
     },
-    // 获取有效的字段条件字符串
-    getFiledAdditionStr(linkAdditionList = null) {
-      const filterAddition = this.indexItem.addition.filter(item => item.field !== '_ip-select_');
-      if (!filterAddition.length && !linkAdditionList) return undefined;
-      return JSON.stringify(linkAdditionList?.length ? filterAddition.concat(...linkAdditionList) : filterAddition);
-    },
-    getIPChooserStr(ipChooser) {
-      if (typeof ipChooser === 'object') return JSON.stringify(ipChooser);
-      return ipChooser;
-    },
-    getConditionRouterParams(linkAdditionList = null, isNewLink = false) {
-      const { params, query } = this.$route;
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      const { ip_chooser, addition, ...reset } = query;
-      const filterQuery = reset; // 给query排序 让addition和ip_chooser排前面
-      const newQueryObj = {
-        addition: isNewLink ? JSON.stringify(linkAdditionList) : this.getFiledAdditionStr(linkAdditionList),
-      }; // 新的query对象
-      const newIPChooser = ip_chooser;
-
-      if (newIPChooser && Object.keys(newIPChooser).length && !isNewLink) {
-        // ip值更新
-        Object.assign(newQueryObj, {
-          ip_chooser: this.getIPChooserStr(newIPChooser),
-        });
-      }
-
-      Object.assign(filterQuery, newQueryObj);
-      const routeData = {
-        name: 'retrieve',
-        params,
-        query: filterQuery,
-      };
-      return this.$router.resolve(routeData).href;
-    },
     handleAddCondition(field, operator, value, isLink = false) {
       this.$store
         .dispatch('setQueryCondition', { field, operator, value, isLink })
-        .then(([newAddition, isNewSearchPage]) => {
+        .then(([newSearchList, searchMode, isNewSearchPage]) => {
           if (isLink) {
-            const openUrl = this.getConditionRouterParams([newAddition], isNewSearchPage);
+            const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
             window.open(openUrl, '_blank');
           }
         });
