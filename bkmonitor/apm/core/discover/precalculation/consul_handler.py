@@ -79,7 +79,7 @@ class ConsulHandler:
 
         space_mapping = {i["space_id"]: i for i in resource.metadata.list_spaces().get("list", [])}
 
-        for application in ApmApplication.objects.all():
+        for application in ApmApplication.objects.filter(is_enabled=True):
             cls._check_update(application, space_mapping)
 
         logger.info("check all consul update finished")
@@ -90,6 +90,9 @@ class ConsulHandler:
 
         data_id = trace_datasource.bk_data_id
         datasource_info = resource.metadata.query_data_source(bk_data_id=data_id)
+        if not datasource_info.get("result_table_list"):
+            return None
+
         result_table_config = datasource_info["result_table_list"][0]["shipper_list"][0]
         result_table_cluster_config = result_table_config["cluster_config"]
         save_storage = PrecalculateStorage(application.bk_biz_id, application.app_name)
@@ -150,10 +153,15 @@ class ConsulHandler:
         检查应用的consul配置是否有更新 若有则刷新配置
         """
         trace_datasource = application.trace_datasource
+        if trace_datasource is None:
+            return None
+
         key = CONSUL_PATH.format(data_id=trace_datasource.bk_data_id)
 
         try:
             cur_data = cls._get_info(space_mapping, application, trace_datasource)
+            if cur_data is None:
+                return None
         except Exception as e:  # noqa
             logger.error(
                 f"failed to get current consul config! app_id: {application.id}. "

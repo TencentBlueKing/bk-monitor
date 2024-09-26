@@ -14,7 +14,8 @@ from django.db.models import Q
 from django.db.models.query import QuerySet
 
 from metadata.models.bcs import BCSClusterInfo, PodMonitorInfo, ServiceMonitorInfo
-from metadata.models.space import Space, SpaceResource, constants
+from metadata.models.space import Space, SpaceDataSource, SpaceResource, constants
+from metadata.models.space.constants import SpaceTypes
 
 
 def get_bcs_dataids(bk_biz_ids: list = None, cluster_ids: list = None, mode: str = "both"):
@@ -44,16 +45,28 @@ def get_bcs_dataids(bk_biz_ids: list = None, cluster_ids: list = None, mode: str
             ]
 
         # 过滤记录
-        clusters = clusters.filter(
+        cluster_infos = clusters.filter(
             Q(bk_biz_id__in=(bk_biz_ids or []))
             | Q(project_id__in=bcs_project_id_list)
             | Q(cluster_id__in=cluster_id_list)
         )
 
-        return clusters
+        return cluster_infos
 
     # 基于BCS集群信息获取dataid列表，用于过滤
     clusters = BCSClusterInfo.objects.all().only("cluster_id", "K8sMetricDataID", "CustomMetricDataID")
+
+    # 判定获取bcs_data_id的类型
+    need_k8s_metric = mode == "both" or mode == "k8s"
+    need_custom_metric = mode == "both" or mode == "custom"
+    data_id_to_cluster = {}
+
+    # 根据查询模式，组装{data_id:cluster_id} 的映射关系,此处考虑到跨空间和共享集群场景
+    if need_custom_metric:  # 过滤CustomMetric
+        data_id_to_cluster.update({cluster.CustomMetricDataID: cluster.cluster_id for cluster in clusters})
+    if need_k8s_metric:  # 过滤K8SMetric
+        data_id_to_cluster.update({cluster.K8sMetricDataID: cluster.cluster_id for cluster in clusters})
+
     # 如果集群 id 存在，则以集群 ID 为准
     if cluster_ids:
         clusters = clusters.filter(cluster_id__in=cluster_ids)
@@ -65,9 +78,6 @@ def get_bcs_dataids(bk_biz_ids: list = None, cluster_ids: list = None, mode: str
     data_ids = set()
     # dataid与集群映射关系
     data_id_cluster_map = {"built_in_metric_data_id_list": []}
-    # 判定获取bcs_data_id的类型
-    need_k8s_metric = mode == "both" or mode == "k8s"
-    need_custom_metric = mode == "both" or mode == "custom"
     for cluster in clusters:
         result_cluster_ids.append(cluster.cluster_id)
         if need_k8s_metric and cluster.K8sMetricDataID not in data_ids:
@@ -93,6 +103,20 @@ def get_bcs_dataids(bk_biz_ids: list = None, cluster_ids: list = None, mode: str
         if resource["bk_data_id"] not in data_ids:
             data_ids.add(resource["bk_data_id"])
             data_id_cluster_map[resource["bk_data_id"]] = resource["cluster_id"]
+
+    # 若查询业务关联的data_id，需考虑集群跨空间授权场景
+    if bk_biz_ids:
+        # 筛选业务允许访问的data_id
+        space_data_ids = set(
+            SpaceDataSource.objects.filter(space_type_id=SpaceTypes.BKCC.value, space_id__in=bk_biz_ids).values_list(
+                'bk_data_id', flat=True
+            )
+        )
+        for data_id in space_data_ids:  # 对于空间被授权访问的data_id，若其在集群DS映射表（K8S指标&自定义指标）中，则将其添加并返回
+            if (data_id not in data_ids) and (data_id in data_id_to_cluster):
+                data_ids.add(data_id)
+                data_id_cluster_map[data_id] = data_id_to_cluster[data_id]
+
     return data_ids, data_id_cluster_map
 
 

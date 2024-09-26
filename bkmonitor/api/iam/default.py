@@ -19,7 +19,7 @@ from core.drf_resource.contrib.api import APIResource
 
 
 class IAMBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
-    base_url = "%s/api/c/compapi/v2/iam/" % settings.BK_COMPONENT_API_URL
+    base_url = settings.IAM_API_BASE_URL or f"{settings.BK_COMPONENT_API_URL}/api/bk-iam/prod/"
     module_name = "iam"
 
 
