@@ -924,6 +924,7 @@ class SaveCollectConfigResource(Resource):
                 raise CollectConfigNotExist({"msg": data["id"]})
             # 密码字段处理
             self.update_password_inplace(data, collect_config)
+            collect_config.name = data["name"]
         else:
             collect_config = CollectConfigMeta(
                 bk_biz_id=data["bk_biz_id"],
