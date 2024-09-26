@@ -48,6 +48,7 @@
             >
               {{ $t('route-数据探索') }}</span>
             <span
+              v-if="Math.floor(collectList.length) > 1"
               :class="['view-collection-btn', isEn ? 'mr24' : 'mr5']"
               @click="gotoViewDetail"
             >{{ $t('对比') }}</span>
