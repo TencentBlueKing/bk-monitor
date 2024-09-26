@@ -346,12 +346,11 @@ class ListEsRouterResource(LogSearchAPIByApiGwResource):
         space_uid = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
 
-class DataBusCollectorsResource(LogSearchAPIGWResource):
+class DataBusCollectorsResource(LogSearchAPIByApiGwResource):
     """
     数据采集器列表
     """
 
-    # Todo: apigw base_url 确保设置
     action = "/databus_collectors/{collector_config_id}/"
     method = "GET"
 
@@ -366,7 +365,7 @@ class DataBusCollectorsResource(LogSearchAPIGWResource):
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
 
 
-class DataBusCollectorsIndicesResource(LogSearchAPIGWResource):
+class DataBusCollectorsIndicesResource(LogSearchAPIByApiGwResource):
     """
     数据采集器索引列表
     """
@@ -385,7 +384,7 @@ class DataBusCollectorsIndicesResource(LogSearchAPIGWResource):
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
 
 
-class LogSearchIndexSetResource(LogSearchAPIGWResource):
+class LogSearchIndexSetResource(LogSearchAPIByApiGwResource):
     """
     索引集列表
     """

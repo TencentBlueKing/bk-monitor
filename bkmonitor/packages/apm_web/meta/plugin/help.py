@@ -9,38 +9,20 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import os
-from collections import defaultdict
+import typing
 
-from apm_web.meta.plugin.plugin import DeploymentEnum, LanguageEnum
+from jinja2 import Environment, FileSystemLoader, Template
 
 
 class Help:
-    help_md_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "help_md")
+    help_md_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "help_md_new")
 
-    def __init__(self, plugin_id):
-        self._plugin_id = plugin_id
+    def __init__(self, context: typing.Dict[str, str]):
+        print(self.help_md_path)
+        self.env: Environment = Environment(loader=FileSystemLoader(searchpath=self.help_md_path))
+        self.context: typing.Dict[str, str] = context
 
-    def get_help_md(self):
-        help_md_map = {}
-        for file, content in self.scan_help_md():
-            help_md_map[file] = content
-
-        result = defaultdict(dict)
-        for language in LanguageEnum.get_values():
-            for deployment in DeploymentEnum.get_values():
-                result[language.id][deployment.id] = help_md_map.get(
-                    f"{self._plugin_id}.{language.id}.{deployment.id}",
-                    help_md_map.get(f"{self._plugin_id}.{language.id}.{deployment.category.id}", ""),
-                )
-        return result
-
-    def scan_help_md(self):
-        for file in os.listdir(self.help_md_path):
-            if file.startswith(self._plugin_id):
-                yield file.replace(".md", ""), self.load_md_file(file.replace(".md", ""))
-
-    @classmethod
-    def load_md_file(cls, filename):
-        file_path = os.path.join(cls.help_md_path, f"{filename}.md")
-        with open(file_path, "r", encoding="utf8") as f:
-            return f.read()
+    def get_help_md(self, plugin_id: str, language: str, deployment_id: str) -> str:
+        filename: str = f"{plugin_id}.{language}.{deployment_id}.md"
+        template: Template = self.env.get_template(filename)
+        return template.render(self.context)

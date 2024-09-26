@@ -749,3 +749,15 @@ class ApmMetrics:
             cls.BK_APM_DURATION_DELTA,
             cls.BK_APM_DURATION_BUCKET,
         ]
+
+
+class OtlpProtocol:
+    GRPC: str = "grpc"
+    HTTP_JSON: str = "http/json"
+
+    @classmethod
+    def choices(cls):
+        return [
+            (cls.GRPC, _("gRPC 上报")),
+            (cls.HTTP_JSON, _("HTTP/Protobuf 上报")),
+        ]
