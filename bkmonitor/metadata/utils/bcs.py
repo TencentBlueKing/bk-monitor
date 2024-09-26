@@ -14,7 +14,8 @@ from django.db.models import Q
 from django.db.models.query import QuerySet
 
 from metadata.models.bcs import BCSClusterInfo, PodMonitorInfo, ServiceMonitorInfo
-from metadata.models.space import Space, SpaceResource, constants
+from metadata.models.space import Space, SpaceDataSource, SpaceResource, constants
+from metadata.models.space.constants import SpaceTypes
 
 
 def get_bcs_dataids(bk_biz_ids: list = None, cluster_ids: list = None, mode: str = "both"):
@@ -44,16 +45,19 @@ def get_bcs_dataids(bk_biz_ids: list = None, cluster_ids: list = None, mode: str
             ]
 
         # 过滤记录
-        clusters = clusters.filter(
+        cluster_infos = clusters.filter(
             Q(bk_biz_id__in=(bk_biz_ids or []))
             | Q(project_id__in=bcs_project_id_list)
             | Q(cluster_id__in=cluster_id_list)
         )
 
-        return clusters
+        return cluster_infos
 
     # 基于BCS集群信息获取dataid列表，用于过滤
     clusters = BCSClusterInfo.objects.all().only("cluster_id", "K8sMetricDataID", "CustomMetricDataID")
+    # 创建两个映射，用于快速查找
+    k8s_data_to_cluster = {cluster.K8sMetricDataID: cluster.cluster_id for cluster in clusters}
+    custom_data_to_cluster = {cluster.CustomMetricDataID: cluster.cluster_id for cluster in clusters}
     # 如果集群 id 存在，则以集群 ID 为准
     if cluster_ids:
         clusters = clusters.filter(cluster_id__in=cluster_ids)
@@ -93,6 +97,23 @@ def get_bcs_dataids(bk_biz_ids: list = None, cluster_ids: list = None, mode: str
         if resource["bk_data_id"] not in data_ids:
             data_ids.add(resource["bk_data_id"])
             data_id_cluster_map[resource["bk_data_id"]] = resource["cluster_id"]
+
+    space_data_ids = set(
+        SpaceDataSource.objects.filter(space_type_id=SpaceTypes.BKCC.value, space_id__in=bk_biz_ids).values_list(
+            'bk_data_id', flat=True
+        )
+    )
+    if bk_biz_ids:
+        # 将 SpaceDataSource 的数据 ID 添加到结果中
+        for data_id in space_data_ids:
+            if data_id not in data_ids:
+                # 根据 mode 进行映射
+                if need_k8s_metric and data_id in k8s_data_to_cluster:
+                    data_ids.add(data_id)
+                    data_id_cluster_map[data_id] = k8s_data_to_cluster[data_id]
+                elif need_custom_metric and data_id in custom_data_to_cluster:
+                    data_ids.add(data_id)
+                    data_id_cluster_map[data_id] = custom_data_to_cluster[data_id]
     return data_ids, data_id_cluster_map
 
 
