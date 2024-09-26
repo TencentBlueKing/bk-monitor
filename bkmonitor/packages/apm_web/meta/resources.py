@@ -114,7 +114,6 @@ from bkmonitor.utils.user import get_global_user, get_request_username
 from common.log import logger
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE, EventSeverity
 from constants.apm import (
-    DataSamplingLogTypeChoices,
     FlowType,
     OtlpKey,
     SpanStandardField,
@@ -1508,10 +1507,6 @@ class DataSamplingResource(Resource):
             label="采集类型", choices=TelemetryDataType.values(), default=TelemetryDataType.TRACING.name
         )
         size = serializers.IntegerField(required=False, label="拉取条数", default=10)
-        log_type = serializers.ChoiceField(
-            label="日志类型",
-            choices=DataSamplingLogTypeChoices.choices(),
-        )
 
     @classmethod
     def combine_data(cls, telemetry_data_type: str, app: Application, **kwargs):
