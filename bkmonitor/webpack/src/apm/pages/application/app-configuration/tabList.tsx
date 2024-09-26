@@ -31,6 +31,7 @@ import './tabList.scss';
 interface ITab {
   name: string;
   label: string;
+  status: 'disabled' | 'no_data' | 'normal';
 }
 
 interface IProps {
@@ -50,22 +51,25 @@ export default class TabList extends tsc<IProps, IEvent> {
   handleChange(v) {
     this.active = v;
   }
-  handleActiveChange(id: string) {
-    this.active = id;
-    this.$emit('change', id);
+  handleActiveChange(item: ITab) {
+    if (!item.status || item.status === 'disabled') {
+      return;
+    }
+    this.active = item.name;
+    this.$emit('change', item.name);
   }
   render() {
     return (
-      <div class='tab-list-wrap'>
+      <div class='tab-list-wrap-app-config'>
         <ul class='tab-list'>
           {this.tabList.map(item => {
             return (
               <li
                 key={item.name}
-                class={{ active: this.active === item.name }}
-                onClick={this.handleActiveChange.bind(this, item.name)}
+                class={[{ active: this.active === item.name }, `status-${item.status || 'disabled'}`]}
+                onClick={() => this.handleActiveChange(item)}
               >
-                <span class='point' />
+                <span class={['point']} />
                 <span class='tab-text'>{this.$t(item.label)}</span>
               </li>
             );

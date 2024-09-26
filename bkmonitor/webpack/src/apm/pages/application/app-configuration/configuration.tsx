@@ -316,7 +316,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
           />
         );
       case 'dataStatus': // 数据状态
-        return <DataStatus />;
+        return <DataStatus data={this.appInfo} />;
       // case 'indicatorDimension': // 指标维度
       //   return <IndicatorDimension />;
       default:

@@ -1,0 +1,20 @@
+$statusType:  'failed' 'running' 'started' 'stopped';
+$statusColorBg: #ffe6e6 #e5f6ea #e5f6ea #f0f1f5;
+$statusColorBorder: #ea3636 #3fc06d #3fc06d #c4c6cc;
+
+.application-configuration {
+  .application-configuration-page {
+    .configuration-content-left {
+      @for $i from 1 through length($statusType) {
+        .status-icon.status-#{nth($statusType, $i)} {
+          display: inline-block;
+          width: 8px;
+          height: 8px;
+          background-color: nth($statusColorBg, $i);
+          border: 1px solid nth($statusColorBorder, $i);
+          border-radius: 50%;
+        }
+      }
+    }
+  } 
+}

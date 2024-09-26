@@ -94,7 +94,7 @@ export interface IDimensionItem {
   type: string;
   unit: string;
 }
-
+type TDataStatus = 'disabled' | 'no_data' | 'normal';
 // 应用详情
 export interface IAppInfo {
   application_id: number;
@@ -106,7 +106,6 @@ export interface IAppInfo {
   application_apdex_config: IApdexConfig;
   owner: string;
   is_enabled: boolean;
-  is_enabled_profiling: boolean;
   es_storage_index_name: string;
   application_datasource_config: IDatasourceConfig;
   create_user: string;
@@ -135,6 +134,16 @@ export interface IAppInfo {
     bk_data_id?: number | string;
     subscription_id?: number | string;
   };
+  // 数据上报开关
+  is_enabled_log: boolean;
+  is_enabled_metric: boolean;
+  is_enabled_profiling: boolean;
+  is_enabled_tracing: boolean;
+  // 类型状态
+  metric_data_status: TDataStatus;
+  log_data_status: TDataStatus;
+  profiling_data_status: TDataStatus;
+  trace_data_status: TDataStatus;
 }
 
 export interface ClusterOption {
@@ -257,7 +266,26 @@ export interface ITracingStorageInfo {
   es_shards: number;
   es_slice_size: number;
 }
+
+export interface ILogStorageInfo {
+  storage_cluster_name: string;
+  retention: number;
+  index_split_rule: string;
+  table_id_prefix: string;
+  table_id: string;
+}
 /* 存储信息 */
 export interface IStorageInfo {
-  [key: string]: ITracingStorageInfo & [];
+  [key: string]: ITracingStorageInfo & ILogStorageInfo & IMetricStorageInfo[];
+}
+
+/* 存储状态 指标 存储信息 */
+export interface IMetricStorageInfo {
+  result_table_id: string;
+  storage_type: string;
+  expire_time_alias: string;
+  created_by: string;
+  created_at: string;
+  status: 'failed' | 'running' | 'started' | 'stopped';
+  status_display: string;
 }
