@@ -48,7 +48,7 @@ export default defineComponent({
   name: 'DurationFilter',
   props: {
     range: {
-      type: Array as PropType<number[]> | null,
+      type: Array as null | PropType<number[]>,
       default: null,
     },
   },
@@ -64,7 +64,7 @@ export default defineComponent({
     const errMsg = ref<string>('');
     const showExchange = ref<boolean>(false);
     /** 输入框内容校验 */
-    const inputReg = /^([1-9][0-9]*|0)(\.[0-9]*[1-9])?(ns|μs|ms|s)$/;
+    const inputReg = /^([1-9][0-9]*|0)(\.[0-9]*[1-9])?(ns|n|μs|μ|ms|m|s)$/;
 
     onMounted(() => {
       if (props.range) {
@@ -115,17 +115,20 @@ export default defineComponent({
     };
     /** 将输入框内容转化为 ms 单位 */
     const formatToMs = (str: string) => {
-      const parseStr = str.split(/(ns|μs|ms|s)$/);
+      const parseStr = str.split(/(ns|n|μs|μ|ms|m|s)$/);
       const [value, unit] = parseStr;
       switch (unit) {
+        case 'n':
         case 'ns':
-          return Number(value) / Math.pow(10, 6);
+          return Number(value) / 10 ** 6;
+        case 'μ':
         case 'μs':
-          return Number(value) / Math.pow(10, 3);
+          return Number(value) / 10 ** 3;
+        case 'm':
         case 'ms':
           return Number(value);
         case 's':
-          return Number(value) * Math.pow(10, 3);
+          return Number(value) * 10 ** 3;
         default:
           return 0;
       }

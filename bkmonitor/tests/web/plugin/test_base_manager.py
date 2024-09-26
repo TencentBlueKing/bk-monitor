@@ -147,7 +147,7 @@ class TestBaseManager(object):
             shutil.rmtree(update_plugin_manager.tmp_path)
 
     def test_get_context(self, update_plugin_manager):
-        assert update_plugin_manager.get_context() == Context(
+        assert update_plugin_manager._get_context() == Context(
             {
                 "metric_json": [
                     {
@@ -194,7 +194,7 @@ class TestBaseManager(object):
     def test_start_debug(self, update_plugin_manager, mocker):
         get_debug_config_context_mock = mocker.patch.object(
             ScriptPluginManager,
-            "get_debug_config_context",
+            "_get_debug_config_context",
             return_value={
                 "bkmonitorbeat_debug.yaml": {"host": "127.0.0.1", "period": "10"},
                 "env.yaml": {"cmd_args": "23"},
@@ -208,7 +208,7 @@ class TestBaseManager(object):
             "monitor_web.plugin.manager.base.api.node_man.start_debug", return_value={"task_id": 11}
         )
         start_debug_params = {"collector": {"host": "127.0.0.1", "period": "10"}, "plugin": {"host_num": "23"}}
-        start_debug_host_info = {"bk_cloud_id": 0, "ip": "10.0.1.9", "bk_biz_id": 2}
+        start_debug_host_info = {"bk_cloud_id": 0, "ip": "127.0.0.2", "bk_biz_id": 2}
         assert update_plugin_manager.start_debug(1, 1, start_debug_params, start_debug_host_info) == {"task_id": 11}
 
         get_debug_config_context_mock.assert_called_once_with(
@@ -237,7 +237,7 @@ class TestBaseManager(object):
                 "plugin_name": "test_plugin",
                 "version": "1.1",
                 "config_ids": [1, 2],
-                "host_info": {"bk_cloud_id": 0, "ip": "10.0.1.9", "bk_biz_id": 2},
+                "host_info": {"bk_cloud_id": 0, "ip": "127.0.0.2", "bk_biz_id": 2},
             }
         )
 
@@ -280,7 +280,7 @@ class TestBaseManager(object):
 
     def test_release_config(self, update_plugin_manager, mocker):
         release_config_mock = mocker.patch("monitor_web.plugin.manager.base.api.node_man.release_config")
-        update_plugin_manager.release_config(1, 1, "env.yaml")
+        update_plugin_manager._release_config(1, 1, "env.yaml")
         release_config_mock.assert_called_once_with(
             {"plugin_name": "test_plugin", "plugin_version": "1_1", "name": "env.yaml", "version": 1}
         )

@@ -51,3 +51,7 @@ def group_by(iterators, get_key):
             res[key] = [item]
 
     return res
+
+
+def rt_id_to_index(rt_id: str) -> str:
+    return rt_id.replace(".", "_")

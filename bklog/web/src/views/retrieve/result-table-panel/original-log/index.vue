@@ -185,11 +185,17 @@
         type: Boolean,
         default: false,
       },
+      isThollteField: {
+        type: Boolean,
+        default: false,
+      },
     },
     data() {
       return {
         contentType: 'table',
         isWrap: true,
+        /** 是否是第一次加载字段列表 用于初始化原始日志，否则会导致操作列表失效 */
+        isFirstInitFiled: false,
         showFieldsSetting: false,
         showAsyncExport: false, // 异步下载弹窗
         exportLoading: false,
@@ -231,9 +237,14 @@
           }
         },
       },
+      isThollteField(v) {
+        if (!v && !this.isFirstInitFiled) {
+          this.isFirstInitFiled = true;
+          this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
+        }
+      },
     },
     created() {
-      this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
       const expandStr = localStorage.getItem('EXPAND_SEARCH_VIEW');
       this.expandTextView = expandStr ? JSON.parse(expandStr) : false;
       this.handleChangeExpandView(this.expandTextView);

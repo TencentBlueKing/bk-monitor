@@ -165,7 +165,12 @@ class DataRecord(base.BaseRecord):
         return self
 
     def clean_dimension_fields(self) -> List[str]:
-        return list(self._origin_dimension().keys())
+        # 动态维度，不参与后续detect之后的唯一性判定。
+        # dimension_fields 在trigger模块中， 参与生成event的 tags，用以标识事件唯一性。
+        fields = self._origin_dimension().keys()
+        if SYSTEM_PROC_PORT_METRIC_ID in self._item.metric_ids:
+            return [field for field in fields if field not in SYSTEM_PROC_PORT_DYNAMIC_DIMENSIONS]
+        return list(fields)
 
     def clean_record_id(self):
         return self.record_id

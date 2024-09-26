@@ -28,7 +28,7 @@ import { modifiers, Component as tsc } from 'vue-tsx-support';
 
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
 
-import { createMetricTitleTooltips } from '../../utils';
+import { createMetricTitleTooltips, fitPosition } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import ChartMenu, { type IChartTitleMenuEvents } from './chart-title-menu';
 
@@ -140,7 +140,6 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
         content = window.i18n.t('告警中，告警数量：{0}', [alert_number]).toString();
         break;
       default:
-      case AlarmStatus.not_confit_strategy:
         content = window.i18n.t('未配置策略').toString();
         break;
     }
@@ -233,7 +232,17 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
       if (!this.showMore) return;
       this.showMenu = !this.showMenu;
       const rect = this.chartTitleRef.getBoundingClientRect();
-      this.menuLeft = rect.width - 185 < e.layerX ? rect.width - 185 : e.layerX;
+      const { innerWidth } = window;
+      // 自身宽度 + 距离右侧浏览器窗口宽度（innerWidth - rect.right）
+      const rightWidth = 180 + innerWidth - rect.right;
+      const postion = fitPosition(
+        {
+          left: e.x,
+          top: e.y,
+        },
+        rightWidth
+      );
+      this.menuLeft = postion.left - rect.x;
     }
     this.$emit('updateDragging', false);
   }
@@ -343,6 +352,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
             {this.inited && [
               this.showTitleIcon && this.showMetricAlarm && this.metricTitleData?.collect_interval ? (
                 <span
+                  key='title-interval'
                   class='title-interval'
                   v-bk-tooltips={{
                     content: this.$t('数据步长'),
@@ -357,6 +367,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               (this.$scopedSlots as any)?.customSlot?.(),
               this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
                 <i
+                  key={'custom-icon'}
                   style={{ display: this.showMore ? 'flex' : 'none' }}
                   class='bk-icon icon-info-circle tips-icon'
                   onMouseenter={this.handleShowTips}
@@ -375,9 +386,15 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                   }}
                 />
               ),
-              <span class='title-center' />,
+              <span
+                key={'title-center'}
+                class='title-center'
+              >
+                {this.inited && this.$slots?.default}
+              </span>,
               this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
                 <i
+                  key={'添加策略'}
                   style={{
                     display: this.showMore && this.showAddMetric ? 'flex' : 'none',
                   }}
@@ -390,6 +407,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                 />
               ) : undefined,
               <span
+                key={'更多'}
                 style={{
                   marginLeft: this.metricTitleData && this.showAddMetric ? '0' : 'auto',
                   display: this.showMore ? 'flex' : 'none',

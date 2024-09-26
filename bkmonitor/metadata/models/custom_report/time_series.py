@@ -31,7 +31,9 @@ from metadata.models.constants import (
     BULK_CREATE_BATCH_SIZE,
     BULK_UPDATE_BATCH_SIZE,
     DB_DUPLICATE_ID,
+    DataIdCreatedFromSystem,
 )
+from metadata.models.data_source import DataSource
 from metadata.models.result_table import (
     ResultTable,
     ResultTableField,
@@ -441,6 +443,14 @@ class TimeSeriesGroup(CustomGroupBase):
         ]
 
     @property
+    def data_source(self):
+        """
+        返回一个结果表的数据源
+        :return: DataSource object
+        """
+        return DataSource.objects.get(bk_data_id=self.bk_data_id)
+
+    @property
     def metric_consul_path(self):
         return "{}/influxdb_metrics/{}/time_series_metric".format(config.CONSUL_PATH, self.bk_data_id)
 
@@ -491,7 +501,8 @@ class TimeSeriesGroup(CustomGroupBase):
         """
         # 从 bkdata 获取指标数据
         data = RedisTools.get_list(config.METADATA_RESULT_TABLE_WHITE_LIST)
-        if self.table_id in data:
+        # 默认开启单指标单表后，需要根据数据源的来源决定从哪里获取指标数据（redis/bkdata）
+        if self.table_id in data or self.data_source.created_from == DataIdCreatedFromSystem.BKDATA.value:
             return self.get_metric_from_bkdata()
 
         # 获取redis中数据

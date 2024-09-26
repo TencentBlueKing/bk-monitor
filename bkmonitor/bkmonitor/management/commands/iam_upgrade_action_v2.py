@@ -96,7 +96,7 @@ class Command(BaseCommand):
     def __init__(self, *args, **kwargs):
         super(Command, self).__init__(*args, **kwargs)
 
-        self.spaces = {str(space.bk_biz_id): space.space_name for space in SpaceApi.list_spaces()}
+        self.spaces = {str(space["bk_biz_id"]): space["space_name"] for space in SpaceApi.list_spaces_dict()}
         self.apm_applications = {
             str(app["application_id"]): app["app_alias"]
             for app in Application.objects.values("application_id", "app_alias")

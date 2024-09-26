@@ -36,10 +36,10 @@ import { PLUGIN_MANAGE_AUTH } from '../authority-map';
 import './collector-configuration.scss';
 
 enum ETargetColumn {
-  IP = 'IP',
   agentStatus = 'agentStatus',
   catetory = 'catetory',
   cloudName = 'cloudName',
+  IP = 'IP',
   name = 'name',
   objectType = 'objectType',
 }
@@ -150,6 +150,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
         port_detect: portDetect,
         match_pattern: matchPattern,
         exclude_pattern: excludePattern,
+        extract_pattern: extractPattern,
         pid_path: pidPath,
       } = process;
       this.basicInfo = {
@@ -157,6 +158,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
         match: matchType,
         match_pattern: matchPattern,
         exclude_pattern: excludePattern,
+        extract_pattern: extractPattern,
         pid_path: pidPath,
         process_name: processName || '--',
         port_detect: `${portDetect}`,
@@ -337,7 +339,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
                 (() => {
                   if (key === 'name') {
                     return [
-                      <span>
+                      <span key={1}>
                         {this.input.show ? (
                           <bk-input
                             ref={`input${key}`}
@@ -393,8 +395,16 @@ export default class CollectorConfiguration extends tsc<IProps> {
                       <span class='detail-item-val process'>
                         {this.basicInfo?.[key] === 'command'
                           ? [
-                              <div class='match-title'>{this.matchType?.[this.basicInfo?.[key]]}</div>,
-                              <ul class='param-list'>
+                              <div
+                                key={'match-title'}
+                                class='match-title'
+                              >
+                                {this.matchType?.[this.basicInfo?.[key]]}
+                              </div>,
+                              <ul
+                                key={'param-list'}
+                                class='param-list'
+                              >
                                 <li class='param-list-item'>
                                   <span class='item-name'>{this.$t('包含')}</span>
                                   <span class='item-content'>{this.basicInfo?.match_pattern}</span>
@@ -403,11 +413,22 @@ export default class CollectorConfiguration extends tsc<IProps> {
                                   <span class='item-name'>{this.$t('排除')}</span>
                                   <span class='item-content'>{this.basicInfo?.exclude_pattern}</span>
                                 </li>
+                                <li class='param-list-item'>
+                                  <span class='item-name'>{this.$t('维度提取')}</span>
+                                  <span class='item-content'>{this.basicInfo?.extract_pattern}</span>
+                                </li>
                               </ul>,
                             ]
                           : [
-                              <div class='match-title'>{this.matchType?.[this.basicInfo?.[key]]}</div>,
-                              <div>{`${this.$t('PID的绝对路径')}：${this.basicInfo?.pid_path}`}</div>,
+                              <div
+                                key={'match-title'}
+                                class='match-title'
+                              >
+                                {this.matchType?.[this.basicInfo?.[key]]}
+                              </div>,
+                              <div
+                                key={'param-list'}
+                              >{`${this.$t('PID的绝对路径')}：${this.basicInfo?.pid_path}`}</div>,
                             ]}
                       </span>
                     );
@@ -419,7 +440,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
             {this.runtimeParams.length
               ? formItem(
                   this.$t('运行参数'),
-                  <ul class='param-list  mt--6'>
+                  <ul class='param-list mt--6'>
                     {this.runtimeParams.map((item, index) => (
                       <li
                         key={index}
@@ -442,10 +463,16 @@ export default class CollectorConfiguration extends tsc<IProps> {
               : undefined}
           </div>
         </div>
-        <div class='split-line mt-24' />
-        <div class='detail-wrap-item'>
-          <div class='wrap-item-title mt-24'>{this.$t('采集目标')}</div>
-          {!!this.targetInfo?.table_data?.length && (
+        {!!this.targetInfo?.table_data?.length && [
+          <div
+            key={1}
+            class='split-line mt-24'
+          />,
+          <div
+            key={2}
+            class='detail-wrap-item'
+          >
+            <div class='wrap-item-title mt-24'>{this.$t('采集目标')}</div>
             <bk-button
               class='mt-10'
               size='small'
@@ -455,105 +482,105 @@ export default class CollectorConfiguration extends tsc<IProps> {
             >
               {this.$t('复制目标')}
             </bk-button>
-          )}
-          <div class='wrap-item-content mt-12'>
-            {['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(this.targetInfo?.target_node_type) ? (
-              <bk-table
-                {...{
-                  props: {
-                    data: this.targetInfo?.table_data || [],
-                  },
-                }}
-              >
-                {this.nodeColumns.map(column => {
-                  const key = `column_${column.id}`;
-                  return (
-                    <bk-table-column
-                      key={key}
-                      // width={column.width}
-                      formatter={(row: any) => {
-                        switch (column.id) {
-                          case ETargetColumn.name: {
-                            return <span>{row.bk_inst_name}</span>;
-                          }
-                          case ETargetColumn.objectType: {
-                            return <span>{row.count}</span>;
-                          }
-                          case ETargetColumn.catetory: {
-                            if (row.labels.length) {
-                              return row.labels.map((l, lIndex) => (
-                                <span
-                                  key={lIndex}
-                                  class='classifiy-label'
-                                >
-                                  <span class='label-name'>{l.first}</span>
-                                  <span class='label-name'>{l.second}</span>
-                                </span>
-                              ));
+            <div class='wrap-item-content mt-12'>
+              {['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(this.targetInfo?.target_node_type) ? (
+                <bk-table
+                  {...{
+                    props: {
+                      data: this.targetInfo?.table_data || [],
+                    },
+                  }}
+                >
+                  {this.nodeColumns.map(column => {
+                    const key = `column_${column.id}`;
+                    return (
+                      <bk-table-column
+                        key={key}
+                        // width={column.width}
+                        formatter={(row: any) => {
+                          switch (column.id) {
+                            case ETargetColumn.name: {
+                              return <span>{row.bk_inst_name}</span>;
                             }
-                            return <span>--</span>;
+                            case ETargetColumn.objectType: {
+                              return <span>{row.count}</span>;
+                            }
+                            case ETargetColumn.catetory: {
+                              if (row.labels.length) {
+                                return row.labels.map((l, lIndex) => (
+                                  <span
+                                    key={lIndex}
+                                    class='classifiy-label'
+                                  >
+                                    <span class='label-name'>{l.first}</span>
+                                    <span class='label-name'>{l.second}</span>
+                                  </span>
+                                ));
+                              }
+                              return <span>--</span>;
+                            }
+                            default: {
+                              return <span>--</span>;
+                            }
                           }
-                          default: {
-                            return <span>--</span>;
+                        }}
+                        label={(() => {
+                          if (column.id === ETargetColumn.objectType) {
+                            return this.basicInfo?.target_object_type === 'SERVICE'
+                              ? this.$t('实例数')
+                              : this.$t('主机数');
                           }
-                        }
-                      }}
-                      label={(() => {
-                        if (column.id === ETargetColumn.objectType) {
-                          return this.basicInfo?.target_object_type === 'SERVICE'
-                            ? this.$t('实例数')
-                            : this.$t('主机数');
-                        }
-                        return column.name;
-                      })()}
-                      prop={column.id}
-                    />
-                  );
-                })}
-              </bk-table>
-            ) : (
-              <bk-table
-                {...{
-                  props: {
-                    data: this.targetInfo?.table_data || [],
-                  },
-                }}
-              >
-                {this.ipColumns.map(column => {
-                  const key = `column_${column.id}`;
-                  return (
-                    <bk-table-column
-                      key={key}
-                      // width={column.width}
-                      formatter={(row: any) => {
-                        switch (column.id) {
-                          case ETargetColumn.IP: {
-                            return <span>{row.display_name}</span>;
+                          return column.name;
+                        })()}
+                        prop={column.id}
+                      />
+                    );
+                  })}
+                </bk-table>
+              ) : (
+                <bk-table
+                  {...{
+                    props: {
+                      data: this.targetInfo.table_data,
+                    },
+                  }}
+                >
+                  {this.ipColumns.map(column => {
+                    const key = `column_${column.id}`;
+                    return (
+                      <bk-table-column
+                        key={key}
+                        // width={column.width}
+                        formatter={(row: any) => {
+                          switch (column.id) {
+                            case ETargetColumn.IP: {
+                              return <span>{row.display_name}</span>;
+                            }
+                            case ETargetColumn.agentStatus: {
+                              return (
+                                <span style={{ color: row.agent_status === 'normal' ? '#2DCB56' : '#EA3636' }}>
+                                  {row.agent_status === 'normal' ? this.$t('正常') : this.$t('异常')}
+                                </span>
+                              );
+                            }
+                            case ETargetColumn.cloudName: {
+                              return <span title={row.bk_cloud_name}>{row.bk_cloud_name || '--'}</span>;
+                            }
+                            default: {
+                              return <span>--</span>;
+                            }
                           }
-                          case ETargetColumn.agentStatus: {
-                            return (
-                              <span style={{ color: row.agent_status === 'normal' ? '#2DCB56' : '#EA3636' }}>
-                                {row.agent_status === 'normal' ? this.$t('正常') : this.$t('异常')}
-                              </span>
-                            );
-                          }
-                          case ETargetColumn.cloudName: {
-                            return <span title={row.bk_cloud_name}>{row.bk_cloud_name || '--'}</span>;
-                          }
-                          default: {
-                            return <span>--</span>;
-                          }
-                        }
-                      }}
-                      label={column.name}
-                      prop={column.id}
-                    />
-                  );
-                })}
-              </bk-table>
-            )}
-          </div>
-        </div>
+                        }}
+                        label={column.name}
+                        prop={column.id}
+                      />
+                    );
+                  })}
+                </bk-table>
+              )}
+            </div>
+          </div>,
+        ]}
       </div>
     );
   }

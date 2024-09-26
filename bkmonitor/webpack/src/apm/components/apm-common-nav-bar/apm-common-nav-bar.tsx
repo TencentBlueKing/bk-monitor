@@ -109,10 +109,22 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
   // goto page by name
   handleGotoPage(item: INavItem) {
     if (this.readonly || item.notLink) return;
-    const targetRoute = this.$router.resolve({ name: item.id, query: item.query || {} });
+    const targetRoute = this.$router.resolve({
+      name: item.id,
+      query: {
+        ...item.query,
+        dashboardId: this.$route.query.dashboardId,
+      },
+    });
     /** 防止出现跳转当前地址导致报错 */
     if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
-      this.$router.push({ name: item.id, query: item.query || {} });
+      this.$router.push({
+        name: item.id,
+        query: {
+          ...item.query,
+          dashboardId: this.$route.query.dashboardId,
+        },
+      });
     }
   }
   handleBackGotoPage() {
@@ -178,6 +190,7 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
               {!item.selectOption?.loading ? (
                 [
                   <span
+                    key='1'
                     class={{
                       'item-name': true,
                       'parent-nav': !!item.id && index < len - 1 && !item.notLink,
@@ -198,6 +211,7 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
                       popover-options={{
                         placement: 'bottom',
                       }}
+                      allow-enter={false}
                       ext-popover-cls='nav-bar-select-popover'
                       popover-width={240}
                       value={item.selectOption.value}
@@ -211,10 +225,10 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
                       >
                         <i class='icon-monitor icon-mc-arrow-down' />
                       </div>
-                      {this.sortSelectList(item.selectOption).map(selectItem => (
+                      {this.sortSelectList(item.selectOption).map((selectItem, index) => (
                         <bk-option
                           id={selectItem.id}
-                          key={selectItem.id}
+                          key={`${selectItem.id}_${index}`}
                           class={{ item: true, active: selectItem.id === item.selectOption.value }}
                           name={selectItem.name}
                         >

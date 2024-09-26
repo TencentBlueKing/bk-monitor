@@ -47,6 +47,7 @@ from metadata.models.space.ds_rt import (
     get_table_id_cluster_id,
     get_table_info_for_influxdb_and_vm,
 )
+from metadata.models.space.utils import get_biz_ids_by_space_ids, get_related_spaces
 from metadata.utils.db import filter_model_by_in_page, filter_query_set_by_in_page
 from metadata.utils.redis_tools import RedisTools
 
@@ -198,6 +199,7 @@ class SpaceTableIDRedis:
                     "measurement_type": "bk_split_measurement",
                     "bcs_cluster_id": "",
                     "data_label": "",
+                    "storage_type": models.RecordRule.STORAGE_TYPE,
                     "bk_data_id": None,
                 }
             )
@@ -216,7 +218,6 @@ class SpaceTableIDRedis:
     def _compose_es_table_id_detail(self, table_id_list: Optional[List[str]] = None):
         """组装 es 结果表的详细信息"""
         logger.info("start to compose es table_id detail data")
-
         # 这里要过来的结果表不会太多
         if table_id_list:
             table_ids = models.ESStorage.objects.filter(table_id__in=table_id_list).values(
@@ -245,6 +246,7 @@ class SpaceTableIDRedis:
                 _option = {}
 
             tid_options_map.setdefault(option["table_id"], {}).update(_option)
+
         # 组装数据
         # NOTE: 这里针对一段式的追加一个`__default__`
         # 组装需要的数据，字段相同
@@ -253,16 +255,18 @@ class SpaceTableIDRedis:
             source_type = record["source_type"]
             index_set = record["index_set"]
             tid = record["table_id"]
+            storage_id = record.get("storage_cluster_id", 0)
             table_id_db = index_set
 
             # 索引集，直接按照存储进行路由
             data[tid] = json.dumps(
                 {
-                    "storage_id": record.get("storage_cluster_id", 0),
+                    "storage_id": storage_id,
                     "db": table_id_db,
                     "measurement": DEFAULT_MEASUREMENT,
                     "source_type": source_type,
                     "options": tid_options_map.get(tid) or {},
+                    'storage_type': models.ESStorage.STORAGE_TYPE,
                 }
             )
         return data
@@ -277,9 +281,12 @@ class SpaceTableIDRedis:
         """推送 bkcc 类型空间数据"""
         logger.info("start to push bkcc space table_id, space_type: %s, space_id: %s", space_type, space_id)
         _values = self._compose_data(space_type, space_id, from_authorization=from_authorization)
-        _values.update(self._compose_record_rule_table_ids(space_type, space_id))
-        _values.update(self._compose_es_table_ids(space_type, space_id))
         # 追加预计算结果表
+        _values.update(self._compose_record_rule_table_ids(space_type, space_id))
+        # 追加ES结果表
+        _values.update(self._compose_es_table_ids(space_type, space_id))
+        # 追加关联的BKCI的ES结果表，适配ES多空间功能
+        _values.update(self._compose_related_bkci_es_table_ids(space_type, space_id))
         # 推送数据
         if _values and can_push_data:
             redis_values = {f"{space_type}__{space_id}": json.dumps(_values)}
@@ -682,6 +689,19 @@ class SpaceTableIDRedis:
         ).values_list("table_id", flat=True)
         return {tid: {"filters": []} for tid in tids}
 
+    def _compose_related_bkci_es_table_ids(self, space_type: str, space_id: str):
+        """
+        组装关联的BKCI类型的ES结果表
+        """
+        space_ids = get_related_spaces(
+            space_type_id=space_type, space_id=space_id, target_space_type_id=SpaceTypes.BKCI.value
+        )
+        biz_ids = get_biz_ids_by_space_ids(SpaceTypes.BKCI.value, space_ids)
+        tids = models.ResultTable.objects.filter(
+            bk_biz_id__in=biz_ids, default_storage=models.ClusterInfo.TYPE_ES, is_deleted=False, is_enable=True
+        ).values_list("table_id", flat=True)
+        return {tid: {"filters": []} for tid in tids}
+
     def _is_need_filter_for_bkcc(
         self,
         measurement_type: str,
@@ -769,7 +789,15 @@ class SpaceTableIDRedis:
                 filter_data=table_id_list,
             )
 
-        table_ids = set(influxdb_table_ids).union(set(vm_table_ids))
+        es_table_ids = models.ESStorage.objects.values_list("table_id", flat=True)
+        if table_id_list:
+            es_table_ids = filter_query_set_by_in_page(
+                query_set=es_table_ids,
+                field_op="table_id__in",
+                filter_data=table_id_list,
+            )
+
+        table_ids = set(influxdb_table_ids).union(set(vm_table_ids)).union(set(es_table_ids))
 
         return table_ids
 

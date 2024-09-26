@@ -25,7 +25,7 @@ class NextStatusChecker(BaseChecker):
 
     def check(self, alert: Alert):
         logger.info(
-            "[move next status] alert(%s) strategy(%s), next_status_time: %s, next_status",
+            "[move next status] alert(%s) strategy(%s), next_status_time: %s, next_status: %s",
             alert.id,
             alert.strategy_id,
             alert.data.get("next_status_time"),

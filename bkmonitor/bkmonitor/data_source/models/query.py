@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Dict, List
+from typing import Any, Dict, List, Optional, Tuple
 
 from django.db.models import Q
 
@@ -16,16 +16,8 @@ from bkmonitor.data_source.models import sql
 from bkmonitor.data_source.models.data_structure import DataPoint
 
 
-class DataQuery(object):
-    TYPE = "base"
-    """
-    Do Query
-    """
-
-    def __init__(self, using, query=None):
-        self.using = using
-        self.query = query or sql.Query(self.using)
-        self._result_cache = None
+class IterMixin:
+    """数据遍历相关"""
 
     def __getitem__(self, k):
         """
@@ -64,27 +56,167 @@ class DataQuery(object):
         self._fetch_all()
         return bool(self._result_cache)
 
-    ####################################
-    # METHODS THAT DO DATABASE QUERIES #
-    ####################################
+    def all(self):
+        return self.data
 
-    def table(self, table_name):
+    def limit(self, k):
+        clone = self._clone()
+        clone.query.set_limits(high=k)
+        return clone
+
+    def slimit(self, s):
+        return self._clone()
+
+    def offset(self, o):
+        clone = self._clone()
+        clone.query.set_offset(o)
+        return clone
+
+    def _fetch_all(self):
+        if self._result_cache is None:
+            self._result_cache = list(self.iterator())
+
+    @property
+    def raw_data(self):
+        self._fetch_all()
+        return self._result_cache
+
+    @property
+    def data(self):
+        self._fetch_all()
+        data = []
+        for row in self._result_cache:
+            data.append(DataPoint(row))
+        return data
+
+    def iterator(self):
+        compiler = self.query.get_compiler(using=self.using)
+        results = compiler.execute_sql()
+        for row in results:
+            yield row
+
+    @property
+    def original_data(self):
+        compiler = self.query.get_compiler(using=self.using)
+        original_sql, params = compiler.as_sql()
+        return compiler.connection.execute(original_sql, params)
+
+    def first(self) -> Optional[Dict[str, Any]]:
+        clone = self._clone().limit(1)
+        if len(clone):
+            return clone[0]
+        return None
+
+
+class QueryMixin:
+    """数据查询相关"""
+
+    def table(self, table_name: str):
         clone = self._clone()
         clone.query.table_name = table_name
         return clone
 
     from_ = db = table
 
-    def raw(self, raw_query, params=None):
-        return sql.RawQuery(raw_query, using=self.using, params=params).execute_query()
-
     def values(self, *fields):
         clone = self._clone()
-        for col in fields:
-            clone.query.add_select(col)
+        for field in fields:
+            clone.query.add_select(field)
         return clone
 
     select = values
+
+    def time_field(self, field: str):
+        clone = self._clone()
+        clone.query.set_time_field(field)
+        return clone
+
+    def filter(self, *args, **kwargs):
+        clone = self._clone()
+        clone.query.add_q(Q(*args, **kwargs))
+        return clone
+
+    where = filter
+
+    def group_by(self, *fields):
+        clone = self._clone()
+        clone.query.add_grouping(*fields)
+        return clone
+
+    def order_by(self, *fields):
+        clone = self._clone()
+        clone.query.add_ordering(*fields)
+        return clone
+
+    def distinct(self, field: Optional[str]):
+        clone = self._clone()
+        if field:
+            clone.query.distinct = field
+        return clone
+
+
+class DslMixin:
+    """ES DSL 相关"""
+
+    def use_full_index_names(self, use_full_index_names: Optional[bool]):
+        clone = self._clone()
+        if use_full_index_names is not None:
+            clone.query.use_full_index_names = use_full_index_names
+        return clone
+
+    def dsl_raw_query_string(self, query_string: str, nested_paths: Optional[Dict[str, str]] = None):
+        clone = self._clone()
+        clone.query.raw_query_string = query_string
+        if nested_paths:
+            clone.query.nested_paths = nested_paths
+        return clone
+
+    def dsl_index_set_id(self, index_set_id: int):
+        clone = self._clone()
+        clone.query.index_set_id = index_set_id
+        return clone
+
+    def dsl_group_hits(self, size: int = 1):
+        clone = self._clone()
+        clone.query.group_hits_size = size
+        return clone
+
+    def dsl_search_after(self, search_after_key: Optional[Dict[str, Any]]):
+        clone = self._clone()
+        if search_after_key is not None:
+            clone.query.search_after_key = search_after_key
+        return clone
+
+    def dsl_date_histogram(self, enable: bool):
+        clone = self._clone()
+        clone.query.enable_date_histogram = enable
+        return clone
+
+
+class BaseDataQuery:
+
+    TYPE = "base"
+    QUERY_CLASS = sql.Query
+
+    def __init__(self, using: Tuple[str, str], query=None):
+        self.using: Tuple[str, str] = using
+        self.query = query or self.QUERY_CLASS(self.using)
+        self._result_cache: Optional[List[Any]] = None
+
+    def _clone(self):
+        query = self.query.clone()
+        clone = self.__class__(using=self.using, query=query)
+        return clone
+
+
+class DataQuery(BaseDataQuery, IterMixin, QueryMixin, DslMixin):
+    def target_type(self, target_type):
+        clone = self._clone()
+        clone.query.set_target_type(target_type)
+        return clone
+
+    def raw(self, raw_query, params=None):
+        return sql.RawQuery(raw_query, using=self.using, params=params).execute_query()
 
     def metrics(self, metrics: List[Dict]):
         clone = self._clone()
@@ -101,106 +233,7 @@ class DataQuery(object):
             clone.query.add_select(select_str)
         return clone
 
-    def all(self):
-        return self.data
-
     def agg_condition(self, agg_condition):
         clone = self._clone()
         clone.query.set_agg_condition(agg_condition)
         return clone
-
-    def time_field(self, time_field):
-        clone = self._clone()
-        clone.query.set_time_field(time_field)
-        return clone
-
-    def target_type(self, target_type):
-        clone = self._clone()
-        clone.query.set_target_type(target_type)
-        return clone
-
-    def filter(self, *args, **kwargs):
-        clone = self._clone()
-        clone.query.add_q(Q(*args, **kwargs))
-        return clone
-
-    where = filter
-
-    def group_by(self, *field_names):
-        clone = self._clone()
-        clone.query.add_grouping(*field_names)
-        return clone
-
-    def order_by(self, *field_names):
-        clone = self._clone()
-        clone.query.add_ordering(*field_names)
-        return clone
-
-    def limit(self, k):
-        clone = self._clone()
-        clone.query.set_limits(high=k)
-        return clone
-
-    def offset(self, o):
-        clone = self._clone()
-        clone.query.set_offset(o)
-        return clone
-
-    def slimit(self, s):
-        return self._clone()
-
-    def iterator(self):
-        compiler = self.query.get_compiler(using=self.using)
-        results = compiler.execute_sql()
-        for row in results:
-            yield row
-
-    @property
-    def data(self):
-        self._fetch_all()
-        data = []
-        for row in self._result_cache:
-            data.append(DataPoint(row))
-        return data
-
-    @property
-    def raw_data(self):
-        self._fetch_all()
-        return self._result_cache
-
-    @property
-    def original_data(self):
-        compiler = self.query.get_compiler(using=self.using)
-        original_sql, params = compiler.as_sql()
-        return compiler.connection.execute(original_sql, params)
-
-    ##############################
-    # METHOD THAT DO DSL QUERIES #
-    ##############################
-    def dsl_raw_query_string(self, query_string):
-        clone = self._clone()
-        clone.query.raw_query_string = query_string
-        return clone
-
-    def dsl_index_set_id(self, index_set_id):
-        clone = self._clone()
-        clone.query.index_set_id = index_set_id
-        return clone
-
-    def dsl_group_hits(self, size=1):
-        clone = self._clone()
-        clone.query.group_hits_size = size
-        return clone
-
-    ###################
-    # PRIVATE METHODS #
-    ###################
-
-    def _clone(self):
-        query = self.query.clone()
-        c = self.__class__(using=self.using, query=query)
-        return c
-
-    def _fetch_all(self):
-        if self._result_cache is None:
-            self._result_cache = list(self.iterator())

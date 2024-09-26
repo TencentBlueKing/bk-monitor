@@ -16,6 +16,8 @@ import logging
 import yaml
 from django.conf import settings
 from django.utils.translation import ugettext as _
+
+from core.errors.plugin import PluginIDNotExist
 from monitor_web.plugin.constant import (
     DEFAULT_TRAP_CONFIG,
     DEFAULT_TRAP_V3_CONFIG,
@@ -23,8 +25,6 @@ from monitor_web.plugin.constant import (
 )
 from monitor_web.plugin.manager.log import LogPluginManager
 from monitor_web.plugin.serializers import SNMPTrapSerializer
-
-from core.errors.plugin import PluginIDNotExist
 
 logger = logging.getLogger("monitor_web")
 
@@ -82,10 +82,10 @@ class SNMPTrapPluginManager(LogPluginManager):
         self.full_request_data(data)
         return self._create_version(data, event_list)
 
-    def update_version(self, data, target_config_version=None, target_info_version=None):
+    def update_version(self, data, target_config_version: int = None, target_info_version: int = None):
         event_list = self.get_dimensions(data["yaml"])
         self.full_request_data(data)
-        return self._updata_version(data, event_list)
+        return self._update_version(data, event_list)
 
     def get_dimensions(self, params):
         dimensions = [
@@ -103,7 +103,7 @@ class SNMPTrapPluginManager(LogPluginManager):
         current_version.is_packaged = True
         current_version.save()
 
-    def get_debug_config_context(self, config_version, info_version, param, target_nodes):
+    def _get_debug_config_context(self, config_version, info_version, param, target_nodes):
         return {}
 
     # 组装snmp trap参数
@@ -177,7 +177,7 @@ class SNMPTrapPluginManager(LogPluginManager):
         ]
         return deploy_steps
 
-    def get_collector_json(self, plugin_params):
+    def _get_collector_json(self, plugin_params):
         return None
 
     @staticmethod

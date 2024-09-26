@@ -127,6 +127,11 @@ export default defineComponent({
         }, toolsFormData.value.refreshInterval);
       }
     );
+
+    const isObject = (data: unknown) => {
+      return Object.prototype.toString.call(data) === '[object Object]';
+    };
+
     const getParams = (args: Record<string, any> = {}) => {
       const { queryParams } = props;
       const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
@@ -158,7 +163,7 @@ export default defineComponent({
         }),
       })
         .then(data => {
-          if (data && Object.keys(data)?.length) {
+          if (isObject(data) && Object.keys(data)?.length) {
             unit.value = data.unit || '';
             if (activeMode.value === ViewModeType.Combine) {
               tableData.value = data.table_data?.items ?? [];
@@ -195,8 +200,11 @@ export default defineComponent({
         }),
       })
         .then(data => {
-          if (data) {
+          if (isObject(data) && Object.keys(data)?.length) {
             topoSrc.value = data.call_graph_data || '';
+            empty.value = false;
+          } else {
+            empty.value = true;
           }
           isLoading.value = false;
         })

@@ -10,16 +10,23 @@ specific language governing permissions and limitations under the License.
 """
 from apm_web.decorators import user_visit_record
 from apm_web.models import Application
-from apm_web.topo.resources import TopoViewResource
-
+from apm_web.topo.resources import (
+    DataTypeBarQueryResource,
+    GraphDiffResource,
+    NodeEndpointsTopResource,
+    NodeRelationDetailResource,
+    NodeRelationResource,
+    TopoLinkResource,
+    TopoViewResource,
+)
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
-class TopoViewSet(ResourceViewSet):
+class GlobalViewSet(ResourceViewSet):
     """
-    获取单个app的指标数据
+    全局拓扑视图
     """
 
     INSTANCE_ID = "app_name"
@@ -35,9 +42,11 @@ class TopoViewSet(ResourceViewSet):
         ]
 
     resource_routes = [
-        ResourceRoute(
-            "POST", TopoViewResource,
-            endpoint="topo_view",
-            decorators=[user_visit_record, ]
-        ),
+        ResourceRoute("GET", DataTypeBarQueryResource, endpoint="bar"),
+        ResourceRoute("GET", TopoViewResource, endpoint="topo", decorators=[user_visit_record]),
+        ResourceRoute("POST", TopoLinkResource, endpoint="topo/link"),
+        ResourceRoute("GET", GraphDiffResource, endpoint="topo/diff"),
+        ResourceRoute("GET", NodeEndpointsTopResource, endpoint="topo/node/endpoints", decorators=[user_visit_record]),
+        ResourceRoute("GET", NodeRelationResource, endpoint="relation", decorators=[user_visit_record]),
+        ResourceRoute("POST", NodeRelationDetailResource, endpoint="relation/detail"),
     ]

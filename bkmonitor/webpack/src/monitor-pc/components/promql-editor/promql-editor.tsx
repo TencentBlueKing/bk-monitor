@@ -57,7 +57,7 @@ class PlaceholderWidget {
     this.editor = editor;
     this.domNode = document.createElement('div');
     this.domNode.className = 'placeholder-widget';
-    this.domNode.innerHTML = window.i18n.tc('Shift + Enter换行，Enter查询');
+    this.domNode.innerHTML = window.i18n.tc('请输入 PromQL 查询语句，Shift + Enter换行，Enter查询');
     this.editor.addOverlayWidget(this);
     this.update();
   }

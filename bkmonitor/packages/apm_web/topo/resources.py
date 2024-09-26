@@ -8,91 +8,244 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from apm_web.icon import get_icon
-from apm_web.models import Application
-from apm_web.topo.handle.topo import TopoHandler, TopoSizeCategory
-from django.utils.translation import gettext_lazy as _
-from monitor_web.scene_view.resources.base import PageListResource
-from monitor_web.scene_view.table_format import (
-    DictSearchColumnTableFormat,
-    LinkTableFormat,
-    NumberTableFormat,
-    StringTableFormat,
+import datetime
+
+from apm_web.topo.constants import GraphViewType, SourceType, TopoLinkType
+from apm_web.topo.handle.bar_query import BarQuery, LinkHelper
+from apm_web.topo.handle.graph_query import GraphQuery
+from apm_web.topo.handle.relation.define import SourceSystem
+from apm_web.topo.handle.relation.detail import NodeRelationDetailHandler
+from apm_web.topo.handle.relation.entrance import EndpointListEntrance, RelationEntrance
+from apm_web.topo.serializers import (
+    DataTypeBarQueryRequestSerializer,
+    EndpointNameSerializer,
+    GraphDiffSerializer,
+    NodeEndpointTopSerializer,
+    NodeRelationDetailSerializer,
+    NodeRelationSerializer,
+    TopoQueryRequestSerializer,
 )
-from rest_framework import serializers
+from apm_web.utils import fill_series
+from core.drf_resource import Resource
 
 
-class TopoViewResource(PageListResource):
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务id")
-        app_name = serializers.CharField(label="应用名称")
-        start_time = serializers.IntegerField(required=True, label="数据开始时间")
-        end_time = serializers.IntegerField(required=True, label="数据结束时间")
-        keyword = serializers.CharField(required=False, label="查询关键词", allow_blank=True)
-        query_type = serializers.ChoiceField(required=True, label="查询类型", choices=["topo", "list"])
-        page = serializers.IntegerField(required=False, label="页码")
-        page_size = serializers.IntegerField(required=False, label="每页条数")
-        sort = serializers.CharField(required=False, label="排序方式", allow_blank=True)
-        filter = serializers.CharField(required=False, label="筛选条件", allow_blank=True)
-        filter_dict = serializers.DictField(required=False, label="筛选字典", default={})
-        size_category = serializers.ChoiceField(
-            required=False,
-            label="节点大小分类类型",
-            choices=[TopoSizeCategory.REQUEST_COUNT, TopoSizeCategory.DURATION],
-            default=TopoSizeCategory.REQUEST_COUNT,
-        )
-        service_name = serializers.CharField(required=False, label="服务名称", allow_blank=True)
+class DataTypeBarQueryResource(Resource):
+    """
+    获取不同数据视角下的柱状图
+    支持以下数据视角:
+    1. 告警事件
+    2. Apdex
+    3. 主调/被调/总错误率
+    """
 
-    def get_columns(self, column_type=None):
-        return [
-            LinkTableFormat(
-                id="service_name",
-                name=_("服务名称"),
-                url_format="/service/?filter-service_name={service_name}&filter-app_name={app_name}",
-                icon_get=lambda x: get_icon(x["category"]),
-                width=200,
-                sortable=True,
-            ),
-            DictSearchColumnTableFormat(
-                id="relation",
-                name=_("关系调用"),
-                column_type="relation",
-                get_filter_value=lambda d: "*".join(i["name"] for i in d),
-            ),
-            StringTableFormat(id="kind", name=_("调用类型"), width=100, filterable=True),
-            NumberTableFormat(id="request_count", name=_("调用次数"), width=100, sortable=True),
-            NumberTableFormat(id="error_rate", name=_("错误率"), unit="%", decimal=2, width=100, sortable=True),
-            NumberTableFormat(id="avg_duration", name=_("平均响应耗时"), unit="ns", decimal=2, width=140, sortable=True),
-        ]
-
-    def get_filter_fields(self):
-        return ["service_name", "relation"]
-
-    def get_sort_fields(self):
-        return ["-error_rate", "-avg_duration", "-request_count"]
+    RequestSerializer = DataTypeBarQueryRequestSerializer
 
     def perform_request(self, validated_request_data):
-        # 获取应用
-        app = Application.objects.filter(
-            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
-        ).first()
-        if not app:
-            raise ValueError(_("应用不存在"))
+        response = BarQuery(
+            **validated_request_data,
+            endpoint_name=validated_request_data.pop("endpoint_name", None),
+        ).execute()
 
-        topo_handler = TopoHandler(
-            app,
-            validated_request_data["start_time"],
-            validated_request_data["end_time"],
+        return {
+            "metrics": response.get("metrics"),
+            "series": fill_series(
+                response.get("series", []),
+                validated_request_data["start_time"],
+                validated_request_data["end_time"],
+            ),
+        }
+
+
+class TopoViewResource(Resource):
+    """[拓扑图]获取节点拓扑图"""
+
+    RequestSerializer = TopoQueryRequestSerializer
+
+    def perform_request(self, validated_data):
+        params = {
+            "bk_biz_id": validated_data["bk_biz_id"],
+            "app_name": validated_data["app_name"],
+            "service_name": validated_data.get("service_name"),
+            "data_type": validated_data.get("data_type"),
+        }
+
+        # 时间范围 与 数据时间
+        start_time = validated_data["start_time"]
+        end_time = validated_data["end_time"]
+        metric_start_time = validated_data["metric_start_time"]
+        metric_end_time = validated_data["metric_end_time"]
+
+        # graph 转换器
+        converter = GraphQuery.create_converter(
+            validated_data["bk_biz_id"],
+            validated_data["app_name"],
+            validated_data["export_type"],
+            service_name=validated_data.get("service_name"),
+            runtime={"start_time": start_time, "end_time": end_time},
         )
 
-        if validated_request_data["query_type"] == "topo":
-            return topo_handler.get_topo_view(
-                validated_request_data.get("filter"),
-                validated_request_data.get("service_name"),
-                # validated_request_data.get("show_nodata", False),
-                validated_request_data.get("keyword", ""),
-                validated_request_data.get("size_category"),
-            )
+        graph = GraphQuery(**{**params, "start_time": start_time, "end_time": end_time}).execute(
+            edge_data_type=validated_data["edge_data_type"],
+            converter=converter,
+        )
+        if (metric_start_time == start_time) and (metric_end_time == end_time):
+            # 数据时间和拓扑图时间一致 直接返回
+            return graph >> converter
 
-        data = topo_handler.get_topo_list(validated_request_data.get("filter"))
-        return self.get_pagination_data(data, validated_request_data)
+        # 数据时间和拓扑图时间不一致 需要基于拓扑图时间的 graph 进行对比合并
+        other_graph = GraphQuery(**{**params, "start_time": metric_start_time, "end_time": metric_end_time}).execute(
+            edge_data_type=validated_data["edge_data_type"],
+            converter=converter,
+        )
+
+        return (graph | other_graph) >> converter
+
+
+class TopoLinkResource(Resource):
+    """[拓扑图]跳转链接获取"""
+
+    RequestSerializer = EndpointNameSerializer
+
+    def perform_request(self, validated_request_data):
+        params = {
+            "bk_biz_id": validated_request_data["bk_biz_id"],
+            "app_name": validated_request_data["app_name"],
+            "start_time": validated_request_data["start_time"],
+            "end_time": validated_request_data["end_time"],
+        }
+        if validated_request_data["link_type"] == TopoLinkType.ALERT.value:
+            # 获取 服务 or 接口的告警中心跳转链接
+            if validated_request_data.get("endpoint_name"):
+                return LinkHelper.get_endpoint_alert_link(
+                    **params,
+                    service_name=validated_request_data["service_name"],
+                    endpoint_name=validated_request_data["endpoint_name"],
+                )
+            else:
+                return LinkHelper.get_service_alert_link(**params, service_name=validated_request_data["service_name"])
+
+        elif validated_request_data["link_type"] == TopoLinkType.TOPO_SOURCE.value:
+            # 根据资源类型获取不同的跳转链接
+            source_type = validated_request_data["source_type"]
+            if source_type == SourceType.SERVICE.value:
+                return LinkHelper.get_service_monitor_link(
+                    validated_request_data["source_info"]["bcs_cluster_id"],
+                    validated_request_data["source_info"]["namespace"],
+                    validated_request_data["source_info"]["service"],
+                    validated_request_data["start_time"],
+                    validated_request_data["end_time"],
+                )
+            elif source_type == SourceType.POD.value:
+                return LinkHelper.get_pod_monitor_link(
+                    validated_request_data["source_info"]["bcs_cluster_id"],
+                    validated_request_data["source_info"]["namespace"],
+                    validated_request_data["source_info"]["pod"],
+                    validated_request_data["start_time"],
+                    validated_request_data["end_time"],
+                )
+            elif source_type == SourceType.SYSTEM.value:
+                bk_host_id = SourceSystem.get_bk_host_id(
+                    validated_request_data["bk_biz_id"],
+                    validated_request_data["source_info"]["bk_target_ip"],
+                )
+                return LinkHelper.get_host_monitor_link(
+                    bk_host_id,
+                    validated_request_data["start_time"],
+                    validated_request_data["end_time"],
+                )
+            elif source_type == SourceType.APM_SERVICE_INSTANCE.value:
+                return LinkHelper.get_service_instance_instance_tab_link(
+                    validated_request_data["bk_biz_id"],
+                    validated_request_data["app_name"],
+                    validated_request_data["source_info"]["apm_service_name"],
+                    validated_request_data["source_info"]["apm_service_instance_name"],
+                    validated_request_data["start_time"],
+                    validated_request_data["end_time"],
+                )
+            elif source_type == SourceType.APM_SERVICE.value:
+                return LinkHelper.get_service_overview_tab_link(
+                    validated_request_data["bk_biz_id"],
+                    validated_request_data["app_name"],
+                    validated_request_data["source_info"]["apm_service_name"],
+                    validated_request_data["start_time"],
+                    validated_request_data["end_time"],
+                )
+
+        raise ValueError(f"不支持获取: {validated_request_data['source_type']}类型的链接")
+
+
+class NodeEndpointsTopResource(Resource):
+    """[拓扑图]服务节点接口列表"""
+
+    RequestSerializer = NodeEndpointTopSerializer
+
+    def perform_request(self, validated_request_data):
+        return EndpointListEntrance.list_top(**validated_request_data)
+
+
+class NodeRelationDetailResource(Resource):
+    """[资源拓扑]单个节点资源详情信息"""
+
+    RequestSerializer = NodeRelationDetailSerializer
+
+    def perform_request(self, validated_request_data):
+        return NodeRelationDetailHandler.get_detail(**validated_request_data)
+
+
+class NodeRelationResource(Resource):
+    """[资源拓扑]节点资源拓扑信息"""
+
+    RequestSerializer = NodeRelationSerializer
+
+    def perform_request(self, validated_request_data):
+        entrance = RelationEntrance(
+            validated_request_data.pop("path_type"), validated_request_data.pop("paths", None), **validated_request_data
+        )
+        return entrance.export(entrance.relation_tree, export_type="layer")
+
+
+class GraphDiffResource(Resource):
+    """[拓扑图]拓扑图对比"""
+
+    RequestSerializer = GraphDiffSerializer
+
+    def perform_request(self, validated_data):
+        base_time = validated_data.pop("base_time")
+        diff_time = validated_data.pop("diff_time")
+
+        converter = GraphQuery.create_converter(
+            validated_data["bk_biz_id"],
+            validated_data["app_name"],
+            export_type=GraphViewType.TOPO_DIFF.value,
+            service_name=validated_data.get("service_name"),
+            runtime={"option_kind": validated_data["option_kind"]},
+        )
+
+        base_graph_query = GraphQuery(
+            **{
+                **validated_data,
+                **self.enlarge_time(base_time),
+            }
+        )
+        base_graph = base_graph_query.create_graph(
+            extra_plugins=converter.extra_pre_plugins(base_graph_query.common_params())
+        )
+
+        diff_graph_query = GraphQuery(
+            **{
+                **validated_data,
+                **self.enlarge_time(diff_time),
+            }
+        )
+        diff_graph = diff_graph_query.create_graph(
+            extra_plugins=converter.extra_pre_plugins(diff_graph_query.common_params())
+        )
+
+        return (base_graph & diff_graph) >> converter
+
+    def enlarge_time(self, timestamp):
+        """将时间戳转为时间范围 (间隔一分钟)"""
+        start = datetime.datetime.fromtimestamp(timestamp)
+        end = start + datetime.timedelta(minutes=1)
+
+        return {"start_time": int(start.timestamp()), "end_time": int(end.timestamp())}

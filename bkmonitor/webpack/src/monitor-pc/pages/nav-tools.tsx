@@ -153,7 +153,7 @@ class NavTools extends DocumentLinkMixin {
 
   handleShowSetting(key: string) {
     const item = this.setList.find(item => item.id === key);
-    if (!!item) {
+    if (item) {
       this.handleSet(item);
     }
   }
@@ -375,14 +375,10 @@ class NavTools extends DocumentLinkMixin {
               {this.languageList.map((item, index) => (
                 <li
                   key={index}
-                  class='nav-item'
+                  class={`nav-item ${item.id === this.$store.getters.lang ? 'nav-item-active' : ''}`}
                   onClick={() => this.handleLanguageChange(item)}
                 >
-                  <img
-                    class='language-icon'
-                    alt='language'
-                    src={item.id === 'en' ? enIcon : zhIcon}
-                  />
+                  <span class={`bk-icon ${item.id === 'en' ? 'icon-english' : 'icon-chinese'} language-icon`} />
                   {item.name}
                 </li>
               ))}
@@ -402,7 +398,15 @@ class NavTools extends DocumentLinkMixin {
             theme='light common-monitor'
           >
             <div class='header-help'>
-              <span class='help-icon icon-monitor icon-mc-help-fill' />
+              <svg
+                style='width: 1em; height: 1em;vertical-align: middle;fill: currentColor;overflow: hidden;'
+                class='bk-icon'
+                version='1.1'
+                viewBox='0 0 64 64'
+                xmlns='http://www.w3.org/2000/svg'
+              >
+                <path d='M32,4C16.5,4,4,16.5,4,32c0,3.6,0.7,7.1,2,10.4V56c0,1.1,0.9,2,2,2h13.6C36,63.7,52.3,56.8,58,42.4S56.8,11.7,42.4,6C39.1,4.7,35.6,4,32,4z M31.3,45.1c-1.7,0-3-1.3-3-3s1.3-3,3-3c1.7,0,3,1.3,3,3S33,45.1,31.3,45.1z M36.7,31.7c-2.3,1.3-3,2.2-3,3.9v0.9H29v-1c-0.2-2.8,0.7-4.4,3.2-5.8c2.3-1.4,3-2.2,3-3.8s-1.3-2.8-3.3-2.8c-1.8-0.1-3.3,1.2-3.5,3c0,0.1,0,0.1,0,0.2h-4.8c0.1-4.4,3.1-7.4,8.5-7.4c5,0,8.3,2.8,8.3,6.9C40.5,28.4,39.2,30.3,36.7,31.7z' />
+              </svg>
             </div>
             <template slot='content'>
               <ul class='monitor-navigation-help'>
@@ -485,6 +489,7 @@ class NavTools extends DocumentLinkMixin {
           // #if APP !== 'external'
           [
             <SettingModal
+              key='setting-modal'
               activeMenu={this.activeSetting}
               menuList={this.setList}
               show={this.show}
@@ -495,7 +500,7 @@ class NavTools extends DocumentLinkMixin {
             >
               {this.show && this.createAsyncComponent()}
             </SettingModal>,
-            <keep-alive>
+            <keep-alive key='keep-alive'>
               {this.globalSearchShow && (
                 <GlobalSearchModal
                   ref='globalSearchModal'

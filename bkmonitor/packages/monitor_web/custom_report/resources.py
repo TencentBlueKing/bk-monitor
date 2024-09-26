@@ -814,6 +814,29 @@ class ModifyCustomTimeSeries(Resource):
         )
 
 
+class ModifyCustomTimeSeriesDesc(Resource):
+    """
+    修改自定义时序描述信息
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        desc = serializers.CharField(max_length=1024, default="", label="描述信息")
+
+    class ResponseSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = CustomTSTable
+            fields = "__all__"
+
+    @atomic()
+    def perform_request(self, validated_request_data):
+        time_series_obj = CustomTSTable.objects.get(time_series_group_id=validated_request_data["time_series_group_id"])
+        time_series_obj.desc = validated_request_data["desc"]
+        time_series_obj.save()
+        return time_series_obj
+
+
 class DeleteCustomTimeSeries(Resource):
     """
     删除自定义时序

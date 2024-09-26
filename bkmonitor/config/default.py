@@ -236,7 +236,7 @@ BKM_SPACE_INJECT_REQUEST_ENABLED = False
 # 返回参数是否需要注入空间属性
 BKM_SPACE_INJECT_RESPONSE_ENABLED = False
 # 项目空间API类模块路径
-BKM_SPACE_API_CLASS = "monitor_web.commons.biz.space_api.InjectSpaceApi"
+BKM_SPACE_API_CLASS = "bkmonitor.space.space_api.InjectSpaceApi"
 
 #
 # Database
@@ -497,7 +497,7 @@ IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER = True
 
 # 监控内置可观测数据上报Redis Key TODO：联调时赋予默认值，后续更改
 BUILTIN_DATA_RT_REDIS_KEY = os.getenv(
-    "BKAPP_BUILTIN_DATA_RT_REDIS_KEY", "bkmonitorv3:spaces:build_in_result_table_detail"
+    "BKAPP_BUILTIN_DATA_RT_REDIS_KEY", "bkmonitorv3:spaces:built_in_result_table_detail"
 )
 
 # APM config
@@ -931,7 +931,7 @@ CACHE_HOST_TIMEOUT = 60 * 2
 CACHE_DATA_TIMEOUT = 60 * 2
 CACHE_OVERVIEW_TIMEOUT = 60 * 2
 CACHE_HOME_TIMEOUT = 60 * 10
-CACHE_USER_TIMEOUT = 60 * 10
+CACHE_USER_TIMEOUT = 60 * 60
 
 # SaaS访问读写权限
 ROLE_WRITE_PERMISSION = "w"
@@ -1065,10 +1065,14 @@ BK_IAM_SAAS_HOST = os.getenv("BK_IAM_SITE_URL") or get_service_url(BK_IAM_APP_CO
 
 # 文档中心地址
 BK_DOCS_SITE_URL = os.getenv("BK_DOCS_SITE_URL") or get_service_url("bk_docs_center", bk_paas_host=BK_PAAS_HOST)
+if not BK_DOCS_SITE_URL.endswith("/"):
+    BK_DOCS_SITE_URL += "/"
+
+# 文档中心地址
 DOC_HOST = "https://bk.tencent.com/docs/"
 
 # 版本差异变量
-if PLATFORM == "community":
+if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
     BK_DOCS_SITE_URL = DOC_HOST
 
 # monitor api base url:
@@ -1410,3 +1414,30 @@ BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")
 
 # 监控平台apigw代码
 BK_APIGW_NAME = os.getenv("BK_APIGW_NAME", "bk-monitor")
+
+# 默认K8S插件采集集群ID
+K8S_PLUGIN_COLLECT_CLUSTER_ID = ""
+
+# 腾讯云指标插件配置
+# {
+#     "label": "",
+#     "plugin_display_name": "",
+#     "description_md": "",
+#     "logo": "",
+#     "collect_json": {
+#         "values": {
+#             "limits": {
+#                 "cpu": "100m",
+#                 "memory": "100Mi"
+#             },
+#             "requests": {
+#                 "cpu": "10m",
+#                 "memory": "15Mi"
+#             }
+#         },
+#         "template": ""
+#     },
+#     "config_json": []
+# }
+TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {}
+TENCENT_CLOUD_METRIC_PLUGIN_ID = "qcloud_exporter"

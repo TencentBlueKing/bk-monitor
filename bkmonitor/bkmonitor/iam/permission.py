@@ -30,6 +30,7 @@ from iam.apply.models import (
     ResourceInstance,
     ResourceNode,
 )
+from iam.eval.expression import OP
 from iam.exceptions import AuthAPIError
 from iam.meta import setup_action, setup_resource, setup_system
 from iam.utils import gen_perms_apply_data
@@ -472,6 +473,13 @@ class Permission(object):
 
         if not policies:
             return []
+
+        op = policies["op"]
+        if op == OP.ANY:
+            return space_list
+        elif op == OP.IN:
+            value = policies["value"]
+            return list(filter(lambda x: str(x["bk_biz_id"]) in value, space_list))
 
         # 生成表达式
         expr = make_expression(policies)

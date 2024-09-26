@@ -1,0 +1,94 @@
+@import '../../../static/css/mixin.scss';
+
+@mixin container {
+  height: 198px;
+  padding: 8px 16px 0 12px;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px 0 #1919290d;
+
+  @include simple-class-style('w', 84);
+  @include simple-class-style('w', 54);
+  @include simple-class-style('w', 60);
+  @include simple-class-style('w', 27);
+  @include simple-class-style('w', 177);
+  @include simple-class-style('w', 110);
+  @include simple-class-style('w', 73);
+  @include simple-class-style('w', 88);
+  @include simple-class-style('h', 3);
+  @include simple-class-style('h', 16);
+  @include simple-class-style('h', 22);
+  @include simple-class-style('h', 82);
+  @include simple-class-style('mt', 6);
+  @include simple-class-style('mr', 4);
+  @include simple-class-style('mr', 32);
+
+  .w-auto {
+    width: auto;
+  }
+}
+
+.uptime-check-task-card-skeleton-01 {
+  @include container;
+  
+
+  .head {
+    display: flex;
+    align-items: flex-start;
+
+    .head-ring {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+    }
+
+    .head-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      margin-top: 4px;
+      margin-left: 8px;
+
+      .head-right-bottom {
+        display: flex;
+        align-items: center;
+        margin-top: 6px;
+      }
+    }
+  }
+
+  .bottom {
+    display: flex;
+    flex-direction: column;
+    margin-top: 8px;
+
+    .bottom-item {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 14px;
+
+      .bottom-item-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+    }
+  }
+}
+
+.uptime-check-task-card-skeleton-02 {
+  @include container;
+
+  .header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .bottom {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 18px;
+  }
+}

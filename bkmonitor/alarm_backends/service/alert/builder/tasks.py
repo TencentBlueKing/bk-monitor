@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
+import time
 from typing import List
 
 from celery.task import task
@@ -25,23 +26,25 @@ def run_alert_builder(topic_data_id, bootstrap_server, events: List[ConsumerReco
     exc = None
     builder.logger.info("[alert.builder] start, total(%s) events", len(events))
     valid_events = []
+    start = time.time()
     try:
-        with metrics.ALERT_PROCESS_TIME.time():
-            for event in events:
-                try:
-                    topic = event.topic
-                    data_id = topic_data_id.get(f"{bootstrap_server}|{topic}")
-                    value = json.loads(event.value)
-                    value.update({"data_id": data_id, "topic": topic})
-                    valid_events.append(Event(value))
-                except Exception as e:
-                    builder.logger.warning("[alert.builder] ignore event: %s, reason: %s", event, e)
-                    continue
-            builder.process(valid_events)
+        for event in events:
+            try:
+                topic = event.topic
+                data_id = topic_data_id.get(f"{bootstrap_server}|{topic}")
+                value = json.loads(event.value)
+                value.update({"data_id": data_id, "topic": topic})
+                valid_events.append(Event(value))
+            except Exception as e:
+                builder.logger.warning("[alert.builder] ignore event: %s, reason: %s", event, e)
+                continue
+        builder.process(valid_events)
     except Exception as e:
         builder.logger.exception("[alert.builder ERROR] detail: %s", e)
         exc = e
     builder.logger.info("[alert.builder] end, event processed(%s/%s)", len(valid_events), len(events))
+    if events:
+        metrics.ALERT_PROCESS_TIME.observe((time.time() - start) / len(events))
     # 记录拉取并处理的事件数量
     metrics.ALERT_PROCESS_PULL_EVENT_COUNT.labels(status=metrics.StatusEnum.from_exc(exc), exception=exc).inc(
         len(events)

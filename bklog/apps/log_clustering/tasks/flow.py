@@ -19,53 +19,21 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
+from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
+from apps.log_clustering.handlers.data_access.data_access import DataAccessHandler
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.utils.log import logger
 from apps.utils.task import high_priority_task
 
 
 @high_priority_task(ignore_result=True)
-def update_filter_rules(index_set_id):
-    logger.info(f"update filter rules beginning: index_set_id -> {index_set_id}")
-    DataFlowHandler().update_filter_rules(index_set_id=index_set_id)
-    logger.info(f"update filter rules success: index_set_id -> {index_set_id}")
-
-
-@high_priority_task(ignore_result=True)
-def update_clustering_clean(index_set_id):
-    logger.info(f"update flow beginning: index_set_id -> {index_set_id}")
-    DataFlowHandler().update_flow(index_set_id=index_set_id)
-    logger.info(f"update flow success: index_set_id -> {index_set_id}")
-
-
-@high_priority_task(ignore_result=True)
-def update_predict_clustering_clean(index_set_id):
-    logger.info(f"update predict flow beginning: index_set_id -> {index_set_id}")
-    DataFlowHandler().update_predict_flow(index_set_id=index_set_id)
-    logger.info(f"update predict flow success: index_set_id -> {index_set_id}")
-
-
-@high_priority_task(ignore_result=True)
-def update_predict_flow_filter_rules(index_set_id):
-    logger.info(f"update predict flow filter rules beginning: index_set_id -> {index_set_id}")
-    DataFlowHandler().update_predict_flow_filter_rules(index_set_id=index_set_id)
-    logger.info(f"update predict flow filter rules success: index_set_id -> {index_set_id}")
-
-
-# 更新预测 flow中的预测节点
-@high_priority_task(ignore_result=True)
-def update_predict_nodes_and_online_task(index_set_id):
-    logger.info(f"update predict flow nodes and online task beginning: index_set_id -> {index_set_id}")
-    DataFlowHandler().update_predict_nodes_and_online_tasks(index_set_id=index_set_id)
-    logger.info(f"update predict flow nodes and online task success: index_set_id -> {index_set_id}")
-
-
-@high_priority_task(ignore_result=True)
-def update_log_count_aggregation_flow(index_set_id):
-    """
-    更新聚合flow
-    """
-    logger.info(f"update agg flow nodes beginning: index_set_id -> {index_set_id}")
-    DataFlowHandler().update_log_count_aggregation_flow(index_set_id=index_set_id)
-    logger.info(f"update agg flow nodes success: index_set_id -> {index_set_id}")
+def update_clustering_clean(collector_config_id, fields, etl_config, etl_params):
+    logger.info(f"update flow beginning: collector_config_id -> {collector_config_id}")
+    clustering_handler = ClusteringConfigHandler(collector_config_id=collector_config_id)
+    ClusteringConfigHandler.pre_check_fields(
+        fields=fields, etl_config=etl_config, clustering_fields=clustering_handler.data.clustering_fields
+    )
+    if clustering_handler.data.bkdata_etl_processing_id:
+        DataAccessHandler().create_or_update_bkdata_etl(collector_config_id, fields, etl_params)
+    DataFlowHandler().update_flow(index_set_id=clustering_handler.data.index_set_id)
+    logger.info(f"update flow success: collector_config_id -> {collector_config_id}")

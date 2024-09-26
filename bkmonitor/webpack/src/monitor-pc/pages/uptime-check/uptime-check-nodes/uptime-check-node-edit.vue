@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    v-bkloading="{ isLoading: isInitLoading }"
     class="node-edit"
+    v-bkloading="{ isLoading: isInitLoading }"
   >
     <div v-if="isShow">
       <div class="node-edit-item">
@@ -37,15 +37,20 @@
           <div class="business-container">
             <verify-input :show-validate.sync="rules.bk_biz_id.validate">
               <bk-select
-                v-model="node.bk_biz_id"
-                class="business-select"
                 :style="{ background: canSelectBusiness ? '#fafafa' : '#FFFFFF' }"
-                :placeholder="$t('选择业务')"
+                class="business-select"
+                v-model="node.bk_biz_id"
                 :clearable="false"
                 :disabled="canSelectBusiness"
+                :list="businessList"
+                :placeholder="$t('选择业务')"
+                display-key="text"
+                id-key="id"
+                enable-virtual-scroll
+                @change="handleBusinessOptClick"
                 @toggle="handleBusinessToggle"
               >
-                <bk-option
+                <!-- <bk-option
                   v-for="item in businessList"
                   :id="item.id"
                   :key="item.id"
@@ -54,19 +59,19 @@
                   <div @click="handleBusinessOptClick(item.id)">
                     {{ item.text }}
                   </div>
-                </bk-option>
+                </bk-option> -->
               </bk-select>
             </verify-input>
             <bk-checkbox
               v-model="node.is_common"
               v-authority="{ active: !authority.MANAGE_NODE_AUTH }"
-              :disabled="!authority.MANAGE_NODE_AUTH"
               :class="[
                 'business-checkbox',
                 {
                   'auth-disabled': !authority.MANAGE_NODE_AUTH,
                 },
               ]"
+              :disabled="!authority.MANAGE_NODE_AUTH"
               @click.native="!authority.MANAGE_NODE_AUTH && handleShowAuthorityDetail(uptimeAuth.MANAGE_NODE_AUTH)"
             >
               {{ $t('设为公共节点') }}
@@ -86,8 +91,8 @@
             >
               <node-target
                 v-if="node.host_list"
-                :target="node"
                 :disable-host-method="disableHostMethod"
+                :target="node"
                 @change="handleTargetChange"
               />
             </verify-input>
@@ -101,8 +106,8 @@
         <div class="item-container">
           <div class="area-container">
             <bk-select
-              v-model="node.country"
               class="area-select"
+              v-model="node.country"
               :placeholder="$t('选择国家')"
               searchable
               @change="handleCountryChange"
@@ -119,8 +124,8 @@
               </bk-option>
             </bk-select>
             <bk-select
-              v-model="node.city"
               class="area-select"
+              v-model="node.city"
               :placeholder="$t('选择省份')"
               searchable
             >
@@ -132,16 +137,16 @@
               />
             </bk-select>
             <svg
-              v-bk-tooltips.right="$t('从配置平台过滤地区和运营商')"
               class="hint-icon"
+              v-bk-tooltips.right="$t('从配置平台过滤地区和运营商')"
               viewBox="0 0 64 64"
             >
               <g>
                 <circle
                   cx="32"
                   cy="32"
-                  r="25"
                   fill="#63656E"
+                  r="25"
                 />
               </g>
               <g>
@@ -173,8 +178,8 @@
             >
               <bk-radio
                 v-for="(item, index) in operatorList"
-                :key="index"
                 class="operator-radio"
+                :key="index"
                 :value="item.cn"
               >
                 {{ isEn ? item.en : item.cn }}
@@ -192,10 +197,10 @@
                   >
                     <bk-input
                       ref="operatorInput"
-                      v-model.trim="customCarrieroperator"
                       class="operator-input"
-                      @focus="handleOperatorFocus(...arguments, $event)"
+                      v-model.trim="customCarrieroperator"
                       @blur="validateField(node.carrieroperator, rules.carrieroperator)"
+                      @focus="handleOperatorFocus(...arguments, $event)"
                       @input="handleOperatorInput"
                     />
                   </verify-input>
@@ -237,8 +242,8 @@
               @change="() => (rules.ip_type.validate = false)"
             >
               <bk-checkbox
-                value="IPv4"
                 style="margin-right: 48px"
+                value="IPv4"
                 >IPv4</bk-checkbox
               >
               <bk-checkbox value="IPv6"> IPv6 </bk-checkbox>
@@ -250,11 +255,11 @@
         <div class="item-label" />
         <div class="item-container">
           <bk-button
-            v-authority="{ active: !authority.MANAGE_AUTH }"
             class="button-submit"
-            theme="primary"
-            :icon="isSubmitLoading ? 'loading' : ''"
+            v-authority="{ active: !authority.MANAGE_AUTH }"
             :disabled="isSubmitLoading"
+            :icon="isSubmitLoading ? 'loading' : ''"
+            theme="primary"
             @click="authority.MANAGE_AUTH ? handleSubmit() : handleShowAuthorityDetail(uptimeAuth.MANAGE_AUTH)"
           >
             {{ submitBtnText }}
@@ -278,21 +283,21 @@
         class="operator-popover-container"
       >
         <ul
-          v-show="filterCustomOperatorList.length"
           class="operator-popover"
+          v-show="filterCustomOperatorList.length"
         >
           <li
             v-for="item in filterCustomOperatorList"
-            :key="item"
             class="operator-popover-item"
+            :key="item"
             @click.stop="handleOperatorOptClick(item)"
           >
             <span class="item-text">{{ item }}</span>
           </li>
         </ul>
         <div
-          v-show="!filterCustomOperatorList.length"
           class="no-data"
+          v-show="!filterCustomOperatorList.length"
         >
           {{ $t('无匹配选项') }}
         </div>

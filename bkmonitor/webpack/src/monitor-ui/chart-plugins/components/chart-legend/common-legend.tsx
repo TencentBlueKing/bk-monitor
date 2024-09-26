@@ -33,6 +33,7 @@ import './common-legend.scss';
 interface ILegendProps {
   // 图例数据
   legendData: ILegendItem[];
+  alignCenter?: boolean;
 }
 interface ILegendEvent {
   // 点击图例事件
@@ -43,6 +44,8 @@ interface ILegendEvent {
 export default class CommonLegend extends tsc<ILegendProps, ILegendEvent> {
   // 图例数据
   @Prop({ required: true }) readonly legendData: ILegendItem[];
+  /* 图例数据居中显示 */
+  @Prop({ type: Boolean, default: false }) alignCenter: boolean;
 
   mouseEvent = {
     isMouseDown: false,
@@ -73,7 +76,7 @@ export default class CommonLegend extends tsc<ILegendProps, ILegendEvent> {
 
   render() {
     return (
-      <div class='common-legend'>
+      <div class={['common-legend', { 'align-center': this.alignCenter }]}>
         {this.legendData.map((legend, index) => {
           if (legend.hidden) return undefined;
           return (
