@@ -304,12 +304,14 @@ interface IDataRetrievalPromqlItem {
   enable: boolean;
   alias: string;
   step: number | string;
+  filter_dict?: Record<string, string>;
 }
 export class DataRetrievalPromqlItem {
   alias = '';
   code = '';
   enable = true;
   errMsg = '';
+  filter_dict?: Record<string, string> = undefined;
   key = random(8);
   step = 'auto';
   constructor(data?: IDataRetrievalPromqlItem) {
@@ -319,6 +321,7 @@ export class DataRetrievalPromqlItem {
     this.enable = data.enable || true;
     this.alias = data.alias || 'a';
     this.step = (data.step as any) || 'auto';
+    this.filter_dict = data?.filter_dict;
     this.errMsg = '';
   }
 }

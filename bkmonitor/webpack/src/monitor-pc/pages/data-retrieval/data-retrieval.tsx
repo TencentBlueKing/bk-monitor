@@ -72,6 +72,7 @@ import EventRetrieval from './event-retrieval/event-retrieval';
 import ExpressionItem from './expression-item/expression-item';
 import AddCollectDialog from './favorite-container/add-collect-dialog';
 import FavoriteIndex from './favorite-container/collect-index';
+import FilterDict from './filter-dict';
 import HandleBtn from './handle-btn/handle-btn';
 import {
   DataRetrievalPromqlItem,
@@ -1881,6 +1882,7 @@ export default class DataRetrieval extends tsc<object> {
             promql: promqlItem.code,
             interval: promqlItem.step || 'auto',
             alias: promqlItem.alias,
+            filter_dict: promqlItem.filter_dict || undefined,
           });
         }
       }
@@ -2059,8 +2061,6 @@ export default class DataRetrieval extends tsc<object> {
     to?: string
   ) {
     const promqlData = this.getRoutePromqlData(targets);
-    console.info(targets, '++++++++++');
-    debugger;
     if (promqlData.length) {
       this.handleRoutePromqlData(promqlData, from, to);
       this.handleQuery();
@@ -2261,6 +2261,7 @@ export default class DataRetrieval extends tsc<object> {
           code: t.data.source,
           alias: t.data.promqlAlias,
           step: t.data.step,
+          filter_dict: t.data.filter_dict,
         };
         promqlData.push(new DataRetrievalPromqlItem(temp as any));
       }
@@ -2271,6 +2272,7 @@ export default class DataRetrieval extends tsc<object> {
         const q = target.data.query_configs[0];
         const temp = {
           code: q.promql,
+          filter_dict: q.filter_dict,
           step: q.interval || q.agg_interval || 'auto',
         };
         promqlData.push(new DataRetrievalPromqlItem(temp as any));
@@ -3008,7 +3010,12 @@ export default class DataRetrieval extends tsc<object> {
       this.handleFavoriteHiddenAndShow(false);
     }
   }
-
+  handleDeletePromqlFilterDict(index: number) {
+    const promqlItem = this.promqlData[index];
+    if (Object.keys(promqlItem?.filter_dict || {}).length <= 0) return;
+    promqlItem.filter_dict = {};
+    this.handleQueryProxy();
+  }
   render() {
     // 查询项/表达式头部区域
     const titleSlot = (item: IDataRetrieval.ILocalValue, index: number) => (
@@ -3323,6 +3330,12 @@ export default class DataRetrieval extends tsc<object> {
                           onFocus={() => this.handlePromqlDataFocus(index)}
                         />
                       </div>
+                      {Object.keys(item.filter_dict || {}).length > 0 && (
+                        <FilterDict
+                          filterDict={item.filter_dict}
+                          onDelete={() => this.handleDeletePromqlFilterDict(index)}
+                        />
+                      )}
                       <span class='step-content'>
                         <bk-input
                           class='step-input'
