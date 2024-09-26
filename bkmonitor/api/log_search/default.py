@@ -346,7 +346,7 @@ class ListEsRouterResource(LogSearchAPIByApiGwResource):
         space_uid = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
 
-class DataBusCollectorsResource(LogSearchAPIByApiGwResource):
+class DataBusCollectorsResource(LogSearchAPIGWResource):
     """
     数据采集器列表
     """
@@ -365,7 +365,7 @@ class DataBusCollectorsResource(LogSearchAPIByApiGwResource):
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
 
 
-class DataBusCollectorsIndicesResource(LogSearchAPIByApiGwResource):
+class DataBusCollectorsIndicesResource(LogSearchAPIGWResource):
     """
     数据采集器索引列表
     """
@@ -384,7 +384,7 @@ class DataBusCollectorsIndicesResource(LogSearchAPIByApiGwResource):
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
 
 
-class LogSearchIndexSetResource(LogSearchAPIByApiGwResource):
+class LogSearchIndexSetResource(LogSearchAPIGWResource):
     """
     索引集列表
     """
