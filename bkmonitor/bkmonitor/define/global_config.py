@@ -379,6 +379,9 @@ STANDARD_CONFIGS = OrderedDict(
         ("DEMO_BIZ_ID", slz.IntegerField(label=_("Demo业务ID"), default=0)),
         ("DEMO_BIZ_WRITE_PERMISSION", slz.BooleanField(label=_("Demo业务写权限"), default=False)),
         ("DEMO_BIZ_APPLY", slz.CharField(label=_("业务接入链接"), default="", allow_blank=True)),
+        ("ECOSYSTEM_REPOSITORY_URL", slz.CharField(label=_("接入样例代码仓库"), default="", allow_blank=True)),
+        # 区别于 ECOSYSTEM_REPOSITORY_URL，每个 Git 对代码路径定义不同，同时可以控制展示分支
+        ("ECOSYSTEM_CODE_ROOT_URL", slz.CharField(label=_("接入样例代码根 URL"), default="", allow_blank=True)),
         ("APM_ACCESS_URL", slz.CharField(label=_("APM接入链接"), default="", allow_blank=True)),
         ("APM_BEST_PRACTICE_URL", slz.CharField(label=_("APM最佳实践链接"), default="", allow_blank=True)),
         ("APM_METRIC_DESCRIPTION_URL", slz.CharField(label=_("APM指标说明"), default="", allow_blank=True)),

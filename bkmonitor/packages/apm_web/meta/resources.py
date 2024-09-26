@@ -16,6 +16,7 @@ import operator
 import re
 from collections import defaultdict
 from dataclasses import asdict
+from typing import Any, Dict, List
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -115,6 +116,7 @@ from constants.apm import (
     DataSamplingLogTypeChoices,
     FlowType,
     OtlpKey,
+    OtlpProtocol,
     SpanStandardField,
     StandardFieldCategory,
     TailSamplingSupportMethod,
@@ -1302,6 +1304,89 @@ class QueryExceptionEventResource(PageListResource):
         return self.get_pagination_data(res, validated_data)
 
 
+class MetaInstrumentGuides(Resource):
+    class RequestSerializer(serializers.Serializer):
+
+        application_id = serializers.IntegerField(label="应用id")
+        service_name = serializers.CharField(label="服务名称")
+        base_endpoint = serializers.URLField(label="接收端地址")
+
+        languages = serializers.ListSerializer(
+            label="语言列表",
+            child=serializers.ChoiceField(label="语言", choices=[lang.lower() for lang in LanguageEnum.get_keys()]),
+        )
+        deployments = serializers.ListSerializer(
+            label="环境列表",
+            required=False,
+            default=[DeploymentEnum.CENTOS.id],
+            child=serializers.ChoiceField(label="环境", choices=[deploy.lower() for deploy in DeploymentEnum.get_keys()]),
+        )
+        plugins = serializers.ListSerializer(
+            label="场景列表",
+            required=False,
+            default=[PluginEnum.OPENTELEMETRY.id],
+            child=serializers.ChoiceField(label="场景", choices=[plugin.lower() for plugin in PluginEnum.get_keys()]),
+        )
+        access_config = serializers.DictField(label="接入配置", required=False)
+
+        OTLP_EXPORTER_GRPC_PORT = 4317
+        OTLP_EXPORTER_HTTP_PORT = 4318
+
+        def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
+            application_info: Dict[str, Any] = ApplicationInfoResource().request(
+                {"application_id": attrs["application_id"]}
+            )
+            data_token: str = QueryBkDataToken().request({"application_id": attrs["application_id"]})
+
+            datasource_switches: Dict[str, Any] = application_info.get("switches") or {}
+            attrs["access_config"] = {
+                "token": data_token,
+                "otlp": {
+                    # 语意参考：https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options
+                    # 默认通过 gRPC 上报
+                    "protocol": OtlpProtocol.GRPC,
+                    "endpoint": f"{attrs['base_endpoint']}:{self.OTLP_EXPORTER_GRPC_PORT}",
+                    "enable_metrics": datasource_switches.get("metric", False),
+                    "enable_logs": datasource_switches.get("log", False),
+                    "enable_traces": datasource_switches.get("tracing", False),
+                },
+                "profiling": {
+                    # 语意参考：https://grafana.com/docs/pyroscope/latest/configure-client/
+                    "enabled": datasource_switches.get("profiling", False),
+                    "endpoint": f"{attrs['base_endpoint']}:{self.OTLP_EXPORTER_HTTP_PORT}/pyroscope",
+                },
+            }
+            return attrs
+
+    def perform_request(self, validated_request_data):
+
+        context: Dict[str, str] = {
+            "ECOSYSTEM_REPOSITORY_URL": settings.ECOSYSTEM_REPOSITORY_URL,
+            "ECOSYSTEM_CODE_ROOT_URL": settings.ECOSYSTEM_CODE_ROOT_URL,
+            "APM_ACCESS_URL": settings.APM_ACCESS_URL,
+            "service_name": validated_request_data["service_name"],
+            "access_config": validated_request_data["access_config"],
+        }
+        helper: Help = Help(context)
+
+        guides: List[Dict[str, Any]] = []
+        for language, deployment, plugin in itertools.product(
+            validated_request_data["languages"],
+            validated_request_data["deployments"],
+            validated_request_data["plugins"],
+        ):
+            guides.append(
+                {
+                    "plugin": plugin,
+                    "deployment": deployment,
+                    "language": language,
+                    "content": helper.get_help_md(plugin, language, deployment),
+                }
+            )
+
+        return guides
+
+
 class MetaConfigInfoResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
@@ -1372,9 +1457,14 @@ class MetaConfigInfoResource(Resource):
 
         return {
             "deployments": [asdict(d) for d in DeploymentEnum.get_values()],
-            "languages": [asdict(value) for value in LanguageEnum.get_values()],
+            "languages": [
+                asdict(value)
+                for value in LanguageEnum.get_values()
+                if value.id
+                in [LanguageEnum.PYTHON.id, LanguageEnum.CPP.id, LanguageEnum.GOLANG.id, LanguageEnum.JAVA.id]
+            ],
             "plugins": plugins,
-            "help_md": {plugin.id: Help(plugin.id).get_help_md() for plugin in [Opentelemetry]},
+            # "help_md": {plugin.id: Help(plugin.id).get_help_md() for plugin in [Opentelemetry]},
             "setup": self.setup(validated_request_data["bk_biz_id"]),
         }
 
