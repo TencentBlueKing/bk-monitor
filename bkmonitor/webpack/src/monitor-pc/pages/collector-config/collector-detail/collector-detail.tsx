@@ -313,7 +313,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             name={TabEnum.Configuration}
             renderDirective='if'
           >
-            {!!this.collectId && (
+            {!!this.collectId && this.detailData.basic_info?.name && (
               <CollectorConfiguration
                 id={this.collectId as any}
                 key={this.allData[TabEnum.Configuration].renderKey}
@@ -328,21 +328,25 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             name={TabEnum.TargetDetail}
             renderDirective='if'
           >
-            <AlertTopic
-              id={this.collectId as any}
-              class='mb-24'
-              alarmGroupList={this.alarmGroupList}
-              alarmGroupListLoading={this.alarmGroupListLoading}
-              stage={TCollectorAlertStage.collecting}
-              updateKey={this.allData[TabEnum.TargetDetail].topicKey}
-              onAlarmGroupListRefresh={this.handleAlarmGroupListRefresh}
-            />
-            <CollectorStatusDetails
-              data={this.allData[TabEnum.TargetDetail].data}
-              updateKey={this.allData[TabEnum.TargetDetail].updateKey}
-              onCanPolling={this.handlePolling}
-              onRefresh={this.handleRefreshData}
-            />
+            {this.alarmGroupList?.length > 0 && (
+              <AlertTopic
+                id={this.collectId as any}
+                class='mb-24'
+                alarmGroupList={this.alarmGroupList}
+                alarmGroupListLoading={this.alarmGroupListLoading}
+                stage={TCollectorAlertStage.collecting}
+                updateKey={this.allData[TabEnum.TargetDetail].topicKey}
+                onAlarmGroupListRefresh={this.handleAlarmGroupListRefresh}
+              />
+            )}
+            {!!this.allData[TabEnum.TargetDetail].data && (
+              <CollectorStatusDetails
+                data={this.allData[TabEnum.TargetDetail].data}
+                updateKey={this.allData[TabEnum.TargetDetail].updateKey}
+                onCanPolling={this.handlePolling}
+                onRefresh={this.handleRefreshData}
+              />
+            )}
           </bk-tab-panel>
           <bk-tab-panel
             label={this.$t('链路状态')}

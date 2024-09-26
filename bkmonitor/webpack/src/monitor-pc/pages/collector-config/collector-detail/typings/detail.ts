@@ -51,12 +51,12 @@ export enum TabEnum {
 }
 
 export interface DetailData {
-  basic_info: object;
-  extend_info: object;
-  metric_list: object[];
-  runtime_params: object[];
+  basic_info: Record<string, any>;
+  extend_info: Record<string, any>;
+  metric_list: Record<string, any>[];
+  runtime_params: Record<string, any>[];
   subscription_id: number;
-  target_info: object;
+  target_info: Record<string, any>;
 }
 
 export enum TCollectorAlertStage {

@@ -29,7 +29,7 @@
     ref="wrap"
   >
     <!-- 文本类型 -->
-    <template v-if="!['file', 'boolean', 'list', 'switch'].includes($attrs.type)">
+    <template v-if="!['file', 'boolean', 'list', 'switch', 'tag_list', 'code'].includes($attrs.type)">
       <!-- 新增判断是否为密码框，若为密码框则不显示密码，根据密码的有无显示placeholder为"已配置/未配置" -->
       <bk-input
         :class="['input-text', { password: isPasswordInput }]"
@@ -49,7 +49,8 @@
         <bk-button
           class="ml5"
           @click="handleResetPassword"
-        >{{ $t('重置') }}</bk-button>
+          >{{ $t('重置') }}</bk-button
+        >
       </template>
       <!-- <span ref="tempSpan" class="temp-span">{{params}}</span> -->
       <div v-show="false">
@@ -71,7 +72,7 @@
       </div>
     </template>
     <div
-      v-if="$attrs.type === 'file'"
+      v-else-if="$attrs.type === 'file'"
       class="file-input-wrap"
     >
       <template v-if="config.key === 'yaml'">
@@ -104,7 +105,7 @@
             ref="upload"
             accept=".yaml,.yml"
             @change="fileChange"
-          >
+          />
         </div>
       </template>
       <template v-else>
@@ -138,8 +139,45 @@
         />
       </div>
     </div>
+    <template v-else-if="$attrs.type === 'code'">
+      <div class="auto-complete-input-select code-select">
+        <slot name="prepend" />
+        <MonacoEditor
+          class="code-select-editor"
+          style="height: 300px"
+          :value="config.default"
+          :language="'json'"
+          :theme="'vs-light'"
+          :height="300"
+          @change="handleCodeChange"
+        />
+      </div>
+    </template>
+    <template v-else-if="$attrs.type === 'tag_list'">
+      <div class="auto-complete-input-select">
+        <slot name="prepend" />
+        <bk-select
+          :clearable="false"
+          :disabled="false"
+          v-model="params"
+          multiple
+          @change="handleTagListChange"
+          ext-cls="select-custom"
+          ext-popover-cls="select-popover-custom"
+          :allow-create="false"
+          :display-tag="true"
+        >
+          <bk-option
+            v-for="option in config.election"
+            :key="option.id"
+            :id="option.id"
+            :name="option.name"
+          />
+        </bk-select>
+      </div>
+    </template>
     <!-- list类型 下拉列表 -->
-    <template v-if="$attrs.type === 'list'">
+    <template v-else-if="$attrs.type === 'list'">
       <!-- 当前为security_level选项 -->
       <template v-if="allConfig.key === 'security_level'">
         <div class="auto-complete-input-select">
@@ -155,7 +193,7 @@
             <bk-option
               v-for="option in allConfig.election"
               :key="option"
-              :id="option"
+              :id="option.id"
               :name="option"
             />
           </bk-select>
@@ -173,12 +211,12 @@
             ext-popover-cls="select-popover-custom"
           >
             <bk-option
-              v-for="option in allConfig.auth_priv[curAuthPriv].need
+              v-for="option in allConfig?.auth_priv?.[curAuthPriv]?.need
                 ? allConfig.auth_priv[curAuthPriv].election
                 : allConfig.election"
               :key="option"
-              :id="option"
-              :name="option"
+              :id="option?.id ? option.id : option"
+              :name="option?.name ? option.name : option"
             />
           </bk-select>
         </div>
@@ -191,6 +229,7 @@
 import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
 
 import ImportFile from '../../../plugin-manager/plugin-instance/set-steps/components/import-file.vue';
+import MonacoEditor from '../../../../components/editors/monaco-editor.vue';
 
 interface IPopoverInstance {
   hide: (time: number) => void | boolean;
@@ -206,6 +245,7 @@ interface ITipsItem {
   name: 'auto-complete-input',
   components: {
     ImportFile,
+    MonacoEditor,
   },
 })
 export default class StrategySetTarget extends Vue {
@@ -374,7 +414,12 @@ export default class StrategySetTarget extends Vue {
     this.emitData(newVal);
     this.$emit('curAuthPriv', newVal);
   }
-
+  handleTagListChange(val: string[]) {
+    this.emitData(val);
+  }
+  handleCodeChange(val: string) {
+    this.emitData(val);
+  }
   fileChange(e): void {
     if (e.target.files[0]) {
       this.loading = true;
@@ -527,6 +572,14 @@ export default class StrategySetTarget extends Vue {
 .auto-complete-input {
   position: relative;
 
+  .code-select {
+    align-items: flex-start;
+
+    .monaco-editor {
+      margin-left: 15px;
+    }
+  }
+
   .temp-span {
     position: absolute;
     top: 0;
@@ -534,7 +587,7 @@ export default class StrategySetTarget extends Vue {
     opacity: 0;
   }
 
-  :deep(.input-text ) {
+  :deep(.input-text) {
     &.password {
       .control-icon {
         display: none;
@@ -555,7 +608,7 @@ export default class StrategySetTarget extends Vue {
       margin-right: 10px;
     }
 
-    :deep(.bk-tooltip ) {
+    :deep(.bk-tooltip) {
       margin-right: 0;
     }
 
@@ -567,7 +620,7 @@ export default class StrategySetTarget extends Vue {
       line-height: 30px;
       text-overflow: ellipsis;
       white-space: nowrap;
-      background: #f2f4f8;
+      background: #fafbfd;
       border: 1px solid#c4c6cc;
       border-right: 0;
     }
@@ -638,6 +691,32 @@ export default class StrategySetTarget extends Vue {
 
     .prepend {
       border-right: 1px solid #c4c6cc;
+    }
+  }
+}
+</style>
+<style lang="scss">
+.password-input + .tooltips-icon {
+  /* stylelint-disable-next-line declaration-no-important */
+  right: 80px !important;
+}
+
+.auto-complete-input {
+  position: relative;
+
+  .code-select {
+    align-items: flex-start;
+
+    .prepend-text {
+      /* stylelint-disable-next-line declaration-no-important */
+      border-right: 1px solid #c4c6cc !important;
+    }
+
+    &-editor {
+      height: 300px;
+      margin-top: 2px;
+      margin-left: 15px;
+      border: 1px solid #c4c6cc;
     }
   }
 }

@@ -94,6 +94,7 @@ export default {
   '{0}个拓扑节点': '{0} topology nodes',
   '{0}个服务模板': '{0} service templates',
   '{0}个集群模板': '{0} set templates',
+  '{0}个集群': '{0} cluster',
   '{0}个动态分组': '{0} dynamic groups',
   '指标值,数值 ； ': 'Metric value, Numeric;',
   '失败{0}台主机': 'hosts(failed: {0})',
