@@ -43,7 +43,7 @@ import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import PanelItem from '../../../../components/panel-item/panel-item';
 
-import type { ETelemetryDataType, IStrategyData } from '../type';
+import type { ETelemetryDataType, IAppInfo, IStrategyData } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import 'vue-json-pretty/lib/styles.css';
@@ -51,11 +51,13 @@ import './metric.scss';
 
 interface IProps {
   activeTab: ETelemetryDataType;
+  appInfo: IAppInfo;
 }
 
 @Component
 export default class DataStatusMetric extends tsc<IProps> {
   @Prop({ default: '', type: String }) activeTab: ETelemetryDataType;
+  @Prop({ type: Object, default: () => ({}) }) appInfo: IAppInfo;
 
   pickerTimeRange: string[] = [
     dayjs(new Date()).add(-1, 'd').format('YYYY-MM-DD'),
@@ -109,10 +111,6 @@ export default class DataStatusMetric extends tsc<IProps> {
     }
     return apiMap;
   }
-  /** 应用ID */
-  get appId() {
-    return Number(this.$route.params?.id || 0);
-  }
   /** 告警icon颜色 */
   get strategyStautsColor() {
     return this.strategyInfo.alert_status === 1 ? 'green' : 'red';
@@ -130,7 +128,7 @@ export default class DataStatusMetric extends tsc<IProps> {
   async getNoDataStrategyInfo() {
     this.strategyLoading = true;
     const params = {
-      application_id: this.appId,
+      application_id: this.appInfo.application_id,
       start_time: Date.parse(this.pickerTimeRange[0]) / 1000,
       end_time: Date.parse(this.pickerTimeRange[1]) / 1000,
       telemetry_data_type: this.activeTab,
@@ -148,7 +146,7 @@ export default class DataStatusMetric extends tsc<IProps> {
    * @desc 获取图表数据
    */
   async getDataView() {
-    const data = await dataViewConfig(this.appId, {
+    const data = await dataViewConfig(this.appInfo.application_id, {
       telemetry_data_type: this.activeTab,
     }).catch(() => []);
     this.dashboardPanels = data.map(item => new PanelModel(item));
@@ -159,11 +157,12 @@ export default class DataStatusMetric extends tsc<IProps> {
   async getSamplingList() {
     this.tableLoading = true;
     const params = {
-      application_id: this.appId,
+      application_id: this.appInfo.application_id,
       size: 10,
       log_type: 'trace',
+      telemetry_data_type: this.activeTab,
     };
-    const data = await dataSampling(this.appId, params).catch(() => []);
+    const data = await dataSampling(this.appInfo.application_id, params).catch(() => []);
     this.collapseRowIndexs = [];
     this.samplingList = data?.map(item => {
       const date = dayjs.tz(dayjs(item.sampling_time));
@@ -230,7 +229,6 @@ export default class DataStatusMetric extends tsc<IProps> {
    * @param { boolean } value 当前开关状态
    */
   preCheckChange(value: boolean) {
-    const applicationId = this.appId;
     return new Promise((resolve, reject) => {
       this.$bkInfo({
         title: value ? this.$t('你确认要关闭？') : this.$t('你确认要开启？'),
@@ -238,7 +236,7 @@ export default class DataStatusMetric extends tsc<IProps> {
 
         confirmFn: async () => {
           const api = value ? noDataStrategyDisable : noDataStrategyEnable;
-          const isPass = await api({ application_id: applicationId })
+          const isPass = await api({ application_id: this.appInfo.application_id })
             .then(() => {
               this.getNoDataStrategyInfo();
               return true;

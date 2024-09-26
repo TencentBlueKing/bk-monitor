@@ -134,7 +134,13 @@ export default class DataStatus extends tsc<object> {
 
   /** 获取选择的tab组件 */
   getActiveComponent() {
-    return <Metric activeTab={this.activeTab} />;
+    return (
+      <Metric
+        key={this.activeTab}
+        activeTab={this.activeTab}
+        appInfo={this.appInfo}
+      />
+    );
   }
 
   render() {
