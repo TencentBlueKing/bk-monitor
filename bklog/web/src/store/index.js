@@ -1012,6 +1012,7 @@ const store = new Vuex.Store({
           if (resp.data && !resp.message) {
             return readBlobRespToJson(resp.data).then(({ code, data, result, message }) => {
               const rsolvedData = data;
+              rsolvedData.is_error = false;
               const indexSetQueryResult = state.indexSetQueryResult;
               const logList = parseBigNumberList(rsolvedData.list);
               const originLogList = parseBigNumberList(rsolvedData.origin_log_list);
@@ -1044,7 +1045,7 @@ const store = new Vuex.Store({
         .catch(() => {
           state.searchTotal = 0;
           commit('updateSqlQueryFieldList', []);
-          commit('updateIndexSetQueryResult', [{ is_error: true }]);
+          commit('updateIndexSetQueryResult', { is_error: true });
         })
         .finally(() => {
           commit('updateIndexSetQueryResult', { is_loading: false });
@@ -1206,45 +1207,57 @@ const store = new Vuex.Store({
       };
 
       /** 判断条件是否已经在检索内 */
-      const isAdditionExist = ({ field, value, operator }) => {
-        const mapOperator = getAdditionMappingOperator({ field, value, operator });
-        const isExist = state.indexItem.addition.some(addition => {
-          return (
-            addition.field === field &&
-            addition.operator === mapOperator &&
-            addition.value.toString() === value.toString()
-          );
-        });
+      const searchValueIsExist = (newSearchValue, searchMode) => {
+        let isExist;
+        if (searchMode === 'ui') {
+          isExist = state.indexItem.addition.some(addition => {
+            return (
+              addition.field === newSearchValue.field &&
+              addition.operator === newSearchValue.operator &&
+              addition.value.toString() === newSearchValue.value.toString()
+            );
+          });
+        }
+        if (searchMode === 'sql') {
+          const keyword = state.indexItem.keyword.replace(/^\s*\*\s*$/, '');
+          isExist = keyword.indexOf(newSearchValue) !== -1;
+        }
         return isExist;
       };
 
-      const mapOperator = getAdditionMappingOperator({ field, operator });
-      const newAddition = { field, operator: mapOperator, value };
-      const isExist = isAdditionExist({ field, operator, value });
+      let newSearchValue = null;
+      const searchMode = state.indexItem.search_mode;
+      if (searchMode === 'ui') {
+        const mapOperator = getAdditionMappingOperator({ field, operator });
+        newSearchValue = { field, operator: mapOperator, value };
+      }
+      if (searchMode === 'sql') {
+        newSearchValue = getSqlAdditionMappingOperator({ field, operator })?.(value);
+      }
+      const isExist = searchValueIsExist(newSearchValue, searchMode);
       // 已存在相同条件
       if (isExist) {
-        return Promise.resolve([newAddition, isNewSearchPage]);
+        return Promise.resolve([newSearchValue, searchMode, isNewSearchPage]);
       }
       if (!isLink) {
-        if (state.indexItem.search_mode === 'ui') {
+        if (searchMode === 'ui') {
           const startIndex = state.indexItem.addition.length;
-          state.indexItem.addition.splice(startIndex, 0, newAddition);
+          state.indexItem.addition.splice(startIndex, 0, newSearchValue);
           dispatch('requestIndexSetQuery');
         }
 
-        if (state.indexItem.search_mode === 'sql') {
-          const appendText = getSqlAdditionMappingOperator({ field, operator })?.(value);
-
+        if (searchMode === 'sql') {
           const keyword = state.indexItem.keyword.replace(/^\s*\*\s*$/, '');
-          if (keyword.indexOf(appendText) === -1) {
+          if (keyword.indexOf(newSearchValue) === -1) {
             const keywords = keyword.length > 0 ? [keyword] : [];
-            keywords.push(appendText);
-            state.indexItem.keyword = keywords.join(' AND ');
-            dispatch('requestIndexSetQuery');
+            keywords.push(newSearchValue);
+            newSearchValue = keywords.join(' AND ');
           }
+          state.indexItem.keyword = newSearchValue;
+          dispatch('requestIndexSetQuery');
         }
       }
-      return Promise.resolve([newAddition, isNewSearchPage]);
+      return Promise.resolve([newSearchValue, searchMode, isNewSearchPage]);
     },
 
     changeShowUnionSource({ commit, dispatch, state }) {

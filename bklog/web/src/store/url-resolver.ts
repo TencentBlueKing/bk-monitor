@@ -94,6 +94,7 @@ class RouteUrlResolver {
       'datePickerValue',
       'host_scopes',
       'ip_chooser',
+      'search_mode',
     ];
   }
 

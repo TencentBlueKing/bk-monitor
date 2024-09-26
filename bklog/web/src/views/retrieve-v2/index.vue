@@ -109,7 +109,7 @@
   };
 
   handleSpaceIdChange();
-  store.dispatch('updateIndexItemByRoute', { route, list: [] });
+  // store.dispatch('updateIndexItemByRoute', { route, list: [] });
 
   watch(
     routeQueryParams,

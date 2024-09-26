@@ -439,13 +439,35 @@ export default {
       if (typeof ipChooser === 'object') return JSON.stringify(ipChooser);
       return ipChooser;
     },
-    getConditionRouterParams(linkAdditionList = null, isNewLink = false) {
+    getConditionRouterParams(searchValue, searchMode, isNewLink) {
       const { params, query } = this.$route;
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      const { ip_chooser, addition, ...reset } = query;
+      const { ip_chooser, addition, keyword, ...reset } = query;
       const filterQuery = reset; // 给query排序 让addition和ip_chooser排前面
+      let newAddition;
+      let newKeyWord;
+      if (searchMode === 'ui') {
+        newAddition = isNewLink ? JSON.stringify([searchValue]) : this.getFiledAdditionStr([searchValue]);
+        newKeyWord = undefined;
+      } else {
+        newAddition = undefined;
+        if (isNewLink) {
+          newKeyWord = searchValue;
+        } else {
+          const keyword = this.$store.state.indexItem.keyword.replace(/^\s*\*\s*$/, '');
+          if (keyword.indexOf(searchValue) === -1) {
+            const keywords = keyword.length > 0 ? [keyword] : [];
+            keywords.push(searchValue);
+            newKeyWord = keywords.join(' AND ');
+          } else {
+            newKeyWord = keyword;
+          }
+        }
+      }
       const newQueryObj = {
-        addition: isNewLink ? JSON.stringify(linkAdditionList) : this.getFiledAdditionStr(linkAdditionList),
+        keyword: newKeyWord,
+        addition: newAddition,
+        search_mode: searchMode,
       }; // 新的query对象
       const newIPChooser = ip_chooser;
 
@@ -467,9 +489,9 @@ export default {
     handleAddCondition(field, operator, value, isLink = false) {
       this.$store
         .dispatch('setQueryCondition', { field, operator, value, isLink })
-        .then(([newAddition, isNewSearchPage]) => {
+        .then(([newSearchValue, searchMode, isNewSearchPage]) => {
           if (isLink) {
-            const openUrl = this.getConditionRouterParams([newAddition], isNewSearchPage);
+            const openUrl = this.getConditionRouterParams(newSearchValue, searchMode, isNewSearchPage);
             window.open(openUrl, '_blank');
           }
         });
