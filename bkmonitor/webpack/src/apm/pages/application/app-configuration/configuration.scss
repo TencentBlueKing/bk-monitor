@@ -1,7 +1,4 @@
 @import '../../../theme';
-$statusColor2: #3fc06d #ea3636 #ff9c01;
-$statusColor3: #e5f6ea #ffe6e6 #ffe8c3;
-$statusType2: 'green' 'red' 'yellow';
 
 .application-configuration {
   @include application-configuration-nav;
@@ -28,17 +25,6 @@ $statusType2: 'green' 'red' 'yellow';
       margin: 16px;
       border-radius: 2px;
       box-shadow: 0 2px 4px 0 rgba(25,25,41,.05);
-
-      @for $i from 1 through length($statusType2) {
-        .status-icon.status-#{nth($statusType2, $i)} {
-          display: inline-block;
-          width: 8px;
-          height: 8px;
-          background-color: nth($statusColor3, $i);
-          border: 1px solid nth($statusColor2, $i);
-          border-radius: 50%;
-        }
-      }
 
       .conf-content {
         flex: 1;
