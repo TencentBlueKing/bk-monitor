@@ -600,7 +600,6 @@
 
     // },
     beforeDestroy() {
-      console.log('--beforeDestroy');
       this.isInDestroy = true;
       updateTimezone();
       this.$store.commit('updateUnionIndexList', []);
