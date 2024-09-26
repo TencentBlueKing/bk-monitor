@@ -197,12 +197,11 @@ class TracingBackendHandler(TelemetryBackendHandler):
         return result
 
     def data_sampling(self, log_type: str, size: int = 10, **kwargs):
-        table_id = getattr(self.app, f"{log_type}_result_table_id")
-        resp = api.metadata.kafka_tail({"table_id": table_id, "size": size})
+        resp = api.metadata.kafka_tail({"table_id": self.result_table_id, "size": size}) if self.result_table_id else []
         return [{"raw_log": log, "sampling_time": log.get("datetime", "")} for log in resp]
 
     def get_data_view_config(self):
-        table_name = (self.app.trace_result_table_id.replace(".", "_"),)
+        table_name = (self.result_table_id.replace(".", "_"),)
         return self.build_data_view_config(
             data_type_label="time_series", data_source_label="custom", table_name=table_name
         )
@@ -248,18 +247,27 @@ class MetricBackendHandler(TelemetryBackendHandler):
     指标后端适配器
     """
 
+    @cached_property
+    def bk_base_data_id(self):
+        # Todo: APM_APPLY 临时方案，待接口支持
+        from metadata import models
+
+        vm_record = models.AccessVMRecord.objects.filter(result_table_id=self.result_table_id).first()
+        return vm_record.bk_base_data_id if vm_record else None
+
     def storage_info(self):
-        return GetDataBusStoragesInfo().request(raw_data_id=self.bk_data_id)
+        return GetDataBusStoragesInfo().request(raw_data_id=self.bk_base_data_id) if self.bk_base_data_id else []
 
     def data_sampling(self, **kwargs):
-        resp = GetDataBusSamplingData().request(data_id=self.bk_data_id)
         resp_data = []
-        for log in resp:
-            log_content = json.loads(log["value"])
-            time_str = datetime.datetime.fromtimestamp(
-                int(log_content["time"]), timezone.get_current_timezone()
-            ).strftime("%Y-%m-%d %H:%M:%S")
-            resp_data.append({"raw_log": log_content, "sampling_time": time_str})
+        if self.bk_base_data_id:
+            resp = GetDataBusSamplingData().request(data_id=self.bk_base_data_id)
+            for log in resp:
+                log_content = json.loads(log["value"])
+                time_str = datetime.datetime.fromtimestamp(
+                    int(log_content["time"]) / 1000, timezone.get_current_timezone()
+                ).strftime("%Y-%m-%d %H:%M:%S")
+                resp_data.append({"raw_log": log_content, "sampling_time": time_str})
         return resp_data
 
     def get_data_view_config(self):
@@ -276,17 +284,18 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
     """
 
     def storage_info(self):
-        return GetDataBusStoragesInfo().request(raw_data_id=self.bk_data_id)
+        return GetDataBusStoragesInfo().request(raw_data_id=self.bk_data_id) if self.bk_data_id else []
 
-    def data_sampling(self):
-        resp = GetDataBusSamplingData().request(data_id=self.bk_data_id)
+    def data_sampling(self, **kwargs):
         resp_data = []
-        for log in resp:
-            log_content = json.loads(log["value"])
-            time_str = datetime.datetime.fromtimestamp(
-                int(log_content["time"]), timezone.get_current_timezone()
-            ).strftime("%Y-%m-%d %H:%M:%S")
-            resp_data.append({"raw_log": log_content, "sampling_time": time_str})
+        if self.bk_data_id:
+            resp = GetDataBusSamplingData().request(data_id=self.bk_data_id)
+            for log in resp:
+                log_content = json.loads(log["value"])
+                time_str = datetime.datetime.fromtimestamp(
+                    int(log_content["time"]) / 1000, timezone.get_current_timezone()
+                ).strftime("%Y-%m-%d %H:%M:%S")
+                resp_data.append({"raw_log": log_content, "sampling_time": time_str})
         return resp_data
 
     def get_data_view_config(self):
