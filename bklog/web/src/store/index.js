@@ -170,6 +170,7 @@ const store = new Vuex.Store({
     clearSearchValueNum: 0,
     // 存放接口报错信息的对象
     apiErrorInfo: {},
+    clusterParams: null,
   },
   // 公共 getters
   getters: {
@@ -545,6 +546,9 @@ const store = new Vuex.Store({
     updateStoreIsShowClusterStep(state, val) {
       state.storeIsShowClusterStep = val;
     },
+    updateClusterParams(state, payload) {
+      state.clusterParams = payload;
+    },
     updateSqlQueryFieldList(state, payload) {
       const target = {};
       state.retrieveDropdownData = {};
@@ -854,8 +858,13 @@ const store = new Vuex.Store({
         }
       }
 
+      if (result.clusterParams) {
+        commit('updateClusterParams', result.clusterParams);
+      }
+
       if (ids.length) {
         delete result.unionList;
+        delete result.clusterParams;
 
         const payload = {
           ...result,
@@ -1164,14 +1173,14 @@ const store = new Vuex.Store({
      * @returns
      */
     setQueryCondition({ state, dispatch }, payload) {
-      const { field, value, isLink = false } = payload;
-      const isNewSearchPage = payload.operator === 'new-search-page-is';
-      const operator = isNewSearchPage ? 'is' : payload.operator;
+      const newQueryList = Array.isArray(payload) ? payload : [payload];
+      const isLink = newQueryList[0]?.isLink;
+      const searchMode = state.indexItem.search_mode;
+      const isNewSearchPage = newQueryList[0].operator === 'new-search-page-is';
       const getFieldType = field => {
         const target = state.indexFieldInfo.fields?.find(item => item.field_name === field);
         return target ? target.field_type : '';
       };
-
       const getAdditionMappingOperator = ({ operator, field }) => {
         let mappingKey = {
           // is is not 值映射
@@ -1195,7 +1204,6 @@ const store = new Vuex.Store({
         }
         return mappingKey[operator] ?? operator; // is is not 值映射
       };
-
       const getSqlAdditionMappingOperator = ({ operator, field }) => {
         let mappingKey = {
           // is is not 值映射
@@ -1205,7 +1213,6 @@ const store = new Vuex.Store({
 
         return mappingKey[operator] ?? operator; // is is not 值映射
       };
-
       /** 判断条件是否已经在检索内 */
       const searchValueIsExist = (newSearchValue, searchMode) => {
         let isExist;
@@ -1224,40 +1231,43 @@ const store = new Vuex.Store({
         }
         return isExist;
       };
+      const filterQueryList = newQueryList
+        .map(item => {
+          const isNewSearchPage = item.operator === 'new-search-page-is';
+          item.operator = isNewSearchPage ? 'is' : item.operator;
+          const { field, operator, value } = item;
+          let newSearchValue = null;
+          if (searchMode === 'ui') {
+            const mapOperator = getAdditionMappingOperator({ field, operator });
+            newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
+          }
+          if (searchMode === 'sql') {
+            newSearchValue = getSqlAdditionMappingOperator({ field, operator })?.(value);
+          }
+          const isExist = searchValueIsExist(newSearchValue, searchMode);
+          return !isExist || isNewSearchPage ? newSearchValue : null;
+        })
+        .filter(Boolean);
 
-      let newSearchValue = null;
-      const searchMode = state.indexItem.search_mode;
-      if (searchMode === 'ui') {
-        const mapOperator = getAdditionMappingOperator({ field, operator });
-        newSearchValue = { field, operator: mapOperator, value };
-      }
-      if (searchMode === 'sql') {
-        newSearchValue = getSqlAdditionMappingOperator({ field, operator })?.(value);
-      }
-      const isExist = searchValueIsExist(newSearchValue, searchMode);
-      // 已存在相同条件
-      if (isExist) {
-        return Promise.resolve([newSearchValue, searchMode, isNewSearchPage]);
-      }
+      // list内的所有条件均相同时不进行添加条件处理
+      if (!filterQueryList.length) return Promise.resolve([filterQueryList, searchMode, isNewSearchPage]);
       if (!isLink) {
         if (searchMode === 'ui') {
           const startIndex = state.indexItem.addition.length;
-          state.indexItem.addition.splice(startIndex, 0, newSearchValue);
+          state.indexItem.addition.splice(startIndex, 0, ...filterQueryList);
           dispatch('requestIndexSetQuery');
         }
 
         if (searchMode === 'sql') {
           const keyword = state.indexItem.keyword.replace(/^\s*\*\s*$/, '');
-          if (keyword.indexOf(newSearchValue) === -1) {
-            const keywords = keyword.length > 0 ? [keyword] : [];
-            keywords.push(newSearchValue);
-            newSearchValue = keywords.join(' AND ');
-          }
-          state.indexItem.keyword = newSearchValue;
+          const keywords = keyword.length > 0 ? [keyword] : [];
+          const newSearchKeywords = filterQueryList.filter(item => keyword.indexOf(item) === -1);
+          const newSearchKeyword = keywords.concat(newSearchKeywords).join(' AND ');
+          state.indexItem.keyword = newSearchKeyword;
           dispatch('requestIndexSetQuery');
         }
       }
-      return Promise.resolve([newSearchValue, searchMode, isNewSearchPage]);
+      return Promise.resolve([filterQueryList, searchMode, isNewSearchPage]);
     },
 
     changeShowUnionSource({ commit, dispatch, state }) {

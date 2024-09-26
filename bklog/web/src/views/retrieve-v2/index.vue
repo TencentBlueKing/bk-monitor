@@ -53,12 +53,14 @@
   const routeQueryParams = computed(() => {
     const { ids, isUnionIndex, search_mode } = store.state.indexItem;
     const unionList = store.state.unionIndexList;
+    const clusterParams = store.state.clusterParams;
     return {
       ...(store.getters.retrieveParams ?? {}),
       search_mode,
       ids,
       isUnionIndex,
       unionList,
+      clusterParams,
     };
   });
 
@@ -165,6 +167,17 @@
   const handleHeightChange = height => {
     searchBarHeight.value = height;
   };
+
+  const initIsShowClusterWatch = watch(
+    () => store.state.clusterParams,
+    () => {
+      if (!!store.state.clusterParams) {
+        activeTab.value = 'clustering';
+        initIsShowClusterWatch();
+      }
+    },
+    { deep: true },
+  );
 </script>
 <template>
   <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]">
@@ -222,7 +235,7 @@
           class="result-row"
         >
           <SearchResultTab v-model="activeTab"></SearchResultTab>
-          <SearchResultPanel :active-tab="activeTab"></SearchResultPanel>
+          <SearchResultPanel :active-tab.sync="activeTab"></SearchResultPanel>
         </div>
       </div>
     </div>

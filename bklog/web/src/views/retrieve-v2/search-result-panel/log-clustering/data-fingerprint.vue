@@ -399,6 +399,7 @@
   import ClusterEventPopover from './components/finger-tools/cluster-popover.tsx';
   import ClusterFilter from './components/finger-tools/cluster-filter';
   import fingerSelectColumn from './components/finger-select-column';
+  import { getConditionRouterParams } from '../panel-util';
   export default {
     components: {
       ClusterEventPopover,
@@ -407,7 +408,6 @@
       EmptyStatus,
       BkUserSelector,
     },
-    // inject: ['batchAddCondition'],
     inheritAttrs: false,
     props: {
       fingerList: {
@@ -604,6 +604,7 @@
               field: el,
               operator: 'is',
               value: row.group[index],
+              isLink,
             });
           });
         }
@@ -611,8 +612,19 @@
           field: `__dist_${this.requestData.pattern_level}`,
           operator: 'is',
           value: row.signature.toString(),
+          isLink,
         });
-        // this.batchAddCondition(additionList, isLink);
+        // 聚类下钻只能使用ui模式
+        this.$store.commit('updateIndexItem', { search_mode: 'ui' });
+        this.$store.commit('updateClusterParams', null)
+        this.$store.dispatch('setQueryCondition', additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
+          if (isLink) {
+            const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
+            window.open(openUrl, '_blank');
+          } else {
+            this.$emit('show-change', 'origin');
+          }
+        });
       },
       showArrowsClass(row) {
         if (row.year_on_year_percentage === 0) return '';
