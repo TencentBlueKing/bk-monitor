@@ -62,14 +62,9 @@ def get_bcs_dataids(bk_biz_ids: list = None, cluster_ids: list = None, mode: str
     data_id_to_cluster = {}
 
     # 根据查询模式，组装{data_id:cluster_id} 的映射关系,此处考虑到跨空间和共享集群场景
-    if mode == 'both':  # K8SMetric 和 CustomMetric都需要
-        for cluster in clusters:
-            data_id_to_cluster.update(
-                {cluster.K8sMetricDataID: cluster.cluster_id, cluster.CustomMetricDataID: cluster.cluster_id}
-            )
-    elif need_custom_metric:  # 只需要CustomMetric
+    if need_custom_metric:  # 过滤CustomMetric
         data_id_to_cluster.update({cluster.CustomMetricDataID: cluster.cluster_id for cluster in clusters})
-    elif need_k8s_metric:  # 只需要K8SMetric
+    if need_k8s_metric:  # 过滤K8SMetric
         data_id_to_cluster.update({cluster.K8sMetricDataID: cluster.cluster_id for cluster in clusters})
 
     # 如果集群 id 存在，则以集群 ID 为准
