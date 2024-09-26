@@ -43,19 +43,19 @@ import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import PanelItem from '../../../../components/panel-item/panel-item';
 
-import type { IStrategyData } from '../../type';
+import type { ETelemetryDataType, IStrategyData } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import 'vue-json-pretty/lib/styles.css';
 import './metric.scss';
 
 interface IProps {
-  activeTab: string;
+  activeTab: ETelemetryDataType;
 }
 
 @Component
 export default class DataStatusMetric extends tsc<IProps> {
-  @Prop({ default: '', type: String }) activeTab: string;
+  @Prop({ default: '', type: String }) activeTab: ETelemetryDataType;
 
   pickerTimeRange: string[] = [
     dayjs(new Date()).add(-1, 'd').format('YYYY-MM-DD'),
@@ -133,17 +133,25 @@ export default class DataStatusMetric extends tsc<IProps> {
       application_id: this.appId,
       start_time: Date.parse(this.pickerTimeRange[0]) / 1000,
       end_time: Date.parse(this.pickerTimeRange[1]) / 1000,
+      telemetry_data_type: this.activeTab,
     };
     const data = await noDataStrategyInfo(params).catch(() => {});
     Object.assign(this.strategyInfo, data);
-    this.apdexChartPanel = new PanelModel(this.strategyInfo.alert_graph);
+    if (this.strategyInfo.alert_graph) {
+      this.apdexChartPanel = new PanelModel(this.strategyInfo.alert_graph);
+    } else {
+      this.apdexChartPanel = null;
+    }
     this.strategyLoading = false;
   }
   /**
    * @desc 获取图表数据
    */
   async getDataView() {
-    this.dashboardPanels = await dataViewConfig(this.appId).catch(() => []);
+    const data = await dataViewConfig(this.appId, {
+      telemetry_data_type: this.activeTab,
+    }).catch(() => []);
+    this.dashboardPanels = data.map(item => new PanelModel(item));
   }
   /**
    * @desc 获取采样数据

@@ -33,30 +33,11 @@ import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 
 import Metric from './dataStatus/metric';
 import TabList from './tabList';
+import { ETelemetryDataType } from './type';
 
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './data-status.scss';
-
-const TAB_LIST = [
-  {
-    name: 'metric',
-    label: '指标',
-  },
-  {
-    name: 'log',
-    label: '日志',
-  },
-
-  {
-    name: 'trace',
-    label: '调用链',
-  },
-  {
-    name: 'performance',
-    label: '性能分析',
-  },
-];
 
 @Component
 export default class DataStatus extends tsc<object> {
@@ -66,7 +47,25 @@ export default class DataStatus extends tsc<object> {
   ];
 
   /** 选择的tab*/
-  activeTab = 'metric';
+  tabList = [
+    {
+      name: ETelemetryDataType.metric,
+      label: window.i18n.tc('指标'),
+    },
+    {
+      name: ETelemetryDataType.log,
+      label: window.i18n.tc('日志'),
+    },
+    {
+      name: ETelemetryDataType.tracing,
+      label: window.i18n.tc('调用链'),
+    },
+    {
+      name: ETelemetryDataType.profiling,
+      label: window.i18n.tc('性能分析'),
+    },
+  ];
+  activeTab = ETelemetryDataType.metric;
   strategyLoading = false;
 
   // 派发到子孙组件内的视图配置变量
@@ -87,10 +86,6 @@ export default class DataStatus extends tsc<object> {
   created() {
     this.timezone = getDefaultTimezone();
   }
-  /** 获取选择的tab组件 */
-  getActiveComponent() {
-    return <Metric activeTab={this.activeTab} />;
-  }
 
   /**
    * @desc 日期范围改变
@@ -105,23 +100,28 @@ export default class DataStatus extends tsc<object> {
   }
 
   /** tab切换时 */
-  handleChangeActiveTab(active: string) {
+  handleChangeActiveTab(active: ETelemetryDataType) {
     this.activeTab = active;
-    switch (active) {
-      case 'log':
-        // this.getIndicesList();
-        break;
-      case 'metric':
-        // this.getStoreList();
-        break;
-      case 'trace':
-        // this.getMetaConfigInfo();
-        // this.getIndicesList();
-        // this.getFieldList();
-        break;
-      default: {
-      }
-    }
+    // switch (active) {
+    //   case ETelemetryDataType.log:
+    //     // this.getIndicesList();
+    //     break;
+    //   case ETelemetryDataType.metric:
+    //     // this.getStoreList();
+    //     break;
+    //   case ETelemetryDataType.tracing:
+    //     // this.getMetaConfigInfo();
+    //     // this.getIndicesList();
+    //     // this.getFieldList();
+    //     break;
+    //   default:
+    //     break;
+    // }
+  }
+
+  /** 获取选择的tab组件 */
+  getActiveComponent() {
+    return <Metric activeTab={this.activeTab} />;
   }
 
   render() {
@@ -130,7 +130,7 @@ export default class DataStatus extends tsc<object> {
         <div class='data-status-tab-wrap'>
           <TabList
             activeTab={this.activeTab}
-            tabList={TAB_LIST}
+            tabList={this.tabList}
             onChange={this.handleChangeActiveTab}
           />
           <TimeRange

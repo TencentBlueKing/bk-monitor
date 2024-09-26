@@ -241,3 +241,23 @@ export interface ICustomServiceInfo {
   uriMatch: number;
   rule: IRules;
 }
+
+/* telemetry_data_type 字段枚举 */
+export enum ETelemetryDataType {
+  log = 'log',
+  metric = 'metric',
+  profiling = 'profiling',
+  tracing = 'tracing',
+}
+/* 调用链存储信息 */
+export interface ITracingStorageInfo {
+  es_storage_cluster: number;
+  es_retention: number;
+  es_number_of_replicas: number;
+  es_shards: number;
+  es_slice_size: number;
+}
+/* 存储信息 */
+export interface IStorageInfo {
+  [key: string]: ITracingStorageInfo & [];
+}

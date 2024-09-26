@@ -338,7 +338,7 @@ export default class BasicInfo extends tsc<IProps> {
   }
   @Watch('appInfo', { immediate: true, deep: true })
   handleAppInfoChange(data: IAppInfo) {
-    this.localInstanceList = [...data.application_instance_name_config?.instance_name_composition];
+    this.localInstanceList = [...(data.application_instance_name_config?.instance_name_composition || [])];
 
     if (data.application_sampler_config.sampler_type === 'tail') {
       // 尾部采样处理展示规则
@@ -482,7 +482,7 @@ export default class BasicInfo extends tsc<IProps> {
       });
     }
     if (!isSubmit) {
-      this.localInstanceList = [...this.appInfo.application_instance_name_config?.instance_name_composition];
+      this.localInstanceList = [...(this.appInfo.application_instance_name_config?.instance_name_composition || [])];
     }
   }
   /**
@@ -1288,7 +1288,7 @@ export default class BasicInfo extends tsc<IProps> {
                 key={apdex.id}
                 class='display-item'
               >
-                <label>{apdex.name}</label>
+                <label for={apdex.id}>{apdex.name}</label>
                 <span>{this.appInfo.application_apdex_config[apdex.id] ?? '--'}</span>
                 <span class='unit'>ms</span>
               </div>
@@ -1532,7 +1532,7 @@ export default class BasicInfo extends tsc<IProps> {
                     key={apdex.name}
                     class='display-item'
                   >
-                    <label>{apdex.name}</label>
+                    <label for={apdex.id}>{apdex.name}</label>
                     <span>{this.appInfo.application_apdex_config[apdex.id] ?? '--'}</span>
                     <span class='unit'>ms</span>
                   </div>
@@ -1633,7 +1633,7 @@ export default class BasicInfo extends tsc<IProps> {
                       )}
                       {this.samplingRulesGroup.map((group, gIndex) => (
                         <div
-                          key={item.key}
+                          key={`sampling_${gIndex}`}
                           class='sampling-rule-item'
                         >
                           {group.map((item, index) => [
@@ -1752,12 +1752,12 @@ export default class BasicInfo extends tsc<IProps> {
             ) : (
               <div class='grid-form'>
                 <div class='display-item'>
-                  <label>{this.$t('采样类型')}</label>
+                  <label for=''>{this.$t('采样类型')}</label>
                   <span>{this.samplingTypeMaps[this.appInfo.application_sampler_config?.sampler_type] || '--'}</span>
                 </div>
                 {this.appInfo.application_sampler_config.sampler_type !== 'empty' ? (
                   <div class='display-item'>
-                    <label>{this.$t('采样比例')}</label>
+                    <label for=''>{this.$t('采样比例')}</label>
                     <span>
                       {this.appInfo.application_sampler_config?.sampler_percentage
                         ? `${this.appInfo.application_sampler_config?.sampler_percentage}%`
@@ -1769,7 +1769,7 @@ export default class BasicInfo extends tsc<IProps> {
                 )}
                 {this.appInfo.application_sampler_config.sampler_type === 'tail' ? (
                   <div class='display-item sampling-rules-item'>
-                    <label>{this.$t('必采规则')}</label>
+                    <label for=''>{this.$t('必采规则')}</label>
                     <div class='sampling-rules'>
                       {this.samplingRulesGroup.length > 1 ? (
                         <div class='sampling-rule-brackets'>
@@ -1926,7 +1926,7 @@ export default class BasicInfo extends tsc<IProps> {
               </transition-group>
             </div>
             <div class='panel-tips'>
-              <label>{this.$t('样例展示')}</label>
+              <label for=''>{this.$t('样例展示')}</label>
               <span>{this.sampleStr}</span>
             </div>
           </div>
