@@ -168,16 +168,18 @@ class Application(AbstractRecordModel):
     metric_result_table_id = models.CharField("指标结果表", max_length=255, default="")
     trace_result_table_id = models.CharField("Trace结果表", max_length=255, default="")
     time_series_group_id = models.IntegerField("时序分组ID", default=0)
-    data_status = models.CharField("数据状态", default=DataStatus.NO_DATA, max_length=50)
-    profiling_data_status = models.CharField("Profiling 数据状态", default=DataStatus.DISABLED, max_length=50)
-    metric_data_status = models.CharField("Metric 数据状态", default=DataStatus.NO_DATA, max_length=50)
-    log_data_status = models.CharField("Log 数据状态", default=DataStatus.DISABLED, max_length=50)
     source = models.CharField("来源系统", default=get_source_app_code, max_length=32)
     plugin_config = JsonField("log-trace 插件配置", null=True, blank=True)
-    # ↓ 4 个 Module 功能开关 (Trace 的开启使用 is_enabled 字段 这四个字段在 api 侧 model 同样有记录 需要保持同步)
+    # ↓ 4 个 Module 功能开关 (这四个字段在 api 侧 model 同样有记录 需要保持同步)
     is_enabled_profiling = models.BooleanField("是否开启 Profiling 功能", default=False)
     is_enabled_metric = models.BooleanField("是否开启 Metric 功能", default=True)
     is_enabled_log = models.BooleanField("是否开启 Log 功能", default=False)
+    is_enabled_trace = models.BooleanField("是否开启 Trace 功能", default=True)
+    # ↓ 4 个 Module 数据状态开关 (这四个字段由定时任务刷新)
+    trace_data_status = models.CharField("数据状态", default=DataStatus.NO_DATA, max_length=50)
+    profiling_data_status = models.CharField("Profiling 数据状态", default=DataStatus.DISABLED, max_length=50)
+    metric_data_status = models.CharField("Metric 数据状态", default=DataStatus.NO_DATA, max_length=50)
+    log_data_status = models.CharField("Log 数据状态", default=DataStatus.DISABLED, max_length=50)
 
     class Meta:
         ordering = ["-update_time", "-application_id"]

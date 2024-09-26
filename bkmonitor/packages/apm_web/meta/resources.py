@@ -438,10 +438,10 @@ class ApplicationInfoByAppNameResource(ApiAuthResource):
         data = ApplicationInfoResource().request({"application_id": application.application_id})
         start_time = validated_request_data.get("start_time")
         end_time = validated_request_data.get("end_time")
-        data["data_status"] = DataStatus.NO_DATA
+        data["trace_data_status"] = DataStatus.NO_DATA
         if start_time and end_time:
             if ApplicationHandler.have_data(application, start_time, end_time):
-                data["data_status"] = DataStatus.NORMAL
+                data["trace_data_status"] = DataStatus.NORMAL
         return data
 
 
@@ -821,17 +821,6 @@ class ListApplicationResource(PageListResource):
             StringTableFormat(id="retention", name=_("存储计划"), checked=True),
             StringTableFormat(id="service_count", name=_("服务数量")),
             StringTableFormat(id="is_enabled", name=_("应用是否启用"), checked=True),
-            StringTableFormat(id="is_enabled_profiling", name=_("Profiling是否启用"), checked=True),
-            StringTableFormat(
-                id="profiling_data_status",
-                name=_("Profiling数据状态"),
-                checked=True,
-            ),
-            StringTableFormat(
-                id="data_status",
-                name=_("Trace数据状态"),
-                checked=True,
-            ),
         ]
 
     class RequestSerializer(serializers.Serializer):
@@ -850,18 +839,8 @@ class ListApplicationResource(PageListResource):
                 "app_alias",
                 "description",
                 "is_enabled",
-                "is_enabled_profiling",
-                "profiling_data_status",
-                "data_status",
+                "trace_data_status",
             ]
-
-        def to_representation(self, instance):
-            data = super(ListApplicationResource.ApplicationSerializer, self).to_representation(instance)
-            if not data["is_enabled"]:
-                data["data_status"] = DataStatus.DISABLED
-            if not data["is_enabled_profiling"]:
-                data["profiling_data_status"] = DataStatus.DISABLED
-            return data
 
     def get_filter_fields(self):
         return ["app_name", "app_alias", "description"]
@@ -872,12 +851,13 @@ class ListApplicationResource(PageListResource):
         service_count_mapping = ServiceHandler.batch_query_service_count(data)
         for i in data:
             i["service_count"] = service_count_mapping.get(str(i["application_id"]), 0)
+
+        # 优先展示 trace 有数据的
         data = sorted(
             data,
-            key=lambda i: (
-                1 if i["data_status"] == DataStatus.NORMAL else 0,
-                1 if i["profiling_data_status"] == DataStatus.NORMAL else 0,
-                i["application_id"],
+            key=lambda j: (
+                1 if j["trace_data_status"] == DataStatus.NORMAL else 0,
+                j["application_id"],
             ),
             reverse=True,
         )

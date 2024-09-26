@@ -679,9 +679,9 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
     """
 
     METRIC_MAP = {
-        "avg_duration": {"metric": AvgDurationInstance},
-        "request_count": {"metric": RequestCountInstance},
-        "error_rate": {"metric": ErrorRateInstance, "ignore_keys": ["status_code"]},
+        "avg_duration": {"metric": AvgDurationInstance, "type": "range"},
+        "request_count": {"metric": RequestCountInstance, "type": "range"},
+        "error_rate": {"metric": ErrorRateInstance, "ignore_keys": ["status_code"], "type": "range"},
         "p50": {
             "metric": functools.partial(
                 DurationBucket,
@@ -699,9 +699,9 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             "type": "instant",
         },
         # strategy_count 特殊处理
-        "strategy_count": None,
+        "strategy_count": {},
         # alert_status 特殊处理
-        "alert_status": None,
+        "alert_status": {},
     }
 
     SyncResource = ServiceListResource
@@ -713,34 +713,22 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         end_time = serializers.IntegerField(required=True, label="数据结束时间")
 
     @classmethod
-    def _get_column_data_mapping(cls, app: Application, column: str, start_time, end_time):
+    def _get_column_metric_mapping(cls, column_metric, metric_params):
         """
-        获取服务异步列数据映射
+        获取服务异步列数据映射 (指标)
         """
-        if column not in cls.METRIC_MAP:
-            return {}
 
-        metric_params = {
-            "application": app,
-            "start_time": start_time,
-            "end_time": end_time,
-        }
-
-        if column in ["strategy_count", "alert_status"]:
-            return cls._get_service_strategy_mapping(**metric_params)
-
-        m = cls.METRIC_MAP[column]
-        if m.get("type") == "instant":
+        if column_metric.get("type") == "instant":
             return ServiceHandler.get_service_metric_instant_mapping(
-                m["metric"],
+                column_metric["metric"],
                 **metric_params,
-                ignore_keys=m.get("ignore_keys"),
+                ignore_keys=column_metric.get("ignore_keys"),
             )
 
         return ServiceHandler.get_service_metric_range_mapping(
-            m["metric"],
+            column_metric["metric"],
             **metric_params,
-            ignore_keys=m.get("ignore_keys"),
+            ignore_keys=column_metric.get("ignore_keys"),
         )
 
     @classmethod
@@ -829,25 +817,29 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
 
     def perform_request(self, validated_data):
         column = validated_data["column"]
-
         res = []
-        if not validated_data.get("service_names"):
+        if column not in self.METRIC_MAP or not validated_data.get("service_names"):
             return res
 
+        m = self.METRIC_MAP[column]
         app = Application.objects.get(bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"])
+        metric_params = {
+            "application": app,
+            "start_time": validated_data["start_time"],
+            "end_time": validated_data["end_time"],
+        }
 
-        service_metric_mapping = self._get_column_data_mapping(
-            app,
-            column,
-            validated_data["start_time"],
-            validated_data["end_time"],
-        )
+        if column in ["strategy_count", "alert_status"]:
+            info_mapping = self._get_service_strategy_mapping(**metric_params)
+        else:
+            info_mapping = self._get_column_metric_mapping(m, metric_params)
 
         for service_name in validated_data["service_names"]:
+
             res.append(
                 {
                     "service_name": service_name,
-                    **self.get_async_column_item({column: service_metric_mapping.get(service_name, {})}, column),
+                    **self.get_async_column_item({column: info_mapping.get(service_name)}, column),
                 }
             )
 
