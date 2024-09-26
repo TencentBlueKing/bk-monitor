@@ -389,14 +389,15 @@ class LogIndexSet(SoftDeleteModel):
 
     list_operate.__name__ = "操作列表"
 
-    def save(self, *args, **kwargs):
-        queryset = LogIndexSet.objects.filter(
-            space_uid=self.space_uid, index_set_name=self.index_set_name, is_deleted=False
-        )
-        if queryset.exists() and queryset[0].index_set_id != self.index_set_id:
-            raise IndexSetNameDuplicateException(
-                IndexSetNameDuplicateException.MESSAGE.format(index_set_name=self.index_set_name)
+    def save(self, *args, validate_unique=True, **kwargs):
+        if validate_unique:
+            queryset = LogIndexSet.objects.filter(
+                space_uid=self.space_uid, index_set_name=self.index_set_name, is_deleted=False
             )
+            if queryset.exists() and queryset[0].index_set_id != self.index_set_id:
+                raise IndexSetNameDuplicateException(
+                    IndexSetNameDuplicateException.MESSAGE.format(index_set_name=self.index_set_name)
+                )
         super().save(*args, **kwargs)
 
     @property
@@ -592,7 +593,7 @@ class LogIndexSet(SoftDeleteModel):
             self.fields_snapshot = self.fields_snapshot or fields
             raise e
         finally:
-            self.save(update_fields=["fields_snapshot"])
+            self.save(validate_unique=False, update_fields=["fields_snapshot"])
         return fields
 
     @classmethod
@@ -604,7 +605,7 @@ class LogIndexSet(SoftDeleteModel):
         for add_tag_id in add_tag_ids:
             tag_ids.add(add_tag_id)
         index_set.tag_ids = list(tag_ids)
-        index_set.save()
+        index_set.save(validate_unique=False)
 
     @classmethod
     def delete_tag_by_name(cls, index_set_id, tag_name):
@@ -619,7 +620,7 @@ class LogIndexSet(SoftDeleteModel):
         delete_tag_ids = {str(tag_id) for tag_id in tag_ids}
         remain_tag_ids = original_tag_ids - delete_tag_ids
         index_set.tag_ids = list(remain_tag_ids)
-        index_set.save()
+        index_set.save(validate_unique=False)
 
     def mark_favorite(self, username: str):
         IndexSetUserFavorite.mark(username, self.index_set_id)
