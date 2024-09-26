@@ -607,7 +607,7 @@ class TelemetryDataType(Enum):
             self.METRIC.value: "metric",
             self.LOG.value: "log",
             self.TRACING.value: "trace",
-            self.PROFILING.value: "profile",
+            self.PROFILING.value: "profiling",
         }.get(self.value)
 
     @classmethod
