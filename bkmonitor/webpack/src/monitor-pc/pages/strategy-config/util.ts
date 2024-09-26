@@ -79,3 +79,20 @@ export const compareObjectsInArray = arr => {
     );
   });
 };
+
+/**
+ * 计算容器中不在第一行的子元素数量
+ * @param container - 包含子元素的容器元素
+ * @returns 不在第一行的子元素数量
+ */
+export function countElementsNotInFirstRow(container: HTMLElement): number {
+  const children = container.children || [];
+
+  if (children.length === 0) {
+    return 0;
+  }
+
+  const firstElementTop = (children[0] as HTMLElement).offsetTop;
+
+  return Array.from(children).filter(item => (item as HTMLElement).offsetTop > firstElementTop).length;
+}

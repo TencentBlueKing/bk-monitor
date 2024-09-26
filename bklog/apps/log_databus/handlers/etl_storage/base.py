@@ -107,9 +107,10 @@ class EtlStorage(object):
 
     @staticmethod
     def get_es_field_type(field):
-        if not field.get("option", {}).get("es_type"):
-            return FieldDataTypeEnum.get_es_field_type(field["field_type"], is_analyzed=field["is_analyzed"])
-        return BKDATA_ES_TYPE_MAP.get(field.get("option").get("es_type"), "string")
+        es_type = field.get("option", {}).get("es_type")
+        if not es_type:
+            es_type = FieldDataTypeEnum.get_es_field_type(field["field_type"], is_analyzed=field["is_analyzed"])
+        return BKDATA_ES_TYPE_MAP.get(es_type, "string")
 
     @staticmethod
     def generate_hash_str(

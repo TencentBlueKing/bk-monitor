@@ -477,6 +477,10 @@
               border: 0px;
             }
 
+            &:hover {
+              background: #dcdee5;
+            }
+
             &:first-child {
               margin-left: 0;
             }
@@ -526,6 +530,10 @@
               padding: 0;
               line-height: 24px;
               text-align: center;
+            }
+
+            &:hover {
+              background: #dcdee5;
             }
           }
         }
@@ -744,4 +752,8 @@
       }
     }
   }
+}
+
+.ext-cls {
+  max-width: 200px;
 }

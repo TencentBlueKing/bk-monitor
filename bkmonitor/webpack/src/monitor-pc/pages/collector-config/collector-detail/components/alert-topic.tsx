@@ -62,7 +62,7 @@ export default class AlertTopic extends tsc<IProps> {
 
   show = false;
 
-  @Watch('updateKey')
+  @Watch('updateKey', { immediate: true })
   handleWatchKey() {
     if (!!this.stage && !!this.id) {
       alertStatus({
@@ -113,10 +113,29 @@ export default class AlertTopic extends tsc<IProps> {
           <span class='left-wrap'>
             <span class='cur-alert'>
               {this.hasAlert
-                ? [<span class='icon-monitor icon-danger' />, <span class='ml-8'>{this.$t('当前有告警')}</span>]
+                ? [
+                    <span
+                      key={'danger'}
+                      class='icon-monitor icon-danger'
+                    />,
+                    <span
+                      key={'ml'}
+                      class='ml-8'
+                    >
+                      {this.$t('当前有告警')}
+                    </span>,
+                  ]
                 : [
-                    <span class='icon-monitor icon-mc-check-fill' />,
-                    <span class='ml-8'>{this.$t('当前暂无告警')}</span>,
+                    <span
+                      key={'check'}
+                      class='icon-monitor icon-mc-check-fill'
+                    />,
+                    <span
+                      key={'alarm'}
+                      class='ml-8'
+                    >
+                      {this.$t('当前暂无告警')}
+                    </span>,
                   ]}
             </span>
             <span class='split-line' />
@@ -148,8 +167,11 @@ export default class AlertTopic extends tsc<IProps> {
                   class='alert-topic-component-alert-name'
                   slot='content'
                 >
-                  {this.strategies.map(item => (
-                    <div class='alert-name-item'>
+                  {this.strategies.map((item, index) => (
+                    <div
+                      key={index}
+                      class='alert-name-item'
+                    >
                       <div class='item-name'>{item.name}</div>
                       <div class='item-description'>{item.description}</div>
                     </div>

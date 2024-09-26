@@ -463,10 +463,16 @@ export default class CollectorConfiguration extends tsc<IProps> {
               : undefined}
           </div>
         </div>
-        <div class='split-line mt-24' />
-        <div class='detail-wrap-item'>
-          <div class='wrap-item-title mt-24'>{this.$t('采集目标')}</div>
-          {!!this.targetInfo?.table_data?.length && (
+        {!!this.targetInfo?.table_data?.length && [
+          <div
+            key={1}
+            class='split-line mt-24'
+          />,
+          <div
+            key={2}
+            class='detail-wrap-item'
+          >
+            <div class='wrap-item-title mt-24'>{this.$t('采集目标')}</div>
             <bk-button
               class='mt-10'
               size='small'
@@ -476,105 +482,105 @@ export default class CollectorConfiguration extends tsc<IProps> {
             >
               {this.$t('复制目标')}
             </bk-button>
-          )}
-          <div class='wrap-item-content mt-12'>
-            {['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(this.targetInfo?.target_node_type) ? (
-              <bk-table
-                {...{
-                  props: {
-                    data: this.targetInfo?.table_data || [],
-                  },
-                }}
-              >
-                {this.nodeColumns.map(column => {
-                  const key = `column_${column.id}`;
-                  return (
-                    <bk-table-column
-                      key={key}
-                      // width={column.width}
-                      formatter={(row: any) => {
-                        switch (column.id) {
-                          case ETargetColumn.name: {
-                            return <span>{row.bk_inst_name}</span>;
-                          }
-                          case ETargetColumn.objectType: {
-                            return <span>{row.count}</span>;
-                          }
-                          case ETargetColumn.catetory: {
-                            if (row.labels.length) {
-                              return row.labels.map((l, lIndex) => (
-                                <span
-                                  key={lIndex}
-                                  class='classifiy-label'
-                                >
-                                  <span class='label-name'>{l.first}</span>
-                                  <span class='label-name'>{l.second}</span>
-                                </span>
-                              ));
+            <div class='wrap-item-content mt-12'>
+              {['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(this.targetInfo?.target_node_type) ? (
+                <bk-table
+                  {...{
+                    props: {
+                      data: this.targetInfo?.table_data || [],
+                    },
+                  }}
+                >
+                  {this.nodeColumns.map(column => {
+                    const key = `column_${column.id}`;
+                    return (
+                      <bk-table-column
+                        key={key}
+                        // width={column.width}
+                        formatter={(row: any) => {
+                          switch (column.id) {
+                            case ETargetColumn.name: {
+                              return <span>{row.bk_inst_name}</span>;
                             }
-                            return <span>--</span>;
+                            case ETargetColumn.objectType: {
+                              return <span>{row.count}</span>;
+                            }
+                            case ETargetColumn.catetory: {
+                              if (row.labels.length) {
+                                return row.labels.map((l, lIndex) => (
+                                  <span
+                                    key={lIndex}
+                                    class='classifiy-label'
+                                  >
+                                    <span class='label-name'>{l.first}</span>
+                                    <span class='label-name'>{l.second}</span>
+                                  </span>
+                                ));
+                              }
+                              return <span>--</span>;
+                            }
+                            default: {
+                              return <span>--</span>;
+                            }
                           }
-                          default: {
-                            return <span>--</span>;
+                        }}
+                        label={(() => {
+                          if (column.id === ETargetColumn.objectType) {
+                            return this.basicInfo?.target_object_type === 'SERVICE'
+                              ? this.$t('实例数')
+                              : this.$t('主机数');
                           }
-                        }
-                      }}
-                      label={(() => {
-                        if (column.id === ETargetColumn.objectType) {
-                          return this.basicInfo?.target_object_type === 'SERVICE'
-                            ? this.$t('实例数')
-                            : this.$t('主机数');
-                        }
-                        return column.name;
-                      })()}
-                      prop={column.id}
-                    />
-                  );
-                })}
-              </bk-table>
-            ) : (
-              <bk-table
-                {...{
-                  props: {
-                    data: this.targetInfo?.table_data || [],
-                  },
-                }}
-              >
-                {this.ipColumns.map(column => {
-                  const key = `column_${column.id}`;
-                  return (
-                    <bk-table-column
-                      key={key}
-                      // width={column.width}
-                      formatter={(row: any) => {
-                        switch (column.id) {
-                          case ETargetColumn.IP: {
-                            return <span>{row.display_name}</span>;
+                          return column.name;
+                        })()}
+                        prop={column.id}
+                      />
+                    );
+                  })}
+                </bk-table>
+              ) : (
+                <bk-table
+                  {...{
+                    props: {
+                      data: this.targetInfo.table_data,
+                    },
+                  }}
+                >
+                  {this.ipColumns.map(column => {
+                    const key = `column_${column.id}`;
+                    return (
+                      <bk-table-column
+                        key={key}
+                        // width={column.width}
+                        formatter={(row: any) => {
+                          switch (column.id) {
+                            case ETargetColumn.IP: {
+                              return <span>{row.display_name}</span>;
+                            }
+                            case ETargetColumn.agentStatus: {
+                              return (
+                                <span style={{ color: row.agent_status === 'normal' ? '#2DCB56' : '#EA3636' }}>
+                                  {row.agent_status === 'normal' ? this.$t('正常') : this.$t('异常')}
+                                </span>
+                              );
+                            }
+                            case ETargetColumn.cloudName: {
+                              return <span title={row.bk_cloud_name}>{row.bk_cloud_name || '--'}</span>;
+                            }
+                            default: {
+                              return <span>--</span>;
+                            }
                           }
-                          case ETargetColumn.agentStatus: {
-                            return (
-                              <span style={{ color: row.agent_status === 'normal' ? '#2DCB56' : '#EA3636' }}>
-                                {row.agent_status === 'normal' ? this.$t('正常') : this.$t('异常')}
-                              </span>
-                            );
-                          }
-                          case ETargetColumn.cloudName: {
-                            return <span title={row.bk_cloud_name}>{row.bk_cloud_name || '--'}</span>;
-                          }
-                          default: {
-                            return <span>--</span>;
-                          }
-                        }
-                      }}
-                      label={column.name}
-                      prop={column.id}
-                    />
-                  );
-                })}
-              </bk-table>
-            )}
-          </div>
-        </div>
+                        }}
+                        label={column.name}
+                        prop={column.id}
+                      />
+                    );
+                  })}
+                </bk-table>
+              )}
+            </div>
+          </div>,
+        ]}
       </div>
     );
   }
