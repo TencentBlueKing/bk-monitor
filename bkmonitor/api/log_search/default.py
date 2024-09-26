@@ -351,7 +351,6 @@ class DataBusCollectorsResource(LogSearchAPIGWResource):
     数据采集器列表
     """
 
-    # Todo: apigw base_url 确保设置
     action = "/databus_collectors/{collector_config_id}/"
     method = "GET"
 

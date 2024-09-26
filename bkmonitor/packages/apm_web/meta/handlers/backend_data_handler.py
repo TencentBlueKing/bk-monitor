@@ -225,7 +225,19 @@ class LogBackendHandler(TelemetryBackendHandler):
         return DataBusCollectorsResource().request(collector_config_id=self.collector_config_id)
 
     def storage_field_info(self):
-        return LogSearchIndexSetResource().request(index_set_id=self.index_set_id)
+        res_data = LogSearchIndexSetResource().request(index_set_id=self.index_set_id)
+        fields = []
+        for field in res_data.get("fields"):
+            fields.append(
+                {
+                    "field_name": field["field_name"],
+                    "ch_field_name": field["field_alias"],
+                    "analysis_field": field["is_analyzed"],
+                    "field_type": field["field_type"],
+                    "time_field": True if field["field_name"] == res_data.get("time_field") else False,
+                }
+            )
+        return fields
 
     def indices_info(self):
         return DataBusCollectorsIndicesResource().request(collector_config_id=self.collector_config_id)
