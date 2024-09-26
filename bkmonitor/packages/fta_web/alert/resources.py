@@ -20,7 +20,6 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from typing import Dict, List
 from io import StringIO
-import random
 
 from django.conf import settings
 from django.core.cache import cache
