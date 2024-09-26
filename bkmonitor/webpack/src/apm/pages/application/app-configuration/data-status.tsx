@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, ProvideReactive } from 'vue-property-decorator';
+import { Component, PropSync, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -33,7 +33,7 @@ import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 
 import Metric from './dataStatus/metric';
 import TabList from './tabList';
-import { ETelemetryDataType } from './type';
+import { ETelemetryDataType, type IAppInfo } from './type';
 
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
@@ -41,30 +41,12 @@ import './data-status.scss';
 
 @Component
 export default class DataStatus extends tsc<object> {
+  @PropSync('data', { type: Object, required: true }) appInfo: IAppInfo;
   pickerTimeRange: string[] = [
     dayjs(new Date()).add(-1, 'd').format('YYYY-MM-DD'),
     dayjs(new Date()).format('YYYY-MM-DD'),
   ];
 
-  /** 选择的tab*/
-  tabList = [
-    {
-      name: ETelemetryDataType.metric,
-      label: window.i18n.tc('指标'),
-    },
-    {
-      name: ETelemetryDataType.log,
-      label: window.i18n.tc('日志'),
-    },
-    {
-      name: ETelemetryDataType.tracing,
-      label: window.i18n.tc('调用链'),
-    },
-    {
-      name: ETelemetryDataType.profiling,
-      label: window.i18n.tc('性能分析'),
-    },
-  ];
   activeTab = ETelemetryDataType.metric;
   strategyLoading = false;
 
@@ -83,7 +65,38 @@ export default class DataStatus extends tsc<object> {
     return Number(this.$route.params?.id || 0);
   }
 
+  get tabList() {
+    return [
+      {
+        name: ETelemetryDataType.metric,
+        label: window.i18n.tc('指标'),
+        status: this.appInfo.metric_data_status,
+      },
+      {
+        name: ETelemetryDataType.log,
+        label: window.i18n.tc('日志'),
+        status: this.appInfo.log_data_status,
+      },
+      {
+        name: ETelemetryDataType.tracing,
+        label: window.i18n.tc('调用链'),
+        status: this.appInfo.trace_data_status,
+      },
+      {
+        name: ETelemetryDataType.profiling,
+        label: window.i18n.tc('性能分析'),
+        status: this.appInfo.profiling_data_status,
+      },
+    ];
+  }
+
   created() {
+    for (const tab of this.tabList) {
+      if (tab.status !== 'disabled') {
+        this.activeTab = tab.name;
+        break;
+      }
+    }
     this.timezone = getDefaultTimezone();
   }
 

@@ -48,34 +48,15 @@ interface IStorageStateProps {
 export default class StorageState extends tsc<IStorageStateProps> {
   @PropSync('data', { type: Object, required: true }) appInfo: IAppInfo;
   @Prop({ type: Array, required: true }) clusterList: any[];
-  @Prop({ type: String, required: true }) tabStatus: string;
 
-  tabList = [
-    {
-      name: ETelemetryDataType.metric,
-      label: window.i18n.tc('指标'),
-    },
-    {
-      name: ETelemetryDataType.log,
-      label: window.i18n.tc('日志'),
-    },
-    {
-      name: ETelemetryDataType.tracing,
-      label: window.i18n.tc('调用链'),
-    },
-    {
-      name: ETelemetryDataType.profiling,
-      label: window.i18n.tc('性能分析'),
-    },
-  ];
   /** 选择的tab*/
   activeTab = ETelemetryDataType.metric;
   /* 存储信息 */
   storageInfo = {
-    [ETelemetryDataType.metric]: null,
+    [ETelemetryDataType.metric]: [],
     [ETelemetryDataType.log]: null,
     [ETelemetryDataType.tracing]: null,
-    [ETelemetryDataType.profiling]: null,
+    [ETelemetryDataType.profiling]: [],
   };
   storageLoading = false;
   indicesLoading = false;
@@ -105,7 +86,38 @@ export default class StorageState extends tsc<IStorageStateProps> {
   }
 
   created() {
+    for (const tab of this.tabList) {
+      if (tab.status !== 'disabled') {
+        this.activeTab = tab.name;
+        break;
+      }
+    }
     this.getStorageInfo();
+  }
+
+  get tabList() {
+    return [
+      {
+        name: ETelemetryDataType.metric,
+        label: window.i18n.tc('指标'),
+        status: this.appInfo.metric_data_status,
+      },
+      {
+        name: ETelemetryDataType.log,
+        label: window.i18n.tc('日志'),
+        status: this.appInfo.log_data_status,
+      },
+      {
+        name: ETelemetryDataType.tracing,
+        label: window.i18n.tc('调用链'),
+        status: this.appInfo.trace_data_status,
+      },
+      {
+        name: ETelemetryDataType.profiling,
+        label: window.i18n.tc('性能分析'),
+        status: this.appInfo.profiling_data_status,
+      },
+    ];
   }
 
   /**
@@ -177,13 +189,12 @@ export default class StorageState extends tsc<IStorageStateProps> {
         this.getIndicesList();
         break;
       case ETelemetryDataType.tracing:
-      case ETelemetryDataType.profiling:
         this.getMetaConfigInfo();
         this.getIndicesList();
         this.getFieldList();
         break;
-      default: {
-      }
+      default:
+        break;
     }
   }
 
@@ -191,10 +202,11 @@ export default class StorageState extends tsc<IStorageStateProps> {
   getActiveComponent() {
     switch (this.activeTab) {
       case ETelemetryDataType.metric:
+      case ETelemetryDataType.profiling:
         return (
           <Metric
             appInfo={this.appInfo}
-            data={this.storageInfo[ETelemetryDataType.metric]}
+            data={this.storageInfo[this.activeTab] || []}
             dataLoading={this.storageLoading}
           />
         );
@@ -209,7 +221,6 @@ export default class StorageState extends tsc<IStorageStateProps> {
           />
         );
       case ETelemetryDataType.tracing:
-      case ETelemetryDataType.profiling:
         return (
           <Trace
             appInfo={this.appInfo}

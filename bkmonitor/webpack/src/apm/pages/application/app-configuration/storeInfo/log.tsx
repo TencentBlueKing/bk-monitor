@@ -31,7 +31,7 @@ import { byteConvert } from 'monitor-common/utils/utils';
 import EditableFormItem from '../../../../components/editable-form-item/editable-form-item';
 import PanelItem from '../../../../components/panel-item/panel-item';
 
-import type { ETelemetryDataType, IAppInfo, IndicesItem, ITracingStorageInfo } from '../type';
+import type { ETelemetryDataType, IAppInfo, ILogStorageInfo, IndicesItem } from '../type';
 
 import './log.scss';
 interface IProps {
@@ -39,7 +39,7 @@ interface IProps {
   dataLoading?: boolean;
   indicesLoading: boolean;
   indicesList: IndicesItem[];
-  storageInfo?: ITracingStorageInfo;
+  storageInfo?: ILogStorageInfo;
   telemetryDataType?: ETelemetryDataType;
 }
 @Component
@@ -49,7 +49,7 @@ export default class Log extends tsc<IProps> {
   @Prop({ type: Boolean }) dataLoading: boolean;
   @Prop({ type: Boolean }) indicesLoading: boolean;
   // 存储信息
-  @Prop({ type: Object, default: () => null }) storageInfo: ITracingStorageInfo;
+  @Prop({ type: Object, default: () => null }) storageInfo: ILogStorageInfo;
   @Prop({ type: String, default: '' }) telemetryDataType: ETelemetryDataType;
   healthMaps = {
     green: this.$t('健康'),
@@ -80,13 +80,13 @@ export default class Log extends tsc<IProps> {
                 formType='input'
                 label={this.$t('集群名称')}
                 showEditable={false}
-                value={this.appInfo.application_datasource_config?.es_storage_cluster}
+                value={this.storageInfo?.storage_cluster_name}
               />
               <EditableFormItem
                 formType='input'
                 label={this.$t('索引集名称')}
                 showEditable={false}
-                value={this.appInfo.es_storage_index_name}
+                value={`${this.storageInfo?.table_id_prefix}${this.storageInfo?.table_id}`}
               />
             </div>
             <div class='item-row'>
@@ -95,14 +95,14 @@ export default class Log extends tsc<IProps> {
                 label={this.$t('过期时间')}
                 showEditable={false}
                 tooltips={this.$t('过期时间')}
-                value={this.appInfo.application_datasource_config?.es_retention}
+                value={this.storageInfo?.retention}
               />
               <EditableFormItem
                 formType='input'
                 label={this.$t('分列规则')}
                 showEditable={false}
                 tooltips={this.$t('分列规则')}
-                value={this.appInfo.application_datasource_config?.es_number_of_replicas}
+                value={this.storageInfo?.index_split_rule}
               />
             </div>
           </div>

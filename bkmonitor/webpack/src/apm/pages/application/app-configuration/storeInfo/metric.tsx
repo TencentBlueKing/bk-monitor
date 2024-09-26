@@ -28,17 +28,19 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import PanelItem from '../../../../components/panel-item/panel-item';
 
-import type { IStoreItem, IAppInfo } from '../type';
+import type { IAppInfo, IMetricStorageInfo } from '../type';
+
+import './metric.scss';
 
 interface IProps {
   appInfo: IAppInfo;
-  data: IStoreItem[];
+  data: IMetricStorageInfo[];
   dataLoading: boolean;
 }
 @Component
 export default class Metric extends tsc<IProps> {
   @Prop({ type: Object, default: () => {} }) appInfo: IAppInfo;
-  @Prop({ type: Array, default: () => [] }) data: IStoreItem[];
+  @Prop({ type: Array, default: () => [] }) data: IMetricStorageInfo[];
   @Prop({ type: Boolean }) dataLoading: boolean;
   healthMaps = {
     green: this.$t('健康'),
@@ -47,15 +49,17 @@ export default class Metric extends tsc<IProps> {
   };
   render() {
     const statusSlot = {
-      default: props => [
-        <span
-          key={props.index}
-          class='status-wrap'
-        >
-          <span class={['status-icon', `status-${props.row.health}`]} />
-          <span class='status-name'>{this.healthMaps[props.row.health]}</span>
-        </span>,
-      ],
+      default: (props: { row: IMetricStorageInfo; index: string }) => {
+        return (
+          <span
+            key={props.index}
+            class='status-wrap'
+          >
+            <span class={['status-icon', `status-${props.row.status}`]} />
+            <span class='status-name'>{props.row.status_display}</span>
+          </span>
+        );
+      },
     };
     return (
       <div class='metric-wrap'>
@@ -67,16 +71,16 @@ export default class Metric extends tsc<IProps> {
           >
             <bk-table-column
               label={this.$t('存储表名称')}
-              prop={'es_storage_index_name'}
+              prop={'result_table_id'}
             />
             <bk-table-column label={this.$t('存储类型')} />
             <bk-table-column
               label={this.$t('存储集群')}
-              prop={'es_storage_cluster'}
+              prop={'storage_type'}
             />
             <bk-table-column
               label={this.$t('有效期')}
-              prop={'validity'}
+              prop={'expire_time_alias'}
             />
             <bk-table-column
               label={this.$t('运行状态')}
@@ -84,11 +88,11 @@ export default class Metric extends tsc<IProps> {
             />
             <bk-table-column
               label={this.$t('创建者')}
-              prop={'create_user'}
+              prop={'created_by'}
             />
             <bk-table-column
               label={this.$t('创建时间')}
-              prop={'create_time'}
+              prop={'created_at'}
             />
           </bk-table>
         </PanelItem>

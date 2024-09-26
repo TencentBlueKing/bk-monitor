@@ -58,8 +58,14 @@ import EditableFormItem from '../../../components/editable-form-item/editable-fo
 import PanelItem from '../../../components/panel-item/panel-item';
 import * as authorityMap from '../../home/authority-map';
 import CustomService from './custom-service';
-
-import type { IApdexConfig, IAppInfo, IApplicationSamplerConfig, IInstanceOption, ISamplingRule } from './type';
+import {
+  ETelemetryDataType,
+  type IApdexConfig,
+  type IAppInfo,
+  type IApplicationSamplerConfig,
+  type IInstanceOption,
+  type ISamplingRule,
+} from './type';
 // } from 'monitor-pc/components/cycle-input/utils';
 import type { IIpV6Value, INodeType, TargetObjectType } from 'monitor-pc/components/monitor-ip-selector/typing';
 
@@ -1002,9 +1008,11 @@ export default class BasicInfo extends tsc<IProps> {
                     label-width={116}
                   >
                     <bk-switcher
-                      v-model={this.appInfo.is_enabled}
+                      v-model={this.appInfo.is_enabled_metric}
                       v-authority={{ active: !this.authority.MANAGE_AUTH }}
-                      pre-check={() => this.handleEnablePreCheck(this.appInfo.is_enabled, 'tracing')}
+                      pre-check={() =>
+                        this.handleEnablePreCheck(this.appInfo.is_enabled_metric, ETelemetryDataType.metric)
+                      }
                       size='small'
                       theme='primary'
                     />
@@ -1015,9 +1023,9 @@ export default class BasicInfo extends tsc<IProps> {
                     label-width={116}
                   >
                     <bk-switcher
-                      v-model={this.appInfo.is_enabled_profiling}
+                      v-model={this.appInfo.is_enabled_log}
                       v-authority={{ active: !this.authority.MANAGE_AUTH }}
-                      pre-check={() => this.handleEnablePreCheck(this.appInfo.is_enabled_profiling, 'profiling')}
+                      pre-check={() => this.handleEnablePreCheck(this.appInfo.is_enabled_log, ETelemetryDataType.log)}
                       size='small'
                       theme='primary'
                     />
@@ -1033,9 +1041,11 @@ export default class BasicInfo extends tsc<IProps> {
                     label-width={116}
                   >
                     <bk-switcher
-                      v-model={this.appInfo.is_enabled}
+                      v-model={this.appInfo.is_enabled_tracing}
                       v-authority={{ active: !this.authority.MANAGE_AUTH }}
-                      pre-check={() => this.handleEnablePreCheck(this.appInfo.is_enabled, 'tracing')}
+                      pre-check={() =>
+                        this.handleEnablePreCheck(this.appInfo.is_enabled_tracing, ETelemetryDataType.tracing)
+                      }
                       size='small'
                       theme='primary'
                     />
@@ -1048,7 +1058,9 @@ export default class BasicInfo extends tsc<IProps> {
                     <bk-switcher
                       v-model={this.appInfo.is_enabled_profiling}
                       v-authority={{ active: !this.authority.MANAGE_AUTH }}
-                      pre-check={() => this.handleEnablePreCheck(this.appInfo.is_enabled_profiling, 'profiling')}
+                      pre-check={() =>
+                        this.handleEnablePreCheck(this.appInfo.is_enabled_profiling, ETelemetryDataType.profiling)
+                      }
                       size='small'
                       theme='primary'
                     />
