@@ -18,11 +18,13 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from typing import Dict, List
+import pandas as pd
+from io import BytesIO
 
 from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Count
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponse
 from django.utils.translation import ugettext as _
 from elasticsearch_dsl import Q
 from rest_framework import serializers
@@ -110,8 +112,63 @@ from monitor_web.aiops.metric_recommend.constant import (
 )
 from monitor_web.constants import AlgorithmType
 from monitor_web.models import CustomEventGroup
+from fta_web import constants
+
+from bkmonitor.models import *
+from django.db.models import Count, Q
+from collections import namedtuple, defaultdict
 
 logger = logging.getLogger("root")
+
+
+class GetFtaStrategy(Resource):
+    def perform_request(self, validated_request_data):
+        """
+        在线： 在线 或 online
+        登录： 登录 或 登陆 或 login
+        注册： 注册 或 registation 或 reg
+        对局： 对局 或 排队 或 battle 或 bat 
+        """
+        # 策略业务统计
+        results_format = validated_request_data.get("results", "json")
+        biz_list = api.cmdb.get_business()
+        scenario = constants.QuickSolutionsConfig.SCENARIO
+        to_be_deleted = set()
+        Biz = namedtuple("Biz", ["name", "info"])
+        biz_map = {biz.bk_biz_id: Biz(biz.display_name, defaultdict(int)) for biz in biz_list if biz.bk_biz_id > 0}
+
+        for sce, key_words in scenario.items():
+            query = StrategyModel.objects.filter(reduce(lambda x, y: x | y, (Q(name__icontains=key) for key in key_words)))
+            query = query.filter(is_enabled=True)
+            # 使用 values 和 annotate 来按 bk_biz_id 分组，然后计算每组的数量
+            result = query.values("bk_biz_id").annotate(count=Count('id'))
+            # 整理结果
+            for item in result:
+                bk_biz_id = int(item["bk_biz_id"])
+                if bk_biz_id < 0:
+                    continue
+                if bk_biz_id not in biz_map:
+                    to_be_deleted.add(bk_biz_id)
+                    continue
+                biz_map[bk_biz_id].info[sce] = item["count"]
+        results = []
+        for biz in biz_map.values():
+            row = {"业务": biz.name}
+            for key in scenario.keys():
+                row[key] = biz.info.get(key, 0)
+            results.append(row)
+        if results_format == "file":
+            df = pd.DataFrame(results)
+            timestamp = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
+            filename = f"data_{timestamp}.xlsx"
+            output = BytesIO()
+            df.to_excel(output, index=False)
+            output.seek(0)
+            response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = f'attachment; filename={filename}'
+            return response
+        else:
+            return results
 
 
 class AlertPermissionResource(Resource):
