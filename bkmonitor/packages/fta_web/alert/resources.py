@@ -13,13 +13,14 @@ import copy
 import json
 import logging
 import time
+import csv
 from abc import ABCMeta
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from typing import Dict, List
-import pandas as pd
-from io import BytesIO
+from io import StringIO
+import random
 
 from django.conf import settings
 from django.core.cache import cache
@@ -158,13 +159,19 @@ class GetFtaStrategy(Resource):
                 row[key] = biz.info.get(key, 0)
             results.append(row)
         if results_format == "file":
-            df = pd.DataFrame(results)
             timestamp = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
-            filename = f"data_{timestamp}.xlsx"
-            output = BytesIO()
-            df.to_excel(output, index=False)
+            filename = f"data_{timestamp}.csv"
+            output = StringIO()
+            # 在内存读写文件 避免污染 Pod 的 OS 文件
+            output.write('\ufeff')
+            # 写入 utf-8 bom 避免纯文本乱码
+            fieldnames = ["业务"] + list(scenario.keys())
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in results:
+                writer.writerow(row)
             output.seek(0)
-            response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response = HttpResponse(output.getvalue().encode("utf-8"), content_type='text/csv; charset=utf-8')
             response['Content-Disposition'] = f'attachment; filename={filename}'
             return response
         else:
