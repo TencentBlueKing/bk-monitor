@@ -196,7 +196,7 @@ class TracingBackendHandler(TelemetryBackendHandler):
             result.append({k.replace(".", "_"): v for k, v in item.items()})
         return result
 
-    def data_sampling(self, log_type: str, size: int = 10, **kwargs):
+    def data_sampling(self, size: int = 10, **kwargs):
         resp = api.metadata.kafka_tail({"table_id": self.result_table_id, "size": size}) if self.result_table_id else []
         return [{"raw_log": log, "sampling_time": log.get("datetime", "")} for log in resp]
 
