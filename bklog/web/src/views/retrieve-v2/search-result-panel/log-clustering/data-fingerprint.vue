@@ -616,11 +616,14 @@
         });
         // 聚类下钻只能使用ui模式
         this.$store.commit('updateIndexItem', { search_mode: 'ui' });
-        this.$store.commit('updateClusterParams', null)
+        // 新开页打开首页是原始日志，不需要传聚类参数，如果传了则会初始化为聚类
+        this.$store.commit('updateClusterParams', null);
         this.$store.dispatch('setQueryCondition', additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
           if (isLink) {
             const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
             window.open(openUrl, '_blank');
+            // 新开页后当前页面回填聚类参数
+            this.$store.commit('updateClusterParams', this.requestData);
           } else {
             this.$emit('show-change', 'origin');
           }
