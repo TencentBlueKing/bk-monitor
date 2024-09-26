@@ -399,7 +399,6 @@ class ServiceListResource(PageListResource):
                 ],
                 disabled=True,
                 link_handler=lambda i: i.get("kind") in [TopoNodeKind.SERVICE, TopoNodeKind.REMOTE_SERVICE],
-                display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_HOME,
             ),
         ]
 
@@ -658,6 +657,8 @@ class ServiceListResource(PageListResource):
                     },
                     # category 附加数据 不显示
                     "category": service["extra_data"]["category"],
+                    # kind 附加数据 不显示
+                    "kind": service["extra_data"]["kind"],
                 }
             )
 
