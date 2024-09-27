@@ -269,14 +269,21 @@ ALERT_PROCESS_PUSH_DATA_COUNT = Counter(
 )
 
 PROCESS_BIG_LATENCY = Histogram(
-    name="bkmonitor_detect_process_latency",
+    name="bkmonitor_big_process_latency",
     documentation="处理延迟过大",
     labelnames=(
         "strategy_id",
         "module",
         "bk_biz_id",
+        "strategy_name",
     ),
-    buckets=(1, 2, 3, 5, 10, 15, 20, 30, 60, 180, 300, INF),
+    buckets=(60, 90, 120, 180, 300, 450, 600, 900, 1200, 1800, INF),
+)
+
+PROCESS_OVER_FLOW = Counter(
+    name="bkmonitor_process_overflow",
+    documentation="模块处理量级过大",
+    labelnames=("module", "strategy_id", "bk_biz_id", "strategy_name"),
 )
 
 DETECT_PROCESS_LATENCY = Histogram(
@@ -313,7 +320,7 @@ ALERT_MANAGE_PUSH_DATA_COUNT = Counter(
     labelnames=("strategy_id", "signal"),
 )
 
-Alert_QOS_COUNT = Counter(
+ALERT_QOS_COUNT = Counter(
     name="bkmonitor_alert_qos_count",
     documentation="composite 模块动作推送条数",
     labelnames=("strategy_id", "is_blocked"),
