@@ -5,6 +5,7 @@
   position: static !important;
   padding: 24px;
   margin: 8px;
+  line-height: 20px;
   background: white;
 
   .info-wrap {
@@ -47,7 +48,7 @@
 
     .relation-info-tag {
       .tag-label {
-        margin-right: 4px
+        margin-right: 4px;
       }
 
       .category-tag {
@@ -71,7 +72,6 @@
     }
   }
 
-
   .form-item-tips {
     position: relative;
     bottom: -4px;
@@ -90,7 +90,7 @@
     color: #979ba5;
 
     .indentation-text {
-      padding-left: 20px
+      padding-left: 20px;
     }
   }
 
@@ -140,10 +140,21 @@
     width: 326px;
   }
 
-  .uri-info  {
+  .uri-info {
     .icon-mc-tuozhuai {
+      margin-right: 8px;
       font-size: 14px;
-      color: #979BA5;
+      color: #979ba5;
+      cursor: grab;
+    }
+
+    .uri-item {
+      padding-left: 66px;
+
+      .label {
+        width: auto;
+        text-align: left;
+      }
     }
   }
 
@@ -153,7 +164,7 @@
 
   .uri-set-label {
     display: inline-block;
-    margin: 0 0 16px 58px;
+    margin: 0 0 12px 66px;
   }
 
   .empty-uri-info {
@@ -164,13 +175,6 @@
     .part-text {
       font-size: 12px;
     }
-  }
-
-  .icon-mc-tuozhuai {
-    position: relative;
-    left: 58px;
-    color: #979ba5;
-    cursor: grab;
   }
 
   .edit-uri-row {
@@ -224,9 +228,10 @@
 
   .uri-source-content {
     padding-left: 66px;
-    margin-bottom: 10px;
+    margin-bottom: 24px;
 
     .header-tool {
+      margin-bottom: 4px;
       @include flex-justify(space-between);
 
       label {
@@ -248,7 +253,6 @@
 
     .source-box {
       height: 80px;
-      margin: 2px 0 14px;
 
       .bk-form-textarea {
         height: 80px;
@@ -262,12 +266,12 @@
         background-color: #313238 !important;
         border-radius: 2px;
       }
-  
+
       .bk-form-textarea[disabled] {
         background-color: #313238 !important;
         border-radius: 2px;
       }
-  
+
       .bk-textarea-wrapper {
         border: none;
       }
@@ -275,8 +279,7 @@
   }
 
   .debugging-content {
-    
-    padding-left: 60px;
+    padding-left: 66px;
 
     .debugge-tool {
       @include flex-align;
@@ -327,7 +330,7 @@
       margin-bottom: 12px;
       line-height: 20px;
 
-      &:nth-last-of-type(-n+2) {
+      &:nth-last-of-type(-n + 2) {
         margin-bottom: 0px;
       }
     }
@@ -349,14 +352,14 @@
         }
       }
     }
-  } 
+  }
 
   .relation-info {
     .config-form-item {
       margin-bottom: 0px;
     }
 
-    .config-form-item+.config-form-item {
+    .config-form-item + .config-form-item {
       margin-top: 24px;
       margin-bottom: 0px;
     }
@@ -382,7 +385,7 @@
       margin: 4px 0px 0px 0px;
       font-size: 12px;
       line-height: 20px;
-      color: #979BA5;
+      color: #979ba5;
     }
   }
 
@@ -411,52 +414,64 @@
     padding-left: 22px;
   }
 
-    .editable-form-item {
-        min-width: 250px;
-        height: 20px;
-        }
-    
-        .form-content-row-m12 {
-            .editable-form-item {
-                margin-bottom: 12px;
-            }
-        }
+  .editable-form-item {
+    width: 250px;
+    height: 20px;
 
-        .form-content-row-m14 {
-          .editable-form-item {
-              margin-bottom: 14px;
-          }
+    .value-content {
+      width: 100%;
+
+      .text-content {
+        display: block;
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-wrap: nowrap;
       }
-    
-        .form-content-row-m16 {
-          .editable-form-item {
-                margin-bottom: 16px;
-            }
-        }
+    }
+  }
 
-        .form-data-reporting {
-            .item-row {
-                height: 20px;
-                margin-bottom: 16px;
-            }
-        }
+  .form-content-row-m12 {
+    .editable-form-item {
+      margin-bottom: 12px;
+    }
+  }
 
-        .relation-log-form-item {
-          .bk-form-item {
-            margin-top: 0px !important;
-          }
-        }
+  .form-content-row-m14 {
+    .editable-form-item {
+      margin-bottom: 14px;
+    }
+  }
 
-        .form-content-edit {
-            .editable-form-item {
-              margin-bottom: 24px;
-            }
-  
-            .bk-form-item+.bk-form-item {
-              margin-top: 24px;
-            }
-          } 
-            // todo 这里后续需要根据平台左侧菜单是否打开调整下宽度和位置
+  .form-content-row-m16 {
+    .editable-form-item {
+      margin-bottom: 16px;
+    }
+  }
+
+  .form-data-reporting {
+    .item-row {
+      height: 20px;
+      margin-bottom: 16px;
+    }
+  }
+
+  .relation-log-form-item {
+    .bk-form-item {
+      margin-top: 0px !important;
+    }
+  }
+
+  .form-content-edit {
+    .editable-form-item {
+      margin-bottom: 24px;
+    }
+
+    .bk-form-item + .bk-form-item {
+      margin-top: 24px;
+    }
+  }
+  // todo 这里后续需要根据平台左侧菜单是否打开调整下宽度和位置
   .submit-handle {
     // padding-bottom: 38px;
     position: fixed;
@@ -467,13 +482,11 @@
     height: 48px;
     padding-left: 24px;
     line-height: 48px;
-    background: #FAFBFD;
+    background: #fafbfd;
     box-shadow: 0 -2px 6px 0 #00000014;
 
     button {
       width: 88px;
     }
   }
-
 }
-

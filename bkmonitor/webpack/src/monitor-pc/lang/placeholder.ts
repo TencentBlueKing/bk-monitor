@@ -296,4 +296,5 @@ export default {
   搜索服务名称: 'Search Service Name',
   '搜索 故障处理人': 'Search Incident Handler',
   '搜索 流转记录': 'Search Flow Record',
+  请输入自定义标签: 'Please enter custom tags',
 };
