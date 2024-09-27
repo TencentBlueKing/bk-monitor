@@ -33,8 +33,8 @@ import { CancelToken } from 'monitor-api/index';
 import { start } from 'monitor-api/modules/apm_meta';
 import { query, queryServicesDetail } from 'monitor-api/modules/apm_profile';
 import { serviceInfo } from 'monitor-api/modules/apm_service';
+import { skipToDocsLink } from 'monitor-common/utils/docs';
 import { Debounce, typeTools } from 'monitor-common/utils/utils';
-import { handleGotoLink } from 'monitor-pc/common/constant';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonDetail from 'monitor-pc/pages/monitor-k8s/components/common-detail';
 
@@ -384,7 +384,7 @@ class ProfilingChart extends CommonSimpleChart {
         .finally(() => (this.enableProfilingLoading = false));
     } else if (!this.isProfilingDataNormal) {
       // 查看接入指引
-      handleGotoLink('profiling_docs');
+      skipToDocsLink('profiling_docs', window.docUrlMap);
     }
   }
   handleKeywordChange(v: string) {

@@ -26,6 +26,8 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { concatBKOtherDocsUrl, DOCS_LINK_MAP } from 'monitor-common/utils/docs';
+
 import './log-metric-info.scss';
 
 @Component
@@ -33,7 +35,7 @@ export default class MyComponent extends tsc<object> {
   @Prop() a: number;
   @Ref('helpContent') helpContentRef: HTMLDivElement;
   helpPopoverInstance: any = null;
-  docCenterUrl = `${window.bk_docs_site_url}markdown/日志平台/产品白皮书/data-visualization/query_string.md`;
+  docCenterUrl = concatBKOtherDocsUrl(DOCS_LINK_MAP.BKOther.bkLogQueryString);
   beforeDestroy() {
     this.handleMouseLeave();
   }
