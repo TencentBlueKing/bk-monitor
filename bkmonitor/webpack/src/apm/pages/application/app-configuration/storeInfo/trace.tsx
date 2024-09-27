@@ -76,7 +76,7 @@ export default class Trace extends tsc<IProps, IEvent> {
   @Prop({ type: Boolean }) fieldLoading: boolean;
   @Prop({ type: Boolean }) indicesLoading: boolean;
   // 存储信息
-  @Prop({ type: Object, default: () => null }) storageInfo: ITracingStorageInfo;
+  @Prop({ type: Object, default: () => ({}) }) storageInfo: ITracingStorageInfo;
   @Prop({ type: String, default: '' }) telemetryDataType: ETelemetryDataType;
 
   @Inject('authority') authority;
@@ -202,7 +202,7 @@ export default class Trace extends tsc<IProps, IEvent> {
     }
     try {
       // 更新基本信息
-      const datasourceConfig = Object.assign(this.storageInfo, { [field]: Number(value) });
+      const datasourceConfig = Object.assign(this.storageInfo || {}, { [field]: Number(value) });
 
       const params = {
         application_id: this.appInfo.application_id,

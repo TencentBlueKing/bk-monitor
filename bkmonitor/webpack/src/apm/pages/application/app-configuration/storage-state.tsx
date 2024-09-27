@@ -218,6 +218,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
             indicesLoading={this.indicesLoading}
             storageInfo={this.storageInfo[this.activeTab]}
             telemetryDataType={this.activeTab}
+            onChange={this.handleBaseInfoChange}
           />
         );
       case ETelemetryDataType.tracing:
