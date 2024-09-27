@@ -28,8 +28,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { collectConfigList } from 'monitor-api/modules/collecting';
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
+import { skipToDocsLink } from 'monitor-common/utils/docs';
 
-import { handleGotoLink } from '../../../common/constant';
 import EmptyStatus, { defaultTextMap } from '../../../components/empty-status/empty-status';
 
 import type { EmptyStatusOperationType, IEmptyStatusTextMap } from '../../../components/empty-status/types';
@@ -156,7 +156,7 @@ export default class FavoritesList extends tsc<IDataRetrievalView.IEmptyView> {
           // 更多规则
           // const url = location.href.replace(location.hash, '/');
           // window.open(url, '_blank');
-          handleGotoLink('bkLogQueryString');
+          skipToDocsLink('bkLogQueryString');
         }
         break;
     }

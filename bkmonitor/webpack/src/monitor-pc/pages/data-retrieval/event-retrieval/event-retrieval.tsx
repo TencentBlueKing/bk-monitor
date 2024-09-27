@@ -29,10 +29,10 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getGroupByCount } from 'monitor-api/modules/data_explorer';
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
+import { skipToDocsLink } from 'monitor-common/utils/docs';
 // import { handleTimeRange } from '../../../utils';
 import { deepClone } from 'monitor-common/utils/utils';
 
-import { handleGotoLink } from '../../../common/constant';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import FieldFiltering from '../event-retrieval/field-filtering';
@@ -421,7 +421,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
             class='link'
             target='_blank'
             onClick={() => {
-              handleGotoLink('bkLogQueryString');
+              skipToDocsLink('bkLogQueryString');
             }}
           >
             {this.$t('查看语法')}

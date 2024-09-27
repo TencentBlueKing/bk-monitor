@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ISpaceItem } from './typings';
+import type { ISpaceItem } from './typings';
 
 declare global {
   interface Window {
@@ -33,6 +33,7 @@ declare global {
     __BK_WEWEB_DATA__?: any;
     space_uid: string;
     bk_docs_site_url: string;
+    bk_doc_version: string;
     site_url: string;
   }
 }
