@@ -333,7 +333,7 @@ class MetricBackendHandler(TelemetryBackendHandler):
                     {
                         "data_type": "time_series",
                         "datasource": "time_series",
-                        "api": "grafana.graphUnifyQuery",
+                        "api": "apm_meta.dataHistogram",
                         "data": {
                             "application_id": self.app.applicaiotn_id,
                             "telemetry_data_type": self.telemetry.value,
@@ -352,7 +352,7 @@ class MetricBackendHandler(TelemetryBackendHandler):
                     {
                         "data_type": "time_series",
                         "datasource": "time_series",
-                        "api": "grafana.graphUnifyQuery",
+                        "api": "apm_meta.dataHistogram",
                         "data": {
                             "application_id": self.app.applicaiotn_id,
                             "telemetry_data_type": self.telemetry.value,
@@ -432,7 +432,7 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
                     {
                         "data_type": "time_series",
                         "datasource": "time_series",
-                        "api": "grafana.graphUnifyQuery",
+                        "api": "apm_meta.dataHistogram",
                         "data": {
                             "application_id": self.app.applicaiotn_id,
                             "telemetry_data_type": self.telemetry.value,
@@ -451,7 +451,7 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
                     {
                         "data_type": "time_series",
                         "datasource": "time_series",
-                        "api": "grafana.graphUnifyQuery",
+                        "api": "apm_meta.dataHistogram",
                         "data": {
                             "application_id": self.app.applicaiotn_id,
                             "telemetry_data_type": self.telemetry.value,
