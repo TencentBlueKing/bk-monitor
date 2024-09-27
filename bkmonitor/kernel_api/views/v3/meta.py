@@ -391,6 +391,10 @@ class QueryDataSourceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryDataSourceResource)]
 
 
+class QueryDataLinkInfoViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.QueryDataLinkInfoResource)]
+
+
 class QueryResultTableStorageDetailViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryResultTableStorageDetailResource)]
 

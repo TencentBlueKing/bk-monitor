@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+import logging
 from datetime import datetime, timedelta
 from typing import List
 
@@ -29,6 +30,8 @@ from metadata.models.space.constants import (
     SpaceTypes,
 )
 from metadata.utils.redis_tools import RedisTools
+
+logger = logging.getLogger("metadata")
 
 
 class AddBkDataTableIdsResource(Resource):
@@ -69,6 +72,7 @@ class QueryDataLinkInfoResource(Resource):
 
     def perform_request(self, data):
         bk_data_id = data["bk_data_id"]
+        logger.info("QueryDataLinkInfoResource: start to query bk_data_id: %s", bk_data_id)
 
         # 数据源信息
         ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
@@ -87,6 +91,7 @@ class QueryDataLinkInfoResource(Resource):
 
         # 健康状态
         # TimeSeriesGroup -- 指标过期问题
+        # 当清洗配置为以下类型时，说明为时序指标数据，需要检查指标是否存在过期问题
         time_series_etl_configs = ['bk_standard_v2_time_series', 'bk_standard', 'bk_exporter']
         expired_metrics = []
         if ds.etl_config in time_series_etl_configs:
@@ -103,21 +108,24 @@ class QueryDataLinkInfoResource(Resource):
             table_ids=table_ids, authorized_space_uids=authorized_space_uids
         )
 
-        return {
-            "数据源信息": ds_infos,
-            "清洗信息": etl_infos,
-            "结果表信息": rt_infos,
-            "计算平台信息": bkbase_infos,
-            "授权访问的空间UID": authorized_space_uids,
-            "过期指标信息": expired_metrics,
-            '结果表指标路由信息': error_rt_detail_infos,
-            '空间路由信息': space_to_result_table_router_infos,
+        res = {
+            "ds_infos": ds_infos,
+            "etl_infos": etl_infos,
+            "rt_infos": rt_infos,
+            "bkbase_infos": bkbase_infos,
+            "authorized_space_uids": authorized_space_uids,
+            "expired_metrics": expired_metrics,
+            'error_rt_detail_infos': error_rt_detail_infos,
+            'space_to_result_table_router_infos': space_to_result_table_router_infos,
         }
+
+        return json.dumps(res, ensure_ascii=False)
 
     def _get_data_id_details(self, ds):
         """
         组装数据源详情信息
         """
+        logger.info("QueryDataLinkInfoResource: start to get bk_data_id infos")
         return {
             "数据源ID": ds.bk_data_id,
             "数据源名称": ds.data_name,
@@ -136,6 +144,7 @@ class QueryDataLinkInfoResource(Resource):
         获取数据源清洗详情信息
         """
         # 清洗配置信息（Kafka）
+        logger.info("QueryDataLinkInfoResource: start to get bk_data_id etl infos")
         cluster = models.ClusterInfo.objects.get(cluster_id=ds.mq_cluster_id)
         mq_config = models.KafkaTopicInfo.objects.get(id=ds.mq_config_id)
 
@@ -150,30 +159,50 @@ class QueryDataLinkInfoResource(Resource):
 
     def _get_table_ids_details(self, table_ids):
         """
-        根据table_ids，批量获取结果表详情信息
+        根据 table_ids，批量获取结果表详情信息
         """
-        table_ids_details = []
+        table_ids_details = {}
+
         # 批量化处理
         for table_id in table_ids:
+            logger.info("QueryDataLinkInfoResource: start to get table_id: %s", table_id)
             try:
                 rt = models.ResultTable.objects.get(table_id=table_id)
                 if rt.bk_biz_id > 0:
                     space = models.Space.objects.get(space_type_id=SpaceTypes.BKCC.value, space_id=rt.bk_biz_id)
-                if rt.bk_biz_id < 0:
+                elif rt.bk_biz_id < 0:
                     space = models.Space.objects.get(id=abs(rt.bk_biz_id))
 
-                table_ids_details.append(
-                    {
-                        "结果表ID": rt.table_id,
-                        "存储方案": rt.default_storage,
-                        "归属业务ID": rt.bk_biz_id,
-                        "空间UID": '{}__{}'.format(space.space_type_id, space.space_id) if rt.bk_biz_id != 0 else '全局',
-                        "空间名称": space.space_name if rt.bk_biz_id != 0 else '全局',
-                        "是否启用": rt.is_enable,
-                    }
+                table_ids_details[table_id] = {
+                    "存储方案": rt.default_storage,
+                    "归属业务ID": rt.bk_biz_id,
+                    "空间UID": '{}__{}'.format(space.space_type_id, space.space_id) if rt.bk_biz_id != 0 else '全局',
+                    "空间名称": space.space_name if rt.bk_biz_id != 0 else '全局',
+                    "是否启用": rt.is_enable,
+                }
+
+                if rt.default_storage == models.ClusterInfo.TYPE_ES:
+                    logger.info("QueryDataLinkInfoResource: start to get table_id: %s es storage details", table_id)
+                    es_storage = models.ESStorage.objects.get(table_id=rt.table_id)
+                    es_cluster = models.ClusterInfo.objects.get(cluster_id=es_storage.storage_cluster_id)
+                    table_ids_details[table_id].update(
+                        {
+                            "ES索引大小切分阈值（GB）": es_storage.slice_size,
+                            "ES索引分片时间间隔(分钟）": es_storage.slice_gap,
+                            "ES时区配置": es_storage.time_zone,
+                            "ES索引配置信息": es_storage.index_settings,
+                            "ES别名配置信息": es_storage.mapping_settings,
+                            "ES索引集": es_storage.index_set,
+                            "ES存储集群": es_storage.storage_cluster_id,
+                            "ES存储集群名称": es_cluster.cluster_name,
+                            "ES存储集群域名": es_cluster.domain_name,
+                        }
+                    )
+
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(
+                    "QueryDataLinkInfoResource: failed to get table_id({}) details, error: {}".format(table_id, e)
                 )
-            except Exception:
-                continue
 
         return table_ids_details
 
@@ -183,6 +212,7 @@ class QueryDataLinkInfoResource(Resource):
         """
         bkbase_details = []
         for table_id in table_ids:
+            logger.info("QueryDataLinkInfoResource: start to get bkbase_details: %s", table_id)
             vmrts = models.AccessVMRecord.objects.filter(result_table_id=table_id)
             if not vmrts.exists():
                 bkbase_details.append({"异常信息": "接入计算平台记录不存在！"})
@@ -203,32 +233,36 @@ class QueryDataLinkInfoResource(Resource):
         针对时序指标类型，检查其是否存在指标过期问题
         """
         expired_metric_infos = []
-        now = timezone.now()
-        expired_time = now - timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
-        ts_group = models.TimeSeriesGroup.objects.get(bk_data_id=bk_data_id)
-        ts_metrics = models.TimeSeriesMetric.objects.filter(group_id=ts_group.time_series_group_id)
-        remote_metrics = ts_group.get_metrics_from_redis()
-        metric_dict = {metric.field_name: metric for metric in ts_metrics}
+        logger.info("QueryDataLinkInfoResource: start to check expired metrics")
+        try:
+            now = timezone.now()
+            expired_time = now - timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
+            ts_group = models.TimeSeriesGroup.objects.get(bk_data_id=bk_data_id)
+            ts_metrics = models.TimeSeriesMetric.objects.filter(group_id=ts_group.time_series_group_id)
+            remote_metrics = ts_group.get_metrics_from_redis()
+            metric_dict = {metric.field_name: metric for metric in ts_metrics}
 
-        for remote_metric in remote_metrics:
-            field_name = remote_metric['field_name']
-            # 检查该指标是否存在于 TimeSeriesMetric 中
-            if field_name in metric_dict:
-                metric = metric_dict[field_name]
-                # 检查 last_modify_time 是否超过一个月
-                if metric.last_modify_time < expired_time:
-                    remote_time = datetime.fromtimestamp(remote_metric['last_modify_time'], tz=timezone.utc)
-                    time_difference = (remote_time - metric.last_modify_time).total_seconds() / 3600
-                    expired_metric_infos.append(
-                        {
-                            'metric_name': metric.field_name,
-                            '上次修改时间': metric.last_modify_time,
-                            'Transfer/计算平台时间': datetime.fromtimestamp(
-                                remote_metric['last_modify_time'], tz=timezone.utc
-                            ),
-                            "时间差": "{}小时".format(time_difference),
-                        }
-                    )
+            for remote_metric in remote_metrics:
+                field_name = remote_metric['field_name']
+                # 检查该指标是否存在于 TimeSeriesMetric 中
+                if field_name in metric_dict:
+                    metric = metric_dict[field_name]
+                    # 检查 last_modify_time 是否超过一个月
+                    if metric.last_modify_time < expired_time:
+                        remote_time = datetime.fromtimestamp(remote_metric['last_modify_time'], tz=timezone.utc)
+                        time_difference = (remote_time - metric.last_modify_time).total_seconds() / 3600
+                        expired_metric_infos.append(
+                            {
+                                'metric_name': metric.field_name,
+                                '上次修改时间': metric.last_modify_time,
+                                'Transfer/计算平台时间': datetime.fromtimestamp(
+                                    remote_metric['last_modify_time'], tz=timezone.utc
+                                ),
+                                "时间差": "{}小时".format(time_difference),
+                            }
+                        )
+        except Exception:  # pylint: disable=broad-except
+            pass
         return expired_metric_infos
 
     def _get_authorized_space_uids(self, bk_data_id):
@@ -249,26 +283,33 @@ class QueryDataLinkInfoResource(Resource):
         """
         error_rt_detail_router_infos = []
         for table_id in table_ids:
-            router = RedisTools.hget(RESULT_TABLE_DETAIL_KEY, table_id)
-            ts_group = models.TimeSeriesGroup.objects.get(table_id=table_id)
-            remote_metrics = ts_group.get_metrics_from_redis()
-            router_data = json.loads(router.decode('utf-8'))
-            # 从 router_data 中提取存在的字段列表
-            router_fields = set(router_data["fields"])
-            remote_fields = {metric['field_name'] for metric in remote_metrics}
+            try:
+                router = RedisTools.hget(RESULT_TABLE_DETAIL_KEY, table_id)
+                ts_group = models.TimeSeriesGroup.objects.get(table_id=table_id)
+                remote_metrics = ts_group.get_metrics_from_redis()
+                router_data = json.loads(router.decode('utf-8'))
+                # 从 router_data 中提取存在的字段列表
+                router_fields = set(router_data["fields"])
+                remote_fields = {metric['field_name'] for metric in remote_metrics}
 
-            # 找出在 remote_metrics 中存在但在 router 中不存在的字段
-            missing_fields = remote_fields - router_fields
-            if missing_fields:
-                error_rt_detail_router_infos.append(
-                    {
-                        table_id: {
-                            "缺失指标": missing_fields,
+                # 找出在 remote_metrics 中存在但在 router 中不存在的字段
+                missing_fields = remote_fields - router_fields
+                if missing_fields:
+                    error_rt_detail_router_infos.append(
+                        {
+                            table_id: {
+                                "缺失指标": missing_fields,
+                            }
                         }
-                    }
-                )
-            else:
-                error_rt_detail_router_infos.append({table_id: {"路由信息": "路由正常"}})
+                    )
+                else:
+                    error_rt_detail_router_infos.append({table_id: {"路由信息": "路由正常"}})
+            except models.TimeSeriesGroup.DoesNotExist as e:
+                logger.error("Failed to get table_id({}) details, error: {}".format(table_id, e))
+                error_rt_detail_router_infos.append({table_id: {"路由信息": "时序分组不存在"}})
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error("Failed to get table_id({}) details, error: {}".format(table_id, e))
+                error_rt_detail_router_infos.append({table_id: {"路由信息": "存在异常"}})
         return error_rt_detail_router_infos
 
     def _check_space_to_result_table_router(self, table_ids, authorized_space_uids):
