@@ -411,15 +411,19 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
    */
   getWhereData(where = []) {
     const result = [];
+     // 脏数据映射关系
+    const dirtyDataMap = {
+      contains: '=' // 修正脏数据
+    };
     where.forEach(item => {
       if (item.condition) {
         result.push(item.condition.toLocaleUpperCase());
       }
       const method = CONDITION_METHOD_LIST.find(set => set.id === item.method);
       result.push(item.key);
-      // 存在部分脏数据 contains 等价 eq
-      if (!method && item.method === 'contains') {
-        result.push('=');
+      if (!method) {
+        // 处理脏数据
+        result.push(dirtyDataMap[item.method] || item.method);
       } else {
         result.push(method.name);
       }
