@@ -153,6 +153,8 @@ export interface ITableItemMap {
   datapoints: {
     datapoints: [number, number][];
     unit: string;
+    unitDecimal?: number;
+    valueTitle?: string;
   };
 }
 /** 正常 | 异常 | 成功状态 | 失败状态 | 禁用状态 | 等待*/
