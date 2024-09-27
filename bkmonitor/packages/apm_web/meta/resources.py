@@ -1543,10 +1543,9 @@ class DataSamplingResource(Resource):
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
         # 获取数据
-        log_type = validated_request_data["log_type"]
         size = validated_request_data["size"]
         telemetry_data_type = validated_request_data["telemetry_data_type"]
-        return self.combine_data(telemetry_data_type, app, log_type=log_type, size=size)
+        return self.combine_data(telemetry_data_type, app, size=size)
 
 
 class StorageInfoResource(Resource):

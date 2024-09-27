@@ -18,8 +18,8 @@ from django.utils.translation import ugettext_lazy as _
 
 from api.bkdata.default import (
     GetDataBusSamplingData,
-    GetDataBusStoragesInfo,
-    GetDataManageMetricsDataCount,
+    GetRawDataStoragesInfo,
+    GetStorageMetricsDataCount,
 )
 from api.log_search.default import (
     DataBusCollectorsIndicesResource,
@@ -274,11 +274,10 @@ class LogBackendHandler(TelemetryBackendHandler):
         return [{"raw_log": log, "sampling_time": log.get("datetime", "")} for log in resp]
 
     def get_data_view_config(self, **kwargs):
-        table_name = (self.result_table_id.replace(".", "_"),)
         return self.build_data_count_query(
-            data_type_label="log",
-            data_source_label="bk_apm",
-            table_name=table_name,
+            data_type_label="time_series",
+            data_source_label="bk_log_search",
+            table_name=self.result_table_id,
             query_config_kwargs={"index_set_id": self.index_set_id},
             **kwargs,
         )
@@ -308,7 +307,7 @@ class MetricBackendHandler(TelemetryBackendHandler):
         return vm_record.bk_base_data_id if vm_record else None
 
     def storage_info(self):
-        return GetDataBusStoragesInfo().request(raw_data_id=self.bk_base_data_id) if self.bk_base_data_id else []
+        return GetRawDataStoragesInfo().request(raw_data_id=self.bk_base_data_id) if self.bk_base_data_id else []
 
     def data_sampling(self, **kwargs):
         resp_data = []
@@ -334,10 +333,10 @@ class MetricBackendHandler(TelemetryBackendHandler):
                         "data_type": "time_series",
                         "datasource": "time_series",
                         "api": "apm_meta.dataHistogram",
+                        "primary_key": self.app.application_id,
                         "data": {
-                            "application_id": self.app.applicaiotn_id,
                             "telemetry_data_type": self.telemetry.value,
-                            "data_view_config": {"view_type": "histogram", "grain": "1m"},
+                            "data_view_config": {"grain": "1m"},
                         },
                     }
                 ],
@@ -353,10 +352,10 @@ class MetricBackendHandler(TelemetryBackendHandler):
                         "data_type": "time_series",
                         "datasource": "time_series",
                         "api": "apm_meta.dataHistogram",
+                        "primary_key": self.app.application_id,
                         "data": {
-                            "application_id": self.app.applicaiotn_id,
                             "telemetry_data_type": self.telemetry.value,
-                            "data_view_config": {"view_type": "histogram", "grain": "1d"},
+                            "data_view_config": {"grain": "1d"},
                         },
                     }
                 ],
@@ -365,8 +364,18 @@ class MetricBackendHandler(TelemetryBackendHandler):
         ]
 
     def get_data_view(self, start_time: int, end_time: int, **kwargs):
-        return GetDataManageMetricsDataCount().request(
-            data_set_ids=self.bk_base_data_id, start_time=start_time, end_time=end_time, **kwargs
+        storages = self.storage_info()
+        storage_result_table_id = None
+        for storage in storages:
+            if storage["storage_type"] == "vm":
+                storage_result_table_id = storage["result_table_id"]
+                break
+        return (
+            GetStorageMetricsDataCount().request(
+                data_set_ids=self.bk_data_id, storages="vm", start_time=start_time, end_time=end_time, **kwargs
+            )
+            if storage_result_table_id
+            else []
         )
 
     def get_data_count(self, start_time: int, end_time: int):
@@ -380,6 +389,11 @@ class MetricBackendHandler(TelemetryBackendHandler):
 
     def get_data_histogram(self, start_time, end_time, grain="1d"):
         resp = self.get_data_view(start_time, end_time, time_grain=grain)
+        datapoints = (
+            [[view_series["rawdata_count"], view_series["time"] * 1000] for view_series in resp[0]["series"]]
+            if resp
+            else []
+        )
         histograms = {
             "metrics": [],
             "series": [
@@ -391,9 +405,7 @@ class MetricBackendHandler(TelemetryBackendHandler):
                     "unit": "",
                     "dimensions": {},
                     "dimensions_translation": {},
-                    "datapoints": [
-                        [view_series["rawdata_count"], view_series["time"] * 1000] for view_series in resp["series"]
-                    ],
+                    "datapoints": datapoints,
                 }
             ],
         }
@@ -407,7 +419,7 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
     """
 
     def storage_info(self):
-        return GetDataBusStoragesInfo().request(raw_data_id=self.bk_data_id) if self.bk_data_id else []
+        return GetRawDataStoragesInfo().request(raw_data_id=self.bk_data_id) if self.bk_data_id else []
 
     def data_sampling(self, **kwargs):
         resp_data = []
@@ -415,10 +427,7 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
             resp = GetDataBusSamplingData().request(data_id=self.bk_data_id)
             for log in resp:
                 log_content = json.loads(log["value"])
-                time_str = datetime.datetime.fromtimestamp(
-                    int(log_content["time"]) / 1000, timezone.get_current_timezone()
-                ).strftime("%Y-%m-%d %H:%M:%S")
-                resp_data.append({"raw_log": log_content, "sampling_time": time_str})
+                resp_data.append({"raw_log": log_content, "sampling_time": ""})
         return resp_data
 
     def get_data_view_config(self, **kwargs):
@@ -433,10 +442,10 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
                         "data_type": "time_series",
                         "datasource": "time_series",
                         "api": "apm_meta.dataHistogram",
+                        "primary_key": self.app.application_id,
                         "data": {
-                            "application_id": self.app.applicaiotn_id,
                             "telemetry_data_type": self.telemetry.value,
-                            "data_view_config": {"view_type": "histogram", "grain": "1m"},
+                            "data_view_config": {"grain": "1m"},
                         },
                     }
                 ],
@@ -452,10 +461,10 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
                         "data_type": "time_series",
                         "datasource": "time_series",
                         "api": "apm_meta.dataHistogram",
+                        "primary_key": self.app.application_id,
                         "data": {
-                            "application_id": self.app.applicaiotn_id,
                             "telemetry_data_type": self.telemetry.value,
-                            "data_view_config": {"view_type": "histogram", "grain": "1d"},
+                            "data_view_config": {"grain": "1d"},
                         },
                     }
                 ],
@@ -464,8 +473,18 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
         ]
 
     def get_data_view(self, start_time: int, end_time: int, **kwargs):
-        return GetDataManageMetricsDataCount().request(
-            data_set_ids=self.bk_data_id, start_time=start_time, end_time=end_time, **kwargs
+        storages = self.storage_info()
+        storage_result_table_id = None
+        for storage in storages:
+            if storage["storage_type"] == "doris":
+                storage_result_table_id = storage["result_table_id"]
+                break
+        return (
+            GetStorageMetricsDataCount().request(
+                data_set_ids=self.bk_data_id, storages="doris", start_time=start_time, end_time=end_time, **kwargs
+            )
+            if storage_result_table_id
+            else []
         )
 
     def get_data_count(self, start_time: int, end_time: int):
@@ -479,6 +498,11 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
 
     def get_data_histogram(self, start_time, end_time, grain="1d"):
         resp = self.get_data_view(start_time, end_time, time_grain=grain)
+        datapoints = (
+            [[view_series["rawdata_count"], view_series["time"] * 1000] for view_series in resp[0]["series"]]
+            if resp
+            else []
+        )
         histograms = {
             "metrics": [],
             "series": [
@@ -490,9 +514,7 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
                     "unit": "",
                     "dimensions": {},
                     "dimensions_translation": {},
-                    "datapoints": [
-                        [view_series["rawdata_count"], view_series["time"] * 1000] for view_series in resp["series"]
-                    ],
+                    "datapoints": datapoints,
                 }
             ],
         }

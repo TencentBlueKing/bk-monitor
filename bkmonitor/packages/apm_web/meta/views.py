@@ -216,7 +216,7 @@ class ApplicationViewSet(ResourceViewSet):
         ResourceRoute("POST", NoDataStrategyDisableResource, endpoint="nodata_strategy_disable"),
         ResourceRoute("POST", DataViewConfigResource, endpoint="data_view_config", pk_field="application_id"),
         ResourceRoute("POST", DataHistogramResource, endpoint="data_histogram", pk_field="application_id"),
-        ResourceRoute("POST", DataSamplingResource, "data_sampling", pk_field="application_id"),
+        ResourceRoute("POST", DataSamplingResource, endpoint="data_sampling", pk_field="application_id"),
         ResourceRoute("POST", StorageInfoResource, endpoint="storage_info", pk_field="application_id"),
         ResourceRoute("POST", StorageFieldInfoResource, endpoint="storage_field_info", pk_field="application_id"),
         # --- 自定义远程服务
