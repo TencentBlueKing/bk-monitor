@@ -18,12 +18,29 @@ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN 
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
+from datetime import datetime, timedelta
+
 from celery.schedules import crontab  # noqa
 from celery.task import periodic_task  # noqa
 
+from apps.log_search.models import LogIndexSet, UserIndexSetSearchHistory
+from apps.utils.core.cache.cmdb_host import CmdbHostCache
 
-@periodic_task(run_every=crontab(minute="0", hour="*/12"))
+
+@periodic_task(run_every=crontab(minute="0", hour="*"))
 def refresh_cmdb():
-    from apps.utils.core.cache.cmdb_host import CmdbHostCache
-
+    index_set_ids = list(
+        UserIndexSetSearchHistory.objects.filter(created_at__gte=datetime.now() - timedelta(days=1)).values_list(
+            "index_set_id", flat=True
+        )
+    )
+    query = LogIndexSet.objects.filter(is_active=True)
+    searched = set(query.filter(index_set_id__in=index_set_ids).values_list("space_uid", flat=True))
+    not_searched = set(query.exclude(index_set_id__in=index_set_ids).values_list("space_uid", flat=True))
+    current_hour = datetime.now().hour
+    if current_hour % 12 != 0:
+        CmdbHostCache.set_space_uid_set(searched)
+    else:
+        all_space_uid = searched.union(not_searched)
+        CmdbHostCache.set_space_uid_set(all_space_uid)
     CmdbHostCache.refresh()

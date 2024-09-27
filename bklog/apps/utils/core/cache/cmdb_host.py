@@ -2,6 +2,7 @@ from collections import defaultdict
 
 from apps.api import CCApi
 from apps.log_search.constants import TimeEnum
+from apps.log_search.models import Space
 from apps.utils import local
 from apps.utils.core.cache.cache_base import CacheBase
 from apps.utils.log import logger
@@ -13,6 +14,12 @@ setattr(local, "host_info_cache", {})
 class CmdbHostCache(CacheBase):
     CACHE_KEY = f"{CacheBase.CACHE_KEY_PREFIX}.cmdb.host_info"
     CACHE_TIMEOUT = TimeEnum.ONE_DAY_SECOND.value
+    # 空间集合
+    SPACE_UID_SET = None
+
+    @classmethod
+    def set_space_uid_set(cls, space_uid_set):
+        cls.SPACE_UID_SET = space_uid_set
 
     @classmethod
     def get(cls, bk_biz_id, host_key):
@@ -67,6 +74,9 @@ class CmdbHostCache(CacheBase):
 
         for biz in businesses:
             bk_biz_id = biz["bk_biz_id"]
+            instance = Space.objects.filter(bk_biz_id=bk_biz_id).first()
+            if (instance is None) or (instance.space_uid not in cls.SPACE_UID_SET):
+                continue
             biz_ids.append(bk_biz_id)
             objs = {}
             try:
