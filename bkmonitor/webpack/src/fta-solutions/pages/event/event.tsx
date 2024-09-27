@@ -89,7 +89,14 @@ import {
   type SearchType,
   type eventPanelType,
 } from './typings/event';
-import { INIT_COMMON_FILTER_DATA, getOperatorDisabled } from './utils';
+import {
+  INIT_COMMON_FILTER_DATA,
+  getOperatorDisabled,
+  ALERT_FIELD_LIST,
+  INCIDENT_FIELD_LIST,
+  EVENT_FIELD_LIST,
+  ACTION_FIELD_LIST,
+} from './utils';
 
 import type { TType as TSliderType } from './event-detail/event-detail-slider';
 // import { showAccessRequest } from 'monitor-pc/components/access-request-dialog';
@@ -472,6 +479,13 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   };
   listOpenId = '';
 
+  spaceListMap = {
+    alert: ALERT_FIELD_LIST,
+    action: ACTION_FIELD_LIST,
+    event: EVENT_FIELD_LIST,
+    incident: INCIDENT_FIELD_LIST,
+  };
+
   get panelList(): IPanelItem[] {
     return this.searchType === 'action' ? this.actionPanelList : this.alertPanelList;
   }
@@ -671,6 +685,30 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     }
     return queryData[key] ?? null;
   }
+  /** 处理路由里的queryStr */
+  handleRouteQueryStr(val) {
+    const list = this.spaceListMap[this.searchType];
+    const splitStr = val.split(' ');
+    const indices = splitStr.reduce((acc, value, index) => {
+      if (value === ':') {
+        acc.push(index);
+      }
+      return acc;
+    }, []);
+    // 替换对应的名称
+    const replaceWithName = (arr, indices, list) => {
+      // biome-ignore lint/complexity/noForEach: <explanation>
+      indices.forEach(index => {
+        const str = arr[index - 1];
+        if ((isEn && /[\u4e00-\u9fa5]/.test(str)) || (!isEn && !/[\u4e00-\u9fa5]/.test(str))) {
+          const mapping = list.find(item => (isEn ? item.zhId : item.id) === str) || {};
+          arr[index - 1] = (isEn ? mapping.id : mapping.name) || str;
+        }
+      });
+    };
+    replaceWithName(splitStr, indices, list);
+    return splitStr.join(' ');
+  }
   /**
    * @description: 获取路由query参数
    * @param {*}
@@ -687,6 +725,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       }
     }
     const query = {};
+    // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(this.$route.query).forEach(key => {
       if (!['data', 'key'].includes(key)) {
         const val = this.$route.query[key];
@@ -704,6 +743,10 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           query[key] = val;
         } else if (key === 'promql') {
           query[key] = decodeURIComponent((val as string) || '');
+        } else if (key === 'queryString') {
+          if (val) {
+            query[key] = this.handleRouteQueryStr(val);
+          }
         } else {
           query[key] = val;
         }
