@@ -333,9 +333,6 @@
       isShowTopNav() {
         return this.exhibitAll && this.clusterSwitch && !this.isShowClusterStep;
       },
-      indexId() {
-        return this.$store.state.indexId;
-      },
       indexSetItem() {
         return this.$store.state.indexItem;
       },
@@ -364,9 +361,9 @@
       },
       isSearchIng(v) {
         this.isClickSearch = true;
-        if (this.exhibitAll && !this.isInitPage && v) this.requestFinger();
+        if (this.exhibitAll && !this.isInitPage && this.isClusterActive && v) this.requestFinger();
       },
-      indexId() {
+      routerIndexSet() {
         this.isShowClusterStep = true;
       },
       isShowClusterStep(v) {
