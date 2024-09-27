@@ -7,6 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import hashlib
+import json
 import logging
 from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
@@ -33,6 +35,73 @@ from .base import BaseInstaller
 logger = logging.getLogger(__name__)
 
 
+SERVICE_MONITOR_TEMPLATE = """
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ plugin_release_name }}
+  labels:
+    app.kubernetes.io/name: qcloud-exporter
+    app.kubernetes.io/instance: {{ plugin_release_name }}
+    app.kubernetes.io/managed-by: bk-monitor
+    app.kubernetes.io/plugin-id: "{{ plugin.id }}"
+    {%- if bk_env %}
+    app.kubernetes.io/bk-env: "{{ bk_env }}"
+    {%- endif %}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: qcloud-exporter
+      app.kubernetes.io/managed-by: bk-monitor
+      app.kubernetes.io/plugin-id: "{{ plugin.id }}"
+      {%- if bk_env %}
+      app.kubernetes.io/bk-env: "{{ bk_env }}"
+      {%- endif %}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ collect.period }}s
+      scrapeTimeout: {{ collect.timeout }}s
+      honorLabels: false
+      relabelings:
+        - sourceLabels:
+          - "__meta_kubernetes_service_label_app_kubernetes_io_collect_config_id"
+          regex: "(.*)"
+          targetLabel: "bk_collect_config_id"
+          replacement: "${1}"
+          action: replace
+        - targetLabel: "bk_biz_id"
+          replacement: "{{ bk_biz_id }}"
+  namespaceSelector:
+    matchNames:
+    - {{ namespace }}
+"""
+
+
+DATA_ID_TEMPLATE = """
+apiVersion: monitoring.bk.tencent.com/v1beta1
+kind: DataID
+metadata:
+  name: {{ plugin_release_name }}
+  labels:
+    {%- if bk_env %}
+    bk_env: "{{ bk_env }}"
+    {%- endif %}
+    isCommon: "false"
+    isSystem: "false"
+    usage: metric
+spec:
+  dataID: {{ plugin.data_id }}
+  labels:
+    bcs_cluster_id: {{ cluster_id }}
+    bk_biz_id: "{{ bk_biz_id }}"
+  monitorResource:
+    kind: servicemonitor
+    namespace: {{ namespace }}
+    name: {{ plugin_release_name }}
+"""
+
+
 class K8sInstaller(BaseInstaller):
     """
     k8s安装器
@@ -47,11 +116,10 @@ class K8sInstaller(BaseInstaller):
         """
         获取默认集群信息
         """
-        namespace = (
-            f"bk-monitor-collect-{self.collect_config.plugin_id.replace('_', '-')}-"
-            f"{self.collect_config.bk_biz_id}-{settings.ENVIRONMENT_CODE}"
-        )
-        cluster_id = settings.K8S_PLUGIN_COLLECT_CLUSTER_ID
+        if not settings.K8S_PLUGIN_COLLECT_CLUSTER_ID:
+            raise ValueError("K8S_PLUGIN_COLLECT_CLUSTER_ID is required, contact administrator")
+
+        cluster_id, namespace = settings.K8S_PLUGIN_COLLECT_CLUSTER_ID.split(":")
         return cluster_id, namespace
 
     @staticmethod
@@ -70,11 +138,73 @@ class K8sInstaller(BaseInstaller):
         )
         return config
 
-    def _create_namespace_and_dataid(self):
+    @staticmethod
+    def _compare_md5(current_config: Dict[str, Any], exists_config: Dict[str, Any]) -> Tuple[bool, str]:
         """
-        创建namespace和dataid资源
+        比较两个配置的MD5值是否相等
         """
-        cluster_id, namespace = self._get_default_cluster()
+        current_md5 = hashlib.md5(json.dumps(current_config, sort_keys=True).encode("utf-8")).hexdigest()
+
+        if not exists_config:
+            return True, current_md5
+
+        exists_md5 = exists_config.get("metadata", {}).get("annotations", {}).get("app.kubernetes.io/config-md5")
+        return current_md5 != exists_md5, current_md5
+
+    @classmethod
+    def _create_or_update_dynamic_resource(
+        cls,
+        dynamic_client: k8s_dynamic.DynamicClient,
+        yaml_template: Union[str, Dict[str, Any]],
+        context: Dict[str, Any],
+    ):
+        """
+        创建或更新动态资源配置
+        """
+        # 渲染yaml配置
+        if isinstance(yaml_template, str):
+            yaml_str: str = jinja_render(yaml_template, context)
+            config: Dict[str, Any] = yaml.load(yaml_str, Loader=yaml.FullLoader)
+        else:
+            config = yaml_template
+
+        resource_client = dynamic_client.resources.get(api_version=config["apiVersion"], kind=config["kind"])
+
+        # 查询已存在的配置
+        try:
+            exists_config = resource_client.get(namespace=context["namespace"], name=config["metadata"]["name"])
+        except k8s_client.exceptions.ApiException as e:
+            if e.status != 404:
+                raise e
+            exists_config = None
+
+        # 比较配置MD5值
+        diff, config_md5 = cls._compare_md5(config, exists_config)
+        if not diff:
+            return
+
+        # 删除旧的配置
+        if exists_config:
+            try:
+                resource_client.delete(namespace=context["namespace"], name=config["metadata"]["name"])
+            except k8s_client.exceptions.ApiException as e:
+                if e.status != 404:
+                    raise e
+
+        # 创建新的配置
+        config["metadata"].setdefault("annotations", {})["app.kubernetes.io/config-md5"] = config_md5
+        try:
+            resource_client.create(namespace=context["namespace"], body=config)
+        except k8s_client.exceptions.ApiException as e:
+            if e.status != 409:
+                raise e
+
+    def _create_plugin_public_resource(self, context: Dict[str, Any]):
+        """
+        创建公共资源配置
+        """
+        cluster_id: str = context["cluster_id"]
+        namespace: str = context["namespace"]
 
         with k8s_client.ApiClient(self._get_k8s_config(cluster_id)) as api_client:
             # 创建namespace
@@ -90,81 +220,58 @@ class K8sInstaller(BaseInstaller):
                 if e.status != 409:
                     raise e
 
-            # 创建dataid资源
             dynamic_client = k8s_dynamic.DynamicClient(api_client)
-            resource_client = dynamic_client.resources.get(
-                api_version="monitoring.bk.tencent.com/v1beta1", kind="DataID"
-            )
 
-            metadata_labels = {
-                "isCommon": "false",
-                "isSystem": "false",
-                "usage": "metric",
-            }
+            # 创建dataid资源
+            self._create_or_update_dynamic_resource(dynamic_client, DATA_ID_TEMPLATE, context)
 
-            # 如果有环境标签，添加环境标签
-            if settings.BCS_CLUSTER_BK_ENV_LABEL:
-                metadata_labels["bk_env"] = settings.BCS_CLUSTER_BK_ENV_LABEL
+            # 创建servicemonitor资源
+            self._create_or_update_dynamic_resource(dynamic_client, SERVICE_MONITOR_TEMPLATE, context)
 
-            try:
-                resource_client.create(
-                    namespace=namespace,
-                    body={
-                        "apiVersion": "monitoring.bk.tencent.com/v1beta1",
-                        "kind": "DataID",
-                        "metadata": {
-                            "name": f"bk-monitor-collector-{self.collect_config.plugin_id.replace('_', '-')}",
-                            "labels": metadata_labels,
-                        },
-                        "spec": {
-                            "dataID": self.collect_config.data_id,
-                            "labels": {
-                                "bk_biz_id": str(self.collect_config.bk_biz_id),
-                                "bcs_cluster_id": cluster_id,
-                            },
-                            "monitorResource": {"kind": "servicemonitor", "namespace": namespace},
-                        },
-                    },
-                )
-            except k8s_client.exceptions.ApiException as e:
-                if e.status != 409:
-                    raise e
+    def _render_yaml(self, target_version: DeploymentConfigVersion, context: Dict[str, Any]) -> str:
+        """
+        渲染yaml配置
+        """
+        # 获取部署配置
+        yaml_template = target_version.plugin_version.config.collector_json.get("template")
+        if not yaml_template:
+            raise ValueError("template is required in plugin config")
+
+        return jinja_render(yaml_template, context)
 
     def _deploy(self, target_version: DeploymentConfigVersion):
         """
         部署k8s资源配置
         """
+        context = self._get_context(target_version)
+        cluster_id = context["cluster_id"]
+
         # 创建namespace和dataid资源
-        self._create_namespace_and_dataid()
+        self._create_plugin_public_resource(context)
 
-        # 卸载旧的资源配置
-        self._undeploy()
-
-        cluster_id, namespace = self._get_default_cluster()
         with k8s_client.ApiClient(self._get_k8s_config(cluster_id)) as api_client:
             client = k8s_dynamic.DynamicClient(api_client)
 
-            for config in yaml.safe_load_all(self._render_yaml(target_version)):
+            for config in yaml.safe_load_all(self._render_yaml(target_version, context)):
                 if not config:
                     continue
-                api_version = config["apiVersion"]
-                kind = config["kind"]
-                resource_client = client.resources.get(api_version=api_version, kind=kind)
-                try:
-                    resource_client.create(namespace=namespace, body=config)
-                except k8s_client.exceptions.ApiException as e:
-                    if e.status != 409:
-                        raise e
+                self._create_or_update_dynamic_resource(client, config, context)
 
-    def _undeploy(self):
+    def _undeploy(self, target_version: Optional[DeploymentConfigVersion] = None):
         """
         卸载k8s资源配置
         """
-        cluster_id, namespace = self._get_default_cluster()
+        if not target_version:
+            target_version = self.collect_config.deployment_config
+
+        context = self._get_context(target_version)
+        cluster_id: str = context["cluster_id"]
+        namespace: str = context["namespace"]
+
         with k8s_client.ApiClient(configuration=self._get_k8s_config(cluster_id)) as api_client:
             client = k8s_dynamic.DynamicClient(api_client)
 
-            for config in yaml.safe_load_all(self._render_yaml(self.collect_config.deployment_config)):
+            for config in yaml.safe_load_all(self._render_yaml(target_version, context)):
                 if not config:
                     continue
                 api_version = config["apiVersion"]
@@ -176,17 +283,12 @@ class K8sInstaller(BaseInstaller):
                     if e.status != 404:
                         raise e
 
-    def _render_yaml(self, target_version: DeploymentConfigVersion) -> str:
+    def _get_context(self, target_version: DeploymentConfigVersion) -> Dict[str, Any]:
         """
-        渲染yaml配置
+        获取上下文配置
         """
         plugin_version: PluginVersionHistory = target_version.plugin_version
         collector_json: Dict[str, Any] = plugin_version.config.collector_json
-
-        # 获取yaml模板
-        yaml_template: str = collector_json.get("template")
-        if not yaml_template:
-            raise ValueError("template is required in plugin config")
 
         collect_params: Dict[str, Any] = target_version.params
 
@@ -210,18 +312,28 @@ class K8sInstaller(BaseInstaller):
                 sub_value = sub_value[sub_key]
             values[key] = value
 
-        # 获取Namespace
         cluster_id, namespace = self._get_default_cluster()
 
-        # 渲染yaml配置
-        context = {
+        plugin_id = self.collect_config.plugin.plugin_id.replace("_", "-")
+        bk_env: str = settings.BCS_CLUSTER_BK_ENV_LABEL
+        if bk_env:
+            release_name = f"bk-monitor-collector-{self.collect_config.id}-{bk_env}"
+            plugin_release_name = f"bk-monitor-plugin-{plugin_id}-{bk_env}"
+        else:
+            release_name = f"bk-monitor-collector-{self.collect_config.id}"
+            plugin_release_name = f"bk-monitor-plugin-{plugin_id}"
+
+        return {
             "bk_biz_id": self.collect_config.bk_biz_id,
-            "release_name": f"bk-monitor-collector-{self.collect_config.id}-{settings.ENVIRONMENT_CODE}",
+            "bk_env": bk_env,
+            "release_name": release_name,
+            "plugin_release_name": plugin_release_name,
             "cluster_id": cluster_id,
             "namespace": namespace,
             "values": values,
             "collect": {
                 "id": self.collect_config.id,
+                "name": self.collect_config.name,
                 "version": target_version.id,
                 "period": collect_params.get("collector", {}).get("period", 60),
                 "timeout": collect_params.get("collector", {}).get("timeout", 60),
@@ -232,8 +344,6 @@ class K8sInstaller(BaseInstaller):
                 "data_id": self.collect_config.data_id,
             },
         }
-        yaml_config: str = jinja_render(yaml_template, context)
-        return yaml_config
 
     def install(self, install_config: Dict, operation: Optional[str] = None) -> Dict:
         """
@@ -283,7 +393,7 @@ class K8sInstaller(BaseInstaller):
         """
         current_version = self.collect_config.deployment_config
 
-        params["collector"]["period"] = current_version.params["collector"]["period"]
+        params["collector"]["period"] = current_version.params.get("collector", {}).get("period", 60)
 
         # 创建新的部署记录
         deployment_config_params = {
@@ -412,6 +522,7 @@ class K8sInstaller(BaseInstaller):
         """
         状态查询
         """
+        target_version = self.collect_config.deployment_config
 
         if self.collect_config.last_operation == OperationType.STOP:
             return [
@@ -421,7 +532,7 @@ class K8sInstaller(BaseInstaller):
                             "instance_id": "default",
                             "instance_name": _("公共采集集群"),
                             "status": "SUCCESS",
-                            "plugin_version": self.collect_config.deployment_config.plugin_version.version,
+                            "plugin_version": target_version.plugin_version.version,
                             "log": "",
                             "action": "",
                             "steps": {},
@@ -433,12 +544,14 @@ class K8sInstaller(BaseInstaller):
                 }
             ]
 
+        context = self._get_context(target_version)
+
         cluster_id, namespace = self._get_default_cluster()
         with k8s_client.ApiClient(self._get_k8s_config(cluster_id)) as api_client:
             client = k8s_dynamic.DynamicClient(api_client)
 
             status, log = "SUCCESS", ""
-            for resource in yaml.safe_load_all(self._render_yaml(self.collect_config.deployment_config)):
+            for resource in yaml.safe_load_all(self._render_yaml(target_version, context)):
                 if not resource:
                     continue
 
