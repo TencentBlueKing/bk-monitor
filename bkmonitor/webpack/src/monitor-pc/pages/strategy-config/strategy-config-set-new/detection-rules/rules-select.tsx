@@ -27,6 +27,7 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import FuctionalDependency from '@blueking/functional-dependency/vue2';
+import { skipToDocsLink } from 'monitor-common/utils/docs';
 
 import { DetectionRuleTypeEnum, type IDetectionTypeItem } from '../typings/index';
 
@@ -92,7 +93,7 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
     this.show = !this.show;
   }
   handleFunctionalDepsGotoMore() {
-    window.open(`${window.bk_docs_site_url}markdown/ZH/DeploymentGuides/7.1/index.md`, '_blank');
+    skipToDocsLink('bkDeploymentGuides');
   }
   render() {
     return (

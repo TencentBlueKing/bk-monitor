@@ -144,11 +144,12 @@
         <slot name="prepend" />
         <MonacoEditor
           class="code-select-editor"
-          style="height: 300px"
+          style="height: 250px"
           :value="config.default"
           :language="'json'"
           :theme="'vs-light'"
-          :height="300"
+          :height="250"
+          :options="config.options || { minimap: { enabled: false }, fontSize: 12 }"
           @change="handleCodeChange"
         />
       </div>
@@ -574,10 +575,6 @@ export default class StrategySetTarget extends Vue {
 
   .code-select {
     align-items: flex-start;
-
-    .monaco-editor {
-      margin-left: 15px;
-    }
   }
 
   .temp-span {
@@ -715,7 +712,7 @@ export default class StrategySetTarget extends Vue {
     &-editor {
       height: 300px;
       margin-top: 2px;
-      margin-left: 15px;
+      margin-left: 4px;
       border: 1px solid #c4c6cc;
     }
   }
