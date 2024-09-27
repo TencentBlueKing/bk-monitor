@@ -69,11 +69,10 @@
       v-show="usernameRequested"
     >
       <!-- 全局设置 -->
-      <bk-dropdown-menu
-        v-if="isShowGlobalSetIcon"
-        align="center"
-        @hide="dropdownGlobalHide"
-        @show="dropdownGlobalShow"
+      <HeaderDropDownMenu
+        :dropdownList="globalSettingList"
+        @handleDropdown="res => (isShowGlobalDropdown = res)"
+        @handleMenuItemClick="item => handleClickGlobalDialog(item.id)"
       >
         <template #dropdown-trigger>
           <div class="icon-language-container">
@@ -85,114 +84,35 @@
             ></span>
           </div>
         </template>
-        <template #dropdown-content>
-          <ul class="bk-dropdown-list">
-            <li
-              v-for="item in globalSettingList"
-              class="language-btn"
-              :key="item.id"
-            >
-              <a
-                href="javascript:;"
-                @click="handleClickGlobalDialog(item.id)"
-              >
-                {{ item.name }}
-              </a>
-            </li>
-          </ul>
-        </template>
-      </bk-dropdown-menu>
+      </HeaderDropDownMenu>
       <!-- 语言 -->
-      <bk-dropdown-menu
-        align="center"
-        @hide="dropdownLanguageHide"
-        @show="dropdownLanguageShow"
-      >
-        <template #dropdown-trigger>
-          <div class="icon-language-container">
-            <div class="icon-circle-container">
-              <div
-                :class="[
-                  'icon-language',
-                  {
-                    active: isShowLanguageDropdown,
-                  },
-                  language === 'en' ? 'bk-icon icon-english' : 'bk-icon icon-chinese',
-                ]"
-              />
-            </div>
-          </div>
-        </template>
-        <template #dropdown-content>
-          <ul class="bk-dropdown-list">
-            <li
-              v-for="item in languageList"
-              class="language-btn"
-              :key="item.id"
-            >
-              <a
-                :class="{ active: language === item.id }"
-                href="javascript:;"
-                @click="changeLanguage(item.id)"
-              >
-                <span :class="['icon-language', getLanguageClass(item.id)]" />
-                {{ item.name }}
-              </a>
-            </li>
-          </ul>
-        </template>
-      </bk-dropdown-menu>
-      <!-- 版本日志和产品文档 -->
-      <bk-dropdown-menu
-        ref="dropdownHelp"
-        align="center"
-        @hide="dropdownHelpHide"
-        @show="dropdownHelpShow"
+      <HeaderDropDownMenu
+        ref="languageDropDownMenuRef"
+        :dropdownList="languageList"
+        @handleDropdown="res => (isShowLanguageDropdown = res)"
+        @handleMenuItemClick="item => changeLanguage(item.id)"
       >
         <template #dropdown-trigger>
           <div
             class="icon-language-container"
-            :class="isShowHelpDropdown && 'active'"
+            :class="isShowLanguageDropdown && 'active'"
           >
             <div class="icon-circle-container">
-              <span
-                class="icon bklog-icon bklog-help"
-                slot="dropdown-trigger"
-              ></span>
+              <div :class="['icon-language', language === 'en' ? 'bk-icon icon-english' : 'bk-icon icon-chinese']" />
             </div>
           </div>
         </template>
-        <template #dropdown-content>
-          <ul class="bk-dropdown-list">
-            <li>
-              <a
-                href="javascript:;"
-                @click.stop="dropdownHelpTriggerHandler('docCenter')"
-              >
-                {{ $t('产品文档') }}
-              </a>
-              <a
-                v-if="!isExternal"
-                href="javascript:;"
-                @click.stop="dropdownHelpTriggerHandler('logVersion')"
-              >
-                {{ $t('版本日志') }}
-              </a>
-              <a
-                href="javascript:;"
-                @click.stop="dropdownHelpTriggerHandler('feedback')"
-              >
-                {{ $t('问题反馈') }}
-              </a>
-            </li>
-          </ul>
-        </template>
-      </bk-dropdown-menu>
+      </HeaderDropDownMenu>
+      <!-- 版本日志和产品文档 -->
+      <HeaderDropDownMenu
+        :dropdownList="productList"
+        navIcon="bklog-help"
+        @handleMenuItemClick="item => dropdownHelpTriggerHandler(item.params)"
+      />
       <log-version :dialog-show.sync="showLogVersion" />
-      <bk-dropdown-menu
-        align="center"
-        @hide="dropdownLogoutHide"
-        @show="dropdownLogoutShow"
+      <HeaderDropDownMenu
+        :dropdownList="settingList"
+        @handleDropdown="res => (isShowLogoutDropdown = res)"
       >
         <template #dropdown-trigger>
           <div
@@ -208,35 +128,7 @@
             </span>
           </div>
         </template>
-        <template #dropdown-content>
-          <ul class="bk-dropdown-list">
-            <li>
-              <a
-                href="javascript:;"
-                @click="handleGoToMyApplication"
-              >
-                {{ $t('我申请的') }}
-              </a>
-            </li>
-            <li>
-              <a
-                href="javascript:;"
-                @click="handleGoToMyReport"
-              >
-                {{ $t('我的订阅') }}
-              </a>
-            </li>
-            <li>
-              <a
-                href="javascript:;"
-                @click="handleQuit"
-              >
-                {{ $t('退出登录') }}
-              </a>
-            </li>
-          </ul>
-        </template>
-      </bk-dropdown-menu>
+      </HeaderDropDownMenu>
     </div>
 
     <GlobalDialog
@@ -263,6 +155,7 @@
   import { menuArr } from './complete-menu';
   import LogVersion from './log-version';
   import BizMenuSelect from '@/components/biz-menu';
+  import HeaderDropDownMenu from '@/components/header-dropdown-menu/index.vue';
 
   export default {
     name: 'HeaderNav',
@@ -270,6 +163,7 @@
       LogVersion,
       GlobalDialog,
       BizMenuSelect,
+      HeaderDropDownMenu,
     },
     mixins: [navMenuMixin],
     props: {
@@ -291,8 +185,37 @@
         showLogVersion: false,
         language: 'zh-cn',
         languageList: [
-          { id: 'zh-cn', name: '中文' },
-          { id: 'en', name: 'English' },
+          { id: 'zh-cn', name: '中文', icon: 'icon-chinese' },
+          { id: 'en', name: 'English', icon: 'icon-english' },
+        ],
+        productList: [
+          {
+            name: '产品文档',
+            params: 'docCenter',
+          },
+          {
+            name: '版本日志',
+            isShow: !this.isExternal,
+            params: 'logVersion',
+          },
+          {
+            name: '问题反馈',
+            params: 'feedback',
+          },
+        ],
+        settingList: [
+          {
+            name: '我申请的',
+            clickHandler: this.handleGoToMyApplication,
+          },
+          {
+            name: '我的订阅',
+            clickHandler: this.handleGoToMyReport,
+          },
+          {
+            name: '退出登录',
+            clickHandler: this.handleQuit,
+          },
         ],
         showGlobalDialog: false,
         globalDialogTitle: '',
@@ -564,30 +487,6 @@
         }
         location.reload();
       },
-      dropdownLanguageShow() {
-        this.isShowLanguageDropdown = true;
-      },
-      dropdownLanguageHide() {
-        this.isShowLanguageDropdown = false;
-      },
-      dropdownGlobalShow() {
-        this.isShowGlobalDropdown = true;
-      },
-      dropdownGlobalHide() {
-        this.isShowGlobalDropdown = false;
-      },
-      dropdownHelpShow() {
-        this.isShowHelpDropdown = true;
-      },
-      dropdownHelpHide() {
-        this.isShowHelpDropdown = false;
-      },
-      dropdownLogoutShow() {
-        this.isShowLogoutDropdown = true;
-      },
-      dropdownLogoutHide() {
-        this.isShowLogoutDropdown = false;
-      },
       dropdownHelpTriggerHandler(type) {
         this.$refs.dropdownHelp.hide();
         if (type === 'logVersion') {
@@ -633,9 +532,6 @@
         // 打开全局设置弹窗
         this.$store.commit('updateGlobalActiveLabel', id);
         this.$store.commit('updateIsShowGlobalDialog', true);
-      },
-      getLanguageClass(language) {
-        return language === 'en' ? 'bk-icon icon-english' : 'bk-icon icon-chinese';
       },
     },
   };
@@ -842,6 +738,11 @@
             transition: all 0.2s;
 
             .bklog-icon {
+              color: #d3d9e4;
+              transition: all 0.2s;
+            }
+
+            .bk-icon {
               color: #d3d9e4;
               transition: all 0.2s;
             }

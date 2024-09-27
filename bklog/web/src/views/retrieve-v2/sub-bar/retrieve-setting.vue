@@ -202,7 +202,7 @@
 </template>
 <style lang="scss">
   .more-operation {
-    padding: 5px 10px 5px 14px;
+    padding: 5px 10px 5px 17px;
     border: 1px solid #c4c6cc;
     border-radius: 2px;
 

@@ -210,7 +210,7 @@
       </div>
       <SubBar
         :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 92}px` }"
-        showFavorites
+        :showFavorites="showFavorites"
       />
     </div>
     <div class="retrieve-body">
