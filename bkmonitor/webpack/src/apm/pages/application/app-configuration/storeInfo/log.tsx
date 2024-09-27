@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { setup } from 'monitor-api/modules/apm_meta';
 import { byteConvert } from 'monitor-common/utils/utils';
 
 import EditableFormItem from '../../../../components/editable-form-item/editable-form-item';
@@ -41,6 +42,7 @@ interface IProps {
   indicesList: IndicesItem[];
   storageInfo?: ILogStorageInfo;
   telemetryDataType?: ETelemetryDataType;
+  onChange?: () => void;
 }
 @Component
 export default class Log extends tsc<IProps> {
@@ -49,13 +51,37 @@ export default class Log extends tsc<IProps> {
   @Prop({ type: Boolean }) dataLoading: boolean;
   @Prop({ type: Boolean }) indicesLoading: boolean;
   // 存储信息
-  @Prop({ type: Object, default: () => null }) storageInfo: ILogStorageInfo;
+  @Prop({ type: Object, default: () => ({}) }) storageInfo: ILogStorageInfo;
   @Prop({ type: String, default: '' }) telemetryDataType: ETelemetryDataType;
   healthMaps = {
     green: this.$t('健康'),
     yellow: this.$t('部分异常'),
     red: this.$t('异常'),
   };
+
+  @Emit('change')
+  handleBaseInfoChange() {
+    return true;
+  }
+
+  async handleUpdateValue(value, field: string) {
+    try {
+      // 更新基本信息
+      const datasourceConfig = Object.assign({}, { [field]: Number(value) });
+
+      const params = {
+        application_id: this.appInfo.application_id,
+        datasource_option: datasourceConfig,
+        telemetry_data_type: this.telemetryDataType,
+      };
+      await setup(params);
+      await this.handleBaseInfoChange();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   render() {
     const statusSlot = {
       default: props => [
@@ -93,8 +119,9 @@ export default class Log extends tsc<IProps> {
               <EditableFormItem
                 formType='expired'
                 label={this.$t('过期时间')}
-                showEditable={false}
+                showEditable={true}
                 tooltips={this.$t('过期时间')}
+                updateValue={val => this.handleUpdateValue(val, 'retention')}
                 value={this.storageInfo?.retention}
               />
               <EditableFormItem

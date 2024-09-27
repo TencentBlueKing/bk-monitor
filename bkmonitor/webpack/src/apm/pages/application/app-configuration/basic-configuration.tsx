@@ -173,6 +173,16 @@ export default class BasicInfo extends tsc<IProps> {
         message: window.i18n.tc('必填项'),
         trigger: 'blur',
       },
+      {
+        validator: val => !/^\s*$/.test(val),
+        message: window.i18n.tc('必填项'),
+        trigger: 'blur',
+      },
+      {
+        validator: val => !/(\ud83c[\udf00-\udfff])|(\ud83d[\udc00-\ude4f\ude80-\udeff])|[\u2600-\u2B55]/g.test(val),
+        message: window.i18n.tc('不能输入emoji表情'),
+        trigger: 'blur',
+      },
     ],
     sampler_percentage: [
       {
@@ -1673,6 +1683,7 @@ export default class BasicInfo extends tsc<IProps> {
                               placeholder={window.i18n.t('请输入') as string}
                               value={item.key_alias}
                               onChange={v => this.handleRuleKeyChange(item, v, gIndex, index)}
+                              onNullBlur={() => this.handleDeleteKey(gIndex, index)}
                             >
                               <div
                                 class='extension'
@@ -1795,21 +1806,23 @@ export default class BasicInfo extends tsc<IProps> {
                           key={`group_${index}`}
                           class='rule-item'
                         >
-                          {group.map((item, index) => (
-                            <span
-                              key={`condition-item-${item.method}`}
-                              class='condition-item'
-                            >
-                              {index && item.condition ? (
-                                <span class='and-condition'>{item.condition.toLocaleUpperCase()}</span>
-                              ) : (
-                                ''
-                              )}
-                              <span>{item.key_alias}</span>
-                              <span class='method'>{this.handleGetMethodNameById(item.method)}</span>
-                              <span>{item.type === 'string' ? item.value.join(',') : `${item.value}s`}</span>
-                            </span>
-                          ))}
+                          {group
+                            .filter(item => !!item.key_alias)
+                            .map((item, index) => (
+                              <span
+                                key={`condition-item-${item.method}`}
+                                class='condition-item'
+                              >
+                                {index && item.condition ? (
+                                  <span class='and-condition'>{item.condition.toLocaleUpperCase()}</span>
+                                ) : (
+                                  ''
+                                )}
+                                <span>{item.key_alias}</span>
+                                <span class='method'>{this.handleGetMethodNameById(item.method)}</span>
+                                <span>{item.type === 'string' ? item.value.join(',') : `${item.value}s`}</span>
+                              </span>
+                            ))}
                         </div>
                       ))}
                     </div>
@@ -2059,9 +2072,9 @@ export default class BasicInfo extends tsc<IProps> {
                                     disabled={card.trace_mode === 'closed'}
                                     size='small'
                                     theme='primary'
-                                    onChange={() =>
-                                      (this.DBTypeRules[index].threshold[0].required = card.enabled_slow_sql)
-                                    }
+                                    onChange={() => {
+                                      this.DBTypeRules[index].threshold[0].required = card.enabled_slow_sql;
+                                    }}
                                   />
                                   <span
                                     style='margin-left: 16px;'
