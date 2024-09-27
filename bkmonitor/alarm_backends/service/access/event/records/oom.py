@@ -90,8 +90,3 @@ class OOMEvent(GSEBaseAlarmEventRecord):
             dimensions[field] = self.raw_data["_extra_"][field]
 
         return dimensions
-
-    def clean_dimension_fields(self):
-        dimension_fields = super().clean_dimension_fields()
-        dimension_fields.extend(["process", "constraint"])
-        return dimension_fields
