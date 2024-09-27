@@ -16,14 +16,17 @@ from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 
-from api.bkdata.default import GetDataBusSamplingData, GetDataBusStoragesInfo
+from api.bkdata.default import (
+    GetDataBusSamplingData,
+    GetDataBusStoragesInfo,
+    GetDataManageMetricsDataCount,
+)
 from api.log_search.default import (
     DataBusCollectorsIndicesResource,
     DataBusCollectorsResource,
     LogSearchIndexSetResource,
 )
 from apm.constants import TelemetryDataType
-from apm_web.models import Application
 from core.drf_resource import api
 
 
@@ -54,7 +57,7 @@ class BackendRegistry:
 class TelemetryBackendHandler:
     """后台数据适配器"""
 
-    def __init__(self, app: "Application", *args, **kwargs):
+    def __init__(self, app, *args, **kwargs):
         self.app = app
         self.telemetry: TelemetryDataType = TelemetryDataType(handler_name(self.__class__))
 
@@ -67,8 +70,8 @@ class TelemetryBackendHandler:
         return self.app.fetch_datasource_info(self.telemetry.datasource_type, attr_name="result_table_id")
 
     @classmethod
-    def build_data_view_config(cls, data_type_label, data_source_label, table_name):
-        return [
+    def build_data_count_query(cls, data_type_label, data_source_label, table_name, **kwargs):
+        template = [
             {
                 "id": 1,
                 "title": _("分钟数据量"),
@@ -86,7 +89,7 @@ class TelemetryBackendHandler:
                                     "data_source_label": data_source_label,
                                     "data_type_label": data_type_label,
                                     "table": table_name,
-                                    "metrics": [{"field": "span_name", "method": "COUNT", "alias": "A"}],
+                                    "metrics": [{"field": "bk_apm_count", "method": "COUNT", "alias": "A"}],
                                     "group_by": [],
                                     "display": True,
                                     "where": [],
@@ -119,7 +122,7 @@ class TelemetryBackendHandler:
                                     "data_source_label": data_source_label,
                                     "data_type_label": data_type_label,
                                     "table": table_name,
-                                    "metrics": [{"field": "span_name", "method": "COUNT", "alias": "A"}],
+                                    "metrics": [{"field": "bk_apm_count", "method": "COUNT", "alias": "A"}],
                                     "group_by": [],
                                     "display": True,
                                     "where": [],
@@ -136,6 +139,14 @@ class TelemetryBackendHandler:
                 "options": {"time_series": {"type": "bar"}},
             },
         ]
+        query_config_kwargs = kwargs.pop("query_config_kwargs", {})
+        if kwargs or query_config_kwargs:
+            for config in template:
+                for target in config["targets"]:
+                    for query_config in target["data"]["query_configs"]:
+                        query_config.update(**query_config_kwargs)
+                    target["data"].update(**kwargs)
+        return template
 
 
 """
@@ -151,6 +162,10 @@ class TracingBackendHandler(TelemetryBackendHandler):
     """
 
     TIME_FORMAT_LEN = 11
+
+    @cached_property
+    def metric_result_table_id(self):
+        return self.app.fetch_datasource_info("metric", attr_name="result_table_id")
 
     def storage_info(self):
         datasource_config = self.app.get_config_by_key(self.app.APPLICATION_DATASOURCE_CONFIG_KEY).config_value
@@ -200,11 +215,19 @@ class TracingBackendHandler(TelemetryBackendHandler):
         resp = api.metadata.kafka_tail({"table_id": self.result_table_id, "size": size}) if self.result_table_id else []
         return [{"raw_log": log, "sampling_time": log.get("datetime", "")} for log in resp]
 
-    def get_data_view_config(self):
-        table_name = (self.result_table_id.replace(".", "_"),)
-        return self.build_data_view_config(
-            data_type_label="time_series", data_source_label="custom", table_name=table_name
+    def get_data_view_config(self, **kwargs):
+        return self.build_data_count_query(
+            data_type_label="time_series", data_source_label="custom", table_name=self.metric_result_table_id, **kwargs
         )
+
+    def get_data_count(self, start_time: int, end_time: int, **kwargs):
+        view_config = self.get_data_view_config(start_time=start_time, end_time=end_time, **kwargs)
+        data = api.unify_query.query_data(**view_config[0])
+        count = 0
+        for line in data["series"]:
+            for point in line["datapoints"]:
+                count += point[0]
+        return count
 
 
 @telemetry_handler_registry.register
@@ -250,9 +273,24 @@ class LogBackendHandler(TelemetryBackendHandler):
         resp = api.metadata.kafka_tail({"table_id": self.result_table_id, "size": size}) if self.result_table_id else []
         return [{"raw_log": log, "sampling_time": log.get("datetime", "")} for log in resp]
 
-    def get_data_view_config(self):
+    def get_data_view_config(self, **kwargs):
         table_name = (self.result_table_id.replace(".", "_"),)
-        return self.build_data_view_config(data_type_label="log", data_source_label="bk_apm", table_name=table_name)
+        return self.build_data_count_query(
+            data_type_label="log",
+            data_source_label="bk_apm",
+            table_name=table_name,
+            query_config_kwargs={"index_set_id": self.index_set_id},
+            **kwargs,
+        )
+
+    def get_data_count(self, start_time: int, end_time: int, **kwargs):
+        view_config = self.get_data_view_config(start_time=start_time, end_time=end_time, **kwargs)
+        data = api.unify_query.query_data(**view_config[0])
+        count = 0
+        for line in data["series"]:
+            for point in line["datapoints"]:
+                count += point[0]
+        return count
 
 
 @telemetry_handler_registry.register
@@ -284,11 +322,82 @@ class MetricBackendHandler(TelemetryBackendHandler):
                 resp_data.append({"raw_log": log_content, "sampling_time": time_str})
         return resp_data
 
-    def get_data_view_config(self):
-        table_name = (self.result_table_id.replace(".", "_"),)
-        return self.build_data_view_config(
-            data_type_label="time_series", data_source_label="custom", table_name=table_name
+    def get_data_view_config(self, **kwargs):
+        return [
+            {
+                "id": 1,
+                "title": _("分钟数据量"),
+                "type": "graph",
+                "gridPos": {"x": 0, "y": 0, "w": 12, "h": 6},
+                "targets": [
+                    {
+                        "data_type": "time_series",
+                        "datasource": "time_series",
+                        "api": "grafana.graphUnifyQuery",
+                        "data": {
+                            "application_id": self.app.applicaiotn_id,
+                            "telemetry_data_type": self.telemetry.value,
+                            "data_view_config": {"view_type": "histogram", "grain": "1m"},
+                        },
+                    }
+                ],
+                "options": {"time_series": {"type": "bar"}},
+            },
+            {
+                "id": 2,
+                "title": _("日数据量"),
+                "type": "graph",
+                "gridPos": {"x": 12, "y": 0, "w": 12, "h": 6},
+                "targets": [
+                    {
+                        "data_type": "time_series",
+                        "datasource": "time_series",
+                        "api": "grafana.graphUnifyQuery",
+                        "data": {
+                            "application_id": self.app.applicaiotn_id,
+                            "telemetry_data_type": self.telemetry.value,
+                            "data_view_config": {"view_type": "histogram", "grain": "1d"},
+                        },
+                    }
+                ],
+                "options": {"time_series": {"type": "bar"}},
+            },
+        ]
+
+    def get_data_view(self, start_time: int, end_time: int, **kwargs):
+        return GetDataManageMetricsDataCount().request(
+            data_set_ids=self.bk_base_data_id, start_time=start_time, end_time=end_time, **kwargs
         )
+
+    def get_data_count(self, start_time: int, end_time: int):
+        resp = self.get_data_view(start_time, end_time)
+        count = 0
+        for data in resp:
+            for point in data["series"]:
+                if point["rawdata_count"]:
+                    count += point["rawdata_count"]
+        return count
+
+    def get_data_histogram(self, start_time, end_time, grain="1d"):
+        resp = self.get_data_view(start_time, end_time, time_grain=grain)
+        histograms = {
+            "metrics": [],
+            "series": [
+                {
+                    "target": "COUNT(rawdata)",
+                    "metric_field": "_result",
+                    "alias": "_result_",
+                    "type": "bar",
+                    "unit": "",
+                    "dimensions": {},
+                    "dimensions_translation": {},
+                    "datapoints": [
+                        [view_series["rawdata_count"], view_series["time"] * 1000] for view_series in resp["series"]
+                    ],
+                }
+            ],
+        }
+        return histograms
 
 
 @telemetry_handler_registry.register
@@ -312,6 +421,79 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
                 resp_data.append({"raw_log": log_content, "sampling_time": time_str})
         return resp_data
 
-    def get_data_view_config(self):
-        # Todo: 走 bkbase 查询接口
-        return {}
+    def get_data_view_config(self, **kwargs):
+        return [
+            {
+                "id": 1,
+                "title": _("分钟数据量"),
+                "type": "graph",
+                "gridPos": {"x": 0, "y": 0, "w": 12, "h": 6},
+                "targets": [
+                    {
+                        "data_type": "time_series",
+                        "datasource": "time_series",
+                        "api": "grafana.graphUnifyQuery",
+                        "data": {
+                            "application_id": self.app.applicaiotn_id,
+                            "telemetry_data_type": self.telemetry.value,
+                            "data_view_config": {"view_type": "histogram", "grain": "1m"},
+                        },
+                    }
+                ],
+                "options": {"time_series": {"type": "bar"}},
+            },
+            {
+                "id": 2,
+                "title": _("日数据量"),
+                "type": "graph",
+                "gridPos": {"x": 12, "y": 0, "w": 12, "h": 6},
+                "targets": [
+                    {
+                        "data_type": "time_series",
+                        "datasource": "time_series",
+                        "api": "grafana.graphUnifyQuery",
+                        "data": {
+                            "application_id": self.app.applicaiotn_id,
+                            "telemetry_data_type": self.telemetry.value,
+                            "data_view_config": {"view_type": "histogram", "grain": "1d"},
+                        },
+                    }
+                ],
+                "options": {"time_series": {"type": "bar"}},
+            },
+        ]
+
+    def get_data_view(self, start_time: int, end_time: int, **kwargs):
+        return GetDataManageMetricsDataCount().request(
+            data_set_ids=self.bk_data_id, start_time=start_time, end_time=end_time, **kwargs
+        )
+
+    def get_data_count(self, start_time: int, end_time: int):
+        resp = self.get_data_view(start_time, end_time)
+        count = 0
+        for data in resp:
+            for point in data["series"]:
+                if point["rawdata_count"]:
+                    count += point["rawdata_count"]
+        return count
+
+    def get_data_histogram(self, start_time, end_time, grain="1d"):
+        resp = self.get_data_view(start_time, end_time, time_grain=grain)
+        histograms = {
+            "metrics": [],
+            "series": [
+                {
+                    "target": "COUNT(rawdata)",
+                    "metric_field": "_result",
+                    "alias": "_result_",
+                    "type": "bar",
+                    "unit": "",
+                    "dimensions": {},
+                    "dimensions_translation": {},
+                    "datapoints": [
+                        [view_series["rawdata_count"], view_series["time"] * 1000] for view_series in resp["series"]
+                    ],
+                }
+            ],
+        }
+        return histograms

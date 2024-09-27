@@ -1500,6 +1500,29 @@ class DataViewConfigResource(Resource):
         return data_view_config
 
 
+class DataHistogramResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        application_id = serializers.IntegerField(label="应用id")
+        telemetry_data_type = serializers.ChoiceField(label="采集类型", choices=TelemetryDataType.values())
+        start_time = serializers.IntegerField(label="开始时间")
+        end_time = serializers.IntegerField(label="结束时间")
+        data_view_config = serializers.JSONField(label="数据视图查询配置")
+
+    def perform_request(self, validated_request_data):
+        try:
+            app = Application.objects.get(application_id=validated_request_data["application_id"])
+            telemetry_data_type = validated_request_data["telemetry_data_type"]
+            start_time = validated_request_data["start_time"]
+            end_time = validated_request_data["end_time"]
+            data_view_config = validated_request_data["data_view_config"]
+            view_data = telemetry_handler_registry(telemetry_data_type, app=app).get_data_histogram(
+                start_time=start_time, end_time=end_time, **data_view_config
+            )
+        except Application.DoesNotExist:
+            raise ValueError(_("应用不存在"))
+        return view_data
+
+
 class DataSamplingResource(Resource):
     class RequestSerializer(serializers.Serializer):
         application_id = serializers.IntegerField(label="应用id")
