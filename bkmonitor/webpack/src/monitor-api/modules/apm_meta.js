@@ -34,6 +34,7 @@ export const noDataStrategyInfo = request('POST', 'apm/meta/application/nodata_s
 export const noDataStrategyEnable = request('POST', 'apm/meta/application/nodata_strategy_enable/');
 export const noDataStrategyDisable = request('POST', 'apm/meta/application/nodata_strategy_disable/');
 export const dataViewConfig = request('POST', 'apm/meta/application/{pk}/data_view_config/');
+export const dataHistogram = request('POST', 'apm/meta/application/{pk}/data_histogram/');
 export const dataSampling = request('POST', 'apm/meta/application/{pk}/data_sampling/');
 export const storageInfo = request('POST', 'apm/meta/application/{pk}/storage_info/');
 export const storageFieldInfo = request('POST', 'apm/meta/application/{pk}/storage_field_info/');
@@ -81,6 +82,7 @@ export default {
   noDataStrategyEnable,
   noDataStrategyDisable,
   dataViewConfig,
+  dataHistogram,
   dataSampling,
   storageInfo,
   storageFieldInfo,
