@@ -36,11 +36,10 @@ def refresh_cmdb():
     )
     query = LogIndexSet.objects.filter(is_active=True)
     searched = set(query.filter(index_set_id__in=index_set_ids).values_list("space_uid", flat=True))
-    not_searched = set(query.exclude(index_set_id__in=index_set_ids).values_list("space_uid", flat=True))
+    all_space_uid = set(query.values_list("space_uid", flat=True))
     current_hour = datetime.now().hour
     if current_hour % 12 != 0:
         CmdbHostCache.set_space_uid_set(searched)
     else:
-        all_space_uid = searched.union(not_searched)
         CmdbHostCache.set_space_uid_set(all_space_uid)
     CmdbHostCache.refresh()
