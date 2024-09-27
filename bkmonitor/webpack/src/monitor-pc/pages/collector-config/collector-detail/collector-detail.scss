@@ -1,4 +1,5 @@
 .collector-detail-page {
+  height: 100%;
   // max-height: calc(100vh - 94px);
   padding: 24px;
   // overflow-y: auto;
@@ -6,6 +7,7 @@
   .bk-tab-section {
     /* stylelint-disable-next-line declaration-no-important */
     height: auto !important;
+    min-height: calc(100% - 42px);
   }
 
   .mt-24 {

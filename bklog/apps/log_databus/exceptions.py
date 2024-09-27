@@ -19,8 +19,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.exceptions import BaseException, ErrorCode
 from django.utils.translation import ugettext_lazy as _
+
+from apps.exceptions import BaseException, ErrorCode
 
 # =================================================
 # 采集配置
@@ -405,3 +406,13 @@ class NodeNotAllowedException(BaseCollectorConfigException):
 class VclusterNodeNotAllowedException(BaseCollectorConfigException):
     ERROR_CODE = "909"
     MESSAGE = _("虚拟集群下不允许采集node的日志，请检查")
+
+
+# =================================================
+# _nodes/setting获取
+# =================================================
+
+
+class NodeSettingException(BaseCollectorConfigException):
+    ERROR_CODE = "910"
+    MESSAGE = _("ES集群节点配置获取失败：{error_info}")

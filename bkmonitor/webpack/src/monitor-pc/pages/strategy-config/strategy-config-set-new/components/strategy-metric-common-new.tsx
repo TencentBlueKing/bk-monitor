@@ -29,12 +29,12 @@ import * as tsx from 'vue-tsx-support';
 
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
+import { skipToDocsLink } from 'monitor-common/utils/docs';
 import { deepClone } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 // import MonitorDateRange from '../../../../components/monitor-date-range/monitor-date-range.vue'
 import { debounce, throttle } from 'throttle-debounce';
 
-import { handleGotoLink } from '../../../../common/constant';
 import metricTipsContentMixin from '../../../../mixins/metricTipsContentMixin';
 import HorizontalScrollContainer from './horizontal-scroll-container';
 
@@ -808,7 +808,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
   getNoMetricComponent(position = 'abs') {
     let dom = null;
     const handleGoto = () => {
-      handleGotoLink(this.paramsMap[this.sourceType]);
+      skipToDocsLink(this.paramsMap[this.sourceType]);
     };
     if (position === 'abs') {
       dom =

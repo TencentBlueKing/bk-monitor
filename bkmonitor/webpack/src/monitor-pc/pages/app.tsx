@@ -24,7 +24,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
 import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -55,7 +54,7 @@ import monitorLogo from '../static/images/svg/monitor-logo.svg';
 // #if APP !== 'external'
 import BizSelect from '../components/biz-select/biz-select';
 import NoticeGuide, { type IStepItem } from '../components/novice-guide/notice-guide';
-import AiWhale, { AI_WHALE_EXCLUED_ROUTES } from '../components/ai-whale/ai-whale';
+import AiWhale, { AI_WHALE_EXCLUDE_ROUTES } from '../components/ai-whale/ai-whale';
 import HeaderSettingModal from './header-setting-modal';
 // #endif
 
@@ -959,7 +958,7 @@ export default class App extends tsc<object> {
           // #if APP !== 'external'
           !(this.readonly || window.__POWERED_BY_BK_WEWEB__) &&
             this.$route.name &&
-            !AI_WHALE_EXCLUED_ROUTES.includes(this.$route.name) &&
+            !AI_WHALE_EXCLUDE_ROUTES.includes(this.$route.name) &&
             this.hasBusinessAuth && <AiWhale key={this.bizId} />
           // #endif
         }

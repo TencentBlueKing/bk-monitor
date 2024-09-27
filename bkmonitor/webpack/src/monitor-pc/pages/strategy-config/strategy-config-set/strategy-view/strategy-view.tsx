@@ -32,6 +32,7 @@ import dayjs from 'dayjs';
 import { dimensionUnifyQuery, graphUnifyQuery, logQuery } from 'monitor-api/modules/grafana';
 import { fetchItemStatus, getUnitInfo } from 'monitor-api/modules/strategies';
 import { asyncDebounceDecorator } from 'monitor-common/utils/debounce-decorator';
+import { concatMonitorDocsUrl, DOCS_LINK_MAP } from 'monitor-common/utils/docs';
 import { Debounce, deepClone, random, typeTools } from 'monitor-common/utils/utils';
 import Viewer from 'monitor-ui/markdown-editor/viewer';
 import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
@@ -70,13 +71,6 @@ import type { IFunctionsValue } from '../../strategy-config-set-new/monitor-data
 import type { IMultivariateAnomalyDetectionParams } from '../../strategy-config-set-new/type';
 
 import './strategy-view.scss';
-
-const metricUrlMap = {
-  time_series: '监控平台/产品白皮书/alarm-configurations/rules.md',
-  event: '监控平台/产品白皮书/alarm-configurations/events_monitor.md',
-  log: '监控平台/产品白皮书/alarm-configurations/log_monitor.md',
-  alert: '监控平台/产品白皮书/alarm-configurations/composite_monitor.md',
-};
 
 interface IStrateViewProps {
   metricData: MetricDetail[];
@@ -1192,10 +1186,10 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                       <div class='description-title'>{`${item.title}:`}</div>
                       <pre class='description-text'>
                         {item.description}
-                        {!!metricUrlMap[item.type] && (
+                        {!!DOCS_LINK_MAP.Monitor[item.type] && (
                           <a
                             class='info-url'
-                            href={`${window.bk_docs_site_url}markdown/${metricUrlMap[item.type]}`}
+                            href={concatMonitorDocsUrl(DOCS_LINK_MAP.Monitor[item.type])}
                             target='blank'
                           >
                             {this.$t('相关文档查看')}

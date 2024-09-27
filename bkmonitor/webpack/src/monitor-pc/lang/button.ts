@@ -486,4 +486,6 @@ export default {
   故障生成: 'Generate Incident',
   人工操作: 'Manual Operation',
   编辑告警策略: 'Editing an alert policy',
+  任务终止: 'Task Termination',
+  失败重试: 'Failure Retry',
 };
