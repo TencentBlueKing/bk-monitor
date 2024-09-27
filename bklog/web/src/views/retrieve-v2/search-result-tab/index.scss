@@ -5,8 +5,8 @@
     position: relative;
     display: inline-block;
     height: 42px;
-    padding: 0 20px;
-    font-size: 14 px;
+    padding: 0 14px;
+    font-size: 14px;
     line-height: 42px;
     color: #63656e;
     text-align: center;
@@ -26,6 +26,7 @@
   }
 
   .activeClass {
+    font-weight: 700;
     color: #3a84ff;
     background: #ffffff;
   }
