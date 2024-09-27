@@ -130,7 +130,7 @@ class TriggerProcessor(object):
         MonitorEventAdapter.push_to_kafka(events=events)
 
         if len(events) > 1000:
-            metrics.PROCESS_OVER_FLOW.labesl(
+            metrics.PROCESS_OVER_FLOW.labels(
                 module="trigger",
                 strategy_id=self.strategy_id,
                 bk_biz_id=self.strategy.bk_biz_id,

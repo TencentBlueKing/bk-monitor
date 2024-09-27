@@ -313,7 +313,7 @@ class AccessDataProcess(BaseAccessDataProcess):
         point_total = len(points)
         if point_total > settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD or 500000:
             # 超过50w点，或者触发了分批处理阈值， 则记录策略信息
-            metrics.PROCESS_OVER_FLOW.labesl(
+            metrics.PROCESS_OVER_FLOW.labels(
                 module="access.data",
                 strategy_id=self.items[0].strategy.id,
                 bk_biz_id=self.items[0].strategy.bk_biz_id,

@@ -137,7 +137,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
         anomaly_count = self.push_abnormal_data(self.outputs, self.strategy_id)
         if anomaly_count > 1000:
             # 记录异常数据量较大的策略信息
-            metrics.PROCESS_OVER_FLOW.labesl(
+            metrics.PROCESS_OVER_FLOW.labels(
                 module="detect",
                 strategy_id=self.strategy_id,
                 bk_biz_id=self.strategy.bk_biz_id,
