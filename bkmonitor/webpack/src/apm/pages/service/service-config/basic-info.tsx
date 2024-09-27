@@ -600,7 +600,6 @@ export default class BasicInfo extends tsc<object> {
             >
               {this.serviceInfo.extra_data.category_icon && (
                 <img
-                  style='vertical-align: middle;'
                   alt=''
                   src={this.serviceInfo.extra_data.category_icon}
                 />
@@ -621,7 +620,6 @@ export default class BasicInfo extends tsc<object> {
             >
               {languageIconBase64[this.serviceInfo.extra_data.service_language] && (
                 <img
-                  style='vertical-align: middle;'
                   alt=''
                   src={languageIconBase64[this.serviceInfo.extra_data.service_language]}
                 />
