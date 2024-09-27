@@ -240,20 +240,14 @@ class Alarm(BaseContextObject):
                     [dimension.display_key or dimension_key, dimension.display_value or dimension.value]
                 )
 
-            # 如果维度不在agg dimensions中，直接添加在最后
-            for dimension_key, dimension in display_dimensions.items():
-                dimension_lists.append(
-                    [dimension.display_key or dimension_key, dimension.display_value or dimension.value]
-                )
-        else:
-            # 兼容不存在这一属性的值
-            for d in self.display_dimensions.values():
-                dimension_lists.append([d.display_key or d.key, d.display_value or d.value])
+        # 如果维度不在agg dimensions中，直接添加在最后
+        for dimension_key, dimension in display_dimensions.items():
+            dimension_lists.append([dimension.display_key or dimension_key, dimension.display_value or dimension.value])
 
         # 如果是 markdown 类型的通知方式，维度值是url，需要转换为链接格式
         if self.parent.notice_way in settings.MD_SUPPORTED_NOTICE_WAYS:
             for dimension_list in dimension_lists:
-                value: str = dimension_list[1].strip()
+                value: str = str(dimension_list[1]).strip()
                 if value.startswith("http://") or value.startswith("https://"):
                     dimension_list[1] = f"[{value}]({value})"
 
