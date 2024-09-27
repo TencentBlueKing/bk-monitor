@@ -162,7 +162,7 @@ export interface ILocationRelation {
   bizId: number | string;
   appId: string;
   apdex: number;
-  relatedBizId: number;
+  relatedBizId: number | string;
 }
 
 export interface ICmdbInfoItem {

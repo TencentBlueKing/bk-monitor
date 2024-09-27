@@ -40,6 +40,7 @@ import EditableFormItem from '../../../components/editable-form-item/editable-fo
 import PanelItem from '../../../components/panel-item/panel-item';
 import * as authorityMap from '../../home/authority-map';
 import DebuggerDialog from './debugger-dialog';
+import { languageIconBase64 } from './utils';
 
 import type {
   IAppInfoItem,
@@ -117,7 +118,7 @@ export default class BasicInfo extends tsc<object> {
     cmdb: '',
     logType: '',
     logValue: '',
-    relatedBizId: 0,
+    relatedBizId: '',
     bizId: '',
     appId: '',
     apdex: 0,
@@ -216,19 +217,20 @@ export default class BasicInfo extends tsc<object> {
     this.getUriSourceData();
 
     /** 获取应用等信息 */
-    this.getApplicationList();
+    // this.getApplicationList();
     this.getAssemblyLineList();
     this.getSourceWarehouseList();
   }
 
-  /** 获取所属应用列表 */
-  async getApplicationList() {
-    this.applicationLoading = true;
-    this.applicationList = await new Promise(resolve => {
-      resolve([]);
-    });
-    this.applicationLoading = false;
-  }
+  // /** 获取所属应用列表 */
+  // async getApplicationList() {
+  //   this.applicationLoading = true;
+  //   this.applicationList = await new Promise(resolve => {
+  //     resolve([]);
+  //   });
+  //   this.applicationLoading = false;
+  // }
+
   /** 获取流水线列表 */
   async getAssemblyLineList() {
     this.assemblyLineLoading = true;
@@ -295,7 +297,6 @@ export default class BasicInfo extends tsc<object> {
   async getServiceInfo() {
     this.isLoading = true;
     const data = await serviceInfo(this.params).catch(() => {});
-    console.log('this.getServiceInfo', data);
     const {
       topo_key: topoKey,
       extra_data: extraData,
@@ -401,6 +402,8 @@ export default class BasicInfo extends tsc<object> {
   async handleLogBizChange(v) {
     this.localRelationInfo.logValue = '';
     this.logForm?.clearError();
+    this.indexSetList = [];
+    if (!v) return;
     const data = await logServiceRelationBkLogIndexSet({
       bk_biz_id: v,
     }).catch(() => []);
@@ -527,6 +530,7 @@ export default class BasicInfo extends tsc<object> {
         value: logValue,
         related_bk_biz_id: relatedBizId,
       };
+      // biome-ignore lint/performance/noDelete: <explanation>
       if (logType !== 'bk_log') delete params.related_bk_biz_id;
     }
     // 关联应用
@@ -594,10 +598,13 @@ export default class BasicInfo extends tsc<object> {
               class='custom-text'
               slot='custom'
             >
-              <img
-                alt=''
-                src={this.serviceInfo.extra_data.category_icon}
-              />
+              {this.serviceInfo.extra_data.category_icon && (
+                <img
+                  style='vertical-align: middle;'
+                  alt=''
+                  src={this.serviceInfo.extra_data.category_icon}
+                />
+              )}
               {this.serviceInfo.extra_data.category_name}
             </span>
           </EditableFormItem>
@@ -612,10 +619,13 @@ export default class BasicInfo extends tsc<object> {
               class='custom-text'
               slot='custom'
             >
-              <img
-                alt=''
-                src={this.serviceInfo.extra_data.category_icon}
-              />
+              {languageIconBase64[this.serviceInfo.extra_data.service_language] && (
+                <img
+                  style='vertical-align: middle;'
+                  alt=''
+                  src={languageIconBase64[this.serviceInfo.extra_data.service_language]}
+                />
+              )}
               {this.serviceInfo.extra_data.service_language}
             </span>
           </EditableFormItem>
@@ -640,28 +650,12 @@ export default class BasicInfo extends tsc<object> {
                 ref='editInfoForm'
                 label-width={116}
               >
-                <bk-form-item
-                  error-display-type='normal'
+                <EditableFormItem
+                  formType='input'
                   label={this.$t('所属应用')}
-                  property='application_id'
-                >
-                  <bk-select
-                    style='width: 394px'
-                    class='alias-name-input'
-                    v-model={this.formData.application_id}
-                    loading={this.applicationLoading}
-                  >
-                    {this.applicationList.map(application => {
-                      return (
-                        <bk-option
-                          id={application.id}
-                          key={application.id}
-                          name={application.name}
-                        />
-                      );
-                    })}
-                  </bk-select>
-                </bk-form-item>
+                  showEditable={false}
+                  value={this.params.app_name}
+                />
                 <bk-form-item
                   label={this.$t('自定义标签')}
                   property='tag'
@@ -685,7 +679,7 @@ export default class BasicInfo extends tsc<object> {
                   formType='input'
                   label={this.$t('所属应用')}
                   showEditable={false}
-                  value={this.formData.application_id}
+                  value={this.params.app_name}
                 />
                 <EditableFormItem
                   formType='tag'
@@ -831,7 +825,7 @@ export default class BasicInfo extends tsc<object> {
                 </bk-select>
               </div>
             )}
-            {!this.isEditing && (this.localRelationInfo.cmdb || '--')}
+            {!this.isEditing && (this.localCmdbRelationTag.template_name || '--')}
           </div>
         </div>
         <div class='config-form-item'>
@@ -969,10 +963,10 @@ export default class BasicInfo extends tsc<object> {
               <section>
                 {appRelation?.relate_bk_biz_name && appRelation?.relate_app_name ? (
                   <section>
-                    <bk-tag class='relation-info-tag'>{`${this.$t('业务名称 : ')}${
+                    <bk-tag class='relation-info-tag'>{`${this.$t('业务名称')} : ${
                       appRelation.relate_bk_biz_name
                     }`}</bk-tag>
-                    <bk-tag class='relation-info-tag'>{`${this.$t('应用 : ')}${appRelation.relate_app_name}`}</bk-tag>
+                    <bk-tag class='relation-info-tag'>{`${this.$t('应用')} : ${appRelation.relate_app_name}`}</bk-tag>
                   </section>
                 ) : (
                   '--'
@@ -1023,7 +1017,7 @@ export default class BasicInfo extends tsc<object> {
         ]}
       >
         <div class='config-form-item'>
-          <label class='label'>{this.$t('Apdex')}</label>
+          <label class='label'>Apdex</label>
           <div class='content'>
             {this.isEditing ? (
               <div class='edit-form-item apdex-form-item'>
@@ -1121,7 +1115,7 @@ export default class BasicInfo extends tsc<object> {
         key='uri-info'
         class={`uri-info ${!this.uriList.length ? 'is-empty' : ''}`}
       >
-        {this.isEditing && <label class='uri-set-label'>{this.$t('URI配置')}</label>}
+        <label class='uri-set-label'>{this.$t('URI配置')}</label>
         <transition-group
           name={this.dragData.from !== null ? 'flip-list' : 'filp-list-none'}
           tag='ul'
@@ -1129,7 +1123,7 @@ export default class BasicInfo extends tsc<object> {
           {this.uriList.map((item, index) => (
             <li
               key={index}
-              class={['config-form-item', { 'is-editing': this.isEditing }]}
+              class={['config-form-item', 'uri-item', { 'is-editing': this.isEditing }]}
               draggable={this.isEditing}
               onDragend={this.handleDragend}
               onDragenter={() => this.handleDragEnter(index)}
@@ -1166,7 +1160,7 @@ export default class BasicInfo extends tsc<object> {
         </transition-group>
         {this.isEditing && (
           <div class='debugging-content'>
-            <div class='header-tool'>
+            <div class='debugge-tool'>
               <bk-button
                 loading={this.isDebugging}
                 size='small'
@@ -1214,7 +1208,7 @@ export default class BasicInfo extends tsc<object> {
         v-bkloading={{ isLoading: this.isLoading }}
       >
         <PanelItem title={this.$t('基础信息')}>{this.renderBaseInfo()}</PanelItem>
-        <PanelItem title={this.$t('代码关联')}>{this.renderCodeLink()}</PanelItem>
+        {/* <PanelItem title={this.$t('代码关联')}>{this.renderCodeLink()}</PanelItem> */}
         <PanelItem title={this.$t('数据关联')}>{this.renderDataLink()}</PanelItem>
         <PanelItem
           class='tips-panel-item'
@@ -1242,7 +1236,7 @@ export default class BasicInfo extends tsc<object> {
             <bk-button
               class='edit-btn'
               v-authority={{ active: !this.authority }}
-              size='normal'
+              size='small'
               theme='primary'
               outline
               onClick={() => {
@@ -1261,7 +1255,7 @@ export default class BasicInfo extends tsc<object> {
               theme='primary'
               onClick={() => this.handleSubmit()}
             >
-              {this.$t('保存')}
+              {this.$t('提交')}
             </bk-button>
             <bk-button onClick={() => this.handleEditClick(false)}>{this.$t('取消')}</bk-button>
           </div>

@@ -233,7 +233,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
         return this.$slots.custom;
       default:
         return (
-          <span>
+          <span v-bk-overflow-tips>
             {this.displayValue}
             {this.unit && <span class='unit'>{this.unit}</span>}
           </span>

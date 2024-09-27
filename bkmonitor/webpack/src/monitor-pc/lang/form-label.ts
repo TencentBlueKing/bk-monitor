@@ -1882,4 +1882,5 @@ export default {
   节点大小: 'Node size',
   连接线: 'Connection line',
   请求量: 'Request volume',
+  '关联 CMDB 服务': 'Associated CMDB service',
 };
