@@ -27,8 +27,16 @@ from collections import defaultdict
 from typing import List, Union
 
 import arrow
+from django.conf import settings
+from django.db.models import Q, Sum
+from django.utils.translation import ugettext as _
+
 from apps.api import BkDataResourceCenterApi, BkLogApi, TransferApi
-from apps.constants import UserOperationActionEnum, UserOperationTypeEnum, SpacePropertyEnum
+from apps.constants import (
+    SpacePropertyEnum,
+    UserOperationActionEnum,
+    UserOperationTypeEnum,
+)
 from apps.decorators import user_operation_record
 from apps.iam import Permission, ResourceEnum
 from apps.log_databus.constants import (
@@ -45,6 +53,7 @@ from apps.log_databus.constants import (
 from apps.log_databus.exceptions import (
     BKBaseStorageSyncFailed,
     ESClusterAlreadyExistException,
+    NodeSettingException,
     StorageHaveResource,
     StorageNotExistException,
     StorageNotPermissionException,
@@ -67,9 +76,6 @@ from apps.utils.time_handler import format_user_time_zone
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid, parse_space_uid
-from django.conf import settings
-from django.db.models import Q, Sum
-from django.utils.translation import ugettext as _
 
 CACHE_EXPIRE_TIME = 300
 
@@ -849,18 +855,61 @@ class StorageHandler(object):
         es_client = get_es_client(
             version="", hosts=[domain_name], username=username, password=password, scheme=schema, port=port
         )
-        nodes = es_client.cat.nodeattrs(format="json", h="name,host,attr,value,id,ip")
+        # 数据节点
+        datanode_list = []
+        filter_datanode_list = []
+        # 尝试获取节点设置
+        try:
+            data = es_client.transport.perform_request("GET", "/_nodes/settings")
+            nodes = data["nodes"]
+            for node_key, node_info in nodes.items():
+                node = node_info["settings"]["node"]
+                attr = node_info["settings"]["node"]["attr"]
+                additional_params = {
+                    "id": node_key,
+                    "name": node_info["name"],
+                    "ip": node_info["ip"],
+                    "host": node_info["host"],
+                }
+                result = self.flatten_json(attr, additional_params)
+                # 是否存在 data key
+                if "data" in node:
+                    if node["data"] == "true":
+                        datanode_list.extend(result)
+                # 不存在 data key 也添加
+                else:
+                    datanode_list.extend(result)
+        except Exception as e:
+            raise NodeSettingException(NodeSettingException.MESSAGE.format(error_info=e))
+        else:
+            # 筛选节点
+            for node in datanode_list:
+                # 对节点属性进行过滤，有些是内置的，需要忽略
+                if any(node["attr"].startswith(prefix) for prefix in NODE_ATTR_PREFIX_BLACKLIST):
+                    continue  # 如果以黑名单前缀开头则跳过
+                filter_datanode_list.append(node)
+        return filter_datanode_list
 
-        # 对节点属性进行过滤，有些是内置的，需要忽略
-        filtered_nodes = []
-        for node in nodes:
-            for prefix in NODE_ATTR_PREFIX_BLACKLIST:
-                if node["attr"].startswith(prefix):
-                    break
+    @staticmethod
+    def flatten_json(json_data, additional_params=None):
+        out = []
+
+        def flatten(x, name=""):
+            if isinstance(x, dict):
+                for key in x:
+                    flatten(x[key], name + key + ".")
+            elif isinstance(x, list):
+                for i, item in enumerate(x):
+                    flatten(item, name + str(i) + ".")
             else:
-                filtered_nodes.append(node)
+                # 将额外参数与当前的 attr 和 value 结合
+                entry = {"attr": name[:-1], "value": x}
+                if additional_params:
+                    entry.update(additional_params)
+                out.append(entry)
 
-        return filtered_nodes
+        flatten(json_data)
+        return out
 
     @classmethod
     def batch_connectivity_detect(cls, cluster_list, bk_biz_id):

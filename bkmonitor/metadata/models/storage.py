@@ -104,6 +104,7 @@ class ClusterInfo(models.Model):
     # 默认注册系统名
     DEFAULT_REGISTERED_SYSTEM = "_default"
     LOG_PLATFORM_REGISTERED_SYSTEM = "log-search-4"
+    BKDATA_REGISTERED_SYSTEM = "bkdata"
 
     cluster_id = models.AutoField("集群ID", primary_key=True)
     # 集群中文名，便于管理员维护
@@ -125,7 +126,7 @@ class ClusterInfo(models.Model):
     custom_option = models.TextField("自定义标签", default="")
     # 供部分http协议连接方案的存储使用，配置可以为http或者https等
     schema = models.CharField("访问协议", max_length=32, default=None, null=True)
-    # ssl/tls 校验参数相关
+    # ssl/tls 校验参数相关，Kafka场景下，使用了schema和ssl_verification_mode两个字段
     is_ssl_verify = models.BooleanField("SSL验证是否强验证", default=False)
     ssl_verification_mode = models.CharField("CA 校验模式", max_length=16, null=True, default="none")
     ssl_certificate_authorities = models.TextField("CA 内容", null=True, default="")

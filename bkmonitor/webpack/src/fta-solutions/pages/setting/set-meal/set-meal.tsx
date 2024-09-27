@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Mixins, Prop, Provide } from 'vue-property-decorator';
+import { Component, Mixins, Prop } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 
 import { destroyActionConfig, listActionConfig, partialUpdateActionConfig } from 'monitor-api/modules/model';
@@ -65,8 +65,6 @@ Component.registerHooks(['beforeRouteLeave']);
   name: 'set-meal',
 })
 class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
-  @Provide('authority') authority;
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Prop() public name!: string;
   @Prop({ default: '', type: String }) public id: string;
 
@@ -375,7 +373,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
         <div class='set-table'>
           {this.headerMessage()}
           {this.loading ? (
-            <TableSkeleton type={1}></TableSkeleton>
+            <TableSkeleton type={1} />
           ) : (
             <bk-table
               data={this.tableData}

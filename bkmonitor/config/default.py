@@ -1088,6 +1088,7 @@ BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
 DEVOPS_API_BASE_URL = os.getenv("BKAPP_DEVOPS_API_BASE_URL", "")
 MONITOR_WORKER_API_BASE_URL = os.getenv("BKAPP_MONITOR_WORKER_API_BASE_URL", "")
 APIGATEWAY_API_BASE_URL = os.getenv("BKAPP_APIGATEWAY_API_BASE_URL", "")
+IAM_API_BASE_URL = os.getenv("BKAPP_IAM_API_BASE_URL", "")
 
 # 以下是bkchat的apigw
 BKCHAT_API_BASE_URL = os.getenv("BKAPP_BKCHAT_API_BASE_URL", "")
@@ -1414,3 +1415,30 @@ BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")
 
 # 监控平台apigw代码
 BK_APIGW_NAME = os.getenv("BK_APIGW_NAME", "bk-monitor")
+
+# 默认K8S插件采集集群ID
+K8S_PLUGIN_COLLECT_CLUSTER_ID = ""
+
+# 腾讯云指标插件配置
+# {
+#     "label": "",
+#     "plugin_display_name": "",
+#     "description_md": "",
+#     "logo": "",
+#     "collect_json": {
+#         "values": {
+#             "limits": {
+#                 "cpu": "100m",
+#                 "memory": "100Mi"
+#             },
+#             "requests": {
+#                 "cpu": "10m",
+#                 "memory": "15Mi"
+#             }
+#         },
+#         "template": ""
+#     },
+#     "config_json": []
+# }
+TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {}
+TENCENT_CLOUD_METRIC_PLUGIN_ID = "qcloud_exporter"

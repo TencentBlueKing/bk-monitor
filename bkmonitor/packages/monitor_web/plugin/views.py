@@ -8,6 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from datetime import datetime
+from typing import Dict, List
+
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Count
 from django.utils.translation import ugettext_lazy as _
@@ -101,6 +105,67 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
             return [IAMPermission([ActionEnum.MANAGE_PUBLIC_PLUGIN])]
         return super(CollectorPluginViewSet, self).get_permissions()
 
+    @staticmethod
+    def get_virtual_plugins(plugin_id: str = "", with_detail: bool = False) -> List[Dict]:
+        plugin_configs = []
+        now_time: str = utc2biz_str(datetime.now())
+
+        public_config = {
+            "is_official": True,
+            "is_safety": True,
+            "config_version": 1,
+            "info_version": 1,
+            "edit_allowed": False,
+            "delete_allowed": False,
+            "export_allowed": False,
+            "bk_biz_id": 0,
+            "related_conf_count": 0,
+            "status": "normal",
+            "create_user": "system",
+            "create_time": now_time,
+            "update_user": "system",
+            "update_time": now_time,
+        }
+
+        if with_detail:
+            public_config.update({"stage": PluginVersionHistory.Stage.RELEASE, "signature": ""})
+
+        # 腾讯云指标采集插件
+        if settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG and (
+            not plugin_id or plugin_id == settings.TENCENT_CLOUD_METRIC_PLUGIN_ID
+        ):
+            qcloud_plugin_config = settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG
+
+            label = qcloud_plugin_config.get("label", "os")
+
+            plugin_config = {
+                "plugin_id": settings.TENCENT_CLOUD_METRIC_PLUGIN_ID,
+                "plugin_display_name": _(qcloud_plugin_config["plugin_display_name"]),
+                "plugin_type": PluginType.K8S,
+                "tag": qcloud_plugin_config.get("tag", ""),
+                "label_info": resource.commons.get_label_msg(label),
+                "logo": qcloud_plugin_config.get("logo", ""),
+                **public_config,
+            }
+
+            if with_detail:
+                plugin_config.update(
+                    {
+                        "label": label,
+                        "collector_json": qcloud_plugin_config["collector_json"],
+                        "config_json": qcloud_plugin_config.get("config_json", []),
+                        "enable_field_blacklist": True,
+                        "metric_json": [],
+                        "description_md": qcloud_plugin_config.get("description_md", ""),
+                        "is_support_remote": False,
+                        "os_type_list": [],
+                        "is_split_measurement": True,
+                    }
+                )
+
+            plugin_configs.append(plugin_config)
+        return plugin_configs
+
     def list(self, request, *args, **kwargs):
         page = int(request.query_params.get("page", 1))
         page_size = int(request.query_params.get("page_size", 10))
@@ -110,6 +175,8 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         labels = request.query_params.get("labels", "").strip()
         order = request.query_params.get("order", "").strip()
         status = request.query_params.get("status")
+        # 是否包含虚拟插件
+        with_virtual = request.query_params.get("with_virtual", "false").lower() == "true"
 
         # 获取全量的插件数据（包含外键数据）
         all_versions = (
@@ -222,6 +289,10 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
                 }
             )
 
+        # 添加虚拟插件
+        if with_virtual:
+            search_list.extend(self.get_virtual_plugins())
+
         search_result = {"count": type_count, "list": search_list}
 
         return Response(search_result)
@@ -230,7 +301,14 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         if kwargs["pk"] in ["snmp_v1", "snmp_v2c", "snmp_v3"]:
             plugin_manager = PluginManagerFactory.get_manager(plugin=kwargs["pk"], plugin_type=PluginType.SNMP_TRAP)
             return Response(plugin_manager.get_default_trap_plugin())
-        instance = self.get_object()
+
+        # 腾讯云指标采集插件
+        if kwargs["pk"] == settings.TENCENT_CLOUD_METRIC_PLUGIN_ID:
+            plugins = self.get_virtual_plugins(plugin_id=kwargs["pk"], with_detail=True)
+            if plugins:
+                return Response(plugins[0])
+
+        instance: CollectorPluginMeta = self.get_object()
         # 刷新metric json
         instance.refresh_metric_json()
         return Response(instance.get_plugin_detail())
@@ -386,27 +464,27 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
 
     @action(methods=["GET"], detail=True)
     def export_plugin(self, request, *args, **kwargs):
-        instance = self.get_object()
+        instance: CollectorPluginMeta = self.get_object()
         plugin_manager = PluginManagerFactory.get_manager(plugin=instance)
-        config_version, info_version, is_version_exist = plugin_manager.version_check()
-        if not is_version_exist:
+        release_version = instance.release_version
+        if not release_version.is_packaged:
             with transaction.atomic():
                 register_info = {
                     "plugin_id": plugin_manager.plugin.plugin_id,
-                    "config_version": config_version,
-                    "info_version": info_version,
+                    "config_version": release_version.config_version,
+                    "info_version": release_version.info_version,
                 }
                 ret = resource.plugin.plugin_register(**register_info)
                 plugin_manager.release(
-                    config_version=config_version,
-                    info_version=info_version,
+                    config_version=release_version.config_version,
+                    info_version=release_version.info_version,
                     token=ret["token"],
                     debug=False,
                 )
 
         # 刷新metric json
         instance.refresh_metric_json()
-        return Response(plugin_manager.run_export())
+        return Response({"download_url": plugin_manager.run_export()})
 
     @action(methods=["GET"], detail=False)
     def check_id(self, request, *args, **kwargs):

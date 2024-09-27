@@ -311,6 +311,31 @@ class MetricHandler:
 
         return res
 
+    def get_range_calculate_values_mapping(self, ignore_keys=None):
+        """获取范围-值映射(值经过计算) 返回
+        {
+            (*group_by): [[<calculate_value>, timestamp], [<calculate_value>, timestamp]]
+        }
+        """
+        if not ignore_keys:
+            ignore_keys = []
+        response = self.origin_query_range()
+        group_values = defaultdict(list)
+        for series in response.get("series", []):
+            key = tuple(series.get("dimensions", {}).get(i) for i in self.group_by if i not in ignore_keys)
+            group_values[key].append(series)
+
+        res = defaultdict(list)
+        for k, series_list in group_values.items():
+            if 'upstreamService' in k:
+                print("dd")
+            calculate_v = self.calculation.range_cal({"series": series_list})
+            series_response = calculate_v.get("series")
+            if series_response:
+                res[k] = series_response[0].get("datapoints")
+
+        return res
+
     def _convert_to_series(self, datasource_range_response):
         """将使用 DataSource 查询的 range 数据转换为使用 GraphUnifyQuery 得到的 range 数据"""
         series_mapping = defaultdict(list)

@@ -30,10 +30,12 @@ class FrontendCollectConfigDetailResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField(required=True, label="采集配置ID")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        id = serializers.IntegerField(label="采集配置ID")
+        with_target_info = serializers.BooleanField(label="是否返回采集目标配置", default=True)
 
     def perform_request(self, params):
-        config_detail = resource.collecting.collect_config_detail(id=params["id"])
+        config_detail = resource.collecting.collect_config_detail(id=params["id"], bk_biz_id=params["bk_biz_id"])
 
         # 基本信息
         basic_info = {
@@ -93,8 +95,37 @@ class FrontendCollectConfigDetailResource(Resource):
                 }
             )
 
+        result = {
+            "basic_info": basic_info,
+            "runtime_params": runtime_params,
+            "metric_list": metric_list,
+            "subscription_id": config_detail["subscription_id"],
+            "extend_info": config_detail["params"],
+        }
+
         # 采集目标
+        if params["with_target_info"]:
+            result["target_info"] = resource.collecting.frontend_collect_config_target_info(
+                id=params["id"],
+                bk_biz_id=params["bk_biz_id"],
+            )
+
+        return result
+
+
+class FrontendCollectConfigTargetInfoResource(Resource):
+    """
+    获取采集配置的采集目标
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        id = serializers.IntegerField(label="采集配置ID")
+
+    def perform_request(self, params):
         table_data = []
+        config_detail = resource.collecting.collect_config_detail(id=params["id"], bk_biz_id=params["bk_biz_id"])
+
         if config_detail["target_node_type"] == TargetNodeType.INSTANCE:
             for item in config_detail["target"]:
                 table_data.append(
@@ -126,15 +157,7 @@ class FrontendCollectConfigDetailResource(Resource):
 
         target_info = {"target_node_type": config_detail["target_node_type"], "table_data": table_data}
 
-        result = {
-            "basic_info": basic_info,
-            "runtime_params": runtime_params,
-            "metric_list": metric_list,
-            "target_info": target_info,
-            "subscription_id": config_detail["subscription_id"],
-            "extend_info": config_detail["params"],
-        }
-        return result
+        return target_info
 
 
 class FrontendTargetStatusTopoResource(Resource):
@@ -180,7 +203,9 @@ class FrontendTargetStatusTopoResource(Resource):
 
     def perform_request(self, params):
         topo_tree = resource.collecting.collect_target_status_topo(params)
-        config = CollectConfigMeta.objects.select_related("deployment_config").get(id=params["id"])
+        config = CollectConfigMeta.objects.select_related("deployment_config").get(
+            id=params["id"], bk_biz_id=params["bk_biz_id"]
+        )
 
         handle_node = partial(self.handle_node, params["bk_biz_id"])
 

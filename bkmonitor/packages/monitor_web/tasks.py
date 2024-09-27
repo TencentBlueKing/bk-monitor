@@ -18,10 +18,12 @@ import traceback
 from typing import Any, Dict
 
 import arrow
+from celery.signals import task_postrun
 from celery.task import task
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.storage import default_storage
+from django.dispatch import receiver as celery_receiver
 from django.forms import model_to_dict
 from django.utils.translation import ugettext as _
 
@@ -146,14 +148,6 @@ def run_init_builtin(bk_biz_id):
         #     run_init_builtin_assign_group(cc_biz_id)
     else:
         logger.info("[run_init_builtin] skipped with bk_biz_id -> %s", bk_biz_id)
-
-
-@task(ignore_result=True)
-def update_config_status():
-    """
-    周期性查询节点管理任务状态，更新执行中的采集配置的状态
-    """
-    resource.collecting.update_config_status()
 
 
 @task(ignore_result=True)
@@ -544,12 +538,7 @@ def polling_aiops_strategy_status(flow_id: int, task_id: int, base_labels: Dict,
     deploy_task_data = {item["id"]: item for item in deploy_data}
     current_deploy_data = deploy_task_data.get(task_id, deploy_data[0])
 
-    if current_deploy_data["status"] in ("running", "pending"):
-        # 如果任务启动流程还在执行中，则下一个周期再继续检
-        polling_aiops_strategy_status.apply_async(
-            args=(flow_id, task_id, base_labels, query_config), countdown=AIOPS_ACCESS_STATUS_POLLING_INTERVAL
-        )
-    elif current_deploy_data["status"] == "success":
+    if current_deploy_data["status"] == "success":
         # 如果任务启动流程已经完成且成功，则认为任务正常启动（内部失败需要在巡检任务通过其他指标检测到）
         report_aiops_access_metrics(base_labels, AccessStatus.SUCCESS)
         query_config.intelligent_detect["status"] = AccessStatus.SUCCESS
@@ -586,6 +575,11 @@ def polling_aiops_strategy_status(flow_id: int, task_id: int, base_labels: Dict,
             query_config.save()
 
         report_aiops_access_metrics(base_labels, AccessStatus.FAILED, err_msg, AccessErrorType.START_FLOW)
+    else:
+        # 如果任务启动流程还在执行中，则下一个周期再继续检
+        polling_aiops_strategy_status.apply_async(
+            args=(flow_id, task_id, base_labels, query_config), countdown=AIOPS_ACCESS_STATUS_POLLING_INTERVAL
+        )
 
 
 def report_aiops_access_metrics(base_labels: Dict, result: str, exception: str = "", exc_type: str = ""):
@@ -1315,3 +1309,11 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
     if rt_query_config.intelligent_detect.get("retries", 0) == 0:
         rt_query_config.intelligent_detect["message"] = ""
     rt_query_config.save()
+
+
+@celery_receiver(task_postrun)
+def task_postrun_handler(sender=None, headers=None, body=None, **kwargs):
+    # 清理celery任务的线程变量
+    from bkmonitor.utils.local import local
+
+    local.clear()
