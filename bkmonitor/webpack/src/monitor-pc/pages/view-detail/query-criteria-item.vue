@@ -417,7 +417,12 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
       }
       const method = CONDITION_METHOD_LIST.find(set => set.id === item.method);
       result.push(item.key);
-      result.push(method.name);
+      // 存在部分脏数据 contains 等价 eq
+      if (!method && item.method === 'contains') {
+        result.push('=');
+      } else {
+        result.push(method.name);
+      }
       result.push(item.value.map(v => v || `-${window.i18n.t('空')}-`));
     });
     return result;
