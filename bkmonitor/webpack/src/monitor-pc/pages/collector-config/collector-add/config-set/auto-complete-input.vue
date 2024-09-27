@@ -144,11 +144,12 @@
         <slot name="prepend" />
         <MonacoEditor
           class="code-select-editor"
-          style="height: 300px"
+          style="height: 250px"
           :value="config.default"
           :language="'json'"
           :theme="'vs-light'"
-          :height="300"
+          :height="250"
+          :options="config.options || { minimap: { enabled: false }, fontSize: 12 }"
           @change="handleCodeChange"
         />
       </div>
