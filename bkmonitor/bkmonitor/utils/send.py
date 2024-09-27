@@ -14,6 +14,7 @@ import hashlib
 import json
 import logging
 from os import path
+from typing import Dict
 
 import requests
 from django.conf import settings
@@ -158,16 +159,24 @@ class BaseSender(object):
         处理接口返回结果
         """
         notice_result = {}
-        message = api_result.get("message", "")
+        message: str = api_result.get("message", "")
         msg_id = api_result.get("data", {}).get("msg_id")
+        message_details: Dict[str, str] = api_result.get("message_detail", {})
         if msg_id:
             # 记录msg_id信息
             message = f"{message} msg_id: {msg_id}"
+
         for notice_receiver in notice_receivers:
             if notice_receiver in api_result["username_check"]["invalid"]:
                 notice_result[notice_receiver] = {"message": message, "result": False, "msg_id": msg_id}
             else:
                 notice_result[notice_receiver] = {"message": message, "result": True, "msg_id": msg_id}
+
+        # 针对有具体详情的用户更新其内容
+        if message_details:
+            for notice_receiver, message_detail in message_details.items():
+                notice_result[notice_receiver]["message"] = message_detail
+                notice_result[notice_receiver]["result"] = False
         return notice_result
 
     @classmethod
