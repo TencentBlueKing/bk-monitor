@@ -24,8 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { jumpToDocsLink } from 'monitor-common/utils';
-import { linkMap } from 'monitor-pc/common/constant';
+import { skipToDocsLink } from 'monitor-common/utils/docs';
 
 import { useAppStore } from '../store/modules/app';
 
@@ -33,7 +32,7 @@ export function useDocumentLink() {
   /** 链接跳转 */
   function handleGotoLink(id: string): void {
     const extraLinkMap = useAppStore().extraDocLinkMap;
-    jumpToDocsLink(id, linkMap, extraLinkMap);
+    skipToDocsLink(id, extraLinkMap);
   }
 
   return {
