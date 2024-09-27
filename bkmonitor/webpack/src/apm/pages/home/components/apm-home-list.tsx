@@ -263,11 +263,14 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
   loadAsyncData(item, data, columns, startTime, endTime) {
     const fields = (columns || []).filter(col => col.asyncable).map(val => val.id);
     const services = (data || []).map(d => d.service_name.value);
-
+    const valueTitleList = this.tableConfigData.tableData.columns.map(item => ({
+      id: item.id,
+      name: item.name,
+    }));
     for (const field of fields) {
       serviceListAsync(this.createAsyncRequest(item, field, services, startTime, endTime))
         .then(serviceData => {
-          this.mapAsyncData(serviceData, field);
+          this.mapAsyncData(serviceData, field, valueTitleList);
         })
         .finally(() => {
           this.updateColumnAsyncAbleState(field);
@@ -286,11 +289,18 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
     };
   }
 
-  mapAsyncData(serviceData, field) {
+  mapAsyncData(serviceData, field, valueTitleList) {
     const dataMap = {};
     if (serviceData) {
       for (const serviceItem of serviceData) {
         if (serviceItem.service_name) {
+          if (['request_count', 'error_rate', 'avg_duration'].includes(field)) {
+            const operationItem = valueTitleList.find(item => item.id === field);
+            serviceItem[field].valueTitle = operationItem?.name || null;
+            if (field === 'request_count') {
+              serviceItem[field].unitDecimal = 0;
+            }
+          }
           dataMap[String(serviceItem.service_name)] = serviceItem[field];
         }
       }
@@ -413,12 +423,13 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
           <div class='header-right'>
             <bk-button
               class='mr-8'
+              theme='primary'
               onClick={(event: Event) => {
                 event.stopPropagation();
                 this.handleEmit('linkToOverview', this.appData);
               }}
             >
-              {this.$t('应用详情')}
+              {this.$t('查看应用')}
             </bk-button>
             <bk-button
               onClick={(event: Event) => {

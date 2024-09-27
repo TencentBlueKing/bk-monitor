@@ -30,7 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
-import CompareMiniChart from 'monitor-ui/chart-plugins/plugins/mini-time-series/compare-mini-chart';
+import MiniTimeSeries from 'monitor-ui/chart-plugins/plugins/mini-time-series/mini-time-series';
 
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import { Storage } from '../../../utils';
@@ -589,9 +589,12 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   // datapoints 类型
   datapointsFormatter(value: ITableItem<'datapoints'>) {
     return (
-      <CompareMiniChart
+      <MiniTimeSeries
         data={value.datapoints}
         disableHover={true}
+        unit={value.unit}
+        unitDecimal={value?.unitDecimal}
+        valueTitle={value.valueTitle}
       />
     );
   }
