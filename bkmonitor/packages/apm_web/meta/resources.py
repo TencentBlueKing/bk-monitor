@@ -1371,14 +1371,19 @@ class MetaInstrumentGuides(Resource):
             return attrs
 
     def perform_request(self, validated_request_data):
+        access_config = validated_request_data["access_config"]
+        for field in ["enable_metrics", "enable_logs", "enable_traces"]:
+            access_config["otlp"][field] = str(access_config["otlp"][field]).lower()
+        access_config["profiling"]["enabled"] = str(access_config["profiling"]["enabled"]).lower()
 
         context: Dict[str, str] = {
             "ECOSYSTEM_REPOSITORY_URL": settings.ECOSYSTEM_REPOSITORY_URL,
             "ECOSYSTEM_CODE_ROOT_URL": settings.ECOSYSTEM_CODE_ROOT_URL,
             "APM_ACCESS_URL": settings.APM_ACCESS_URL,
             "service_name": validated_request_data["service_name"],
-            "access_config": validated_request_data["access_config"],
+            "access_config": access_config,
         }
+
         helper: Help = Help(context)
 
         guides: List[Dict[str, Any]] = []
@@ -1469,12 +1474,7 @@ class MetaConfigInfoResource(Resource):
 
         return {
             "deployments": [asdict(d) for d in DeploymentEnum.get_values()],
-            "languages": [
-                asdict(value)
-                for value in LanguageEnum.get_values()
-                if value.id
-                in [LanguageEnum.PYTHON.id, LanguageEnum.CPP.id, LanguageEnum.GOLANG.id, LanguageEnum.JAVA.id]
-            ],
+            "languages": [asdict(value) for value in LanguageEnum.get_values()],
             "plugins": plugins,
             # "help_md": {plugin.id: Help(plugin.id).get_help_md() for plugin in [Opentelemetry]},
             "setup": self.setup(validated_request_data["bk_biz_id"]),
