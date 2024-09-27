@@ -94,6 +94,8 @@ class RouteUrlResolver {
       'datePickerValue',
       'host_scopes',
       'ip_chooser',
+      'search_mode',
+      'clusterParams',
     ];
   }
 
@@ -138,6 +140,7 @@ class RouteUrlResolver {
     this.resolver.set('unionList', this.arrayResolver.bind(this));
     this.resolver.set('host_scopes', this.objectResolver.bind(this));
     this.resolver.set('ip_chooser', this.objectResolver.bind(this));
+    this.resolver.set('clusterParams', this.objectResolver.bind(this));
     this.resolver.set('timeRange', this.dateTimeRangeResolver.bind(this));
 
     // datePicker默认直接获取URL中的 start_time, end_time

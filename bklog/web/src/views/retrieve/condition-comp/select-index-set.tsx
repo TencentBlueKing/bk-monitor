@@ -129,7 +129,7 @@ export default class QueryStatement extends tsc<object> {
     },
     {
       name: 'favorite',
-      icon: 'bklog-icon bklog-star-shape',
+      icon: 'bklog-icon bklog-lc-star-shape',
       label: window.mainComponent.$t('收藏'),
     },
   ];
@@ -994,7 +994,9 @@ export default class QueryStatement extends tsc<object> {
           >
             <span class='favorite-btn'>
               <i
-                class={[!!this.multipleFavoriteSelectID ? 'bklog-icon bklog-star-shape' : 'log-icon bk-icon icon-star']}
+                class={[
+                  !!this.multipleFavoriteSelectID ? 'bklog-icon bklog-lc-star-shape' : 'log-icon bk-icon icon-star',
+                ]}
               ></i>
               <span>{this.$t('收藏该组合')}</span>
             </span>
@@ -1064,7 +1066,7 @@ export default class QueryStatement extends tsc<object> {
     const indexHandDom = item => {
       return this.isAloneType ? (
         <span
-          class={[item.is_favorite ? 'bklog-icon bklog-star-shape' : 'log-icon bk-icon icon-star']}
+          class={[item.is_favorite ? 'bklog-icon bklog-lc-star-shape' : 'log-icon bk-icon icon-star']}
           onClick={e => this.handleCollection(item, e)}
         ></span>
       ) : (
