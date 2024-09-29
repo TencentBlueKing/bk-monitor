@@ -251,7 +251,17 @@ class LogBackendHandler(TelemetryBackendHandler):
         return self.app.fetch_datasource_info(self.telemetry.datasource_type, attr_name="index_set_id")
 
     def storage_info(self):
-        return DataBusCollectorsResource().request(collector_config_id=self.collector_config_id)
+        resp = DataBusCollectorsResource().request(collector_config_id=self.collector_config_id)
+        return {
+            "es_number_of_replicas": resp["storage_replies"],
+            "es_retention": resp["retention"],
+            "es_shards": resp["storage_shards_nums"],
+            "es_slice_size": resp["storage_shards_size"],
+            "es_storage_cluster": resp["storage_cluster_id"],
+            "display_storage_cluster_name": resp["storage_cluster_name"],
+            "display_es_storage_index_name": f"{resp['table_id_prefix']}{resp['table_id']}",
+            "display_index_split_rule": resp["index_split_rule"],
+        }
 
     def storage_field_info(self):
         res_data = LogSearchIndexSetResource().request(index_set_id=self.index_set_id)
@@ -293,8 +303,10 @@ class LogBackendHandler(TelemetryBackendHandler):
         )
 
     def get_data_count(self, start_time: int, end_time: int, **kwargs):
-        view_config = self.get_data_view_config(start_time=start_time, end_time=end_time, **kwargs)
-        data = api.unify_query.query_data(**view_config[0])
+        view_config = self.get_data_view_config(
+            start_time=start_time, end_time=end_time, bk_biz_id=self.app.bk_biz_id, **kwargs
+        )
+        data = resource.grafana.graph_unify_query(view_config[0]["targets"][0]["data"])
         count = 0
         for line in data["series"]:
             for point in line["datapoints"]:

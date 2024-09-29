@@ -301,15 +301,15 @@ class Application(AbstractRecordModel):
         # NOTICE: data_status / profile_data_status 目前暂无接口用到只在指标中使用考虑指标处换成实时查询
 
         for data_type in TelemetryDataType:
-            try:
-                # 未定义的telemetry类型数据状态
-                if not getattr(self, f"{data_type.datasource_type}_data_status", False):
-                    continue
+            # 未定义的telemetry类型数据状态
+            if not getattr(self, f"{data_type.datasource_type}_data_status", False):
+                continue
 
-                # 未打开开关，无需检查
-                if not getattr(self, f"is_enabled_{data_type.datasource_type}", False):
-                    data_status = DataStatus.NO_DATA
-                else:
+            # 未打开开关，无需检查
+            if not getattr(self, f"is_enabled_{data_type.datasource_type}", False):
+                data_status = DataStatus.DISABLED
+            else:
+                try:
                     count = telemetry_handler_registry(data_type.value, app=self).get_data_count(start_time, end_time)
                     if count:
                         logger.info(
@@ -321,11 +321,12 @@ class Application(AbstractRecordModel):
                         data_status = DataStatus.NORMAL
                     else:
                         data_status = DataStatus.NO_DATA
-                setattr(self, f"{data_type.datasource_type}_data_status", data_status)
-            except ValueError as e:
-                logger.warning(f"[Application] set app: {self.app_name} | {data_type.value} data_status failed: {e}")
-                setattr(self, f"{data_type.datasource_type}_data_status", DataStatus.NO_DATA)
-
+                except ValueError as e:
+                    logger.warning(
+                        f"[Application] set app: {self.app_name} | {data_type.value} data_status failed: {e}"
+                    )
+                    data_status = DataStatus.NO_DATA
+            setattr(self, f"{data_type.datasource_type}_data_status", data_status)
         self.save()
 
     @property
