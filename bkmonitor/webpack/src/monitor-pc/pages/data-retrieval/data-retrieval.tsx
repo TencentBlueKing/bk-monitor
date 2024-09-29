@@ -307,6 +307,9 @@ export default class DataRetrieval extends tsc<object> {
   cacheTimeRange = [];
   cancelFn = null; // 取消查询接口
 
+  // 自动刷新
+  refleshInstance = null;
+
   // 是否开启（框选/复位）全部操作
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
@@ -446,8 +449,7 @@ export default class DataRetrieval extends tsc<object> {
     const list = deepClone(this.scenarioList);
     const res = list.reduce((total, cur) => {
       const child = cur.children || [];
-      total = total.concat(child);
-      return total;
+      return total.concat(child);
     }, []);
     return res;
   }
@@ -671,8 +673,7 @@ export default class DataRetrieval extends tsc<object> {
         this.favList[this.tabActive] = sortAfterList;
         this.favStrList = res.reduce((pre, cur) => {
           // 获取所有收藏的名字新增时判断是否重命名
-          pre = pre.concat(cur.favorites.map(item => item.name));
-          return pre;
+          return pre.concat(cur.favorites.map(item => item.name));
         }, []);
         if (this.isHaveFavoriteInit) {
           // 判断是否是分享初始化
@@ -1148,10 +1149,7 @@ export default class DataRetrieval extends tsc<object> {
       });
       // 统计数量
       list = list.map(item => {
-        const count = list.reduce((pre, set) => {
-          if (item.bk_obj_id === set.bk_obj_id) pre += 1;
-          return pre;
-        }, 0);
+        const count = list.reduce((pre, set) => (item.bk_obj_id === set.bk_obj_id ? pre + 1 : pre), 0);
         item.count = count;
         return item;
       });
@@ -2155,7 +2153,7 @@ export default class DataRetrieval extends tsc<object> {
               } else if (key === 'targets' && !!filterVal) {
                 /** 目标主机、主机对比数据将添加到where */
                 const firstItem = filterVal?.[0];
-                if (!!firstItem) {
+                if (firstItem) {
                   const res = Object.entries(firstItem).map(item => {
                     const [key] = item;
                     return {
@@ -2227,7 +2225,7 @@ export default class DataRetrieval extends tsc<object> {
           localValue.push(expItem);
         }
         /** 多表达式带有functions */
-        if (!!expressionList.length) {
+        if (expressionList.length) {
           expressionList.forEach(exp => {
             const expItem: IDataRetrieval.IExpressionItem = {
               alias: '',
@@ -3007,6 +3005,20 @@ export default class DataRetrieval extends tsc<object> {
     }
   }
 
+  handleRefleshChange(v: number) {
+    window.clearInterval(this.refleshInstance);
+    this.refleshInstance = null;
+    if (v <= 0) return;
+    this.refleshInstance = setInterval(() => {
+      this.refleshNumber += 1;
+    }, v);
+  }
+
+  deactivated() {
+    window.clearInterval(this.refleshInstance);
+    this.refleshInstance = null;
+  }
+
   render() {
     // 查询项/表达式头部区域
     const titleSlot = (item: IDataRetrieval.ILocalValue, index: number) => (
@@ -3392,6 +3404,7 @@ export default class DataRetrieval extends tsc<object> {
                   timeRange={this.compareValue.tools?.timeRange}
                   timezone={this.compareValue.tools?.timezone}
                   onImmediateReflesh={() => (this.refleshNumber += 1)}
+                  onRefleshIntervalChange={v => this.handleRefleshChange(v)}
                   onTimeRangeChange={this.handleToolsTimeRangeChange}
                   onTimezoneChange={this.handleTimezoneChange}
                 >
