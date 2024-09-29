@@ -112,7 +112,6 @@ from bkmonitor.utils.user import get_global_user, get_request_username
 from common.log import logger
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE, EventSeverity
 from constants.apm import (
-    DataSamplingLogTypeChoices,
     FlowType,
     OtlpKey,
     OtlpProtocol,
@@ -1283,7 +1282,6 @@ class QueryExceptionEventResource(PageListResource):
 
 class MetaInstrumentGuides(Resource):
     class RequestSerializer(serializers.Serializer):
-
         application_id = serializers.IntegerField(label="应用id")
         service_name = serializers.CharField(label="服务名称")
         base_endpoint = serializers.URLField(label="接收端地址")
@@ -1336,14 +1334,19 @@ class MetaInstrumentGuides(Resource):
             return attrs
 
     def perform_request(self, validated_request_data):
+        access_config = validated_request_data["access_config"]
+        for field in ["enable_metrics", "enable_logs", "enable_traces"]:
+            access_config["otlp"][field] = str(access_config["otlp"][field]).lower()
+        access_config["profiling"]["enabled"] = str(access_config["profiling"]["enabled"]).lower()
 
         context: Dict[str, str] = {
             "ECOSYSTEM_REPOSITORY_URL": settings.ECOSYSTEM_REPOSITORY_URL,
             "ECOSYSTEM_CODE_ROOT_URL": settings.ECOSYSTEM_CODE_ROOT_URL,
             "APM_ACCESS_URL": settings.APM_ACCESS_URL,
             "service_name": validated_request_data["service_name"],
-            "access_config": validated_request_data["access_config"],
+            "access_config": access_config,
         }
+
         helper: Help = Help(context)
 
         guides: List[Dict[str, Any]] = []
@@ -1434,12 +1437,7 @@ class MetaConfigInfoResource(Resource):
 
         return {
             "deployments": [asdict(d) for d in DeploymentEnum.get_values()],
-            "languages": [
-                asdict(value)
-                for value in LanguageEnum.get_values()
-                if value.id
-                in [LanguageEnum.PYTHON.id, LanguageEnum.CPP.id, LanguageEnum.GOLANG.id, LanguageEnum.JAVA.id]
-            ],
+            "languages": [asdict(value) for value in LanguageEnum.get_values()],
             "plugins": plugins,
             # "help_md": {plugin.id: Help(plugin.id).get_help_md() for plugin in [Opentelemetry]},
             "setup": self.setup(validated_request_data["bk_biz_id"]),
@@ -1549,6 +1547,29 @@ class DataViewConfigResource(Resource):
         return data_view_config
 
 
+class DataHistogramResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        application_id = serializers.IntegerField(label="应用id")
+        telemetry_data_type = serializers.ChoiceField(label="采集类型", choices=TelemetryDataType.values())
+        start_time = serializers.IntegerField(label="开始时间")
+        end_time = serializers.IntegerField(label="结束时间")
+        data_view_config = serializers.JSONField(label="数据视图查询配置")
+
+    def perform_request(self, validated_request_data):
+        try:
+            app = Application.objects.get(application_id=validated_request_data["application_id"])
+            telemetry_data_type = validated_request_data["telemetry_data_type"]
+            start_time = validated_request_data["start_time"]
+            end_time = validated_request_data["end_time"]
+            data_view_config = validated_request_data["data_view_config"]
+            view_data = telemetry_handler_registry(telemetry_data_type, app=app).get_data_histogram(
+                start_time=start_time, end_time=end_time, **data_view_config
+            )
+        except Application.DoesNotExist:
+            raise ValueError(_("应用不存在"))
+        return view_data
+
+
 class DataSamplingResource(Resource):
     class RequestSerializer(serializers.Serializer):
         application_id = serializers.IntegerField(label="应用id")
@@ -1556,10 +1577,6 @@ class DataSamplingResource(Resource):
             label="采集类型", choices=TelemetryDataType.values(), default=TelemetryDataType.TRACING.name
         )
         size = serializers.IntegerField(required=False, label="拉取条数", default=10)
-        log_type = serializers.ChoiceField(
-            label="日志类型",
-            choices=DataSamplingLogTypeChoices.choices(),
-        )
 
     @classmethod
     def combine_data(cls, telemetry_data_type: str, app: Application, **kwargs):
@@ -1573,10 +1590,9 @@ class DataSamplingResource(Resource):
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
         # 获取数据
-        log_type = validated_request_data["log_type"]
         size = validated_request_data["size"]
         telemetry_data_type = validated_request_data["telemetry_data_type"]
-        return self.combine_data(telemetry_data_type, app, log_type=log_type, size=size)
+        return self.combine_data(telemetry_data_type, app, size=size)
 
 
 class StorageInfoResource(Resource):

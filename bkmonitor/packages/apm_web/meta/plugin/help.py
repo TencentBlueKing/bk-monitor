@@ -13,14 +13,16 @@ import typing
 
 from jinja2 import Environment, FileSystemLoader, Template
 
+from .context_manager.base import FieldManager, ScopeType
+
 
 class Help:
     help_md_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "help_md_new")
 
     def __init__(self, context: typing.Dict[str, str]):
-        print(self.help_md_path)
         self.env: Environment = Environment(loader=FileSystemLoader(searchpath=self.help_md_path))
         self.context: typing.Dict[str, str] = context
+        self.context.update(FieldManager.get_context(ScopeType.OPEN.value))
 
     def get_help_md(self, plugin_id: str, language: str, deployment_id: str) -> str:
         filename: str = f"{plugin_id}.{language}.{deployment_id}.md"

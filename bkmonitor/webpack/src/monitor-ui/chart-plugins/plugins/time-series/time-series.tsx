@@ -368,7 +368,7 @@ export class LineChart
         ...this.viewOptions,
         interval,
       });
-      timeShiftList.forEach(time_shift => {
+      for (const time_shift of timeShiftList) {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
         const list = this.panel.targets.map(item => {
           const newPrarams = {
@@ -398,8 +398,14 @@ export class LineChart
               group_by: config.group_by.filter(key => !item.ignore_group_by.includes(key)),
             }));
           }
+          const primaryKey = item?.primary_key;
+          const paramsArr = [];
+          if (primaryKey) {
+            paramsArr.push(primaryKey);
+          }
+          paramsArr.push(newPrarams);
           return (this as any).$api[item.apiModule]
-            [item.apiFunc](newPrarams, {
+            [item.apiFunc](...paramsArr, {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
               needMessage: false,
             })
@@ -423,7 +429,7 @@ export class LineChart
             });
         });
         promiseList.push(...list);
-      });
+      }
       await Promise.all(promiseList).catch(() => false);
       this.metrics = metrics || [];
       if (series.length) {

@@ -1883,4 +1883,5 @@ export default {
   连接线: 'Connection line',
   请求量: 'Request volume',
   云产品: 'Cloud product',
+  '关联 CMDB 服务': 'Associated CMDB service',
 };
