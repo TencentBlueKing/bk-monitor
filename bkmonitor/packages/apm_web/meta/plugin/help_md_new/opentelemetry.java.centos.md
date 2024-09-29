@@ -39,14 +39,15 @@ PROFILING_ENDPOINT="{{access_config.profiling.endpoint}}" \
 ENABLE_PROFILING="{{access_config.profiling.enabled}}" \
 ENABLE_TRACES="{{access_config.otlp.enable_traces}}" \
 ENABLE_METRICS="{{access_config.otlp.enable_metrics}}" \
-ENABLE_LOGS="{{access_config.otlp.enable_logs}}" ./gradlew run
+ENABLE_LOGS="{{access_config.otlp.enable_logs}}" \
+./gradlew run
 ```
 
 访问 👉 [http://localhost:8080/helloworld](http://localhost:8080/helloworld)。
 
 #### 2.1.2 运行参数说明
 
-{{DEMO_RUN_PARAMETERS}}
+{{QUICK_START_RUN_PARAMETERS}}
 
 ### 2.2 查看数据
 
