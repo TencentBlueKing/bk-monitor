@@ -675,7 +675,8 @@ export default class DataRetrieval extends tsc<object> {
         this.favList[this.tabActive] = sortAfterList;
         this.favStrList = res.reduce((pre, cur) => {
           // 获取所有收藏的名字新增时判断是否重命名
-          return pre.concat(cur.favorites.map(item => item.name));
+          pre.push(...cur.favorites.map(item => item.name));
+          return pre;
         }, []);
         if (this.isHaveFavoriteInit) {
           // 判断是否是分享初始化
