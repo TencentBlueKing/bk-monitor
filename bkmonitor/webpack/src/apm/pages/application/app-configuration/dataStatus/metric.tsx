@@ -368,7 +368,7 @@ export default class DataStatusMetric extends tsc<IProps> {
                       dataType={EDataType.Alert}
                       enableSelect={false}
                       getData={this.getAlarmData}
-                      isAdaption={true}
+                      isAdaption={false}
                       itemHeight={14}
                       showHeader={true}
                       showXAxis={true}
