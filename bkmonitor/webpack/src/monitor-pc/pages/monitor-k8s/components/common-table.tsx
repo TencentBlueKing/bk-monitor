@@ -31,6 +31,7 @@ import dayjs from 'dayjs';
 import { connect, disconnect } from 'echarts/core';
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
+import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import MiniTimeSeries from 'monitor-ui/chart-plugins/plugins/mini-time-series/mini-time-series';
 
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
@@ -704,7 +705,14 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   handleSetFormatter(id: string, row: TableRow) {
     const column = this.columns.find(item => item.id === id);
     if (!column) return '--';
-    if (column.asyncable) return <bk-spin size='mini' />; // 用于异步加载loading
+    if (column.asyncable)
+      return (
+        <img
+          class='loading-svg'
+          alt=''
+          src={loadingIcon}
+        />
+      ); // 用于异步加载loading
     const value: ITableItem<typeof column.type> = row[id];
     switch (column.type) {
       case 'time':
