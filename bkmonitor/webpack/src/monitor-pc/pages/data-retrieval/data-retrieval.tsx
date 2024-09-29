@@ -447,7 +447,12 @@ export default class DataRetrieval extends tsc<object> {
   /** 指标监控对象数据 */
   get scenarioAllList() {
     const list = deepClone(this.scenarioList);
-    const res = list.reduce((total, cur) => total.concat(cur.children || []), []);
+    const res = list.reduce((total, cur) => {
+      if (Array.isArray(cur.children)) {
+        total.push(...cur.children);
+      }
+      return total;
+    }, []);
     return res;
   }
 
