@@ -12,6 +12,8 @@ import os
 
 from django.utils.translation import ugettext_lazy as _lazy
 
+from common.context_processors import Platform
+
 DEFAULT_OS_STRATEGIES = [
     {
         "name": _lazy("CPU总使用率"),
@@ -104,16 +106,6 @@ DEFAULT_OS_STRATEGIES = [
         "recovery_status_setter": "close",
     },
     {
-        "name": _lazy("PING不可达告警"),
-        "data_type_label": "event",
-        "data_source_label": "bk_monitor",
-        "result_table_label": "os",
-        "metric_field": "ping-gse",
-        "trigger_count": 3,
-        "trigger_check_window": 5,
-        "recovery_check_window": 5,
-    },
-    {
         "name": _lazy("OOM异常告警"),
         "data_type_label": "event",
         "data_source_label": "bk_monitor",
@@ -170,3 +162,17 @@ DEFAULT_OS_STRATEGIES = [
         ],
     },
 ]
+
+if not Platform.te:
+    DEFAULT_OS_STRATEGIES.append(
+        {
+            "name": _lazy("PING不可达告警"),
+            "data_type_label": "event",
+            "data_source_label": "bk_monitor",
+            "result_table_label": "os",
+            "metric_field": "ping-gse",
+            "trigger_count": 3,
+            "trigger_check_window": 5,
+            "recovery_check_window": 5,
+        }
+    )

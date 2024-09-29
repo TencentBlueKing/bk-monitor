@@ -27,17 +27,15 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Editor, type Viewer } from '@toast-ui/editor';
+import codeSyntaxHighlight from '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight-all';
 
-// import codeSyntaxHighlight from '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight-all';
-// import Prism from 'prismjs';
-// import 'prismjs/components/prism-python.js';
 import fixUrlPlugin from './fixUrlPlugin';
 
-// import 'prismjs/themes/prism.css';
 import type { EditorPlugin } from '@toast-ui/editor/types/editor';
 
+import 'prismjs/themes/prism.css';
+import '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight.css';
 import './viewer.scss';
-// import '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight.css';
 import '@toast-ui/editor/dist/toastui-editor.css';
 
 interface IMarkdowViewerProps {
@@ -75,8 +73,7 @@ export default class MarkdowViewer extends tsc<IMarkdowViewerProps> {
       initialValue: this.value,
       height: this.height,
       viewer: true,
-      plugins: [fixUrlPlugin as EditorPlugin],
-      // plugins: [codeSyntaxHighlight]
+      plugins: [fixUrlPlugin as EditorPlugin, codeSyntaxHighlight],
     });
   }
 

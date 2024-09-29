@@ -27,7 +27,7 @@ from api.log_search.default import (
     LogSearchIndexSetResource,
 )
 from constants.apm import TelemetryDataType
-from core.drf_resource import api
+from core.drf_resource import api, resource
 
 
 def handler_name(handler_cls: type):
@@ -194,6 +194,10 @@ class TracingBackendHandler(TelemetryBackendHandler):
             for key, value in field_data.items()
         ]
 
+    @property
+    def storage_status(self):
+        return all([idx.get("health") == "green" for idx in self.indices_info()])
+
     def indices_info(self):
         es_index_name = self.result_table_id.replace(".", "_")
         data = api.metadata.es_route(
@@ -221,8 +225,10 @@ class TracingBackendHandler(TelemetryBackendHandler):
         )
 
     def get_data_count(self, start_time: int, end_time: int, **kwargs):
-        view_config = self.get_data_view_config(start_time=start_time, end_time=end_time, **kwargs)
-        data = api.unify_query.query_data(**view_config[0])
+        view_config = self.get_data_view_config(
+            start_time=start_time, end_time=end_time, bk_biz_id=self.app.bk_biz_id, **kwargs
+        )
+        data = resource.grafana.graph_unify_query(view_config[0]["targets"][0]["data"])
         count = 0
         for line in data["series"]:
             for point in line["datapoints"]:
@@ -245,7 +251,17 @@ class LogBackendHandler(TelemetryBackendHandler):
         return self.app.fetch_datasource_info(self.telemetry.datasource_type, attr_name="index_set_id")
 
     def storage_info(self):
-        return DataBusCollectorsResource().request(collector_config_id=self.collector_config_id)
+        resp = DataBusCollectorsResource().request(collector_config_id=self.collector_config_id)
+        return {
+            "es_number_of_replicas": resp["storage_replies"],
+            "es_retention": resp["retention"],
+            "es_shards": resp["storage_shards_nums"],
+            "es_slice_size": resp["storage_shards_size"],
+            "es_storage_cluster": resp["storage_cluster_id"],
+            "display_storage_cluster_name": resp["storage_cluster_name"],
+            "display_es_storage_index_name": f"{resp['table_id_prefix']}{resp['table_id']}",
+            "display_index_split_rule": resp["index_split_rule"],
+        }
 
     def storage_field_info(self):
         res_data = LogSearchIndexSetResource().request(index_set_id=self.index_set_id)
@@ -261,6 +277,10 @@ class LogBackendHandler(TelemetryBackendHandler):
                 }
             )
         return fields
+
+    @property
+    def storage_status(self):
+        return all([idx.get("health") == "green" for idx in self.indices_info()])
 
     def indices_info(self):
         data = DataBusCollectorsIndicesResource().request(collector_config_id=self.collector_config_id)
@@ -283,8 +303,10 @@ class LogBackendHandler(TelemetryBackendHandler):
         )
 
     def get_data_count(self, start_time: int, end_time: int, **kwargs):
-        view_config = self.get_data_view_config(start_time=start_time, end_time=end_time, **kwargs)
-        data = api.unify_query.query_data(**view_config[0])
+        view_config = self.get_data_view_config(
+            start_time=start_time, end_time=end_time, bk_biz_id=self.app.bk_biz_id, **kwargs
+        )
+        data = resource.grafana.graph_unify_query(view_config[0]["targets"][0]["data"])
         count = 0
         for line in data["series"]:
             for point in line["datapoints"]:
@@ -308,6 +330,10 @@ class MetricBackendHandler(TelemetryBackendHandler):
 
     def storage_info(self):
         return GetRawDataStoragesInfo().request(raw_data_id=self.bk_base_data_id) if self.bk_base_data_id else []
+
+    @property
+    def storage_status(self):
+        return all([storage.get("status") == "running" for storage in self.storage_info()])
 
     def data_sampling(self, **kwargs):
         resp_data = []
@@ -372,25 +398,29 @@ class MetricBackendHandler(TelemetryBackendHandler):
                 break
         return (
             GetStorageMetricsDataCount().request(
-                data_set_ids=self.bk_data_id, storages="vm", start_time=start_time, end_time=end_time, **kwargs
+                data_set_ids=[storage_result_table_id],
+                storages=["vm"],
+                start_time=start_time,
+                end_time=end_time,
+                **kwargs,
             )
             if storage_result_table_id
             else []
         )
 
-    def get_data_count(self, start_time: int, end_time: int):
-        resp = self.get_data_view(start_time, end_time)
+    def get_data_count(self, start_time: int, end_time: int, **kwargs):
+        resp = self.get_data_view(start_time, end_time, **kwargs)
         count = 0
         for data in resp:
             for point in data["series"]:
-                if point["rawdata_count"]:
-                    count += point["rawdata_count"]
+                if point["output_count"]:
+                    count += point["output_count"]
         return count
 
     def get_data_histogram(self, start_time, end_time, grain="1d"):
         resp = self.get_data_view(start_time, end_time, time_grain=grain)
         datapoints = (
-            [[view_series["rawdata_count"], view_series["time"] * 1000] for view_series in resp[0]["series"]]
+            [[view_series["output_count"], view_series["time"] * 1000] for view_series in resp[0]["series"]]
             if resp
             else []
         )
@@ -420,6 +450,10 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
 
     def storage_info(self):
         return GetRawDataStoragesInfo().request(raw_data_id=self.bk_data_id) if self.bk_data_id else []
+
+    @property
+    def storage_status(self):
+        return all([storage.get("status") == "running" for storage in self.storage_info()])
 
     def data_sampling(self, **kwargs):
         resp_data = []
@@ -481,25 +515,29 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
                 break
         return (
             GetStorageMetricsDataCount().request(
-                data_set_ids=self.bk_data_id, storages="doris", start_time=start_time, end_time=end_time, **kwargs
+                data_set_ids=[storage_result_table_id],
+                storages=["doris"],
+                start_time=start_time,
+                end_time=end_time,
+                **kwargs,
             )
             if storage_result_table_id
             else []
         )
 
-    def get_data_count(self, start_time: int, end_time: int):
-        resp = self.get_data_view(start_time, end_time)
+    def get_data_count(self, start_time: int, end_time: int, **kwargs):
+        resp = self.get_data_view(start_time, end_time, **kwargs)
         count = 0
         for data in resp:
             for point in data["series"]:
-                if point["rawdata_count"]:
-                    count += point["rawdata_count"]
+                if point["output_count"]:
+                    count += point["output_count"]
         return count
 
     def get_data_histogram(self, start_time, end_time, grain="1d"):
         resp = self.get_data_view(start_time, end_time, time_grain=grain)
         datapoints = (
-            [[view_series["rawdata_count"], view_series["time"] * 1000] for view_series in resp[0]["series"]]
+            [[view_series["output_count"], view_series["time"] * 1000] for view_series in resp[0]["series"]]
             if resp
             else []
         )

@@ -1,6 +1,7 @@
 import { request } from '../base';
 
 export const metaConfigInfo = request('GET', 'apm/meta/meta_info/meta_config_info/');
+export const metaInstrumentGuides = request('POST', 'apm/meta/meta_info/meta_instrument_guides/');
 export const pushUrl = request('GET', 'apm/meta/meta_info/push_url/');
 export const listEsClusterGroups = request('GET', 'apm/meta/meta_info/list_cluster_groups/');
 export const listApplicationInfo = request('GET', 'apm/meta/application/list_application_info/');
@@ -37,6 +38,7 @@ export const dataHistogram = request('POST', 'apm/meta/application/{pk}/data_his
 export const dataSampling = request('POST', 'apm/meta/application/{pk}/data_sampling/');
 export const storageInfo = request('POST', 'apm/meta/application/{pk}/storage_info/');
 export const storageFieldInfo = request('POST', 'apm/meta/application/{pk}/storage_field_info/');
+export const storageStatus = request('GET', 'apm/meta/application/{pk}/storage_status/');
 export const customServiceList = request('GET', 'apm/meta/application/custom_service_list/');
 export const customServiceConfig = request('POST', 'apm/meta/application/custom_service_config/');
 export const deleteCustomSerivice = request('POST', 'apm/meta/application/delete_custom_service/');
@@ -48,6 +50,7 @@ export const simpleServiceList = request('POST', 'apm/meta/application/simple_se
 
 export default {
   metaConfigInfo,
+  metaInstrumentGuides,
   pushUrl,
   listEsClusterGroups,
   listApplicationInfo,
@@ -84,6 +87,7 @@ export default {
   dataSampling,
   storageInfo,
   storageFieldInfo,
+  storageStatus,
   customServiceList,
   customServiceConfig,
   deleteCustomSerivice,

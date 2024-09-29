@@ -978,7 +978,6 @@ class SearchHandler(object):
             )
             return result
 
-        sorted_list = self._get_user_sorted_list(sorted_fields)
         result = search_func(
             {
                 "indices": self.indices,
@@ -988,7 +987,7 @@ class SearchHandler(object):
                 "end_time": self.end_time,
                 "query_string": self.query_string,
                 "filter": self.filter,
-                "sort_list": sorted_list,
+                "sort_list": sorted_fields,
                 "start": self.start,
                 "size": size,
                 "aggs": self.aggs,
@@ -1020,10 +1019,9 @@ class SearchHandler(object):
         search_after_size = len(search_result["hits"]["hits"])
         result_size = search_after_size
         max_result_window = self.index_set_obj.result_window
-        sorted_list = self._get_user_sorted_list(sorted_fields)
         while search_after_size == max_result_window and result_size < self.size:
             search_after = []
-            for sorted_field in sorted_list:
+            for sorted_field in sorted_fields:
                 search_after.append(search_result["hits"]["hits"][-1]["_source"].get(sorted_field[0]))
             search_result = search_func(
                 {
@@ -1034,7 +1032,7 @@ class SearchHandler(object):
                     "end_time": self.end_time,
                     "query_string": self.query_string,
                     "filter": self.filter,
-                    "sort_list": sorted_list,
+                    "sort_list": sorted_fields,
                     "start": self.start,
                     "size": max_result_window,
                     "aggs": self.aggs,
@@ -1976,10 +1974,14 @@ class SearchHandler(object):
             log.update({"index": _index})
             if self.search_dict.get("is_return_doc_id"):
                 log.update({"__id__": hit["_id"]})
-            origin_log_list.append(copy.deepcopy(origin_log))
+
             if "highlight" not in hit:
+                origin_log_list.append(origin_log)
                 log_list.append(log)
                 continue
+            else:
+                origin_log_list.append(copy.deepcopy(origin_log))
+
             if not (self.field_configs or self.text_fields_field_configs) or not self.is_desensitize:
                 log = self._deal_object_highlight(log=log, highlight=hit["highlight"])
             log_list.append(log)
