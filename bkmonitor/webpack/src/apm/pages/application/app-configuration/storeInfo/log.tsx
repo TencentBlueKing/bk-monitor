@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { setup } from 'monitor-api/modules/apm_meta';
@@ -42,7 +42,7 @@ interface IProps {
   indicesList: IndicesItem[];
   storageInfo?: ILogStorageInfo;
   telemetryDataType?: ETelemetryDataType;
-  onChange?: () => void;
+  onChange?: (params: ILogStorageInfo) => void;
 }
 @Component
 export default class Log extends tsc<IProps> {
@@ -60,23 +60,24 @@ export default class Log extends tsc<IProps> {
     red: window.i18n.tc('异常'),
   };
 
-  @Emit('change')
-  handleBaseInfoChange() {
-    return true;
-  }
-
   async handleUpdateValue(value, field: string) {
     try {
       // 更新基本信息
-      const datasourceConfig = Object.assign(this.storageInfo, { [field]: Number(value) });
-
+      const obj = {};
+      for (const key in this.storageInfo) {
+        if (/^es/.test(key)) {
+          obj[key] = this.storageInfo[key];
+        }
+      }
+      const logsourceConfig = Object.assign(obj, { [field]: Number(value) });
       const params = {
         application_id: this.appInfo.application_id,
-        datasource_option: datasourceConfig,
+        log_datasource_option: logsourceConfig,
         telemetry_data_type: this.telemetryDataType,
       };
-      await setup(params);
-      await this.handleBaseInfoChange();
+      await setup(params).then(() => {
+        this.$emit('change', logsourceConfig);
+      });
       return true;
     } catch {
       return false;
@@ -107,13 +108,13 @@ export default class Log extends tsc<IProps> {
                 formType='input'
                 label={this.$t('集群名称')}
                 showEditable={false}
-                value={this.storageInfo?.storage_cluster_name}
+                value={this.storageInfo?.display_storage_cluster_name}
               />
               <EditableFormItem
                 formType='input'
                 label={this.$t('索引集名称')}
                 showEditable={false}
-                value={`${this.storageInfo?.table_id_prefix}${this.storageInfo?.table_id}`}
+                value={this.storageInfo?.display_es_storage_index_name}
               />
             </div>
             <div class='item-row'>
@@ -122,15 +123,15 @@ export default class Log extends tsc<IProps> {
                 label={this.$t('过期时间')}
                 showEditable={true}
                 tooltips={this.$t('过期时间')}
-                updateValue={val => this.handleUpdateValue(val, 'retention')}
-                value={this.storageInfo?.retention}
+                updateValue={val => this.handleUpdateValue(val, 'es_retention')}
+                value={this.storageInfo?.es_retention}
               />
               <EditableFormItem
                 formType='input'
                 label={this.$t('分列规则')}
                 showEditable={false}
                 tooltips={this.$t('分列规则')}
-                value={this.storageInfo?.index_split_rule}
+                value={this.storageInfo?.display_index_split_rule}
               />
             </div>
           </div>
