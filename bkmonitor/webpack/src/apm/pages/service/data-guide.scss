@@ -84,4 +84,15 @@
       }
     }
   }
+
+  .markdown-skeleton {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+
+    &-item {
+      height: 30px;
+      margin-bottom: 16px;
+    }
+  }
 }
