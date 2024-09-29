@@ -46,6 +46,7 @@ import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-p
 import { type ValueFormatter, getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
 
+import ChartSkeleton from '../../../components/skeleton/chart-skeleton';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { VariablesService, isShadowEqual, reviewInterval } from '../../../utils';
 import BaseEchart from '../../base-echart';
@@ -86,6 +87,12 @@ import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/moni
 
 import './time-series.scss';
 
+enum EApmDataType {
+  avgDuration = 'avg_duration',
+  errorCount = 'error_count',
+  requestCount = 'request_count',
+}
+
 const TimeSeriesProps = {
   panel: {
     type: Object as PropType<PanelModel>,
@@ -95,6 +102,11 @@ const TimeSeriesProps = {
   showChartHeader: {
     type: Boolean,
     default: true,
+  },
+  // 是否需要骨架屏
+  needChartLoading: {
+    type: Boolean,
+    default: false,
   },
   // 是否展示more tools
   showHeaderMoreTool: {
@@ -139,6 +151,7 @@ export default defineComponent({
     const empty = ref<boolean>(true);
     const emptyText = ref<string>('');
     const errorMsg = ref<string>('');
+    const isChartLoading = ref<boolean>(true);
     const metrics = ref<IExtendMetricData[]>([]);
     const hasSetEvent = ref<boolean>(false);
     const isInHover = ref<boolean>(false);
@@ -193,6 +206,11 @@ export default defineComponent({
       const [target] = props.panel?.targets || [];
       return target?.datasource === 'time_series';
     });
+
+    /* apm metric (请求数错误数耗时三个图需要仿照apm的同样处理) */
+    const apmMetric = computed(() => props.panel?.options?.apm_time_series?.metric || '');
+    /* 同时hover显示多个tooltip */
+    const hoverAllTooltips = computed(() => props.panel?.options?.time_series?.hoverAllTooltips);
     /* 粒度计算 */
     function downSampleRangeComputed(downSampleRange: string, timeRange: number[], api: string) {
       if (downSampleRange === 'raw' || !['unifyQuery', 'graphUnifyQuery'].includes(api)) {
@@ -474,6 +492,17 @@ export default defineComponent({
           break;
       }
     }
+
+    function handleSetThreholds() {
+      const { markLine } = props.panel?.options?.time_series || {};
+      const thresholdList = markLine?.data?.map?.(item => item.yAxis) || [];
+      const max = Math.max(...thresholdList);
+      return {
+        canScale: thresholdList.length > 0 && thresholdList.every((set: number) => set > 0),
+        minThreshold: Math.min(...thresholdList),
+        maxThreshold: max + max * 0.1, // 防止阈值最大值过大时title显示不全
+      };
+    }
     // 获取图表数据
     const getPanelData = debounce(300, async (start_time?: string, end_time?: string) => {
       cancelTokens.forEach(cb => cb?.());
@@ -486,7 +515,10 @@ export default defineComponent({
         return;
       }
       if (inited.value) emit('loading', true);
-      emptyText.value = t('加载中...');
+      if (!props.needChartLoading) {
+        emptyText.value = t('加载中...');
+      }
+      isChartLoading.value = true;
       try {
         unregisterOberver();
         const series: any[] = [];
@@ -511,6 +543,7 @@ export default defineComponent({
         timeShiftList.forEach(time_shift => {
           const list =
             props.panel?.targets?.map?.(item => {
+              const stack = item?.data?.stack || '';
               const newPrarams = {
                 ...params,
                 ...variablesService.transformVariables(item.data, {
@@ -544,11 +577,14 @@ export default defineComponent({
                   series.push(
                     ...res.series.map(set => ({
                       ...set,
+                      stack,
                       name: `${
                         timeOffset?.value.length
                           ? `${handleTransformTimeShift((time_shift as string) || 'current')}-`
                           : ''
                       }${handleSeriesName(item, set) || set.target}`,
+                      yAxisIndex: (item as any)?.yAxisIndex || 0,
+                      chart_type: (item as any)?.chart_type || undefined,
                     }))
                   );
                   handleClearErrorMsg();
@@ -583,6 +619,8 @@ export default defineComponent({
               unit: item.unit,
               z: 1,
               traceData: item.trace_data ?? '',
+              yAxisIndex: item?.yAxisIndex || 0,
+              chart_type: item?.chart_type || undefined,
             })) as any
           );
           seriesList = seriesList.map((item: any) => ({
@@ -597,6 +635,7 @@ export default defineComponent({
                 value: [set.value[0], set.value[1] !== null ? set.value[1] + minBase.value : null],
               };
             }),
+            type: item?.chart_type || item.type,
           }));
           // 1、echarts animation 配置会影响数量大时的图表性能 掉帧
           // 2、echarts animation配置为false时 对于有孤立点不连续的图表无法放大 并且 hover的点放大效果会潇洒 (貌似echarts bug)
@@ -622,7 +661,7 @@ export default defineComponent({
             });
           }
           const formatterFunc = handleSetFormatterFunc(seriesList[0].data);
-          // const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
+          const { maxThreshold } = handleSetThreholds();
 
           const chartBaseOptions = MONITOR_LINE_OPTIONS;
 
@@ -637,24 +676,53 @@ export default defineComponent({
               animation: hasShowSymbol,
               color: props.panel?.options?.time_series?.type === 'bar' ? COLOR_LIST_BAR : COLOR_LIST,
               animationThreshold: 1,
-              yAxis: {
-                axisLabel: {
-                  formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
-                    ? (v: any) => {
-                        if (seriesList[0].unit !== 'none') {
-                          const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
-                          return obj.text + (obj.suffix || '');
-                        }
-                        return v;
+              yAxis: [
+                {
+                  axisLabel: {
+                    formatter: (v: any) => {
+                      const item = seriesList.find(item => item.yAxisIndex === 0);
+                      if (item.unit !== 'none') {
+                        const obj = getValueFormat(item.unit)(v, item.precision);
+                        return obj.text + (obj.suffix || '');
                       }
-                    : (v: number) => handleYxisLabelFormatter(v - minBase.value),
+                      return (v: number) => handleYxisLabelFormatter(v - minBase.value);
+                    },
+                    /* formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
+                      ? (v: any) => {
+                          if (seriesList[0].unit !== 'none') {
+                            const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
+                            return obj.text + (obj.suffix || '');
+                          }
+                          return v;
+                        }
+                      : (v: number) => handleYxisLabelFormatter(v - minBase.value), */
+                  },
+                  splitNumber: height.value < 120 ? 2 : 4,
+                  minInterval: 1,
+                  scale: !(height.value < 120),
+                  // max: v => Math.max(v.max, +maxThreshold),
+                  // min: v => Math.min(v.min, +minThreshold)
+                  position: 'left',
                 },
-                splitNumber: height.value < 120 ? 2 : 4,
-                minInterval: 1,
-                scale: !(height.value < 120),
-                // max: v => Math.max(v.max, +maxThreshold),
-                // min: v => Math.min(v.min, +minThreshold)
-              },
+                {
+                  axisLabel: {
+                    formatter: (v: any) => {
+                      const item = seriesList.find(item => item.yAxisIndex === 1);
+                      if (item.unit !== 'none') {
+                        const obj = getValueFormat(item.unit)(v, item.precision);
+                        return obj.text + (obj.suffix || '');
+                      }
+                      return (v: number) => handleYxisLabelFormatter(v - minBase.value);
+                    },
+                  },
+                  splitNumber: height.value < 120 ? 2 : 4,
+                  minInterval: 1,
+                  scale: !(height.value < 120),
+                  position: 'right',
+                  max: v => Math.max(v.max, +maxThreshold),
+                  min: 0,
+                },
+              ],
               xAxis: {
                 axisLabel: {
                   formatter: formatterFunc || '{value}',
@@ -686,6 +754,8 @@ export default defineComponent({
         empty.value = true;
         emptyText.value = t('出错了');
         console.error(e);
+      } finally {
+        isChartLoading.value = false;
       }
       emit('loading', false);
       // this.cancelTokens = [];
@@ -771,6 +841,31 @@ export default defineComponent({
         dataZoom(undefined, undefined);
       }
     }
+
+    /* apm 请求数tip需要追加总数量 */
+    function tooltipsContentLastItem(params) {
+      if (apmMetric.value === EApmDataType.requestCount) {
+        try {
+          let count = 0;
+          for (const p of params) {
+            count += p.value[1];
+          }
+          return `<li class="tooltips-content-item">
+                      <span class="item-series"
+                      style="background-color:transparent;">
+                      </span>
+                      <span class="item-name" style="color: #fafbfd;">${t('总数量')}:</span>
+                      <span class="item-value" style="color: #fafbfd;">
+                      ${count}</span>
+                      </li>`;
+        } catch (e) {
+          console.error(e);
+          return '';
+        }
+      }
+      return '';
+    }
+
     return {
       ...unWathChartData,
       ...useLegendRet,
@@ -819,6 +914,9 @@ export default defineComponent({
       handleMetricClick,
       handleDblClick,
       handleRestore,
+      isChartLoading,
+      hoverAllTooltips,
+      tooltipsContentLastItem,
     };
   },
   render() {
@@ -830,73 +928,81 @@ export default defineComponent({
         onMouseenter={() => (this.isInHover = true)}
         onMouseleave={() => (this.isInHover = false)}
       >
-        {this.showChartHeader && this.panel && (
-          <ChartTitle
-            class='draggable-handle'
-            draging={this.panel.draging}
-            drillDownOption={this.drillDownOptions}
-            isInstant={this.panel.instant}
-            menuList={this.menuList}
-            metrics={this.metrics}
-            showAddMetric={this.showAddMetric}
-            showMore={this.isInHover}
-            subtitle={this.panel.subTitle || ''}
-            title={this.panel.title}
-            onAlarmClick={this.handleAlarmClick}
-            onAllMetricClick={this.handleMetricClick}
-            onMenuClick={this.handleMenuClick}
-            onMetricClick={this.handleMetricClick}
-            onSelectChild={({ child }) => this.handleMenuClick(child)}
-            onUpdateDragging={() => this.panel?.updateDraging(false)}
-          />
-        )}
-        {!this.empty ? (
-          <div class={`time-series-content ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
-            <div
-              ref='chartWrapperRef'
-              class={`chart-instance ${legend?.displayMode === 'table' ? 'is-table-legend' : ''}`}
-            >
-              {this.inited && (
-                <BaseEchart
-                  ref='baseChartRef'
-                  width={this.width}
-                  groupId={this.panel!.dashboardId}
-                  options={this.options}
-                  showRestore={this.showRestore}
-                  onDataZoom={this.dataZoom}
-                  onDblClick={this.handleDblClick}
-                  onRestore={this.handleRestore}
-                />
-              )}
-            </div>
-            {legend?.displayMode !== 'hidden' && (
-              <div class={`chart-legend ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
-                {legend?.displayMode === 'table' ? (
-                  <TableLegend
-                    legendData={this.legendData}
-                    onSelectLegend={this.handleSelectLegend}
-                  />
-                ) : (
-                  <CommonLegend
-                    legendData={this.legendData}
-                    onSelectLegend={this.handleSelectLegend}
-                  />
+        {this.isChartLoading && this.needChartLoading ? (
+          <ChartSkeleton />
+        ) : (
+          <>
+            {this.showChartHeader && this.panel && (
+              <ChartTitle
+                class='draggable-handle'
+                draging={this.panel.draging}
+                drillDownOption={this.drillDownOptions}
+                isInstant={this.panel.instant}
+                menuList={this.menuList}
+                metrics={this.metrics}
+                showAddMetric={this.showAddMetric}
+                showMore={this.isInHover}
+                subtitle={this.panel.subTitle || ''}
+                title={this.panel.title}
+                onAlarmClick={this.handleAlarmClick}
+                onAllMetricClick={this.handleMetricClick}
+                onMenuClick={this.handleMenuClick}
+                onMetricClick={this.handleMetricClick}
+                onSelectChild={({ child }) => this.handleMenuClick(child)}
+                onUpdateDragging={() => this.panel?.updateDraging(false)}
+              />
+            )}
+            {!this.empty ? (
+              <div class={`time-series-content ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
+                <div
+                  ref='chartWrapperRef'
+                  class={`chart-instance ${legend?.displayMode === 'table' ? 'is-table-legend' : ''}`}
+                >
+                  {this.inited && (
+                    <BaseEchart
+                      ref='baseChartRef'
+                      width={this.width}
+                      groupId={this.panel!.dashboardId}
+                      hoverAllTooltips={this.hoverAllTooltips}
+                      options={this.options}
+                      showRestore={this.showRestore}
+                      tooltipsContentLastItemFn={this.tooltipsContentLastItem}
+                      onDataZoom={this.dataZoom}
+                      onDblClick={this.handleDblClick}
+                      onRestore={this.handleRestore}
+                    />
+                  )}
+                </div>
+                {legend?.displayMode !== 'hidden' && (
+                  <div class={`chart-legend ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
+                    {legend?.displayMode === 'table' ? (
+                      <TableLegend
+                        legendData={this.legendData}
+                        onSelectLegend={this.handleSelectLegend}
+                      />
+                    ) : (
+                      <CommonLegend
+                        legendData={this.legendData}
+                        onSelectLegend={this.handleSelectLegend}
+                      />
+                    )}
+                  </div>
                 )}
               </div>
+            ) : (
+              <div class='empty-chart'>{this.emptyText}</div>
             )}
-          </div>
-        ) : (
-          <div class='empty-chart'>{this.emptyText}</div>
-        )}
-        {!!this.errorMsg && (
-          <span
-            class='is-error'
-            v-bk-tooltips={{
-              content: <div>{this.errorMsg}</div>,
-              extCls: 'chart-wrapper-error-tooltip',
-              placement: 'top-start',
-            }}
-          />
+            {!!this.errorMsg && (
+              <span
+                class='is-error'
+                v-bk-tooltips={{
+                  content: <div>{this.errorMsg}</div>,
+                  extCls: 'chart-wrapper-error-tooltip',
+                  placement: 'top-start',
+                }}
+              />
+            )}
+          </>
         )}
       </div>
     );

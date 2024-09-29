@@ -55,7 +55,7 @@ class TestJmxPlugin(object):
             "collector": {"period": "10", "port": "5987", "host": "127.0.0.1"},
             "plugin": {"jmx_url": "", "username": "", "password": ""},
         }
-        assert update_plugin_manager.get_debug_config_context(1, 1, params) == {
+        assert update_plugin_manager._get_debug_config_context(1, 1, params) == {
             "bkmonitorbeat_debug.yaml": {"host": "127.0.0.1", "period": "10", "port": "5987"},
             "config.yaml": {"jmx_url": "", "password": "", "username": ""},
             "env.yaml": {"host": "127.0.0.1", "port": "5987"},

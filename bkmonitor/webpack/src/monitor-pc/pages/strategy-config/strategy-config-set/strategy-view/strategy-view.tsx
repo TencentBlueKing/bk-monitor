@@ -32,6 +32,7 @@ import dayjs from 'dayjs';
 import { dimensionUnifyQuery, graphUnifyQuery, logQuery } from 'monitor-api/modules/grafana';
 import { fetchItemStatus, getUnitInfo } from 'monitor-api/modules/strategies';
 import { asyncDebounceDecorator } from 'monitor-common/utils/debounce-decorator';
+import { concatMonitorDocsUrl, DOCS_LINK_MAP } from 'monitor-common/utils/docs';
 import { Debounce, deepClone, random, typeTools } from 'monitor-common/utils/utils';
 import Viewer from 'monitor-ui/markdown-editor/viewer';
 import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
@@ -70,13 +71,6 @@ import type { IFunctionsValue } from '../../strategy-config-set-new/monitor-data
 import type { IMultivariateAnomalyDetectionParams } from '../../strategy-config-set-new/type';
 
 import './strategy-view.scss';
-
-const metricUrlMap = {
-  time_series: '监控平台/产品白皮书/alarm-configurations/rules.md',
-  event: '监控平台/产品白皮书/alarm-configurations/events_monitor.md',
-  log: '监控平台/产品白皮书/alarm-configurations/log_monitor.md',
-  alert: '监控平台/产品白皮书/alarm-configurations/composite_monitor.md',
-};
 
 interface IStrateViewProps {
   metricData: MetricDetail[];
@@ -209,7 +203,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   private shortcutsType: EShortcutsType = EShortcutsType.NEAR;
   /* 实际的快捷方式 当选择了维度并且切换的指定数据则为指定类型 */
   private realShortcutsType: EShortcutsType = EShortcutsType.NEAR;
-  private nearNum = 20;
+  private nearNum = 10;
   private shortcutsList = [
     { id: EShortcutsType.NEAR, name: '' },
     { id: EShortcutsType.assign, name: window.i18n.t('查看指定数据') },
@@ -331,7 +325,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   deactivated() {
     // 图例查看方式还原
     this.shortcutsType = EShortcutsType.NEAR;
-    this.nearNum = 20;
+    this.nearNum = 10;
     this.handleShortcutsTypeChange(this.shortcutsType);
   }
 
@@ -409,7 +403,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     try {
       if (!this.needNearRadio) {
         this.shortcutsType = EShortcutsType.assign;
-        this.nearNum = 20;
+        this.nearNum = 10;
         this.handleShortcutsTypeChange(this.shortcutsType);
       }
       /* 触发图表查询无需清空已选条件 */
@@ -946,18 +940,23 @@ export default class StrategyView extends tsc<IStrateViewProps> {
         {this.showViewContent
           ? [
               <strategy-view-tool
+                key='tool'
                 ref='tool'
                 on-change={this.handleToolPanelChange}
                 on-on-immediate-reflesh={this.handleRefreshView}
                 onTimezoneChange={this.handleRefreshView}
               />,
-              <div class='strategy-view-content'>
+              <div
+                key='strategy-view-content'
+                class='strategy-view-content'
+              >
                 {(this.metricQueryData.length > 0 &&
                   !this.loading &&
                   !this.metricQueryData.every(item => item.metricMetaId === 'bk_monitor|event')) ||
                 this.editMode === 'Source' ? (
                   [
                     <StrategyChart
+                      key={'chart'}
                       aiopsChartType={this.aiopsChartType}
                       chartType={this.chartType}
                       detectionConfig={this.detectionConfig}
@@ -966,7 +965,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                       expFunctions={this.expFunctions}
                       expression={this.expression}
                       metricData={this.metricQueryData}
-                      nearNum={this.realShortcutsType === EShortcutsType.NEAR ? this.nearNum : 20}
+                      nearNum={this.realShortcutsType === EShortcutsType.NEAR ? this.nearNum : 10}
                       shortcutsType={this.realShortcutsType}
                       sourceData={this.sourceData}
                       strategyTarget={this.strategyTarget}
@@ -980,7 +979,10 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                           onChange={this.handleShortcutsTypeChange}
                         >
                           {this.shortcutsList.map(sh => (
-                            <bk-radio value={sh.id}>
+                            <bk-radio
+                              key={sh.id}
+                              value={sh.id}
+                            >
                               {sh.id === EShortcutsType.NEAR ? (
                                 <i18n
                                   class='flex-center'
@@ -988,7 +990,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                                 >
                                   <NumberSelect
                                     value={this.nearNum}
-                                    onChange={v => (this.nearNum = v)}
+                                    onChange={v => {
+                                      this.nearNum = v;
+                                    }}
                                   />
                                 </i18n>
                               ) : (
@@ -1058,6 +1062,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                   <div class='desc-content'>
                     {this.aiopsModelMdList.map((model, index) => (
                       <GroupPanel
+                        key={index}
                         defaultExpand={true}
                         expand={index === this.activeModelMd}
                         show-expand={true}
@@ -1104,6 +1109,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                 </div>
               ),
               <collect-chart
+                key='collect'
                 collect-list={this.collect.list}
                 show={this.collect.show}
                 total-count={this.collect.count}
@@ -1115,12 +1121,14 @@ export default class StrategyView extends tsc<IStrateViewProps> {
               if (this.isMultivariateAnomalyDetection && !!this.multivariateAnomalyDetectionParams?.metrics?.length) {
                 return [
                   <strategy-view-tool
+                    key='tool'
                     ref='tool'
                     on-change={this.handleToolPanelChange}
                     on-on-immediate-reflesh={this.handleRefreshView}
                     onTimezoneChange={this.handleRefreshView}
                   />,
                   <MultipleMetricView
+                    key='multiple'
                     metrics={this.multivariateAnomalyDetectionParams.metrics}
                     refleshKey={this.multivariateAnomalyDetectionParams.refleshKey}
                     strategyTarget={this.strategyTarget}
@@ -1130,6 +1138,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                       <div class='desc-content'>
                         {this.aiopsModelMdList.map((model, index) => (
                           <GroupPanel
+                            key={index}
                             defaultExpand={true}
                             expand={index === this.activeModelMd}
                             show-expand={true}
@@ -1168,6 +1177,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                     : allDescription
                   ).map(item => (
                     <div
+                      key={item.type}
                       class={[
                         'description-item',
                         { active: item.type === this.descriptionType && !this.isMultivariateAnomalyDetection },
@@ -1176,10 +1186,10 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                       <div class='description-title'>{`${item.title}:`}</div>
                       <pre class='description-text'>
                         {item.description}
-                        {!!metricUrlMap[item.type] && (
+                        {!!DOCS_LINK_MAP.Monitor[item.type] && (
                           <a
                             class='info-url'
-                            href={`${window.bk_docs_site_url}markdown/${metricUrlMap[item.type]}`}
+                            href={concatMonitorDocsUrl(DOCS_LINK_MAP.Monitor[item.type])}
                             target='blank'
                           >
                             {this.$t('相关文档查看')}

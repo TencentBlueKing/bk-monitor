@@ -430,8 +430,8 @@ class GetBusiness(Resource):
         response_data = client.search_business()["info"]
         if validated_request_data["all"]:
             # 额外空间列表
-            space_list = SpaceApi.list_spaces()
-            others = [s.__dict__ for s in space_list if s.bk_biz_id < 0]
+            space_list = SpaceApi.list_spaces_dict()
+            others = [s for s in space_list if s["bk_biz_id"] < 0]
             response_data += others
         # 按业务ID过滤出需要的业务信息
         if "bk_biz_ids" in validated_request_data:

@@ -192,7 +192,8 @@
         bkBizId: 'bkBizId',
       }),
       totalNumShow() {
-        if (!this.infoTotalNumLoading && !this.infoTotalNumError && this.infoTotal > 0) return this.infoTotal;
+        if (!this.infoTotalNumLoading && !this.infoTotalNumError && !this.isFrontStatistics && this.infoTotal > 0)
+          return this.infoTotal;
         return this.totalCount;
       },
       /** 未开启白名单时 是否由前端来统计总数 */

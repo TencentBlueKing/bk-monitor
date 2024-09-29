@@ -224,6 +224,7 @@ export default class CommonCondition extends tsc<IProps> {
   isUserKey = false;
   /* 远程搜索的loading */
   searchLoading = false;
+  connectorMethods = [...METHODS, { id: 'issuperset', name: '⊇' }];
 
   /* 是否不可点击(只读状态) */
   get canNotClick() {
@@ -273,7 +274,7 @@ export default class CommonCondition extends tsc<IProps> {
       const tempTags = [];
       if (condition.field) {
         const keyItem = keysMap.get(condition.field) as any;
-        const methodItem = METHODS.find(m => m.id === condition.method);
+        const methodItem = this.connectorMethods.find(m => m.id === condition.method);
         const conditionItem = CONDITIONS.find(c => c.id === (condition.condition || 'and'));
         if (!(conditionItem.id === 'and' && index === 0)) {
           tempTags.push({
@@ -288,8 +289,8 @@ export default class CommonCondition extends tsc<IProps> {
           alias: keyItem?.groupName ? `[${keyItem.groupName}]${keyItem.name}` : undefined,
         });
         tempTags.push({
-          id: methodItem?.id || METHODS[0].id,
-          name: methodItem?.name || METHODS[0].name,
+          id: methodItem?.id || this.connectorMethods[0].id,
+          name: methodItem?.name || this.connectorMethods[0].name,
           type: TypeEnum.method,
         });
         if (condition.value.length) {
@@ -400,7 +401,7 @@ export default class CommonCondition extends tsc<IProps> {
       const len = this.tagList[index].tags.length;
       const lastTag = this.tagList[index].tags[len - 2];
       if (lastTag.type === TypeEnum.key) {
-        this.curList = [...METHODS];
+        this.curList = [...this.connectorMethods];
         this.curIndex = [index, len - 1];
         this.selectType = TypeEnum.method;
       } else if (lastTag.type === TypeEnum.method) {
@@ -483,7 +484,7 @@ export default class CommonCondition extends tsc<IProps> {
       this.handlePopoverHidden();
       return;
     }
-    this.curList = [...METHODS];
+    this.curList = [...this.connectorMethods];
     this.curIndex = [index, tagIndex];
     this.selectType = TypeEnum.method;
     this.clickType = TypeEnum.method;
@@ -1560,6 +1561,10 @@ export default class CommonCondition extends tsc<IProps> {
                   const results = this.curList.filter(
                     item => item.id.indexOf(this.searchValue) > -1 || item.name.indexOf(this.searchValue) > -1
                   );
+                  const isEmptyUsers = this.tagList[this.curIndex[0]]?.condition?.field === 'is_empty_users';
+                  if (isEmptyUsers) {
+                    results.shift();
+                  }
                   return results.length ? (
                     results.map((item, index) => (
                       <div

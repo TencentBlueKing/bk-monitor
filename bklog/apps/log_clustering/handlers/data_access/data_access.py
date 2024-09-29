@@ -158,11 +158,8 @@ class DataAccessHandler(BaseAiopsHandler):
         # 固定有time字段
         fields_config.append({"alias_name": "time", "field_name": "time", "option": {"es_type": "long"}})
 
-        if collector_config.collector_config_name_en[0].isdigit():
-            # 日志平台的RT允许为数字开头，而计算平台RT限制只能以英文开头，所以遇到开头为数字的情况就补一个前缀
-            result_table_name = f"bklog_{collector_config.collector_config_name_en}"
-        else:
-            result_table_name = collector_config.collector_config_name_en
+        # 结果表统一添加 bklog 前缀，避免同名冲突
+        result_table_name = f"bklog_{collector_config.collector_config_name_en}"
 
         # 当用户使用了自定义字段作为时间字段，则会产生同名字段，需要去重
         fields_names = set()
@@ -184,7 +181,7 @@ class DataAccessHandler(BaseAiopsHandler):
             "result_table_name": result_table_name,
             "result_table_name_alias": collector_config.collector_config_name_en,
             "clean_config_name": collector_config.collector_config_name,
-            "description": collector_config.description,
+            "description": collector_config.description or collector_config.collector_config_name,
             "bk_biz_id": bk_biz_id,
             "fields": [
                 {

@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
+import datetime
 import logging
 import operator
 import re
 import time
 import typing
 from collections import defaultdict
+from copy import deepcopy
 from functools import reduce
 from itertools import chain, product, zip_longest
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import arrow
+import pytz
 from django.conf import settings
 from django.db.models import Count, Q, QuerySet
 from django.utils.translation import ugettext_lazy as _
@@ -52,6 +55,7 @@ from bkmonitor.strategy.new_strategy import (
 )
 from bkmonitor.utils.request import get_source_app
 from bkmonitor.utils.time_format import duration_string, parse_duration
+from bkmonitor.utils.user import get_global_user
 from constants.alert import EventStatus
 from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.common import SourceApp
@@ -173,7 +177,8 @@ class GetStrategyListV2Resource(Resource):
                 }
                 if target_ips & ips:
                     ip_strategy_ids.add(item.strategy_id)
-            else:
+
+            elif target["field"].endswith("topo_node"):
                 nodes = {(node["bk_obj_id"], node["bk_inst_id"]) for node in target["value"]}
                 if nodes & topo_nodes:
                     ip_strategy_ids.add(item.strategy_id)
@@ -184,12 +189,13 @@ class GetStrategyListV2Resource(Resource):
     def filter_strategy_ids_by_id(cls, filter_dict: dict, filter_strategy_ids_set: set):
         """过滤策略ID"""
         if filter_dict["id"]:
-            ids = filter_dict["id"]
-            try:
-                ids = {int(_id) for _id in ids if _id}
-            except (ValueError, TypeError):
-                # 无效的过滤条件，查不出数据
-                ids = set()
+            ids = set()
+            for _id in filter_dict["id"]:
+                try:
+                    ids.add(int(_id))
+                except (ValueError, TypeError):
+                    # 无效的过滤条件，查不出数据
+                    continue
             filter_strategy_ids_set.intersection_update(ids)
 
     @classmethod
@@ -357,21 +363,24 @@ class GetStrategyListV2Resource(Resource):
         # 过滤插件ID
         if filter_dict["plugin_id"]:
             plugin_id = filter_dict["plugin_id"]
-            plugins = CollectorPluginMeta.objects.filter(plugin_id__in=plugin_id, bk_biz_id__in=[0, bk_biz_id])
-            plugin_table_ids = []
-            for plugin in plugins:
-                version = plugin.current_version
-                for table in version.info.metric_json:
-                    plugin_table_ids.append(version.get_result_table_id(plugin, table["table_name"]).lower())
+            plugins = CollectorPluginMeta.objects.filter(plugin_id__in=plugin_id, bk_biz_id__in=[0, bk_biz_id]).values(
+                "plugin_id"
+            )
+            # plugin_table_ids = []
+            # for plugin in plugins:
+            #     version = plugin.current_version
+            #     for table in version.info.metric_json:
+            #         plugin_table_ids.append(version.get_result_table_id(plugin, table["table_name"]).lower())
 
             plugin_strategy_ids = []
-            if plugin_table_ids:
-                query_configs = QueryConfigModel.objects.filter(strategy_id__in=filter_strategy_ids_set).only(
-                    "config", "strategy_id"
-                )
-                for qc in query_configs:
-                    if qc.config.get("result_table_id") in plugin_table_ids:
+            query_configs = QueryConfigModel.objects.filter(strategy_id__in=filter_strategy_ids_set).only(
+                "config", "strategy_id"
+            )
+            for qc in query_configs:
+                for plugin in plugins:
+                    if f"{plugin['plugin_id']}." in qc.config.get("result_table_id"):
                         plugin_strategy_ids.append(qc.strategy_id)
+                        break
 
             filter_strategy_ids_set.intersection_update(set(plugin_strategy_ids))
 
@@ -466,6 +475,9 @@ class GetStrategyListV2Resource(Resource):
             value = condition["value"]
             if not isinstance(value, list):
                 value = [value]
+            if len(value) == 1:
+                # 默认按list传递，多个值用 | 分割
+                value = [i.strip() for i in str(value[0]).split(" | ") if i.strip()]
             filter_dict[key].extend(value)
 
         filter_strategy_ids_set = set(strategies.values_list("id", flat=True).distinct())
@@ -1239,6 +1251,51 @@ class GetStrategyV2Resource(Resource):
         return config
 
 
+class PlainStrategyListV2Resource(Resource):
+    """获取轻量的策略列表"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+
+    @staticmethod
+    def get_label_msg(scenario: str, labels: list) -> dict:
+        for first_label in labels:
+            for second_label in first_label["children"]:
+                if second_label["id"] != scenario:
+                    continue
+                return {
+                    "first_label": first_label["id"],
+                    "first_label_name": first_label["name"],
+                    "second_label": second_label["id"],
+                    "second_label_name": second_label["name"],
+                }
+
+        return {
+            "first_label": scenario,
+            "first_label_name": scenario,
+            "second_label": scenario,
+            "second_label_name": scenario,
+        }
+
+    def perform_request(self, validated_request_data):
+        # 获取指定业务下启用的策略
+        bk_biz_id = validated_request_data.get("bk_biz_id")
+        strategies = (
+            StrategyModel.objects.filter(bk_biz_id=bk_biz_id, is_enabled=True)
+            .values("id", "name", "scenario")
+            .order_by("-update_time")
+        )
+        # 获取分类标签
+        labels = resource.commons.get_label()
+
+        strategy_list = []
+        for strategy in strategies:
+            label_msg = self.get_label_msg(strategy["scenario"], labels)
+            strategy.update(label_msg)
+            strategy_list.append(strategy)
+        return strategy_list
+
+
 class DeleteStrategyV2Resource(Resource):
     """
     删除策略
@@ -1979,6 +2036,9 @@ class UpdatePartialStrategyV2Resource(Resource):
         更新策略标签
         """
         strategy.labels = labels
+        strategy.save_labels()
+
+        return None, [], []
 
     @staticmethod
     def update_is_enabled(strategy: Strategy, is_enabled: bool):
@@ -1986,6 +2046,7 @@ class UpdatePartialStrategyV2Resource(Resource):
         更新策略启停状态
         """
         strategy.is_enabled = is_enabled
+        return StrategyModel, ["is_enabled"], [strategy.instance]
 
     @staticmethod
     def update_notice_group_list(strategy: Strategy, notice_group_list: List[int]):
@@ -1997,6 +2058,8 @@ class UpdatePartialStrategyV2Resource(Resource):
 
         strategy.notice.user_groups = notice_group_list
 
+        return StrategyActionConfigRelation, ["user_groups"], [action.instance, strategy.notice.instance]
+
     @staticmethod
     def update_trigger_config(strategy: Strategy, trigger_config: Dict):
         """
@@ -2005,12 +2068,16 @@ class UpdatePartialStrategyV2Resource(Resource):
         for detect in strategy.detects:
             detect.trigger_config.update(trigger_config)
 
+        return DetectModel, ["trigger_config"], [detect.instance for detect in strategy.detects]
+
     @staticmethod
     def update_alarm_interval(strategy: Strategy, alarm_interval: int):
         """
         更新通知间隔
         """
         strategy.notice.config["notify_interval"] = alarm_interval * 60
+
+        return StrategyActionConfigRelation, ["config"], [strategy.notice.instance]
 
     @staticmethod
     def update_send_recovery_alarm(strategy: Strategy, send_recovery_alarm: bool):
@@ -2023,6 +2090,8 @@ class UpdatePartialStrategyV2Resource(Resource):
         if not send_recovery_alarm and ActionSignal.RECOVERED in strategy.notice.signal:
             strategy.notice.signal.remove(ActionSignal.RECOVERED)
 
+        return StrategyActionConfigRelation, ["signal"], [strategy.notice.instance]
+
     @staticmethod
     def update_recovery_config(strategy: Strategy, recovery_config: Dict):
         """
@@ -2030,6 +2099,8 @@ class UpdatePartialStrategyV2Resource(Resource):
         """
         for detect in strategy.detects:
             detect.recovery_config = recovery_config
+
+        return DetectModel, ["recovery_config"], [detect.instance for detect in strategy.detects]
 
     @staticmethod
     def update_target(strategy: Strategy, target: List[List[Dict]]):
@@ -2042,11 +2113,16 @@ class UpdatePartialStrategyV2Resource(Resource):
         for item in strategy.items:
             item.target = target
 
+        return ItemModel, ["target"], [item.instance for item in strategy.items]
+
     @staticmethod
     def update_algorithms(strategy: Strategy, algorithms: List[dict]):
         """更新检测算法。"""
         for item in strategy.items:
             item.algorithms = [Algorithm(strategy.id, item.id, **data) for data in algorithms]
+            item.save_algorithms()
+
+        return None, [], []
 
     @staticmethod
     def update_message_template(strategy: Strategy, message_template: str):
@@ -2056,17 +2132,56 @@ class UpdatePartialStrategyV2Resource(Resource):
         for template in strategy.notice.config["template"]:
             template["message_tmpl"] = message_template
 
+        return StrategyActionConfigRelation, ["config"], [strategy.notice.instance]
+
     @staticmethod
     def update_no_data_config(strategy: Strategy, no_data_config: Dict):
         for item in strategy.items:
             UpdatePartialStrategyV2Resource.update_dict_recursive(item.no_data_config, no_data_config)
 
+        return ItemModel, ["no_data_config"], [item.instance for item in strategy.items]
+
     @staticmethod
     def update_notice(strategy: Strategy, notice: Dict):
-        old_notice = strategy.notice.to_dict()
-        UpdatePartialStrategyV2Resource.update_dict_recursive(old_notice, notice)
-        strategy.notice = NoticeRelation(strategy.id, **old_notice)
+        """
+        更新告警通知
 
+        ```pyhon
+        notice["append_keys"]: List[str] # 追加逻辑的字段
+        ```
+
+        当 append_keys 有 key 时会将 old_notice[key] 的值添加到 notice[key] 中
+        ```python
+        notice = {
+            append_keys: ["user_groups"],
+            user_groups: [1, 2, 3],
+            ...
+        }
+        old_notice: {
+            append_keys: ["user_groups"],
+            user_groups: [1, 4],
+            ...
+        }
+
+        # 追加后并删除 append_keys
+        notice = {
+            user_groups: [1, 2, 3, 4]
+        }
+        ```
+        """
+        old_notice = strategy.notice.to_dict()
+        new_notice = deepcopy(notice)
+        # 判断是否进行追加操作
+        if new_notice.get("append_keys"):
+            for key in new_notice.get("append_keys", []):
+                if new_notice.get(key):
+                    if type(new_notice[key]) is list:
+                        [new_notice[key].append(i) for i in old_notice.get(key) if i not in new_notice[key]]
+
+            new_notice.pop("append_keys")
+
+        UpdatePartialStrategyV2Resource.update_dict_recursive(old_notice, new_notice)
+        strategy.notice = NoticeRelation(strategy.id, **old_notice)
         # 同步当前的通知时间和通知组
         for action in strategy.actions:
             action.user_groups = strategy.notice.user_groups
@@ -2076,6 +2191,13 @@ class UpdatePartialStrategyV2Resource(Resource):
                     "end_time": strategy.notice.options.get("end_time", "23:59:59"),
                 }
             )
+
+        strategy.save_notice()
+        return (
+            StrategyActionConfigRelation,
+            ["user_groups", "options"],
+            [action.instance for action in strategy.actions],
+        )
 
     @staticmethod
     def update_actions(strategy: Strategy, actions: List[Dict]):
@@ -2096,19 +2218,36 @@ class UpdatePartialStrategyV2Resource(Resource):
 
         strategy.actions = new_actions
 
+        strategy.save_actions()
+        return None, [], []
+
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
         config: Dict = params["edit_data"]
 
         strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=params["ids"])
 
+        updates_data = defaultdict(lambda: {"cls": None, "keys": [], "objs": []})
+        updates_data["update_time"]["cls"] = StrategyModel
+        updates_data["update_time"]["keys"] = ["update_time", "update_user"]
         for strategy in Strategy.from_models(strategies):
             for key, value in config.items():
                 update_method: Callable[[Strategy, Any], None] = getattr(self, f"update_{key}", None)
                 if not update_method:
                     continue
-                update_method(strategy, value)
-            strategy.save()
+                update_cls, update_keys, update_objs = update_method(strategy, value)
+                if update_cls:
+                    updates_data[key]["cls"] = update_cls
+                    updates_data[key]["keys"] = update_keys
+                    updates_data[key]["objs"].extend(update_objs)
+
+            strategy.instance.update_time = datetime.datetime.now(tz=pytz.timezone(settings.TIME_ZONE))
+            strategy.instance.update_user = get_global_user()
+            updates_data["update_time"]["objs"].append(strategy.instance)
+
+        for update_data in updates_data.values():
+            update_data["cls"].objects.bulk_update(update_data["objs"], update_data["keys"])
+
         # 编辑后需要重置AsCode相关配置
         strategies.update(hash="", snippet="")
 

@@ -55,9 +55,10 @@ interface IDashbordPanelProps {
   needOverviewBtn?: boolean;
   backToType?: SceneType;
   dashboardId?: string;
+  singleChartNoPadding?: boolean;
 }
 interface IDashbordPanelEvents {
-  onBackToOverview: void;
+  onBackToOverview: () => void;
   onLintToDetail: ITableItem<'link'>;
 }
 @Component
@@ -74,6 +75,8 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
   isSplitPanel: boolean;
   // 是否为单图模式
   @Prop({ default: false, type: Boolean }) isSingleChart: boolean;
+  // 单图模式下是否需要padding
+  @Prop({ default: false, type: Boolean }) singleChartNoPadding: boolean;
   // 是否需要返回概览按钮 isSingleChart: true生效
   @Prop({ type: Boolean, default: false }) needOverviewBtn: boolean;
   // 返回概览 或者 详情页面
@@ -561,7 +564,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
         class='dashboard-panel'
       >
         {this.isSingleChart ? (
-          <div class='single-chart-content'>
+          <div class={['single-chart-content', { 'no-padding': this.singleChartNoPadding }]}>
             <div class={['single-chart-main', { 'has-btn': !!this.backToType }]}>
               <div class='single-chart-wrap'>
                 <ChartWrapper panel={this.singleChartPanel} />
@@ -571,6 +574,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
         ) : (
           [
             <GridLayout
+              key={'1'}
               draggableOptions={{
                 autoScroll: {
                   container: '#dashboard-panel',
@@ -617,6 +621,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
             </GridLayout>,
             !this.readonly && this.localPanels.length ? (
               <ChartCollect
+                key={'2'}
                 isCollectSingle={this.isCollectSingle}
                 localPanels={this.localPanels}
                 showCollect={this.showCollect}

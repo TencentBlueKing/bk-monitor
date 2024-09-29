@@ -608,6 +608,7 @@ class ActionInstance(AbstractRecordModel):
             event_id=self.es_action_id,
         )
         AlertLog.bulk_create([AlertLog(**action_log)])
+        logger.info("[fta action] action(%s), alerts(%s): %s", self.id, self.alerts, description)
 
     @classmethod
     def get_count_group_by_config(cls, bk_biz_id, begin_time: datetime, end_time: datetime = None):

@@ -43,6 +43,31 @@ import bus from 'monitor-common/utils/event-bus';
 })
 export default class LogRetrieval extends Vue {
   @Ref('iframe') private iframeRef: HTMLIFrameElement;
+  private initRouteString = '';
+  private initBizId = -1;
+  private indexId: number | string = '';
+
+  getUrlParamsString() {
+    const { from, spaceUid, bizId, indexId, ...otherQuery } = this.$route.query;
+    this.indexId = indexId;
+    const queryVal = Object.entries(otherQuery).reduce(
+      (acc, [key, val]) => {
+        if (val) acc[key] = val;
+        return acc;
+      },
+      {
+        bizId: this.$store.getters.bizId,
+      }
+    );
+    const str = Object.entries({
+      ...(queryVal || {}),
+      ...Object.fromEntries(new URLSearchParams(location.search)),
+    })
+      .map(entry => entry.join('='))
+      .join('&');
+    if (str.length) return `&${str}`;
+    return '';
+  }
 
   get retrievalUrl() {
     // if (process.env.NODE_ENV === 'development') {
@@ -52,7 +77,7 @@ export default class LogRetrieval extends Vue {
     if (window.location.protocol === 'https:' && this.$store.getters.bkLogSearchUrl.match(/^http:/)) {
       bkLogSearchUrl = this.$store.getters.bkLogSearchUrl.replace('http:', 'https:');
     }
-    return `${bkLogSearchUrl}#/retrieve/?from=monitor&bizId=${this.$store.getters.bizId}`;
+    return `${bkLogSearchUrl}#/retrieve/${this.indexId || ''}?from=monitor${this.initRouteString}`;
   }
 
   handleLoad() {
@@ -65,10 +90,39 @@ export default class LogRetrieval extends Vue {
     event.stopPropagation();
     bus.$emit('handle-keyup-search', event);
   }
+  receiveMessage(event) {
+    // 检查消息来源是否可信
+    const data = event.data;
+    // if (data._MONITOR_URL_ !== location.origin) return;
+    // 获取来自iframe的内容
+    if ('_LOG_TO_MONITOR_' in data) {
+      // 测试代码，验证成功后就删除
+      console.log(event.data, event.origin, location.origin);
+      this.$router
+        .replace({
+          query: { ...data._MONITOR_URL_PARAMS_, ...data._MONITOR_URL_QUERY_ },
+        })
+        .catch(err => err);
+    }
+  }
+
+  mounted() {
+    this.initBizId = this.$store.getters.bizId;
+    this.initRouteString = this.getUrlParamsString();
+    window.addEventListener('message', this.receiveMessage, false);
+  }
 
   beforeDestroy() {
+    if (this.$store.getters.bizId !== this.initBizId) {
+      this.$router.replace({
+        query: {
+          bizId: this.$store.getters.bizId,
+        },
+      });
+    }
     const iframeContent = this.iframeRef?.contentWindow;
     iframeContent?.document.body.removeEventListener('keydown', this.handleKeydownGlobalSearch);
+    window.removeEventListener('message', this.receiveMessage, false);
   }
 }
 </script>

@@ -218,6 +218,10 @@
             .common-table .bk-table-column-setting.is-last {
               border-top: 0 !important;
             }
+
+            .table-skeleton {
+              padding: 16px;
+            }
           }
         }
       }
@@ -241,6 +245,16 @@
           color: #979ba5;
           background: #ebedf0;
           border-radius: 2px;
+        }
+        .empty-status-box {
+          background-color: #f5f7fa;
+          position: absolute;
+          height: 400px;
+          width: 400px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding-top: 400px;
         }
       }
     }

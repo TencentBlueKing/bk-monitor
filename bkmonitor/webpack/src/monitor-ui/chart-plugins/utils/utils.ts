@@ -579,3 +579,218 @@ export function padTextToWidth(targetText: string, widthInPx: number): string {
     return paddedText;
   }
 }
+
+/**
+ * @description 格式化时间单位和值
+ * @param value
+ * @param unit
+ * @returns
+ */
+export const formatTimeUnitAndValue = (value: number, unit: string) => {
+  const units = [
+    {
+      unit: 'μs',
+      value: 1,
+    },
+    {
+      unit: 'ms',
+      value: 1000,
+    },
+    {
+      unit: 's',
+      value: 1000000,
+    },
+    {
+      unit: 'min',
+      value: 60000000,
+    },
+    {
+      unit: 'hour',
+      value: 3600000000,
+    },
+    {
+      unit: 'day',
+      value: 86400000000,
+    },
+  ];
+  let curValue = value;
+  let curUnit = unit;
+  if (!units.map(item => item.unit).includes(unit)) {
+    return {
+      value: curValue,
+      unit: curUnit,
+    };
+  }
+  while (Math.abs(curValue) >= 1000 && curUnit !== 'day') {
+    const index = units.findIndex(item => item.unit === curUnit);
+    curValue = value / units[index + 1].value;
+    curUnit = units[index + 1].unit;
+  }
+  return {
+    value: curValue.toFixed(2),
+    unit: curUnit,
+  };
+};
+
+export const createMenuList = (
+  menuList: { id: string; name: string }[],
+  position: { x: number; y: number },
+  clickHandler: (id: string) => void,
+  instance: any
+) => {
+  const id = 'contextmenu-list-pop-wrapper';
+  const removeEl = () => {
+    const remove = document.getElementById(id);
+    if (remove) {
+      remove.remove();
+      setTimeout(() => {
+        instance?.dispatchAction({
+          type: 'restore',
+        });
+        instance?.dispatchAction({
+          type: 'takeGlobalCursor',
+          key: 'dataZoomSelect',
+          dataZoomSelectActive: true,
+        });
+      }, 500);
+    }
+    document.removeEventListener('wheel', removeWrapWheel);
+  };
+  removeEl();
+  const el = document.createElement('div');
+  el.className = id;
+  el.id = id;
+  el.style.left = `${(() => {
+    const { clientWidth } = document.body;
+    if (position.x + 110 > clientWidth) {
+      return position.x - 110;
+    }
+    return position.x;
+  })()}px`;
+  el.style.top = `${(() => {
+    const { clientHeight } = document.body;
+    if (position.y + 32 * menuList.length > clientHeight) {
+      return position.y - 32 * menuList.length;
+    }
+    return position.y;
+  })()}px`;
+  el.addEventListener('click', (e: any | Event) => {
+    if (e.target.classList.contains('contextmenu-list-item')) {
+      clickHandler?.(e.target.dataset.id);
+      document.removeEventListener('click', removeWrap);
+      removeEl();
+    }
+  });
+  const listEl = menuList
+    .map(item => `<div class="contextmenu-list-item" data-id="${item.id}">${item.name}</div>`)
+    .join('');
+  el.innerHTML = listEl;
+  document.body.appendChild(el);
+  const eventHasId = (event: any | Event, id: string) => {
+    let target = event.target;
+    let has = false;
+    while (target) {
+      if (target.id === id) {
+        has = true;
+        break;
+      }
+      target = target?.parentNode;
+    }
+    return has;
+  };
+  function removeWrap(event: MouseEvent) {
+    if (!eventHasId(event, id)) {
+      removeEl();
+    }
+  }
+  function removeWrapWheel(event: WheelEvent) {
+    if (Math.abs(event.deltaY) > 10) {
+      removeEl();
+    }
+  }
+  document.addEventListener('click', removeWrap);
+  document.addEventListener('wheel', removeWrapWheel);
+};
+
+/* 用于echarts 与非echarts图表的联动处理， 利用provide inject进行数据传递 */
+export class CustomChartConnector {
+  curTime = 0;
+  customInstanceMap = new Map(); // 存储自定义实例
+  groupId = ''; // 存储groupId
+  instanceMap = new Map(); // 存储实例
+  constructor(groupId) {
+    this.groupId = groupId;
+  }
+  // 删除所有实例
+  removeChartInstance() {
+    this.instanceMap = new Map();
+    this.customInstanceMap = new Map();
+  }
+  // 存储echarts 图的实例
+  setChartInstance(id, instance) {
+    this.instanceMap.set(id, instance);
+  }
+  // 存储自定图的实例
+  setCustomChartInstance(id, instance) {
+    this.customInstanceMap.set(id, instance);
+  }
+  // 更新echart图的hover坐标
+  updateAxisPointer(id, time) {
+    try {
+      this.curTime = time;
+      for (const [chartId, instance] of this.customInstanceMap) {
+        if (chartId !== id) {
+          instance?.dispatchAction({
+            type: 'showTip',
+            x: time,
+          });
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  // 更新自定图的hover坐标
+  updateCustomAxisPointer(id, time) {
+    try {
+      this.curTime = time;
+      this.updateAxisPointer(id, time);
+      for (const [chartId, instance] of this.instanceMap) {
+        if (chartId !== id) {
+          if (instance) {
+            if (time) {
+              let seriesIndex = -1;
+              for (const seriesItem of instance?.options?.series || []) {
+                seriesIndex += 1;
+                let dataIndex = -1;
+                let is = false;
+                for (const dataItem of seriesItem.data) {
+                  dataIndex += 1;
+                  const valueTime = Array.isArray(dataItem) ? dataItem?.[0] : dataItem?.value?.[0];
+                  if (valueTime === time) {
+                    instance?.dispatchAction({
+                      type: 'showTip',
+                      seriesIndex,
+                      dataIndex,
+                    });
+                    is = true;
+                    break;
+                  }
+                }
+                if (is) {
+                  break;
+                }
+              }
+            } else {
+              instance?.dispatchAction({
+                type: 'hideTip',
+              });
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+}

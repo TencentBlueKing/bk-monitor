@@ -518,7 +518,9 @@ export default {
           } else {
             // 否则，存在 `param.plugin` 对象中
             // 只有当前item为密码类型且处于passwordInputChangeSet中，才需要将值设置到plugin上
-            if (['encrypt', 'password'].includes(item.type)) {
+            if (['products', 'access_key', 'secret_key', 'region'].includes(item.field)) {
+              plugin[item.field] = item.default;
+            } else if (['encrypt', 'password'].includes(item.type)) {
               if (this.passwordInputChangeSet.has(item.name)) {
                 plugin[item.name] = item.default;
               }
@@ -705,7 +707,7 @@ export default {
       for (const item of valueList) {
         // ipv4
         const reg =
-          /^((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]).){3}(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])(?::(?:[0-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))?$/; // eslint-disable-line
+          /^((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]).){3}(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])(?::(?:[0-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))?$/;
         if (!reg.test(item)) {
           this.$bkMessage({ theme: 'error', message: this.$t('输入正常的IP') });
           this.$nextTick(() => {

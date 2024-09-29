@@ -20,6 +20,8 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import json
+import os
+import socket
 import threading
 from typing import Collection
 
@@ -130,7 +132,6 @@ class LazyBatchSpanProcessor(BatchSpanProcessor):
 class BluekingInstrumentor(BaseInstrumentor):
     has_instrument = False
     GRPC_HOST = "otlp_grpc_host"
-    BK_DATA_ID = "otlp_bk_data_id"
     BK_DATA_TOKEN = "otlp_bk_data_token"
     SAMPLE_ALL = "sample_all"
 
@@ -144,12 +145,10 @@ class BluekingInstrumentor(BaseInstrumentor):
         toggle = FeatureToggleObject.toggle("bk_log_trace")
         feature_config = toggle.feature_config
         otlp_grpc_host = settings.OTLP_GRPC_HOST
-        otlp_bk_data_id = settings.OTLP_BK_DATA_ID
         otlp_bk_data_token = ""
         sample_all = False
         if feature_config:
             otlp_grpc_host = feature_config.get(self.GRPC_HOST, otlp_grpc_host)
-            otlp_bk_data_id = feature_config.get(self.BK_DATA_ID, otlp_bk_data_id)
             otlp_bk_data_token = feature_config.get(self.BK_DATA_TOKEN, otlp_bk_data_token)
             sample_all = feature_config.get(self.SAMPLE_ALL, sample_all)
         otlp_exporter = OTLPSpanExporter(endpoint=otlp_grpc_host)
@@ -163,16 +162,22 @@ class BluekingInstrumentor(BaseInstrumentor):
         if sample_all:
             sampler = ALWAYS_ON
 
+        resource_info = {
+            "service.name": settings.SERVICE_NAME,
+            "service.version": settings.VERSION,
+            "service.environment": settings.ENVIRONMENT,
+            "bk.data.token": otlp_bk_data_token,
+            "net.host.ip": get_local_ip(),
+            "net.host.name": socket.gethostname(),
+        }
+        if settings.IS_K8S_DEPLOY_MODE and os.getenv("BKAPP_OTLP_BCS_CLUSTER_ID"):
+            resource_info["k8s.bcs.cluster.id"] = os.getenv("BKAPP_OTLP_BCS_CLUSTER_ID", "")
+            resource_info["k8s.namespace.name"] = os.getenv("BKAPP_OTLP_BCS_CLUSTER_NAMESPACE", "")
+            resource_info["k8s.pod.ip"] = get_local_ip()
+            resource_info["k8s.pod.name"] = socket.gethostname()
+
         tracer_provider = TracerProvider(
-            resource=Resource.create(
-                {
-                    "service.name": settings.SERVICE_NAME,
-                    "service.version": settings.VERSION,
-                    "bk_data_id": otlp_bk_data_id,
-                    "bk.data.token": otlp_bk_data_token,
-                    "net.host.ip": get_local_ip(),
-                }
-            ),
+            resource=Resource.create(resource_info),
             sampler=sampler,
         )
 

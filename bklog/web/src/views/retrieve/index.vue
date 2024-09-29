@@ -37,6 +37,7 @@
         :retrieve-params="retrieveParams"
         :show-retrieve-condition="showRetrieveCondition"
         :timezone="timezone"
+        :clustering-data="clusteringData"
         @close-retrieve-condition="closeRetrieveCondition"
         @date-picker-change="retrieveWhenDateChange"
         @open="openRetrieveCondition"
@@ -406,7 +407,7 @@
         clusteringData: {
           // 日志聚类参数
           name: '',
-          is_active: true,
+          is_active: false,
           extra: {
             collector_config_id: null,
             signature_switch: false,
@@ -745,7 +746,7 @@
               // 如果都没有权限或者路由带过来的索引集无权限则显示索引集无权限
 
               if (!indexSetList[0]?.permission?.[authorityMap.SEARCH_LOG_AUTH] || isRouteIndex) {
-                const authIndexID = indexId || indexSetList[0].index_set_id;
+                const authIndexID = indexId || this.getHaveValueIndexItem(indexSetList);
                 this.$store
                   .dispatch('getApplyData', {
                     action_ids: [authorityMap.SEARCH_LOG_AUTH],
@@ -781,7 +782,7 @@
               if (indexId) {
                 // 1、初始进入页面带ID；2、检索ID时切换业务；
                 const indexItem = indexSetList.find(item => item.index_set_id === indexId);
-                this.indexId = indexItem ? indexItem.index_set_id : indexSetList[0].index_set_id;
+                this.indexId = indexItem ? indexItem.index_set_id : this.getHaveValueIndexItem(indexSetList);
                 this.retrieveLog();
               } else if (this.isInitPage && this.checkIsUnionSearch()) {
                 // 初始化联合查询
@@ -790,7 +791,7 @@
                 // 直接进入检索页
                 this.indexId = indexSetList.some(item => item.index_set_id === this.storedIndexID)
                   ? this.storedIndexID
-                  : indexSetList[0].index_set_id;
+                  : this.getHaveValueIndexItem(indexSetList);
                 if (this.isAsIframe) {
                   // 监控 iframe
                   if (this.localIframeQuery.indexId) {
@@ -804,9 +805,9 @@
                     spaceUid: this.$store.state.spaceUid,
                     bizId: this.$store.state.bkBizId,
                   };
-                  if (this.$route.query.from) {
-                    queryObj.from = this.$route.query.from;
-                  }
+                  // if (this.$route.query.from) {
+                  //   queryObj.from = this.$route.query.from;
+                  // }
                   this.setRouteParams(
                     'retrieve',
                     {
@@ -825,9 +826,9 @@
                 spaceUid: this.$store.state.spaceUid,
                 bizId: this.$store.state.bkBizId,
               };
-              if (this.$route.query.from) {
-                queryObj.from = this.$route.query.from;
-              }
+              // if (this.$route.query.from) {
+              //   queryObj.from = this.$route.query.from;
+              // }
               this.setRouteParams(
                 'retrieve',
                 {
@@ -2124,6 +2125,9 @@
         //   params,
         //   query: newQuery,
         // });
+      },
+      getHaveValueIndexItem(indexList) {
+        return indexList.find(item => !item.tags.map(item => item.tag_id).includes(4))?.index_set_id || indexList[0].index_set_id;
       },
     },
   };

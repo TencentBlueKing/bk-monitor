@@ -33,8 +33,8 @@ import { CancelToken } from 'monitor-api/index';
 import { start } from 'monitor-api/modules/apm_meta';
 import { query, queryServicesDetail } from 'monitor-api/modules/apm_profile';
 import { serviceInfo } from 'monitor-api/modules/apm_service';
+import { skipToDocsLink } from 'monitor-common/utils/docs';
 import { Debounce, typeTools } from 'monitor-common/utils/utils';
-import { handleGotoLink } from 'monitor-pc/common/constant';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonDetail from 'monitor-pc/pages/monitor-k8s/components/common-detail';
 
@@ -129,7 +129,7 @@ class ProfilingChart extends CommonSimpleChart {
   }
 
   getParams(args: Record<string, any> = {}, start_time = '', end_time = '') {
-    const { app_name, service_name } = this.viewOptions as any;
+    const { app_name, service_name } = this.viewOptions.filters as any;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const params = {
       ...args,
@@ -156,7 +156,7 @@ class ProfilingChart extends CommonSimpleChart {
 
     if (this.isFirstLoad) {
       const [start, end] = handleTransformToTimestamp(this.timeRange);
-      const { app_name, service_name } = this.viewOptions as any;
+      const { app_name, service_name } = this.viewOptions.filters as any;
 
       await serviceInfo({
         start_time: (start_time ? dayjs.tz(start_time).unix() : start) * 1000,
@@ -188,7 +188,7 @@ class ProfilingChart extends CommonSimpleChart {
 
   async getServiceDetail(start_time = '', end_time = '') {
     const [start, end] = handleTransformToTimestamp(this.timeRange);
-    const { app_name, service_name } = this.viewOptions as any;
+    const { app_name, service_name } = this.viewOptions.filters as any;
 
     await queryServicesDetail({
       start_time: start_time ? dayjs.tz(start_time).unix() : start,
@@ -384,7 +384,7 @@ class ProfilingChart extends CommonSimpleChart {
         .finally(() => (this.enableProfilingLoading = false));
     } else if (!this.isProfilingDataNormal) {
       // 查看接入指引
-      handleGotoLink('profiling_docs');
+      skipToDocsLink('profiling_docs', window.docUrlMap);
     }
   }
   handleKeywordChange(v: string) {

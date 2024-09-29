@@ -1,0 +1,270 @@
+/* stylelint-disable declaration-no-important */
+.apm-relation-topo {
+  position: relative;
+  width: 100%;
+  height: 100%;
+
+  .graph-container {
+    width: 100%;
+    height: 100%;
+  }
+
+  .graph-wrap {
+    width: 100%;
+    height: 100%;
+  }
+
+  .graph-tools-panel {
+    position: absolute;
+    right: 24px;
+    bottom: 24px;
+  }
+
+  .node-menu-list {
+    position: absolute;
+    transform-origin: 0 0;
+
+    .topo-menu-list {
+      width: 120px;
+      padding: 4px 0px;
+      background: #ffffff;
+      border: 1px solid #dcdee5;
+      border-radius: 2px;
+      box-shadow: 0 2px 6px 0 #0000001a;
+
+      .topo-menu-action {
+        display: flex;
+        align-items: center;
+        height: 32px;
+        padding-left: 12px;
+        cursor: pointer;
+
+        .node-menu-icon {
+          margin-right: 4px;
+        }
+
+        &:hover {
+          color: #3a84ff;
+          background: #e1ecff;
+        }
+
+        &.is-disabled {
+          color: #c4c6cc !important;
+          cursor: not-allowed !important;
+          background-color: transparent !important;
+        }
+      }
+    }
+
+    .node-drilling-container {
+      width: 104px;
+
+      .name {
+        display: block;
+        width: 100%;
+        padding: 0 12px;
+        overflow: hidden;
+        font-size: 12px;
+        font-weight: 700;
+        color: #313238;
+        text-align: center;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .header {
+        position: relative;
+        line-height: 32px;
+        text-align: center;
+        background-color: #dcdee5;
+        border-radius: 8px 8px 0 0;
+
+        .close-icon {
+          position: absolute;
+          top: 0;
+          right: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 17.5px;
+          height: 17.5px;
+          cursor: pointer;
+          background: #979ba5;
+          border-radius: 50%;
+          transform: translate(50%, -50%);
+
+          .row-line {
+            width: 8px;
+            height: 1px;
+            background-color: #ecedf2;
+          }
+        }
+      }
+
+      .node-list {
+        padding: 16px 0 20px 0;
+        background: #ecedf2;
+        border-radius: 0 0 8px 8px;
+
+        &.more {
+          padding-bottom: 0;
+        }
+
+        .node-item {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+
+          & + .node-item {
+            margin-top: 26px;
+          }
+
+          .node {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            background: #ffffff;
+            border: 4px solid #2dcb56;
+            border-radius: 50%;
+
+            &.active {
+              position: relative;
+
+              &::before {
+                border: 6px solid #3a84ff;
+                opacity: 0.2;
+              }
+
+              &::after {
+                border: 12px solid #3a84ff;
+                opacity: 0.1;
+              }
+            }
+          }
+
+          .node.active::after,
+          .node.active::before {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: calc(100% + 8px);
+            height: calc(100% + 8px);
+            content: '';
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+          }
+
+          .icon-monitor {
+            font-size: 16px;
+          }
+
+          .node-text {
+            transform: translateY(-5px);
+          }
+        }
+
+        .bk-tooltip {
+          margin-top: 10px;
+        }
+
+        .bk-tooltip,
+        .bk-tooltip-ref {
+          width: 100%;
+        }
+
+        .footer {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 24px;
+          cursor: pointer;
+
+          &:hover {
+            .more-icon .dot {
+              background: #3a84ff;
+            }
+          }
+
+          .more-icon {
+            display: flex;
+            justify-content: space-between;
+            width: 14.25px;
+
+            .dot {
+              width: 3px;
+              height: 3px;
+              background: #979ba5;
+              border-radius: 50%;
+            }
+          }
+        }
+      }
+
+      .drilling-loading {
+        width: 100%;
+        height: 80px;
+        padding: 15px 0;
+      }
+
+      .drilling-node-empty {
+        padding: 0;
+
+        .exception-image {
+          height: 80px;
+        }
+
+        .empty-text-content,
+        .empty-text {
+          margin: 0;
+          font-size: 12px;
+        }
+      }
+    }
+  }
+
+  .apm-topo-empty {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    transform: translateY(-50%);
+  }
+
+  .apm-graph-tips {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    z-index: 9;
+    display: flex;
+    color: #979ba5;
+  }
+
+  .g6-tooltip {
+    padding: 6px;
+    color: white;
+    background-color: rgba(54, 58, 67, 0.88);
+    border: 1px solid #e2e2e2;
+    border-width: 0px;
+    border-radius: 4px;
+    box-shadow: rgba(0, 0, 0, 0.2) 1px 2px 10px;
+  }
+}
+
+.apm-topo-tools-popover-theme {
+  padding: 0;
+}
+
+.drilling-more-popover-theme.tippy-tooltip {
+  cursor: pointer;
+
+  .drilling-more-popover-content {
+    .icon-fenxiang {
+      margin-left: 2px;
+      font-size: 16px;
+      color: #3a84ff;
+    }
+  }
+}

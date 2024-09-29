@@ -33,12 +33,12 @@
     </div>
     <bk-tag-input
       v-if="data.collect_type === 'SNMP'"
-      v-model="snmpTargets"
       style="margin-bottom: 20px"
-      :placeholder="$t('输入采集目标主机')"
-      :allow-create="true"
+      v-model="snmpTargets"
       :allow-auto-match="true"
+      :allow-create="true"
       :has-delete-icon="true"
+      :placeholder="$t('输入采集目标主机')"
     />
     <div
       v-else
@@ -48,15 +48,15 @@
       <monitor-ip-selector
         v-if="ipSelectorPanels.length && topoSelectorHeight > 10"
         :style="{ height: topoSelectorHeight + 'px' }"
-        :value="ipCheckValue"
-        :panel-list="ipSelectorPanels"
-        :original-value="originValue"
-        :count-instance-type="countInstanceType"
-        :show-view-diff="true"
         :class="countInstanceType === 'service_instance' ? 'service-instance-selector' : ''"
+        :count-instance-type="countInstanceType"
         :node-table-custom-column-list="serviceInstanceColumnList"
+        :original-value="originValue"
+        :panel-list="ipSelectorPanels"
         :service-template-table-custom-column-list="serviceInstanceColumnList"
         :set-template-table-custom-column-list="serviceInstanceColumnList"
+        :show-view-diff="true"
+        :value="ipCheckValue"
         @change="handleIpChange"
         @targetTypeChange="handleTargetTypeChange"
       />
@@ -102,18 +102,18 @@
         >
           {{ $t('采集专有主机') }}
           <span
+            class="icon-monitor icon-tips"
             v-bk-tooltips.top="
               $t('专有采集主机 使用整个服务器的50%的资源,其他情况都只是使用10%的资源并且不超过单CPU资源.')
             "
-            class="icon-monitor icon-tips"
           />
         </bk-checkbox>
       </div>
     </div>
     <div class="footer">
       <bk-button
-        theme="primary"
         :loading="checkPluginLoading"
+        theme="primary"
         @click.stop="handleStart"
       >
         {{ $t('开始下发') }}
@@ -368,11 +368,13 @@ export default {
             this.$emit('update:pageLoading', false);
           })
           .catch(res => {
-            this.$bkMessage({
-              theme: 'error',
-              message: res.message || this.$t('系统出错了'),
-              ellipsisLine: 0,
-            });
+            this.$bkMessage(
+              res.error_details || {
+                theme: 'error',
+                message: res.message || this.$t('系统出错了'),
+                ellipsisLine: 0,
+              }
+            );
             this.$emit('update:pageLoading', false);
           });
       };

@@ -75,7 +75,7 @@ export default class CirculationRecord extends tsc<ICirculationRecordProps> {
     CREATE: `【${i18n.t('告警产生')}】`,
     CONVERGE: `【${i18n.t('告警收敛')}】`,
     RECOVER: `【${i18n.t('告警恢复')}】`,
-    CLOSE: `【${i18n.t('告警关闭')}】`,
+    CLOSE: `【${i18n.t('告警失效')}】`,
     RECOVERING: `【${i18n.t('告警恢复中')}】`,
     DELAY_RECOVER: `【${i18n.t('延迟恢复')}】`,
     ABORT_RECOVER: `【${i18n.t('中断恢复')}】`,

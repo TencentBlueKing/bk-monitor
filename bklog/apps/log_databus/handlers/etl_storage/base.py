@@ -107,9 +107,10 @@ class EtlStorage(object):
 
     @staticmethod
     def get_es_field_type(field):
-        if not field.get("option", {}).get("es_type"):
-            return FieldDataTypeEnum.get_es_field_type(field["field_type"], is_analyzed=field["is_analyzed"])
-        return BKDATA_ES_TYPE_MAP.get(field.get("option").get("es_type"), "string")
+        es_type = field.get("option", {}).get("es_type")
+        if not es_type:
+            es_type = FieldDataTypeEnum.get_es_field_type(field["field_type"], is_analyzed=field["is_analyzed"])
+        return BKDATA_ES_TYPE_MAP.get(es_type, "string")
 
     @staticmethod
     def generate_hash_str(
@@ -255,6 +256,7 @@ class EtlStorage(object):
             if es_analyzer:
                 original_text_field["option"]["es_analyzer"] = es_analyzer
             field_list.append(original_text_field)
+
         # 是否保留用户未定义字段
         if etl_params.get("retain_extra_json"):
             field_list.append(
@@ -275,6 +277,30 @@ class EtlStorage(object):
                         "es_type": "object",
                         "es_doc_values": True,
                         "real_path": f"{self.separator_node_name}.ext_json",
+                    },
+                },
+            )
+
+        # 增加清洗失败标记
+        if etl_params.get("record_parse_failure"):
+            field_list.append(
+                {
+                    "field_name": "__parse_failure",
+                    "field_type": "boolean",
+                    "tag": "dimension",
+                    "alias_name": "__parse_failure",
+                    "description": _("清洗失败标记"),
+                    "option": {
+                        "es_type": "boolean",
+                        "es_doc_values": True,
+                        "es_include_in_all": False,
+                        "real_path": f"{self.separator_node_name}.__parse_failure",
+                    }
+                    if es_version.startswith("5.")
+                    else {
+                        "es_type": "boolean",
+                        "es_doc_values": True,
+                        "real_path": f"{self.separator_node_name}.__parse_failure",
                     },
                 },
             )

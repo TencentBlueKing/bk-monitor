@@ -37,9 +37,17 @@ Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 export default class EventRetrieval extends tsc<object> {
   @Ref() eventRetrieval: DataRetrieval;
 
-  beforeRouteEnter(to: Route, from: Route, next: (a: (vm: EventRetrieval) => void) => void) {
-    next((vm: EventRetrieval) => {
-      vm.eventRetrieval.handleBeforeRouteEnter(to, from);
+  // beforeRouteEnter(to: Route, from: Route, next: (a: (vm: EventRetrieval) => void) => void) {
+  //   next((vm: EventRetrieval) => {
+  //     vm.eventRetrieval.handleBeforeRouteEnter(to, from);
+  //   });
+  // }
+  /*
+  todo: 这里需要把整个数据检索拆分出来
+  */
+  created() {
+    this.$nextTick(() => {
+      this.eventRetrieval.handleBeforeRouteEnter(this.$route, { name: '' } as Route);
     });
   }
   beforeRouteLeave(to: Route, from: Route, next: () => void) {
@@ -47,6 +55,11 @@ export default class EventRetrieval extends tsc<object> {
     next();
   }
   render() {
-    return <DataRetrieval ref='eventRetrieval' />;
+    return (
+      <DataRetrieval
+        key={this.$store.getters.bizId}
+        ref='eventRetrieval'
+      />
+    );
   }
 }

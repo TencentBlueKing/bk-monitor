@@ -312,11 +312,15 @@ export default class DataRetrieval extends tsc<object> {
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
   @Debounce(200)
   @Provide('handleChartDataZoom')
-  handleChartDataZoom(value: TimeRangeType) {
+  handleChartDataZoom(value: TimeRangeType, immediateQuery = false) {
     if (JSON.stringify(this.compareValue.tools.timeRange) !== JSON.stringify(value)) {
       this.cacheTimeRange = JSON.parse(JSON.stringify(this.compareValue.tools.timeRange));
       this.compareValue.tools.timeRange = value;
       this.showRestore = true;
+      if (immediateQuery) {
+        this.handleQuery();
+        return;
+      }
       this.handleQueryProxy();
     }
   }
@@ -452,6 +456,13 @@ export default class DataRetrieval extends tsc<object> {
     return this.favCheckedValue === null;
   }
 
+  get tabActiveName() {
+    return {
+      monitor: 'route-指标检索',
+      event: 'route-事件检索',
+    };
+  }
+
   get selectFavoriteName() {
     return this.favCheckedValue?.name || '--';
   }
@@ -485,7 +496,7 @@ export default class DataRetrieval extends tsc<object> {
     return true;
   }
 
-  beforeRouteEnter(to: Route, from: Route, next: (to?: ((vm: any) => any) | RawLocation | false) => void) {
+  beforeRouteEnter(to: Route, from: Route, next: (to?: ((vm: any) => any) | false | RawLocation) => void) {
     next((vm: DataRetrieval) => {
       const { targets, type } = vm.$route.query.targets ? vm.$route.query : vm.$route.params;
       let targetsList = [];
@@ -895,11 +906,7 @@ export default class DataRetrieval extends tsc<object> {
    * @param {number} index
    */
   handleDeleteItem(index: number) {
-    const item = this.localValue[index];
-    if (item.isMetric) {
-      const child = item as DataRetrievalQueryItem;
-      if (this.localValue.length === 1 && child.isNullMetric) return;
-    }
+    if (this.localValue.length === 1) return;
     this.localValue.splice(index, 1);
     if (!this.localValue.length) {
       this.handleAddQuery();
@@ -1688,7 +1695,7 @@ export default class DataRetrieval extends tsc<object> {
       this.localValue.forEach((item: DataRetrievalQueryItem) => {
         // 指标
         if (item.isMetric && !item.isNullMetric && !item.sourceCodeError) {
-          const queryConfigItem: IDataRetrieval.queryConfigsParams | any = {
+          const queryConfigItem: any | IDataRetrieval.queryConfigsParams = {
             metric: item.metric_field,
             method: item.agg_method,
             alias: item.alias,
@@ -2207,7 +2214,7 @@ export default class DataRetrieval extends tsc<object> {
         /** 去除单指标时重复的表达式a查询 */
         if (expression) {
           // display为grafana的隐藏展示参数 如果为单指标跳转不展示表达式的图
-          const enable = isMultipleMetric ? targets[index].data.display ?? true : expression !== 'a';
+          const enable = isMultipleMetric ? (targets[index].data.display ?? true) : expression !== 'a';
           const expItem: IDataRetrieval.IExpressionItem = {
             alias: '',
             enable,
@@ -2354,7 +2361,7 @@ export default class DataRetrieval extends tsc<object> {
     const tipsMap: { [key in IDataRetrieval.IOption]: string } = {
       copy: `${this.$t('拷贝')}`,
       delete: `${this.$t('删除')}`,
-      enable: `${this.$t(item.enable ? '隐藏' : '展示')}`,
+      enable: `${this.$t(item.enable ? '不看此项' : '显示此项')}`,
       source: `${metricItem.showSource ? 'UI' : this.$t('源码')}`,
     };
     return tipsMap[opt] || '';
@@ -2752,7 +2759,7 @@ export default class DataRetrieval extends tsc<object> {
    */
   handleTimeRangeChange(timeRange: EventRetrievalViewType.IEvent['onTimeRangeChange']) {
     timeRange && (this.eventChartTimeRange = timeRange);
-    if (!!timeRange) {
+    if (timeRange) {
       const targetTime = timestampTransformStr(timeRange);
       this.eventSelectTimeRange = targetTime;
     }
@@ -3026,7 +3033,13 @@ export default class DataRetrieval extends tsc<object> {
             return (
               <i
                 key={opt}
-                class={['icon-monitor', iconName, sourceAcitve, display]}
+                class={[
+                  'icon-monitor',
+                  { disabled: opt === 'delete' && this.localValue.length === 1 },
+                  iconName,
+                  sourceAcitve,
+                  display,
+                ]}
                 v-bk-tooltips_top={this.handleTitleTips(opt, item)}
                 onClick={evt => evt.stopPropagation()}
                 onMousedown={evt => this.handleOptionProxy(evt, opt, item, index)}
@@ -3079,7 +3092,7 @@ export default class DataRetrieval extends tsc<object> {
               onChange={data => this.handleExpressionValueChange(data, index)}
             />
           )}
-          {!!item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
+          {item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
         </div>
       );
     };
@@ -3094,7 +3107,9 @@ export default class DataRetrieval extends tsc<object> {
           onChange={this.handleChangeBizId} /> */}
         <div class='title-main'>
           <div class='title-edit'>
-            <span class='title-text'>{this.isFavoriteNewSearch ? this.$t('新检索') : this.selectFavoriteName}</span>
+            <span class='title-text'>
+              {this.isFavoriteNewSearch ? this.$t(this.tabActiveName[this.tabActive]) : this.selectFavoriteName}
+            </span>
             {!this.isFavoriteNewSearch ? (
               <span
                 class='edit icon-monitor icon-bianji'
@@ -3329,7 +3344,7 @@ export default class DataRetrieval extends tsc<object> {
                           </div>
                         </bk-input>
                       </span>
-                      {!!item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
+                      {item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
                     </div>
                   ),
                 }}
@@ -3582,8 +3597,8 @@ export default class DataRetrieval extends tsc<object> {
               <AddCollectDialog
                 v-model={this.isShowAddFavoriteDialog}
                 editFavoriteData={this.editFavoriteData}
-                favStrList={this.favStrList}
                 favoriteSearchType={this.favoriteSearchType}
+                favStrList={this.favStrList}
                 keyword={this.favoriteKeywordsData}
                 onCancel={() => (this.editFavoriteData = null)}
                 onSubmit={value => this.handleSubmitFavorite(value)}

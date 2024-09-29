@@ -40,6 +40,7 @@ interface IHandleStatusDialog {
   value?: boolean;
   actions?: any[];
   alertId?: string;
+  total?: number;
 }
 interface IEvent {
   onShowChange?: boolean;
@@ -51,6 +52,7 @@ export type TType = 'eventDetail' | 'handleDetail';
 @Component
 export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent> {
   @Prop({ type: Array, default: () => [] }) actions: any[];
+  @Prop({ type: Number, default: 0 }) total: number;
 
   @Model('show-change', { type: Boolean }) readonly value;
 
@@ -77,14 +79,12 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
   };
 
   get list() {
-    return this.localActions
-      .map((item, index) => ({
-        id: item.id,
-        name: `${this.$t('第 {n} 次', { n: index + 1 })}（${dayjs
-          .tz(item.create_time * 1000)
-          .format('YYYY-MM-DD HH:mm:ss')}）`,
-      }))
-      .reverse();
+    return this.localActions.map((item, index) => ({
+      id: item.id,
+      name: `${this.$t('第 {n} 次', { n: this.total - index })}（${dayjs
+        .tz(item.create_time * 1000)
+        .format('YYYY-MM-DD HH:mm:ss')}）`,
+    }));
   }
 
   // 表格数据

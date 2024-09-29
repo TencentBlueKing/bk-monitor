@@ -129,4 +129,85 @@
       margin: 0 8px;
     }
   }
+
+  &.simple-wrap {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .log-chart-simple {
+    position: relative;
+    min-height: 112px;
+
+    .chart-simple-header {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+
+      .left {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        overflow: hidden;
+        color: #313238;
+
+        .name-text {
+          display: inline-block;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .icon-fenxiang {
+          display: none;
+        }
+
+        &:hover {
+          color: #3a84ff;
+          cursor: pointer;
+
+          .icon-fenxiang {
+            display: inline-block;
+            margin-left: 4px;
+          }
+        }
+      }
+
+      .right {
+        .bk-form-checkbox {
+          display: flex;
+          align-items: center;
+        }
+      }
+    }
+
+    .chart-instance {
+      height: 84px;
+    }
+  }
+}
+
+.log-chart-simple-chart-tooltip {
+  padding: 8px;
+  background: #000000cc !important;
+
+  .time-text {
+    color: #ffffff;
+  }
+
+  .value-text {
+    display: flex;
+    align-items: center;
+    margin-top: 8px;
+    color: #ffffff;
+
+    .color-point {
+      width: 8px;
+      height: 8px;
+      margin-right: 4px;
+      background: #3a84ff;
+    }
+  }
 }

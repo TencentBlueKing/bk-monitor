@@ -43,14 +43,14 @@ export const lazyLoadRoute = async (component: any) => {
   });
 };
 
-export const beforeEnter = (reouteId: IntroduceRouteKey, next: Function) => {
-  store.commit('app/SET_ROUTE_CHANGE_LOADNG', true);
+export const beforeEnter = (routeId: IntroduceRouteKey, next: () => void) => {
+  store.commit('app/SET_ROUTE_CHANGE_LOADING', true);
   window.requestAnimationFrame(() => {
     introduce
-      .getRouteFunc(reouteId)
+      .getRouteFunc(routeId)
       .then(() => {
         next();
       })
-      .finally(() => window.requestIdleCallback(() => store.commit('app/SET_ROUTE_CHANGE_LOADNG', false)));
+      .finally(() => window.requestIdleCallback(() => store.commit('app/SET_ROUTE_CHANGE_LOADING', false)));
   });
 };

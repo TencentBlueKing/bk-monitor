@@ -24,8 +24,10 @@ import re
 from elasticsearch_dsl.search import Q, Search
 
 from apps.log_esquery.constants import WILDCARD_PATTERN
-from apps.log_esquery.esquery.dsl_builder.query_builder.query_builder_logic import type_query_bool_dict
-from apps.log_esquery.esquery.dsl_builder.query_builder.query_builder_logic import Dsl
+from apps.log_esquery.esquery.dsl_builder.query_builder.query_builder_logic import (
+    Dsl,
+    type_query_bool_dict,
+)
 from apps.log_esquery.exceptions import BaseSearchQueryBuilderException
 
 
@@ -33,7 +35,6 @@ class DslBuilder(object):
     def __init__(
         self,
         search_string="*",
-        fields_list: list = [],
         filter_dict_list: list = [],
         time_range_dict: dict = {},
         sort_tuple: tuple = (),
@@ -74,7 +75,6 @@ class DslBuilder(object):
         if not use_time_range:
             self.time_range_dict = {}
 
-        self.fields_list = fields_list
         self.filter_dict_list = filter_dict_list
 
         self.sort_tuple = sort_tuple
@@ -138,9 +138,6 @@ class DslBuilder(object):
         """
         regx = re.compile(r"[+\-=&|><!(){}\[\]^\"~*?:/]|AND|OR|TO|NOT")
         return regx.search(_str)
-
-    def build_body_using_query_string(self):
-        return Q("query_string", query=self.search_string, fields=self.fields_list, analyze_wildcard=True)
 
     @staticmethod
     def build_filter(filter_item):

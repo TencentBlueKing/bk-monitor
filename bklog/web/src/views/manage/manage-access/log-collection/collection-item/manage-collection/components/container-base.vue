@@ -96,25 +96,58 @@
               <div>
                 <span>Namespace</span>
                 <span
-                  v-if="configItem.namespaces.length"
+                  v-if="showNameSpace(configItem).length"
                   class="span-warp"
                 >
+                  <span class="section-operator">{{ nameSpaceType(configItem) }}</span>
                   <span
-                    v-for="(spaceItem, spaceIndex) in configItem.namespaces"
+                    v-for="(spaceItem, spaceIndex) in showNameSpace(configItem)"
                     :key="spaceIndex"
                   >
-                    <span>{{ spaceItem }}{{ spaceIndex + 1 !== configItem.namespaces.length ? ',' : '' }}&nbsp;</span>
+                    <span>
+                      {{ spaceItem }}{{ spaceIndex + 1 !== showNameSpace(configItem).length ? ',' : '' }}&nbsp;
+                    </span>
                   </span>
                 </span>
                 <span v-else>{{ $t('所有') }}</span>
               </div>
               <!-- 关联标签 -->
               <div>
-                <span :class="{ 'label-title': isSelectorHaveValue(configItem.label_selector) }">{{
-                  $t('关联标签')
-                }}</span>
+                <span :class="{ 'label-title': isSelectorHaveValue(configItem.label_selector) }">
+                  {{ $t('关联标签') }}
+                </span>
                 <div v-if="isSelectorHaveValue(configItem.label_selector)">
                   <template v-for="(labItem, labKey) in configItem.label_selector">
+                    <div
+                      v-for="(matchItem, matchKey) of labItem"
+                      class="specify-box"
+                      :key="`${labKey}_${matchKey}`"
+                    >
+                      <div
+                        class="specify-container justify-bt"
+                        v-bk-overflow-tips
+                      >
+                        <span>{{ matchItem.key }}</span>
+                        <div class="operator">{{ matchItem.operator }}</div>
+                      </div>
+                      <div
+                        class="specify-container"
+                        v-bk-overflow-tips
+                      >
+                        <span>{{ matchItem.value }}</span>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+                <span v-else>{{ $t('所有') }}</span>
+              </div>
+              <!-- 关联注解 -->
+              <div>
+                <span :class="{ 'label-title': isSelectorHaveValue(configItem.match_annotations) }">
+                  {{ $t('关联注解') }}
+                </span>
+                <div v-if="isSelectorHaveValue(configItem.match_annotations)">
+                  <template v-for="(labItem, labKey) in configItem.match_annotations">
                     <div
                       v-for="(matchItem, matchKey) of labItem"
                       class="specify-box"
@@ -396,21 +429,29 @@
               params,
               container: yamlContainer,
               label_selector: yamlSelector,
+              annotation_selector: yamlAnnotationSelector,
               namespaces,
+              namespaces_exclude,
+              match_annotations,
               collector_type: collectorType,
             } = item;
             let container;
             let labelSelector;
+            let Annotations;
             let containerName = this.getContainerNameList(baseContainerName);
             if (data.yaml_config_enabled) {
               const { workload_name, workload_type, container_name: yamlContainerName } = yamlContainer;
               container = { workload_name, workload_type };
               containerName = this.getContainerNameList(yamlContainerName);
               labelSelector = yamlSelector;
+              Annotations = yamlAnnotationSelector;
             } else {
               container = {
                 workload_type,
                 workload_name,
+              };
+              Annotations = {
+                match_annotations,
               };
               labelSelector = {
                 match_labels,
@@ -420,11 +461,13 @@
             const collectorName = this.collectorNameMap[collectorType] || '--';
             return {
               namespaces,
+              namespaces_exclude,
               data_encoding,
               container,
               collectorName,
               containerName,
               label_selector: labelSelector,
+              match_annotations: Annotations,
               params,
             };
           });
@@ -481,10 +524,10 @@
       handleLeave() {
         this.instance?.destroy(true);
       },
-      isSelectorHaveValue(labelSelector) {
-        return Object.values(labelSelector)?.some(item => item.length) || false;
+      isSelectorHaveValue(labelSelector = []) {
+        return Object.values(labelSelector)?.some(item => item?.length) || false;
       },
-      isContainerHaveValue(container) {
+      isContainerHaveValue(container = []) {
         return Object.values(container)?.some(item => !!item) || false;
       },
       /**
@@ -543,6 +586,12 @@
           groups.push(currentGroup);
         }
         return groups;
+      },
+      nameSpaceType(configItem) {
+        return configItem.namespaces_exclude?.length ? '!=' : '=';
+      },
+      showNameSpace(configItem) {
+        return configItem.namespaces_exclude?.length ? configItem.namespaces_exclude : configItem.namespaces;
       },
     },
   };
@@ -667,6 +716,19 @@
       }
     }
 
+    .section-operator,
+    %section-operator {
+      height: 24px;
+      padding: 0 6px;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 24px;
+      color: #ff9c01;
+      text-align: center;
+      background: #fff;
+      border-radius: 2px;
+    }
+
     .specify-box {
       display: flex;
       flex-flow: wrap;
@@ -691,15 +753,7 @@
         }
 
         .operator {
-          height: 24px;
-          padding: 0 6px;
-          font-size: 14px;
-          font-weight: 700;
-          line-height: 24px;
-          color: #ff9c01;
-          text-align: center;
-          background: #fff;
-          border-radius: 2px;
+          @extend %section-operator;
         }
 
         :last-child {
@@ -712,6 +766,7 @@
   .span-warp {
     display: flex;
     flex-wrap: wrap;
+    line-height: 24px;
   }
 
   .justify-bt {

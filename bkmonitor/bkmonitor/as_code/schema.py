@@ -306,7 +306,7 @@ AssignGroupRuleSchema = Schema(
                     {
                         "field": str,
                         "value": [str],
-                        "method": Or("eq", "neq", "include", "exclude", "reg", "nreg"),
+                        "method": Or("eq", "neq", "include", "exclude", "reg", "nreg", "issuperset"),
                         Optional("condition", default="and"): Or("and"),
                     }
                 ],

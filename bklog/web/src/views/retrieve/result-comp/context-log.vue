@@ -287,7 +287,7 @@
       async requestContentLog(direction) {
         const data = Object.assign(
           {
-            size: 500,
+            size: 50,
             zero: this.zero,
           },
           this.params,
@@ -437,7 +437,7 @@
                 this.$refs.contextLog.scrollTo({ top: newScrollHeight - scrollHeight });
               });
             });
-          } else if (scrollHeight - scrollTop - offsetHeight === 0) {
+          } else if (scrollHeight - scrollTop - offsetHeight < 1) {
             // 滚动到底部
             this.requestContentLog('down');
           }

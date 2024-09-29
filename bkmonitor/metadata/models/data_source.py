@@ -30,6 +30,7 @@ from core.errors.api import BKAPIError
 from metadata import config
 from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
 from metadata.utils import consul_tools, hash_util
+from metadata.utils.basic import get_biz_id_by_space_uid
 
 from .common import Label, OptionBase
 from .constants import (
@@ -73,7 +74,7 @@ class DataSource(models.Model):
 
     bk_data_id = models.AutoField("数据源ID", primary_key=True)
     # data_source的token, 用于供各个自定义上报对data_id进行校验，防止恶意上报, 但是对于已有的data_id由于不是自定义，不做处理
-    token = models.CharField("上报校验token", max_length=32, default="")
+    token = models.CharField("上报校验token", max_length=256, default="")
     data_name = models.CharField("数据源名称", max_length=128, db_index=True, unique=True)
     data_description = models.TextField("数据源描述")
     # 对应StorageCluster 记录ID
@@ -221,7 +222,7 @@ class DataSource(models.Model):
         # 添加集群信息
         mq_config.update(self.mq_cluster.consul_config)
         mq_config["cluster_config"].pop("last_modify_time")
-
+        bk_biz_id = get_biz_id_by_space_uid(self.space_uid) or 0
         result_config = {
             "bk_data_id": self.bk_data_id,
             "data_id": self.bk_data_id,
@@ -236,6 +237,7 @@ class DataSource(models.Model):
             "is_platform_data_id": self.is_platform_data_id,
             "space_type_id": self.space_type_id,
             "space_uid": self.space_uid,
+            "bk_biz_id": bk_biz_id,
         }
 
         if with_rt_info:
@@ -479,7 +481,11 @@ class DataSource(models.Model):
         if bk_data_id is None and settings.IS_ASSIGN_DATAID_BY_GSE:
             # 如果由GSE来分配DataID的话，那么从GSE获取data_id，而不是走数据库的自增id
             # 现阶段仅支持指标的数据，因为现阶段指标的数据都为单指标单标
-            if (settings.ENABLE_V2_BKDATA_GSE_RESOURCE and type_label == "time_series") or bcs_cluster_id:
+            # 添加过滤条件，只接入时序数据到bkdata
+            if settings.ENABLE_V2_BKDATA_GSE_RESOURCE and type_label == "time_series":
+                logger.info(
+                    "apply for data id from bkdata,type_label->{},etl_config->{}".format(type_label, etl_config)
+                )
                 bk_data_id = cls.apply_for_data_id_from_bkdata(data_name)
                 created_from = DataIdCreatedFromSystem.BKDATA.value
             else:

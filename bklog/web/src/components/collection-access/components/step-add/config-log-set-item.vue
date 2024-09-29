@@ -370,6 +370,10 @@
       },
       configLength: {
         type: Number,
+        default: 0,
+      },
+      configChangeLength: {
+        type: Number,
         require: true,
       },
       isCloneOrUpdate: {
@@ -555,48 +559,12 @@
       configLength() {
         this.assignSubData(this.configData);
       },
+      configChangeLength() {
+        this.initConfigLogSet();
+      },
     },
-    created() {
-      this.assignSubData(this.configData);
-      if (this.isCloneOrUpdate) {
-        const { params } = this.subFormData;
-        if (this.scenarioId !== 'wineventlog') {
-          this.initPathList(params, 'paths');
-          this.initPathList(params, 'exclude_files');
-          this.isShowBlackList = params.exclude_files.some(item => !!item.value);
-        } else {
-          const otherList = params.winlog_name.filter(v => ['Application', 'Security', 'System'].indexOf(v) === -1);
-          if (otherList.length > 0) {
-            this.otherSpeciesList = otherList;
-            this.selectLogSpeciesList = params.winlog_name.filter(v =>
-              ['Application', 'Security', 'System'].includes(v),
-            );
-            this.selectLogSpeciesList.push('Other');
-          } else {
-            this.selectLogSpeciesList = params.winlog_name;
-          }
-
-          delete params.ignore_older;
-          delete params.max_bytes;
-          delete params.tail_files;
-
-          const newEventSettingList = [];
-          const selectStrList = this.selectEventList.map(item => item.id);
-          for (const [key, val] of Object.entries(params)) {
-            if (selectStrList.includes(key) && val[0] !== '') {
-              newEventSettingList.push({
-                type: key,
-                list: val,
-                isCorrect: true,
-              });
-            }
-          }
-          if (newEventSettingList.length !== 0) {
-            this.eventSettingList = newEventSettingList;
-          }
-          this.selectDisabledChange();
-        }
-      }
+    mounted() {
+      (this.isCloneOrUpdate || this.configChangeLength > 0) && this.initConfigLogSet();
     },
     methods: {
       initPathList(params, type = 'paths') {
@@ -691,6 +659,48 @@
           return false;
         }
       },
+      initConfigLogSet() {
+        this.assignSubData(this.configData);
+        const { params } = this.subFormData;
+        if (this.scenarioId === 'wineventlog') {
+          const otherList = params.winlog_name.filter(v => ['Application', 'Security', 'System'].indexOf(v) === -1);
+          if (otherList.length > 0) {
+            this.otherSpeciesList = otherList;
+            this.selectLogSpeciesList = params.winlog_name.filter(v =>
+              ['Application', 'Security', 'System'].includes(v),
+            );
+            this.selectLogSpeciesList.push('Other');
+          } else {
+            this.selectLogSpeciesList = params.winlog_name;
+          }
+
+          delete params.ignore_older;
+          delete params.max_bytes;
+          delete params.tail_files;
+
+          const newEventSettingList = [];
+          const selectStrList = this.selectEventList.map(item => item.id);
+          for (const [key, val] of Object.entries(params)) {
+            if (selectStrList.includes(key) && val[0] !== '') {
+              newEventSettingList.push({
+                type: key,
+                list: val,
+                isCorrect: true,
+              });
+            }
+          }
+          if (newEventSettingList.length !== 0) {
+            this.eventSettingList = newEventSettingList;
+          }
+          this.selectDisabledChange();
+        }
+        this.initPathList(params, 'paths');
+        this.initPathList(params, 'exclude_files');
+        this.isShowBlackList = params.exclude_files.some(item => !!item.value);
+        this.$nextTick(() => {
+          this.$refs.logFilterRef?.initContainerData();
+        });
+      },
     },
   };
 </script>
@@ -763,9 +773,6 @@
 
     &.black-hori-title {
       left: 0;
-
-      /* stylelint-disable-next-line declaration-no-important */
-      padding: 0 !important;
     }
   }
 

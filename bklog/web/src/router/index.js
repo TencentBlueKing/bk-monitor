@@ -1036,6 +1036,18 @@ const cancelRequest = async () => {
 
 router.beforeEach(async (to, from, next) => {
   await cancelRequest();
+  if (to.name === 'retrieve') {
+    window.parent.postMessage(
+      {
+        _MONITOR_URL_PARAMS_: to.params,
+        _MONITOR_URL_QUERY_: to.query,
+        _LOG_TO_MONITOR_: true,
+        _MONITOR_URL_: window.MONITOR_URL,
+      },
+      '*',
+      // window.MONITOR_URL,
+    );
+  }
   if (
     window.IS_EXTERNAL &&
     JSON.parse(window.IS_EXTERNAL) &&

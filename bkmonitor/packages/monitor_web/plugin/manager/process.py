@@ -247,11 +247,15 @@ class ProcessPluginManager(BuiltInPluginManager):
         if match_type == "command":
             collector_params.pop("pid_path", "")
         else:
+            # 进程匹配参数： 匹配
             collector_params.pop("match_pattern", "")
+            # 进程匹配参数：排除
             collector_params.pop("exclude_pattern", "")
+            # 维度提取参数， 用正则提取进程启动命令里的维度
+            collector_params.pop("extract_pattern", "")
         collector_params = {"config": collector_params}
 
         deploy_steps = [
-            self.get_bkprocessbeat_deploy_step("monitor_process.conf", {"context": collector_params}),
+            self._get_bkprocessbeat_deploy_step("monitor_process.conf", {"context": collector_params}),
         ]
         return deploy_steps
