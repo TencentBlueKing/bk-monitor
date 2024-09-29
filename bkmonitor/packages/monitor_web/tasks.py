@@ -1333,4 +1333,4 @@ def update_target_detail():
             try:
                 resource.strategies.get_target_detail_with_cache.request.refresh({"strategy_id": item.strategy_id})
             except Exception as e:
-                logger.exception(f"Update targe detail cache failed for strategy id [{item.strategy_id}]: {e}")
+                logger.exception(f"Update target detail cache failed for strategy id [{item.strategy_id}]: {e}")
