@@ -48,7 +48,7 @@ export default class ServiceApply extends tsc<IProps> {
   appList = [];
   /** 服务名称 */
   formData = {
-    serviceName: 'test',
+    serviceName: '',
   };
   formRules = {
     serviceName: [{ required: true, message: '请输入服务名称', trigger: 'blur' }],
