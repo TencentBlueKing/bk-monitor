@@ -308,7 +308,7 @@ export default class DataRetrieval extends tsc<object> {
   cancelFn = null; // 取消查询接口
 
   // 自动刷新
-  refleshInstance = null;
+  refreshInstance = null;
 
   // 是否开启（框选/复位）全部操作
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
@@ -3005,18 +3005,18 @@ export default class DataRetrieval extends tsc<object> {
     }
   }
 
-  handleRefleshChange(v: number) {
-    window.clearInterval(this.refleshInstance);
-    this.refleshInstance = null;
+  handleRefreshChange(v: number) {
+    window.clearInterval(this.refreshInstance);
+    this.refreshInstance = null;
     if (v <= 0) return;
-    this.refleshInstance = setInterval(() => {
+    this.refreshInstance = setInterval(() => {
       this.refleshNumber += 1;
     }, v);
   }
 
-  deactivated() {
-    window.clearInterval(this.refleshInstance);
-    this.refleshInstance = null;
+  destroyed() {
+    window.clearInterval(this.refreshInstance);
+    this.refreshInstance = null;
   }
 
   render() {
@@ -3404,7 +3404,7 @@ export default class DataRetrieval extends tsc<object> {
                   timeRange={this.compareValue.tools?.timeRange}
                   timezone={this.compareValue.tools?.timezone}
                   onImmediateReflesh={() => (this.refleshNumber += 1)}
-                  onRefleshIntervalChange={v => this.handleRefleshChange(v)}
+                  onRefleshIntervalChange={v => this.handleRefreshChange(v)}
                   onTimeRangeChange={this.handleToolsTimeRangeChange}
                   onTimezoneChange={this.handleTimezoneChange}
                 >
