@@ -58,7 +58,13 @@
                   "data_type": "alert"
                 }
               }
-            ]
+            ],
+            "descrition": "根据告警事件的数量进行划分，划分范围为：<br>1.红：发生了致命告警<br>2.黄：发生了预警<br>3.蓝：发生了提醒<br>4.绿：无告警",
+            "options": {
+              "time_series": {
+                "hoverAllTooltips": true
+              }
+            }
           },
           "service_tabs_service": {
             "name": "服务",
@@ -80,7 +86,12 @@
                       "data_type": "apdex"
                     }
                   }
-                ]
+                ],
+                "options": {
+                  "time_series": {
+                    "hoverAllTooltips": true
+                  }
+                }
               },
               {
                 "id": 2,
@@ -92,8 +103,8 @@
                     "data_type": "time_series",
                     "api": "apm_metric.dynamicUnifyQuery",
                     "datasource": "time_series",
-                    "alias": "主调",
                     "data": {
+                      "alias_prefix": "caller",
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
                       "query_configs": [
@@ -187,8 +198,8 @@
                     "data_type": "time_series",
                     "api": "apm_metric.dynamicUnifyQuery",
                     "datasource": "time_series",
-                    "alias": "被调",
                     "data": {
+                      "alias_prefix": "callee",
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
                       "query_configs": [
@@ -284,7 +295,8 @@
                     "type": "bar"
                   },
                   "apm_time_series": {
-                    "metric": "request_count"
+                    "metric": "request_count",
+                    "hoverAllTooltips": true
                   }
                 }
               },
@@ -512,7 +524,8 @@
                     "type": "bar"
                   },
                   "apm_time_series": {
-                    "metric": "error"
+                    "metric": "error",
+                    "hoverAllTooltips": true
                   }
                 }
               },
@@ -981,7 +994,8 @@
                 ],
                 "options": {
                   "apm_time_series": {
-                    "metric": "duration"
+                    "metric": "duration",
+                    "hoverAllTooltips": true
                   }
                 }
               }
@@ -1060,7 +1074,13 @@
                   "endpoint_name": "$endpoint_name"
                 }
               }
-            ]
+            ],
+            "descrition": "根据告警事件的数量进行划分，划分范围为：<br>1.红：发生了致命告警<br>2.黄：发生了预警<br>3.蓝：发生了提醒<br>4.绿：无告警",
+            "options": {
+              "time_series": {
+                "hoverAllTooltips": true
+              }
+            }
           },
           "endpoint_tabs_service": {
             "name": "服务",
@@ -1083,7 +1103,12 @@
                       "endpoint_name": "$endpoint_name"
                     }
                   }
-                ]
+                ],
+                "options": {
+                  "time_series": {
+                    "hoverAllTooltips": true
+                  }
+                }
               },
               {
                 "id": 2,
@@ -1095,8 +1120,8 @@
                     "data_type": "time_series",
                     "api": "apm_metric.dynamicUnifyQuery",
                     "datasource": "time_series",
-                    "alias": "主调",
                     "data": {
+                      "alias_prefix": "caller",
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
                       "query_configs": [
@@ -1192,8 +1217,8 @@
                     "data_type": "time_series",
                     "api": "apm_metric.dynamicUnifyQuery",
                     "datasource": "time_series",
-                    "alias": "被调",
                     "data": {
+                      "alias_prefix": "callee",
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
                       "stack": "all",
@@ -1288,7 +1313,8 @@
                 ],
                 "options": {
                   "time_series": {
-                    "type": "bar"
+                    "type": "bar",
+                    "hoverAllTooltips": true
                   },
                   "apm_time_series": {
                     "metric": "request_count"
@@ -1520,7 +1546,8 @@
                 ],
                 "options": {
                   "time_series": {
-                    "type": "bar"
+                    "type": "bar",
+                    "hoverAllTooltips": true
                   },
                   "apm_time_series": {
                     "metric": "error"
@@ -1999,6 +2026,9 @@
                   }
                 ],
                 "options": {
+                  "time_series": {
+                    "hoverAllTooltips": true
+                  },
                   "apm_time_series": {
                     "metric": "duration"
                   }

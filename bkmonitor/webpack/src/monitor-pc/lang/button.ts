@@ -485,4 +485,6 @@ export default {
   '反馈/取消反馈根因': 'Feedback/Cancel feedback root cause',
   故障生成: 'Generate Incident',
   人工操作: 'Manual Operation',
+  任务终止: 'Task Termination',
+  失败重试: 'Failure Retry',
 };

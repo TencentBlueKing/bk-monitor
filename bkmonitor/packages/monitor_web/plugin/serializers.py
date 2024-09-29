@@ -89,6 +89,7 @@ class CollectorMetaSerializer(serializers.ModelSerializer, CollectorPluginMixin)
     COLLECTOR_PLUGIN_META_FIELDS = ["plugin_id", "plugin_type", "bk_biz_id", "bk_supplier_id", "tag", "label"]
 
     plugin_id = serializers.RegexField(required=True, regex=r"^[a-zA-Z][a-zA-Z0-9_]*$", max_length=30, label="插件ID")
+    data_label = serializers.CharField(required=False, default="", label="数据标签")
     bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
     bk_supplier_id = serializers.IntegerField(required=False, default=0, label="供应商ID")
     plugin_type = serializers.ChoiceField(
@@ -195,6 +196,14 @@ class ProcessSerializer(CollectorMetaSerializer):
     # exclude_pattern = serializers.CharField(required=False, label="进程排除正则")
     # port_detect = serializers.BooleanField(required=False, label="是否端口检测", default=True)
     # labels = serializers.DictField(required=False, default={}, label="自定义标签")
+
+
+class K8sSerializer(CollectorMetaSerializer):
+    class CollectorJsonSerializer(serializers.Serializer):
+        template = serializers.CharField(label="模板文件")
+        values = serializers.JSONField(label="默认配置", default=dict)
+
+    collector_json = CollectorJsonSerializer(required=True, label="采集器配置")
 
 
 class DataDogSerializer(CollectorMetaSerializer):

@@ -1995,22 +1995,22 @@ class GetKubernetesObjectCount(ApiAuthResource):
             "label": _("集群"),
         },
         "namespace": {
-            "label": _("命名空间"),
+            "label": "Namespace",
         },
         "node": {
-            "label": _("节点(Node)"),
+            "label": "Node",
         },
         "pod": {
             "label": "Pod",
         },
         "master_node": {
-            "label": _("Master节点"),
+            "label": "Master Node",
         },
         "work_node": {
-            "label": _("Worker节点"),
+            "label": "Worker Node",
         },
         "container": {
-            "label": _("容器"),
+            "label": "Container",
         },
     }
 

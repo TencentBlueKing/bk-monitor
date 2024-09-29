@@ -55,6 +55,7 @@ declare global {
     dayjs?: Dayjs;
     enable_apm_profiling: boolean;
     bk_docs_site_url: string;
+    bk_doc_version: string;
     graph_watermark: boolean;
   }
 }

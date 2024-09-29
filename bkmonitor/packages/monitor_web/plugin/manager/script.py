@@ -15,11 +15,11 @@ import os
 
 import yaml
 from django.utils.translation import ugettext as _
+
+from core.errors.plugin import PluginParseError
 from monitor_web.plugin.constant import OS_TYPE_TO_DIRNAME, ParamMode
 from monitor_web.plugin.manager.base import PluginManager
 from monitor_web.plugin.serializers import ScriptSerializer
-
-from core.errors.plugin import PluginParseError
 
 
 class ScriptPluginManager(PluginManager):
@@ -46,7 +46,7 @@ class ScriptPluginManager(PluginManager):
         kwargs.update(dict(add_files=self.fetch_collector_file()))
         return super(ScriptPluginManager, self).make_package(**kwargs)
 
-    def get_debug_config_context(self, config_version, info_version, param, target_nodes):
+    def _get_debug_config_context(self, config_version, info_version, param, target_nodes):
         specific_version = self.plugin.get_version(config_version, info_version)
         config_json = specific_version.config.config_json
 
@@ -182,7 +182,7 @@ class ScriptPluginManager(PluginManager):
                 },
                 "params": {"context": env_context},
             },
-            self.get_bkmonitorbeat_deploy_step("bkmonitorbeat_script.conf", {"context": collector_params}),
+            self._get_bkmonitorbeat_deploy_step("bkmonitorbeat_script.conf", {"context": collector_params}),
         ]
         for index, file in enumerate(user_files):
             deploy_steps[0]["config"]["config_templates"].append(
@@ -194,7 +194,7 @@ class ScriptPluginManager(PluginManager):
             )
         return deploy_steps
 
-    def get_collector_json(self, plugin_params):
+    def _get_collector_json(self, plugin_params):
         meta_dict = yaml.load(plugin_params["meta.yaml"], Loader=yaml.FullLoader)
 
         if "scripts" not in meta_dict:
@@ -203,7 +203,7 @@ class ScriptPluginManager(PluginManager):
         collector_json = {}
         for os_name, file_info in list(meta_dict["scripts"].items()):
             script_path = os.path.join(OS_TYPE_TO_DIRNAME[os_name], self.plugin.plugin_id, file_info["filename"])
-            script_content = self.read_file(os.path.join(self.tmp_path, script_path))
+            script_content = self._read_file(os.path.join(self.tmp_path, script_path))
             collector_json[os_name] = {
                 "filename": file_info["filename"],
                 "type": file_info["type"],

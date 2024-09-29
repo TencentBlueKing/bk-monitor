@@ -24,6 +24,7 @@ from apm_web.metric_handler import (
     ServiceFlowDurationBucket,
     ServiceFlowDurationMax,
     ServiceFlowDurationMin,
+    ServiceFlowErrorRateCaller,
 )
 from apm_web.topo.handle import BaseQuery
 from apm_web.topo.handle.bar_query import LinkHelper
@@ -50,6 +51,18 @@ ERROR_COUNT_COLUMNS = [
     {"id": "service", "name": "服务名称", "type": "link"},
     {"id": "other_service", "name": "调用服务", "type": "string"},
     {"id": "error_count", "name": "错误数", "type": "number", "sortable": "custom"},
+    {
+        "id": "datapoints",
+        "name": "缩略图",
+        "type": "datapoints",
+    },
+]
+
+# 错误率表格列
+ERROR_RATE_COLUMNS = [
+    {"id": "service", "name": "服务名称", "type": "link"},
+    {"id": "other_service", "name": "调用服务", "type": "string"},
+    {"id": "error_rate", "name": "错误列", "type": "number", "sortable": "custom"},
     {
         "id": "datapoints",
         "name": "缩略图",
@@ -141,6 +154,24 @@ class ServiceMetricStatistics(BaseQuery):
                 ),
             }
         },
+        StatisticsMetric.ERROR_COUNT_CODE.value: {
+            "default": {
+                "caller": Template(
+                    table_group_by=["from_apm_service_name", "to_apm_service_name", "from_span_error"],
+                    ignore_keys=["from_span_error"],
+                    metric=ServiceFlowCount,
+                    filter_dict={"from_span_error": "true"},
+                    columns=ERROR_COUNT_COLUMNS,
+                ),
+                "callee": Template(
+                    table_group_by=["to_apm_service_name", "from_apm_service_name", "to_span_error"],
+                    ignore_keys=["to_span_error"],
+                    metric=ServiceFlowCount,
+                    filter_dict={"to_span_error": "true"},
+                    columns=ERROR_COUNT_COLUMNS,
+                ),
+            }
+        },
         StatisticsMetric.ERROR_COUNT.value: {
             "default": {
                 "caller": Template(
@@ -156,6 +187,22 @@ class ServiceMetricStatistics(BaseQuery):
                     metric=ServiceFlowCount,
                     filter_dict={"to_span_error": "true"},
                     columns=ERROR_COUNT_COLUMNS,
+                ),
+            }
+        },
+        StatisticsMetric.ERROR_RATE.value: {
+            "default": {
+                "caller": Template(
+                    table_group_by=["from_apm_service_name", "to_apm_service_name"],
+                    ignore_keys=["from_span_error", "to_span_error"],
+                    metric=ServiceFlowErrorRateCaller,
+                    columns=ERROR_RATE_COLUMNS,
+                ),
+                "callee": Template(
+                    table_group_by=["to_apm_service_name", "from_apm_service_name"],
+                    ignore_keys=["from_span_error", "to_span_error"],
+                    metric=ServiceFlowCount,
+                    columns=ERROR_RATE_COLUMNS,
                 ),
             }
         },
@@ -291,8 +338,25 @@ class ServiceMetricStatistics(BaseQuery):
         self.views = SceneViewModel.objects.filter(bk_biz_id=self.bk_biz_id, scene_id="apm_service")
 
     def list(self, template: Template):
-
-        if template.dimension == "default" or self.data_type == StatisticsMetric.AVG_DURATION.value:
+        instance_values_mapping = {}
+        if self.data_type == StatisticsMetric.ERROR_RATE.value:
+            values_mapping = template.metric(
+                self.application,
+                self.start_time,
+                self.end_time,
+                filter_dict=template.filter_dict,
+                group_by=template.table_group_by,
+                interval=get_interval_number(self.start_time, self.end_time),
+            ).get_range_calculate_values_mapping(ignore_keys=template.ignore_keys)
+            instance_values_mapping = template.metric(
+                self.application,
+                self.start_time,
+                self.end_time,
+                filter_dict=template.filter_dict,
+                group_by=template.table_group_by,
+                interval=get_interval_number(self.start_time, self.end_time),
+            ).get_instance_calculate_values_mapping(ignore_keys=template.ignore_keys)
+        elif template.dimension == "default" or self.data_type == StatisticsMetric.AVG_DURATION.value:
             values_mapping = template.metric(
                 self.application,
                 self.start_time,
@@ -301,7 +365,7 @@ class ServiceMetricStatistics(BaseQuery):
                 group_by=template.table_group_by,
                 interval=get_interval_number(self.start_time, self.end_time),
             ).get_range_values_mapping(ignore_keys=template.ignore_keys)
-        elif self.data_type == StatisticsMetric.ERROR_COUNT.value:
+        elif self.data_type == StatisticsMetric.ERROR_COUNT_CODE.value:
             # 错误数的维度是错误码
             if template.dimension_category not in ErrorMetricCategory.get_dict_choices():
                 raise ValueError(f"[指标统计] 查询错误码为: {template.dimension} 时需要指定来源类型 (Http / Rpc)")
@@ -356,6 +420,14 @@ class ServiceMetricStatistics(BaseQuery):
             else:
                 service_2_name = service_2
 
+            if self.data_type != StatisticsMetric.ERROR_RATE.value:
+                data_type_value = template.value_convert(series=series)
+            else:
+                # 如果是错误率图表 需要从实例查询中获取错误率百分比而不是通过计算
+                data_type_value = instance_values_mapping.get((service_1_name, service_2_name), {}).get(
+                    template.metric.metric_id
+                )
+
             res.append(
                 {
                     "service": {
@@ -372,7 +444,7 @@ class ServiceMetricStatistics(BaseQuery):
                         if service_2 in mappings
                         else None,
                     },
-                    self.data_type: template.value_convert(series=series),
+                    self.data_type: data_type_value,
                     "datapoints": series,
                 }
             )

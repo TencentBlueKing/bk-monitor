@@ -23,7 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { random } from 'lodash';
 import { traceChats } from 'monitor-api/modules/apm_trace';
+import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 import { defineStore } from 'pinia';
 
 import { type IPanelModel, PanelModel } from '../../plugins/typings';
@@ -33,11 +35,13 @@ export interface ISearchState {
   chartPanelList: PanelModel[];
   // loading
   chartLoading: boolean;
+  dashboardId: string;
 }
 export const useSearchStore = defineStore('search', {
   state: (): ISearchState => ({
     chartPanelList: [],
     chartLoading: false,
+    dashboardId: `${random(8)}`,
   }),
   actions: {
     /**
@@ -50,7 +54,14 @@ export const useSearchStore = defineStore('search', {
       const panelList = await traceChats({
         app_name: appName,
       }).catch(() => []);
-      this.chartPanelList = panelList.map((panel: IPanelModel) => new PanelModel(panel));
+      this.chartPanelList = panelList.map(
+        (panel: IPanelModel) =>
+          new PanelModel({
+            ...panel,
+            dashboardId: this.dashboardId,
+          })
+      );
+      echartsConnect(this.dashboardId);
       this.chartLoading = false;
     },
   },

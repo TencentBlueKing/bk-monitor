@@ -9,18 +9,15 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import copy
-import json
+from typing import Optional
 
-from django.conf import settings
-from django.db import models, transaction
+from django.db import models
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
 
-from bkmonitor.utils.common_utils import logger
 from bkmonitor.utils.db.fields import JsonField, SymmetricJsonField
 from constants.cmdb import TargetNodeType, TargetObjectType
-from core.drf_resource import api, resource
+from core.drf_resource import resource
 from monitor_web.collecting.constant import (
     OperationResult,
     OperationType,
@@ -30,7 +27,6 @@ from monitor_web.collecting.constant import (
 from monitor_web.commons.data_access import EventDataAccessor, PluginDataAccessor
 from monitor_web.models.base import OperateRecordModelBase
 from monitor_web.models.plugin import CollectorPluginMeta, PluginVersionHistory
-from monitor_web.plugin.constant import ParamMode, PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
 
 
@@ -74,6 +70,7 @@ class CollectConfigMeta(OperateRecordModelBase):
     TARGET_OBJECT_TYPE_CHOICES = (
         (TargetObjectType.SERVICE, _lazy("服务")),
         (TargetObjectType.HOST, _lazy("主机")),
+        (TargetObjectType.CLUSTER, _lazy("集群")),
     )
 
     bk_biz_id = models.IntegerField("业务ID", db_index=True)
@@ -221,51 +218,6 @@ class CollectConfigMeta(OperateRecordModelBase):
         result = resource.commons.get_label_msg(self.label)
         return "{}-{}".format(result["first_label_name"], result["second_label_name"])
 
-    def switch_config_version(self, target_deployment_config):
-        """
-        切换到对应配置版本
-        """
-
-        def switch_success(target_deployment_config, subscription_id):
-            # 创建一个新的版本
-            new_deployment_config = self.create_deployment_config(
-                plugin_version=target_deployment_config.plugin_version,
-                params=target_deployment_config.params,
-                target_nodes=target_deployment_config.target_nodes,
-                remote_collecting_host=target_deployment_config.remote_collecting_host,
-                target_node_type=target_deployment_config.target_node_type,
-            )
-            new_deployment_config.subscription_id = subscription_id
-            new_deployment_config.save()
-            # 将目标版本置为当前版本
-            self.deployment_config = new_deployment_config
-            self.save()
-            # 如果全局配置巡检开启，则启动订阅巡检
-            if settings.IS_SUBSCRIPTION_ENABLED:
-                api.node_man.switch_subscription(subscription_id=subscription_id, action="enable")
-
-        diff_result = self.deployment_config.show_diff(target_deployment_config)
-
-        task_id = None
-        # 重新创建订阅的条件:1、插件版本发生升级 2、远程采集配置变更 3、克隆出的新任务，subscription_id为0
-        operate_type = self.operate_type(diff_result)
-        if operate_type == "rebuild":
-            with transaction.atomic():
-                prev_sub_id = self.deployment_config.subscription_id
-                result = self.create_subscription(target_deployment_config)
-                # 将目标版本置为当前版本
-                task_id = result["task_id"]
-                if prev_sub_id != 0:
-                    self.delete_subscription(prev_sub_id)
-                switch_success(target_deployment_config, result["subscription_id"])
-        # 若改动仅为插件配置参数(params)或目标节点(nodes)，或者参数没有改动但是目标节点不为空，则编辑节点管理订阅配置
-        elif operate_type == "update":
-            with transaction.atomic():
-                task_id = self.update_subscription(target_deployment_config)
-                switch_success(target_deployment_config, self.deployment_config.subscription_id)
-
-        return {"diff_result": diff_result, "task_id": task_id}
-
     def operate_type(self, diff_result):
         if self.collect_type == self.CollectType.LOG or self.collect_type == self.CollectType.SNMP_TRAP:
             return "update"
@@ -282,22 +234,6 @@ class CollectConfigMeta(OperateRecordModelBase):
         ):
             return "update"
 
-    def create_deployment_config(self, **kwargs):
-        """
-        创建一条部署配置记录
-        """
-        deployment_config = DeploymentConfigVersion.objects.create(
-            parent_id=self.deployment_config.pk, config_meta_id=self.pk, **kwargs
-        )
-        return deployment_config
-
-    def rollback(self):
-        """
-        回滚操作
-        """
-        last_deployment_config = self.deployment_config.last_version
-        return self.switch_config_version(last_deployment_config)
-
     @property
     def data_id(self):
         if self.collect_type == self.CollectType.PROCESS:
@@ -309,222 +245,6 @@ class CollectConfigMeta(OperateRecordModelBase):
             data_accessor = PluginDataAccessor(self.plugin.release_version, self.update_user)
         return data_accessor.get_data_id()
 
-    def create_plugin_collecting_steps(self, target_deployment_config, data_id):
-        plugin_manager = PluginManagerFactory.get_manager(plugin=self.plugin)
-        config_params = copy.deepcopy(target_deployment_config.params)
-
-        # 获取维度注入参数
-        config_json = target_deployment_config.plugin_version.config.config_json
-        dms_insert_params = {}
-        for param in config_json:
-            if param["mode"] == ParamMode.DMS_INSERT:
-                param_value = config_params["plugin"].get(param['name'])
-                for dms_key, dms_value in list(param_value.items()):
-                    if param["type"] == "host":
-                        dms_insert_params[dms_key] = "{{ " + f"cmdb_instance.host.{dms_value} or '-'" + " }}"
-                    else:
-                        dms_insert_params[dms_key] = (
-                            "{{ " + f"cmdb_instance.service.labels['{dms_value}'] or '-'" + " }}"
-                        )
-
-        if self.plugin.plugin_type == PluginType.PROCESS:
-            # processbeat 配置
-            # processbeat 采集不需要dataid
-            config_params["collector"].update(
-                {
-                    "taskid": str(self.id),
-                    "namespace": self.plugin_id,
-                    # 采集周期带上单位 `s`
-                    "period": f"{config_params['collector']['period']}s",
-                    # 采集超时时间
-                    "timeout": f"{config_params['collector'].get('timeout', 60)}",
-                    "max_timeout": f"{config_params['collector'].get('timeout', 60)}",
-                    "dataid": str(plugin_manager.perf_data_id),
-                    "port_dataid": str(plugin_manager.port_data_id),
-                    "match_pattern": config_params["process"]["match_pattern"],
-                    "process_name": config_params["process"].get("process_name", ""),
-                    "exclude_pattern": config_params["process"]["exclude_pattern"],
-                    "port_detect": config_params["process"]["port_detect"],
-                    # 维度注入能力
-                    "extract_pattern": config_params["process"].get("extract_pattern", ""),
-                    "pid_path": config_params["process"]["pid_path"],
-                    "labels": {
-                        "$for": "cmdb_instance.scope",
-                        "$item": "scope",
-                        "$body": {
-                            "bk_target_host_id": "{{ cmdb_instance.host.bk_host_id }}",
-                            "bk_target_ip": "{{ cmdb_instance.host.bk_host_innerip }}",
-                            "bk_target_cloud_id": (
-                                "{{ cmdb_instance.host.bk_cloud_id[0].id "
-                                "if cmdb_instance.host.bk_cloud_id is iterable and "
-                                "cmdb_instance.host.bk_cloud_id is not string "
-                                "else cmdb_instance.host.bk_cloud_id }}"
-                            ),
-                            "bk_target_topo_level": "{{ scope.bk_obj_id }}",
-                            "bk_target_topo_id": "{{ scope.bk_inst_id }}",
-                            "bk_target_service_category_id": (
-                                "{{ cmdb_instance.service.service_category_id | default('', true) }}"
-                            ),
-                            "bk_collect_config_id": self.id,
-                            "bk_biz_id": str(self.bk_biz_id),
-                        },
-                    },
-                    "tags": config_params["collector"].get("tag", {}),
-                }
-            )
-        else:
-            # bkmonitorbeat通用配置参数
-            config_params["collector"].update(
-                {
-                    "task_id": str(self.id),
-                    "bk_biz_id": str(self.bk_biz_id),
-                    "config_name": self.plugin_id,
-                    "config_version": "1.0",
-                    "namespace": self.plugin_id,
-                    "period": str(config_params["collector"]["period"]),
-                    # 采集超时时间
-                    "timeout": f"{config_params['collector'].get('timeout', 60)}",
-                    "max_timeout": f"{config_params['collector'].get('timeout', 60)}",
-                    "dataid": str(data_id or self.data_id),
-                    "labels": {
-                        "$for": "cmdb_instance.scope",
-                        "$item": "scope",
-                        "$body": {
-                            "bk_target_host_id": "{{ cmdb_instance.host.bk_host_id }}",
-                            "bk_target_ip": "{{ cmdb_instance.host.bk_host_innerip }}",
-                            "bk_target_cloud_id": (
-                                "{{ cmdb_instance.host.bk_cloud_id[0].id "
-                                "if cmdb_instance.host.bk_cloud_id is iterable and "
-                                "cmdb_instance.host.bk_cloud_id is not string "
-                                "else cmdb_instance.host.bk_cloud_id }}"
-                            ),
-                            "bk_target_topo_level": "{{ scope.bk_obj_id }}",
-                            "bk_target_topo_id": "{{ scope.bk_inst_id }}",
-                            "bk_target_service_category_id": (
-                                "{{ cmdb_instance.service.service_category_id | default('', true) }}"
-                            ),
-                            "bk_target_service_instance_id": "{{ cmdb_instance.service.id }}",
-                            "bk_collect_config_id": self.id,
-                            # 维度注入模板变量
-                            **dms_insert_params,
-                        },
-                    },
-                }
-            )
-        config_params["subscription_id"] = self.deployment_config.subscription_id
-        return plugin_manager.get_deploy_steps_params(
-            target_deployment_config.plugin_version, config_params, target_deployment_config.target_nodes
-        )
-
-    def get_deploy_params(self, target_deployment_config=None, data_id=None):
-        # 切换配置时若需要创建新的订阅则需要传入新的部署配置
-        if not target_deployment_config:
-            target_deployment_config = self.deployment_config
-
-        if not data_id:
-            data_id = self.data_id
-
-        subscription_params = {
-            "scope": {
-                "bk_biz_id": self.bk_biz_id,
-                "object_type": self.target_object_type,
-                "node_type": target_deployment_config.target_node_type,
-                "nodes": [target_deployment_config.remote_collecting_host]
-                if self.plugin.plugin_type == PluginType.SNMP
-                else target_deployment_config.target_nodes,
-            },
-            "steps": [],
-            "run_immediately": True,
-        }
-
-        deploy_steps = self.create_plugin_collecting_steps(target_deployment_config, data_id)
-        for step in deploy_steps:
-            subscription_params["steps"].append(step)
-
-        # 在组装节点管理创建订阅时，target_hosts被定义为远程下发采集配置文件与执行采集任务的主机
-        if target_deployment_config.remote_collecting_host:
-            if self.plugin.plugin_type == PluginType.SNMP:
-                return subscription_params
-            subscription_params["target_hosts"] = [target_deployment_config.remote_collecting_host]
-
-        return subscription_params
-
-    def create_subscription(self, target_deployment_config=None):
-        """
-        创建订阅事件
-        """
-        create_subscription_params = self.get_deploy_params(target_deployment_config)
-        logger.info("create subscriptino param is {}".format(json.dumps(create_subscription_params)))
-        result = api.node_man.create_subscription(create_subscription_params)
-        return {"subscription_id": result["subscription_id"], "task_id": result["task_id"]}
-
-    def trigger_subscription(self, subscription_id=None, scope=None, steps=None, action=None):
-        """
-        主动触发订阅事件
-        """
-        params = {"subscription_id": subscription_id or self.deployment_config.subscription_id}
-        if not params["subscription_id"]:
-            return ""
-
-        if scope:
-            params["scope"] = scope
-
-        if steps:
-            params["actions"] = steps
-        elif action:
-            subscription_param = self.get_deploy_params()
-            params["actions"] = {step["id"]: action for step in subscription_param.get("steps", [])}
-
-        logger.info("trigger subscription param is {}".format(json.dumps(params)))
-        result = api.node_man.run_subscription(**params)
-        logger.info("trigger subscription task id is: {}".format(result["task_id"]))
-        return result["task_id"]
-
-    def retry_subscription(self, subscription_id=None, instance_id_list=None):
-        """
-        重试整个订阅或某个实例和主机
-        """
-        params = {"subscription_id": subscription_id or self.deployment_config.subscription_id}
-        if not params["subscription_id"]:
-            return ""
-
-        if instance_id_list:
-            params["instance_id_list"] = instance_id_list
-
-        logger.info("retry subscription param is {}".format(json.dumps(params)))
-        result = api.node_man.retry_subscription(**params)
-        logger.info("retry subscription task id is: {}".format(result["task_id"]))
-        return result["task_id"]
-
-    def update_subscription(self, target_deployment_config):
-        if not self.deployment_config.subscription_id:
-            return ""
-        deploy_params = self.get_deploy_params(target_deployment_config)
-        update_params = {
-            "subscription_id": self.deployment_config.subscription_id,
-            "scope": {
-                "bk_biz_id": self.bk_biz_id,
-                "node_type": deploy_params["scope"]["node_type"],
-                "nodes": deploy_params["scope"]["nodes"],
-            },
-            "steps": deploy_params.get("steps", []),
-            "run_immediately": True,
-        }
-
-        logger.info("update subsription param is {}".format(json.dumps(update_params)))
-        result = api.node_man.update_subscription(**update_params)
-
-        return result["task_id"]
-
-    def delete_subscription(self, subscription_id=None):
-        # 删除订阅前需要先主动触发卸载操作
-        self.trigger_subscription(subscription_id=subscription_id, action="UNINSTALL")
-        if subscription_id is None:
-            subscription_id = self.deployment_config.subscription_id
-        if subscription_id != 0:
-            api.node_man.delete_subscription(subscription_id=subscription_id)
-        self.delete_event_plugin()
-
     def delete_event_plugin(self):
         version = self.deployment_config.plugin_version
         plugin_type = version.plugin.plugin_type
@@ -532,12 +252,22 @@ class CollectConfigMeta(OperateRecordModelBase):
             plugin_manager = PluginManagerFactory.get_manager(version.plugin, plugin_type)
             plugin_manager.delete_result_table(version)
 
-    def switch_subscription(self, action):
+    def get_info(self):
         """
-        启停订阅的自动执行
+        获取配置信息
         """
-        if self.deployment_config.subscription_id:
-            api.node_man.switch_subscription(subscription_id=self.deployment_config.subscription_id, action=action)
+        return {
+            "id": self.id,
+            "name": self.name,
+            "bk_biz_id": self.bk_biz_id,
+            "target_object_type": self.target_object_type,
+            "target_node_type": self.deployment_config.target_node_type,
+            "plugin_id": self.plugin.plugin_id,
+            "label": self.label,
+            "config_version": self.deployment_config.plugin_version.config_version,
+            "info_version": self.deployment_config.plugin_version.info_version,
+            "last_operation": self.last_operation,
+        }
 
 
 class DeploymentConfigVersion(OperateRecordModelBase):
@@ -550,6 +280,7 @@ class DeploymentConfigVersion(OperateRecordModelBase):
         (TargetNodeType.INSTANCE, _lazy("实例")),
         (TargetNodeType.SERVICE_TEMPLATE, _lazy("服务模板")),
         (TargetNodeType.SET_TEMPLATE, _lazy("集群模板")),
+        (TargetNodeType.CLUSTER, _lazy("集群")),
     )
 
     plugin_version = models.ForeignKey(
@@ -614,10 +345,12 @@ class DeploymentConfigVersion(OperateRecordModelBase):
         return f"{self.target_node_type}-{self.plugin_version}"
 
     @property
-    def last_version(self):
+    def last_version(self) -> Optional["DeploymentConfigVersion"]:
         """
         上一次部署历史
         """
+        if not self.parent_id:
+            return None
         return DeploymentConfigVersion.objects.filter(pk=self.parent_id).first()
 
     @property
