@@ -42,6 +42,12 @@
       height: 100%;
 
       .main-left-filter {
+        height: 100%;
+
+        .filter-panel {
+          height: 100%;
+        }
+
         .filter-panel-header {
           padding-bottom: 13px;
           background-color: #fff;
@@ -51,16 +57,20 @@
           }
         }
 
+        .filter-panel-body {
+          height: calc(100% - 40px);
+        }
+
         .bk-collapse-item-content {
           background-color: #fff;
         }
 
         .label-text {
-          color: #63656E;
+          color: #63656e;
         }
 
         .label-count {
-          color: #C4C6CC;
+          color: #c4c6cc;
         }
       }
 
@@ -131,7 +141,7 @@
       }
 
       .app-right-content {
-        height: calc(100% - 32px);
+        height: calc(100% - 48px);
       }
 
       .app-list-content-data {
@@ -174,6 +184,10 @@
           .expand-content {
             min-height: 180px;
             background: #fff;
+
+            .common-table {
+              margin-bottom: 16px;
+            }
 
             .table-skeleton {
               padding: 16px;

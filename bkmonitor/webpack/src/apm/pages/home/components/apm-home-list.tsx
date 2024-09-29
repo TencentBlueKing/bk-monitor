@@ -27,6 +27,7 @@ import { Component, Ref, Prop, Emit, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { serviceList, serviceListAsync } from 'monitor-api/modules/apm_metric';
+import { commonPageSizeSet, commonPageSizeGet } from 'monitor-common/utils';
 import { Debounce } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import GuidePage from 'monitor-pc/components/guide-page/guide-page';
@@ -39,7 +40,7 @@ import introduceData from 'monitor-pc/router/space';
 import type { PartialAppListItem } from '../apm-home';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { ICommonTableProps } from 'monitor-pc/pages/monitor-k8s/components/common-table';
-import type { IFilterDict, ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings';
+import type { IFilterDict } from 'monitor-pc/pages/monitor-k8s/typings';
 import type { IGroupData } from 'monitor-pc/pages/strategy-config/strategy-config-list/group';
 
 import './apm-home-list.scss';
@@ -76,21 +77,13 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
   loading = true;
   searchEmpty = false;
 
-  /** 分页数据 */
-  pagination: ITablePagination = {
-    current: 1,
-    count: 500,
-    limit: 10,
-    showTotalCount: true,
-  };
-
   /** 服务表格数据 */
   tableConfigData: TableConfigData = {
     tableData: {
       pagination: {
         count: 100,
         current: 1,
-        limit: 0,
+        limit: commonPageSizeGet(),
         showTotalCount: true,
       },
       columns: [],
@@ -131,10 +124,6 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
       this.leftFilter.isShowSkeleton = true;
       this.loading = true;
     }
-  }
-
-  created() {
-    this.getLimitOfHeight();
   }
 
   get apmIntroduceData() {
@@ -252,12 +241,18 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
     };
   }
 
-  updateTableData(data, columns, total, filter) {
+  updateTableData(data, columns, total, filter = []) {
     const { tableData } = this.tableConfigData;
     tableData.data = data;
     tableData.columns = columns;
     tableData.pagination.count = total;
-    this.leftFilter.filterList = filter;
+    this.leftFilter.filterList = filter.map(category => ({
+      ...category,
+      data: category.data.map(item => ({
+        ...item,
+        count: item.total,
+      })),
+    }));
   }
 
   loadAsyncData(item, data, columns, startTime, endTime) {
@@ -375,17 +370,8 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
    */
   handlePageLimitChange(limit: number) {
     this.tableConfigData.tableData.pagination.limit = limit;
+    commonPageSizeSet(limit);
     this.getServiceList(this.appData, true);
-  }
-
-  /**
-   * @description 动态计算当前每页数量
-   */
-  getLimitOfHeight() {
-    const itemHeight = 54;
-    const limit = Math.ceil((window.screen.height - 361) / itemHeight);
-    const closestValue = this.findClosestValue(limit, [10, 20, 50, 100]);
-    this.tableConfigData.tableData.pagination.limit = closestValue;
   }
 
   /**
