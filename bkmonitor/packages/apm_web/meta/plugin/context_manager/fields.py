@@ -81,7 +81,7 @@ class MustConfigProfiling(metaclass=base.FieldMeta):
 class QuickStartRunParameters(metaclass=base.FieldMeta):
     class Meta:
         name = "QUICK_START_RUN_PARAMETERS"
-        scope = base.ScopeType.INNER.value
+        scope = base.ScopeType.OPEN.value
         value = """| 参数                 | 值（根据所填写接入信息生成）             | 说明                                                         |
 | -------------------- | :--------------------------------------- | ------------------------------------------------------------ |
 | `TOKEN`              | `"{{access_config.token}}"`              | 【必须】APM 应用 `Token`                                     |
