@@ -761,3 +761,14 @@ class OtlpProtocol:
             (cls.GRPC, _("gRPC 上报")),
             (cls.HTTP_JSON, _("HTTP/Protobuf 上报")),
         ]
+
+
+class FormatType:
+    # 默认：补充协议 + url 路径
+    DEFAULT = "default"
+    # simple：仅返回域名
+    SIMPLE = "simple"
+
+    @classmethod
+    def choices(cls):
+        return [(cls.DEFAULT, cls.DEFAULT), (cls.SIMPLE, cls.SIMPLE)]
