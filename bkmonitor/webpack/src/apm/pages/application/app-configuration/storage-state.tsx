@@ -108,7 +108,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
     },
   };
 
-  storageStatusLoading = false;
+  storageStatusLoading = true;
   storageStatus = {
     [ETelemetryDataType.metric]: 'disabled',
     [ETelemetryDataType.log]: 'disabled',
@@ -284,7 +284,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
             onChange={this.handleChangeActiveTab}
           />
         </div>
-        <div class='storage-content'>{this.getActiveComponent()}</div>
+        {!this.storageStatusLoading ? <div class='storage-content'>{this.getActiveComponent()}</div> : undefined}
       </div>
     );
   }
