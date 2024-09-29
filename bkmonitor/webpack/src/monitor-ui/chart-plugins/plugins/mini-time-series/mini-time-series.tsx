@@ -27,6 +27,7 @@ import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { throttle } from 'lodash';
 
 import { getValueFormat } from '../../../monitor-echarts/valueFormats/valueFormats';
 import { type MonitorEchartOptions, echarts } from '../../typings/index';
@@ -128,7 +129,20 @@ export default class MiniTimeSeries extends tsc<IProps> {
   hoverPoint = {
     isHover: false,
   };
+
+  resizeObserver = null;
+  throttleHandleResize = () => {};
+
   mounted() {
+    this.throttleHandleResize = throttle(this.handleResize, 300);
+    this.resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        if (entry.contentRect.width) {
+          this.throttleHandleResize();
+        }
+      }
+    });
+    this.resizeObserver.observe(this.$el);
     this.initChart();
   }
   destroyed() {
@@ -146,10 +160,12 @@ export default class MiniTimeSeries extends tsc<IProps> {
           yAxis: {
             ...this.options.yAxis,
             max: v => {
-              return v.max + ((v.max * this.chartStyle.chartWarpHeight) / this.chartStyle.lineMaxHeight - v.max);
+              return v.max + (((v.max || 1) * this.chartStyle.chartWarpHeight) / this.chartStyle.lineMaxHeight - v.max);
             },
             min: v => {
-              return 0 - ((v.max * this.chartStyle.chartWarpHeight) / this.chartStyle.lineMaxHeight - v.max) / 1.5;
+              return (
+                0 - (((v.max || 1) * this.chartStyle.chartWarpHeight) / this.chartStyle.lineMaxHeight - v.max) / 1.5
+              );
             },
           },
           tooltip: this.getTooltipParams(),
@@ -290,6 +306,10 @@ export default class MiniTimeSeries extends tsc<IProps> {
         return undefined;
       },
     };
+  }
+
+  handleResize() {
+    (this as any).instance?.resize?.();
   }
 
   /**
