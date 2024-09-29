@@ -26,11 +26,11 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { listApplication, metaConfigInfo, pushUrl } from 'monitor-api/modules/apm_meta';
+import { listApplication, metaConfigInfo, metaInstrumentGuides, pushUrl } from 'monitor-api/modules/apm_meta';
+import { Debounce } from 'monitor-common/utils';
 import MarkdownViewer from 'monitor-ui/markdown-editor/viewer';
 
 import SelectCardItem from '../application/app-add/select-card-item';
-import { md } from './test';
 
 import type { ICardItem } from '../application/app-add/utils';
 
@@ -61,7 +61,9 @@ export default class ServiceApply extends tsc<IProps> {
   reportUrl = '';
   reportLoading = false;
 
-  markdownStr = md;
+  markdownStr = '';
+  markdownLoading = false;
+
   guideUrl = '';
   created() {
     this.getAppList();
@@ -130,7 +132,22 @@ export default class ServiceApply extends tsc<IProps> {
     this.reportUrl = this.reportUrlList[0]?.id || '';
     this.reportLoading = false;
   }
-
+  @Debounce(500)
+  async getMarkdownStr() {
+    this.markdownLoading = true;
+    const lang = this.languageList.find(item => item.checked)?.id;
+    const str = await metaInstrumentGuides({
+      application_id: this.appName,
+      languages: [lang],
+      service_name: this.formData.serviceName,
+    });
+    this.markdownLoading = false;
+  }
+  @Debounce(300)
+  handleServiceNameChange(v: string) {
+    this.formData.serviceName = v?.trim();
+    this.getMarkdownStr();
+  }
   handleLanguageChange(language: ICardItem, val: boolean) {
     if (language.checked && !val) {
       return;
@@ -140,6 +157,7 @@ export default class ServiceApply extends tsc<IProps> {
       checkLang.checked = false;
     }
     language.checked = val;
+    this.getMarkdownStr();
   }
   render() {
     const rowContent = (name: string, content, subTitle?) => (
@@ -200,7 +218,7 @@ export default class ServiceApply extends tsc<IProps> {
                     style='width:394px;'
                     placeholder={this.$t('请输入服务名')}
                     value={this.formData.serviceName}
-                    onInput={v => (this.formData.serviceName = v.trim())}
+                    onChange={this.handleServiceNameChange}
                   />
                 </bk-form-item>
                 <bk-form-item label={this.$tc('选择语言')}>
