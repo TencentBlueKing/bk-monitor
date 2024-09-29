@@ -1592,11 +1592,11 @@ class StorageStatusResource(Resource):
             status_mapping = {}
             for data_type in TelemetryDataType:
                 if not getattr(app, f"is_enabled_{data_type.datasource_type}"):
-                    status_mapping[data_type.name] = StorageStatus.DISABLED
+                    status_mapping[data_type.value] = StorageStatus.DISABLED
                     continue
-                status_mapping[data_type.name] = (
+                status_mapping[data_type.value] = (
                     StorageStatus.NORMAL
-                    if telemetry_handler_registry(data_type.value, app=app).storage_status()
+                    if telemetry_handler_registry(data_type.value, app=app).storage_status
                     else StorageStatus.ERROR
                 )
         except Application.DoesNotExist:

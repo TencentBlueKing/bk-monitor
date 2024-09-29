@@ -27,7 +27,7 @@ from api.log_search.default import (
     LogSearchIndexSetResource,
 )
 from constants.apm import TelemetryDataType
-from core.drf_resource import api
+from core.drf_resource import api, resource
 
 
 def handler_name(handler_cls: type):
@@ -225,8 +225,10 @@ class TracingBackendHandler(TelemetryBackendHandler):
         )
 
     def get_data_count(self, start_time: int, end_time: int, **kwargs):
-        view_config = self.get_data_view_config(start_time=start_time, end_time=end_time, **kwargs)
-        data = api.unify_query.query_data(**view_config[0])
+        view_config = self.get_data_view_config(
+            start_time=start_time, end_time=end_time, bk_biz_id=self.app.bk_biz_id, **kwargs
+        )
+        data = resource.grafana.graph_unify_query(view_config[0]["targets"][0]["data"])
         count = 0
         for line in data["series"]:
             for point in line["datapoints"]:
