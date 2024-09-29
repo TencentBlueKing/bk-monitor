@@ -338,7 +338,7 @@ class ServiceListResource(PageListResource):
                 name=_lazy("错误率"),
                 checked=True,
                 asyncable=True,
-                unit="percent",
+                unit="percentunit",
             ),
             DataPointsTableFormat(
                 id="avg_duration",
@@ -437,7 +437,7 @@ class ServiceListResource(PageListResource):
         )
 
     def get_filter_fields(self):
-        return ["service_name", "language", "http"]
+        return ["service_name", "language", "type"]
 
     def get_sort_fields(self):
         return ["-collect"]
@@ -465,7 +465,7 @@ class ServiceListResource(PageListResource):
                         {
                             "id": f["id"],
                             "name": f["name"],
-                            "total": count_mapping[f["id"]],
+                            "count": count_mapping[f["id"]],
                         }
                     )
             else:
@@ -474,7 +474,7 @@ class ServiceListResource(PageListResource):
                         {
                             "id": k,
                             "name": k,
-                            "total": v,
+                            "count": v,
                         }
                     )
             return res

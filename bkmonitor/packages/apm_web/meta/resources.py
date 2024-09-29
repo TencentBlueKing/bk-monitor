@@ -184,14 +184,15 @@ class CreateApplicationResource(Resource):
             allow_empty=True,
             default=[LanguageEnum.PYTHON.id],
         )
+        # ↓ datasource_option 在创建时 Trace / Log 都使用这个集群配置
         datasource_option = DatasourceOptionSerializer(required=False)
         # ↓ Log-Trace 配置 目前页面上没有开放
         plugin_config = PluginConfigSerializer(required=False)
         # ↓ 四个 Module 的开关
-        enable_profiling = serializers.BooleanField(label="是否开启 Profiling 功能", required=True)
-        enable_tracing = serializers.BooleanField(label="是否开启 Tracing 功能", required=True)
-        enable_metric = serializers.BooleanField(label="是否开启 Metric 功能", required=True)
-        enable_log = serializers.BooleanField(label="是否开启 Log 功能", required=True)
+        enabled_profiling = serializers.BooleanField(label="是否开启 Profiling 功能", required=True)
+        enabled_trace = serializers.BooleanField(label="是否开启 Tracing 功能", required=True)
+        enabled_metric = serializers.BooleanField(label="是否开启 Metric 功能", required=True)
+        enabled_log = serializers.BooleanField(label="是否开启 Log 功能", required=True)
 
     class ResponseSerializer(serializers.ModelSerializer):
         class Meta:
@@ -218,17 +219,22 @@ class CreateApplicationResource(Resource):
             plugin_id=validated_request_data["plugin_id"],
             deployment_ids=validated_request_data["deployment_ids"],
             language_ids=validated_request_data["language_ids"],
-            # TODO: enable_profiling vs enabled_profiling, 前后需要完全统一
-            enabled_profiling=validated_request_data["enable_profiling"],
-            datasource_option=validated_request_data["datasource_option"],
+            enabled_profiling=validated_request_data["enabled_profiling"],
+            enabled_trace=validated_request_data["enabled_trace"],
+            enabled_metric=validated_request_data["enabled_metric"],
+            enabled_log=validated_request_data["enabled_log"],
+            # ↓ 两个可选项
+            datasource_option=validated_request_data.get("datasource_option"),
             plugin_config=validated_request_data.get("plugin_config"),
         )
 
         from apm_web.tasks import APMEvent, report_apm_application_event
 
         switch_on_data_sources = {
-            TelemetryDataType.TRACING.value: app.is_enabled,
+            TelemetryDataType.TRACING.value: app.is_enabled_trace,
             TelemetryDataType.PROFILING.value: app.is_enabled_profiling,
+            TelemetryDataType.METRIC.value: app.is_enabled_metric,
+            TelemetryDataType.LOG.value: app.is_enabled_log,
         }
         report_apm_application_event.delay(
             validated_request_data["bk_biz_id"],
@@ -447,30 +453,31 @@ class ApplicationInfoByAppNameResource(ApiAuthResource):
 class StartResource(Resource):
     class RequestSerializer(serializers.Serializer):
         application_id = serializers.IntegerField(label="应用id")
-        type = serializers.ChoiceField(
-            label="暂停类型", choices=TelemetryDataType.values(), default=TelemetryDataType.TRACING.value
-        )
+        type = serializers.ChoiceField(label="需要暂停的数据源", choices=TelemetryDataType.values())
 
     @atomic
     def perform_request(self, validated_data):
-        try:
-            application = Application.objects.get(application_id=validated_data["application_id"])
-        except Application.DoesNotExist:
-            raise ValueError(_("应用不存在"))
+        application = Application.objects.get(application_id=validated_data["application_id"])
 
         if validated_data["type"] == TelemetryDataType.TRACING.value:
-            application.is_enabled = True
+            application.is_enabled_trace = True
             Application.start_plugin_config(validated_data["application_id"])
         elif validated_data["type"] == TelemetryDataType.PROFILING.value:
             application.is_enabled_profiling = True
+        elif validated_data["type"] == TelemetryDataType.METRIC.value:
+            application.is_enabled_metric = True
+        elif validated_data["type"] == TelemetryDataType.LOG.value:
+            application.is_enabled_log = True
         else:
             raise ValueError(_("不支持的data_source: {}").format(validated_data["type"]))
 
-        application.save()
-        switch_on_data_sources = {validated_data["type"]: True}
         res = api.apm_api.start_application(
             application_id=validated_data["application_id"], type=validated_data["type"]
         )
+
+        application.is_enabled = True
+        application.save()
+        switch_on_data_sources = {validated_data["type"]: True}
 
         from apm_web.tasks import APMEvent, report_apm_application_event
 
@@ -486,19 +493,34 @@ class StartResource(Resource):
 class StopResource(Resource):
     class RequestSerializer(serializers.Serializer):
         application_id = serializers.IntegerField(label="应用id")
-        type = serializers.ChoiceField(
-            label="暂停类型", choices=TelemetryDataType.values(), default=TelemetryDataType.TRACING.value
-        )
+        type = serializers.ChoiceField(label="暂停类型", choices=TelemetryDataType.values())
 
     @atomic
     def perform_request(self, validated_data):
-        if validated_data["type"] == TelemetryDataType.TRACING.value:
-            Application.objects.filter(application_id=validated_data["application_id"]).update(is_enabled=False)
-            Application.stop_plugin_config(validated_data["application_id"])
-            return api.apm_api.stop_application(validated_data, type=TelemetryDataType.TRACING.value)
+        application = Application.objects.get(application_id=validated_data["application_id"])
 
-        Application.objects.filter(application_id=validated_data["application_id"]).update(is_enabled_profiling=False)
-        return api.apm_api.stop_application(application_id=validated_data["application_id"], type="profiling")
+        if validated_data["type"] == TelemetryDataType.TRACING.value:
+            application.is_enabled_trace = False
+            Application.stop_plugin_config(validated_data["application_id"])
+        elif validated_data["type"] == TelemetryDataType.PROFILING.value:
+            application.is_enabled_profiling = False
+        elif validated_data["type"] == TelemetryDataType.METRIC.value:
+            application.is_enabled_metric = False
+        elif validated_data["type"] == TelemetryDataType.LOG.value:
+            application.is_enabled_log = False
+
+        res = api.apm_api.stop_application(validated_data, type=TelemetryDataType.TRACING.value)
+        application.save()
+
+        from apm_web.tasks import APMEvent, report_apm_application_event
+
+        report_apm_application_event.delay(
+            application.bk_biz_id,
+            application.application_id,
+            apm_event=APMEvent.APP_UPDATE,
+            data_sources={validated_data["type"]: False},
+        )
+        return res
 
 
 class SamplingOptionsResource(Resource):
@@ -522,14 +544,13 @@ class SamplingOptionsResource(Resource):
 
 class SetupResource(Resource):
     class RequestSerializer(serializers.Serializer):
-        # Todo: 适配不同类型的 telemery_type
         class DatasourceOptionSerializer(serializers.Serializer):
             es_storage_cluster = serializers.IntegerField(label="es存储集群")
             es_retention = serializers.IntegerField(label="es存储周期", min_value=1)
             es_number_of_replicas = serializers.IntegerField(label="es副本数量", min_value=0)
-            # 兼容旧应用没有分片数
+            # 旧应用没有分片数
             es_shards = serializers.IntegerField(label="es索引分片数", min_value=1, default=3)
-            es_slice_size = serializers.IntegerField(label="es索引切分大小", default=500)
+            es_slice_size = serializers.IntegerField(label="es索引切分大小", default=500, required=False)
 
         class SamplerConfigSerializer(serializers.Serializer):
             class TailConditions(serializers.Serializer):
@@ -612,7 +633,8 @@ class SetupResource(Resource):
         application_id = serializers.IntegerField(label="应用id")
         app_alias = serializers.CharField(label="应用别名", max_length=255, required=False)
         description = serializers.CharField(label="应用描述", max_length=255, allow_blank=True, required=False)
-        datasource_option = DatasourceOptionSerializer(required=False)
+        trace_datasource_option = DatasourceOptionSerializer(required=False, label="trace ES 配置")
+        log_datasource_option = DatasourceOptionSerializer(required=False, label="log ES 配置")
         application_apdex_config = ApdexConfigSerializer(required=False)
         application_sampler_config = SamplerConfigSerializer(required=False)
         application_instance_name_config = InstanceNameConfigSerializer(required=False)
@@ -620,10 +642,17 @@ class SetupResource(Resource):
         application_db_config = serializers.ListField(label="db配置", child=DbConfigSerializer(), default=[])
 
         no_data_period = serializers.IntegerField(label="无数据周期", required=False)
-        is_enabled = serializers.BooleanField(label="Tracing启/停", required=False)
-        profiling_is_enabled = serializers.BooleanField(label="Profiling启/停", required=False)
         plugin_config = PluginConfigSerializer(required=False)
         application_qps_config = serializers.IntegerField(label="qps", required=False)
+
+        def validate(self, attrs):
+            res = super(SetupResource.RequestSerializer, self).validate(attrs)
+            if attrs.get("trace_datasource_option") and not attrs.get("trace_datasource_option", {}).get(
+                "es_slice_size"
+            ):
+                # 更新 trace 数据源时 需要传递切分大小
+                raise ValueError("更新 Trace 数据源时需要指定切分大小")
+            return res
 
     class SetupProcessor:
         update_key = []
@@ -650,14 +679,29 @@ class SetupResource(Resource):
             for key, value in self._params.items():
                 self._application.setup_nodata_config(key, value)
 
-    class DatasourceSetProcessor(SetupProcessor):
-        update_key = ["datasource_option"]
+    class TraceDatasourceSetProcessor(SetupProcessor):
+        update_key = ["trace_datasource_option"]
 
         def setup(self):
             for key in self.update_key:
                 if key not in self._params:
                     return
-            Application.setup_datasource(self._application.application_id, self._params["datasource_option"])
+            Application.setup_datasource(
+                self._application.application_id,
+                {"trace_datasource_option": self._params["trace_datasource_option"]},
+            )
+
+    class LogDatasourceSetProcessor(SetupProcessor):
+        update_key = ["log_datasource_option"]
+
+        def setup(self):
+            for key in self.update_key:
+                if key not in self._params:
+                    return
+            Application.setup_datasource(
+                self._application.application_id,
+                {"log_datasource_option": self._params["log_datasource_option"]},
+            )
 
     class ApplicationSetupProcessor(SetupProcessor):
         update_key = ["app_alias", "description"]
@@ -724,7 +768,8 @@ class SetupResource(Resource):
         processors = [
             processor_cls(application)
             for processor_cls in [
-                self.DatasourceSetProcessor,
+                self.TraceDatasourceSetProcessor,
+                self.LogDatasourceSetProcessor,
                 self.ApplicationSetupProcessor,
                 self.ApdexSetupProcessor,
                 self.InstanceNameSetupProcessor,
@@ -753,60 +798,15 @@ class SetupResource(Resource):
         if validated_data.get("application_sampler_config"):
             SamplingHelpers(validated_data['application_id']).setup(validated_data["application_sampler_config"])
 
-        # 新打开的datasource
-        switch_on_data_sources = {}
-        # 判断是否需要启动/停止项目
-        if validated_data.get("is_enabled") is not None:
-            if application.is_enabled != validated_data["is_enabled"]:
-                Application.objects.filter(application_id=application.application_id).update(
-                    is_enabled=validated_data["is_enabled"]
-                )
-
-                if validated_data["is_enabled"]:
-                    Application.start_plugin_config(validated_data["application_id"])
-                    api.apm_api.start_application(
-                        application_id=validated_data["application_id"], type=TelemetryDataType.TRACING.value
-                    )
-                    switch_on_data_sources[TelemetryDataType.TRACING.value] = True
-                else:
-                    Application.stop_plugin_config(validated_data["application_id"])
-                    api.apm_api.stop_application(
-                        application_id=validated_data["application_id"], type=TelemetryDataType.TRACING.value
-                    )
-
-        # 判断是否需要启动/暂停 profiling
-        if validated_data.get("profiling_is_enabled") is not None:
-            if application.is_enabled_profiling != validated_data["profiling_is_enabled"]:
-                Application.objects.filter(application_id=application.application_id).update(
-                    is_enabled_profiling=validated_data["profiling_is_enabled"]
-                )
-
-                if validated_data["profiling_is_enabled"]:
-                    api.apm_api.start_application(application_id=validated_data["application_id"], type="profiling")
-                    switch_on_data_sources[TelemetryDataType.PROFILING.value] = True
-                else:
-                    api.apm_api.stop_application(application_id=validated_data["application_id"], type="profiling")
-
         Application.objects.filter(application_id=application.application_id).update(update_user=get_global_user())
 
         # Log-Trace配置更新
         if application.plugin_id == LOG_TRACE:
             Application.update_plugin_config(application.application_id, validated_data["plugin_config"])
-        from apm_web.tasks import (
-            APMEvent,
-            report_apm_application_event,
-            update_application_config,
-        )
+
+        from apm_web.tasks import update_application_config
 
         update_application_config.delay(application.application_id)
-
-        if any(list(switch_on_data_sources.values())):
-            report_apm_application_event.delay(
-                application.bk_biz_id,
-                application.application_id,
-                apm_event=APMEvent.APP_UPDATE,
-                data_sources=switch_on_data_sources,
-            )
 
 
 class ListApplicationResource(PageListResource):
@@ -1283,7 +1283,6 @@ class QueryExceptionEventResource(PageListResource):
 
 class MetaInstrumentGuides(Resource):
     class RequestSerializer(serializers.Serializer):
-
         application_id = serializers.IntegerField(label="应用id")
         service_name = serializers.CharField(label="服务名称")
         base_endpoint = serializers.URLField(label="接收端地址")
@@ -1336,7 +1335,6 @@ class MetaInstrumentGuides(Resource):
             return attrs
 
     def perform_request(self, validated_request_data):
-
         context: Dict[str, str] = {
             "ECOSYSTEM_REPOSITORY_URL": settings.ECOSYSTEM_REPOSITORY_URL,
             "ECOSYSTEM_CODE_ROOT_URL": settings.ECOSYSTEM_CODE_ROOT_URL,

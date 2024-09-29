@@ -63,7 +63,6 @@ from bkmonitor.iam.drf import (
     ViewBusinessPermission,
     insert_permission_field,
 )
-from core.drf_resource import api
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
@@ -72,7 +71,6 @@ class MetaInfoViewSet(ResourceViewSet):
         return [ViewBusinessPermission()]
 
     resource_routes = [
-        ResourceRoute("GET", api.apm_api.list_meta_es_cluster_info, endpoint="list_es_cluster_info"),
         ResourceRoute("GET", MetaConfigInfoResource, endpoint="meta_config_info"),
         ResourceRoute("POST", MetaInstrumentGuides, endpoint="meta_instrument_guides"),
         ResourceRoute("GET", PushUrlResource, endpoint="push_url"),
