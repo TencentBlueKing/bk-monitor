@@ -781,3 +781,9 @@ class TelemetryDataType(Enum):
     @classmethod
     def values(cls):
         return [i.value for i in cls]
+
+    @cached_property
+    def no_data_strategy_enabled(self):
+        return {
+            self.PROFILING.value: False,
+        }.get(self.value, True)
