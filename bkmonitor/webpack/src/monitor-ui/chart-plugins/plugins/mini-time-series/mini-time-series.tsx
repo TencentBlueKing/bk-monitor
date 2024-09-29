@@ -32,7 +32,6 @@ import { getValueFormat } from '../../../monitor-echarts/valueFormats/valueForma
 import { type MonitorEchartOptions, echarts } from '../../typings/index';
 
 import './mini-time-series.scss';
-
 enum EPointType {
   compare = 'compare',
   end = 'end',

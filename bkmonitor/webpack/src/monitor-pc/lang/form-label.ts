@@ -1884,4 +1884,9 @@ export default {
   请求量: 'Request volume',
   云产品: 'Cloud product',
   '关联 CMDB 服务': 'Associated CMDB service',
+  选择语言: 'Select language',
+  默认上报地址: 'Default reporting address',
+  上报示例: 'Reporting example',
+  详情接入指引: 'Detail access guide',
+  请输入服务名: 'Please enter the service name',
 };
