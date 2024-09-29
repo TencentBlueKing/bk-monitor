@@ -1285,7 +1285,8 @@ class QueryExceptionEventResource(PageListResource):
 class MetaInstrumentGuides(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
-        app_name = serializers.CharField(label="应用名称")
+        app_name = serializers.CharField(label="应用名称", required=False)
+        application_id = serializers.CharField(label="应用名称", required=False)
         base_endpoint = serializers.URLField(label="接收端地址")
 
         languages = serializers.ListSerializer(
@@ -1310,6 +1311,7 @@ class MetaInstrumentGuides(Resource):
         OTLP_EXPORTER_HTTP_PORT = 4318
 
         def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
+            attrs["app_name"] = attrs.get("app_name") or attrs.get("application_id")
             application_info: Dict[str, Any] = ApplicationInfoByAppNameResource().request(
                 {"app_name": attrs["app_name"], "bk_biz_id": attrs["bk_biz_id"]}
             )
