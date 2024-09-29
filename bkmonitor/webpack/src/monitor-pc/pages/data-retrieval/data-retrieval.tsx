@@ -447,12 +447,7 @@ export default class DataRetrieval extends tsc<object> {
   /** 指标监控对象数据 */
   get scenarioAllList() {
     const list = deepClone(this.scenarioList);
-    const res = list.reduce((total, cur) => {
-      if (Array.isArray(cur.children)) {
-        total.push(...cur.children);
-      }
-      return total;
-    }, []);
+    const res = list.reduce((total, cur) => (Array.isArray(cur.children) ? total.concat(cur.child) : total), []);
     return res;
   }
 
@@ -673,11 +668,8 @@ export default class DataRetrieval extends tsc<object> {
         const sortFavoriteList = res.slice(1, res.length - 1).sort((a, b) => a.name.localeCompare(b.name));
         const sortAfterList = [provideFavorite, ...sortFavoriteList, publicFavorite];
         this.favList[this.tabActive] = sortAfterList;
-        this.favStrList = res.reduce((pre, cur) => {
-          // 获取所有收藏的名字新增时判断是否重命名
-          pre.push(...cur.favorites.map(item => item.name));
-          return pre;
-        }, []);
+        // 获取所有收藏的名字新增时判断是否重命名
+        this.favStrList = res.reduce((pre, cur) => pre.concat(cur.favorites.map(item => item.name)), []);
         if (this.isHaveFavoriteInit) {
           // 判断是否是分享初始化
           const urlFavoriteID = this.$route.query.favorite_id;
