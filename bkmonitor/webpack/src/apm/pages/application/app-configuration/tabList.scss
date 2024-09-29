@@ -59,6 +59,15 @@
         }
       }
 
+      &.status-error {
+        @include hover();
+
+        .point {
+          background: #ffe6e6;
+          border: 1px solid #ea3636;
+        }
+      }
+
       &.status-normal {
         @include hover();
 
