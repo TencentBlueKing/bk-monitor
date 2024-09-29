@@ -812,6 +812,12 @@ class TelemetryDataType(Enum):
             {"id": cls.PROFILING.value, "name": _("性能分析")},
         ]
 
+    @cached_property
+    def no_data_strategy_enabled(self):
+        return {
+            self.PROFILING.value: False,
+        }.get(self.value, True)
+
 
 class FormatType:
     # 默认：补充协议 + url 路径

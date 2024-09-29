@@ -23,7 +23,7 @@ DEFAULT_DIMENSION_DATA_PERIOD = 5  # minute
 NODATA_ERROR_STRATEGY_CONFIG_KEY = "nodata_error_strategy_id"
 
 nodata_error_strategy_config_mapping = {
-    TelemetryDataType.TRACING.value: "nodata_error_strategy_id",
+    TelemetryDataType.TRACING.value: "nodata_error_tracing_strategy_id",
     TelemetryDataType.METRIC.value: "nodata_error_metric_strategy_id",
     TelemetryDataType.LOG.value: "nodata_error_log_strategy_id",
     TelemetryDataType.PROFILING.value: "nodata_error_profiling_strategy_id",

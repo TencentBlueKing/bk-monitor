@@ -122,11 +122,7 @@ from constants.apm import (
     TailSamplingSupportMethod,
     TelemetryDataType,
 )
-from constants.data_source import (
-    ApplicationsResultTableLabel,
-    DataSourceLabel,
-    DataTypeLabel,
-)
+from constants.data_source import ApplicationsResultTableLabel
 from constants.result_table import ResultTableField
 from core.drf_resource import Resource, api, resource
 from monitor.models import ApplicationConfig
@@ -1701,7 +1697,8 @@ class NoDataStrategyInfoResource(Resource):
             label="采集类型", choices=TelemetryDataType.values(), required=False, default=None
         )
 
-    def get_config_key(self, telemetry_data_type: str):
+    @classmethod
+    def get_config_key(cls, telemetry_data_type: str):
         return nodata_error_strategy_config_mapping.get(telemetry_data_type, NODATA_ERROR_STRATEGY_CONFIG_KEY)
 
     def get_strategy(self, bk_biz_id: int, app: Application, telemetry_data_type: str):
@@ -1745,18 +1742,20 @@ class NoDataStrategyInfoResource(Resource):
         """创建策略并返回ID"""
         # 获取告警组
         group_id = cls.get_notice_group(bk_biz_id, app, strategy_config)
-        result_table_id = app.fetch_datasource_info(
-            TelemetryDataType(telemetry_data_type).datasource_type, attr_name="result_table_id"
-        )
-        if not result_table_id:
-            raise ValueError(_("获取strategy result_table_id 失败"))
-        # 初始化策略配置
-        metric_id = f"custom.{result_table_id}.bk_apm_count"
+        strategy_config = telemetry_handler_registry(telemetry_data_type, app=app).get_no_data_strategy_config()
+
+        result_table_id = strategy_config["result_table_id"]
+        metric_id = strategy_config["metric_id"]
+        metric_field = strategy_config["metric_field"]
+        data_source_label = strategy_config["data_source_label"]
+        data_type_label = strategy_config["data_type_label"]
+        index_set_id = strategy_config.get("index_set_id", "")
+
         config = {
             "bk_biz_id": bk_biz_id,
             # 默认关闭
             "is_enabled": False,
-            "name": "BKAPM-{}-{}".format(_("无数据告警"), app.app_name),
+            "name": strategy_config["name"],
             "labels": ["BKAPM"],
             "scenario": ApplicationsResultTableLabel.application_check,
             "detects": [
@@ -1775,7 +1774,7 @@ class NoDataStrategyInfoResource(Resource):
             ],
             "items": [
                 {
-                    "name": "BK_APM_COUNT",
+                    "name": strategy_config["name"],
                     "no_data_config": {
                         "is_enabled": False,
                         "continuous": DEFAULT_NO_DATA_PERIOD,
@@ -1791,24 +1790,24 @@ class NoDataStrategyInfoResource(Resource):
                     ],
                     "query_configs": [
                         {
-                            "data_source_label": DataSourceLabel.CUSTOM,
-                            "data_type_label": DataTypeLabel.TIME_SERIES,
+                            "data_source_label": data_source_label,
+                            "data_type_label": data_type_label,
                             "alias": "a",
                             "result_table_id": f"{result_table_id}",
                             "agg_method": "SUM",
                             "agg_interval": 60,
                             "agg_dimension": [],
                             "agg_condition": [],
-                            "metric_field": "bk_apm_count",
+                            "metric_field": metric_field,
                             "unit": "ns",
                             "metric_id": metric_id,
-                            "index_set_id": "",
+                            "index_set_id": index_set_id,
                             "query_string": "*",
-                            "custom_event_name": "bk_apm_count",
+                            "custom_event_name": metric_field,
                             "functions": [],
                             "time_field": "time",
-                            "bkmonitor_strategy_id": "bk_apm_count",
-                            "alert_name": "bk_apm_count",
+                            "bkmonitor_strategy_id": metric_field,
+                            "alert_name": metric_field,
                         }
                     ],
                     "target": [],
@@ -1909,6 +1908,9 @@ class NoDataStrategyStatusResource(Resource):
         # 获取请求信息
         application_id = validated_request_data["application_id"]
         telemetry_data_type = validated_request_data["telemetry_data_type"]
+        # 不支持无数据告警
+        if not TelemetryDataType(telemetry_data_type).no_data_strategy_enabled:
+            return
         # 获取应用及配置信息
         try:
             app = Application.objects.get(application_id=application_id)
