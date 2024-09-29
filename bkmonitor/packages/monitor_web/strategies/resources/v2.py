@@ -56,12 +56,14 @@ from bkmonitor.strategy.new_strategy import (
 from bkmonitor.utils.request import get_source_app
 from bkmonitor.utils.time_format import duration_string, parse_duration
 from bkmonitor.utils.user import get_global_user
+from bkmonitor.utils.cache import CacheType
 from constants.alert import EventStatus
 from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.common import SourceApp
 from constants.data_source import DATA_CATEGORY, DataSourceLabel, DataTypeLabel
 from constants.strategy import SPLIT_DIMENSIONS, DataTarget, TargetFieldType
 from core.drf_resource import api, resource
+from core.drf_resource.contrib.cache import CacheResource
 from core.drf_resource.base import Resource
 from core.errors.bkmonitor.data_source import CmdbLevelValidateError
 from core.errors.strategy import StrategyNameExist
@@ -2327,14 +2329,28 @@ class GetPlainStrategyListV2Resource(Resource):
         }
 
 
-class GetTargetDetail(Resource):
-    """
-    获取监控目标详情
-    """
+class GetTargetDetailWithCache(CacheResource):
+    cache_type = CacheType.CC_CACHE_ALWAYS
+    backend_cache_type = CacheType.CC_CACHE_ALWAYS
+    cache_compress = False
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        strategy_ids = serializers.ListField(required=True, label="策略ID列表", child=serializers.IntegerField())
+        strategy_id = serializers.IntegerField(required=True, label="策略ID")
+
+    def perform_request(self, validate_data):
+        strategy_id = validate_data["strategy_id"]
+        bk_biz_id = self.strategy_target_mapping[strategy_id][0]
+        target = self.strategy_target_mapping[strategy_id][1]
+        return self.get_target_detail(bk_biz_id, target)
+
+    def set_mapping(self, mapping):
+        self.strategy_target_mapping = mapping
+
+    def cache_write_trigger(self, target_info):
+        """获取到监控目标信息不为None，则进行缓存"""
+        if target_info:
+            return True
+        return False
 
     @classmethod
     def get_target_detail(cls, bk_biz_id: int, target: List[List[Dict]]):
@@ -2446,6 +2462,16 @@ class GetTargetDetail(Resource):
             "target_detail": target_detail,
         }
 
+
+class GetTargetDetail(Resource):
+    """
+    获取监控目标详情
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        strategy_ids = serializers.ListField(required=True, label="策略ID列表", child=serializers.IntegerField())
+
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
         strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=params["strategy_ids"]).only(
@@ -2454,10 +2480,13 @@ class GetTargetDetail(Resource):
         strategy_ids = [strategy.id for strategy in strategies]
         items = ItemModel.objects.filter(strategy_id__in=strategy_ids)
 
+        get_target_detail_with_cache = GetTargetDetailWithCache()
+        get_target_detail_with_cache.set_mapping({item.strategy_id: (bk_biz_id, item.target) for item in items})
+
         empty_strategy_ids = []
         result = {}
         for item in items:
-            info = self.get_target_detail(bk_biz_id, item.target)
+            info = get_target_detail_with_cache.request({"strategy_id": item.strategy_id})
 
             if info:
                 result[item.strategy_id] = info

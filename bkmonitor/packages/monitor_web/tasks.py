@@ -46,7 +46,7 @@ from bkmonitor.dataflow.task.intelligent_detect import (
     MultivariateAnomalyIntelligentModelDetectTask,
     StrategyIntelligentModelDetectTask,
 )
-from bkmonitor.models import ActionConfig, AlgorithmModel
+from bkmonitor.models import ActionConfig, AlgorithmModel, StrategyModel, ItemModel
 from bkmonitor.models.external_iam import ExternalPermissionApplyRecord
 from bkmonitor.strategy.new_strategy import QueryConfig, get_metric_id
 from bkmonitor.strategy.serializers import MultivariateAnomalyDetectionSerializer
@@ -1317,3 +1317,20 @@ def task_postrun_handler(sender=None, headers=None, body=None, **kwargs):
     from bkmonitor.utils.local import local
 
     local.clear()
+
+
+@task(ignore_result=True)
+def update_target_detail():
+    """
+    对启用了缓存的业务ID，更新监控目标详情缓存
+    """
+    for bk_biz_id in settings.ENABLED_TARGET_CACHE_BK_BIZ_IDS:
+        strategy_ids = StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values_list("id", flat=True)
+        items = ItemModel.objects.filter(strategy_id__in=strategy_ids)
+        resource.strategies.get_target_detail_with_cache.set_mapping({item.strategy_id: (bk_biz_id, item.target)
+                                                                      for item in items})
+        for item in items:
+            try:
+                resource.strategies.get_target_detail_with_cache.request.refresh({"strategy_id": item.strategy_id})
+            except Exception as e:
+                logger.exception(f"Update targe detail cache failed for strategy id [{item.strategy_id}]: {e}")

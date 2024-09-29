@@ -371,6 +371,11 @@ CELERYBEAT_SCHEDULE = {
         "schedule": crontab(),
         "enabled": True,
     },
+    "monitor_web.tasks.update_target_detail": {
+        "task": "monitor_web.tasks.update_target_detail",
+        "schedule": crontab(minute="*/15"),
+        "enabled": True
+    },
 }
 
 *_, BROKER_URL = get_rabbitmq_settings(APP_CODE)
