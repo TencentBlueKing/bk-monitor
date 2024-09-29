@@ -61,33 +61,87 @@ export default class ServiceApply extends tsc<IProps> {
   reportUrl = '';
   reportLoading = false;
 
+  markdownMap = new Map<string, string>();
   markdownStr = '';
   markdownLoading = false;
 
   guideUrl = '';
+
+  get markdownParams() {
+    if (!this.appName || !this.reportUrl) return undefined;
+    const lang = this.languageList.find(item => item.checked)?.id;
+    if (!lang) return undefined;
+    const appId = this.appList.find(item => item.id === this.appName)?.app_id;
+    return {
+      application_id: appId || this.appName,
+      languages: [lang],
+      base_endpoint: this.reportUrl,
+    };
+  }
   created() {
+    this.markdownLoading = true;
     this.getAppList();
     this.getReportUrlList();
+    this.getLanguageData();
   }
 
   @Watch('defaultAppName', { immediate: true })
   handleAppNameChange(val: string) {
     if (val) {
       this.appName = val;
-      this.getLanguageData();
     }
   }
 
+  @Watch('markdownParams', { immediate: true })
+  @Debounce(500)
+  async fetchMarkdown() {
+    const params = this.markdownParams;
+    if (!params) {
+      this.markdownStr = '';
+      return;
+    }
+    const key = JSON.stringify(params || {});
+    if (this.markdownMap.has(JSON.stringify(params))) {
+      this.markdownStr = this.getMarkdownStr(key);
+      return;
+    }
+    this.markdownLoading = true;
+    const data = await metaInstrumentGuides({ ...params }).catch(() => false);
+    if (data?.length) {
+      this.markdownMap.set(key, data[0].content);
+      this.markdownStr = this.getMarkdownStr(key);
+    }
+    this.markdownLoading = false;
+  }
+
+  getMarkdownStr(markKey?: string) {
+    let key = markKey;
+    if (!markKey) {
+      key = JSON.stringify(this.markdownParams || {});
+    }
+    const rawMarkdownStr = this.markdownMap.get(key) || '';
+    return rawMarkdownStr.replace(/{{service_name}}/gim, this.formData.serviceName);
+  }
   /** 获取应用列表 */
   async getAppList() {
     this.appLoading = true;
     const data = await listApplication().catch(() => ({
       data: [],
     }));
-    this.appList = data.data.map(item => ({
-      id: item.app_name,
-      name: item.app_alias,
-    }));
+    let hasApp = false;
+    this.appList = data.data.map(item => {
+      if (item.app_name === this.appName) {
+        hasApp = true;
+      }
+      return {
+        id: item.app_name,
+        name: item.app_alias,
+        app_id: item.application_id,
+      };
+    });
+    if (!hasApp) {
+      this.appName = '';
+    }
     this.appLoading = false;
   }
 
@@ -132,21 +186,11 @@ export default class ServiceApply extends tsc<IProps> {
     this.reportUrl = this.reportUrlList[0]?.id || '';
     this.reportLoading = false;
   }
-  @Debounce(500)
-  async getMarkdownStr() {
-    this.markdownLoading = true;
-    const lang = this.languageList.find(item => item.checked)?.id;
-    const str = await metaInstrumentGuides({
-      application_id: this.appName,
-      languages: [lang],
-      service_name: this.formData.serviceName,
-    });
-    this.markdownLoading = false;
-  }
+
   @Debounce(300)
   handleServiceNameChange(v: string) {
     this.formData.serviceName = v?.trim();
-    this.getMarkdownStr();
+    this.markdownStr = this.getMarkdownStr();
   }
   handleLanguageChange(language: ICardItem, val: boolean) {
     if (language.checked && !val) {
@@ -157,7 +201,6 @@ export default class ServiceApply extends tsc<IProps> {
       checkLang.checked = false;
     }
     language.checked = val;
-    this.getMarkdownStr();
   }
   render() {
     const rowContent = (name: string, content, subTitle?) => (
@@ -196,6 +239,7 @@ export default class ServiceApply extends tsc<IProps> {
                     loading={this.appLoading}
                     searchable={true}
                     value={this.appName}
+                    onChange={this.handleAppNameChange}
                   >
                     {this.appList.map(item => {
                       return (
@@ -256,6 +300,9 @@ export default class ServiceApply extends tsc<IProps> {
                     loading={this.reportLoading}
                     searchable={true}
                     value={this.reportUrl}
+                    onChange={v => {
+                      this.reportUrl = v;
+                    }}
                   >
                     {this.reportUrlList.map(item => {
                       return (
@@ -276,7 +323,19 @@ export default class ServiceApply extends tsc<IProps> {
             {rowContent(
               this.$tc('上报示例'),
               <div class='view-main'>
-                {this.markdownStr ? (
+                {this.markdownLoading ? (
+                  <div class='markdown-skeleton'>
+                    {Array.of(35, 65, 55, 85, 75, 45).map(w => (
+                      <div
+                        key={w}
+                        style={{
+                          width: `${w}%`,
+                        }}
+                        class='skeleton-element markdown-skeleton-item'
+                      />
+                    ))}
+                  </div>
+                ) : this.markdownStr && this.formData.serviceName ? (
                   <MarkdownViewer
                     flowchartStyle={false}
                     value={this.markdownStr}
@@ -286,7 +345,7 @@ export default class ServiceApply extends tsc<IProps> {
                     scene='part'
                     type='empty'
                   >
-                    {this.$t('请输入服务名')}
+                    {this.$t('暂无数据')}
                   </bk-exception>
                 )}
               </div>,
