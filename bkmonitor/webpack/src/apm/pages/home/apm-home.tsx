@@ -208,16 +208,16 @@ export default class AppList extends tsc<object> {
       };
     });
     this.loading = false;
-    const defaultItem = item => {
+    const defaultItem = (item, ind: number) => {
       const firstCode = item.app_alias?.slice(0, 1) || '-';
       return {
         ...item,
-        firstCodeColor: charColor(firstCode),
+        firstCodeColor: charColor(ind),
         firstCode,
         loading: false,
       };
     };
-    this.appList = listData.data.map(item => defaultItem(item));
+    this.appList = listData.data.map((item, ind) => defaultItem(item, ind));
     // 路由同步查询关键字
     const routerParams = {
       name: this.$route.name,
@@ -429,6 +429,7 @@ export default class AppList extends tsc<object> {
                 data={this.conditionListFilter()}
                 modelValue={this.searchCondition}
                 placeholder={this.$t('应用名或ID')}
+                uniqueSelect={true}
                 onChange={this.handleSearchCondition}
               />
               <div
@@ -460,7 +461,10 @@ export default class AppList extends tsc<object> {
                     >
                       {item.firstCode}
                     </div>
-                    <div class='biz-name-01'>
+                    <div
+                      class='biz-name-01'
+                      v-bk-overflow-tips
+                    >
                       <span>{item.app_alias}</span>
                       <span>（{item.app_name}）</span>
                     </div>

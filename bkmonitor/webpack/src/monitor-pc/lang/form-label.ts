@@ -1889,6 +1889,8 @@ export default {
   上报示例: 'Reporting example',
   详情接入指引: 'Detail access guide',
   请输入服务名: 'Please enter the service name',
+  应用ID: 'Application ID',
+  数据上报: 'Data reporting',
   调用链: 'Call chain',
   数据上报: 'Data reporting',
   性能分析: 'Performance analysis',

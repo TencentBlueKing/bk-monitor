@@ -97,12 +97,10 @@ export const SEARCH_KEYS = [
   },
 ];
 
-export const charColor = (str: string) => {
-  const h = str.charCodeAt(0) % 360;
-  const s = '50%';
-  const l = '50%';
-  const color = `hsl(${h}, ${s}, ${l})`;
-  return color;
+export const CHAR_COLOR_LIST = ['#85CCA8', '#3E96C2', '#FFA66B', '#D2E6B8', '#61B2C2', '#F5876C', '#FFE294'];
+
+export const charColor = (index: number) => {
+  return CHAR_COLOR_LIST[index % CHAR_COLOR_LIST.length];
 };
 
 export const OPERATE_OPTIONS: IOperateOption[] = [

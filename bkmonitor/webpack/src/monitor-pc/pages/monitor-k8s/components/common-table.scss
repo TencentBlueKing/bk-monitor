@@ -116,7 +116,7 @@
         margin-right: 4px;
         white-space: nowrap;
         background: #fafbfd;
-        border: 1px solid rgba(151, 155, 165, .3);
+        border: 1px solid rgba(151, 155, 165, 0.3);
         border-radius: 2px;
       }
 
@@ -165,7 +165,7 @@
         color: white;
         background: #ff9c01;
         border-radius: 2px;
-        transform: scale(.8);
+        transform: scale(0.8);
       }
     }
 
@@ -578,6 +578,28 @@
     /* stylelint-disable-next-line declaration-no-important */
     border-top: 1px solid #dfe0e5 !important;
   }
+
+  .data_status_column {
+    &.icon-mc-check-small {
+      font-size: 24px;
+      color: #2dcb56;
+    }
+
+    &.icon-tixing {
+      padding-left: 5px;
+      font-size: 16px;
+      color: #ea3636;
+    }
+
+    &.icon-zhongzhi {
+      font-size: 14px;
+    }
+  }
+
+  .loading-svg {
+    width: 16px;
+    height: 16px;
+  }
 }
 
 .common-table-theme {
@@ -587,15 +609,4 @@
 // 阻止 进度条 超过 100% 时会溢出容器
 .bk-progress {
   overflow: hidden;
-}
-
-.icon-monitor.icon-mc-check-small {
-  font-size: 24px;
-  color: #2DCB56;
-}
-
-.icon-monitor.icon-tixing {
-  padding-left: 5px;
-  font-size: 16px;
-  color: #EA3636;
 }
