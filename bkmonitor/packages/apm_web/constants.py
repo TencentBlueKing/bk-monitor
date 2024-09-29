@@ -281,6 +281,20 @@ class DataStatus:
         }.get(key, {"type": Status.FAILED, "text": cls.get_label_by_key(key)})
 
 
+class StorageStatus:
+    NORMAL = "normal"
+    ERROR = "error"
+    DISABLED = "disabled"
+
+    @classmethod
+    def get_label_by_key(cls, key: str):
+        return {
+            cls.NORMAL: _("正常"),
+            cls.ERROR: _("异常"),
+            cls.DISABLED: _("未开启"),
+        }.get(key, key)
+
+
 class ServiceStatus(EventSeverity):
     NORMAL = 9999
 

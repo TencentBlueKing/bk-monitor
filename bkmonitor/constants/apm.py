@@ -3,7 +3,9 @@ from enum import Enum
 from typing import List
 
 from django.db.models import TextChoices
+from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import ugettext_lazy as _lazy
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -770,16 +772,16 @@ class TelemetryDataType(Enum):
     TRACING = "tracing"
     PROFILING = "profiling"
 
-    @property
+    @cached_property
     def alias(self):
         return {
-            self.METRIC.value: _("指标"),
-            self.LOG.value: _("日志"),
-            self.TRACING.value: _("调用链"),
-            self.PROFILING.value: _("性能分析"),
+            self.METRIC.value: _lazy("指标"),
+            self.LOG.value: _lazy("日志"),
+            self.TRACING.value: _lazy("调用链"),
+            self.PROFILING.value: _lazy("性能分析"),
         }.get(self.value, self.value)
 
-    @property
+    @cached_property
     def datasource_type(self):
         return {
             self.METRIC.value: "metric",
