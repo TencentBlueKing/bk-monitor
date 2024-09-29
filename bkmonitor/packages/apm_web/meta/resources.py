@@ -1346,6 +1346,7 @@ class MetaInstrumentGuides(Resource):
             "ECOSYSTEM_CODE_ROOT_URL": settings.ECOSYSTEM_CODE_ROOT_URL,
             "APM_ACCESS_URL": settings.APM_ACCESS_URL,
             "access_config": access_config,
+            "service_name": "{{service_name}}",
         }
 
         helper: Help = Help(context)
@@ -1531,7 +1532,7 @@ class PushUrlResource(Resource):
 
         return base_endpoint
 
-    def get_default_endpoints(self, proxy_infos: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _get_default_endpoints(self, proxy_infos: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         endpoints: List[Dict[str, Any]] = []
         for proxy_info, config in itertools.product(proxy_infos, self.PUSH_URL_CONFIGS):
             endpoints.append(
@@ -1543,7 +1544,7 @@ class PushUrlResource(Resource):
             )
         return endpoints
 
-    def get_simple_endpoints(self, proxy_infos: List[Dict[str, Any]]):
+    def _get_simple_endpoints(self, proxy_infos: List[Dict[str, Any]]):
         deplicate_keys: Set[str] = set()
         endpoints: List[Dict[str, Any]] = []
         for proxy_info in proxy_infos:
@@ -1563,7 +1564,7 @@ class PushUrlResource(Resource):
 
     def perform_request(self, validated_request_data):
         proxy_infos: List[Dict[str, Any]] = self.get_proxy_infos(validated_request_data["bk_biz_id"])
-        return {FormatType.DEFAULT: self.get_default_endpoints, FormatType.SIMPLE: self.get_simple_endpoints}[
+        return {FormatType.DEFAULT: self._get_default_endpoints, FormatType.SIMPLE: self._get_simple_endpoints}[
             validated_request_data["format_type"]
         ](proxy_infos)
 
