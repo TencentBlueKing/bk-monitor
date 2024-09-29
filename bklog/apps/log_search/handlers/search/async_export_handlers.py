@@ -85,8 +85,10 @@ class AsyncExportHandlers(object):
     def async_export(self):
         # 判断fields是否支持
         fields = self._pre_check_fields()
+        # 获取排序字段
+        sorted_list = self.search_handler._get_user_sorted_list(fields["async_export_fields"])
         # 判断result是否符合要求
-        result = self.search_handler.pre_get_result(sorted_fields=fields["async_export_fields"], size=ASYNC_COUNT_SIZE)
+        result = self.search_handler.pre_get_result(sorted_fields=sorted_list, size=ASYNC_COUNT_SIZE)
         # 判断是否成功
         if result["_shards"]["total"] != result["_shards"]["successful"]:
             logger.error("can not create async_export task, reason: {}".format(result["_shards"]["failures"]))
@@ -115,7 +117,7 @@ class AsyncExportHandlers(object):
 
         async_export.delay(
             search_handler=self.search_handler,
-            sorted_fields=fields["async_export_fields"],
+            sorted_fields=sorted_list,
             async_task_id=async_task.id,
             url_path=url,
             search_url_path=search_url,
