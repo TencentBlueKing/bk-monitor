@@ -39,6 +39,7 @@ from bkmonitor.models.metric_list_cache import MetricListCache
 from bkmonitor.utils import get_metric_category
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.k8s_metric import get_built_in_k8s_metrics
+from common.context_processors import Platform
 from constants.alert import IGNORED_TAGS, EventTargetType
 from constants.apm import ApmMetrics
 from constants.data_source import (
@@ -1170,6 +1171,9 @@ class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
     def get_metrics_by_table(self, table):
         result_table_label = "os"
         metric_list = BaseAlarm.objects.filter(is_enable=True)
+        if Platform.te:
+            # te平台不展示ping不可达告警， 同时也不内置
+            metric_list = metric_list.exclude(title="ping-gse")
         base_dict = {
             "bk_biz_id": 0,
             "result_table_id": SYSTEM_EVENT_RT_TABLE_ID,

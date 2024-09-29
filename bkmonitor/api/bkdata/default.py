@@ -1280,7 +1280,7 @@ class GetStorageMetricsDataCount(BkDataAPIGWResource):
     method = "GET"
 
     class RequestSerializer(CommonRequestSerializer):
-        data_set_ids = serializers.IntegerField(required=True, label="数据源ID")
+        data_set_ids = serializers.ListField(required=True, label="数据源ID")
         storages = serializers.ListField(required=True, label="数据源存储类型")
         start_time = serializers.CharField(required=True, label="开始时间(时间戳)")
         end_time = serializers.CharField(required=True, label="结束时间(时间戳)")

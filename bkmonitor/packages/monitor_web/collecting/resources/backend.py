@@ -1097,6 +1097,7 @@ class UpgradeCollectPluginResource(Resource):
             collect_config = CollectConfigMeta.objects.select_related("plugin", "deployment_config").get(
                 pk=data["id"], bk_biz_id=data["bk_biz_id"]
             )
+            SaveCollectConfigResource.update_password_inplace(data, collect_config)
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": data["id"]})
 

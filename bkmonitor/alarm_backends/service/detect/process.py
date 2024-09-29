@@ -108,6 +108,7 @@ class DetectProcess(BaseAbnormalPushProcessor):
 
     def push_data(self):
         current_time = time.time()
+        max_latency = 0
         for data_points in self.outputs.values():
             for data_point in data_points:
                 if not data_point["data"].get("access_time"):
@@ -116,9 +117,32 @@ class DetectProcess(BaseAbnormalPushProcessor):
                 latency = current_time - data_point["data"]["access_time"]
                 # SLI(detect) - 记录当前处理时间，用于 SLI 统计各模块间处理延迟场景
                 data_point["data"]["detect_time"] = current_time
-                if latency > 0:
-                    metrics.DETECT_PROCESS_LATENCY.labels(strategy_id=metrics.TOTAL_TAG).observe(latency)
+                if latency > max_latency:
+                    max_latency = latency
+
+        # 检测延迟指标，按处理频率进行上报， 不再以数据量频率进行上报
+        metrics.DETECT_PROCESS_LATENCY.labels(strategy_id=metrics.TOTAL_TAG).observe(max_latency)
+        if max_latency > 60:
+            logger.warning(
+                "[access to detect]big latency %s,  strategy(%s)",
+                max_latency,
+                self.strategy_id,
+            )
+            metrics.PROCESS_BIG_LATENCY.labels(
+                strategy_id=self.strategy_id,
+                module="access_detect",
+                bk_biz_id=self.strategy.bk_biz_id,
+                strategy_name=self.strategy.name,
+            ).observe(max_latency)
         anomaly_count = self.push_abnormal_data(self.outputs, self.strategy_id)
+        if anomaly_count > 1000:
+            # 记录异常数据量较大的策略信息
+            metrics.PROCESS_OVER_FLOW.labels(
+                module="detect",
+                strategy_id=self.strategy_id,
+                bk_biz_id=self.strategy.bk_biz_id,
+                strategy_name=self.strategy.name,
+            ).inc(anomaly_count)
         if any(self.inputs.values()):
             logger.info("[detect] strategy({}) 异常检测完成: 异常记录数({})".format(self.strategy_id, anomaly_count))
             metrics.DETECT_PROCESS_DATA_COUNT.labels(strategy_id=metrics.TOTAL_TAG, type="push").inc(anomaly_count)
