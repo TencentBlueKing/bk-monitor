@@ -1,4 +1,4 @@
-@import "../../theme";
+@import '../../theme';
 
 .editable-form-item {
   min-width: 400px;
@@ -10,10 +10,12 @@
     0% {
       transform: rotate(0deg);
     }
+
     100% {
       transform: rotate(360deg);
     }
   }
+
   .loading {
     display: inline-block;
     width: 14px;
@@ -24,89 +26,112 @@
     border-radius: 50%;
     animation: btn-loading 1s linear infinite;
   }
+
   .form-item-label {
     width: 48px;
     margin-right: 24px;
+    line-height: 20px;
     color: #979ba5;
     text-align: right;
-    line-height: 20px;
     white-space: nowrap;
+
     .tooltip-text {
       border-bottom: 1px dashed #979ba5;
     }
   }
+
   .form-item-value {
+    flex: 1;
+    width: 0;
     color: #313238;
 
     @include flex-align;
   }
+
   .unit {
     margin-left: 4px;
     color: #979ba5;
   }
+
   .edit-item {
     width: 160px;
   }
+
   .value-tool {
     margin-left: 4px;
+
     span {
-      color: #979ba5;
       font-size: 18px;
+      color: #979ba5;
       cursor: pointer;
     }
+
     .icon-check-line {
       margin: 0 6px 0 10px;
       color: #2dcb56;
     }
+
     .icon-check-line2 {
       color: #c4c6cc;
     }
   }
+
   .bk-tag {
     margin: 2px 6px 2px 0;
   }
+
   .loading {
     margin-left: 10px;
   }
+
   .verify-item-is-error {
-    input[type=text],
+    input[type='text'],
     .bk-select {
-      border-color: #ff5656;
       box-sizing: border-box;
+      border-color: #ff5656;
     }
   }
+
   .mask-content {
     .view-btn {
       margin-left: 8px;
       color: #3a84ff;
       cursor: pointer;
     }
+
     &.btn-loading {
       color: #c4c6cc;
       cursor: not-allowed;
+
       .view-btn {
         color: #c4c6cc;
       }
     }
   }
+
   .password-content {
     @include flex-align;
+
     .toggle-icon {
       margin-left: 8px;
       cursor: pointer;
     }
+
     .copy-icon {
-      font-size: 16px;
       margin-left: 8px;
+      font-size: 16px;
       cursor: pointer;
+
       &:hover {
         color: #3a84ff;
       }
     }
+
     .password-value {
       padding-top: 6px;
     }
   }
+
   .select-content {
     display: flex;
   }

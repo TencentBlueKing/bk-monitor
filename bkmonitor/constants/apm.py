@@ -3,7 +3,9 @@ from enum import Enum
 from typing import List
 
 from django.db.models import TextChoices
+from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import ugettext_lazy as _lazy
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -782,13 +784,13 @@ class TelemetryDataType(Enum):
     @property
     def alias(self):
         return {
-            self.METRIC.value: _("指标"),
-            self.LOG.value: _("日志"),
-            self.TRACING.value: _("调用链"),
-            self.PROFILING.value: _("性能分析"),
+            self.METRIC.value: _lazy("指标"),
+            self.LOG.value: _lazy("日志"),
+            self.TRACING.value: _lazy("调用链"),
+            self.PROFILING.value: _lazy("性能分析"),
         }.get(self.value, self.value)
 
-    @property
+    @cached_property
     def datasource_type(self):
         return {
             self.METRIC.value: "metric",
@@ -809,3 +811,14 @@ class TelemetryDataType(Enum):
             {"id": cls.TRACING.value, "name": _("调用链")},
             {"id": cls.PROFILING.value, "name": _("性能分析")},
         ]
+
+
+class FormatType:
+    # 默认：补充协议 + url 路径
+    DEFAULT = "default"
+    # simple：仅返回域名
+    SIMPLE = "simple"
+
+    @classmethod
+    def choices(cls):
+        return [(cls.DEFAULT, cls.DEFAULT), (cls.SIMPLE, cls.SIMPLE)]

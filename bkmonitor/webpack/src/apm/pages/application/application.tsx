@@ -259,7 +259,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
 
   /** 获取应用信息 */
   async handleGetAppInfo() {
-    let queryTimeRange;
+    let queryTimeRange: [number, number];
     const { from, to } = this.$route.query;
     if (from && to) {
       const timeRanges = [from, to];
@@ -279,7 +279,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
 
     if (data) {
       this.appInfo = data;
-      this.viewHasNoData = this.appInfo.data_status === 'no_data';
+      this.viewHasNoData = this.appInfo.trace_data_status === 'no_data';
       this.isReady = true;
     }
   }

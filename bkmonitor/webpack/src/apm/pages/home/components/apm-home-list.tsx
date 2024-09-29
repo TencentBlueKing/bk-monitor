@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop, Emit } from 'vue-property-decorator';
+import { Component, Ref, Prop, Emit, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { serviceList, serviceListAsync } from 'monitor-api/modules/apm_metric';
@@ -47,11 +47,13 @@ interface IProps {
   appData: PartialAppListItem;
   showGuidePage?: boolean;
   timeRange?: TimeRangeType;
+  isRefreshService?: boolean;
 }
 
 interface IEvent {
   onHandleToConfig?: (row: PartialAppListItem) => void;
   onLinkToOverview?: (row: PartialAppListItem) => void;
+  onHandleConfig?: (id: string, row: PartialAppListItem) => void;
 }
 
 interface TableConfigData {
@@ -65,6 +67,7 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
   @Prop() appData: PartialAppListItem;
   @Prop({ default: false, type: Boolean }) showGuidePage: boolean;
   @Prop() timeRange: TimeRangeType;
+  @Prop({ default: false, type: Boolean }) isRefreshService: boolean;
   @Ref() mainResize: any;
 
   /** 搜索关键词 */
@@ -120,6 +123,14 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
   handleEmit(...args: any[]) {
     this.$emit.apply(this, args);
     return args[0];
+  }
+
+  @Watch('isRefreshService')
+  isRefreshServiceChange(newItems) {
+    if (newItems) {
+      this.leftFilter.isShowSkeleton = true;
+      this.loading = true;
+    }
   }
 
   created() {
@@ -201,10 +212,15 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
   }
 
   createServiceRequest(item, startTime, endTime) {
-    const transformedArray = this.leftFilter.checkedData?.map(({ id, values }) => ({
-      key: id,
-      value: values.map(({ id }) => id),
-    }));
+    const transformedArray = this.leftFilter.checkedData
+      ?.map(({ id, values }) => {
+        const valueIds = values.map(({ id }) => id);
+        return {
+          key: id,
+          value: valueIds,
+        };
+      })
+      .filter(({ value }) => value.length > 0);
     const { tableSortKey, tableFilters, tableData } = this.tableConfigData;
     const { current, limit } = tableData.pagination;
     return {
@@ -241,23 +257,20 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
     tableData.data = data;
     tableData.columns = columns;
     tableData.pagination.count = total;
-    const updatedCategories = filter.map(category => {
-      return {
-        ...category,
-        data: category.fields,
-      };
-    });
-    this.leftFilter.filterList = updatedCategories;
+    this.leftFilter.filterList = filter;
   }
 
   loadAsyncData(item, data, columns, startTime, endTime) {
     const fields = (columns || []).filter(col => col.asyncable).map(val => val.id);
     const services = (data || []).map(d => d.service_name.value);
-
+    const valueTitleList = this.tableConfigData.tableData.columns.map(item => ({
+      id: item.id,
+      name: item.name,
+    }));
     for (const field of fields) {
       serviceListAsync(this.createAsyncRequest(item, field, services, startTime, endTime))
         .then(serviceData => {
-          this.mapAsyncData(serviceData, field);
+          this.mapAsyncData(serviceData, field, valueTitleList);
         })
         .finally(() => {
           this.updateColumnAsyncAbleState(field);
@@ -276,18 +289,25 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
     };
   }
 
-  mapAsyncData(serviceData, field) {
+  mapAsyncData(serviceData, field, valueTitleList) {
     const dataMap = {};
     if (serviceData) {
       for (const serviceItem of serviceData) {
         if (serviceItem.service_name) {
+          if (['request_count', 'error_rate', 'avg_duration'].includes(field)) {
+            const operationItem = valueTitleList.find(item => item.id === field);
+            serviceItem[field].valueTitle = operationItem?.name || null;
+            if (field === 'request_count') {
+              serviceItem[field].unitDecimal = 0;
+            }
+          }
           dataMap[String(serviceItem.service_name)] = serviceItem[field];
         }
       }
     }
     this.tableConfigData.tableData.data = this.tableConfigData.tableData.data.map(d => ({
       ...d,
-      [field]: d[field] || dataMap[String(d.service_name.value || '')] || null,
+      [field]: dataMap[String(d.service_name.value || '')] || null,
     }));
   }
 
@@ -403,12 +423,13 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
           <div class='header-right'>
             <bk-button
               class='mr-8'
+              theme='primary'
               onClick={(event: Event) => {
                 event.stopPropagation();
                 this.handleEmit('linkToOverview', this.appData);
               }}
             >
-              {this.$t('应用详情')}
+              {this.$t('查看应用')}
             </bk-button>
             <bk-button
               onClick={(event: Event) => {
@@ -473,6 +494,10 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
                       class={[{ 'ml-16': !this.showFilterPanel }]}
                       theme='primary'
                       outline
+                      onClick={(event: Event) => {
+                        event.stopPropagation();
+                        this.handleEmit('handleConfig', 'accessService', this.appData);
+                      }}
                     >
                       <span class='app-add-btn'>
                         <i class='icon-monitor icon-mc-add app-add-icon' />

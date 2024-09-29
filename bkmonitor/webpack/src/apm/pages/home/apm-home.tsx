@@ -99,13 +99,14 @@ export default class AppList extends tsc<object> {
   refreshInstance = null;
 
   appData: PartialAppListItem = {};
-  hasSelected = false;
 
   showFilterPanel = true;
 
   isShowAppAdd = false;
 
   searchCondition = [];
+
+  isRefreshService = false;
 
   get alarmToolsPanel() {
     const data = {
@@ -163,9 +164,8 @@ export default class AppList extends tsc<object> {
 
   @Watch('appList')
   changeAppList(newItems) {
-    if (newItems.length > 0 && !this.hasSelected) {
+    if (newItems.length > 0) {
       this.handleAppClick(this.appList[0]);
-      this.hasSelected = true;
     }
   }
 
@@ -245,6 +245,7 @@ export default class AppList extends tsc<object> {
    */
   handleImmediateRefresh() {
     this.getAppList();
+    this.isRefreshService = true;
   }
 
   /**
@@ -256,6 +257,7 @@ export default class AppList extends tsc<object> {
     if (val > 0) {
       this.refreshInstance = setInterval(() => {
         this.getAppList();
+        this.isRefreshService = true;
       }, val);
     }
   }
@@ -500,7 +502,9 @@ export default class AppList extends tsc<object> {
             <AppHomeList
               ref='apmHomeListRef'
               appData={this.appData}
+              isRefreshService={this.isRefreshService}
               timeRange={this.timeRange}
+              onHandleConfig={this.handleConfig}
               onHandleToConfig={this.handleToConfig}
               onLinkToOverview={this.linkToOverview}
             />

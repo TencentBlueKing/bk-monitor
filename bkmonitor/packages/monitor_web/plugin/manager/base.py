@@ -28,7 +28,7 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.template import engines
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext
 
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.serializers import MetricJsonSerializer
@@ -321,7 +321,7 @@ class BasePluginManager:
 
         return version, need_debug
 
-    def update_version(self, data):
+    def update_version(self, data, target_config_version: int = None, target_info_version: int = None):
         """
         更新插件版本
         """
@@ -329,7 +329,7 @@ class BasePluginManager:
         current_version = self.plugin.current_version
         if not data.get("is_support_remote", False):
             if current_version.is_release and current_version.config.is_support_remote:
-                raise RemoteCollectError({"msg": _("已开启远程采集的插件无法关闭远程采集")})
+                raise RemoteCollectError({"msg": gettext("已开启远程采集的插件无法关闭远程采集")})
 
         config = current_version.config
         info = current_version.info
@@ -351,6 +351,12 @@ class BasePluginManager:
 
         if old_config_md5 != new_config_md5 and current_version.is_release:
             current_config_version += 1
+
+        # 如果有指定的目标版本，则强制设置
+        if target_config_version:
+            current_config_version = target_config_version
+        if target_info_version:
+            current_info_version = target_info_version
 
         if old_config_md5 == new_config_md5:
             if current_version.is_release:
@@ -434,7 +440,7 @@ class PluginManager(BasePluginManager):
 
         self.tmp_path: str = os.path.join(settings.MEDIA_ROOT, "plugin", str(uuid4())) if not tmp_path else tmp_path
         self.filename_list = []
-        for dir_path, dirname, filename_list in os.walk(self.tmp_path):
+        for dir_path, _, filename_list in os.walk(self.tmp_path):
             for filename in filename_list:
                 self.filename_list.append(os.path.join(dir_path, filename))
 
@@ -534,7 +540,7 @@ class PluginManager(BasePluginManager):
                 dimension_name.add(dimension["dimension_name"])
         intersection = set(metric_name) & set(dimension_name)
         if metric_name & dimension_name:
-            raise PluginError({"msg": _("指标维度存在重名,{}".format(intersection))})
+            raise PluginError({"msg": gettext("指标维度存在重名,{}".format(intersection))})
 
     @staticmethod
     def _get_error_message(message):
@@ -665,7 +671,7 @@ class PluginManager(BasePluginManager):
 
     def _tar_gz_file(self, filename_list):
         t = tarfile.open(os.path.join(self.tmp_path, self.plugin.plugin_id + ".tgz"), "w:gz")
-        for root, dirs, files in os.walk(filename_list):
+        for root, _, files in os.walk(filename_list):
             for filename in files:
                 full_path = os.path.join(root, filename)
                 file_save_path = full_path.replace(os.path.join(self.tmp_path, self.plugin.plugin_id), "")
@@ -707,7 +713,7 @@ class PluginManager(BasePluginManager):
             with open(filename, "rb") as f:
                 file_content = f.read()
         except IOError:
-            raise PluginParseError({"msg": _("%s文件读取失败") % filename})
+            raise PluginParseError({"msg": gettext("%s文件读取失败") % filename})
 
         try:
             file_content = file_content.decode("utf-8")
@@ -724,7 +730,7 @@ class PluginManager(BasePluginManager):
                 break
 
         if not read_filename_list:
-            raise PluginParseError({"msg": _("不存在info文件夹，无法解析插件包")})
+            raise PluginParseError({"msg": gettext("不存在info文件夹，无法解析插件包")})
 
         plugin_params = {}
         for file_instance in read_filename_list:
@@ -1038,7 +1044,7 @@ class PluginManager(BasePluginManager):
         # 判断是否有可导出的release版本
         release_version = self.plugin.release_version
         if not release_version:
-            raise ExportPluginError({"msg": _("该插件没有release版本可导出")})
+            raise ExportPluginError({"msg": gettext("该插件没有release版本可导出")})
 
         param = {
             "category": "gse_plugin",

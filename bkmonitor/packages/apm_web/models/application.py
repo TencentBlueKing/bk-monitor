@@ -46,7 +46,7 @@ from bkmonitor.utils.model_manager import AbstractRecordModel
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.time_tools import get_datetime_range
 from common.log import logger
-from constants.apm import OtlpKey, SpanKindKey
+from constants.apm import OtlpKey, SpanKindKey, TelemetryDataType
 from core.drf_resource import api, resource
 
 tracer = trace.get_tracer(__name__)
@@ -302,41 +302,39 @@ class Application(AbstractRecordModel):
         return RequestCountInstance(self, start_time, end_time).query_instance()
 
     def set_data_status(self):
+        from apm_web.handlers.backend_data_handler import telemetry_handler_registry
+
         start_time, end_time = get_datetime_range("minute", self.no_data_period)
         start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
         # NOTICE: data_status / profile_data_status 目前暂无接口用到只在指标中使用考虑指标处换成实时查询
 
-        # Step1: 查询 Trace 数据状态
-        count = RequestCountInstance(self, start_time, end_time).query_instance()
-        if count:
-            logger.info(
-                f"[Application] set_data_status ->  "
-                f"bk_biz_id: {self.bk_biz_id} app: {self.app_name} have data in {self.no_data_period} period"
-            )
+        for data_type in TelemetryDataType:
+            # 未定义的telemetry类型数据状态
+            if not getattr(self, f"{data_type.datasource_type}_data_status", False):
+                continue
 
-            self.data_status = DataStatus.NORMAL
-        else:
-            self.data_status = DataStatus.NO_DATA
-
-        # Step2: 查询 profile 数据状态
-        from apm_web.profile.doris.querier import QueryTemplate
-
-        try:
-            profile_has_data = QueryTemplate(self.bk_biz_id, self.app_name).exist_data(
-                start_time * 1000, end_time * 1000
-            )
-            if profile_has_data:
-                logger.info(
-                    f"[Application] set_profile_data_status ->  "
-                    f"bk_biz_id: {self.bk_biz_id} app: {self.app_name} have data in {self.no_data_period} period"
-                )
-                self.profiling_data_status = DataStatus.NORMAL
+            # 未打开开关，无需检查
+            if not getattr(self, f"is_enabled_{data_type.datasource_type}", False):
+                data_status = DataStatus.DISABLED
             else:
-                self.profiling_data_status = DataStatus.NO_DATA
-        except ValueError as e:
-            logger.warning(f"[Application] set profiling data_status failed: {e}")
-            self.profiling_data_status = DataStatus.NO_DATA
+                try:
+                    count = telemetry_handler_registry(data_type.value, app=self).get_data_count(start_time, end_time)
+                    if count:
+                        logger.info(
+                            f"[Application] set_data_status ->  "
+                            f"bk_biz_id: {self.bk_biz_id} app: {self.app_name} | {data_type.value} "
+                            f"have data in {self.no_data_period} period"
+                        )
 
+                        data_status = DataStatus.NORMAL
+                    else:
+                        data_status = DataStatus.NO_DATA
+                except ValueError as e:
+                    logger.warning(
+                        f"[Application] set app: {self.app_name} | {data_type.value} data_status failed: {e}"
+                    )
+                    data_status = DataStatus.NO_DATA
+            setattr(self, f"{data_type.datasource_type}_data_status", data_status)
         self.save()
 
     @property

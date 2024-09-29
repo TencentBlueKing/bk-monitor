@@ -32,6 +32,7 @@
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { concatMonitorDocsUrl, DOCS_LINK_MAP } from 'monitor-common/utils/docs';
 import { copyText, transformDataKey } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 
@@ -257,10 +258,10 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
       alert: this.$t('关联告警：可以基于告警事件/策略进行与或等，判断是否要再进行告警或者进行告警处理等。'),
     };
     this.metricUrlMap = {
-      time_series: '监控平台/产品白皮书/alarm-configurations/rules.md',
-      event: '监控平台/产品白皮书/alarm-configurations/events_monitor.md',
-      log: '监控平台/产品白皮书/alarm-configurations/log_monitor.md',
-      alert: '监控平台/产品白皮书/alarm-configurations/composite_monitor.md',
+      time_series: DOCS_LINK_MAP.Monitor.time_series,
+      event: DOCS_LINK_MAP.Monitor.event,
+      log: DOCS_LINK_MAP.Monitor.log,
+      alert: DOCS_LINK_MAP.Monitor.alert,
     };
     this.targetList = this.defaultCheckedTarget?.target_detail || [];
     // 初始化时监控目标显示
@@ -531,9 +532,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
             {this.metricInfoMap[this.metricData?.[0]?.data_type_label || 'time_series']}
             <a
               class='info-url'
-              href={`${window.bk_docs_site_url}markdown/${
-                this.metricUrlMap[this.metricData?.[0]?.data_type_label || 'time_series']
-              }`}
+              href={concatMonitorDocsUrl(this.metricUrlMap[this.metricData?.[0]?.data_type_label || 'time_series'])}
               target='blank'
             >
               {this.$t('查看更多文档')}

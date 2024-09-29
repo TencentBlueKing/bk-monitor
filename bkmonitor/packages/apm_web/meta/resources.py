@@ -16,7 +16,7 @@ import operator
 import re
 from collections import defaultdict
 from dataclasses import asdict
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Set, Union
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -48,11 +48,13 @@ from apm_web.constants import (
     SamplerTypeChoices,
     SceneEventKey,
     ServiceRelationLogTypeChoices,
+    StorageStatus,
     TopoNodeKind,
     nodata_error_strategy_config_mapping,
 )
 from apm_web.db.db_utils import build_filter_params, get_service_from_params
 from apm_web.handlers.application_handler import ApplicationHandler
+from apm_web.handlers.backend_data_handler import telemetry_handler_registry
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.db_handler import DbComponentHandler
 from apm_web.handlers.endpoint_handler import EndpointHandler
@@ -60,7 +62,6 @@ from apm_web.handlers.instance_handler import InstanceHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.handlers.span_handler import SpanHandler
 from apm_web.icon import get_icon
-from apm_web.meta.handlers.backend_data_handler import telemetry_handler_registry
 from apm_web.meta.handlers.custom_service_handler import Matcher
 from apm_web.meta.handlers.sampling_handler import SamplingHelpers
 from apm_web.meta.plugin.help import Help
@@ -112,8 +113,8 @@ from bkmonitor.utils.user import get_global_user, get_request_username
 from common.log import logger
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE, EventSeverity
 from constants.apm import (
-    DataSamplingLogTypeChoices,
     FlowType,
+    FormatType,
     OtlpKey,
     OtlpProtocol,
     SpanStandardField,
@@ -1284,7 +1285,6 @@ class QueryExceptionEventResource(PageListResource):
 class MetaInstrumentGuides(Resource):
     class RequestSerializer(serializers.Serializer):
         application_id = serializers.IntegerField(label="应用id")
-        service_name = serializers.CharField(label="服务名称")
         base_endpoint = serializers.URLField(label="接收端地址")
 
         languages = serializers.ListSerializer(
@@ -1335,13 +1335,19 @@ class MetaInstrumentGuides(Resource):
             return attrs
 
     def perform_request(self, validated_request_data):
+        access_config = validated_request_data["access_config"]
+        for field in ["enable_metrics", "enable_logs", "enable_traces"]:
+            access_config["otlp"][field] = str(access_config["otlp"][field]).lower()
+        access_config["profiling"]["enabled"] = str(access_config["profiling"]["enabled"]).lower()
+
         context: Dict[str, str] = {
             "ECOSYSTEM_REPOSITORY_URL": settings.ECOSYSTEM_REPOSITORY_URL,
             "ECOSYSTEM_CODE_ROOT_URL": settings.ECOSYSTEM_CODE_ROOT_URL,
             "APM_ACCESS_URL": settings.APM_ACCESS_URL,
-            "service_name": validated_request_data["service_name"],
-            "access_config": validated_request_data["access_config"],
+            "access_config": access_config,
+            "service_name": "{{service_name}}",
         }
+
         helper: Help = Help(context)
 
         guides: List[Dict[str, Any]] = []
@@ -1432,12 +1438,7 @@ class MetaConfigInfoResource(Resource):
 
         return {
             "deployments": [asdict(d) for d in DeploymentEnum.get_values()],
-            "languages": [
-                asdict(value)
-                for value in LanguageEnum.get_values()
-                if value.id
-                in [LanguageEnum.PYTHON.id, LanguageEnum.CPP.id, LanguageEnum.GOLANG.id, LanguageEnum.JAVA.id]
-            ],
+            "languages": [asdict(value) for value in LanguageEnum.get_values()],
             "plugins": plugins,
             # "help_md": {plugin.id: Help(plugin.id).get_help_md() for plugin in [Opentelemetry]},
             "setup": self.setup(validated_request_data["bk_biz_id"]),
@@ -1476,6 +1477,12 @@ class IndicesInfoResource(Resource):
 class PushUrlResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
+        format_type = serializers.ChoiceField(
+            label="返回格式",
+            required=False,
+            default=FormatType.DEFAULT,
+            choices=FormatType.choices(),
+        )
 
     class ResponseSerializer(serializers.Serializer):
         push_url = serializers.CharField(label="push_url")
@@ -1485,18 +1492,19 @@ class PushUrlResource(Resource):
     many_response_data = True
 
     PUSH_URL_CONFIGS = [
-        {"tags": ["grpc", "opentelemetry"], "port": "4317", "url": ""},
-        {"tags": ["http", "opentelemetry"], "port": "4318", "url": "/v1/traces"},
+        {"tags": ["grpc", "opentelemetry"], "port": "4317", "path": ""},
+        {"tags": ["http", "opentelemetry"], "port": "4318", "path": "/v1/traces"},
     ]
 
-    def get_proxy_info(self, bk_biz_id):
-        proxy_host_info = []
+    @classmethod
+    def get_proxy_infos(cls, bk_biz_id):
+        proxy_host_infos = []
         try:
             proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
             for host in proxy_hosts:
                 bk_cloud_id = int(host["bk_cloud_id"])
                 ip = host.get("conn_ip") or host.get("inner_ip")
-                proxy_host_info.append({"ip": ip, "bk_cloud_id": bk_cloud_id})
+                proxy_host_infos.append({"ip": ip, "bk_cloud_id": bk_cloud_id})
         except Exception as e:
             logger.exception(e)
 
@@ -1504,24 +1512,60 @@ class PushUrlResource(Resource):
         if settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN:
             default_cloud_display = settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN
         for proxy_ip in default_cloud_display:
-            proxy_host_info.insert(0, {"ip": proxy_ip, "bk_cloud_id": 0})
-        return proxy_host_info
+            proxy_host_infos.insert(0, {"ip": proxy_ip, "bk_cloud_id": 0})
+        return proxy_host_infos
 
-    def perform_request(self, validated_request_data):
-        proxy_host_info = self.get_proxy_info(validated_request_data["bk_biz_id"])
-        push_urls = []
-        for proxy_host, config in itertools.product(proxy_host_info, self.PUSH_URL_CONFIGS):
-            ip = proxy_host["ip"]
-            if is_v6(ip):
-                ip = f"[{ip}]"
-            push_urls.append(
+    @classmethod
+    def generate_endpoint(cls, ip: str, port: Optional[Union[int, str]] = None, path: Optional[str] = None) -> str:
+        if is_v6(ip):
+            ip = f"[{ip}]"
+
+        base_endpoint: str = f"http://{ip}"
+        if port:
+            base_endpoint = f"{base_endpoint}:{port}"
+
+        if path:
+            if not path.startswith("/"):
+                path = f"/{path}"
+            return f"{base_endpoint}{path}"
+
+        return base_endpoint
+
+    def _get_default_endpoints(self, proxy_infos: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        endpoints: List[Dict[str, Any]] = []
+        for proxy_info, config in itertools.product(proxy_infos, self.PUSH_URL_CONFIGS):
+            endpoints.append(
                 {
-                    "push_url": f"http://{ip}:{config['port']}{config['url']}",
+                    "push_url": self.generate_endpoint(proxy_info["ip"], config["port"], config["path"]),
                     "tags": config["tags"],
-                    "bk_cloud_id": proxy_host["bk_cloud_id"],
+                    "bk_cloud_id": proxy_info["bk_cloud_id"],
                 }
             )
-        return push_urls
+        return endpoints
+
+    def _get_simple_endpoints(self, proxy_infos: List[Dict[str, Any]]):
+        deplicate_keys: Set[str] = set()
+        endpoints: List[Dict[str, Any]] = []
+        for proxy_info in proxy_infos:
+            deplicate_key: str = f"{proxy_info['bk_cloud_id']}-{proxy_info['ip']}"
+            if deplicate_key in deplicate_keys:
+                continue
+            deplicate_keys.add(deplicate_key)
+
+            endpoints.append(
+                {
+                    "push_url": self.generate_endpoint(proxy_info["ip"]),
+                    "tags": [PluginEnum.OPENTELEMETRY.id],
+                    "bk_cloud_id": proxy_info["bk_cloud_id"],
+                }
+            )
+        return endpoints
+
+    def perform_request(self, validated_request_data):
+        proxy_infos: List[Dict[str, Any]] = self.get_proxy_infos(validated_request_data["bk_biz_id"])
+        return {FormatType.DEFAULT: self._get_default_endpoints, FormatType.SIMPLE: self._get_simple_endpoints}[
+            validated_request_data["format_type"]
+        ](proxy_infos)
 
 
 class QueryBkDataToken(Resource):
@@ -1547,6 +1591,29 @@ class DataViewConfigResource(Resource):
         return data_view_config
 
 
+class DataHistogramResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        application_id = serializers.IntegerField(label="应用id")
+        telemetry_data_type = serializers.ChoiceField(label="采集类型", choices=TelemetryDataType.values())
+        start_time = serializers.IntegerField(label="开始时间")
+        end_time = serializers.IntegerField(label="结束时间")
+        data_view_config = serializers.JSONField(label="数据视图查询配置")
+
+    def perform_request(self, validated_request_data):
+        try:
+            app = Application.objects.get(application_id=validated_request_data["application_id"])
+            telemetry_data_type = validated_request_data["telemetry_data_type"]
+            start_time = validated_request_data["start_time"]
+            end_time = validated_request_data["end_time"]
+            data_view_config = validated_request_data["data_view_config"]
+            view_data = telemetry_handler_registry(telemetry_data_type, app=app).get_data_histogram(
+                start_time=start_time, end_time=end_time, **data_view_config
+            )
+        except Application.DoesNotExist:
+            raise ValueError(_("应用不存在"))
+        return view_data
+
+
 class DataSamplingResource(Resource):
     class RequestSerializer(serializers.Serializer):
         application_id = serializers.IntegerField(label="应用id")
@@ -1554,10 +1621,6 @@ class DataSamplingResource(Resource):
             label="采集类型", choices=TelemetryDataType.values(), default=TelemetryDataType.TRACING.name
         )
         size = serializers.IntegerField(required=False, label="拉取条数", default=10)
-        log_type = serializers.ChoiceField(
-            label="日志类型",
-            choices=DataSamplingLogTypeChoices.choices(),
-        )
 
     @classmethod
     def combine_data(cls, telemetry_data_type: str, app: Application, **kwargs):
@@ -1571,10 +1634,9 @@ class DataSamplingResource(Resource):
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
         # 获取数据
-        log_type = validated_request_data["log_type"]
         size = validated_request_data["size"]
         telemetry_data_type = validated_request_data["telemetry_data_type"]
-        return self.combine_data(telemetry_data_type, app, log_type=log_type, size=size)
+        return self.combine_data(telemetry_data_type, app, size=size)
 
 
 class StorageInfoResource(Resource):
@@ -1607,6 +1669,29 @@ class StorageFieldInfoResource(Resource):
             raise ValueError(_("应用不存在"))
         resp = telemetry_handler_registry(telemetry_data_type, app=app).storage_field_info()
         return resp
+
+
+class StorageStatusResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        application_id = serializers.IntegerField(label="应用id")
+
+    def perform_request(self, validated_request_data):
+        # 获取应用
+        try:
+            app = Application.objects.get(application_id=validated_request_data["application_id"])
+            status_mapping = {}
+            for data_type in TelemetryDataType:
+                if not getattr(app, f"is_enabled_{data_type.datasource_type}"):
+                    status_mapping[data_type.value] = StorageStatus.DISABLED
+                    continue
+                status_mapping[data_type.value] = (
+                    StorageStatus.NORMAL
+                    if telemetry_handler_registry(data_type.value, app=app).storage_status
+                    else StorageStatus.ERROR
+                )
+        except Application.DoesNotExist:
+            raise ValueError(_("应用不存在"))
+        return status_mapping
 
 
 class NoDataStrategyInfoResource(Resource):

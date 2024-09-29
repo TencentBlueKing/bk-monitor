@@ -32,7 +32,7 @@
           v-show="show"
         >
           <div style="flex-grow: 1">
-            <span>{{ $t('已勾选{count}个', { count: Math.floor(collectList.length) }) }} </span>
+            <span>{{ $t('已勾选{count}个', { count: collectList.length }) }} </span>
             <span
               class="view-collection-btn"
               @click="handleCollectionAll"
@@ -48,6 +48,7 @@
             >
               {{ $t('route-数据探索') }}</span>
             <span
+              v-if="collectList.length > 1"
               :class="['view-collection-btn', isEn ? 'mr24' : 'mr5']"
               @click="gotoViewDetail"
             >{{ $t('对比') }}</span>

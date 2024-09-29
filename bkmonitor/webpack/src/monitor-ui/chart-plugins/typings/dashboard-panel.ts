@@ -225,6 +225,8 @@ export class DataQuery implements IDataQuery {
   ignore_group_by?: string[];
   isMultiple?: boolean;
   options?: DataQueryOptions;
+  // 主键参数
+  primary_key?: string;
   yAxisIndex?: number;
   constructor(model: IDataQuery, isMultiple = false) {
     this.isMultiple = isMultiple;

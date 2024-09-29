@@ -1271,19 +1271,27 @@ class GetIncidentTopoByEntity(DataAccessAPIResource):
         snapshot_id = serializers.CharField(required=True, label="图谱快照ID")
 
 
-class GetDataManageMetricsDataCount(BkDataAPIGWResource):
+class GetStorageMetricsDataCount(BkDataAPIGWResource):
     """
     获取数据源数据
     """
 
-    action = "/v3/datamanage/dmonitor/metrics/rawdata_count/"
+    action = "/v3/datamanage/dmonitor/metrics/output_count/"
     method = "GET"
 
     class RequestSerializer(CommonRequestSerializer):
-        data_set_ids = serializers.IntegerField(required=True, label="数据源ID")
+        data_set_ids = serializers.ListField(required=True, label="数据源ID")
+        storages = serializers.ListField(required=True, label="数据源存储类型")
         start_time = serializers.CharField(required=True, label="开始时间(时间戳)")
         end_time = serializers.CharField(required=True, label="结束时间(时间戳)")
-        time_grain = serializers.CharField(required=False, label="1d 则是按照天查询")
+        time_grain = serializers.CharField(required=False, label="1d 则是按照天查询", default="1d")
+
+        def validate(self, attrs):
+            if not str(attrs["start_time"]).endswith("s"):
+                attrs["start_time"] = str(attrs["start_time"]) + "s"
+            if not str(attrs["end_time"]).endswith("s"):
+                attrs["end_time"] = str(attrs["end_time"]) + "s"
+            return attrs
 
 
 class GetDataBusSamplingData(BkDataAPIGWResource):
@@ -1298,7 +1306,7 @@ class GetDataBusSamplingData(BkDataAPIGWResource):
         data_id = serializers.IntegerField(required=True, label="数据源ID")
 
 
-class GetDataBusStoragesInfo(BkDataAPIGWResource):
+class GetRawDataStoragesInfo(BkDataAPIGWResource):
     """
     获取存储信息
     """

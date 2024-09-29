@@ -1,19 +1,12 @@
 # 服务快速接入指引（C++）
 
-本指南通过一个示例项目，介绍如何将 Traces、Metrics、Logs、Profiling 四类遥测数据接入蓝鲸应用性能监控。
-
-入门项目功能齐全且可在开发环境运行，可以通过该项目快速接入并体验蓝鲸应用性能监控相关功能。
+{{QUICK_START_OVERVIEW}}
 
 ## 1. 前置准备
 
 ### 1.1 术语介绍
 
-* Traces：[调用链](https://opentelemetry.io/docs/concepts/signals/traces/)，表示请求在应用程序的执行路径。
-* Metrics：[指标](https://opentelemetry.io/docs/concepts/signals/metrics/)，表示对运行服务的测量。
-* Logs: [日志](https://opentelemetry.io/docs/concepts/signals/logs/)，表示对事件的记录。
-* Telemetry Data：遥测数据，指代 Traces、Metrics、Logs、Profiling 等。
-* APM：蓝鲸观测平台应用性能监控，提供四类遥测数据开箱即用的观测能力。
-* [bk-collector](https://github.com/TencentBlueKing/bkmonitor-datalink/tree/master/pkg/collector)：腾讯蓝鲸的 APM 服务端组件，负责接收 Prometheus、OpenTelemetry、Jaeger、Skywalking 等主流开源组件的遥测数据，并对数据进行清洗转发到观测平台链路。
+{{TERM_INTRO}}
 
 ### 1.2 开发环境要求
 
@@ -29,11 +22,39 @@ cd examples/cpp-examples/helloworld
 docker build -t cpp-helloworld .
 ```
 
-## 2. 快速接入
 
-### 2.1 Traces、Metrics、Logs
+## 2. 快速体验
 
-#### 2.1.1
+### 2.1 运行样例
+
+#### 2.1.1 运行
+
+🌟 运行参数基于应用信息生成，请确保在您的应用也使用相同的上报地址和 Token。
+
+```shell
+docker run -e TOKEN="{{access_config.token}}" \
+-e SERVICE_NAME="{{service_name}}" \
+-e OTLP_ENDPOINT="{{access_config.otlp.endpoint}}" \
+-e ENABLE_TRACES="{{access_config.otlp.enable_traces}}" \
+-e ENABLE_METRICS="{{access_config.otlp.enable_metrics}}" \
+-e ENABLE_LOGS="{{access_config.otlp.enable_logs}}" cpp-helloworld:latest -p 8080:8080
+```
+
+访问 👉 [http://localhost:8080/helloworld](http://localhost:8080/helloworld)。
+
+#### 2.1.2 运行参数说明
+
+{{DEMO_RUN_PARAMETERS}}
+
+### 2.2 查看数据
+
+等待片刻，便可在「服务详情」看到应用数据。
+
+## 3. 快速接入
+
+### 3.1 Traces、Metrics、Logs
+
+#### 3.1.1 接入
 
 OpenTelemetry 提供标准化的框架和工具包，用于创建和管理 Traces、Metrics、Logs 数据。
 
@@ -68,7 +89,41 @@ int main() {
 }
 ```
 
-#### 2.1.2 使用场景
+#### 3.1.2 关键配置
+
+{{MUST_CONFIG_RESOURCES}}
+
+示例项目在 [include/otlp/meter_common.h]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/include/otlp/resource_common.h) 提供了创建样例：
+
+```cpp
+resource_sdk::Resource CreateResource(const Config &config) {
+    // 使用 SDK 默认属性
+    auto defaultResource = resource_sdk::Resource::GetDefault();
+    auto resourceAttributes = resource_sdk::ResourceAttributes{
+            //❗️❗【非常重要】请传入应用 Token 
+            {"bk.data.token",                                 config.Token},
+            //❗️❗【非常重要】应用服务唯一标识
+            {resource_sdk::SemanticConventions::kServiceName, config.ServiceName},
+            ...
+    };
+    return defaultResource.Merge(resource_sdk::Resource::Create(resourceAttributes));
+}
+```
+
+{{MUST_CONFIG_EXPORTER}}
+
+示例项目在 [include/otlp/tracer_common.h]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/include/otlp/tracer_common.h) 提供了创建样例：
+
+```cpp
+void initTracer(const Config &config, const resource_sdk::Resource &resource) {
+    otel_exporter::OtlpGrpcExporterOptions otlpOptions;
+    //❗️❗【非常重要】数据上报地址，请根据页面指引提供的接入地址进行填写
+    otlpOptions.endpoint = config.OtlpEndpoint;
+    auto exporter = otel_exporter::OtlpGrpcExporterFactory::Create(otlpOptions);
+    ...
+```
+
+#### 3.1.3 使用场景
 
 示例项目整理常见的使用场景，集中在：
 
@@ -113,30 +168,14 @@ Handler::handleHelloWorld(const std::shared_ptr<HttpRequestHandler::IncomingRequ
 }
 ```
 
-可以参考代码进行使用：[src/server.cpp]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/src/server.cpp)。
+对于 OpenTelemetry SDK API 的使用，在文档 [C++（OpenTelemetry SDK）接入]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/README.md) 提供了更详细的说明。
 
-### 2.2 构建
+同时可以参考代码进行使用：[src/server.cpp]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/src/server.cpp)。
+
+### 3.2 构建
 
 引入 OpenTelemetry C++ SDK 需要重新编译项目，示例项目提供 Dockerfile 以供参考：[Dockerfile]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/Dockerfile)。
 
-## 3. 快速体验
-
-### 3.1 运行样例
-
-```shell
-docker run -e TOKEN="{{access_config.token}}" \
--e SERVICE_NAME="{{service_name}}" \
--e OTLP_ENDPOINT="{{access_config.otlp.endpoint}}" \
--e ENABLE_TRACES="{{access_config.otlp.enable_traces}}" \
--e ENABLE_METRICS="{{access_config.otlp.enable_metrics}}" \
--e ENABLE_LOGS="{{access_config.otlp.enable_logs}}" cpp-helloworld:latest -p 8080:8080
-```
-
-访问 👉 [http://localhost:8080/helloworld](http://localhost:8080/helloworld)。
-
-### 3.2 查看数据
-
-等待片刻，便可在「服务详情」看到应用数据。
 
 ## 4. 了解更多
 
