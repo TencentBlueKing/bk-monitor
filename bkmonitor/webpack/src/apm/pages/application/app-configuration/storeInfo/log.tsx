@@ -53,10 +53,11 @@ export default class Log extends tsc<IProps> {
   // 存储信息
   @Prop({ type: Object, default: () => ({}) }) storageInfo: ILogStorageInfo;
   @Prop({ type: String, default: '' }) telemetryDataType: ETelemetryDataType;
+
   healthMaps = {
-    green: this.$t('健康'),
-    yellow: this.$t('部分异常'),
-    red: this.$t('异常'),
+    green: window.i18n.tc('健康'),
+    yellow: window.i18n.tc('部分异常'),
+    red: window.i18n.tc('异常'),
   };
 
   @Emit('change')
@@ -67,7 +68,7 @@ export default class Log extends tsc<IProps> {
   async handleUpdateValue(value, field: string) {
     try {
       // 更新基本信息
-      const datasourceConfig = Object.assign({}, { [field]: Number(value) });
+      const datasourceConfig = Object.assign(this.storageInfo, { [field]: Number(value) });
 
       const params = {
         application_id: this.appInfo.application_id,

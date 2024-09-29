@@ -37,8 +37,14 @@ import {
   noDataStrategyInfo,
 } from 'monitor-api/modules/apm_meta';
 import { copyText } from 'monitor-common/utils/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
-import { ApdexChart } from 'monitor-ui/chart-plugins/plugins/apdex-chart/apdex-chart';
+import BarAlarmChart from 'monitor-ui/chart-plugins/plugins/apm-relation-graph/components/bar-alarm-chart';
+// import { ApdexChart } from 'monitor-ui/chart-plugins/plugins/apdex-chart/apdex-chart';
+import {
+  alarmBarChartDataTransform,
+  EDataType,
+} from 'monitor-ui/chart-plugins/plugins/apm-relation-graph/components/utils';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import PanelItem from '../../../../components/panel-item/panel-item';
@@ -59,13 +65,9 @@ export default class DataStatusMetric extends tsc<IProps> {
   @Prop({ default: '', type: String }) activeTab: ETelemetryDataType;
   @Prop({ type: Object, default: () => ({}) }) appInfo: IAppInfo;
 
-  pickerTimeRange: string[] = [
-    dayjs(new Date()).add(-1, 'd').format('YYYY-MM-DD'),
-    dayjs(new Date()).format('YYYY-MM-DD'),
-  ];
   strategyLoading = false;
   tableLoading = false;
-  apdexChartPanel: PanelModel;
+  // apdexChartPanel: PanelModel;
   /** 日志上报侧栏配置 */
   sideslider = { show: false, log: null };
   /** 无数据告警信息 */
@@ -82,6 +84,8 @@ export default class DataStatusMetric extends tsc<IProps> {
   samplingList = []; // 采样数据
   collapseRowIndexs: number[] = []; // 采样数据记录展开收起的行
   healthMaps = { 1: this.$t('健康'), 2: this.$t('有告警') };
+
+  getAlarmData = null;
 
   // 时间间隔
   @InjectReactive('timeRange') timeRange: TimeRangeType;
@@ -127,18 +131,43 @@ export default class DataStatusMetric extends tsc<IProps> {
    */
   async getNoDataStrategyInfo() {
     this.strategyLoading = true;
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const params = {
       application_id: this.appInfo.application_id,
-      start_time: Date.parse(this.pickerTimeRange[0]) / 1000,
-      end_time: Date.parse(this.pickerTimeRange[1]) / 1000,
+      start_time: startTime,
+      end_time: endTime,
       telemetry_data_type: this.activeTab,
     };
     const data = await noDataStrategyInfo(params).catch(() => {});
     Object.assign(this.strategyInfo, data);
     if (this.strategyInfo.alert_graph) {
-      this.apdexChartPanel = new PanelModel(this.strategyInfo.alert_graph);
+      /* 告警柱状图数据 */
+      this.getAlarmData = async setData => {
+        const apiFn = (api: string) => {
+          return {
+            apiModule: api?.split('.')[0] || '',
+            apiFunc: api?.split('.')[1] || '',
+          };
+        };
+        const target = this.strategyInfo.alert_graph.targets[0];
+        const apiItem = apiFn(target.api);
+        const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+        const data = await (this as any).$api[apiItem.apiModule]
+          [apiItem.apiFunc]({
+            app_name: target.data.app_name,
+            strategy_id: target.data.strategy_id,
+            start_time: startTime,
+            end_time: endTime,
+            telemetry_data_type: this.activeTab,
+          })
+          .catch(() => ({ series: [] }));
+        const result = alarmBarChartDataTransform(EDataType.Alert, data.series);
+        setData(result);
+      };
+      // this.apdexChartPanel = new PanelModel(this.strategyInfo.alert_graph);
     } else {
-      this.apdexChartPanel = null;
+      this.getAlarmData = null;
+      // this.apdexChartPanel = null;
     }
     this.strategyLoading = false;
   }
@@ -313,42 +342,61 @@ export default class DataStatusMetric extends tsc<IProps> {
           v-bkloading={{ isLoading: this.strategyLoading }}
         >
           <div class='content-card'>
-            <div class='msg-item'>
-              <span
-                class='tip-label'
-                v-bk-tooltips={{ content: this.$t('当没有收到任何数据可以进行告警通知。'), allowHTML: false }}
-              >
-                {this.$t('无数据告警')}
-              </span>
-              <bk-switcher
-                pre-check={() => this.preCheckChange(this.strategyInfo.is_enabled)}
-                size='small'
-                theme='primary'
-                value={this.strategyInfo.is_enabled}
-              />
-            </div>
-            <div class='msg-item'>
-              <span class='label'>{this.$t('告警历史')} : </span>
-              <div class='apdex-chart-box'>
-                {this.apdexChartPanel && (
-                  <ApdexChart
-                    panel={this.apdexChartPanel}
-                    showChartHeader={false}
-                    split-number={2}
-                  />
-                )}
+            <div class='content-card-left'>
+              <div class='msg-item'>
+                <span
+                  class='tip-label'
+                  v-bk-tooltips={{ content: this.$t('当没有收到任何数据可以进行告警通知。'), allowHTML: false }}
+                >
+                  {this.$t('无数据告警')}
+                </span>
+                <bk-switcher
+                  pre-check={() => this.preCheckChange(this.strategyInfo.is_enabled)}
+                  size='small'
+                  theme='primary'
+                  value={this.strategyInfo.is_enabled}
+                />
               </div>
             </div>
-            <div class='card-tool'>
+            <div class='content-card-right'>
+              <div class='msg-item'>
+                <span class='label'>{this.$t('告警历史')} : </span>
+                <div class='apdex-chart-box'>
+                  {this.getAlarmData ? (
+                    <BarAlarmChart
+                      activeItemHeight={20}
+                      dataType={EDataType.Alert}
+                      enableSelect={false}
+                      getData={this.getAlarmData}
+                      isAdaption={true}
+                      itemHeight={14}
+                      showHeader={true}
+                      showXAxis={true}
+                      showXAxisNum={2}
+                    />
+                  ) : (
+                    <span>{this.$t('暂无数据')}</span>
+                  )}
+                  {/* {this.apdexChartPanel ? (
+                    <ApdexChart
+                      panel={this.apdexChartPanel}
+                      showChartHeader={false}
+                      split-number={2}
+                    />
+                  ) : (
+                    <span>{this.$t('暂无数据')}</span>
+                  )} */}
+                </div>
+              </div>
               <span
-                class='tool-btn'
+                class='link-btn ml-12'
                 onClick={() => this.handlePageChange('event')}
               >
                 {this.$t('更多')}
                 <span class='icon-monitor icon-fenxiang' />
               </span>
               <span
-                class='tool-btn'
+                class='link-btn ml-32'
                 onClick={() => this.handlePageChange('edit')}
               >
                 {this.$t('编辑告警策略')}

@@ -148,6 +148,7 @@ export default class MiniTimeSeries extends tsc<IProps> {
   destroyed() {
     (this as any).instance?.dispose?.();
     (this as any).instance = null;
+    this.resizeObserver?.unobserve?.(this.$el);
     this.isMouseOver = false;
   }
 
