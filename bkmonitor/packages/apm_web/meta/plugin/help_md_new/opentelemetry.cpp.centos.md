@@ -37,14 +37,15 @@ docker run -e TOKEN="{{access_config.token}}" \
 -e OTLP_ENDPOINT="{{access_config.otlp.endpoint}}" \
 -e ENABLE_TRACES="{{access_config.otlp.enable_traces}}" \
 -e ENABLE_METRICS="{{access_config.otlp.enable_metrics}}" \
--e ENABLE_LOGS="{{access_config.otlp.enable_logs}}" cpp-helloworld:latest -p 8080:8080
+-e ENABLE_LOGS="{{access_config.otlp.enable_logs}}" \
+cpp-helloworld:latest -p 8080:8080
 ```
 
 访问 👉 [http://localhost:8080/helloworld](http://localhost:8080/helloworld)。
 
 #### 2.1.2 运行参数说明
 
-{{DEMO_RUN_PARAMETERS}}
+{{QUICK_START_RUN_PARAMETERS}}
 
 ### 2.2 查看数据
 
