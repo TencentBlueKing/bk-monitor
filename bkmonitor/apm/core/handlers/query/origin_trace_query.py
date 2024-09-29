@@ -58,13 +58,6 @@ class OriginTraceQuery(BaseQuery):
                 _trace_ids.append(_trace_id)
             page_data["data"] = _trace_ids
 
-        # TODO(crayon) 先注释，上线确认完全没有问题后删除代码
-        # def _fill_total():
-        #     _q: QueryConfigBuilder = q.metric(field=OtlpKey.TRACE_ID, method="distinct", alias="total")
-        #     page_data["total"] = queryset.add_query(_q)[0]["total"]
-
-        # run_threads([InheritParentThread(target=_fill_total), InheritParentThread(target=_fill_data)])
-
         _fill_data()
 
         pool = ThreadPool()

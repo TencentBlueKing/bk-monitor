@@ -614,13 +614,23 @@ class GetVariableValue(Resource):
         """
         查询维度
         """
-        # 兼容grafana旧数据
+        # 1、如果指标与待查询维度相同，则返回空
+        if params["metric_field"] == params["field"]:
+            return []
+
+        # 2、支持多维度字段值的查询，如果没传维度则返回空
+        fields = [field for field in params["field"].split("|") if field]
+        if not fields:
+            return []
+
+        # 3、做以下兼容情况
+        # 3.1 兼容grafana旧数据
         if not params["data_type_label"]:
             params["data_type_label"] = "time_series"
         if params["data_source_label"] == "log":
             params["data_source_label"] = "bk_log_search"
 
-        # 兼容没有传入data_source_label及data_type_label的情况
+        # 3.2 兼容没有传入data_source_label及data_type_label的情况
         if "data_source_label" in params and "data_type_label" in params:
             data_source_label = params["data_source_label"]
             data_type_label = params["data_type_label"]
@@ -638,33 +648,11 @@ class GetVariableValue(Resource):
                 data_source_label = DataSourceLabel.BK_MONITOR_COLLECTOR
                 data_type_label = DataTypeLabel.TIME_SERIES
 
-        # 兼容日志关键字查询
+        # 3.3 兼容日志关键字查询
         if data_source_label == DataSourceLabel.BK_LOG_SEARCH and data_type_label == DataTypeLabel.LOG:
             params["metric_field"] = "_index"
 
-        params = self.metric_filed_translate(params)
-
-        # 事件型特殊处理
-        if params["result_table_id"] == SYSTEM_EVENT_RT_TABLE_ID:
-            # 特殊处理corefile signal的维度可选值
-            if params["metric_field"] == "corefile-gse" and params["field"] == "signal":
-                return [{"value": item, "label": item} for item in CORE_FILE_SIGNAL_LIST]
-            elif params["metric_field"] in EVENT_QUERY_CONFIG_MAP:
-                params.update(EVENT_QUERY_CONFIG_MAP[params["metric_field"]])
-                data_type_label = DataTypeLabel.TIME_SERIES
-            else:
-                return []
-
-        # 如果指标与待查询维度相同，则返回空
-        if params["metric_field"] == params["field"]:
-            return []
-
-        # 支持多维度值查询
-        fields = [field for field in params["field"].split("|") if field]
-        if not fields:
-            return []
-
-        # 日志平台使用index_set_id查询
+        # 3.4 日志平台使用index_set_id查询
         index_set_id = None
         if data_source_label == DataSourceLabel.BK_LOG_SEARCH:
             if params.get("index_set_id"):
@@ -679,12 +667,27 @@ class GetVariableValue(Resource):
                 if metric:
                     index_set_id = metric.extend_fields.get("index_set_id")
 
-        # 如果是要查询"拓扑节点名称(bk_inst_id)"，则需要把"拓扑节点类型(bk_obj_id)"一并带上
+        # 3.5 http拨测，响应码和响应消息指标转换处理
+        params = self.metric_filed_translate(params)
+
+        # 3.6 事件型特殊处理
+        if params["result_table_id"] == SYSTEM_EVENT_RT_TABLE_ID:
+            # 特殊处理corefile signal的维度可选值
+            if params["metric_field"] == "corefile-gse" and params["field"] == "signal":
+                return [{"value": item, "label": item} for item in CORE_FILE_SIGNAL_LIST]
+            elif params["metric_field"] in EVENT_QUERY_CONFIG_MAP:
+                params.update(EVENT_QUERY_CONFIG_MAP[params["metric_field"]])
+                data_type_label = DataTypeLabel.TIME_SERIES
+            else:
+                return []
+
+        # 3.7 如果是要查询"拓扑节点名称(bk_inst_id)"，则需要把"拓扑节点类型(bk_obj_id)"一并带上
         if "bk_inst_id" in fields:
             # 确保bk_obj_id在bk_inst_id之前，为后面的dimensions翻译做准备
             fields = [f for f in fields if f != "bk_obj_id"]
             fields.insert(0, "bk_obj_id")
 
+        # 4、获取查询起止时间和时间间隔，支持传入参数，也支持不传参数，没传参数时，基于当前时间作为结束时间来获取起止时间和时间间隔
         timestamp = int(time.time() // 60 * 60)
         start_time = params.get("start_time", timestamp - 30 * 60)
         end_time = params.get("end_time", timestamp)
@@ -700,13 +703,17 @@ class GetVariableValue(Resource):
             else:
                 interval = 24 * 60 * 60
         end_time += interval
-        # 增加cookies过滤
+
+        # 5、提取cookies中的符合规则的字段作为过滤条件
         cookies_filter = get_cookies_filter()
         if cookies_filter:
             if "filter_dict" not in params:
                 params["filter_dict"] = {}
             params["filter_dict"]["cookies"] = cookies_filter
 
+        # 6、查询维度的值，通过调用对应data_source的query_dimensions方法查询
+        # 其中，CustomTimeSeriesDataSource和BkMonitorTimeSeriesDataSource是
+        # 调用InfluxdbDimensionFetcher.query_dimensions查询维度的值
         data_source_class = load_data_source(data_source_label, data_type_label)
         data_source = data_source_class(
             bk_biz_id=bk_biz_id,
@@ -728,8 +735,10 @@ class GetVariableValue(Resource):
             interval=interval,
         )
 
+        # 7、对维度的返回字段进行组装，使得其支持多字段查询
         dimensions = self.assemble_dimensions(fields, records)
 
+        # 8、对维度值进行翻译并返回
         return self.dimension_translate(bk_biz_id, params, list(dimensions))
 
     def query_promql(self, bk_biz_id, params):

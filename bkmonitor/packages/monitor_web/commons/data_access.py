@@ -15,7 +15,6 @@ from typing import Dict
 from django.conf import settings
 from django.utils.encoding import force_str
 from django.utils.translation import ugettext as _
-from six.moves import map
 
 from bkmonitor.utils.common_utils import safe_int
 from core.drf_resource import api
@@ -151,7 +150,9 @@ class DataAccessor(object):
     申请数据链路资源
     """
 
-    def __init__(self, bk_biz_id, db_name, tables, etl_config, operator, type_label, source_label, label):
+    def __init__(
+        self, bk_biz_id, db_name, tables, etl_config, operator, type_label, source_label, label, data_label: str = None
+    ):
         """
         :param bk_biz_id: 业务ID
         :param db_name: 数据库名
@@ -161,6 +162,7 @@ class DataAccessor(object):
         """
         self.bk_biz_id = bk_biz_id
         self.db_name = db_name.lower()
+        self.data_label = data_label.lower() if data_label else self.db_name
         self.tables = tables
         self.operator = operator
         self.etl_config = etl_config
@@ -298,7 +300,7 @@ class DataAccessor(object):
                 "schema_type": "free",
                 "default_storage": "influxdb",
                 "label": self.label,
-                "data_label": self.db_name,
+                "data_label": self.data_label,
             }
             for table_id in contrast_result[operation]:
                 external_storage = {"kafka": {"expired_time": 1800000}}
@@ -394,7 +396,7 @@ class DataAccessor(object):
 
 
 class PluginDataAccessor(DataAccessor):
-    def __init__(self, plugin_version, operator):
+    def __init__(self, plugin_version, operator: str, data_label: str = None):
         def get_field_instance(field):
             # 将field字典转化为ResultTableField对象
             return ResultTableField(
@@ -454,6 +456,7 @@ class PluginDataAccessor(DataAccessor):
             type_label="time_series",
             source_label="bk_monitor",
             label=plugin_version.plugin.label,
+            data_label=data_label,
         )
 
     def merge_dimensions(self, tag_list: list):
@@ -551,7 +554,7 @@ class PluginDataAccessor(DataAccessor):
                 "table_id": f"{self.db_name}.__default__",
                 "is_split_measurement": is_split_measurement,
                 "metric_info_list": metric_info_list,
-                "data_label": self.db_name,
+                "data_label": self.data_label,
             }
             # 插件数据在这里需要去掉业务id
             # 单指标单表，不需要补齐schema: "enable_default_value": False,

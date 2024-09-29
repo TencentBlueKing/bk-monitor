@@ -36,6 +36,7 @@ import {
   toRefs,
   watch,
   KeepAlive,
+  onUnmounted,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
@@ -45,8 +46,10 @@ import { Checkbox, Dialog, Loading, Popover, Radio, Table } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/index';
 import { listOptionValues, spanDetail, traceDetail } from 'monitor-api/modules/apm_trace';
 import { random } from 'monitor-common/utils/utils';
+import { echartsDisconnect } from 'monitor-ui/monitor-echarts/utils';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
+import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import transformTraceTree from '../../../components/trace-view/model/transform-trace-data';
 import { formatDate, formatDuration, formatTime } from '../../../components/trace-view/utils/date';
@@ -60,7 +63,6 @@ import InterfaceStatistics from './interface-statistics';
 import ServiceStatistics from './service-statistics';
 import SimpleList from './simple-list/simple-list';
 import TraceDetail from './trace-detail';
-import TableSkeleton from '../../../components/skeleton/table-skeleton';
 
 import type { PanelModel } from '../../../plugins/typings';
 import type { IAppItem, ISpanListItem, ITraceListItem } from '../../../typings';
@@ -775,6 +777,10 @@ export default defineComponent({
     ]);
     const chartList = computed<PanelModel[]>(() => searchStore.chartPanelList);
     const isListLoading = computed<boolean>(() => store.loading);
+
+    onUnmounted(() => {
+      echartsDisconnect(searchStore.dashboardId);
+    });
 
     watch(
       () => route.query,

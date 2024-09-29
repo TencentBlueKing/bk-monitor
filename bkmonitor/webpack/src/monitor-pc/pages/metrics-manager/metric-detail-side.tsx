@@ -32,7 +32,7 @@ import { secToString } from '../../components/cycle-input/utils';
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
 import HandleExperience from './components/handle-experiences';
 import DimensionTable from './dimension-table';
-import { dataSouceLabes } from './metrics-table';
+import { dataSourceLabels } from './metrics-table';
 
 // import InputConfirm from './input-confirm';
 import type { IMetricDetail } from '../strategy-config/strategy-config-set-new/typings';
@@ -112,7 +112,7 @@ export default class MetricDetailSide extends tsc<IProps, IEvents> {
     this.metricData.info.right = [
       {
         label: this.$tc('数据来源'),
-        value: dataSouceLabes.find(item => item.id === this.detail.data_source_label)?.name,
+        value: dataSourceLabels.find(item => item.id === this.detail.data_source_label)?.name,
       },
       { label: '描述', value: this.detail.description || '--' },
       { label: '监控对象', value: this.detail.result_table_label_name || '--' },

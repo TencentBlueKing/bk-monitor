@@ -25,6 +25,10 @@
  */
 const authMap = new Map<string, Map<string, boolean>>();
 export const getAuthById = (actionId: string | string[], bizId = window.bk_biz_id) => {
+  if (window.is_superuser || !actionId) {
+    // 超级管理员 不再鉴权
+    return true;
+  }
   return !!authMap.get(bizId.toString())?.get(Array.isArray(actionId) ? actionId[0] : actionId);
 };
 export const setAuthById = (actionId: string | string[], hasAuth: boolean, bizId = window.bk_biz_id) => {

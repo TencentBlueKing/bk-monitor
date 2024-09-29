@@ -28,7 +28,7 @@ class JMXPluginManager(PluginManager):
     templates_dirname = "jmx_templates"
     serializer_class = JmxSerializer
 
-    def get_debug_config_context(self, config_version, info_version, param, target_nodes):
+    def _get_debug_config_context(self, config_version, info_version, param, target_nodes):
         collector_data = param["collector"]
         plugin_data = param["plugin"]
         context = {
@@ -73,14 +73,14 @@ class JMXPluginManager(PluginManager):
                 },
                 "params": {"context": plugin_params},
             },
-            self.get_bkmonitorbeat_deploy_step("bkmonitorbeat_prometheus.conf", {"context": collector_params}),
+            self._get_bkmonitorbeat_deploy_step("bkmonitorbeat_prometheus.conf", {"context": collector_params}),
         ]
         return deploy_steps
 
-    def get_remote_stage(self, meta_dict):
+    def _get_remote_stage(self, meta_dict):
         return True
 
-    def get_collector_json(self, plugin_params):
+    def _get_collector_json(self, plugin_params):
         file_name = "config.yaml.tpl"
         config_yaml_path = ""
         for filename in self.filename_list:
@@ -90,7 +90,7 @@ class JMXPluginManager(PluginManager):
         if not config_yaml_path:
             raise PluginParseError({"msg": _("无法获取JMX对应的配置文件")})
 
-        content = self.read_file(config_yaml_path)
+        content = self._read_file(config_yaml_path)
         jmx_collector_json = {
             "config_yaml": content,
         }

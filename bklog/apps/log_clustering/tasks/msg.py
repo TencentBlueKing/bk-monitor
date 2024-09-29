@@ -146,6 +146,8 @@ def notify_access_not_finished():
     """
     30分钟内接入未完成接入的，触发事件
     """
+    from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
+
     half_hours_ago = arrow.now().shift(minutes=-30).datetime
     clustering_configs = ClusteringConfig.objects.filter(
         signature_enable=True, access_finished=False, created_at__lte=half_hours_ago
@@ -154,6 +156,11 @@ def notify_access_not_finished():
         index_set_id = clustering_config.index_set_id
         log_index_set = LogIndexSet.objects.get(index_set_id=index_set_id)
         space = Space.objects.get(bk_biz_id=clustering_config.bk_biz_id)
+
+        # 先重新刷新一下接入状态，如果已经接入完成，就直接跳过
+        result = ClusteringConfigHandler(index_set_id=index_set_id).get_access_status()
+        if result["access_finished"]:
+            continue
 
         msg = _("聚类接入持续 {} 未完成，请关注！索引集id: {}, 索引集名称: {}, 业务id: {}, 业务名称: {}, 创建者: {}").format(
             format_timedelta(arrow.now().datetime - clustering_config.created_at),

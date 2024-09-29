@@ -26,9 +26,9 @@
 import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { skipToDocsLink } from 'monitor-common/utils/docs';
 import { random } from 'monitor-common/utils/utils';
 
-import { handleGotoLink } from '../../common/constant';
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
 import { destroyTimezone } from '../../i18n/dayjs';
@@ -55,7 +55,7 @@ export default class MonitorK8s extends tsc<object> {
   backToOverviewKey = random(8);
 
   /** 当前tab */
-  tabName: TranslateResult | string = '';
+  tabName: string | TranslateResult = '';
   /** 定位详情文案 */
   subName = '';
 
@@ -104,7 +104,7 @@ export default class MonitorK8s extends tsc<object> {
     this.sceneType = type;
   }
   handleAddCluster() {
-    handleGotoLink('addClusterMd');
+    skipToDocsLink('addClusterMd');
   }
   render() {
     if (this.showGuidePage) return <GuidePage guideData={introduce.data.k8s.introduce} />;

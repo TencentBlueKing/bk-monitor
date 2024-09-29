@@ -61,7 +61,11 @@ export const transformMessageProps = (params: Record<string, any>) => {
       theme: MESSAGE_THEME_LIST.includes(props.message.popup_message) ? props.message.popup_message : 'error',
       ellipsisLine: 2,
       ellipsisCopy: true,
+      zIndex: 9999,
     };
   }
-  return props;
+  return {
+    ...props,
+    zIndex: 9999,
+  };
 };

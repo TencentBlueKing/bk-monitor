@@ -343,6 +343,25 @@ class EdgeDurationP99(DurationUnitMixin, ValuesPluginMixin, PrePlugin):
 
 @PluginProvider.pre_plugin
 @dataclass
+class EdgeErrorCount(PrePlugin, ValuesPluginMixin):
+    """边错误数"""
+
+    id: str = TopoEdgeDataType.ERROR_COUNT.value
+    type: GraphPluginType = GraphPluginType.EDGE
+    metric: Type[MetricHandler] = ServiceFlowCount
+
+    def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
+        return self.get_instance_values_mapping(
+            group_by=["from_apm_service_name", "to_apm_service_name"],
+            where=[
+                {"key": "from_span_error", "method": "eq", "value": ["true"]},
+                {"condition": "or", "key": "to_span_error", "method": "eq", "value": ["true"]},
+            ],
+        )
+
+
+@PluginProvider.pre_plugin
+@dataclass
 class EdgeErrorRate(PrePlugin, ValuesPluginMixin):
     """边错误率"""
 
@@ -618,7 +637,7 @@ class NodeErrorRateCaller(PrePlugin, ValuesPluginMixin):
             total_count = attr[self.id]
             caller_count = caller_error_mapping.get(node, {}).get(self.id, 0)
 
-            res[node] = {self.id: round((caller_count / total_count), 2) if total_count else None}
+            res[node] = {self.id: round((caller_count / total_count), 6) if total_count else None}
 
         return res
 
@@ -642,7 +661,7 @@ class NodeErrorRateCallee(PrePlugin, ValuesPluginMixin):
             total_count = attr[self.id]
             callee_count = callee_error_mapping.get(node, {}).get(self.id, 0)
 
-            res[node] = {self.id: round((callee_count / total_count) if total_count else None, 2)}
+            res[node] = {self.id: round((callee_count / total_count) if total_count else None, 6)}
 
         return res
 
@@ -665,7 +684,7 @@ class NodeErrorRateFull(PrePlugin, ValuesPluginMixin):
             total_count = attr[self.id]
             error_count = error_mapping.get(node, {}).get(self.id, 0)
 
-            res[node] = {self.id: round((error_count / total_count) if total_count else None, 2)}
+            res[node] = {self.id: round((error_count / total_count) if total_count else None, 6)}
 
         return res
 
@@ -1329,8 +1348,8 @@ class NodeColor(PostPlugin):
         WHITE = "#DCDEE5"
 
     def process(self, data_type, edge_data_type, node_data, graph):
-        # 如果节点无数据 那么颜色就是灰色
-        if not node_data.get(NodeHaveData.id):
+        # 如果数据类型不是告警并且节点无数据 那么颜色就是灰色
+        if data_type != BarChartDataType.Alert.value and not node_data.get(NodeHaveData.id):
             node_data[self.id] = self.Color.WHITE
             return
 
@@ -1771,6 +1790,7 @@ class TableViewConverter(ViewConverter):
             EdgeAvgDuration,
             EdgeRequestCount,
             EdgeErrorRate,
+            EdgeErrorCount,
         ]
     )
 
@@ -1802,7 +1822,13 @@ class TableViewConverter(ViewConverter):
             },
             {
                 "id": "request_count",
-                "name": "调用数",
+                "name": "请求数",
+                "sortable": "custom",
+                "type": "number",
+            },
+            {
+                "id": "error_count",
+                "name": "错误数",
                 "sortable": "custom",
                 "type": "number",
             },
@@ -1895,7 +1921,8 @@ class TableViewConverter(ViewConverter):
             if f"_{TopoEdgeDataType.DURATION_AVG.value}" in attrs
             else None,
             "request_count": attrs.get(TopoEdgeDataType.REQUEST_COUNT.value),
-            "error_rate": attrs.get(TopoEdgeDataType.ERROR_RATE.value),
+            "error_count": attrs.get(EdgeErrorCount.id),
+            "error_rate": attrs.get(EdgeErrorRate.id),
             "operators": operators,
         }
 

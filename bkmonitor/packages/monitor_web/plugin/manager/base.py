@@ -20,16 +20,15 @@ import stat
 import tarfile
 import time
 from functools import partial
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
-import six
 import yaml
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.template import engines
-from django.utils.translation import ugettext as _
-from six.moves import map
+from django.utils.translation import gettext
 
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.serializers import MetricJsonSerializer
@@ -49,6 +48,7 @@ from monitor_web.commons.data_access import PluginDataAccessor
 from monitor_web.models.plugin import (
     CollectorPluginConfig,
     CollectorPluginInfo,
+    CollectorPluginMeta,
     PluginVersionHistory,
 )
 from monitor_web.plugin.constant import (
@@ -75,355 +75,131 @@ def check_skip_debug(need_debug):
     return need_debug
 
 
-class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
-    """
-    插件管理基类
-    """
-
-    # 需要注册的模板文件
-    config_files = ["env.yaml.tpl"]
-    # 插件包模板目录名称
-    templates_dirname = ""
-    # 插件数据校验类
-    serializer_class = None
-
-    def __init__(self, plugin, operator, tmp_path=None):
-        """
-        :param plugin: CollectorPluginMeta Instance
-        """
+class BasePluginManager:
+    def __init__(self, plugin: CollectorPluginMeta, operator: str, tmp_path=None):
         self.plugin = plugin
         self.operator = operator
-        self.tmp_path = os.path.join(settings.MEDIA_ROOT, "plugin", str(uuid4())) if not tmp_path else tmp_path
-        # by default init the latest version
-        latest_version = PluginVersionHistory.objects.filter(plugin_id=self.plugin.plugin_id).last()
-        self.version = latest_version
-        self.filename_list = []
-        for dir_path, dirname, filename_list in os.walk(self.tmp_path):
-            for filename in filename_list:
-                self.filename_list.append(os.path.join(dir_path, filename))
+        self.tmp_path = tmp_path
+        self.version: Optional[PluginVersionHistory] = PluginVersionHistory.objects.filter(
+            plugin_id=self.plugin.plugin_id
+        ).last()
 
-    def register(self):
+    def _update_version_params(self, data, version, current_version, stag=None):
         """
-        注册插件包
+        更新插件版本参数
+        """
+        sig_manager = load_plugin_signature_manager(version)
+        version.signature = sig_manager.signature().dumps2python()
+
+        if data.get("version_log", ""):
+            version.version_log = data.get("version_log", "")
+
+        # 如果是官方插件，且当前版本不是官方版本，则删除当前版本的所有历史版本
+        if version.is_official:
+            if not current_version.is_official:
+                PluginVersionHistory.origin_objects.filter(plugin=version.plugin).delete()
+            version.config_version = data.get("config_version", 1)
+            version.info_version = data.get("info_version", 1)
+
+        if stag:
+            version.stage = stag
+        version.save()
+
+    @classmethod
+    def _update_config(cls, update_config_data: Dict[str, Any], version: PluginVersionHistory):
+        """
+        更新插件config字段
+        """
+        for attr, value in update_config_data.items():
+            setattr(version.config, attr, value)
+        version.config.save()
+
+    def _update_info(self, update_info_data, now_info_data, current_version, version):
+        """
+        更新插件info字段
+        """
+        update_logo = update_info_data.pop("logo", "")
+
+        # 如果有更新的字段，则更新
+        for attr, value in update_info_data.items():
+            setattr(version.info, attr, value)
+        version.info.save()
+
+        # 如果有更新logo，则保存logo文件
+        if not update_logo:
+            version.info.logo = ""
+            version.info.save()
+        elif update_logo != now_info_data["logo"] and update_logo:
+            self.save_logo_file(version.info, update_logo)
+        else:
+            version.info.logo = current_version.info.logo
+            version.info.save()
+
+    @staticmethod
+    def _get_new_collector_json(collector_json, diff_value):
+        new_collector_json = copy.deepcopy(collector_json)
+        if diff_value:
+            new_collector_json.update({"diff_fields": diff_value})
+        else:
+            new_collector_json.pop("diff_fields", "")
+        return new_collector_json
+
+    def _get_version(self, config_version, info_version):
+        version = self.plugin.generate_version(config_version, info_version)
+        version.stage = "unregister"
+        return version
+
+    def validate_config_info(self, collector_info: Dict[str, Any], config_info: List[Dict[str, Any]]) -> None:
+        """
+        配置检查
         """
 
-    def render_config(self, config_version, config_name, context):
+    def save_logo_file(self, info: CollectorPluginInfo, logo_base64: str) -> None:
         """
-        配置
-        :param config_version: 配置版本（大版本）
-        :param config_name: 配置名称
-        :param context: 配置上下文
-        :return: 节点管理的配置实例ID
+        保存logo文件
         """
-        param = {
-            "plugin_name": self.plugin.plugin_id,
-            "plugin_version": "*",
-            "name": config_name,
-            "version": config_version,
-            "data": context,
-        }
-        render_result = api.node_man.render_config_template(param)
-        return render_result["id"]
+        logo_base64 = logo_base64.split(",")[-1]
+        img = ContentFile(base64.b64decode(logo_base64))
+        info.logo.save(f"{self.plugin.plugin_id}.png", img)
 
-    def run_debug(self, config_version, info_version, config_ids, host):
-        debug_version = self.plugin.get_debug_version(config_version)
-        param = {
-            "plugin_name": self.plugin.plugin_id,
-            "version": "{}.{}".format(debug_version.config_version, debug_version.info_version),
-            "config_ids": config_ids,
-            "host_info": host,
-        }
-        debug_result = api.node_man.start_debug(param)
-        return debug_result
-
-    @abc.abstractmethod
-    def get_debug_config_context(self, config_version, info_version, param, target_nodes):
-        """
-        获取配置实例渲染上下文，需要子类实现
-        example
-        {
-            "config.yaml": {
-                'username': 'aaa',
-                'password': 'bbb',
-            }
-        }
-        """
-        return {}
-
-    def get_bkmonitorbeat_deploy_step(self, conf_name, collector_params, step_id="bkmonitorbeat"):
-        if "context" not in collector_params:
-            collector_params = {"context": collector_params}
-        return {
-            "id": step_id,
-            "type": "PLUGIN",
-            "config": {
-                "plugin_name": "bkmonitorbeat",
-                "plugin_version": "latest",
-                "config_templates": [{"name": conf_name, "version": "latest"}],
-            },
-            "params": collector_params,
-        }
-
-    def get_bkprocessbeat_deploy_step(self, conf_name, collector_params):
-        if "context" not in collector_params:
-            collector_params = {"context": collector_params}
-        # 进程采集由processbeat下发切换为bkmonitorbeat
-        return {
-            "id": "bkmonitorbeat",
-            "type": "PLUGIN",
-            "config": {
-                "plugin_name": "bkmonitorbeat",
-                "plugin_version": "latest",
-                "config_templates": [{"name": conf_name, "version": "latest"}],
-            },
-            "params": collector_params,
-        }
-
-    @abc.abstractmethod
-    def get_deploy_steps_params(self, plugin_version, param, target_nodes):
-        return []
-
-    def start_debug(self, config_version, info_version, param, host_info, target_nodes=None):
+    def start_debug(
+        self,
+        config_version: int,
+        info_version: int,
+        param: Dict[str, Any],
+        host_info: Dict[str, Any],
+        target_nodes=None,
+    ) -> Optional[str]:
         """
         开始插件调试
         """
-        all_context = self.get_debug_config_context(config_version, info_version, param, target_nodes)
 
-        # 将配置模板渲染为配置实例，并获取配置实例ID
-        config_ids = []
-        for config_name, context in list(all_context.items()):
-            config_id = self.render_config(config_version, config_name, context)
-            config_ids.append(config_id)
-
-        task_id = self.run_debug(config_version, info_version, config_ids, host_info)
-        return task_id
-
-    def stop_debug(self, task_id):
+    def stop_debug(self, task_id: str) -> None:
         """
         停止插件调试
         """
-        return api.node_man.stop_debug(task_id=task_id)
 
-    def query_debug(self, task_id):
+    def query_debug(self, task_id: str) -> Dict[str, Any]:
         """
         获取调试信息
         """
-        result = api.node_man.query_debug(task_id=task_id)
+        return {}
 
-        metric_json, last_time = self.parser_log_content(result["message"])
-        log_content = self.parser_log_error(result["message"])
-        if result["status"] in [DebugStatus.FAILED, DebugStatus.SUCCESS]:
-            task_status = result["status"]
-            return {
-                "status": task_status,
-                "log_content": log_content,
-                "metric_json": metric_json,
-                "last_time": last_time,
-            }
+    def data_access(self, config_version: int, info_version: int) -> None:
+        """
+        数据接入
+        """
+        current_version = self.plugin.get_version(config_version, info_version)
 
-        if result["step"] in ["DEBUG_PROCESS", "STOP_DEBUG_PROCESS"]:
-            # 处于 debug 步骤则为获取数据
-            task_status = DebugStatus.FETCH_DATA
-        else:
-            task_status = DebugStatus.INSTALL
-
-        return {"status": task_status, "log_content": log_content, "metric_json": metric_json, "last_time": last_time}
-
-    def parser_log_error(self, log_content):
-        message_list = log_content.strip().split("\n")
-        for detail in reversed(message_list):
-            is_invalid, message_detail = self.valid_data(detail)
-            if is_invalid:
-                continue
-            error_message = self.get_error_message(message_detail)
-            if error_message:
-                log_content += error_message
-            break
-        return log_content
-
-    @staticmethod
-    def check_metric_name_duplicate(metric_json):
-        metric_name = set()
-        dimension_name = set()
-        for metric in metric_json:
-            metric_name.add(metric["metric_name"])
-            for dimension in metric["dimensions"]:
-                dimension_name.add(dimension["dimension_name"])
-        intersection = set(metric_name) & set(dimension_name)
-        if metric_name & dimension_name:
-            raise PluginError({"msg": _("指标维度存在重名,{}".format(intersection))})
-
-    @staticmethod
-    def get_error_message(message):
-        err_message = ""
-        error_code = message.get("error_code", 0)
-        if error_code in BEAT_ERR:
-            err_message = "\n\n\n{}".format(BEAT_ERR[error_code].format(message.get("message", "UNKNOWN")))
-        elif "error" in message and message["error"]:
-            err_message = "\n\n\n{}".format(BEAT_ERR[BEAT_RUN_ERR].format(message["error"]))
-        return err_message
-
-    @staticmethod
-    def valid_data(data):
-        if '"beat"' not in data:
-            return True, data
         try:
-            message_detail = json.loads(data)
-        except Exception as error:
-            logger.exception("[query_debug] Parsing data error：%s；The last 50 char:%s", error, data[-50:])
-            raise ParsingDataError()
-        if message_detail["dataid"] == HEARTBEAT_MESSAGE_ID or message_detail["type"] == "status":
-            # 心跳数据，不需要
-            return True, data
-        return False, message_detail
-
-    def parser_log_content(self, log_content):
-        metric_json = []
-        message_list = log_content.strip().split("\n")
-        metric_name_cache = []
-        dimension_info = {}
-        log_type = None
-        valid_message = {}
-        for detail in message_list:
-            is_invalid, message_detail = self.valid_data(detail)
-            if is_invalid:
-                continue
-            if not log_type:
-                log_type = self.get_log_type(message_detail)
-            valid_message = message_detail
-            if log_type == "exporter":
-                self.exporter_log_parser(message_detail, metric_json, metric_name_cache)
-            else:
-                self.common_log_parser(message_detail, metric_json, metric_name_cache, dimension_info)
-        else:
-            last_time = time_tools.date_convert(valid_message.get("time", int(time.time())), "datetime")
-        self.check_metric_name_duplicate(metric_json)
-        return metric_json, last_time
-
-    @staticmethod
-    def get_log_type(message_detail):
-        if "prometheus" in message_detail:
-            return "exporter"
-        return "common"
-
-    @staticmethod
-    def exporter_log_parser(message_detail, metric_json, metric_name_cache):
-        metrics = message_detail["prometheus"]["collector"].get("metrics", [])
-        for metric in metrics:
-            if metric["key"] not in metric_name_cache:
-                if not metric["key"].strip():
-                    continue
-                dimensions = []
-                for key, value in list(metric["labels"].items()):
-                    if key in INNER_DIMENSIONS:
-                        continue
-                    dimensions.append({"dimension_name": key, "dimension_value": value})
-                metric_json.append(
-                    {"metric_name": metric["key"], "metric_value": metric["value"], "dimensions": dimensions}
-                )
-                metric_name_cache.append(metric["key"])
-
-    @staticmethod
-    def common_log_parser(message_detail, metric_json, metric_name_cache, dimension_info):
-        if message_detail.get("message", "") != "success":
-            return
-        for metric_name, metric_value in message_detail["metrics"].items():
-            if not metric_name.strip():
-                continue
-            if metric_name not in metric_name_cache:
-                dimension_info[metric_name] = {"dimensions": [], "dimension_name": []}
-                for key, value in list(message_detail["dimensions"].items()):
-                    if key in INNER_DIMENSIONS:
-                        continue
-                    dimension_info[metric_name]["dimensions"].append({"dimension_name": key, "dimension_value": value})
-                    dimension_info[metric_name]["dimension_name"].append(key)
-                metric_json.append(
-                    {
-                        "metric_name": metric_name,
-                        "metric_value": metric_value,
-                        "dimensions": dimension_info[metric_name]["dimensions"],
-                    }
-                )
-                metric_name_cache.append(metric_name)
-            else:
-                for key, value in list(message_detail["dimensions"].items()):
-                    if key in INNER_DIMENSIONS:
-                        continue
-                    if key not in dimension_info[metric_name]["dimension_name"]:
-                        dimension_info[metric_name]["dimensions"].append(
-                            {"dimension_name": key, "dimension_value": value}
-                        )
-                        dimension_info[metric_name]["dimension_name"].append(key)
-
-    def fetch_plugin(self):
-        """
-        从节点管理获取插件包
-        """
-
-    def release_config(self, config_version, info_version, name):
-        """
-        发布配置文件
-        :return:
-        """
-        param = {
-            "plugin_name": self.plugin.plugin_id,
-            "plugin_version": "{}_{}".format(config_version, info_version),
-            "name": name,
-            "version": config_version,
-        }
-        api.node_man.release_config(param)
-
-    def release(self, config_version, info_version, token, debug=True):
-        """
-        发布插件包
-
-        """
-        try:
-            current_version = self.plugin.get_version(config_version, info_version)
             # 接入数据源
             PluginDataAccessor(current_version, self.operator).access()
-
-            if debug:
-                release_version = self.plugin.get_debug_version(config_version)
-            else:
-                release_version = current_version
-
-            # 调用节点管理接口，发布配置文件
-            release_config = partial(self.release_config, release_version.config_version, release_version.info_version)
-            list(map(release_config, self.config_files))
-            # 调用节点管理接口，发布插件包
-            api.node_man.release_plugin(
-                {
-                    "name": self.plugin.plugin_id,
-                    "version": "{}.{}".format(release_version.config_version, release_version.info_version),
-                    "md5_list": token,
-                }
-            )
-            # 将插件版本状态置为release
-            release_version.stage = "release"
-            release_version.save()
-
-            if debug:
-                current_version.stage = "release"
-                current_version.save()
-        except Exception as err:
-            logger.error("[plugin] release plugin {} error, msg is {}".format(self.plugin.plugin_id, str(err)))
-            self.plugin.rollback_version_status(config_version)
-            raise err
-        return current_version
-
-    def data_access(self, config_version, info_version):
-        current_version = self.plugin.get_version(config_version, info_version)
-        try:
-            PluginDataAccessor(current_version, self.operator).access()
-            self.update_plugin_metric_cache(current_version)
         except Exception as err:
             logger.exception("[plugin] data_access error, msg is %s" % str(err))
             current_version.stage = "unregister"
             current_version.save()
             raise err
 
-    def update_plugin_metric_cache(self, current_version):
         try:
             # 更新指标后，指标缓存同步更新
             result_table_id_list = [
@@ -434,7 +210,10 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
         except Exception as err:
             logger.error("[update_plugin_metric_cache] error, msg is {}".format(err))
 
-    def update_metric(self, data):
+    def update_metric(self, data: Dict[str, Any]) -> Tuple[int, int, bool, bool]:
+        """
+        更新插件指标维度信息
+        """
         current_version = self.plugin.get_version(data["config_version"], data["info_version"])
         metric_json = data["metric_json"]
         info_obj = current_version.info
@@ -462,16 +241,16 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
             config_obj = current_version.config
             diff_value = PluginVersionHistory.gen_diff_fields(metric_json)
             old_collector_json = config_obj.collector_json
-            new_collector_json = self.get_new_collector_json(old_collector_json, diff_value)
+            new_collector_json = self._get_new_collector_json(old_collector_json, diff_value)
             old_collector_md5, new_collector_md5 = list(map(count_md5, [old_collector_json, new_collector_json]))
             if old_collector_md5 != new_collector_md5:
                 current_config_version = current_config_version + 1
                 need_make_package = True
-            version = self.get_verison(current_config_version, current_info_version)
+            version = self._get_version(current_config_version, current_info_version)
             update_config_data = config_obj.config2dict()
             update_config_data["collector_json"] = new_collector_json
-            self.update_config(update_config_data, version)
-            self.update_info(update_info_data, now_info_data, current_version, version)
+            self._update_config(update_config_data, version)
+            self._update_info(update_info_data, now_info_data, current_version, version)
             version.stage = "unregister" if need_make_package else "release"
             version.is_packaged = False
             version.signature = current_version.signature
@@ -482,28 +261,23 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
                 current_version.info.save()
         return current_config_version, current_info_version, is_change, need_make_package
 
-    @staticmethod
-    def get_new_collector_json(collector_json, diff_value):
-        new_collector_json = copy.deepcopy(collector_json)
-        if diff_value:
-            new_collector_json.update({"diff_fields": diff_value})
-        else:
-            new_collector_json.pop("diff_fields", "")
-        return new_collector_json
+    @abc.abstractmethod
+    def release(
+        self,
+        config_version: int,
+        info_version: int,
+        token: List[str] = None,
+        debug: bool = True,
+    ) -> PluginVersionHistory:
+        """
+        发布插件包
+        :param config_version: 插件config版本
+        :param info_version: 插件info版本
+        :param token: 插件包文件md5列表
+        :param debug: 是否为调试模式
+        """
 
-    def version_check(self):
-        config_version = self.plugin.release_version.config_version
-        info_version = self.plugin.release_version.info_version
-        is_packaged = self.plugin.release_version.is_packaged
-        return config_version, info_version, is_packaged
-
-    def roll_back_status(self, config_version, info_version):
-        version = self.plugin.get_version(config_version, info_version)
-        version.stage = "release"
-        version.is_packaged = False
-        version.save()
-
-    def create_version(self, data):
+    def create_version(self, data) -> Tuple[PluginVersionHistory, bool]:
         version = self.plugin.generate_version(data["config_version"], data["info_version"])
         version.version_log = data.get("version_log", "")
         version.save()
@@ -547,12 +321,15 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
 
         return version, need_debug
 
-    def update_version(self, data, target_config_version=None, target_info_version=None):
+    def update_version(self, data, target_config_version: int = None, target_info_version: int = None):
+        """
+        更新插件版本
+        """
         need_debug = True
         current_version = self.plugin.current_version
         if not data.get("is_support_remote", False):
             if current_version.is_release and current_version.config.is_support_remote:
-                raise RemoteCollectError({"msg": _("已开启远程采集的插件无法关闭远程采集")})
+                raise RemoteCollectError({"msg": gettext("已开启远程采集的插件无法关闭远程采集")})
 
         config = current_version.config
         info = current_version.info
@@ -585,10 +362,10 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
             if current_version.is_release:
                 need_debug = False
             if old_info_md5 != new_info_md5 and current_version.is_release:
-                version = self.get_verison(current_config_version, current_info_version)
-                self.update_config(update_config_data, version)
-                self.update_info(update_info_data, now_info_data, current_version, version)
-                self.update_version_params(data, version, current_version, stag="release")
+                version = self._get_version(current_config_version, current_info_version)
+                self._update_config(update_config_data, version)
+                self._update_info(update_info_data, now_info_data, current_version, version)
+                self._update_version_params(data, version, current_version, stag="release")
             else:
                 # 包内容一样，则更新发布日志
                 setattr(current_version, "version_log", data.get("version_log", ""))
@@ -597,75 +374,557 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
                 current_version.save()
                 version = current_version
         else:
-            version = self.get_verison(current_config_version, current_info_version)
-            self.update_config(update_config_data, version)
-            self.update_info(update_info_data, now_info_data, current_version, version)
-            self.update_version_params(data, version, current_version)
+            version = self._get_version(current_config_version, current_info_version)
+            self._update_config(update_config_data, version)
+            self._update_info(update_info_data, now_info_data, current_version, version)
+            self._update_version_params(data, version, current_version)
 
         return version, need_debug
 
-    def get_verison(self, config_version, info_version):
-        version = self.plugin.generate_version(config_version, info_version)
-        version.stage = "unregister"
-        return version
+    @abc.abstractmethod
+    def make_package(
+        self,
+        add_files: Dict[str, List[Dict[str, str]]] = None,
+        add_dirs: Dict[str, List[Dict[str, str]]] = None,
+        need_tar: bool = True,
+    ) -> Optional[str]:
+        """
+        制作插件包，在tmp_path下制作插件包
+        :param add_files: 是否有额外文件
+        :param add_dirs: 是否有额外目录
+        :param need_tar: 是否需要打包
+        example:
+        add_files: {
+            "linux": [
+                {
+                    "file_name": "xxx.sh",
+                    "file_content": "xxxx",
+                }
+            ],
+        }
+        add_dirs: {
+            "linux": [
+                {
+                    "dir_name": "xxx",
+                    "dir_path": "/x/y/z/"
+                }
+            ]
+        }
+        :return: 如果需要打包，则返回打包后的文件路径，否则返回None
+        """
+
+    @abc.abstractmethod
+    def run_export(self) -> str:
+        """
+        运行exporter
+        """
+
+
+class PluginManager(BasePluginManager):
+    """
+    插件管理基类
+    """
+
+    # 需要注册的模板文件
+    config_files = ["env.yaml.tpl"]
+    # 插件包模板目录名称
+    templates_dirname = ""
+    # 插件数据校验类
+    serializer_class = None
+
+    def __init__(self, plugin, operator, tmp_path=None):
+        """
+        :param plugin: CollectorPluginMeta Instance
+        """
+        super(PluginManager, self).__init__(plugin, operator, tmp_path)
+
+        self.tmp_path: str = os.path.join(settings.MEDIA_ROOT, "plugin", str(uuid4())) if not tmp_path else tmp_path
+        self.filename_list = []
+        for dir_path, _, filename_list in os.walk(self.tmp_path):
+            for filename in filename_list:
+                self.filename_list.append(os.path.join(dir_path, filename))
+
+    def _render_config(self, config_version, config_name, context):
+        """
+        配置
+        :param config_version: 配置版本（大版本）
+        :param config_name: 配置名称
+        :param context: 配置上下文
+        :return: 节点管理的配置实例ID
+        """
+        param = {
+            "plugin_name": self.plugin.plugin_id,
+            "plugin_version": "*",
+            "name": config_name,
+            "version": config_version,
+            "data": context,
+        }
+        render_result = api.node_man.render_config_template(param)
+        return render_result["id"]
+
+    def _run_debug(self, config_version, config_ids, host):
+        debug_version = self.plugin.get_debug_version(config_version)
+        param = {
+            "plugin_name": self.plugin.plugin_id,
+            "version": "{}.{}".format(debug_version.config_version, debug_version.info_version),
+            "config_ids": config_ids,
+            "host_info": host,
+        }
+        debug_result = api.node_man.start_debug(param)
+        return debug_result
+
+    @abc.abstractmethod
+    def _get_debug_config_context(self, config_version, info_version, param, target_nodes):
+        """
+        获取配置实例渲染上下文，需要子类实现
+        example
+        {
+            "config.yaml": {
+                'username': 'aaa',
+                'password': 'bbb',
+            }
+        }
+        """
+        return {}
 
     @staticmethod
-    def update_version_params(data, version, current_version, stag=None):
-        sig_manager = load_plugin_signature_manager(version)
-        version.signature = sig_manager.signature().dumps2python()
+    def _get_bkmonitorbeat_deploy_step(conf_name, collector_params, step_id="bkmonitorbeat"):
+        if "context" not in collector_params:
+            collector_params = {"context": collector_params}
+        return {
+            "id": step_id,
+            "type": "PLUGIN",
+            "config": {
+                "plugin_name": "bkmonitorbeat",
+                "plugin_version": "latest",
+                "config_templates": [{"name": conf_name, "version": "latest"}],
+            },
+            "params": collector_params,
+        }
 
-        if data.get("version_log", ""):
-            version.version_log = data.get("version_log", "")
+    @staticmethod
+    def _get_bkprocessbeat_deploy_step(conf_name, collector_params):
+        if "context" not in collector_params:
+            collector_params = {"context": collector_params}
+        # 进程采集由processbeat下发切换为bkmonitorbeat
+        return {
+            "id": "bkmonitorbeat",
+            "type": "PLUGIN",
+            "config": {
+                "plugin_name": "bkmonitorbeat",
+                "plugin_version": "latest",
+                "config_templates": [{"name": conf_name, "version": "latest"}],
+            },
+            "params": collector_params,
+        }
 
-        if version.is_official:
-            if not current_version.is_official:
-                PluginVersionHistory.origin_objects.filter(plugin=version.plugin).delete()
-                try:
-                    api.node_man.delete_plugin(name=version.plugin.plugin_id)
-                except BKAPIError:
-                    raise NodeManDeleteError
+    def _parser_log_error(self, log_content):
+        message_list = log_content.strip().split("\n")
+        for detail in reversed(message_list):
+            is_invalid, message_detail = self._valid_data(detail)
+            if is_invalid:
+                continue
+            error_message = self._get_error_message(message_detail)
+            if error_message:
+                log_content += error_message
+            break
+        return log_content
 
-            version.config_version = data.get("config_version", 1)
-            version.info_version = data.get("info_version", 1)
+    @staticmethod
+    def _check_metric_name_duplicate(metric_json):
+        metric_name = set()
+        dimension_name = set()
+        for metric in metric_json:
+            metric_name.add(metric["metric_name"])
+            for dimension in metric["dimensions"]:
+                dimension_name.add(dimension["dimension_name"])
+        intersection = set(metric_name) & set(dimension_name)
+        if metric_name & dimension_name:
+            raise PluginError({"msg": gettext("指标维度存在重名,{}".format(intersection))})
 
-        if stag:
-            version.stage = stag
-        version.save()
+    @staticmethod
+    def _get_error_message(message):
+        err_message = ""
+        error_code = message.get("error_code") or 0
+        if error_code in BEAT_ERR:
+            err_message = "\n\n\n{}".format(BEAT_ERR[error_code].format(message.get("message", "UNKNOWN")))
+        elif "error" in message and message["error"]:
+            err_message = "\n\n\n{}".format(BEAT_ERR[BEAT_RUN_ERR].format(message["error"]))
+        return err_message
 
-    def update_info(self, update_info_data, now_info_data, current_version, version):
-        update_logo = update_info_data.pop("logo", "")
-        for attr, value in list(update_info_data.items()):
-            setattr(version.info, attr, value)
-        version.info.save()
+    @staticmethod
+    def _valid_data(data):
+        if '"beat"' not in data:
+            return True, data
+        try:
+            message_detail = json.loads(data)
+        except Exception as error:
+            logger.exception("[query_debug] Parsing data error：%s；The last 50 char:%s", error, data[-50:])
+            raise ParsingDataError()
+        if message_detail["dataid"] == HEARTBEAT_MESSAGE_ID or message_detail["type"] == "status":
+            # 心跳数据，不需要
+            return True, data
+        return False, message_detail
 
-        if not update_logo:
-            version.info.logo = ""
-            version.info.save()
-        elif update_logo != now_info_data["logo"] and update_logo:
-            self.save_logo_file(version.info, update_logo)
+    def _parser_log_content(self, log_content):
+        metric_json = []
+        message_list = log_content.strip().split("\n")
+        metric_name_cache = []
+        dimension_info = {}
+        log_type = None
+        valid_message = {}
+        for detail in message_list:
+            is_invalid, message_detail = self._valid_data(detail)
+            if is_invalid:
+                continue
+            if not log_type:
+                log_type = self._get_log_type(message_detail)
+            valid_message = message_detail
+            if log_type == "exporter":
+                self._exporter_log_parser(message_detail, metric_json, metric_name_cache)
+            else:
+                self._common_log_parser(message_detail, metric_json, metric_name_cache, dimension_info)
         else:
-            version.info.logo = current_version.info.logo
-            version.info.save()
+            last_time = time_tools.date_convert(valid_message.get("time", int(time.time())), "datetime")
+        self._check_metric_name_duplicate(metric_json)
+        return metric_json, last_time
 
-    def update_config(self, update_config_data, version):
-        for attr, value in list(update_config_data.items()):
-            setattr(version.config, attr, value)
-        version.config.save()
+    @staticmethod
+    def _get_log_type(message_detail):
+        if "prometheus" in message_detail:
+            return "exporter"
+        return "common"
 
-    def save_logo_file(self, info, logo_base64):
-        logo_base64 = logo_base64.split(",")[-1]
-        img = ContentFile(base64.b64decode(logo_base64))
-        info.logo.save(self.plugin.plugin_id + ".png", img)
+    @staticmethod
+    def _exporter_log_parser(message_detail, metric_json, metric_name_cache):
+        metrics = message_detail["prometheus"]["collector"].get("metrics", [])
+        for metric in metrics:
+            if metric["key"] not in metric_name_cache:
+                if not metric["key"].strip():
+                    continue
+                dimensions = []
+                for key, value in list(metric["labels"].items()):
+                    if key in INNER_DIMENSIONS:
+                        continue
+                    dimensions.append({"dimension_name": key, "dimension_value": value})
+                metric_json.append(
+                    {"metric_name": metric["key"], "metric_value": metric["value"], "dimensions": dimensions}
+                )
+                metric_name_cache.append(metric["key"])
 
-    def tar_gz_file(self, filename_list):
+    @staticmethod
+    def _common_log_parser(message_detail, metric_json, metric_name_cache, dimension_info):
+        if message_detail.get("message", "") != "success":
+            return
+        for metric_name, metric_value in message_detail["metrics"].items():
+            if not metric_name.strip():
+                continue
+            if metric_name not in metric_name_cache:
+                dimension_info[metric_name] = {"dimensions": [], "dimension_name": []}
+                for key, value in list(message_detail["dimensions"].items()):
+                    if key in INNER_DIMENSIONS:
+                        continue
+                    dimension_info[metric_name]["dimensions"].append({"dimension_name": key, "dimension_value": value})
+                    dimension_info[metric_name]["dimension_name"].append(key)
+                metric_json.append(
+                    {
+                        "metric_name": metric_name,
+                        "metric_value": metric_value,
+                        "dimensions": dimension_info[metric_name]["dimensions"],
+                    }
+                )
+                metric_name_cache.append(metric_name)
+            else:
+                for key, value in list(message_detail["dimensions"].items()):
+                    if key in INNER_DIMENSIONS:
+                        continue
+                    if key not in dimension_info[metric_name]["dimension_name"]:
+                        dimension_info[metric_name]["dimensions"].append(
+                            {"dimension_name": key, "dimension_value": value}
+                        )
+                        dimension_info[metric_name]["dimension_name"].append(key)
+
+    def _release_config(self, config_version, info_version, name):
+        """
+        发布配置文件
+        :return:
+        """
+        param = {
+            "plugin_name": self.plugin.plugin_id,
+            "plugin_version": "{}_{}".format(config_version, info_version),
+            "name": name,
+            "version": config_version,
+        }
+        api.node_man.release_config(param)
+
+    def _update_version_params(self, data, version, current_version, stag=None):
+        """
+        更新插件版本参数
+        """
+        super()._update_version_params(data, version, current_version, stag)
+        # 如果是官方插件，且当前版本不是官方版本，则删除当前版本的所有历史版本
+        if version.is_official and not current_version.is_official:
+            try:
+                api.node_man.delete_plugin(name=version.plugin.plugin_id)
+            except BKAPIError:
+                raise NodeManDeleteError
+
+    def _tar_gz_file(self, filename_list):
         t = tarfile.open(os.path.join(self.tmp_path, self.plugin.plugin_id + ".tgz"), "w:gz")
-        for root, dirs, files in os.walk(filename_list):
+        for root, _, files in os.walk(filename_list):
             for filename in files:
                 full_path = os.path.join(root, filename)
                 file_save_path = full_path.replace(os.path.join(self.tmp_path, self.plugin.plugin_id), "")
-                t.add(full_path, arcname=file_save_path)
+                t.add(str(full_path), arcname=str(file_save_path))
         t.close()
         return t.name
+
+    def _get_context(self):
+        context = {
+            "metric_json": self.version.info.metric_json,
+            "plugin_id": self.plugin.plugin_id,
+            "plugin_display_name": self.version.info.plugin_display_name,
+            "version": self.version.version,
+            "config_version": self.version.config_version,
+            "plugin_type": self.plugin.get_plugin_type_display(),
+            "tag": self.plugin.tag,
+            "label": self.plugin.label,
+            "description_md": self.version.info.description_md,
+            "config_json": self.version.config.config_json,
+            "collector_json": self.version.config.collector_json,
+            "signature": "",
+            "is_support_remote": self.version.config.is_support_remote,
+            "version_log": self.version.version_log,
+        }
+        if self.version.signature:
+            context["signature"] = Signature(self.version.signature).dumps2yaml()
+        if self.plugin.plugin_type in [PluginType.EXPORTER, PluginType.JMX, PluginType.SNMP]:
+            try:
+                default_port = [x for x in self.version.config.config_json if x["name"] == "port"][0]["default"]
+                context["port_range"] = "%s,10000-65535" % default_port
+            except (KeyError, IndexError):
+                context["port_range"] = "10000-65535"
+
+        return context
+
+    @classmethod
+    def _read_file(cls, filename):
+        try:
+            with open(filename, "rb") as f:
+                file_content = f.read()
+        except IOError:
+            raise PluginParseError({"msg": gettext("%s文件读取失败") % filename})
+
+        try:
+            file_content = file_content.decode("utf-8")
+        except UnicodeDecodeError:
+            pass
+        return file_content
+
+    def _parse_info_path(self):
+        read_filename_list = []
+        for dir_path, dirname, filename_list in os.walk(self.tmp_path):
+            if dir_path.endswith(os.path.join(self.plugin.plugin_id, "info")) and len(dirname) == 0:
+                plugin_info_path = dir_path
+                read_filename_list = [os.path.join(plugin_info_path, filename) for filename in filename_list]
+                break
+
+        if not read_filename_list:
+            raise PluginParseError({"msg": gettext("不存在info文件夹，无法解析插件包")})
+
+        plugin_params = {}
+        for file_instance in read_filename_list:
+            plugin_params[os.path.basename(file_instance)] = self._read_file(file_instance)
+
+        self._get_meta_info(plugin_params)
+        self._get_config_mes(plugin_params)
+        self._get_info_msg(plugin_params)
+        self._get_version_mes(plugin_params)
+        self._parse_plugin_version_str()
+
+    def _get_meta_info(self, plugin_params):
+        meta_dict = yaml.load(plugin_params["meta.yaml"], Loader=yaml.FullLoader)
+        self.plugin.tag = meta_dict.get("tag") if meta_dict.get("tag") else ""
+        self.plugin.label = meta_dict.get("label", "other_rt")
+        self.version.config.is_support_remote = self._get_remote_stage(meta_dict)
+        self.version.info.plugin_display_name = meta_dict.get("plugin_display_name") or self.plugin.plugin_id
+
+    def _get_remote_stage(self, meta_dict):
+        if meta_dict.get("is_support_remote") is True:
+            return True
+        return False
+
+    @abc.abstractmethod
+    def _get_collector_json(self, plugin_params):
+        pass
+
+    def _get_config_mes(self, plugin_params):
+        # load config_json
+        try:
+            self.version.config.config_json = json.loads(plugin_params["config.json"])
+        except (TypeError, ValueError):
+            self.version.config.config_json = []
+
+        # load collector_json
+        self.version.config.collector_json = self._get_collector_json(plugin_params)
+
+    def _parse_plugin_version_str(self):
+        version_path = ""
+        for filename in self.filename_list:
+            if filename.endswith("VERSION"):
+                version_path = filename
+                break
+
+        try:
+            version_str = self._read_file(os.path.join(self.tmp_path, version_path))
+            version_split = version_str.split(".")
+            config_version = int(version_split[0])
+            info_version = int(version_split[1])
+        except Exception as e:
+            logger.exception("[ImportPlugin] {} - parse version error: {}".format(self.plugin.plugin_id, e))
+            config_version = info_version = 1
+
+        self.version.config_version = config_version
+        self.version.info_version = info_version
+
+    def _get_info_msg(self, plugin_params):
+        # load metric_json
+        try:
+            metric_json = json.loads(plugin_params["metrics.json"])
+            serializer = MetricJsonSerializer(data=metric_json, many=True)
+            if serializer.is_valid():
+                self.version.info.metric_json = serializer.validated_data
+            else:
+                logger.warning(
+                    "[ImportPlugin] {} - metric_json invalid: {}".format(self.plugin.plugin_id, serializer.errors)
+                )
+                self.version.info.metric_json = []
+        except (ValueError, TypeError):
+            self.version.info.metric_json = []
+        self.version.info.description_md = plugin_params.get("description.md", "")
+        # 获取图片
+        if plugin_params.get("logo.png", ""):
+            self.version.info.logo.save(
+                self.plugin.plugin_id + ".png",
+                SimpleUploadedFile("%s.png" % self.plugin.plugin_id, plugin_params["logo.png"]),
+            )
+
+    def _get_version_mes(self, plugin_params):
+        # load signature
+        try:
+            self.version.signature = Signature().load_from_yaml(plugin_params.get("signature.yaml")).dumps2python()
+        except Exception as e:
+            logger.exception("[ImportPlugin] {} - signature error: {}".format(self.plugin.plugin_id, e))
+            self.version.signature = ""
+
+        # load version_log
+        self.version.version_log = plugin_params.get("release.md", "")
+
+    @abc.abstractmethod
+    def get_deploy_steps_params(self, plugin_version, param, target_nodes):
+        return []
+
+    def start_debug(self, config_version, info_version, param, host_info, target_nodes=None):
+        """
+        开始插件调试
+        """
+        all_context = self._get_debug_config_context(config_version, info_version, param, target_nodes)
+
+        # 将配置模板渲染为配置实例，并获取配置实例ID
+        config_ids = []
+        for config_name, context in list(all_context.items()):
+            config_id = self._render_config(config_version, config_name, context)
+            config_ids.append(config_id)
+
+        task_id = self._run_debug(config_version, config_ids, host_info)
+        return task_id
+
+    def stop_debug(self, task_id: str):
+        """
+        停止插件调试
+        """
+        return api.node_man.stop_debug(task_id=task_id)
+
+    def query_debug(self, task_id):
+        """
+        获取调试信息
+        """
+        result = api.node_man.query_debug(task_id=task_id)
+
+        metric_json, last_time = self._parser_log_content(result["message"])
+        log_content = self._parser_log_error(result["message"])
+        if result["status"] in [DebugStatus.FAILED, DebugStatus.SUCCESS]:
+            task_status = result["status"]
+            return {
+                "status": task_status,
+                "log_content": log_content,
+                "metric_json": metric_json,
+                "last_time": last_time,
+            }
+
+        if result["step"] in ["DEBUG_PROCESS", "STOP_DEBUG_PROCESS"]:
+            # 处于 debug 步骤则为获取数据
+            task_status = DebugStatus.FETCH_DATA
+        else:
+            task_status = DebugStatus.INSTALL
+
+        return {"status": task_status, "log_content": log_content, "metric_json": metric_json, "last_time": last_time}
+
+    def get_tmp_version(self, config_version=None, info_version=None):
+        """
+        通过已上传的包创建一个临时版本
+        """
+        config = CollectorPluginConfig()
+        info = CollectorPluginInfo()
+        self.version = PluginVersionHistory(plugin=self.plugin, config=config, info=info)
+        self._parse_info_path()
+        self.version.update_diff_fields()
+
+        if config_version is not None:
+            self.version.config_version = config_version
+        if info_version is not None:
+            self.version.info_version = info_version
+
+        return self.version
+
+    def release(self, config_version, info_version, token=None, debug=True):
+        """
+        发布插件包
+
+        """
+        try:
+            current_version = self.plugin.get_version(config_version, info_version)
+            # 接入数据源
+            PluginDataAccessor(current_version, self.operator).access()
+
+            if debug:
+                release_version = self.plugin.get_debug_version(config_version)
+            else:
+                release_version = current_version
+
+            # 调用节点管理接口，发布配置文件
+            release_config = partial(self._release_config, release_version.config_version, release_version.info_version)
+            list(map(release_config, self.config_files))
+            # 调用节点管理接口，发布插件包
+            api.node_man.release_plugin(
+                {
+                    "name": self.plugin.plugin_id,
+                    "version": "{}.{}".format(release_version.config_version, release_version.info_version),
+                    "md5_list": token,
+                }
+            )
+            # 将插件版本状态置为release
+            release_version.stage = "release"
+            release_version.save()
+
+            if debug:
+                current_version.stage = "release"
+                current_version.save()
+        except Exception as err:
+            logger.error("[plugin] release plugin {} error, msg is {}".format(self.plugin.plugin_id, str(err)))
+            self.plugin.rollback_version_status(config_version)
+            raise err
+        return current_version
 
     def make_package(self, add_files=None, add_dirs=None, need_tar=True):
         """
@@ -701,7 +960,7 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
             templates_path = os.path.join(PLUGIN_TEMPLATES_PATH, self.templates_dirname)
             prefix_length = len(templates_path) + 1
 
-            context = self.get_context()
+            context = self._get_context()
             for root, dirs, files in os.walk(templates_path):
                 path_rest = root[prefix_length:]
                 real_path_rest = path_rest.replace("plugin_name", self.plugin.plugin_id)
@@ -775,45 +1034,17 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
                     os.chmod(os.path.join(root, filename), stat.S_IRWXU)
 
             if need_tar:
-                tar_name = self.tar_gz_file(top_dir)
+                tar_name = self._tar_gz_file(top_dir)
                 return tar_name
         except Exception as e:
             logger.exception(e)
             raise MakePackageError({"msg": e})
 
-    def get_context(self):
-        context = {
-            "metric_json": self.version.info.metric_json,
-            "plugin_id": self.plugin.plugin_id,
-            "plugin_display_name": self.version.info.plugin_display_name,
-            "version": self.version.version,
-            "config_version": self.version.config_version,
-            "plugin_type": self.plugin.get_plugin_type_display(),
-            "tag": self.plugin.tag,
-            "label": self.plugin.label,
-            "description_md": self.version.info.description_md,
-            "config_json": self.version.config.config_json,
-            "collector_json": self.version.config.collector_json,
-            "signature": "",
-            "is_support_remote": self.version.config.is_support_remote,
-            "version_log": self.version.version_log,
-        }
-        if self.version.signature:
-            context["signature"] = Signature(self.version.signature).dumps2yaml()
-        if self.plugin.plugin_type in [PluginType.EXPORTER, PluginType.JMX, PluginType.SNMP]:
-            try:
-                default_port = [x for x in self.version.config.config_json if x["name"] == "port"][0]["default"]
-                context["port_range"] = "%s,10000-65535" % default_port
-            except Exception:
-                context["port_range"] = "10000-65535"
-
-        return context
-
     def run_export(self):
         # 判断是否有可导出的release版本
         release_version = self.plugin.release_version
         if not release_version:
-            raise ExportPluginError({"msg": _("该插件没有release版本可导出")})
+            raise ExportPluginError({"msg": gettext("该插件没有release版本可导出")})
 
         param = {
             "category": "gse_plugin",
@@ -839,177 +1070,4 @@ class PluginManager(six.with_metaclass(abc.ABCMeta, object)):
         if not download_url:
             raise ExportPluginTimeout
 
-        return {"download_url": download_url}
-
-    def read_file(self, filename):
-        try:
-            with open(filename, "rb") as f:
-                file_content = f.read()
-        except IOError:
-            raise PluginParseError({"msg": _("%s文件读取失败") % filename})
-
-        try:
-            file_content = file_content.decode("utf-8")
-        except UnicodeDecodeError:
-            pass
-        return file_content
-
-    def create_tmp_version_by_data(self, data, config_version=None, info_version=None):
-        """
-        通过json数据创建一个临时版本
-        """
-        config = CollectorPluginConfig()
-        info = CollectorPluginInfo()
-        self.version = PluginVersionHistory(plugin=self.plugin, config=config, info=info)
-        config_data = {
-            "config_json": data.get("config_json", []),
-            "collector_json": data.get("collector_json", []),
-            "is_support_remote": data.get("is_support_remote", False),
-        }
-        for attr, value in list(config_data.items()):
-            setattr(self.version.config, attr, value)
-
-        info_data = {
-            "plugin_display_name": (
-                data["plugin_display_name"] if data["plugin_display_name"] else self.plugin.plugin_id
-            ),
-            "logo": None,
-            "description_md": data["description_md"],
-            "metric_json": data["metric_json"],
-        }
-        for attr, value in list(info_data.items()):
-            setattr(self.version.info, attr, value)
-
-        if len(data["logo"]) > 1:
-            self.save_logo_file(self.version.info, data["logo"])
-
-        if data.get("signature", ""):
-            self.version.signature = Signature().load_from_yaml(data["signature"]).dumps2python()
-
-        if config_version is not None:
-            self.version.config_version = config_version
-        if info_version is not None:
-            self.version.info_version = info_version
-
-        self.plugin.bk_biz_id = data.get("bk_biz_id", 0)
-        self.plugin.tag = data.get("tag", "")
-        self.plugin.label = data.get("label", "other_rt")
-
-        return self.version
-
-    def get_tmp_version(self, config_version=None, info_version=None):
-        """
-        通过已上传的包创建一个临时版本
-        """
-        config = CollectorPluginConfig()
-        info = CollectorPluginInfo()
-        self.version = PluginVersionHistory(plugin=self.plugin, config=config, info=info)
-        self.parse_info_path()
-        self.version.update_diff_fields()
-
-        if config_version is not None:
-            self.version.config_version = config_version
-        if info_version is not None:
-            self.version.info_version = info_version
-
-        return self.version
-
-    def parse_info_path(self):
-        read_filename_list = []
-        for dir_path, dirname, filename_list in os.walk(self.tmp_path):
-            if dir_path.endswith(os.path.join(self.plugin.plugin_id, "info")) and len(dirname) == 0:
-                plugin_info_path = dir_path
-                read_filename_list = [os.path.join(plugin_info_path, filename) for filename in filename_list]
-                break
-
-        if not read_filename_list:
-            raise PluginParseError({"msg": _("不存在info文件夹，无法解析插件包")})
-
-        plugin_params = {}
-        for file_instance in read_filename_list:
-            plugin_params[os.path.basename(file_instance)] = self.read_file(file_instance)
-
-        self.get_meta_info(plugin_params)
-        self.get_config_mes(plugin_params)
-        self.get_info_msg(plugin_params)
-        self.get_version_mes(plugin_params)
-        self.parse_plugin_version_str()
-
-    def get_meta_info(self, plugin_params):
-        meta_dict = yaml.load(plugin_params["meta.yaml"])
-        self.plugin.tag = meta_dict.get("tag") if meta_dict.get("tag") else ""
-        self.plugin.label = meta_dict.get("label", "other_rt")
-        self.version.config.is_support_remote = self.get_remote_stage(meta_dict)
-        self.version.info.plugin_display_name = meta_dict.get("plugin_display_name") or self.plugin.plugin_id
-
-    def get_remote_stage(self, meta_dict):
-        if meta_dict.get("is_support_remote") is True:
-            return True
-        return False
-
-    @abc.abstractmethod
-    def get_collector_json(self, plugin_params):
-        pass
-
-    def get_config_mes(self, plugin_params):
-        # load config_json
-        try:
-            self.version.config.config_json = json.loads(plugin_params["config.json"])
-        except Exception:
-            self.version.config.config_json = []
-
-        # load collector_json
-        self.version.config.collector_json = self.get_collector_json(plugin_params)
-
-    def parse_plugin_version_str(self):
-        version_path = ""
-        for filename in self.filename_list:
-            if filename.endswith("VERSION"):
-                version_path = filename
-                break
-
-        try:
-            version_str = self.read_file(os.path.join(self.tmp_path, version_path))
-            version_split = version_str.split(".")
-            config_version = int(version_split[0])
-            info_version = int(version_split[1])
-        except Exception:
-            config_version = info_version = 1
-
-        self.version.config_version = config_version
-        self.version.info_version = info_version
-
-    def get_info_msg(self, plugin_params):
-        # load metric_json
-        try:
-            metric_json = json.loads(plugin_params["metrics.json"])
-            serializer = MetricJsonSerializer(data=metric_json, many=True)
-            if serializer.is_valid():
-                self.version.info.metric_json = serializer.validated_data
-            else:
-                logger.warning(
-                    "[ImportPlugin] {} - metric_json invalid: {}".format(self.plugin.plugin_id, serializer.errors)
-                )
-                self.version.info.metric_json = []
-        except Exception:
-            self.version.info.metric_json = []
-        self.version.info.description_md = plugin_params.get("description.md", "")
-        # 获取图片
-        if plugin_params.get("logo.png", ""):
-            self.version.info.logo.save(
-                self.plugin.plugin_id + ".png",
-                SimpleUploadedFile("%s.png" % self.plugin.plugin_id, plugin_params["logo.png"]),
-            )
-
-    def get_version_mes(self, plugin_params):
-        # load signature
-        try:
-            self.version.signature = Signature().load_from_yaml(plugin_params.get("signature.yaml")).dumps2python()
-        except Exception:
-            self.version.signature = ""
-
-        # load version_log
-        self.version.version_log = plugin_params.get("release.md", "")
-
-    def validate_config_info(self, collector_info, config_info):
-        pass
+        return download_url

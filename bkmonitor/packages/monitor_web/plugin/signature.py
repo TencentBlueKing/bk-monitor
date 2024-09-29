@@ -9,8 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import yaml
-from monitor_web.plugin.constant import PluginType
-from utils import count_md5
 
 from bkmonitor.utils.rsa.signature import Verification
 from core.errors.plugin import (
@@ -18,13 +16,14 @@ from core.errors.plugin import (
     SignatureNotSupported,
     SignatureProtocolNotExist,
 )
+from monitor_web.plugin.constant import PluginType
+from utils import count_md5
 
 __all__ = ["load_plugin_signature_manager", "Signature"]
 
 
 class PluginSignatureManager(object):
     def __init__(self, plugin_version):
-
         if not plugin_version.version:
             raise PluginVersionNotExist
 
@@ -286,6 +285,17 @@ class SNMPPluginSignatureManager(PluginSignatureManager, BasePluginSignatureProt
         return super(SNMPPluginSignatureManager, self).message_by_strict(os_type)
 
 
+class K8sPluginSignatureManager(PluginSignatureManager, BasePluginSignatureProtocolMixin):
+    def message_by_default(self, os_type, plugin_debugged=True):
+        # 安全认证签名
+        default_message = super(K8sPluginSignatureManager, self).message_by_default(os_type, plugin_debugged)
+        return default_message + count_md5(self.version.config.collector_json)
+
+    def message_by_strict(self, os_type):
+        # 防篡改
+        return super(K8sPluginSignatureManager, self).message_by_strict(os_type)
+
+
 SignatureManagerFactory = {
     PluginType.EXPORTER: ExporterPluginSignatureManager,
     PluginType.DATADOG: DataDogPluginSignatureManager,
@@ -297,6 +307,7 @@ SignatureManagerFactory = {
     PluginType.PROCESS: ProcessPluginSignatureManager,
     PluginType.SNMP_TRAP: SNMPTrapPluginSignatureManager,
     PluginType.SNMP: SNMPPluginSignatureManager,
+    PluginType.K8S: K8sPluginSignatureManager,
 }
 
 Signature = SignatureObjCollections

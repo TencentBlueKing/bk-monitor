@@ -77,17 +77,26 @@ class AlertBuilder(BaseAlertProcessor):
         """
 
         def _report_latency(report_events):
+            latency_logged = False
             for event in report_events:
                 latency = event.get_process_latency()
                 if not latency:
                     # 没有延迟数据，直接下一个
                     continue
-                if latency.get("trigger_latency"):
+                trigger_latency = latency.get("trigger_latency", 0)
+                if trigger_latency > 0:
                     metrics.ALERT_PROCESS_LATENCY.labels(
                         bk_data_id=event.data_id,
                         topic=event.topic,
                         strategy_id=metrics.TOTAL_TAG,
-                    ).observe(latency["trigger_latency"])
+                    ).observe(trigger_latency)
+                    if trigger_latency > 60 and not latency_logged:
+                        self.logger.warning(
+                            "[trigger to alert.builder]big latency %s,  strategy(%s)",
+                            trigger_latency,
+                            event.strategy_id,
+                        )
+                        latency_logged = True
                 if latency.get("access_latency"):
                     metrics.ACCESS_TO_ALERT_PROCESS_LATENCY.labels(
                         bk_data_id=event.data_id,
