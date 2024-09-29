@@ -14,6 +14,7 @@ from django.db import models
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
+from opentelemetry import trace
 from opentelemetry.semconv.trace import SpanAttributes
 
 from apm_web.constants import (
@@ -48,13 +49,18 @@ from common.log import logger
 from constants.apm import OtlpKey, SpanKindKey, TelemetryDataType
 from core.drf_resource import api, resource
 
+tracer = trace.get_tracer(__name__)
+
 
 class Application(AbstractRecordModel):
     DEPLOYMENT_KEY = "deployment"
     LANGUAGE_KEY = "language"
     PLUGING_KEY = "plugin"
 
+    # trace 存储配置 KEY
     APPLICATION_DATASOURCE_CONFIG_KEY = "application_datasource_config"
+    # log 存储配置 KEY
+    APPLICATION_LOG_DATASOURCE_CONFIG_KEY = "application_log_datasource_config"
 
     class DatasourceConfig:
         ES_RETENTION = "es_retention"
@@ -386,20 +392,27 @@ class Application(AbstractRecordModel):
         plugin_id,
         deployment_ids,
         language_ids,
-        datasource_option,
-        enabled_profiling: bool = False,
+        enabled_profiling,
+        enabled_trace,
+        enabled_metric,
+        enabled_log,
+        datasource_option=None,
         plugin_config=None,
     ):
+
         create_params = {
             "bk_biz_id": bk_biz_id,
             "app_name": app_name,
             "app_alias": app_alias,
             "description": description,
+            "enabled_profiling": enabled_profiling,
+            "enabled_trace": enabled_trace,
+            "enabled_metric": enabled_metric,
+            "enabled_log": enabled_log,
             "es_storage_config": datasource_option,
         }
 
-        if enabled_profiling:
-            create_params["enabled_profiling"] = True
+        # 如果 api 创建失败 那么 saas 的数据不会创建
         application_info = api.apm_api.create_application(create_params)
 
         application = cls.objects.create(
@@ -416,7 +429,14 @@ class Application(AbstractRecordModel):
         for language_id in language_ids:
             application.add_relation(cls.LANGUAGE_KEY, language_id)
 
-        application.set_init_datasource(application_info["datasource_info"], datasource_option)
+        application.set_init_datasource(
+            application_info["datasource_info"],
+            datasource_option,
+            enabled_profiling,
+            enabled_trace,
+            enabled_metric,
+            enabled_log,
+        )
         application.set_init_apdex_config()
         application.set_init_sampler_config()
         application.set_init_instance_name_config()
@@ -496,12 +516,19 @@ class Application(AbstractRecordModel):
             # 删除节点管理采集订阅任务
             return api.node_man.delete_subscription({"subscription_id": app.plugin_config["subscription_id"]})
 
-    def set_init_datasource(self, datasource_info, datasource_option):
+    def set_init_datasource(
+        self, datasource_info, datasource_option, enabled_profiling, enabled_trace, enabled_metric, enabled_log
+    ):
+        # 更新 trace / metric 数据源的信息
         self.trace_result_table_id = datasource_info["trace_config"]["result_table_id"]
         self.metric_result_table_id = datasource_info["metric_config"]["result_table_id"]
         self.time_series_group_id = datasource_info["metric_config"]["time_series_group_id"]
+        # 更新数据源开关 只有 api 侧创建成功才认为是开启了的
+        self.is_enabled_profiling = enabled_profiling
+        self.is_enabled_trace = enabled_trace
+        self.is_enabled_metric = enabled_metric
+        self.is_enabled_log = enabled_log
         # 应用创建时根据是否创建了 profiling 作为开启/关闭状态
-        self.is_enabled_profiling = True if "profile_config" in datasource_info else False
         self.save()
         ApmMetaConfig.application_config_setup(
             self.application_id, self.APPLICATION_DATASOURCE_CONFIG_KEY, datasource_option
@@ -574,6 +601,10 @@ class Application(AbstractRecordModel):
 
     @classmethod
     def setup_datasource(cls, application_id, datasource_option: dict):
+        """
+        更新存储配置
+        datasource_option 格式: {"trace_datasource_option": {...}, "log_datasource_option": {...}}
+        """
         application = cls.objects.filter(application_id=application_id).first()
         if not application:
             raise ValueError(_("应用不存在"))
@@ -584,7 +615,18 @@ class Application(AbstractRecordModel):
         application.metric_result_table_id = datasource_info["metric_config"]["result_table_id"]
         application.time_series_group_id = datasource_info["metric_config"]["time_series_group_id"]
         application.save()
-        ApmMetaConfig.application_config_setup(application_id, cls.APPLICATION_DATASOURCE_CONFIG_KEY, datasource_option)
+        if datasource_option.get("trace_datasource_option"):
+            ApmMetaConfig.application_config_setup(
+                application_id,
+                cls.APPLICATION_DATASOURCE_CONFIG_KEY,
+                datasource_option["trace_datasource_option"],
+            )
+        if datasource_option.get("log_datasource_option"):
+            ApmMetaConfig.application_config_setup(
+                application_id,
+                cls.APPLICATION_LOG_DATASOURCE_CONFIG_KEY,
+                datasource_option["log_datasource_option"],
+            )
 
     def set_init_apdex_config(self):
         apdex_value = {

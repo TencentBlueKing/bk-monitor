@@ -772,7 +772,16 @@ class TelemetryDataType(Enum):
     TRACING = "tracing"
     PROFILING = "profiling"
 
-    @cached_property
+    @classmethod
+    def choices(cls):
+        return [
+            (cls.METRIC, _("指标")),
+            (cls.LOG, _("日志")),
+            (cls.TRACING, _("调用链")),
+            (cls.PROFILING, _("性能分析")),
+        ]
+
+    @property
     def alias(self):
         return {
             self.METRIC.value: _lazy("指标"),

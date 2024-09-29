@@ -401,3 +401,39 @@ class LogSearchIndexSetResource(LogSearchAPIGWResource):
         """
         url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
         return url.format(index_set_id=validated_request_data.pop("index_set_id"))
+
+
+class CreateCustomReportResource(LogSearchAPIGWResource):
+    """
+    创建自定义上报
+    """
+
+    action = "/databus_custom_create/"
+    method = "POST"
+
+
+class UpdateCustomReportResource(LogSearchAPIGWResource):
+    """
+    更新自定义上报
+    """
+
+    action = "/{collector_config_id}/databus_custom_update/"
+    method = "POST"
+
+
+class StartCollectorsResource(LogSearchAPIGWResource):
+    """
+    开启自定义上报
+    """
+
+    action = "/databus_collectors/{collector_config_id}/start/"
+    method = "POST"
+
+
+class StopCollectorsResource(LogSearchAPIGWResource):
+    """
+    关闭自定义上报
+    """
+
+    action = "/databus_collectors/{collector_config_id}/stop/"
+    method = "POST"

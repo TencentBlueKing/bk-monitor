@@ -509,7 +509,7 @@ class ServiceHandler:
             status[TelemetryDataType.METRIC.value] = DataStatus.DISABLED
         if not application.is_enabled_log:
             status[TelemetryDataType.LOG.value] = DataStatus.DISABLED
-        if not application.is_enabled:
+        if not application.is_enabled_trace:
             status[TelemetryDataType.TRACING.value] = DataStatus.DISABLED
         if not application.is_enabled_profiling:
             status[TelemetryDataType.PROFILING.value] = DataStatus.DISABLED
