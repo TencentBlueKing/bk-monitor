@@ -234,6 +234,7 @@ def get_extra_context(request, space: Optional[Space]) -> Dict[str, Any]:
         # 用于新增空间是否展示其他
         "MONITOR_MANAGERS": settings.MONITOR_MANAGERS,
         "CLUSTER_SETUP_URL": f"{settings.BK_BCS_HOST.rstrip('/')}/bcs/",
+        "BK_DOC_VERSION": settings.BK_DOC_VERSION,
     }
 
     # 用于新增容器空间地址

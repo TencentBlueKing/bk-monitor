@@ -310,8 +310,17 @@ class AccessDataProcess(BaseAccessDataProcess):
         points = self.query_data(now_timestamp)
 
         # 当点数大于阈值时，将数据拆分为多个批量任务
-        if len(points) > settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD > 0:
-            points = self.send_batch_data(points, settings.ACCESS_DATA_BATCH_PROCESS_SIZE)
+        point_total = len(points)
+        if point_total > settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD or 500000:
+            # 超过50w点，或者触发了分批处理阈值， 则记录策略信息
+            metrics.PROCESS_OVER_FLOW.labels(
+                module="access.data",
+                strategy_id=self.items[0].strategy.id,
+                bk_biz_id=self.items[0].strategy.bk_biz_id,
+                strategy_name=self.items[0].strategy.name,
+            ).inc(point_total)
+            if settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD > 0:
+                points = self.send_batch_data(points, settings.ACCESS_DATA_BATCH_PROCESS_SIZE)
 
         # 过滤重复数据并实例化
         self.filter_duplicates(points)

@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 import hashlib
 import json
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from urllib.parse import urljoin
 
 import yaml
@@ -249,13 +249,32 @@ class K8sInstaller(BaseInstaller):
         # 创建namespace和dataid资源
         self._create_plugin_public_resource(context)
 
+        resources: Set[Tuple[str, str, str]] = set()
         with k8s_client.ApiClient(self._get_k8s_config(cluster_id)) as api_client:
             client = k8s_dynamic.DynamicClient(api_client)
 
             for config in yaml.safe_load_all(self._render_yaml(target_version, context)):
                 if not config:
                     continue
+                resources.add((config["apiVersion"], config["kind"], config["metadata"]["name"]))
                 self._create_or_update_dynamic_resource(client, config, context)
+
+            # 清理旧版本的资源
+            if not target_version.last_version:
+                return
+
+            last_context = self._get_context(target_version.last_version)
+            for config in yaml.safe_load_all(self._render_yaml(target_version.last_version, last_context)):
+                if not config or (config["apiVersion"], config["kind"], config["metadata"]["name"]) in resources:
+                    continue
+
+                # 如果资源在新版本中不存在，则删除
+                resource_client = client.resources.get(api_version=config["apiVersion"], kind=config["kind"])
+                try:
+                    resource_client.delete(namespace=context["namespace"], name=config["metadata"]["name"])
+                except k8s_client.exceptions.ApiException as e:
+                    if e.status != 404:
+                        raise e
 
     def _undeploy(self, target_version: Optional[DeploymentConfigVersion] = None):
         """

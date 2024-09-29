@@ -802,3 +802,14 @@ class TelemetryDataType(Enum):
             {"id": cls.TRACING.value, "name": _("调用链")},
             {"id": cls.PROFILING.value, "name": _("性能分析")},
         ]
+
+
+class FormatType:
+    # 默认：补充协议 + url 路径
+    DEFAULT = "default"
+    # simple：仅返回域名
+    SIMPLE = "simple"
+
+    @classmethod
+    def choices(cls):
+        return [(cls.DEFAULT, cls.DEFAULT), (cls.SIMPLE, cls.SIMPLE)]
