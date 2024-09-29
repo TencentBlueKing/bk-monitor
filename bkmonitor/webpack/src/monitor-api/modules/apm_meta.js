@@ -2,6 +2,7 @@ import { request } from '../base';
 
 export const listMetaEsClusterInfo = request('GET', 'apm/meta/meta_info/list_es_cluster_info/');
 export const metaConfigInfo = request('GET', 'apm/meta/meta_info/meta_config_info/');
+export const metaInstrumentGuides = request('POST', 'apm/meta/meta_info/meta_instrument_guides/');
 export const pushUrl = request('GET', 'apm/meta/meta_info/push_url/');
 export const listEsClusterGroups = request('GET', 'apm/meta/meta_info/list_cluster_groups/');
 export const listApplicationInfo = request('GET', 'apm/meta/application/list_application_info/');
@@ -48,6 +49,7 @@ export const simpleServiceList = request('POST', 'apm/meta/application/simple_se
 export default {
   listMetaEsClusterInfo,
   metaConfigInfo,
+  metaInstrumentGuides,
   pushUrl,
   listEsClusterGroups,
   listApplicationInfo,
