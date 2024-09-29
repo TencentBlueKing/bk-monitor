@@ -12,9 +12,8 @@ from django.utils.translation import ugettext_lazy as _
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
-from apm.constants import TelemetryDataType
 from constants.alert import EventSeverity
-from constants.apm import OtlpKey, SpanKindKey
+from constants.apm import OtlpKey, SpanKindKey, TelemetryDataType
 
 GLOBAL_CONFIG_BK_BIZ_ID = 0
 DEFAULT_EMPTY_NUMBER = 0
@@ -296,6 +295,20 @@ class DataStatus:
             cls.NORMAL: {"type": Status.SUCCESS, "text": cls.get_label_by_key(key)},
             cls.NO_DATA: {"type": Status.FAILED, "text": cls.get_label_by_key(key)},
         }.get(key, {"type": Status.FAILED, "text": cls.get_label_by_key(key)})
+
+
+class StorageStatus:
+    NORMAL = "normal"
+    ERROR = "error"
+    DISABLED = "disabled"
+
+    @classmethod
+    def get_label_by_key(cls, key: str):
+        return {
+            cls.NORMAL: _("正常"),
+            cls.ERROR: _("异常"),
+            cls.DISABLED: _("未开启"),
+        }.get(key, key)
 
 
 class ServiceStatus(EventSeverity):

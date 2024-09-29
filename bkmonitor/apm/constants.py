@@ -8,12 +8,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from enum import Enum
 
 from django.conf import settings
-from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
-from django.utils.translation import ugettext_lazy as _lazy
 
 from constants.apm import SpanKind
 
@@ -584,32 +581,3 @@ class ProfileQueryType:
 
     # cpu查询
     CPU = "cpu"
-
-
-class TelemetryDataType(Enum):
-    METRIC = "metric"
-    LOG = "log"
-    TRACING = "tracing"
-    PROFILING = "profiling"
-
-    @cached_property
-    def alias(self):
-        return {
-            self.METRIC.value: _lazy("指标"),
-            self.LOG.value: _lazy("日志"),
-            self.TRACING.value: _lazy("调用链"),
-            self.PROFILING.value: _lazy("性能分析"),
-        }.get(self.value, self.value)
-
-    @cached_property
-    def datasource_type(self):
-        return {
-            self.METRIC.value: "metric",
-            self.LOG.value: "log",
-            self.TRACING.value: "trace",
-            self.PROFILING.value: "profiling",
-        }.get(self.value)
-
-    @classmethod
-    def values(cls):
-        return [i.value for i in cls]

@@ -29,7 +29,6 @@ from opentelemetry.semconv.trace import SpanAttributes
 from rest_framework import serializers
 
 from api.cmdb.define import Business
-from apm.constants import TelemetryDataType
 from apm_web.constants import (
     APM_APPLICATION_DEFAULT_METRIC,
     DB_SYSTEM_TUPLE,
@@ -49,11 +48,13 @@ from apm_web.constants import (
     SamplerTypeChoices,
     SceneEventKey,
     ServiceRelationLogTypeChoices,
+    StorageStatus,
     TopoNodeKind,
     nodata_error_strategy_config_mapping,
 )
 from apm_web.db.db_utils import build_filter_params, get_service_from_params
 from apm_web.handlers.application_handler import ApplicationHandler
+from apm_web.handlers.backend_data_handler import telemetry_handler_registry
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.db_handler import DbComponentHandler
 from apm_web.handlers.endpoint_handler import EndpointHandler
@@ -61,7 +62,6 @@ from apm_web.handlers.instance_handler import InstanceHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.handlers.span_handler import SpanHandler
 from apm_web.icon import get_icon
-from apm_web.meta.handlers.backend_data_handler import telemetry_handler_registry
 from apm_web.meta.handlers.custom_service_handler import Matcher
 from apm_web.meta.handlers.sampling_handler import SamplingHelpers
 from apm_web.meta.plugin.help import Help
@@ -119,6 +119,7 @@ from constants.apm import (
     SpanStandardField,
     StandardFieldCategory,
     TailSamplingSupportMethod,
+    TelemetryDataType,
 )
 from constants.data_source import (
     ApplicationsResultTableLabel,
@@ -1578,6 +1579,29 @@ class StorageFieldInfoResource(Resource):
             raise ValueError(_("应用不存在"))
         resp = telemetry_handler_registry(telemetry_data_type, app=app).storage_field_info()
         return resp
+
+
+class StorageStatusResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        application_id = serializers.IntegerField(label="应用id")
+
+    def perform_request(self, validated_request_data):
+        # 获取应用
+        try:
+            app = Application.objects.get(application_id=validated_request_data["application_id"])
+            status_mapping = {}
+            for data_type in TelemetryDataType:
+                if not getattr(app, f"is_enabled_{data_type.datasource_type}"):
+                    status_mapping[data_type.name] = StorageStatus.DISABLED
+                    continue
+                status_mapping[data_type.name] = (
+                    StorageStatus.NORMAL
+                    if telemetry_handler_registry(data_type.value, app=app).storage_status()
+                    else StorageStatus.ERROR
+                )
+        except Application.DoesNotExist:
+            raise ValueError(_("应用不存在"))
+        return status_mapping
 
 
 class NoDataStrategyInfoResource(Resource):
