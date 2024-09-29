@@ -8,6 +8,10 @@
 
 {{TERM_INTRO}}
 
+### 1.2 运行参数
+
+{{QUICK_START_RUN_PARAMETERS}}
+
 
 ## 2. 了解更多
 
