@@ -242,7 +242,7 @@ class TracingBackendHandler(TelemetryBackendHandler):
                     "data_type_label": DataTypeLabel.TIME_SERIES,
                     "alias": "a",
                     "result_table_id": f"{self.metric_result_table_id}",
-                    "agg_method": "SUM",
+                    "agg_method": "COUNT",
                     "agg_interval": 60,
                     "agg_dimension": [],
                     "agg_condition": [],
@@ -356,8 +356,14 @@ class LogBackendHandler(TelemetryBackendHandler):
                     "data_source_label": DataSourceLabel.BK_LOG_SEARCH,
                     "data_type_label": DataTypeLabel.TIME_SERIES,
                     "index_set_id": self.index_set_id,
-                    "table": self.result_table_id,
-                    "metrics": [{"field": "_index", "method": "COUNT", "alias": "A"}],
+                    "result_table_id": self.result_table_id,
+                    "agg_method": "COUNT",
+                    "agg_interval": 60,
+                    "agg_dimension": [],
+                    "agg_condition": [],
+                    "alias": "a",
+                    "metric_field": "_index",
+                    "metric_id": f"{self.result_table_id}._index",
                     "query_string": "*",
                     "group_by": [],
                     "display": True,
@@ -593,4 +599,4 @@ class ProfilingBackendHandler(BkdataCountMixIn, TelemetryBackendHandler):
         return histograms
 
     def get_no_data_strategy_config(self):
-        return {}
+        return None
