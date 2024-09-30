@@ -48,8 +48,8 @@ import {
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import PanelItem from '../../../../components/panel-item/panel-item';
+import { ETelemetryDataType, type IAppInfo, type IStrategyData } from '../type';
 
-import type { ETelemetryDataType, IAppInfo, IStrategyData } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import 'vue-json-pretty/lib/styles.css';
@@ -265,7 +265,10 @@ export default class DataStatusMetric extends tsc<IProps> {
 
         confirmFn: async () => {
           const api = value ? noDataStrategyDisable : noDataStrategyEnable;
-          const isPass = await api({ application_id: this.appInfo.application_id })
+          const isPass = await api({
+            application_id: this.appInfo.application_id,
+            telemetry_data_type: this.activeTab,
+          })
             .then(() => {
               this.getNoDataStrategyInfo();
               return true;
@@ -351,6 +354,7 @@ export default class DataStatusMetric extends tsc<IProps> {
                   {this.$t('无数据告警')}
                 </span>
                 <bk-switcher
+                  disabled={this.activeTab === ETelemetryDataType.profiling}
                   pre-check={() => this.preCheckChange(this.strategyInfo.is_enabled)}
                   size='small'
                   theme='primary'
