@@ -166,7 +166,6 @@ export default class AppAddNew extends tsc<object> {
       if (isPass) {
         // 保存接口
         const params = {
-          bk_biz_id: 2,
           app_name: this.formData.ID,
           app_alias: this.formData.name,
           description: this.formData.desc,
