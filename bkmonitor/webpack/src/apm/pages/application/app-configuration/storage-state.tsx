@@ -231,6 +231,13 @@ export default class StorageState extends tsc<IStorageStateProps> {
     };
   }
 
+  traceStorageChange(params) {
+    this.storageInfo[ETelemetryDataType.tracing] = {
+      ...this.storageInfo[ETelemetryDataType.tracing],
+      ...params,
+    };
+  }
+
   /** 获取选择的tab组件 */
   getActiveComponent() {
     switch (this.activeTab) {
@@ -267,7 +274,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
             setupData={this.setupData}
             storageInfo={this.storageInfo[this.activeTab]}
             telemetryDataType={this.activeTab}
-            onChange={this.handleBaseInfoChange}
+            onChange={params => this.traceStorageChange(params)}
           />
         );
     }
