@@ -17,7 +17,7 @@
 ### 1.3 初始化 demo
 
 ```shell
-git clone {{ECOSYSTEM_REPOSITORY_URL}}.git
+git clone {{ECOSYSTEM_REPOSITORY_URL}}
 cd examples/go-examples/helloworld
 go mod tidy
 ```
@@ -43,8 +43,6 @@ ENABLE_LOGS="{{access_config.otlp.enable_logs}}" \
 go run main.go
 ```
 
-访问 👉 [http://localhost:8080/helloworld](http://localhost:8080/helloworld)。
-
 #### 2.1.2 运行参数说明
 
 {{QUICK_START_RUN_PARAMETERS}}
@@ -61,13 +59,13 @@ go run main.go
 
 OpenTelemetry 提供标准化的框架和工具包，用于创建和管理 Traces、Metrics、Logs 数据。
 
-示例项目提供集成 OpenTelemetry Go SDK 并将遥测数据发送到 bk-collector 的方式，可以参考 [service/otlp/otlp.go]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/go-examples/helloworld/service/otlp/otlp.go) 进行接入
+示例项目提供集成 OpenTelemetry Go SDK 并将遥测数据发送到 bk-collector 的方式，可以参考 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/go-examples/helloworld/service/otlp/otlp.go" target="_blank">service/otlp/otlp.go</a> 进行接入
 
 #### 3.1.2 关键配置
 
 {{MUST_CONFIG_RESOURCES}}
 
-示例项目在 [service/otlp/otlp.go newResource]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/go-examples/helloworld/service/otlp/otlp.go) 提供了创建样例：
+示例项目在 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/go-examples/helloworld/service/otlp/otlp.go" target="_blank">service/otlp/otlp.go newResource</a> 提供了创建样例：
 
 ```go
 func (s *Service) newResource() (*resource.Resource, error) {
@@ -88,7 +86,7 @@ func (s *Service) newResource() (*resource.Resource, error) {
 
 {{MUST_CONFIG_EXPORTER}}
 
-示例项目在 [service/otlp/otlp.go newTracerExporter]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/go-examples/helloworld/service/otlp/otlp.go) 提供了创建样例：
+示例项目在 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/go-examples/helloworld/service/otlp/otlp.go" target="_blank">service/otlp/otlp.go newTracerExporter</a> 提供了创建样例：
 
 ```go
 func (s *Service) newTracerExporter(ctx context.Context) (*otlptrace.Exporter, error) {
@@ -134,15 +132,15 @@ func HelloWorld(w http.ResponseWriter, req *http.Request) {
 }
 ```
 
-对于 OpenTelemetry SDK API 的使用，在文档 [Go（OpenTelemetry SDK）接入]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/go-examples/helloworld/README.md) 提供了更详细的说明。 
+对于 OpenTelemetry SDK API 的使用，在文档 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/go-examples/helloworld/README.md" target="_blank">Go（OpenTelemetry SDK）接入</a> 提供了更详细的说明。 
 
-同时可以参考代码进行使用：[service/http/helloworld.go]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/go-examples/helloworld/service/http/helloworld.go)。
+同时可以参考代码进行使用：<a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/go-examples/helloworld/service/http/helloworld.go" target="_blank">service/http/helloworld.go</a>。
 
 ### 3.2 Profiling
 
 {{MUST_CONFIG_PROFILING}}
 
-示例项目提供集成 Pyroscope Go SDK 并将性能数据发送到 bk-collector 的方式，可以参考 [service/profiling/profiling.go]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/go-examples/helloworld/service/profiling/profiling.go) 进行接入:
+示例项目提供集成 Pyroscope Go SDK 并将性能数据发送到 bk-collector 的方式，可以参考 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/go-examples/helloworld/service/profiling/profiling.go" target="_blank">service/profiling/profiling.go</a> 进行接入:
 
 ```go
 profiler, _ = pyroscope.Start(
@@ -163,5 +161,5 @@ profiler, _ = pyroscope.Start(
 
 ## 4. 了解更多
 
-* [应用性能监控（APM）数据接入指南]({{APM_ACCESS_URL}})
-* [各语言、框架接入代码样例]({{ECOSYSTEM_REPOSITORY_URL}})
+* <a href="{{APM_ACCESS_URL}}" target="_blank">应用性能监控（APM）数据接入指南</a>
+* <a href="{{ECOSYSTEM_REPOSITORY_URL}}" target="_blank">各语言、框架接入代码样例</a>

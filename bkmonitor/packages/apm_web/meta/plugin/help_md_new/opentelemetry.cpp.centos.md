@@ -17,9 +17,9 @@
 ### 1.3 初始化 demo
 
 ```shell
-git clone {{ECOSYSTEM_REPOSITORY_URL}}.git
+git clone {{ECOSYSTEM_REPOSITORY_URL}}
 cd examples/cpp-examples/helloworld
-docker build -t cpp-helloworld .
+docker build -t cpp-helloworld:latest .
 ```
 
 
@@ -41,8 +41,6 @@ docker run -e TOKEN="{{access_config.token}}" \
 cpp-helloworld:latest -p 8080:8080
 ```
 
-访问 👉 [http://localhost:8080/helloworld](http://localhost:8080/helloworld)。
-
 #### 2.1.2 运行参数说明
 
 {{QUICK_START_RUN_PARAMETERS}}
@@ -60,9 +58,9 @@ cpp-helloworld:latest -p 8080:8080
 OpenTelemetry 提供标准化的框架和工具包，用于创建和管理 Traces、Metrics、Logs 数据。
 
 示例项目提供集成 OpenTelemetry Cpp SDK 并将遥测数据发送到 bk-collector 的方式，可以参考下面的代码：
-* Traces：[include/otlp/tracer_common.h]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/include/otlp/tracer_common.h)
-* Metrics：[include/otlp/meter_common.h]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/include/otlp/meter_common.h)
-* Logs：[include/otlp/logger_common.h]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/include/otlp/logger_common.h)
+* Traces：<a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/include/otlp/tracer_common.h" target="_blank">include/otlp/tracer_common.h</a>
+* Metrics：<a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/include/otlp/meter_common.h" target="_blank">include/otlp/meter_common.h</a>
+* Logs：<a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/include/otlp/logger_common.h" target="_blank">include/otlp/logger_common.h</a>
 
 在 `main` 文件中启动注册：
 
@@ -94,7 +92,7 @@ int main() {
 
 {{MUST_CONFIG_RESOURCES}}
 
-示例项目在 [include/otlp/meter_common.h]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/include/otlp/resource_common.h) 提供了创建样例：
+示例项目在 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/include/otlp/resource_common.h" target="_blank">include/otlp/meter_common.h</a> 提供了创建样例：
 
 ```cpp
 resource_sdk::Resource CreateResource(const Config &config) {
@@ -113,7 +111,7 @@ resource_sdk::Resource CreateResource(const Config &config) {
 
 {{MUST_CONFIG_EXPORTER}}
 
-示例项目在 [include/otlp/tracer_common.h]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/include/otlp/tracer_common.h) 提供了创建样例：
+示例项目在 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/include/otlp/tracer_common.h" target="_blank">include/otlp/tracer_common.h</a> 提供了创建样例：
 
 ```cpp
 void initTracer(const Config &config, const resource_sdk::Resource &resource) {
@@ -169,16 +167,16 @@ Handler::handleHelloWorld(const std::shared_ptr<HttpRequestHandler::IncomingRequ
 }
 ```
 
-对于 OpenTelemetry SDK API 的使用，在文档 [C++（OpenTelemetry SDK）接入]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/README.md) 提供了更详细的说明。
+对于 OpenTelemetry SDK API 的使用，在文档 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/README.md" target="_blank">C++（OpenTelemetry SDK）接入</a> 提供了更详细的说明。
 
-同时可以参考代码进行使用：[src/server.cpp]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/src/server.cpp)。
+同时可以参考代码进行使用：<a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/src/server.cpp" target="_blank">src/server.cpp</a>。
 
 ### 3.2 构建
 
-引入 OpenTelemetry C++ SDK 需要重新编译项目，示例项目提供 Dockerfile 以供参考：[Dockerfile]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/Dockerfile)。
+引入 OpenTelemetry C++ SDK 需要重新编译项目，示例项目提供 Dockerfile 以供参考：<a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/Dockerfile" target="_blank">Dockerfile</a>。
 
 
 ## 4. 了解更多
 
-* [应用性能监控（APM）数据接入指南]({{APM_ACCESS_URL}})
-* [各语言、框架接入代码样例]({{ECOSYSTEM_REPOSITORY_URL}})
+* <a href="{{APM_ACCESS_URL}}" target="_blank">应用性能监控（APM）数据接入指南</a>
+* <a href="{{ECOSYSTEM_REPOSITORY_URL}}" target="_blank">各语言、框架接入代码样例</a>

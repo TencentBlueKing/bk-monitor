@@ -16,12 +16,13 @@ class TermIntro(metaclass=base.FieldMeta):
     class Meta:
         name = "TERM_INTRO"
         scope = base.ScopeType.OPEN.value
-        value = """* Traces：[调用链](https://opentelemetry.io/docs/concepts/signals/traces/)，表示请求在应用程序的执行路径。
-* Metrics：[指标](https://opentelemetry.io/docs/concepts/signals/metrics/)，表示对运行服务的测量。
-* Logs: [日志](https://opentelemetry.io/docs/concepts/signals/logs/)，表示对事件的记录。
+        value = """* Traces：<a href="https://opentelemetry.io/docs/concepts/signals/traces/" target="_blank">调用链</a>，表示请求在应用程序的执行路径。
+* Metrics：<a href="https://opentelemetry.io/docs/concepts/signals/metrics/" target="_blank">指标</a>，表示对运行服务的测量。
+* Logs: <a href="https://opentelemetry.io/docs/concepts/signals/logs/" target="_blank">日志</a>，表示对事件的记录。
+* Profiling: <a href="https://grafana.com/docs/pyroscope/latest/introduction/profiling/" target="_blank">性能分析</a>，表示对应用程序运行时资源的持续测量。
 * Telemetry Data：遥测数据，指代 Traces、Metrics、Logs、Profiling 等。
 * APM：蓝鲸观测平台应用性能监控，提供四类遥测数据开箱即用的观测能力。
-* [bk-collector](https://github.com/TencentBlueKing/bkmonitor-datalink/tree/master/pkg/collector)：腾讯蓝鲸的 APM 服务端组件，负责接收 Prometheus、OpenTelemetry、Jaeger、Skywalking 等主流开源组件的遥测数据，并对数据进行清洗转发到观测平台链路。"""
+* <a href="https://github.com/TencentBlueKing/bkmonitor-datalink/tree/master/pkg/collector" target="_blank">bk-collector</a>：腾讯蓝鲸的 APM 服务端组件，负责接收 Prometheus、OpenTelemetry、Jaeger、Skywalking 等主流开源组件的遥测数据，并对数据进行清洗转发到观测平台链路。"""
 
 
 class QuickStartOverview(metaclass=base.FieldMeta):
@@ -37,7 +38,7 @@ class MustConfigResources(metaclass=base.FieldMeta):
     class Meta:
         name = "MUST_CONFIG_RESOURCES"
         scope = base.ScopeType.OPEN.value
-        value = """请在 [Resources](https://opentelemetry.io/docs/concepts/resources/) 添加以下属性，蓝鲸观测平台通过这些属性，将数据关联到具体的应用、资源实体：
+        value = """请在创建 <a href="https://opentelemetry.io/docs/specs/otel/protocol/exporter/" target="_blank">Exporter</a> 时准确传入以下信息：
 
 | 属性                       | 说明                                          |
 |--------------------------|---------------------------------------------|
@@ -56,7 +57,7 @@ class MustConfigExporter(metaclass=base.FieldMeta):
     class Meta:
         name = "MUST_CONFIG_EXPORTER"
         scope = base.ScopeType.OPEN.value
-        value = """请在创建 [Exporter](https://opentelemetry.io/docs/specs/otel/protocol/exporter/) 准确传入以下信息：
+        value = """请在创建 <a href="https://opentelemetry.io/docs/specs/otel/protocol/exporter/" target="_blank">Exporter</a> 时准确传入以下信息：
 
 | 参数         | 说明                            |
 |------------|-------------------------------|
@@ -67,7 +68,7 @@ class MustConfigProfiling(metaclass=base.FieldMeta):
     class Meta:
         name = "MUST_CONFIG_PROFILING"
         scope = base.ScopeType.OPEN.value
-        value = """[Pyroscope](https://grafana.com/docs/pyroscope/latest/) 是 Grafana 旗下用于聚合连续分析数据的开源软件项目。
+        value = """<a href="https://grafana.com/docs/pyroscope/latest/" target="_blank">Pyroscope</a> 是 Grafana 旗下用于聚合连续分析数据的开源软件项目。
 
 请在创建 `PyroscopeConfig` 时，准确传入以下信息：
 
@@ -93,4 +94,4 @@ class QuickStartRunParameters(metaclass=base.FieldMeta):
 | `ENABLE_LOGS`        | `{{access_config.otlp.enable_logs}}`     | 是否启用日志上报                                             |
 | `ENABLE_PROFILING`   | `{{access_config.profiling.endpoint}}`   | 是否启用性能分析上报                                         |
 
-* *[OTLP Exporter Configuration](https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/)*"""
+* *<a href="https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/" target="_blank">OTLP Exporter Configuration</a>*"""
