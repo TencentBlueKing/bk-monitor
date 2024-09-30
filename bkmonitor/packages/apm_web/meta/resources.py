@@ -1652,20 +1652,15 @@ class NoDataStrategyInfoResource(Resource):
         """创建策略并返回ID"""
         # 获取告警组
         group_id = cls.get_notice_group(bk_biz_id, app, strategy_config)
-        strategy_config = telemetry_handler_registry(telemetry_data_type, app=app).get_no_data_strategy_config()
-
-        result_table_id = strategy_config["result_table_id"]
-        metric_id = strategy_config["metric_id"]
-        metric_field = strategy_config["metric_field"]
-        data_source_label = strategy_config["data_source_label"]
-        data_type_label = strategy_config["data_type_label"]
-        index_set_id = strategy_config.get("index_set_id", "")
+        register_config = telemetry_handler_registry(telemetry_data_type, app=app).get_no_data_strategy_config()
+        if not register_config:
+            return
 
         config = {
             "bk_biz_id": bk_biz_id,
             # 默认关闭
             "is_enabled": False,
-            "name": strategy_config["name"],
+            "name": register_config["name"],
             "labels": ["BKAPM"],
             "scenario": ApplicationsResultTableLabel.application_check,
             "detects": [
@@ -1684,7 +1679,7 @@ class NoDataStrategyInfoResource(Resource):
             ],
             "items": [
                 {
-                    "name": strategy_config["name"],
+                    "name": register_config["name"],
                     "no_data_config": {
                         "is_enabled": False,
                         "continuous": DEFAULT_NO_DATA_PERIOD,
@@ -1698,28 +1693,7 @@ class NoDataStrategyInfoResource(Resource):
                             "unit_prefix": "",
                         }
                     ],
-                    "query_configs": [
-                        {
-                            "data_source_label": data_source_label,
-                            "data_type_label": data_type_label,
-                            "alias": "a",
-                            "result_table_id": f"{result_table_id}",
-                            "agg_method": "SUM",
-                            "agg_interval": 60,
-                            "agg_dimension": [],
-                            "agg_condition": [],
-                            "metric_field": metric_field,
-                            "unit": "ns",
-                            "metric_id": metric_id,
-                            "index_set_id": index_set_id,
-                            "query_string": "*",
-                            "custom_event_name": metric_field,
-                            "functions": [],
-                            "time_field": "time",
-                            "bkmonitor_strategy_id": metric_field,
-                            "alert_name": metric_field,
-                        }
-                    ],
+                    "query_configs": register_config["query_configs"],
                     "target": [],
                 }
             ],
@@ -1839,15 +1813,16 @@ class NoDataStrategyStatusResource(Resource):
         strategy_ids = [strategy["id"] for strategy in strategies]
         # 检测策略存在情况，不存在则创建
         if strategy_id not in strategy_ids:
-            strategy_id = NoDataStrategyInfoResource.registry_strategy(app.bk_biz_id, app, config, telemetry_data_type)[
-                "id"
-            ]
+            new_strategy = NoDataStrategyInfoResource.registry_strategy(app.bk_biz_id, app, config, telemetry_data_type)
+            if new_strategy:
+                strategy_id = new_strategy["id"]
         # 更新策略状态
-        resource.strategies.update_partial_strategy_v2(
-            bk_biz_id=app.bk_biz_id,
-            ids=[strategy_id],
-            edit_data={"is_enabled": self.is_enabled},
-        )
+        if strategy_id:
+            resource.strategies.update_partial_strategy_v2(
+                bk_biz_id=app.bk_biz_id,
+                ids=[strategy_id],
+                edit_data={"is_enabled": self.is_enabled},
+            )
         return
 
 
