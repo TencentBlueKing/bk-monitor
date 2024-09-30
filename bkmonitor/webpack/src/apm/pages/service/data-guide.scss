@@ -1,6 +1,10 @@
 @import '../../static/scss/variate.scss';
 
 .data-guide-wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+
   .view-main {
     padding-top: 12px;
 
@@ -40,7 +44,6 @@
   }
 
   &.is-service {
-    padding: 8px;
     overflow: hidden;
 
     .data-guide-header {
@@ -49,11 +52,22 @@
   }
 
   .row-content-wrap {
+    display: flex;
+    flex-direction: column;
     padding: 16px 24px 32px 24px;
     margin-bottom: 16px;
     background: #ffffff;
     border-radius: 2px;
     box-shadow: 0 2px 4px 0 #1919290d;
+
+    &.is-markdown {
+      .row-content {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        justify-content: center;
+      }
+    }
 
     .row-title {
       margin-bottom: 16px;
@@ -75,13 +89,6 @@
     .bk-label-text {
       font-size: 12px;
       color: #63656e;
-    }
-
-    &:last-child {
-      .row-content {
-        padding-top: 0;
-        border: 0;
-      }
     }
   }
 

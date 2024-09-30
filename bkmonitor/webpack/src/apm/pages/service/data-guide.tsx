@@ -51,7 +51,7 @@ export default class ServiceApply extends tsc<IProps> {
     serviceName: '',
   };
   formRules = {
-    serviceName: [{ required: true, message: '请输入服务名称', trigger: 'blur' }],
+    serviceName: [{ required: true, message: '请输入服务名', trigger: 'blur' }],
   };
   /** 语言列表 */
   languageList: ICardItem[] = [];
@@ -71,9 +71,8 @@ export default class ServiceApply extends tsc<IProps> {
     if (!this.appName || !this.reportUrl) return undefined;
     const lang = this.languageList.find(item => item.checked)?.id;
     if (!lang) return undefined;
-    const appId = this.appList.find(item => item.id === this.appName)?.app_id;
     return {
-      application_id: appId || this.appName,
+      app_name: this.appName,
       languages: [lang],
       base_endpoint: this.reportUrl,
     };
@@ -166,8 +165,6 @@ export default class ServiceApply extends tsc<IProps> {
       checked: index === 0,
     }));
     this.languageLoading = false;
-    console.log('🚀 ~ NoDataGuide ~ getLanguageData ~ data:', data);
-    // this.languageList = data || [];
   }
 
   /** 获取push url数据 */
@@ -203,23 +200,26 @@ export default class ServiceApply extends tsc<IProps> {
     language.checked = val;
   }
   render() {
-    const rowContent = (name: string, content, subTitle?) => (
-      <div class={['row-content-wrap']}>
-        {!!name && (
-          <div class={['row-title']}>
-            {name}
-            {subTitle}
-          </div>
-        )}
-        {<div class='row-content'>{content}</div>}
-      </div>
-    );
+    const rowContent = (name: string, content, subTitle?) => [
+      !!name && (
+        <div class={['row-title']}>
+          {name}
+          {subTitle}
+        </div>
+      ),
+      <div
+        key={'row-content'}
+        class='row-content'
+      >
+        {content}
+      </div>,
+    ];
     return (
       <div
         class='data-guide-wrap is-service'
         v-bkloading={{ isLoading: this.loading }}
       >
-        <div class='data-guide-main'>
+        <div class='row-content-wrap'>
           {rowContent(
             this.$tc('配置选择'),
             <div class='select-config-wrap'>
@@ -318,50 +318,51 @@ export default class ServiceApply extends tsc<IProps> {
               </bk-form>
             </div>
           )}
-
-          <div class='config-content is-service'>
-            {rowContent(
-              this.$tc('上报示例'),
-              <div class='view-main'>
-                {this.markdownLoading ? (
-                  <div class='markdown-skeleton'>
-                    {Array.of(35, 65, 55, 85, 75, 45).map(w => (
-                      <div
-                        key={w}
-                        style={{
-                          width: `${w}%`,
-                        }}
-                        class='skeleton-element markdown-skeleton-item'
-                      />
-                    ))}
-                  </div>
-                ) : this.markdownStr && this.formData.serviceName ? (
-                  <MarkdownViewer
-                    flowchartStyle={false}
-                    value={this.markdownStr}
+        </div>
+        <div
+          style='flex: 1'
+          class='row-content-wrap is-markdown'
+        >
+          {rowContent(
+            this.$tc('上报示例'),
+            this.markdownLoading ? (
+              <div class='markdown-skeleton'>
+                {Array.of(35, 65, 55, 85, 75, 45, 95).map(w => (
+                  <div
+                    key={w}
+                    style={{
+                      width: `${w}%`,
+                    }}
+                    class='skeleton-element markdown-skeleton-item'
                   />
-                ) : (
-                  <bk-exception
-                    scene='part'
-                    type='empty'
-                  >
-                    {this.$t('暂无数据')}
-                  </bk-exception>
-                )}
-              </div>,
-
-              this.guideUrl && (
-                <bk-button
-                  class='access-guide'
-                  theme='primary'
-                  onClick={() => window.open(this.guideUrl)}
-                >
-                  <i class='icon-monitor icon-mc-detail' />
-                  {this.$tc('详情接入指引')}
-                </bk-button>
-              )
-            )}
-          </div>
+                ))}
+              </div>
+            ) : this.markdownStr && this.formData.serviceName ? (
+              <div class='view-main'>
+                <MarkdownViewer
+                  flowchartStyle={false}
+                  value={this.markdownStr}
+                />
+              </div>
+            ) : (
+              <bk-exception
+                scene='part'
+                type='empty'
+              >
+                {!this.formData.serviceName ? this.$t('请输入服务名') : this.$t('暂无数据')}
+              </bk-exception>
+            ),
+            this.guideUrl && (
+              <bk-button
+                class='access-guide'
+                theme='primary'
+                onClick={() => window.open(this.guideUrl)}
+              >
+                <i class='icon-monitor icon-mc-detail' />
+                {this.$tc('详情接入指引')}
+              </bk-button>
+            )
+          )}
         </div>
       </div>
     );
