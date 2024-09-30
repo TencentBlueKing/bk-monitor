@@ -63,7 +63,7 @@ interface IProps {
 }
 
 interface IEvent {
-  onChange: () => void;
+  onChange?: (params: ITracingStorageInfo) => void;
 }
 @Component
 export default class Trace extends tsc<IProps, IEvent> {
@@ -206,11 +206,12 @@ export default class Trace extends tsc<IProps, IEvent> {
 
       const params = {
         application_id: this.appInfo.application_id,
-        datasource_option: datasourceConfig,
+        trace_datasource_option: datasourceConfig,
         telemetry_data_type: this.telemetryDataType,
       };
-      await setup(params);
-      await this.handleBaseInfoChange();
+      await setup(params).then(() => {
+        this.$emit('change', datasourceConfig);
+      });
       return true;
     } catch {
       return false;
