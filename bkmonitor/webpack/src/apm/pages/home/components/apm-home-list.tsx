@@ -37,6 +37,8 @@ import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import FilterPanel, { type IFilterData } from 'monitor-pc/pages/strategy-config/strategy-config-list/filter-panel';
 import introduceData from 'monitor-pc/router/space';
 
+import ApmHomeResizeLayout from './apm-home-resize-layout';
+
 import type { PartialAppListItem } from '../apm-home';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { ICommonTableProps } from 'monitor-pc/pages/monitor-k8s/components/common-table';
@@ -77,6 +79,9 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
   loading = true;
   searchEmpty = false;
 
+  /** 初次请求 */
+  firsetRequest = true;
+
   /** 服务表格数据 */
   tableConfigData: TableConfigData = {
     tableData: {
@@ -100,6 +105,7 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
   /* 左侧统计数据 */
   leftFilter: {
     checkedData: IFilterData[];
+    condition: { key: number | string; value: string[] }[];
     filterList: IGroupData[];
     defaultActiveName: string[];
     show: boolean;
@@ -107,6 +113,7 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
   } = {
     filterList: [],
     checkedData: [],
+    condition: [],
     defaultActiveName: ['category', 'language', 'apply_module', 'have_data'],
     show: true,
     isShowSkeleton: true,
@@ -133,6 +140,77 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
     return apmData;
   }
 
+  mounted() {
+    this.handleResetRoute('Get');
+  }
+
+  handleResetRoute(type: 'Get' | 'Set') {
+    if (type === 'Get') {
+      const { current, limit, filters, keyword } = this.$route.query;
+      this.tableConfigData.tableData.pagination.current = Number(current) || 1;
+      this.tableConfigData.tableData.pagination.limit = Number(limit) || commonPageSizeGet();
+      this.searchKeyWord = keyword as string;
+      try {
+        this.leftFilter.condition = filters ? JSON.parse(filters as string) : [];
+      } catch {
+        this.leftFilter.condition = [];
+      }
+    } else {
+      const { current, limit } = this.tableConfigData.tableData.pagination;
+      const { route } = this.$router.resolve({
+        name: this.$route.name,
+        query: {
+          current: String(current),
+          limit: String(limit),
+          filters: JSON.stringify(this.leftFilter.condition),
+          keyword: this.searchKeyWord,
+        },
+      });
+      if (this.$route.fullPath !== route.fullPath) {
+        this.$router.replace(route);
+      }
+    }
+    if (this.firsetRequest) {
+      this.leftFilter.checkedData = this.leftFilter.condition.map(item => {
+        const { id, name, data } = this.leftFilter.filterList.find(panel => item.key === panel.id) || {
+          id: item.key,
+          name: item.key,
+          data: [],
+        };
+        let values = [];
+        /**
+         * 因为有些筛选项需要等待列表接口请求完成后才能知道，所以这里需要判断一下
+         * 如果该筛选项没有子级，就暂时使用Url传递的值构造一个id为值的对象,等待接口返回后在进行处理
+         */
+        if (data?.length) {
+          values = data.reduce((values, cur) => {
+            if (Array.isArray(cur.children)) {
+              values.push(...cur.children.filter(child => item.value.includes(child.id)));
+            } else {
+              item.value.includes(cur.id) && values.push(cur);
+            }
+            return values;
+          }, []);
+        } else if (typeof item.value === 'string') {
+          return {
+            id: item.value,
+            name: item.value,
+          };
+        } else if (Array.isArray(item.value)) {
+          values = item.value.map(id => ({
+            id,
+            name: id,
+          }));
+        }
+        return {
+          id: id,
+          name,
+          values,
+        };
+      });
+    }
+  }
+
   /**
    * @description: 筛选面板勾选change事件
    * @param {*} data
@@ -140,27 +218,23 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
    */
   handleSearchSelectChange(data = []) {
     this.leftFilter.checkedData = data;
+    this.leftFilter.condition = this.leftFilter.checkedData
+      ?.map(({ id, values }) => {
+        const valueIds = values.map(({ id }) => id);
+        return {
+          key: id,
+          value: valueIds,
+        };
+      })
+      .filter(({ value }) => value.length > 0);
     this.tableConfigData.tableData.pagination.current = 1;
     this.getServiceList(this.appData, true);
   }
 
   /* 筛选展开收起 */
   handleHidePanel() {
-    this.mainResize.setCollapse();
-    const time = this.mainResize.collapsed ? 350 : 0;
-    setTimeout(() => {
-      this.showFilterPanel = !this.mainResize.collapsed;
-    }, time);
+    this.mainResize.setCollapse(this.showFilterPanel);
   }
-
-  changeCollapse(width: number) {
-    if (width < 200) {
-      setTimeout(() => {
-        this.showFilterPanel = false;
-      }, 350);
-    }
-  }
-
   /**
    * @description 条件搜索
    * @param value
@@ -188,11 +262,12 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
     // 设置加载状态
     this.loading = true;
     if (isAppClick) this.leftFilter.isShowSkeleton = true;
-
     serviceList(this.createServiceRequest(appData, startTime, endTime))
       .then(({ columns, data, total, filter }) => {
         this.updateTableData(data, columns, total, filter);
         this.loadAsyncData(appData, data, columns, startTime, endTime);
+        this.handleResetRoute('Set');
+        this.firsetRequest = false;
       })
       .finally(() => {
         this.loading = false;
@@ -201,15 +276,6 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
   }
 
   createServiceRequest(item, startTime, endTime) {
-    const transformedArray = this.leftFilter.checkedData
-      ?.map(({ id, values }) => {
-        const valueIds = values.map(({ id }) => id);
-        return {
-          key: id,
-          value: valueIds,
-        };
-      })
-      .filter(({ value }) => value.length > 0);
     const { tableSortKey, tableFilters, tableData } = this.tableConfigData;
     const { current, limit } = tableData.pagination;
     return {
@@ -219,7 +285,7 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
       filter: 'all',
       sort: tableSortKey,
       filter_dict: tableFilters,
-      field_conditions: transformedArray,
+      field_conditions: this.leftFilter.condition,
       check_filter_dict: {},
       page: current,
       page_size: limit,
@@ -246,13 +312,7 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
     tableData.data = data;
     tableData.columns = columns;
     tableData.pagination.count = total;
-    this.leftFilter.filterList = filter.map(category => ({
-      ...category,
-      data: category.data.map(item => ({
-        ...item,
-        count: item.total,
-      })),
-    }));
+    this.leftFilter.filterList = filter;
   }
 
   loadAsyncData(item, data, columns, startTime, endTime) {
@@ -320,8 +380,7 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
   handleCollect(val) {
     const apis = val.api.split('.');
     (this as any).$api[apis[0]][apis[1]](val.params).then(() => {
-      this.tableConfigData.tableData.pagination.current = 1;
-      this.getServiceList(this.appData, true);
+      val.is_collect = !val.is_collect;
     });
   }
 
@@ -402,10 +461,17 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
     return (
       <div class='apm-home-list'>
         <div class='header'>
-          <div class='header-left'>
-            <span>{this.appData.app_alias}</span>
-            {this.appData.app_name ? <span>（{this.appData.app_name}）</span> : null}
-          </div>
+          {this.leftFilter.isShowSkeleton ? (
+            <div
+              style='height: 32px; width: 240px'
+              class='skeleton-element'
+            />
+          ) : (
+            <div class='header-left'>
+              <span>{this.appData.app_alias}</span>
+              {this.appData.app_name ? <span>（{this.appData.app_name}）</span> : null}
+            </div>
+          )}
           <div class='header-right'>
             <bk-button
               class='mr-8'
@@ -428,15 +494,15 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
           </div>
         </div>
         <div class='main'>
-          <bk-resize-layout
+          <ApmHomeResizeLayout
             ref='mainResize'
             class='main-left'
-            auto-minimize={200}
-            border={false}
-            initial-divide={201}
-            min={195}
-            collapsible
-            on-after-resize={this.changeCollapse}
+            initSideWidth={200}
+            maxWidth={300}
+            minWidth={150}
+            onCollapseChange={val => {
+              this.showFilterPanel = !val;
+            }}
           >
             <div
               class={['main-left-filter']}
@@ -464,10 +530,7 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
                 </div>
               </FilterPanel>
             </div>
-            <div
-              class='main-left-table'
-              slot='main'
-            >
+            <div class='main-left-table'>
               {this.showGuidePage ? (
                 <GuidePage
                   guideData={this.apmIntroduceData}
@@ -476,20 +539,26 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
               ) : (
                 <div class='app-list-content'>
                   <div class='app-list-content-top'>
-                    <bk-button
-                      class={[{ 'ml-16': !this.showFilterPanel }]}
-                      theme='primary'
-                      outline
-                      onClick={(event: Event) => {
-                        event.stopPropagation();
-                        this.handleEmit('handleConfig', 'accessService', this.appData);
-                      }}
-                    >
-                      <span class='app-add-btn'>
-                        <i class='icon-monitor icon-mc-add app-add-icon' />
-                        <span>{this.$t('接入服务')}</span>
-                      </span>
-                    </bk-button>
+                    <div class='app-list-btns'>
+                      <i
+                        class='icon-monitor icon-double-up'
+                        v-show={!this.showFilterPanel}
+                        onClick={this.handleHidePanel}
+                      />
+                      <bk-button
+                        theme='primary'
+                        outline
+                        onClick={(event: Event) => {
+                          event.stopPropagation();
+                          this.handleEmit('handleConfig', 'accessService', this.appData);
+                        }}
+                      >
+                        <span class='app-add-btn'>
+                          <i class='icon-monitor icon-mc-add app-add-icon' />
+                          <span>{this.$t('接入服务')}</span>
+                        </span>
+                      </bk-button>
+                    </div>
                     <div class='app-list-search'>
                       <bk-input
                         v-model={this.searchKeyWord}
@@ -510,32 +579,30 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
                       >
                         {
                           <div class='expand-content'>
-                            {this.tableConfigData.tableData?.data.length || this.loading ? (
-                              (() => {
-                                if (this.loading) {
-                                  return <TableSkeleton class='table-skeleton' />;
-                                }
-                                return (
-                                  <CommonTable
-                                    {...{ props: this.tableConfigData.tableData }}
-                                    hasColnumSetting={false}
-                                    onCollect={val => this.handleCollect(val)}
-                                    onFilterChange={val => this.handleFilterChange(val)}
-                                    onLimitChange={this.handlePageLimitChange}
-                                    onPageChange={this.handlePageChange}
-                                    onSortChange={val => this.handleSortChange(val as any, this.appData)}
-                                  />
-                                );
-                              })()
-                            ) : (
+                            <CommonTable
+                              style={{ display: !this.loading ? 'block' : 'none' }}
+                              {...{ props: this.tableConfigData.tableData }}
+                              hasColnumSetting={false}
+                              onCollect={val => this.handleCollect(val)}
+                              onFilterChange={val => this.handleFilterChange(val)}
+                              onLimitChange={this.handlePageLimitChange}
+                              onPageChange={this.handlePageChange}
+                              onSortChange={val => this.handleSortChange(val as any, this.appData)}
+                            >
                               <EmptyStatus
+                                slot='empty'
                                 textMap={{
                                   empty: this.$t('暂无数据'),
                                 }}
                                 type={this.searchEmpty ? 'search-empty' : 'empty'}
                                 onOperation={() => this.handleClearSearch()}
                               />
-                            )}
+                            </CommonTable>
+                            <TableSkeleton
+                              style={{ display: this.loading ? 'block' : 'none' }}
+                              class='table-skeleton'
+                              type={2}
+                            />
                           </div>
                         }
                       </div>
@@ -544,19 +611,7 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
                 </div>
               )}
             </div>
-            <div
-              class={['toggle-wrap']}
-              slot='collapse-trigger'
-              onClick={this.handleHidePanel}
-            >
-              <div
-                class='rotate'
-                v-show={!this.showFilterPanel}
-              >
-                <i class='icon-monitor icon-double-up' />
-              </div>
-            </div>
-          </bk-resize-layout>
+          </ApmHomeResizeLayout>
         </div>
       </div>
     );

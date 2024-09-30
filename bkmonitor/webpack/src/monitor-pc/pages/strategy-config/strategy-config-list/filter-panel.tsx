@@ -37,7 +37,7 @@ import './filter-panel.scss';
 // 勾选的数据（筛选表格）
 export interface IFilterData {
   id: number | string; // 所属分组ID
-  values: any[]; // 勾选数据
+  values?: any[]; // 勾选数据
   name: TranslateResult; // 分组名称
 }
 interface ITreeNode {

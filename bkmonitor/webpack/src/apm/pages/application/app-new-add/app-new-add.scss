@@ -32,68 +32,67 @@
         width: 465px;
       }
 
-      .report-type-wrap{
+      .report-type-wrap {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        margin-bottom: 10px;
+        background: #fafbfd;
+        border: 1px solid #dcdee5;
+        border-radius: 2px;
+
+        .report-left-content {
           display: flex;
           align-items: center;
-          width: 100%;
-          margin-bottom: 10px;
-          background: #FAFBFD;
-          border: 1px solid #DCDEE5;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          margin: 8px;
+          background: #e1ecff;
           border-radius: 2px;
 
-          .report-left-content{
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 40px;
-            height: 40px;
-            margin: 8px;
-            background: #E1ECFF;
-            border-radius: 2px;
+          .icon-monitor {
+            font-size: 18px;
+            color: #699df4;
 
-            .icon-monitor {
-              font-size: 18px;
-              color: #699DF4;
-
-              &:not(:first-child) {
-                margin-top: 18px;
-              }
-            }
-
-            .icon-tiaoyonglian {
-              font-size: 24px;
+            &:not(:first-child) {
+              margin-top: 18px;
             }
           }
 
-          .report-middle-content{
-              display: flex;
-              flex: 1;
-              flex-direction: column;
+          .icon-tiaoyonglian {
+            font-size: 24px;
+          }
+        }
 
-              .middle-content-title{
-                height: 20px;
-                font-family: MicrosoftYaHei-Bold;
-                font-size: 12px;
-                font-weight: 700;
-                line-height: 20px;
-                color: #63656E;
-                letter-spacing: 0;
-              }
+        .report-middle-content {
+          display: flex;
+          flex: 1;
+          flex-direction: column;
 
-              .middle-content-text{
-                height: 20px;
-                font-family: MicrosoftYaHei;
-                font-size: 12px;
-                line-height: 20px;
-                color: #979BA5;
-                letter-spacing: 0;
-              }
-
+          .middle-content-title {
+            height: 20px;
+            font-family: MicrosoftYaHei-Bold;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 20px;
+            color: #63656e;
+            letter-spacing: 0;
           }
 
-          .report-right-content {
-            margin-right: 25px;
+          .middle-content-text {
+            margin-right: 16px;
+            font-family: MicrosoftYaHei;
+            font-size: 12px;
+            line-height: 20px;
+            color: #979ba5;
+            letter-spacing: 0;
           }
+        }
+
+        .report-right-content {
+          margin-right: 25px;
+        }
       }
     }
 

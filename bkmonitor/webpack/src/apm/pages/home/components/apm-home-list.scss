@@ -79,26 +79,11 @@
         padding: 16px 16px 0;
       }
 
-      .toggle-wrap {
-        position: relative;
-        margin: 8px 0 0 12px;
-        color: #979ba5;
-        cursor: pointer;
-
-        .rotate {
-          transform: rotate(90deg);
-        }
-
-        .icon-double-up {
-          font-size: 24px;
-        }
-      }
-
       .isCollapsed {
         display: none;
       }
 
-      .bk-resize-layout-aside-content {
+      .aside-content {
         padding: 13px 16px 0;
         background: #fff;
       }
@@ -113,6 +98,10 @@
         display: flex;
         align-items: center;
         line-height: 24px;
+
+        .app-add-icon {
+          font-size: 16px;
+        }
       }
 
       .app-list-search {
@@ -129,8 +118,16 @@
         align-items: center;
         justify-content: space-between;
 
-        .ml-16 {
-          margin-left: 16px;
+        .app-list-btns {
+          display: flex;
+          align-items: center;
+        }
+
+        .icon-double-up {
+          margin-right: 16px;
+          font-size: 24px;
+          cursor: pointer;
+          transform: rotate(90deg);
         }
 
         .icon-mc-full-screen,

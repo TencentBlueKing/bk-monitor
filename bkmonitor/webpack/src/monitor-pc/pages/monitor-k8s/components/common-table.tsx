@@ -613,7 +613,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       },
       disabled: {
         icon: 'icon-zhongzhi',
-        text: this.$t('已禁用'),
+        text: this.$t('未开启'),
       },
     };
     return value?.icon ? (
@@ -630,7 +630,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   datapointsFormatter(column: ITableColumn, value: ITableItem<'datapoints'>) {
     return (
       <MiniTimeSeries
-        data={value.datapoints}
+        data={value.datapoints || []}
         disableHover={true}
         groupId={this.chartGroupIdsMap[column.id]}
         unit={value.unit}

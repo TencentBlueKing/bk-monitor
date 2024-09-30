@@ -124,77 +124,57 @@ export default class AppAddNew extends tsc<object> {
         message: window.i18n.t('仅支持小写字母、数字、_- 中任意一条件即可'),
         trigger: ['change', 'blur'],
       },
+      {
+        validator: this.handleCheckDuplicateName,
+        message: window.i18n.tc('注意: 名字冲突'),
+        trigger: ['blur'],
+      },
     ],
   };
 
   saveLoading = false;
 
-  /** 初始化页面数据 */
-  initData() {
-    this.rules.name.push({
-      message: window.i18n.tc('注意: 名字冲突'),
-      trigger: 'none',
-      validator: val => !this.existedName && !!val,
-    });
-  }
-
   /** 检查 应用名 是否重名 */
-  handleCheckDuplicateName() {
-    return new Promise((resolve, reject) => {
-      if (!this.formData.name) return resolve(true);
-      if ((this.formData.name as string).length < 1) return reject(false);
-
-      setTimeout(async () => {
-        const { exists } = await checkDuplicateName({ app_name: this.formData.name });
-        if (exists) {
-          this.existedName = exists;
-          this.addForm.validateField('name');
-          reject(false);
-        } else {
-          resolve(true);
-        }
-      }, 100);
-    });
+  async handleCheckDuplicateName(val: string) {
+    const { exists } = await checkDuplicateName({ app_name: val }).catch(() => ({ exists: true }));
+    return !exists;
   }
 
   /* 保存 */
   async handleSave(isAccess = false) {
     this.saveLoading = true;
-    const noExistedName = await this.handleCheckDuplicateName();
-    if (noExistedName) {
-      const isPass = await this.addForm.validate();
-      if (isPass) {
-        // 保存接口
-        const params = {
-          app_name: this.formData.ID,
-          app_alias: this.formData.name,
-          description: this.formData.desc,
-          enabled_profiling: this.formData[ETelemetryDataType.profiling],
-          enabled_trace: this.formData[ETelemetryDataType.tracing],
-          enabled_metric: this.formData[ETelemetryDataType.metric],
-          enabled_log: this.formData[ETelemetryDataType.log],
-          es_storage_config: null,
-        };
-        const res = await createApplication(params)
-          .then(() => true)
-          .catch(() => false);
-        if (res) {
-          this.$bkMessage({
-            theme: 'success',
-            message: this.$t('保存成功'),
-          });
-          this.handleCancel();
-        }
-        if (isAccess) {
-          // 跳转到接入服务页面
-          const routeData = this.$router.resolve({
-            name: 'service-add',
-            params: {
-              appName: this.formData.name as string,
-            },
-          });
-          window.location.href = routeData.href;
-        }
+    const isPass = await this.addForm.validate();
+    if (isPass) {
+      // 保存接口
+      const params = {
+        app_name: this.formData.ID,
+        app_alias: this.formData.name,
+        description: this.formData.desc,
+        enabled_profiling: this.formData[ETelemetryDataType.profiling],
+        enabled_trace: this.formData[ETelemetryDataType.tracing],
+        enabled_metric: this.formData[ETelemetryDataType.metric],
+        enabled_log: this.formData[ETelemetryDataType.log],
+        es_storage_config: null,
+      };
+      const res = await createApplication(params)
+        .then(() => true)
+        .catch(() => false);
+      if (res) {
+        this.$bkMessage({
+          theme: 'success',
+          message: this.$t('保存成功'),
+        });
+        this.handleCancel();
+      }
+      if (isAccess) {
+        // 跳转到接入服务页面
+        const routeData = this.$router.resolve({
+          name: 'service-add',
+          params: {
+            appName: this.formData.name as string,
+          },
+        });
+        window.location.href = routeData.href;
       }
     }
     this.saveLoading = false;
@@ -260,7 +240,6 @@ export default class AppAddNew extends tsc<object> {
                   class='input'
                   v-model={this.formData.name}
                   placeholder={this.$t('1-50字符，由小写字母、数字、下划线(_)、中划线(-)组成')}
-                  onBlur={() => this.handleCheckDuplicateName()}
                 />
               </bk-form-item>
               <bk-form-item label={this.$t('描述')}>
