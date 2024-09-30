@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { checkDuplicateName, createApplication } from 'monitor-api/modules/apm_meta';
 
 import NavBar from '../../home/nav-bar';
+import { ETelemetryDataType } from '../app-configuration/type';
 
 import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
@@ -38,10 +39,6 @@ interface FormData {
   ID: string;
   name: string;
   desc: string;
-  target: boolean;
-  log: boolean;
-  callChain: boolean;
-  performance: boolean;
 }
 
 @Component
@@ -66,39 +63,39 @@ export default class AppAddNew extends tsc<object> {
 
   list = [
     {
-      id: 'target',
+      id: ETelemetryDataType.metric,
       title: '指标',
       content: '通过持续上报服务的关键性能指标，可以实时了解服务的运行状态，如响应时间、吞吐量等',
       icon: 'icon-zhibiao',
     },
     {
       id: '2',
-      title: 'log',
+      title: ETelemetryDataType.log,
       content: '服务日志提供了详细的错误信息和上下文，有助于快速定位和解决问题',
       icon: 'icon-rizhi',
     },
     {
-      id: 'callChain',
+      id: ETelemetryDataType.tracing,
       title: '调用链',
       content: '从用户发起请求到服务响应的全链路追踪，追踪请求在多个服务之间的调用情况，帮助业务识别性能瓶颈和延迟原因',
       icon: 'icon-tiaoyonglian',
     },
     {
-      id: 'performance',
+      id: ETelemetryDataType.profiling,
       title: '性能分析',
       content: '通过分析函数调用栈和内存分配情况，找出性能瓶颈并进行针对性优化',
       icon: 'icon-profiling',
     },
   ];
 
-  formData: FormData = {
+  formData: FormData | Record<string, boolean> = {
     ID: '',
     name: '',
     desc: '',
-    target: false,
-    log: false,
-    callChain: false,
-    performance: false,
+    [ETelemetryDataType.metric]: false,
+    [ETelemetryDataType.log]: false,
+    [ETelemetryDataType.tracing]: false,
+    [ETelemetryDataType.profiling]: false,
   };
   rules = {
     ID: [
@@ -141,7 +138,7 @@ export default class AppAddNew extends tsc<object> {
   handleCheckDuplicateName() {
     return new Promise((resolve, reject) => {
       if (!this.formData.name) return resolve(true);
-      if (this.formData.name.length < 1) return reject(false);
+      if ((this.formData.name as string).length < 1) return reject(false);
 
       setTimeout(async () => {
         const { exists } = await checkDuplicateName({ app_name: this.formData.name });
@@ -163,7 +160,17 @@ export default class AppAddNew extends tsc<object> {
       const isPass = await this.addForm.validate();
       if (isPass) {
         // 保存接口
-        const params = {};
+        const params = {
+          bk_biz_id: 2,
+          app_name: this.formData.ID,
+          app_alias: this.formData.name,
+          description: this.formData.desc,
+          enabled_profiling: this.formData[ETelemetryDataType.profiling],
+          enabled_trace: this.formData[ETelemetryDataType.tracing],
+          enabled_metric: this.formData[ETelemetryDataType.metric],
+          enabled_log: this.formData[ETelemetryDataType.log],
+          es_storage_config: null,
+        };
         const res = await createApplication(params).catch(() => false);
         if (res) {
           this.$bkMessage({
@@ -176,7 +183,7 @@ export default class AppAddNew extends tsc<object> {
           const routeData = this.$router.resolve({
             name: 'service-add',
             params: {
-              appName: this.formData.name,
+              appName: this.formData.name as string,
             },
           });
           window.location.href = routeData.href;
