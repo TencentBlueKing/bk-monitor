@@ -125,6 +125,8 @@ export default class AppAddNew extends tsc<object> {
     ],
   };
 
+  saveLoading = false;
+
   /** 初始化页面数据 */
   initData() {
     this.rules.name.push({
@@ -155,6 +157,7 @@ export default class AppAddNew extends tsc<object> {
 
   /* 保存 */
   async handleSave(isAccess = false) {
+    this.saveLoading = true;
     const noExistedName = await this.handleCheckDuplicateName();
     if (noExistedName) {
       const isPass = await this.addForm.validate();
@@ -171,12 +174,15 @@ export default class AppAddNew extends tsc<object> {
           enabled_log: this.formData[ETelemetryDataType.log],
           es_storage_config: null,
         };
-        const res = await createApplication(params).catch(() => false);
+        const res = await createApplication(params)
+          .then(() => true)
+          .catch(() => false);
         if (res) {
           this.$bkMessage({
             theme: 'success',
             message: this.$t('保存成功'),
           });
+          this.handleCancel();
         }
         if (isAccess) {
           // 跳转到接入服务页面
@@ -190,6 +196,7 @@ export default class AppAddNew extends tsc<object> {
         }
       }
     }
+    this.saveLoading = false;
   }
 
   handleCancel() {
@@ -279,6 +286,7 @@ export default class AppAddNew extends tsc<object> {
                     <div class='report-right-content'>
                       <bk-switcher
                         v-model={this.formData[item.id]}
+                        size='small'
                         theme='primary'
                       />
                     </div>
@@ -288,13 +296,15 @@ export default class AppAddNew extends tsc<object> {
               <bk-form-item>
                 <bk-button
                   class='mr8'
+                  loading={this.saveLoading}
                   theme='primary'
-                  onClick={this.handleSave}
+                  onClick={() => this.handleSave()}
                 >
                   {this.$t('保存')}
                 </bk-button>
                 <bk-button
                   class='mr8'
+                  loading={this.saveLoading}
                   theme='primary'
                   onClick={() => this.handleSave(true)}
                 >
