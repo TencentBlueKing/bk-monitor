@@ -1281,8 +1281,7 @@ class QueryExceptionEventResource(PageListResource):
 class MetaInstrumentGuides(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
-        app_name = serializers.CharField(label="应用名称", required=False)
-        application_id = serializers.CharField(label="应用名称", required=False)
+        app_name = serializers.CharField(label="应用名称")
         base_endpoint = serializers.URLField(label="接收端地址")
 
         languages = serializers.ListSerializer(
@@ -1307,13 +1306,11 @@ class MetaInstrumentGuides(Resource):
         OTLP_EXPORTER_HTTP_PORT = 4318
 
         def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
-            attrs["app_name"] = attrs.get("app_name") or attrs.get("application_id")
             application_info: Dict[str, Any] = ApplicationInfoByAppNameResource().request(
                 {"app_name": attrs["app_name"], "bk_biz_id": attrs["bk_biz_id"]}
             )
             data_token: str = QueryBkDataToken().request({"application_id": application_info["application_id"]})
 
-            datasource_switches: Dict[str, Any] = application_info.get("switches") or {}
             attrs["access_config"] = {
                 "token": data_token,
                 "otlp": {
@@ -1322,13 +1319,13 @@ class MetaInstrumentGuides(Resource):
                     "protocol": OtlpProtocol.GRPC,
                     "endpoint": f"{attrs['base_endpoint']}:{self.OTLP_EXPORTER_GRPC_PORT}",
                     "http_endpoint": f"{attrs['base_endpoint']}:{self.OTLP_EXPORTER_HTTP_PORT}",
-                    "enable_metrics": datasource_switches.get("metric", False),
-                    "enable_logs": datasource_switches.get("log", False),
-                    "enable_traces": datasource_switches.get("tracing", False),
+                    "enable_metrics": application_info.get("is_enabled_metric", False),
+                    "enable_logs": application_info.get("is_enabled_log", False),
+                    "enable_traces": application_info.get("is_enabled_trace", False),
                 },
                 "profiling": {
                     # 语意参考：https://grafana.com/docs/pyroscope/latest/configure-client/
-                    "enabled": datasource_switches.get("profiling", False),
+                    "enabled": application_info.get("is_enabled_profiling", False),
                     "endpoint": f"{attrs['base_endpoint']}:{self.OTLP_EXPORTER_HTTP_PORT}/pyroscope",
                 },
             }
