@@ -40,7 +40,7 @@ ENABLE_PROFILING="{{access_config.profiling.enabled}}" \
 ENABLE_TRACES="{{access_config.otlp.enable_traces}}" \
 ENABLE_METRICS="{{access_config.otlp.enable_metrics}}" \
 ENABLE_LOGS="{{access_config.otlp.enable_logs}}" \
-./gradlew run
+gradle run
 ```
 
 访问 👉 [http://localhost:8080/helloworld](http://localhost:8080/helloworld)。
