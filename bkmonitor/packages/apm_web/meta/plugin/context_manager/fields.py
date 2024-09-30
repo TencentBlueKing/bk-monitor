@@ -92,6 +92,6 @@ class QuickStartRunParameters(metaclass=base.FieldMeta):
 | `ENABLE_TRACES`      | `{{access_config.otlp.enable_traces}}`   | 是否启用调用链上报                                           |
 | `ENABLE_METRICS`     | `{{access_config.otlp.enable_metrics}}`  | 是否启用指标上报                                             |
 | `ENABLE_LOGS`        | `{{access_config.otlp.enable_logs}}`     | 是否启用日志上报                                             |
-| `ENABLE_PROFILING`   | `{{access_config.profiling.endpoint}}`   | 是否启用性能分析上报                                         |
+| `ENABLE_PROFILING`   | `{{access_config.profiling.enabled}}`   | 是否启用性能分析上报                                         |
 
 * *<a href="https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/" target="_blank">OTLP Exporter Configuration</a>*"""
