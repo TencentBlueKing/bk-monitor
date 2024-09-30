@@ -687,27 +687,29 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   }
   /** 处理路由里的queryStr */
   handleRouteQueryStr(val) {
-    const list = this.spaceListMap[this.searchType];
-    const splitStr = val.split(' ');
-    const indices = splitStr.reduce((acc, value, index) => {
-      if (value === ':') {
-        acc.push(index);
-      }
-      return acc;
-    }, []);
-    // 替换对应的名称
-    const replaceWithName = (arr, indices, list) => {
-      // biome-ignore lint/complexity/noForEach: <explanation>
-      indices.forEach(index => {
-        const str = arr[index - 1];
-        if ((isEn && /[\u4e00-\u9fa5]/.test(str)) || (!isEn && !/[\u4e00-\u9fa5]/.test(str))) {
-          const mapping = list.find(item => (isEn ? item.zhId : item.id) === str) || {};
-          arr[index - 1] = (isEn ? mapping.id : mapping.name) || str;
+    const searchType = this.$route.query?.searchType || this.searchType;
+    const fieldMapping = this.spaceListMap[searchType];
+    // 使用正则表达式根据 AND 或 OR 拆分字符串，并保留分隔符
+    const splitContent = val.split(/(\sAND\s|\sOR\s)/);
+
+    // 遍历每个元素，替换第一个字段名
+    const replacedContent = splitContent.map(segment => {
+      // 查找第一个 ：，忽略引号内的内容
+      const match = segment.match(/([^:"]+)\s*:/);
+      if (match) {
+        const fieldName = match[1].trim();
+        if ((isEn && /[\u4e00-\u9fa5]/.test(fieldName)) || (!isEn && !/[\u4e00-\u9fa5]/.test(fieldName))) {
+          // 查找字段映射
+          const field = fieldMapping.find(item => (isEn ? item.zhId : item.id) === fieldName) || {};
+          const englishFieldName = (isEn ? field.id : field.name) || fieldName;
+          // 替换字段名
+          segment = segment.replace(fieldName, englishFieldName);
         }
-      });
-    };
-    replaceWithName(splitStr, indices, list);
-    return splitStr.join(' ');
+      }
+      return segment;
+    });
+    const resultContent = replacedContent.join('');
+    return resultContent;
   }
   /**
    * @description: 获取路由query参数
