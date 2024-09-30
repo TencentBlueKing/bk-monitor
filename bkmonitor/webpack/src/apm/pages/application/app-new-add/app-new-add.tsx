@@ -23,10 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Watch, Ref } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { checkDuplicateName } from 'monitor-api/modules/apm_meta';
+import { checkDuplicateName, createApplication } from 'monitor-api/modules/apm_meta';
+
+import { ETelemetryDataType } from '../app-configuration/type';
 
 import './app-new-add.scss';
 
@@ -35,52 +37,50 @@ interface IProps {
 }
 
 interface IEvent {
-  onShowChange?: boolean;
-  onSaveSuccess?: () => void;
-  onDelSuccess?: () => void;
+  onShowChange?: (val: boolean) => void;
+  onSuccess?: () => void;
 }
 
 interface FormData {
   ID: string;
   name: string;
   desc: string;
-  target: boolean;
-  log: boolean;
-  callChain: boolean;
-  performance: boolean;
+  [ETelemetryDataType.metric]: boolean;
+  [ETelemetryDataType.log]: boolean;
+  [ETelemetryDataType.tracing]: boolean;
+  [ETelemetryDataType.profiling]: boolean;
 }
 
 @Component
-export default class DebuggingResult extends tsc<IProps, IEvent> {
+export default class AddApplication extends tsc<IProps, IEvent> {
   @Prop({ default: false, type: Boolean }) isShow: boolean;
 
   @Ref() addForm: any;
 
-  localShow = false;
   /** 应用名是否重名 */
   existedName = false;
 
   list = [
     {
-      id: 'target',
+      id: ETelemetryDataType.metric,
       title: '指标',
       content: '通过持续上报服务的关键性能指标，可以实时了解服务的运行状态，如响应时间、吞吐量等',
       icon: 'icon-zhibiao',
     },
     {
-      id: '2',
-      title: 'log',
+      id: ETelemetryDataType.log,
+      title: '日志',
       content: '服务日志提供了详细的错误信息和上下文，有助于快速定位和解决问题',
       icon: 'icon-rizhi',
     },
     {
-      id: 'callChain',
+      id: ETelemetryDataType.tracing,
       title: '调用链',
       content: '从用户发起请求到服务响应的全链路追踪，追踪请求在多个服务之间的调用情况，帮助业务识别性能瓶颈和延迟原因',
       icon: 'icon-tiaoyonglian',
     },
     {
-      id: 'performance',
+      id: ETelemetryDataType.profiling,
       title: '性能分析',
       content: '通过分析函数调用栈和内存分配情况，找出性能瓶颈并进行针对性优化',
       icon: 'icon-profiling',
@@ -91,11 +91,12 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
     ID: '',
     name: '',
     desc: '',
-    target: false,
-    log: false,
-    callChain: false,
-    performance: false,
+    [ETelemetryDataType.metric]: false,
+    [ETelemetryDataType.log]: true,
+    [ETelemetryDataType.tracing]: false,
+    [ETelemetryDataType.profiling]: false,
   };
+  saveLoading = false;
 
   rules = {
     ID: [
@@ -122,79 +123,73 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
         message: window.i18n.t('仅支持小写字母、数字、_- 中任意一条件即可'),
         trigger: ['change', 'blur'],
       },
+      {
+        validator: this.handleCheckDuplicateName,
+        message: window.i18n.tc('注意: 名字冲突'),
+        trigger: ['blur'],
+      },
     ],
   };
-  created() {
-    this.initData();
-  }
-
-  @Watch('isShow', { immediate: true })
-  handleShow(v: boolean) {
-    setTimeout(() => {
-      this.localShow = v;
-    }, 50);
-  }
 
   @Emit('showChange')
-  emitIsShow(v: boolean) {
-    return v;
+  handleShowChange() {
+    this.formData = {
+      ID: '',
+      name: '',
+      desc: '',
+      [ETelemetryDataType.metric]: false,
+      [ETelemetryDataType.log]: true,
+      [ETelemetryDataType.tracing]: false,
+      [ETelemetryDataType.profiling]: false,
+    };
+    this.addForm?.clearError?.();
   }
 
-  /** 初始化页面数据 */
-  initData() {
-    this.rules.name.push({
-      message: window.i18n.tc('注意: 名字冲突'),
-      trigger: 'none',
-      validator: val => !this.existedName && !!val,
-    });
-  }
+  @Emit('success')
+  handleSuccess() {}
 
   /** 检查 应用名 是否重名 */
-  handleCheckDuplicateName() {
-    return new Promise((resolve, reject) => {
-      if (!this.formData.name) return resolve(true);
-      if (this.formData.name.length < 1) return reject(false);
-
-      setTimeout(async () => {
-        const { exists } = await checkDuplicateName({ app_name: this.formData.name });
-        if (exists) {
-          this.existedName = exists;
-          this.addForm.validateField('name');
-          reject(false);
-        } else {
-          resolve(true);
-        }
-      }, 100);
-    });
+  async handleCheckDuplicateName(val: string) {
+    const { exists } = await checkDuplicateName({ app_name: val }).catch(() => ({ exists: true }));
+    return !exists;
   }
 
   /* 保存 */
   async handleSave(isAccess = false) {
-    const noExistedName = await this.handleCheckDuplicateName();
-    if (noExistedName) {
-      const isPass = await this.addForm.validate();
-      if (isPass) {
-        // 保存接口
-        // const res = await save(params).catch(() => false);
-        // if (res) {
-        //   this.$bkMessage({
-        //     theme: 'success',
-        //     message: this.$t('保存成功'),
-        //   });
-        //   this.emitIsShow(false);
+    this.saveLoading = true;
+    const isPass = await this.addForm.validate();
+    if (isPass) {
+      // 保存接口
+      const params = {
+        app_name: this.formData.ID,
+        app_alias: this.formData.name,
+        description: this.formData.desc,
+        enabled_profiling: this.formData[ETelemetryDataType.profiling],
+        enabled_trace: this.formData[ETelemetryDataType.tracing],
+        enabled_metric: this.formData[ETelemetryDataType.metric],
+        enabled_log: this.formData[ETelemetryDataType.log],
+        es_storage_config: null,
+      };
+      try {
+        await createApplication(params);
+        this.$bkMessage({
+          theme: 'success',
+          message: this.$t('保存成功'),
+        });
+        this.handleShowChange();
+        this.handleSuccess();
         if (isAccess) {
           // 跳转到接入服务页面
           const routeData = this.$router.resolve({
             name: 'service-add',
             params: {
-              appName: this.formData.name,
+              appName: this.formData.name as string,
             },
           });
           window.location.href = routeData.href;
         }
-        // }
-        this.emitIsShow(false);
-      }
+      } catch {}
+      this.saveLoading = false;
     }
   }
 
@@ -202,11 +197,11 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
     return (
       <bk-sideslider
         class='new-add-application'
-        isShow={this.localShow}
+        isShow={this.isShow}
         quickClose={true}
         showMask={true}
-        {...{ on: { 'update:isShow': this.emitIsShow } }}
-        width={960}
+        {...{ on: { 'update:isShow': this.handleShowChange } }}
+        width={640}
       >
         <div slot='header'>{this.$t('新建应用')}</div>
         <div
@@ -248,7 +243,6 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                 class='input'
                 v-model={this.formData.name}
                 placeholder={this.$t('1-50字符，由小写字母、数字、下划线(_)、中划线(-)组成')}
-                onBlur={() => this.handleCheckDuplicateName()}
               />
             </bk-form-item>
             <bk-form-item label={this.$t('描述')}>
@@ -275,6 +269,7 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                   <div class='report-right-content'>
                     <bk-switcher
                       v-model={this.formData[item.id]}
+                      size='small'
                       theme='primary'
                     />
                   </div>
@@ -285,25 +280,21 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
           <div class='footer-wrap'>
             <bk-button
               class='mr8'
+              loading={this.saveLoading}
               theme='primary'
-              onClick={this.handleSave}
+              onClick={() => this.handleSave(false)}
             >
               {this.$t('保存')}
             </bk-button>
             <bk-button
               class='mr8'
+              loading={this.saveLoading}
               theme='primary'
               onClick={() => this.handleSave(true)}
             >
               {this.$t('保存并接入服务')}
             </bk-button>
-            <bk-button
-              onClick={() => {
-                this.emitIsShow(false);
-              }}
-            >
-              {this.$t('取消')}
-            </bk-button>
+            <bk-button onClick={this.handleShowChange}>{this.$t('取消')}</bk-button>
           </div>
         </div>
       </bk-sideslider>

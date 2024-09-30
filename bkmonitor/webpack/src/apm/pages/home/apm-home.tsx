@@ -42,6 +42,7 @@ import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
 import authorityStore from '../../store/modules/authority';
 import AppNewAdd from '../application/app-new-add/app-new-add';
 import AppHomeList from './components/apm-home-list';
+import ApmHomeResizeLayout from './components/apm-home-resize-layout';
 import NavBar from './nav-bar';
 import ApmHomeSkeleton from './skeleton/apm-home-skeleton';
 import { SEARCH_KEYS, charColor, OPERATE_OPTIONS } from './utils';
@@ -51,7 +52,6 @@ import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './apm-home.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
-
 export interface IAppListItem {
   app_alias: string;
   app_name: string;
@@ -209,7 +209,11 @@ export default class AppList extends tsc<object> {
     });
     this.loading = false;
     const defaultItem = (item, ind: number) => {
-      const firstCode = item.app_alias?.slice(0, 1) || '-';
+      let firstCode: string = item.app_alias?.slice(0, 1) || '-';
+      const charCode = firstCode.charCodeAt(0);
+      if (charCode >= 97 && charCode <= 122) {
+        firstCode = firstCode.toUpperCase();
+      }
       return {
         ...item,
         firstCodeColor: charColor(ind),
@@ -411,12 +415,12 @@ export default class AppList extends tsc<object> {
             </div>
           )}
         </NavBar>
-        <bk-resize-layout
+        <ApmHomeResizeLayout
           class='apm-home-content'
-          auto-minimize={200}
-          collapsible={true}
-          initial-divide={201}
-          min={195}
+          initSideWidth={200}
+          isShowCollapse={true}
+          maxWidth={300}
+          minWidth={150}
         >
           <div
             class='app-list'
@@ -434,6 +438,7 @@ export default class AppList extends tsc<object> {
               />
               <div
                 class='app-list-add'
+                v-bk-tooltips={{ content: this.$t('新建应用') }}
                 onClick={this.showAddApp}
               >
                 <i class='icon-monitor icon-mc-add app-add-icon' />
@@ -441,6 +446,7 @@ export default class AppList extends tsc<object> {
               <AppNewAdd
                 isShow={this.isShowAppAdd}
                 onShowChange={this.showAddApp}
+                onSuccess={this.getAppList}
               />
             </div>
             {this.loading ? (
@@ -499,10 +505,7 @@ export default class AppList extends tsc<object> {
               />
             )}
           </div>
-          <div
-            class='app-list-service'
-            slot='main'
-          >
+          <div class='app-list-service'>
             <AppHomeList
               ref='apmHomeListRef'
               appData={this.appData}
@@ -513,7 +516,7 @@ export default class AppList extends tsc<object> {
               onLinkToOverview={this.linkToOverview}
             />
           </div>
-        </bk-resize-layout>
+        </ApmHomeResizeLayout>
 
         <bk-dialog
           width={1360}
