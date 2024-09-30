@@ -379,7 +379,7 @@ export default class DataStatusMetric extends tsc<IProps> {
                       showXAxisNum={2}
                     />
                   ) : (
-                    <span>{this.$t('暂无数据')}</span>
+                    <span class='no-data-text'>{this.$t('暂无数据')}</span>
                   )}
                   {/* {this.apdexChartPanel ? (
                     <ApdexChart
