@@ -17,7 +17,7 @@
 ### 1.3 初始化 demo
 
 ```shell
-git clone {{ECOSYSTEM_REPOSITORY_URL}}.git
+git clone {{ECOSYSTEM_REPOSITORY_URL}}
 cd examples/java-examples/helloworld
 gradle build
 ```
@@ -43,8 +43,6 @@ ENABLE_LOGS="{{access_config.otlp.enable_logs}}" \
 gradle run
 ```
 
-访问 👉 [http://localhost:8080/helloworld](http://localhost:8080/helloworld)。
-
 #### 2.1.2 运行参数说明
 
 {{QUICK_START_RUN_PARAMETERS}}
@@ -62,13 +60,13 @@ gradle run
 
 OpenTelemetry 提供标准化的框架和工具包，用于创建和管理 Traces、Metrics、Logs 数据。
 
-示例项目提供集成 OpenTelemetry Java SDK 并将遥测数据发送到 bk-collector 的方式，可以参考 [service/impl/otlp/OtlpService.java]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/java-examples/helloworld/src/main/java/com/tencent/bkm/demo/helloworld/service/impl/otlp/OtlpService.java) 进行接入
+示例项目提供集成 OpenTelemetry Java SDK 并将遥测数据发送到 bk-collector 的方式，可以参考 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/java-examples/helloworld/src/main/java/com/tencent/bkm/demo/helloworld/service/impl/otlp/OtlpService.java" target="_blank">service/impl/otlp/OtlpService.java</a> 进行接入
 
 #### 3.1.2 关键配置
 
 {{MUST_CONFIG_RESOURCES}}
 
-示例项目在 [service/impl/otlp/OtlpService.java getResource]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/java-examples/helloworld/src/main/java/com/tencent/bkm/demo/helloworld/service/impl/otlp/OtlpService.java) 提供了创建样例：
+示例项目在 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/java-examples/helloworld/src/main/java/com/tencent/bkm/demo/helloworld/service/impl/otlp/OtlpService.java" target="_blank">service/impl/otlp/OtlpService.java getResource</a> 提供了创建样例：
 
 ```java
 private Resource getResource() {
@@ -87,7 +85,7 @@ private Resource getResource() {
 
 {{MUST_CONFIG_EXPORTER}}
 
-示例项目在 [service/impl/otlp/OtlpService.java getTracerProvider]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/java-examples/helloworld/src/main/java/com/tencent/bkm/demo/helloworld/service/impl/otlp/OtlpService.java)  提供了创建样例：
+示例项目在 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/java-examples/helloworld/src/main/java/com/tencent/bkm/demo/helloworld/service/impl/otlp/OtlpService.java" target="_blank">service/impl/otlp/OtlpService.java getTracerProvider</a>  提供了创建样例：
 
 ```java
 private SdkTracerProvider getTracerProvider(Resource resource) {
@@ -140,15 +138,15 @@ public String handleHelloWorld(HttpExchange exchange) throws Exception {
 }
 ```
 
-对于 OpenTelemetry SDK API 的使用，在文档 [Java（OpenTelemetry SDK）接入]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/java-examples/helloworld/README.md) 提供了更详细的说明。
+对于 OpenTelemetry SDK API 的使用，在文档 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/java-examples/helloworld/README.md" target="_blank">Java（OpenTelemetry SDK）接入</a> 提供了更详细的说明。
 
-同时可以参考代码进行使用：[service/impl/http/HelloWorldHttpHandler.java]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/java-examples/helloworld/src/main/java/com/tencent/bkm/demo/helloworld/service/impl/http/HelloWorldHttpHandler.java)。
+同时可以参考代码进行使用：<a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/java-examples/helloworld/src/main/java/com/tencent/bkm/demo/helloworld/service/impl/http/HelloWorldHttpHandler.java" target="_blank">service/impl/http/HelloWorldHttpHandler.java</a>。
 
 ### 3.2 Profiling
 
 {{MUST_CONFIG_PROFILING}}
 
-示例项目提供集成 Pyroscope Java SDK 并将性能数据发送到 bk-collector 的方式，可以参考 [service/impl/profiling/ProfilingService.java]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/java-examples/helloworld/src/main/java/com/tencent/bkm/demo/helloworld/service/impl/profiling/ProfilingService.java) 进行接入：
+示例项目提供集成 Pyroscope Java SDK 并将性能数据发送到 bk-collector 的方式，可以参考 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/java-examples/helloworld/src/main/java/com/tencent/bkm/demo/helloworld/service/impl/profiling/ProfilingService.java" target="_blank">service/impl/profiling/ProfilingService.java</a> 进行接入：
 
 ```java
 this.pyroscopeConfig = new io.pyroscope.javaagent.config.Config.Builder()
@@ -166,5 +164,5 @@ this.pyroscopeConfig = new io.pyroscope.javaagent.config.Config.Builder()
 
 ## 4. 了解更多
 
-* [应用性能监控（APM）数据接入指南]({{APM_ACCESS_URL}})
-* [各语言、框架接入代码样例]({{ECOSYSTEM_REPOSITORY_URL}})
+* <a href="{{APM_ACCESS_URL}}" target="_blank">应用性能监控（APM）数据接入指南</a>
+* <a href="{{ECOSYSTEM_REPOSITORY_URL}}" target="_blank">各语言、框架接入代码样例</a>

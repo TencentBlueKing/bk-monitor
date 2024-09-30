@@ -15,6 +15,6 @@
 
 ## 2. 了解更多
 
-* [应用性能监控（APM）数据接入指南]({{APM_ACCESS_URL}})
-* [各语言、框架接入代码样例]({{ECOSYSTEM_REPOSITORY_URL}})
-* [OpenTelemetry JavaScript SDK & API](https://opentelemetry.io/zh/docs/languages/js/)
+* <a href="{{APM_ACCESS_URL}}" target="_blank">应用性能监控（APM）数据接入指南</a>
+* <a href="{{ECOSYSTEM_REPOSITORY_URL}}" target="_blank">各语言、框架接入代码样例</a>
+* <a href="https://opentelemetry.io/zh/docs/languages/js/" target="_blank">OpenTelemetry JavaScript SDK & API</a>

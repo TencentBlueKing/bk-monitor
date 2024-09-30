@@ -17,7 +17,7 @@
 ### 1.3 初始化 demo
 
 ```shell
-git clone {{ECOSYSTEM_REPOSITORY_URL}}.git
+git clone {{ECOSYSTEM_REPOSITORY_URL}}
 cd examples/python-examples/helloworld
 python3 -m venv .venv
 source .venv/bin/activate
@@ -44,8 +44,6 @@ ENABLE_LOGS="{{access_config.otlp.enable_logs}}" \
 python main.py
 ```
 
-访问 👉 [http://localhost:8080/helloworld](http://localhost:8080/helloworld)。
-
 #### 2.1.2 运行参数说明
 
 {{QUICK_START_RUN_PARAMETERS}}
@@ -63,13 +61,13 @@ python main.py
 
 OpenTelemetry 提供标准化的框架和工具包，用于创建和管理 Traces、Metrics、Logs 数据。
 
-示例项目提供集成 OpenTelemetry Python SDK 并将遥测数据发送到 bk-collector 的方式，可以参考 [services/otlp.py]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/python-examples/helloworld/services/otlp.py) 进行接入
+示例项目提供集成 OpenTelemetry Python SDK 并将遥测数据发送到 bk-collector 的方式，可以参考 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/python-examples/helloworld/services/otlp.py" target="_blank">services/otlp.py</a> 进行接入
 
 #### 3.1.2 关键配置
 
 {{MUST_CONFIG_RESOURCES}}
 
-示例项目在 [services/otlp.py _create_resource]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/python-examples/helloworld/services/otlp.py) 提供了创建样例：
+示例项目在 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/python-examples/helloworld/services/otlp.py" target="_blank">services/otlp.py _create_resource</a> 提供了创建样例：
 
 ```python
 def _create_resource(self) -> Resource:
@@ -89,7 +87,7 @@ def _create_resource(self) -> Resource:
 
 {{MUST_CONFIG_EXPORTER}}
 
-示例项目在 [services/otlp.py _setup_traces]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/python-examples/helloworld/services/otlp.py) 提供了创建样例：
+示例项目在 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/python-examples/helloworld/services/otlp.py" target="_blank">services/otlp.py _setup_traces</a> 提供了创建样例：
 
 ```python
 def _setup_traces(self, resource: Resource):
@@ -136,15 +134,15 @@ class HelloWorldHandler:
             return self.generate_greeting(country)
 ```
 
-对于 OpenTelemetry SDK API 的使用，在文档 [Python（OpenTelemetry SDK）接入]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/python-examples/helloworld/README.md) 提供了更详细的说明。
+对于 OpenTelemetry SDK API 的使用，在文档 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/python-examples/helloworld/README.md" target="_blank">Python（OpenTelemetry SDK）接入</a> 提供了更详细的说明。
 
-同时可以参考代码进行使用：[services/server.py]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/python-examples/helloworld/services/server.py)。
+同时可以参考代码进行使用：<a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/python-examples/helloworld/services/server.py" target="_blank">services/server.py</a>。
 
 ### 3.2 Profiling
 
 {{MUST_CONFIG_PROFILING}}
 
-示例项目提供集成 Pyroscope Python SDK 并将性能数据发送到 bk-collector 的方式，可以参考 [services/profiling.py]({{ECOSYSTEM_CODE_ROOT_URL}}/examples/python-examples/helloworld/services/profiling.py) 进行接入：
+示例项目提供集成 Pyroscope Python SDK 并将性能数据发送到 bk-collector 的方式，可以参考 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/python-examples/helloworld/services/profiling.py" target="_blank">services/profiling.py</a> 进行接入：
 
 ```python
 self.config = ProfilingConfig(
@@ -161,5 +159,5 @@ self.config = ProfilingConfig(
 
 ## 4. 了解更多
 
-* [应用性能监控（APM）数据接入指南]({{APM_ACCESS_URL}})
-* [各语言、框架接入代码样例]({{ECOSYSTEM_REPOSITORY_URL}})
+* <a href="{{APM_ACCESS_URL}}" target="_blank">应用性能监控（APM）数据接入指南</a>
+* <a href="{{ECOSYSTEM_REPOSITORY_URL}}" target="_blank">各语言、框架接入代码样例</a>
