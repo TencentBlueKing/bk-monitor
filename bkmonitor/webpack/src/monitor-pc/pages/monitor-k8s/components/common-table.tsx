@@ -28,8 +28,10 @@ import { Component, Emit, Inject, InjectReactive, Prop, Ref } from 'vue-property
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { connect, disconnect } from 'echarts/core';
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
+import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import MiniTimeSeries from 'monitor-ui/chart-plugins/plugins/mini-time-series/mini-time-series';
 
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
@@ -212,6 +214,19 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       disabled: !!item.disabled,
     }));
   }
+
+  /** 缩略图分组Id枚举 */
+  get chartGroupIdsMap() {
+    return this.tableColumns.reduce((acc, cur, ind) => {
+      if (cur.type === 'datapoints') {
+        if (acc[cur.id]) disconnect(acc[cur.id]);
+        acc[cur.id] = `${random(8)}_${ind}`;
+        connect(acc[cur.id]);
+      }
+      return acc;
+    }, {});
+  }
+
   /** 表格类名 */
   get tableClass() {
     const classNames = [];
@@ -224,10 +239,18 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   get hasOverviewData() {
     return !!this.overviewData;
   }
+
   created() {
     this.storage = new Storage();
     this.tableSize = this.defaultSize;
   }
+
+  destroyed() {
+    for (const groupId of Object.keys(this.chartGroupIdsMap)) {
+      disconnect(groupId);
+    }
+  }
+
   // 常用值格式化
   commonFormatter(val: ITableItem<'string'>, column: ITableColumn) {
     if (typeof val !== 'number' && !val) return '--';
@@ -580,18 +603,36 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   // data_status 类型
   dataStatusFormatter(value: ITableItem<'data_status'>) {
     const icons = {
-      normal: 'icon-mc-check-small',
-      no_data: 'icon-tixing',
+      normal: {
+        icon: 'icon-mc-check-small',
+        text: '',
+      },
+      no_data: {
+        icon: 'icon-tixing',
+        text: this.$t('无数据'),
+      },
+      disabled: {
+        icon: 'icon-zhongzhi',
+        text: this.$t('已禁用'),
+      },
     };
-    return value?.icon ? <i class={`icon-monitor ${icons[value.icon] || ''}`} /> : '';
+    return value?.icon ? (
+      <i
+        class={`icon-monitor ${icons[value.icon].icon || ''} data_status_column`}
+        v-bk-tooltips={{ content: icons[value.icon].text, disabled: !icons[value.icon].text }}
+      />
+    ) : (
+      ''
+    );
   }
 
   // datapoints 类型
-  datapointsFormatter(value: ITableItem<'datapoints'>) {
+  datapointsFormatter(column: ITableColumn, value: ITableItem<'datapoints'>) {
     return (
       <MiniTimeSeries
         data={value.datapoints}
         disableHover={true}
+        groupId={this.chartGroupIdsMap[column.id]}
         unit={value.unit}
         unitDecimal={value?.unitDecimal}
         valueTitle={value.valueTitle}
@@ -664,8 +705,14 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   handleSetFormatter(id: string, row: TableRow) {
     const column = this.columns.find(item => item.id === id);
     if (!column) return '--';
-    if (column.asyncable) return <bk-spin size='mini' />; // 用于异步加载loading
-
+    if (column.asyncable)
+      return (
+        <img
+          class='loading-svg'
+          alt=''
+          src={loadingIcon}
+        />
+      ); // 用于异步加载loading
     const value: ITableItem<typeof column.type> = row[id];
     switch (column.type) {
       case 'time':
@@ -699,7 +746,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       case 'data_status':
         return this.dataStatusFormatter(value as ITableItem<'data_status'>);
       case 'datapoints':
-        return this.datapointsFormatter(value as ITableItem<'datapoints'>);
+        return this.datapointsFormatter(column, value as ITableItem<'datapoints'>);
       default:
         return this.commonFormatter(value as ITableItem<'string'>, column);
     }

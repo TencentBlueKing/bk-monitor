@@ -78,19 +78,19 @@ class MustConfigProfiling(metaclass=base.FieldMeta):
 | `ServerAddress`   | 【可选】Profiling 数据上报地址，请根据页面指引提供的 HTTP 接入地址进行填写 |"""
 
 
-class DemoRunParameters(metaclass=base.FieldMeta):
+class QuickStartRunParameters(metaclass=base.FieldMeta):
     class Meta:
-        name = "DEMO_RUN_PARAMETERS"
+        name = "QUICK_START_RUN_PARAMETERS"
         scope = base.ScopeType.OPEN.value
-        value = """运行参数说明：
+        value = """| 参数                 | 值（根据所填写接入信息生成）             | 说明                                                         |
+| -------------------- | :--------------------------------------- | ------------------------------------------------------------ |
+| `TOKEN`              | `"{{access_config.token}}"`              | 【必须】APM 应用 `Token`                                     |
+| `SERVICE_NAME`       | `"{{service_name}}"`                     | 【必须】服务唯一标识，一个应用可以有多个服务，通过该属性区分 |
+| `OTLP_ENDPOINT`      | `"{{access_config.otlp.endpoint}}"`      | 【必须】OT 数据上报地址，支持以下协议：<br />  `gRPC`：`{{access_config.otlp.endpoint}}`（demo 使用该协议演示上报）<br /> `HTTP` ：`{{access_config.otlp.http_endpoint}}` *[1]* |
+| `PROFILING_ENDPOINT` | `"{{access_config.profiling.endpoint}}"` | 【可选】Profiling 数据上报地址                               |
+| `ENABLE_TRACES`      | `{{access_config.otlp.enable_traces}}`   | 是否启用调用链上报                                           |
+| `ENABLE_METRICS`     | `{{access_config.otlp.enable_metrics}}`  | 是否启用指标上报                                             |
+| `ENABLE_LOGS`        | `{{access_config.otlp.enable_logs}}`     | 是否启用日志上报                                             |
+| `ENABLE_PROFILING`   | `{{access_config.profiling.endpoint}}`   | 是否启用性能分析上报                                         |
 
-| 参数                   | 默认值                                | 说明                                        |
-|----------------------|------------------------------------|-------------------------------------------|
-| `TOKEN`              | `""`                               | APM 应用 `Token`                            |
-| `SERVICE_NAME`       | `"helloworld"`                     | 服务唯一标识，一个应用可以有多个服务，通过该属性区分                |
-| `OTLP_ENDPOINT`      | `"http://127.0.0.1:4317"`          | OT 数据上报地址，请根据页面指引提供的 gRPC 接入地址进行填写        |
-| `PROFILING_ENDPOINT` | `"http://127.0.0.1:4318/pyroscope"` | Profiling 数据上报地址，请根据页面指引提供的 HTTP 接入地址进行填写 |
-| `ENABLE_TRACES`      | `false`                            | 是否启用调用链上报                                 |
-| `ENABLE_METRICS`     | `false`                            | 是否启用指标上报                                  |
-| `ENABLE_LOGS`        | `false`                            | 是否启用日志上报                                  |
-| `ENABLE_PROFILING`   | `false`                            | 是否启用性能分析上报                                |"""
+* *[OTLP Exporter Configuration](https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/)*"""

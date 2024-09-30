@@ -1087,15 +1087,15 @@ export default class BasicInfo extends tsc<IProps> {
                   formType='tag'
                   label={this.$t('指标')}
                   showEditable={false}
-                  tagTheme='success'
-                  value={[this.$t('已开启')]}
+                  tagTheme={this.appInfo.is_enabled_metric ? 'success' : ''}
+                  value={[this.appInfo.is_enabled_metric ? this.$t('已开启') : this.$t('未开启')]}
                 />
                 <EditableFormItem
                   formType='tag'
                   label={this.$t('日志')}
                   showEditable={false}
-                  tagTheme='success'
-                  value={[this.$t('已开启')]}
+                  tagTheme={this.appInfo.is_enabled_log ? 'success' : ''}
+                  value={[this.appInfo.is_enabled_log ? this.$t('已开启') : this.$t('未开启')]}
                 />
               </div>,
               <div
@@ -1106,13 +1106,15 @@ export default class BasicInfo extends tsc<IProps> {
                   formType='tag'
                   label={this.$t('调用链')}
                   showEditable={false}
-                  value={[this.$t('未开启')]}
+                  tagTheme={this.appInfo.is_enabled_tracing ? 'success' : ''}
+                  value={[this.appInfo.is_enabled_tracing ? this.$t('已开启') : this.$t('未开启')]}
                 />
                 <EditableFormItem
                   formType='tag'
                   label={this.$t('性能分析')}
                   showEditable={false}
-                  value={[this.$t('未开启')]}
+                  tagTheme={this.appInfo.is_enabled_profiling ? 'success' : ''}
+                  value={[this.appInfo.is_enabled_profiling ? this.$t('已开启') : this.$t('未开启')]}
                 />
               </div>,
             ]}

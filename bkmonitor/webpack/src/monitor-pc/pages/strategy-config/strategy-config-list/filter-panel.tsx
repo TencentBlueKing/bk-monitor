@@ -61,7 +61,9 @@ type FilterPanelEvents = {
 };
 
 // 插槽
-type FilterPanelScopedSlots = {};
+type FilterPanelScopedSlots = {
+  header?: () => VNode;
+};
 
 /**
  * 策略配置列表左侧筛选面板
@@ -159,6 +161,7 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
               {data.icon && <i class={['icon-monitor', 'pre-icon', data.icon]} />}
               <span
                 class='label-text'
+                v-bk-overflow-tips
                 title={data.name}
               >
                 {data.name}

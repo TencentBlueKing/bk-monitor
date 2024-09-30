@@ -39,14 +39,15 @@ PROFILING_ENDPOINT="{{access_config.profiling.endpoint}}" \
 ENABLE_PROFILING="{{access_config.profiling.enabled}}" \
 ENABLE_TRACES="{{access_config.otlp.enable_traces}}" \
 ENABLE_METRICS="{{access_config.otlp.enable_metrics}}" \
-ENABLE_LOGS="{{access_config.otlp.enable_logs}}" go run main.go
+ENABLE_LOGS="{{access_config.otlp.enable_logs}}" \
+go run main.go
 ```
 
 访问 👉 [http://localhost:8080/helloworld](http://localhost:8080/helloworld)。
 
 #### 2.1.2 运行参数说明
 
-{{DEMO_RUN_PARAMETERS}}
+{{QUICK_START_RUN_PARAMETERS}}
 
 ### 2.2 查看数据
 
@@ -92,6 +93,7 @@ func (s *Service) newResource() (*resource.Resource, error) {
 ```go
 func (s *Service) newTracerExporter(ctx context.Context) (*otlptrace.Exporter, error) {
     // ❗❗【非常重要】数据上报地址，请根据页面指引提供的接入地址进行填写
+	// 格式为 ip:port 或 domain:port，不要带 schema
     gRPCConn, err = grpc.NewClient(s.config.Endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	return newGRPCTracerExporter(ctx, gRPCConn)
 }

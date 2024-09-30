@@ -268,11 +268,14 @@ export interface ITracingStorageInfo {
 }
 
 export interface ILogStorageInfo {
-  storage_cluster_name: string;
-  retention: number;
-  index_split_rule: string;
-  table_id_prefix: string;
-  table_id: string;
+  es_number_of_replicas: number;
+  es_retention: number;
+  es_shards: number;
+  es_slice_size: number;
+  es_storage_cluster: number;
+  display_storage_cluster_name: string;
+  display_es_storage_index_name: string;
+  display_index_split_rule: string;
 }
 /* 存储信息 */
 export interface IStorageInfo {
