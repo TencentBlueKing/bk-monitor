@@ -64,26 +64,28 @@ export default class AppAddNew extends tsc<object> {
   list = [
     {
       id: ETelemetryDataType.metric,
-      title: '指标',
-      content: '通过持续上报服务的关键性能指标，可以实时了解服务的运行状态，如响应时间、吞吐量等',
+      title: window.i18n.tc('指标'),
+      content: window.i18n.tc('通过持续上报服务的关键性能指标，可以实时了解服务的运行状态，如响应时间、吞吐量等'),
       icon: 'icon-zhibiao',
     },
     {
-      id: '2',
-      title: ETelemetryDataType.log,
-      content: '服务日志提供了详细的错误信息和上下文，有助于快速定位和解决问题',
+      id: ETelemetryDataType.log,
+      title: window.i18n.tc('日志'),
+      content: window.i18n.tc('服务日志提供了详细的错误信息和上下文，有助于快速定位和解决问题'),
       icon: 'icon-rizhi',
     },
     {
       id: ETelemetryDataType.tracing,
-      title: '调用链',
-      content: '从用户发起请求到服务响应的全链路追踪，追踪请求在多个服务之间的调用情况，帮助业务识别性能瓶颈和延迟原因',
+      title: window.i18n.tc('调用链'),
+      content: window.i18n.tc(
+        '从用户发起请求到服务响应的全链路追踪，追踪请求在多个服务之间的调用情况，帮助业务识别性能瓶颈和延迟原因'
+      ),
       icon: 'icon-tiaoyonglian',
     },
     {
       id: ETelemetryDataType.profiling,
-      title: '性能分析',
-      content: '通过分析函数调用栈和内存分配情况，找出性能瓶颈并进行针对性优化',
+      title: window.i18n.tc('性能分析'),
+      content: window.i18n.tc('通过分析函数调用栈和内存分配情况，找出性能瓶颈并进行针对性优化'),
       icon: 'icon-profiling',
     },
   ];

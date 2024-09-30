@@ -1,37 +1,41 @@
 /* stylelint-disable declaration-no-important */
 .data-status-metric-wrap {
-    .mb24 {
-        margin-bottom: 24px;
+  .mb24 {
+    margin-bottom: 24px;
+  }
+
+  .form-content {
+    padding-bottom: 24px !important;
+    border-bottom: 1px solid #eaebf0;
+  }
+
+  .panel-item {
+    .item-content {
+      margin-bottom: 24px !important;
     }
+  }
 
-    .form-content {
-        padding-bottom: 24px !important;
-        border-bottom: 1px solid #EAEBF0;
+  .icon-fenxiang {
+    font-size: 12px;
+  }
+
+  .tool-btn {
+    margin-left: 12px;
+
+    &:last-child {
+      margin-left: 32px;
     }
+  }
 
-    .panel-item {
-        .item-content {
-            margin-bottom: 24px  !important;
-        }
+  .dashboard-panel {
+    .vue-grid-layout {
+      background: #f5f7fa !important;
+      border-radius: 2px;
     }
+  }
 
-
-    .icon-fenxiang {
-        font-size: 12px;
-    }
-
-    .tool-btn {
-        margin-left: 12px;
-
-        &:last-child {
-            margin-left: 32px;
-        }
-    }
-
-    .dashboard-panel {
-        .vue-grid-layout {
-            background: #F5F7FA !important;
-            border-radius: 2px;
-        }
-    }
+  .no-data-text {
+    font-size: 12px;
+    color: #979ba5;
+  }
 }
