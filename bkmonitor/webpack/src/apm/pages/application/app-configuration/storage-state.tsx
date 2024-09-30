@@ -27,7 +27,13 @@
 import { Component, Emit, Prop, PropSync } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { indicesInfo, metaConfigInfo, storageFieldInfo, storageInfo } from 'monitor-api/modules/apm_meta';
+import {
+  indicesInfo,
+  metaConfigInfo,
+  storageFieldInfo,
+  storageInfo,
+  storageStatus,
+} from 'monitor-api/modules/apm_meta';
 
 import Log from './storeInfo/log';
 import Metric from './storeInfo/metric';
@@ -51,6 +57,28 @@ export default class StorageState extends tsc<IStorageStateProps> {
 
   /** 选择的tab*/
   activeTab = ETelemetryDataType.metric;
+  tabList = [
+    {
+      name: ETelemetryDataType.metric,
+      label: window.i18n.tc('指标'),
+      status: 'disabled',
+    },
+    {
+      name: ETelemetryDataType.log,
+      label: window.i18n.tc('日志'),
+      status: 'disabled',
+    },
+    {
+      name: ETelemetryDataType.tracing,
+      label: window.i18n.tc('调用链'),
+      status: 'disabled',
+    },
+    {
+      name: ETelemetryDataType.profiling,
+      label: window.i18n.tc('性能分析'),
+      status: 'disabled',
+    },
+  ];
   /* 存储信息 */
   storageInfo = {
     [ETelemetryDataType.metric]: [],
@@ -80,44 +108,42 @@ export default class StorageState extends tsc<IStorageStateProps> {
     },
   };
 
+  storageStatusLoading = true;
+  storageStatus = {
+    [ETelemetryDataType.metric]: 'disabled',
+    [ETelemetryDataType.log]: 'disabled',
+    [ETelemetryDataType.tracing]: 'disabled',
+    [ETelemetryDataType.profiling]: 'disabled',
+  };
+
   @Emit('change')
   handleBaseInfoChange() {
     return true;
   }
 
   created() {
-    for (const tab of this.tabList) {
-      if (tab.status !== 'disabled') {
-        this.activeTab = tab.name;
-        break;
-      }
-    }
-    this.getStorageInfo();
+    this.getStorageStatus();
   }
 
-  get tabList() {
-    return [
-      {
-        name: ETelemetryDataType.metric,
-        label: window.i18n.tc('指标'),
-        status: this.appInfo.metric_data_status,
-      },
-      {
-        name: ETelemetryDataType.log,
-        label: window.i18n.tc('日志'),
-        status: this.appInfo.log_data_status,
-      },
-      {
-        name: ETelemetryDataType.tracing,
-        label: window.i18n.tc('调用链'),
-        status: this.appInfo.trace_data_status,
-      },
-      {
-        name: ETelemetryDataType.profiling,
-        label: window.i18n.tc('性能分析'),
-        status: this.appInfo.profiling_data_status,
-      },
-    ];
+  async getStorageStatus() {
+    this.storageStatusLoading = true;
+    const data = await storageStatus(this.appInfo.application_id, {
+      telemetry_data_type: this.activeTab,
+    }).catch(() => this.storageStatus);
+    if (data) {
+      this.storageStatus = data;
+      for (const tab of this.tabList) {
+        tab.status = this.storageStatus[tab.name];
+      }
+      for (const tab of this.tabList) {
+        if (tab.status !== 'disabled') {
+          this.activeTab = tab.name;
+          break;
+        }
+      }
+      this.getStorageInfo();
+      this.storageStatusLoading = false;
+    }
   }
 
   /**
@@ -198,6 +224,20 @@ export default class StorageState extends tsc<IStorageStateProps> {
     }
   }
 
+  logStorageChange(params) {
+    this.storageInfo[ETelemetryDataType.log] = {
+      ...this.storageInfo[ETelemetryDataType.log],
+      ...params,
+    };
+  }
+
+  traceStorageChange(params) {
+    this.storageInfo[ETelemetryDataType.tracing] = {
+      ...this.storageInfo[ETelemetryDataType.tracing],
+      ...params,
+    };
+  }
+
   /** 获取选择的tab组件 */
   getActiveComponent() {
     switch (this.activeTab) {
@@ -218,7 +258,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
             indicesLoading={this.indicesLoading}
             storageInfo={this.storageInfo[this.activeTab]}
             telemetryDataType={this.activeTab}
-            onChange={this.handleBaseInfoChange}
+            onChange={params => this.logStorageChange(params)}
           />
         );
       case ETelemetryDataType.tracing:
@@ -234,7 +274,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
             setupData={this.setupData}
             storageInfo={this.storageInfo[this.activeTab]}
             telemetryDataType={this.activeTab}
-            onChange={this.handleBaseInfoChange}
+            onChange={params => this.traceStorageChange(params)}
           />
         );
     }
@@ -245,12 +285,13 @@ export default class StorageState extends tsc<IStorageStateProps> {
       <div class='conf-content storage-state-wrap'>
         <div class='storage-tab-wrap'>
           <TabList
+            v-bkloading={{ isLoading: this.storageStatusLoading }}
             activeTab={this.activeTab}
             tabList={this.tabList}
             onChange={this.handleChangeActiveTab}
           />
         </div>
-        <div class='storage-content'>{this.getActiveComponent()}</div>
+        {!this.storageStatusLoading ? <div class='storage-content'>{this.getActiveComponent()}</div> : undefined}
       </div>
     );
   }

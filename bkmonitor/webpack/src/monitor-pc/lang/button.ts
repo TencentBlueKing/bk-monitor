@@ -488,4 +488,5 @@ export default {
   编辑告警策略: 'Editing an alert policy',
   任务终止: 'Task Termination',
   失败重试: 'Failure Retry',
+  保存并接入服务: 'Save and Access Service',
 };

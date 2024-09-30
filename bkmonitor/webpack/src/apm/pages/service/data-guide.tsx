@@ -48,10 +48,10 @@ export default class ServiceApply extends tsc<IProps> {
   appList = [];
   /** 服务名称 */
   formData = {
-    serviceName: 'test',
+    serviceName: '',
   };
   formRules = {
-    serviceName: [{ required: true, message: '请输入服务名称', trigger: 'blur' }],
+    serviceName: [{ required: true, message: '请输入服务名', trigger: 'blur' }],
   };
   /** 语言列表 */
   languageList: ICardItem[] = [];
@@ -61,33 +61,86 @@ export default class ServiceApply extends tsc<IProps> {
   reportUrl = '';
   reportLoading = false;
 
+  markdownMap = new Map<string, string>();
   markdownStr = '';
   markdownLoading = false;
 
   guideUrl = '';
+
+  get markdownParams() {
+    if (!this.appName || !this.reportUrl) return undefined;
+    const lang = this.languageList.find(item => item.checked)?.id;
+    if (!lang) return undefined;
+    return {
+      app_name: this.appName,
+      languages: [lang],
+      base_endpoint: this.reportUrl,
+    };
+  }
   created() {
+    this.markdownLoading = true;
     this.getAppList();
     this.getReportUrlList();
+    this.getLanguageData();
   }
 
   @Watch('defaultAppName', { immediate: true })
   handleAppNameChange(val: string) {
     if (val) {
       this.appName = val;
-      this.getLanguageData();
     }
   }
 
+  @Watch('markdownParams', { immediate: true })
+  @Debounce(500)
+  async fetchMarkdown() {
+    const params = this.markdownParams;
+    if (!params) {
+      this.markdownStr = '';
+      return;
+    }
+    const key = JSON.stringify(params || {});
+    if (this.markdownMap.has(JSON.stringify(params))) {
+      this.markdownStr = this.getMarkdownStr(key);
+      return;
+    }
+    this.markdownLoading = true;
+    const data = await metaInstrumentGuides({ ...params }).catch(() => false);
+    if (data?.length) {
+      this.markdownMap.set(key, data[0].content);
+      this.markdownStr = this.getMarkdownStr(key);
+    }
+    this.markdownLoading = false;
+  }
+
+  getMarkdownStr(markKey?: string) {
+    let key = markKey;
+    if (!markKey) {
+      key = JSON.stringify(this.markdownParams || {});
+    }
+    const rawMarkdownStr = this.markdownMap.get(key) || '';
+    return rawMarkdownStr.replace(/{{service_name}}/gim, this.formData.serviceName);
+  }
   /** 获取应用列表 */
   async getAppList() {
     this.appLoading = true;
     const data = await listApplication().catch(() => ({
       data: [],
     }));
-    this.appList = data.data.map(item => ({
-      id: item.app_name,
-      name: item.app_alias,
-    }));
+    let hasApp = false;
+    this.appList = data.data.map(item => {
+      if (item.app_name === this.appName) {
+        hasApp = true;
+      }
+      return {
+        id: item.app_name,
+        name: item.app_alias,
+        app_id: item.application_id,
+      };
+    });
+    if (!hasApp) {
+      this.appName = '';
+    }
     this.appLoading = false;
   }
 
@@ -112,8 +165,6 @@ export default class ServiceApply extends tsc<IProps> {
       checked: index === 0,
     }));
     this.languageLoading = false;
-    console.log('🚀 ~ NoDataGuide ~ getLanguageData ~ data:', data);
-    // this.languageList = data || [];
   }
 
   /** 获取push url数据 */
@@ -132,21 +183,11 @@ export default class ServiceApply extends tsc<IProps> {
     this.reportUrl = this.reportUrlList[0]?.id || '';
     this.reportLoading = false;
   }
-  @Debounce(500)
-  async getMarkdownStr() {
-    this.markdownLoading = true;
-    const lang = this.languageList.find(item => item.checked)?.id;
-    const str = await metaInstrumentGuides({
-      application_id: this.appName,
-      languages: [lang],
-      service_name: this.formData.serviceName,
-    });
-    this.markdownLoading = false;
-  }
+
   @Debounce(300)
   handleServiceNameChange(v: string) {
     this.formData.serviceName = v?.trim();
-    this.getMarkdownStr();
+    this.markdownStr = this.getMarkdownStr();
   }
   handleLanguageChange(language: ICardItem, val: boolean) {
     if (language.checked && !val) {
@@ -157,26 +198,28 @@ export default class ServiceApply extends tsc<IProps> {
       checkLang.checked = false;
     }
     language.checked = val;
-    this.getMarkdownStr();
   }
   render() {
-    const rowContent = (name: string, content, subTitle?) => (
-      <div class={['row-content-wrap']}>
-        {!!name && (
-          <div class={['row-title']}>
-            {name}
-            {subTitle}
-          </div>
-        )}
-        {<div class='row-content'>{content}</div>}
-      </div>
-    );
+    const rowContent = (name: string, content, subTitle?) => [
+      !!name && (
+        <div class={['row-title']}>
+          {name}
+          {subTitle}
+        </div>
+      ),
+      <div
+        key={'row-content'}
+        class='row-content'
+      >
+        {content}
+      </div>,
+    ];
     return (
       <div
         class='data-guide-wrap is-service'
         v-bkloading={{ isLoading: this.loading }}
       >
-        <div class='data-guide-main'>
+        <div class='row-content-wrap'>
           {rowContent(
             this.$tc('配置选择'),
             <div class='select-config-wrap'>
@@ -196,6 +239,7 @@ export default class ServiceApply extends tsc<IProps> {
                     loading={this.appLoading}
                     searchable={true}
                     value={this.appName}
+                    onChange={this.handleAppNameChange}
                   >
                     {this.appList.map(item => {
                       return (
@@ -256,6 +300,9 @@ export default class ServiceApply extends tsc<IProps> {
                     loading={this.reportLoading}
                     searchable={true}
                     value={this.reportUrl}
+                    onChange={v => {
+                      this.reportUrl = v;
+                    }}
                   >
                     {this.reportUrlList.map(item => {
                       return (
@@ -271,38 +318,51 @@ export default class ServiceApply extends tsc<IProps> {
               </bk-form>
             </div>
           )}
-
-          <div class='config-content is-service'>
-            {rowContent(
-              this.$tc('上报示例'),
-              <div class='view-main'>
-                {this.markdownStr ? (
-                  <MarkdownViewer
-                    flowchartStyle={false}
-                    value={this.markdownStr}
+        </div>
+        <div
+          style='flex: 1'
+          class='row-content-wrap is-markdown'
+        >
+          {rowContent(
+            this.$tc('上报示例'),
+            this.markdownLoading ? (
+              <div class='markdown-skeleton'>
+                {Array.of(35, 65, 55, 85, 75, 45, 95).map(w => (
+                  <div
+                    key={w}
+                    style={{
+                      width: `${w}%`,
+                    }}
+                    class='skeleton-element markdown-skeleton-item'
                   />
-                ) : (
-                  <bk-exception
-                    scene='part'
-                    type='empty'
-                  >
-                    {this.$t('请输入服务名')}
-                  </bk-exception>
-                )}
-              </div>,
-
-              this.guideUrl && (
-                <bk-button
-                  class='access-guide'
-                  theme='primary'
-                  onClick={() => window.open(this.guideUrl)}
-                >
-                  <i class='icon-monitor icon-mc-detail' />
-                  {this.$tc('详情接入指引')}
-                </bk-button>
-              )
-            )}
-          </div>
+                ))}
+              </div>
+            ) : this.markdownStr && this.formData.serviceName ? (
+              <div class='view-main'>
+                <MarkdownViewer
+                  flowchartStyle={false}
+                  value={this.markdownStr}
+                />
+              </div>
+            ) : (
+              <bk-exception
+                scene='part'
+                type='empty'
+              >
+                {!this.formData.serviceName ? this.$t('请输入服务名') : this.$t('暂无数据')}
+              </bk-exception>
+            ),
+            this.guideUrl && (
+              <bk-button
+                class='access-guide'
+                theme='primary'
+                onClick={() => window.open(this.guideUrl)}
+              >
+                <i class='icon-monitor icon-mc-detail' />
+                {this.$tc('详情接入指引')}
+              </bk-button>
+            )
+          )}
         </div>
       </div>
     );

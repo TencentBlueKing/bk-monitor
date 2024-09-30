@@ -1,4 +1,4 @@
-@import "../../theme";
+@import '../../theme';
 
 .service-add {
   height: 100%;
@@ -6,12 +6,12 @@
   @include application-configuration-nav;
 
   .service-configuration-nav {
-    box-shadow: 0 3px 4px 0 rgba(64, 112, 203, .06);
+    box-shadow: 0 3px 4px 0 rgba(64, 112, 203, 0.06);
   }
 
   .service-add-content {
     height: calc(100% - 52px);
-    padding: 16px;
+    padding: 24px;
     overflow: auto;
   }
 }

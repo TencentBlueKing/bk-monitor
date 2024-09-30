@@ -55,18 +55,21 @@ export default class MarkdowViewer extends tsc<IMarkdowViewerProps> {
   @Watch('value')
   onValueChange(val: string, preVal: string) {
     if (val !== preVal) {
-      this.editor.setMarkdown(val);
+      this.editor.destroy();
+      this.createEditor();
     }
   }
 
   mounted() {
+    this.createEditor();
+  }
+  createEditor() {
     const eventOption = {};
     this.editorEvents.forEach(event => {
       eventOption[event] = (...args: any) => {
         this.$emit(event, ...args);
       };
     });
-
     this.editor = Editor.factory({
       el: this.$refs.viewer as HTMLElement,
       events: eventOption,
@@ -76,7 +79,6 @@ export default class MarkdowViewer extends tsc<IMarkdowViewerProps> {
       plugins: [fixUrlPlugin as EditorPlugin, codeSyntaxHighlight],
     });
   }
-
   destroyed() {
     this.editorEvents.forEach(event => this.editor.off(event));
     this.editor.destroy();

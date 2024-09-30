@@ -60,15 +60,26 @@
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 4px 160px 0 16px;
+          height: 56px;
+          padding: 0 24px;
           margin-bottom: 4px;
           background: #f5f7fa;
           border-radius: 2px;
+          
+          .content-card-left {
+            display: flex;
+            align-items: center;
+          }
+
+          .content-card-right {
+            display: flex;
+            align-items: center;
+          }
 
           .msg-item {
             @include flex-align;
 
-            .apdex-chart-box {
+            /* .apdex-chart-box {
               width: 234px;
               height: 52px;
 
@@ -79,7 +90,7 @@
                   padding-bottom: 0;
                 }
               }
-            }
+            } */
           }
 
           .tip-label {
@@ -111,19 +122,23 @@
             @include flex-align;
           }
 
-          .card-tool {
-            position: absolute;
-            right: 24px;
+          .ml-32 {
+            margin-left: 32px;
           }
 
-          .tool-btn {
-            margin-left: 24px;
+          .ml-12 {
+            margin-left: 12px;
+          }
+
+          .link-btn {
+            font-size: 12px;
             color: #3a84ff;
             cursor: pointer;
-          }
 
-          .icon-monitor {
-            margin-left: 4px;
+            .icon-monitor {
+              margin-left: 4px;
+              font-size: 12px;
+            }
           }
         }
       }
