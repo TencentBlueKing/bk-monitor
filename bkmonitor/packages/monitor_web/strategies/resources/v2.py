@@ -2330,23 +2330,49 @@ class GetPlainStrategyListV2Resource(Resource):
 
 
 class GetTargetDetailWithCache(CacheResource):
-    cache_type = CacheType.CC_CACHE_ALWAYS
+    """获取监控目标详情，具有缓存功能"""
     backend_cache_type = CacheType.CC_CACHE_ALWAYS
-    cache_compress = False
+    cache_user_related = False
 
     class RequestSerializer(serializers.Serializer):
         strategy_id = serializers.IntegerField(required=True, label="策略ID")
 
     def perform_request(self, validate_data):
+        """
+        为了获取最佳的性能，在执行request()方法之前，请先执行set_mapping()方法，传入策略和监控目标的映射关系字典，以避免频繁查询数据库。
+        并且请显示使用instance.request()的方式执行perform_request，而非使用instance()方式，
+        使用instance()方式执行时会重新实例化，导致先前执行的set_mapping失效。
+
+        example:
+            >>instance = GetTargetDetailWithCache()
+            >>instance.set_mapping({xxx})
+            >>instance.request(xxx)
+        """
+
         strategy_id = validate_data["strategy_id"]
-        bk_biz_id = self.strategy_target_mapping[strategy_id][0]
-        target = self.strategy_target_mapping[strategy_id][1]
+        if not hasattr(self, "strategy_target_mapping"):
+            bk_biz_id = StrategyModel.objects.get(id=strategy_id).bk_biz_id
+            target = ItemModel.objects.get(strategy_id=strategy_id).target
+            logger.warning("Please call set_mapping() before calling perform_request().")
+        else:
+            bk_biz_id = self.strategy_target_mapping[strategy_id][0]
+            target = self.strategy_target_mapping[strategy_id][1]
+
         return self.get_target_detail(bk_biz_id, target)
 
-    def set_mapping(self, mapping):
+    def set_mapping(self, mapping: Dict) -> None:
+        """
+        设置策略和监控目标的映射关系
+        格式:{ strategy_id:(bk_biz_id,target) }
+        """
+
+        if not isinstance(mapping, dict):
+            logging.error("Invalid type for 'mapping'. Expected dict.")
+            raise TypeError("mapping must be a dict.")
+
         self.strategy_target_mapping = mapping
 
-    def cache_write_trigger(self, target_info):
+    def cache_write_trigger(self, target_info: Any) -> bool:
         """获取到监控目标信息不为None，则进行缓存"""
         if target_info:
             return True
@@ -2481,11 +2507,14 @@ class GetTargetDetail(Resource):
         items = ItemModel.objects.filter(strategy_id__in=strategy_ids)
 
         get_target_detail_with_cache = GetTargetDetailWithCache()
+        # 提前设置策略与监控目标映射，避免频繁查询数据库
         get_target_detail_with_cache.set_mapping({item.strategy_id: (bk_biz_id, item.target) for item in items})
 
         empty_strategy_ids = []
         result = {}
         for item in items:
+            # 使用instance.request()方式调用，而非instance()方式。
+            # instance()方式执行时会重新实例化，导致先前执行的set_mapping失效
             info = get_target_detail_with_cache.request({"strategy_id": item.strategy_id})
 
             if info:

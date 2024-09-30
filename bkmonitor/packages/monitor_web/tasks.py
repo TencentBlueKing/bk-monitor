@@ -247,7 +247,7 @@ def update_metric_list():
 
     # 记录有容器集群的cmdb业务列表
     k8s_biz_set = set()
-    for biz in businesses[offset * biz_num : (offset + 1) * biz_num]:
+    for biz in businesses[offset * biz_num: (offset + 1) * biz_num]:
         biz_count += 1
         for source_type in source_type_use_biz + source_type_add_biz_0:
             # 非容器平台项目，不需要缓存容器指标：
@@ -1326,7 +1326,7 @@ def update_target_detail():
     """
     for bk_biz_id in settings.ENABLED_TARGET_CACHE_BK_BIZ_IDS:
         strategy_ids = StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values_list("id", flat=True)
-        items = ItemModel.objects.filter(strategy_id__in=strategy_ids)
+        items = ItemModel.objects.filter(strategy_id__in=strategy_ids).only("strategy_id", "target")
         resource.strategies.get_target_detail_with_cache.set_mapping({item.strategy_id: (bk_biz_id, item.target)
                                                                       for item in items})
         for item in items:
