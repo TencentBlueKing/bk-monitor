@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
 
 from django.conf import settings
@@ -40,7 +39,7 @@ class PlatformConfig(BkCollectorConfig):
     @classmethod
     def refresh(cls):
         """
-        下发平台默认配置到主机上
+        [旧] 下发平台默认配置到主机上 （通过节点管理）
         """
         bk_host_ids = cls.get_target_hosts()
         if not bk_host_ids:
@@ -118,7 +117,9 @@ class PlatformConfig(BkCollectorConfig):
             },
             "metric_bk_apm_duration_delta_config": {
                 "name": "traces_deriver/delta_duration",
-                "operations": [{"metric_name": "bk_apm_duration_delta", "type": "delta_duration", "rules": metric_dimension_rules}],
+                "operations": [
+                    {"metric_name": "bk_apm_duration_delta", "type": "delta_duration", "rules": metric_dimension_rules}
+                ],
             },
             "metric_bk_apm_duration_bucket_config": {
                 "name": "traces_deriver/bucket",
@@ -320,3 +321,8 @@ class PlatformConfig(BkCollectorConfig):
     @classmethod
     def get_license_config(cls):
         return {"name": "license_checker/common", **DEFAULT_PLATFORM_LICENSE_CONFIG}
+
+    @classmethod
+    def deploy_in_cluster_collector(cls):
+        """TODO 将平台配置下发到集群中的 bk-collector 作为 secret 存在"""
+        pass

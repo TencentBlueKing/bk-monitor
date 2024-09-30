@@ -822,3 +822,23 @@ class FormatType:
     @classmethod
     def choices(cls):
         return [(cls.DEFAULT, cls.DEFAULT), (cls.SIMPLE, cls.SIMPLE)]
+
+
+class BkCollectorComp:
+    """一些 bk-collector 的固定值"""
+
+    NAMESPACE = "bkmonitor-operator"
+
+    DEPLOYMENT_NAME = "bkm-collector"
+    # ConfigMap: 平台配置名称
+    CONFIG_MAP_PLATFORM_TPL_NAME = "bkm-collector-platform-tpl"
+    # ConfigMap: 应用配置名称
+    CONFIG_MAP_APPLICATION_TPL_NAME = "bkm-collector-application-tpl"
+    # bk-collector ConfigMap 官方标签
+    CONFIG_MAP_LABELS = {
+        "component": "bk-collector",
+        "template": "true",
+    }
+
+    # 缓存 KEY: 安装了 bk-collector 的集群 id 列表
+    CACHE_KEY_CLUSTER_IDS = "bk-collector:clusters"

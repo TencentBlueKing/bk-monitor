@@ -8,16 +8,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import typing
-import concurrent
 import operator
 import re
+import typing
 from dataclasses import dataclass
-
-from kubernetes.client import ApiException
 
 from apm_ebpf.apps import logger
 from apm_ebpf.constants import DeepflowComp
+from apm_ebpf.handlers import Installer
 from apm_ebpf.handlers.kube import BcsKubeClient
 from apm_ebpf.handlers.provisioning import ApmEbpfProvisioning
 from apm_ebpf.handlers.workload import WorkloadContent, WorkloadHandler
@@ -44,95 +42,30 @@ class DeepflowDatasourceInfo:
         return True
 
 
-class DeepflowInstaller:
+class DeepflowInstaller(Installer):
     # 请求超时时间
     _REQUEST_TIMEOUT = 10
-
-    def __init__(self, cluster_id):
-        self.cluster_id = cluster_id
-        self.k8s_client = BcsKubeClient(self.cluster_id)
 
     def check_installed(self):
         """
         检查集群是否安装了ebpf
         """
+        namespace = DeepflowComp.NAMESPACE
+
         # 获取Deployment 使用线程池获取的目的是便于处理超时 因为 K8S SDK 没有提供超时的参数 会导致任务长时间在这里卡主
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            try:
-                deployments_future = executor.submit(
-                    self.k8s_client.api.list_namespaced_deployment, namespace=DeepflowComp.NAMESPACE
-                )
-                deployments = deployments_future.result(self._REQUEST_TIMEOUT)
-                for deployment in deployments.items:
-                    content = WorkloadContent.deployment_to(deployment)
-                    if self._check_deployment(content):
-                        logger.info(
-                            f"[DeepflowInstaller] (cluster: {self.cluster_id})found valid deployment: {content.name}"
-                        )
-                        WorkloadHandler.upsert(self.cluster_id, DeepflowComp.NAMESPACE, content)
-            except concurrent.futures.TimeoutError:
-                logger.warning(
-                    f"[DeepflowInstaller] "
-                    f"list deployments of cluster_id: {self.cluster_id}(ns: {DeepflowComp.NAMESPACE}) timeout"
-                )
-            except ApiException as e:
-                status = getattr(e, "status")
-                if status == 404:
-                    logger.warning(
-                        f"[DeepflowInstaller] "
-                        f"list deployments of cluster_id: {self.cluster_id}(ns: {DeepflowComp.NAMESPACE}) 404"
-                    )
-                elif status == 403:
-                    logger.warning(
-                        f"[DeepflowInstaller] "
-                        f"list deployments of cluster_id: {self.cluster_id}(ns: {DeepflowComp.NAMESPACE}) forbidden"
-                    )
-                else:
-                    logger.error(
-                        f"[DeepflowInstaller] failed to list deployments "
-                        f"of cluster_id: {self.cluster_id}(ns: {DeepflowComp.NAMESPACE}), error: {e}"
-                    )
+        deployments = self.list_deployments(namespace)
+        for deployment in deployments.items:
+            content = WorkloadContent.deployment_to(deployment)
+            if self._check_deployment(content):
+                logger.info(f"[DeepflowInstaller] (cluster: {self.cluster_id})found valid deployment: {content.name}")
+                WorkloadHandler.upsert(self.cluster_id, namespace, content)
 
-            # 获取Service
-            try:
-                services_future = executor.submit(
-                    self.k8s_client.core_api.list_namespaced_service, namespace=DeepflowComp.NAMESPACE
-                )
-                services = services_future.result(self._REQUEST_TIMEOUT)
-                for service in services.items:
-                    content = WorkloadContent.service_to(service)
-                    if self._check_service(content):
-                        logger.info(
-                            f"[DeepflowInstaller] (cluster: {self.cluster_id})found valid service: {content.name}"
-                        )
-                        WorkloadHandler.upsert(self.cluster_id, DeepflowComp.NAMESPACE, content)
-            except concurrent.futures.TimeoutError:
-                logger.warning(
-                    f"[DeepflowInstaller] "
-                    f"list services of cluster_id: {self.cluster_id}(ns: {DeepflowComp.NAMESPACE}) timeout"
-                )
-            except ApiException as e:
-                status = getattr(e, "status")
-                if status == 404:
-                    logger.warning(
-                        f"[DeepflowInstaller] "
-                        f"list services of cluster_id: {self.cluster_id}(ns: {DeepflowComp.NAMESPACE}) 404"
-                    )
-                elif status == 403:
-                    logger.warning(
-                        f"[DeepflowInstaller] "
-                        f"list services of cluster_id: {self.cluster_id}(ns: {DeepflowComp.NAMESPACE}) forbidden"
-                    )
-                else:
-                    logger.error(
-                        f"[DeepflowInstaller] failed to list services "
-                        f"of cluster_id: {self.cluster_id}(ns: {DeepflowComp.NAMESPACE}), error: {e}"
-                    )
-
-    @classmethod
-    def check_deployment(cls, content, required_deployment):
-        image_name = cls._exact_image_name(content.image)
-        return image_name == required_deployment
+        services = self.list_services(namespace)
+        for service in services.items:
+            content = WorkloadContent.service_to(service)
+            if self._check_service(content):
+                logger.info(f"[DeepflowInstaller] (cluster: {self.cluster_id})found valid service: {content.name}")
+                WorkloadHandler.upsert(self.cluster_id, DeepflowComp.NAMESPACE, content)
 
     def _check_deployment(self, content):
         # 对镜像名称进行匹配
@@ -153,10 +86,6 @@ class DeepflowInstaller:
                 return True
 
         return False
-
-    @classmethod
-    def _exact_image_name(cls, image):
-        return image.split("/")[-1].split(":")[0]
 
 
 class DeepflowHandler:
@@ -293,7 +222,8 @@ class DeepflowHandler:
         access_ip = None
         # 当使用 BCS Client 获取不到集群节点 IP 时，使用监控自身 API 进行兜底
         get_cluster_access_ip_funcs: typing.List[typing.Callable[[str], typing.Optional[str]]] = [
-            self._get_cluster_access_ip_by_client, self._get_cluster_access_ip_by_api
+            self._get_cluster_access_ip_by_client,
+            self._get_cluster_access_ip_by_api,
         ]
         for get_cluster_access_ip_func in get_cluster_access_ip_funcs:
             try:
@@ -301,12 +231,16 @@ class DeepflowHandler:
             except Exception as e:
                 logger.warning(
                     f"[DeepflowHandler][%s] failed to get node address: bcs_cluster_id -> %s, err -> %s",
-                    get_cluster_access_ip_func.__name__, cluster_id, e
+                    get_cluster_access_ip_func.__name__,
+                    cluster_id,
+                    e,
                 )
             if access_ip:
                 logger.info(
                     "[DeepflowHandler][%s] get node address -> %s, bcs_cluster_id -> %s",
-                    get_cluster_access_ip_func.__name__, access_ip, cluster_id
+                    get_cluster_access_ip_func.__name__,
+                    access_ip,
+                    cluster_id,
                 )
                 return access_ip
         return access_ip
