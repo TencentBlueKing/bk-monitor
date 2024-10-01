@@ -41,6 +41,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-component-default-topo",
         "apm_service-component-db-db",
         "apm_service-component-messaging-endpoint",
+        "apm_service-service-default-caller_callee",
         "apm_service-service-default-endpoint",
         "apm_service-service-default-error",
         "apm_service-service-default-host",
@@ -51,7 +52,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-service-default-topo",
         "apm_service-service-default-db",
         "apm_service-remote_service-http-overview",
-        "apm_service-trpc-default-caller_callee",
         # ⬇️ APMTrace检索场景视图
         "apm_trace-log",
         "apm_trace-host",
