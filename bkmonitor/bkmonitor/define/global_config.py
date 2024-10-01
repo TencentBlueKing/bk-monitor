@@ -149,7 +149,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("NO_DATA_ALERT_EXPIRED_TIMEDELTA", slz.IntegerField(label="无数据告警过期时间窗口(s)", default=24 * 60 * 60)),
         ("APM_APP_DEFAULT_ES_STORAGE_CLUSTER", slz.IntegerField(label="APM应用默认集群ID", default=-1)),
         ("APM_APP_DEFAULT_ES_RETENTION", slz.IntegerField(label="APM应用默认过期时间", default=7)),
-        ("APM_APP_DEFAULT_ES_SLICE_LIMIT", slz.IntegerField(label="APM应用ES索引集默认切分大小", default=500)),
+        ("APM_APP_DEFAULT_ES_SLICE_LIMIT", slz.IntegerField(label="APM应用ES索引集默认切分大小", default=100)),
         ("APM_APP_DEFAULT_ES_REPLICAS", slz.IntegerField(label="APM应用默认副本数", default=0)),
         ("APM_APP_DEFAULT_ES_SHARDS", slz.IntegerField(label="APM应用默认索引分片数", default=3)),
         ("APM_APP_BKDATA_OPERATOR", slz.CharField(label="APM应用操作数据平台所用到的用户名", default="admin")),
