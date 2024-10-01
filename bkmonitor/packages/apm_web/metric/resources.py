@@ -332,13 +332,20 @@ class ServiceListResource(PageListResource):
                 filterable=True,
                 display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_SERVICES,
             ),
-            DataPointsTableFormat(id="request_count", name=_lazy("调用次数"), checked=True, asyncable=True),
+            DataPointsTableFormat(
+                id="request_count",
+                name=_lazy("调用次数"),
+                checked=True,
+                asyncable=True,
+                width=160,
+            ),
             DataPointsTableFormat(
                 id="error_rate",
                 name=_lazy("错误率"),
                 checked=True,
                 asyncable=True,
                 unit="percentunit",
+                width=160,
             ),
             DataPointsTableFormat(
                 id="avg_duration",
@@ -346,6 +353,7 @@ class ServiceListResource(PageListResource):
                 checked=True,
                 unit="ns",
                 asyncable=True,
+                width=160,
             ),
             NumberTableFormat(
                 id="p50",
@@ -521,7 +529,7 @@ class ServiceListResource(PageListResource):
                     {
                         "id": f["id"],
                         "name": f["name"],
-                        "total": count_mapping[f["id"]],
+                        "count": count_mapping[f["id"]],
                     }
                 )
             return res
@@ -554,7 +562,7 @@ class ServiceListResource(PageListResource):
                 {
                     "id": "true",
                     "name": _("有数据"),
-                    "total": len(
+                    "count": len(
                         [
                             i
                             for i in services
@@ -565,7 +573,7 @@ class ServiceListResource(PageListResource):
                 {
                     "id": "false",
                     "name": _("无数据"),
-                    "total": len(
+                    "count": len(
                         [
                             i
                             for i in services
