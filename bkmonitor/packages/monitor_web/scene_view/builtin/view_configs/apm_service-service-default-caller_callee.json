@@ -22,18 +22,17 @@
   "order": [],
   "options": {
     "panel_tool": {
-      "compare_select": true,
-      "columns_toggle": true,
-      "interval_select": true,
+      "compare_select": false,
+      "columns_toggle": false,
+      "interval_select": false,
       "split_switcher": false,
-      "method_select": true
+      "method_select": false
     },
-    "enable_index_list": true,
+    "enable_index_list": false,
     "view_editable": false,
     "enable_group": false,
     "variable_editable": false,
-    "alert_filterable": true,
-    "overview_panel": {},
-    "overview_detail_panel": {}
+    "alert_filterable": false,
+    "overview_panel": {}
   }
 }
