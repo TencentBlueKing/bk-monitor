@@ -52,6 +52,7 @@ class ApplicationConfig(BkCollectorConfig):
         self._application: ApmApplication = application
 
     def refresh(self):
+        """[旧] 下发应用配置（通过节点管理）"""
         target_hosts = self.get_target_hosts()
         if not target_hosts:
             logger.info("no bk-collector node, otlp is disabled")
@@ -65,6 +66,7 @@ class ApplicationConfig(BkCollectorConfig):
             logger.exception("auto deploy bk-collector application config error")
 
     def get_application_config(self):
+        """获取应用配置上下文"""
         config = {
             "bk_data_token": self._application.get_bk_data_token(),
             "bk_biz_id": self._application.bk_biz_id,

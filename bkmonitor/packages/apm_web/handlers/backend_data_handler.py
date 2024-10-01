@@ -120,13 +120,15 @@ class TelemetryBackendHandler:
     @classmethod
     def build_data_count_query(cls, **kwargs):
         templates = []
-        for idx, grain_config in enumerate([(_("分钟数据量"), "1m"), (_("日数据量"), "1d")]):
-            title, grain = grain_config
+        for idx, grain_config in enumerate([(_("分钟数据量"), "1m", 0, 0), (_("日数据量"), "1d", 12, 0)]):
+            title, grain, x_pos, y_pos = grain_config
             kwargs["grain"] = grain
             _id = idx + 1
             template = copy.deepcopy(cls.CALL_BACK_PARAMS_FRAME)
             template["id"] = _id
             template["title"] = title
+            template["gridPos"]["x"] = x_pos
+            template["gridPos"]["y"] = y_pos
             target = cls.build_call_back_target(**kwargs)
             if isinstance(target.get("data"), dict):
                 target["data"].update(**kwargs)

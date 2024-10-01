@@ -297,15 +297,15 @@ class ServiceListResource(PageListResource):
         return [
             CollectTableFormat(
                 id="collect",
-                name=_lazy("收藏"),
+                name="",
                 checked=True,
-                width=80,
+                width=40,
                 api="apm_metric.collectService",
                 params_get=lambda item: {
                     "service_name": item["service_name"],
                     "app_name": item["app_name"],
                 },
-                filterable=True,
+                filterable=False,
                 disabled=True,
             ),
             SyncTimeLinkTableFormat(
@@ -332,13 +332,20 @@ class ServiceListResource(PageListResource):
                 filterable=True,
                 display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_SERVICES,
             ),
-            DataPointsTableFormat(id="request_count", name=_lazy("调用次数"), checked=True, asyncable=True),
+            DataPointsTableFormat(
+                id="request_count",
+                name=_lazy("调用次数"),
+                checked=True,
+                asyncable=True,
+                min_width=160,
+            ),
             DataPointsTableFormat(
                 id="error_rate",
                 name=_lazy("错误率"),
                 checked=True,
                 asyncable=True,
                 unit="percentunit",
+                min_width=160,
             ),
             DataPointsTableFormat(
                 id="avg_duration",
@@ -346,6 +353,7 @@ class ServiceListResource(PageListResource):
                 checked=True,
                 unit="ns",
                 asyncable=True,
+                min_width=160,
             ),
             NumberTableFormat(
                 id="p50",
@@ -355,6 +363,7 @@ class ServiceListResource(PageListResource):
                 decimal=2,
                 sortable=True,
                 asyncable=True,
+                width=80,
             ),
             NumberTableFormat(
                 id="p90",
@@ -364,12 +373,49 @@ class ServiceListResource(PageListResource):
                 decimal=2,
                 sortable=True,
                 asyncable=True,
+                width=80,
             ),
             # 四个数据状态 ↓
-            DataStatusTableFormat(id="metric_data_status", name=_lazy("指标"), checked=True, filterable=True),
-            DataStatusTableFormat(id="log_data_status", name=_lazy("日志"), checked=True, filterable=True),
-            DataStatusTableFormat(id="trace_data_status", name=_lazy("调用链"), checked=True, filterable=True),
-            DataStatusTableFormat(id="profiling_data_status", name=_lazy("性能分析"), checked=True, filterable=True),
+            DataStatusTableFormat(
+                id="metric_data_status",
+                name=_lazy("指标"),
+                width=55,
+                checked=True,
+                filterable=False,
+                props={
+                    "align": "center",
+                },
+            ),
+            DataStatusTableFormat(
+                id="log_data_status",
+                name=_lazy("日志"),
+                width=55,
+                checked=True,
+                filterable=False,
+                props={
+                    "align": "center",
+                },
+            ),
+            DataStatusTableFormat(
+                id="trace_data_status",
+                name=_lazy("调用链"),
+                width=70,
+                checked=True,
+                filterable=False,
+                props={
+                    "align": "center",
+                },
+            ),
+            DataStatusTableFormat(
+                id="profiling_data_status",
+                name=_lazy("性能分析"),
+                width=80,
+                checked=True,
+                filterable=False,
+                props={
+                    "align": "center",
+                },
+            ),
             NumberTableFormat(
                 id="strategy_count",
                 name=_lazy("策略数"),
@@ -398,6 +444,7 @@ class ServiceListResource(PageListResource):
                     ),
                 ],
                 disabled=True,
+                width=80,
                 link_handler=lambda i: i.get("kind") in [TopoNodeKind.SERVICE, TopoNodeKind.REMOTE_SERVICE],
             ),
         ]
@@ -521,7 +568,7 @@ class ServiceListResource(PageListResource):
                     {
                         "id": f["id"],
                         "name": f["name"],
-                        "total": count_mapping[f["id"]],
+                        "count": count_mapping[f["id"]],
                     }
                 )
             return res
@@ -554,7 +601,7 @@ class ServiceListResource(PageListResource):
                 {
                     "id": "true",
                     "name": _("有数据"),
-                    "total": len(
+                    "count": len(
                         [
                             i
                             for i in services
@@ -565,7 +612,7 @@ class ServiceListResource(PageListResource):
                 {
                     "id": "false",
                     "name": _("无数据"),
-                    "total": len(
+                    "count": len(
                         [
                             i
                             for i in services
@@ -839,7 +886,6 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             info_mapping = self._get_column_metric_mapping(m, metric_params)
 
         for service_name in validated_data["service_names"]:
-
             res.append(
                 {
                     "service_name": service_name,

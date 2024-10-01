@@ -18,6 +18,7 @@ to the current version of the project delivered to anyone in the future.
 from django.conf import settings
 
 from apm.models import DataLink
+from apm_web.models import Application
 from core.drf_resource import resource
 
 
@@ -25,6 +26,8 @@ class ApplicationHelper:
 
     DEFAULT_CLUSTER_TYPE = "elasticsearch"
     DEFAULT_CLUSTER_NAME = "_default"
+    # 业务下默认应用的应用名称
+    DEFAULT_APPLICATION_NAME = "default_app"
 
     @classmethod
     def get_default_cluster_id(cls, bk_biz_id):
@@ -68,3 +71,17 @@ class ApplicationHelper:
             "es_shards": settings.APM_APP_DEFAULT_ES_SHARDS,
             "es_slice_size": settings.APM_APP_DEFAULT_ES_SLICE_LIMIT,
         }
+
+    @classmethod
+    def create_default_application(cls, bk_biz_id):
+        """创建默认应用"""
+
+        application = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=cls.DEFAULT_APPLICATION_NAME).first()
+        if application:
+            # 存在默认应用 直接返回
+            return application
+
+        from apm.resources import CreateApplicationSimpleResource
+
+        CreateApplicationSimpleResource()(bk_biz_id=bk_biz_id, app_name=cls.DEFAULT_APPLICATION_NAME)
+        return Application.objects.filter(bk_biz_id=bk_biz_id, app_name=cls.DEFAULT_APPLICATION_NAME).first()

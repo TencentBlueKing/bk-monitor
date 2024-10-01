@@ -391,7 +391,7 @@ class ApplicationInfoResource(Resource):
             # 处理实例名配置
             self.handle_instance_name_config(instance, data)
             # 处理存储信息配置
-            self.handle_es_storage_shards(instance, data)
+            # self.handle_es_storage_shards(instance, data)
             # 处理采样配置
             self.handle_sampler_config(instance, data)
             # 处理维度配置
@@ -1856,6 +1856,10 @@ class NoDataStrategyInfoResource(Resource):
         # 获取请求信息
         application_id = validated_request_data["application_id"]
         telemetry_data_type = validated_request_data["telemetry_data_type"]
+
+        if telemetry_data_type == TelemetryDataType.PROFILING.value:
+            return []
+
         # 获取应用
         try:
             app = Application.objects.get(application_id=application_id)
