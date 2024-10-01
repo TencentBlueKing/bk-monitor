@@ -58,6 +58,7 @@ class TableFormat(DefaultTableFormat):
         overview_calculator=None,
         overview_calculate_handler=None,
         asyncable: bool = False,
+        props: dict = None,
         display_handler=None,
     ):
         self.id = id
@@ -73,6 +74,8 @@ class TableFormat(DefaultTableFormat):
         self.action_id = action_id
         self.overview_calculator = overview_calculator
         self.asyncable = asyncable
+        self.props = props or {}
+
         self.overview_calculate_handler = overview_calculate_handler
         # display_handler 为觉得此列是否需要展示的 handler
         self.display_handler = display_handler
@@ -113,6 +116,7 @@ class TableFormat(DefaultTableFormat):
             "filter_list": self.filter_list,
             "actionId": self.action_id,
             "asyncable": self.asyncable,
+            "props": self.props,
         }
 
     def display(self, request_data) -> bool:

@@ -297,9 +297,9 @@ class ServiceListResource(PageListResource):
         return [
             CollectTableFormat(
                 id="collect",
-                name=_lazy("收藏"),
+                name="",
                 checked=True,
-                width=40,
+                width=20,
                 api="apm_metric.collectService",
                 params_get=lambda item: {
                     "service_name": item["service_name"],
@@ -363,6 +363,7 @@ class ServiceListResource(PageListResource):
                 decimal=2,
                 sortable=True,
                 asyncable=True,
+                width=80,
             ),
             NumberTableFormat(
                 id="p90",
@@ -372,13 +373,48 @@ class ServiceListResource(PageListResource):
                 decimal=2,
                 sortable=True,
                 asyncable=True,
+                width=80,
             ),
             # 四个数据状态 ↓
-            DataStatusTableFormat(id="metric_data_status", name=_lazy("指标"), width=40, checked=True, filterable=False),
-            DataStatusTableFormat(id="log_data_status", name=_lazy("日志"), width=40, checked=True, filterable=False),
-            DataStatusTableFormat(id="trace_data_status", name=_lazy("调用链"), width=40, checked=True, filterable=False),
             DataStatusTableFormat(
-                id="profiling_data_status", name=_lazy("性能分析"), width=40, checked=True, filterable=False
+                id="metric_data_status",
+                name=_lazy("指标"),
+                width=55,
+                checked=True,
+                filterable=False,
+                props={
+                    "align": "center",
+                },
+            ),
+            DataStatusTableFormat(
+                id="log_data_status",
+                name=_lazy("日志"),
+                width=55,
+                checked=True,
+                filterable=False,
+                props={
+                    "align": "center",
+                },
+            ),
+            DataStatusTableFormat(
+                id="trace_data_status",
+                name=_lazy("调用链"),
+                width=70,
+                checked=True,
+                filterable=False,
+                props={
+                    "align": "center",
+                },
+            ),
+            DataStatusTableFormat(
+                id="profiling_data_status",
+                name=_lazy("性能分析"),
+                width=80,
+                checked=True,
+                filterable=False,
+                props={
+                    "align": "center",
+                },
             ),
             NumberTableFormat(
                 id="strategy_count",
