@@ -299,13 +299,13 @@ class ServiceListResource(PageListResource):
                 id="collect",
                 name=_lazy("收藏"),
                 checked=True,
-                width=80,
+                width=20,
                 api="apm_metric.collectService",
                 params_get=lambda item: {
                     "service_name": item["service_name"],
                     "app_name": item["app_name"],
                 },
-                filterable=True,
+                filterable=False,
                 disabled=True,
             ),
             SyncTimeLinkTableFormat(
@@ -337,7 +337,7 @@ class ServiceListResource(PageListResource):
                 name=_lazy("调用次数"),
                 checked=True,
                 asyncable=True,
-                width=160,
+                min_width=160,
             ),
             DataPointsTableFormat(
                 id="error_rate",
@@ -345,7 +345,7 @@ class ServiceListResource(PageListResource):
                 checked=True,
                 asyncable=True,
                 unit="percentunit",
-                width=160,
+                min_width=160,
             ),
             DataPointsTableFormat(
                 id="avg_duration",
@@ -353,7 +353,7 @@ class ServiceListResource(PageListResource):
                 checked=True,
                 unit="ns",
                 asyncable=True,
-                width=160,
+                min_width=160,
             ),
             NumberTableFormat(
                 id="p50",
@@ -374,10 +374,12 @@ class ServiceListResource(PageListResource):
                 asyncable=True,
             ),
             # 四个数据状态 ↓
-            DataStatusTableFormat(id="metric_data_status", name=_lazy("指标"), checked=True, filterable=True),
-            DataStatusTableFormat(id="log_data_status", name=_lazy("日志"), checked=True, filterable=True),
-            DataStatusTableFormat(id="trace_data_status", name=_lazy("调用链"), checked=True, filterable=True),
-            DataStatusTableFormat(id="profiling_data_status", name=_lazy("性能分析"), checked=True, filterable=True),
+            DataStatusTableFormat(id="metric_data_status", name=_lazy("指标"), width=20, checked=True, filterable=False),
+            DataStatusTableFormat(id="log_data_status", name=_lazy("日志"), width=20, checked=True, filterable=False),
+            DataStatusTableFormat(id="trace_data_status", name=_lazy("调用链"), width=20, checked=True, filterable=False),
+            DataStatusTableFormat(
+                id="profiling_data_status", name=_lazy("性能分析"), width=20, checked=True, filterable=False
+            ),
             NumberTableFormat(
                 id="strategy_count",
                 name=_lazy("策略数"),
@@ -847,7 +849,6 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             info_mapping = self._get_column_metric_mapping(m, metric_params)
 
         for service_name in validated_data["service_names"]:
-
             res.append(
                 {
                     "service_name": service_name,
