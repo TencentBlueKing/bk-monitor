@@ -219,6 +219,7 @@ class ApmApplication(AbstractRecordModel):
             "app_name": app_name,
             "application_id": application.id,
             "datasource_info": datasource_info,
+            "datasource_option": es_storage_config,
         }
 
     @cached_property
