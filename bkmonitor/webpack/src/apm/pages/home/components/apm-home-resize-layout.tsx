@@ -70,7 +70,7 @@ export default class ApmHomeResizeLayout extends tsc<IProps, IEvent> {
       const width = this.oldWidth + event.pageX - this.downPageX;
       console.log(event.pageX, this.downPageX, width);
       if (width < this.minWidth) {
-        this.setCollapse(true);
+        this.setCollapse(false);
       } else {
         this.sideWidth = width;
       }
@@ -99,7 +99,7 @@ export default class ApmHomeResizeLayout extends tsc<IProps, IEvent> {
 
   @Emit('collapseChange')
   setCollapse(collapse: boolean) {
-    if (collapse) {
+    if (!collapse) {
       this.sideWidth = 0;
     } else {
       this.sideWidth = this.initSideWidth;

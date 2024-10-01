@@ -32,10 +32,16 @@
   }
 
   .link-col {
+    display: flex;
+    align-items: center;
+    line-height: 20px;
     color: #3a84ff;
 
     img {
       @include col-img;
+
+      /* stylelint-disable-next-line order/order */
+      top: 0;
     }
 
     .link-icon {
@@ -81,6 +87,13 @@
   }
 
   .collect-item {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+
     .icon-mc-uncollect,
     .icon-mc-collect {
       font-size: 16px;

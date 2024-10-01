@@ -37,7 +37,6 @@ import SettingParams, { type IEsClusterInfo } from './setting-params';
 import SideSlider from './side-slider';
 import { SystemData } from './utils';
 
-import type { ICreateAppFormData } from '../../home/app-list';
 import type { INavItem, IRouteBackItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './app-add.scss';

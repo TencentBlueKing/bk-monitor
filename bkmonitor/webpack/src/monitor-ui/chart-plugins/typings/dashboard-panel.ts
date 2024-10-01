@@ -519,8 +519,9 @@ export class PanelModel implements IPanelModel {
   // 图表类型 如 line-chart bar-chart status-chart group
   type!: string;
 
-  constructor(model: IPanelModel & { panelIds?: (number | string)[] }) {
+  constructor(model: Partial<IPanelModel> & { panelIds?: (number | string)[] }) {
     this.id = model.id || random(10);
+    // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(model).forEach(key => {
       if (key === 'targets') {
         this.targets = model[key].map(item => new DataQuery(item));

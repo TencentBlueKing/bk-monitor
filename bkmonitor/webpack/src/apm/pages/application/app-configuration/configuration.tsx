@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Provide, Ref } from 'vue-property-decorator';
+import { Component, Mixins, Prop, Ref } from 'vue-property-decorator';
 
-import { applicationInfo, listEsClusterGroups, metaConfigInfo } from 'monitor-api/modules/apm_meta';
+import { applicationInfoByAppName, listEsClusterGroups, metaConfigInfo } from 'monitor-api/modules/apm_meta';
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 
 import ConfigurationNav from '../../../components/configuration-nav/configuration-nav';
@@ -45,10 +45,7 @@ import './configuration.scss';
 @Component
 export default class ApplicationConfiguration extends Mixins(authorityMixinCreate(authorityMap)) {
   @Ref() contentRef: HTMLElement;
-
-  @Provide('authority') authority;
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
-
+  @Prop({ type: String, default: '' }) appName: string;
   routeList: INavItem[] = []; // 导航条设置
   activeMenu = 'basicConfiguration'; // 当前设置菜单
   loading = false;
@@ -126,20 +123,12 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
   ];
   clusterList: IClusterItem[] = []; // 存储集群列表
 
-  /** 应用ID */
-  get appId() {
-    return this.$route.params.id;
-  }
   get rightWidth() {
     const { show, rightWidth } = this.configurationView;
 
     return show ? (typeof rightWidth === 'string' ? rightWidth : `${rightWidth}px`) : '0px';
   }
-  /** 页面权限校验实例资源 */
-  get authorityResource() {
-    return { application_id: this.appId || '' };
-  }
-  get positonText() {
+  get positionText() {
     return `${window.i18n.tc('应用')}：${this.appInfo.app_name}`;
   }
 
@@ -181,9 +170,11 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
    * @desc 获取应用基本信息
    */
   async getAppBaseInfo() {
-    if (this.appId) {
+    if (this.appName) {
       this.loading = this.firstLoad;
-      const res = await applicationInfo(this.appId).catch(() => {});
+      const res = await applicationInfoByAppName({
+        app_name: this.appName,
+      }).catch(() => {});
       // 特殊处理。应该后端的 bug 。
       if ((res as IAppInfo).application_db_config.length === 0) {
         res.application_db_config.push({
@@ -337,7 +328,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
           class='application-configuration-nav'
           navMode={'display'}
           needBack={true}
-          positionText={this.positonText}
+          positionText={this.positionText}
           routeList={this.routeList}
           needCopyLink
         >

@@ -23,156 +23,142 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop, Emit, Watch } from 'vue-property-decorator';
+import { Component, Ref, Prop, Watch, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { serviceList, serviceListAsync } from 'monitor-api/modules/apm_metric';
 import { commonPageSizeSet, commonPageSizeGet } from 'monitor-common/utils';
 import { Debounce } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
-import GuidePage from 'monitor-pc/components/guide-page/guide-page';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import FilterPanel, { type IFilterData } from 'monitor-pc/pages/strategy-config/strategy-config-list/filter-panel';
-import introduceData from 'monitor-pc/router/space';
 
 import ApmHomeResizeLayout from './apm-home-resize-layout';
 
-import type { PartialAppListItem } from '../apm-home';
+import type { IAppListItem } from '../typings/app';
+import type { IAPMService } from '../typings/service';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { ICommonTableProps } from 'monitor-pc/pages/monitor-k8s/components/common-table';
-import type { IFilterDict } from 'monitor-pc/pages/monitor-k8s/typings';
 import type { IGroupData } from 'monitor-pc/pages/strategy-config/strategy-config-list/group';
 
 import './apm-home-list.scss';
 interface IProps {
-  appData: PartialAppListItem;
-  showGuidePage?: boolean;
+  appName: string;
+  appData: Partial<IAppListItem>;
   timeRange?: TimeRangeType;
   isRefreshService?: boolean;
 }
 
-interface IEvent {
-  onHandleToConfig?: (row: PartialAppListItem) => void;
-  onLinkToOverview?: (row: PartialAppListItem) => void;
-  onHandleConfig?: (id: string, row: PartialAppListItem) => void;
-}
-
-interface TableConfigData {
-  tableData: ICommonTableProps;
-  tableSortKey: string;
-  tableFilters: IFilterDict;
-}
-
-@Component({})
-export default class ApmHomeList extends tsc<IProps, IEvent> {
-  @Prop() appData: PartialAppListItem;
-  @Prop({ default: false, type: Boolean }) showGuidePage: boolean;
+@Component({
+  name: 'ApmServiceList',
+})
+export default class ApmServiceList extends tsc<
+  IProps,
+  {
+    onRouteUrlChange: (params: Record<string, any>) => void;
+  }
+> {
+  @Prop() appData: Partial<IAppListItem>;
+  @Prop({
+    required: true,
+    type: String,
+  })
+  appName: string;
   @Prop() timeRange: TimeRangeType;
   @Prop({ default: false, type: Boolean }) isRefreshService: boolean;
-  @Ref() mainResize: any;
+  @Ref() mainResize: InstanceType<typeof ApmHomeResizeLayout>;
 
   /** 搜索关键词 */
   searchKeyWord = '';
-  showFilterPanel = true;
+
   loading = true;
+
+  showFilterPanel = true;
+
   searchEmpty = false;
 
   /** 初次请求 */
-  firsetRequest = true;
+  firstRequest = true;
 
   /** 服务表格数据 */
-  tableConfigData: TableConfigData = {
-    tableData: {
-      pagination: {
-        count: 100,
-        current: 1,
-        limit: commonPageSizeGet(),
-        showTotalCount: true,
-      },
-      columns: [],
-      data: [],
-      checkable: false,
-      outerBorder: true,
-      scrollLoading: false,
-      hasColnumSetting: false,
-    },
-    tableSortKey: '',
-    tableFilters: {},
+  tableData: IAPMService[] = [];
+  tableColumns: ICommonTableProps['columns'] = [];
+  pagination: ICommonTableProps['pagination'] = {
+    count: 100,
+    current: 1,
+    limit: commonPageSizeGet(),
+    showTotalCount: true,
   };
+  tableSortKey = '';
 
   /* 左侧统计数据 */
-  leftFilter: {
-    checkedData: IFilterData[];
-    condition: { key: number | string; value: string[] }[];
-    filterList: IGroupData[];
-    defaultActiveName: string[];
-    show: boolean;
-    isShowSkeleton: boolean;
-  } = {
-    filterList: [],
-    checkedData: [],
-    condition: [],
-    defaultActiveName: ['category', 'language', 'apply_module', 'have_data'],
-    show: true,
-    isShowSkeleton: true,
-  };
+  filterList: IGroupData[] = [];
+  checkedFilter: IFilterData[] = [];
+  filterCondition = [];
+  defaultActiveName = ['category', 'language', 'apply_module', 'have_data'];
+  filterShow = true;
+  filterLoading = true;
+  /* 左侧统计数据 */
 
-  @Emit()
-  handleEmit(...args: any[]) {
-    this.$emit.apply(this, args);
-    return args[0];
-  }
-
-  @Watch('isRefreshService')
-  isRefreshServiceChange(newItems) {
-    if (newItems) {
-      this.leftFilter.isShowSkeleton = true;
-      this.loading = true;
+  @Watch('appName', { immediate: true })
+  isRefreshServiceChange() {
+    if (this.appName) {
+      this.handleResetRoute();
+      this.filterLoading = true;
+      this.getServiceList();
     }
   }
-
-  get apmIntroduceData() {
-    const apmData = introduceData['apm-home'];
-    apmData.is_no_source = false;
-    apmData.data.buttons[0].url = window.__POWERED_BY_BK_WEWEB__ ? '#/apm/application/add' : '#/application/add';
-    return apmData;
+  @Emit('routeUrlChange')
+  onRouteUrlChange() {
+    return {
+      current: String(this.pagination.current),
+      limit: String(this.pagination.limit),
+      filters: JSON.stringify(this.filterCondition),
+      service_keyword: this.searchKeyWord,
+      app_name: this.appName,
+      start_time: this.timeRange[0],
+      end_time: this.timeRange[1],
+    };
   }
-
-  mounted() {
-    this.handleResetRoute('Get');
+  handleGotoAppOverview() {
+    this.$router.push({
+      name: 'application',
+      query: {
+        'filter-app_name': this.appName,
+      },
+    });
   }
-
-  handleResetRoute(type: 'Get' | 'Set') {
-    if (type === 'Get') {
-      const { current, limit, filters, keyword } = this.$route.query;
-      this.tableConfigData.tableData.pagination.current = Number(current) || 1;
-      this.tableConfigData.tableData.pagination.limit = Number(limit) || commonPageSizeGet();
-      this.searchKeyWord = keyword as string;
-      try {
-        this.leftFilter.condition = filters ? JSON.parse(filters as string) : [];
-      } catch {
-        this.leftFilter.condition = [];
-      }
-    } else {
-      const { current, limit } = this.tableConfigData.tableData.pagination;
-      const { route } = this.$router.resolve({
-        name: this.$route.name,
-        query: {
-          current: String(current),
-          limit: String(limit),
-          filters: JSON.stringify(this.leftFilter.condition),
-          keyword: this.searchKeyWord,
-        },
-      });
-      if (this.$route.fullPath !== route.fullPath) {
-        this.$router.replace(route);
-      }
+  handleGoToAppConfig() {
+    this.$router.push({
+      name: 'application-config',
+      params: {
+        appName: this.appName,
+      },
+    });
+  }
+  handleGotoServiceApply() {
+    this.$router.push({
+      name: 'service-add',
+      params: {
+        appName: this.appName,
+      },
+    });
+  }
+  handleResetRoute() {
+    const { current, limit, filters, service_keyword } = this.$route.query;
+    this.pagination.current = Number(current) || 1;
+    this.pagination.limit = Number(limit) || commonPageSizeGet();
+    this.searchKeyWord = service_keyword as string;
+    try {
+      this.filterCondition = filters ? JSON.parse(filters as string) : [];
+    } catch {
+      this.filterCondition = [];
     }
-    if (this.firsetRequest) {
-      this.leftFilter.checkedData = this.leftFilter.condition.map(item => {
-        const { id, name, data } = this.leftFilter.filterList.find(panel => item.key === panel.id) || {
+    if (this.firstRequest) {
+      this.checkedFilter = this.filterCondition.map(item => {
+        const { id, name, data } = this.filterList.find(panel => item.key === panel.id) || {
           id: item.key,
           name: item.key,
           data: [],
@@ -217,8 +203,8 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
    * @return {*}
    */
   handleSearchSelectChange(data = []) {
-    this.leftFilter.checkedData = data;
-    this.leftFilter.condition = this.leftFilter.checkedData
+    this.checkedFilter = data;
+    this.filterCondition = this.checkedFilter
       ?.map(({ id, values }) => {
         const valueIds = values.map(({ id }) => id);
         return {
@@ -227,13 +213,13 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
         };
       })
       .filter(({ value }) => value.length > 0);
-    this.tableConfigData.tableData.pagination.current = 1;
-    this.getServiceList(this.appData, true);
+    this.pagination.current = 1;
+    this.getServiceList();
   }
 
   /* 筛选展开收起 */
   handleHidePanel() {
-    this.mainResize.setCollapse(this.showFilterPanel);
+    this.mainResize.setCollapse(!this.showFilterPanel);
   }
   /**
    * @description 条件搜索
@@ -241,109 +227,93 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
    */
   @Debounce(300)
   handleSearchCondition() {
-    this.searchEmpty = !!this.searchKeyWord;
-    this.getServiceList(this.appData, true);
+    this.getServiceList();
   }
 
   /**
    *@description 获取服务列表
-   *@param appData
-   *@param isRefresh
-   *@param isAppClick
    */
-  getServiceList(appData, isRefresh = false, isAppClick = false) {
-    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-    const {
-      tableData: { data },
-    } = this.tableConfigData;
-    if (data.length && !isRefresh) {
-      return;
-    }
-    // 设置加载状态
+  async getServiceList() {
     this.loading = true;
-    if (isAppClick) this.leftFilter.isShowSkeleton = true;
-    serviceList(this.createServiceRequest(appData, startTime, endTime))
-      .then(({ columns, data, total, filter }) => {
-        this.updateTableData(data, columns, total, filter);
-        this.loadAsyncData(appData, data, columns, startTime, endTime);
-        this.handleResetRoute('Set');
-        this.firsetRequest = false;
-      })
-      .finally(() => {
-        this.loading = false;
-        this.leftFilter.isShowSkeleton = false;
-      });
-  }
-
-  createServiceRequest(item, startTime, endTime) {
-    const { tableSortKey, tableFilters, tableData } = this.tableConfigData;
-    const { current, limit } = tableData.pagination;
-    return {
-      app_name: item.app_name,
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const params = {
+      app_name: this.appName,
       start_time: startTime,
       end_time: endTime,
       filter: 'all',
-      sort: tableSortKey,
-      filter_dict: tableFilters,
-      field_conditions: this.leftFilter.condition,
+      sort: this.tableSortKey,
+      field_conditions: this.filterCondition,
       check_filter_dict: {},
-      page: current,
-      page_size: limit,
+      page: this.pagination.current,
+      page_size: this.pagination.limit,
       keyword: this.searchKeyWord,
       condition_list: [],
       view_mode: 'page_home',
-      view_options: {
-        app_name: item.app_name,
-        compare_targets: [],
-        current_target: {},
-        method: 'AVG',
-        interval: 'auto',
-        group_by: [],
-        filters: {
-          app_name: item.app_name,
-        },
-      },
-      bk_biz_id: this.$store.getters.bizId,
     };
+    const { columns, data, total, filter } = await serviceList(params)
+      .catch(() => {
+        return {
+          columns: [],
+          data: [],
+          total: 0,
+          filter: [],
+        };
+      })
+      .finally(() => {
+        this.loading = false;
+        this.filterLoading = false;
+      });
+    this.tableData = data;
+    this.tableColumns = columns;
+    this.pagination.count = total;
+    this.filterList = filter;
+
+    this.loadAsyncData(startTime, endTime);
+    this.onRouteUrlChange();
+    this.firstRequest = false;
   }
 
-  updateTableData(data, columns, total, filter = []) {
-    const { tableData } = this.tableConfigData;
-    tableData.data = data;
-    tableData.columns = columns;
-    tableData.pagination.count = total;
-    this.leftFilter.filterList = filter;
-  }
-
-  loadAsyncData(item, data, columns, startTime, endTime) {
-    const fields = (columns || []).filter(col => col.asyncable).map(val => val.id);
-    const services = (data || []).map(d => d.service_name.value);
-    const valueTitleList = this.tableConfigData.tableData.columns.map(item => ({
+  loadAsyncData(startTime: number, endTime: number) {
+    const fields = (this.tableColumns || []).filter(col => col.asyncable).map(val => val.id);
+    const services = (this.tableData || []).map(d => d.service_name.value);
+    const valueTitleList = this.tableColumns.map(item => ({
       id: item.id,
       name: item.name,
     }));
     for (const field of fields) {
-      serviceListAsync(this.createAsyncRequest(item, field, services, startTime, endTime))
-        .then(serviceData => {
-          this.mapAsyncData(serviceData, field, valueTitleList);
-        })
-        .finally(() => {
-          this.updateColumnAsyncAbleState(field);
-        });
+      serviceListAsync({
+        app_name: this.appName,
+        start_time: startTime,
+        end_time: endTime,
+        column: field,
+        service_names: services,
+      }).then(serviceData => {
+        this.mapAsyncData(serviceData, field, valueTitleList);
+      });
     }
   }
-
-  createAsyncRequest(item, field, services, startTime, endTime) {
-    return {
-      app_name: item.app_name,
+  getServiceListAsyncChartData(
+    startTime: number,
+    endTime: number,
+    field: string,
+    services: string[],
+    valueTitleList: { id: string; name: string }[]
+  ) {
+    return serviceListAsync({
+      app_name: this.appName,
       start_time: startTime,
       end_time: endTime,
       column: field,
       service_names: services,
-      bk_biz_id: this.$store.getters.bizId,
-    };
+    })
+      .then(serviceData => {
+        this.mapAsyncData(serviceData, field, valueTitleList);
+      })
+      .catch(() => {
+        const item = this.tableColumns.find(col => col.id === field);
+        item.asyncable = false;
+      });
   }
-
   mapAsyncData(serviceData, field, valueTitleList) {
     const dataMap = {};
     if (serviceData) {
@@ -360,38 +330,49 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
         }
       }
     }
-    this.tableConfigData.tableData.data = this.tableConfigData.tableData.data.map(d => ({
-      ...d,
-      [field]: dataMap[String(d.service_name.value || '')] || null,
-    }));
+    this.renderTableBatchByBatch(field, dataMap);
   }
-
-  updateColumnAsyncAbleState(field) {
-    this.tableConfigData.tableData.columns = this.tableConfigData.tableData.columns.map(col => ({
-      ...col,
-      asyncable: col.id === field ? false : col.asyncable,
-    }));
+  /**
+   *
+   * @description: 按需渲染表格数据
+   * @param field 字段名
+   * @param dataMap 数据map
+   */
+  renderTableBatchByBatch(field: string, dataMap: Record<string, any> = {}) {
+    const setData = (currentIndex = 0) => {
+      console.info('setData', currentIndex);
+      let needBreak = false;
+      if (currentIndex <= this.tableData.length && this.tableData.length) {
+        const endIndex = Math.min(currentIndex + 2, this.tableData.length);
+        for (let i = currentIndex; i < endIndex; i++) {
+          const item = this.tableData[i];
+          item[field] = dataMap[String(item.service_name.value || '')] || null;
+          needBreak = i === this.tableData.length - 1;
+        }
+        if (!needBreak) {
+          window.requestIdleCallback(() => {
+            window.requestAnimationFrame(() => setData(endIndex));
+          });
+        } else {
+          const item = this.tableColumns.find(col => col.id === field);
+          item.asyncable = false;
+        }
+      }
+    };
+    const item = this.tableColumns.find(col => col.id === field);
+    item.asyncable = false;
+    setData(0);
   }
 
   /**
    * @description 收藏
    * @param val
    */
-  handleCollect(val) {
-    const apis = val.api.split('.');
-    (this as any).$api[apis[0]][apis[1]](val.params).then(() => {
-      val.is_collect = !val.is_collect;
+  handleCollect(item: Record<string, any>) {
+    const apis = item.api.split('.');
+    (this as any).$api[apis[0]][apis[1]](item.params).then(() => {
+      item.is_collect = !item.is_collect;
     });
-  }
-
-  /**
-   * @description 表格筛选
-   * @param filters
-   */
-  handleFilterChange(filters: IFilterDict) {
-    this.tableConfigData.tableFilters = filters;
-    this.tableConfigData.tableData.pagination.current = 1;
-    this.getServiceList(this.appData, true);
   }
 
   /**
@@ -399,19 +380,19 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
    * @param param0
    * @param item
    */
-  handleSortChange({ prop, order }, item) {
+  handleSortChange({ prop, order }) {
     switch (order) {
       case 'ascending':
-        item.tableSortKey = prop;
+        this.tableSortKey = prop;
         break;
       case 'descending':
-        item.tableSortKey = `-${prop}`;
+        this.tableSortKey = `-${prop}`;
         break;
       default:
-        item.tableSortKey = undefined;
+        this.tableSortKey = undefined;
     }
-    this.tableConfigData.tableData.pagination.current = 1;
-    this.getServiceList(item, true);
+    this.pagination.current = 1;
+    this.getServiceList();
   }
 
   /**
@@ -419,8 +400,8 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
    * @param page
    */
   handlePageChange(page: number) {
-    this.tableConfigData.tableData.pagination.current = page;
-    this.getServiceList(this.appData, true);
+    this.pagination.current = page;
+    this.getServiceList();
   }
 
   /**
@@ -428,9 +409,9 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
    * @param limit
    */
   handlePageLimitChange(limit: number) {
-    this.tableConfigData.tableData.pagination.limit = limit;
+    this.pagination.limit = limit;
     commonPageSizeSet(limit);
-    this.getServiceList(this.appData, true);
+    this.getServiceList();
   }
 
   /**
@@ -451,17 +432,14 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
    */
   handleClearSearch() {
     this.searchKeyWord = '';
-    this.tableConfigData.tableData.pagination.current = 1;
-    this.getServiceList(this.appData, true);
-    this.$nextTick(() => {
-      this.searchEmpty = false;
-    });
+    this.pagination.current = 1;
+    this.getServiceList();
   }
   render() {
     return (
       <div class='apm-home-list'>
         <div class='header'>
-          {this.leftFilter.isShowSkeleton ? (
+          {this.filterLoading || !this.appData?.app_name ? (
             <div
               style='height: 32px; width: 240px'
               class='skeleton-element'
@@ -469,28 +447,18 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
           ) : (
             <div class='header-left'>
               <span>{this.appData.app_alias}</span>
-              {this.appData.app_name ? <span>（{this.appData.app_name}）</span> : null}
+              {this.appName ? <span>（{this.appName}）</span> : null}
             </div>
           )}
           <div class='header-right'>
             <bk-button
               class='mr-8'
               theme='primary'
-              onClick={(event: Event) => {
-                event.stopPropagation();
-                this.handleEmit('linkToOverview', this.appData);
-              }}
+              onClick={this.handleGotoAppOverview}
             >
               {this.$t('查看应用')}
             </bk-button>
-            <bk-button
-              onClick={(event: Event) => {
-                event.stopPropagation();
-                this.handleEmit('handleToConfig', this.appData);
-              }}
-            >
-              {this.$t('应用配置')}
-            </bk-button>
+            <bk-button onClick={this.handleGoToAppConfig}>{this.$t('应用配置')}</bk-button>
           </div>
         </div>
         <div class='main'>
@@ -501,7 +469,7 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
             maxWidth={300}
             minWidth={150}
             onCollapseChange={val => {
-              this.showFilterPanel = !val;
+              this.showFilterPanel = val;
             }}
           >
             <div
@@ -509,11 +477,11 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
               slot='aside'
             >
               <FilterPanel
-                checkedData={this.leftFilter.checkedData}
-                data={this.leftFilter.filterList}
-                defaultActiveName={this.leftFilter.defaultActiveName}
-                show={this.leftFilter.show}
-                showSkeleton={this.leftFilter.isShowSkeleton}
+                checkedData={this.checkedFilter}
+                data={this.filterList}
+                defaultActiveName={this.defaultActiveName}
+                show={this.filterShow}
+                showSkeleton={this.filterLoading}
                 on-change={this.handleSearchSelectChange}
               >
                 <div
@@ -531,85 +499,81 @@ export default class ApmHomeList extends tsc<IProps, IEvent> {
               </FilterPanel>
             </div>
             <div class='main-left-table'>
-              {this.showGuidePage ? (
-                <GuidePage
-                  guideData={this.apmIntroduceData}
-                  guideId='apm-home'
-                />
-              ) : (
-                <div class='app-list-content'>
-                  <div class='app-list-content-top'>
-                    <div class='app-list-btns'>
-                      <i
-                        class='icon-monitor icon-double-up'
-                        v-show={!this.showFilterPanel}
-                        onClick={this.handleHidePanel}
-                      />
-                      <bk-button
-                        theme='primary'
-                        outline
-                        onClick={(event: Event) => {
-                          event.stopPropagation();
-                          this.handleEmit('handleConfig', 'accessService', this.appData);
-                        }}
-                      >
-                        <span class='app-add-btn'>
-                          <i class='icon-monitor icon-mc-add app-add-icon' />
-                          <span>{this.$t('接入服务')}</span>
-                        </span>
-                      </bk-button>
-                    </div>
-                    <div class='app-list-search'>
-                      <bk-input
-                        v-model={this.searchKeyWord}
-                        placeholder={this.$t('请输入服务搜索')}
-                        right-icon='bk-icon icon-search'
-                        clearable
-                        show-clear-only-hover
-                        on-right-icon-click={this.handleSearchCondition}
-                        onChange={this.handleSearchCondition}
-                      />
-                    </div>
+              <div class='app-list-content'>
+                <div class='app-list-content-top'>
+                  <div class='app-list-btns'>
+                    <i
+                      class='icon-monitor icon-double-up'
+                      v-show={!this.showFilterPanel}
+                      onClick={this.handleHidePanel}
+                    />
+                    <bk-button
+                      theme='primary'
+                      outline
+                      onClick={this.handleGotoServiceApply}
+                    >
+                      <span class='app-add-btn'>
+                        <i class='icon-monitor icon-mc-add app-add-icon' />
+                        <span>{this.$t('接入服务')}</span>
+                      </span>
+                    </bk-button>
                   </div>
-                  <div class='app-right-content'>
-                    <div class='app-list-content-data'>
-                      <div
-                        key={this.appData.application_id}
-                        class='item-expand-wrap'
-                      >
-                        {
-                          <div class='expand-content'>
+                  <div class='app-list-search'>
+                    <bk-input
+                      v-model={this.searchKeyWord}
+                      placeholder={this.$t('请输入服务搜索')}
+                      right-icon='bk-icon icon-search'
+                      clearable
+                      show-clear-only-hover
+                      on-right-icon-click={this.handleSearchCondition}
+                      onChange={this.handleSearchCondition}
+                    />
+                  </div>
+                </div>
+                <div class='app-right-content'>
+                  <div class='app-list-content-data'>
+                    <div
+                      key={this.appName}
+                      class='item-expand-wrap'
+                    >
+                      {
+                        <div class='expand-content'>
+                          {!this.loading ? (
                             <CommonTable
                               style={{ display: !this.loading ? 'block' : 'none' }}
-                              {...{ props: this.tableConfigData.tableData }}
-                              hasColnumSetting={false}
+                              checkable={false}
+                              columns={this.tableColumns}
+                              data={this.tableData}
+                              hasColumnSetting={false}
+                              outerBorder={true}
+                              pagination={this.pagination}
+                              scrollLoading={false}
                               onCollect={val => this.handleCollect(val)}
-                              onFilterChange={val => this.handleFilterChange(val)}
                               onLimitChange={this.handlePageLimitChange}
                               onPageChange={this.handlePageChange}
-                              onSortChange={val => this.handleSortChange(val as any, this.appData)}
+                              onSortChange={val => this.handleSortChange(val as any)}
                             >
                               <EmptyStatus
                                 slot='empty'
                                 textMap={{
                                   empty: this.$t('暂无数据'),
                                 }}
-                                type={this.searchEmpty ? 'search-empty' : 'empty'}
+                                type={this.searchKeyWord?.length ? 'search-empty' : 'empty'}
                                 onOperation={() => this.handleClearSearch()}
                               />
                             </CommonTable>
+                          ) : (
                             <TableSkeleton
-                              style={{ display: this.loading ? 'block' : 'none' }}
                               class='table-skeleton'
                               type={2}
                             />
-                          </div>
-                        }
-                      </div>
+                          )}
+                        </div>
+                      }
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
           </ApmHomeResizeLayout>
         </div>

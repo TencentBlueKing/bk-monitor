@@ -24,18 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Provide, Watch, Ref } from 'vue-property-decorator';
+import { Component, Provide } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import { deleteApplication, listApplication } from 'monitor-api/modules/apm_meta';
+import introduceModule, { IntroduceRouteKey } from 'monitor-pc/common/introduce';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import GuidePage from 'monitor-pc/components/guide-page/guide-page';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import AlarmTools from 'monitor-pc/pages/monitor-k8s/components/alarm-tools';
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 import OperateOptions from 'monitor-pc/pages/uptime-check/components/operate-options';
-import introduceData from 'monitor-pc/router/space';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
@@ -45,33 +45,23 @@ import AppHomeList from './components/apm-home-list';
 import ApmHomeResizeLayout from './components/apm-home-resize-layout';
 import NavBar from './nav-bar';
 import ApmHomeSkeleton from './skeleton/apm-home-skeleton';
-import { SEARCH_KEYS, charColor, OPERATE_OPTIONS } from './utils';
+import {
+  charColor,
+  OPERATE_OPTIONS,
+  ALERT_PANEL_DATA,
+  getDefaultAppListSearchCondition,
+  type ISearchCondition,
+} from './utils';
 
+import type { IAppListItem } from './typings/app';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './apm-home.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
-export interface IAppListItem {
-  app_alias: string;
-  app_name: string;
-  application_id: number;
-  firstCode: string;
-  permission: {
-    [key: string]: boolean;
-  };
-  loading: false;
-  service_count?: number;
-  firstCodeColor: string;
-  profiling_data_status: string;
-  data_status: string;
-}
-
-export type PartialAppListItem = Partial<IAppListItem>;
 
 @Component({})
 export default class AppList extends tsc<object> {
-  @Ref() apmHomeListRef: any;
   routeList: INavItem[] = [
     {
       id: '',
@@ -97,76 +87,71 @@ export default class AppList extends tsc<object> {
   loading = false;
 
   refreshInstance = null;
-
-  appData: PartialAppListItem = {};
+  appName = '';
 
   showFilterPanel = true;
 
   isShowAppAdd = false;
 
-  searchCondition = [];
+  searchData: ISearchCondition[] = getDefaultAppListSearchCondition();
+  searchCondition: ISearchCondition[] = [];
 
   isRefreshService = false;
+  /** 仪表盘工具栏 策略和告警panel */
+  alarmToolsPanel = null;
+  // 帮助文档弹窗数据
+  apmIntroduceData = null;
 
-  get alarmToolsPanel() {
-    const data = {
-      title: this.$t('应用列表'),
-      type: 'dict',
-      targets: [
-        {
-          datasource: 'apm',
-          dataType: 'dict',
-          api: 'scene_view.getStrategyAndEventCount',
-          data: {
-            scene_id: 'apm',
-          },
-        },
-      ],
-    };
-    return new PanelModel(data as any);
+  get appData() {
+    return this.appList?.find(item => item.app_name === this.appName);
   }
-  get apmIntroduceData() {
-    const apmData = introduceData['apm-home'];
-    apmData.is_no_source = false;
-    apmData.data.buttons[0].url = window.__POWERED_BY_BK_WEWEB__ ? '#/apm/application/add' : '#/application/add';
-    return apmData;
-  }
+
   @Provide('handleShowAuthorityDetail')
   handleShowAuthorityDetail(actionIds: string | string[]) {
     authorityStore.getAuthorityDetail(actionIds);
   }
 
   created() {
-    const { query } = this.$route;
-    if (query?.queryString) {
-      this.searchCondition.push({
-        id: query.queryString,
-        name: query.queryString,
-      });
-    }
-    const setSearchCondition = (keys: string[]) => {
-      for (const key of keys) {
-        const matchingStatus =
-          query?.[key] && SEARCH_KEYS.find(item => item.id === key)?.children.find(s => s.id === query[key]);
-        if (matchingStatus) {
-          const { name } = SEARCH_KEYS.find(item => item.id === key) || {};
-          this.searchCondition.push({
-            id: key,
-            name,
-            values: [{ ...matchingStatus }],
-          });
-        }
-      }
-    };
-    setSearchCondition(['profiling_data_status', 'is_enabled_profiling']);
+    this.initRouteParams();
     this.getAppList();
+    this.alarmToolsPanel = new PanelModel(ALERT_PANEL_DATA);
   }
-
-  @Watch('appList')
-  changeAppList(newItems) {
-    if (newItems.length > 0) {
-      this.handleAppClick(this.appList[0]);
+  mounted() {
+    // 帮助文档弹窗数据
+    window.requestIdleCallback(async () => {
+      await introduceModule.getIntroduce(IntroduceRouteKey['apm-home']);
+      const introduceData = introduceModule.data[IntroduceRouteKey['apm-home']]?.introduce;
+      introduceData.is_no_source = false;
+      introduceData.data.buttons[0].url = window.__POWERED_BY_BK_WEWEB__
+        ? '#/apm/application/add'
+        : '#/application/add';
+      this.apmIntroduceData = introduceData;
+    });
+  }
+  initRouteParams() {
+    const { query } = this.$route;
+    const defaultSearchCondition = [];
+    for (const [key, val] of Object.entries(query)) {
+      if (key === 'app_keyword') {
+        defaultSearchCondition.push({
+          id: val.toString(),
+          name: val.toString(),
+        });
+        continue;
+      }
+      if (key === 'app_name') {
+        this.appName = (val || '').toString();
+        continue;
+      }
+      const item = this.searchData.find(item => item.id === key);
+      if (item) {
+        defaultSearchCondition.push({
+          id: item.id,
+          values: typeof val === 'string' ? [val] : val,
+        });
+      }
     }
+    this.searchCondition = defaultSearchCondition;
   }
 
   /**
@@ -202,13 +187,15 @@ export default class AppList extends tsc<object> {
       },
     };
     this.loading = true;
-    const listData = await listApplication(params).catch(() => {
+    const listData: {
+      data: IAppListItem[];
+    } = await listApplication(params).catch(() => {
       return {
         data: [],
       };
     });
     this.loading = false;
-    const defaultItem = (item, ind: number) => {
+    this.appList = listData.data.map((item, ind: number) => {
       let firstCode: string = item.app_alias?.slice(0, 1) || '-';
       const charCode = firstCode.charCodeAt(0);
       if (charCode >= 97 && charCode <= 122) {
@@ -220,26 +207,43 @@ export default class AppList extends tsc<object> {
         firstCode,
         loading: false,
       };
-    };
-    this.appList = listData.data.map((item, ind) => defaultItem(item, ind));
+    });
+    // 初始化 app_name
+    if (this.appList.length) {
+      if (!this.appName) {
+        this.appName = listData.data[0].app_name;
+      } else if (!params.keyword && !profilingDataStatus && isEnabledProfiling === null) {
+        const checkedItem = this.appList.find(item => item.app_name === this.appName);
+        if (!checkedItem) {
+          this.appName = listData.data[0].app_name;
+        }
+      }
+    }
+    this.handleReplaceRouteUrl({}, params);
+  }
+  handleReplaceRouteUrl(serviceParams: Record<string, any> = {}, appSearchParams: Record<string, any> = {}) {
     // 路由同步查询关键字
     const routerParams = {
       name: this.$route.name,
       query: {
         ...this.$route.query,
-        queryString: queryString || undefined,
-        profiling_data_status: profilingDataStatus || undefined,
-        is_enabled_profiling: isEnabledProfiling === null ? undefined : String(isEnabledProfiling),
+        ...serviceParams,
+        app_keyword: appSearchParams.keyword || undefined,
+        app_name: this.appName,
+        profiling_data_status: appSearchParams.profiling_data_status || undefined,
+        is_enabled_profiling:
+          typeof appSearchParams.is_enabled_profiling !== 'boolean'
+            ? undefined
+            : String(appSearchParams.is_enabled_profiling),
       },
     };
     this.$router.replace(routerParams).catch(() => {});
   }
-
   /**
    * @description 时间范围
    * @param v
    */
-  handleTimeRangeChange(v) {
+  handleTimeRangeChange(v: TimeRangeType) {
     this.timeRange = v;
     this.getAppList();
   }
@@ -267,8 +271,8 @@ export default class AppList extends tsc<object> {
   }
 
   /** 展示添加弹窗 */
-  showAddApp() {
-    this.isShowAppAdd = !this.isShowAppAdd;
+  handleToggleAppAdd(v: boolean) {
+    this.isShowAppAdd = v;
   }
 
   /** 设置打开帮助文档 */
@@ -288,33 +292,8 @@ export default class AppList extends tsc<object> {
    * @param row
    */
   handleAppClick(row: IAppListItem) {
-    this.appData = row;
-    this.apmHomeListRef.getServiceList(row, true, true);
-  }
-
-  /** 跳转服务概览 */
-  linkToOverview(row: IAppListItem) {
-    const routeData = this.$router.resolve({
-      name: 'application',
-      query: {
-        'filter-app_name': row.app_name,
-      },
-    });
-    window.location.href = routeData.href;
-  }
-
-  /**
-   * @description 跳转到配置页
-   * @param row
-   */
-  handleToConfig(row) {
-    const routeData = this.$router.resolve({
-      name: 'application-config',
-      params: {
-        id: row.application_id,
-      },
-    });
-    window.location.href = routeData.href;
+    if (this.appName === row.app_name) return;
+    this.appName = row.app_name;
   }
 
   /**
@@ -322,38 +301,45 @@ export default class AppList extends tsc<object> {
    * @param id
    * @param row
    */
-  handleConfig(id, row) {
+  handleConfig(id: string, row: IAppListItem) {
     if (id === 'appDetails') {
-      this.linkToOverview(row);
+      this.$router.push({
+        name: 'application',
+        query: {
+          'filter-app_name': row.app_name,
+        },
+      });
       return;
     }
     if (id === 'appConfig') {
-      this.handleToConfig(row);
+      this.$router.push({
+        name: 'application-config',
+        params: {
+          appName: this.appName,
+        },
+      });
       return;
     }
     // 存储状态、数据状态、指标维度、新增无数据告警 分别跳到配置页 query: active
     const toConfigKeys = ['storageState', 'dataStatus', 'indicatorDimension', 'noDataAlarm'];
-    // 接入服务 /service-add/opentelemetry/apm_test_have_data
-    const toAccessService = ['accessService'];
+    // 接入服务
     if (toConfigKeys.includes(id)) {
-      const routeData = this.$router.resolve({
+      this.$router.push({
         name: 'application-config',
         params: {
-          id: row.application_id,
+          appName: this.appName,
         },
         query: {
           active: id === 'noDataAlarm' ? 'dataStatus' : id,
         },
       });
-      window.location.href = routeData.href;
-    } else if (toAccessService.includes(id)) {
-      const routeData = this.$router.resolve({
+    } else if (id === 'accessService') {
+      this.$router.push({
         name: 'service-add',
         params: {
           appName: row.app_name,
         },
       });
-      window.location.href = routeData.href;
     } else if (id === 'delete') {
       this.$bkInfo({
         type: 'warning',
@@ -377,12 +363,6 @@ export default class AppList extends tsc<object> {
   handleSearchCondition(value) {
     this.searchCondition = value;
     this.getAppList();
-  }
-
-  /* 候选搜索列表过滤 */
-  conditionListFilter() {
-    const allKey = this.searchCondition.map(item => item.id);
-    return SEARCH_KEYS.filter(item => !allKey.includes(item.id));
   }
 
   render() {
@@ -417,9 +397,9 @@ export default class AppList extends tsc<object> {
         </NavBar>
         <ApmHomeResizeLayout
           class='apm-home-content'
-          initSideWidth={200}
+          initSideWidth={300}
           isShowCollapse={true}
-          maxWidth={300}
+          maxWidth={400}
           minWidth={150}
         >
           <div
@@ -430,7 +410,7 @@ export default class AppList extends tsc<object> {
             <div class='app-list-search'>
               <SearchSelect
                 class='app-list-search-select'
-                data={this.conditionListFilter()}
+                data={this.searchData}
                 modelValue={this.searchCondition}
                 placeholder={this.$t('应用名或ID')}
                 uniqueSelect={true}
@@ -439,13 +419,13 @@ export default class AppList extends tsc<object> {
               <div
                 class='app-list-add'
                 v-bk-tooltips={{ content: this.$t('新建应用') }}
-                onClick={this.showAddApp}
+                onClick={() => this.handleToggleAppAdd(true)}
               >
                 <i class='icon-monitor icon-mc-add app-add-icon' />
               </div>
               <AppNewAdd
                 isShow={this.isShowAppAdd}
-                onShowChange={this.showAddApp}
+                onShowChange={v => this.handleToggleAppAdd(v)}
                 onSuccess={this.getAppList}
               />
             </div>
@@ -456,7 +436,7 @@ export default class AppList extends tsc<object> {
                 {this.appList.map(item => (
                   <li
                     key={item.application_id}
-                    class={['data-item', { selected: this.appData?.application_id === item.application_id }]}
+                    class={['data-item', { selected: this.appName === item.app_name }]}
                     onClick={() => this.handleAppClick(item)}
                   >
                     <div
@@ -507,17 +487,14 @@ export default class AppList extends tsc<object> {
           </div>
           <div class='app-list-service'>
             <AppHomeList
-              ref='apmHomeListRef'
               appData={this.appData}
+              appName={this.appName}
               isRefreshService={this.isRefreshService}
               timeRange={this.timeRange}
-              onHandleConfig={this.handleConfig}
-              onHandleToConfig={this.handleToConfig}
-              onLinkToOverview={this.linkToOverview}
+              onRouteUrlChange={this.handleReplaceRouteUrl}
             />
           </div>
         </ApmHomeResizeLayout>
-
         <bk-dialog
           width={1360}
           ext-cls='guide-create-dialog'

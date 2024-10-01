@@ -96,9 +96,11 @@ export default [
     },
   },
   {
-    path: '/application/config/:id',
+    path: '/application/config/:appName',
     name: 'application-config',
-    props: true,
+    props: {
+      noCache: true,
+    },
     components: {
       noCache: AppConfig,
     },

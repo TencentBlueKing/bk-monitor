@@ -28,13 +28,18 @@
       height: 50px;
       font-size: 20px;
       line-height: 50px;
-      color: rgb(255, 255, 255);
+      color: white;
       text-align: center;
       text-indent: -2px;
       cursor: pointer;
       background: rgb(220, 222, 229);
       border-radius: 0px 6px 6px 0px;
       transform: translateY(-50%);
+
+      &:hover {
+        color: white;
+        background-color: #3a84ff;
+      }
     }
   }
 

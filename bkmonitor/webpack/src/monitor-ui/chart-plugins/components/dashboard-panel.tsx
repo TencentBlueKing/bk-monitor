@@ -111,6 +111,8 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
 
   @Watch('panels', { immediate: true })
   handlePanelsChange() {
+    if (this.panels?.length < 1) return;
+    debugger;
     if (this.column !== 'custom') {
       this.handleInitPanelsGridpos(this.panels);
     }
@@ -274,6 +276,8 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
           } else if (w > 24 - preW) {
             x = 0;
             y = preY + preH;
+          } else if (x === preX && w <= 24 - preW) {
+            x = preX + preW;
           } else {
             y = preY + preH;
           }

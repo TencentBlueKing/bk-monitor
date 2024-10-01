@@ -65,7 +65,7 @@ export interface ICommonTableProps {
   // 是否可选择行
   checkable?: boolean;
   // 是否显示表格列设置
-  hasColnumSetting?: boolean;
+  hasColumnSetting?: boolean;
   // 表格数据
   data?: TableRow[];
   // 表格字段集合
@@ -136,7 +136,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   // scroll Loading
   @Prop({ default: false }) scrollLoading: boolean;
   // 是否显示表格列设置
-  @Prop({ default: true }) hasColnumSetting: boolean;
+  @Prop({ default: true }) hasColumnSetting: boolean;
   // 设置的表格固定列保存在localstorage的key值
   @Prop({ default: '' }) storeKey: string;
   // 表格是否可以设置多选
@@ -628,6 +628,9 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
 
   // datapoints 类型
   datapointsFormatter(column: ITableColumn, value: ITableItem<'datapoints'>) {
+    if (!value?.datapoints?.length) {
+      return '--';
+    }
     return (
       <MiniTimeSeries
         data={value.datapoints || []}
@@ -956,7 +959,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
             />
           )}
           {this.transformColumns()}
-          {this.hasColnumSetting ? (
+          {this.hasColumnSetting ? (
             <bk-table-column type='setting'>
               <bk-table-setting-content
                 key={`${this.tableKey}__settings`}

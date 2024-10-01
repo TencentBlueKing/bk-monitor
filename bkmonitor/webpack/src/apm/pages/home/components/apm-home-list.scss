@@ -98,10 +98,6 @@
         display: flex;
         align-items: center;
         line-height: 24px;
-
-        .app-add-icon {
-          font-size: 16px;
-        }
       }
 
       .app-list-search {
@@ -146,9 +142,9 @@
         flex-direction: column;
         height: 100%;
         margin-top: 16px;
-        overflow: auto;
 
         .item-expand-wrap {
+          height: 100%;
           cursor: pointer;
 
           .expand-header {
@@ -179,11 +175,35 @@
           }
 
           .expand-content {
+            height: 100%;
             min-height: 180px;
             background: #fff;
 
             .common-table {
+              height: 100%;
               margin-bottom: 16px;
+
+              .bk-table {
+                height: 100%;
+                overflow-y: auto;
+              }
+
+              .bk-table-header-wrapper {
+                position: sticky;
+                top: 0;
+                z-index: 99;
+              }
+
+              .bk-table-pagination-wrapper {
+                position: sticky;
+                bottom: 0;
+                z-index: 99;
+                background: #fff;
+              }
+
+              .bk-table-outer-border:before {
+                background-color: transparent;
+              }
             }
 
             .table-skeleton {

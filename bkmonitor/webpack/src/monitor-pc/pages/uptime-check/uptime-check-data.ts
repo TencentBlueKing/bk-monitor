@@ -237,7 +237,7 @@ export interface ITaskTableData extends ICommonTableProps {
 export const taskCommonTableProps: ICommonTableProps = {
   checkable: false,
   defaultSize: 'small',
-  hasColnumSetting: true,
+  hasColumnSetting: true,
   paginationType: 'normal',
   columns: [
     { id: 'name_button', name: window.i18n.tc('任务名称'), type: 'scoped_slots', props: { minWidth: 150 } },
@@ -329,7 +329,7 @@ export interface INodeData {
 export const nodesCommonTableProps: ICommonTableProps = {
   checkable: false,
   defaultSize: 'small',
-  hasColnumSetting: true,
+  hasColumnSetting: true,
   paginationType: 'normal',
   columns: [
     { id: 'name', name: window.i18n.tc('节点名称'), type: 'string' },
