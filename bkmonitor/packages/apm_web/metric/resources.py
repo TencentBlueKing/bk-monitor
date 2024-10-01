@@ -299,7 +299,7 @@ class ServiceListResource(PageListResource):
                 id="collect",
                 name=_lazy("收藏"),
                 checked=True,
-                width=20,
+                width=40,
                 api="apm_metric.collectService",
                 params_get=lambda item: {
                     "service_name": item["service_name"],
@@ -374,11 +374,11 @@ class ServiceListResource(PageListResource):
                 asyncable=True,
             ),
             # 四个数据状态 ↓
-            DataStatusTableFormat(id="metric_data_status", name=_lazy("指标"), width=20, checked=True, filterable=False),
-            DataStatusTableFormat(id="log_data_status", name=_lazy("日志"), width=20, checked=True, filterable=False),
-            DataStatusTableFormat(id="trace_data_status", name=_lazy("调用链"), width=20, checked=True, filterable=False),
+            DataStatusTableFormat(id="metric_data_status", name=_lazy("指标"), width=40, checked=True, filterable=False),
+            DataStatusTableFormat(id="log_data_status", name=_lazy("日志"), width=40, checked=True, filterable=False),
+            DataStatusTableFormat(id="trace_data_status", name=_lazy("调用链"), width=40, checked=True, filterable=False),
             DataStatusTableFormat(
-                id="profiling_data_status", name=_lazy("性能分析"), width=20, checked=True, filterable=False
+                id="profiling_data_status", name=_lazy("性能分析"), width=40, checked=True, filterable=False
             ),
             NumberTableFormat(
                 id="strategy_count",
