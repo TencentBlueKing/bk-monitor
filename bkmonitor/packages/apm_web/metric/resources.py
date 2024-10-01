@@ -299,7 +299,7 @@ class ServiceListResource(PageListResource):
                 id="collect",
                 name="",
                 checked=True,
-                width=20,
+                width=40,
                 api="apm_metric.collectService",
                 params_get=lambda item: {
                     "service_name": item["service_name"],
@@ -444,6 +444,7 @@ class ServiceListResource(PageListResource):
                     ),
                 ],
                 disabled=True,
+                width=80,
                 link_handler=lambda i: i.get("kind") in [TopoNodeKind.SERVICE, TopoNodeKind.REMOTE_SERVICE],
             ),
         ]
