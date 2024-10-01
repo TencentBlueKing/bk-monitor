@@ -20,19 +20,5 @@
     }
   ],
   "order": [],
-  "options": {
-    "panel_tool": {
-      "compare_select": false,
-      "columns_toggle": false,
-      "interval_select": false,
-      "split_switcher": false,
-      "method_select": false
-    },
-    "enable_index_list": false,
-    "view_editable": false,
-    "enable_group": false,
-    "variable_editable": false,
-    "alert_filterable": false,
-    "overview_panel": {}
-  }
+  "options": {}
 }
