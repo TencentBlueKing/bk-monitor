@@ -51,6 +51,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "apm_service-service-default-topo",
         "apm_service-service-default-db",
         "apm_service-remote_service-http-overview",
+        "apm-service-trpc-default-caller_callee",
         # ⬇️ APMTrace检索场景视图
         "apm_trace-log",
         "apm_trace-host",
@@ -256,7 +257,18 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 scene_id=scene_id,
                 type="",
                 defaults={
-                    "config": ["overview", "topo", "endpoint", "db", "error", "instance", "host", "log", "profiling"]
+                    "config": [
+                        "overview",
+                        "caller_callee",
+                        "topo",
+                        "endpoint",
+                        "db",
+                        "error",
+                        "instance",
+                        "host",
+                        "log",
+                        "profiling",
+                    ]
                 },
             )
 

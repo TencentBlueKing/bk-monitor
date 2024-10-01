@@ -1,0 +1,39 @@
+{
+  "id": "caller_callee",
+  "type": "overview",
+  "mode": "custom",
+  "name": "主被调",
+  "variables": [],
+  "panels": [],
+  "overview_panels": [
+    {
+      "id": 1,
+      "title": "CallerCallee",
+      "type": "apm-service-caller-callee",
+      "instant": true,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 24
+      }
+    }
+  ],
+  "order": [],
+  "options": {
+    "panel_tool": {
+      "compare_select": true,
+      "columns_toggle": true,
+      "interval_select": true,
+      "split_switcher": false,
+      "method_select": true
+    },
+    "enable_index_list": true,
+    "view_editable": false,
+    "enable_group": false,
+    "variable_editable": false,
+    "alert_filterable": true,
+    "overview_panel": {},
+    "overview_detail_panel": {}
+  }
+}
