@@ -144,7 +144,7 @@ telemetry_handler_registry = BackendRegistry()
 
 
 @telemetry_handler_registry.register
-class TracingBackendHandler(TelemetryBackendHandler):
+class TraceBackendHandler(TelemetryBackendHandler):
     """
     跟踪后端适配器
     """
