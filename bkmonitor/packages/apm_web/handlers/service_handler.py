@@ -510,7 +510,7 @@ class ServiceHandler:
         if not application.is_enabled_log:
             status[TelemetryDataType.LOG.value] = DataStatus.DISABLED
         if not application.is_enabled_trace:
-            status[TelemetryDataType.TRACING.value] = DataStatus.DISABLED
+            status[TelemetryDataType.TRACE.value] = DataStatus.DISABLED
         if not application.is_enabled_profiling:
             status[TelemetryDataType.PROFILING.value] = DataStatus.DISABLED
 
@@ -533,7 +533,7 @@ class ServiceHandler:
         # Trace 数据状态: 通过 flow 指标判断
         # (有 flow 指标 证明有 span 并且经过了 collector 处理
         # 但是是否正常被 transfer 消费未知除非查 ES 但是查 ES 太重了这里直接查 flow 指标)
-        if TelemetryDataType.TRACING.value not in status:
+        if TelemetryDataType.TRACE.value not in status:
             metric_response = ServiceFlowCount(
                 **{
                     "application": application,
@@ -544,9 +544,9 @@ class ServiceHandler:
             ).get_instance_values_mapping()
             for keys in metric_response.keys():
                 if keys[0]:
-                    res[keys[0]].update({TelemetryDataType.TRACING.value: DataStatus.NORMAL})
+                    res[keys[0]].update({TelemetryDataType.TRACE.value: DataStatus.NORMAL})
                 if keys[-1]:
-                    res[keys[-1]].update({TelemetryDataType.TRACING.value: DataStatus.NORMAL})
+                    res[keys[-1]].update({TelemetryDataType.TRACE.value: DataStatus.NORMAL})
 
         # Profiling 数据状态
         if TelemetryDataType.PROFILING.value not in status:
@@ -563,7 +563,7 @@ class ServiceHandler:
                 res[i["topo_key"]] = {
                     TelemetryDataType.METRIC.value: status.get(TelemetryDataType.METRIC.value, DataStatus.NO_DATA),
                     TelemetryDataType.LOG.value: status.get(TelemetryDataType.LOG.value, DataStatus.NO_DATA),
-                    TelemetryDataType.TRACING.value: status.get(TelemetryDataType.TRACING.value, DataStatus.NO_DATA),
+                    TelemetryDataType.TRACE.value: status.get(TelemetryDataType.TRACE.value, DataStatus.NO_DATA),
                     TelemetryDataType.PROFILING.value: status.get(
                         TelemetryDataType.PROFILING.value, DataStatus.NO_DATA
                     ),

@@ -769,7 +769,7 @@ class OtlpProtocol:
 class TelemetryDataType(Enum):
     METRIC = "metric"
     LOG = "log"
-    TRACING = "tracing"
+    TRACE = "trace"
     PROFILING = "profiling"
 
     @classmethod
@@ -777,7 +777,7 @@ class TelemetryDataType(Enum):
         return [
             (cls.METRIC, _("指标")),
             (cls.LOG, _("日志")),
-            (cls.TRACING, _("调用链")),
+            (cls.TRACE, _("调用链")),
             (cls.PROFILING, _("性能分析")),
         ]
 
@@ -786,7 +786,7 @@ class TelemetryDataType(Enum):
         return {
             self.METRIC.value: _lazy("指标"),
             self.LOG.value: _lazy("日志"),
-            self.TRACING.value: _lazy("调用链"),
+            self.TRACE.value: _lazy("调用链"),
             self.PROFILING.value: _lazy("性能分析"),
         }.get(self.value, self.value)
 
@@ -795,7 +795,7 @@ class TelemetryDataType(Enum):
         return {
             self.METRIC.value: "metric",
             self.LOG.value: "log",
-            self.TRACING.value: "trace",
+            self.TRACE.value: "trace",
             self.PROFILING.value: "profiling",
         }.get(self.value)
 
@@ -808,7 +808,7 @@ class TelemetryDataType(Enum):
         return [
             {"id": cls.METRIC.value, "name": _("指标")},
             {"id": cls.LOG.value, "name": _("日志")},
-            {"id": cls.TRACING.value, "name": _("调用链")},
+            {"id": cls.TRACE.value, "name": _("调用链")},
             {"id": cls.PROFILING.value, "name": _("性能分析")},
         ]
 

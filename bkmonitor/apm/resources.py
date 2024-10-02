@@ -102,8 +102,8 @@ class CreateApplicationResource(Resource):
         description = serializers.CharField(label="描述", required=False, max_length=255, default="", allow_blank=True)
         es_storage_config = DatasourceConfigRequestSerializer(label="数据库配置", required=False, allow_null=True)
         # ↓ 四个 Module 开关
-        enabled_profiling = serializers.BooleanField(label="是否开启性能分析", required=True)
-        enabled_trace = serializers.BooleanField(label="是否开启 Tracing 功能", required=True)
+        enabled_profiling = serializers.BooleanField(label="是否开启 Profiling 功能", required=True)
+        enabled_trace = serializers.BooleanField(label="是否开启 Trace 功能", required=True)
         enabled_metric = serializers.BooleanField(label="是否开启 Metric 功能", required=True)
         enabled_log = serializers.BooleanField(label="是否开启 Log 功能", required=True)
 
@@ -217,7 +217,7 @@ class StartApplicationResource(Resource):
         except ApmApplication.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        if validated_request_data["type"] == TelemetryDataType.TRACING.value:
+        if validated_request_data["type"] == TelemetryDataType.TRACE.value:
             return application.start_trace()
 
         if validated_request_data["type"] == TelemetryDataType.PROFILING.value:
@@ -241,7 +241,7 @@ class StopApplicationResource(Resource):
         except ApmApplication.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        if validated_request_data["type"] == TelemetryDataType.TRACING.value:
+        if validated_request_data["type"] == TelemetryDataType.TRACE.value:
             return application.stop_trace()
 
         if validated_request_data["type"] == TelemetryDataType.PROFILING.value:

@@ -187,7 +187,7 @@ class CreateApplicationResource(Resource):
         plugin_config = PluginConfigSerializer(required=False)
         # ↓ 四个 Module 的开关
         enabled_profiling = serializers.BooleanField(label="是否开启 Profiling 功能", required=True)
-        enabled_trace = serializers.BooleanField(label="是否开启 Tracing 功能", required=True)
+        enabled_trace = serializers.BooleanField(label="是否开启 Trace 功能", required=True)
         enabled_metric = serializers.BooleanField(label="是否开启 Metric 功能", required=True)
         enabled_log = serializers.BooleanField(label="是否开启 Log 功能", required=True)
 
@@ -228,7 +228,7 @@ class CreateApplicationResource(Resource):
         from apm_web.tasks import APMEvent, report_apm_application_event
 
         switch_on_data_sources = {
-            TelemetryDataType.TRACING.value: app.is_enabled_trace,
+            TelemetryDataType.TRACE.value: app.is_enabled_trace,
             TelemetryDataType.PROFILING.value: app.is_enabled_profiling,
             TelemetryDataType.METRIC.value: app.is_enabled_metric,
             TelemetryDataType.LOG.value: app.is_enabled_log,
@@ -278,7 +278,7 @@ class ApplicationInfoResource(Resource):
     class RequestSerializer(serializers.Serializer):
         application_id = serializers.IntegerField(label="应用id")
         telemetry_data_type = serializers.CharField(
-            label="数据源类型", max_length=255, default=TelemetryDataType.TRACING.value
+            label="数据源类型", max_length=255, default=TelemetryDataType.TRACE.value
         )
 
     class ResponseSerializer(serializers.ModelSerializer):
@@ -456,7 +456,7 @@ class StartResource(Resource):
     def perform_request(self, validated_data):
         application = Application.objects.get(application_id=validated_data["application_id"])
 
-        if validated_data["type"] == TelemetryDataType.TRACING.value:
+        if validated_data["type"] == TelemetryDataType.TRACE.value:
             application.is_enabled_trace = True
             Application.start_plugin_config(validated_data["application_id"])
         elif validated_data["type"] == TelemetryDataType.PROFILING.value:
@@ -496,7 +496,7 @@ class StopResource(Resource):
     def perform_request(self, validated_data):
         application = Application.objects.get(application_id=validated_data["application_id"])
 
-        if validated_data["type"] == TelemetryDataType.TRACING.value:
+        if validated_data["type"] == TelemetryDataType.TRACE.value:
             application.is_enabled_trace = False
             Application.stop_plugin_config(validated_data["application_id"])
         elif validated_data["type"] == TelemetryDataType.PROFILING.value:
@@ -506,7 +506,7 @@ class StopResource(Resource):
         elif validated_data["type"] == TelemetryDataType.LOG.value:
             application.is_enabled_log = False
 
-        res = api.apm_api.stop_application(validated_data, type=TelemetryDataType.TRACING.value)
+        res = api.apm_api.stop_application(validated_data, type=TelemetryDataType.TRACE.value)
         application.save()
 
         from apm_web.tasks import APMEvent, report_apm_application_event
@@ -1615,7 +1615,7 @@ class DataSamplingResource(Resource):
     class RequestSerializer(serializers.Serializer):
         application_id = serializers.IntegerField(label="应用id")
         telemetry_data_type = serializers.ChoiceField(
-            label="采集类型", choices=TelemetryDataType.values(), default=TelemetryDataType.TRACING.name
+            label="采集类型", choices=TelemetryDataType.values(), default=TelemetryDataType.TRACE.name
         )
         size = serializers.IntegerField(required=False, label="拉取条数", default=10)
 
@@ -1877,7 +1877,7 @@ class NoDataStrategyStatusResource(Resource):
     class RequestSerializer(serializers.Serializer):
         application_id = serializers.IntegerField(label="应用ID")
         telemetry_data_type = serializers.ChoiceField(
-            label="数据类型", choices=TelemetryDataType.values(), default=TelemetryDataType.TRACING.value
+            label="数据类型", choices=TelemetryDataType.values(), default=TelemetryDataType.TRACE.value
         )
 
     def get_config_key(self, telemetry_data_type: str):

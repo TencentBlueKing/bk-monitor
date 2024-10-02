@@ -694,7 +694,7 @@ class ServiceListResource(PageListResource):
                     ),
                     "log_data_status": data_status_mapping[name].get(TelemetryDataType.LOG.value, DataStatus.DISABLED),
                     "trace_data_status": data_status_mapping[name].get(
-                        TelemetryDataType.TRACING.value, DataStatus.DISABLED
+                        TelemetryDataType.TRACE.value, DataStatus.DISABLED
                     ),
                     "profiling_data_status": data_status_mapping[name].get(
                         TelemetryDataType.PROFILING.value, DataStatus.DISABLED
