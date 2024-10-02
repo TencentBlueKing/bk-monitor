@@ -48,7 +48,6 @@ interface IProps {
   appName: string;
   appData: Partial<IAppListItem>;
   timeRange?: TimeRangeType;
-  isRefreshService?: boolean;
 }
 
 @Component({
@@ -67,7 +66,6 @@ export default class ApmServiceList extends tsc<
   })
   appName: string;
   @Prop() timeRange: TimeRangeType;
-  @Prop({ default: false, type: Boolean }) isRefreshService: boolean;
   @Ref() mainResize: InstanceType<typeof ApmHomeResizeLayout>;
 
   /** 搜索关键词 */
@@ -103,10 +101,16 @@ export default class ApmServiceList extends tsc<
   /* 左侧统计数据 */
 
   @Watch('appName', { immediate: true })
-  isRefreshServiceChange() {
+  onAppNameChange() {
     if (this.appName) {
       this.handleResetRoute();
       this.filterLoading = true;
+      this.getServiceList();
+    }
+  }
+  @Watch('timeRange')
+  onTimeRangeChange() {
+    if (this.appName) {
       this.getServiceList();
     }
   }

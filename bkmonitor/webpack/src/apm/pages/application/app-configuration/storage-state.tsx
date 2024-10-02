@@ -41,7 +41,6 @@ import Trace from './storeInfo/trace';
 import TabList from './tabList';
 import { ETelemetryDataType } from './type';
 
-import type { ISetupData } from '../app-add/app-add';
 import type { IAppInfo, IClusterItem, IFieldFilterItem, IFieldItem, IndicesItem } from './type';
 
 import './storage-state.scss';
@@ -56,7 +55,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
   @Prop({ type: Array, required: true }) clusterList: any[];
 
   /** 选择的tab*/
-  activeTab = ETelemetryDataType.metric;
+  activeTab = ETelemetryDataType.trace;
   tabList = [
     {
       name: ETelemetryDataType.metric,
@@ -69,7 +68,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
       status: 'disabled',
     },
     {
-      name: ETelemetryDataType.tracing,
+      name: ETelemetryDataType.trace,
       label: window.i18n.tc('调用链'),
       status: 'disabled',
     },
@@ -83,7 +82,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
   storageInfo = {
     [ETelemetryDataType.metric]: [],
     [ETelemetryDataType.log]: null,
-    [ETelemetryDataType.tracing]: null,
+    [ETelemetryDataType.trace]: null,
     [ETelemetryDataType.profiling]: [],
   };
   storageLoading = false;
@@ -112,7 +111,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
   storageStatus = {
     [ETelemetryDataType.metric]: 'disabled',
     [ETelemetryDataType.log]: 'disabled',
-    [ETelemetryDataType.tracing]: 'disabled',
+    [ETelemetryDataType.trace]: 'disabled',
     [ETelemetryDataType.profiling]: 'disabled',
   };
 
@@ -135,11 +134,9 @@ export default class StorageState extends tsc<IStorageStateProps> {
       for (const tab of this.tabList) {
         tab.status = this.storageStatus[tab.name];
       }
-      for (const tab of this.tabList) {
-        if (tab.status !== 'disabled') {
-          this.activeTab = tab.name;
-          break;
-        }
+
+      if (this.tabList.find(item => item.name === this.activeTab)?.status === 'disabled') {
+        this.activeTab = this.tabList.find(item => item.status !== 'disabled')?.name || ETelemetryDataType.trace;
       }
       this.getStorageInfo();
       this.storageStatusLoading = false;
@@ -214,7 +211,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
       case ETelemetryDataType.log:
         this.getIndicesList();
         break;
-      case ETelemetryDataType.tracing:
+      case ETelemetryDataType.trace:
         this.getMetaConfigInfo();
         this.getIndicesList();
         this.getFieldList();
@@ -232,8 +229,8 @@ export default class StorageState extends tsc<IStorageStateProps> {
   }
 
   traceStorageChange(params) {
-    this.storageInfo[ETelemetryDataType.tracing] = {
-      ...this.storageInfo[ETelemetryDataType.tracing],
+    this.storageInfo[ETelemetryDataType.trace] = {
+      ...this.storageInfo[ETelemetryDataType.trace],
       ...params,
     };
   }
@@ -261,7 +258,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
             onChange={params => this.logStorageChange(params)}
           />
         );
-      case ETelemetryDataType.tracing:
+      case ETelemetryDataType.trace:
         return (
           <Trace
             appInfo={this.appInfo}

@@ -324,17 +324,6 @@ export default class BasicInfo extends tsc<IProps> {
   curGroupConditionIndex = -1;
   curConditionIndex = -1;
   curConditionProp = '';
-  // cycleInputOptions = [
-  //   { id: 'μs', name: window.i18n.tc('微秒'), children: defaultCycleOptionMicroSec },
-  //   { id: 'ms', name: window.i18n.tc('毫秒'), children: defaultCycleOptionMillisec },
-  //   { id: 's', name: window.i18n.tc('秒'), children: defaultCycleOptionSec },
-  //   { id: 'm', name: window.i18n.tc('分'), children: defaultCycleOptionMin }
-  // ];
-
-  /** 应用ID */
-  get appId() {
-    return Number(this.$route.params?.id || 0);
-  }
 
   /** 样例展示 */
   get sampleStr() {
@@ -445,7 +434,7 @@ export default class BasicInfo extends tsc<IProps> {
       return false;
     }
 
-    this.secureKey = await queryBkDataToken(this.appId).catch(() => '');
+    this.secureKey = await queryBkDataToken(this.appInfo.application_id).catch(() => '');
     return true;
   }
   /**
@@ -1051,10 +1040,10 @@ export default class BasicInfo extends tsc<IProps> {
                     label-width={116}
                   >
                     <bk-switcher
-                      v-model={this.appInfo.is_enabled_tracing}
+                      v-model={this.appInfo.is_enabled_trace}
                       v-authority={{ active: !this.authority.MANAGE_AUTH }}
                       pre-check={() =>
-                        this.handleEnablePreCheck(this.appInfo.is_enabled_tracing, ETelemetryDataType.tracing)
+                        this.handleEnablePreCheck(this.appInfo.is_enabled_trace, ETelemetryDataType.trace)
                       }
                       size='small'
                       theme='primary'
@@ -1106,8 +1095,8 @@ export default class BasicInfo extends tsc<IProps> {
                   formType='tag'
                   label={this.$t('调用链')}
                   showEditable={false}
-                  tagTheme={this.appInfo.is_enabled_tracing ? 'success' : ''}
-                  value={[this.appInfo.is_enabled_tracing ? this.$t('已开启') : this.$t('未开启')]}
+                  tagTheme={this.appInfo.is_enabled_trace ? 'success' : ''}
+                  value={[this.appInfo.is_enabled_trace ? this.$t('已开启') : this.$t('未开启')]}
                 />
                 <EditableFormItem
                   formType='tag'

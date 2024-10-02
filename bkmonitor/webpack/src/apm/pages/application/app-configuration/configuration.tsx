@@ -32,7 +32,6 @@ import ConfigurationNav from '../../../components/configuration-nav/configuratio
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import * as authorityMap from '../../home/authority-map';
 import BasicConfiguration from './basic-configuration';
-// import IndicatorDimension from './indicator-dimension';
 import ConfigurationView from './configuration-view';
 import DataStatus from './data-status';
 import StorageState from './storage-state';

@@ -138,7 +138,7 @@ export interface IAppInfo {
   is_enabled_log: boolean;
   is_enabled_metric: boolean;
   is_enabled_profiling: boolean;
-  is_enabled_tracing: boolean;
+  is_enabled_trace: boolean;
   // 类型状态
   metric_data_status: TDataStatus;
   log_data_status: TDataStatus;
@@ -256,7 +256,7 @@ export enum ETelemetryDataType {
   log = 'log',
   metric = 'metric',
   profiling = 'profiling',
-  tracing = 'tracing',
+  trace = 'trace',
 }
 /* 调用链存储信息 */
 export interface ITracingStorageInfo {

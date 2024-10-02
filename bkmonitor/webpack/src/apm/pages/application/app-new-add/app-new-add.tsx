@@ -47,7 +47,7 @@ interface FormData {
   desc: string;
   [ETelemetryDataType.metric]: boolean;
   [ETelemetryDataType.log]: boolean;
-  [ETelemetryDataType.tracing]: boolean;
+  [ETelemetryDataType.trace]: boolean;
   [ETelemetryDataType.profiling]: boolean;
 }
 
@@ -74,7 +74,7 @@ export default class AddApplication extends tsc<IProps, IEvent> {
       icon: 'icon-rizhi',
     },
     {
-      id: ETelemetryDataType.tracing,
+      id: ETelemetryDataType.trace,
       title: '调用链',
       content: '从用户发起请求到服务响应的全链路追踪，追踪请求在多个服务之间的调用情况，帮助业务识别性能瓶颈和延迟原因',
       icon: 'icon-tiaoyonglian',
@@ -91,9 +91,9 @@ export default class AddApplication extends tsc<IProps, IEvent> {
     ID: '',
     name: '',
     desc: '',
-    [ETelemetryDataType.metric]: false,
+    [ETelemetryDataType.metric]: true,
     [ETelemetryDataType.log]: true,
-    [ETelemetryDataType.tracing]: false,
+    [ETelemetryDataType.trace]: true,
     [ETelemetryDataType.profiling]: false,
   };
   saveLoading = false;
@@ -119,11 +119,6 @@ export default class AddApplication extends tsc<IProps, IEvent> {
         trigger: 'blur',
       },
       {
-        validator: val => /^[a-z0-9_-]+$/.test(val),
-        message: window.i18n.t('仅支持小写字母、数字、_- 中任意一条件即可'),
-        trigger: ['change', 'blur'],
-      },
-      {
         validator: this.handleCheckDuplicateName,
         message: window.i18n.tc('注意: 名字冲突'),
         trigger: ['blur'],
@@ -139,7 +134,7 @@ export default class AddApplication extends tsc<IProps, IEvent> {
       desc: '',
       [ETelemetryDataType.metric]: false,
       [ETelemetryDataType.log]: true,
-      [ETelemetryDataType.tracing]: false,
+      [ETelemetryDataType.trace]: false,
       [ETelemetryDataType.profiling]: false,
     };
     this.addForm?.clearError?.();
@@ -165,7 +160,7 @@ export default class AddApplication extends tsc<IProps, IEvent> {
         app_alias: this.formData.name,
         description: this.formData.desc,
         enabled_profiling: this.formData[ETelemetryDataType.profiling],
-        enabled_trace: this.formData[ETelemetryDataType.tracing],
+        enabled_trace: this.formData[ETelemetryDataType.trace],
         enabled_metric: this.formData[ETelemetryDataType.metric],
         enabled_log: this.formData[ETelemetryDataType.log],
         es_storage_config: null,
@@ -242,7 +237,8 @@ export default class AddApplication extends tsc<IProps, IEvent> {
               <bk-input
                 class='input'
                 v-model={this.formData.name}
-                placeholder={this.$t('1-50字符，由小写字母、数字、下划线(_)、中划线(-)组成')}
+                maxlength={50}
+                placeholder={this.$t('1-50字符')}
               />
             </bk-form-item>
             <bk-form-item label={this.$t('描述')}>

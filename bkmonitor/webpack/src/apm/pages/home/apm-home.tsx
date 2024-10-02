@@ -70,6 +70,7 @@ export default class AppList extends tsc<object> {
   ];
   /** 时间范围 */
   timeRange: TimeRangeType = ['now-1h', 'now'];
+  refreshKey = 0;
   /** 显示引导页 */
   showGuidePage = false;
   // menu list
@@ -96,7 +97,6 @@ export default class AppList extends tsc<object> {
   searchData: ISearchCondition[] = getDefaultAppListSearchCondition();
   searchCondition: ISearchCondition[] = [];
 
-  isRefreshService = false;
   /** 仪表盘工具栏 策略和告警panel */
   alarmToolsPanel = null;
   // 帮助文档弹窗数据
@@ -253,7 +253,7 @@ export default class AppList extends tsc<object> {
    */
   handleImmediateRefresh() {
     this.getAppList();
-    this.isRefreshService = true;
+    this.refreshKey++;
   }
 
   /**
@@ -265,7 +265,7 @@ export default class AppList extends tsc<object> {
     if (val > 0) {
       this.refreshInstance = setInterval(() => {
         this.getAppList();
-        this.isRefreshService = true;
+        this.refreshKey++;
       }, val);
     }
   }
@@ -487,9 +487,9 @@ export default class AppList extends tsc<object> {
           </div>
           <div class='app-list-service'>
             <AppHomeList
+              key={this.refreshKey}
               appData={this.appData}
               appName={this.appName}
-              isRefreshService={this.isRefreshService}
               timeRange={this.timeRange}
               onRouteUrlChange={this.handleReplaceRouteUrl}
             />

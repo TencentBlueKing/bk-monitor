@@ -47,7 +47,7 @@ export default class DataStatus extends tsc<object> {
     dayjs(new Date()).format('YYYY-MM-DD'),
   ];
 
-  activeTab = ETelemetryDataType.metric;
+  activeTab = ETelemetryDataType.trace;
   strategyLoading = false;
 
   // 派发到子孙组件内的视图配置变量
@@ -59,11 +59,6 @@ export default class DataStatus extends tsc<object> {
   @ProvideReactive('timezone') timezone: string = getDefaultTimezone();
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
-
-  /** 应用ID */
-  get appId() {
-    return Number(this.$route.params?.id || 0);
-  }
 
   get tabList() {
     return [
@@ -78,7 +73,7 @@ export default class DataStatus extends tsc<object> {
         status: this.appInfo.log_data_status,
       },
       {
-        name: ETelemetryDataType.tracing,
+        name: ETelemetryDataType.trace,
         label: window.i18n.tc('调用链'),
         status: this.appInfo.trace_data_status,
       },
@@ -91,11 +86,8 @@ export default class DataStatus extends tsc<object> {
   }
 
   created() {
-    for (const tab of this.tabList) {
-      if (tab.status !== 'disabled') {
-        this.activeTab = tab.name;
-        break;
-      }
+    if (this.tabList.find(item => item.name === this.activeTab)?.status === 'disabled') {
+      this.activeTab = this.tabList.find(item => item.status !== 'disabled')?.name || ETelemetryDataType.trace;
     }
     this.timezone = getDefaultTimezone();
   }
@@ -122,7 +114,7 @@ export default class DataStatus extends tsc<object> {
     //   case ETelemetryDataType.metric:
     //     // this.getStoreList();
     //     break;
-    //   case ETelemetryDataType.tracing:
+    //   case ETelemetryDataType.trace:
     //     // this.getMetaConfigInfo();
     //     // this.getIndicesList();
     //     // this.getFieldList();

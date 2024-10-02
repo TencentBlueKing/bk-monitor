@@ -48,10 +48,10 @@ export default class AppAddNew extends tsc<object> {
   loading = false;
   /** 面包屑数据 */
   routeList: INavItem[] = [
-    {
-      id: 'home',
-      name: 'APM',
-    },
+    // {
+    //   id: 'home',
+    //   name: 'APM',
+    // },
     {
       id: '',
       name: window.i18n.tc('新建应用'),
@@ -75,7 +75,7 @@ export default class AppAddNew extends tsc<object> {
       icon: 'icon-rizhi',
     },
     {
-      id: ETelemetryDataType.tracing,
+      id: ETelemetryDataType.trace,
       title: window.i18n.tc('调用链'),
       content: window.i18n.tc(
         '从用户发起请求到服务响应的全链路追踪，追踪请求在多个服务之间的调用情况，帮助业务识别性能瓶颈和延迟原因'
@@ -96,7 +96,7 @@ export default class AppAddNew extends tsc<object> {
     desc: '',
     [ETelemetryDataType.metric]: false,
     [ETelemetryDataType.log]: false,
-    [ETelemetryDataType.tracing]: false,
+    [ETelemetryDataType.trace]: false,
     [ETelemetryDataType.profiling]: false,
   };
   rules = {
@@ -118,11 +118,6 @@ export default class AppAddNew extends tsc<object> {
         validator: val => val.length >= 1 && val.length <= 50,
         message: window.i18n.t('输入1-50个字符'),
         trigger: 'blur',
-      },
-      {
-        validator: val => /^[a-z0-9_-]+$/.test(val),
-        message: window.i18n.t('仅支持小写字母、数字、_- 中任意一条件即可'),
-        trigger: ['change', 'blur'],
       },
       {
         validator: this.handleCheckDuplicateName,
@@ -151,7 +146,7 @@ export default class AppAddNew extends tsc<object> {
         app_alias: this.formData.name,
         description: this.formData.desc,
         enabled_profiling: this.formData[ETelemetryDataType.profiling],
-        enabled_trace: this.formData[ETelemetryDataType.tracing],
+        enabled_trace: this.formData[ETelemetryDataType.trace],
         enabled_metric: this.formData[ETelemetryDataType.metric],
         enabled_log: this.formData[ETelemetryDataType.log],
         es_storage_config: null,
@@ -239,7 +234,7 @@ export default class AppAddNew extends tsc<object> {
                 <bk-input
                   class='input'
                   v-model={this.formData.name}
-                  placeholder={this.$t('1-50字符，由小写字母、数字、下划线(_)、中划线(-)组成')}
+                  placeholder={this.$t('1-50字符')}
                 />
               </bk-form-item>
               <bk-form-item label={this.$t('描述')}>

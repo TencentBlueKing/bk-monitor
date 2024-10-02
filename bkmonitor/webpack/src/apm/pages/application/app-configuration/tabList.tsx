@@ -53,9 +53,9 @@ export default class TabList extends tsc<IProps, IEvent> {
   }
   handleActiveChange(item: ITab) {
     // 暂时去掉
-    // if (!item.status || item.status === 'disabled') {
-    //   return;
-    // }
+    if (!item.status || item.status === 'disabled') {
+      return;
+    }
     this.active = item.name;
     this.$emit('change', item.name);
   }

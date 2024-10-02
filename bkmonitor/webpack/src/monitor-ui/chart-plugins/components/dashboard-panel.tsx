@@ -112,7 +112,6 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
   @Watch('panels', { immediate: true })
   handlePanelsChange() {
     if (this.panels?.length < 1) return;
-    debugger;
     if (this.column !== 'custom') {
       this.handleInitPanelsGridpos(this.panels);
     }
