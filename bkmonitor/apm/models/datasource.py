@@ -279,11 +279,18 @@ class LogDataSource(ApmDataSourceConfigBase):
 
     @classmethod
     def get_table_id(cls, bk_biz_id: int, app_name: str, **kwargs) -> str:
-        valid_app_name = app_name.replace("-", "_")
+        valid_app_name = cls.app_name_to_log_config_name(app_name)
         if bk_biz_id > 0:
             return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}.{valid_app_name}"
         else:
             return f"{cls.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{cls.DATA_NAME_PREFIX}.{valid_app_name}"
+
+    @classmethod
+    def app_name_to_log_config_name(cls, app_name: str):
+        """
+        LOG 和 APM 的英文名不同规则：APM 允许中划线(-)，LOG 不允许，所以这里替换为下划线(_)
+        """
+        return app_name.replace("-", "_")
 
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
@@ -297,19 +304,14 @@ class LogDataSource(ApmDataSourceConfigBase):
 
         obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not obj:
-            # 创建
-            if bk_biz_id > 0:
-                prefix = f"{bk_biz_id}_{app_name}"
-            else:
-                prefix = f"{cls.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{app_name}"
-
             # 指定了存储集群会有默认的清洗规则所以这里不需要配置规则
             try:
+                valid_log_config_name = cls.app_name_to_log_config_name(app_name)
                 response = api.log_search.create_custom_report(
                     **{
                         "bk_biz_id": bk_biz_id,
-                        "collector_config_name_en": f"{prefix}_collector"[:50],
-                        "collector_config_name": f"{prefix}_自定义上报"[:50],
+                        "collector_config_name_en": valid_log_config_name,
+                        "collector_config_name": valid_log_config_name,
                         "custom_type": "otlp_log",
                         "category_id": "application_check",
                         # 兼容集群不支持冷热配置
@@ -324,6 +326,7 @@ class LogDataSource(ApmDataSourceConfigBase):
             cls.objects.create(
                 bk_biz_id=bk_biz_id,
                 app_name=app_name,
+                result_table_id=cls.get_table_id(bk_biz_id, app_name),
                 collector_config_id=response["collector_config_id"],
                 bk_data_id=response["bk_data_id"],
                 index_set_id=response["index_set_id"],
