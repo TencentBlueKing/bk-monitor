@@ -175,7 +175,7 @@ class CreateApplicationSimpleResource(Resource):
 
         self.fill_default(validated_request_data)
         app = CreateApplicationResource()(**validated_request_data)
-        return ApplicationInfoResource()(application_id=app["application_id"])["bk_data_token"]
+        return ApplicationInfoResource()(application_id=app["application_id"])["token"]
 
 
 class ApplyDatasourceResource(Resource):
@@ -292,7 +292,7 @@ class ApplicationInfoResource(Resource):
 
         def to_representation(self, instance):
             data = super(ApplicationInfoResource.ResponseSerializer, self).to_representation(instance)
-            data["bk_data_token"] = instance.get_bk_data_token()
+            data["token"] = instance.get_bk_data_token()
             if instance.metric_datasource:
                 data["metric_config"] = instance.metric_datasource.to_json()
             if instance.trace_datasource:

@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import uuid
 from typing import Optional
 
 from django.conf import settings
@@ -194,6 +195,7 @@ class ApmApplication(AbstractRecordModel):
             bk_biz_id=bk_biz_id,
             app_name=app_name,
             app_alias=app_alias,
+            token=uuid.uuid4().hex,  # 长度 32，(16 个随机字符的 16 进制表示)
             description=description,
         )
         # step2: 创建结果表 (创建的时候 Trace 和 Log 使用同一个数据源)
@@ -239,6 +241,11 @@ class ApmApplication(AbstractRecordModel):
         return LogDataSource.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
 
     def get_bk_data_token(self):
+        # 1. 优先使用 model 里的 token
+        if self.token:
+            return self.token
+
+        # 2. 兼容逻辑，保留下面的 token 生成逻辑(历史已创建的应用，使用的是动态生成的 token)
         if not self.metric_datasource:
             return ""
         params = {
