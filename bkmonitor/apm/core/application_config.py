@@ -68,11 +68,12 @@ class ApplicationConfig(BkCollectorConfig):
     def get_application_config(self):
         """获取应用配置上下文"""
         config = {
-            "bk_data_token": self._application.get_bk_data_token(),
             "bk_biz_id": self._application.bk_biz_id,
             "bk_app_name": self._application.app_name,
-            "resource_filter_config": self.get_resource_filter_config(),
         }
+        config.update(self.get_bk_data_id_config())
+        config["bk_data_token"] = self._application.get_bk_data_token()
+        config["resource_filter_config"] = self.get_resource_filter_config()
 
         apdex_config = self.get_apdex_config(ApdexConfig.APP_LEVEL)
         sampler_config = self.get_random_sampler_config(ApdexConfig.APP_LEVEL)
@@ -127,6 +128,26 @@ class ApplicationConfig(BkCollectorConfig):
             config["instance_configs"] = instance_configs
 
         return config
+
+    def get_bk_data_id_config(self):
+        data_ids = {}
+        metric_data_source = self._application.metric_datasource
+        if self._application.is_enabled_metric and metric_data_source:
+            data_ids["metric_data_id"] = metric_data_source.bk_data_id
+
+        log_data_source = self._application.log_datasource
+        if self._application.is_enabled_log and log_data_source:
+            data_ids["log_data_id"] = log_data_source.bk_data_id
+
+        trace_data_source = self._application.trace_datasource
+        if self._application.is_enabled_trace and trace_data_source:
+            data_ids["trace_data_id"] = trace_data_source.bk_data_id
+
+        profile_data_source = self._application.profile_datasource
+        if self._application.is_enabled_profiling and profile_data_source:
+            data_ids["profile_data_id"] = profile_data_source.bk_data_id
+
+        return data_ids
 
     def get_qps_config(self):
         qps = QpsConfig.get_application_qps(self._application.bk_biz_id, app_name=self._application.app_name)

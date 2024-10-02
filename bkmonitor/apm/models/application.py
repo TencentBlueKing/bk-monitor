@@ -246,16 +246,19 @@ class ApmApplication(AbstractRecordModel):
             return self.token
 
         # 2. 兼容逻辑，保留下面的 token 生成逻辑(历史已创建的应用，使用的是动态生成的 token)
-        if not self.metric_datasource:
-            return ""
         params = {
-            "trace_data_id": self.trace_datasource.bk_data_id,
-            "metric_data_id": self.metric_datasource.bk_data_id,
             "bk_biz_id": self.bk_biz_id,
             "app_name": self.app_name,
         }
+        if self.trace_datasource:
+            params["trace_data_id"] = self.trace_datasource.bk_data_id
+        if self.metric_datasource:
+            params["metric_data_id"] = self.metric_datasource.bk_data_id
+        if self.log_datasource:
+            params["log_data_id"] = self.log_datasource.bk_data_id
         if self.profile_datasource:
             params["profile_data_id"] = self.profile_datasource.bk_data_id
+            # 一开始没有预留 profile 的位置，所以如果开启了 profile，需要走单独的函数生成 token
             return transform_data_id_to_v1_token(**params)
         return transform_data_id_to_token(**params)
 
