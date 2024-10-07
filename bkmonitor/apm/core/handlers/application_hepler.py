@@ -18,12 +18,10 @@ to the current version of the project delivered to anyone in the future.
 from django.conf import settings
 
 from apm.models import DataLink
-from apm_web.models import Application
 from core.drf_resource import resource
 
 
 class ApplicationHelper:
-
     DEFAULT_CLUSTER_TYPE = "elasticsearch"
     DEFAULT_CLUSTER_NAME = "_default"
     # 业务下默认应用的应用名称
@@ -75,6 +73,8 @@ class ApplicationHelper:
     @classmethod
     def create_default_application(cls, bk_biz_id):
         """创建默认应用"""
+
+        from apm_web.models import Application
 
         application = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=cls.DEFAULT_APPLICATION_NAME).first()
         if application:
