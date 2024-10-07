@@ -836,15 +836,18 @@ class BkCollectorComp:
     NAMESPACE = "bkmonitor-operator"
 
     DEPLOYMENT_NAME = "bkm-collector"
+
+    # ConfigMap 模版
     # ConfigMap: 平台配置名称
-    CONFIG_MAP_PLATFORM_TPL_NAME = "bkm-collector-platform-tpl"
+    CONFIG_MAP_PLATFORM_TPL_NAME = "bk-collector-platform.conf.tpl"
     # ConfigMap: 应用配置名称
-    CONFIG_MAP_APPLICATION_TPL_NAME = "bkm-collector-application-tpl"
-    # bk-collector ConfigMap 官方标签
-    CONFIG_MAP_LABELS = {
-        "component": "bk-collector",
-        "template": "true",
-    }
+    CONFIG_MAP_APPLICATION_TPL_NAME = "bk-collector-application.conf.tpl"
+
+    # Secrets 配置
+    SECRET_PLATFORM_NAME = "bk-collector-platform"
+    SECRET_PLATFORM_CONFIG_FILENAME_NAME = "bk-collector-platform.conf"
+    SECRET_APPLICATION_NAME = "bk-collector-application-{}-{}"
+    SECRET_APPLICATION_CONFIG_FILENAME_NAME = "bk-collector-application-{}.conf"
 
     # 缓存 KEY: 安装了 bk-collector 的集群 id 列表
     CACHE_KEY_CLUSTER_IDS = "bk-collector:clusters"

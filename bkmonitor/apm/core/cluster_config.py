@@ -8,7 +8,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import base64
 import concurrent
+import gzip
 import logging
 from urllib.parse import urljoin
 
@@ -66,7 +68,7 @@ class ClusterConfig:
         """获取由 apm_ebpf 模块发现的集群 id"""
         cache = Cache("cache")
         with cache.pipeline() as p:
-            p.lrange(BkCollectorComp.CACHE_KEY_CLUSTER_IDS, 0, -1)
+            p.smembers(BkCollectorComp.CACHE_KEY_CLUSTER_IDS)
             p.delete(BkCollectorComp.CACHE_KEY_CLUSTER_IDS)
             values = p.execute()
         cluster_to_bk_biz_ids = values[0]
@@ -80,26 +82,61 @@ class ClusterConfig:
         return res
 
     @classmethod
-    def adequate(cls, cluster_id):
-        """
-        检查此集群的 collector 是否数据充足，检查项：
-        1. 是否存在 平台配置 && 应用配置 模板
-        """
-        exist_platform_tpl, exist_application_tpl = False, False
+    def deploy_platform_config(cls, cluster_id, platform_config):
+        gzip_content = gzip.compress(platform_config.encode())
+        b64_content = base64.b64encode(gzip_content)
+        sec = client.V1Secret(
+            type="Opaque",
+            metadata=client.V1ObjectMeta(
+                name=BkCollectorComp.SECRET_PLATFORM_NAME,
+                labels={
+                    "component": "bk-collector",
+                    "type": "platform",
+                    "template": "false",
+                },
+            ),
+            data={BkCollectorComp.SECRET_PLATFORM_CONFIG_FILENAME_NAME: b64_content},
+        )
+        bcs_client = BcsKubeClient(cluster_id)
+        BcsKubeClient.request(
+            bcs_client.core_api.create_namespaced_secret,
+            namespace=BkCollectorComp.NAMESPACE,
+            body=sec,
+        )
 
-        c = BcsKubeClient(cluster_id)
-        configmaps = BcsKubeClient.request(c.core_api.list_namespaced_config_map(BkCollectorComp.NAMESPACE))
-        for cm in configmaps.items:
-            # 如果符合官方标签
-            if all((cm.metadata.labels or {}.get(k) == v for k, v in BkCollectorComp.CONFIG_MAP_LABELS)):
-                # 是否是平台配置
-                if cm.metadata.name == BkCollectorComp.CONFIG_MAP_PLATFORM_TPL_NAME:
-                    exist_platform_tpl = True
-                # 是否是应用配置
-                elif cm.metadata.name == BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME:
-                    exist_application_tpl = True
+    @classmethod
+    def platform_config_tpl(cls, cluster_id):
+        bcs_client = BcsKubeClient(cluster_id)
+        config_maps = BcsKubeClient.request(
+            bcs_client.core_api.list_namespaced_config_map,
+            namespace=BkCollectorComp.NAMESPACE,
+            label_selector="component=bk-collector,template=true,type=platform",
+        )
+        if len(config_maps.items) == 0:
+            return None
 
-        return exist_platform_tpl and exist_application_tpl
+        content = config_maps.items[0].data.get(BkCollectorComp.CONFIG_MAP_PLATFORM_TPL_NAME)
+        try:
+            return base64.b64decode(content).decode()
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(f"[ClusterConfig] parse platform_config_tpl failed: cluster({cluster_id}), error({e})")
+
+    @classmethod
+    def application_config_tpl(cls, cluster_id):
+        bcs_client = BcsKubeClient(cluster_id)
+        config_maps = BcsKubeClient.request(
+            bcs_client.core_api.list_namespaced_config_map,
+            namespace=BkCollectorComp.NAMESPACE,
+            label_selector="component=bk-collector,template=true,type=subconfig",
+        )
+        if len(config_maps.items) == 0:
+            return None
+
+        content = config_maps.items[0].data.get(BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME)
+        try:
+            return base64.b64decode(content).decode()
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(f"[ClusterConfig] parse application_config_tpl failed: cluster({cluster_id}), error({e})")
 
     @classmethod
     def _split_value(cls, value):

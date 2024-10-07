@@ -15,6 +15,7 @@ import datetime
 import logging
 import time
 
+import jinja2
 from django.conf import settings
 from django.db.models import Q
 from opentelemetry import trace
@@ -39,6 +40,7 @@ from apm.models import (
     MetricDataSource,
     ProfileDataSource,
 )
+from constants.apm import BkCollectorComp
 from core.errors.alarm_backends import LockError
 
 logger = logging.getLogger("apm")
@@ -176,25 +178,32 @@ def post_deploy_bk_collector():
     for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
         with tracer.start_as_current_span(f"cluster-id: {cluster_id}", attributes={"bk_biz_ids": cc_bk_biz_ids}) as s:
             try:
-                if ClusterConfig.adequate(cluster_id):
-                    # 如果集群符合要求
-                    bk_biz_id = cc_bk_biz_ids[0]
-                    if len(cc_bk_biz_ids) != 1:
-                        logger.warning(
-                            f"[post-deploy-bk_collector] cluster_id: {cluster_id} record multiple bk_biz_id!",
-                        )
+                platform_config_tpl = ClusterConfig.platform_config_tpl(cluster_id)
+                if platform_config_tpl is None:
+                    # 如果集群中不存在 bk-collector 的平台配置模版，则不下发
+                    continue
 
-                    # Step1: 创建默认应用
-                    default_application = ApplicationHelper.create_default_application(bk_biz_id)
-                    # Step2: 往集群的 bk-collector 下发配置
-                    secret_name = PlatformConfig.deploy_in_cluster_collector()
-
-                    s.add_event("default_application", attributes={"id": default_application.id})
-                    s.add_event("platform_secret", attributes={"name": secret_name})
-                    s.set_status(StatusCode.OK)
-                    logger.info(
-                        f"[post-deploy-bk_collector] successfully deploy platform config in cluster: {cluster_id}",
+                bk_biz_id = cc_bk_biz_ids[0]
+                if len(cc_bk_biz_ids) != 1:
+                    logger.warning(
+                        f"[post-deploy-bk_collector] cluster_id: {cluster_id} record multiple bk_biz_id!",
                     )
+
+                # Step1: 创建默认应用
+                default_application = ApplicationHelper.create_default_application(bk_biz_id)
+
+                # Step2: 往集群的 bk-collector 下发配置
+                platform_config_context = PlatformConfig.get_platform_config()
+                tpl = jinja2.Template(platform_config_tpl)
+                platform_config = tpl.render(platform_config_context)
+                ClusterConfig.deploy_platform_config(cluster_id, platform_config)
+
+                s.add_event("default_application", attributes={"id": default_application.id})
+                s.add_event("platform_secret", attributes={"name": BkCollectorComp.SECRET_PLATFORM_NAME})
+                s.set_status(StatusCode.OK)
+                logger.info(
+                    f"[post-deploy-bk_collector] successfully deploy platform config in cluster: {cluster_id}",
+                )
             except Exception as e:  # noqa
                 # 仅记录异常
                 s.record_exception(exception=e)

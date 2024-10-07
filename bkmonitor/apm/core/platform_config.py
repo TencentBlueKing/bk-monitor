@@ -321,8 +321,3 @@ class PlatformConfig(BkCollectorConfig):
     @classmethod
     def get_license_config(cls):
         return {"name": "license_checker/common", **DEFAULT_PLATFORM_LICENSE_CONFIG}
-
-    @classmethod
-    def deploy_in_cluster_collector(cls):
-        """TODO 将平台配置下发到集群中的 bk-collector 作为 secret 存在"""
-        pass
