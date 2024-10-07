@@ -12,7 +12,8 @@ import functools
 
 from alarm_backends.core.storage.redis import Cache
 from apm_ebpf.apps import logger
-from apm_ebpf.handlers import Installer, WorkloadContent
+from apm_ebpf.handlers import Installer
+from apm_ebpf.handlers.workload import WorkloadContent
 from constants.apm import BkCollectorComp
 
 
