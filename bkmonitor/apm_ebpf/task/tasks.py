@@ -40,6 +40,7 @@ def ebpf_discover_cron():
     deepflow_checker = DeepflowInstaller.generator()
     collector_checker = BkCollectorInstaller.generator()
     for cluster_id, related_bk_biz_ids in cluster_mapping.items():
+        related_bk_biz_ids = list(related_bk_biz_ids)
         next(deepflow_checker)(cluster_id=cluster_id).check_installed()
         next(collector_checker)(cluster_id=cluster_id, related_bk_biz_ids=related_bk_biz_ids).check_installed()
 

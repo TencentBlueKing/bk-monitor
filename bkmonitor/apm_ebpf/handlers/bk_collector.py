@@ -13,7 +13,6 @@ import functools
 from alarm_backends.core.storage.redis import Cache
 from apm_ebpf.apps import logger
 from apm_ebpf.handlers import Installer
-from apm_ebpf.handlers.workload import WorkloadContent
 from constants.apm import BkCollectorComp
 
 
@@ -27,16 +26,12 @@ class BkCollectorInstaller(Installer):
         """
         检查集群是否安装了 bk-collector
         """
-        namespace = BkCollectorComp.NAMESPACE
-
-        found = False
-        deployments = self.list_deployments(namespace)
-        for deployment in deployments:
-            content = WorkloadContent.deployment_to(deployment)
-            if self.check_deployment(content, BkCollectorComp.DEPLOYMENT_NAME):
-                found = True
-
-        if found:
+        deploy = self._client_request(
+            self.k8s_client.api.read_namespaced_deployment,
+            name=BkCollectorComp.DEPLOYMENT_NAME,
+            namespace=BkCollectorComp.NAMESPACE,
+        )
+        if deploy:
             # 将集群添加进缓存中 由 apm.tasks 中定时任务来继续执行
             self.cache.sadd(BkCollectorComp.CACHE_KEY_CLUSTER_IDS, self._generate_value)
             logger.info(f"[BkCollectorInstaller] add {self.cluster_id} to cache")
@@ -50,4 +45,5 @@ class BkCollectorInstaller(Installer):
 
     @property
     def _generate_value(self):
-        return f"{self.cluster_id}:{','.join(self.related_bk_biz_ids)}"
+        related_bk_biz_id_str = ','.join(map(str, self.related_bk_biz_ids))
+        return f"{self.cluster_id}:{related_bk_biz_id_str}"

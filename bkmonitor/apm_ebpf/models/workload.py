@@ -46,10 +46,10 @@ class ClusterRelation(models.Model):
 
     @classmethod
     def all_cluster_ids(cls):
-        res = defaultdict(list)
+        res = defaultdict(set)
         for i in ClusterRelation.objects.all():
             # 正常来说集群只会关联一个 CC 业务 这里写松一点
-            res[i.cluster_id].append(i.related_bk_biz_id)
+            res[i.cluster_id].add(i.related_bk_biz_id)
         return res
 
 
