@@ -69,8 +69,10 @@ class ClusterConfig:
             p.lrange(BkCollectorComp.CACHE_KEY_CLUSTER_IDS, 0, -1)
             p.delete(BkCollectorComp.CACHE_KEY_CLUSTER_IDS)
             values = p.execute()
+        cluster_to_bk_biz_ids = values[0]
+
         res = {}
-        for i in values:
+        for i in cluster_to_bk_biz_ids:
             cluster_id, related_bk_biz_ids = cls._split_value(i)
             if cluster_id and related_bk_biz_ids:
                 res[cluster_id] = related_bk_biz_ids
