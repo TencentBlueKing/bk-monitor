@@ -25,6 +25,7 @@ from typing import Dict, List
 from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Count
+from django.db.models import Q as DQ
 from django.http import HttpResponse, HttpResponseRedirect
 from django.utils.translation import ugettext as _
 from elasticsearch_dsl import Q
@@ -140,7 +141,7 @@ class GetFtaStrategy(Resource):
 
         for sce, key_words in scenario.items():
             query = StrategyModel.objects.filter(
-                reduce(lambda x, y: x | y, (Q(name__icontains=key) for key in key_words))
+                reduce(lambda x, y: x | y, (DQ(name__icontains=key) for key in key_words))
             )
             query = query.filter(is_enabled=True)
             # 使用 values 和 annotate 来按 bk_biz_id 分组，然后计算每组的数量
