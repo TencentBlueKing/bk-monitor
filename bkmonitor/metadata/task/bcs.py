@@ -25,7 +25,7 @@ from metadata.models.bcs.resource import (
     PodMonitorInfo,
     ServiceMonitorInfo,
 )
-from metadata.utils.bcs import get_bcs_dataids
+from metadata.utils.bcs import change_cluster_router, get_bcs_dataids
 
 logger = logging.getLogger("metadata")
 
@@ -197,6 +197,14 @@ def discover_bcs_clusters():
                 # 更新业务ID
                 cluster.bk_biz_id = int(bk_biz_id)
                 update_fields.append("bk_biz_id")
+
+                # 若业务ID变更，其RT对应的业务ID也应一并变更
+                logger.info(
+                    "discover_bcs_clusters: cluster_id:{},project_id:{} change bk_biz_id to {}".format(
+                        cluster_id, project_id, int(bk_biz_id)
+                    )
+                )
+                change_cluster_router(cluster, old_bk_biz_id=cluster.bk_biz_id, new_bk_biz_id=int(bk_biz_id))
 
             # 如果project_id改动，需要更新集群信息
             if project_id != cluster.project_id:
