@@ -69,7 +69,7 @@
           <div class="icon-language-container">
             <span
               :class="{
-                'setting bk-icon icon-cog-shape': true,
+                'setting bk-icon icon-cog-shape icon-language-container': true,
                 active: isShowGlobalDialog || isShowGlobalDropdown
               }"
             ></span>
@@ -712,31 +712,28 @@ export default {
 
     .setting {
       position: relative;
-      margin-right: 10px;
       font-size: 15px;
       cursor: pointer;
 
       &::before {
         position: relative;
-        top: 1px;
         z-index: 999;
       }
 
       &.active,
       &:hover {
-        color: #fff;
+        color: #d3d9e4;
       }
 
       &.active::after,
       &:hover::after {
         position: absolute;
-        bottom: -8px;
         left: 50%;
         z-index: 99;
         width: 30px;
         height: 30px;
         content: '';
-        background: #3b475e;
+        background: linear-gradient(270deg, #253047, #263247);
         border-radius: 50%;
         transform: translateX(-50%);
       }
@@ -782,7 +779,7 @@ export default {
         @include flex-center;
 
         .icon-language {
-          font-size: 20px;
+          font-size: 18px;
 
           &.active,
           &:hover {
@@ -815,13 +812,16 @@ export default {
       cursor: pointer;
     }
 
-    .bk-dropdown-list {
-      .language-btn {
-        a {
-          display: flex;
-          align-items: center;
+      .bk-dropdown-list {
+        .language-btn {
+          a {
+            display: flex;
+            align-items: center;
+          }
+          .icon-language {
+            font-size: 18px;
+          }
         }
-      }
 
       .active {
         color: #3c96ff;
