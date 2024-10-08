@@ -198,7 +198,7 @@ class DutyBaseInfoSlz(serializers.ModelSerializer):
         if need_username:
             try:
                 user_list = api.bk_login.get_all_user(
-                    page_size=500, fields="username,display_name", exact_lookups=",".join(set(all_members))
+                    page_size=500, fields="username,display_name", exact_lookups=",".join(sorted(set(all_members)))
                 )["results"]
                 kwargs["user_list"] = {user["username"]: user["display_name"] for user in user_list}
             except BaseException as error:
@@ -911,7 +911,7 @@ class UserGroupDetailSlz(UserGroupSlz):
         user_ids = [user["id"] for user in users if user["type"] == "user"]
         try:
             user_list = api.bk_login.get_all_user(
-                page_size=500, fields="username,display_name", exact_lookups=",".join(set(user_ids))
+                page_size=500, fields="username,display_name", exact_lookups=",".join(sorted(set(user_ids)))
             )["results"]
             user_list = {user["username"]: user["display_name"] for user in user_list}
         except Exception as error:
