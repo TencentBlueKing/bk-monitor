@@ -219,7 +219,7 @@ class FlowMetricErrorRateCalculation(Calculation):
             return {"metrics": [], "series": []}
         all_ts = [i[-1] for i in metric_result["series"][0]["datapoints"]]
 
-        for i, item in enumerate(metric_result.get("series", [])):
+        for item in metric_result.get("series", []):
             if not item.get("datapoints"):
                 continue
 
@@ -263,7 +263,6 @@ class FlowMetricErrorRateCalculation(Calculation):
         }
 
     def instance_cal(self, metric_result):
-
         total = sum([i.get("_result_", 0) for i in metric_result])
         if not total:
             return 0
