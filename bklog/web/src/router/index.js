@@ -40,6 +40,22 @@ import store from '@/store';
 
 Vue.use(VueRouter);
 
+// 解决编程式路由往同一地址跳转时会报错的情况
+const originalPush = VueRouter.prototype.push;
+const originalReplace = VueRouter.prototype.replace;
+
+// push
+VueRouter.prototype.push = function push(location, onResolve, onReject) {
+  if (onResolve || onReject) return originalPush.call(this, location, onResolve, onReject);
+  return originalPush.call(this, location).catch(err => err);
+};
+
+// replace
+VueRouter.prototype.replace = function push(location, onResolve, onReject) {
+  if (onResolve || onReject) return originalReplace.call(this, location, onResolve, onReject);
+  return originalReplace.call(this, location).catch(err => err);
+};
+
 const LogCollectionView = {
   name: 'LogCollection',
   template: '<router-view></router-view>',
@@ -72,9 +88,9 @@ const DashboardTempView = {
   name: 'DashboardTempView',
   template: '<router-view></router-view>',
 };
-
-const retrieve = () => import(/* webpackChunkName: 'logRetrieve' */ '@/views/retrieve');
+const retrieve = () => import(/* webpackChunkName: 'logRetrieve' */ '@/views/retrieve-hub');
 const dashboard = () => import(/* webpackChunkName: 'dashboard' */ '@/views/dashboard');
+const playground = () => import('@/views/playground');
 
 // 管理端
 const Manage = () => import(/* webpackChunkName: 'manage' */ '@/views/manage');
@@ -1012,6 +1028,11 @@ const routes = [
       title: '授权列表',
       navId: 'external-auth',
     },
+  },
+  {
+    path: '/playground',
+    name: 'playground',
+    component: playground,
   },
   {
     path: '*',

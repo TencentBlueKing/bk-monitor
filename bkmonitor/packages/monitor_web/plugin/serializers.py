@@ -55,7 +55,9 @@ class CollectorPluginMixin(MetricJsonBaseSerializer):
         file_base64 = serializers.CharField(required=False, label="文件Base64")
         mode = serializers.ChoiceField(required=True, choices=PARAM_MODE_CHOICES, label="模式")
         type = serializers.ChoiceField(
-            required=True, choices=["text", "password", "switch", "file", "encrypt", "host", "service"], label="类型"
+            required=True,
+            choices=["text", "password", "switch", "file", "encrypt", "host", "service", "code", "list"],
+            label="类型",
         )
         name = serializers.CharField(required=True, label="名称")
         alias = serializers.CharField(required=False, allow_blank=True, default="", label="别名")
@@ -64,6 +66,9 @@ class CollectorPluginMixin(MetricJsonBaseSerializer):
         auth_json = serializers.ListField(required=False, label="认证信息")
         key = serializers.CharField(required=False, label="名称")
         required = serializers.BooleanField(required=False, label="是否必填", default=False)
+        election = serializers.ListField(required=False, label="列表选项")
+        theme = serializers.CharField(required=False, label="主题")
+        language = serializers.CharField(required=False, label="语言设置")
 
     config_json = ConfigJsonSeriliazer(required=False, many=True, default=[], label="采集配置")
     plugin_display_name = StrictCharField(required=True, allow_blank=True, label="插件别名")

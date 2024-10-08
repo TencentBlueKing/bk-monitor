@@ -84,6 +84,10 @@ export default defineComponent({
       type: Object as PropType<Span>,
       default: () => null,
     },
+    traceColumnFilters: {
+      type: Object as PropType<Record<string, string[]>>,
+      default: () => {},
+    },
   },
   emits: [
     'changeQuery',
@@ -194,6 +198,7 @@ export default defineComponent({
       appList,
       searchIdType,
       spanDetails,
+      traceColumnFilters,
     } = this.$props;
 
     /** 精确查询结果 traceInfo or spanDetails */
@@ -220,6 +225,7 @@ export default defineComponent({
             appList={appList}
             appName={this.appName}
             tableLoading={traceListTabelLoading}
+            traceColumnFilters={traceColumnFilters}
             onColumnFilterChange={val => this.handleColumnFilterChange(val)}
             onColumnSortChange={value => this.$emit('traceListColumnSortChange', value)}
             onInterfaceStatisticsChange={this.handleInterfaceStatisticsChange}

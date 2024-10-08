@@ -2710,12 +2710,13 @@ class ESStorage(models.Model, StorageResultTable):
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def _create_index_with_retry(self, es_client, new_index_name):
-        logger.info("Attempting to create index: %s", new_index_name)
+        # 判断index是否已经存在，如果存在则不创建
+        if es_client.indices.exists(index=new_index_name):
+            return
         try:
             response = es_client.indices.create(
                 index=new_index_name, body=self.index_body, params={"request_timeout": 30}
             )
-            logger.info("Successfully created index: %s with response: %s", new_index_name, response)
             return response
         except Exception as e:
             logger.error("Failed to create index: %s with error: %s", new_index_name, str(e))

@@ -121,7 +121,7 @@
           class="menu-select-extension-item"
           @mousedown.stop="experienceDemo"
         >
-          <span class="icon log-icon icon-app-store"></span>
+          <span class="icon bklog-icon bklog-app-store"></span>
           {{ $t('体验DEMO') }}
         </div>
       </div>
@@ -207,7 +207,7 @@
         return this.mySpaceList.find(item => item.space_uid === this.spaceUid)?.space_name;
       },
       bizNameIcon() {
-        return this.bizName[0].toLocaleUpperCase();
+        return this.bizName?.[0]?.toLocaleUpperCase() ?? '';
       },
       showSpaceTypeIdList() {
         // 外部版不展示空间分类
@@ -414,7 +414,6 @@
       align-items: center;
       height: 32px;
       padding: 0 4px 0 8px;
-      background-color: #2b354d;
       border-radius: 2px;
 
       &-name {
