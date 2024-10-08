@@ -564,6 +564,21 @@
             chartOption: this.chartOption,
           });
           const optionData = this.chartOptionInstance.getOptions(this.handleTransformSeries(series), {});
+          // optionData.options.xAxis.type = 'time';
+          Object.assign(optionData.options.xAxis, {
+            type: 'time',
+            // 设置最小刻度间隔为1秒
+            minInterval: 1000,
+            // 设置刻度最小值和最大值，可以根据具体需求调整
+            min: function (value) {
+              console.log('min value', value)
+                return new Date(value.min).getTime() - 1000;
+            },
+            max: function (value) {
+              console.log('max value', value)
+                return new Date(value.max).getTime() + 1000;
+            }
+          })
           optionData.options.xAxis.axisLine.show = false;
           optionData.options.xAxis.axisTick.show = false;
           optionData.options.yAxis.axisLine.show = false;
@@ -595,6 +610,8 @@
                 lazyUpdate: false,
                 silent: false,
               });
+
+              console.log('chart.setOption', this.chart)
               if (!this.hasInitChart) {
                 this.hasInitChart = true;
                 if (optionData.options.toolbox) {
