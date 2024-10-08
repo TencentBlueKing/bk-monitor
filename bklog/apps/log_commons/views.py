@@ -25,6 +25,7 @@ import requests
 from blueapps.account.decorators import login_exempt
 from django.conf import settings
 from django.http import JsonResponse
+from django.utils import translation
 from django.utils.translation import ugettext_lazy as _
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -53,7 +54,7 @@ from apps.log_commons.serializers import (
 from apps.utils.drf import list_route
 
 # 用户白皮书在文档中心的根路径
-DOCS_USER_GUIDE_ROOT = "日志平台"
+DOCS_USER_GUIDE_ROOT = f"LogSearch/{settings.VERSION[:3]}"
 
 DOCS_LIST = ["产品白皮书", "应用运维文档", "开发架构文档"]
 
@@ -62,6 +63,7 @@ DEFAULT_DOC = DOCS_LIST[0]
 
 @login_exempt
 def get_docs_link(request):
+    LANGUAGE = translation.get_language().upper() or "ZH"
     md_path = request.GET.get("md_path", "").strip("/")
     if not md_path:
         e = BaseCommonsException(_("md_path参数不能为空"))
@@ -70,9 +72,9 @@ def get_docs_link(request):
     docs_list = [str(i) for i in DOCS_LIST]
     if md_path.split("/", 1)[0] in docs_list:
         if not md_path.startswith(DOCS_USER_GUIDE_ROOT):
-            md_path = "/".join([DOCS_USER_GUIDE_ROOT, md_path])
+            md_path = "/".join([LANGUAGE, DOCS_USER_GUIDE_ROOT, md_path])
     else:
-        md_path = "/".join([DOCS_USER_GUIDE_ROOT, DEFAULT_DOC, md_path])
+        md_path = "/".join([LANGUAGE, DOCS_USER_GUIDE_ROOT, DEFAULT_DOC, md_path])
 
     doc_url = f"{settings.BK_DOC_URL.rstrip('/')}/markdown/{md_path.lstrip('/')}"
     return JsonResponse({"result": True, "code": 0, "message": "OK", "data": doc_url})
