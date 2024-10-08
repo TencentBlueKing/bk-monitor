@@ -120,7 +120,7 @@
             >
               <div id="content-copy-html">
                 <span
-                  class="icon log-icon icon-copy"
+                  class="icon bklog-icon bklog-copy"
                   @click="copyContent(item.key)"
                 ></span>
               </div>

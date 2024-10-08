@@ -1,0 +1,132 @@
+.retrieve-v2-index {
+  height: calc(100vh - 52px);
+
+  &.show-favorites {
+    .sub-head {
+      .box-favorites {
+        width: 100%;
+        background-color: #fafbfd;
+
+        .collet-label {
+          display: flex;
+          justify-content: space-between;
+          width: 100%;
+          padding: 0 16px;
+
+          .left-info {
+            .collect-title {
+              font-size: 14px;
+              color: #313238;
+            }
+
+            .collect-count {
+              display: inline-flex;
+              align-items: center;
+              height: 16px;
+              padding: 0 8px;
+              margin: 0 4px;
+
+              font-size: 12px;
+              line-height: 16px;
+              color: #979ba5;
+              text-align: center;
+              letter-spacing: 0;
+              background: #f0f1f5;
+              border-radius: 8px;
+            }
+
+            .collect-edit {
+              font-size: 16px;
+            }
+          }
+
+          .bklog-icon {
+            font-size: 22px;
+            transform: rotate(-90deg);
+          }
+        }
+      }
+    }
+
+    .retrieve-body {
+      position: relative;
+
+      .collect-favorites {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        box-shadow: 0 2px 4px 0 #1919290d;
+      }
+    }
+  }
+
+  .sub-head {
+    display: flex;
+    height: 48px;
+
+    .box-favorites {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      justify-content: center;
+      min-width: 94px;
+      height: 100%;
+      font-size: 14px;
+      color: #63656e;
+      cursor: pointer;
+
+      background: #ffffff;
+      box-shadow: 0 3px 4px 0 #4070cb0f;
+
+      .bklog-icon {
+        font-size: 22px;
+        transform: rotate(90deg);
+      }
+    }
+  }
+
+  .retrieve-body {
+    width: 100%;
+    height: calc(100vh - 104px);
+    padding: 8px;
+    background: #f5f7fa;
+
+    .retrieve-context {
+      height: 100%;
+
+      .result-row {
+        width: 100%;
+        height: 100%;
+        min-height: 120px;
+        margin-top: 8px;
+        background: #ffffff;
+        border-radius: 2px;
+        box-shadow: 0 2px 4px 0 #1919290d;
+
+        .search-result-panel {
+          .search-result-content {
+            .result-table-container {
+              height: 100%;
+              margin-top: 12px;
+              overflow: auto;
+            }
+
+            .finger-container {
+              height: calc(100vh - 370px);
+              margin-top: 12px;
+              overflow: auto;
+            }
+
+            &.is-trend-chart-show {
+              .result-table-container {
+                height: 100%;
+                overflow: auto;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

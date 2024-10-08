@@ -127,7 +127,7 @@
             <span>{{ row.download_status_display }}</span>
             <span
               v-if="row.download_status === 'failed'"
-              class="log-icon icon-info-fill"
+              class="bklog-icon bklog-info-fill"
               v-bk-tooltips="{
                 disabled: !row.task_process_info,
                 content: row.task_process_info,
@@ -202,7 +202,7 @@
           <list-box
             :mark="true"
             :title="sideSlider.data.task_process_info"
-            icon="log-icon icon-info-fill"
+            icon="bklog-icon bklog-info-fill"
           />
           <task-status-detail :status-data="sideSlider.data.task_step_status" />
           <download-url :task-id="sideSlider.data.task_id" />
@@ -639,7 +639,7 @@
         }
 
         &.mark {
-          .log-icon {
+          .bklog-icon {
             margin-right: 4px;
             font-size: 16px;
             color: #ea3636;
