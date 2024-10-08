@@ -58,7 +58,6 @@ def change_cluster_router(cluster, new_bk_biz_id, old_bk_biz_id):
 
     except Exception as e:  # pylint: disable=broad-except
         logger.error(f"Failed to change cluster router for cluster_id:{cluster.cluster_id}. Error: {e}")
-        return
 
 
 def get_bcs_dataids(bk_biz_ids: list = None, cluster_ids: list = None, mode: str = "both"):
