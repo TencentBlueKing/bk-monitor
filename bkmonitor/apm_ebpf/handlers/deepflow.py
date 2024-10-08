@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import functools
 import operator
 import re
 import typing
@@ -15,14 +16,13 @@ from dataclasses import dataclass
 
 from apm_ebpf.apps import logger
 from apm_ebpf.constants import DeepflowComp
-from apm_ebpf.handlers import Installer
-from apm_ebpf.handlers.kube import BcsKubeClient
 from apm_ebpf.handlers.provisioning import ApmEbpfProvisioning
 from apm_ebpf.handlers.workload import WorkloadContent, WorkloadHandler
 from apm_ebpf.utils import group_by
 from bk_dataview.provisioning import sync_data_sources
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
+from bkmonitor.utils.bcs import BcsKubeClient
 from core.drf_resource import api
 
 
@@ -42,9 +42,13 @@ class DeepflowDatasourceInfo:
         return True
 
 
-class DeepflowInstaller(Installer):
+class DeepflowInstaller:
     # 请求超时时间
     _REQUEST_TIMEOUT = 10
+
+    def __init__(self, cluster_id):
+        self.cluster_id = cluster_id
+        self.bcs_client = BcsKubeClient(self.cluster_id)
 
     def check_installed(self):
         """
@@ -66,6 +70,29 @@ class DeepflowInstaller(Installer):
             if self._check_service(content):
                 logger.info(f"[DeepflowInstaller] (cluster: {self.cluster_id})found valid service: {content.name}")
                 WorkloadHandler.upsert(self.cluster_id, DeepflowComp.NAMESPACE, content)
+
+    def list_deployments(self, namespace):
+        """获取命名空间下的 deployment"""
+        return self.bcs_client.client_request(self.bcs_client.api.list_namespaced_deployment, namespace=namespace)
+
+    def list_services(self, namespace):
+        """获取命名空间下的 service"""
+        return self.bcs_client.client_request(self.bcs_client.core_api.list_namespaced_service, namespace=namespace)
+
+    @classmethod
+    def check_deployment(cls, content, required_deployment):
+        """检查 deployment 中镜像名称是否和要求的一致"""
+        image_name = cls._exact_image_name(content.image)
+        return image_name == required_deployment
+
+    @classmethod
+    def _exact_image_name(cls, image):
+        return image.split("/")[-1].split(":")[0]
+
+    @classmethod
+    def generator(cls):
+        while True:
+            yield functools.partial(cls)
 
     def _check_deployment(self, content):
         # 对镜像名称进行匹配
@@ -200,8 +227,8 @@ class DeepflowHandler:
         """
         获取集群某个节点的访问IP
         """
-        k8s_client = BcsKubeClient(cluster_id)
-        nodes = k8s_client.core_api.list_node()
+        bcs_client = BcsKubeClient(cluster_id)
+        nodes = bcs_client.core_api.list_node()
 
         for node in nodes.items:
             if node.status.addresses:
@@ -230,7 +257,7 @@ class DeepflowHandler:
                 access_ip = get_cluster_access_ip_func(cluster_id)
             except Exception as e:
                 logger.warning(
-                    f"[DeepflowHandler][%s] failed to get node address: bcs_cluster_id -> %s, err -> %s",
+                    "[DeepflowHandler][%s] failed to get node address: bcs_cluster_id -> %s, err -> %s",
                     get_cluster_access_ip_func.__name__,
                     cluster_id,
                     e,
@@ -251,7 +278,7 @@ class DeepflowHandler:
         获取业务下所有集群列表
         """
         if not self.bk_biz_id:
-            logger.warning(f"unable to get cluster list because bk_biz_id is empty")
+            logger.warning("unable to get cluster list because bk_biz_id is empty")
             return []
 
         space_info = SpaceApi.get_space_detail(bk_biz_id=self.bk_biz_id)

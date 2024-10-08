@@ -9,16 +9,19 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import functools
+import logging
 
 from alarm_backends.core.storage.redis import Cache
-from apm_ebpf.apps import logger
-from apm_ebpf.handlers import Installer
+from bkmonitor.utils.bcs import BcsKubeClient
 from constants.apm import BkCollectorComp
 
+logger = logging.getLogger("apm_ebpf")
 
-class BkCollectorInstaller(Installer):
-    def __init__(self, cache, related_bk_biz_ids, *args, **kwargs):
-        super(BkCollectorInstaller, self).__init__(*args, **kwargs)
+
+class BkCollectorInstaller:
+    def __init__(self, cache, cluster_id, related_bk_biz_ids):
+        self.cluster_id = cluster_id
+        self.bcs_client = BcsKubeClient(self.cluster_id)
         self.cache = cache
         self.related_bk_biz_ids = related_bk_biz_ids
 
@@ -26,8 +29,8 @@ class BkCollectorInstaller(Installer):
         """
         检查集群是否安装了 bk-collector
         """
-        deploy = self._client_request(
-            self.k8s_client.api.read_namespaced_deployment,
+        deploy = self.bcs_client.client_request(
+            self.bcs_client.api.read_namespaced_deployment,
             name=BkCollectorComp.DEPLOYMENT_NAME,
             namespace=BkCollectorComp.NAMESPACE,
         )

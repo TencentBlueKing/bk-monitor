@@ -9,57 +9,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import base64
-import concurrent
 import gzip
 import logging
-from urllib.parse import urljoin
 
-from django.conf import settings
-from django.utils.functional import cached_property
 from kubernetes import client
-from kubernetes.client import ApiException
 
 from alarm_backends.core.storage.redis import Cache
+from bkmonitor.utils.bcs import BcsKubeClient
 from constants.apm import BkCollectorComp
 
 logger = logging.getLogger("apm")
-
-
-class BcsKubeClient:
-    # 请求超时时间
-    _REQUEST_TIMEOUT = 10
-
-    def __init__(self, cluster_id):
-        self.cluster_id = cluster_id
-
-    @property
-    def auth(self):
-        host = urljoin(
-            f"{settings.BCS_API_GATEWAY_SCHEMA}://{settings.BCS_API_GATEWAY_HOST}:{settings.BCS_API_GATEWAY_PORT}",
-            f"/clusters/{self.cluster_id}",
-        )
-        return client.Configuration(
-            host=host,
-            api_key={"authorization": settings.BCS_API_GATEWAY_TOKEN},
-            api_key_prefix={"authorization": "Bearer"},
-        )
-
-    @cached_property
-    def api(self):
-        return client.AppsV1Api(client.ApiClient(self.auth))
-
-    @cached_property
-    def core_api(self):
-        return client.CoreV1Api(client.ApiClient(self.auth))
-
-    @classmethod
-    def request(cls, client_api, **kwargs):
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            try:
-                response = executor.submit(client_api, **kwargs)
-                return response.result(cls._REQUEST_TIMEOUT)
-            except (concurrent.futures.TimeoutError, ApiException) as e:
-                logger.error(f"[BcsKubeClient] request api: {client_api} failed(params: {kwargs}), error: {e}")
 
 
 class ClusterConfig:
@@ -87,7 +46,7 @@ class ClusterConfig:
         b64_content = base64.b64encode(gzip_content)
 
         bcs_client = BcsKubeClient(cluster_id)
-        config_maps = BcsKubeClient.request(
+        config_maps = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_secret,
             namespace=BkCollectorComp.NAMESPACE,
             label_selector="component={},template=false,type={}".format(
@@ -108,7 +67,7 @@ class ClusterConfig:
 
             if need_update:
                 sec.data = {BkCollectorComp.SECRET_PLATFORM_CONFIG_FILENAME_NAME: b64_content}
-                BcsKubeClient.request(
+                bcs_client.client_request(
                     bcs_client.core_api.patch_namespaced_secret,
                     name=BkCollectorComp.SECRET_PLATFORM_NAME,
                     namespace=BkCollectorComp.NAMESPACE,
@@ -129,7 +88,7 @@ class ClusterConfig:
                 data={BkCollectorComp.SECRET_PLATFORM_CONFIG_FILENAME_NAME: b64_content},
             )
 
-            BcsKubeClient.request(
+            bcs_client.client_request(
                 bcs_client.core_api.create_namespaced_secret,
                 namespace=BkCollectorComp.NAMESPACE,
                 body=sec,
@@ -138,7 +97,7 @@ class ClusterConfig:
     @classmethod
     def platform_config_tpl(cls, cluster_id):
         bcs_client = BcsKubeClient(cluster_id)
-        config_maps = BcsKubeClient.request(
+        config_maps = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_config_map,
             namespace=BkCollectorComp.NAMESPACE,
             label_selector="component=bk-collector,template=true,type=platform",
@@ -155,7 +114,7 @@ class ClusterConfig:
     @classmethod
     def application_config_tpl(cls, cluster_id):
         bcs_client = BcsKubeClient(cluster_id)
-        config_maps = BcsKubeClient.request(
+        config_maps = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_config_map,
             namespace=BkCollectorComp.NAMESPACE,
             label_selector="component=bk-collector,template=true,type=subconfig",
