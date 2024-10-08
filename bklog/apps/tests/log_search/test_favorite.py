@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
-from apps.log_search.constants import FavoriteGroupType, FavoriteVisibleType
+from apps.log_search.constants import FavoriteGroupType, FavoriteVisibleType, SearchMode
 from apps.log_search.handlers.search.favorite_handlers import (
     FavoriteGroupHandler,
     FavoriteHandler,
@@ -60,6 +60,7 @@ CREATE_PRIVATE_FAVORITE_PARAMS = {
     "keyword": KEYWORD,
     "visible_type": FavoriteVisibleType.PRIVATE.value,
     "search_fields": SEARCH_FIELDS,
+    "search_mode": SearchMode.SQL.value,
     "is_enable_display_fields": True,
     "display_fields": DISPLAY_FIELDS,
 }
