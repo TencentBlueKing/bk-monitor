@@ -28,7 +28,7 @@ import type { RouteConfig } from 'vue-router';
 const Application = () => import(/* webpackChunkName: "application" */ '../../pages/application/application');
 const ApplicationDetail = () =>
   import(/* webpackChunkName: "application-detial" */ '../../pages/application/application-detail');
-const AppAdd = () => import(/* webpackChunkName: "AppAdd" */ '../../pages/application/app-add/app-add-new');
+const AppAdd = () => import(/* webpackChunkName: "AppAdd" */ '../../pages/home/add-app/add-app');
 const NoDataGuide = () => import(/* webpackChunkName: "NoDataGuide" */ '../../pages/application/app-add/no-data-guide');
 const AppConfig = () =>
   import(/* webpackChunkName: "applicationConfiguration" */ '../../pages/application/app-configuration/configuration');

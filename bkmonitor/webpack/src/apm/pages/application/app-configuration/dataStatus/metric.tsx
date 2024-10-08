@@ -374,7 +374,7 @@ export default class DataStatusMetric extends tsc<IProps> {
                         getData={this.getAlarmData}
                         isAdaption={false}
                         itemHeight={14}
-                        showHeader={true}
+                        showHeader={false}
                         showXAxis={true}
                         showXAxisNum={2}
                       />

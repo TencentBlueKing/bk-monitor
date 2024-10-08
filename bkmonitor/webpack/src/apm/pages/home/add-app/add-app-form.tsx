@@ -28,12 +28,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { checkDuplicateName, createApplication } from 'monitor-api/modules/apm_meta';
 
-import NavBar from '../../home/nav-bar';
-import { ETelemetryDataType } from '../app-configuration/type';
+import { ETelemetryDataType } from '../../application/app-configuration/type';
 
-import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
-
-import './app-add-new.scss';
+import './add-app-form.scss';
 
 interface FormData {
   ID: string;
@@ -41,26 +38,14 @@ interface FormData {
   desc: string;
 }
 
+interface IProps {
+  onCancel?: () => void;
+  onSuccess?: () => void;
+}
+
 @Component
-export default class AppAddNew extends tsc<object> {
+export default class AddAppForm extends tsc<IProps> {
   @Ref() addForm: any;
-
-  loading = false;
-  /** 面包屑数据 */
-  routeList: INavItem[] = [
-    // {
-    //   id: 'home',
-    //   name: 'APM',
-    // },
-    {
-      id: '',
-      name: window.i18n.tc('新建应用'),
-    },
-  ];
-
-  /** 应用名是否重名 */
-  existedName = false;
-
   list = [
     {
       id: ETelemetryDataType.metric,
@@ -126,13 +111,25 @@ export default class AppAddNew extends tsc<object> {
       },
     ],
   };
-
   saveLoading = false;
 
   /** 检查 应用名 是否重名 */
   async handleCheckDuplicateName(val: string) {
     const { exists } = await checkDuplicateName({ app_name: val }).catch(() => ({ exists: true }));
     return !exists;
+  }
+
+  initForm() {
+    this.formData = {
+      ID: '',
+      name: '',
+      desc: '',
+      [ETelemetryDataType.metric]: false,
+      [ETelemetryDataType.log]: true,
+      [ETelemetryDataType.trace]: false,
+      [ETelemetryDataType.profiling]: false,
+    };
+    this.addForm?.clearError?.();
   }
 
   /* 保存 */
@@ -159,137 +156,119 @@ export default class AppAddNew extends tsc<object> {
           theme: 'success',
           message: this.$t('保存成功'),
         });
-        this.handleCancel();
-      }
-      if (isAccess) {
-        // 跳转到接入服务页面
-        const routeData = this.$router.resolve({
-          name: 'service-add',
-          params: {
-            appName: this.formData.name as string,
-          },
-        });
-        window.location.href = routeData.href;
+        this.initForm();
+        this.$emit('success');
+        if (isAccess) {
+          // 跳转到接入服务页面
+          const routeData = this.$router.resolve({
+            name: 'service-add',
+            params: {
+              appName: this.formData.name as string,
+            },
+          });
+          window.location.href = routeData.href;
+        }
       }
     }
     this.saveLoading = false;
   }
 
   handleCancel() {
-    this.$router.back();
+    this.initForm();
+    this.$emit('cancel');
   }
 
   render() {
     return (
-      <div class='app-add-wrap'>
-        <NavBar
-          handlerPosition={'center'}
-          needBack={true}
-          routeList={this.routeList}
-        />
-        <div class='app-add-content'>
-          <div class='app-add-desc'>
-            <div class='app-add-question'>{this.$t('什么是应用？')}</div>
-            <div class='app-add-answer'>
-              {this.$t('应用一般是拥有独立的站点，由多个Service共同组成，提供完整的产品功能，拥有独立的软件架构。 ')}
-            </div>
-            <div class='app-add-answer'>
-              {this.$t(
-                '从技术方面来说应用是Trace数据的存储隔离，在同一个应用内的数据将进行统计和观测。更多请查看产品文档。'
-              )}
-            </div>
-          </div>
-          <div class='app-add-form-content'>
-            <bk-form
-              ref='addForm'
-              class='form-wrap'
-              form-type='vertical'
-              {...{
-                props: {
-                  model: this.formData,
-                  rules: this.rules,
-                },
-              }}
+      <div class='add-app-form-component'>
+        <bk-form
+          ref='addForm'
+          class='form-wrap'
+          form-type='vertical'
+          {...{
+            props: {
+              model: this.formData,
+              rules: this.rules,
+            },
+          }}
+        >
+          <bk-form-item
+            class='cluster-select-item'
+            error-display-type='normal'
+            label={this.$t('应用ID')}
+            property='ID'
+            required
+          >
+            <bk-input
+              class='input'
+              v-model={this.formData.ID}
+              maxlength={50}
+              placeholder={this.$t('1-50字符，由小写字母、数字、下划线(_)、中划线(-)组成')}
+            />
+          </bk-form-item>
+          <bk-form-item
+            error-display-type='normal'
+            label={this.$t('应用名')}
+            property='name'
+            required
+          >
+            <bk-input
+              class='input'
+              v-model={this.formData.name}
+              placeholder={this.$t('1-50字符')}
+            />
+          </bk-form-item>
+          <bk-form-item label={this.$t('描述')}>
+            <bk-input
+              class='input'
+              v-model={this.formData.desc}
+              maxlength='100'
+              type='textarea'
+            />
+          </bk-form-item>
+          <bk-form-item label={this.$t('数据上报')}>
+            {this.list.map(item => (
+              <div
+                key={item.id}
+                class='report-type-wrap'
+              >
+                <div class='report-left-content'>
+                  <i class={['icon-monitor', item.icon]} />
+                </div>
+                <div class='report-middle-content'>
+                  <span class='middle-content-title'>{item.title}</span>
+                  <span class='middle-content-text'>{item.content}</span>
+                </div>
+                <div class='report-right-content'>
+                  <bk-switcher
+                    v-model={this.formData[item.id]}
+                    size='small'
+                    theme='primary'
+                  />
+                </div>
+              </div>
+            ))}
+          </bk-form-item>
+          <bk-form-item>
+            <bk-button
+              class='mr-8'
+              loading={this.saveLoading}
+              theme='primary'
+              onClick={() => this.handleSave()}
             >
-              <bk-form-item
-                class='cluster-select-item'
-                error-display-type='normal'
-                label={this.$t('应用ID')}
-                property='ID'
-                required
-              >
-                <bk-input
-                  class='input'
-                  v-model={this.formData.ID}
-                  maxlength={50}
-                  placeholder={this.$t('1-50字符，由小写字母、数字、下划线(_)、中划线(-)组成')}
-                />
-              </bk-form-item>
-              <bk-form-item
-                error-display-type='normal'
-                label={this.$t('应用名')}
-                property='name'
-                required
-              >
-                <bk-input
-                  class='input'
-                  v-model={this.formData.name}
-                  placeholder={this.$t('1-50字符')}
-                />
-              </bk-form-item>
-              <bk-form-item label={this.$t('描述')}>
-                <bk-input
-                  class='input'
-                  v-model={this.formData.desc}
-                  maxlength='100'
-                  type='textarea'
-                />
-              </bk-form-item>
-              <bk-form-item label={this.$t('数据上报')}>
-                {this.list.map(item => (
-                  <div
-                    key={item.id}
-                    class='report-type-wrap'
-                  >
-                    <div class='report-left-content'>
-                      <i class={['icon-monitor', item.icon]} />
-                    </div>
-                    <div class='report-middle-content'>
-                      <span class='middle-content-title'>{item.title}</span>
-                      <span class='middle-content-text'>{item.content}</span>
-                    </div>
-                    <div class='report-right-content'>
-                      <bk-switcher
-                        v-model={this.formData[item.id]}
-                        size='small'
-                        theme='primary'
-                      />
-                    </div>
-                  </div>
-                ))}
-              </bk-form-item>
-              <bk-form-item>
-                <bk-button
-                  class='mr8'
-                  loading={this.saveLoading}
-                  theme='primary'
-                  onClick={() => this.handleSave()}
-                >
-                  {this.$t('保存')}
-                </bk-button>
-                <bk-button
-                  class='mr8'
-                  loading={this.saveLoading}
-                  theme='primary'
-                  onClick={() => this.handleSave(true)}
-                >
-                  {this.$t('保存并接入服务')}
-                </bk-button>
-                <bk-button onClick={this.handleCancel}>{this.$t('取消')}</bk-button>
-              </bk-form-item>
-            </bk-form>
-          </div>
-        </div>
+              {this.$t('保存')}
+            </bk-button>
+            <bk-button
+              class='mr-8'
+              loading={this.saveLoading}
+              theme='primary'
+              onClick={() => this.handleSave(true)}
+            >
+              {this.$t('保存并接入服务')}
+            </bk-button>
+            <bk-button onClick={this.handleCancel}>{this.$t('取消')}</bk-button>
+          </bk-form-item>
+        </bk-form>
       </div>
     );
   }
