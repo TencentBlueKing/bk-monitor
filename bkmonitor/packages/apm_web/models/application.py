@@ -810,12 +810,14 @@ class ApplicationRelationInfo(models.Model):
 
 
 class ApmMetaConfig(models.Model):
+    """业务/应用/服务通用配置"""
+
     BK_BIZ_LEVEL = "bk_biz_level"
     APPLICATION_LEVEL = "application_level"
     SERVICE_LEVEL = "service_level"
 
     config_level = models.CharField("配置级别", max_length=128)
-    level_key = models.CharField("配置目标key", max_length=30)
+    level_key = models.CharField("配置目标key", max_length=528)
     config_key = models.CharField("config key", max_length=255)
     config_value = JsonField("配置信息")
 
@@ -834,6 +836,14 @@ class ApmMetaConfig(models.Model):
         ).first()
 
     @classmethod
+    def get_service_config_value(cls, bk_biz_id, app_name, service_name, config_key):
+        return cls.objects.filter(
+            config_level=cls.SERVICE_LEVEL,
+            level_key=f"{bk_biz_id}-{app_name}-{service_name}",
+            config_key=config_key,
+        ).first()
+
+    @classmethod
     def application_config_setup(cls, application_id, config_key, config_value):
         return cls._setup(cls.APPLICATION_LEVEL, application_id, config_key, config_value)
 
@@ -842,8 +852,12 @@ class ApmMetaConfig(models.Model):
         return cls._setup(cls.BK_BIZ_LEVEL, bk_biz_id, config_key, config_value)
 
     @classmethod
-    def service_config_setup(cls, service_id, config_key, config_value):
-        return cls._setup(cls.SERVICE_LEVEL, service_id, config_key, config_value)
+    def service_config_setup(cls, bk_biz_id, app_name, service_name, config_key, config_value):
+        """
+        服务的元数据配置
+        因服务可能没有 id 所以 service_id 约定为 {bk_biz_id}-{app_name}-{service_name} 格式
+        """
+        return cls._setup(cls.SERVICE_LEVEL, f"{bk_biz_id}-{app_name}-{service_name}", config_key, config_value)
 
     @classmethod
     def _setup(cls, config_level, level_key, config_key, config_value):

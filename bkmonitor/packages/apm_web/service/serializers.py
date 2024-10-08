@@ -8,6 +8,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from django.utils.translation import ugettext_lazy as _
+from rest_framework import serializers
+
 from apm_web.constants import ServiceRelationLogTypeChoices
 from apm_web.models import (
     Application,
@@ -15,9 +18,6 @@ from apm_web.models import (
     CMDBServiceRelation,
     LogServiceRelation,
 )
-from django.utils.translation import ugettext_lazy as _
-from rest_framework import serializers
-
 from core.drf_resource import api
 
 
@@ -71,6 +71,7 @@ class ServiceConfigSerializer(serializers.Serializer):
     log_relation = LogServiceRelationSerializer(required=False, allow_null=True)
     apdex_relation = ServiceApdexConfigSerializer(required=False, allow_null=True)
     uri_relation = serializers.ListSerializer(required=False, allow_null=True, child=serializers.CharField())
+    labels = serializers.ListSerializer(required=False, allow_null=True, child=serializers.CharField())
 
 
 class LogServiceRelationOutputSerializer(serializers.ModelSerializer):
