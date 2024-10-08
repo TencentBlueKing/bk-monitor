@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 
 
 import logging
-from typing import Dict
+from typing import Dict, List
 
 from django.utils.translation import ugettext as _
 
@@ -99,7 +99,7 @@ class CorefileEvent(GSEBaseAlarmEventRecord):
 
         return self.raw_data["dimensions"]
 
-    def clean_dimension_fields(self) -> list[str]:
+    def clean_dimension_fields(self) -> List[str]:
         dimension_fields = super().clean_dimension_fields()
         dimension_fields.extend(["executable_path", "executable", "signal"])
         return dimension_fields
