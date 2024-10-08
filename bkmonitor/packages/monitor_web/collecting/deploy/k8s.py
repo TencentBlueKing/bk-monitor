@@ -15,7 +15,7 @@ from urllib.parse import urljoin
 
 import yaml
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from kubernetes import client as k8s_client
 from kubernetes import dynamic as k8s_dynamic
 
@@ -589,12 +589,24 @@ class K8sInstaller(BaseInstaller):
                 if kind.lower() in ["deployment", "statefulset"]:
                     replicas = result["status"]["replicas"]
                     ready_replicas = result["status"]["readyReplicas"]
-                    if replicas != ready_replicas:
+                    if replicas == ready_replicas:
+                        continue
+
+                    # 增加 deployment 超时判断
+                    for condition in result["status"].get("conditions", []):
+                        if condition["type"] == "Progressing" and condition["status"] == "False":
+                            status = "FAILED"
+                            log = _("部署超时，请检查配置是否正确。如果确认配置无误，请联系管理员")
+                            break
+                    else:
                         status = "RUNNING"
                         log = (
                             f"{kind}/{resource['metadata']['name']} is running, "
                             f"replicas: {replicas}, readyReplicas: {ready_replicas}"
                         )
+
+                    # 如果状态不正常，直接退出
+                    if status != "SUCCESS":
                         break
 
         return [
