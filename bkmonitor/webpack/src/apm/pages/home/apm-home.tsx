@@ -40,7 +40,7 @@ import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
 import authorityStore from '../../store/modules/authority';
-import AppNewAdd from '../application/app-new-add/app-new-add';
+import AddAppSide from './add-app/add-app-side';
 import AppHomeList from './components/apm-home-list';
 import ApmHomeResizeLayout from './components/apm-home-resize-layout';
 import NavBar from './nav-bar';
@@ -423,7 +423,7 @@ export default class AppList extends tsc<object> {
               >
                 <i class='icon-monitor icon-mc-add app-add-icon' />
               </div>
-              <AppNewAdd
+              <AddAppSide
                 isShow={this.isShowAppAdd}
                 onShowChange={v => this.handleToggleAppAdd(v)}
                 onSuccess={this.getAppList}
