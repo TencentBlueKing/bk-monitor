@@ -1858,7 +1858,7 @@ class NoDataStrategyInfoResource(Resource):
         telemetry_data_type = validated_request_data["telemetry_data_type"]
 
         if telemetry_data_type == TelemetryDataType.PROFILING.value:
-            return []
+            return {}
 
         # 获取应用
         try:
