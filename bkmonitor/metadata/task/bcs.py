@@ -204,6 +204,8 @@ def discover_bcs_clusters():
                         cluster_id, project_id, int(bk_biz_id)
                     )
                 )
+
+                # 变更对应的路由元信息
                 change_cluster_router(cluster, old_bk_biz_id=cluster.bk_biz_id, new_bk_biz_id=int(bk_biz_id))
 
             # 如果project_id改动，需要更新集群信息
