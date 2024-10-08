@@ -137,6 +137,7 @@
   import GlobalSettingDialog from '@/components/global-setting';
   import headNav from '@/components/nav/head-nav';
   import NoviceGuide from '@/components/novice-guide';
+  import { handleTransformToTimestamp } from '@/components/time-range/utils';
   import platformConfigStore from '@/store/modules/platform-config';
   import NoticeComponent from '@blueking/notice-component-vue2';
   import jsCookie from 'js-cookie';
@@ -247,6 +248,17 @@
 
       if (!this.isAsIframe) this.getUserGuide();
 
+      const defaultTime = localStorage.getItem('SEARCH_DEFAULT_TIME');
+      if (defaultTime) {
+        const datePickerValue = JSON.parse(defaultTime);
+        const timeList = handleTransformToTimestamp(datePickerValue);
+        this.$store.commit('updateIndexItemParams', {
+          datePickerValue,
+          start_time: timeList[0],
+          end_time: timeList[1],
+        });
+      }
+
       this.$store.state.isExternal = window.IS_EXTERNAL ? JSON.parse(window.IS_EXTERNAL) : false;
     },
     methods: {
@@ -279,7 +291,7 @@
       },
       getMenuIcon(item) {
         if (item.icon) {
-          return `bk-icon log-icon icon-${item.icon}`;
+          return `bk-icon bklog-icon bklog-${item.icon}`;
         }
 
         return 'bk-icon icon-home-shape';
@@ -742,6 +754,61 @@
     --table-fount-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
     --table-fount-size: 13px;
     --table-fount-color: #313238;
+  }
+
+  .bk-log-drag {
+    position: absolute;
+    top: 50%;
+    left: 242px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-items: center;
+    width: 6px;
+    height: 100px;
+    background-color: #dcdee5;
+    border-radius: 3px;
+    transform: translateY(-50%);
+
+    &::after {
+      position: absolute;
+      left: 2px;
+      width: 0;
+      height: 80px;
+      content: ' ';
+      border-left: 2px dotted white;
+    }
+
+    &:hover {
+      cursor: col-resize;
+    }
+  }
+
+  .bk-log-drag-simple {
+    position: absolute;
+    top: 50%;
+    right: -3px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-items: center;
+    width: 6px;
+    height: 22px;
+    border-radius: 3px;
+    transform: translateY(-50%);
+
+    &::after {
+      position: absolute;
+      left: 2px;
+      width: 0;
+      height: 100%;
+      content: ' ';
+      border-left: 2px dotted #63656e;
+    }
+
+    &:hover {
+      cursor: col-resize;
+    }
   }
 
   // .bk-label {
