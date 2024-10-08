@@ -19,10 +19,12 @@ class K8sPluginManager(BasePluginManager):
         """
         # 数据接入
         current_version = self.plugin.get_version(config_version, info_version)
-        return self._release(current_version, token, debug)
+        return self._release(current_version)
 
     def _release(
-        self, version: PluginVersionHistory, token: List[str] = None, debug: bool = True, data_label: str = None
+        self,
+        version: PluginVersionHistory,
+        skip_access=False,
     ) -> PluginVersionHistory:
         """
         插件发布
@@ -34,7 +36,8 @@ class K8sPluginManager(BasePluginManager):
             version.info.save()
 
         # 数据接入
-        PluginDataAccessor(version, self.operator, data_label=data_label).access()
+        if not skip_access:
+            PluginDataAccessor(version, self.operator, data_label=self.plugin.label).access()
 
         # 标记为已发布
         version.stage = PluginVersionHistory.Stage.RELEASE
@@ -62,5 +65,10 @@ class K8sPluginManager(BasePluginManager):
     def create_version(self, data) -> Tuple[PluginVersionHistory, bool]:
         version, _ = super().create_version(data)
         # 创建版本后直接发布
-        self._release(version, data_label=data.get("data_label", ""))
+        self._release(version)
+        return version, False
+
+    def update_version(self, data, target_config_version: int = None, target_info_version: int = None):
+        version, _ = super().update_version(data, target_config_version, target_info_version)
+        self._release(version, skip_access=True)
         return version, False
