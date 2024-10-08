@@ -14,12 +14,6 @@ setattr(local, "host_info_cache", {})
 class CmdbHostCache(CacheBase):
     CACHE_KEY = f"{CacheBase.CACHE_KEY_PREFIX}.cmdb.host_info"
     CACHE_TIMEOUT = TimeEnum.ONE_DAY_SECOND.value
-    # 空间集合
-    SPACE_UID_SET = None
-
-    @classmethod
-    def set_space_uid_set(cls, space_uid_set):
-        cls.SPACE_UID_SET = space_uid_set
 
     @classmethod
     def get(cls, bk_biz_id, host_key):
@@ -60,7 +54,7 @@ class CmdbHostCache(CacheBase):
         return result
 
     @classmethod
-    def refresh(cls):
+    def refresh(cls, uid_list=None):
         from apps.log_search.handlers.biz import BizHandler
 
         businesses = BizHandler.list()
@@ -74,10 +68,12 @@ class CmdbHostCache(CacheBase):
 
         for biz in businesses:
             bk_biz_id = biz["bk_biz_id"]
-            instance = Space.objects.filter(bk_biz_id=bk_biz_id).first()
-            if (instance is None) or (instance.space_uid not in cls.SPACE_UID_SET):
-                continue
             biz_ids.append(bk_biz_id)
+            # 有传入参数
+            if uid_list:
+                instance = Space.objects.filter(bk_biz_id=bk_biz_id).first()
+                if (instance is None) or (instance.space_uid not in uid_list):
+                    continue
             objs = {}
             try:
                 objs = cls.refresh_by_biz(bk_biz_id)
@@ -94,20 +90,25 @@ class CmdbHostCache(CacheBase):
             pipeline.expire(cls.CACHE_KEY, cls.CACHE_TIMEOUT)
             pipeline.execute()
 
-        old_biz_ids = {biz_id.decode() for biz_id in cls.cache.hkeys(biz_cache_key)}
-        new_biz_ids = {str(biz_id) for biz_id in biz_ids}
-        delete_biz_ids = old_biz_ids - new_biz_ids
-        if delete_biz_ids:
-            cls.cache.hdel(biz_cache_key, *delete_biz_ids)
-
-        cls.cache.expire(biz_cache_key, cls.CACHE_TIMEOUT)
-        # 清理业务下已被删除的对象数据
-        old_keys = {key.decode() for key in cls.cache.hkeys(cls.CACHE_KEY)}
-        deleted_keys = set(old_keys) - set(new_keys)
-        if deleted_keys:
-            cls.cache.hdel(cls.CACHE_KEY, *deleted_keys)
-        cls.cache.expire(cls.CACHE_KEY, cls.CACHE_TIMEOUT)
-        logger.info(
-            "cache_key({}) refresh CMDB data finished, amount: updated: {}, removed: {}, "
-            "removed_biz: {}".format(cls.CACHE_KEY, len(new_keys), len(deleted_keys), len(delete_biz_ids))
-        )
+        # uid_list是None
+        if not uid_list:
+            old_biz_ids = {biz_id.decode() for biz_id in cls.cache.hkeys(biz_cache_key)}
+            new_biz_ids = {str(biz_id) for biz_id in biz_ids}
+            delete_biz_ids = old_biz_ids - new_biz_ids
+            if delete_biz_ids:
+                cls.cache.hdel(biz_cache_key, *delete_biz_ids)
+            cls.cache.expire(biz_cache_key, cls.CACHE_TIMEOUT)
+            # 清理业务下已被删除的对象数据
+            old_keys = {key.decode() for key in cls.cache.hkeys(cls.CACHE_KEY)}
+            deleted_keys = set(old_keys) - set(new_keys)
+            if deleted_keys:
+                cls.cache.hdel(cls.CACHE_KEY, *deleted_keys)
+            cls.cache.expire(cls.CACHE_KEY, cls.CACHE_TIMEOUT)
+            logger.info(
+                "cache_key({}) refresh CMDB data finished, amount: updated: {}, removed: {}, "
+                "removed_biz: {}".format(cls.CACHE_KEY, len(new_keys), len(deleted_keys), len(delete_biz_ids))
+            )
+        else:
+            logger.info(
+                "cache_key({}) refresh CMDB data finished, amount: updated: {}".format(cls.CACHE_KEY, len(new_keys))
+            )

@@ -34,12 +34,13 @@ def refresh_cmdb():
             "index_set_id", flat=True
         )
     )
-    query = LogIndexSet.objects.filter(is_active=True)
-    searched = set(query.filter(index_set_id__in=index_set_ids).values_list("space_uid", flat=True))
-    all_space_uid = set(query.values_list("space_uid", flat=True))
+    space_uid_list = set(
+        LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True).values_list("space_uid", flat=True)
+    )
+    # 确保集合不为空，否则为None
+    space_uid_list = space_uid_list if space_uid_list else None
     current_hour = datetime.now().hour
     if current_hour % 12 != 0:
-        CmdbHostCache.set_space_uid_set(searched)
+        CmdbHostCache.refresh(space_uid_list)
     else:
-        CmdbHostCache.set_space_uid_set(all_space_uid)
-    CmdbHostCache.refresh()
+        CmdbHostCache.refresh()
