@@ -90,7 +90,7 @@ class CmdbHostCache(CacheBase):
             pipeline.expire(cls.CACHE_KEY, cls.CACHE_TIMEOUT)
             pipeline.execute()
 
-        # uid_list是None
+        # 不传参
         if not uid_list:
             old_biz_ids = {biz_id.decode() for biz_id in cls.cache.hkeys(biz_cache_key)}
             new_biz_ids = {str(biz_id) for biz_id in biz_ids}
