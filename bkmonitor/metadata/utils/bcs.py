@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 from typing import Dict, List, Optional
 
+from django.db import transaction
 from django.db.models import Q
 from django.db.models.query import QuerySet
 
@@ -31,19 +32,33 @@ def change_cluster_router(cluster, new_bk_biz_id, old_bk_biz_id):
     :return:
     """
     logger.info(
-        f"change_cluster_router: cluster_id:{cluster.cluster_id},new_bk_biz_id:{new_bk_biz_id},old_bk_biz_id:{old_bk_biz_id}"
+        f"change_cluster_router: cluster_id:{cluster.cluster_id}, new_bk_biz_id:{new_bk_biz_id}, old_bk_biz_id:{old_bk_biz_id}"
     )
-    # 使用filter过滤符合条件的ResultTable对象，并批量更新bk_biz_id字段
-    ResultTable.objects.filter(table_name_zh__contains=cluster.cluster_id).update(bk_biz_id=new_bk_biz_id)
 
-    # 更新DataSource中的space_uid
-    space_uid = f"bkcc__{new_bk_biz_id}"
-    DataSource.objects.filter(data_name__contains=cluster.cluster_id).update(space_uid=space_uid)
+    try:
+        with transaction.atomic():
+            # 使用filter过滤符合条件的ResultTable对象，并批量更新bk_biz_id字段
+            ResultTable.objects.filter(table_name_zh__contains=cluster.cluster_id).update(bk_biz_id=new_bk_biz_id)
 
-    data_ids = DataSource.objects.filter(data_name__contains=cluster.cluster_id).values_list("bk_data_id", flat=True)
-    # 还需删除旧的SpaceDataSource信息
-    SpaceDataSource.objects.filter(space_type_id='bkcc', space_id=old_bk_biz_id, bk_data_id__in=data_ids).delete()
-    logger.info(f"change_cluster_router: cluster_id:{cluster.cluster_id},space_uid:{space_uid} successfully")
+            # 更新DataSource中的space_uid
+            space_uid = f"{SpaceTypes.BKCC.value}__{new_bk_biz_id}"
+            DataSource.objects.filter(data_name__contains=cluster.cluster_id).update(space_uid=space_uid)
+
+            # 获取符合条件的DataSource的bk_data_id
+            data_ids = DataSource.objects.filter(data_name__contains=cluster.cluster_id).values_list(
+                "bk_data_id", flat=True
+            )
+
+            # 删除旧的SpaceDataSource信息
+            SpaceDataSource.objects.filter(
+                space_type_id=SpaceTypes.BKCC.value, space_id=old_bk_biz_id, bk_data_id__in=data_ids
+            ).delete()
+
+        logger.info(f"change_cluster_router: cluster_id:{cluster.cluster_id}, space_uid:{space_uid} successfully")
+
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(f"Failed to change cluster router for cluster_id:{cluster.cluster_id}. Error: {e}")
+        raise
 
 
 def get_bcs_dataids(bk_biz_ids: list = None, cluster_ids: list = None, mode: str = "both"):
