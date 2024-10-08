@@ -55,6 +55,10 @@ BASE_OP_MAP = {
     ">=": "gte",
     "<": "lt",
     "<=": "lte",
+    "is one of": "eq",
+    "is": "eq",
+    "is not one of": "ne",
+    "is not": "ne",
 }
 
 OP_TRANSFORMER = {

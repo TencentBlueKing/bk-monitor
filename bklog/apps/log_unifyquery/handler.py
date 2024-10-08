@@ -239,9 +239,9 @@ class UnifyQueryHandler(object):
         }
         return addition_return_value.get(operator, lambda: value)()
 
-    def _deal_addition(self, attrs, ip_field):
+    def _deal_addition(self, ip_field):
         addition_ip_list: list = []
-        addition: list = attrs.get("addition")
+        addition: list = self.search_params.get("addition")
         new_addition: list = []
         if not addition:
             return [], []
@@ -270,23 +270,23 @@ class UnifyQueryHandler(object):
             )
         return addition_ip_list, new_addition
 
-    def _combine_addition_ip_chooser(self, attrs, index_info):
+    def _combine_addition_ip_chooser(self, index_info):
         """
         合并ip_chooser和addition
-        :param attrs:   attrs
+        :param index_info:   attrs
         """
         ip_chooser_ip_list: list = []
         ip_chooser_host_id_list: list = []
-        ip_chooser: dict = attrs.get("ip_chooser")
+        ip_chooser: dict = self.search_params.get("ip_chooser")
         ip_field = "ip" if index_info["scenario_id"] in [Scenario.BKDATA, Scenario.ES] else "serverIp"
 
         if ip_chooser:
             ip_chooser_host_list = IPChooser(
-                bk_biz_id=attrs["bk_biz_id"], fields=CommonEnum.SIMPLE_HOST_FIELDS.value
+                bk_biz_id=self.bk_biz_id, fields=CommonEnum.SIMPLE_HOST_FIELDS.value
             ).transfer2host(ip_chooser)
             ip_chooser_host_id_list = [host["bk_host_id"] for host in ip_chooser_host_list]
             ip_chooser_ip_list = [host["bk_host_innerip"] for host in ip_chooser_host_list]
-        addition_ip_list, new_addition = self._deal_addition(attrs, ip_field)
+        addition_ip_list, new_addition = self._deal_addition(ip_field)
         if addition_ip_list:
             search_ip_list = addition_ip_list
         elif not addition_ip_list and ip_chooser_ip_list:
@@ -294,12 +294,12 @@ class UnifyQueryHandler(object):
         else:
             search_ip_list = []
 
-        final_fields_list = MappingHandlers(
+        final_fields_list, _ = MappingHandlers(
             index_set_id=index_info["index_set_id"],
             indices=index_info["origin_indices"],
             scenario_id=index_info["origin_scenario_id"],
             storage_cluster_id=index_info["storage_cluster_id"],
-            bk_biz_id=index_info["bk_biz_id"],
+            bk_biz_id=self.bk_biz_id,
             only_search=True,
         ).get_all_fields_by_index_id()
         field_type_map = {i["field_name"]: i["field_type"] for i in final_fields_list}
@@ -308,18 +308,18 @@ class UnifyQueryHandler(object):
         # 旧的采集器不会上报bk_host_id, 所以如果意外加入了这个条件会导致检索失败
         if include_bk_host_id and ip_chooser_host_id_list:
             new_addition.append({"field": "bk_host_id", "operator": "is one of", "value": ip_chooser_host_id_list})
-        new_addition.append({"field": ip_field, "operator": "is one of", "value": list(set(search_ip_list))})
+        if search_ip_list:
+            new_addition.append({"field": ip_field, "operator": "is one of", "value": list(set(search_ip_list))})
         # 当IP选择器传了模块,模版,动态拓扑但是实际没有主机时, 此时应不返回任何数据, 塞入特殊数据bk_host_id=0来实现
         if ip_chooser and not ip_chooser_host_id_list and not ip_chooser_ip_list:
             new_addition.append({"field": "bk_host_id", "operator": "is one of", "value": [0]})
-        attrs["addition"] = new_addition
-        return attrs
+        return new_addition
 
     def transform_additions(self, index_info):
         field_list = []
         condition_list = []
-        self.search_params: dict = self._combine_addition_ip_chooser(attrs=self.search_params, index_info=index_info)
-        for addition in self.search_params.get("addition", []):
+        new_addition = self._combine_addition_ip_chooser(index_info=index_info)
+        for addition in new_addition:
             # 全文检索key & 存量query_string转换
             if addition["field"] in ["*", "__query_string__"]:
                 value = addition["value"] if isinstance(addition["value"], list) else addition["value"].split(",")
