@@ -135,6 +135,10 @@ export default defineComponent({
       type: Array as PropType<IAppItem[]>,
       default: () => [],
     },
+    traceColumnFilters: {
+      type: Object as PropType<Record<string, string[]>>,
+      default: () => {},
+    },
   },
   emits: [
     'scrollBottom',
@@ -995,7 +999,13 @@ export default defineComponent({
       selectedInterfaceStatisticsType.value.length = 0;
       selectedServiceStatisticsType.value.length = 0;
       // 表头筛选重置
-      columnFilters.value = {};
+      const filters = (props.traceColumnFilters[v] || []).filter(item => item.value?.length > 0) || [];
+      const columnFiltersValue = filters.reduce((acc, item) => {
+        acc[item.key] = item.value;
+        return acc;
+      }, {});
+
+      columnFilters.value = filters.length > 0 ? columnFiltersValue : {};
       store.resetTable();
       emit('listTypeChange');
       getFilterValues();

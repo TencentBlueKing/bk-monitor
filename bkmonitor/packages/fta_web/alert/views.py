@@ -210,6 +210,7 @@ class AlertViewSet(ResourceViewSet):
         ),
         # 主机多指标异常检测告警详情图表
         ResourceRoute("GET", resource.alert.multi_anomaly_detect_graph, endpoint="alert/multi_anomaly_detect_graph"),
+        ResourceRoute("GET", resource.alert.get_fta_strategy, endpoint="alert/get_fta_strategy"),
     ]
 
 

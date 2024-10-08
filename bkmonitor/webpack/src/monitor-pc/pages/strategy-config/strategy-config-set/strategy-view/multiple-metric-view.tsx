@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { random } from 'monitor-common/utils';
+import { random, typeTools } from 'monitor-common/utils';
 import ChartWrapper from 'monitor-ui/chart-plugins/components/chart-wrapper';
 import { DEFAULT_INTERVAL } from 'monitor-ui/chart-plugins/constants';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -42,7 +42,9 @@ interface IProps {
   metrics?: MetricDetail[];
   strategyTarget?: any[];
   nearNum?: number;
+  dimensions?: Record<string, any>;
   refleshKey?: string;
+  onRefreshCharKey: () => void;
 }
 
 @Component
@@ -51,16 +53,17 @@ export default class MultipleMetricView extends tsc<IProps> {
   @Prop({ default: () => [], type: Array }) strategyTarget: any[];
   /* 近多条数据 */
   @Prop({ default: 20, type: Number }) nearNum: number;
+  /** 维度数据 */
+  @Prop({ default: () => ({}), type: Object }) dimensions: string;
   @Prop({ default: '', type: String }) refleshKey: string;
 
   panels = [];
   dashboardId = random(10);
 
-  created() {
-    this.initPanel();
-  }
+  @Emit('refreshCharKey')
+  handleRefreshCharView() {}
 
-  @Watch('refleshKey')
+  @Watch('refleshKey', { immediate: true })
   handleWatchRefleshKey() {
     this.initPanel();
   }
@@ -109,7 +112,24 @@ export default class MultipleMetricView extends tsc<IProps> {
           display: dataTypeLabel === 'alert',
         },
       ];
+      const fieldDictParams =
+        typeTools.isObject(this.dimensions) &&
+        Object.keys(this.dimensions).reduce(
+          (prev, key) => {
+            if (!typeTools.isNull(this.dimensions[key])) {
+              prev.fidldDict[key] = this.dimensions[key];
+              prev.hasFilter = true;
+            }
+            return prev;
+          },
+          {
+            fidldDict: {},
+            hasFilter: false,
+          }
+        );
+
       const queryConfigs = {
+        series_num: fieldDictParams?.hasFilter ? undefined : 20,
         expression: LETTERS[mIndex] || 'a',
         functions: [],
         target: this.strategyTarget || [],
@@ -124,7 +144,7 @@ export default class MultipleMetricView extends tsc<IProps> {
             where: agg_condition?.filter(item => item.key && item.value?.length) || [],
             interval: agg_interval || DEFAULT_INTERVAL,
             time_field: timeField || 'time',
-            filter_dict: {},
+            filter_dict: fieldDictParams.fidldDict || {},
             functions,
             target: this.strategyTarget || [],
           },
@@ -158,6 +178,7 @@ export default class MultipleMetricView extends tsc<IProps> {
     });
     this.panels = datas.map(data => new PanelModel(data as any));
     echartsConnect(this.dashboardId);
+    this.handleRefreshCharView();
   }
 
   destroyed() {

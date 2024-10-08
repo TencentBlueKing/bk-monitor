@@ -1,6 +1,14 @@
 .strategy-view {
   color: #63656e;
 
+  &-tool {
+    position: sticky;
+    top: 0;
+    z-index: 21;
+    background: #fff;
+    box-shadow: 0 2px 4px 0 #1919290d;
+  }
+
   &-content {
     padding: 6px 0 14px 0;
 
@@ -110,8 +118,6 @@
       color: #4e4e4e;
       white-space: wrap;
     }
-
-
   }
 
   .desc-content-wrap {

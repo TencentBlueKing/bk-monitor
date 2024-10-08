@@ -228,7 +228,7 @@ class Alarm(BaseContextObject):
         # 拓扑维度特殊处理
         display_dimensions = copy.deepcopy(self.display_dimensions)
 
-        dimension_string_list = []
+        dimension_lists = []
         if self.parent.alert.agg_dimensions:
             # 当存在agg_dimensions的顺序列表是，直接使用
             for dimension_key in self.parent.alert.agg_dimensions:
@@ -236,19 +236,22 @@ class Alarm(BaseContextObject):
                 dimension = display_dimensions.pop(dimension_key, None)
                 if not dimension:
                     continue
-                dimension_string_list.append(
-                    "{}={}".format(dimension.display_key or dimension_key, dimension.display_value or dimension.value)
+                dimension_lists.append(
+                    [dimension.display_key or dimension_key, dimension.display_value or dimension.value]
                 )
-            # 如果维度不在agg dimensions中，直接添加在最后
-            for dimension_key, dimension in display_dimensions.items():
-                dimension_string_list.append(
-                    "{}={}".format(dimension.display_key or dimension_key, dimension.display_value or dimension.value)
-                )
-        else:
-            # 兼容不存在这一属性的值
-            for d in self.display_dimensions.values():
-                dimension_string_list.append("{}={}".format(d.display_key or d.key, d.display_value or d.value))
-        return dimension_string_list
+
+        # 如果维度不在agg dimensions中，直接添加在最后
+        for dimension_key, dimension in display_dimensions.items():
+            dimension_lists.append([dimension.display_key or dimension_key, dimension.display_value or dimension.value])
+
+        # 如果是 markdown 类型的通知方式，维度值是url，需要转换为链接格式
+        if self.parent.notice_way in settings.MD_SUPPORTED_NOTICE_WAYS:
+            for dimension_list in dimension_lists:
+                value: str = str(dimension_list[1]).strip()
+                if value.startswith("http://") or value.startswith("https://"):
+                    dimension_list[1] = f"[{value}]({value})"
+
+        return ["{}={}".format(*dimension_list) for dimension_list in dimension_lists]
 
     @cached_property
     def chart_image(self):

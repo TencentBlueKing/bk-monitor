@@ -202,7 +202,7 @@ export default class ClusterPopover extends tsc<object> {
                   this.handleClick('show original', true);
                 }}
               >
-                <i class='bklog-icon bklog-jump'></i>
+                <i class='log-icon icon-jump'></i>
               </div>
             </div>
             {/* <div class='event-box'>
