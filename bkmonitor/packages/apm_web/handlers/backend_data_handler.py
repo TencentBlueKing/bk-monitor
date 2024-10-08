@@ -491,7 +491,9 @@ class MetricBackendHandler(BkdataCountMixIn, TelemetryBackendHandler):
                     "dimensions_translation": {},
                     "datapoints": datapoints,
                 }
-            ],
+            ]
+            if datapoints
+            else [],
         }
         return histograms
 
@@ -596,7 +598,9 @@ class ProfilingBackendHandler(BkdataCountMixIn, TelemetryBackendHandler):
                     "dimensions_translation": {},
                     "datapoints": datapoints,
                 }
-            ],
+            ]
+            if datapoints
+            else [],
         }
         return histograms
 
