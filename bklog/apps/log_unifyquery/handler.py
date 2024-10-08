@@ -153,7 +153,8 @@ class UnifyQueryHandler(object):
                             index_info["using_clustering_proxy"] = True
                             index_info["indices"] = clustering_config.clustered_rt
                 index_info_list.append(index_info)
-            raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
+            else:
+                raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
         return index_info_list
 
     def init_base_dict(self):
