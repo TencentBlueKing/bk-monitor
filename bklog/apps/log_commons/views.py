@@ -63,7 +63,7 @@ DEFAULT_DOC = DOCS_LIST[0]
 
 @login_exempt
 def get_docs_link(request):
-    LANGUAGE = translation.get_language().upper() or "ZH"
+    LANGUAGE = translation.get_language().upper()[:2] or "ZH"
     md_path = request.GET.get("md_path", "").strip("/")
     if not md_path:
         e = BaseCommonsException(_("md_path参数不能为空"))
