@@ -77,7 +77,7 @@ class OOMEvent(GSEBaseAlarmEventRecord):
         return _("发现OOM异常事件发生（进程:{}），共OOM次数{}次, 信息:{}").format(process, total, message)
 
     @property
-    def filter_dimensions(self) -> Dict:
+    def filter_dimensions(self) -> Dict[str, str]:
         dimensions = {
             "process": self.raw_data["_extra_"].get("process", ""),
             "message": self.raw_data["_extra_"].get("message", ""),

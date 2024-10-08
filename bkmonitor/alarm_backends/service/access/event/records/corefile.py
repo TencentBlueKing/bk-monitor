@@ -98,3 +98,8 @@ class CorefileEvent(GSEBaseAlarmEventRecord):
                 self.raw_data["dimensions"][k] = self.raw_data["_extra_"][k]
 
         return self.raw_data["dimensions"]
+
+    def clean_dimension_fields(self) -> list[str]:
+        dimension_fields = super().clean_dimension_fields()
+        dimension_fields.extend(["executable_path", "executable", "signal"])
+        return dimension_fields
