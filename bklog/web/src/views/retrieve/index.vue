@@ -262,15 +262,14 @@
     />
     <!-- 聚类设置全屏弹窗 -->
     <setting-modal
+      v-model="isShowSettingModal"
       :clean-config="cleanConfig"
       :config-data="clusteringData"
       :date-picker-value="datePickerValue"
       :index-set-item="indexSetItem"
-      :is-show-dialog="isShowSettingModal"
       :retrieve-params="retrieveParams"
       :select-choice="clickSettingChoice"
       :total-fields="totalFields"
-      @close-setting="isShowSettingModal = false"
       @update-log-fields="requestFields"
     />
     <!-- 收藏更新弹窗 -->
@@ -497,7 +496,7 @@
         isExternal: state => state.isExternal,
         externalMenu: state => state.externalMenu,
       }),
-      ...mapGetters(['asIframe', 'iframeQuery']),
+      ...mapGetters(['asIframe', 'iframeQuery', 'isNewRetrieveRoute']),
       ...mapGetters({
         authMainPageInfo: 'globals/authContainerInfo',
         unionIndexList: 'unionIndexList',
@@ -539,10 +538,26 @@
       },
       spaceUid: {
         async handler() {
+          // 当前改变目标是新版首页
+          if (this.isNewRetrieveRoute) {
+            this.$router.replace({
+              params: {
+                indexId: undefined,
+              },
+              query: {
+                spaceUid: this.spaceUid,
+                bizId: this.bkBizId,
+              },
+            });
+
+            return;
+          }
+
           this.indexId = '';
           this.indexSetList.splice(0);
           this.totalFields.splice(0);
           this.retrieveParams.bk_biz_id = this.bkBizId;
+
           // 外部版 无检索权限跳转后不更新页面数据
           if (!this.isExternal || (this.isExternal && this.externalMenu.includes('retrieve'))) {
             this.fetchPageData();
@@ -584,7 +599,6 @@
 
     // },
     beforeDestroy() {
-      console.log('--beforeDestroy');
       this.isInDestroy = true;
       updateTimezone();
       this.$store.commit('updateUnionIndexList', []);
@@ -704,7 +718,7 @@
       },
       // 初始化索引集
       requestIndexSetList() {
-        const spaceUid = this.$route.query.spaceUid && this.isFirstLoad ? this.$route.query.spaceUid : this.spaceUid;
+        const spaceUid = this.spaceUid;
         this.basicLoading = true;
         this.$http
           .request('retrieve/getIndexSetList', {
@@ -2100,7 +2114,10 @@
         // });
       },
       getHaveValueIndexItem(indexList) {
-        return indexList.find(item => !item.tags.map(item => item.tag_id).includes(4))?.index_set_id || indexList[0].index_set_id;
+        return (
+          indexList.find(item => !item.tags.map(item => item.tag_id).includes(4))?.index_set_id ||
+          indexList[0].index_set_id
+        );
       },
     },
   };
@@ -2382,4 +2399,3 @@
     }
   }
 </style>
-./condition-comp/select-index-set

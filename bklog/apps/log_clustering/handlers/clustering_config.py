@@ -260,7 +260,8 @@ class ClusteringConfigHandler(object):
                     clustering_config.access_finished = True
                     clustering_config.save(update_fields=["access_finished"])
                     result["access_finished"] = True
-                    return result
+                    if not include_update and not task_id:
+                        return result
                 else:
                     result["data_check"].update(status=self.AccessStatusCode.RUNNING, message=_("暂无数据"))
             except Exception as e:

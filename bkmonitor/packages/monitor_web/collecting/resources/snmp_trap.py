@@ -9,13 +9,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from monitor_web.plugin.constant import PluginType
-from monitor_web.plugin.manager import PluginManagerFactory
-
 from bkmonitor.utils import shortuuid
 from bkmonitor.views import serializers
 from core.drf_resource import resource
 from core.drf_resource.base import Resource
+from monitor_web.plugin.constant import PluginType
+from monitor_web.plugin.manager import PluginManagerFactory
 
 
 class GetTrapCollectorPluginResource(Resource):

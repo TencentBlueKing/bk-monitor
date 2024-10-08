@@ -615,7 +615,7 @@ class DataFlowHandler(BaseAiopsHandler):
                         "data_field_name": field["field_name"],
                         "roles": ["passthrough"],
                         "field_name": field["field_name"],
-                        "field_type": field["field_type"],
+                        "field_type": field["field_type"] if field["field_type"] != "text" else "string",
                         "properties": {"roles": [], "role_changeable": True},
                         "field_alias": field["field_alias"],
                     }
@@ -638,7 +638,7 @@ class DataFlowHandler(BaseAiopsHandler):
                         "data_field_name": field["field_name"],
                         "roles": ["passthrough"],
                         "field_name": field["field_name"],
-                        "field_type": field["field_type"],
+                        "field_type": field["field_type"] if field["field_type"] != "text" else "string",
                         "properties": {"roles": [], "role_changeable": True, "passthrough": True},
                         "field_alias": field["field_alias"],
                     }

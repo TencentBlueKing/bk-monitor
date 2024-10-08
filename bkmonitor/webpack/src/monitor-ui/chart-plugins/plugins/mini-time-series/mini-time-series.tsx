@@ -28,8 +28,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 
+import { getValueFormat } from '../../../monitor-echarts/valueFormats/valueFormats';
 import { type MonitorEchartOptions, echarts } from '../../typings/index';
-import { formatTimeUnitAndValue } from '../../utils/utils';
 
 import './mini-time-series.scss';
 
@@ -53,6 +53,7 @@ interface IProps {
   data?: [number, number][];
   valueTitle?: string;
   unit?: string;
+  unitDecimal?: number;
   showLastMarkPoint?: boolean;
   /* 以下参数为对比图专用 */
   compareX?: number;
@@ -76,6 +77,7 @@ export default class MiniTimeSeries extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) data: [number, number][];
   /* 单位 */
   @Prop({ type: String, default: '' }) unit: string;
+  @Prop({ type: Number, default: 2 }) unitDecimal: number;
   /* tips显示值标题 */
   @Prop({ type: String, default: window.i18n.tc('数量') }) valueTitle: string;
   /* 是否标记最后一个点并且右侧显示其值 */
@@ -85,6 +87,8 @@ export default class MiniTimeSeries extends tsc<IProps> {
     grid: {
       left: 6,
       right: 6,
+      bottom: 4,
+      top: 1,
     },
     xAxis: {
       show: false,
@@ -124,7 +128,6 @@ export default class MiniTimeSeries extends tsc<IProps> {
   hoverPoint = {
     isHover: false,
   };
-
   mounted() {
     this.initChart();
   }
@@ -226,8 +229,9 @@ export default class MiniTimeSeries extends tsc<IProps> {
     const seriesData = this.options.series[0].data || [];
     if (this.showLastMarkPoint && seriesData.length) {
       const lastItem = seriesData[seriesData.length - 1];
-      const valueItem = formatTimeUnitAndValue(lastItem.value[1], this.unit);
-      this.lastValue = `${valueItem.value}${valueItem.unit}`;
+      const valueFormatter = getValueFormat(this.unit);
+      const valueItem = valueFormatter(lastItem.value[1], this.unitDecimal);
+      this.lastValue = `${valueItem.text}${valueItem.suffix}`;
       markPointData.push({
         coord: [lastItem.value[0], lastItem.value[1]],
         symbol: 'circle',
@@ -277,10 +281,10 @@ export default class MiniTimeSeries extends tsc<IProps> {
       className: 'mini-time-series-chart-tooltip',
       formatter: params => {
         if (this.isMouseOver) {
-          const valueText = formatTimeUnitAndValue(params[0].value[1] || 0, this.unit);
+          const valueText = getValueFormat(this.unit)(params[0].value[1] || 0, this.unitDecimal);
           return `<div>
-          <div>${dayjs(params[0].value[0]).format('YYYY-MM-DD HH:mm:ss')}</div>
-          <div>${this.valueTitle}：${valueText.value}${valueText.unit}</div>
+          <div>${dayjs.tz(params[0].value[0]).format('YYYY-MM-DD HH:mm:ss')}</div>
+          <div>${this.valueTitle}：${valueText.text}${valueText.suffix}</div>
         </div>`;
         }
         return undefined;
@@ -327,7 +331,7 @@ export default class MiniTimeSeries extends tsc<IProps> {
           onMouseover={this.handleMouseover}
           onMouseup={this.handleMouseUp}
         />
-        {this.showLastMarkPoint && this.lastValue ? <span class='last-value'>{`${this.lastValue}`}</span> : undefined}
+        {this.showLastMarkPoint && this.lastValue ? <span class='last-value'>{this.lastValue}</span> : undefined}
       </div>
     );
   }

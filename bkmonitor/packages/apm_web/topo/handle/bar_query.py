@@ -113,10 +113,12 @@ class BarQuery(BaseQuery):
                 if error_count > 0:
                     # 致命级别优先级最高
                     res.append([[1, error_count], item[-1]])
-                elif info_count > 0 or warn_count > 0:
-                    res.append([[2, info_count + warn_count], item[-1]])
+                elif warn_count > 0:
+                    res.append([[2, warn_count], item[-1]])
+                elif info_count > 0:
+                    res.append([[3, info_count], item[-1]])
                 else:
-                    res.append([[3, 0], item[-1]])
+                    res.append([[4, 0], item[-1]])
 
         return {"metrics": [], "series": [{"datapoints": res}]}
 
@@ -253,7 +255,8 @@ class LinkHelper:
             f"from={start_time * 1000}&"
             f"to={end_time * 1000}&"
             f"dashboardId={dashboard_id}&"
-            f"filter-bk_instance_id={instance_name}"
+            f"filter-bk_instance_id={instance_name}&"
+            f"sceneId=apm_service&sceneType=detail"
         )
 
     @classmethod

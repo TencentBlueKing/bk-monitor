@@ -123,11 +123,17 @@ class PatternHandler:
         )
 
         signature_map_remark = {}
+        signature_map_remark_without_group = {}
+
         origin_pattern_map_remark = {}
+        origin_pattern_map_remark_without_group = {}
+
         for remark in clustering_remarks:
             signature_map_remark[(remark["signature"], remark["group_hash"])] = remark
+            signature_map_remark_without_group[remark["signature"]] = remark
             if remark["origin_pattern"]:
                 origin_pattern_map_remark[(remark["origin_pattern"], remark["group_hash"])] = remark
+                origin_pattern_map_remark_without_group[remark["signature"]] = remark
 
         result = []
         for pattern in pattern_aggs:
@@ -151,12 +157,21 @@ class PatternHandler:
                 [signature] + [str(group_dict.get(field, "")) for field in self._clustering_config.group_fields]
             )
 
+            # 优先从带分组的记录中查找备注
             if (signature, group_hash) in signature_map_remark:
                 remark = signature_map_remark[(signature, group_hash)]["remark"]
                 owners = signature_map_remark[(signature, group_hash)]["owners"]
             elif signature_origin_pattern and (signature_origin_pattern, group_hash) in origin_pattern_map_remark:
                 remark = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["remark"]
                 owners = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["owners"]
+            # 如果带分组的记录中没有找到备注，则退化为使用无分组的备注内容展示
+            elif signature in signature_map_remark_without_group:
+                remark = signature_map_remark_without_group[signature]["remark"]
+                owners = signature_map_remark_without_group[signature]["owners"]
+            elif signature_origin_pattern and signature_origin_pattern in origin_pattern_map_remark_without_group:
+                remark = origin_pattern_map_remark_without_group[signature_origin_pattern]["remark"]
+                owners = origin_pattern_map_remark_without_group[signature_origin_pattern]["owners"]
+            # 任意一种情况都不匹配
             else:
                 remark = []
                 owners = []
@@ -170,7 +185,7 @@ class PatternHandler:
                     "count": count,
                     "signature": signature,
                     "percentage": self.percentage(count, sum_count),
-                    "is_new_class": new_class_group_key in new_class,
+                    "is_new_class": new_class_group_key in new_class or (signature,) in new_class,
                     "year_on_year_count": year_on_year_compare,
                     "year_on_year_percentage": self._year_on_year_calculate_percentage(count, year_on_year_compare),
                     "group": group,
@@ -299,16 +314,28 @@ class PatternHandler:
             NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
         )
         if self._clustering_config.new_cls_strategy_output:
-            select_fields = NEW_CLASS_QUERY_FIELDS + self._clustering_config.group_fields
             # 新类异常检测逻辑适配
-            new_classes = (
-                BkData(self._clustering_config.new_cls_strategy_output)
-                .select(*select_fields)
-                .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
-                .where(IS_NEW_PATTERN_PREFIX, "=", 1)
-                .time_range(start_time.timestamp, end_time.timestamp)
-                .query()
-            )
+            try:
+                select_fields = NEW_CLASS_QUERY_FIELDS + self._clustering_config.group_fields
+                new_classes = (
+                    BkData(self._clustering_config.new_cls_strategy_output)
+                    .select(*select_fields)
+                    .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
+                    .where(IS_NEW_PATTERN_PREFIX, "=", 1)
+                    .time_range(start_time.timestamp, end_time.timestamp)
+                    .query()
+                )
+            except Exception:  # pylint: disable=broad-except
+                # 分组字段不存在导致查询失败时，退化到不按分组聚合
+                select_fields = NEW_CLASS_QUERY_FIELDS
+                new_classes = (
+                    BkData(self._clustering_config.new_cls_strategy_output)
+                    .select(*select_fields)
+                    .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
+                    .where(IS_NEW_PATTERN_PREFIX, "=", 1)
+                    .time_range(start_time.timestamp, end_time.timestamp)
+                    .query()
+                )
         else:
             select_fields = NEW_CLASS_QUERY_FIELDS
             new_classes = (

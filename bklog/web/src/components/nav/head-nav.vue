@@ -868,6 +868,10 @@
       }
     }
 
+    .icon-language {
+      font-size: 20px;
+    }
+
     .icon-chinese::before {
       content: '\e206';
     }

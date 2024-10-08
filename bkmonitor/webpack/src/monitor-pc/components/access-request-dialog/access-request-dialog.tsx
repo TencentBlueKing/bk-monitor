@@ -27,8 +27,8 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { fetchBusinessInfo } from 'monitor-api/modules/commons';
+import { skipToDocsLink } from 'monitor-common/utils/docs';
 
-import { handleGotoLink } from '../../common/constant';
 import { ETagsType } from '../biz-select/list';
 
 import './access-request-dialog.scss';
@@ -132,7 +132,7 @@ export default class AccessRequestDialog extends tsc<object> {
                 <span style='margin-right: 10px;'>3. {window.i18n.t('查看')}</span>
                 <bk-link
                   theme='primary'
-                  onClick={() => handleGotoLink('accessRequest')}
+                  onClick={() => skipToDocsLink('accessRequest')}
                 >
                   {window.i18n.t('权限申请文档')}
                 </bk-link>

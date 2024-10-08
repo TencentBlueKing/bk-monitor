@@ -853,8 +853,8 @@ class Alert:
         if self.is_new():
             if is_blocked:
                 # 当被流控的时候，还是上报策略, 没有策略的，按照告警名称来
-                metrics.Alert_QOS_COUNT.labels(strategy_id=self.strategy_id or self.alert_name, is_blocked="1").inc()
-            metrics.Alert_QOS_COUNT.labels(strategy_id=metrics.TOTAL_TAG, is_blocked="1" if is_blocked else "0").inc()
+                metrics.ALERT_QOS_COUNT.labels(strategy_id=self.strategy_id or self.alert_name, is_blocked="1").inc()
+            metrics.ALERT_QOS_COUNT.labels(strategy_id=metrics.TOTAL_TAG, is_blocked="1" if is_blocked else "0").inc()
 
         if is_blocked:
             # 被熔断，返回熔断日志

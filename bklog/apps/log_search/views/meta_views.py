@@ -155,7 +155,7 @@ class MetaViewSet(APIViewSet):
         """
         my_setting = copy.copy(mysetting(request))
         [my_setting.pop(key) for key in FILTER_KEY_LIST]
-        data = get_toggle_data()
+        data = get_toggle_data(request)
         return Response({**my_setting, **data})
 
     @list_route(methods=["GET"], url_path="projects/mine")

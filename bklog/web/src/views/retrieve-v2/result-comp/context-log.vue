@@ -562,7 +562,7 @@
     overflow: hidden;
 
     .dialog-log-markdown {
-      height: calc(100% - 190px);
+      height: calc(100% - 200px);
     }
 
     .handle-tips {

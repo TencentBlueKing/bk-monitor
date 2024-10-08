@@ -72,6 +72,7 @@ interface IFavoriteItem {
   is_enable_display_fields: boolean;
   search_fields_select_list?: any[];
   visible_option: any[];
+  search_mode: string;
   group_option: any[];
   params: Record<string, any>;
 }
@@ -561,6 +562,7 @@ export default class GroupDialog extends tsc<IProps> {
       // host_scopes: item.params.host_scopes,
       ip_chooser: item.params.ip_chooser,
       addition: item.params.addition,
+      search_mode: item.search_mode,
     }));
     try {
       await $http.request('favorite/batchFavoriteUpdate', {

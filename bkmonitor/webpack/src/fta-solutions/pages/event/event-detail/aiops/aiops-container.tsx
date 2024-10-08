@@ -30,6 +30,7 @@ import FuctionalDependency from '@blueking/functional-dependency/vue2';
 import { fetchAiSetting } from 'monitor-api/modules/aiops';
 import { dimensionDrillDown, metricRecommendation } from 'monitor-api/modules/alert';
 import { frontendReportEvent } from 'monitor-api/modules/commons';
+import { skipToDocsLink } from 'monitor-common/utils/docs';
 
 import DimensionTable from './dimension.table';
 import MetricsCollapse from './metrics-collapse';
@@ -385,7 +386,7 @@ export default class AiopsContainer extends tsc<IProps> {
     this.observer?.disconnect();
   }
   handleFunctionalDepsGotoMore() {
-    window.open(`${window.bk_docs_site_url}markdown/ZH/DeploymentGuides/7.1/index.md`, '_blank');
+    skipToDocsLink('bkDeploymentGuides');
   }
   render() {
     // if (!this.showDimensionDrill && !this.showMetricRecommendation) return <div />;

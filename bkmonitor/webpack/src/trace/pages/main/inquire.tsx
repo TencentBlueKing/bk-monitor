@@ -41,7 +41,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 // import TemporaryShare from '../../components/temporary-share/temporary-share';
 import * as authorityMap from 'apm/pages/home/authority-map';
-import { Button, Cascader, Dialog, Input, Loading, Popover, Radio } from 'bkui-vue';
+import { Button, Cascader, Dialog, Input, Popover, Radio } from 'bkui-vue';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
 import {
   getFieldOptionValues,
@@ -171,6 +171,9 @@ export default defineComponent({
     };
     getAppList();
     const timeRange = ref<TimeRangeType>(DEFAULT_TIME_RANGE);
+    const cacheTimeRange = ref('');
+    const enableSelectionRestoreAll = ref(true);
+    const showRestore = ref(false);
     const timezone = ref<string>(getDefaultTimezone());
     const refleshImmediate = ref<number | string>('');
     /* 此时间下拉加载时不变 */
@@ -189,6 +192,22 @@ export default defineComponent({
     ];
     const headerToolMenuList: ISelectMenuOption[] = [{ id: 'config', name: t('应用设置') }];
 
+    function handleChartDataZoom(value) {
+      if (JSON.stringify(timeRange.value) !== JSON.stringify(value)) {
+        cacheTimeRange.value = JSON.parse(JSON.stringify(timeRange.value));
+        timeRange.value = value;
+        showRestore.value = true;
+      }
+    }
+    function handleRestoreEvent() {
+      timeRange.value = JSON.parse(JSON.stringify(cacheTimeRange.value));
+      showRestore.value = false;
+    }
+    // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
+    provide('showRestore', showRestore);
+    provide('enableSelectionRestoreAll', enableSelectionRestoreAll);
+    provide('handleChartDataZoom', handleChartDataZoom);
+    provide('handleRestoreEvent', handleRestoreEvent);
     provide(TIME_RANGE_KEY, timeRange);
     provide(TIMEZONE_KEY, timezone);
     provide(REFLESH_INTERVAL_KEY, refleshInterval);

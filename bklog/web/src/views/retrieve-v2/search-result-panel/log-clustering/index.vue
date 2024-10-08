@@ -117,6 +117,7 @@
           @handle-scroll-is-show="handleScrollIsShow"
           @pagination-options="paginationOptions"
           @update-request="requestFinger"
+          @show-change="v => $emit('show-change', v)"
         />
       </template>
 
@@ -180,6 +181,7 @@
   import QuickOpenCluster from './components/quick-open-cluster-step/quick-open-cluster';
   import QuickClusterStep from './components/quick-open-cluster-step/quick-cluster-step';
   import Strategy from './components/strategy';
+  import { deepClone } from '../../../../common/util';
 
   export default {
     components: {
@@ -196,10 +198,6 @@
       retrieveParams: {
         type: Object,
         required: true,
-      },
-      clusterRouteParams: {
-        type: Object,
-        default: () => ({}),
       },
       height: {
         type: Number,
@@ -335,14 +333,14 @@
       isShowTopNav() {
         return this.exhibitAll && this.clusterSwitch && !this.isShowClusterStep;
       },
-      indexId() {
-        return this.$store.state.indexId;
-      },
       indexSetItem() {
-        return this.$store.state.IndexItem;
+        return this.$store.state.indexItem;
       },
       isSearchIng() {
         return this.$store.state.indexSetQueryResult?.is_loading || false;
+      },
+      clusterParams() {
+        return this.$store.state.clusterParams;
       },
     },
     watch: {
@@ -363,9 +361,9 @@
       },
       isSearchIng(v) {
         this.isClickSearch = true;
-        if (this.exhibitAll && v) this.requestFinger();
+        if (this.exhibitAll && !this.isInitPage && this.isClusterActive && v) this.requestFinger();
       },
-      indexId() {
+      routerIndexSet() {
         this.isShowClusterStep = true;
       },
       isShowClusterStep(v) {
@@ -397,12 +395,9 @@
           owner_config: 'all',
           owners: [],
         };
-        // url是否有缓存的值
-        const isNoRouteValue = JSON.stringify(this.clusterRouteParams) === '{}';
-        // 通过路由返回的值 初始化数据指纹的操作参数
-        if (this.isInitPage && !isNoRouteValue) {
-          this.active = this.clusterRouteParams.activeNav;
-          const paramData = this.clusterRouteParams.requestData;
+        // 通过路由返回的值 初始化数据指纹的操作参数 url是否有缓存的值
+        if (this.isInitPage && !!this.clusterParams) {
+          const paramData = deepClone(this.clusterParams);
           const findIndex = clusterLevel.findIndex(item => item === String(paramData.pattern_level));
           if (findIndex >= 0) patternLevel = findIndex + 1;
           Object.assign(queryRequestData, paramData, {
@@ -432,6 +427,7 @@
           });
         }
         Object.assign(this.requestData, queryRequestData);
+        this.$store.commit('updateClusterParams', this.requestData);
         this.isInitPage = false;
       },
       /**
@@ -462,10 +458,7 @@
           case 'requestData': // 数据指纹的请求参数
             Object.assign(this.requestData, val);
             // 数据指纹对请求参数修改过的操作将数据回填到url上
-            this.$emit('back-fill-cluster-route-params', 'clustering', {
-              activeNav: this.active,
-              requestData: this.requestData,
-            });
+            this.$store.commit('updateClusterParams', this.requestData);
             break;
           case 'fingerOperateData': // 数据指纹操作的参数
             Object.assign(this.fingerOperateData, val);
@@ -668,16 +661,17 @@
           this.startPolling();
           await this.clusterPolling();
           this.isFieldInit = false;
-          this.requestFinger();
         }
       },
     },
     activated() {
       this.isClusterActive = true;
-      if (this.isClickSearch) this.requestFinger(5);
+      if (this.isClickSearch && !this.isInitPage) this.requestFinger();
+      if (!this.isInitPage) this.$store.commit('updateClusterParams', this.requestData);
     },
     deactivated() {
       this.isClusterActive = false;
+      this.$store.commit('updateClusterParams', null);
       this.stopPolling(); // 停止状态轮询
     },
     beforeDestroy() {

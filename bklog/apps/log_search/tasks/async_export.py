@@ -26,6 +26,7 @@ import tarfile
 
 import arrow
 import pytz
+import ujson
 from celery.schedules import crontab
 from celery.task import periodic_task, task
 from django.conf import settings
@@ -253,7 +254,7 @@ class AsyncExportUtils(object):
         with open(self.file_path, "a+", encoding="utf-8") as f:
             result_list = self.search_handler._deal_query_result(result_dict=result).get("origin_log_list")
             for item in result_list:
-                f.write("%s\n" % json.dumps(item, ensure_ascii=False))
+                f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
             if self.search_handler.scenario_id == Scenario.ES:
                 generate_result = self.search_handler.scroll_result(result)
             else:
@@ -371,4 +372,4 @@ class AsyncExportUtils(object):
         for res in result:
             origin_result_list = res.get("origin_log_list")
             for item in origin_result_list:
-                f.write("%s\n" % json.dumps(item))
+                f.write("%s\n" % ujson.dumps(item))

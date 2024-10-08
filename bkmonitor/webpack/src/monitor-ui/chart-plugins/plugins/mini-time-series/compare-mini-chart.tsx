@@ -27,8 +27,8 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 
 import dayjs from 'dayjs';
 
+import { getValueFormat } from '../../../monitor-echarts/valueFormats/valueFormats';
 import { echarts } from '../../typings/index';
-import { formatTimeUnitAndValue } from '../../utils/utils';
 import MiniTimeSeries from './mini-time-series';
 
 export enum EPointType {
@@ -203,19 +203,19 @@ export default class CompareMiniChart extends MiniTimeSeries {
               return undefined;
             }
           }
-          const valueText = formatTimeUnitAndValue(value, this.unit);
+          const valueText = getValueFormat(this.unit)(value, this.unitDecimal);
           return `
         <div class="left-compare-type" style="background: ${timeTitle === compareTitleText ? '#7B29FF' : '#FFB848'};"></div>
         <div>
-          <div>${timeTitle}：${dayjs(time).format('YYYY-MM-DD HH:mm:ss')}</div>
-          <div>${this.valueTitle}：${valueText.value}${valueText.unit}</div>
+          <div>${timeTitle}：${dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss')}</div>
+          <div>${this.valueTitle}：${valueText.text}${valueText.suffix}</div>
         </div>`;
         }
         if (this.isMouseOver) {
-          const valueText = formatTimeUnitAndValue(params[0].value[1] || 0, this.unit);
+          const valueText = getValueFormat(this.unit)(params[0].value[1] || 0, this.unitDecimal);
           return `<div>
-          <div>${dayjs(params[0].value[0]).format('YYYY-MM-DD HH:mm:ss')}</div>
-          <div>${this.valueTitle}：${valueText.value}${valueText.unit}</div>
+          <div>${dayjs.tz(params[0].value[0]).format('YYYY-MM-DD HH:mm:ss')}</div>
+          <div>${this.valueTitle}：${valueText.text}${valueText.suffix}</div>
         </div>`;
         }
         return undefined;
@@ -261,8 +261,8 @@ export default class CompareMiniChart extends MiniTimeSeries {
     const seriesData = this.options.series[0].data || [];
     if (this.showLastMarkPoint && seriesData.length) {
       const lastItem = seriesData[seriesData.length - 1];
-      const valueItem = formatTimeUnitAndValue(lastItem.value[1], this.unit);
-      this.lastValue = `${valueItem.value}${valueItem.unit}`;
+      const valueItem = getValueFormat(this.unit)(lastItem.value[1], this.unitDecimal);
+      this.lastValue = `${valueItem.text}${valueItem.suffix}`;
       markPointData.push({
         coord: [lastItem.value[0], lastItem.value[1]],
         symbol: 'circle',

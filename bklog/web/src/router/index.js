@@ -90,6 +90,7 @@ const DashboardTempView = {
 };
 const retrieve = () => import(/* webpackChunkName: 'logRetrieve' */ '@/views/retrieve-hub');
 const dashboard = () => import(/* webpackChunkName: 'dashboard' */ '@/views/dashboard');
+const playground = () => import('@/views/playground');
 
 // 管理端
 const Manage = () => import(/* webpackChunkName: 'manage' */ '@/views/manage');
@@ -1027,6 +1028,11 @@ const routes = [
       title: '授权列表',
       navId: 'external-auth',
     },
+  },
+  {
+    path: '/playground',
+    name: 'playground',
+    component: playground,
   },
   {
     path: '*',

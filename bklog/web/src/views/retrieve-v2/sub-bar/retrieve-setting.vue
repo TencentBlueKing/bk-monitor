@@ -142,9 +142,12 @@
 
   const handlePopShow = val => {
     isPopoverShow.value = val;
-    console.log('isPopoverShow', isPopoverShow.value)
     return true;
-  }
+  };
+
+  const arrowClassName = computed(() => {
+    return isPopoverShow.value ? 'bk-icon icon-angle-up' : 'bk-icon icon-angle-down';
+  });
 
   watch(
     [indexSetItem, clusterIsActive, storeIsShowClusterStep],
@@ -172,6 +175,10 @@
     <slot name="trigger">
       <div class="more-operation">
         <span class="bklog-icon">{{ $t('设置') }}</span>
+        <span
+          class="setting-icon"
+          :class="arrowClassName + ' bklog-select-arrow'"
+        ></span>
       </div>
     </slot>
     <template #content>
@@ -193,3 +200,14 @@
     </template>
   </bk-popover>
 </template>
+<style lang="scss">
+  .more-operation {
+    padding: 5px 10px 5px 14px;
+    border: 1px solid #c4c6cc;
+    border-radius: 2px;
+
+    .setting-icon {
+      font-size: 20px;
+    }
+  }
+</style>
