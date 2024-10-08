@@ -67,10 +67,10 @@ from apm_web.utils import (
     Calculator,
     fill_series,
     get_bar_interval_number,
-    group_by,
     handle_filter_fields,
 )
 from bkmonitor.share.api_auth_resource import ApiAuthResource
+from bkmonitor.utils import group_by
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import get_datetime_range
