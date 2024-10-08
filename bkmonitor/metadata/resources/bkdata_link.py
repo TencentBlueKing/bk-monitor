@@ -160,8 +160,7 @@ class QueryDataLinkInfoResource(Resource):
                 }
             )
         except Exception as e:  # pylint: disable=broad-except
-            logger.error("QueryDataLinkInfoResource: get bk_data_id etl infos error: %s", e)
-            etl_infos.update({'状态': '集群配置获取异常'})
+            etl_infos.update({'status': '集群配置获取异常', 'info': str(e)})
         return etl_infos
 
     def _get_table_ids_details(self, table_ids):
@@ -207,9 +206,7 @@ class QueryDataLinkInfoResource(Resource):
                     )
 
             except Exception as e:  # pylint: disable=broad-except
-                logger.error(
-                    "QueryDataLinkInfoResource: failed to get table_id({}) details, error: {}".format(table_id, e)
-                )
+                table_ids_details[table_id] = {'status': '查询异常', 'info': str(e)}
 
         return table_ids_details
 
@@ -314,13 +311,11 @@ class QueryDataLinkInfoResource(Resource):
                         }
                     )
                 else:
-                    error_rt_detail_router_infos.append({table_id: {"路由信息": "路由正常"}})
+                    error_rt_detail_router_infos.append({table_id: {"status": "路由正常"}})
             except models.TimeSeriesGroup.DoesNotExist as e:
-                logger.error("Failed to get table_id({}) details, error: {}".format(table_id, e))
-                error_rt_detail_router_infos.append({table_id: {"路由信息": "时序分组不存在"}})
+                error_rt_detail_router_infos.append({table_id: {'status': "时序分组不存在", "info": str(e)}})
             except Exception as e:  # pylint: disable=broad-except
-                logger.error("Failed to get table_id({}) details, error: {}".format(table_id, e))
-                error_rt_detail_router_infos.append({table_id: {"路由信息": "存在异常"}})
+                error_rt_detail_router_infos.append({table_id: {"status": "查询异常", "info": str(e)}})
         return error_rt_detail_router_infos
 
     def _check_space_to_result_table_router(self, table_ids, authorized_space_uids):
@@ -358,8 +353,7 @@ class QueryDataLinkInfoResource(Resource):
                             }  # 由于不存在，filters 设置为 None 并标记状态为异常，需要额外检查
                         )
             except Exception as e:
-                logger.error("Failed to get table_id({}) details, error: {}".format(item, e))
-                space_to_result_table_router_infos[item] = [{'status': '空间路由信息不存在/异常'}]
+                space_to_result_table_router_infos[item] = [{'status': '空间路由信息不存在/异常', 'info': str(e)}]
                 continue
 
         return space_to_result_table_router_infos
