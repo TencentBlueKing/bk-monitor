@@ -397,11 +397,13 @@ class BulkAddAlertShieldResource(AddShieldResource):
                 target_dimensions = target_dimension_config[str(alert.id)]
 
             dimension_config = {}
+            shield_dimensions = []
             for dimension in alert.dimensions:
                 dimension_data = dimension.to_dict()
                 # 未标记编辑维度， 则所有维度都配置， 编辑了维度， 仅配置保留的维度。
                 if target_dimensions is None or dimension_data["key"] in target_dimensions:
                     dimension_config[dimension_data["key"]] = dimension_data["value"]
+                    shield_dimensions.append(dimension)
             dimension_config.update(
                 # 下划线的配置，不参与屏蔽逻辑。
                 {
@@ -409,7 +411,7 @@ class BulkAddAlertShieldResource(AddShieldResource):
                     "strategy_id": alert.strategy_id,
                     "_severity": alert.severity,
                     "_alert_message": getattr(alert.event, "description", ""),
-                    "_dimensions": AlertDimensionFormatter.get_dimensions_str(alert.dimensions),
+                    "_dimensions": AlertDimensionFormatter.get_dimensions_str(shield_dimensions),
                 }
             )
             alert_documents.append(AlertDocument(id=alert.id, is_shielded=True, update_time=now_time))

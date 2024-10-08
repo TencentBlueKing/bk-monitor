@@ -61,7 +61,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
       }
       const index = tableThArr.findIndex(target => item.target === target);
       if (index >= 0) {
-        const value = typeof v !== undefined ? v : null;
+        const value = typeof v !== 'undefined' ? v : null;
         list[index] = {
           value,
           originValue: value,
@@ -131,9 +131,19 @@ export interface IIableTdArrItem {
  * @param tableTdArr 表格数据
  */
 export const transformTableDataToCsvStr = (tableThArr: string[], tableTdArr: Array<IIableTdArrItem[]>): string => {
-  const csvList: string[] = [tableThArr.join(',')];
+  const csvList: string[] = [
+    tableThArr
+      .map(item => {
+        if (item.includes(',') || item.includes('"')) {
+          item = item.replace(/"/g, '""'); // 转义双引号
+          return `"${item}"`;
+        }
+        return item;
+      })
+      .join(','),
+  ];
   tableTdArr.forEach(row => {
-    const rowString = row.reduce((str, item, index) => str + (!!index ? ',' : '') + item.value, '');
+    const rowString = row.reduce((str, item, index) => str + (index ? ',' : '') + item.value, '');
     csvList.push(rowString);
   });
   const csvString = csvList.join('\n');
@@ -144,8 +154,7 @@ export const transformTableDataToCsvStr = (tableThArr: string[], tableTdArr: Arr
  * @param csvStr csv字符串
  */
 export const downCsvFile = (csvStr: string, name = 'csv-file.csv') => {
-  csvStr = `\ufeff${csvStr}`;
-  const blob = new Blob([csvStr], { type: 'text/csv,charset=UTF-8' });
+  const blob = new Blob([`\ufeff${csvStr}`], { type: 'text/csv,charset=UTF-8' });
   const href = window.URL.createObjectURL(blob);
   downFile(href, name);
 };

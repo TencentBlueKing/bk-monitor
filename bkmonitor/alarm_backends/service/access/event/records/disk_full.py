@@ -114,3 +114,8 @@ class DiskFullEvent(GSEBaseAlarmEventRecord):
             "file_system": data.get("file_system", ""),
             "fstype": data.get("fstype", ""),
         }
+
+    def clean_dimension_fields(self):
+        dimension_fields = super().clean_dimensions()
+        dimension_fields.extend(["file_system", "fstype", "disk"])
+        return dimension_fields

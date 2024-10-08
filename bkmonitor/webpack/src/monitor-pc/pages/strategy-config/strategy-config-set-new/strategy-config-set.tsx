@@ -1581,12 +1581,12 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
 
   handleMouseDown(e) {
     const node = e.target;
-    const { parentNode } = node;
+    const { nextElementSibling } = node;
 
-    if (!parentNode) return;
+    if (!nextElementSibling) return;
 
     const nodeRect = node.getBoundingClientRect();
-    const rect = parentNode.getBoundingClientRect();
+    const rect = nextElementSibling.getBoundingClientRect();
     document.onselectstart = () => false;
     document.ondragstart = () => false;
     this.strategyView.isActive = true;
@@ -2443,6 +2443,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
    */
   handleSceneConfigMetricChange(metrics) {
     this.multivariateAnomalyDetectionParams.metrics = metrics;
+  }
+  handleMultivariateAnomalyRefreshView() {
     /* refleshKey用于控制图表数据刷新 */
     this.multivariateAnomalyDetectionParams.refleshKey = random(8);
   }
@@ -2743,13 +2745,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
             class='set-content-right'
           >
             <div
+              class={['drag', { active: this.strategyView.isActive }]}
+              on-mousedown={this.handleMouseDown}
+            />
+            <div
               style={{ width: this.rightWidth }}
               class='right-wrapper'
             >
-              <div
-                class={['drag', { active: this.strategyView.isActive }]}
-                on-mousedown={this.handleMouseDown}
-              />
               <StrategyView
                 activeModelMd={this.activeModelIndex}
                 aiopsChartType={this.localAiopsChartType}
@@ -2766,6 +2768,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 multivariateAnomalyDetectionParams={this.multivariateAnomalyDetectionParams}
                 sourceData={this.sourceData}
                 strategyTarget={this.strategyTarget}
+                onMultivariateAnomalyRefreshView={this.handleMultivariateAnomalyRefreshView}
               />
             </div>
           </div>
