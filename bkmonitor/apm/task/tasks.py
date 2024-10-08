@@ -30,7 +30,8 @@ from apm.core.discover.base import TopoHandler
 from apm.core.discover.precalculation.consul_handler import ConsulHandler
 from apm.core.discover.precalculation.storage import PrecalculateStorage
 from apm.core.discover.profile.base import DiscoverHandler as ProfileDiscoverHandler
-from apm.core.handlers.application_hepler import ApplicationHelper
+
+# from apm.core.handlers.application_hepler import ApplicationHelper
 from apm.core.handlers.bk_data.tail_sampling import TailSamplingFlow
 from apm.core.handlers.bk_data.virtual_metric import VirtualMetricFlow
 from apm.core.platform_config import PlatformConfig
@@ -183,14 +184,14 @@ def post_deploy_bk_collector():
                     # 如果集群中不存在 bk-collector 的平台配置模版，则不下发
                     continue
 
-                bk_biz_id = cc_bk_biz_ids[0]
-                if len(cc_bk_biz_ids) != 1:
-                    logger.warning(
-                        f"[post-deploy-bk_collector] cluster_id: {cluster_id} record multiple bk_biz_id!",
-                    )
+                # bk_biz_id = cc_bk_biz_ids[0]
+                # if len(cc_bk_biz_ids) != 1:
+                #     logger.warning(
+                #         f"[post-deploy-bk_collector] cluster_id: {cluster_id} record multiple bk_biz_id!",
+                #     )
 
                 # Step1: 创建默认应用
-                default_application = ApplicationHelper.create_default_application(bk_biz_id)
+                # default_application = ApplicationHelper.create_default_application(bk_biz_id)
 
                 # Step2: 往集群的 bk-collector 下发配置
                 platform_config_context = PlatformConfig.get_platform_config()
@@ -198,7 +199,7 @@ def post_deploy_bk_collector():
                 platform_config = tpl.render(platform_config_context)
                 ClusterConfig.deploy_platform_config(cluster_id, platform_config)
 
-                s.add_event("default_application", attributes={"id": default_application.id})
+                # s.add_event("default_application", attributes={"id": default_application.id})
                 s.add_event("platform_secret", attributes={"name": BkCollectorComp.SECRET_PLATFORM_NAME})
                 s.set_status(StatusCode.OK)
                 logger.info(
