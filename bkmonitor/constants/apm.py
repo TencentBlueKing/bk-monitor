@@ -849,5 +849,10 @@ class BkCollectorComp:
     SECRET_APPLICATION_NAME = "bk-collector-application-{}-{}"
     SECRET_APPLICATION_CONFIG_FILENAME_NAME = "bk-collector-application-{}.conf"
 
+    # Labels 过滤条件
+    LABEL_COMPONENT_VALUE = "bk-collector"
+    LABEL_TYPE_PLATFORM_CONFIG = "platform"
+    LABEL_TYPE_APPLICATION_CONFIG = "subconfig"
+
     # 缓存 KEY: 安装了 bk-collector 的集群 id 列表
     CACHE_KEY_CLUSTER_IDS = "bk-collector:clusters"
