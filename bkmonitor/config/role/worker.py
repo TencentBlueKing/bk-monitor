@@ -168,7 +168,7 @@ DEFAULT_CRONTAB = [
     # apm_profile 定时发现profile服务 每十分钟触发
     ("apm.task.tasks.profile_discover_cron", "*/10 * * * *", "global"),
     # apm 定时对已安装 collector 的集群进行后置操作 每半小时触发
-    ("apm.task.tasks.post_deploy_bk_collector", "*/30 * * * *", "global"),
+    ("apm.task.tasks.k8s_bk_collector_discover_cron", "*/15 * * * *", "global"),
 ]
 
 if BCS_API_GATEWAY_HOST:
