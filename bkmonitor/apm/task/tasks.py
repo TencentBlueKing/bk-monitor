@@ -15,23 +15,18 @@ import datetime
 import logging
 import time
 
-import jinja2
 from django.conf import settings
 from django.db.models import Q
-from opentelemetry import trace
-from opentelemetry.trace import StatusCode
 
 from alarm_backends.core.cache import key
 from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.service.scheduler.app import app
 from apm.core.application_config import ApplicationConfig
-from apm.core.cluster_config import BkCollectorInstaller, ClusterConfig
+from apm.core.cluster_config import BkCollectorInstaller
 from apm.core.discover.base import TopoHandler
 from apm.core.discover.precalculation.consul_handler import ConsulHandler
 from apm.core.discover.precalculation.storage import PrecalculateStorage
 from apm.core.discover.profile.base import DiscoverHandler as ProfileDiscoverHandler
-
-# from apm.core.handlers.application_hepler import ApplicationHelper
 from apm.core.handlers.bk_data.tail_sampling import TailSamplingFlow
 from apm.core.handlers.bk_data.virtual_metric import VirtualMetricFlow
 from apm.core.platform_config import PlatformConfig
@@ -41,12 +36,9 @@ from apm.models import (
     MetricDataSource,
     ProfileDataSource,
 )
-from constants.apm import BkCollectorComp
 from core.errors.alarm_backends import LockError
 
 logger = logging.getLogger("apm")
-
-tracer = trace.get_tracer(__name__)
 
 
 @app.task(ignore_result=True, queue="celery_cron")
@@ -94,12 +86,14 @@ def refresh_apm_config():
 
 def refresh_apm_platform_config():
     PlatformConfig.refresh()
+    PlatformConfig.refresh_k8s()
 
 
 @app.task(ignore_result=True, queue="celery_cron")
 def refresh_apm_application_config(bk_biz_id, app_name):
     _app = ApmApplication.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
     ApplicationConfig(_app).refresh()
+    ApplicationConfig(_app).refresh_k8s()
 
 
 @app.task(ignore_result=True, queue="celery_cron")
@@ -184,53 +178,4 @@ def k8s_bk_collector_discover_cron():
         next(collector_checker)(cluster_id=cluster_id, related_bk_biz_ids=related_bk_biz_ids).check_installed()
 
     # [2] 为安装了 bk-collector 的集群创建默认应用 && 下发配置 !!!具体实现交给 apm.tasks 模块处理
-    post_deploy_bk_collector.delay()
     logger.info("[bk_collector_discover_cron] end")
-
-
-@app.task(ignore_result=True, queue="celery_cron")
-def post_deploy_bk_collector():
-    """
-    集群部署 bk-collector 后的后置操作，包括：
-    1. 创建默认应用
-    2. 下发平台配置
-    """
-    logger.info(f"[post-deploy-bk_collector] start at {datetime.datetime.now()}")
-
-    # 已安装 bk-collector 的集群 id 列表 由 apm_ebpf 模块发现
-    cluster_mapping = ClusterConfig.get_cluster_mapping()
-    logger.info(f"[post-deploy-bk_collector] find {len(cluster_mapping)} clusters")
-
-    for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
-        with tracer.start_as_current_span(f"cluster-id: {cluster_id}", attributes={"bk_biz_ids": cc_bk_biz_ids}) as s:
-            try:
-                platform_config_tpl = ClusterConfig.platform_config_tpl(cluster_id)
-                if platform_config_tpl is None:
-                    # 如果集群中不存在 bk-collector 的平台配置模版，则不下发
-                    continue
-
-                # bk_biz_id = cc_bk_biz_ids[0]
-                # if len(cc_bk_biz_ids) != 1:
-                #     logger.warning(
-                #         f"[post-deploy-bk_collector] cluster_id: {cluster_id} record multiple bk_biz_id!",
-                #     )
-
-                # Step1: 创建默认应用
-                # default_application = ApplicationHelper.create_default_application(bk_biz_id)
-
-                # Step2: 往集群的 bk-collector 下发配置
-                platform_config_context = PlatformConfig.get_platform_config()
-                tpl = jinja2.Template(platform_config_tpl)
-                platform_config = tpl.render(platform_config_context)
-                PlatformConfig.deploy_to_k8s(cluster_id, platform_config)
-
-                # s.add_event("default_application", attributes={"id": default_application.id})
-                s.add_event("platform_secret", attributes={"name": BkCollectorComp.SECRET_PLATFORM_NAME})
-                s.set_status(StatusCode.OK)
-                logger.info(
-                    f"[post-deploy-bk_collector] successfully deploy platform config in cluster: {cluster_id}",
-                )
-            except Exception as e:  # noqa
-                # 仅记录异常
-                s.record_exception(exception=e)
-                logger.error(f"[post-deploy-bk_collector] check cluster: {cluster_id} failed, error: {e}")

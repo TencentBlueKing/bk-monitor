@@ -845,14 +845,16 @@ class BkCollectorComp:
 
     # Secrets 配置
     SECRET_PLATFORM_NAME = "bk-collector-platform"
-    SECRET_PLATFORM_CONFIG_FILENAME_NAME = "bk-collector-platform.conf"
-    SECRET_APPLICATION_NAME = "bk-collector-application-{}-{}"
-    SECRET_APPLICATION_CONFIG_FILENAME_NAME = "bk-collector-application-{}.conf"
+    SECRET_SUBCONFIG_APM_NAME = "bk-collector-subconfig-apm-{}-{}"  # 这里的名字不能随意变，逻辑上依赖
+    SECRET_PLATFORM_CONFIG_FILENAME_NAME = "platform.conf"
+    SECRET_APPLICATION_CONFIG_FILENAME_NAME = "application-{}.conf"  # 这里的名字不能随意变，逻辑上依赖
+    SECRET_APPLICATION_CONFIG_MAX_COUNT = 20  # 每个 Secret 存放 20 个 APM 应用配置
 
     # Labels 过滤条件
     LABEL_COMPONENT_VALUE = "bk-collector"
+    LABEL_TYPE_SUB_CONFIG = "subconfig"
     LABEL_TYPE_PLATFORM_CONFIG = "platform"
-    LABEL_TYPE_APPLICATION_CONFIG = "subconfig"
+    LABEL_SOURCE_APPLICATION_CONFIG = "apm"
 
     # 缓存 KEY: 安装了 bk-collector 的集群 id 列表
     CACHE_KEY_CLUSTER_IDS = "bk-collector:clusters"
