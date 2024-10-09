@@ -105,8 +105,9 @@ from apm_web.service.serializers import (
 )
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from apm_web.trace.service_color import ServiceColorClassifier
-from apm_web.utils import get_interval, group_by, span_time_strft
+from apm_web.utils import get_interval, span_time_strft
 from bkmonitor.share.api_auth_resource import ApiAuthResource
+from bkmonitor.utils import group_by
 from bkmonitor.utils.ip import is_v6
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from bkmonitor.utils.user import get_global_user, get_request_username
@@ -2120,20 +2121,6 @@ class QueryEndpointStatisticsResource(PageListResource):
                 continue
 
             res.append({"key": k, "op": "=", "value": v if isinstance(v, list) else [v]})
-
-        return res
-
-    def group_by(self, data, get_key):
-        res = {}
-        for item in data:
-            key = get_key(item)
-            if not key:
-                continue
-
-            if key in res:
-                res[key].append(item)
-            else:
-                res[key] = [item]
 
         return res
 

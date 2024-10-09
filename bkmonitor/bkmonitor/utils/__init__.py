@@ -17,3 +17,18 @@ def get_metric_category(metric_name):
     if len(split_info) < 2:
         return "", ""
     return split_info[0], split_info[1]
+
+
+def group_by(iterators, get_key):
+    res = {}
+    for item in iterators:
+        key = get_key(item)
+        if not key:
+            continue
+
+        if key in res:
+            res[key].append(item)
+        else:
+            res[key] = [item]
+
+    return res

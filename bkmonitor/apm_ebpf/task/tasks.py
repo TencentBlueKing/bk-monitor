@@ -12,7 +12,6 @@ import datetime
 
 from alarm_backends.service.scheduler.app import app
 from apm_ebpf.apps import logger
-from apm_ebpf.handlers.bk_collector import BkCollectorInstaller
 from apm_ebpf.handlers.deepflow import DeepflowHandler, DeepflowInstaller
 from apm_ebpf.handlers.relation import RelationHandler
 from apm_ebpf.models import ClusterRelation
@@ -30,24 +29,17 @@ def install_grafana():
 
 def ebpf_discover_cron():
     """
-    定时寻找安装 DeepFlow / bk-collector的集群
+    定时寻找安装 DeepFlow 的集群
     """
-    logger.info(f"[discover_cron] start")
+    logger.info("[ebpf_discover_cron] start")
 
-    cluster_mapping = ClusterRelation.all_cluster_ids()
-    logger.info(f"[discover_cron] start to discover deepflow and bk-collector in {len(cluster_mapping)} clusters")
+    cluster_ids = ClusterRelation.all_cluster_ids()
+    logger.info(f"[ebpf_discover_cron] start to discover deepflow in {len(cluster_ids)} clusters")
+    for cluster_id in cluster_ids:
+        DeepflowInstaller(cluster_id).check_installed()
 
-    deepflow_checker = DeepflowInstaller.generator()
-    collector_checker = BkCollectorInstaller.generator()
-    for cluster_id, related_bk_biz_ids in cluster_mapping.items():
-        related_bk_biz_ids = list(related_bk_biz_ids)
-        next(deepflow_checker)(cluster_id=cluster_id).check_installed()
-        next(collector_checker)(cluster_id=cluster_id, related_bk_biz_ids=related_bk_biz_ids).check_installed()
-
-    # [1] 为安装了 deepflow 的集群安装仪表盘
     install_grafana.delay()
-    # [2] 为安装了 bk-collector 的集群创建默认应用 && 下发配置 !!!具体实现交给 apm.tasks 模块处理
-    logger.info(f"[discover_cron] end")
+    logger.info("[ebpf_discover_cron] end")
 
 
 def cluster_discover_cron():
@@ -55,4 +47,4 @@ def cluster_discover_cron():
     定时发现所有集群
     """
     RelationHandler.find_clusters()
-    logger.info(f"[cluster_discover_cron] end.")
+    logger.info("[cluster_discover_cron] end.")

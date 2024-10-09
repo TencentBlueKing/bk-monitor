@@ -69,7 +69,7 @@
                 target="_blank"
               >
                 {{ $t('跳转至') }}{{ item.name }}
-                <span class="log-icon icon-tiaozhuan"></span>
+                <span class="bklog-icon bklog-tiaozhuan"></span>
               </a>
               <bk-button
                 v-else
@@ -98,7 +98,7 @@
       <div class="group-container">
         <div class="group-title-container">
           <div class="qw-icon">
-            <span class="log-icon icon-qiyeweixin"></span>
+            <span class="bklog-icon bklog-qiyeweixin"></span>
           </div>
           <div class="hint">
             <p>{{ $t('一键拉群功能') }}</p>

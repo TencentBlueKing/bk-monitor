@@ -25,20 +25,55 @@
 -->
 
 <template>
-  <div class="title-wrapper">
+  <div class="title-wrapper-new">
     <div
       ref="chartTitle"
       class="chart-title"
       tabindex="0"
-      @blur="showMenu = false"
-      @click.stop="handleShowMenu"
     >
       <div class="main-title">
-        <span
-          class="bk-icon icon-down-shape"
-          :class="{ 'is-flip': isFold }"
-        ></span>
-        <div class="title-name">{{ title }}</div>
+        <div
+          class="title-click"
+          @click.stop="handleShowMenu"
+        >
+          <span
+            class="bk-icon icon-down-shape"
+            :class="{ 'is-flip': isFold }"
+          ></span>
+          <div class="title-name">{{ title }}</div>
+          <i18n
+            class="time-result"
+            path="检索结果（找到 {0} 条结果，用时{1}毫秒) {2}"
+          >
+            <span class="total-count">{{ getShowTotalNum(totalCount) }}</span>
+            <span>{{ tookTime }}</span>
+          </i18n>
+        </div>
+        <div
+          v-if="!isEmptyChart && !isFold"
+          class="converge-cycle"
+          @click.stop
+        >
+          <span>{{ $t('汇聚周期') }}</span>
+          <bk-select
+            style="width: 80px"
+            ext-cls="select-custom"
+            v-model="chartInterval"
+            :clearable="false"
+            behavior="simplicity"
+            data-test-id="generalTrendEcharts_div_selectCycle"
+            size="small"
+            @change="handleIntervalChange"
+          >
+            <bk-option
+              v-for="option in intervalArr"
+              :id="option.id"
+              :key="option.id"
+              :name="option.name"
+            >
+            </bk-option>
+          </bk-select>
+        </div>
       </div>
       <div
         v-if="subtitle"
@@ -51,17 +86,17 @@
       v-if="loading && !isFold"
       class="chart-spin"
     ></bk-spin>
-    <div
+    <!-- <div
       v-else-if="!isFold"
       class="menu-list"
     >
       <span
-        class="log-icon icon-xiangji"
+        class="bklog-icon bklog-xiangji"
         data-test-id="generalTrendEcharts_span_downloadEcharts"
         @click.stop="handleMenuClick({ id: 'screenshot' })"
       >
       </span>
-    </div>
+    </div> -->
     <!-- <chart-menu
       v-show="showMenu"
       :list="menuList"
@@ -72,7 +107,8 @@
 </template>
 
 <script lang="ts">
-  import { Component, Vue, Prop, Ref } from 'vue-property-decorator';
+  import { Component, Vue, Prop, Ref, Watch } from 'vue-property-decorator';
+  import { formatNumberWithRegex } from '@/common/util';
 
   import ChartMenu from './chart-menu.vue';
 
@@ -88,9 +124,32 @@
     @Prop({ default: () => [] }) menuList: string[];
     @Prop({ default: localStorage.getItem('chartIsFold') === 'true' }) isFold: boolean;
     @Prop({ default: true }) loading: boolean;
+    @Prop({ default: true }) isEmptyChart: boolean;
+    @Prop({ required: true }) totalCount: number;
     @Ref('chartTitle') chartTitleRef: HTMLDivElement;
-    private showMenu = false;
-    private menuLeft = 0;
+
+    chartInterval = 'auto';
+    intervalArr = [
+      { id: 'auto', name: 'auto' },
+      { id: '1m', name: '1 min' },
+      { id: '5m', name: '5 min' },
+      { id: '1h', name: '1 h' },
+      { id: '1d', name: '1d' },
+    ];
+
+    get retrieveParams() {
+      return this.$store.state.retrieveParams;
+    }
+
+    get tookTime() {
+      return this.$store.state.tookTime;
+    }
+
+    @Watch('retrieveParams.interval')
+    watchChangeChartInterval(newVal) {
+      this.chartInterval = newVal;
+    }
+
     handleShowMenu(e: MouseEvent) {
       this.$emit('toggle-expand', !this.isFold);
 
@@ -98,46 +157,77 @@
       // const rect = this.chartTitleRef.getBoundingClientRect()
       // this.menuLeft = rect.width  - 185 < e.layerX ? rect.width  - 185 : e.layerX
     }
+    getShowTotalNum(num) {
+      return formatNumberWithRegex(num);
+    }
     handleMenuClick(item) {
-      this.showMenu = false;
       this.$emit('menu-click', item);
+    }
+    // 汇聚周期改变
+    handleIntervalChange() {
+      this.$emit('interval-change', this.chartInterval);
+      this.$store.commit('retrieve/updateChartKey');
     }
   }
 </script>
 <style lang="scss" scoped>
-  .title-wrapper {
+  .title-wrapper-new {
     position: relative;
+    z-index: 999;
     flex: 1;
     width: 100%;
 
+    .converge-cycle {
+      display: flex;
+      align-items: center;
+      margin-left: 14px;
+      font-size: 12px;
+      font-weight: normal;
+      color: #63656e;
+
+      .select-custom {
+        display: inline-block;
+        margin-left: 5px;
+        vertical-align: middle;
+      }
+    }
+
     .chart-title {
-      padding: 4px 10px;
+      padding: 0 10px;
       margin-left: -10px;
       font-size: 12px;
       color: #63656e;
-      cursor: pointer;
       border-radius: 2px;
 
-      // &:hover {
-      //   .main-title {
-      //     &::after {
-      //       display: flex;
-      //     }
-      //   }
-      // }
+      .title-click {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        cursor: pointer;
+      }
 
       .main-title {
         display: flex;
         flex-wrap: nowrap;
         align-items: center;
-        font-weight: 700;
+        justify-content: space-between;
+        height: 24px;
 
         .title-name {
           height: 20px;
           overflow: hidden;
+          font-weight: 700;
           line-height: 20px;
           text-overflow: ellipsis;
           white-space: nowrap;
+        }
+
+        .time-result {
+          margin-left: 14px;
+
+          .total-count {
+            color: #f00;
+          }
         }
 
         .icon-down-shape {
@@ -177,10 +267,10 @@
 
     .menu-list {
       position: absolute;
-      top: 16px;
+      top: 0;
       right: 36px;
 
-      .log-icon {
+      .bklog-icon {
         font-size: 14px;
         color: #979ba5;
         cursor: pointer;
@@ -189,7 +279,7 @@
 
     .chart-spin {
       position: absolute;
-      top: 24px;
+      top: 27px;
       right: 36px;
     }
   }

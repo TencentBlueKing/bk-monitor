@@ -380,7 +380,7 @@ export default defineComponent({
         maxX &&
         // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
         (formatterFunc = (v: any) => {
-          const duration = dayjs.duration(dayjs.tz(maxX).diff(dayjs.tz(minX))).asSeconds();
+          const duration = Math.abs(dayjs.duration(dayjs.tz(maxX).diff(dayjs.tz(minX))).asSeconds());
           if (onlyBeginEnd && v > minX && v < maxX) {
             return '';
           }
@@ -835,7 +835,7 @@ export default defineComponent({
       props.isUseAlone ? (errorMsg.value = '') : props.clearErrorMsg();
     }
     function handleRestore() {
-      if (!!enableSelectionRestoreAll.value) {
+      if (enableSelectionRestoreAll.value) {
         handleRestoreEvent();
       } else {
         dataZoom(undefined, undefined);

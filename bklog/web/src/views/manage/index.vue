@@ -65,13 +65,10 @@
         return this.topMenu.find(item => item.id === 'manage')?.children || [];
       },
     },
-    created() {
-      this.getGlobalsData();
-    },
     methods: {
       getMenuIcon(item) {
         if (item.icon) {
-          return `log-icon icon-${item.icon}`;
+          return `bklog-icon bklog-${item.icon}`;
         }
 
         return 'bk-icon icon-home-shape';
@@ -86,20 +83,6 @@
         if (this.activeManageNav.id === id) {
           // this.routerKey += 1;
         }
-      },
-      // 获取全局数据
-      getGlobalsData() {
-        if (Object.keys(this.globalsData).length) {
-          return;
-        }
-        this.$http
-          .request('collect/globals')
-          .then(res => {
-            this.$store.commit('globals/setGlobalsData', res.data);
-          })
-          .catch(e => {
-            console.warn(e);
-          });
       },
       handleToggle(data) {
         this.isExpand = data;

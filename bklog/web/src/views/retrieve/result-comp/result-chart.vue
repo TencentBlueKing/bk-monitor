@@ -44,6 +44,7 @@
       v-if="isRenderChart"
       ref="chartRef"
       v-show="!isFold && !isLoading"
+      style="padding: 0 24px;"
       :get-series-data="getSeriesData"
       :is-fold="isFold"
       :key="chartKey"
@@ -74,7 +75,7 @@
     <div
       v-if="!isEmptyChart && !isFold"
       v-en-style="'left: 110px'"
-      class="converge-cycle"
+      class="converge-cycle-old"
     >
       <span>{{ $t('汇聚周期') }}</span>
       <bk-select
@@ -100,7 +101,7 @@
 </template>
 
 <script>
-  import ChartTitle from '@/components/monitor-echarts/components/chart-title-new.vue';
+  import ChartTitle from '@/components/monitor-echarts/components/chart-title-old.vue';
   import MonitorEcharts from '@/components/monitor-echarts/monitor-echarts-new';
   import indexSetSearchMixin from '@/mixins/indexSet-search-mixin';
   import axios from 'axios';
@@ -480,7 +481,7 @@
       justify-content: center;
     }
 
-    .converge-cycle {
+    .converge-cycle-old {
       position: absolute;
       top: 17px;
       left: 80px;

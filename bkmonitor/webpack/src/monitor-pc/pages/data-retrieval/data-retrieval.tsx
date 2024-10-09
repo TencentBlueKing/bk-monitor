@@ -307,6 +307,9 @@ export default class DataRetrieval extends tsc<object> {
   cacheTimeRange = [];
   cancelFn = null; // 取消查询接口
 
+  // 自动刷新
+  refreshInstance = null;
+
   // 是否开启（框选/复位）全部操作
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
@@ -444,11 +447,7 @@ export default class DataRetrieval extends tsc<object> {
   /** 指标监控对象数据 */
   get scenarioAllList() {
     const list = deepClone(this.scenarioList);
-    const res = list.reduce((total, cur) => {
-      const child = cur.children || [];
-      total = total.concat(child);
-      return total;
-    }, []);
+    const res = list.reduce((total, cur) => (Array.isArray(cur.children) ? total.concat(cur.children) : total), []);
     return res;
   }
 
@@ -669,11 +668,8 @@ export default class DataRetrieval extends tsc<object> {
         const sortFavoriteList = res.slice(1, res.length - 1).sort((a, b) => a.name.localeCompare(b.name));
         const sortAfterList = [provideFavorite, ...sortFavoriteList, publicFavorite];
         this.favList[this.tabActive] = sortAfterList;
-        this.favStrList = res.reduce((pre, cur) => {
-          // 获取所有收藏的名字新增时判断是否重命名
-          pre = pre.concat(cur.favorites.map(item => item.name));
-          return pre;
-        }, []);
+        // 获取所有收藏的名字新增时判断是否重命名
+        this.favStrList = res.reduce((pre, cur) => pre.concat(cur.favorites.map(item => item.name)), []);
         if (this.isHaveFavoriteInit) {
           // 判断是否是分享初始化
           const urlFavoriteID = this.$route.query.favorite_id;
@@ -1148,10 +1144,7 @@ export default class DataRetrieval extends tsc<object> {
       });
       // 统计数量
       list = list.map(item => {
-        const count = list.reduce((pre, set) => {
-          if (item.bk_obj_id === set.bk_obj_id) pre += 1;
-          return pre;
-        }, 0);
+        const count = list.reduce((pre, set) => (item.bk_obj_id === set.bk_obj_id ? pre + 1 : pre), 0);
         item.count = count;
         return item;
       });
@@ -2155,7 +2148,7 @@ export default class DataRetrieval extends tsc<object> {
               } else if (key === 'targets' && !!filterVal) {
                 /** 目标主机、主机对比数据将添加到where */
                 const firstItem = filterVal?.[0];
-                if (!!firstItem) {
+                if (firstItem) {
                   const res = Object.entries(firstItem).map(item => {
                     const [key] = item;
                     return {
@@ -2227,7 +2220,7 @@ export default class DataRetrieval extends tsc<object> {
           localValue.push(expItem);
         }
         /** 多表达式带有functions */
-        if (!!expressionList.length) {
+        if (expressionList.length) {
           expressionList.forEach(exp => {
             const expItem: IDataRetrieval.IExpressionItem = {
               alias: '',
@@ -3007,6 +3000,20 @@ export default class DataRetrieval extends tsc<object> {
     }
   }
 
+  handleRefreshChange(v: number) {
+    window.clearInterval(this.refreshInstance);
+    this.refreshInstance = null;
+    if (v <= 0) return;
+    this.refreshInstance = setInterval(() => {
+      this.refleshNumber += 1;
+    }, v);
+  }
+
+  destroyed() {
+    window.clearInterval(this.refreshInstance);
+    this.refreshInstance = null;
+  }
+
   render() {
     // 查询项/表达式头部区域
     const titleSlot = (item: IDataRetrieval.ILocalValue, index: number) => (
@@ -3392,6 +3399,7 @@ export default class DataRetrieval extends tsc<object> {
                   timeRange={this.compareValue.tools?.timeRange}
                   timezone={this.compareValue.tools?.timezone}
                   onImmediateReflesh={() => (this.refleshNumber += 1)}
+                  onRefleshIntervalChange={v => this.handleRefreshChange(v)}
                   onTimeRangeChange={this.handleToolsTimeRangeChange}
                   onTimezoneChange={this.handleTimezoneChange}
                 >
