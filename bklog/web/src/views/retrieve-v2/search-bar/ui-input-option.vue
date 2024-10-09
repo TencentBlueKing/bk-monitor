@@ -912,7 +912,7 @@
             <div class="full-text-sub-title">
               <img :src="svgImg.imgEnterKey" /><span>{{ $t('Enter 键') }}</span>
             </div>
-            <div class="full-text-content">{{ $t('按【Enter】或点击【确定】，唤起IP选择器点击取消，关闭窗口') }}</div>
+            <div class="full-text-content">{{ $t('【Enter】唤起IP选择器，点击取消关闭窗口') }}</div>
           </template>
         </template>
         <template v-else>

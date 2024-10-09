@@ -272,8 +272,8 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.config_refresh.clean_datasource_from_consul", "30 4 * * *", "global"),
     # 每天同步一次蓝鲸应用的使用的集群
     ("metadata.task.sync_space.refresh_bksaas_space_resouce", "0 1 * * *", "global"),
-    # 检查并执行接入vm命令, 每天执行一次
-    ("metadata.task.vm.check_access_vm_task", "0 2 * * *", "global"),
+    # 检查并执行接入vm命令, 每1个小时执行一次
+    ("metadata.task.vm.check_access_vm_task", "0 */1 * * *", "global"),
     # 自定义事件休眠检查，对长期没有数据的自定义事件进行休眠
     ("metadata.task.custom_report.check_custom_event_group_sleep", "0 4 * * *", "global"),
     # ES 周期性任务 从report_cron 队列迁回 LONG_TASK_CRONTAB (周期调整 10-> 15min)

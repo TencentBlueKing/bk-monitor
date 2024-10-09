@@ -353,16 +353,25 @@ def get_timestamp_len(data_id: Optional[int] = None, etl_config: Optional[str] =
     logger.info("get_timestamp_len: data_id: %s, etl_config: %s", data_id, etl_config)
     if data_id and data_id in BKDATA_NS_TIMESTAMP_DATA_ID_LIST:
         return TimestampLen.NANOSECOND_LEN.value
-    ds = DataSource.objects.get(bk_data_id=data_id)
-    ds_option = DataSourceOption.objects.filter(bk_data_id=data_id, name=DataSourceOption.OPTION_ALIGN_TIME_UNIT)
-    # 若存在对应配置项，优先使用配置的时间格式
-    if ds_option.exists():
-        logger.info("get_timestamp_len: ds_option exists,ds_option ALIGN_TIME)UNIT: %s", ds_option.first().value)
-        return TimestampLen.get_len_choices(ds_option.first().value)
-    # Note： 历史原因，针对脚本等配置，若不存在对应时间戳配置，默认单位应为秒
-    if ds.etl_config in {EtlConfigs.BK_EXPORTER.value, EtlConfigs.BK_STANDARD.value}:
-        logger.info("get_timestamp_len: ds.etl_config: %s,will use second as time format", ds.etl_config)
-        return TimestampLen.SECOND_LEN.value
+
+    # Note: BCS集群接入场景时，由于事务中嵌套异步任务，可能导致数据未就绪
+    # 新接入场景默认使用毫秒作为单位，若过程出现失败，直接返回默认单位，不应影响后续流程
+    try:
+        ds = DataSource.objects.filter(bk_data_id=data_id)
+        # 若对应数据源查询不到，则默认使用毫秒作为单位
+        if not ds.exists():
+            return TimestampLen.MILLISECOND_LEN.value
+        ds_option = DataSourceOption.objects.filter(bk_data_id=data_id, name=DataSourceOption.OPTION_ALIGN_TIME_UNIT)
+        # 若存在对应配置项，优先使用配置的时间格式
+        if ds_option.exists():
+            logger.info("get_timestamp_len: ds_option exists,ds_option ALIGN_TIME)UNIT: %s", ds_option.first().value)
+            return TimestampLen.get_len_choices(ds_option.first().value)
+        # Note： 历史原因，针对脚本等配置，若不存在对应时间戳配置，默认单位应为秒
+        if ds.etl_config in {EtlConfigs.BK_EXPORTER.value, EtlConfigs.BK_STANDARD.value}:
+            logger.info("get_timestamp_len: ds.etl_config: %s,will use second as time format", ds.etl_config)
+            return TimestampLen.SECOND_LEN.value
+    except Exception as e:
+        logger.error("get_timestamp_len:failed %s", e)
     return TimestampLen.MILLISECOND_LEN.value
 
 
