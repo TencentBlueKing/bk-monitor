@@ -236,7 +236,7 @@ class ServiceInfoResource(Resource):
         instances = instance_res.get()
         service_info["instance_count"] = len(instances)
         # 自定义标签
-        service_info["labels"] = labels
+        service_info["labels"] = labels.get()
         # 响应
         return service_info
 
