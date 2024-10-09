@@ -312,7 +312,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
     this.$router.push({
       name: 'application-config',
       params: {
-        id: this.appInfo.application_id,
+        appName: this.appInfo.app_name,
       },
       query: {
         active: option.id,

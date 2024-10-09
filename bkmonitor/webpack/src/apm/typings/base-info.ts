@@ -32,12 +32,7 @@ export interface IBaseParams {
 }
 
 export interface IBaseServiceInfo {
-  app_name: string;
-  category_name: string;
-  category_icon: string;
-  service_language: string;
-  application_id: string;
-  tag: string[];
+  labels: string[];
 }
 
 export interface IBaseInfoList {
@@ -153,6 +148,7 @@ export interface IServiceInfo {
   instance_count: number;
   extra_data: IExtraData;
   relation: IServiceRelation;
+  labels: string[];
 }
 
 export interface ILocationRelation {
