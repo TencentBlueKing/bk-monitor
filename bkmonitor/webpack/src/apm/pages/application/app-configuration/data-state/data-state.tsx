@@ -31,13 +31,13 @@ import dayjs from 'dayjs';
 import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 
-import Metric from './dataStatus/metric';
-import TabList from './tabList';
-import { ETelemetryDataType, type IAppInfo } from './type';
+import TabList from '../tabList';
+import { ETelemetryDataType, type IAppInfo } from '../type';
+import Metric from './data-state-metric';
 
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
-import './data-status.scss';
+import './data-state.scss';
 
 @Component
 export default class DataStatus extends tsc<object> {
@@ -48,7 +48,6 @@ export default class DataStatus extends tsc<object> {
   ];
 
   activeTab = ETelemetryDataType.trace;
-  strategyLoading = false;
 
   // 派发到子孙组件内的视图配置变量
   // 视图变量

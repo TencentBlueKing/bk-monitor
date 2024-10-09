@@ -29,13 +29,14 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { setup } from 'monitor-api/modules/apm_meta';
 import { byteConvert } from 'monitor-common/utils/utils';
+import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import TextOverflowCopy from 'monitor-pc/pages/monitor-k8s/components/text-overflow-copy/text-overflow-copy';
 
 import EditableFormItem from '../../../../components/editable-form-item/editable-form-item';
 import PanelItem from '../../../../components/panel-item/panel-item';
 import * as authorityMap from '../../../home/authority-map';
+import StorageInfoSkeleton from '../skeleton/storage-info-skeleton';
 
-import type { ISetupData } from '../../app-add/app-add';
 import type {
   ClusterOption,
   ETelemetryDataType,
@@ -47,16 +48,17 @@ import type {
   ITracingStorageInfo,
 } from '../type';
 
-import './trace.scss';
+import './storage-state-trace.scss';
 
 interface IProps {
   appInfo: IAppInfo;
   indicesLoading: boolean;
   fieldLoading: boolean;
+  dataLoading?: boolean;
   indicesList: IndicesItem[];
   fieldFilterList: IFieldFilterItem[];
   fieldList: IFieldItem[];
-  setupData: ISetupData;
+  setupData: any;
   clusterList: IClusterItem[];
   storageInfo?: ITracingStorageInfo;
   telemetryDataType?: ETelemetryDataType;
@@ -72,9 +74,10 @@ export default class Trace extends tsc<IProps, IEvent> {
   @Prop({ type: Array, default: () => [] }) fieldList: IndicesItem[];
   @Prop({ type: Array, default: () => [] }) fieldFilterList: IFieldFilterItem[];
   @Prop({ type: Array, required: true }) clusterList: any[];
-  @Prop({ type: Object, default: () => {} }) setupData: ISetupData;
+  @Prop({ type: Object, default: () => {} }) setupData;
   @Prop({ type: Boolean }) fieldLoading: boolean;
   @Prop({ type: Boolean }) indicesLoading: boolean;
+  @Prop({ type: Boolean, default: false }) dataLoading: boolean;
   // 存储信息
   @Prop({ type: Object, default: () => ({}) }) storageInfo: ITracingStorageInfo;
   @Prop({ type: String, default: '' }) telemetryDataType: ETelemetryDataType;
@@ -308,149 +311,161 @@ export default class Trace extends tsc<IProps, IEvent> {
     return (
       <div class='conf-content trace-state-wrap'>
         <PanelItem title={this.$t('存储信息')}>
-          <div class='form-content'>
-            <div class='item-row'>
-              <EditableFormItem
-                formType='input'
-                label={this.$t('存储索引名')}
-                showEditable={false}
-                value={this.appInfo.es_storage_index_name}
-              />
-              <EditableFormItem
-                authority={this.authority.MANAGE_AUTH}
-                authorityName={authorityMap.MANAGE_AUTH}
-                formType='select'
-                label={this.$t('存储集群')}
-                selectList={this.clusterOptions}
-                updateValue={val => this.handleUpdateValue(val, 'es_storage_cluster')}
-                value={this.storageInfo?.es_storage_cluster}
-              />
+          {this.dataLoading ? (
+            <StorageInfoSkeleton rows={3} />
+          ) : (
+            <div class='form-content'>
+              <div class='item-row'>
+                <EditableFormItem
+                  formType='input'
+                  label={this.$t('存储索引名')}
+                  showEditable={false}
+                  value={this.appInfo.es_storage_index_name}
+                />
+                <EditableFormItem
+                  authority={this.authority.MANAGE_AUTH}
+                  authorityName={authorityMap.MANAGE_AUTH}
+                  formType='select'
+                  label={this.$t('存储集群')}
+                  selectList={this.clusterOptions}
+                  updateValue={val => this.handleUpdateValue(val, 'es_storage_cluster')}
+                  value={this.storageInfo?.es_storage_cluster}
+                />
+              </div>
+              <div class='item-row'>
+                <EditableFormItem
+                  authority={this.authority.MANAGE_AUTH}
+                  authorityName={authorityMap.MANAGE_AUTH}
+                  formType='expired'
+                  label={this.$t('过期时间')}
+                  maxExpired={this.retentionDaysMax}
+                  tooltips={this.$t('过期时间')}
+                  updateValue={val => this.handleUpdateValue(val, 'es_retention')}
+                  value={this.storageInfo?.es_retention}
+                />
+                <EditableFormItem
+                  authority={this.authority.MANAGE_AUTH}
+                  authorityName={authorityMap.MANAGE_AUTH}
+                  formType='input'
+                  label={this.$t('副本数')}
+                  tooltips={this.$t('副本数')}
+                  updateValue={val => this.handleUpdateValue(val, 'es_number_of_replicas')}
+                  validator={val => this.initValidator(val, 'es_number_of_replicas')}
+                  value={this.storageInfo?.es_number_of_replicas}
+                />
+              </div>
+              <div class='item-row'>
+                <EditableFormItem
+                  authority={this.authority.MANAGE_AUTH}
+                  authorityName={authorityMap.MANAGE_AUTH}
+                  formType='input'
+                  label={this.$t('分片数')}
+                  tooltips={this.$t('分片数')}
+                  updateValue={val => this.handleUpdateValue(val, 'es_shards')}
+                  validator={val => this.initValidator(val, 'es_shards')}
+                  value={this.storageInfo?.es_shards}
+                />
+                <EditableFormItem
+                  authority={this.authority.MANAGE_AUTH}
+                  authorityName={authorityMap.MANAGE_AUTH}
+                  formType='input'
+                  label={this.$t('索引切分大小')}
+                  tooltips={this.$t('索引切分大小')}
+                  unit='G'
+                  updateValue={val => this.handleUpdateValue(val, 'es_slice_size')}
+                  validator={val => this.initValidator(val, 'es_slice_size')}
+                  value={this.storageInfo?.es_slice_size}
+                />
+              </div>
             </div>
-            <div class='item-row'>
-              <EditableFormItem
-                authority={this.authority.MANAGE_AUTH}
-                authorityName={authorityMap.MANAGE_AUTH}
-                formType='expired'
-                label={this.$t('过期时间')}
-                maxExpired={this.retentionDaysMax}
-                tooltips={this.$t('过期时间')}
-                updateValue={val => this.handleUpdateValue(val, 'es_retention')}
-                value={this.storageInfo?.es_retention}
-              />
-              <EditableFormItem
-                authority={this.authority.MANAGE_AUTH}
-                authorityName={authorityMap.MANAGE_AUTH}
-                formType='input'
-                label={this.$t('副本数')}
-                tooltips={this.$t('副本数')}
-                updateValue={val => this.handleUpdateValue(val, 'es_number_of_replicas')}
-                validator={val => this.initValidator(val, 'es_number_of_replicas')}
-                value={this.storageInfo?.es_number_of_replicas}
-              />
-            </div>
-            <div class='item-row'>
-              <EditableFormItem
-                authority={this.authority.MANAGE_AUTH}
-                authorityName={authorityMap.MANAGE_AUTH}
-                formType='input'
-                label={this.$t('分片数')}
-                tooltips={this.$t('分片数')}
-                updateValue={val => this.handleUpdateValue(val, 'es_shards')}
-                validator={val => this.initValidator(val, 'es_shards')}
-                value={this.storageInfo?.es_shards}
-              />
-              <EditableFormItem
-                authority={this.authority.MANAGE_AUTH}
-                authorityName={authorityMap.MANAGE_AUTH}
-                formType='input'
-                label={this.$t('索引切分大小')}
-                tooltips={this.$t('索引切分大小')}
-                unit='G'
-                updateValue={val => this.handleUpdateValue(val, 'es_slice_size')}
-                validator={val => this.initValidator(val, 'es_slice_size')}
-                value={this.storageInfo?.es_slice_size}
-              />
-            </div>
-          </div>
+          )}
         </PanelItem>
         <PanelItem title={this.$t('物理索引')}>
-          <bk-table
-            v-bkloading={{ isLoading: this.indicesLoading }}
-            data={this.indicesList}
-            outer-border={false}
-          >
-            <bk-table-column
-              width={280}
-              formatter={row => <TextOverflowCopy val={row.index} />}
-              label={this.$t('索引')}
-              prop={'index'}
-            />
-            <bk-table-column
-              label={this.$t('运行状态')}
-              scopedSlots={statusSlot}
-            />
-            <bk-table-column
-              label={this.$t('主分片')}
-              prop={'pri'}
-              sortable
-            />
-            <bk-table-column
-              label={this.$t('副本分片')}
-              prop={'rep'}
-              sortable
-            />
-            <bk-table-column
-              label={this.$t('文档数量')}
-              prop={'docs_count'}
-              sortable
-            />
-            <bk-table-column
-              label={this.$t('存储大小')}
-              prop={'store_size'}
-              scopedSlots={sizeSlot}
-              sortable
-            />
-          </bk-table>
+          {this.indicesLoading ? (
+            <TableSkeleton />
+          ) : (
+            <bk-table
+              // v-bkloading={{ isLoading: this.indicesLoading }}
+              data={this.indicesList}
+              outer-border={false}
+            >
+              <bk-table-column
+                width={280}
+                formatter={row => <TextOverflowCopy val={row.index} />}
+                label={this.$t('索引')}
+                prop={'index'}
+              />
+              <bk-table-column
+                label={this.$t('运行状态')}
+                scopedSlots={statusSlot}
+              />
+              <bk-table-column
+                label={this.$t('主分片')}
+                prop={'pri'}
+                sortable
+              />
+              <bk-table-column
+                label={this.$t('副本分片')}
+                prop={'rep'}
+                sortable
+              />
+              <bk-table-column
+                label={this.$t('文档数量')}
+                prop={'docs_count'}
+                sortable
+              />
+              <bk-table-column
+                label={this.$t('存储大小')}
+                prop={'store_size'}
+                scopedSlots={sizeSlot}
+                sortable
+              />
+            </bk-table>
+          )}
         </PanelItem>
         <PanelItem title={this.$t('字段信息')}>
-          <bk-table
-            v-bkloading={{ isLoading: this.fieldLoading }}
-            data={this.fieldList}
-            outer-border={false}
-          >
-            <bk-table-column
-              label={this.$t('字段名')}
-              prop={'field_name'}
-            />
-            <bk-table-column
-              label={this.$t('别名')}
-              scopedSlots={chFieldNameSlot}
-            />
-            <bk-table-column
-              width={180}
-              filter-method={this.fieldFilterMethod}
-              filter-multiple={false}
-              filters={this.fieldFilterList}
-              label={this.$t('数据类型')}
-              prop={'field_type'}
-            />
-            <bk-table-column
-              width={100}
-              filter-method={this.whetherFilterMethod}
-              filters={this.whetherFilters}
-              label={this.$t('分词')}
-              prop={'analysis_field'}
-              scopedSlots={analysisSlot}
-            />
-            <bk-table-column
-              width={100}
-              filter-method={this.whetherFilterMethod}
-              filters={this.whetherFilters}
-              label={this.$t('时间')}
-              prop={'time_field'}
-              scopedSlots={timeSlot}
-            />
-          </bk-table>
+          {this.fieldLoading ? (
+            <TableSkeleton />
+          ) : (
+            <bk-table
+              // v-bkloading={{ isLoading: this.fieldLoading }}
+              data={this.fieldList}
+              outer-border={false}
+            >
+              <bk-table-column
+                label={this.$t('字段名')}
+                prop={'field_name'}
+              />
+              <bk-table-column
+                label={this.$t('别名')}
+                scopedSlots={chFieldNameSlot}
+              />
+              <bk-table-column
+                width={180}
+                filter-method={this.fieldFilterMethod}
+                filter-multiple={false}
+                filters={this.fieldFilterList}
+                label={this.$t('数据类型')}
+                prop={'field_type'}
+              />
+              <bk-table-column
+                width={100}
+                filter-method={this.whetherFilterMethod}
+                filters={this.whetherFilters}
+                label={this.$t('分词')}
+                prop={'analysis_field'}
+                scopedSlots={analysisSlot}
+              />
+              <bk-table-column
+                width={100}
+                filter-method={this.whetherFilterMethod}
+                filters={this.whetherFilters}
+                label={this.$t('时间')}
+                prop={'time_field'}
+                scopedSlots={timeSlot}
+              />
+            </bk-table>
+          )}
         </PanelItem>
       </div>
     );

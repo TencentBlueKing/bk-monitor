@@ -37,6 +37,7 @@ import {
   noDataStrategyInfo,
 } from 'monitor-api/modules/apm_meta';
 import { copyText } from 'monitor-common/utils/utils';
+import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
 import BarAlarmChart from 'monitor-ui/chart-plugins/plugins/apm-relation-graph/components/bar-alarm-chart';
@@ -53,7 +54,7 @@ import { ETelemetryDataType, type IAppInfo, type IStrategyData } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import 'vue-json-pretty/lib/styles.css';
-import './metric.scss';
+import './data-state-metric.scss';
 
 interface IProps {
   activeTab: ETelemetryDataType;
@@ -86,6 +87,7 @@ export default class DataStatusMetric extends tsc<IProps> {
   healthMaps = { 1: this.$t('健康'), 2: this.$t('有告警') };
 
   getAlarmData = null;
+  dataViewLoading = false;
 
   // 时间间隔
   @InjectReactive('timeRange') timeRange: TimeRangeType;
@@ -175,10 +177,12 @@ export default class DataStatusMetric extends tsc<IProps> {
    * @desc 获取图表数据
    */
   async getDataView() {
+    this.dataViewLoading = true;
     const data = await dataViewConfig(this.appInfo.application_id, {
       telemetry_data_type: this.activeTab,
     }).catch(() => []);
     this.dashboardPanels = data.map(item => new PanelModel(item));
+    this.dataViewLoading = false;
   }
   /**
    * @desc 获取采样数据
@@ -343,45 +347,48 @@ export default class DataStatusMetric extends tsc<IProps> {
         {this.activeTab !== ETelemetryDataType.profiling ? (
           <div
             class='form-content mb24'
-            v-bkloading={{ isLoading: this.strategyLoading }}
+            // v-bkloading={{ isLoading: this.strategyLoading }}
           >
-            <div class='content-card'>
-              <div class='content-card-left'>
-                <div class='msg-item'>
-                  <span
-                    class='tip-label'
-                    v-bk-tooltips={{ content: this.$t('当没有收到任何数据可以进行告警通知。'), allowHTML: false }}
-                  >
-                    {this.$t('无数据告警')}
-                  </span>
-                  <bk-switcher
-                    pre-check={() => this.preCheckChange(this.strategyInfo.is_enabled)}
-                    size='small'
-                    theme='primary'
-                    value={this.strategyInfo.is_enabled}
-                  />
+            {this.strategyLoading ? (
+              <div class='skeleton-element w--100 h-56' />
+            ) : (
+              <div class='content-card'>
+                <div class='content-card-left'>
+                  <div class='msg-item'>
+                    <span
+                      class='tip-label'
+                      v-bk-tooltips={{ content: this.$t('当没有收到任何数据可以进行告警通知。'), allowHTML: false }}
+                    >
+                      {this.$t('无数据告警')}
+                    </span>
+                    <bk-switcher
+                      pre-check={() => this.preCheckChange(this.strategyInfo.is_enabled)}
+                      size='small'
+                      theme='primary'
+                      value={this.strategyInfo.is_enabled}
+                    />
+                  </div>
                 </div>
-              </div>
-              <div class='content-card-right'>
-                <div class='msg-item'>
-                  <span class='label'>{this.$t('告警历史')} : </span>
-                  <div class='apdex-chart-box'>
-                    {this.getAlarmData ? (
-                      <BarAlarmChart
-                        activeItemHeight={20}
-                        dataType={EDataType.Alert}
-                        enableSelect={false}
-                        getData={this.getAlarmData}
-                        isAdaption={false}
-                        itemHeight={14}
-                        showHeader={false}
-                        showXAxis={true}
-                        showXAxisNum={2}
-                      />
-                    ) : (
-                      <span class='no-data-text'>{this.$t('暂无数据')}</span>
-                    )}
-                    {/* {this.apdexChartPanel ? (
+                <div class='content-card-right'>
+                  <div class='msg-item'>
+                    <span class='label'>{this.$t('告警历史')} : </span>
+                    <div class='apdex-chart-box'>
+                      {this.getAlarmData ? (
+                        <BarAlarmChart
+                          activeItemHeight={20}
+                          dataType={EDataType.Alert}
+                          enableSelect={false}
+                          getData={this.getAlarmData}
+                          isAdaption={false}
+                          itemHeight={14}
+                          showHeader={false}
+                          showXAxis={true}
+                          showXAxisNum={2}
+                        />
+                      ) : (
+                        <span class='no-data-text'>{this.$t('暂无数据')}</span>
+                      )}
+                      {/* {this.apdexChartPanel ? (
                       <ApdexChart
                         panel={this.apdexChartPanel}
                         showChartHeader={false}
@@ -390,34 +397,42 @@ export default class DataStatusMetric extends tsc<IProps> {
                     ) : (
                       <span>{this.$t('暂无数据')}</span>
                     )} */}
+                    </div>
                   </div>
+                  <span
+                    class='link-btn ml-12'
+                    onClick={() => this.handlePageChange('event')}
+                  >
+                    {this.$t('更多')}
+                    <span class='icon-monitor icon-fenxiang' />
+                  </span>
+                  <span
+                    class='link-btn ml-32'
+                    onClick={() => this.handlePageChange('edit')}
+                  >
+                    {this.$t('编辑告警策略')}
+                    <span class='icon-monitor icon-fenxiang' />
+                  </span>
                 </div>
-                <span
-                  class='link-btn ml-12'
-                  onClick={() => this.handlePageChange('event')}
-                >
-                  {this.$t('更多')}
-                  <span class='icon-monitor icon-fenxiang' />
-                </span>
-                <span
-                  class='link-btn ml-32'
-                  onClick={() => this.handlePageChange('edit')}
-                >
-                  {this.$t('编辑告警策略')}
-                  <span class='icon-monitor icon-fenxiang' />
-                </span>
               </div>
-            </div>
+            )}
           </div>
         ) : undefined}
 
         <PanelItem title={this.$t('数据量趋势')}>
           <div class='form-content'>
-            <DashboardPanel
-              id={'volumeTrend'}
-              layoutMargin={[24, 24]}
-              panels={this.dashboardPanels}
-            />
+            {this.dataViewLoading ? (
+              <div class='data-view-skeleton'>
+                <div class='skeleton-element view-skeleton-item' />
+                <div class='skeleton-element view-skeleton-item' />
+              </div>
+            ) : (
+              <DashboardPanel
+                id={'volumeTrend'}
+                layoutMargin={[24, 24]}
+                panels={this.dashboardPanels}
+              />
+            )}
           </div>
         </PanelItem>
         <PanelItem title={this.$t('数据采样')}>
@@ -429,33 +444,37 @@ export default class DataStatusMetric extends tsc<IProps> {
             <i class='icon-monitor icon-shuaxin' />
             {this.$t('button-刷新')}
           </span>
-          <bk-table
-            class={'sampling-table'}
-            v-bkloading={{ isLoading: this.tableLoading }}
-            data={this.samplingList}
-            outer-border={false}
-            row-auto-height={true}
-          >
-            <bk-table-column
-              width='80'
-              label={this.$t('序号')}
-              type='index'
-            />
-            <bk-table-column
-              label={this.$t('原始数据')}
-              scopedSlots={logSlots}
-            />
-            <bk-table-column
-              width='200'
-              label={this.$t('采样时间')}
-              scopedSlots={{ default: props => props.row.sampling_time }}
-            />
-            <bk-table-column
-              width='180'
-              label={this.$t('操作')}
-              scopedSlots={operatorSlot}
-            />
-          </bk-table>
+          {this.tableLoading ? (
+            <TableSkeleton type={3} />
+          ) : (
+            <bk-table
+              class={'sampling-table'}
+              // v-bkloading={{ isLoading: this.tableLoading }}
+              data={this.samplingList}
+              outer-border={false}
+              row-auto-height={true}
+            >
+              <bk-table-column
+                width='80'
+                label={this.$t('序号')}
+                type='index'
+              />
+              <bk-table-column
+                label={this.$t('原始数据')}
+                scopedSlots={logSlots}
+              />
+              <bk-table-column
+                width='200'
+                label={this.$t('采样时间')}
+                scopedSlots={{ default: props => props.row.sampling_time }}
+              />
+              <bk-table-column
+                width='180'
+                label={this.$t('操作')}
+                scopedSlots={operatorSlot}
+              />
+            </bk-table>
+          )}
         </PanelItem>
 
         <bk-sideslider

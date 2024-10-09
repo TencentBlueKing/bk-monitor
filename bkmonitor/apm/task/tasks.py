@@ -222,7 +222,7 @@ def post_deploy_bk_collector():
                 platform_config_context = PlatformConfig.get_platform_config()
                 tpl = jinja2.Template(platform_config_tpl)
                 platform_config = tpl.render(platform_config_context)
-                ClusterConfig.deploy_platform_config(cluster_id, platform_config)
+                PlatformConfig.deploy_to_k8s(cluster_id, platform_config)
 
                 # s.add_event("default_application", attributes={"id": default_application.id})
                 s.add_event("platform_secret", attributes={"name": BkCollectorComp.SECRET_PLATFORM_NAME})

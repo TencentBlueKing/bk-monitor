@@ -26,7 +26,6 @@
 import { Component, Inject, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { cloneDeep } from 'lodash';
 import { CMDBInfoList, applicationList, logList, serviceInfo } from 'monitor-api/modules/apm_base_info';
 import {
   logServiceRelationBkLogIndexSet,
@@ -89,16 +88,12 @@ export default class BasicInfo extends tsc<object> {
     bk_biz_id: -1,
   };
   formData: IBaseServiceInfo = {
-    app_name: '',
-    category_name: '',
-    category_icon: '',
-    service_language: '',
-    application_id: '',
-    tag: [],
+    labels: [],
   };
   serviceInfo: IServiceInfo = {
     topo_key: '',
     instance_count: 0,
+    labels: [],
     extra_data: {
       category_name: '',
       category_icon: '',
@@ -301,6 +296,7 @@ export default class BasicInfo extends tsc<object> {
       topo_key: topoKey,
       extra_data: extraData,
       relation,
+      labels,
       created_by: createUser,
       created_at: createTime,
       updated_by: updateUser,
@@ -312,7 +308,11 @@ export default class BasicInfo extends tsc<object> {
       topo_key: topoKey,
       extra_data: extraData || {},
       relation,
+      labels,
     });
+    this.formData = {
+      labels: [...labels],
+    };
     this.setRelationInfo();
     this.isLoading = false;
   }
@@ -381,10 +381,6 @@ export default class BasicInfo extends tsc<object> {
   }
   async handleEditClick(show: boolean) {
     this.isEditing = show;
-    /**
-     * todo 点击编辑时将编辑数据传递给formData，避免点击取消时影响袁数据
-     */
-    this.formData = Object.assign(this.formData, cloneDeep(this.serviceInfo.extra_data));
     if (show) {
       // 如果URI为空 则编辑时添加一项空 可输入
       if (!this.uriList.length) {
@@ -506,11 +502,9 @@ export default class BasicInfo extends tsc<object> {
   }
   /** 获取提交参数 */
   getParams() {
-    /**
-     * todo 这里需要将 formData中的数据传入到params
-     */
     const params: any = {
       ...this.params,
+      ...this.formData,
       uri_relation: [],
       apdex_relation: {
         apdex_value: Number(this.localRelationInfo.apdex),
@@ -545,7 +539,6 @@ export default class BasicInfo extends tsc<object> {
     if (this.uriList.length) {
       params.uri_relation = this.uriList.filter(val => val?.trim() !== '');
     }
-
     return params;
   }
   /** 提交保存 */
@@ -660,7 +653,7 @@ export default class BasicInfo extends tsc<object> {
                 >
                   <bk-tag-input
                     style='width: 405px'
-                    v-model={this.formData.tag}
+                    v-model={this.formData.labels}
                     placeholder={this.$t('请输入自定义标签')}
                     allow-create
                   />
@@ -683,7 +676,7 @@ export default class BasicInfo extends tsc<object> {
                   formType='tag'
                   label={this.$t('自定义标签')}
                   showEditable={false}
-                  value={this.formData.tag}
+                  value={this.formData.labels}
                 />
               </div>,
             ]}
@@ -691,105 +684,105 @@ export default class BasicInfo extends tsc<object> {
     );
   }
   /** 代码关联 */
-  renderCodeLink() {
-    return (
-      <div
-        class={['form-content', 'form-content-pl-22', 'form-content-row-m14', { 'form-content-edit': this.isEditing }]}
-      >
-        {this.isEditing
-          ? [
-              <bk-form
-                key='edit-code-info-form'
-                class='edit-config-form'
-                {...{
-                  props: {
-                    model: this.formData,
-                  },
-                }}
-                ref='editInfoForm'
-                label-width={116}
-              >
-                <bk-form-item
-                  class='code-line-row'
-                  error-display-type='normal'
-                  label={this.$t('发布流水线')}
-                  property='application_id'
-                >
-                  <bk-select
-                    style='width: 394px;margin-right: 8px;'
-                    class='alias-name-input'
-                    v-model={this.formData.application_id}
-                    loading={this.assemblyLineLoading}
-                  >
-                    {this.assemblyLineList.map(application => {
-                      return (
-                        <bk-option
-                          id={application.id}
-                          key={application.id}
-                          name={application.name}
-                        />
-                      );
-                    })}
-                  </bk-select>
-                  <bk-button
-                    theme='primary'
-                    outline
-                    onClick={this.handleAuthorization}
-                  >
-                    {this.$t('授权')}
-                  </bk-button>
-                </bk-form-item>
-                <bk-form-item
-                  label={this.$t('源码仓库')}
-                  property='tag'
-                >
-                  <bk-select
-                    style='width: 394px'
-                    class='alias-name-input'
-                    v-model={this.formData.application_id}
-                    loading={this.sourceWarehouseLoading}
-                  >
-                    {this.sourceWarehouseList.map(application => {
-                      return (
-                        <bk-option
-                          id={application.id}
-                          key={application.id}
-                          name={application.name}
-                        />
-                      );
-                    })}
-                  </bk-select>
-                  <p class='storehouse-tips'>{this.$t('关联源码仓库后，可以将问题定位精确到代码行级别')}</p>
-                </bk-form-item>
-              </bk-form>,
-            ]
-          : [
-              <div
-                key={'code-info-form-line'}
-                class='item-row'
-              >
-                <EditableFormItem
-                  formType='input'
-                  label={this.$t('发布流水线')}
-                  showEditable={false}
-                  value={this.formData.application_id}
-                />
-              </div>,
-              <div
-                key={'code-info-form-storehouse'}
-                class='item-row'
-              >
-                <EditableFormItem
-                  formType='input'
-                  label={this.$t('源码仓库')}
-                  showEditable={false}
-                  value={this.formData.application_id}
-                />
-              </div>,
-            ]}
-      </div>
-    );
-  }
+  // renderCodeLink() {
+  //   return (
+  //     <div
+  //       class={['form-content', 'form-content-pl-22', 'form-content-row-m14', { 'form-content-edit': this.isEditing }]}
+  //     >
+  //       {this.isEditing
+  //         ? [
+  //             <bk-form
+  //               key='edit-code-info-form'
+  //               class='edit-config-form'
+  //               {...{
+  //                 props: {
+  //                   model: this.formData,
+  //                 },
+  //               }}
+  //               ref='editInfoForm'
+  //               label-width={116}
+  //             >
+  //               <bk-form-item
+  //                 class='code-line-row'
+  //                 error-display-type='normal'
+  //                 label={this.$t('发布流水线')}
+  //                 property='application_id'
+  //               >
+  //                 <bk-select
+  //                   style='width: 394px;margin-right: 8px;'
+  //                   class='alias-name-input'
+  //                   v-model={this.formData.application_id}
+  //                   loading={this.assemblyLineLoading}
+  //                 >
+  //                   {this.assemblyLineList.map(application => {
+  //                     return (
+  //                       <bk-option
+  //                         id={application.id}
+  //                         key={application.id}
+  //                         name={application.name}
+  //                       />
+  //                     );
+  //                   })}
+  //                 </bk-select>
+  //                 <bk-button
+  //                   theme='primary'
+  //                   outline
+  //                   onClick={this.handleAuthorization}
+  //                 >
+  //                   {this.$t('授权')}
+  //                 </bk-button>
+  //               </bk-form-item>
+  //               <bk-form-item
+  //                 label={this.$t('源码仓库')}
+  //                 property='tag'
+  //               >
+  //                 <bk-select
+  //                   style='width: 394px'
+  //                   class='alias-name-input'
+  //                   v-model={this.formData.application_id}
+  //                   loading={this.sourceWarehouseLoading}
+  //                 >
+  //                   {this.sourceWarehouseList.map(application => {
+  //                     return (
+  //                       <bk-option
+  //                         id={application.id}
+  //                         key={application.id}
+  //                         name={application.name}
+  //                       />
+  //                     );
+  //                   })}
+  //                 </bk-select>
+  //                 <p class='storehouse-tips'>{this.$t('关联源码仓库后，可以将问题定位精确到代码行级别')}</p>
+  //               </bk-form-item>
+  //             </bk-form>,
+  //           ]
+  //         : [
+  //             <div
+  //               key={'code-info-form-line'}
+  //               class='item-row'
+  //             >
+  //               <EditableFormItem
+  //                 formType='input'
+  //                 label={this.$t('发布流水线')}
+  //                 showEditable={false}
+  //                 value={this.formData.application_id}
+  //               />
+  //             </div>,
+  //             <div
+  //               key={'code-info-form-storehouse'}
+  //               class='item-row'
+  //             >
+  //               <EditableFormItem
+  //                 formType='input'
+  //                 label={this.$t('源码仓库')}
+  //                 showEditable={false}
+  //                 value={this.formData.application_id}
+  //               />
+  //             </div>,
+  //           ]}
+  //     </div>
+  //   );
+  // }
   /** 数据关联 */
   renderDataLink() {
     const { log_relation: logRelation, app_relation: appRelation } = this.serviceInfo.relation;
@@ -804,7 +797,7 @@ export default class BasicInfo extends tsc<object> {
         ]}
       >
         <div class='config-form-item'>
-          <label class='label'>{this.$t('关联 CMDB 服务')}</label>
+          <span class='label'>{this.$t('关联 CMDB 服务')}</span>
           <div class='content'>
             {this.isEditing && (
               <div class='edit-form-item'>
@@ -827,7 +820,7 @@ export default class BasicInfo extends tsc<object> {
           </div>
         </div>
         <div class='config-form-item'>
-          <label class='label'>{this.$t('关联日志')}</label>
+          <span class='label'>{this.$t('关联日志')}</span>
           <div class='content'>
             {this.isEditing ? (
               <div class='edit-form-item'>
@@ -918,7 +911,7 @@ export default class BasicInfo extends tsc<object> {
           </div>
         </div>
         <div class='config-form-item'>
-          <label class='label'>{this.$t('关联应用')}</label>
+          <span class='label'>{this.$t('关联应用')}</span>
           <div class='content'>
             {this.isEditing ? (
               <div class='edit-form-item app-form-item'>
@@ -1015,7 +1008,7 @@ export default class BasicInfo extends tsc<object> {
         ]}
       >
         <div class='config-form-item'>
-          <label class='label'>Apdex</label>
+          <span class='label'>Apdex</span>
           <div class='content'>
             {this.isEditing ? (
               <div class='edit-form-item apdex-form-item'>
@@ -1088,7 +1081,7 @@ export default class BasicInfo extends tsc<object> {
         v-bkloading={{ isLoading: this.urlListLoading }}
       >
         <div class='header-tool'>
-          <label>{this.$t('URI源')}</label>
+          <span>{this.$t('URI源')}</span>
           {}
           <span
             class='right-btn-wrap'
@@ -1113,7 +1106,7 @@ export default class BasicInfo extends tsc<object> {
         key='uri-info'
         class={`uri-info ${!this.uriList.length ? 'is-empty' : ''}`}
       >
-        <label class='uri-set-label'>{this.$t('URI配置')}</label>
+        <span class='uri-set-label'>{this.$t('URI配置')}</span>
         <transition-group
           name={this.dragData.from !== null ? 'flip-list' : 'filp-list-none'}
           tag='ul'
@@ -1131,7 +1124,7 @@ export default class BasicInfo extends tsc<object> {
               onDrop={this.handleDrop}
             >
               {this.isEditing && <i class='icon-monitor icon-mc-tuozhuai' />}
-              <label class='label'>{`URI${index + 1}`}</label>
+              <span class='label'>{`URI${index + 1}`}</span>
               <div class='content'>
                 {this.isEditing ? (
                   <div class='edit-uri-row'>
