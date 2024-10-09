@@ -165,7 +165,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   get metricTitleTooltips() {
     return this.showMetricAlarm
       ? createMetricTitleTooltips(this.metricTitleData)
-      : this.metrics.map(metric => createMetricTitleTooltips(metric)).join('<hr/>');
+      : this.metrics.map(metric => createMetricTitleTooltips(metric)).join('<hr class="custom-hr" />');
   }
 
   get currentMetricsIds() {
