@@ -1119,9 +1119,17 @@ const store = new Vuex.Store({
     },
 
     requestIndexSetValueList({ commit, state }, payload) {
-      const filterFn = field => field.field_type !== 'text' && field.es_doc_values;
+      const filterFn = field =>
+        field.es_doc_values &&
+        !field.is_built_in &&
+        ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'].includes(field.field_type) &&
+        !/^__dist_/.test(field.field_name);
+
       const mapFn = field => field.field_name;
-      const fields = payload?.fields?.length ? payload.fields : state.indexFieldInfo.fields.filter(filterFn).map(mapFn);
+      const fields = (payload?.fields?.length ? payload.fields : state.indexFieldInfo.fields)
+        .filter(filterFn)
+        .map(mapFn);
+
       commit('updateIndexFieldInfo', { aggs_items: [] });
       if (!fields.length) return;
 
