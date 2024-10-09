@@ -31,6 +31,8 @@ class StrategiesViewSet(ResourceViewSet):
             return []
         if self.action in [
             "fetch_item_status",
+            "query_config_to_promql",
+            "promql_to_query_config",
         ]:
             return [ViewBusinessPermission()]
         if self.action in [
@@ -42,7 +44,6 @@ class StrategiesViewSet(ResourceViewSet):
         if self.action in [
             "get_metric_list",
             "v2/get_metric_list",
-            "query_config_to_promql",
             "update_metric_list_by_biz",
         ]:
             return [BusinessActionPermission([ActionEnum.VIEW_RULE, ActionEnum.EXPLORE_METRIC])]
