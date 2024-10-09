@@ -451,7 +451,7 @@ export default class ApmServiceList extends tsc<
           ) : (
             <div class='header-left'>
               <span>{this.appData.app_alias}</span>
-              {this.appName ? <span>（{this.appName}）</span> : null}
+              {this.appName ? <span>({this.appName})</span> : null}
             </div>
           )}
           <div class='header-right'>
