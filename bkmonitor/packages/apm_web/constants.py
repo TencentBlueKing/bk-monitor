@@ -187,6 +187,25 @@ class CategoryEnum:
             return cls.MESSAGING
         return cls.OTHER
 
+    @classmethod
+    def list_span_keys(cls):
+        """获取所有分类字段"""
+        return [
+            SpanAttributes.DB_SYSTEM,
+            SpanAttributes.MESSAGING_SYSTEM,
+            SpanAttributes.RPC_SYSTEM,
+            SpanAttributes.HTTP_METHOD,
+            SpanAttributes.MESSAGING_DESTINATION,
+        ]
+
+    @classmethod
+    def list_component_generate_keys(cls):
+        """获取 APM 手动处理(手动生成服务节点)的字段"""
+        return [
+            SpanAttributes.DB_SYSTEM,
+            SpanAttributes.MESSAGING_SYSTEM,
+        ]
+
 
 class CalculationMethod:
     # 错误率

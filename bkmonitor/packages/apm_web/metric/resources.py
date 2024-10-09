@@ -134,6 +134,11 @@ class DynamicUnifyQueryResource(Resource):
     1. 普通服务：不处理
     2. 组件服务：增加 predicate_value 等查询参数
     3. 自定义服务：增加 peer_service 等查询参数
+    参数解释:
+    alias_prefix / alias_suffix: 用于控制主被调需要调转的时候 例如进入了 xxx-mysql 时页面显示的是被调但是实际查询走的是主调查询
+    fill_bar: 补充柱子，让页面上所有指标图标的柱子数量一致，能够让页面实现多图表联动
+    extra_filter_dict: 额外的查询条件，有时候只知道 service_name 并不能获取所有的查询条件。
+                       例如在接口页面，接口区分了类型(如 celery等)但是此时 node 并没有这个信息所有需要别的地方传进来。
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -152,6 +157,7 @@ class DynamicUnifyQueryResource(Resource):
             required=False,
         )
         alias_suffix = serializers.CharField(label="动态 alias 后缀", required=False)
+        extra_filter_dict = serializers.DictField(label="额外查询条件", required=False)
 
     def perform_request(self, validate_data):
         unify_query_params = {
@@ -171,6 +177,10 @@ class DynamicUnifyQueryResource(Resource):
                 config["interval"] = interval
 
             require_fill_series = True
+
+        if validate_data.get("extra_filter_dict"):
+            for config in unify_query_params["query_configs"]:
+                config["filter_dict"].update(validate_data["extra_filter_dict"])
 
         if not validate_data.get("service_name"):
             return self.fill_unit_and_series(
@@ -1817,7 +1827,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
     @classmethod
     def _build_group_key(cls, endpoint, ignore_index=None, overwrite_service_name=None):
         category = []
-        for category_k in cls._get_category_keys():
+        for category_k in CategoryEnum.list_span_keys():
             if category_k == endpoint["category_kind"]["key"]:
                 category.append(str(endpoint["category_kind"]["value"]))
                 continue
@@ -1838,7 +1848,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
     @classmethod
     def _build_status_count_group_key(cls, endpoint, value_getter=lambda i: i):
         category = []
-        for category_k in cls._get_category_keys():
+        for category_k in CategoryEnum.list_span_keys():
             if category_k == endpoint["origin_category_kind"]["key"]:
                 category.append(str(endpoint["origin_category_kind"]["value"]))
                 continue
@@ -1851,16 +1861,6 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             ]
             + category
         )
-
-    @classmethod
-    def _get_category_keys(cls):
-        return [
-            SpanAttributes.DB_SYSTEM,
-            SpanAttributes.MESSAGING_SYSTEM,
-            SpanAttributes.RPC_SYSTEM,
-            SpanAttributes.HTTP_METHOD,
-            SpanAttributes.MESSAGING_DESTINATION,
-        ]
 
     def perform_request(self, validate_data):
         service_name = validate_data["service_name"]
@@ -2036,11 +2036,19 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
 
         for endpoint in endpoints:
             node_name = endpoint["service_name"]
-            if endpoint.get("category_kind", {}).get("key") in [
-                SpanAttributes.DB_SYSTEM,
-                SpanAttributes.MESSAGING_SYSTEM,
-            ]:
+
+            # 添加额外的查询条件 让右侧图标查询指标时查到正确的数据(通过图标配置中 metric_condition 指定)
+            endpoint["extra_filter_dict"] = {"kind": endpoint["kind"]}
+            category_kind_key = endpoint.get("category_kind", {}).get("key")
+            if category_kind_key in CategoryEnum.list_component_generate_keys():
+                # 如果此接口是 db\messaging 类型 那么需要获取这个接口的服务名称(添加上后缀)
                 node_name = ComponentHandler.generate_component_name(node_name, endpoint["category_kind"]["value"])
+            if category_kind_key:
+                endpoint["extra_filter_dict"].update(
+                    {
+                        OtlpKey.get_metric_dimension_key(category_kind_key): endpoint["category_kind"]["value"],
+                    }
+                )
 
             metric = self.get_endpoint_metric(endpoints_metric, node_mapping.get(node_name), endpoint)
 
