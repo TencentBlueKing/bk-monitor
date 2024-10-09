@@ -44,7 +44,9 @@ export default class AppListSkeleton extends tsc<IProps> {
             class='expand-header'
           >
             <div class='header-left'>
-              <div class='skeleton skeleton-element' />
+              <div class='skeleton-01 skeleton-element' />
+              <div class='skeleton-02 skeleton-element' />
+              <div class='skeleton-03 skeleton-element' />
             </div>
           </div>
         ))}

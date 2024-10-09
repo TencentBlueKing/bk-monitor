@@ -16,11 +16,23 @@
       flex: 1;
       align-items: center;
 
-      .skeleton {
-        max-width: 268px;
+      .skeleton-01{
+        max-width: 24px;
+        height: 24px;
+        margin-right: 8px;
+        margin-left: 16px;
+      }
+
+      .skeleton-02{
+        flex: 1;
+        height: 24px;
+        margin-right: 8px;
+      }
+
+      .skeleton-03{
+        max-width: 20px;
         height: 24px;
         margin-right: 16px;
-        margin-left: 16px;
       }
     }
   }

@@ -344,7 +344,6 @@ export default class ApmServiceList extends tsc<
    */
   renderTableBatchByBatch(field: string, dataMap: Record<string, any> = {}) {
     const setData = (currentIndex = 0) => {
-      console.info('setData', currentIndex);
       let needBreak = false;
       if (currentIndex <= this.tableData.length && this.tableData.length) {
         const endIndex = Math.min(currentIndex + 2, this.tableData.length);
