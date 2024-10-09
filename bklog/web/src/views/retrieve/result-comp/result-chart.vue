@@ -192,9 +192,7 @@
         bkBizId: 'bkBizId',
       }),
       totalNumShow() {
-        if (!this.infoTotalNumLoading && !this.infoTotalNumError && !this.isFrontStatistics && this.infoTotal > 0)
-          return this.infoTotal;
-        return this.totalCount;
+        return this.infoTotal;
       },
       /** 未开启白名单时 是否由前端来统计总数 */
       isFrontStatistics() {
@@ -225,6 +223,7 @@
     watch: {
       chartKey: {
         handler() {
+          console.log('chartKey changed')
           this.handleLogChartCancel();
           this.localAddition = this.retrieveParams.addition;
           this.$refs.chartRef?.handleCloseTimer();

@@ -588,7 +588,6 @@
 
     // },
     beforeDestroy() {
-      console.log('--beforeDestroy');
       this.isInDestroy = true;
       updateTimezone();
       this.$store.commit('updateUnionIndexList', []);
@@ -1506,7 +1505,6 @@
       },
       // 更新路由参数
       setRouteParams(name = 'retrieve', params, query) {
-        console.log('--setRouteParams', this.isInDestroy);
         if (this.isInDestroy) {
           return;
         }

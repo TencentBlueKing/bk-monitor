@@ -498,7 +498,6 @@
           (Array.isArray(data) && data.length && data.some(item => item)) ||
           (data && Object.prototype.hasOwnProperty.call(data, 'series') && data.series.length)
         ) {
-          // await this.handleSetChartData(data)
           this.chartData.splice(0, this.chartData.length, ...data);
           if (!this.isFold) this.handleSetChartData(this.chartData);
         } else if (this.isFinish) {
@@ -564,23 +563,10 @@
             chartOption: this.chartOption,
           });
           const optionData = this.chartOptionInstance.getOptions(this.handleTransformSeries(series), {});
-          // optionData.options.xAxis.type = 'time';
-          Object.assign(optionData.options.xAxis, {
-            type: 'time',
-            // 设置最小刻度间隔为1秒
-            minInterval: 1000,
-            // 设置刻度最小值和最大值，可以根据具体需求调整
-            min: function (value) {
-              console.log('min value', value)
-                return new Date(value.min).getTime() - 1000;
-            },
-            max: function (value) {
-              console.log('max value', value)
-                return new Date(value.max).getTime() + 1000;
-            }
-          })
+          optionData.options.xAxis.type = 'time';
+
           optionData.options.xAxis.axisLine.show = false;
-          optionData.options.xAxis.axisTick.show = false;
+          optionData.options.xAxis.axisTick.show = true;
           optionData.options.yAxis.axisLine.show = false;
           if (['bar', 'line'].includes(this.chartType)) {
             this.legend.show = hasSeries && optionData.legendData.length > 0;
@@ -605,13 +591,50 @@
 
               if (isEmptyData) optionData.options.yAxis.max = 1;
 
+              // 获取数据的最小和最大时间
+              const times = (optData ?? []).map(item => new Date(item[0]).getTime());
+              const minTime = Math.min(...times);
+              const maxTime = Math.max(...times);
+              const timeDiff = maxTime - minTime;
+
+              // 定义格式化函数
+              function getTimeFormat(diff) {
+                const oneSecond = 1000;
+                const oneMinute = 60 * oneSecond;
+                const oneHour = 60 * oneMinute;
+                const oneDay = 24 * oneHour;
+
+                if (diff < oneMinute) {
+                  return 'YYYY-MM-DD HH:mm:ss SSS'; // 显示到毫秒
+                } else if (diff < oneHour) {
+                  return 'YYYY-MM-DD HH:mm:ss'; // 显示到秒
+                } else if (diff < oneDay) {
+                  return 'YYYY-MM-DD HH:mm'; // 显示到分钟
+                } else {
+                  return 'YYYY-MM-DD HH'; // 显示到小时
+                }
+              }
+
+              // 根据时间差选择合适的格式
+              const timeFormat = getTimeFormat(timeDiff);
+
+              optionData.options.xAxis.min = minTime - 1000;
+              optionData.options.xAxis.max = maxTime + 1000;
+
+              Object.assign(optionData.options.xAxis.axisLabel, {
+                formatter: value => {
+                  return dayjs(new Date(value)).format(timeFormat);
+                },
+              });
+
+              optionData.options.xAxis.minInterval = 1;
+
               this.chart.setOption(deepMerge(optionData.options, this.defaultOptions) as EChartOption, {
                 notMerge: true,
                 lazyUpdate: false,
                 silent: false,
               });
 
-              console.log('chart.setOption', this.chart)
               if (!this.hasInitChart) {
                 this.hasInitChart = true;
                 if (optionData.options.toolbox) {
@@ -630,8 +653,10 @@
                           });
                         }, 10);
                         this.handleCloseTimer();
+
                         this.getSeriesData(timeFrom, timeTo);
                       }
+
                       this.$emit('data-zoom', this.timeRange);
                     }
                     this.loading = false;
