@@ -19,7 +19,7 @@ class CacheBase(ABC):
     cache = get_redis_connection()
 
     @abc.abstractclassmethod
-    def refresh(cls, uid_list=None):
+    def refresh(cls, *args, **kwargs):
         raise NotImplementedError
 
     @classmethod

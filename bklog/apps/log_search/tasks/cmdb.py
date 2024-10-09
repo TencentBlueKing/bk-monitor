@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 from celery.schedules import crontab  # noqa
 from celery.task import periodic_task  # noqa
 
-from apps.log_search.models import LogIndexSet, UserIndexSetSearchHistory
+from apps.log_search.models import LogIndexSet, Space, UserIndexSetSearchHistory
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
 
 
@@ -34,12 +34,12 @@ def refresh_cmdb():
             "index_set_id", flat=True
         )
     )
-    space_uid_list = set(
+    space_uids = set(
         LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True).values_list("space_uid", flat=True)
     )
-    space_uid_list = space_uid_list if space_uid_list else None
+    bk_biz_ids = set(Space.objects.filter(space_uid__in=space_uids).values_list("bk_biz_id", flat=True))
     current_hour = datetime.now().hour
     if current_hour % 12 != 0:
-        CmdbHostCache.refresh(space_uid_list)
+        CmdbHostCache.refresh(bk_biz_ids)
     else:
         CmdbHostCache.refresh()

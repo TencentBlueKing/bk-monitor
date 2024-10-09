@@ -2,7 +2,6 @@ from collections import defaultdict
 
 from apps.api import CCApi
 from apps.log_search.constants import TimeEnum
-from apps.log_search.models import Space
 from apps.utils import local
 from apps.utils.core.cache.cache_base import CacheBase
 from apps.utils.log import logger
@@ -54,7 +53,7 @@ class CmdbHostCache(CacheBase):
         return result
 
     @classmethod
-    def refresh(cls, uid_list=None):
+    def refresh(cls, bk_biz_ids=None):
         from apps.log_search.handlers.biz import BizHandler
 
         businesses = BizHandler.list()
@@ -69,10 +68,9 @@ class CmdbHostCache(CacheBase):
         for biz in businesses:
             bk_biz_id = biz["bk_biz_id"]
             biz_ids.append(bk_biz_id)
-            # 有传入参数
-            if uid_list:
-                instance = Space.objects.filter(bk_biz_id=bk_biz_id).first()
-                if (instance is None) or (instance.space_uid not in uid_list):
+            # 有传入实际参数
+            if bk_biz_ids:
+                if bk_biz_id not in bk_biz_ids:
                     continue
             objs = {}
             try:
@@ -90,8 +88,13 @@ class CmdbHostCache(CacheBase):
             pipeline.expire(cls.CACHE_KEY, cls.CACHE_TIMEOUT)
             pipeline.execute()
 
-        # 不传参
-        if uid_list is None:
+        # 有实际参数
+        if bk_biz_ids:
+            logger.info(
+                "cache_key({}) refresh CMDB data finished, amount: updated: {}".format(cls.CACHE_KEY, len(new_keys))
+            )
+        # 参数为None、空集合
+        else:
             old_biz_ids = {biz_id.decode() for biz_id in cls.cache.hkeys(biz_cache_key)}
             new_biz_ids = {str(biz_id) for biz_id in biz_ids}
             delete_biz_ids = old_biz_ids - new_biz_ids
@@ -107,8 +110,4 @@ class CmdbHostCache(CacheBase):
             logger.info(
                 "cache_key({}) refresh CMDB data finished, amount: updated: {}, removed: {}, "
                 "removed_biz: {}".format(cls.CACHE_KEY, len(new_keys), len(deleted_keys), len(delete_biz_ids))
-            )
-        else:
-            logger.info(
-                "cache_key({}) refresh CMDB data finished, amount: updated: {}".format(cls.CACHE_KEY, len(new_keys))
             )
