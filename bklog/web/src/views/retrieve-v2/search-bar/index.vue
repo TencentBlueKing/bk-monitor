@@ -48,7 +48,12 @@
     addition,
     () => {
       uiQueryValue.value.splice(0);
-      uiQueryValue.value.push(...addition.value);
+      uiQueryValue.value.push(
+        ...addition.value.map(v => ({
+          ...v,
+          field_type: (indexFieldInfo.value.fields ?? []).find(f => f.field_name === v.field)?.field_type,
+        })),
+      );
     },
     { immediate: true, deep: true },
   );

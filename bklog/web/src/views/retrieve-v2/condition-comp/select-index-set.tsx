@@ -541,14 +541,12 @@ export default class QueryStatement extends tsc<object> {
 
   /** 已选tag中的删除事件 */
   handleCloseSelectTag(item) {
-    console.log('@handleCloseSelectTag--');
     this.selectTagCatchIDList = this.selectTagCatchIDList.filter(catchVal => catchVal !== item.index_set_id);
     this.multipleFavoriteSelectID = null;
   }
 
   /** 切换多选或者单选 */
   handleClickSetType(type: IndexSetType) {
-    console.log('@handleClickSetType--');
     this.indexSearchType = type;
     this.multipleHistorySelectID = null;
     this.getIndexSetHistoryList(type);
