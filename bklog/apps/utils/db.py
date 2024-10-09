@@ -132,5 +132,12 @@ def get_toggle_data(request):
                 if isinstance(toggle.biz_id_white_list, list)
             }
         ),
+        "SPACE_UID_WHITE_LIST": json.dumps(
+            {
+                toggle.name: toggle.feature_config["space_uid_white_list"]
+                for toggle in toggle_list
+                if toggle.feature_config.get("space_uid_white_list")
+            }
+        ),
     }
     return data
