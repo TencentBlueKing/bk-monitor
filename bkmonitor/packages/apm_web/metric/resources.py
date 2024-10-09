@@ -635,9 +635,40 @@ class ServiceListResource(PageListResource):
 
             return res
 
+    class Labels:
+        key = "labels"
+        name = _("自定义标签")
+
+        @classmethod
+        def list_filter_fields(cls, services):
+            count_mapping = defaultdict(int)
+            for i in services:
+                for j in i.get("labels", []):
+                    count_mapping[j] += 1
+            res = []
+            for label, c in count_mapping.items():
+                res.append({"id": label, "name": label, "count": c})
+            return res
+
+        @classmethod
+        def filter_by_fields(cls, values, services):
+            res = []
+            for i in services:
+                for v in values:
+                    if v in i.get("labels", []):
+                        res.append(i)
+
+            return res
+
     def _get_filter_fields_by_services(self, services):
         """根据服务数据获取筛选项目"""
-        fields = [self.StatisticsCategory, self.StatisticsLanguage, self.StatisticsApplyModule, self.StatisticsHaveData]
+        fields = [
+            self.StatisticsCategory,
+            self.StatisticsLanguage,
+            self.StatisticsApplyModule,
+            self.StatisticsHaveData,
+            self.Labels,
+        ]
         res = []
         for f in fields:
             res.append({"id": f.key, "name": f.name, "data": f.list_filter_fields(services)})
@@ -652,6 +683,7 @@ class ServiceListResource(PageListResource):
                 self.StatisticsLanguage,
                 self.StatisticsApplyModule,
                 self.StatisticsHaveData,
+                self.Labels,
             ]
         }
         res = []
@@ -663,7 +695,9 @@ class ServiceListResource(PageListResource):
         return list({i["service_name"]: i for i in res}.values())
 
     def perform_request(self, validate_data):
-        application = Application.objects.get(bk_biz_id=validate_data["bk_biz_id"], app_name=validate_data["app_name"])
+        bk_biz_id = validate_data["bk_biz_id"]
+        app_name = validate_data["app_name"]
+        application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
 
         # 获取服务列表
         services = ServiceHandler.list_services(application)
@@ -677,11 +711,20 @@ class ServiceListResource(PageListResource):
             validate_data["end_time"],
             services,
         )
+        labels_mapping = group_by(
+            ApmMetaConfig.list_service_config_values(bk_biz_id, app_name, [i["topo_key"] for i in services], "labels"),
+            operator.attrgetter("level_key"),
+        )
         for service in services:
             # 分类过滤
             if validate_data["filter"] != "all" and validate_data["filter"] != service["extra_data"]["category"]:
                 continue
             name = service["topo_key"]
+            labels = []
+            if ApmMetaConfig.get_service_level_key(bk_biz_id, app_name, name) in labels_mapping:
+                labels = json.loads(
+                    labels_mapping[ApmMetaConfig.get_service_level_key(bk_biz_id, app_name, name)][0].config_value,
+                )
             res.append(
                 {
                     "app_name": application.app_name,
@@ -706,6 +749,7 @@ class ServiceListResource(PageListResource):
                     "category": service["extra_data"]["category"],
                     # kind 附加数据 不显示
                     "kind": service["extra_data"]["kind"],
+                    "labels": labels,
                 }
             )
 

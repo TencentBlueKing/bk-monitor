@@ -836,12 +836,26 @@ class ApmMetaConfig(models.Model):
         ).first()
 
     @classmethod
+    def get_service_level_key(cls, bk_biz_id, app_name, service_name):
+        """因服务可能没有 id 所以 service_id 约定为 {bk_biz_id}-{app_name}-{service_name} 格式"""
+        return f"{bk_biz_id}-{app_name}-{service_name}"
+
+    @classmethod
     def get_service_config_value(cls, bk_biz_id, app_name, service_name, config_key):
         return cls.objects.filter(
             config_level=cls.SERVICE_LEVEL,
-            level_key=f"{bk_biz_id}-{app_name}-{service_name}",
+            level_key=cls.get_service_level_key(bk_biz_id, app_name, service_name),
             config_key=config_key,
         ).first()
+
+    @classmethod
+    def list_service_config_values(cls, bk_biz_id, app_name, service_names, config_key):
+        level_keys = [cls.get_service_level_key(bk_biz_id, app_name, i) for i in service_names]
+        return cls.objects.filter(
+            config_level=cls.SERVICE_LEVEL,
+            level_key__in=level_keys,
+            config_key=config_key,
+        )
 
     @classmethod
     def application_config_setup(cls, application_id, config_key, config_value):
@@ -855,9 +869,13 @@ class ApmMetaConfig(models.Model):
     def service_config_setup(cls, bk_biz_id, app_name, service_name, config_key, config_value):
         """
         服务的元数据配置
-        因服务可能没有 id 所以 service_id 约定为 {bk_biz_id}-{app_name}-{service_name} 格式
         """
-        return cls._setup(cls.SERVICE_LEVEL, f"{bk_biz_id}-{app_name}-{service_name}", config_key, config_value)
+        return cls._setup(
+            cls.SERVICE_LEVEL,
+            cls.get_service_level_key(bk_biz_id, app_name, service_name),
+            config_key,
+            config_value,
+        )
 
     @classmethod
     def _setup(cls, config_level, level_key, config_key, config_value):
