@@ -27,8 +27,8 @@
 import { Component, Provide } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import SearchSelect from '@blueking/search-select-v3/vue2';
 import { deleteApplication, listApplication } from 'monitor-api/modules/apm_meta';
+import { Debounce } from 'monitor-common/utils/utils';
 import introduceModule, { IntroduceRouteKey } from 'monitor-pc/common/introduce';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import GuidePage from 'monitor-pc/components/guide-page/guide-page';
@@ -45,13 +45,7 @@ import AppHomeList from './components/apm-home-list';
 import ApmHomeResizeLayout from './components/apm-home-resize-layout';
 import NavBar from './nav-bar';
 import ApmHomeSkeleton from './skeleton/apm-home-skeleton';
-import {
-  charColor,
-  OPERATE_OPTIONS,
-  ALERT_PANEL_DATA,
-  getDefaultAppListSearchCondition,
-  type ISearchCondition,
-} from './utils';
+import { charColor, OPERATE_OPTIONS, ALERT_PANEL_DATA } from './utils';
 
 import type { IAppListItem } from './typings/app';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -94,8 +88,7 @@ export default class AppList extends tsc<object> {
 
   isShowAppAdd = false;
 
-  searchData: ISearchCondition[] = getDefaultAppListSearchCondition();
-  searchCondition: ISearchCondition[] = [];
+  searchCondition = '';
 
   /** 仪表盘工具栏 策略和告警panel */
   alarmToolsPanel = null;
@@ -130,28 +123,13 @@ export default class AppList extends tsc<object> {
   }
   initRouteParams() {
     const { query } = this.$route;
-    const defaultSearchCondition = [];
     for (const [key, val] of Object.entries(query)) {
       if (key === 'app_keyword') {
-        defaultSearchCondition.push({
-          id: val.toString(),
-          name: val.toString(),
-        });
-        continue;
-      }
-      if (key === 'app_name') {
+        this.searchCondition = (val || '').toString();
+      } else if (key === 'app_name') {
         this.appName = (val || '').toString();
-        continue;
-      }
-      const item = this.searchData.find(item => item.id === key);
-      if (item) {
-        defaultSearchCondition.push({
-          id: item.id,
-          values: typeof val === 'string' ? [val] : val,
-        });
       }
     }
-    this.searchCondition = defaultSearchCondition;
   }
 
   /**
@@ -161,30 +139,12 @@ export default class AppList extends tsc<object> {
     if (this.loading) {
       return;
     }
-    let queryString = '';
-    let profilingDataStatus = '';
-    let isEnabledProfiling = null;
-    for (const item of this.searchCondition) {
-      if (item?.values?.length) {
-        if (item.id === 'profiling_data_status') {
-          profilingDataStatus = item.values[0].id;
-        } else if (item.id === 'is_enabled_profiling') {
-          isEnabledProfiling = item.values[0].id === 'true';
-        }
-      } else {
-        queryString = item.id;
-      }
-    }
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const params = {
       start_time: startTime,
       end_time: endTime,
-      keyword: queryString,
+      keyword: this.searchCondition,
       sort: '',
-      filter_dict: {
-        profiling_data_status: profilingDataStatus || undefined,
-        is_enabled_profiling: isEnabledProfiling === null ? undefined : isEnabledProfiling,
-      },
     };
     this.loading = true;
     const listData: {
@@ -212,7 +172,7 @@ export default class AppList extends tsc<object> {
     if (this.appList.length) {
       if (!this.appName) {
         this.appName = listData.data[0].app_name;
-      } else if (!params.keyword && !profilingDataStatus && isEnabledProfiling === null) {
+      } else if (!params.keyword) {
         const checkedItem = this.appList.find(item => item.app_name === this.appName);
         if (!checkedItem) {
           this.appName = listData.data[0].app_name;
@@ -360,6 +320,7 @@ export default class AppList extends tsc<object> {
    * @description 条件搜索
    * @param value
    */
+  @Debounce(300)
   handleSearchCondition(value) {
     this.searchCondition = value;
     this.getAppList();
@@ -408,12 +369,13 @@ export default class AppList extends tsc<object> {
           >
             <div class='app-list-title'>{this.$t('应用列表')}</div>
             <div class='app-list-search'>
-              <SearchSelect
-                class='app-list-search-select'
-                data={this.searchData}
-                modelValue={this.searchCondition}
+              <bk-input
+                v-model={this.searchCondition}
                 placeholder={this.$t('应用名或ID')}
-                uniqueSelect={true}
+                right-icon='bk-icon icon-search'
+                clearable
+                show-clear-only-hover
+                on-right-icon-click={this.handleSearchCondition}
                 onChange={this.handleSearchCondition}
               />
               <div
@@ -480,8 +442,8 @@ export default class AppList extends tsc<object> {
             ) : (
               <EmptyStatus
                 textMap={{ empty: this.$t('暂无数据') }}
-                type={this.searchCondition.length ? 'search-empty' : 'empty'}
-                onOperation={() => this.handleSearchCondition([])}
+                type={this.searchCondition ? 'search-empty' : 'empty'}
+                onOperation={() => this.handleSearchCondition('')}
               />
             )}
           </div>

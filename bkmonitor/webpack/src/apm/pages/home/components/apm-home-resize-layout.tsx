@@ -68,7 +68,6 @@ export default class ApmHomeResizeLayout extends tsc<IProps, IEvent> {
   handleSideMousemove(event: MouseEvent) {
     if (this.isDrop) {
       const width = this.oldWidth + event.pageX - this.downPageX;
-      console.log(event.pageX, this.downPageX, width);
       if (width < this.minWidth) {
         this.setCollapse(false);
       } else {
