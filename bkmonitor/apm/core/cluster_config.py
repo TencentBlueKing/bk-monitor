@@ -91,6 +91,7 @@ class ClusterConfig:
         )
         if len(config_maps.items) > 0:
             # 存在，且与已有的数据不一致，则更新
+            logger.info(f"{cluster_id} apm platform config already exists.")
             need_update = False
             sec = config_maps.items[0]
             if isinstance(sec.data, dict):
@@ -102,6 +103,7 @@ class ClusterConfig:
                 need_update = True
 
             if need_update:
+                logger.info(f"{cluster_id} apm platform config has changed, update it.")
                 sec.data = {BkCollectorComp.SECRET_PLATFORM_CONFIG_FILENAME_NAME: b64_content}
                 bcs_client.client_request(
                     bcs_client.core_api.patch_namespaced_secret,
@@ -109,8 +111,10 @@ class ClusterConfig:
                     namespace=BkCollectorComp.NAMESPACE,
                     body=sec,
                 )
+                logger.info(f"{cluster_id} apm platform config update successful.")
         else:
             # 不存在，则创建
+            logger.info(f"{cluster_id} apm platform config not exists, create it.")
             sec = client.V1Secret(
                 type="Opaque",
                 metadata=client.V1ObjectMeta(
@@ -130,6 +134,7 @@ class ClusterConfig:
                 namespace=BkCollectorComp.NAMESPACE,
                 body=sec,
             )
+            logger.info(f"{cluster_id} apm platform config create successful.")
 
     @classmethod
     def platform_config_tpl(cls, cluster_id):
