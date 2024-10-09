@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+import time
 
 from alarm_backends.core.lock.service_lock import share_lock
 from metadata import models
@@ -27,7 +28,8 @@ def check_access_vm_task():
 
     NOTE: 因为需要调用vm的接口，建议是需要单个单个执行
     """
-    logger.info("start to check result table and access vm")
+    start_time = time.time()  # 记录开始时间
+    logger.info("check_access_vm_task:start to check result table and access vm")
     # 获取有关联数据源的结果表
     rt_ds_dict = {
         obj["table_id"]: obj["bk_data_id"]
@@ -60,10 +62,12 @@ def check_access_vm_task():
             continue
         need_access_vm_rt_list.append(rt)
 
-    logger.info("need add vm result table_id list: %s", json.dumps(need_access_vm_rt_list))
+    logger.info("check_access_vm_task:need add vm result table_id list: %s", json.dumps(need_access_vm_rt_list))
 
     # 如果检查没有需要创建的，直接返回
     if not need_access_vm_rt_list:
+        end_time = time.time()  # 记录结束时间
+        logger.info("check_access_vm_task:no need to add fix access vm, total use %.2f seconds", end_time - start_time)
         return
 
     # 单个单个接入 vm
@@ -84,4 +88,5 @@ def check_access_vm_task():
         except Exception as e:
             logger.error("access bkdata vm error, error: %s", e)
 
-    logger.info("check result table and access vm successfully")
+    end_time = time.time()  # 记录结束时间
+    logger.info("check_access_vm_task: check successfully，use %.2f seconds", end_time - start_time)
