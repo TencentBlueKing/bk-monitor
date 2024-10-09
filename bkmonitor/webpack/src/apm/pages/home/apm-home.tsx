@@ -188,7 +188,7 @@ export default class AppList extends tsc<object> {
       query: {
         ...this.$route.query,
         ...serviceParams,
-        app_keyword: appSearchParams.keyword || undefined,
+        app_keyword: this.searchCondition || undefined,
         app_name: this.appName,
         profiling_data_status: appSearchParams.profiling_data_status || undefined,
         is_enabled_profiling:
