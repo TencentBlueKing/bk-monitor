@@ -65,7 +65,7 @@ from apps.utils.thread import generate_request
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.errors import NoRelatedResourceError
-from bkm_space.utils import bk_biz_id_to_space_uid
+from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 
 
 class ClusteringConfigHandler(object):
@@ -150,7 +150,7 @@ class ClusteringConfigHandler(object):
             )
 
         # 非业务类型的项目空间业务 id 为负数，需要通过 Space 的关系拿到其关联的真正的业务ID。然后以这个关联业务ID在计算平台操作, 没有则不允许创建聚类
-        related_space_pre_bk_biz_id = params["bk_biz_id"]
+        related_space_pre_bk_biz_id = space_uid_to_bk_biz_id(log_index_set.space_uid)
         bk_biz_id = self.validate_bk_biz_id(related_space_pre_bk_biz_id)
 
         # 创建流程
