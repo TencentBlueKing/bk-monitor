@@ -30,6 +30,7 @@ from apm_web.constants import (
     DataStatus,
     TopoNodeKind,
 )
+from apm_web.handlers.log_handler import ServiceLogHandler
 from apm_web.metric_handler import RequestCountInstance, ServiceFlowCount
 from apm_web.metrics import APPLICATION_LIST
 from apm_web.models import ApdexServiceRelation, Application, ApplicationCustomService
@@ -396,6 +397,7 @@ class ServiceHandler:
 
     @classmethod
     def get_service_metric_instant_mapping(cls, metric, application, start_time, end_time, ignore_keys=None):
+        """获取所有服务的 metric 指标（instant 查询）"""
         metric_id = metric(
             **{
                 "application": application,
@@ -502,57 +504,56 @@ class ServiceHandler:
         )
 
     @classmethod
-    def get_service_data_status_mapping(cls, application, start_time, end_time, all_services):
+    def get_service_data_status_mapping(cls, app, start_time, end_time, all_services):
         """获取应用下各个服务的数据状态"""
-        status = {}
-        if not application.is_enabled_metric:
-            status[TelemetryDataType.METRIC.value] = DataStatus.DISABLED
-        if not application.is_enabled_log:
-            status[TelemetryDataType.LOG.value] = DataStatus.DISABLED
-        if not application.is_enabled_trace:
-            status[TelemetryDataType.TRACE.value] = DataStatus.DISABLED
-        if not application.is_enabled_profiling:
-            status[TelemetryDataType.PROFILING.value] = DataStatus.DISABLED
+        status = {
+            TelemetryDataType.METRIC.value: DataStatus.NO_DATA if app.is_enabled_metric else DataStatus.DISABLED,
+            TelemetryDataType.LOG.value: DataStatus.NO_DATA if app.is_enabled_log else DataStatus.DISABLED,
+            TelemetryDataType.TRACE.value: DataStatus.NO_DATA if app.is_enabled_trace else DataStatus.DISABLED,
+            TelemetryDataType.PROFILING.value: DataStatus.NO_DATA if app.is_enabled_profiling else DataStatus.DISABLED,
+        }
 
         res = defaultdict(lambda: copy.deepcopy(status))
         # Metric 数据状态: 通过 bk_apm_count 指标判断
-        if TelemetryDataType.METRIC.value not in status:
+        if status[TelemetryDataType.METRIC.value] != DataStatus.DISABLED:
             metric_response = cls.get_service_metric_range_mapping(
                 RequestCountInstance,
-                application,
+                app,
                 start_time,
                 end_time,
             )
             for service_name in metric_response.keys():
                 res[service_name].update({TelemetryDataType.METRIC.value: DataStatus.NORMAL})
 
-        # Log 数据状态 TODO
-        if TelemetryDataType.LOG.value not in status:
-            pass
+        # Log 数据状态
+        if status[TelemetryDataType.LOG.value] != DataStatus.DISABLED:
+            log_response = ServiceLogHandler.get_log_count_mapping(app.bk_biz_id, app.app_name)
+            for service_name, data_status in log_response.items():
+                res[service_name].update({TelemetryDataType.LOG.value: data_status})
 
         # Trace 数据状态: 通过 flow 指标判断
         # (有 flow 指标 证明有 span 并且经过了 collector 处理
         # 但是是否正常被 transfer 消费未知除非查 ES 但是查 ES 太重了这里直接查 flow 指标)
-        if TelemetryDataType.TRACE.value not in status:
-            metric_response = ServiceFlowCount(
+        if status[TelemetryDataType.TRACE.value] != DataStatus.DISABLED:
+            trace_response = ServiceFlowCount(
                 **{
-                    "application": application,
+                    "application": app,
                     "start_time": start_time,
                     "end_time": end_time,
                     "group_by": ["from_apm_service_name", "to_apm_service_name"],
                 }
             ).get_instance_values_mapping()
-            for keys in metric_response.keys():
+            for keys in trace_response.keys():
                 if keys[0]:
                     res[keys[0]].update({TelemetryDataType.TRACE.value: DataStatus.NORMAL})
                 if keys[-1]:
                     res[keys[-1]].update({TelemetryDataType.TRACE.value: DataStatus.NORMAL})
 
         # Profiling 数据状态
-        if TelemetryDataType.PROFILING.value not in status:
+        if status[TelemetryDataType.PROFILING.value] != DataStatus.DISABLED:
             services = api.apm_api.query_profile_services_detail(
-                bk_biz_id=application.bk_biz_id,
-                app_name=application.app_name,
+                bk_biz_id=app.bk_biz_id,
+                app_name=app.app_name,
                 last_check_time__gt=start_time,
             )
             for i in services:
@@ -560,13 +561,7 @@ class ServiceHandler:
 
         for i in all_services:
             if i["topo_key"] not in res:
-                res[i["topo_key"]] = {
-                    TelemetryDataType.METRIC.value: status.get(TelemetryDataType.METRIC.value, DataStatus.NO_DATA),
-                    TelemetryDataType.LOG.value: status.get(TelemetryDataType.LOG.value, DataStatus.NO_DATA),
-                    TelemetryDataType.TRACE.value: status.get(TelemetryDataType.TRACE.value, DataStatus.NO_DATA),
-                    TelemetryDataType.PROFILING.value: status.get(
-                        TelemetryDataType.PROFILING.value, DataStatus.NO_DATA
-                    ),
-                }
+                # 使用默认值
+                res[i["topo_key"]].update({})
 
         return res
