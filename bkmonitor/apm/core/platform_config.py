@@ -12,8 +12,10 @@ import base64
 import gzip
 import logging
 
+import jinja2
 from django.conf import settings
 from kubernetes import client
+from opentelemetry import trace
 
 from apm.constants import (
     DEFAULT_APM_ATTRIBUTE_CONFIG,
@@ -23,6 +25,7 @@ from apm.constants import (
     GLOBAL_CONFIG_BK_BIZ_ID,
 )
 from apm.core.bk_collector_config import BkCollectorConfig
+from apm.core.cluster_config import ClusterConfig
 from apm.models.subscription_config import SubscriptionConfig
 from bkmonitor.utils.bcs import BcsKubeClient
 from bkmonitor.utils.common_utils import count_md5
@@ -30,6 +33,8 @@ from constants.apm import BkCollectorComp, SpanKindKey
 from core.drf_resource import api
 
 logger = logging.getLogger("apm")
+
+tracer = trace.get_tracer(__name__)
 
 
 class PlatformConfig(BkCollectorConfig):
@@ -55,6 +60,50 @@ class PlatformConfig(BkCollectorConfig):
             cls.deploy_to_nodeman(platform_config, bk_host_ids)
         except Exception:  # noqa
             logger.exception("auto deploy bk-collector platform config error")
+
+    @classmethod
+    def refresh_k8s(cls):
+        """
+        下发平台默认配置到 K8S 集群
+
+        # 1. 获取所有集群ID列表
+        # 2. 针对每一个集群
+        #    2.1 从集群中获取模版配置
+        #    2.2 获取到模板，则下发，否则忽略该集群
+        """
+        cluster_mapping = ClusterConfig.get_cluster_mapping()
+        for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
+            with tracer.start_as_current_span(
+                f"cluster-id: {cluster_id}", attributes={"bk_biz_ids": cc_bk_biz_ids}
+            ) as s:
+                try:
+                    platform_config_tpl = ClusterConfig.platform_config_tpl(cluster_id)
+                    if platform_config_tpl is None:
+                        # 如果集群中不存在 bk-collector 的平台配置模版，则不下发
+                        continue
+
+                    # bk_biz_id = cc_bk_biz_ids[0]
+                    # if len(cc_bk_biz_ids) != 1:
+                    #     logger.warning(
+                    #         f"[post-deploy-bk_collector] cluster_id: {cluster_id} record multiple bk_biz_id!",
+                    #     )
+
+                    # Step1: 创建默认应用
+                    # default_application = ApplicationHelper.create_default_application(bk_biz_id)
+
+                    # Step2: 往集群的 bk-collector 下发配置
+                    platform_config_context = PlatformConfig.get_platform_config()
+                    tpl = jinja2.Template(platform_config_tpl)
+                    platform_config = tpl.render(platform_config_context)
+                    PlatformConfig.deploy_to_k8s(cluster_id, platform_config)
+
+                    # s.add_event("default_application", attributes={"id": default_application.id})
+                    s.add_event("platform_secret", attributes={"name": BkCollectorComp.SECRET_PLATFORM_NAME})
+                    s.set_status(trace.StatusCode.OK)
+                except Exception as e:  # pylint: disable=broad-except
+                    # 仅记录异常
+                    s.record_exception(exception=e)
+                    logger.error(f"refresh platform config to cluster: {cluster_id} failed, error: {e}")
 
     @classmethod
     def get_platform_config(cls):
@@ -331,7 +380,7 @@ class PlatformConfig(BkCollectorConfig):
         b64_content = base64.b64encode(gzip_content)
 
         bcs_client = BcsKubeClient(cluster_id)
-        config_maps = bcs_client.client_request(
+        secrets = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_secret,
             namespace=BkCollectorComp.NAMESPACE,
             label_selector="component={},template=false,type={}".format(
@@ -339,11 +388,11 @@ class PlatformConfig(BkCollectorConfig):
                 BkCollectorComp.LABEL_TYPE_PLATFORM_CONFIG,
             ),
         )
-        if len(config_maps.items) > 0:
+        if len(secrets.items) > 0:
             # 存在，且与已有的数据不一致，则更新
             logger.info(f"{cluster_id} apm platform config already exists.")
             need_update = False
-            sec = config_maps.items[0]
+            sec = secrets.items[0]
             if isinstance(sec.data, dict):
                 old_content = sec.data.get(BkCollectorComp.SECRET_PLATFORM_CONFIG_FILENAME_NAME, "")
                 old_platform_config = gzip.decompress(base64.b64decode(old_content)).decode()
