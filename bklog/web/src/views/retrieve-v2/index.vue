@@ -178,6 +178,15 @@
     },
     { deep: true },
   );
+
+  watch(
+    () => store.state.indexItem.isUnionIndex,
+    () => {
+      if (store.state.indexItem.isUnionIndex && activeTab.value === 'clustering') {
+        activeTab.value = 'origin';
+      }
+    },
+  );
 </script>
 <template>
   <div :class="['retrieve-v2-index', { 'show-favorites': showFavorites }]">

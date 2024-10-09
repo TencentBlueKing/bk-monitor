@@ -213,7 +213,7 @@
           const disableStr = this.checkDisable(operator, item);
           if (disableStr === 'is-disabled') return;
         }
-        if (['is', 'not'].includes(operator)) {
+        if (['is', 'not', 'new-search-page-is'].includes(operator)) {
           if (!field && !this.getFieldType(item)) return;
 
           if (this.getFieldType(item) === 'text') return;
@@ -222,7 +222,7 @@
 
           params = {
             fieldName: field ? field : item,
-            operation: operator === 'is' ? 'is' : 'is not',
+            operation: operator,
             value: field ? item : curValue,
           };
         }
