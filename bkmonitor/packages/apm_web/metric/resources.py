@@ -627,7 +627,7 @@ class ServiceListResource(PageListResource):
             module_fields = ["metric", "log", "trace", "profiling"]
             res = []
             for i in services:
-                ds = any(i.get(f"{j}_data_status") for j in module_fields)
+                ds = any(i.get(f"{j}_data_status") == DataStatus.NORMAL for j in module_fields)
                 # 因为前端传过来是字符串 这里进行一次转换
                 ds = "true" if ds else "false"
                 if ds in values:
