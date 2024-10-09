@@ -2,7 +2,7 @@
   import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue';
 
   // @ts-ignore
-  import { getCharLength, getRegExp } from '@/common/util';
+  import { getCharLength, getRegExp, formatDateTimeField } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import imgEnterKey from '@/images/icons/enter-key.svg';
@@ -161,7 +161,7 @@
    * 确定按钮是否激活
    */
   const isSaveBtnActive = computed(() => {
-    if (typeof props.value === 'string' && props.value.length) {
+    if (typeof props.value === 'string' && props.value.length || activeFieldItem.value.field_name === "_ip-select_") {
       return true;
     }
 
@@ -1004,7 +1004,7 @@
                     <span
                       class="tag-item-text"
                       @dblclick.stop="e => handleEditTagDBClick(e, item, index)"
-                      >{{ item }}</span
+                      >{{ formatDateTimeField(item, activeFieldItem.field_type) }}</span
                     >
                     <span
                       class="tag-item-del bk-icon icon-close"
@@ -1046,7 +1046,7 @@
                       :key="`${item}-${index}`"
                       @click.stop="() => handleTagItemClick(item, index)"
                     >
-                      <div>{{ item }}</div>
+                      <div>{{ formatDateTimeField(item, activeFieldItem.field_type) }}</div>
                     </li>
                   </ul>
                 </div>
