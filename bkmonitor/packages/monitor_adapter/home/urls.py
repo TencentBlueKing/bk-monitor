@@ -17,6 +17,7 @@ from monitor_adapter.home import views
 urlpatterns = [
     url(r"^$", views.home),
     url(r"^e/$", views.event_center_proxy),
+    url(r"^e/q/$", views.event_center_query_proxy),
     url(r"^route/$", views.path_route_proxy),
     url(r"^static/monitor/$", views.home),
     url(r"^external/$", views.external),
