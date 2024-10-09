@@ -1771,19 +1771,22 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         return columns
 
     @classmethod
-    def _build_group_key(cls, endpoint, ignore_category=False):
+    def _build_group_key(cls, endpoint, ignore_index=None, overwrite_service_name=None):
         category = []
-        if not ignore_category:
-            for category_k in cls._get_category_keys():
-                if category_k == endpoint["category_kind"]["key"]:
-                    category.append(str(endpoint["category_kind"]["value"]))
-                    continue
-                category.append("")
+        for category_k in cls._get_category_keys():
+            if category_k == endpoint["category_kind"]["key"]:
+                category.append(str(endpoint["category_kind"]["value"]))
+                continue
+            category.append("")
+
+        if ignore_index:
+            category = category[:ignore_index]
+
         return "|".join(
             [
                 endpoint["endpoint_name"],
                 str(endpoint["kind"]),
-                endpoint["service_name"],
+                overwrite_service_name or endpoint["service_name"],
             ]
             + category
         )
@@ -1892,7 +1895,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
 
         application = Application.objects.get(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"])
 
-        node = None
+        node_mapping = {}
         pool = ThreadPool()
         endpoint_metrics_param = {
             "application": application,
@@ -1950,7 +1953,10 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                         "where": [{"key": "service_name", "method": "eq", "value": [service_name]}],
                     },
                 )
+
+            node_mapping[service_name] = node
         else:
+            # 如果无指定服务 需要在数据获取时获取服务信息
             endpoints_metric_res = pool.apply_async(ENDPOINT_LIST, kwds=endpoint_metrics_param)
 
         endpoints_res = pool.apply_async(api.apm_api.query_endpoint, kwds=query_param)
@@ -1965,7 +1971,18 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         error_all_count = 0
         duration_all_count = 0
         for i in endpoints:
-            metric = self.get_endpoint_metric(endpoints_metric, node, i)
+            node_name = i["service_name"]
+            if i.get("category_kind", {}).get("key") in [SpanAttributes.DB_SYSTEM, SpanAttributes.MESSAGING_SYSTEM]:
+                node_name = ComponentHandler.generate_component_name(node_name, i["category_kind"]["value"])
+
+            if node_name not in node_mapping:
+                node_mapping[node_name] = ServiceHandler.get_node(
+                    bk_biz_id,
+                    app_name,
+                    node_name,
+                    raise_exception=False,
+                )
+            metric = self.get_endpoint_metric(endpoints_metric, node_mapping.get(node_name), i)
 
             request_all_count += metric.get("request_count", 0)
             error_all_count += metric.get("error_count", 0)
@@ -1974,7 +1991,14 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         logger.info(f"[apm] endpoint_list request_all_count: {request_all_count}")
 
         for endpoint in endpoints:
-            metric = self.get_endpoint_metric(endpoints_metric, node, endpoint)
+            node_name = endpoint["service_name"]
+            if endpoint.get("category_kind", {}).get("key") in [
+                SpanAttributes.DB_SYSTEM,
+                SpanAttributes.MESSAGING_SYSTEM,
+            ]:
+                node_name = ComponentHandler.generate_component_name(node_name, endpoint["category_kind"]["value"])
+
+            metric = self.get_endpoint_metric(endpoints_metric, node_mapping.get(node_name), endpoint)
 
             request_count = metric.get("request_count")
             if request_count:
@@ -2031,8 +2055,25 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 {},
             )
         elif node and ComponentHandler.is_component_by_node(node):
+            if node["extra_data"]["category"] == CategoryEnum.DB:
+                # 如果是 DB 类服务 则直接对比所有项目 服务名称需要改为原始名称
+                component_prefix = cls._build_group_key(
+                    endpoint,
+                    overwrite_service_name=ComponentHandler.get_component_belong_service(node["topo_key"]),
+                )
+            elif node["extra_data"]["category"] == CategoryEnum.MESSAGING:
+                # 如果是 Messaging 类服务 不对比最后一项
+                # (messaging.destination, 因为消息队列场景中可能同时存在 message.system 和 message.destination
+                # 又因为拓扑发现中没有针对多个category_kind场景做处理所以这里忽略最后一项)
+                component_prefix = cls._build_group_key(
+                    endpoint,
+                    ignore_index=-1,
+                    overwrite_service_name=ComponentHandler.get_component_belong_service(node["topo_key"]),
+                )
+            else:
+                component_prefix = cls._build_group_key(endpoint)
+
             # 组件类服务因为 endpoints 表已经根据特征字段(predicate_key)进行区分 所以直接对比前三项即可
-            component_prefix = cls._build_group_key(endpoint, ignore_category=True)
             return next((v for k, v in metric.items() if k.startswith(component_prefix)), {})
 
         else:
