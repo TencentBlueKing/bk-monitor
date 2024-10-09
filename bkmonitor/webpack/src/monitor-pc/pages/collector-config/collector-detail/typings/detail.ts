@@ -23,21 +23,40 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+/**
+ * @enum {('configuration' | 'DataLink' | 'fieldDetails' | 'StorageState' | 'targetDetail')} 采集详情tab枚举类型
+ */
 export enum TabEnum {
+  /**
+   * @description 配置信息tab
+   */
   Configuration = 'configuration',
+  /**
+   * @description 链路状态tab
+   */
   DataLink = 'DataLink',
+  /**
+   * @description 指标/维度tab
+   */
   FieldDetails = 'fieldDetails',
+  /**
+   * @description 存储状态tab
+   */
   StorageState = 'StorageState',
+  /**
+   * @description 采集状态tab
+   */
   TargetDetail = 'targetDetail',
 }
 
 export interface DetailData {
-  basic_info: Object;
-  extend_info: Object;
-  metric_list: Object[];
-  runtime_params: Object[];
+  basic_info: Record<string, any>;
+  extend_info: Record<string, any>;
+  metric_list: Record<string, any>[];
+  runtime_params: Record<string, any>[];
   subscription_id: number;
-  target_info: Object;
+  target_info: Record<string, any>;
 }
 
 export enum TCollectorAlertStage {

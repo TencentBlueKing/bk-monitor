@@ -139,7 +139,8 @@
       ],
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -379,7 +380,8 @@
       ],
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -870,7 +872,12 @@
             }
           }
         }
-      ]
+      ],
+      "options": {
+        "time_series": {
+          "hoverAllTooltips": true
+        }
+      }
     },
     {
       "id": 5,
@@ -1018,7 +1025,8 @@
       ],
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -1244,7 +1252,8 @@
       ],
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -1711,7 +1720,12 @@
             }
           }
         }
-      ]
+      ],
+      "options": {
+        "time_series": {
+          "hoverAllTooltips": true
+        }
+      }
     },
     {
       "id": 5,

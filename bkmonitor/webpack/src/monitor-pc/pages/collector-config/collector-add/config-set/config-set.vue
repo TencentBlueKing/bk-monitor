@@ -233,10 +233,7 @@
                   @blur="validateHost"
                 >
                   <template slot="prepend">
-                    <bk-popover
-                      :tippy-options="tippyOptions"
-                      placement="top"
-                    >
+                    <bk-popover placement="top">
                       <div class="prepend-text">${host}=</div>
                       <div slot="content">
                         <div>{{ $t('参数名称') }} : {{ info.host.name }}</div>
@@ -306,6 +303,7 @@
           v-if="info.plugin.configJson.length"
           class="item-container"
         >
+          <!-- {{ info.plugin.id ===  }} -->
           <div class="container-tips">
             {{ $t('参数的填写也可以使用CMDB变量') }}&nbsp;&nbsp;<span @click="handleVariableTable">
               {{ $t('点击查看推荐变量') }}
@@ -501,14 +499,24 @@
             >
               {{ $t('button-预览') }}
             </bk-button>
-            <bk-button
-              :class="['btn-next', { disabled: !canNext }]"
-              :disabled="!canNext"
-              theme="primary"
-              @click="handleNext"
+            <bk-popconfirm
+              width="200"
+              :content="$tc('确认采集下发?')"
+              :disabled="!canNext || info?.plugin?.type !== 'K8S'"
+              :tippy-options="tippyOptions"
+              placement="top"
+              trigger="click"
+              @confirm="handleTencentCloudNext"
             >
-              {{ $t('下一步') }}
-            </bk-button>
+              <bk-button
+                :class="['btn-next', { disabled: !canNext }]"
+                :disabled="!canNext"
+                theme="primary"
+                @click="handleNext"
+              >
+                {{ $t('下一步') }}
+              </bk-button>
+            </bk-popconfirm>
             <bk-button @click="handleCancel">
               {{ $t('取消') }}
             </bk-button>
@@ -541,7 +549,10 @@
         @mousemove="handleMouseMove"
         @mouseout="handleMouseOut"
       >
-        <collector-introduction :introduction="introduction" />
+        <collector-introduction
+          :introduction="introduction"
+          :key="introduction.content"
+        />
         <div
           :style="{ left: descWidth - resizeState.left + 'px' }"
           class="resize-line"
@@ -745,7 +756,7 @@ export default {
         dms_insert: this.$t('维度注入'),
       },
       tippyOptions: {
-        distance: 0,
+        distance: 10,
       },
       others: {},
       introduce: {
@@ -757,6 +768,7 @@ export default {
         introduction: true,
       },
       methodMd:
+        // biome-ignore lint/style/useTemplate: <explanation>
         `${this.$t('插件类型是蓝鲸监控丰富支持采集能力的一种表现，插件的类型将越来越丰富。 往下具体介绍当前每种类型特点')}。\n\n` +
         '### Exporter\n\n' +
         `${this.$t('Exporter是用于暴露第三方服务的metrics给Prometheus。是Prometheus中重要的一个组件。按蓝鲸监控插件的规范就可以将开源的Exporter插件变成蓝鲸监控的采集能力。 运行的Exporter是go的二进制程序，需要启动进程和占用端口')}。\n\n` +
@@ -866,10 +878,11 @@ export default {
         return introduction;
       }
       const { configJson, metricJson, id, descMd, ...others } = this.info.plugin;
+
       if (id) {
         introduction = {
           ...others,
-          content: descMd,
+          content: descMd || this.methodMd,
           pluginId: id,
           type: 'bkmonitor.models.fta.plugin',
         };
@@ -1032,6 +1045,7 @@ export default {
         isSafety: true,
         osTypeList: ['linux', 'windows'],
         content:
+          // biome-ignore lint/style/useTemplate: <explanation>
           `## ${this.$t('功能介绍')}\n\n` +
           `${this.$t('日志关键字插件，通过对于日志文件的关键匹配进行计数，并且存储最近一条原始日志内容。')}\n\n` +
           `${this.$t('采集后的日志关键字数据可以在视图中查看变化趋势，也可以在策略里面配置告警规则。')}\n\n` +
@@ -1047,6 +1061,7 @@ export default {
     getSnmpIntroduction() {
       const snmpIntroduction = {
         snmp_v1:
+          // biome-ignore lint/style/useTemplate: <explanation>
           '## SNMP Trap V1\n\n' +
           `### ${this.$t('功能介绍')}\n\n` +
           `${this.$t('snmp trap 将默认搭建 snmp trap server 接收不同设备的发送的事件数据。默认端口为 162。注意选择对应的 snmp 版本,本版本为 V1。')}\n\n` +
@@ -1058,6 +1073,7 @@ export default {
           `* ${this.$t('团体名')}： Community\n\n` +
           `* ${this.$t('是否汇聚')}：${this.$t('默认是开启的，采集周期内默认相同的内容会汇聚到成一条并且计数。')}\n\n\n`,
         snmp_v2c:
+          // biome-ignore lint/style/useTemplate: <explanation>
           '## SNMP Trap V2c\n\n' +
           `### ${this.$t('功能介绍')}\n\n` +
           `${this.$t('snmp trap 将默认搭建 snmp trap server 接收不同设备的发送的事件数据。默认端口为 162。注意选择对应的 snmp 版本, 本版本为 V2c。')}\n\n` +
@@ -1069,6 +1085,7 @@ export default {
           `* ${this.$t('团体名')}： Community \n` +
           `* ${this.$t('是否汇聚')}：${this.$t('默认是开启的，采集周期内默认相同的内容会汇聚到成一条并且计数。')}\n\n\n`,
         snmp_v3:
+          // biome-ignore lint/style/useTemplate: <explanation>
           `## ${this.$t('SNMP Trap V3')}\n\n` +
           `### ${this.$t('功能介绍')}\n\n` +
           `${this.$t('snmp trap 将默认搭建 snmp trap server 接收不同设备的发送的事件数据。默认端口为 162。注意选择对应的 snmp 版本, 本版本为 V3。')}\n\n` +
@@ -1110,10 +1127,10 @@ export default {
         }
         this.resizeState.show = true;
         const rect = e.target.getBoundingClientRect();
-        document.onselectstart = function () {
+        document.onselectstart = () => {
           return false;
         };
-        document.ondragstart = function () {
+        document.ondragstart = () => {
           return false;
         };
         const handleMouseMove = event => {
@@ -1213,14 +1230,14 @@ export default {
       const { rules } = this;
       const includeFields = ['bizId', 'name', 'objectType', 'period', 'collectType', 'timeout'];
       const keys = Object.keys(rules);
-      keys.forEach(item => {
+      for (const item of keys) {
         // validate=false 时需要重新触发校验，不校验运行参数部分
         !rules[item].validate && includeFields.includes(item) && this.validateField(info[item], rules[item]);
-      });
+      }
       let configValidate = false;
       if (this.info?.plugin?.configJson) {
         const configValidateList = [];
-        this.info.plugin.configJson.forEach(item => {
+        for (const item of this.info.plugin.configJson) {
           if (!(item.auth_json === undefined)) {
             configValidateList.push(this.handleParamValidate(item));
           }
@@ -1229,7 +1246,7 @@ export default {
           } else {
             configValidateList.push(this.handleInput(item));
           }
-        });
+        }
         configValidate = configValidateList.some(item => item.validate);
       }
       return keys.every(item => rules[item].validate === false) && !configValidate;
@@ -1366,6 +1383,7 @@ export default {
       this.SnmpVersionValidate();
     },
     // 选择插件时触发
+    // biome-ignore lint/style/useDefaultParameterLast: <explanation>
     async handlePluginClick(val, loading = true, needSetConfig = true, curPluginType) {
       const { mode } = this.config;
       if (curPluginType === 'SNMP_Trap') {
@@ -1452,13 +1470,13 @@ export default {
                 if (item.auth_json !== undefined) {
                   if (this.config.mode === 'edit' || this.isClone) {
                     const authJson = item.auth_json;
-                    authJson.forEach(set => {
-                      set.forEach(p => {
+                    for (const item of authJson) {
+                      for (const p of set) {
                         const mode = p.mode === 'collector' ? 'collector' : 'plugin';
                         const paramDefault = this.info.params[mode][p.key];
                         p.default = paramDefault;
-                      });
-                    });
+                      }
+                    }
                     return item;
                   }
                   return {
@@ -1550,6 +1568,7 @@ export default {
       return true;
     },
     handleNext() {
+      if (this.info.plugin.type === 'K8S') return;
       // 清空缓存的info
       this[SET_INFO_DATA](null);
       if (this.validate() && this.validateProcessParams()) {
@@ -1564,6 +1583,16 @@ export default {
           set: { data: this.info, others: this.others, mode: 'edit', supportRemote: this.info.plugin.supportRemote },
         });
         this.$emit('next');
+      }
+    },
+    handleTencentCloudNext() {
+      this[SET_INFO_DATA](null);
+      if (this.validate()) {
+        this.$emit('update:config', {
+          ...this.config,
+          set: { data: this.info, others: this.others, mode: 'edit', supportRemote: this.info.plugin.supportRemote },
+        });
+        this.$emit('tencentCloudNext');
       }
     },
     async setEditOrCloneConfig(v, collectDetail) {
@@ -1600,9 +1629,9 @@ export default {
       };
       // 编辑的时候只获取单个插件
       if (this.config.mode === 'edit') {
-        const pulginId = this.config.data?.updateParams?.pluginId;
+        const pluginId = this.config.data?.updateParams?.pluginId;
         promiseList.push(
-          retrieveCollectorPlugin(pulginId)
+          retrieveCollectorPlugin(pluginId)
             .then(v => {
               this.pluginSelectorObj.list = [v];
               this.pluginSelectorObj.key = random(8);
@@ -1676,13 +1705,13 @@ export default {
       const { collector, plugin } = data.params;
       const tmpConfigJson = pluginInfo.config_json;
       // 将插件信息中 configJson 的值，改为 data.params 中对应的值
-      tmpConfigJson.forEach(item => {
+      for (const item of tmpConfigJson) {
         if (item.mode === 'collector') {
           item.default = collector[item.name];
         } else {
           item.default = plugin[item.name];
         }
-      });
+      }
       const { configJson, host, port, isShowHost, isShowPort } = this.handlePluginConfigJson(
         pluginInfo.plugin_type,
         tmpConfigJson
@@ -1748,6 +1777,7 @@ export default {
         page_size: 1000,
         order: '-update_time',
         status: 'release',
+        with_virtual: true,
       };
       return new Promise((resolve, reject) => {
         listCollectorPlugin(params)
@@ -1757,7 +1787,7 @@ export default {
             const { list } = data;
             if (count) {
               const collectTypeList = [];
-              Object.keys(count).forEach(item => {
+              for (const item of Object.keys(count)) {
                 const set = this.pluginTypeMap[item];
                 if (set) {
                   collectTypeList.push({
@@ -1765,7 +1795,7 @@ export default {
                     alias: set,
                   });
                 }
-              });
+              }
               this.collectTypeList = collectTypeList;
             }
             this.pluginSelectorObj.list = list;
@@ -1782,7 +1812,7 @@ export default {
     handlePluginList(data) {
       const res = [];
       if (data.length) {
-        data.forEach(item => {
+        for (const item of data) {
           res.push({
             pluginId: item.plugin_id,
             pluginDisplayName: item.plugin_display_name,
@@ -1793,7 +1823,7 @@ export default {
             updateTime: item.update_time,
             labelInfo: item.label_info,
           });
-        });
+        }
       }
       return res;
     },
@@ -1853,14 +1883,14 @@ export default {
           });
       });
     },
-    handlePluginConfigJson(type, data = []) {
+    handlePluginConfigJson(type, configs = []) {
       let configJson = [];
       // snmp 多用户
       const snmpAuthJson = [];
       let host = null;
       let port = null;
       // 如果是插件类型为 'Exporter'，则显示绑定主机和绑定端口
-      data = data.map(item => {
+      const data = configs.map(item => {
         if (item.type === 'file' && typeof item.default === 'object' && item.key !== 'yaml') {
           const temp = deepClone(item.default);
           item.default = temp.filename;
@@ -1869,7 +1899,7 @@ export default {
         return item;
       });
       if (type === 'Exporter') {
-        data.forEach(item => {
+        for (const item of data) {
           if (item.mode === 'collector' && item.name === 'host') {
             host = item;
           } else if (item.mode === 'collector' && item.name === 'port') {
@@ -1877,7 +1907,7 @@ export default {
           } else {
             configJson.push(item);
           }
-        });
+        }
       } else if (type === 'SNMP_Trap') {
         configJson.push(...data);
         // data.forEach((item) => {
@@ -2084,17 +2114,21 @@ export default {
     handleInput(item) {
       const valid = {
         content: '',
-        isValidate: false,
+        validate: false,
       };
       if (item.required) {
         if (typeof item.default === 'object') {
-          valid.isValidate = Array.isArray(item.default) ? !item.default.length : !Object.keys(item.default).length;
+          valid.validate = Array.isArray(item.default) ? !item.default.length : !Object.keys(item.default).length;
         } else {
-          valid.isValidate = !item.default;
+          valid.validate = !item.default;
         }
-        valid.isValidate && (valid.content = this.$t('必填项'));
+
+        valid.validate && (valid.content = this.$t('必填项'));
       }
-      item.validate = valid;
+      item.validate = {
+        content: valid.content,
+        isValidate: valid.validate,
+      };
       return valid;
     },
   },

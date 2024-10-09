@@ -25,6 +25,7 @@
  */
 import {
   type PropType,
+  type ShallowRef,
   type WatchStopHandle,
   defineComponent,
   onActivated,
@@ -64,6 +65,14 @@ export const BaseChartProps = {
     type: Boolean,
     default: false,
   },
+  hoverAllTooltips: {
+    type: Boolean,
+    default: false,
+  },
+  tooltipsContentLastItemFn: {
+    type: Function as PropType<(params: any) => string>,
+    default: null,
+  },
 };
 export default defineComponent({
   name: 'BaseEchart',
@@ -72,11 +81,11 @@ export default defineComponent({
   setup(props, { emit }) {
     const chartRef = ref<HTMLDivElement>();
     // 当前图表配置
-    let curChartOption: MonitorEchartOptions | null = null;
+    const curChartOption: ShallowRef<MonitorEchartOptions | null> = shallowRef(null);
     // echarts 实例
     const instance = shallowRef<echarts.ECharts>();
     // 当前图表配置取消监听函数
-    let unwatchOptions: WatchStopHandle | null = null;
+    let unwatchOptions: null | WatchStopHandle = null;
     // dblclick模拟 间隔
     const clickTimer = ref(0);
     // 当前视图是否hover
@@ -183,7 +192,7 @@ export default defineComponent({
     onBeforeUnmount(destroy);
     // 设置tooltip
     function handleSetTooltip(params: any) {
-      if (!isMouseOver.value) return undefined;
+      if (!isMouseOver.value && !props.hoverAllTooltips) return undefined;
       if (!params || params.length < 1 || params.every((item: any) => item.value[1] === null)) {
         curPoint.value = {
           color: '',
@@ -229,7 +238,7 @@ export default defineComponent({
                 };
               }
               if (item.value[1] === null) return '';
-              const curSeries: any = curChartOption!.series?.[+item.seriesIndex];
+              const curSeries: any = curChartOption.value.series?.[+item.seriesIndex];
               const unitFormater = curSeries.unitFormatter || ((v: string) => ({ text: v }));
               const minBase = curSeries.minBase || 0;
               const precision =
@@ -256,12 +265,14 @@ export default defineComponent({
           ulStyle = `display:flex; flex-wrap:wrap; width: ${5 + cols * tableToolSize}px;`;
         }
       }
+      const lastItem = props.tooltipsContentLastItemFn?.(params);
       return `<div class="monitor-chart-tooltips">
             <p class="tooltips-header">
                 ${pointTime}
             </p>
             <ul class="tooltips-content" style="${ulStyle}">
                 ${liHtmls?.join('')}
+                ${lastItem || ''}
             </ul>
             </div>`;
     }
@@ -289,7 +300,7 @@ export default defineComponent({
         initPropsWatcher();
         initChartEvent();
         initChartAction();
-        curChartOption = instance.value.getOption();
+        curChartOption.value = instance.value.getOption();
         props.groupId && (instance.value.group = props.groupId);
         instance.value.on('dataZoom', handleDataZoom);
       }
@@ -331,7 +342,7 @@ export default defineComponent({
               },
               { notMerge: true, lazyUpdate: false, silent: true }
             );
-            curChartOption = instance.value.getOption();
+            curChartOption.value = instance.value.getOption();
           }
           initChartAction();
         },

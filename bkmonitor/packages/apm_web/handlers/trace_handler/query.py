@@ -19,7 +19,7 @@ import html
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, Callable, Dict, List, Optional
 
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
@@ -38,7 +38,13 @@ from apm_web.handlers.trace_handler.base import (
     StatusCodeAttributePredicate,
 )
 from bkmonitor.utils.elasticsearch.handler import BaseTreeTransformer
-from constants.apm import OtlpKey, SpanKind
+from constants.apm import (
+    OtlpKey,
+    SpanKind,
+    SpanStandardField,
+    StandardField,
+    ValueSource,
+)
 from core.drf_resource import api
 from core.errors.alert import QueryStringParseError
 
@@ -302,85 +308,114 @@ class OptionValues:
     API = None
     FIELDS = []
 
-    class Source:
-        """数据来源"""
-
-        # 从方法中获取
-        METHOD = "method"
-        # 从ES中获取
-        ES = "es"
-
     @dataclass
     class Field:
         # 需要获取候选值的字段
         id: str
-        source: str
+        value_source: str
         label: str
 
     def __init__(self, bk_biz_id, app_name):
         self.bk_biz_id = bk_biz_id
         self.app_name = app_name
 
+    def _get_option_values_from_method(self, fields: List[str]) -> Dict[str, List[Dict[str, Any]]]:
+        option_values: Dict[str, List[Dict[str, Any]]] = {}
+        for field in fields:
+            option_values[field] = getattr(self, f"get_{field.replace('.', '_')}")()
+        return option_values
+
+    def _get_option_values_from_api(
+        self, value_source: str, fields: List[str], start_time: int, end_time: int
+    ) -> Dict[str, List[Dict[str, Any]]]:
+
+        field_transformer: Callable[[str], str] = {
+            ValueSource.TRACE: self._transform_field_to_log_field,
+            ValueSource.METRIC: self._transform_field_to_metric_field,
+        }[value_source]
+
+        field_mapping: Dict[str, str] = {}
+        query_api_fields: List[str, str] = []
+        for field in fields:
+            api_field: str = field_transformer(field)
+            field_mapping[api_field] = field
+            query_api_fields.append(api_field)
+
+        params = {
+            "bk_biz_id": self.bk_biz_id,
+            "app_name": self.app_name,
+            "start_time": start_time,
+            "end_time": end_time,
+            "fields": query_api_fields,
+            "datasource_type": value_source,
+        }
+        field_values_mapping: Dict[str, List[Any]] = self.API(params)
+
+        option_values: Dict[str, List[Dict[str, Any]]] = {}
+        for api_field, field in field_mapping.items():
+            option_values[field] = [{"value": val, "text": val} for val in field_values_mapping.get(api_field) or []]
+
+        return option_values
+
     @classmethod
-    def get_option_values(cls, option: "OptionValues", start_time, end_time):
-        res = {}
-        query_es_fields = []
-        for field in option.FIELDS:
-            if field.source == OptionValues.Source.METHOD:
-                res[field.id] = getattr(option, f"get_{field.id.replace('.', '_')}")()
+    def _transform_field_to_log_field(cls, field: str) -> str:
+        return field
+
+    @classmethod
+    def _transform_field_to_metric_field(cls, field: str) -> str:
+        return field
+
+    @classmethod
+    def _get_value_source_fields(cls, fields: List[str]) -> Dict[str, List[str]]:
+        source_fields: Dict[str, List[str]] = {}
+        field_mapping: Dict[str, OptionValues.Field] = cls._get_field_mapping()
+        for field in fields:
+            if field in field_mapping:
+                value_source: str = field_mapping[field].value_source
             else:
-                query_es_fields.append(field.id)
-
-        params = {
-            "bk_biz_id": option.bk_biz_id,
-            "app_name": option.app_name,
-            "start_time": start_time,
-            "end_time": end_time,
-            "fields": query_es_fields,
-        }
-
-        value_from_es = option.API(params)
-        if not value_from_es:
-            return res
-
-        # 处理ES数据保持格式一致
-        for field_name, field_values in value_from_es.items():
-            res[field_name] = [{"value": i, "text": i} for i in field_values]
-
-        return res
+                # 默认通过 Trace 数据获取
+                value_source: str = ValueSource.TRACE
+            source_fields.setdefault(value_source, []).append(field)
+        return source_fields
 
     @classmethod
-    def get_field_option_values(cls, option, fields, start_time, end_time):
-        params = {
-            "bk_biz_id": option.bk_biz_id,
-            "app_name": option.app_name,
-            "start_time": start_time,
-            "end_time": end_time,
-            "fields": fields,
-        }
+    def _get_field_mapping(cls) -> Dict[str, Field]:
+        return {field_info.id: field_info for field_info in cls.FIELDS}
 
-        res = {}
-        value_from_es = option.API(params)
-        if not value_from_es:
-            return res
+    def get_option_values(self, start_time: int, end_time: int) -> Dict[str, List[Dict[str, Any]]]:
+        return self.get_field_option_values([field.id for field in self.FIELDS], start_time, end_time)
 
-        for field_name, field_values in value_from_es.items():
-            res[field_name] = [{"value": i, "text": i} for i in field_values]
-
-        return res
+    def get_field_option_values(
+        self, fields: List[str], start_time: int, end_time: int
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        option_values: Dict[str, List[Dict[str, Any]]] = {}
+        value_source_fields: Dict[str, List[str]] = self._get_value_source_fields(fields)
+        for value_source, fields in value_source_fields.items():
+            if value_source == ValueSource.METHOD:
+                option_values.update(self._get_option_values_from_method(fields))
+            else:
+                option_values.update(self._get_option_values_from_api(value_source, fields, start_time, end_time))
+        return option_values
 
 
 class TraceOptionValues(OptionValues):
     API = api.apm_api.query_trace_option_values
 
     FIELDS = [
-        OptionValues.Field(id="root_service", source=OptionValues.Source.ES, label=_("入口服务")),
-        OptionValues.Field(id="root_service_span_name", source=OptionValues.Source.ES, label=_("入口接口")),
-        OptionValues.Field(id="root_service_status_code", source=OptionValues.Source.ES, label=_("入口状态码")),
-        OptionValues.Field(id="root_service_category", source=OptionValues.Source.METHOD, label=_("入口类型")),
-        OptionValues.Field(id="root_span_name", source=OptionValues.Source.ES, label=_("根Span接口")),
-        OptionValues.Field(id="root_span_service", source=OptionValues.Source.ES, label=_("根Span服务")),
+        OptionValues.Field(id="root_service", value_source=ValueSource.TRACE, label=_("入口服务")),
+        OptionValues.Field(id="root_service_span_name", value_source=ValueSource.TRACE, label=_("入口接口")),
+        OptionValues.Field(id="root_service_status_code", value_source=ValueSource.TRACE, label=_("入口状态码")),
+        OptionValues.Field(id="root_service_category", value_source=ValueSource.METHOD, label=_("入口类型")),
+        OptionValues.Field(id="root_span_name", value_source=ValueSource.TRACE, label=_("根Span接口")),
+        OptionValues.Field(id="root_span_service", value_source=ValueSource.TRACE, label=_("根Span服务")),
     ]
+
+    @classmethod
+    def _transform_field_to_log_field(cls, field: str) -> str:
+        if field in ["span_name", "resource.service.name"]:
+            return f"{TraceQueryTransformer.PRE_CALC_STANDARD_FIELD_PREFIX}.{field}"
+        else:
+            return field
 
     def get_root_service_category(self):
         res = []
@@ -395,14 +430,38 @@ class TraceOptionValues(OptionValues):
 class SpanOptionValues(OptionValues):
     API = api.apm_api.query_span_option_values
 
+    STANDARD_FIELD_MAPPING: Dict[str, StandardField] = {
+        field_info.field: field_info for field_info in SpanStandardField.COMMON_STANDARD_FIELDS
+    }
+
     FIELDS = [
-        OptionValues.Field(id="span_name", source=OptionValues.Source.ES, label="Span Name"),
-        OptionValues.Field(id="status.code", source=OptionValues.Source.METHOD, label=_("状态")),
-        OptionValues.Field(id="kind", source=OptionValues.Source.METHOD, label=_("类型")),
-        OptionValues.Field(id="resource.telemetry.sdk.version", source=OptionValues.Source.ES, label=_("版本")),
-        OptionValues.Field(id="resource.service.name", source=OptionValues.Source.ES, label=_("服务")),
-        OptionValues.Field(id="resource.bk.instance.id", source=OptionValues.Source.ES, label=_("实例")),
+        OptionValues.Field(id="span_name", value_source=ValueSource.METRIC, label="Span Name"),
+        OptionValues.Field(id="status.code", value_source=ValueSource.METHOD, label=_("状态")),
+        OptionValues.Field(id="kind", value_source=ValueSource.METHOD, label=_("类型")),
+        OptionValues.Field(id="resource.telemetry.sdk.version", value_source=ValueSource.METRIC, label=_("版本")),
+        OptionValues.Field(id="resource.service.name", value_source=ValueSource.METRIC, label=_("服务")),
+        OptionValues.Field(id="resource.bk.instance.id", value_source=ValueSource.METRIC, label=_("实例")),
     ]
+
+    @classmethod
+    def _get_field_mapping(cls) -> Dict[str, OptionValues.Field]:
+        return {
+            field_info.field: OptionValues.Field(
+                id=field_info.field, value_source=field_info.value_source, label=field_info.value
+            )
+            for field_info in SpanStandardField.COMMON_STANDARD_FIELDS
+        }
+
+    @classmethod
+    def _transform_field_to_metric_field(cls, field: str) -> str:
+        field_info: Optional[StandardField] = cls.STANDARD_FIELD_MAPPING.get(field)
+        if field_info is None:
+            return field
+
+        if field_info.value_source == ValueSource.METRIC:
+            return field_info.metric_dimension
+
+        return field
 
     def get_kind(self):
         return SpanKind.list()
@@ -472,7 +531,7 @@ class QueryHandler:
         else:
             option = SpanOptionValues(bk_biz_id, app_name)
 
-        return OptionValues.get_option_values(option, start_time, end_time)
+        return option.get_option_values(start_time, end_time)
 
     @classmethod
     def get_file_option_values(cls, bk_biz_id, app_name, fields, start_time, end_time, mode):
@@ -482,13 +541,7 @@ class QueryHandler:
         else:
             option = SpanOptionValues(bk_biz_id, app_name)
 
-        fields = [f"{TraceQueryTransformer.PRE_CALC_STANDARD_FIELD_PREFIX}.{i}" for i in fields]
-        response = OptionValues.get_field_option_values(option, fields, start_time, end_time)
-        # 去除前缀
-        res = {}
-        for k, v in response.items():
-            res[k.replace(f"{TraceQueryTransformer.PRE_CALC_STANDARD_FIELD_PREFIX}.", "")] = v
-        return res
+        return option.get_field_option_values(fields, start_time, end_time)
 
     @classmethod
     def handle_trace_list(cls, trace_list):

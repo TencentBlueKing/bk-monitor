@@ -127,11 +127,13 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     }
     return resArr.some(item => item);
   }
-
+  get isK8SCollect() {
+    return this.config?.target_node_type?.toUpperCase() === 'CLUSTER';
+  }
   /**
    * @description 更新数据
    */
-  @Watch('updateKey')
+  @Watch('updateKey', { immediate: true })
   handleUpdate() {
     if (this.data) {
       const sumData = {
@@ -356,16 +358,16 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     this.refresh = false;
     this.header.batchRetry = true;
     this.side.title = '';
-    this.contents.forEach(item => {
-      item.child.forEach(set => {
+    for (const item of this.contents) {
+      for (const set of item.child) {
         if (EStatus.FAILED === set.status) {
           set.status = 'PENDING';
           failedList.push(set);
         }
-      });
+      }
       item.pendingNum += item.failedNum;
       item.failedNum = 0;
-    });
+    }
     this.header.data.pendingNum += this.header.data.failedNum;
     this.header.data.failedNum = 0;
     this.handleFilterChange(this.header.status);
@@ -380,7 +382,9 @@ export default class CollectorStatusDetails extends tsc<IProps> {
         }
       })
       .catch(() => {
-        failedList.forEach(item => (item.status = EStatus.FAILED));
+        for (const item of failedList) {
+          item.status = EStatus.FAILED;
+        }
         this.header.data.pendingNum = 0;
         this.header.batchRetry = false;
         this.header.data.failedNum = failedList.length;
@@ -415,13 +419,16 @@ export default class CollectorStatusDetails extends tsc<IProps> {
    */
   handleCopyTargets(type?: 'instance' | 'ip') {
     let copyStr = '';
-    this.contents.forEach(ct => {
-      if (type === 'ip' || this.targetNodeType === 'HOST') {
-        ct.table.forEach(item => (copyStr += `${item.ip}\n`));
-      } else {
-        ct.table.forEach(item => (copyStr += `${item.instance_name}\n`));
+    const isIpOrHost = type === 'ip' || this.targetNodeType === 'HOST';
+    for (const ct of this.contents) {
+      for (const item of ct.table) {
+        if (isIpOrHost) {
+          copyStr += `${item.ip}\n`;
+        } else {
+          copyStr += `${item.instance_name}\n`;
+        }
       }
-    });
+    }
     copyText(copyStr, msg => {
       this.$bkMessage({
         theme: 'error',
@@ -495,16 +502,18 @@ export default class CollectorStatusDetails extends tsc<IProps> {
               <span class='icon-monitor icon-zhongzhi1 mr-6' />
               <span>{this.$t('批量重试')}</span>
             </bk-button>
-            <bk-button
-              class='mr-10'
-              v-authority={{ active: !this.authority.MANAGE_AUTH }}
-              disabled={!this.haveDeploying || this.disBatch}
-              hover-theme='primary'
-              icon={this.disBatch ? 'loading' : ''}
-              onClick={() => (this.authority.MANAGE_AUTH ? this.handleBatchStop() : this.handleShowAuthorityDetail())}
-            >
-              {this.$t('批量终止')}
-            </bk-button>
+            {!this.isK8SCollect && (
+              <bk-button
+                class='mr-10'
+                v-authority={{ active: !this.authority.MANAGE_AUTH }}
+                disabled={!this.haveDeploying || this.disBatch}
+                hover-theme='primary'
+                icon={this.disBatch ? 'loading' : ''}
+                onClick={() => (this.authority.MANAGE_AUTH ? this.handleBatchStop() : this.handleShowAuthorityDetail())}
+              >
+                {this.$t('批量终止')}
+              </bk-button>
+            )}
             {this.targetNodeType === 'INSTANCE' ? (
               <bk-dropdown-menu>
                 <div slot='dropdown-trigger'>
@@ -516,12 +525,10 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                 >
                   {this.config?.target_object_type === 'HOST' ? (
                     <li>
-                      {/* biome-ignore lint/a11y/useValidAnchor: <explanation> */}
                       <a onClick={() => this.handleCopyTargets('ip')}>{this.$t('复制主机IP')}</a>
                     </li>
                   ) : (
                     <li>
-                      {/* biome-ignore lint/a11y/useValidAnchor: <explanation> */}
                       <a onClick={() => this.handleCopyTargets('instance')}>{this.$t('复制服务实例')}</a>
                     </li>
                   )}
@@ -545,7 +552,9 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                 key={index}
                 class='mt-20'
                 value={content.isExpand}
-                onChange={v => (content.isExpand = v)}
+                onChange={v => {
+                  content.isExpand = v;
+                }}
               >
                 {!!content.is_label && (
                   <span slot='pre-header'>
@@ -733,6 +742,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                                         </div>
                                       ) : undefined,
                                       this.isRunning &&
+                                      !this.isK8SCollect &&
                                       ['DEPLOYING', EStatus.RUNNING, 'PENDING'].includes(row.status) ? (
                                         <div
                                           key='col-retry'
@@ -770,7 +780,13 @@ export default class CollectorStatusDetails extends tsc<IProps> {
           is-show={this.side.show}
           quick-close={true}
           title={this.side.title}
-          {...{ on: { 'update:isShow': v => (this.side.show = v) } }}
+          {...{
+            on: {
+              'update:isShow': v => {
+                this.side.show = v;
+              },
+            },
+          }}
         >
           <div
             class='side-detail fix-same-code'

@@ -54,9 +54,10 @@ class CollectorPluginMeta(OperateRecordModelBase):
         (PluginType.PROCESS, "Process"),
         (PluginType.SNMP_TRAP, PluginType.SNMP_TRAP),
         (PluginType.SNMP, PluginType.SNMP),
+        (PluginType.K8S, PluginType.K8S),
     )
 
-    VIRTUAL_PLUGIN_TYPE = [PluginType.LOG, PluginType.PROCESS, PluginType.SNMP_TRAP]
+    VIRTUAL_PLUGIN_TYPE = [PluginType.LOG, PluginType.PROCESS, PluginType.SNMP_TRAP, PluginType.K8S]
 
     plugin_id = models.CharField("插件ID", max_length=64, primary_key=True)
     bk_biz_id = models.IntegerField("业务ID", default=0, blank=True, db_index=True)
@@ -93,7 +94,7 @@ class CollectorPluginMeta(OperateRecordModelBase):
         return True
 
     @cached_property
-    def release_version(self):
+    def release_version(self) -> Optional["PluginVersionHistory"]:
         """
         最新的发布版本
         """
@@ -210,7 +211,7 @@ class CollectorPluginMeta(OperateRecordModelBase):
             if config is None:
                 config = CollectorPluginConfig.objects.create()
             if info is None:
-                info = CollectorPluginInfo.objects.create()
+                info: CollectorPluginInfo = CollectorPluginInfo.objects.create()
             version = self.versions.create(
                 config_version=config_version,
                 info_version=info_version,

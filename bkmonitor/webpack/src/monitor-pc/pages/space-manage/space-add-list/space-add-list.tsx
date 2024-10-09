@@ -27,8 +27,8 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { fetchBusinessInfo, listSpaces } from 'monitor-api/modules/commons';
+import { skipToDocsLink } from 'monitor-common/utils/docs';
 
-import { handleGotoLink } from '../../../common/constant';
 import ResearchForm from '../research-form/research-form';
 import SpaceAddItem from '../space-add-item/space-add-item';
 
@@ -139,12 +139,12 @@ export default class SpaceAddList extends tsc<IProps> {
   handleResearchFormCancel() {
     this.acitveType = null;
   }
-  handleGotoLink(url: string) {
-    if (url.match(/^http/)) {
-      window.open(url, '_blank');
+  handleGotoLink(urlOrName: string) {
+    if (urlOrName.match(/^http/)) {
+      window.open(urlOrName, '_blank');
       return;
     }
-    handleGotoLink(url);
+    skipToDocsLink(urlOrName);
   }
   render() {
     /** 容器项目、业务 */
@@ -152,7 +152,7 @@ export default class SpaceAddList extends tsc<IProps> {
       const map: Record<string, any> = {
         [SpaceAddType.container]: {
           title: this.$tc('新建容器项目'),
-          doc: '产品白皮书/scene-k8s/k8s_monitor_overview.md',
+          doc: 'addClusterMd',
           href: window.cluster_setup_url,
         },
         [SpaceAddType.business]: {

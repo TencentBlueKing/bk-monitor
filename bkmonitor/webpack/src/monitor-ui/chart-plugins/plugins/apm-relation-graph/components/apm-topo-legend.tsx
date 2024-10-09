@@ -54,7 +54,7 @@ export default class TopoLegend extends tsc<TopoLegendProps, TopoLegendEvent> {
         { color: '#3A84FF', label: window.i18n.tc('提醒') },
         { color: '#FF9C01', label: window.i18n.tc('预警') },
         { color: '#EA3636', label: window.i18n.tc('致命') },
-        { color: '#DCDEE5', label: window.i18n.tc('无请求数据') },
+        // { color: '#DCDEE5', label: window.i18n.tc('无请求数据') },
       ];
     }
 

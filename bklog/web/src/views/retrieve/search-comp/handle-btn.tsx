@@ -39,7 +39,7 @@ const searchMap = {
   // 检索按钮
   search: {
     // 查询
-    icon: 'bk-icon log-icon icon-bofang',
+    icon: 'bk-icon bklog-icon bklog-bofang',
     text: window.mainComponent.$t('查询'),
     changeBtnTips: window.mainComponent.$t('切换自动查询'),
   },
@@ -51,7 +51,7 @@ const searchMap = {
   },
   autoSearch: {
     // 自动查询
-    icon: 'bk-icon log-icon icon-zanting',
+    icon: 'bk-icon bklog-icon bklog-zanting',
     text: window.mainComponent.$t('自动查询'),
     changeBtnTips: window.mainComponent.$t('切换手动查询'),
   },
@@ -297,7 +297,7 @@ export default class HandleBtn extends tsc<object> {
             >
               <span class='favorite-btn-text'>
                 <span
-                  class={['icon', !this.isFavoriteUpdate ? 'log-icon icon-lc-star-shape' : 'bk-icon icon-save']}
+                  class={['icon', !this.isFavoriteUpdate ? 'bklog-icon bklog-lc-star-shape' : 'bk-icon icon-save']}
                 ></span>
                 <span>{!this.isFavoriteUpdate ? this.$t('已收藏') : this.$t('保存')}</span>
               </span>
@@ -310,7 +310,7 @@ export default class HandleBtn extends tsc<object> {
             onClick={() => this.handleClear()}
           >
             <Button data-test-id='dataQuery_button_phrasesClear'></Button>
-            <span class='log-icon icon-brush'></span>
+            <span class='bklog-icon bklog-brush'></span>
           </div>
         </span>
       </div>

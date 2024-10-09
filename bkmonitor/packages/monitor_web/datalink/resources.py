@@ -321,27 +321,35 @@ class UpdateAlertUserGroupsResource(BaseStatusResource):
 
 class CollectingTargetStatusResource(BaseStatusResource):
     class RequestSerilizer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         collect_config_id = serializers.IntegerField(required=True, label="采集配置ID")
 
     def perform_request(self, validated_request_data: Dict) -> Dict:
         self.init_data(validated_request_data["collect_config_id"], DataLinkStage.COLLECTING)
 
-        instance_status = resource.collecting.collect_instance_status(id=self.collect_config_id)
+        instance_status = resource.collecting.collect_instance_status(
+            id=self.collect_config_id, bk_biz_id=self.collect_config.bk_biz_id
+        )
         # 提取关联的所有主机ID
         bk_host_ids = []
         for group in instance_status["contents"]:
             for child in group["child"]:
+                if "bk_host_id" not in child:
+                    continue
                 bk_host_ids.append(str(child["bk_host_id"]))
 
         targets_alert_histogram = {}
-        if self.has_strategies():
+        if self.has_strategies() and bk_host_ids:
             alert_histogram = self.search_target_alert_histogram(bk_host_ids)
             targets_alert_histogram = alert_histogram["targets"]
 
         # 填充主机的告警信息
         for group in instance_status["contents"]:
             for child in group["child"]:
-                child["alert_histogram"] = targets_alert_histogram.get(str(child["bk_host_id"]), None)
+                if "bk_host_id" not in child:
+                    child["alert_histogram"] = None
+                else:
+                    child["alert_histogram"] = targets_alert_histogram.get(str(child["bk_host_id"]), None)
         return instance_status
 
     def search_target_alert_histogram(self, targets: List[str], time_range: int = 3600) -> Dict:
@@ -452,18 +460,18 @@ class TransferCountSeriesResource(BaseStatusResource):
             interval = 1440
             interval_unit = "m"
 
-        # 读取采集相关的指标列表
+        # 读取采集相关的指标列表, 最多20个表
         promqls = [
             """sum(count_over_time({{
                 __name__=~"bkmonitor:{table_id}:.*",
                 bk_collect_config_id="{collect_config_id}"}}[{interval}{unit}])) or vector(0)
             """.format(
-                table_id=table,
+                table_id=table.split('.')[0],
                 collect_config_id=self.collect_config_id,
                 interval=interval,
                 unit=interval_unit,
             )
-            for table in {t["table_id"] for t in self.get_metrics_json()}
+            for table in {t["table_id"] for t in self.get_metrics_json()[-1:]}
         ]
 
         # 没有指标配置，返回空序列
@@ -560,12 +568,25 @@ class StorageStatusResource(BaseStatusResource):
     class RequestSerilizer(serializers.Serializer):
         collect_config_id = serializers.IntegerField(required=True, label="采集配置ID")
 
-    def perform_request(self, validated_request_data):
-        self.init_data(validated_request_data["collect_config_id"])
-        metric_json = self.get_metrics_json()
-        if not metric_json:
+    def perform_request(self, params):
+        try:
+            collect_config = CollectConfigMeta.objects.select_related("plugin").get(id=params["collect_config_id"])
+        except CollectConfigMeta.DoesNotExist:
             return {}
 
+        plugin = collect_config.plugin
+
+        group_list = api.metadata.query_time_series_group(
+            time_series_group_name=f"{plugin.plugin_type}_{plugin.plugin_id}"
+        )
+        if group_list:
+            table_id = PluginVersionHistory.get_result_table_id(plugin, "__default__")
+        else:
+            metric_json = collect_config.deployment_config.metrics
+            if not metric_json:
+                return {}
+            table_id = PluginVersionHistory.get_result_table_id(plugin, metric_json[0]["table_name"])
+
         # 同一个采集项下所有表存储配置都是一致的，取第一个结果表即可
-        storager = get_storager(metric_json[0]["table_id"])
+        storager = get_storager(table_id=table_id)
         return {"info": storager.get_info(), "status": storager.get_status()}

@@ -1591,7 +1591,7 @@ class TestBkApmTraceDataSource:
         }
 
         data_source = BkApmTraceDataSource.init_by_query_config(query_config)
-        data = data_source.query_data(start_time=1614334800000, end_time=1614334860000, limit=30)
+        data = data_source.query_data(start_time=1614334800, end_time=1614334860, limit=30)
 
         assert mock_get_es_data.call_args[1] == {
             "query_body": {
@@ -1673,7 +1673,7 @@ class TestBkApmTraceDataSource:
         }
 
         data_source = BkApmTraceDataSource.init_by_query_config(query_config)
-        data = data_source.query_data(start_time=1614334800000, end_time=1614334860000, limit=1, search_after_key={})
+        data = data_source.query_data(start_time=1614334800, end_time=1614334860, limit=1, search_after_key={})
 
         assert mock_get_es_data.call_args[1] == {
             "query_body": {
@@ -1794,7 +1794,7 @@ class TestBkApmTraceDataSource:
         }
 
         data_source = BkApmTraceDataSource.init_by_query_config(query_config)
-        data, __ = data_source.query_log(start_time=1614334800000, end_time=1614334860000, limit=1)
+        data, __ = data_source.query_log(start_time=1614334800, end_time=1614334860, limit=1)
 
         assert mock_get_es_data.call_args[1] == {
             "query_body": {

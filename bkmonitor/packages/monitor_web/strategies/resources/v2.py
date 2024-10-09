@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
+import datetime
 import logging
 import operator
 import re
 import time
 import typing
 from collections import defaultdict
+from copy import deepcopy
 from functools import reduce
 from itertools import chain, product, zip_longest
 from typing import Any, Callable, Dict, List, Optional, Tuple
-from copy import deepcopy
+
 import arrow
+import pytz
 from django.conf import settings
 from django.db.models import Count, Q, QuerySet
 from django.utils.translation import ugettext_lazy as _
@@ -52,6 +55,7 @@ from bkmonitor.strategy.new_strategy import (
 )
 from bkmonitor.utils.request import get_source_app
 from bkmonitor.utils.time_format import duration_string, parse_duration
+from bkmonitor.utils.user import get_global_user
 from constants.alert import EventStatus
 from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.common import SourceApp
@@ -2032,6 +2036,9 @@ class UpdatePartialStrategyV2Resource(Resource):
         更新策略标签
         """
         strategy.labels = labels
+        strategy.save_labels()
+
+        return None, [], []
 
     @staticmethod
     def update_is_enabled(strategy: Strategy, is_enabled: bool):
@@ -2039,6 +2046,7 @@ class UpdatePartialStrategyV2Resource(Resource):
         更新策略启停状态
         """
         strategy.is_enabled = is_enabled
+        return StrategyModel, ["is_enabled"], [strategy.instance]
 
     @staticmethod
     def update_notice_group_list(strategy: Strategy, notice_group_list: List[int]):
@@ -2050,6 +2058,8 @@ class UpdatePartialStrategyV2Resource(Resource):
 
         strategy.notice.user_groups = notice_group_list
 
+        return StrategyActionConfigRelation, ["user_groups"], [action.instance, strategy.notice.instance]
+
     @staticmethod
     def update_trigger_config(strategy: Strategy, trigger_config: Dict):
         """
@@ -2058,12 +2068,16 @@ class UpdatePartialStrategyV2Resource(Resource):
         for detect in strategy.detects:
             detect.trigger_config.update(trigger_config)
 
+        return DetectModel, ["trigger_config"], [detect.instance for detect in strategy.detects]
+
     @staticmethod
     def update_alarm_interval(strategy: Strategy, alarm_interval: int):
         """
         更新通知间隔
         """
         strategy.notice.config["notify_interval"] = alarm_interval * 60
+
+        return StrategyActionConfigRelation, ["config"], [strategy.notice.instance]
 
     @staticmethod
     def update_send_recovery_alarm(strategy: Strategy, send_recovery_alarm: bool):
@@ -2076,6 +2090,8 @@ class UpdatePartialStrategyV2Resource(Resource):
         if not send_recovery_alarm and ActionSignal.RECOVERED in strategy.notice.signal:
             strategy.notice.signal.remove(ActionSignal.RECOVERED)
 
+        return StrategyActionConfigRelation, ["signal"], [strategy.notice.instance]
+
     @staticmethod
     def update_recovery_config(strategy: Strategy, recovery_config: Dict):
         """
@@ -2083,6 +2099,8 @@ class UpdatePartialStrategyV2Resource(Resource):
         """
         for detect in strategy.detects:
             detect.recovery_config = recovery_config
+
+        return DetectModel, ["recovery_config"], [detect.instance for detect in strategy.detects]
 
     @staticmethod
     def update_target(strategy: Strategy, target: List[List[Dict]]):
@@ -2095,11 +2113,16 @@ class UpdatePartialStrategyV2Resource(Resource):
         for item in strategy.items:
             item.target = target
 
+        return ItemModel, ["target"], [item.instance for item in strategy.items]
+
     @staticmethod
     def update_algorithms(strategy: Strategy, algorithms: List[dict]):
         """更新检测算法。"""
         for item in strategy.items:
             item.algorithms = [Algorithm(strategy.id, item.id, **data) for data in algorithms]
+            item.save_algorithms()
+
+        return None, [], []
 
     @staticmethod
     def update_message_template(strategy: Strategy, message_template: str):
@@ -2109,10 +2132,14 @@ class UpdatePartialStrategyV2Resource(Resource):
         for template in strategy.notice.config["template"]:
             template["message_tmpl"] = message_template
 
+        return StrategyActionConfigRelation, ["config"], [strategy.notice.instance]
+
     @staticmethod
     def update_no_data_config(strategy: Strategy, no_data_config: Dict):
         for item in strategy.items:
             UpdatePartialStrategyV2Resource.update_dict_recursive(item.no_data_config, no_data_config)
+
+        return ItemModel, ["no_data_config"], [item.instance for item in strategy.items]
 
     @staticmethod
     def update_notice(strategy: Strategy, notice: Dict):
@@ -2165,6 +2192,13 @@ class UpdatePartialStrategyV2Resource(Resource):
                 }
             )
 
+        strategy.save_notice()
+        return (
+            StrategyActionConfigRelation,
+            ["user_groups", "options"],
+            [action.instance for action in strategy.actions],
+        )
+
     @staticmethod
     def update_actions(strategy: Strategy, actions: List[Dict]):
         new_actions = []
@@ -2184,19 +2218,36 @@ class UpdatePartialStrategyV2Resource(Resource):
 
         strategy.actions = new_actions
 
+        strategy.save_actions()
+        return None, [], []
+
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
         config: Dict = params["edit_data"]
 
         strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=params["ids"])
 
+        updates_data = defaultdict(lambda: {"cls": None, "keys": [], "objs": []})
+        updates_data["update_time"]["cls"] = StrategyModel
+        updates_data["update_time"]["keys"] = ["update_time", "update_user"]
         for strategy in Strategy.from_models(strategies):
             for key, value in config.items():
                 update_method: Callable[[Strategy, Any], None] = getattr(self, f"update_{key}", None)
                 if not update_method:
                     continue
-                update_method(strategy, value)
-            strategy.save()
+                update_cls, update_keys, update_objs = update_method(strategy, value)
+                if update_cls:
+                    updates_data[key]["cls"] = update_cls
+                    updates_data[key]["keys"] = update_keys
+                    updates_data[key]["objs"].extend(update_objs)
+
+            strategy.instance.update_time = datetime.datetime.now(tz=pytz.timezone(settings.TIME_ZONE))
+            strategy.instance.update_user = get_global_user()
+            updates_data["update_time"]["objs"].append(strategy.instance)
+
+        for update_data in updates_data.values():
+            update_data["cls"].objects.bulk_update(update_data["objs"], update_data["keys"])
+
         # 编辑后需要重置AsCode相关配置
         strategies.update(hash="", snippet="")
 
@@ -2582,6 +2633,7 @@ class PromqlToQueryConfig(Resource):
     # PromQL match相关算符正则
     re_ignoring_on_op = re.compile(r"(?![A-Za-z0-9_]) ?(ignoring|on) ?\(.*\) ?")
     re_group_op = re.compile(r"(?![A-Za-z0-9_]) ?(group_left|group_right) ?(\([0-9a-zA-Z_ ]*\))?")
+    re_time_step = r"\[\d+[smhdwy](\d+[smhdwy])*?\]"
     # 按表名判断数据源
     re_custom_time_series = re.compile(r"\d+bkmonitor_time_series_\d+")
     # 支持聚合方法
@@ -2599,6 +2651,7 @@ class PromqlToQueryConfig(Resource):
         promql = serializers.CharField(label="查询语句")
         bk_biz_id = serializers.IntegerField(label="业务ID")
         query_config_format = serializers.ChoiceField(choices=("strategy", "graph"), default="strategy")
+        step = serializers.IntegerField(label="时间间隔", required=False)
 
     @classmethod
     def parse_time(cls, s: str) -> int:
@@ -2610,6 +2663,25 @@ class PromqlToQueryConfig(Resource):
         for part in parts:
             seconds += int(part[0]) * cls.time_trans_mapping[part[1]]
         return seconds
+
+    @staticmethod
+    def convert_seconds_to_readable_time(seconds):
+        units = [
+            ("y", 60 * 60 * 24 * 365),  # 年
+            ("w", 60 * 60 * 24 * 7),  # 周
+            ("d", 60 * 60 * 24),  # 天
+            ("h", 60 * 60),  # 小时
+            ("m", 60),  # 分钟
+            ("s", 1),  # 秒
+        ]
+
+        result = []
+        for unit, unit_seconds in units:
+            if seconds >= unit_seconds:
+                value, seconds = divmod(seconds, unit_seconds)
+                result.append(f"{value}{unit}")
+
+        return f"[{''.join(result)}]"
 
     @classmethod
     def check(cls, unify_query_config: Dict):
@@ -2766,17 +2838,26 @@ class PromqlToQueryConfig(Resource):
                 "data_source"
             ] == DataSourceLabel.CUSTOM:
                 data_source_label = DataSourceLabel.CUSTOM
+            elif query["data_source"] == DataSourceLabel.BKDATA:
+                data_source_label = DataSourceLabel.BK_DATA
             else:
                 data_source_label = DataSourceLabel.BK_MONITOR_COLLECTOR
             data_type_label = DataTypeLabel.TIME_SERIES
             # 根据data_label查找对应指标缓存结果表
             if not result_table_id:
-                qs = MetricListCache.objects.filter(
-                    data_label=data_label,
-                    data_source_label=data_source_label,
-                    data_type_label=data_type_label,
-                    metric_field=query["field_name"],
-                )
+                if query["data_source"] == DataSourceLabel.BKDATA:
+                    qs = MetricListCache.objects.filter(
+                        data_source_label=data_source_label,
+                        data_type_label=data_type_label,
+                        metric_field=query["field_name"],
+                    )
+                else:
+                    qs = MetricListCache.objects.filter(
+                        data_label=data_label,
+                        data_source_label=data_source_label,
+                        data_type_label=data_type_label,
+                        metric_field=query["field_name"],
+                    )
                 if qs.exists():
                     result_table_id = qs.first().result_table_id
 
@@ -2829,6 +2910,10 @@ class PromqlToQueryConfig(Resource):
     def perform_request(self, params):
         promql = params["promql"]
         query_config_format = params["query_config_format"]
+        step = params.get("step", None)
+        if step is not None:
+            time_step = self.convert_seconds_to_readable_time(step)
+            promql = re.sub(self.re_time_step, time_step, promql)
         try:
             origin_config = api.unify_query.promql_to_struct(promql=promql)["data"]
         except Exception:

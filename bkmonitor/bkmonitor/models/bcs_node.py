@@ -32,6 +32,10 @@ logger = logging.getLogger("kubernetes")
 
 
 class BCSNodeManager(BCSBaseManager):
+    def get_queryset(self):
+        # 忽略 eks节点
+        return super(BCSNodeManager, self).get_queryset().exclude(name__startswith="eklet-")
+
     def filter_by_biz_id(
         self,
         bk_biz_id: int,

@@ -309,11 +309,6 @@ CELERYBEAT_SCHEDULER = "monitor.schedulers.MonitorDatabaseScheduler"
 CELERY_ENABLE_UTC = False
 
 CELERYBEAT_SCHEDULE = {
-    "monitor_web.tasks.update_config_status": {
-        "task": "monitor_web.tasks.update_config_status",
-        "schedule": crontab(),
-        "enabled": False,
-    },
     "monitor_web.tasks.update_config_instance_count": {
         "task": "monitor_web.tasks.update_config_instance_count",
         "schedule": crontab(minute=0),  # todo 该任务的周期需建议和节点管理的自动执行的周期保持一致

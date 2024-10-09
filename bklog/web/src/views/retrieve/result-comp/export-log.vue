@@ -31,14 +31,14 @@
         @click="exportLog"
         data-test-id="fieldForm_div_exportData"
         v-bk-tooltips="queueStatus ? $t('导出') : undefined">
-        <span class="icon log-icon icon-xiazai"></span>
+        <span class="icon bklog-icon bklog-xiazai"></span>
       </div> -->
     <div
       :class="{ 'operation-icon': true, 'disabled-icon': !queueStatus }"
       data-test-id="fieldForm_div_exportData"
       @mouseenter="handleShowAlarmPopover"
     >
-      <span class="icon log-icon icon-xiazai"></span>
+      <span class="icon bklog-icon bklog-xiazai"></span>
     </div>
 
     <div v-show="false">
@@ -431,7 +431,7 @@
       transition: boder-color 0.2s;
     }
 
-    .log-icon {
+    .bklog-icon {
       width: 16px;
       font-size: 16px;
       color: #979ba5;
@@ -451,7 +451,7 @@
     border-color: #dcdee5;
 
     &:hover,
-    .log-icon {
+    .bklog-icon {
       color: #c4c6cc;
       border-color: #dcdee5;
     }

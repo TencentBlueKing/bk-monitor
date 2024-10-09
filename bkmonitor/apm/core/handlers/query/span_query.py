@@ -58,9 +58,9 @@ class SpanQuery(BaseQuery):
         return page_data["data"], page_data["total"]
 
     def query_option_values(
-        self, start_time: Optional[int], end_time: Optional[int], fields: List[str]
+        self, datasource_type: str, start_time: Optional[int], end_time: Optional[int], fields: List[str]
     ) -> Dict[str, List[str]]:
-        q: QueryConfigBuilder = self.q.order_by(f"{self.DEFAULT_TIME_FIELD} desc")
+        q: QueryConfigBuilder = self._get_q(datasource_type)
         return self._query_option_values(q, fields, start_time, end_time)
 
     def query_by_trace_id(self, trace_id: str) -> List[Dict[str, Any]]:

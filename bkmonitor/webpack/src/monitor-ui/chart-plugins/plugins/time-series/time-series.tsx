@@ -170,7 +170,7 @@ export class LineChart
     if (this.readonly) return ['fullscreen'];
     if (this.customMenuList) return this.customMenuList;
     const [target] = this.panel.targets;
-    return target.datasource === 'time_series'
+    return target?.datasource === 'time_series'
       ? ['save', 'more', 'fullscreen', 'explore', 'area', 'drill-down', 'relate-alert']
       : ['screenshot', 'area'];
   }
@@ -178,7 +178,7 @@ export class LineChart
   // 是否显示添加指标到策略选项
   get showAddMetric(): boolean {
     const [target] = this.panel.targets;
-    return !this.readonly && target.datasource === 'time_series';
+    return !this.readonly && target?.datasource === 'time_series';
   }
 
   // 只需要一条_result_的数据
@@ -406,14 +406,15 @@ export class LineChart
             .then(res => {
               this.$emit('seriesData', res);
               res.metrics && metrics.push(...res.metrics);
-              series.push(
-                ...res.series.map(set => ({
-                  ...set,
-                  name: `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
-                    this.handleSeriesName(item, set) || set.target
-                  }`,
-                }))
-              );
+              res.series &&
+                series.push(
+                  ...res.series.map(set => ({
+                    ...set,
+                    name: `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
+                      this.handleSeriesName(item, set) || set.target
+                    }`,
+                  }))
+                );
               this.clearErrorMsg();
               return true;
             })
@@ -505,7 +506,8 @@ export class LineChart
             });
           });
         }
-        const formatterFunc = this.handleSetFormatterFunc(seriesList[0].data);
+        const formatData = seriesList.find(item => item.data?.length > 0)?.data;
+        const formatterFunc = this.handleSetFormatterFunc(formatData);
         const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
 
         const chartBaseOptions = MONITOR_LINE_OPTIONS;
@@ -776,7 +778,7 @@ export class LineChart
       maxX &&
       // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
       (formatterFunc = (v: any) => {
-        const duration = dayjs.tz(maxX).diff(dayjs.tz(minX), 'second');
+        const duration = Math.abs(dayjs.tz(maxX).diff(dayjs.tz(minX), 'second'));
         if (onlyBeginEnd && v > minX && v < maxX) {
           return '';
         }

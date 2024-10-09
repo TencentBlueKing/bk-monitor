@@ -204,9 +204,9 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       action_ids: authMap,
       bk_biz_id: this.basicInfo.bk_biz_id,
     }).catch(() => []);
-    data.forEach(item => {
+    for (const item of data) {
       this.authorityConfig[item.action_id] = !!item.is_allowed;
-    });
+    }
   }
   // 获取告警详情数据
   async getDetailData() {
@@ -385,7 +385,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       bk_host_innerip: '0.0.0.0',
       bk_cloud_id: '0',
     };
-    this.basicInfo.dimensions.forEach(item => {
+    for (const item of this.basicInfo.dimensions) {
       if (hostMap.includes(item.key) && item.value) {
         params.bk_host_id = item.value;
       }
@@ -395,7 +395,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       if (ipMap.includes(item.key) && item.value) {
         params.bk_host_innerip = item.value;
       }
-    });
+    }
     this.logRetrieval.ip = params.bk_host_innerip;
     this.logRetrieval.indexList = await listIndexByHost(params).catch(() => []);
     // 如果查不到索引集则显示提示
@@ -436,14 +436,16 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       }
       const data = await graphTraceQuery({ ...queryConfig, ...params }).catch(() => ({ series: [] }));
       const traceIdSet = new Set();
-      data.series.forEach(item => {
-        const idIndex = item.columns.findIndex(c => c === 'bk_trace_id');
-        item.data_points.forEach(d => {
-          if (d[idIndex]) {
-            traceIdSet.add(d[idIndex]);
+      if (data.series?.length) {
+        for (const item of data.series) {
+          const idIndex = item.columns.findIndex(c => c === 'bk_trace_id');
+          for (const d of item.data_points) {
+            if (d[idIndex]) {
+              traceIdSet.add(d[idIndex]);
+            }
           }
-        });
-      });
+        }
+      }
       this.traceIds = Array.from(traceIdSet);
     } else {
       this.traceIds = [];

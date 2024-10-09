@@ -56,7 +56,9 @@ export default class CollectorOperateDetail extends authorityMixinCreate(collect
     this.id = this.$route.params.id;
     this.getHosts(this.pollingCount);
   }
-
+  beforeDestroy() {
+    window.clearTimeout(this.timer);
+  }
   getHosts(count) {
     return collectingTargetStatus({ collect_config_id: this.id })
       .then(data => {

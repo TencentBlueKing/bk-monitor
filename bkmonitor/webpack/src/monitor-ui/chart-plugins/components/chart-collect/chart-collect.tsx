@@ -183,15 +183,14 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
 
   // 查看大图
   handleViewDetail() {
-    const config = this.checkList.reduce((config, item) => {
-      if (!config) {
-        config = item;
-      } else {
-        config.targets.push(...item.targets);
-        config.title = window.i18n.tc('对比');
-        config.subTitle = '';
+    const config = this.checkList.reduce((acc, item) => {
+      if (!acc) {
+        return item;
       }
-      return config;
+      acc.targets.push(...item.targets);
+      acc.title = window.i18n.tc('对比');
+      acc.subTitle = '';
+      return acc;
     }, null);
     this.viewDetailConfig = {
       config,
@@ -239,12 +238,14 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
                 >
                   {window.i18n.t('route-数据探索')}
                 </span>
-                <span
-                  class={['view-collection-btn', isEn ? 'mr24' : 'mr5']}
-                  onClick={this.handleViewDetail}
-                >
-                  {window.i18n.t('对比')}
-                </span>
+                {this.checkList.length > 1 ? (
+                  <span
+                    class={['view-collection-btn', isEn ? 'mr24' : 'mr5']}
+                    onClick={this.handleViewDetail}
+                  >
+                    {window.i18n.t('对比')}
+                  </span>
+                ) : undefined}
               </div>
               <i
                 class='icon-monitor icon-mc-close-fill'

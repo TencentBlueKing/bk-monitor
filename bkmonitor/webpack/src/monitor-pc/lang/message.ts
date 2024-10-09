@@ -426,6 +426,7 @@ export default {
   '是否启用{0}脚本采集?': 'Enable {0} script collection?',
   '是否开始迁移仪表盘？': 'Start migrating dashboard?',
   '是否启用了采样，采样不保证全量数据': 'Is sampling enabled? Sampling does not guarantee full data',
+  '确认采集下发?': 'Confirm collection issuance?',
 
   '取消订阅该邮件，且不再显示？': 'Unsubscribe this email and never show again?',
   '已命中一条已有维度，是否填入其经验': 'A dimension has already been hit, would you like to fill in its experience?',
@@ -463,4 +464,6 @@ export default {
   观察中: 'Under observation',
   已解决: 'Resolved',
   暂无更多数据: 'No more data',
+  '采集下发中， 请耐心等待': 'Collection issuance in progress, please wait patiently',
+  已成功下发采集配置: 'Successfully issued collection configuration',
 };

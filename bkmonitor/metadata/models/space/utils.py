@@ -37,6 +37,27 @@ from .space import Space, SpaceDataSource, SpaceResource, SpaceType
 logger = logging.getLogger("metadata")
 
 
+def get_related_spaces(space_type_id, space_id, target_space_type_id):
+    """
+    获取{space_type_id}__{space_id} 关联的{target_space_type_id}类型的空间ID
+    """
+    filtered_resources = SpaceResource.objects.filter(
+        resource_type=space_type_id, resource_id=space_id, space_type_id=target_space_type_id
+    )
+    return list(filtered_resources.values_list('space_id', flat=True))
+
+
+def get_biz_ids_by_space_ids(space_type, space_ids):
+    """
+    获取空间ID对应的业务ID列表
+    """
+    res = []
+    for space_id in space_ids:
+        biz_id = Space.objects.get_biz_id_by_space(space_type, space_id)
+        res.append(biz_id)
+    return res
+
+
 def list_spaces(
     space_type_id: Optional[str] = None,
     space_id: Optional[str] = None,

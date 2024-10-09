@@ -38,9 +38,6 @@ Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
 export default class FtaStrategyConfig extends authorityMixinCreate(authorityMap) {
   @Prop() a: number;
-  @Provide('authority') authority;
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
-  @Provide('authorityMap') authorityMap = authorityMap;
   @Provide('strategyType') strategyType: strategyType = 'fta';
   fromRouteName = '';
   beforeRouteEnter(to, from, next) {

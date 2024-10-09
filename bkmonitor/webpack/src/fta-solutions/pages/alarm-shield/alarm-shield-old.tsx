@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Provide } from 'vue-property-decorator';
+import { Component } from 'vue-property-decorator';
 
 import AlarmShield from 'monitor-pc/pages/alarm-shield/alarm-shield-list/alarm-shield.vue';
 import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
@@ -35,9 +35,6 @@ import './alarm-shield.scss';
 Component.registerHooks(['beforeRouteEnter']);
 @Component
 export default class FtaAlarmShield extends authorityMixinCreate(alarmShieldAuth) {
-  @Provide('authority') authority;
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
-  @Provide('authorityMap') authorityMap;
   fromRouteName = '';
   beforeRouteEnter(to, from, next) {
     next((vm: FtaAlarmShield) => {

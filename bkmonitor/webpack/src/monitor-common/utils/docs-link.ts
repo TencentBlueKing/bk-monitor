@@ -33,6 +33,7 @@ function linkJump(type: DocLinkType, path: string) {
 }
 
 /**
+ * @deprecated 已弃用(20240925)，由于文档跳转路径规范变,更采用新跳转文档方案，不建议再使用此方法，出于兼容性考虑保留此方法 --- 新方案详情路径：monitor-common/utils/docs.ts
  * @desc 文档跳转统一方案处理
  * @param { string } id
  * @param { Record<string, string> } localMap

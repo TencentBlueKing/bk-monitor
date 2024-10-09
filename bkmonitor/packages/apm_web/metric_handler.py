@@ -311,6 +311,31 @@ class MetricHandler:
 
         return res
 
+    def get_range_calculate_values_mapping(self, ignore_keys=None):
+        """获取范围-值映射(值经过计算) 返回
+        {
+            (*group_by): [[<calculate_value>, timestamp], [<calculate_value>, timestamp]]
+        }
+        """
+        if not ignore_keys:
+            ignore_keys = []
+        response = self.origin_query_range()
+        group_values = defaultdict(list)
+        for series in response.get("series", []):
+            key = tuple(series.get("dimensions", {}).get(i) for i in self.group_by if i not in ignore_keys)
+            group_values[key].append(series)
+
+        res = defaultdict(list)
+        for k, series_list in group_values.items():
+            if 'upstreamService' in k:
+                print("dd")
+            calculate_v = self.calculation.range_cal({"series": series_list})
+            series_response = calculate_v.get("series")
+            if series_response:
+                res[k] = series_response[0].get("datapoints")
+
+        return res
+
     def _convert_to_series(self, datasource_range_response):
         """将使用 DataSource 查询的 range 数据转换为使用 GraphUnifyQuery 得到的 range 数据"""
         series_mapping = defaultdict(list)
@@ -380,7 +405,7 @@ class PromqlInstanceQueryMixin(MetricHandler):
             table_id=table_id,
             group_by=group_by,
             interval=interval,
-            where=f"{{{','.join(where)}}}" if where else "",
+            where=f", {','.join(where)}" if where else "",
         )
 
 
@@ -394,10 +419,9 @@ class AvgDurationInstance(PromqlInstanceQueryMixin):
     query_type = "instance"
     promql_format = (
         'sum {group_by} (increase('
-        'custom:{table_id}:__default__:bk_apm_duration_sum{where}[{interval}s])) '
+        '{{__name__="custom:{table_id}:__default__:bk_apm_duration_sum"{where}}}[{interval}s])) '
         '/ sum {group_by} (increase('
-        'custom:{table_id}:__default__:bk_apm_total{where}[{interval}s])) '
-        ''
+        '{{__name__="custom:{table_id}:__default__:bk_apm_total"{where}}}[{interval}s])) '
     )
 
 
@@ -481,11 +505,10 @@ class ServiceFlowAvgDuration(PromqlInstanceQueryMixin):
 
     metric_id = CalculationMethod.SERVICE_FLOW_DURATION
     promql_format = (
-        "sum {group_by} "
-        "(sum_over_time(custom:{table_id}:__default__:apm_service_to_apm_service_flow_sum{where}[{interval}s])) "
-        "/ "
-        "sum {group_by} "
-        "(sum_over_time(custom:{table_id}:__default__:apm_service_to_apm_service_flow_count{where}[{interval}s]))"
+        'sum {group_by} (sum_over_time('
+        '{{__name__="custom:{table_id}:__default__:apm_service_to_apm_service_flow_sum"{where}}}[{interval}s])) '
+        '/ sum {group_by} (sum_over_time('
+        '{{__name__="custom:{table_id}:__default__:apm_service_to_apm_service_flow_count"{where}}}[{interval}s]))'
     )
 
 

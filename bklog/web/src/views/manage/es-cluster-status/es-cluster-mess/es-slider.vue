@@ -413,6 +413,7 @@
                     :disabled="isDisableHotSetting"
                     size="large"
                     theme="primary"
+                    @change="handleChangeHotWarm"
                   ></bk-switcher>
                   <template v-if="isDisableHotSetting && !connectLoading">
                     <span class="bk-icon icon-info"></span>
@@ -966,7 +967,7 @@
           ).reduce((pre, cur) => {
             const propertyName = this.bizParentList.find(item => item.id === cur[0]);
             const obj = {
-              name: `${propertyName.name}`,
+              name: `${propertyName?.name}`,
               id: cur[0],
               values: cur[1].map(item => ({ id: item, name: item })),
             };
@@ -1012,6 +1013,10 @@
           // 连通性测试通过之后获取冷热数据
           const attrsRes = await this.$http.request('/source/getNodeAttrs', { data: postData });
           this.hotColdOriginList = attrsRes.data;
+          if (!this.isEdit) {
+            this.formData.setup_config.es_shards_default = this.hotColdOriginList.length;
+            this.formData.setup_config.es_shards_max = this.hotColdOriginList.length;
+          }
         } catch (e) {
           console.warn(e);
           this.connectResult = 'failed';
@@ -1020,6 +1025,12 @@
         } finally {
           this.connectLoading = false;
           this.dealWithHotColdData();
+        }
+      },
+      handleChangeHotWarm(v) {
+        if (!this.isEdit && v) {
+          this.formData.setup_config.es_shards_default = this.hotColdAttrSet.length;
+          this.formData.setup_config.es_shards_max = this.hotColdAttrSet.length;
         }
       },
       dealWithHotColdData() {
