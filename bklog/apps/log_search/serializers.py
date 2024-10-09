@@ -637,7 +637,9 @@ class UpdateFavoriteSerializer(serializers.Serializer):
     name = serializers.CharField(label=_("收藏组名"), max_length=256, required=False)
     group_id = serializers.IntegerField(label=_("收藏组ID"), required=False, default=0)
     visible_type = serializers.ChoiceField(choices=FavoriteVisibleType.get_choices(), required=False)
-    search_mode = serializers.ChoiceField(label=_("检索模式"), required=False, choices=SearchMode.get_choices())
+    search_mode = serializers.ChoiceField(
+        label=_("检索模式"), required=False, choices=SearchMode.get_choices(), default=SearchMode.UI.value
+    )
     ip_chooser = serializers.DictField(default={}, required=False)
     addition = serializers.ListField(allow_empty=True, required=False, default="")
     keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
