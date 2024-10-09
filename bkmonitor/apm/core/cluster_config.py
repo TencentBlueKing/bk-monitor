@@ -95,7 +95,8 @@ class ClusterConfig:
             sec = config_maps.items[0]
             if isinstance(sec.data, dict):
                 old_content = sec.data.get(BkCollectorComp.SECRET_PLATFORM_CONFIG_FILENAME_NAME, "")
-                if old_content != b64_content:
+                old_platform_config = gzip.decompress(base64.b64decode(old_content)).decode()
+                if old_platform_config != platform_config:
                     need_update = True
             else:
                 need_update = True
@@ -114,6 +115,7 @@ class ClusterConfig:
                 type="Opaque",
                 metadata=client.V1ObjectMeta(
                     name=BkCollectorComp.SECRET_PLATFORM_NAME,
+                    namespace=BkCollectorComp.NAMESPACE,
                     labels={
                         "component": BkCollectorComp.LABEL_COMPONENT_VALUE,
                         "type": BkCollectorComp.LABEL_TYPE_PLATFORM_CONFIG,
