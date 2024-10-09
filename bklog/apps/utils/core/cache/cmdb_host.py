@@ -91,7 +91,7 @@ class CmdbHostCache(CacheBase):
             pipeline.execute()
 
         # 不传参
-        if not uid_list:
+        if uid_list is None:
             old_biz_ids = {biz_id.decode() for biz_id in cls.cache.hkeys(biz_cache_key)}
             new_biz_ids = {str(biz_id) for biz_id in biz_ids}
             delete_biz_ids = old_biz_ids - new_biz_ids
