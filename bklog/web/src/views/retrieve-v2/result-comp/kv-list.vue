@@ -207,7 +207,7 @@
       },
       handleMenuClick(operator, item, field, isLink = false) {
         let params = {};
-        const curValue = this.tableRowDeepView(this.data, item, this.getFieldType(item), false);
+        const curValue = this.tableRowDeepView(this.data, field, this.getFieldType(item), false);
         if (!field) {
           // disable时操作禁用
           const disableStr = this.checkDisable(operator, item);
@@ -223,14 +223,14 @@
           params = {
             fieldName: field ? field : item,
             operation: operator,
-            value: field ? item : curValue,
+            value: curValue ? curValue : item,
           };
         }
 
         if (operator === 'copy') {
           if (!field && curValue === undefined) return;
           params.operation = 'copy';
-          params.value = field ? item : curValue;
+          params.value = curValue ? curValue : item;
         }
 
         if (operator === 'display') {

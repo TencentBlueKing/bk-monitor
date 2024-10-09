@@ -14,14 +14,23 @@
 
       if (isDebug) {
         const whiteList = (window.FEATURE_TOGGLE_WHITE_LIST.bklog_search_new ?? []).map(id => `${id}`);
+        const spaceWhiteList = (window.SPACE_UID_WHITE_LIST ?? []);
+
         const bkBizId = route.query.bizId;
-        if (bkBizId && whiteList.includes(bkBizId)) {
+        const spaceUid = route.query.spaceUid;
+        if (bkBizId && whiteList.includes(bkBizId) || spaceWhiteList.includes(spaceUid)) {
           return retrieveV2;
         }
       }
-      return isOn ? retrieveV2 : retrieve;
+
+      if (isOn) {
+        return retrieveV2;
+      }
+
+      return retrieve;
     }
-    return retrieve;
+
+    return retrieveV2;
   });
 </script>
 <template>

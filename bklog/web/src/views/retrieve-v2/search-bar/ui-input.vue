@@ -1,7 +1,7 @@
 <script setup>
   import { ref, computed, set } from 'vue';
 
-  import { getOperatorKey } from '@/common/util';
+  import { getOperatorKey, formatDateTimeField } from '@/common/util';
   import { operatorMapping, translateKeys } from './const-values';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
@@ -347,6 +347,10 @@
   const handleIPChange = () => {
     emitChange(modelValue.value);
   };
+
+  const renderItemText = (field, value) => {
+    formatDateTimeField
+  }
 </script>
 
 <template>
@@ -391,7 +395,7 @@
             v-for="(child, childInex) in item.value"
             :key="childInex"
           >
-            <span class="match-value-text">{{ child }}</span>
+            <span class="match-value-text">{{ formatDateTimeField(child, item.field_type) }}</span>
             <span
               v-if="childInex < item.value.length - 1"
               class="match-value-relation"

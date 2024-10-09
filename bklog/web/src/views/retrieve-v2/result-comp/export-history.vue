@@ -487,8 +487,11 @@
               break;
           }
         }
-        const params = encodeURIComponent(JSON.stringify(queryParamsStr));
-        const jumpUrl = `${window.SITE_URL}#/retrieve/${indexSetID}?spaceUid=${spaceUid}&bizId=${dict.bk_biz_id}&routeParams=${params}`;
+        const params = Object.keys(queryParamsStr).reduce((output, key) => {
+          output.push(`${key}=${encodeURIComponent(queryParamsStr[key])}`);
+          return output;
+        }, []).join('&') ;
+        const jumpUrl = `${window.SITE_URL}#/retrieve/${indexSetID}?spaceUid=${spaceUid}&bizId=${dict.bk_biz_id}&${params}`;
         window.open(jumpUrl, '_blank');
       },
       /**

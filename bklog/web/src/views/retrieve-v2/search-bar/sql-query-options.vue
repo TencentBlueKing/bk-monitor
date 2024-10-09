@@ -11,6 +11,7 @@
   import FavoriteList from './favorite-list';
 
   import { excludesFields } from './const.common';
+  import jsCookie from 'js-cookie';
 
   const props = defineProps({
     value: {
@@ -428,6 +429,14 @@
     emits('change', item.params?.keyword, true);
   };
 
+  const handleSQLReadmeClick = () => {
+    const lang = /^en/.test(jsCookie.get('blueking_language')) ? 'EN' : 'ZH';
+    window.open(
+      `${window.BK_DOC_URL}/markdown/${lang}/LogSearch/4.6/UserGuide/ProductFeatures/data-visualization/query_string.md`,
+      '_blank',
+    );
+  };
+
   defineExpose({
     beforeShowndFn,
     beforeHideFn,
@@ -632,7 +641,10 @@
         <div>
           <div class="sql-query-fold-title">
             <div>{{ $t('如何查询') }}?</div>
-            <div class="fold-title-right">
+            <div
+              class="fold-title-right"
+              @click="handleSQLReadmeClick"
+            >
               <span>{{ $t('查询语法') }}</span>
               <span class="fold-title-icon bklog-icon bklog-jump"></span>
             </div>

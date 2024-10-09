@@ -102,7 +102,7 @@ class RouteUrlResolver {
   private commonResolver(str, next?) {
     if (str !== undefined && str !== null) {
       const val = decodeURIComponent(str);
-      return next?.(str) ?? val;
+      return next?.(val) ?? val;
     }
 
     return undefined;
@@ -122,7 +122,9 @@ class RouteUrlResolver {
    */
   private dateTimeRangeResolver(timeRange: string[]) {
     const regExp = /^\d+$/;
-    const result = timeRange.every(t => regExp.test(`${t}`)) ? timeRange : handleTransformToTimestamp(timeRange);
+    const result = timeRange.map(t => decodeURIComponent(t)).every(t => regExp.test(`${t}`))
+      ? timeRange
+      : handleTransformToTimestamp(timeRange);
     return { start_time: result[0], end_time: result[1] };
   }
 
