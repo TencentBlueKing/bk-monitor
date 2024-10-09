@@ -1154,6 +1154,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
             # 如果数据存在并且字段有值说明已创建过 profile 数据源不支持更新
             return
 
+        obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name, profile_bk_biz_id=profile_bk_biz_id)
         # 创建接入
         apm_maintainers = ",".join(settings.APM_APP_BKDATA_MAINTAINER)
         essentials = BkDataDorisProvider.from_datasource_instance(
@@ -1162,15 +1163,10 @@ class ProfileDataSource(ApmDataSourceConfigBase):
             operator=get_global_user(),
             name_stuffix=bk_biz_id,
         ).provider()
-
-        cls.objects.create(
-            bk_biz_id=bk_biz_id,
-            app_name=app_name,
-            profile_bk_biz_id=profile_bk_biz_id,
-            bk_data_id=essentials["bk_data_id"],
-            result_table_id=essentials["result_table_id"],
-            retention=essentials["retention"],
-        )
+        obj.bk_data_id = essentials["bk_data_id"]
+        obj.result_table_id = essentials["result_table_id"]
+        obj.retention = essentials["retention"]
+        obj.save(update_fields=["bk_data_id", "result_table_id", "updated", "retention"])
 
         return
 
