@@ -211,8 +211,11 @@ class ClusteringMonitorHandler(object):
             "actions": [],
             "notice": notice,
         }
-        if signature_strategy_settings.strategy_id:
-            # 更新告警策略
+
+        if signature_strategy_settings.strategy_id and self.get_strategy(
+            strategy_type, signature_strategy_settings.strategy_id
+        ):
+            # 如果策略存在，则更新告警策略
             request_params["id"] = signature_strategy_settings.strategy_id
         strategy = MonitorApi.save_alarm_strategy_v3(params=request_params)
         strategy_id = strategy["id"]
