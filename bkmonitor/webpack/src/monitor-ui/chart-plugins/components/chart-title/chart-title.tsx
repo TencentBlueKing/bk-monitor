@@ -165,7 +165,9 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   get currentMetricsIds() {
     return this.metrics[0].metric_id || `${this.metrics[0].result_table_id}.${this.metrics[0].metric_field}`;
   }
-
+  get showAddStrategy() {
+    return !this.$route.name.includes('strategy');
+  }
   @Watch('metrics', { immediate: true })
   async handleMetricChange(v, o) {
     if (this.metrics?.length !== 1) return;
@@ -392,7 +394,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               >
                 {this.inited && this.$slots?.default}
               </span>,
-              this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
+              this.showAddStrategy && this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
                 <i
                   key={'添加策略'}
                   style={{
