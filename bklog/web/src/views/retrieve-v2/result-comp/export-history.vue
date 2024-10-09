@@ -368,13 +368,13 @@
           window.open($row.download_url);
           return;
         }
-        this.openDownloadUrl($row.search_dict);
+        this.openDownloadUrl($row);
         this.startStatusPolling();
       },
       retryExport($row) {
         // 异常任务直接异步下载
         if ($row.export_type === 'sync') {
-          this.openDownloadUrl($row.search_dict);
+          this.openDownloadUrl($row);
         } else {
           this.downloadAsync($row.search_dict);
         }
@@ -385,7 +385,7 @@
        * @param { Object } params
        */
       openDownloadUrl(params) {
-        const data = { ...params };
+        const data = params.search_dict;
         const stringParamsIndexSetID = String(params.log_index_set_id);
         axiosInstance
           .post(`/search/index_set/${stringParamsIndexSetID}/export/`, data)
