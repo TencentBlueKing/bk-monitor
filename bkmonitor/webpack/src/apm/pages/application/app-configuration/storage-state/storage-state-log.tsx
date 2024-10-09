@@ -28,13 +28,15 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { setup } from 'monitor-api/modules/apm_meta';
 import { byteConvert } from 'monitor-common/utils/utils';
+import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 
 import EditableFormItem from '../../../../components/editable-form-item/editable-form-item';
 import PanelItem from '../../../../components/panel-item/panel-item';
+import StorageInfoSkeleton from '../skeleton/storage-info-skeleton';
 
 import type { ETelemetryDataType, IAppInfo, ILogStorageInfo, IndicesItem } from '../type';
 
-import './log.scss';
+import './storage-state-log.scss';
 interface IProps {
   appInfo: IAppInfo;
   dataLoading?: boolean;
@@ -48,8 +50,8 @@ interface IProps {
 export default class Log extends tsc<IProps> {
   @Prop({ type: Object, default: () => ({}) }) appInfo: IAppInfo;
   @Prop({ type: Array, default: () => [] }) indicesList: IndicesItem[];
-  @Prop({ type: Boolean }) dataLoading: boolean;
-  @Prop({ type: Boolean }) indicesLoading: boolean;
+  @Prop({ type: Boolean, default: false }) dataLoading: boolean;
+  @Prop({ type: Boolean, default: false }) indicesLoading: boolean;
   // 存储信息
   @Prop({ type: Object, default: () => ({}) }) storageInfo: ILogStorageInfo;
   @Prop({ type: String, default: '' }) telemetryDataType: ETelemetryDataType;
@@ -102,77 +104,85 @@ export default class Log extends tsc<IProps> {
     return (
       <div class='log-wrap'>
         <PanelItem title={this.$t('存储信息')}>
-          <div class='form-content'>
-            <div class='item-row'>
-              <EditableFormItem
-                formType='input'
-                label={this.$t('集群名称')}
-                showEditable={false}
-                value={this.storageInfo?.display_storage_cluster_name}
-              />
-              <EditableFormItem
-                formType='input'
-                label={this.$t('索引集名称')}
-                showEditable={false}
-                value={this.storageInfo?.display_es_storage_index_name}
-              />
+          {this.dataLoading ? (
+            <StorageInfoSkeleton />
+          ) : (
+            <div class='form-content'>
+              <div class='item-row'>
+                <EditableFormItem
+                  formType='input'
+                  label={this.$t('集群名称')}
+                  showEditable={false}
+                  value={this.storageInfo?.display_storage_cluster_name}
+                />
+                <EditableFormItem
+                  formType='input'
+                  label={this.$t('索引集名称')}
+                  showEditable={false}
+                  value={this.storageInfo?.display_es_storage_index_name}
+                />
+              </div>
+              <div class='item-row'>
+                <EditableFormItem
+                  formType='expired'
+                  label={this.$t('过期时间')}
+                  showEditable={true}
+                  tooltips={this.$t('过期时间')}
+                  updateValue={val => this.handleUpdateValue(val, 'es_retention')}
+                  value={this.storageInfo?.es_retention}
+                />
+                <EditableFormItem
+                  formType='input'
+                  label={this.$t('分列规则')}
+                  showEditable={false}
+                  tooltips={this.$t('分列规则')}
+                  value={this.storageInfo?.display_index_split_rule}
+                />
+              </div>
             </div>
-            <div class='item-row'>
-              <EditableFormItem
-                formType='expired'
-                label={this.$t('过期时间')}
-                showEditable={true}
-                tooltips={this.$t('过期时间')}
-                updateValue={val => this.handleUpdateValue(val, 'es_retention')}
-                value={this.storageInfo?.es_retention}
-              />
-              <EditableFormItem
-                formType='input'
-                label={this.$t('分列规则')}
-                showEditable={false}
-                tooltips={this.$t('分列规则')}
-                value={this.storageInfo?.display_index_split_rule}
-              />
-            </div>
-          </div>
+          )}
         </PanelItem>
         <PanelItem title={this.$t('物理索引')}>
-          <bk-table
-            v-bkloading={{ isLoading: this.indicesLoading }}
-            data={this.indicesList}
-            outer-border={false}
-          >
-            <bk-table-column
-              width={280}
-              label={this.$t('索引')}
-              prop={'index'}
-            />
-            <bk-table-column
-              label={this.$t('运行状态')}
-              scopedSlots={statusSlot}
-            />
-            <bk-table-column
-              label={this.$t('主分片')}
-              prop={'pri'}
-              sortable
-            />
-            <bk-table-column
-              label={this.$t('副本分片')}
-              prop={'rep'}
-              sortable
-            />
-            <bk-table-column
-              label={this.$t('文档计数')}
-              prop={'docs_count'}
-              sortable
-            />
-            <bk-table-column
-              label={this.$t('存储大小')}
-              prop={'store_size'}
-              scopedSlots={sizeSlot}
-              sortable
-            />
-          </bk-table>
+          {this.indicesLoading ? (
+            <TableSkeleton />
+          ) : (
+            <bk-table
+              // v-bkloading={{ isLoading: this.indicesLoading }}
+              data={this.indicesList}
+              outer-border={false}
+            >
+              <bk-table-column
+                width={280}
+                label={this.$t('索引')}
+                prop={'index'}
+              />
+              <bk-table-column
+                label={this.$t('运行状态')}
+                scopedSlots={statusSlot}
+              />
+              <bk-table-column
+                label={this.$t('主分片')}
+                prop={'pri'}
+                sortable
+              />
+              <bk-table-column
+                label={this.$t('副本分片')}
+                prop={'rep'}
+                sortable
+              />
+              <bk-table-column
+                label={this.$t('文档计数')}
+                prop={'docs_count'}
+                sortable
+              />
+              <bk-table-column
+                label={this.$t('存储大小')}
+                prop={'store_size'}
+                scopedSlots={sizeSlot}
+                sortable
+              />
+            </bk-table>
+          )}
         </PanelItem>
       </div>
     );

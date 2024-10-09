@@ -33,8 +33,8 @@ import authorityMixinCreate from '../../../mixins/authorityMixin';
 import * as authorityMap from '../../home/authority-map';
 import BasicConfiguration from './basic-configuration';
 import ConfigurationView from './configuration-view';
-import DataStatus from './data-status';
-import StorageState from './storage-state';
+import DataStatus from './data-state/data-state';
+import StorageState from './storage-state/storage-state';
 
 import type { IAppInfo, IClusterItem, IMenuItem } from './type';
 import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';

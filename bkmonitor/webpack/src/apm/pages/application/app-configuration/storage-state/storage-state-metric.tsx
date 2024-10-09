@@ -26,11 +26,13 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
+
 import PanelItem from '../../../../components/panel-item/panel-item';
 
 import type { IAppInfo, IMetricStorageInfo } from '../type';
 
-import './metric.scss';
+import './storage-state-metric.scss';
 
 interface IProps {
   appInfo: IAppInfo;
@@ -41,7 +43,7 @@ interface IProps {
 export default class Metric extends tsc<IProps> {
   @Prop({ type: Object, default: () => {} }) appInfo: IAppInfo;
   @Prop({ type: Array, default: () => [] }) data: IMetricStorageInfo[];
-  @Prop({ type: Boolean }) dataLoading: boolean;
+  @Prop({ type: Boolean, default: false }) dataLoading: boolean;
   healthMaps = {
     green: this.$t('健康'),
     yellow: this.$t('部分异常'),
@@ -64,37 +66,40 @@ export default class Metric extends tsc<IProps> {
     return (
       <div class='metric-wrap'>
         <PanelItem title={this.$t('存储信息')}>
-          <bk-table
-            v-bkloading={{ isLoading: this.dataLoading }}
-            data={this.data}
-            outer-border={false}
-          >
-            <bk-table-column
-              label={this.$t('存储表名称')}
-              prop={'result_table_id'}
-            />
-            <bk-table-column label={this.$t('存储类型')} />
-            <bk-table-column
-              label={this.$t('存储集群')}
-              prop={'storage_type'}
-            />
-            <bk-table-column
-              label={this.$t('有效期')}
-              prop={'expire_time_alias'}
-            />
-            <bk-table-column
-              label={this.$t('运行状态')}
-              scopedSlots={statusSlot}
-            />
-            <bk-table-column
-              label={this.$t('创建者')}
-              prop={'created_by'}
-            />
-            <bk-table-column
-              label={this.$t('创建时间')}
-              prop={'created_at'}
-            />
-          </bk-table>
+          {this.dataLoading ? (
+            <TableSkeleton />
+          ) : (
+            <bk-table
+              data={this.data}
+              outer-border={false}
+            >
+              <bk-table-column
+                label={this.$t('存储表名称')}
+                prop={'result_table_id'}
+              />
+              <bk-table-column label={this.$t('存储类型')} />
+              <bk-table-column
+                label={this.$t('存储集群')}
+                prop={'storage_type'}
+              />
+              <bk-table-column
+                label={this.$t('有效期')}
+                prop={'expire_time_alias'}
+              />
+              <bk-table-column
+                label={this.$t('运行状态')}
+                scopedSlots={statusSlot}
+              />
+              <bk-table-column
+                label={this.$t('创建者')}
+                prop={'created_by'}
+              />
+              <bk-table-column
+                label={this.$t('创建时间')}
+                prop={'created_at'}
+              />
+            </bk-table>
+          )}
         </PanelItem>
       </div>
     );

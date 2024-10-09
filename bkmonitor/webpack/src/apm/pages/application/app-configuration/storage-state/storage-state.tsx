@@ -35,13 +35,15 @@ import {
   storageStatus,
 } from 'monitor-api/modules/apm_meta';
 
-import Log from './storeInfo/log';
-import Metric from './storeInfo/metric';
-import Trace from './storeInfo/trace';
-import TabList from './tabList';
-import { ETelemetryDataType } from './type';
+import PanelItem from '../../../../components/panel-item/panel-item';
+import StorageInfoSkeleton from '../skeleton/storage-info-skeleton';
+import TabList from '../tabList';
+import { ETelemetryDataType } from '../type';
+import Log from './storage-state-log';
+import Metric from './storage-state-metric';
+import Trace from './storage-state-trace';
 
-import type { IAppInfo, IClusterItem, IFieldFilterItem, IFieldItem, IndicesItem } from './type';
+import type { IAppInfo, IClusterItem, IFieldFilterItem, IFieldItem, IndicesItem } from '../type';
 
 import './storage-state.scss';
 interface IStorageStateProps {
@@ -85,7 +87,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
     [ETelemetryDataType.trace]: null,
     [ETelemetryDataType.profiling]: [],
   };
-  storageLoading = false;
+  storageLoading = true;
   indicesLoading = false;
   fieldLoading = false;
   indicesList: IndicesItem[] = []; // 物理索引
@@ -93,7 +95,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
   fieldFilterList: IFieldFilterItem[] = []; // 字段信息过滤列表
 
   /** 集群信息 索引名 过期时间 副本数 */
-  setupData: ISetupData = {
+  setupData = {
     index_prefix_name: '',
     es_retention_days: {
       default: 0,
@@ -107,7 +109,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
     },
   };
 
-  storageStatusLoading = true;
+  storageStatusLoading = false;
   storageStatus = {
     [ETelemetryDataType.metric]: 'disabled',
     [ETelemetryDataType.log]: 'disabled',
@@ -134,12 +136,11 @@ export default class StorageState extends tsc<IStorageStateProps> {
       for (const tab of this.tabList) {
         tab.status = this.storageStatus[tab.name];
       }
-
       if (this.tabList.find(item => item.name === this.activeTab)?.status === 'disabled') {
         this.activeTab = this.tabList.find(item => item.status !== 'disabled')?.name || ETelemetryDataType.trace;
       }
-      this.getStorageInfo();
       this.storageStatusLoading = false;
+      this.getStorageInfo();
     }
   }
 
@@ -251,6 +252,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
         return (
           <Log
             appInfo={this.appInfo}
+            dataLoading={this.storageLoading}
             indicesList={this.indicesList}
             indicesLoading={this.indicesLoading}
             storageInfo={this.storageInfo[this.activeTab]}
@@ -263,6 +265,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
           <Trace
             appInfo={this.appInfo}
             clusterList={this.clusterList}
+            dataLoading={this.storageLoading}
             fieldFilterList={this.fieldFilterList}
             fieldList={this.fieldList}
             fieldLoading={this.fieldLoading}
@@ -281,14 +284,25 @@ export default class StorageState extends tsc<IStorageStateProps> {
     return (
       <div class='conf-content storage-state-wrap'>
         <div class='storage-tab-wrap'>
-          <TabList
-            v-bkloading={{ isLoading: this.storageStatusLoading }}
-            activeTab={this.activeTab}
-            tabList={this.tabList}
-            onChange={this.handleChangeActiveTab}
-          />
+          {this.storageStatusLoading ? (
+            <div class='skeleton-element w-300 h-32' />
+          ) : (
+            <TabList
+              activeTab={this.activeTab}
+              tabList={this.tabList}
+              onChange={this.handleChangeActiveTab}
+            />
+          )}
         </div>
-        {!this.storageStatusLoading ? <div class='storage-content'>{this.getActiveComponent()}</div> : undefined}
+        <div class='storage-content'>
+          {this.storageStatusLoading ? (
+            <PanelItem title={this.$tc('存储信息')}>
+              <StorageInfoSkeleton />
+            </PanelItem>
+          ) : (
+            this.getActiveComponent()
+          )}
+        </div>
       </div>
     );
   }
