@@ -479,6 +479,7 @@ class ResultTable(models.Model):
         # 7. 针对白名单中的空间及 etl_config 为 `bk_standard_v2_time_series` 的数据源接入 vm
         # 出错时，记录日志，不影响已有功能
         # NOTE: 因为计算平台接口稳定性不可控，暂时放到后台任务执行
+        # NOTE: 事务中嵌套异步存在不稳定情况，后续迁移至BMW中进行
         try:
             # 仅针对 influxdb 类型进行过滤
             if default_storage == ClusterInfo.TYPE_INFLUXDB:

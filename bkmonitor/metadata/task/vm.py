@@ -14,7 +14,8 @@ import logging
 
 from alarm_backends.core.lock.service_lock import share_lock
 from metadata import models
-from metadata.models.vm.utils import access_bkdata
+from metadata.models.constants import DataIdCreatedFromSystem
+from metadata.models.vm.utils import access_bkdata, access_v2_bkdata_vm
 from metadata.utils.db import filter_model_by_in_page
 
 logger = logging.getLogger("metadata")
@@ -74,7 +75,12 @@ def check_access_vm_task():
             continue
         # 开始接入
         try:
-            access_bkdata(bk_biz_id, rt, bk_data_id)
+            # Note: 应根据data_id的来源决定接入链路的版本是V3还是V4
+            ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
+            if ds.created_from == DataIdCreatedFromSystem.BKGSE.value:
+                access_bkdata(bk_biz_id, rt, bk_data_id)
+            if ds.created_from == DataIdCreatedFromSystem.BKDATA.value:
+                access_v2_bkdata_vm(bk_biz_id, rt, bk_data_id)
         except Exception as e:
             logger.error("access bkdata vm error, error: %s", e)
 
