@@ -357,7 +357,10 @@ def get_timestamp_len(data_id: Optional[int] = None, etl_config: Optional[str] =
     # Note: BCS集群接入场景时，由于事务中嵌套异步任务，可能导致数据未就绪
     # 新接入场景默认使用毫秒作为单位，若过程出现失败，直接返回默认单位，不应影响后续流程
     try:
-        ds = DataSource.objects.get(bk_data_id=data_id)
+        ds = DataSource.objects.filter(bk_data_id=data_id)
+        # 若对应数据源查询不到，则默认使用毫秒作为单位
+        if not ds.exists():
+            return TimestampLen.MILLISECOND_LEN.value
         ds_option = DataSourceOption.objects.filter(bk_data_id=data_id, name=DataSourceOption.OPTION_ALIGN_TIME_UNIT)
         # 若存在对应配置项，优先使用配置的时间格式
         if ds_option.exists():
