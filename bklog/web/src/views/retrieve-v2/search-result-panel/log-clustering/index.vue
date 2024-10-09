@@ -595,6 +595,7 @@
         this.strategyHaveSubmit = v;
       },
       handleClusterCreated() {
+        this.isShowClusterStep = true;
         this.startPolling();
         this.clusterPolling();
       },

@@ -57,6 +57,7 @@ export default class QuickOpenCluster extends tsc<IProps> {
     normal_strategy_enable: false,
   };
   cloneFormData = null;
+  confirmLading = false;
   formRules = {
     clustering_fields: [
       {
@@ -101,6 +102,7 @@ export default class QuickOpenCluster extends tsc<IProps> {
     const isRulePass = await this.filterRuleRef.handleCheckRuleValidate();
     if (!isRulePass) return;
     this.quickClusterFromRef.validate().then(async () => {
+      this.confirmLading = true;
       try {
         const data = {
           bk_biz_id: this.bkBizId,
@@ -134,6 +136,8 @@ export default class QuickOpenCluster extends tsc<IProps> {
         }
       } catch (error) {
         console.warn(error);
+      } finally {
+        this.confirmLading = false;
       }
     });
   }
@@ -204,6 +208,7 @@ export default class QuickOpenCluster extends tsc<IProps> {
         v-model={this.isShowDialog}
         confirm-fn={this.handleConfirmSubmit}
         header-position='left'
+        loading={this.confirmLading}
         mask-close={false}
         render-directive='if'
         theme='primary'
