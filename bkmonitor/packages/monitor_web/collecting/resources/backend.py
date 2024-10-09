@@ -50,8 +50,6 @@ from monitor_web.models import (
 )
 from monitor_web.plugin.constant import PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
-from monitor_web.plugin.manager.log import LogPluginManager
-from monitor_web.plugin.manager.process import ProcessPluginManager
 from monitor_web.strategies.loader.datalink_loader import (
     DatalinkDefaultAlarmStrategyLoader,
 )
@@ -990,22 +988,16 @@ class SaveCollectConfigResource(Resource):
             rules = data["params"]["log"]["rules"]
             if "id" not in data:
                 plugin_id = "log_" + str(shortuuid.uuid())
-                plugin_manager: LogPluginManager = PluginManagerFactory.get_manager(
-                    plugin=plugin_id, plugin_type=PluginType.LOG
-                )
+                plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=PluginType.LOG)
                 params = plugin_manager.get_params(plugin_id, bk_biz_id, label, rules=rules)
                 resource.plugin.create_plugin(params)
             else:
-                plugin_manager: LogPluginManager = PluginManagerFactory.get_manager(
-                    plugin=plugin_id, plugin_type=PluginType.LOG
-                )
+                plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=PluginType.LOG)
                 params = plugin_manager.get_params(plugin_id, bk_biz_id, label, rules=rules)
                 plugin_manager.update_version(params)
         # 虚拟进程采集器
         elif data["collect_type"] == CollectConfigMeta.CollectType.PROCESS:
-            plugin_manager: ProcessPluginManager = PluginManagerFactory.get_manager(
-                "bkprocessbeat", plugin_type=PluginType.PROCESS
-            )
+            plugin_manager = PluginManagerFactory.get_manager("bkprocessbeat", plugin_type=PluginType.PROCESS)
             # 全局唯一
             plugin_manager.touch()
             plugin_id = plugin_manager.plugin.plugin_id
@@ -1021,36 +1013,36 @@ class SaveCollectConfigResource(Resource):
             if plugin_id == settings.TENCENT_CLOUD_METRIC_PLUGIN_ID:
                 plugin_id = qcloud_exporter_plugin_id
 
-                # 检查是否已经创建了腾讯云指标采集插件
-                if CollectorPluginMeta.objects.filter(plugin_id=plugin_id).exists():
-                    return CollectorPluginMeta.objects.get(plugin_id=plugin_id)
-
                 # 检查是否配置了腾讯云指标插件配置
                 if not settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG:
                     raise ValueError("TENCENT_CLOUD_METRIC_PLUGIN_CONFIG is not set, please contact administrator")
 
                 plugin_config: Dict[str, Any] = settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG
+                plugin_params = {
+                    "plugin_id": plugin_id,
+                    "bk_biz_id": data['bk_biz_id'],
+                    "plugin_type": PluginType.K8S,
+                    "label": plugin_config.get("label", "os"),
+                    "plugin_display_name": _(plugin_config.get("plugin_display_name", "腾讯云指标采集")),
+                    "description_md": plugin_config.get("description_md", ""),
+                    "logo": plugin_config.get("logo", ""),
+                    "version_log": plugin_config.get("version_log", ""),
+                    "metric_json": [],
+                    "collector_json": plugin_config["collector_json"],
+                    "config_json": plugin_config.get("config_json", []),
+                    "data_label": settings.TENCENT_CLOUD_METRIC_PLUGIN_ID,
+                }
 
-                # 创建腾讯云指标采集插件
-                resource.plugin.create_plugin(
-                    {
-                        "plugin_id": plugin_id,
-                        "bk_biz_id": data['bk_biz_id'],
-                        "plugin_type": PluginType.K8S,
-                        "label": plugin_config.get("label", "os"),
-                        "plugin_display_name": _(plugin_config.get("plugin_display_name", "腾讯云指标采集")),
-                        "description_md": plugin_config.get("description_md", ""),
-                        "logo": plugin_config.get("logo", ""),
-                        "version_log": plugin_config.get("version_log", ""),
-                        "metric_json": [],
-                        "collector_json": plugin_config["collector_json"],
-                        "config_json": plugin_config.get("config_json", []),
-                        "data_label": settings.TENCENT_CLOUD_METRIC_PLUGIN_ID,
-                    }
-                )
+                # 检查是否已经创建了腾讯云指标采集插件
+                if CollectorPluginMeta.objects.filter(plugin_id=plugin_id).exists():
+                    # 更新插件
+                    plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=PluginType.K8S)
+                    plugin_manager.update_version(plugin_params)
+                else:
+                    # 创建插件
+                    resource.plugin.create_plugin(plugin_params)
 
-        collector_plugin = CollectorPluginMeta.objects.get(plugin_id=plugin_id)
-        return collector_plugin
+        return CollectorPluginMeta.objects.get(plugin_id=plugin_id)
 
     @staticmethod
     def roll_back_result_table(collector_plugin):
