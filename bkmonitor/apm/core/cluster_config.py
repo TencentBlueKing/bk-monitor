@@ -10,10 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import base64
 import functools
-import gzip
 import logging
-
-from kubernetes import client
 
 from alarm_backends.core.storage.redis import Cache
 from bkmonitor.utils.bcs import BcsKubeClient
@@ -74,67 +71,6 @@ class ClusterConfig:
                 res[cluster_id] = related_bk_biz_ids
 
         return res
-
-    @classmethod
-    def deploy_platform_config(cls, cluster_id, platform_config):
-        gzip_content = gzip.compress(platform_config.encode())
-        b64_content = base64.b64encode(gzip_content)
-
-        bcs_client = BcsKubeClient(cluster_id)
-        config_maps = bcs_client.client_request(
-            bcs_client.core_api.list_namespaced_secret,
-            namespace=BkCollectorComp.NAMESPACE,
-            label_selector="component={},template=false,type={}".format(
-                BkCollectorComp.LABEL_COMPONENT_VALUE,
-                BkCollectorComp.LABEL_TYPE_PLATFORM_CONFIG,
-            ),
-        )
-        if len(config_maps.items) > 0:
-            # 存在，且与已有的数据不一致，则更新
-            logger.info(f"{cluster_id} apm platform config already exists.")
-            need_update = False
-            sec = config_maps.items[0]
-            if isinstance(sec.data, dict):
-                old_content = sec.data.get(BkCollectorComp.SECRET_PLATFORM_CONFIG_FILENAME_NAME, "")
-                old_platform_config = gzip.decompress(base64.b64decode(old_content)).decode()
-                if old_platform_config != platform_config:
-                    need_update = True
-            else:
-                need_update = True
-
-            if need_update:
-                logger.info(f"{cluster_id} apm platform config has changed, update it.")
-                sec.data = {BkCollectorComp.SECRET_PLATFORM_CONFIG_FILENAME_NAME: b64_content}
-                bcs_client.client_request(
-                    bcs_client.core_api.patch_namespaced_secret,
-                    name=BkCollectorComp.SECRET_PLATFORM_NAME,
-                    namespace=BkCollectorComp.NAMESPACE,
-                    body=sec,
-                )
-                logger.info(f"{cluster_id} apm platform config update successful.")
-        else:
-            # 不存在，则创建
-            logger.info(f"{cluster_id} apm platform config not exists, create it.")
-            sec = client.V1Secret(
-                type="Opaque",
-                metadata=client.V1ObjectMeta(
-                    name=BkCollectorComp.SECRET_PLATFORM_NAME,
-                    namespace=BkCollectorComp.NAMESPACE,
-                    labels={
-                        "component": BkCollectorComp.LABEL_COMPONENT_VALUE,
-                        "type": BkCollectorComp.LABEL_TYPE_PLATFORM_CONFIG,
-                        "template": "false",
-                    },
-                ),
-                data={BkCollectorComp.SECRET_PLATFORM_CONFIG_FILENAME_NAME: b64_content},
-            )
-
-            bcs_client.client_request(
-                bcs_client.core_api.create_namespaced_secret,
-                namespace=BkCollectorComp.NAMESPACE,
-                body=sec,
-            )
-            logger.info(f"{cluster_id} apm platform config create successful.")
 
     @classmethod
     def platform_config_tpl(cls, cluster_id):
