@@ -89,18 +89,18 @@ const settingFields = [
     label: window.mainComponent.$t('所属组'),
     disabled: true,
   },
-  {
-    id: 'visible_type',
-    label: window.mainComponent.$t('可见范围'),
-  },
-  {
-    id: 'display_fields',
-    label: window.mainComponent.$t('表单模式'),
-  },
-  {
-    id: 'is_show_switch',
-    label: window.mainComponent.$t('显示字段'),
-  },
+  // {
+  //   id: 'visible_type',
+  //   label: window.mainComponent.$t('可见范围'),
+  // },
+  // {
+  //   id: 'display_fields',
+  //   label: window.mainComponent.$t('表单模式'),
+  // },
+  // {
+  //   id: 'is_show_switch',
+  //   label: window.mainComponent.$t('显示字段'),
+  // },
   {
     id: 'updated_by',
     label: window.mainComponent.$t('变更人'),
@@ -170,7 +170,7 @@ export default class GroupDialog extends tsc<IProps> {
 
   tableSetting = {
     fields: settingFields,
-    selectedFields: settingFields.slice(0, 5),
+    selectedFields: settingFields,
     size: 'small',
   };
 
@@ -836,7 +836,7 @@ export default class GroupDialog extends tsc<IProps> {
     };
     return (
       <Dialog
-        width={462}
+        width={900}
         ext-cls='manage-group'
         confirm-fn={this.handleSubmitTableData}
         header-position='left'
@@ -911,7 +911,6 @@ export default class GroupDialog extends tsc<IProps> {
 
           <TableColumn
             key={'column_name'}
-            width='160'
             class-name='group-input'
             label={this.$t('收藏名')}
             label-class-name='group-title'

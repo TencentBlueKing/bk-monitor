@@ -207,13 +207,13 @@
       },
       handleMenuClick(operator, item, field, isLink = false) {
         let params = {};
-        const curValue = this.tableRowDeepView(this.data, item, this.getFieldType(item), false);
+        const curValue = this.tableRowDeepView(this.data, field, this.getFieldType(item), false);
         if (!field) {
           // disable时操作禁用
           const disableStr = this.checkDisable(operator, item);
           if (disableStr === 'is-disabled') return;
         }
-        if (['is', 'not'].includes(operator)) {
+        if (['is', 'not', 'new-search-page-is'].includes(operator)) {
           if (!field && !this.getFieldType(item)) return;
 
           if (this.getFieldType(item) === 'text') return;
@@ -222,15 +222,15 @@
 
           params = {
             fieldName: field ? field : item,
-            operation: operator === 'is' ? 'is' : 'is not',
-            value: field ? item : curValue,
+            operation: operator,
+            value: curValue ? curValue : item,
           };
         }
 
         if (operator === 'copy') {
           if (!field && curValue === undefined) return;
           params.operation = 'copy';
-          params.value = field ? item : curValue;
+          params.value = curValue ? curValue : item;
         }
 
         if (operator === 'display') {

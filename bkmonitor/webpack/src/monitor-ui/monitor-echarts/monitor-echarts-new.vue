@@ -28,8 +28,6 @@
     :style="{ 'background-image': backgroundUrl }"
     class="monitor-echart-wrap"
     v-bkloading="{ isLoading: loading, zIndex: 2000 }"
-    @mouseenter="showTitleTool = true"
-    @mouseleave="showTitleTool = false"
   >
     <div
       v-if="chartTitle || $slots.title"
@@ -409,7 +407,7 @@ export default class MonitorEcharts extends Vue {
   chart = null;
   localChartHeight = 0; //
   clickTimer = null;
-  showTitleTool = false;
+  showTitleTool = true;
   extendMetricData: any = null;
   alarmStatus: IAlarmStatus = { status: 0, alert_number: 0, strategy_number: 0 };
   // tooltips大小 [width, height]

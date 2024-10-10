@@ -25,7 +25,7 @@ from metadata.models.bcs.resource import (
     PodMonitorInfo,
     ServiceMonitorInfo,
 )
-from metadata.utils.bcs import get_bcs_dataids
+from metadata.utils.bcs import change_cluster_router, get_bcs_dataids
 
 logger = logging.getLogger("metadata")
 
@@ -180,6 +180,9 @@ def discover_bcs_clusters():
         # todo 同一个集群在切换业务时不能重复接入
         cluster = BCSClusterInfo.objects.filter(cluster_id=cluster_id).first()
         if cluster:
+            # 更新集群信息，兼容集群迁移场景
+            # 场景1:集群迁移业务，项目ID不变，只会变业务ID
+            # 场景2:集群迁移项目，项目ID和业务ID都可能变化
             update_fields = []
             # NOTE: 现阶段完全以 BCS 的集群状态为准，
             if cluster_raw_status != cluster.status:
@@ -189,10 +192,27 @@ def discover_bcs_clusters():
             if cluster.api_key_content != settings.BCS_API_GATEWAY_TOKEN:
                 cluster.api_key_content = settings.BCS_API_GATEWAY_TOKEN
                 update_fields.append("api_key_content")
+
             if int(bk_biz_id) != cluster.bk_biz_id:
                 # 更新业务ID
                 cluster.bk_biz_id = int(bk_biz_id)
                 update_fields.append("bk_biz_id")
+
+                # 若业务ID变更，其RT对应的业务ID也应一并变更
+                logger.info(
+                    "discover_bcs_clusters: cluster_id:{},project_id:{} change bk_biz_id to {}".format(
+                        cluster_id, project_id, int(bk_biz_id)
+                    )
+                )
+
+                # 变更对应的路由元信息
+                change_cluster_router(cluster, old_bk_biz_id=cluster.bk_biz_id, new_bk_biz_id=int(bk_biz_id))
+
+            # 如果project_id改动，需要更新集群信息
+            if project_id != cluster.project_id:
+                cluster.project_id = project_id
+                update_fields.append("project_id")
+
             if update_fields:
                 update_fields.append("last_modify_time")
                 cluster.save(update_fields=update_fields)

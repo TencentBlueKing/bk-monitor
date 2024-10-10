@@ -33,6 +33,7 @@ from .common import Label, OptionBase
 from .data_source import DataSource, DataSourceOption, DataSourceResultTable
 from .result_table_manage import EnableManager
 from .space import SpaceDataSource
+from .space.constants import EtlConfigs
 from .storage import (
     ArgusStorage,
     BkDataStorage,
@@ -325,6 +326,7 @@ class ResultTable(models.Model):
             logger.error("bk_data_id->[%s] is not exists, nothing will do.", bk_data_id)
             raise ValueError(_("数据源ID不存在，请确认"))
         datasource = datasource_qs.first()
+        allow_access_v2_data_link = datasource.etl_config == EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value
 
         # 非系统创建的结果表，不可以使用容器监控的表前缀名
         if operator != "system" and table_id.startswith(config.BCS_TABLE_ID_PREFIX):
@@ -479,13 +481,21 @@ class ResultTable(models.Model):
         # 7. 针对白名单中的空间及 etl_config 为 `bk_standard_v2_time_series` 的数据源接入 vm
         # 出错时，记录日志，不影响已有功能
         # NOTE: 因为计算平台接口稳定性不可控，暂时放到后台任务执行
+        # NOTE: 事务中嵌套异步存在不稳定情况，后续迁移至BMW中进行
         try:
             # 仅针对 influxdb 类型进行过滤
             if default_storage == ClusterInfo.TYPE_INFLUXDB:
                 # 避免出现引包导致循环引用问题
                 from metadata.task.tasks import access_bkdata_vm
 
-                access_bkdata_vm.delay(int(target_bk_biz_id), table_id, datasource.bk_data_id, space_type, space_id)
+                access_bkdata_vm.delay(
+                    int(target_bk_biz_id),
+                    table_id,
+                    datasource.bk_data_id,
+                    space_type,
+                    space_id,
+                    allow_access_v2_data_link,
+                )
         except Exception as e:
             logger.error("access vm error: %s", e)
 

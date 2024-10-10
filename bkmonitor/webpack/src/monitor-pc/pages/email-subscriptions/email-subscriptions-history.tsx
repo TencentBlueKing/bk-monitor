@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { statusList } from 'monitor-api/modules/report';
 import { transformDataKey } from 'monitor-common/utils/utils';
 
+import TableSkeleton from '../../components/skeleton/table-skeleton';
 import ListCollapse from './components/list-collapse.vue';
 
 import type { ITableColumnItem } from './types';
@@ -116,40 +117,47 @@ export default class EmailSubscriptionsHistory extends tsc<object> {
             class='list-content'
             slot='content'
           >
-            <bk-table
-              style='margin-top: 15px'
-              v-bkloading={{ isLoading: this.loading, zIndex: 1 }}
-              data={this.tableData}
-              header-border={false}
-              outer-border={true}
-              pagination={this.pagination}
-              on-page-change={this.handlePageChange}
-              on-page-limit-change={this.handleLimitChange}
-            >
-              {this.tableColumnsMap.map((item, index) =>
-                item.key === 'isSuccess' ? (
-                  <bk-table-column
-                    key={index}
-                    scopedSlots={{
-                      default: scope => (
-                        <span class={scope.row.isSuccess ? 'is-success' : 'is-fail'}>
-                          {scope.row.isSuccess ? this.$t('成功') : this.$t('失败')}
-                        </span>
-                      ),
-                    }}
-                    label={this.$t('发送状态')}
-                    prop='isSuccess'
-                  />
-                ) : (
-                  <bk-table-column
-                    key={index}
-                    formatter={item.formatter}
-                    label={item.label}
-                    prop={item.key}
-                  />
-                )
-              )}
-            </bk-table>
+            {this.loading ? (
+              <TableSkeleton
+                style={{ padding: '16px' }}
+                type={3}
+              />
+            ) : (
+              <bk-table
+                style='margin-top: 15px'
+                v-bkloading={{ isLoading: this.loading, zIndex: 1 }}
+                data={this.tableData}
+                header-border={false}
+                outer-border={true}
+                pagination={this.pagination}
+                on-page-change={this.handlePageChange}
+                on-page-limit-change={this.handleLimitChange}
+              >
+                {this.tableColumnsMap.map((item, index) =>
+                  item.key === 'isSuccess' ? (
+                    <bk-table-column
+                      key={index}
+                      scopedSlots={{
+                        default: scope => (
+                          <span class={scope.row.isSuccess ? 'is-success' : 'is-fail'}>
+                            {scope.row.isSuccess ? this.$t('成功') : this.$t('失败')}
+                          </span>
+                        ),
+                      }}
+                      label={this.$t('发送状态')}
+                      prop='isSuccess'
+                    />
+                  ) : (
+                    <bk-table-column
+                      key={index}
+                      formatter={item.formatter}
+                      label={item.label}
+                      prop={item.key}
+                    />
+                  )
+                )}
+              </bk-table>
+            )}
           </div>
         </ListCollapse>
       </div>

@@ -89,6 +89,8 @@ const DashboardTempView = {
   template: '<router-view></router-view>',
 };
 const retrieve = () => import(/* webpackChunkName: 'logRetrieve' */ '@/views/retrieve-hub');
+// const retrieve = () => import(/* webpackChunkName: 'logRetrieve' */ '@/views/retrieve-hub');
+
 const dashboard = () => import(/* webpackChunkName: 'dashboard' */ '@/views/dashboard');
 const playground = () => import('@/views/playground');
 

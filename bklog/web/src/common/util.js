@@ -833,6 +833,19 @@ export const Debounce =
     return descriptor;
   };
 
+export const formatDateTimeField = (data, fieldType) => {
+  if (fieldType === 'date') {
+    return formatDate(Number(data)) || data || emptyCharacter;
+  }
+
+  // 处理纳秒精度的UTC时间格式
+  if (fieldType === 'date_nanos') {
+    return formatDateNanos(data) || emptyCharacter;
+  }
+
+  return data;
+};
+
 /**
  * 获取 row[key] 内容
  * @example return row.a.b || row['a.b']
