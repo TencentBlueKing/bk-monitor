@@ -464,7 +464,7 @@ class ExportConfigFileResource(ExportConfigResource):
     @classmethod
     def create_tarfile(
         cls, configs: Dict[str, Iterable[Tuple[str, str, str]]], config_stats_info: Dict[str, int]
-    ) -> Tuple[str, Dict[str, int]]:
+    ) -> str:
         """
         生成配置压缩包
 
