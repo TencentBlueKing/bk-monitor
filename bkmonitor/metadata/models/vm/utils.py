@@ -454,7 +454,7 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
     except BKAPIError as e:
         logger.error("create vm data link error, table_id: %s, data_id: %s, error: %s", table_id, data_id, e)
         return
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         logger.error("create vm data link error, table_id: %s, data_id: %s, error: %s", table_id, data_id, e)
         return
 
@@ -486,7 +486,7 @@ def check_create_fed_vm_data_link(cluster):
                 bcs_cluster_id=cluster.cluster_id,
             )
             logger.info("check_create_fed_vm_data_link:success cluster_id->{}".format(cluster.cluster_id))
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.error(
                 "check_create_fed_vm_data_link:error occurs cluster_id->{},error->{}".format(cluster.cluster_id, str(e))
             )
