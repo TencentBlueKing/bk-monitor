@@ -381,6 +381,7 @@ export default class BasicInfo extends tsc<object> {
     this.formData = {
       labels: [...this.serviceInfo.labels],
     };
+    this.uriList = (this.serviceInfo.relation.uri_relation || []).map(item => item.uri);
     if (show) {
       // 如果URI为空 则编辑时添加一项空 可输入
       if (!this.uriList.length) {
@@ -785,7 +786,11 @@ export default class BasicInfo extends tsc<object> {
   // }
   /** 数据关联 */
   renderDataLink() {
-    const { log_relation: logRelation, app_relation: appRelation } = this.serviceInfo.relation;
+    const {
+      log_relation: logRelation,
+      app_relation: appRelation,
+      cmdb_relation: cmdbRelation,
+    } = this.serviceInfo.relation;
     return (
       <div
         class={[
@@ -799,7 +804,7 @@ export default class BasicInfo extends tsc<object> {
         <div class='config-form-item'>
           <span class='label'>{this.$t('关联 CMDB 服务')}</span>
           <div class='content'>
-            {this.isEditing && (
+            {this.isEditing ? (
               <div class='edit-form-item'>
                 <bk-select
                   vModel={this.localRelationInfo.cmdb}
@@ -815,8 +820,9 @@ export default class BasicInfo extends tsc<object> {
                   ))}
                 </bk-select>
               </div>
+            ) : (
+              cmdbRelation?.template_name || '--'
             )}
-            {!this.isEditing && (this.localCmdbRelationTag.template_name || '--')}
           </div>
         </div>
         <div class='config-form-item'>

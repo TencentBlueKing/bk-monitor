@@ -140,7 +140,7 @@ export interface IServiceRelation {
   log_relation?: ILogRelation;
   app_relation?: IAppRelation;
   apdex_relation?: IApdexRelation;
-  uri_relation?: IUriRelation;
+  uri_relation?: IUriRelation[];
 }
 
 export interface IServiceInfo {
