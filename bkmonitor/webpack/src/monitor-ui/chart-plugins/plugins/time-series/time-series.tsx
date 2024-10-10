@@ -850,9 +850,7 @@ export class LineChart
         dimensions: item.dimensions,
       };
       // 动态单位转换
-      const unitFormatter = !['', 'none', undefined, null].includes(item.unit)
-        ? getValueFormat(this.yAxisNeedUnitGetter ? item.unit || '' : '')
-        : (v: any) => ({ text: v });
+      const unitFormatter = getValueFormat(this.yAxisNeedUnitGetter ? item.unit || '' : '');
       let hasValueLength = 0;
       const data = item.data.map((seriesItem: any, seriesIndex: number) => {
         if (seriesItem?.length && typeof seriesItem[1] === 'number') {
@@ -1174,7 +1172,7 @@ export class LineChart
     if (!data || data.length === 0) {
       return 0;
     }
-    data.sort();
+    data.sort((a, b) => a - b);
     const len = data.length;
     if (data[0] === data[len - 1]) {
       if (['none', ''].includes(unit) && !data[0].toString().includes('.')) return 0;
