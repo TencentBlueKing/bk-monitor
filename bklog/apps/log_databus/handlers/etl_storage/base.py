@@ -21,6 +21,7 @@ the project delivered to anyone in the future.
 """
 import copy
 import hashlib
+import re
 from typing import Any, Dict, List, Union
 
 from django.conf import settings
@@ -421,6 +422,7 @@ class EtlStorage(object):
         hot_warm_config: dict = None,
         es_shards: int = settings.ES_SHARDS,
         index_settings: dict = None,
+        etl_path_regexp: str = "",
     ):
         """
         创建或更新结果表
@@ -436,6 +438,7 @@ class EtlStorage(object):
         :param hot_warm_config: 冷热数据配置
         :param es_shards: es分片数
         :param index_settings: 索引配置
+        :param etl_path_regexp: 采集路径分割的正则
         """
         from apps.log_databus.handlers.collector import build_result_table_id
 
@@ -541,6 +544,9 @@ class EtlStorage(object):
         built_in_config = collector_scenario.get_built_in_config(es_version, self.etl_config)
         result_table_config = self.get_result_table_config(fields, etl_params, built_in_config, es_version=es_version)
 
+        # 添加元数据路径配置到结果表配置中
+        self.add_metadata_path_configs(etl_path_regexp, result_table_config)
+
         params.update(result_table_config)
 
         # 字段mapping优化
@@ -579,6 +585,40 @@ class EtlStorage(object):
             instance.save()
 
         return {"table_id": instance.table_id, "params": params}
+
+    @staticmethod
+    def add_metadata_path_configs(etl_path_regexp: str, result_table_config: dict):
+        """
+        往结果表中添加元数据的路径配置
+        :param etl_path_regexp: 采集路径分割正则
+        :param result_table_config: 需要更新的结果表配置
+        :return:
+        """
+        # 加入路径的清洗配置
+        if etl_path_regexp:
+            result_table_config["option"]["separator_configs"] = [
+                {
+                    "separator_node_name": "bk_separator_object1",
+                    "separator_node_action": "regexp",
+                    "separator_node_source": "filename",
+                    "separator_regexp": etl_path_regexp,
+                }
+            ]
+            match_fields = re.findall(r"\?P<(.*?)>", etl_path_regexp)
+            for index, field_name in enumerate(match_fields, start=1):
+                result_table_config["field_list"].append(
+                    {
+                        "description": "",
+                        "field_name": field_name,
+                        "field_type": "string",
+                        "option": {
+                            "es_doc_values": True,
+                            "es_type": "keyword",
+                            "field_index": index,
+                            "real_path": f"bk_separator_object1.{field_name}"},
+                        "tag": "dimension",
+                    }
+                )
 
     @classmethod
     def switch_result_table(cls, collector_config: CollectorConfig, is_enable=True):
