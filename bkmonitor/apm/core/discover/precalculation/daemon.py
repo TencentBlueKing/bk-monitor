@@ -24,7 +24,7 @@ from django.conf import settings
 from alarm_backends.core.storage.redis import Cache
 from apm.core.discover.precalculation.consul_handler import ConsulHandler
 from apm.models import ApmApplication, MetricDataSource, TraceDataSource
-from apm.utils.base import group_by
+from bkmonitor.utils import group_by
 from bkmonitor.utils.time_tools import get_datetime_range
 from core.drf_resource import api, resource
 
@@ -72,7 +72,7 @@ class DaemonTaskHandler:
 
             logger.info(f"request create_task api, params: \n-----\n{params}\n-----\n")
             api.bmw.create_task(params)
-            logger.info(f"trigger worker create successfully")
+            logger.info("trigger worker create successfully")
         except Exception as e:  # noqa
             logger.exception(f"execute app_id: {app_id} to queue: {queue} failed, error: {e}")
 
@@ -85,7 +85,7 @@ class DaemonTaskHandler:
 
         logger.info(f"request reload_daemon_task api, params: \n-----\n{params}\n-----\n")
         api.bmw.reload_daemon_task(params)
-        logger.info(f"trigger worker reload successfully")
+        logger.info("trigger worker reload successfully")
 
     @classmethod
     def get_task_info(cls):
@@ -99,7 +99,7 @@ class DaemonTaskHandler:
         """
         deployed_biz_id = settings.APM_BMW_DEPLOY_BIZ_ID
         if deployed_biz_id == 0:
-            raise ValueError(f"bmw deploy biz is empty, please check whether bmw is deployed or configured")
+            raise ValueError("bmw deploy biz is empty, please check whether bmw is deployed or configured")
 
         apps_for_beat = []
         apps_for_daemon = []

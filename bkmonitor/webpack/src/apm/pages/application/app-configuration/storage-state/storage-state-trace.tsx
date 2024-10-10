@@ -24,54 +24,71 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Inject, Prop, PropSync, Watch } from 'vue-property-decorator';
+import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { indicesInfo, metaConfigInfo, setup, storageFieldInfo } from 'monitor-api/modules/apm_meta';
+import { setup } from 'monitor-api/modules/apm_meta';
 import { byteConvert } from 'monitor-common/utils/utils';
+import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
+import TextOverflowCopy from 'monitor-pc/pages/monitor-k8s/components/text-overflow-copy/text-overflow-copy';
 
-import EditableFormItem from '../../../components/editable-form-item/editable-form-item';
-import PanelItem from '../../../components/panel-item/panel-item';
-import * as authorityMap from '../../home/authority-map';
+import EditableFormItem from '../../../../components/editable-form-item/editable-form-item';
+import PanelItem from '../../../../components/panel-item/panel-item';
+import * as authorityMap from '../../../home/authority-map';
+import StorageInfoSkeleton from '../skeleton/storage-info-skeleton';
 
-import type { ISetupData } from '../app-add/app-add';
-import type { ClusterOption, IAppInfo, IClusterItem, IFieldFilterItem, IFieldItem, IndicesItem } from './type';
+import type {
+  ClusterOption,
+  ETelemetryDataType,
+  IAppInfo,
+  IClusterItem,
+  IFieldFilterItem,
+  IFieldItem,
+  IndicesItem,
+  ITracingStorageInfo,
+} from '../type';
 
-interface IStorageStateProps {
+import './storage-state-trace.scss';
+
+interface IProps {
   appInfo: IAppInfo;
+  indicesLoading: boolean;
+  fieldLoading: boolean;
+  dataLoading?: boolean;
+  indicesList: IndicesItem[];
+  fieldFilterList: IFieldFilterItem[];
+  fieldList: IFieldItem[];
+  setupData: any;
   clusterList: IClusterItem[];
+  storageInfo?: ITracingStorageInfo;
+  telemetryDataType?: ETelemetryDataType;
 }
 
+interface IEvent {
+  onChange?: (params: ITracingStorageInfo) => void;
+}
 @Component
-export default class StorageState extends tsc<IStorageStateProps> {
-  @PropSync('data', { type: Object, required: true }) appInfo: IAppInfo;
+export default class Trace extends tsc<IProps, IEvent> {
+  @Prop({ type: Object, default: () => {} }) appInfo: IAppInfo;
+  @Prop({ type: Array, default: () => [] }) indicesList: IndicesItem[];
+  @Prop({ type: Array, default: () => [] }) fieldList: IndicesItem[];
+  @Prop({ type: Array, default: () => [] }) fieldFilterList: IFieldFilterItem[];
   @Prop({ type: Array, required: true }) clusterList: any[];
+  @Prop({ type: Object, default: () => {} }) setupData;
+  @Prop({ type: Boolean }) fieldLoading: boolean;
+  @Prop({ type: Boolean }) indicesLoading: boolean;
+  @Prop({ type: Boolean, default: false }) dataLoading: boolean;
+  // 存储信息
+  @Prop({ type: Object, default: () => ({}) }) storageInfo: ITracingStorageInfo;
+  @Prop({ type: String, default: '' }) telemetryDataType: ETelemetryDataType;
 
   @Inject('authority') authority;
 
-  indicesLoading = false;
-  fieldLoading = false;
-  indicesList: IndicesItem[] = []; // 物理索引
-  fieldList: IFieldItem[] = []; // 字段信息
-  fieldFilterList: IFieldFilterItem[] = []; // 字段信息过滤列表
   whetherFilters: IFieldFilterItem[] = [
     { text: window.i18n.tc('是'), value: 'true' },
     { text: window.i18n.tc('否'), value: 'false' },
   ];
-  /** 集群信息 索引名 过期时间 副本数 */
-  setupData: ISetupData = {
-    index_prefix_name: '',
-    es_retention_days: {
-      default: 0,
-      default_es_max: 0,
-      private_es_max: 0,
-    },
-    es_number_of_replicas: {
-      default: 0,
-      default_es_max: 0,
-      private_es_max: 0,
-    },
-  };
+
   clusterOptions: ClusterOption[] = [];
   healthMaps = {
     green: this.$t('健康'),
@@ -103,11 +120,12 @@ export default class StorageState extends tsc<IStorageStateProps> {
     return true;
   }
 
-  created() {
-    this.getMetaConfigInfo();
-    this.getindicesList();
-    this.getFieldList();
-  }
+  //   created() {
+  //     this.getMetaConfigInfo();
+  //     this.getindicesList();
+  //     this.getFieldList();
+  //     this.getStoreList();
+  //   }
 
   @Watch('clusterList', { immediate: true })
   handleClusterListChange(list) {
@@ -117,30 +135,6 @@ export default class StorageState extends tsc<IStorageStateProps> {
     }));
   }
 
-  /**
-   * @desc 获取过期时间最大值
-   */
-  async getMetaConfigInfo() {
-    const data = await metaConfigInfo().catch(() => null);
-    this.setupData = data.setup;
-  }
-  /**
-   * @desc 获取物理索引
-   */
-  async getindicesList() {
-    this.indicesLoading = true;
-    this.indicesList = await indicesInfo(this.appInfo.application_id).catch(() => []);
-    this.indicesLoading = false;
-  }
-  /**
-   * @desc 获取字段信息
-   */
-  async getFieldList() {
-    this.fieldLoading = true;
-    this.fieldList = await storageFieldInfo(this.appInfo.application_id).catch(() => []);
-    this.fieldFilterList = this.getFieldFilterList(this.fieldList);
-    this.fieldLoading = false;
-  }
   /**
    * @desc: 获取字段过滤列表
    * @param { Array } list 被处理的列表
@@ -211,14 +205,16 @@ export default class StorageState extends tsc<IStorageStateProps> {
     }
     try {
       // 更新基本信息
-      const datasourceConfig = Object.assign(this.appInfo.application_datasource_config, { [field]: Number(value) });
+      const datasourceConfig = Object.assign(this.storageInfo || {}, { [field]: Number(value) });
 
       const params = {
         application_id: this.appInfo.application_id,
-        datasource_option: datasourceConfig,
+        trace_datasource_option: datasourceConfig,
+        telemetry_data_type: this.telemetryDataType,
       };
-      await setup(params);
-      await this.handleBaseInfoChange();
+      await setup(params).then(() => {
+        this.$emit('change', datasourceConfig);
+      });
       return true;
     } catch {
       return false;
@@ -254,7 +250,10 @@ export default class StorageState extends tsc<IStorageStateProps> {
         name: this.$t('副本数'),
       },
     ];
-    const compareArr = compareMap.reduce((pre, cur) => (cur.isExceed && pre.push(cur), pre), []);
+    const compareArr = compareMap.reduce((pre, cur) => {
+      cur.isExceed && pre.push(cur);
+      return pre;
+    }, []);
     if (compareArr.length) {
       this.$bkMessage({
         // 当前设置的分片数超过/低于应用最大值/最小值xx-xx，请调整后再切换集群
@@ -283,18 +282,22 @@ export default class StorageState extends tsc<IStorageStateProps> {
       });
     });
   }
-
   render() {
     const statusSlot = {
       default: props => [
-        <span class='status-wrap'>
+        <span
+          key={`status_${props.row.health}-${props.$index}`}
+          class='status-wrap'
+        >
           <span class={['status-icon', `status-${props.row.health}`]} />
           <span class='status-name'>{this.healthMaps[props.row.health]}</span>
         </span>,
       ],
     };
     const sizeSlot = {
-      default: props => [<span>{byteConvert(props.row.store_size)}</span>],
+      default: props => [
+        <span key={`size_${props.$index}_${props.row.store_size}`}>{byteConvert(props.row.store_size)}</span>,
+      ],
     };
     const analysisSlot = {
       default: props => <span>{props.row.analysis_field ? this.$t('是') : this.$t('否')}</span>,
@@ -305,11 +308,12 @@ export default class StorageState extends tsc<IStorageStateProps> {
     const chFieldNameSlot = {
       default: props => <span>{props.row.ch_field_name || '--'}</span>,
     };
-
     return (
-      <div class='conf-content storage-state-wrap'>
+      <div class='conf-content trace-state-wrap'>
         <PanelItem title={this.$t('存储信息')}>
-          <div class='item-content'>
+          {this.dataLoading ? (
+            <StorageInfoSkeleton rows={3} />
+          ) : (
             <div class='form-content'>
               <div class='item-row'>
                 <EditableFormItem
@@ -325,7 +329,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
                   label={this.$t('存储集群')}
                   selectList={this.clusterOptions}
                   updateValue={val => this.handleUpdateValue(val, 'es_storage_cluster')}
-                  value={this.appInfo.application_datasource_config?.es_storage_cluster}
+                  value={this.storageInfo?.es_storage_cluster}
                 />
               </div>
               <div class='item-row'>
@@ -337,7 +341,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
                   maxExpired={this.retentionDaysMax}
                   tooltips={this.$t('过期时间')}
                   updateValue={val => this.handleUpdateValue(val, 'es_retention')}
-                  value={this.appInfo.application_datasource_config?.es_retention}
+                  value={this.storageInfo?.es_retention}
                 />
                 <EditableFormItem
                   authority={this.authority.MANAGE_AUTH}
@@ -347,7 +351,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
                   tooltips={this.$t('副本数')}
                   updateValue={val => this.handleUpdateValue(val, 'es_number_of_replicas')}
                   validator={val => this.initValidator(val, 'es_number_of_replicas')}
-                  value={this.appInfo.application_datasource_config?.es_number_of_replicas}
+                  value={this.storageInfo?.es_number_of_replicas}
                 />
               </div>
               <div class='item-row'>
@@ -359,7 +363,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
                   tooltips={this.$t('分片数')}
                   updateValue={val => this.handleUpdateValue(val, 'es_shards')}
                   validator={val => this.initValidator(val, 'es_shards')}
-                  value={this.appInfo.application_datasource_config?.es_shards}
+                  value={this.storageInfo?.es_shards}
                 />
                 <EditableFormItem
                   authority={this.authority.MANAGE_AUTH}
@@ -370,89 +374,98 @@ export default class StorageState extends tsc<IStorageStateProps> {
                   unit='G'
                   updateValue={val => this.handleUpdateValue(val, 'es_slice_size')}
                   validator={val => this.initValidator(val, 'es_slice_size')}
-                  value={this.appInfo.application_datasource_config?.es_slice_size}
+                  value={this.storageInfo?.es_slice_size}
                 />
               </div>
             </div>
-          </div>
+          )}
         </PanelItem>
         <PanelItem title={this.$t('物理索引')}>
-          <bk-table
-            v-bkloading={{ isLoading: this.indicesLoading }}
-            data={this.indicesList}
-            outer-border={false}
-          >
-            <bk-table-column
-              width={280}
-              label={this.$t('索引')}
-              prop={'index'}
-            />
-            <bk-table-column
-              label={this.$t('运行状态')}
-              scopedSlots={statusSlot}
-            />
-            <bk-table-column
-              label={this.$t('主分片')}
-              prop={'pri'}
-              sortable
-            />
-            <bk-table-column
-              label={this.$t('副本分片')}
-              prop={'rep'}
-              sortable
-            />
-            <bk-table-column
-              label={this.$t('文档数量')}
-              prop={'docs_count'}
-              sortable
-            />
-            <bk-table-column
-              label={this.$t('存储大小')}
-              prop={'store_size'}
-              scopedSlots={sizeSlot}
-              sortable
-            />
-          </bk-table>
+          {this.indicesLoading ? (
+            <TableSkeleton />
+          ) : (
+            <bk-table
+              // v-bkloading={{ isLoading: this.indicesLoading }}
+              data={this.indicesList}
+              outer-border={false}
+            >
+              <bk-table-column
+                width={280}
+                formatter={row => <TextOverflowCopy val={row.index} />}
+                label={this.$t('索引')}
+                prop={'index'}
+              />
+              <bk-table-column
+                label={this.$t('运行状态')}
+                scopedSlots={statusSlot}
+              />
+              <bk-table-column
+                label={this.$t('主分片')}
+                prop={'pri'}
+                sortable
+              />
+              <bk-table-column
+                label={this.$t('副本分片')}
+                prop={'rep'}
+                sortable
+              />
+              <bk-table-column
+                label={this.$t('文档数量')}
+                prop={'docs_count'}
+                sortable
+              />
+              <bk-table-column
+                label={this.$t('存储大小')}
+                prop={'store_size'}
+                scopedSlots={sizeSlot}
+                sortable
+              />
+            </bk-table>
+          )}
         </PanelItem>
         <PanelItem title={this.$t('字段信息')}>
-          <bk-table
-            v-bkloading={{ isLoading: this.fieldLoading }}
-            data={this.fieldList}
-            outer-border={false}
-          >
-            <bk-table-column
-              label={this.$t('字段名')}
-              prop={'field_name'}
-            />
-            <bk-table-column
-              label={this.$t('别名')}
-              scopedSlots={chFieldNameSlot}
-            />
-            <bk-table-column
-              width={180}
-              filter-method={this.fieldFilterMethod}
-              filter-multiple={false}
-              filters={this.fieldFilterList}
-              label={this.$t('数据类型')}
-              prop={'field_type'}
-            />
-            <bk-table-column
-              width={100}
-              filter-method={this.whetherFilterMethod}
-              filters={this.whetherFilters}
-              label={this.$t('分词')}
-              prop={'analysis_field'}
-              scopedSlots={analysisSlot}
-            />
-            <bk-table-column
-              width={100}
-              filter-method={this.whetherFilterMethod}
-              filters={this.whetherFilters}
-              label={this.$t('时间')}
-              prop={'time_field'}
-              scopedSlots={timeSlot}
-            />
-          </bk-table>
+          {this.fieldLoading ? (
+            <TableSkeleton />
+          ) : (
+            <bk-table
+              // v-bkloading={{ isLoading: this.fieldLoading }}
+              data={this.fieldList}
+              outer-border={false}
+            >
+              <bk-table-column
+                label={this.$t('字段名')}
+                prop={'field_name'}
+              />
+              <bk-table-column
+                label={this.$t('别名')}
+                scopedSlots={chFieldNameSlot}
+              />
+              <bk-table-column
+                width={180}
+                filter-method={this.fieldFilterMethod}
+                filter-multiple={false}
+                filters={this.fieldFilterList}
+                label={this.$t('数据类型')}
+                prop={'field_type'}
+              />
+              <bk-table-column
+                width={100}
+                filter-method={this.whetherFilterMethod}
+                filters={this.whetherFilters}
+                label={this.$t('分词')}
+                prop={'analysis_field'}
+                scopedSlots={analysisSlot}
+              />
+              <bk-table-column
+                width={100}
+                filter-method={this.whetherFilterMethod}
+                filters={this.whetherFilters}
+                label={this.$t('时间')}
+                prop={'time_field'}
+                scopedSlots={timeSlot}
+              />
+            </bk-table>
+          )}
         </PanelItem>
       </div>
     );

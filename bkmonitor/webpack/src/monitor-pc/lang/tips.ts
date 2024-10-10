@@ -298,4 +298,9 @@ export default {
   可容忍: 'tolerableness',
   满意: 'satisfaction',
   日志数: 'Log count',
+  可通过关联另一个应用来实现不同应用间调用问题的定位:
+    'You can locate the call problem between different applications by associating another application.',
+  暂无匹配: 'No match found',
+  右键更多操作: 'Right-click for more actions',
+  在节点右键进行更多操作: 'Right-click on the node for more actions',
 };

@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import abc
 import json
 
@@ -24,7 +23,6 @@ from core.drf_resource import APIResource
 
 
 class UseSaaSAuthInfoMixin:
-
     """
     计算平台当前是按 AppCode 分配 data token，考虑到监控在企业版二进制部署模式下后台和 Web AppCode 独立
     当前情况下依赖 BKDATA_DATA_TOKEN 的接口都使用 SaaS 侧应用认证信息进行请求
@@ -1271,3 +1269,51 @@ class GetIncidentTopoByEntity(DataAccessAPIResource):
         incident_id = serializers.IntegerField(required=True, label="故障ID")
         entity_id = serializers.CharField(required=True, label="图谱实体ID")
         snapshot_id = serializers.CharField(required=True, label="图谱快照ID")
+
+
+class GetStorageMetricsDataCount(BkDataAPIGWResource):
+    """
+    获取数据源数据
+    """
+
+    action = "/v3/datamanage/dmonitor/metrics/output_count/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        data_set_ids = serializers.ListField(required=True, label="数据源ID")
+        storages = serializers.ListField(required=True, label="数据源存储类型")
+        start_time = serializers.CharField(required=True, label="开始时间(时间戳)")
+        end_time = serializers.CharField(required=True, label="结束时间(时间戳)")
+        time_grain = serializers.CharField(required=False, label="1d 则是按照天查询", default="1d")
+
+        def validate(self, attrs):
+            if not str(attrs["start_time"]).endswith("s"):
+                attrs["start_time"] = str(attrs["start_time"]) + "s"
+            if not str(attrs["end_time"]).endswith("s"):
+                attrs["end_time"] = str(attrs["end_time"]) + "s"
+            return attrs
+
+
+class GetDataBusSamplingData(BkDataAPIGWResource):
+    """
+    获取采样数据
+    """
+
+    action = "/v3/databus/rawdatas/{data_id}/tail/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        data_id = serializers.IntegerField(required=True, label="数据源ID")
+
+
+class GetRawDataStoragesInfo(BkDataAPIGWResource):
+    """
+    获取存储信息
+    """
+
+    action = "/v3/databus/data_storages/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        raw_data_id = serializers.IntegerField(required=True, label="数据源ID")
+        with_sql = serializers.BooleanField(required=False, label="默认参数", default=True)

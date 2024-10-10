@@ -90,10 +90,10 @@ export default class TopoLegend extends tsc<TopoLegendProps, TopoLegendEvent> {
     },
   ];
   durationList: { id: EdgeDataType; label: string }[] = [
-    { id: 'duration_avg', label: window.i18n.tc('AVG') },
-    { id: 'duration_p50', label: window.i18n.tc('P50') },
-    { id: 'duration_p95', label: window.i18n.tc('P95') },
-    { id: 'duration_p99', label: window.i18n.tc('P99') },
+    { id: 'duration_avg', label: 'AVG' },
+    { id: 'duration_p50', label: 'P50' },
+    { id: 'duration_p95', label: 'P95' },
+    { id: 'duration_p99', label: 'P99' },
   ];
 
   get scene() {
