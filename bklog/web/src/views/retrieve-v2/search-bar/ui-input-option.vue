@@ -80,7 +80,7 @@
       return t(operator);
     }
 
-    return operatorMapping[operator] ?? operator;
+    return operator;
   };
 
   // 操作符下拉实例
