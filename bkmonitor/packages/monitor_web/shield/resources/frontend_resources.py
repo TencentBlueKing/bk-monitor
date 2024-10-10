@@ -138,7 +138,7 @@ class FrontendShieldListResource(Resource):
         }
 
         formatted_shields = []
-        with ThreadPoolExecutor() as executor:
+        with ThreadPoolExecutor(max_workers=20) as executor:
             futures = [executor.submit(self.enrich_shield, manager, strategy_id_to_name, shield) for shield in shields]
             for future in as_completed(futures):
                 formatted_shields.append(future.result())
