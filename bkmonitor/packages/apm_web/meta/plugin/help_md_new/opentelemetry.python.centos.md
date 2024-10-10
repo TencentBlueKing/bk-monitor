@@ -18,7 +18,7 @@
 
 ```shell
 git clone {{ECOSYSTEM_REPOSITORY_URL}}
-cd examples/python-examples/helloworld
+cd {{ECOSYSTEM_REPOSITORY_NAME}}/examples/python-examples/helloworld
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -61,7 +61,7 @@ python main.py
 
 OpenTelemetry 提供标准化的框架和工具包，用于创建和管理 Traces、Metrics、Logs 数据。
 
-示例项目提供集成 OpenTelemetry Python SDK 并将遥测数据发送到 bk-collector 的方式，可以参考 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/python-examples/helloworld/services/otlp.py" target="_blank">services/otlp.py</a> 进行接入
+示例项目提供集成 OpenTelemetry Python SDK 并将观测数据发送到 bk-collector 的方式，可以参考 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/python-examples/helloworld/services/otlp.py" target="_blank">services/otlp.py</a> 进行接入
 
 #### 3.1.2 关键配置
 
