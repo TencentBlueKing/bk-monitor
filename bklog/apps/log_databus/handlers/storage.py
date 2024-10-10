@@ -952,11 +952,12 @@ class StorageHandler(object):
 
     @staticmethod
     def _build_cluster_stats(cluster_stats):
+        nodes_count = cluster_stats["nodes"]["count"]
         return {
             "node_count": cluster_stats["nodes"]["count"]["total"],
             "shards_total": cluster_stats["indices"]["shards"]["total"],
             "shards_pri": cluster_stats["indices"]["shards"]["primaries"],
-            "data_node_count": cluster_stats["nodes"]["count"]["data"],
+            "data_node_count": nodes_count.get("data_hot") or nodes_count.get("data_content") or nodes_count["data"],
             "indices_count": cluster_stats["indices"]["count"],
             "indices_docs_count": cluster_stats["indices"]["docs"]["count"],
             "indices_store": cluster_stats["indices"]["store"]["size_in_bytes"],
