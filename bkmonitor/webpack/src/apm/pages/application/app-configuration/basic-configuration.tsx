@@ -2171,7 +2171,7 @@ export default class BasicInfo extends tsc<IProps> {
           </div>
         </PanelItem>
         <PanelItem
-          class='custom-service-panel-item'
+          class={'custom-service-panel-item pb-24'}
           flexDirection='column'
           title={this.$t('自定义服务')}
         >
