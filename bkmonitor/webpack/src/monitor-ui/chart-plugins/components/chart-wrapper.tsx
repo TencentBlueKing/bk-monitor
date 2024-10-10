@@ -35,6 +35,8 @@ import AiopsDimensionLint from '../plugins/aiops-dimension-lint/aiops-dimension-
 import AlarmEventChart from '../plugins/alarm-event-chart/alarm-event-chart';
 import ApdexChart from '../plugins/apdex-chart/apdex-chart';
 import ApmRelationGraph from '../plugins/apm-relation-graph/apm-relation-graph';
+import ApmServiceCallerCallee from '../plugins/apm-service-caller-callee/apm-service-caller-callee';
+import ApmCallerLineChart from '../plugins/apm-service-caller-callee/chart/apm-caller-line-chart';
 import ApmTimeSeries from '../plugins/apm-time-series/apm-time-series';
 import BarEchart from '../plugins/bar-echart/bar-echart';
 import ChartRow from '../plugins/chart-row/chart-row';
@@ -85,6 +87,7 @@ interface IChartWrapperEvent {
   onChartCheck: boolean;
   onCollapse: boolean;
   onCollectChart?: () => void;
+  onChoosePoint?: () => void;
   onDimensionsOfSeries?: string[];
 }
 interface IChartWrapperEvent {
@@ -226,6 +229,10 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   }
   handleDblClick() {
     this.$emit('dblClick');
+  }
+  @Emit('choosePoint')
+  handleCallerLineChoosePoint(date: string) {
+    return date;
   }
   handlePanel2Chart() {
     switch (this.panel.type) {
@@ -451,6 +458,13 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onLoading={this.handleChangeLoading}
           />
         );
+      case 'caller-line-chart':
+        return (
+          <ApmCallerLineChart
+            panel={this.panel}
+            onChoosePoint={this.handleCallerLineChoosePoint}
+          />
+        );
       case 'exception-guide':
         return (
           <ExceptionGuide
@@ -516,8 +530,11 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       case 'relation-graph':
       case 'apm-relation-graph':
         return <ApmRelationGraph panel={this.panel} />;
+      case 'apm-service-caller-callee':
+        return <ApmServiceCallerCallee panel={this.panel} />;
       case 'alarm-event-chart':
         return <AlarmEventChart panel={this.panel} />;
+
       // 不需要报错显示
       // case 'graph':
       default:

@@ -1,0 +1,40 @@
+.apm-service-caller-callee {
+  position: relative;
+  height: 100%;
+  background: #fff;
+  .caller-callee-head {
+    width: 100%;
+    height: 48px;
+    display: flex;
+    .caller-callee-left {
+      width: 320px;
+      height: 100%;
+      border-right: 1px solid #dcdee5;
+      padding: 8px 24px;
+    }
+    .caller-callee-right {
+      background: #fff;
+    }
+  }
+  .caller-callee-main {
+    width: 100%;
+    background: #f5f7fa;
+    height: calc(100% - 48px);
+  }
+  .caller-callee-layout {
+    width: 100%;
+    height: 100%;
+    border: none;
+    .layout-aside {
+      width: 100%;
+      height: 100%;
+      border-top: 3px solid #f8f9fa;
+    }
+    .layout-main {
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      border-top: 3px solid #f8f9fa;
+    }
+  }
+}
