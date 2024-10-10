@@ -7,7 +7,7 @@
   import useStore from '@/hooks/use-store';
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
-  import { translateKeys } from './const-values';
+  import { operatorMapping, translateKeys } from './const-values';
   import { excludesFields } from './const.common';
 
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
@@ -77,10 +77,10 @@
 
   const getOperatorLable = operator => {
     if (translateKeys.includes(operator)) {
-      return t(operator);
+      return t(operatorMapping[operator]);
     }
 
-    return operator;
+    return operatorMapping[operator] ?? operator;
   };
 
   // 操作符下拉实例
@@ -372,6 +372,11 @@
       isExitErrorTag.value
     ) {
       return;
+    }
+
+    // 如果是不需要条件值，清理掉缓存的条件值
+    if (!isShowConditonValueSetting.value) {
+      result.value = [];
     }
 
     resetParams();
@@ -952,7 +957,7 @@
                       :key="option.operator"
                       @click="() => handleUiValueOptionClick(option)"
                     >
-                      {{ option.label }}
+                      {{ $t(option.label) }}
                     </div>
                   </template>
                 </div>
