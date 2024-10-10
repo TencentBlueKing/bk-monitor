@@ -77,10 +77,10 @@
 
   const getOperatorLable = operator => {
     if (translateKeys.includes(operator)) {
-      return t(operator);
+      return t(operatorMapping[operator]);
     }
 
-    return operator;
+    return operatorMapping[operator] ?? operator;
   };
 
   // 操作符下拉实例
