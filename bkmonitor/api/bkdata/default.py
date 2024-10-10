@@ -1271,7 +1271,7 @@ class GetIncidentTopoByEntity(DataAccessAPIResource):
         snapshot_id = serializers.CharField(required=True, label="图谱快照ID")
 
 
-class GetStorageMetricsDataCount(UseSaaSAuthInfoMixin, BkDataAPIGWResource):
+class GetStorageMetricsDataCount(UseSaaSAuthInfoMixin, DataAccessAPIResource):
     """
     获取数据源数据
     """
@@ -1299,7 +1299,7 @@ class GetStorageMetricsDataCount(UseSaaSAuthInfoMixin, BkDataAPIGWResource):
             return validated_request_data
 
 
-class GetDataBusSamplingData(UseSaaSAuthInfoMixin, BkDataAPIGWResource):
+class GetDataBusSamplingData(UseSaaSAuthInfoMixin, DataAccessAPIResource):
     """
     获取采样数据
     """
@@ -1316,7 +1316,7 @@ class GetDataBusSamplingData(UseSaaSAuthInfoMixin, BkDataAPIGWResource):
             return validated_request_data
 
 
-class GetRawDataStoragesInfo(UseSaaSAuthInfoMixin, BkDataAPIGWResource):
+class GetRawDataStoragesInfo(UseSaaSAuthInfoMixin, DataAccessAPIResource):
     """
     获取存储信息
     """
