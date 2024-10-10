@@ -1271,7 +1271,7 @@ class GetIncidentTopoByEntity(DataAccessAPIResource):
         snapshot_id = serializers.CharField(required=True, label="图谱快照ID")
 
 
-class GetStorageMetricsDataCount(BkDataAPIGWResource):
+class GetStorageMetricsDataCount(UseSaaSAuthInfoMixin, BkDataAPIGWResource):
     """
     获取数据源数据
     """
@@ -1293,8 +1293,13 @@ class GetStorageMetricsDataCount(BkDataAPIGWResource):
                 attrs["end_time"] = str(attrs["end_time"]) + "s"
             return attrs
 
+        def full_request_data(self, validated_request_data):
+            validated_request_data["bkdata_authentication_method"] = "token"
+            validated_request_data["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
+            return validated_request_data
 
-class GetDataBusSamplingData(BkDataAPIGWResource):
+
+class GetDataBusSamplingData(UseSaaSAuthInfoMixin, BkDataAPIGWResource):
     """
     获取采样数据
     """
@@ -1305,8 +1310,13 @@ class GetDataBusSamplingData(BkDataAPIGWResource):
     class RequestSerializer(CommonRequestSerializer):
         data_id = serializers.IntegerField(required=True, label="数据源ID")
 
+        def full_request_data(self, validated_request_data):
+            validated_request_data["bkdata_authentication_method"] = "token"
+            validated_request_data["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
+            return validated_request_data
 
-class GetRawDataStoragesInfo(BkDataAPIGWResource):
+
+class GetRawDataStoragesInfo(UseSaaSAuthInfoMixin, BkDataAPIGWResource):
     """
     获取存储信息
     """
@@ -1317,3 +1327,8 @@ class GetRawDataStoragesInfo(BkDataAPIGWResource):
     class RequestSerializer(CommonRequestSerializer):
         raw_data_id = serializers.IntegerField(required=True, label="数据源ID")
         with_sql = serializers.BooleanField(required=False, label="默认参数", default=True)
+
+        def full_request_data(self, validated_request_data):
+            validated_request_data["bkdata_authentication_method"] = "token"
+            validated_request_data["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
+            return validated_request_data

@@ -441,8 +441,8 @@ class ApplicationInfoByAppNameResource(ApiAuthResource):
         data = ApplicationInfoResource().request({"application_id": application.application_id})
         start_time = validated_request_data.get("start_time")
         end_time = validated_request_data.get("end_time")
-        data["trace_data_status"] = DataStatus.NO_DATA
         if start_time and end_time:
+            data["trace_data_status"] = DataStatus.NO_DATA
             if ApplicationHandler.have_data(application, start_time, end_time):
                 data["trace_data_status"] = DataStatus.NORMAL
         return data
