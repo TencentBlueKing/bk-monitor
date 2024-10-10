@@ -241,6 +241,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
       this.routeList[1].name = `${this.$tc('应用')}：${this.appName}`;
       this.routeList[1].selectOption.value = this.appName;
       this.pageKey += 1;
+      this.handleGetAppInfo();
     } else {
       const dashboardId = this.$route.query.dashboardId;
       this.$router.push({
@@ -309,6 +310,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   }
   /** 更多设置 */
   handleSettingsMenuSelect(option) {
+    console.log(this.appInfo.app_name);
     this.$router.push({
       name: 'application-config',
       params: {
