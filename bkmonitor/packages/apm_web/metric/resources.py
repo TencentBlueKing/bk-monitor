@@ -137,8 +137,6 @@ class DynamicUnifyQueryResource(Resource):
     参数解释:
     alias_prefix / alias_suffix: 用于控制主被调需要调转的时候 例如进入了 xxx-mysql 时页面显示的是被调但是实际查询走的是主调查询
     fill_bar: 补充柱子，让页面上所有指标图标的柱子数量一致，能够让页面实现多图表联动
-    extra_filter_dict: 额外的查询条件，有时候只知道 service_name 并不能获取所有的查询条件。
-                       例如在接口页面，接口区分了类型(如 celery等)但是此时 node 并没有这个信息所有需要别的地方传进来。
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -157,7 +155,6 @@ class DynamicUnifyQueryResource(Resource):
             required=False,
         )
         alias_suffix = serializers.CharField(label="动态 alias 后缀", required=False)
-        extra_filter_dict = serializers.DictField(label="额外查询条件", required=False)
 
     def perform_request(self, validate_data):
         unify_query_params = {
@@ -177,10 +174,6 @@ class DynamicUnifyQueryResource(Resource):
                 config["interval"] = interval
 
             require_fill_series = True
-
-        if validate_data.get("extra_filter_dict"):
-            for config in unify_query_params["query_configs"]:
-                config["filter_dict"].update(validate_data["extra_filter_dict"])
 
         if not validate_data.get("service_name"):
             return self.fill_unit_and_series(
@@ -1672,6 +1665,13 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         sort = serializers.CharField(required=False, label="排序条件", allow_blank=True)
         status = serializers.CharField(required=False, label="状态过滤", allow_blank=True)
 
+        # 在观测场景-接口 tab 页面中 因为某一个接口都有自己特定的 filter_dict(例如 kind=xx, db_system=xx等)
+        # 但是图表配置的 panels 里面本身已存在一些 filter_dict
+        # 由于前端不能够将接口特定和 filter_dict 和 本身图表具有的 filter_dict 进行合并 导致图表跳转到指标检索携带的条件会缺失
+        # 所以这里直接将图表本身已有的 filter_dict 内容传过来 然后合并特定的 filter_dict 再返回
+        # [!] 只适用于接口 tab 页面
+        transparent_filter_dict = serializers.DictField(required=False, label="透传的 filter_dict", default={})
+
     def get_sort_fields(self):
         return ["request_count", "error_rate", "error_count", "avg_duration"]
 
@@ -2055,6 +2055,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                     }
                 )
             # 放入 value 字段中(兼容前端的格式)
+            extra_filter_dict.update(data["transparent_filter_dict"])
             endpoint["extra_filter_dict"] = {"value": extra_filter_dict}
 
             metric = self.get_endpoint_metric(endpoints_metric, node_mapping.get(node_name), endpoint)
