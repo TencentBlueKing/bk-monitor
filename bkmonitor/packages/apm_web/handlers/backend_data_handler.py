@@ -184,7 +184,8 @@ class TraceBackendHandler(TelemetryBackendHandler):
 
     @property
     def storage_status(self):
-        return all([idx.get("health") == "green" for idx in self.indices_info()])
+        indices = self.indices_info() or [{}]
+        return all([idx.get("health") == "green" for idx in indices])
 
     def indices_info(self):
         es_index_name = self.result_table_id.replace(".", "_")
@@ -307,7 +308,8 @@ class LogBackendHandler(TelemetryBackendHandler):
 
     @property
     def storage_status(self):
-        return all([idx.get("health") == "green" for idx in self.indices_info()])
+        indices = self.indices_info() or [{}]
+        return all([idx.get("health") == "green" for idx in indices])
 
     def indices_info(self):
         data = DataBusCollectorsIndicesResource().request(collector_config_id=self.collector_config_id)
@@ -407,19 +409,33 @@ class MetricBackendHandler(BkdataCountMixIn, TelemetryBackendHandler):
     """
 
     @cached_property
-    def bk_base_data_id(self):
+    def bk_base_data_info(self) -> dict:
         # Todo: APM_APPLY 临时方案，待接口支持
         from metadata import models
 
+        ret = {}
         vm_record = models.AccessVMRecord.objects.filter(result_table_id=self.result_table_id).first()
-        return vm_record.bk_base_data_id if vm_record else None
+        if vm_record:
+            ret["data_id"] = vm_record.bk_base_data_id
+            ret["vm_result_table_id"] = vm_record.vm_result_table_id
+        return ret
+
+    @property
+    def bk_base_data_id(self):
+        bk_base_data_id = self.bk_base_data_info.get("data_id")
+        return bk_base_data_id if isinstance(bk_base_data_id, int) and bk_base_data_id > 0 else None
+
+    @property
+    def bk_vm_result_table_id(self):
+        return self.bk_base_data_info.get("vm_result_table_id")
 
     def storage_info(self):
         return GetRawDataStoragesInfo().request(raw_data_id=self.bk_base_data_id) if self.bk_base_data_id else []
 
     @property
     def storage_status(self):
-        return all([storage.get("status") == "running" for storage in self.storage_info()])
+        storages = self.storage_info() or [{}]
+        return all([storage.get("status") == "running" for storage in storages])
 
     def data_sampling(self, **kwargs):
         resp_data = []
@@ -444,21 +460,15 @@ class MetricBackendHandler(BkdataCountMixIn, TelemetryBackendHandler):
         )
 
     def get_data_view(self, start_time: int, end_time: int, **kwargs):
-        storages = self.storage_info()
-        storage_result_table_id = None
-        for storage in storages:
-            if storage["storage_type"] == "vm":
-                storage_result_table_id = storage["result_table_id"]
-                break
         return (
             GetStorageMetricsDataCount().request(
-                data_set_ids=[storage_result_table_id],
+                data_set_ids=[self.bk_vm_result_table_id],
                 storages=["vm"],
                 start_time=start_time,
                 end_time=end_time,
                 **kwargs,
             )
-            if storage_result_table_id
+            if self.bk_vm_result_table_id
             else []
         )
 
@@ -529,7 +539,8 @@ class ProfilingBackendHandler(BkdataCountMixIn, TelemetryBackendHandler):
 
     @property
     def storage_status(self):
-        return all([storage.get("status") == "running" for storage in self.storage_info()])
+        storages = self.storage_info() or [{}]
+        return all([storage.get("status") == "running" for storage in storages])
 
     def data_sampling(self, **kwargs):
         resp_data = []
