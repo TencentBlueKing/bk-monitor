@@ -140,7 +140,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
         this.activeTab = this.tabList.find(item => item.status !== 'disabled')?.name || ETelemetryDataType.trace;
       }
       this.storageStatusLoading = false;
-      this.getStorageInfo();
+      this.handleChangeActiveTab(this.activeTab);
     }
   }
 
