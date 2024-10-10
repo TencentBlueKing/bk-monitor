@@ -18,7 +18,7 @@
 
 ```shell
 git clone {{ECOSYSTEM_REPOSITORY_URL}}
-cd examples/java-examples/helloworld
+cd {{ECOSYSTEM_REPOSITORY_NAME}}/examples/java-examples/helloworld
 gradle build
 ```
 
@@ -60,7 +60,7 @@ gradle run
 
 OpenTelemetry 提供标准化的框架和工具包，用于创建和管理 Traces、Metrics、Logs 数据。
 
-示例项目提供集成 OpenTelemetry Java SDK 并将遥测数据发送到 bk-collector 的方式，可以参考 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/java-examples/helloworld/src/main/java/com/tencent/bkm/demo/helloworld/service/impl/otlp/OtlpService.java" target="_blank">service/impl/otlp/OtlpService.java</a> 进行接入
+示例项目提供集成 OpenTelemetry Java SDK 并将观测数据发送到 bk-collector 的方式，可以参考 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/java-examples/helloworld/src/main/java/com/tencent/bkm/demo/helloworld/service/impl/otlp/OtlpService.java" target="_blank">service/impl/otlp/OtlpService.java</a> 进行接入
 
 #### 3.1.2 关键配置
 

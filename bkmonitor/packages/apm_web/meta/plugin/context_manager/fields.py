@@ -12,6 +12,13 @@ specific language governing permissions and limitations under the License.
 from . import base
 
 
+class EcosystemRepositoryName(metaclass=base.FieldMeta):
+    class Meta:
+        name = "ECOSYSTEM_REPOSITORY_NAME"
+        scope = base.ScopeType.OPEN.value
+        value = "bkmonitor-ecosystem"
+
+
 class TermIntro(metaclass=base.FieldMeta):
     class Meta:
         name = "TERM_INTRO"
@@ -20,16 +27,16 @@ class TermIntro(metaclass=base.FieldMeta):
 * Metrics：<a href="https://opentelemetry.io/docs/concepts/signals/metrics/" target="_blank">指标</a>，表示对运行服务的测量。
 * Logs: <a href="https://opentelemetry.io/docs/concepts/signals/logs/" target="_blank">日志</a>，表示对事件的记录。
 * Profiling: <a href="https://grafana.com/docs/pyroscope/latest/introduction/profiling/" target="_blank">性能分析</a>，表示对应用程序运行时资源的持续测量。
-* Telemetry Data：遥测数据，指代 Traces、Metrics、Logs、Profiling 等。
-* APM：蓝鲸观测平台应用性能监控，提供四类遥测数据开箱即用的观测能力。
-* <a href="https://github.com/TencentBlueKing/bkmonitor-datalink/tree/master/pkg/collector" target="_blank">bk-collector</a>：腾讯蓝鲸的 APM 服务端组件，负责接收 Prometheus、OpenTelemetry、Jaeger、Skywalking 等主流开源组件的遥测数据，并对数据进行清洗转发到观测平台链路。"""
+* Telemetry Data：观测数据，指代 Traces、Metrics、Logs、Profiling 等。
+* APM：蓝鲸观测平台应用性能监控，提供四类观测数据开箱即用的观测能力。
+* <a href="https://github.com/TencentBlueKing/bkmonitor-datalink/tree/master/pkg/collector" target="_blank">bk-collector</a>：腾讯蓝鲸的 APM 服务端组件，负责接收 Prometheus、OpenTelemetry、Jaeger、Skywalking 等主流开源组件的观测数据，并对数据进行清洗转发到观测平台链路。"""
 
 
 class QuickStartOverview(metaclass=base.FieldMeta):
     class Meta:
         name = "QUICK_START_OVERVIEW"
         scope = base.ScopeType.OPEN.value
-        value = """本指南通过一个示例项目，介绍如何将 Traces、Metrics、Logs、Profiling 四类遥测数据接入蓝鲸应用性能监控。
+        value = """本指南通过一个示例项目，介绍如何将 Traces、Metrics、Logs、Profiling 四类观测数据接入蓝鲸应用性能监控。
 
 入门项目功能齐全且可在开发环境运行，可以通过该项目快速接入并体验蓝鲸应用性能监控相关功能。"""
 
