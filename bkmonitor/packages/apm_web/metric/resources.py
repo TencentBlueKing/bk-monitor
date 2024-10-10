@@ -371,7 +371,6 @@ class ServiceListResource(PageListResource):
                 checked=True,
                 unit="ns",
                 decimal=2,
-                sortable=True,
                 asyncable=True,
                 width=80,
             ),
@@ -381,7 +380,6 @@ class ServiceListResource(PageListResource):
                 checked=True,
                 unit="ns",
                 decimal=2,
-                sortable=True,
                 asyncable=True,
                 width=80,
             ),
@@ -1776,7 +1774,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             ),
             StatusTableFormat(
                 id="apdex",
-                name=_lazy("状态"),
+                name=_lazy("Apdex"),
                 checked=True,
                 status_map_cls=Apdex,
                 filterable=True,
@@ -2045,17 +2043,19 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             node_name = endpoint["service_name"]
 
             # 添加额外的查询条件 让右侧图标查询指标时查到正确的数据(通过图标配置中 metric_condition 指定)
-            endpoint["extra_filter_dict"] = {"kind": endpoint["kind"]}
+            extra_filter_dict = {"kind": endpoint["kind"]}
             category_kind_key = endpoint.get("category_kind", {}).get("key")
             if category_kind_key in CategoryEnum.list_component_generate_keys():
                 # 如果此接口是 db\messaging 类型 那么需要获取这个接口的服务名称(添加上后缀)
                 node_name = ComponentHandler.generate_component_name(node_name, endpoint["category_kind"]["value"])
             if category_kind_key:
-                endpoint["extra_filter_dict"].update(
+                extra_filter_dict.update(
                     {
                         OtlpKey.get_metric_dimension_key(category_kind_key): endpoint["category_kind"]["value"],
                     }
                 )
+            # 放入 value 字段中(兼容前端的格式)
+            endpoint["extra_filter_dict"] = {"value": extra_filter_dict}
 
             metric = self.get_endpoint_metric(endpoints_metric, node_mapping.get(node_name), endpoint)
 
