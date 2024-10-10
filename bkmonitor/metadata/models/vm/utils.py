@@ -407,9 +407,10 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
             space_type=space_data["space_type"], space_id=space_data["space_id"], vm_cluster_id=vm_cluster["cluster_id"]
         )
 
-    # 检查是否已经写入 kafka storage，如果已经存在，认为已经接入 vm，则直接返回
-    if AccessVMRecord.objects.filter(result_table_id=table_id).exists():
-        logger.info("table_id: %s has already been created", table_id)
+    try:
+        data_name = DataSource.objects.get(bk_data_id=data_id).data_name
+    except DataSource.DoesNotExist:
+        logger.error("create vm data link error, data_id: %s not found", data_id)
         return
 
     # 获取 vm 集群名称
@@ -417,9 +418,21 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
 
     # 获取数据源对应的集群 ID
     data_type_cluster = get_data_type_cluster(data_id=data_id)
+
+    # 检查是否已经接入过VM，若已经接入过VM，尝试进行联邦集群检查和创建联邦汇聚链路操作
+    if AccessVMRecord.objects.filter(result_table_id=table_id).exists():
+        logger.info("table_id: %s has already been created,now try to create fed vm data link", table_id)
+
+        create_fed_vm_data_link(
+            table_id=table_id,
+            data_name=data_name,
+            vm_cluster_name=vm_cluster_name,
+            bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
+        )
+        return
+
     # 接入 vm 链路
     try:
-        data_name = DataSource.objects.get(bk_data_id=data_id).data_name
         create_vm_data_link(
             table_id=table_id,
             data_name=data_name,
@@ -433,9 +446,6 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
             vm_cluster_name=vm_cluster_name,
             bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
         )
-    except DataSource.DoesNotExist:
-        logger.error("create vm data link error, data_id: %s not found", data_id)
-        return
     except BKAPIError as e:
         logger.error("create vm data link error, table_id: %s, data_id: %s, error: %s", table_id, data_id, e)
         return
