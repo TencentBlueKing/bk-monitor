@@ -481,7 +481,7 @@ class ServiceListResource(PageListResource):
         page = serializers.IntegerField(required=False, label="页码")
         page_size = serializers.IntegerField(required=False, label="每页条数")
         sort = serializers.CharField(required=False, label="排序方式", allow_blank=True)
-        filter = serializers.CharField(required=False, label="分类过滤条件", default="all")
+        filter = serializers.CharField(required=False, label="分类过滤条件", default="all", allow_blank=True)
         filter_dict = serializers.DictField(required=False, label="筛选条件", default={})
         field_conditions = serializers.ListField(
             required=False, default=[], label="or 条件列表", child=FieldConditionSerializer()
@@ -492,6 +492,13 @@ class ServiceListResource(PageListResource):
             choices=VIEW_MODE_CHOICES,
             default=VIEW_MODE_SERVICES,
         )
+
+        def validate(self, attrs):
+            res = super(ServiceListResource.RequestSerializer, self).validate(attrs)
+            if not res.get("filter"):
+                # 兼容服务 tab 页面前端无法传递 all 的问题
+                res["filter"] = "all"
+            return res
 
     def get_filter_fields(self):
         return ["service_name", "language", "type"]
