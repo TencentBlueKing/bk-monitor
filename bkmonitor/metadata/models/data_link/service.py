@@ -215,10 +215,10 @@ def create_fed_vm_data_link(
             )
         )
         vm_record = AccessVMRecord.objects.filter(result_table_id=table_id)
-        # if not vm_record:
-        #     logger.error("create_fed_vm_data_link: data_id_name does not exists in anywhere!")
-        #     return
-        data_id_name = get_bkdata_data_id_name_v3(vm_record.first().vm_result_table_id)
+        if not vm_record:
+            logger.error("create_fed_vm_data_link: data_id_name does not exists in anywhere!")
+            return
+        data_id_name = utils.get_bkdata_data_id_name_v3(vm_record.first().vm_result_table_id)
 
     logger.info("create_fed_vm_data_link: data_id_name->%s", data_id_name)
 
