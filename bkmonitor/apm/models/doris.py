@@ -16,7 +16,7 @@ from django.conf import settings
 from core.drf_resource import api
 
 if TYPE_CHECKING:
-    from .datasource import ApmDataSourceConfigBase, ProfileDataSource
+    from .datasource import ApmDataSourceConfigBase, ProfileDataSource  # noqa
 
 logger = logging.getLogger("apm")
 
@@ -75,7 +75,7 @@ class BkDataDorisProvider:
             else f"{obj.app_name}{name_stuffix}".replace('-', '_'),
         )
 
-    def provider(self, **options) -> dict:
+    def provider(self) -> dict:
         """提供数据源配置"""
 
         params = self.assemble_params()

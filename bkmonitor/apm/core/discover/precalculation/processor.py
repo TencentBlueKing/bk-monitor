@@ -28,8 +28,8 @@ from opentelemetry.trace import StatusCode
 from apm.constants import KindCategory
 from apm.models import ApmApplication
 from apm_web.handlers.span_infer import InferenceHandler
-from apm_web.utils import group_by
 from bkm_space.api import SpaceApi
+from bkmonitor.utils import group_by
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import (
     OtlpKey,

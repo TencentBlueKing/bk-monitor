@@ -800,7 +800,7 @@ export default class DetailsSide extends tsc<IProps> {
                 checkable={false}
                 columns={this.tableColumns}
                 data={this.tableData}
-                hasColnumSetting={false}
+                hasColumnSetting={false}
                 pagination={this.pagination}
                 paginationType={'simple'}
                 onLimitChange={this.handleLimitChange}

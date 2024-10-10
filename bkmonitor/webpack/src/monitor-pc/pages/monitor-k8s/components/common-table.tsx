@@ -28,8 +28,11 @@ import { Component, Emit, Inject, InjectReactive, Prop, Ref } from 'vue-property
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { connect, disconnect } from 'echarts/core';
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
+import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
+import MiniTimeSeries from 'monitor-ui/chart-plugins/plugins/mini-time-series/mini-time-series';
 
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import { Storage } from '../../../utils';
@@ -62,7 +65,7 @@ export interface ICommonTableProps {
   // 是否可选择行
   checkable?: boolean;
   // 是否显示表格列设置
-  hasColnumSetting?: boolean;
+  hasColumnSetting?: boolean;
   // 表格数据
   data?: TableRow[];
   // 表格字段集合
@@ -133,7 +136,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   // scroll Loading
   @Prop({ default: false }) scrollLoading: boolean;
   // 是否显示表格列设置
-  @Prop({ default: true }) hasColnumSetting: boolean;
+  @Prop({ default: true }) hasColumnSetting: boolean;
   // 设置的表格固定列保存在localstorage的key值
   @Prop({ default: '' }) storeKey: string;
   // 表格是否可以设置多选
@@ -211,6 +214,19 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       disabled: !!item.disabled,
     }));
   }
+
+  /** 缩略图分组Id枚举 */
+  get chartGroupIdsMap() {
+    return this.tableColumns.reduce((acc, cur, ind) => {
+      if (cur.type === 'datapoints') {
+        if (acc[cur.id]) disconnect(acc[cur.id]);
+        acc[cur.id] = `${random(8)}_${ind}`;
+        connect(acc[cur.id]);
+      }
+      return acc;
+    }, {});
+  }
+
   /** 表格类名 */
   get tableClass() {
     const classNames = [];
@@ -223,10 +239,18 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   get hasOverviewData() {
     return !!this.overviewData;
   }
+
   created() {
     this.storage = new Storage();
     this.tableSize = this.defaultSize;
   }
+
+  destroyed() {
+    for (const groupId of Object.keys(this.chartGroupIdsMap)) {
+      disconnect(groupId);
+    }
+  }
+
   // 常用值格式化
   commonFormatter(val: ITableItem<'string'>, column: ITableColumn) {
     if (typeof val !== 'number' && !val) return '--';
@@ -576,6 +600,49 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     );
   }
 
+  // data_status 类型
+  dataStatusFormatter(value: ITableItem<'data_status'>) {
+    const icons = {
+      normal: {
+        icon: 'icon-mc-check-small',
+        text: '',
+      },
+      no_data: {
+        icon: 'icon-tixing',
+        text: this.$t('无数据'),
+      },
+      disabled: {
+        icon: 'icon-zhongzhi',
+        text: this.$t('未开启'),
+      },
+    };
+    return value?.icon ? (
+      <i
+        class={`icon-monitor ${icons[value.icon].icon || ''} data_status_column`}
+        v-bk-tooltips={{ content: icons[value.icon].text, disabled: !icons[value.icon].text }}
+      />
+    ) : (
+      ''
+    );
+  }
+
+  // datapoints 类型
+  datapointsFormatter(column: ITableColumn, value: ITableItem<'datapoints'>) {
+    if (!value?.datapoints?.length) {
+      return '--';
+    }
+    return (
+      <MiniTimeSeries
+        data={value.datapoints || []}
+        disableHover={true}
+        groupId={this.chartGroupIdsMap[column.id]}
+        unit={value.unit}
+        unitDecimal={value?.unitDecimal}
+        valueTitle={value.valueTitle}
+      />
+    );
+  }
+
   @Emit('pageChange')
   handlePageChange(v: number) {
     return v;
@@ -641,8 +708,14 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   handleSetFormatter(id: string, row: TableRow) {
     const column = this.columns.find(item => item.id === id);
     if (!column) return '--';
-    if (column.asyncable) return <bk-spin size='mini' />; // 用于异步加载loading
-
+    if (column.asyncable)
+      return (
+        <img
+          class='loading-svg'
+          alt=''
+          src={loadingIcon}
+        />
+      ); // 用于异步加载loading
     const value: ITableItem<typeof column.type> = row[id];
     switch (column.type) {
       case 'time':
@@ -673,6 +746,10 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
         return this.relationFormatter(value as ITableItem<'relation'>);
       case 'more_operate':
         return this.moreOperateFormatter(value as ITableItem<'more_operate'>);
+      case 'data_status':
+        return this.dataStatusFormatter(value as ITableItem<'data_status'>);
+      case 'datapoints':
+        return this.datapointsFormatter(column, value as ITableItem<'datapoints'>);
       default:
         return this.commonFormatter(value as ITableItem<'string'>, column);
     }
@@ -882,7 +959,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
             />
           )}
           {this.transformColumns()}
-          {this.hasColnumSetting ? (
+          {this.hasColumnSetting ? (
             <bk-table-column type='setting'>
               <bk-table-setting-content
                 key={`${this.tableKey}__settings`}
