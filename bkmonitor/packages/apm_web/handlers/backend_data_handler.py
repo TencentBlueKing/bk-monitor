@@ -500,7 +500,7 @@ class MetricBackendHandler(BkdataCountMixIn, TelemetryBackendHandler):
     def get_no_data_strategy_config(self, **kwargs):
         return {
             "result_table_id": self.result_table_id,
-            "metric_id": f'count({{__name__=~"custom:{self.result_table_id}:__default__:.*"}})',
+            "metric_id": f'count({{__name__=~"custom:{self.result_table_id}:.*"}})',
             "metric_field": None,
             "name": f"BKAPM-{_('无数据告警')}-{self.app.app_name}-{self.telemetry.value}",
             "data_source_label": DataSourceLabel.PROMETHEUS,
@@ -510,7 +510,7 @@ class MetricBackendHandler(BkdataCountMixIn, TelemetryBackendHandler):
                     "data_source_label": DataSourceLabel.PROMETHEUS,
                     "data_type_label": DataTypeLabel.TIME_SERIES,
                     "table": self.result_table_id,
-                    "promql": f'count({{__name__=~"custom:{self.result_table_id}:__default__:.*"}})',
+                    "promql": f'count({{__name__=~"custom:{self.result_table_id}:.*"}})',
                     "agg_interval": 60,
                     "alias": "a",
                 }
