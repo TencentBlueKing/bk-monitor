@@ -130,6 +130,7 @@ export default class MiniTimeSeries extends tsc<IProps> {
   };
 
   resizeObserver = null;
+  intersectionObserver: IntersectionObserver = null;
   throttleHandleResize = () => {};
 
   mounted() {
@@ -142,13 +143,36 @@ export default class MiniTimeSeries extends tsc<IProps> {
       }
     });
     this.resizeObserver.observe(this.$el);
-    this.initChart();
+    setTimeout(this.registerObserver, 20);
   }
   destroyed() {
     (this as any).instance?.dispose?.();
     (this as any).instance = null;
     this.resizeObserver?.unobserve?.(this.$el);
     this.isMouseOver = false;
+    this.unregisterOberver();
+  }
+
+  // 注册Intersection监听
+  registerObserver() {
+    if (this.intersectionObserver) {
+      this.unregisterOberver();
+    }
+    this.intersectionObserver = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (this.intersectionObserver && entry.intersectionRatio > 0) {
+          this.initChart();
+        }
+      }
+    });
+    this.intersectionObserver.observe(this.$el);
+  }
+  unregisterOberver() {
+    if (this.intersectionObserver) {
+      this.intersectionObserver.unobserve(this.$el);
+      this.intersectionObserver.disconnect();
+      this.intersectionObserver = null;
+    }
   }
 
   initChart() {
