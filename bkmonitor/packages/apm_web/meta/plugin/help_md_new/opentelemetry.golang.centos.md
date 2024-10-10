@@ -12,14 +12,14 @@
 
 在开始之前，请确保您已经安装了以下软件：
 * Git
-* Go 1.21 或更高版本
+* Docker
 
 ### 1.3 初始化 demo
 
 ```shell
 git clone {{ECOSYSTEM_REPOSITORY_URL}}
 cd examples/go-examples/helloworld
-go mod tidy
+docker build -t helloworld-go:latest .
 ```
 
 
@@ -32,15 +32,17 @@ go mod tidy
 🌟 运行参数基于应用信息生成，请确保在您的应用也使用相同的上报地址和 Token。
 
 ```shell
-TOKEN="{{access_config.token}}" \
-SERVICE_NAME="{{service_name}}" \
-OTLP_ENDPOINT="{{access_config.otlp.endpoint}}" \
-PROFILING_ENDPOINT="{{access_config.profiling.endpoint}}" \
-ENABLE_PROFILING="{{access_config.profiling.enabled}}" \
-ENABLE_TRACES="{{access_config.otlp.enable_traces}}" \
-ENABLE_METRICS="{{access_config.otlp.enable_metrics}}" \
-ENABLE_LOGS="{{access_config.otlp.enable_logs}}" \
-go run main.go
+# 如果本地该端口已被占用，请替换为其他可用端口
+DEMO_PORT=8080
+docker run -e TOKEN="{{access_config.token}}" \
+-e SERVICE_NAME="{{service_name}}" \
+-e OTLP_ENDPOINT="{{access_config.otlp.endpoint}}" \
+-e PROFILING_ENDPOINT="{{access_config.profiling.endpoint}}" \
+-e ENABLE_TRACES="{{access_config.otlp.enable_traces}}" \
+-e ENABLE_METRICS="{{access_config.otlp.enable_metrics}}" \
+-e ENABLE_LOGS="{{access_config.otlp.enable_logs}}" \
+-e ENABLE_PROFILING="{{access_config.profiling.enabled}}" \
+-p $DEMO_PORT:8080 helloworld-go:latest
 ```
 
 #### 2.1.2 运行参数说明
