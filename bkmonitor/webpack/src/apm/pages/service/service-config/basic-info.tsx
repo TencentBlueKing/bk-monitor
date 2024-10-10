@@ -310,9 +310,6 @@ export default class BasicInfo extends tsc<object> {
       relation,
       labels,
     });
-    this.formData = {
-      labels: [...labels],
-    };
     this.setRelationInfo();
     this.isLoading = false;
   }
@@ -381,6 +378,9 @@ export default class BasicInfo extends tsc<object> {
   }
   async handleEditClick(show: boolean) {
     this.isEditing = show;
+    this.formData = {
+      labels: [...this.serviceInfo.labels],
+    };
     if (show) {
       // 如果URI为空 则编辑时添加一项空 可输入
       if (!this.uriList.length) {
@@ -676,7 +676,7 @@ export default class BasicInfo extends tsc<object> {
                   formType='tag'
                   label={this.$t('自定义标签')}
                   showEditable={false}
-                  value={this.formData.labels}
+                  value={this.serviceInfo.labels}
                 />
               </div>,
             ]}
