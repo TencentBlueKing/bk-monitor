@@ -18,8 +18,8 @@
 
 ```shell
 git clone {{ECOSYSTEM_REPOSITORY_URL}}
-cd examples/cpp-examples/helloworld
-docker build -t cpp-helloworld:latest .
+cd {{ECOSYSTEM_REPOSITORY_NAME}}/examples/cpp-examples/helloworld
+docker build -t helloworld-cpp:latest .
 ```
 
 
@@ -32,13 +32,15 @@ docker build -t cpp-helloworld:latest .
 🌟 运行参数基于应用信息生成，请确保在您的应用也使用相同的上报地址和 Token。
 
 ```shell
+# 如果本地该端口已被占用，请替换为其他可用端口
+DEMO_PORT=8080
 docker run -e TOKEN="{{access_config.token}}" \
 -e SERVICE_NAME="{{service_name}}" \
 -e OTLP_ENDPOINT="{{access_config.otlp.endpoint}}" \
 -e ENABLE_TRACES="{{access_config.otlp.enable_traces}}" \
 -e ENABLE_METRICS="{{access_config.otlp.enable_metrics}}" \
 -e ENABLE_LOGS="{{access_config.otlp.enable_logs}}" \
-cpp-helloworld:latest -p 8080:8080
+-p $DEMO_PORT:8080 helloworld-cpp:latest
 ```
 
 #### 2.1.2 运行参数说明
@@ -57,7 +59,7 @@ cpp-helloworld:latest -p 8080:8080
 
 OpenTelemetry 提供标准化的框架和工具包，用于创建和管理 Traces、Metrics、Logs 数据。
 
-示例项目提供集成 OpenTelemetry Cpp SDK 并将遥测数据发送到 bk-collector 的方式，可以参考下面的代码：
+示例项目提供集成 OpenTelemetry Cpp SDK 并将观测数据发送到 bk-collector 的方式，可以参考下面的代码：
 * Traces：<a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/include/otlp/tracer_common.h" target="_blank">include/otlp/tracer_common.h</a>
 * Metrics：<a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/include/otlp/meter_common.h" target="_blank">include/otlp/meter_common.h</a>
 * Logs：<a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/cpp-examples/helloworld/include/otlp/logger_common.h" target="_blank">include/otlp/logger_common.h</a>
