@@ -895,7 +895,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             }
 
         service_strategy_count_mapping = defaultdict(int)
-        for strategy_id, items in strategy_events_mapping.items():
+        for items in strategy_events_mapping.values():
             # Step1: 检查策略配置中是否包含服务的值 记录为服务的策略数
             service_names = cls._get_condition_service_names(items["info"])
             for name in service_names:

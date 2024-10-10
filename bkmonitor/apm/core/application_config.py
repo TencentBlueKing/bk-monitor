@@ -590,7 +590,8 @@ class ApplicationConfig(BkCollectorConfig):
                     need_update = True
             else:
                 logger.info(
-                    f"{cluster_id} apm application({self._application.id}) config not exists, secret exists but not valid."
+                    f"{cluster_id} apm application({self._application.id}) config not exists, "
+                    f"secret exists but not valid."
                 )
                 sec.data = {filename: b64_content}
                 need_update = True

@@ -50,7 +50,7 @@ class ErrorRateCalculation(Calculation):
         if not series:
             return {"metrics": [], "series": []}
         all_ts = [i[-1] for i in metric_result["series"][0]["datapoints"]]
-        for i, item in enumerate(metric_result.get("series", [])):
+        for item in metric_result.get("series", []):
             if not item.get("datapoints"):
                 continue
 
