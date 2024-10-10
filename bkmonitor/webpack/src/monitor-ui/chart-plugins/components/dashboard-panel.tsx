@@ -60,6 +60,7 @@ interface IDashbordPanelProps {
 interface IDashbordPanelEvents {
   onBackToOverview: () => void;
   onLintToDetail: ITableItem<'link'>;
+  onChoosePoint: () => void;
 }
 @Component
 export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPanelEvents> {
@@ -556,6 +557,11 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
   @Emit('backToOverview')
   handleBackToOverview() {}
 
+  @Emit('choosePoint')
+  handelChoosePoint(date) {
+    return date;
+  }
+
   render() {
     if (!this.panels?.length) return <div class='dashboard-panel empty-data'>{this.$t('查无数据')}</div>;
     return (
@@ -612,6 +618,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
                       needCheck={!this.isClusterOfK8s}
                       onChangeHeight={(height: number) => this.handleChangeLayoutItemH(height, index)}
                       onChartCheck={v => this.handleChartCheck(v, panel)}
+                      onChoosePoint={this.handelChoosePoint}
                       onCollapse={v => panel.type === 'row' && this.handleCollapse(v, panel)}
                       onCollectChart={() => this.handleCollectChart(panel)}
                     />
