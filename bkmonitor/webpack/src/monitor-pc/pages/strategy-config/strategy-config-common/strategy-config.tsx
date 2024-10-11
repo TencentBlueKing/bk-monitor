@@ -61,7 +61,7 @@ import StrategyConfigDialog from '../strategy-config-dialog/strategy-config-dial
 import FilterPanel from '../strategy-config-list/filter-panel';
 import { DetectionRuleTypeEnum, MetricDetail } from '../strategy-config-set-new/typings';
 import StrategyIpv6 from '../strategy-ipv6/strategy-ipv6';
-import { compareObjectsInArray, handleMouseDown, handleMouseMove } from '../util';
+import { compareObjectsInArray, countElementsNotInFirstRow, handleMouseDown, handleMouseMove } from '../util';
 import DeleteSubtitle from './delete-subtitle';
 import FilterPanelPopover from './filter-panel-popover';
 
@@ -417,20 +417,25 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   @Watch('table.data')
   handleTableDataChange(v) {
     // 用于数据样式自适应
-    this.$nextTick(() => {
+    setTimeout(() => {
       v.forEach((item, index) => {
         /* 告警组 */
         const ref = (this.$refs.strategyTable as Element & { $refs: Record<string, HTMLDivElement> })?.$refs[
           `table-row-${index}`
         ];
+        // 这里计算整个 告警组 容器内是否会出现 换行 的可能，若换行就显示 +n。
         item.overflow = ref && ref.clientHeight > 32;
+        const overflowCount = (item.overflow && countElementsNotInFirstRow(ref)) || 0;
+        this.$set(item, 'overflowCount', overflowCount);
         /* 标签组 */
         const refLabel = (this.$refs.strategyTable as Element & { $refs: Record<string, HTMLDivElement> })?.$refs[
           `table-labels-${index}`
         ];
-        // 这里计算整个 label 容器内是否会出现 换行 的可能，若换行就显示省略号。
+        // 这里计算整个 label 容器内是否会出现 换行 的可能，若换行就显示 +n。
         /* 标签组样式 */
         item.overflowLabel = refLabel && refLabel.clientHeight > 32;
+        const overflowLabelCount = (item.overflowLabel && countElementsNotInFirstRow(refLabel)) || 0;
+        this.$set(item, 'overflowLabelCount', overflowLabelCount);
         const overflowMap = ['signals', 'levels', 'detectionTypes', 'mealNames'];
         for (const key of overflowMap) {
           // 通用数据样式
@@ -438,7 +443,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
           item[`overflow${key}`] = refDom && refDom.clientHeight > 32;
         }
       });
-    });
+    }, 100);
   }
   created() {
     this.backDisplayMap = {
@@ -2196,9 +2201,10 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
                     content: () => props.row.labels.join('、 '),
                     delay: 200,
                     allowHTML: false,
+                    extCls: 'ext-cls',
                   }}
                 >
-                  ...
+                  +{props.row.overflowLabelCount}
                 </span>
               ) : undefined}
             </div>
@@ -2215,14 +2221,6 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
           <div
             ref={`table-row-${props.$index}`}
             class='col-classifiy-wrap'
-            v-bk-tooltips={{
-              placements: ['top-start'],
-              boundary: 'window',
-              content: () => props.row.noticeGroupNameList.map(item => item.name).join('、'),
-              delay: 200,
-              allowHTML: false,
-              disabled: !props.row.overflow,
-            }}
           >
             {props.row.noticeGroupNameList.map(item => (
               <span
@@ -2238,7 +2236,22 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
                 </span>
               </span>
             ))}
-            {props.row.overflow ? <span class='classifiy-overflow'>...</span> : undefined}
+            {props.row.overflow ? (
+              <span
+                class='classifiy-overflow'
+                v-bk-tooltips={{
+                  placements: ['top-start'],
+                  boundary: 'window',
+                  content: () => props.row.noticeGroupNameList.map(item => item.name).join('、'),
+                  delay: 200,
+                  allowHTML: false,
+                  disabled: !props.row.overflow,
+                  extCls: 'ext-cls',
+                }}
+              >
+                +{props.row.overflowCount}
+              </span>
+            ) : undefined}
           </div>
         </div>
       ),

@@ -27,16 +27,18 @@ from apm_web.constants import (
     ApdexCategoryMapping,
     CategoryEnum,
     CustomServiceMatchType,
+    DataStatus,
     TopoNodeKind,
 )
-from apm_web.metric_handler import ServiceFlowCount
+from apm_web.handlers.log_handler import ServiceLogHandler
+from apm_web.metric_handler import RequestCountInstance, ServiceFlowCount
 from apm_web.metrics import APPLICATION_LIST
 from apm_web.models import ApdexServiceRelation, Application, ApplicationCustomService
-from apm_web.utils import group_by
+from bkmonitor.utils import group_by
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import get_datetime_range
-from constants.apm import OtlpKey
+from constants.apm import OtlpKey, TelemetryDataType
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 
@@ -274,27 +276,14 @@ class ServiceHandler:
         return ApdexCategoryMapping.get_apdex_by_category(category)
 
     @classmethod
-    @using_cache(CacheType.APM(60 * 60))
-    def get_node(cls, bk_biz_id, app_name, service_name, raise_exception=True):
+    @using_cache(CacheType.APM(60 * 10))
+    def _get_node_mapping(cls, bk_biz_id, app_name):
         """
-        获取 topoNode 节点信息
-        先从 topo_node 表获取 如果不存在 则从 flow 指标维度中取然后拼接出数据
+        获取节点集合
         """
+        node_mapping = {}
 
-        # 从 topo_node 中找
-        params = {
-            "bk_biz_id": bk_biz_id,
-            "app_name": app_name,
-            "topo_key": service_name,
-        }
-        try:
-            response = api.apm_api.query_topo_node(**params)
-            if response:
-                return response[0]
-        except BKAPIError as e:
-            logger.warning(f"[ServiceHandler] get node from topo_node failed, error: {e}")
-
-        # 从 flow 指标中找
+        # Step1: 从 Flow 指标中获取
         application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
         start_time, end_time = get_datetime_range(period="day", distance=application.es_retention, rounding=False)
         flow_response = ServiceFlowCount(
@@ -302,10 +291,7 @@ class ServiceHandler:
                 "application": application,
                 "start_time": int(start_time.timestamp()),
                 "end_time": int(end_time.timestamp()),
-                "where": [
-                    {"key": "from_apm_service_name", "method": "eq", "value": [service_name]},
-                    {"condition": "or", "key": "to_apm_service_name", "method": "eq", "value": [service_name]},
-                ],
+                "where": [],
                 "group_by": [
                     "from_apm_service_name",  # index: 0
                     "from_apm_service_category",  # index: 1
@@ -316,19 +302,15 @@ class ServiceHandler:
                 ],
             }
         ).get_instance_values_mapping()
-        if not flow_response:
-            if raise_exception:
-                raise ValueError(f"[ServiceHandler] 拓扑节点: {service_name} 不存在，请检查上报数据是否包含此服务")
-            return None
 
         from apm_web.handlers.component_handler import ComponentHandler
 
         for keys in flow_response.keys():
-            if keys[0] == service_name:
+            if keys[0]:
                 predicate_value = None
                 if keys[2] == TopoNodeKind.COMPONENT:
-                    predicate_value = ComponentHandler.get_component_belong_predicate_value(service_name)
-                return {
+                    predicate_value = ComponentHandler.get_component_belong_predicate_value(keys[0])
+                node_mapping[keys[0]] = {
                     "topo_key": keys[0],
                     "extra_data": {
                         "category": keys[1],
@@ -336,12 +318,11 @@ class ServiceHandler:
                         "predicate_value": predicate_value,
                     },
                 }
-            if keys[3] == service_name:
+            if keys[3]:
                 predicate_value = None
                 if keys[5] == TopoNodeKind.COMPONENT:
-                    # 组件类服务
-                    predicate_value = ComponentHandler.get_component_belong_predicate_value(service_name)
-                return {
+                    predicate_value = ComponentHandler.get_component_belong_predicate_value(keys[3])
+                node_mapping[keys[3]] = {
                     "topo_key": keys[3],
                     "extra_data": {
                         "category": keys[4],
@@ -349,6 +330,25 @@ class ServiceHandler:
                         "predicate_value": predicate_value,
                     },
                 }
+
+        # Step2: 从 topo_node 指标补充
+        node_response = api.apm_api.query_topo_node(bk_biz_id=bk_biz_id, app_name=app_name)
+        for i in node_response:
+            if i.get("topo_key") and i.get("topo_key") not in node_mapping:
+                node_mapping[i["topo_key"]] = i
+
+        return node_mapping
+
+    @classmethod
+    def get_node(cls, bk_biz_id, app_name, service_name, raise_exception=True):
+        """
+        获取 topoNode 节点信息
+        先从 topo_node 表获取 如果不存在 则从 flow 指标维度中取然后拼接出数据
+        """
+
+        node_mapping = cls._get_node_mapping(bk_biz_id, app_name)
+        if service_name in node_mapping:
+            return node_mapping[service_name]
 
         if raise_exception:
             raise ValueError(f"[ServiceHandler] 拓扑节点: {service_name} 不存在，请检查上报数据是否包含此服务")
@@ -368,3 +368,200 @@ class ServiceHandler:
             return response
         except BKAPIError as e:
             raise ValueError(f"[ServiceHandler] 查询拓扑节点列表失败， 错误: {e}")
+
+    @classmethod
+    def _combine_metric_data(cls, service_metric, db_metric, messaging_metric, remote_service_metric):
+        from apm_web.handlers.component_handler import ComponentHandler
+
+        # 将数据变为普通服务、自定义服务、组件类服务
+        res = {}
+        for k, info in service_metric.items():
+            res[k[0]] = info
+        for k, info in db_metric.items():
+            service_name = k[0]
+            if not service_name:
+                continue
+            if k[1]:
+                res[ComponentHandler.generate_component_name(service_name, k[1])] = info
+        for k, info in messaging_metric.items():
+            service_name = k[0]
+            if not service_name:
+                continue
+            if k[1]:
+                res[ComponentHandler.generate_component_name(service_name, k[1])] = info
+        for k, info in remote_service_metric.items():
+            if k[0]:
+                res[ServiceHandler.generate_remote_service_name(k[0])] = info
+
+        return res
+
+    @classmethod
+    def get_service_metric_instant_mapping(cls, metric, application, start_time, end_time, ignore_keys=None):
+        """获取所有服务的 metric 指标（instant 查询）"""
+        metric_id = metric(
+            **{
+                "application": application,
+                "start_time": start_time,
+                "end_time": end_time,
+            }
+        ).metric_id
+        # 查询普通服务
+        response = metric(
+            **{
+                "application": application,
+                "start_time": start_time,
+                "end_time": end_time,
+                # index: 0
+                "group_by": ["service_name"],
+            }
+        ).get_instance_calculate_values_mapping(ignore_keys)
+        # 查询组件类服务: DB
+        component_db_service_response = metric(
+            **{
+                "application": application,
+                "start_time": start_time,
+                "end_time": end_time,
+                # index: 0, 1, 2
+                "group_by": ["service_name", "db_system"],
+            }
+        ).get_instance_calculate_values_mapping(ignore_keys)
+        # 查询组件类服务: MESSAGING
+        component_messaging_service_response = metric(
+            **{
+                "application": application,
+                "start_time": start_time,
+                "end_time": end_time,
+                # index: 0, 1, 2
+                "group_by": ["service_name", "messaging_system"],
+            }
+        ).get_instance_calculate_values_mapping(ignore_keys)
+        # 单独查询自定义服务指标 (因为不同service_name可以访问同一个自定义服务)
+        remote_service_response = metric(
+            **{
+                "application": application,
+                "start_time": start_time,
+                "end_time": end_time,
+                # index: 0
+                "group_by": ["peer_service"],
+            }
+        ).get_instance_calculate_values_mapping(ignore_keys)
+
+        return cls._combine_metric_data(
+            {k: v.get(metric_id) for k, v in response.items()},
+            {k: v.get(metric_id) for k, v in component_db_service_response.items()},
+            {k: v.get(metric_id) for k, v in component_messaging_service_response.items()},
+            {k: v.get(metric_id) for k, v in remote_service_response.items()},
+        )
+
+    @classmethod
+    def get_service_metric_range_mapping(cls, metric, application, start_time, end_time, ignore_keys=None):
+        """获取服务的指标数据(range查询)（兼容自定义服务、组件类服务名称）"""
+        # 查询普通服务
+        response = metric(
+            **{
+                "application": application,
+                "start_time": start_time,
+                "end_time": end_time,
+                # index: 0
+                "group_by": ["service_name"],
+            }
+        ).get_range_calculate_values_mapping(ignore_keys)
+        # 查询组件类服务: DB
+        component_db_service_response = metric(
+            **{
+                "application": application,
+                "start_time": start_time,
+                "end_time": end_time,
+                # index: 0, 1, 2
+                "group_by": ["service_name", "db_system"],
+            }
+        ).get_range_calculate_values_mapping(ignore_keys)
+        # 查询组件类服务: MESSAGING
+        component_messaging_service_response = metric(
+            **{
+                "application": application,
+                "start_time": start_time,
+                "end_time": end_time,
+                # index: 0, 1, 2
+                "group_by": ["service_name", "messaging_system"],
+            }
+        ).get_range_calculate_values_mapping(ignore_keys)
+        # 单独查询自定义服务指标 (因为不同service_name可以访问同一个自定义服务)
+        remote_service_response = metric(
+            **{
+                "application": application,
+                "start_time": start_time,
+                "end_time": end_time,
+                # index: 0
+                "group_by": ["peer_service"],
+            }
+        ).get_range_calculate_values_mapping(ignore_keys)
+        return cls._combine_metric_data(
+            response,
+            component_db_service_response,
+            component_messaging_service_response,
+            remote_service_response,
+        )
+
+    @classmethod
+    def get_service_data_status_mapping(cls, app, start_time, end_time, all_services):
+        """获取应用下各个服务的数据状态"""
+        status = {
+            TelemetryDataType.METRIC.value: DataStatus.NO_DATA if app.is_enabled_metric else DataStatus.DISABLED,
+            TelemetryDataType.LOG.value: DataStatus.NO_DATA if app.is_enabled_log else DataStatus.DISABLED,
+            TelemetryDataType.TRACE.value: DataStatus.NO_DATA if app.is_enabled_trace else DataStatus.DISABLED,
+            TelemetryDataType.PROFILING.value: DataStatus.NO_DATA if app.is_enabled_profiling else DataStatus.DISABLED,
+        }
+
+        res = defaultdict(lambda: copy.deepcopy(status))
+        # Metric 数据状态: 通过 bk_apm_count 指标判断
+        if status[TelemetryDataType.METRIC.value] != DataStatus.DISABLED:
+            metric_response = cls.get_service_metric_range_mapping(
+                RequestCountInstance,
+                app,
+                start_time,
+                end_time,
+            )
+            for service_name in metric_response.keys():
+                res[service_name].update({TelemetryDataType.METRIC.value: DataStatus.NORMAL})
+
+        # Log 数据状态
+        if status[TelemetryDataType.LOG.value] != DataStatus.DISABLED:
+            log_response = ServiceLogHandler.get_log_count_mapping(app.bk_biz_id, app.app_name)
+            for service_name, data_status in log_response.items():
+                res[service_name].update({TelemetryDataType.LOG.value: data_status})
+
+        # Trace 数据状态: 通过 flow 指标判断
+        # (有 flow 指标 证明有 span 并且经过了 collector 处理
+        # 但是是否正常被 transfer 消费未知除非查 ES 但是查 ES 太重了这里直接查 flow 指标)
+        if status[TelemetryDataType.TRACE.value] != DataStatus.DISABLED:
+            trace_response = ServiceFlowCount(
+                **{
+                    "application": app,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "group_by": ["from_apm_service_name", "to_apm_service_name"],
+                }
+            ).get_instance_values_mapping()
+            for keys in trace_response.keys():
+                if keys[0]:
+                    res[keys[0]].update({TelemetryDataType.TRACE.value: DataStatus.NORMAL})
+                if keys[-1]:
+                    res[keys[-1]].update({TelemetryDataType.TRACE.value: DataStatus.NORMAL})
+
+        # Profiling 数据状态
+        if status[TelemetryDataType.PROFILING.value] != DataStatus.DISABLED:
+            services = api.apm_api.query_profile_services_detail(
+                bk_biz_id=app.bk_biz_id,
+                app_name=app.app_name,
+                last_check_time__gt=start_time,
+            )
+            for i in services:
+                res[i["name"]].update({TelemetryDataType.PROFILING.value: DataStatus.NORMAL})
+
+        for i in all_services:
+            if i["topo_key"] not in res:
+                # 使用默认值
+                res[i["topo_key"]].update({})
+
+        return res

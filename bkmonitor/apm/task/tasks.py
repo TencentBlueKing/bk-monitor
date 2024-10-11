@@ -22,6 +22,7 @@ from alarm_backends.core.cache import key
 from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.service.scheduler.app import app
 from apm.core.application_config import ApplicationConfig
+from apm.core.cluster_config import BkCollectorInstaller
 from apm.core.discover.base import TopoHandler
 from apm.core.discover.precalculation.consul_handler import ConsulHandler
 from apm.core.discover.precalculation.storage import PrecalculateStorage
@@ -85,12 +86,14 @@ def refresh_apm_config():
 
 def refresh_apm_platform_config():
     PlatformConfig.refresh()
+    PlatformConfig.refresh_k8s()
 
 
 @app.task(ignore_result=True, queue="celery_cron")
 def refresh_apm_application_config(bk_biz_id, app_name):
     _app = ApmApplication.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
     ApplicationConfig(_app).refresh()
+    ApplicationConfig(_app).refresh_k8s()
 
 
 @app.task(ignore_result=True, queue="celery_cron")
@@ -153,3 +156,26 @@ def profile_discover_cron():
         logger.info(f"[profile_discover_cron] finished handle. ({item.bk_biz_id}){item.app_name}")
 
     logger.info(f"[profile_discover_cron] end at {datetime.datetime.now()}")
+
+
+def k8s_bk_collector_discover_cron():
+    """
+    定时寻找安装 bk-collector 的集群
+    """
+    logger.info("[bk_collector_discover_cron] start")
+
+    # TODO 这里需要改为走 api 直接获取到集群列表
+    from apm_ebpf.models import ClusterRelation
+
+    cluster_mapping = ClusterRelation.all_cluster_ids()
+    logger.info(
+        f"[bk_collector_discover_cron] start to discover deepflow and bk-collector in {len(cluster_mapping)} clusters"
+    )
+
+    collector_checker = BkCollectorInstaller.generator()
+    for cluster_id, related_bk_biz_ids in cluster_mapping.items():
+        related_bk_biz_ids = list(related_bk_biz_ids)
+        next(collector_checker)(cluster_id=cluster_id, related_bk_biz_ids=related_bk_biz_ids).check_installed()
+
+    # [2] 为安装了 bk-collector 的集群创建默认应用 && 下发配置 !!!具体实现交给 apm.tasks 模块处理
+    logger.info("[bk_collector_discover_cron] end")

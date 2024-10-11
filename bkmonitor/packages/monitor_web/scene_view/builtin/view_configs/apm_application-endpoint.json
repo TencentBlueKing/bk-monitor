@@ -133,13 +133,15 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         }
       ],
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -236,7 +238,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           },
           "yAxisIndex": 0,
           "chart_type": "bar"
@@ -371,7 +374,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           },
           "yAxisIndex": 1,
           "chart_type": "line"
@@ -379,7 +383,8 @@
       ],
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -546,7 +551,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         },
         {
@@ -653,7 +659,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         },
         {
@@ -760,7 +767,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         },
         {
@@ -867,10 +875,16 @@
                   ]
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         }
-      ]
+      ],
+      "options": {
+        "time_series": {
+          "hoverAllTooltips": true
+        }
+      }
     },
     {
       "id": 5,
@@ -1018,7 +1032,8 @@
       ],
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -1244,7 +1259,8 @@
       ],
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -1711,7 +1727,12 @@
             }
           }
         }
-      ]
+      ],
+      "options": {
+        "time_series": {
+          "hoverAllTooltips": true
+        }
+      }
     },
     {
       "id": 5,
@@ -1779,7 +1800,8 @@
           "fields": {
             "endpoint_name": "endpoint_name",
             "app_name": "app_name",
-            "service_name": "service_name"
+            "service_name": "service_name",
+            "extra_filter_dict": "extra_filter_dict"
           }
         }
       ]

@@ -1,0 +1,127 @@
+.field-filter-box {
+  >.form-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 32px;
+    padding: 0 16px;
+    margin: 9px 0 14px 0;
+
+    .king-input {
+      width: 100%;
+    }
+
+    .gap {
+      flex-shrink: 0;
+      width: 1px;
+      height: 100%;
+      margin: 0 16px;
+      background-color: #f0f1f5;
+    }
+
+    :deep(.bk-tooltip) {
+      flex-shrink: 0;
+    }
+
+    .filter-popover-trigger {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      height: 32px;
+      margin-left: 12px;
+      font-size: 12px;
+      line-height: 18px;
+      color: #3a84ff;
+      cursor: pointer;
+
+      &:active {
+        color: #2761dd;
+      }
+
+      &:hover {
+        color: #699df4;
+      }
+
+      .text {
+        margin: 0 4px 0 2px;
+        text-wrap: nowrap;
+      }
+
+      .count {
+        min-width: 18px;
+        height: 18px;
+        text-align: center;
+        background-color: #e1ecff;
+        border-radius: 50%;
+      }
+    }
+  }
+
+  .field-filter-container {
+    padding: 0 16px;
+    overflow-y: auto;
+    font-size: 12px;
+    line-height: 20px;
+    color: #63656e;
+
+    .title {
+      font-weight: 700;
+    }
+
+    .is-selected {
+      border-bottom: 1px solid #e1ecff;
+    }
+
+    .field-filter-roll{
+      overflow-y: auto;
+    }
+
+    .fields-container {
+      margin-bottom: 20px;
+
+      .all-field-item {
+        display: inline-block;
+        height: 26px;
+        margin: 0 0 7px 20px;
+        line-height: 26px;
+        color: #63656e;
+      }
+
+      .expand-all {
+        margin-left: 22px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+
+    .error-empty {
+      .bklog-icon {
+        margin-left: 5px;
+        color: #3a84ff;
+        vertical-align: middle;
+        cursor: pointer;
+      }
+
+      .bklog-log-refresh {
+        margin-left: 8px;
+      }
+
+      .bklog-expand-small, .bklog-collapse-small {
+        font-size: 22px;
+      }
+
+      .error-info {
+        width: 88%;
+        height: calc(100vh - 630px);
+        margin: 10px auto;
+        overflow: hidden;
+        font-size: 12px;
+        color: #979ba5;
+        text-align: left;
+        word-wrap: break-word;
+      }
+    }
+  }
+}
+

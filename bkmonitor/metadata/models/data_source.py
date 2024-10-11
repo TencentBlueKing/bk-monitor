@@ -28,7 +28,7 @@ from bkmonitor.utils import consul
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata import config
-from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
+from metadata.models.space.constants import SPACE_UID_HYPHEN, EtlConfigs, SpaceTypes
 from metadata.utils import consul_tools, hash_util
 from metadata.utils.basic import get_biz_id_by_space_uid
 
@@ -480,9 +480,9 @@ class DataSource(models.Model):
 
         if bk_data_id is None and settings.IS_ASSIGN_DATAID_BY_GSE:
             # 如果由GSE来分配DataID的话，那么从GSE获取data_id，而不是走数据库的自增id
-            # 现阶段仅支持指标的数据，因为现阶段指标的数据都为单指标单标
-            # 添加过滤条件，只接入时序数据到bkdata
-            if settings.ENABLE_V2_BKDATA_GSE_RESOURCE and type_label == "time_series":
+            # 现阶段仅支持指标的数据，因为现阶段指标的数据都为单指标单表
+            # 添加过滤条件，只接入单指标单表时序数据到V4链路
+            if settings.ENABLE_V2_BKDATA_GSE_RESOURCE and etl_config == EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value:
                 logger.info(
                     "apply for data id from bkdata,type_label->{},etl_config->{}".format(type_label, etl_config)
                 )

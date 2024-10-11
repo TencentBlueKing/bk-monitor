@@ -9,15 +9,20 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import copy
-from typing import Any, Dict
+from typing import Any, Dict, List, Union
 
 from django.conf import settings
 
 from apps.api import UnifyQueryApi
+from apps.log_clustering.models import ClusteringConfig
 from apps.log_esquery.esquery.builder.query_string_builder import QueryStringBuilder
-from apps.log_esquery.exceptions import BaseSearchIndexSetException
-from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
+from apps.log_esquery.exceptions import (
+    BaseSearchIndexSetDataDoseNotExists,
+    BaseSearchIndexSetException,
+)
+from apps.log_search.constants import OperatorEnum, TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
+from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 from apps.log_unifyquery.constants import (
@@ -26,9 +31,11 @@ from apps.log_unifyquery.constants import (
     OP_TRANSFORMER,
     REFERENCE_ALIAS,
 )
+from apps.utils.ipchooser import IPChooser
 from apps.utils.local import get_local_param
 from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter
+from bkm_ipchooser.constants import CommonEnum
 
 
 class UnifyQueryHandler(object):
@@ -111,6 +118,45 @@ class UnifyQueryHandler(object):
         else:
             return "1d"
 
+    def _init_index_info_list(self, index_set_ids: List[int]) -> list:
+        index_info_list = []
+        for index_set_id in index_set_ids:
+            index_info = {}
+            tmp_index_obj: LogIndexSet = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+            if tmp_index_obj:
+                index_info["index_set_id"] = tmp_index_obj.index_set_id
+                index_info["index_set_name"] = tmp_index_obj.index_set_name
+                index_info["index_set_obj"] = tmp_index_obj
+                index_info["scenario_id"] = tmp_index_obj.scenario_id
+                index_info["storage_cluster_id"] = tmp_index_obj.storage_cluster_id
+
+                index_set_data_obj_list: list = tmp_index_obj.get_indexes(has_applied=True)
+                if len(index_set_data_obj_list) > 0:
+                    index_list: list = [x.get("result_table_id", None) for x in index_set_data_obj_list]
+                else:
+                    raise BaseSearchIndexSetDataDoseNotExists(
+                        BaseSearchIndexSetDataDoseNotExists.MESSAGE.format(
+                            index_set_id=str(index_set_id) + "_" + tmp_index_obj.index_set_name
+                        )
+                    )
+                index_info["indices"] = index_info["origin_indices"] = ",".join(index_list)
+                index_info["origin_scenario_id"] = tmp_index_obj.scenario_id
+                for addition in self.search_params.get("addition", []):
+                    # 查询条件中包含__dist_xx  则查询聚类结果表：xxx_bklog_xxx_clustered
+                    if addition.get("field", "").startswith("__dist"):
+                        clustering_config = ClusteringConfig.get_by_index_set_id(
+                            index_set_id=index_set_id, raise_exception=False
+                        )
+                        if clustering_config and clustering_config.clustered_rt:
+                            # 如果是查询bkbase端的表，即场景需要对应改为bkdata
+                            index_info["scenario_id"] = Scenario.BKDATA
+                            index_info["using_clustering_proxy"] = True
+                            index_info["indices"] = clustering_config.clustered_rt
+                index_info_list.append(index_info)
+            else:
+                raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
+        return index_info_list
+
     def init_base_dict(self):
         # 自动周期转换
         if self.search_params.get("interval", "auto") == "auto":
@@ -118,23 +164,21 @@ class UnifyQueryHandler(object):
         else:
             interval = self.search_params["interval"]
 
-        index_set_list = list(
-            LogIndexSet.objects.filter(index_set_id__in=self.search_params.get("index_set_ids", [])).values(
-                "index_set_id", "scenario_id"
-            )
-        )
+        index_info_list = self._init_index_info_list(self.search_params.get("index_set_ids", []))
 
         # 拼接查询参数列表
         query_list = []
-        for index, index_set in enumerate(index_set_list):
+        for index, index_info in enumerate(index_info_list):
             query_dict = {
                 "query_string": self.query_string,
                 "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
-                "table_id": BaseIndexSetHandler.get_data_label(index_set["scenario_id"], index_set["index_set_id"]),
+                "table_id": BaseIndexSetHandler.get_data_label(
+                    index_info["origin_scenario_id"], index_info["index_set_id"]
+                ),
                 "reference_name": REFERENCE_ALIAS[index],
                 "dimensions": [],
                 "time_field": "time",
-                "conditions": self.transform_additions(),
+                "conditions": self.transform_additions(index_info),
                 "function": [],
             }
 
@@ -142,7 +186,7 @@ class UnifyQueryHandler(object):
                 query_dict["field_name"] = self.agg_field
             else:
                 # 时间字段 & 类型 & 单位
-                time_field, time_field_type, time_field_unit = SearchHandler.init_time_field(index_set["index_set_id"])
+                time_field, time_field_type, time_field_unit = SearchHandler.init_time_field(index_info["index_set_id"])
                 query_dict["field_name"] = time_field
 
             query_list.append(query_dict)
@@ -184,16 +228,113 @@ class UnifyQueryHandler(object):
                 raise e
             return {"series": []}
 
-    def transform_additions(self):
+    @staticmethod
+    def _deal_normal_addition(value, _operator: str) -> Union[str, list]:
+        operator = _operator
+        addition_return_value = {
+            "is": lambda: value,
+            "is one of": lambda: value.split(","),
+            "is not": lambda: value,
+            "is not one of": lambda: value.split(","),
+        }
+        return addition_return_value.get(operator, lambda: value)()
+
+    def _deal_addition(self, ip_field):
+        addition_ip_list: list = []
+        addition: list = self.search_params.get("addition")
+        new_addition: list = []
+        if not addition:
+            return [], []
+        for _add in addition:
+            field: str = _add.get("key") if _add.get("key") else _add.get("field")
+            _operator: str = _add.get("method") if _add.get("method") else _add.get("operator")
+            if field == ip_field:
+                value = _add.get("value")
+                if value and _operator in ["is", OperatorEnum.EQ["operator"], OperatorEnum.EQ_WILDCARD["operator"]]:
+                    if isinstance(value, str):
+                        addition_ip_list.extend(value.split(","))
+                        continue
+                    elif isinstance(value, list):
+                        addition_ip_list = addition_ip_list + value
+                        continue
+            # 处理逗号分隔in类型查询
+            value = _add.get("value")
+            new_value: list = []
+            # 对于前端传递为空字符串的场景需要放行过去
+            if isinstance(value, list):
+                new_value = value
+            elif isinstance(value, str) or value:
+                new_value = self._deal_normal_addition(value, _operator)
+            new_addition.append(
+                {"field": field, "operator": _operator, "value": new_value, "condition": _add.get("condition", "and")}
+            )
+        return addition_ip_list, new_addition
+
+    def _combine_addition_ip_chooser(self, index_info):
+        """
+        合并ip_chooser和addition
+        :param index_info:   attrs
+        """
+        ip_chooser_ip_list: list = []
+        ip_chooser_host_id_list: list = []
+        ip_chooser: dict = self.search_params.get("ip_chooser")
+        ip_field = "ip" if index_info["scenario_id"] in [Scenario.BKDATA, Scenario.ES] else "serverIp"
+
+        if ip_chooser:
+            ip_chooser_host_list = IPChooser(
+                bk_biz_id=self.bk_biz_id, fields=CommonEnum.SIMPLE_HOST_FIELDS.value
+            ).transfer2host(ip_chooser)
+            ip_chooser_host_id_list = [str(host["bk_host_id"]) for host in ip_chooser_host_list]
+            ip_chooser_ip_list = [host["bk_host_innerip"] for host in ip_chooser_host_list]
+        addition_ip_list, new_addition = self._deal_addition(ip_field)
+        if addition_ip_list:
+            search_ip_list = addition_ip_list
+        elif not addition_ip_list and ip_chooser_ip_list:
+            search_ip_list = ip_chooser_ip_list
+        else:
+            search_ip_list = []
+
+        final_fields_list, _ = MappingHandlers(
+            index_set_id=index_info["index_set_id"],
+            indices=index_info["origin_indices"],
+            scenario_id=index_info["origin_scenario_id"],
+            storage_cluster_id=index_info["storage_cluster_id"],
+            bk_biz_id=self.bk_biz_id,
+            only_search=True,
+        ).get_all_fields_by_index_id()
+        field_type_map = {i["field_name"]: i["field_type"] for i in final_fields_list}
+        # 如果历史索引不包含bk_host_id, 则不需要进行bk_host_id的过滤
+        include_bk_host_id = "bk_host_id" in field_type_map.keys() and settings.ENABLE_DHCP
+        # 旧的采集器不会上报bk_host_id, 所以如果意外加入了这个条件会导致检索失败
+        if include_bk_host_id and ip_chooser_host_id_list:
+            new_addition.append({"field": "bk_host_id", "operator": "is one of", "value": ip_chooser_host_id_list})
+        if search_ip_list:
+            new_addition.append({"field": ip_field, "operator": "is one of", "value": list(set(search_ip_list))})
+        # 当IP选择器传了模块,模版,动态拓扑但是实际没有主机时, 此时应不返回任何数据, 塞入特殊数据bk_host_id=0来实现
+        if ip_chooser and not ip_chooser_host_id_list and not ip_chooser_ip_list:
+            new_addition.append({"field": "bk_host_id", "operator": "is one of", "value": ["0"]})
+        return new_addition
+
+    def transform_additions(self, index_info):
         field_list = []
         condition_list = []
-        for addition in self.search_params.get("addition", []):
+        new_addition = self._combine_addition_ip_chooser(index_info=index_info)
+        for addition in new_addition:
+            # 全文检索key & 存量query_string转换
+            if addition["field"] in ["*", "__query_string__"]:
+                value = addition["value"] if isinstance(addition["value"], list) else addition["value"].split(",")
+                if value:
+                    if addition["field"] == "*":
+                        value = "\"" + value.replace('"', '\\"') + "\""
+                    self.query_string = value
+                continue
             if addition["operator"] in BASE_OP_MAP:
                 field_list.append(
                     {
                         "field_name": addition["field"],
                         "op": BASE_OP_MAP[addition["operator"]],
-                        "value": addition["value"] if isinstance(addition["value"], list)
+                        "value": addition["value"]
+                        if isinstance(addition["value"], list)
                         else addition["value"].split(","),
                     }
                 )

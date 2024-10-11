@@ -148,4 +148,9 @@ export default {
   URI规则设置: 'URI rule settings',
   检测到蓝鲸监控版本更新: 'Detected Blue Whale monitoring version update',
   '请点击“确定”刷新页面，保证数据准确性。': 'Please click "OK" to refresh the page to ensure data accuracy.',
+  数据关联: 'Data Association',
+  Apdex信息: 'Apdex Info',
+  默认继承应用的类型设置: 'Default inheritance application type settings',
+  URI信息: 'URI Info',
+  URI配置: 'URI Configuration',
 };

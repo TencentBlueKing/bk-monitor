@@ -1,7 +1,7 @@
 import { request } from '../base';
 
-export const listMetaEsClusterInfo = request('GET', 'apm/meta/meta_info/list_es_cluster_info/');
 export const metaConfigInfo = request('GET', 'apm/meta/meta_info/meta_config_info/');
+export const metaInstrumentGuides = request('POST', 'apm/meta/meta_info/meta_instrument_guides/');
 export const pushUrl = request('GET', 'apm/meta/meta_info/push_url/');
 export const listEsClusterGroups = request('GET', 'apm/meta/meta_info/list_cluster_groups/');
 export const listApplicationInfo = request('GET', 'apm/meta/application/list_application_info/');
@@ -34,8 +34,11 @@ export const noDataStrategyInfo = request('POST', 'apm/meta/application/nodata_s
 export const noDataStrategyEnable = request('POST', 'apm/meta/application/nodata_strategy_enable/');
 export const noDataStrategyDisable = request('POST', 'apm/meta/application/nodata_strategy_disable/');
 export const dataViewConfig = request('POST', 'apm/meta/application/{pk}/data_view_config/');
+export const dataHistogram = request('POST', 'apm/meta/application/{pk}/data_histogram/');
 export const dataSampling = request('POST', 'apm/meta/application/{pk}/data_sampling/');
+export const storageInfo = request('POST', 'apm/meta/application/{pk}/storage_info/');
 export const storageFieldInfo = request('POST', 'apm/meta/application/{pk}/storage_field_info/');
+export const storageStatus = request('GET', 'apm/meta/application/{pk}/storage_status/');
 export const customServiceList = request('GET', 'apm/meta/application/custom_service_list/');
 export const customServiceConfig = request('POST', 'apm/meta/application/custom_service_config/');
 export const deleteCustomSerivice = request('POST', 'apm/meta/application/delete_custom_service/');
@@ -46,8 +49,8 @@ export const getDataEncoding = request('GET', 'apm/meta/application/data_encodin
 export const simpleServiceList = request('POST', 'apm/meta/application/simple_service_list/');
 
 export default {
-  listMetaEsClusterInfo,
   metaConfigInfo,
+  metaInstrumentGuides,
   pushUrl,
   listEsClusterGroups,
   listApplicationInfo,
@@ -80,8 +83,11 @@ export default {
   noDataStrategyEnable,
   noDataStrategyDisable,
   dataViewConfig,
+  dataHistogram,
   dataSampling,
+  storageInfo,
   storageFieldInfo,
+  storageStatus,
   customServiceList,
   customServiceConfig,
   deleteCustomSerivice,

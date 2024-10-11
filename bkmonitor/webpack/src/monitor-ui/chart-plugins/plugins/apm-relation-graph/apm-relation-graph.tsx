@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Inject, InjectReactive, Ref, Watch } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 
 // import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
@@ -32,11 +32,12 @@ import { CancelToken } from 'monitor-api/index';
 // import type { PanelModel } from '../../typings';
 import { dataTypeBarQuery } from 'monitor-api/modules/apm_topo';
 import { topoView } from 'monitor-api/modules/apm_topo';
-import { Debounce } from 'monitor-common/utils';
+import { Debounce, random } from 'monitor-common/utils';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { getDateRange, getTimeDisplay, handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 
+import { CustomChartConnector } from '../../utils/utils';
 import { CommonSimpleChart } from '../common-simple-chart';
 import StatusTab from '../table-chart/status-tab';
 import ApmRelationGraphContent from './components/apm-relation-graph-content';
@@ -90,14 +91,17 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     customRouterQuery: Record<string, number | string>
   ) => void;
   /* 概览图、列表图切换 */
+  @ProvideReactive('customChartConnector') customChartConnector: CustomChartConnector = null;
   showTypes = [
     {
       id: 'topo',
-      icon: 'icon-mc-overview',
+      icon: 'icon-mc-apm-topo',
+      size: '18px',
     },
     {
       id: 'table',
       icon: 'icon-mc-list',
+      size: '16px',
     },
   ];
   showType = 'topo';
@@ -206,6 +210,8 @@ export default class ApmRelationGraph extends CommonSimpleChart {
 
   nodeTipsMap = new Map();
   timeTips = '';
+
+  dashboardId = random(8);
   /* 展开列表 */
   get expandList() {
     return [
@@ -296,10 +302,14 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     }
     this.timeTips = getTimeDisplay(this.timeRange);
   }
+
   created() {
     this.getSliceTimeRange();
+    this.customChartConnector = new CustomChartConnector(this.dashboardId);
   }
-
+  beforeDestroy() {
+    this.customChartConnector?.removeChartInstance();
+  }
   destroyed() {
     this.topoCancelFn?.();
   }
@@ -352,7 +362,6 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.handleLoadingChange(true);
     try {
       this.unregisterOberver();
-      this.setTimeTips();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
@@ -393,6 +402,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
   }
 
   async getTopoData() {
+    this.setTimeTips();
     this.requestId += 1;
     const requestId = this.requestId;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
@@ -424,7 +434,11 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.refreshTopoLayout = this.refreshTopoLayout || (!this.graphData.nodes.length && !this.graphData.edges.length);
     if (this.needCache && this.graphAndTableDataCache.has(cacheKey)) {
       data = this.graphAndTableDataCache.get(cacheKey);
-      this.loading[exportType] = false;
+      if (exportType === 'topo' && data?.nodes?.length > 100) {
+        setTimeout(() => (this.loading[exportType] = false), 500);
+      } else {
+        this.loading[exportType] = false;
+      }
     } else {
       data = await topoView(params, {
         cancelToken: new CancelToken(c => {
@@ -438,7 +452,11 @@ export default class ApmRelationGraph extends CommonSimpleChart {
       /** 两个请求ID不一样， 说明是取消请求， 不关闭loading */
       if (this.requestId !== requestId) return;
       this.graphAndTableDataCache.set(cacheKey, data);
-      this.loading[exportType] = false;
+      if (exportType === 'topo' && data?.nodes?.length > 100) {
+        setTimeout(() => (this.loading[exportType] = false), 500);
+      } else {
+        this.loading[exportType] = false;
+      }
     }
     if (this.showType === 'topo') {
       this.graphData = data;
@@ -635,6 +653,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               {this.showTypes.map(item => (
                 <div
                   key={item.id}
+                  style={{ fontSize: item.size }}
                   class={['data-type-item', { active: this.showType === item.id }]}
                   onClick={() => this.handleShowTypeChange(item)}
                 >
@@ -665,6 +684,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               enableSelect={true}
               enableZoom={true}
               getData={this.getAlarmBarData}
+              groupId={this.dashboardId}
               itemHeight={16}
               sliceTimeRange={this.sliceTimeRange}
               onDataZoom={this.dataZoom as any}
@@ -687,6 +707,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
               right-icon='bk-icon icon-search'
               value={this.filterCondition.searchValue}
               clearable
+              show-clear-only-hove
               onBlur={this.handleSearch}
               onChange={this.handleSearch}
               onClear={this.handleSearch}
@@ -779,6 +800,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
             <div class={'content-wrap'}>
               <ServiceOverview
                 appName={this.appName}
+                dashboardId={this.dashboardId}
                 data={this.serviceOverviewData}
                 detailIcon={this.selectedIcon}
                 endpoint={this.selectedEndpoint}

@@ -23,15 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/*
- * @Date: 2021-06-13 16:25:19
- * @LastEditTime: 2021-06-21 11:10:11
- * @Description:
- */
 import Vue from 'vue';
 import Router, { type RouteConfig } from 'vue-router';
 
 import { random } from 'monitor-common/utils/utils';
+import { getAuthById, setAuthById } from 'monitor-pc/common/auth-store';
 import ExceptionPage from 'monitor-pc/pages/exception-page/exception-page.vue';
 
 import authorityStore from '../store/modules/authority';
@@ -91,9 +87,12 @@ const createRouter = () =>
 const router = createRouter();
 
 const isAuthority = async (page: string | string[]) => {
-  const data: { isAllowed: boolean }[] = await authorityStore.checkAllowedByActionIds({
-    action_ids: Array.isArray(page) ? page : [page],
-  });
+  if (!page) return true;
+  const data: { isAllowed: boolean }[] = await authorityStore
+    .checkAllowedByActionIds({
+      action_ids: Array.isArray(page) ? page : [page],
+    })
+    .catch(() => false);
   return !!data.length && data.some(item => item.isAllowed);
 };
 router.beforeEach(async (to, from, next) => {
@@ -115,12 +114,15 @@ router.beforeEach(async (to, from, next) => {
   let hasAuthority = true;
   const { authority } = to.meta;
   if (authority?.page && to.name !== 'error-exception' && to.name !== from.name) {
-    hasAuthority = await isAuthority(authority?.page);
+    if (!getAuthById(authority.page)) {
+      hasAuthority = await isAuthority(authority?.page).catch(() => false);
+      setAuthById(Array.isArray(authority.page) ? authority.page[0] : authority.page, hasAuthority);
+    }
     if (hasAuthority) {
       next();
     } else {
       next({
-        path: `/exception/403/${random(10)}`,
+        path: `${window.__BK_WEWEB_DATA__?.baseroute || '/'}exception/403/${random(10)}`,
         query: {
           actionId: authority.page || '',
           fromUrl: to.fullPath.replace(/^\//, ''),

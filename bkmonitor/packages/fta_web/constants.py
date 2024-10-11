@@ -20,6 +20,12 @@ class QuickSolutionsConfig:
     SEND_TOP10_MEM_PROGRESS = "mem_proc_top10"
     UPDATE_MODULE = "update_module"
     UPDATE_MODULE_TO_IDLE = "update_module_to_idle"
+    SCENARIO = {
+            "在线": ["在线", "online"],
+            "登录": ["登录", "登陆", "login"],
+            "注册": ["注册", "reg"],
+            "对局": ["对局", "排队", "bat"],
+    }
     QUICK_SOLUTIONS_TEMPLATE = (
         "eyJkaWdlc3QiOiJhYTBhZTZlODkzYmJmNjcwNjNlMmQ5MTY1NDhlNjI3ZiIsInRlbXBsYXRlX2RhdGEi"
         "OnsiZXhwb3J0ZXJfdmVyc2lvbiI6MSwicGlwZWxpbmVfdGVtcGxhdGVfZGF0YSI6eyJyZWZzIjp7fSwi"

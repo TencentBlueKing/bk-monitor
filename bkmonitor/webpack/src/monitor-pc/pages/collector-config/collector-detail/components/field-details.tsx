@@ -42,7 +42,7 @@ export default class FieldDetails extends tsc<FieldDetailsProps> {
 
   metricList = [];
 
-  @Watch('detailData')
+  @Watch('detailData', { immediate: true })
   handleDetailDataChange(val: DetailData) {
     if (val) {
       this.metricList = val.metric_list.map(item => ({ ...item, collapse: true }));
@@ -62,7 +62,10 @@ export default class FieldDetails extends tsc<FieldDetailsProps> {
         <div class='metric-dimension'>
           <div class='table-wrap'>
             {this.metricList.map((item, index) => (
-              <div class='table-item'>
+              <div
+                key={index}
+                class='table-item'
+              >
                 <div
                   class={{ 'table-item-title': true, 'is-collapse': item.collapse }}
                   onClick={() => (item.collapse = !item.collapse)}

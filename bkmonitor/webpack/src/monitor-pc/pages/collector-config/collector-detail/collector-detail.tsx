@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Provide } from 'vue-property-decorator';
+import { Component, Mixins } from 'vue-property-decorator';
 
 import {
   collectConfigList,
@@ -54,10 +54,6 @@ import './collector-detail.scss';
 Component.registerHooks(['beforeRouteEnter']);
 @Component
 export default class CollectorDetail extends Mixins(authorityMixinCreate(collectAuth)) {
-  @Provide('authority') authority: Record<string, boolean> = {};
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
-  @Provide('authorityMap') authorityMap;
-
   active = TabEnum.Configuration;
   collectId = 0;
 
@@ -110,47 +106,58 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
 
   created() {
     this.collectId = Number(this.$route.params.id);
-    this.getCollectConfigListItem();
-    this.getAlarmGroupList();
-    this.getDetails();
     this.$store.commit('app/SET_NAV_ROUTE_LIST', [
       { name: this.$t('route-数据采集'), id: 'collect-config' },
       { name: this.$t('route-采集详情'), id: 'collect-config-detail' },
     ]);
-    const tab = String(this.$route.query?.tab || '') as TabEnum;
-    if (
-      !!tab &&
-      [
-        TabEnum.Configuration,
-        TabEnum.DataLink,
-        TabEnum.FieldDetails,
-        TabEnum.StorageState,
-        TabEnum.TargetDetail,
-      ].includes(tab)
-    ) {
+    const tab = String(this.$route.query?.tab || this.active) as TabEnum;
+    if (!!tab && Object.values(TabEnum).includes(tab)) {
       this.handleTabChange(tab, true);
     }
   }
-
-  handleTabChange(v: TabEnum, init = false) {
+  async handleTabChange(v: TabEnum, init = false) {
     this.active = v;
-    if (this.active === TabEnum.TargetDetail) {
-      this.getHosts(this.allData[TabEnum.TargetDetail].pollingCount);
-      setTimeout(() => {
-        this.allData[TabEnum.TargetDetail].topicKey = random(8);
-      }, 300);
-    } else if (this.active === TabEnum.StorageState) {
-      this.getStorageStateData();
-      this.allData[TabEnum.StorageState].topicKey = random(8);
-    } else if (this.active === TabEnum.DataLink) {
-      this.allData[TabEnum.DataLink].topicKey = random(8);
+    window.clearTimeout(this.allData[TabEnum.TargetDetail].timer);
+    switch (v) {
+      case TabEnum.Configuration:
+        {
+          this.getCollectConfigListItem();
+          this.getDetails();
+        }
+        break;
+      case TabEnum.TargetDetail:
+        {
+          this.getAlarmGroupList();
+          this.getHosts(this.allData[this.active].pollingCount);
+        }
+        break;
+      case TabEnum.StorageState:
+        {
+          this.getAlarmGroupList();
+          this.getStorageStateData();
+        }
+        break;
+      case TabEnum.DataLink:
+        {
+          this.getAlarmGroupList();
+        }
+        break;
+      case TabEnum.FieldDetails:
+        {
+          this.getDetails();
+        }
+        break;
+    }
+    if (this.allData[v] && 'topicKey' in this.allData[v]) {
+      this.allData[v].topicKey = random(8);
     }
     if (!init) {
-      Object.keys(this.$route.query)?.length &&
-        this.$router.replace({
-          name: this.$route.name,
-          query: {},
-        });
+      this.$router.replace({
+        name: this.$route.name,
+        query: {
+          tab: v,
+        },
+      });
     }
   }
 
@@ -178,6 +185,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
    * @description 获取配置信息
    */
   getDetails() {
+    if (!this.collectId || this.detailData.basic_info?.name) return;
     this.loading = true;
     frontendCollectConfigDetail({ id: this.collectId })
       .then(res => {
@@ -201,6 +209,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
   }
 
   getAlarmGroupList() {
+    if (this.alarmGroupList.length) return;
     return listUserGroup({ exclude_detail_info: 1 })
       .then(data => {
         this.alarmGroupList = data.map(item => ({
@@ -302,8 +311,9 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
           <bk-tab-panel
             label={this.$t('配置信息')}
             name={TabEnum.Configuration}
+            renderDirective='if'
           >
-            {!!this.collectId && (
+            {!!this.collectId && this.detailData.basic_info?.name && (
               <CollectorConfiguration
                 id={this.collectId as any}
                 key={this.allData[TabEnum.Configuration].renderKey}
@@ -316,26 +326,32 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
           <bk-tab-panel
             label={this.$t('采集状态')}
             name={TabEnum.TargetDetail}
+            renderDirective='if'
           >
-            <AlertTopic
-              id={this.collectId as any}
-              class='mb-24'
-              alarmGroupList={this.alarmGroupList}
-              alarmGroupListLoading={this.alarmGroupListLoading}
-              stage={TCollectorAlertStage.collecting}
-              updateKey={this.allData[TabEnum.TargetDetail].topicKey}
-              onAlarmGroupListRefresh={this.handleAlarmGroupListRefresh}
-            />
-            <CollectorStatusDetails
-              data={this.allData[TabEnum.TargetDetail].data}
-              updateKey={this.allData[TabEnum.TargetDetail].updateKey}
-              onCanPolling={this.handlePolling}
-              onRefresh={this.handleRefreshData}
-            />
+            {this.alarmGroupList?.length > 0 && (
+              <AlertTopic
+                id={this.collectId as any}
+                class='mb-24'
+                alarmGroupList={this.alarmGroupList}
+                alarmGroupListLoading={this.alarmGroupListLoading}
+                stage={TCollectorAlertStage.collecting}
+                updateKey={this.allData[TabEnum.TargetDetail].topicKey}
+                onAlarmGroupListRefresh={this.handleAlarmGroupListRefresh}
+              />
+            )}
+            {!!this.allData[TabEnum.TargetDetail].data && (
+              <CollectorStatusDetails
+                data={this.allData[TabEnum.TargetDetail].data}
+                updateKey={this.allData[TabEnum.TargetDetail].updateKey}
+                onCanPolling={this.handlePolling}
+                onRefresh={this.handleRefreshData}
+              />
+            )}
           </bk-tab-panel>
           <bk-tab-panel
             label={this.$t('链路状态')}
             name={TabEnum.DataLink}
+            renderDirective='if'
           >
             <AlertTopic
               id={this.collectId as any}
@@ -354,6 +370,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
           <bk-tab-panel
             label={this.$t('存储状态')}
             name={TabEnum.StorageState}
+            renderDirective='if'
           >
             <AlertTopic
               id={this.collectId as any}
@@ -373,6 +390,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
           <bk-tab-panel
             label={this.$t('指标/维度')}
             name={TabEnum.FieldDetails}
+            renderDirective='if'
           >
             <FieldDetails detailData={this.detailData} />
           </bk-tab-panel>

@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import datetime
 import functools
 import itertools
+import json
 import operator
 import re
 from multiprocessing.pool import ApplyResult
@@ -31,6 +32,7 @@ from apm_web.handlers.span_handler import SpanHandler
 from apm_web.icon import get_icon
 from apm_web.models import (
     ApdexServiceRelation,
+    ApmMetaConfig,
     Application,
     AppServiceRelation,
     CMDBServiceRelation,
@@ -48,6 +50,7 @@ from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.time_tools import get_datetime_range
 from core.drf_resource import Resource, api
 
 
@@ -131,14 +134,10 @@ class ServiceInfoResource(Resource):
             return {}
         return ServiceApdexConfigSerializer(instance=instance).data
 
-    def get_profiling_info(self, bk_biz_id, app_name, service_name, start_time, end_time):
+    def get_profiling_info(self, app, bk_biz_id, app_name, service_name, start_time, end_time):
         """获取服务的 profiling 状态"""
 
         res = {}
-        # 获取应用是否开启 Profiling
-        app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if not app:
-            raise ValueError("应用不存在")
         res["application_id"] = app.application_id
 
         res["is_enabled_profiling"] = app.is_enabled_profiling
@@ -151,11 +150,27 @@ class ServiceInfoResource(Resource):
 
         return res
 
+    def get_labels(self, bk_biz_id, app_name, service_name):
+        config_instance = ApmMetaConfig.get_service_config_value(bk_biz_id, app_name, service_name, "labels")
+        if config_instance:
+            return json.loads(config_instance.config_value)
+        return []
+
     def perform_request(self, validate_data):
         # 获取请求数据
         bk_biz_id = validate_data["bk_biz_id"]
         app_name = validate_data["app_name"]
         service_name = validate_data["service_name"]
+        app = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+
+        if not validate_data["start_time"] and not validate_data["end_time"]:
+            start_time, end_time = get_datetime_range(
+                period="day",
+                distance=app.es_retention,
+                rounding=False,
+            )
+            validate_data["start_time"] = int(start_time.timestamp())
+            validate_data["end_time"] = int(end_time.timestamp())
 
         query_instance_param = {
             "bk_biz_id": bk_biz_id,
@@ -172,11 +187,13 @@ class ServiceInfoResource(Resource):
         cmdb_relation = pool.apply_async(self.get_cmdb_relation_info, args=(bk_biz_id, app_name, service_name))
         uri_relation = pool.apply_async(self.get_uri_relation_info, args=(bk_biz_id, app_name, service_name))
         operate_record = pool.apply_async(self.get_operate_record, args=(bk_biz_id, app_name, service_name))
+        labels = pool.apply_async(self.get_labels, args=(bk_biz_id, app_name, service_name))
+
         profiling_info = {}
         if validate_data.get("start_time") and validate_data.get("end_time"):
             profiling_info = pool.apply_async(
                 self.get_profiling_info,
-                args=(bk_biz_id, app_name, service_name, validate_data["start_time"], validate_data["end_time"]),
+                args=(app, bk_biz_id, app_name, service_name, validate_data["start_time"], validate_data["end_time"]),
             )
         pool.close()
         pool.join()
@@ -218,6 +235,8 @@ class ServiceInfoResource(Resource):
         # 实例数
         instances = instance_res.get()
         service_info["instance_count"] = len(instances)
+        # 自定义标签
+        service_info["labels"] = labels.get()
         # 响应
         return service_info
 
@@ -373,6 +392,8 @@ class ServiceConfigResource(Resource):
         update_relation(validated_request_data.get("apdex_relation"), ApdexServiceRelation)
 
         self.update_uri(bk_biz_id, app_name, service_name, validated_request_data["uri_relation"])
+        if validated_request_data.get("labels"):
+            self.update_labels(bk_biz_id, app_name, service_name, validated_request_data["labels"])
 
         # 下发修改后的配置
         application_id = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get().application_id
@@ -420,6 +441,15 @@ class ServiceConfigResource(Resource):
                     created_by=username,
                     **relation,
                 )
+
+    def update_labels(self, bk_biz_id, app_name, service_name, labels):
+        ApmMetaConfig.service_config_setup(
+            bk_biz_id,
+            app_name,
+            service_name,
+            "labels",
+            json.dumps(labels),
+        )
 
 
 class UriregularVerifyResource(Resource):

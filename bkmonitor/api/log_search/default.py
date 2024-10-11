@@ -344,3 +344,96 @@ class ListEsRouterResource(LogSearchAPIByApiGwResource):
         page = serializers.IntegerField(required=False, default=1)
         pagesize = serializers.IntegerField(required=False, default=10)
         space_uid = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
+
+class DataBusCollectorsResource(LogSearchAPIGWResource):
+    """
+    数据采集器列表
+    """
+
+    action = "/databus_collectors/{collector_config_id}/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        collector_config_id = serializers.IntegerField(required=True, label="采集器ID")
+
+    def get_request_url(self, validated_request_data):
+        """
+        获取最终请求的url，也可以由子类进行重写
+        """
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
+class DataBusCollectorsIndicesResource(LogSearchAPIGWResource):
+    """
+    数据采集器索引列表
+    """
+
+    action = "/databus_collectors/{collector_config_id}/indices_info/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        collector_config_id = serializers.IntegerField(required=True, label="采集器ID")
+
+    def get_request_url(self, validated_request_data):
+        """
+        获取最终请求的url，也可以由子类进行重写
+        """
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
+class LogSearchIndexSetResource(LogSearchAPIGWResource):
+    """
+    索引集列表
+    """
+
+    action = "/search_index_set/{index_set_id}/fields/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        index_set_id = serializers.IntegerField(required=False, label="索引集ID")
+
+    def get_request_url(self, validated_request_data):
+        """
+        获取最终请求的url，也可以由子类进行重写
+        """
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(index_set_id=validated_request_data.pop("index_set_id"))
+
+
+class CreateCustomReportResource(LogSearchAPIGWResource):
+    """
+    创建自定义上报
+    """
+
+    action = "/databus_custom_create/"
+    method = "POST"
+
+
+class UpdateCustomReportResource(LogSearchAPIGWResource):
+    """
+    更新自定义上报
+    """
+
+    action = "/{collector_config_id}/databus_custom_update/"
+    method = "POST"
+
+
+class StartCollectorsResource(LogSearchAPIGWResource):
+    """
+    开启自定义上报
+    """
+
+    action = "/databus_collectors/{collector_config_id}/start/"
+    method = "POST"
+
+
+class StopCollectorsResource(LogSearchAPIGWResource):
+    """
+    关闭自定义上报
+    """
+
+    action = "/databus_collectors/{collector_config_id}/stop/"
+    method = "POST"

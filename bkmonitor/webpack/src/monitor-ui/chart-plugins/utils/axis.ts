@@ -38,7 +38,7 @@ export function getSeriesMaxInterval<T extends Array<{ datapoints: [number, numb
     maxLength = Math.max(maxLength, s.datapoints?.length);
   }
   return {
-    maxXInterval: maxX - minX,
+    maxXInterval: Math.abs(maxX - minX),
     maxSeriesCount: maxLength,
   };
 }

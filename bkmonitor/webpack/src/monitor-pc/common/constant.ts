@@ -25,6 +25,9 @@
  */
 import { jumpToDocsLink } from 'monitor-common/utils';
 
+/**
+ * @deprecated 已弃用，由于文档跳转路径规范变,更采用新跳转文档方案，不建议再使用此变量，出于兼容性考虑保留此变量 --- 新方案详情路径：monitor-common/utils/docs.ts
+ */
 export const linkMap = {
   processMonitoring: '监控平台/产品白皮书/scene-process/process_monitor_overview.md', //  主机监控-主机详情 左下角 进程监控配置指引
   /** @deprecated 20230811 该链接已不存在，先暂时保留 */
@@ -60,6 +63,10 @@ export const linkMap = {
   bkLogQueryString: '日志平台/产品白皮书/data-visualization/query_string.md', // 日志平台 查询语句语法
   accessRequest: '监控平台/产品白皮书/quickstart/perm.md', // 权限申请文档
 };
+
+/**
+ * @deprecated 已弃用(20240925)，由于文档跳转路径规范变,更采用新跳转文档方案，不建议再使用此方法，出于兼容性考虑保留此方法 --- 新方案详情路径：monitor-common/utils/docs.ts
+ */
 export const handleGotoLink = id => {
   jumpToDocsLink(id, linkMap, window.docUrlMap || {});
 };

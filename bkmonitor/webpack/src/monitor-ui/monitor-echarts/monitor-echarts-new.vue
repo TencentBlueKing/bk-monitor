@@ -28,8 +28,6 @@
     :style="{ 'background-image': backgroundUrl }"
     class="monitor-echart-wrap"
     v-bkloading="{ isLoading: loading, zIndex: 2000 }"
-    @mouseenter="showTitleTool = true"
-    @mouseleave="showTitleTool = false"
   >
     <div
       v-if="chartTitle || $slots.title"
@@ -371,7 +369,7 @@ export default class MonitorEcharts extends Vue {
   @Prop({ type: Boolean, default: false }) hasResize: boolean;
   /** 是否需要图表表格功能 */
   @Prop({ type: Boolean, default: false }) hasTable: boolean;
-  @InjectReactive('readonly') readonly readonly: boolean;
+  @InjectReactive({ from: 'readonly', default: false }) readonly readonly: boolean;
   // 框选事件范围后需应用到所有图表(包含三个数据 框选方法 是否展示复位  复位方法)
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
   @Inject({ from: 'enableSelectionRestoreAll', default: false }) readonly enableSelectionRestoreAll: boolean;
@@ -409,7 +407,7 @@ export default class MonitorEcharts extends Vue {
   chart = null;
   localChartHeight = 0; //
   clickTimer = null;
-  showTitleTool = false;
+  showTitleTool = true;
   extendMetricData: any = null;
   alarmStatus: IAlarmStatus = { status: 0, alert_number: 0, strategy_number: 0 };
   // tooltips大小 [width, height]
