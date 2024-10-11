@@ -45,7 +45,7 @@ class ApmApplication(AbstractRecordModel):
     is_enabled = models.BooleanField("是否启用", default=True)
 
     # 数据源开关
-    is_enabled_log = models.BooleanField("是否开启 Logs 功能", default=True)
+    is_enabled_log = models.BooleanField("是否开启 Logs 功能", default=False)
     is_enabled_trace = models.BooleanField("是否开启 Traces 功能", default=True)
     is_enabled_metric = models.BooleanField("是否开启 Metrics 功能", default=True)
     is_enabled_profiling = models.BooleanField("是否开启 Profiling 功能", default=False)
