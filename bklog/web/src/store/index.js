@@ -851,7 +851,7 @@ const store = new Vuex.Store({
         } else {
           if (!result.addition) result.addition = [];
 
-          if (Object.keys(ip_chooser ?? {}).length) {
+          if (Object.keys(result.ip_chooser ?? {}).length) {
             result.addition.push({
               field: '_ip-select_',
               operator: '',
