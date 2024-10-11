@@ -59,6 +59,7 @@ class TransferEtlHandler(EtlHandler):
         **kwargs,
     ):
         etl_params = etl_params or {}
+        etl_path_regexp = kwargs.get("etl_path_regexp", None)
         # 停止状态下不能编辑
         if self.data and not self.data.is_active:
             raise CollectorActiveException()
@@ -121,6 +122,7 @@ class TransferEtlHandler(EtlHandler):
             es_version=cluster_info["cluster_config"]["version"],
             hot_warm_config=cluster_info["cluster_config"].get("custom_option", {}).get("hot_warm_config"),
             es_shards=es_shards,
+            etl_path_regexp=etl_path_regexp,
         )
 
         if not view_roles:
@@ -175,6 +177,7 @@ class TransferEtlHandler(EtlHandler):
                 "etl_params": origin_etl_params,
                 "etl_fields": origin_fields,
                 "bk_biz_id": self.data.bk_biz_id,
+                "etl_path_regexp": etl_path_regexp,
             }
         )
 
