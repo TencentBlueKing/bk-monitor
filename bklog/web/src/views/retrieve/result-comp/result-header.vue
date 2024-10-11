@@ -65,13 +65,13 @@
           </template>
         </bk-popover>
       </div>
-      <div
+      <!-- <div
         v-if="!isAsIframe"
         id="bizSelectorGuide"
         class="biz-menu-box"
       >
         <biz-menu-select theme="light"></biz-menu-select>
-      </div>
+      </div> -->
     </div>
     <!-- 检索结果 -->
     <!-- <div class="result-text"></div> -->
@@ -606,15 +606,15 @@
           margin-right: 2px;
         }
 
-        &::after {
-          position: absolute;
-          top: 6px;
-          right: -25px;
-          width: 1px;
-          height: 14px;
-          content: '';
-          background-color: #dcdee5;
-        }
+        // &::after {
+        //   position: absolute;
+        //   top: 6px;
+        //   right: -25px;
+        //   width: 1px;
+        //   height: 14px;
+        //   content: '';
+        //   background-color: #dcdee5;
+        // }
 
         .result-icon-box {
           width: 32px;
