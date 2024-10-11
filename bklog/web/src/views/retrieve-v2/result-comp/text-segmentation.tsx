@@ -38,7 +38,7 @@ interface IProps {
 @Component
 export default class QueryStatement extends tsc<IProps> {
   @Prop({ type: Object, required: true }) field: any;
-  @Prop({ type: Object, required: true }) data: any;
+  @Prop({ type: Object }) data: any;
   @Prop({ type: [String, Number], required: true }) content: number | string;
   @Prop({ type: Function, required: true }) menuClick: any;
 
