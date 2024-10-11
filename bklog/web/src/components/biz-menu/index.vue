@@ -343,12 +343,27 @@
           this.$refs.menuSearchInput.focus();
         }, 100);
       },
+      debounceUpdateRouter() {
+        return debounce(60, space => {
+          if (`${space.bk_biz_id}` !== this.$route.query.bizId || space.space_uid !== this.$route.query.spaceUid) {
+            this.$router.push({
+              query: {
+                ...(this.$route.query ?? {}),
+                bizId: space.bk_biz_id,
+                spaceUid: space.space_uid,
+              },
+            });
+          }
+        });
+      },
       /**
        * @desc: 点击下拉框的空间选项
        * @param {Object} space 点击的空间
        * @param {String} type 点的是哪个分组的空间
        */
       handleClickMenuItem(space, type) {
+        this.debounceUpdateRouter()(space);
+
         try {
           if (this.isExternalAuth) {
             this.exterlAuthSpaceName = space.space_name;
