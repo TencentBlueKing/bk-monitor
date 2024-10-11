@@ -155,7 +155,7 @@ class CategoryEnum:
             {
                 "id": cls.DB,
                 "name": cls.get_label_by_key(cls.DB),
-                "icon": "icon-DB",
+                "icon": "icon-shujuku",
             },
             {
                 "id": cls.MESSAGING,
@@ -170,7 +170,7 @@ class CategoryEnum:
             {
                 "id": cls.OTHER,
                 "name": cls.get_label_by_key(cls.OTHER),
-                "icon": "icon-zidingyi",
+                "icon": "icon-mc-service-unknown",
             },
         ]
 

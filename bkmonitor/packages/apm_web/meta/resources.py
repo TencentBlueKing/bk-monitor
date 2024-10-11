@@ -222,17 +222,17 @@ class CreateApplicationResource(Resource):
             enabled_metric=validated_request_data["enabled_metric"],
             enabled_log=validated_request_data["enabled_log"],
             # ↓ 两个可选项
-            datasource_option=validated_request_data.get("datasource_option"),
+            storage_options=validated_request_data.get("datasource_option"),
             plugin_config=validated_request_data.get("plugin_config"),
         )
 
         from apm_web.tasks import APMEvent, report_apm_application_event
 
         switch_on_data_sources = {
-            TelemetryDataType.TRACE.value: app.is_enabled_trace,
-            TelemetryDataType.PROFILING.value: app.is_enabled_profiling,
-            TelemetryDataType.METRIC.value: app.is_enabled_metric,
-            TelemetryDataType.LOG.value: app.is_enabled_log,
+            TelemetryDataType.TRACE.value: validated_request_data["enabled_trace"],
+            TelemetryDataType.PROFILING.value: validated_request_data["enabled_profiling"],
+            TelemetryDataType.METRIC.value: validated_request_data["enabled_metric"],
+            TelemetryDataType.LOG.value: validated_request_data["enabled_log"],
         }
         report_apm_application_event.delay(
             validated_request_data["bk_biz_id"],
@@ -451,7 +451,7 @@ class ApplicationInfoByAppNameResource(ApiAuthResource):
 class StartResource(Resource):
     class RequestSerializer(serializers.Serializer):
         application_id = serializers.IntegerField(label="应用id")
-        type = serializers.ChoiceField(label="需要暂停的数据源", choices=TelemetryDataType.values())
+        type = serializers.ChoiceField(label="需要开启的数据源", choices=TelemetryDataType.values())
 
     @atomic
     def perform_request(self, validated_data):

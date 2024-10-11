@@ -11,14 +11,12 @@ specific language governing permissions and limitations under the License.
 import time
 from enum import Enum
 
-from celery.schedules import crontab
-from celery.task import periodic_task, task
+from celery.task import task
 from django.conf import settings
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 
 from apm_web.handlers.service_handler import ServiceHandler
-from apm_web.meta.plugin.plugin import LOG_TRACE
 from apm_web.models import Application
 from apm_web.profile.file_handler import ProfilingFileHandler
 from apm_web.serializers import ApplicationCacheSerializer
@@ -118,15 +116,6 @@ def report_apm_application_event(bk_biz_id, application_id, apm_event: APMEvent,
     )
 
 
-@periodic_task(run_every=crontab(minute="*/30"))
-def refresh_log_trace_config():
-    # 30分钟刷新一次
-    applications = Application.objects.filter().values("application_id", "plugin_config")
-    for application in applications:
-        if application.plugin_id == LOG_TRACE:
-            application.set_plugin_config(application["plugin_config"], application["application_id"])
-
-
 @task(ignore_result=True)
 def refresh_apm_application_metric():
     logger.info("[refresh_apm_application_metric] task start")
@@ -159,3 +148,19 @@ def profile_file_upload_and_parse(key: str, profile_id: str, bk_biz_id: int, ser
     )
 
     logger.info(f"[profile_file_upload_and_parse] task finished, bk_biz_id({bk_biz_id}), profile_id({profile_id})")
+
+
+@task(ignore_result=True)
+def application_create_check():
+    """
+    每分钟检查异步创建的应用是否已经创建完成
+    如果创建完成 则同步数据至 apm_web 表
+    如果创建失败 则发送通知 + 清理数据
+    """
+
+    # 获取所有没有 traceDatasource && metricDatasource 的应用(证明是未进行 saas 数据源同步的应用)
+    # 因创建失败是偶尔事件并且会发送通知所以这里可以一直尝试同步
+    apps = Application.objects.filter(trace_result_table_id="", metric_result_table_id="")
+    logger.info(f"[CreateCheck] found {len(apps)} app were created and not datasource")
+    for app in apps:
+        app.sync_datasource()
