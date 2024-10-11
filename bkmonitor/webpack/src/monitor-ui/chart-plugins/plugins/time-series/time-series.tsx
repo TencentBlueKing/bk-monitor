@@ -321,7 +321,9 @@ export class LineChart
   }
   // 图表tooltip 可用于继承组件重写该方法
   handleSetTooltip() {
-    return {};
+    return {
+      extraCssText: 'max-width: 50%',
+    };
   }
   /**
    * @description: 获取图表数据
