@@ -77,7 +77,6 @@ export default class Log extends tsc<IProps> {
   }
 
   async handleUpdateValue(value, field: string) {
-    console.log(value);
     try {
       // 更新基本信息
       const obj = {};
