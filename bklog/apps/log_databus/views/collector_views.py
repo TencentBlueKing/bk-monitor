@@ -1354,33 +1354,6 @@ class CollectorViewSet(ModelViewSet):
             data.pop(key, None)
         return Response(etl_handler.update_or_create(**data))
 
-    @detail_route(methods=["GET"])
-    def metadata_list(self, request, collector_config_id=None):
-        """
-        @api {get} /databus/collectors/$collector_config_id/metadata_list/
-        @apiName get_data_link_list
-        @apiDescription 获取路径元数据列表
-        @apiGroup 10_Collector
-        @apiSuccessExample {json} 成功返回(有数据)
-        {
-            "result": true,
-            "data": [
-                "platform",
-                "file_name"
-            ],
-            "code": 0,
-            "message": ""
-        }
-        @apiSuccessExample {json} 成功返回(空)
-        {
-            "result": true,
-            "data": [],
-            "code": 0,
-            "message": ""
-        }
-        """
-        return Response(CollectorHandler(collector_config_id=collector_config_id).get_metadata_list())
-
     @detail_route(methods=["GET"], url_path="get_data_link_list")
     def get_data_link_list(self, request):
         """

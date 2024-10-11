@@ -752,6 +752,9 @@ class MappingHandlers(object):
                     else:
                         field_alias: str = ""
                     _field.update({"description": field_alias, "field_alias": field_alias})
+                    # 加入元数据标识
+                    if field_info["option"].get("is_metadata"):
+                        _field.update({"is_metadata": True})
                 else:
                     _field.update({"description": None})
         return fields_list

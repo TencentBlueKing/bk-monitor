@@ -61,6 +61,8 @@ class EtlStorage(object):
     # 子类需重载
     etl_config = None
     separator_node_name = "bk_separator_object"
+    path_separator_node_name = "bk_path_separator_object"
+    etl_field_index = 1
 
     @classmethod
     def get_instance(cls, etl_config=None):
@@ -310,7 +312,6 @@ class EtlStorage(object):
         time_field = built_in_config["time_field"]
         built_in_keys = FieldBuiltInEnum.get_choices()
 
-        etl_field_index = 1
         clustering_default_fields = self._get_log_clustering_default_fields()
         for field in fields:
             # 当在聚类场景的时候 不做下面的format操作
@@ -337,8 +338,8 @@ class EtlStorage(object):
             field_option = {
                 k: v for k, v in field.get("option", {}).items() if k not in ["time_zone", "time_format", "es_format"]
             }
-            field_option["field_index"] = etl_field_index
-            etl_field_index += 1
+            field_option["field_index"] = self.etl_field_index
+            self.etl_field_index += 1
 
             # ES_TYPE
             field_option["es_type"] = FieldDataTypeEnum.get_es_field_type(
@@ -586,8 +587,7 @@ class EtlStorage(object):
 
         return {"table_id": instance.table_id, "params": params}
 
-    @staticmethod
-    def add_metadata_path_configs(etl_path_regexp: str, result_table_config: dict):
+    def add_metadata_path_configs(self, etl_path_regexp: str, result_table_config: dict):
         """
         往结果表中添加元数据的路径配置
         :param etl_path_regexp: 采集路径分割正则
@@ -595,30 +595,35 @@ class EtlStorage(object):
         :return:
         """
         # 加入路径的清洗配置
-        if etl_path_regexp:
-            result_table_config["option"]["separator_configs"] = [
+        if not etl_path_regexp:
+            return
+        result_table_config["option"]["separator_configs"] = [
+            {
+                "separator_node_name": self.path_separator_node_name,
+                "separator_node_action": "regexp",
+                "separator_node_source": "filename",
+                "separator_regexp": etl_path_regexp,
+            }
+        ]
+
+        match_fields = re.findall(r"\?P<(.*?)>", etl_path_regexp)
+        for field_name in match_fields:
+            result_table_config["field_list"].append(
                 {
-                    "separator_node_name": "bk_separator_object1",
-                    "separator_node_action": "regexp",
-                    "separator_node_source": "filename",
-                    "separator_regexp": etl_path_regexp,
+                    "description": "",
+                    "field_name": field_name,
+                    "field_type": "string",
+                    "option": {
+                        "is_metadata": True,
+                        "es_doc_values": True,
+                        "es_type": "keyword",
+                        "field_index": self.etl_field_index,
+                        "real_path": f"{self.path_separator_node_name}.{field_name}"
+                    },
+                    "tag": "dimension",
                 }
-            ]
-            match_fields = re.findall(r"\?P<(.*?)>", etl_path_regexp)
-            for index, field_name in enumerate(match_fields, start=1):
-                result_table_config["field_list"].append(
-                    {
-                        "description": "",
-                        "field_name": field_name,
-                        "field_type": "string",
-                        "option": {
-                            "es_doc_values": True,
-                            "es_type": "keyword",
-                            "field_index": index,
-                            "real_path": f"bk_separator_object1.{field_name}"},
-                        "tag": "dimension",
-                    }
-                )
+            )
+            self.etl_field_index += 1
 
     @classmethod
     def switch_result_table(cls, collector_config: CollectorConfig, is_enable=True):

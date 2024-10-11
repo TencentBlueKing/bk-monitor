@@ -55,11 +55,11 @@ class TransferEtlHandler(EtlHandler):
         etl_params=None,
         fields=None,
         username="",
+        etl_path_regexp="",
         *args,
         **kwargs,
     ):
         etl_params = etl_params or {}
-        etl_path_regexp = kwargs.get("etl_path_regexp", None)
         # 停止状态下不能编辑
         if self.data and not self.data.is_active:
             raise CollectorActiveException()

@@ -2293,13 +2293,6 @@ class CollectorHandler(object):
         illegal_bk_host_ids = [host_id for host_id in bk_host_ids if host_id not in legal_host_id_set]
         return illegal_ips, illegal_bk_host_ids
 
-    def get_metadata_list(self):
-        clean_stash = CleanStash.objects.filter(collector_config_id=self.collector_config_id).first()
-        if clean_stash and clean_stash.etl_path_regexp:
-            metadata_list = re.findall(r"\?P<(.*?)>", clean_stash.etl_path_regexp)
-            return metadata_list
-        return []
-
     def get_clean_stash(self):
         clean_stash = CleanStash.objects.filter(collector_config_id=self.collector_config_id).first()
         if not clean_stash:
@@ -2325,7 +2318,7 @@ class CollectorHandler(object):
             "etl_fields": params["etl_fields"],
             "collector_config_id": int(self.collector_config_id),
             "bk_biz_id": params["bk_biz_id"],
-            "etl_path_regexp": params.get("etl_path_regexp", None),
+            "etl_path_regexp": params.get("etl_path_regexp", ""),
         }
         CleanStash.objects.filter(collector_config_id=self.collector_config_id).delete()
         logger.info("delete clean stash {}".format(self.collector_config_id))
