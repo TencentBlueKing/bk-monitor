@@ -194,7 +194,6 @@ export default class QueryStatement extends tsc<IProps> {
   }
 
   handleMenuClick(event: string, isLink = false) {
-    console.log('从本次检索中排除');
     this.menuClick(event, this.curValue.replace(/<mark>/g, '').replace(/<\/mark>/g, ''), isLink);
     this.handleDestroy();
   }
