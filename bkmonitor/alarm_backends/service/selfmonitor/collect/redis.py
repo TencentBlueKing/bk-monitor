@@ -205,3 +205,4 @@ class RedisMetricCollectReport(object):
         nodes_info = self.get_redis_info()
         for node_info in nodes_info:
             self.set_redis_metric_data(node_info)
+        metrics.report_all()
