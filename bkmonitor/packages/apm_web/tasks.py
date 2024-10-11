@@ -87,23 +87,14 @@ def update_application_config(application_id):
 
 
 @task(ignore_result=True)
-def refresh_application_data_status():
-    for application in Application.objects.filter(is_enabled=True):
-        _refresh_application_data_status.delay(application.application_id)
-
-
-@task(ignore_result=True)
-def _refresh_application_data_status(application_id):
-    Application.objects.get(application_id=application_id).set_data_status()
-
-
-@task(ignore_result=True)
 def refresh_application():
     logger.info("[REFRESH_APPLICATION] task start")
 
-    # 刷新数据状态
     for application in Application.objects.filter(is_enabled=True):
+        # 刷新数据状态
         application.set_data_status()
+        # 刷新服务数量
+        application.set_service_count()
 
     logger.info("[REFRESH_APPLICATION] task finished")
 

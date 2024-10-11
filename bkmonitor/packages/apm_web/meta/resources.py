@@ -837,6 +837,10 @@ class ListApplicationResource(PageListResource):
                 "description",
                 "is_enabled",
                 "trace_data_status",
+                "profiling_data_status",
+                "metric_data_status",
+                "log_data_status",
+                "service_count",
             ]
 
     def get_filter_fields(self):
@@ -844,20 +848,21 @@ class ListApplicationResource(PageListResource):
 
     def perform_request(self, validate_data):
         applications = Application.objects.filter(bk_biz_id=validate_data["bk_biz_id"])
-        data = self.ApplicationSerializer(applications, many=True).data
-        service_count_mapping = ServiceHandler.batch_query_service_count(data)
-        for i in data:
-            i["service_count"] = service_count_mapping.get(str(i["application_id"]), 0)
 
-        # 优先展示 trace 有数据的
-        data = sorted(
-            data,
-            key=lambda j: (
-                1 if j["trace_data_status"] == DataStatus.NORMAL else 0,
-                j["application_id"],
-            ),
-            reverse=True,
-        )
+        def sort_by_status(app):
+            s = 0
+            if app.get("trace_data_status") == DataStatus.NORMAL:
+                s += 1
+            if app.get("profiling_data_status") == DataStatus.NORMAL:
+                s += 1
+            if app.get("metric_data_status") == DataStatus.NORMAL:
+                s += 1
+            if app.get("log_data_status") == DataStatus.NORMAL:
+                s += 1
+            return s
+
+        # 优先展示 有数据的
+        data = sorted(self.ApplicationSerializer(applications, many=True).data, key=sort_by_status, reverse=True)
         # 不分页
         validate_data["page_size"] = len(data)
         return self.get_pagination_data(data, validate_data)

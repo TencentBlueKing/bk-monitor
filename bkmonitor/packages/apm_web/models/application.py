@@ -186,6 +186,8 @@ class Application(AbstractRecordModel):
     profiling_data_status = models.CharField("Profiling 数据状态", default=DataStatus.DISABLED, max_length=50)
     metric_data_status = models.CharField("Metric 数据状态", default=DataStatus.NO_DATA, max_length=50)
     log_data_status = models.CharField("Log 数据状态", default=DataStatus.DISABLED, max_length=50)
+    # ↓ 1 个数据字段 (由定时任务刷新)
+    service_count = models.IntegerField("服务个数", default=0)
 
     class Meta:
         ordering = ["-update_time", "-application_id"]
@@ -300,6 +302,14 @@ class Application(AbstractRecordModel):
         start_time, end_time = get_datetime_range("day", self.es_retention)
         start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
         return RequestCountInstance(self, start_time, end_time).query_instance()
+
+    def set_service_count(self):
+        """刷新应用的服务数量"""
+        from apm_web.handlers.service_handler import ServiceHandler
+
+        services = ServiceHandler.list_services(self)
+        self.service_count = len(services)
+        self.save()
 
     def set_data_status(self):
         from apm_web.handlers.backend_data_handler import telemetry_handler_registry
