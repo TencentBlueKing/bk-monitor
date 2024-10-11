@@ -775,10 +775,10 @@ class TelemetryDataType(Enum):
     @classmethod
     def choices(cls):
         return [
-            (cls.METRIC, _("指标")),
-            (cls.LOG, _("日志")),
-            (cls.TRACE, _("调用链")),
-            (cls.PROFILING, _("性能分析")),
+            (cls.METRIC.value, _("指标")),
+            (cls.LOG.value, _("日志")),
+            (cls.TRACE.value, _("调用链")),
+            (cls.PROFILING.value, _("性能分析")),
         ]
 
     @property
