@@ -100,7 +100,7 @@ const specialReportRouteList = [
   'new-dashboard',
   'import-dashboard',
   'folder-dashboard',
-  'grafana-datasource',
+  'grafana-admin',
 ];
 router.beforeEach(async (to, from, next) => {
   store.commit('app/SET_PADDING_ROUTE', to);
