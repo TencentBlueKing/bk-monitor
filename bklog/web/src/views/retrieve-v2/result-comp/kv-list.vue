@@ -223,14 +223,14 @@
           params = {
             fieldName: field ? field : item,
             operation: operator,
-            value: curValue ? curValue : item,
+            value: item ? item : curValue,
           };
         }
 
         if (operator === 'copy') {
           if (!field && curValue === undefined) return;
           params.operation = 'copy';
-          params.value = curValue ? curValue : item;
+          params.value = item ? item : curValue;
         }
 
         if (operator === 'display') {
