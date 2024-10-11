@@ -102,7 +102,7 @@ export default {
             this.$store.commit('updateMySpaceList', spaceList);
             if (bizId === demoProject.bk_biz_id || spaceUid === demoProject.space_uid) {
               // 查询参数指定查看 demo 业务
-              return this.checkSpaceChange(demoProject.space_uid);
+              return this.checkSpaceChange(demoProject.space_uid, bizId);
             }
             args.demoBusiness = {
               url: demoProjectUrl,
@@ -138,11 +138,11 @@ export default {
           const firstRealSpaceUid = spaceList.find(item => item.bk_biz_id !== demoId).space_uid;
           if (spaceUid || bizId) {
             const matchProject = spaceList.find(item => item.space_uid === spaceUid || item.bk_biz_id === bizId);
-            this.checkSpaceChange(matchProject ? matchProject.space_uid : firstRealSpaceUid);
+            this.checkSpaceChange(matchProject ? matchProject.space_uid : firstRealSpaceUid, bizId);
           } else {
             const storageSpaceUid = window.localStorage.getItem('space_uid');
             const hasSpace = storageSpaceUid ? spaceList.some(item => item.space_uid === storageSpaceUid) : false;
-            this.checkSpaceChange(hasSpace ? storageSpaceUid : firstRealSpaceUid);
+            this.checkSpaceChange(hasSpace ? storageSpaceUid : firstRealSpaceUid, bizId);
           }
         }
       } catch (e) {
@@ -156,14 +156,14 @@ export default {
       if (!siteUrl.endsWith('/')) siteUrl += '/';
       return `${window.location.origin + siteUrl}#/retrieve?spaceUid=${id}`;
     },
-    checkSpaceChange(spaceUid = '') {
+    checkSpaceChange(spaceUid = '', bizId='') {
       if (!this.isFirstLoad && this.$route.meta.needBack) {
         this.$store.commit('updateRouterLeaveTip', true);
 
         this.$bkInfo({
           title: this.$t('是否放弃本次操作？'),
           confirmFn: () => {
-            this.spaceChange(spaceUid);
+            this.spaceChange(spaceUid, bizId);
           },
           cancelFn: () => {
             this.$store.commit('updateRouterLeaveTip', false);
@@ -171,13 +171,13 @@ export default {
         });
         return;
       }
-      this.spaceChange(spaceUid);
+      this.spaceChange(spaceUid, bizId);
     },
     /**
      * 更新当前项目
      * @param  {String} spaceUid - 当前项目id
      */
-    async spaceChange(spaceUid = '') {
+    async spaceChange(spaceUid = '', bizId='') {
       this.$store.commit('updateSpace', spaceUid);
       if (spaceUid) {
         const space = this.mySpaceList.find(item => item.space_uid === spaceUid);
@@ -190,7 +190,7 @@ export default {
           break;
         }
       }
-      spaceUid && this.setRouter(spaceUid); // 项目id不为空时，获取菜单
+      spaceUid && this.setRouter(spaceUid, bizId); // 项目id不为空时，获取菜单
 
       // 由于首次加载应用路由触发上报还未获取到 spaceUid ，需手动执行上报
       if (this.$store.state.isAppFirstLoad && spaceUid) {
@@ -238,7 +238,7 @@ export default {
       });
       this.$store.commit('updateExternalMenu', list);
     },
-    async setRouter(spaceUid) {
+    async setRouter(spaceUid, bizId) {
       if (this.isExternal) {
         this.updateExternalMenuBySpace(spaceUid);
       }
@@ -344,6 +344,7 @@ export default {
           const RoutingHop = meta.needBack && !this.isFirstLoad ? meta.backName : name ? name : 'retrieve';
           const newQuery = {
             ...query,
+            bizId,
             spaceUid,
           };
           if (query.bizId) {

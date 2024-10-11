@@ -349,6 +349,14 @@
        * @param {String} type 点的是哪个分组的空间
        */
       handleClickMenuItem(space, type) {
+        // this.$router.push({
+        //   params: this.$route.params,
+        //   query: {
+        //     ...(this.$route.query ?? {}),
+        //     bizId: space.bk_biz_id,
+        //     spaceUid: space.space_uid,
+        //   },
+        // });
         try {
           if (this.isExternalAuth) {
             this.exterlAuthSpaceName = space.space_name;
