@@ -559,6 +559,9 @@ class ViewSetActionEnum(ChoicesEnum):
         FIELD_VIEWSET_TOTAL,
         FIELD_VIEWSET_GRAPH,
         FIELD_VIEWSET_TOPK,
+        # ======================================= 字段分析-FieldViewSet =======================================
+        CLUSTERING_CONFIG_VIEWSET_STATUS,
+        PATTERN_VIEWSET_SEARCH,
         # ======================================= 收藏-FavoriteViewSet =======================================
         FAVORITE_VIEWSET_RETRIEVE,
         FAVORITE_VIEWSET_LIST,
