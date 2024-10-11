@@ -198,7 +198,8 @@ export default class QueryStatement extends tsc<IProps> {
     const target = ['date', 'date_nanos'].includes(this.field.field_type)
       ? this.data?.[this.field.field_name]
       : this.curValue;
-    this.menuClick(event, target.replace(/<mark>/g, '').replace(/<\/mark>/g, ''), isLink);
+
+    this.menuClick(event, (target ?? this.curValue).replace(/<mark>/g, '').replace(/<\/mark>/g, ''), isLink);
     this.handleDestroy();
   }
 
