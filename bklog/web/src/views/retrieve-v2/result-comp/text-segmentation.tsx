@@ -38,6 +38,7 @@ interface IProps {
 @Component
 export default class QueryStatement extends tsc<IProps> {
   @Prop({ type: Object, required: true }) field: any;
+  @Prop({ type: Object }) data: any;
   @Prop({ type: [String, Number], required: true }) content: number | string;
   @Prop({ type: Function, required: true }) menuClick: any;
 
@@ -137,7 +138,7 @@ export default class QueryStatement extends tsc<IProps> {
     return result;
   }
 
-  handleClick(e, value) {
+  handleClick(e, value, _item) {
     if (!value.toString() || value === '--') return;
     this.handleDestroy();
     this.curValue = value;
@@ -194,7 +195,11 @@ export default class QueryStatement extends tsc<IProps> {
   }
 
   handleMenuClick(event: string, isLink = false) {
-    this.menuClick(event, this.curValue.replace(/<mark>/g, '').replace(/<\/mark>/g, ''), isLink);
+    const target = ['date', 'date_nanos'].includes(this.field.field_type)
+      ? this.data?.[this.field.field_name]
+      : this.curValue;
+
+    this.menuClick(event, (target ?? this.curValue).replace(/<mark>/g, '').replace(/<\/mark>/g, ''), isLink);
     this.handleDestroy();
   }
 
@@ -209,7 +214,7 @@ export default class QueryStatement extends tsc<IProps> {
               if (item.text === '\n') return <br />;
               if (item.isMark)
                 return (
-                  <mark onClick={$event => this.handleClick($event, item.text)}>
+                  <mark onClick={$event => this.handleClick($event, item.text, item)}>
                     {item.text.replace(/<mark>/g, '').replace(/<\/mark>/g, '')}
                   </mark>
                 );
@@ -217,7 +222,7 @@ export default class QueryStatement extends tsc<IProps> {
                 return (
                   <span
                     class='valid-text'
-                    onClick={$event => this.handleClick($event, item.text)}
+                    onClick={$event => this.handleClick($event, item.text, item)}
                   >
                     {item.text}
                   </span>
