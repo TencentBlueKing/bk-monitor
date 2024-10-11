@@ -596,7 +596,7 @@ class QueryTopoNodeResource(Resource):
     class ResponseSerializer(serializers.ModelSerializer):
         class Meta:
             model = TopoNode
-            fields = ("extra_data", "topo_key")
+            fields = ("extra_data", "topo_key", "created_at", "updated_at")
 
         def to_representation(self, instance):
             data = super(QueryTopoNodeResource.ResponseSerializer, self).to_representation(instance)

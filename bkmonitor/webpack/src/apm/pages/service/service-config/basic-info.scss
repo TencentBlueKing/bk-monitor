@@ -158,10 +158,6 @@
     }
   }
 
-  .uri-info.is-empty {
-    padding-left: 60px;
-  }
-
   .uri-set-label {
     display: inline-block;
     margin: 0 0 12px 66px;
@@ -169,6 +165,7 @@
 
   .empty-uri-info {
     padding-bottom: 8px;
+    margin-left: 60px;
     background: #f0f1f5;
     border-radius: 0 0 2px 2px;
 
@@ -474,7 +471,7 @@
   // todo 这里后续需要根据平台左侧菜单是否打开调整下宽度和位置
   .submit-handle {
     // padding-bottom: 38px;
-    position: fixed;
+    position: absolute;
     bottom: 0px;
     left: 0px;
     z-index: 999;

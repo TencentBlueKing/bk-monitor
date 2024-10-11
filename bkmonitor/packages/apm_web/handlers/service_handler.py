@@ -356,12 +356,14 @@ class ServiceHandler:
         return None
 
     @classmethod
-    def list_nodes(cls, bk_biz_id, app_name):
+    def list_nodes(cls, bk_biz_id, app_name, service_name=None):
         """获取 topoNode 节点信息列表"""
         params = {
             "bk_biz_id": bk_biz_id,
             "app_name": app_name,
         }
+        if service_name:
+            params["topo_key"] = service_name
 
         try:
             response = api.apm_api.query_topo_node(**params)
