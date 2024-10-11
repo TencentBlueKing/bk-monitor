@@ -18,6 +18,7 @@ from django.utils.datetime_safe import datetime
 from apm_ebpf.apps import logger
 from apm_ebpf.models import ClusterRelation
 from bkm_space.api import SpaceApi
+from bkmonitor.utils import group_by
 from core.drf_resource import api
 from core.errors.bkmonitor.space import SpaceNotFound
 from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
@@ -32,10 +33,10 @@ class RelationHandler:
         projects = (
             api.bcs_cc.batch_get_projects() if settings.ENABLE_BCS_CC_PROJECT_API else api.bcs.get_projects(kind="k8s")
         )
-        project_id_mapping = cls.group_by(projects, operator.itemgetter("project_id"))
+        project_id_mapping = group_by(projects, operator.itemgetter("project_id"))
 
         clusters = api.bcs_cluster_manager.get_project_k8s_non_shared_clusters()
-        cluster_mapping = cls.group_by(clusters, operator.itemgetter("cluster_id"))
+        cluster_mapping = group_by(clusters, operator.itemgetter("cluster_id"))
         logger.info(f"[RelationHandler] found: {len(cluster_mapping)} k8s clusters")
 
         # 兼容特殊集群和业务映射配置
@@ -58,7 +59,7 @@ class RelationHandler:
         not_exist_ids = []
 
         for cluster_id, items in cluster_mapping.items():
-            exists_mappings = cls.group_by(
+            exists_mappings = group_by(
                 ClusterRelation.objects.filter(cluster_id=cluster_id),
                 lambda i: (str(i.related_bk_biz_id), str(i.bk_biz_id), i.project_id, i.cluster_id),
             )
@@ -121,21 +122,6 @@ class RelationHandler:
         except SpaceNotFound as e:
             logger.warning(f"try to get bk_biz_id of project_code: {project_code}, but found: {e}")
             return None
-
-    @classmethod
-    def group_by(cls, iterators, get_key):
-        res = {}
-        for item in iterators:
-            key = get_key(item)
-            if not key:
-                continue
-
-            if key in res:
-                res[key].append(item)
-            else:
-                res[key] = [item]
-
-        return res
 
     @classmethod
     def list_biz_ids(cls, cluster_id):

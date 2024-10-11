@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from django.conf import settings
 from django.utils.translation import ugettext as _
 
@@ -35,13 +36,11 @@ GLOBAL_CONFIG_BK_BIZ_ID = 0
 # 获取需要增加事务的DB链接名
 DATABASE_CONNECTION_NAME = getattr(settings, "METADATA_DEFAULT_DATABASE_NAME", "monitor_api")
 
-
 ############################################################################
 # Topo Discover Constants
 #############################################################################
 DISCOVER_TIME_RANGE = "10m"
 DISCOVER_BATCH_SIZE = 10000
-
 
 ############################################################################
 # 计算平台清洗规则
@@ -427,9 +426,7 @@ DEFAULT_PLATFORM_LICENSE_CONFIG = {
 
 DEFAULT_APM_ATTRIBUTE_CONFIG = {"name": "attribute_filter/common"}
 
-
 DEFAULT_APM_APPLICATION_ATTRIBUTE_CONFIG = {"name": "attribute_filter/app"}
-
 
 DEFAULT_APM_APPLICATION_DB_SLOW_COMMAND_CONFIG = {"name": "db_filter/common"}
 

@@ -39,7 +39,7 @@ import './editable-form-item.scss';
 
 interface IEditableFormItemProps {
   value: any;
-  label?: TranslateResult | string;
+  label?: string | TranslateResult;
   selectEditValue?: any; // 下拉编辑选值
   selectEditOption?: Array<object>; // 下拉编辑options
   formType?: IFormType; // 表单类型
@@ -47,7 +47,7 @@ interface IEditableFormItemProps {
   showEditable?: boolean; // 是否显示编辑icon
   showLabel?: boolean; // 是否显示label
   validator?: any; // 检验规则
-  tooltips?: TranslateResult | string; // tooltip提示内容
+  tooltips?: string | TranslateResult; // tooltip提示内容
   maxExpired?: number; // 过期时间最大限制
   selectList?: Array<object>; // select类型下拉 options
   unitList?: IUnitItme[]; // 单位列表
@@ -63,7 +63,7 @@ interface IEditableFormItemEvent {
   onUpdateValue: string;
 }
 
-type IFormType = 'expired' | 'input' | 'password' | 'select' | 'selectEdit' | 'switch' | 'tag' | 'unit';
+type IFormType = 'custom' | 'expired' | 'input' | 'password' | 'select' | 'selectEdit' | 'switch' | 'tag' | 'unit';
 
 @Component
 export default class EditableFormItem extends tsc<IEditableFormItemProps, IEditableFormItemEvent> {
@@ -185,7 +185,14 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
           />
         );
       case 'tag': // 标签
-        return this.value.map(tag => <bk-tag theme={this.tagTheme}>{tag}</bk-tag>);
+        return this.value.map(tag => (
+          <bk-tag
+            key={tag}
+            theme={this.tagTheme}
+          >
+            {tag}
+          </bk-tag>
+        ));
       case 'expired': // 过期时间
         return <span>{`${this.value}${this.$t('天')}`}</span>;
       case 'password': // 密码
@@ -222,9 +229,14 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
         ) : (
           <span>{this.lcoalValue}</span>
         );
+      case 'custom':
+        return this.$slots.custom;
       default:
         return (
-          <span>
+          <span
+            class='text-content'
+            v-bk-overflow-tips
+          >
             {this.displayValue}
             {this.unit && <span class='unit'>{this.unit}</span>}
           </span>
@@ -273,7 +285,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
           >
             {this.unitList.map((group, index) => (
               <bk-option-group
-                key={index}
+                key={`${group.name}_${index}`}
                 name={group.name}
               >
                 {group.formats.map(option => (
@@ -325,6 +337,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
 
     if (this.handleValidator()) {
       this.isSubmiting = true;
+      // biome-ignore lint/suspicious/noImplicitAnyLet: <explanation>
       let res;
       if (this.formType === 'selectEdit') {
         res = await this.updateValue({
@@ -336,6 +349,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
         res = await this.updateValue(this.lcoalValue);
       }
       setTimeout(() => {
+        // biome-ignore lint/complexity/noExtraBooleanCast: <explanation>
         this.isEditing = !Boolean(res);
         this.isSubmiting = false;
       }, 500);

@@ -61,6 +61,7 @@ from apps.log_search.constants import (
     GlobalTypeEnum,
     IndexSetType,
     InnerTag,
+    SearchMode,
     SearchScopeEnum,
     SeparatorEnum,
     StorageDurationTimeEnum,
@@ -694,6 +695,9 @@ class UserIndexSetSearchHistory(SoftDeleteModel):
     index_set_id = models.IntegerField(_("索引集ID"), null=True, default=None)
     params = JsonField(_("检索条件"), null=True, default=None)
     search_type = models.CharField(_("检索类型"), max_length=32, default="default")
+    search_mode = models.CharField(
+        _("检索模式"), max_length=32, choices=SearchMode.get_choices(), default=SearchMode.UI.value
+    )
     duration = models.FloatField(_("查询耗时"), null=True, default=None)
     rank = models.IntegerField(_("排序"), default=0)
     index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
@@ -803,6 +807,9 @@ class Favorite(OperateRecordModel):
     group_id = models.IntegerField(_("收藏组ID"), db_index=True)
     params = JsonField(_("检索条件"), null=True, default=None)
     visible_type = models.CharField(_("可见类型"), max_length=64, choices=FavoriteVisibleType.get_choices())  # 个人 | 公开
+    search_mode = models.CharField(
+        _("检索模式"), max_length=32, choices=SearchMode.get_choices(), default=SearchMode.UI.value
+    )
     is_enable_display_fields = models.BooleanField(_("是否同时显示字段"), default=False)
     display_fields = models.JSONField(_("显示字段"), blank=True, default=None)
     source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True)

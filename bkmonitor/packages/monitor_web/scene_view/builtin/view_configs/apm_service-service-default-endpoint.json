@@ -1014,7 +1014,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         }
       ],
@@ -1118,7 +1119,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           },
           "yAxisIndex": 0,
           "chart_type": "bar"
@@ -1253,7 +1255,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           },
           "yAxisIndex": 1,
           "chart_type": "line"
@@ -1429,7 +1432,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         },
         {
@@ -1536,7 +1540,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         },
         {
@@ -1643,7 +1648,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         },
         {
@@ -1750,7 +1756,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         }
       ],
@@ -1829,7 +1836,8 @@
           "fields": {
             "endpoint_name": "endpoint_name",
             "app_name": "app_name",
-            "service_name": "service"
+            "service_name": "service",
+            "extra_filter_dict": "extra_filter_dict"
           }
         }
       ]

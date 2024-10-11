@@ -2,10 +2,9 @@
 @font-face {
   font-family: 'icon-monitor'; /* Project id 1185924 */
   src:
-    url('monitor-icons.woff2?t=1723448024308') format('woff2'),
-    url('monitor-icons.woff?t=1723448024308') format('woff'),
-    url('monitor-icons.ttf?t=1723448024308') format('truetype');
-  font-display: swap;
+    url('monitor-icons.woff2?t=1727425585056') format('woff2'),
+    url('monitor-icons.woff?t=1727425585056') format('woff'),
+    url('monitor-icons.ttf?t=1727425585056') format('truetype');
 }
 
 .icon-monitor {

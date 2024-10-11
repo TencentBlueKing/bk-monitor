@@ -67,7 +67,7 @@
             class="error-tips-container"
           >
             <span
-              class="log-icon icon-info-fill"
+              class="bklog-icon bklog-info-fill"
               v-bk-tooltips="{ width: 440, content: indexErrorText }"
             ></span>
           </div>
@@ -446,7 +446,7 @@
         right: -32px;
       }
 
-      .log-icon {
+      .bklog-icon {
         font-size: 18px;
         color: #ea3636;
         cursor: pointer;

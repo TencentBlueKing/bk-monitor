@@ -25,7 +25,7 @@
  */
 import type { RouteConfig } from 'vue-router';
 // import * as HomeAuth from '../../pages/home/authority-map';
-const AppList = () => import(/* webpackChunkName: "AppList" */ '../../pages/home/app-list-new');
+const AppList = () => import(/* webpackChunkName: "AppList" */ '../../pages/home/apm-home');
 export default [
   {
     path: '/home',

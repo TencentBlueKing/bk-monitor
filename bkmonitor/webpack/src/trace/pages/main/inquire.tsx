@@ -794,6 +794,9 @@ export default defineComponent({
     async function handleSearchTypeChange(id: string) {
       store.setTraceDetail(false);
       if (id === 'scope') {
+        if (!state.isAlreadyScopeQuery) {
+          state.isAlreadyScopeQuery = true;
+        }
         traceKind.value = 'all';
         handleScopeQueryChange();
         // 点击 范围查询 在这里做一些准备请求

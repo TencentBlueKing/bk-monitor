@@ -216,7 +216,7 @@ export default class DimensionTable extends tsc<IProps> {
           checkable={false}
           columns={dimensionsColumns}
           data={this.tableData}
-          hasColnumSetting={false}
+          hasColumnSetting={false}
           pagination={this.pagination}
           onLimitChange={this.handleLimitChange}
           onPageChange={this.handlePageChange}

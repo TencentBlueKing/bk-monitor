@@ -368,7 +368,7 @@ export class LineChart
         ...this.viewOptions,
         interval,
       });
-      timeShiftList.forEach(time_shift => {
+      for (const time_shift of timeShiftList) {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
         const list = this.panel.targets.map(item => {
           const newPrarams = {
@@ -398,8 +398,14 @@ export class LineChart
               group_by: config.group_by.filter(key => !item.ignore_group_by.includes(key)),
             }));
           }
+          const primaryKey = item?.primary_key;
+          const paramsArr = [];
+          if (primaryKey) {
+            paramsArr.push(primaryKey);
+          }
+          paramsArr.push(newPrarams);
           return (this as any).$api[item.apiModule]
-            [item.apiFunc](newPrarams, {
+            [item.apiFunc](...paramsArr, {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
               needMessage: false,
             })
@@ -423,7 +429,7 @@ export class LineChart
             });
         });
         promiseList.push(...list);
-      });
+      }
       await Promise.all(promiseList).catch(() => false);
       this.metrics = metrics || [];
       if (series.length) {
@@ -893,7 +899,7 @@ export class LineChart
       // 获取y轴上可设置的最小的精确度
       const precision = this.handleGetMinPrecision(
         item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
-        unitFormatter,
+        getValueFormat(this.yAxisNeedUnitGetter ? item.unit || '' : ''),
         item.unit
       );
       if (item.name) {
@@ -1174,7 +1180,7 @@ export class LineChart
     if (!data || data.length === 0) {
       return 0;
     }
-    data.sort();
+    data.sort((a, b) => a - b);
     const len = data.length;
     if (data[0] === data[len - 1]) {
       if (['none', ''].includes(unit) && !data[0].toString().includes('.')) return 0;
@@ -1192,7 +1198,7 @@ export class LineChart
     sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
     while (precision < 5) {
       const samp = sampling.reduce((pre, cur) => {
-        pre[formattter(cur, precision).text] = 1;
+        pre[Number(formattter(cur, precision).text)] = 1;
         return pre;
       }, {});
       if (Object.keys(samp).length >= sampling.length) {

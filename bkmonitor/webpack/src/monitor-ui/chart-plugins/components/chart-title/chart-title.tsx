@@ -162,10 +162,18 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
     return this.metrics[0];
   }
 
+  get metricTitleTooltips() {
+    return this.showMetricAlarm
+      ? createMetricTitleTooltips(this.metricTitleData)
+      : this.metrics.map(metric => createMetricTitleTooltips(metric)).join('<hr class="custom-hr" />');
+  }
+
   get currentMetricsIds() {
     return this.metrics[0].metric_id || `${this.metrics[0].result_table_id}.${this.metrics[0].metric_field}`;
   }
-
+  get showAddStrategy() {
+    return !this.$route.name.includes('strategy');
+  }
   @Watch('metrics', { immediate: true })
   async handleMetricChange(v, o) {
     if (this.metrics?.length !== 1) return;
@@ -279,7 +287,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
       e.stopPropagation();
       if (e.target !== e.currentTarget) return;
       this.popoverInstance = this.$bkPopover(e.target, {
-        content: createMetricTitleTooltips(this.metricTitleData),
+        content: this.metricTitleTooltips,
         trigger: 'manual',
         theme: 'tippy-metric',
         arrow: true,
@@ -365,7 +373,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                 </span>
               ) : undefined,
               (this.$scopedSlots as any)?.customSlot?.(),
-              this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
+              this.showTitleIcon && this.metrics.length ? (
                 <i
                   key={'custom-icon'}
                   style={{ display: this.showMore ? 'flex' : 'none' }}
@@ -392,7 +400,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               >
                 {this.inited && this.$slots?.default}
               </span>,
-              this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
+              this.showAddStrategy && this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
                 <i
                   key={'添加策略'}
                   style={{

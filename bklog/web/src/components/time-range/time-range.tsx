@@ -56,6 +56,9 @@ export default class TimeRange extends tsc<IProps, IEvents> {
   @Prop({ default: true, type: Boolean }) needTimezone: boolean; // 是否显示时区选择
   @Emit('change')
   handleModelValueChange(v: TimeRangeType) {
+    if (v.every(item => typeof item === 'string')) {
+      localStorage.setItem('SEARCH_DEFAULT_TIME', JSON.stringify(v));
+    }
     this.$store.commit('retrieve/updateCachePickerValue', this.value);
     return v;
   }

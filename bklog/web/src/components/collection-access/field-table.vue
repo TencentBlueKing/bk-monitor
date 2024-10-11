@@ -360,7 +360,7 @@
                 <template v-if="isShowFieldDateIcon(props.row)">
                   <template v-if="isPreviewMode">
                     <div class="field-date field-date-disable">
-                      <i :class="{ 'log-icon': true, 'icon-date-picker': true, active: props.row.is_time }"></i>
+                      <i :class="{ 'bklog-icon': true, 'icon-date-picker': true, active: props.row.is_time }"></i>
                     </div>
                   </template>
                   <template v-else>
@@ -368,7 +368,7 @@
                       v-if="props.row.is_delete"
                       :class="['field-date field-date-disable', { 'field-date-active': props.row.is_time }]"
                     >
-                      <i :class="{ 'log-icon': true, 'icon-date-picker': true, active: props.row.is_time }"></i>
+                      <i :class="{ 'bklog-icon': true, 'icon-date-picker': true, active: props.row.is_time }"></i>
                     </div>
                     <template v-else>
                       <bk-popover
@@ -381,7 +381,7 @@
                         trigger="click"
                       >
                         <div class="field-date field-date-active">
-                          <i class="log-icon icon-date-picker"></i>
+                          <i class="bklog-icon bklog-date-picker"></i>
                         </div>
                         <template #content>
                           <div>
@@ -412,14 +412,14 @@
                           v-bk-tooltips.right="$t('只能设置一个数据时间，如果要更改请先取消原来的')"
                           @click.stop="setDateFormat(props.row)"
                         >
-                          <i class="log-icon icon-date-picker"></i>
+                          <i class="bklog-icon bklog-date-picker"></i>
                         </div>
                         <div
                           v-else
                           class="field-date"
                           @click.stop="setDateFormat(props.row)"
                         >
-                          <i class="log-icon icon-date-picker"></i>
+                          <i class="bklog-icon bklog-date-picker"></i>
                         </div>
                       </template>
                     </template>
@@ -1211,7 +1211,7 @@
             h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('重命名')]),
             h('span', this.$t('(选填)')),
             h('span', {
-              class: 'icon log-icon icon-info-fill',
+              class: 'icon bklog-icon bklog-info-fill',
               directives: [
                 {
                   name: 'bk-tooltips',

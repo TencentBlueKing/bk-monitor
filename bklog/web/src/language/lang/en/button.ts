@@ -191,6 +191,8 @@ export default {
   查看配置: 'View Configuration',
   测试发送: 'Test Send',
   分隔符: 'Separator',
+  字段配置: 'Field Config',
+  查询语法: 'Query Syntax',
   接入日志聚类: 'Access Log Cluster',
   按annotation选择: 'According To Annotation',
 };

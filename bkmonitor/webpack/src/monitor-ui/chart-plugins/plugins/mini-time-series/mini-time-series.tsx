@@ -27,12 +27,12 @@ import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { throttle } from 'lodash';
 
 import { getValueFormat } from '../../../monitor-echarts/valueFormats/valueFormats';
 import { type MonitorEchartOptions, echarts } from '../../typings/index';
 
 import './mini-time-series.scss';
-
 enum EPointType {
   compare = 'compare',
   end = 'end',
@@ -128,13 +128,51 @@ export default class MiniTimeSeries extends tsc<IProps> {
   hoverPoint = {
     isHover: false,
   };
+
+  resizeObserver = null;
+  intersectionObserver: IntersectionObserver = null;
+  throttleHandleResize = () => {};
+
   mounted() {
-    this.initChart();
+    this.throttleHandleResize = throttle(this.handleResize, 300);
+    this.resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        if (entry.contentRect.width) {
+          this.throttleHandleResize();
+        }
+      }
+    });
+    this.resizeObserver.observe(this.$el);
+    setTimeout(this.registerObserver, 20);
   }
   destroyed() {
     (this as any).instance?.dispose?.();
     (this as any).instance = null;
+    this.resizeObserver?.unobserve?.(this.$el);
     this.isMouseOver = false;
+    this.unregisterOberver();
+  }
+
+  // 注册Intersection监听
+  registerObserver() {
+    if (this.intersectionObserver) {
+      this.unregisterOberver();
+    }
+    this.intersectionObserver = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (this.intersectionObserver && entry.intersectionRatio > 0) {
+          this.initChart();
+        }
+      }
+    });
+    this.intersectionObserver.observe(this.$el);
+  }
+  unregisterOberver() {
+    if (this.intersectionObserver) {
+      this.intersectionObserver.unobserve(this.$el);
+      this.intersectionObserver.disconnect();
+      this.intersectionObserver = null;
+    }
   }
 
   initChart() {
@@ -146,10 +184,12 @@ export default class MiniTimeSeries extends tsc<IProps> {
           yAxis: {
             ...this.options.yAxis,
             max: v => {
-              return v.max + ((v.max * this.chartStyle.chartWarpHeight) / this.chartStyle.lineMaxHeight - v.max);
+              return v.max + (((v.max || 1) * this.chartStyle.chartWarpHeight) / this.chartStyle.lineMaxHeight - v.max);
             },
             min: v => {
-              return 0 - ((v.max * this.chartStyle.chartWarpHeight) / this.chartStyle.lineMaxHeight - v.max) / 1.5;
+              return (
+                0 - (((v.max || 1) * this.chartStyle.chartWarpHeight) / this.chartStyle.lineMaxHeight - v.max) / 1.5
+              );
             },
           },
           tooltip: this.getTooltipParams(),
@@ -290,6 +330,10 @@ export default class MiniTimeSeries extends tsc<IProps> {
         return undefined;
       },
     };
+  }
+
+  handleResize() {
+    (this as any).instance?.resize?.();
   }
 
   /**
