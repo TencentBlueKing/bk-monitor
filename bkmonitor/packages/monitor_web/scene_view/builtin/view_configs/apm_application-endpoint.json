@@ -96,7 +96,12 @@
                 ],
                 "interval_unit": "s",
                 "time_field": "time",
-                "filter_dict": "${extra_filter_dict}",
+                "filter_dict": {
+                  "service_name": "$service_name",
+                  "span_name": "$endpoint_name",
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "${extra_filter_dict}"
+                },
                 "functions": []
               }
             ],
@@ -121,11 +126,16 @@
                   ],
                   "interval_unit": "s",
                   "time_field": "time",
-                  "filter_dict": "${extra_filter_dict}",
+                  "filter_dict": {
+                    "service_name": "$service_name",
+                    "span_name": "$endpoint_name",
+                    "bk_instance_id": "$bk_instance_id"
+                  },
                   "functions": []
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         }
       ],
@@ -182,7 +192,12 @@
                 ],
                 "interval_unit": "s",
                 "time_field": "time",
-                "filter_dict": "${extra_filter_dict}",
+                "filter_dict": {
+                  "service_name": "$service_name",
+                  "span_name": "$endpoint_name",
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "${extra_filter_dict}"
+                },
                 "functions": []
               }
             ],
@@ -217,11 +232,16 @@
                   ],
                   "interval_unit": "s",
                   "time_field": "time",
-                  "filter_dict": "${extra_filter_dict}",
+                  "filter_dict": {
+                    "service_name": "$service_name",
+                    "span_name": "$endpoint_name",
+                    "bk_instance_id": "$bk_instance_id"
+                  },
                   "functions": []
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           },
           "yAxisIndex": 0,
           "chart_type": "bar"
@@ -263,7 +283,12 @@
                 ],
                 "interval_unit": "s",
                 "time_field": "time",
-                "filter_dict": "${extra_filter_dict}",
+                "filter_dict": {
+                  "service_name": "$service_name",
+                  "span_name": "$endpoint_name",
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "${extra_filter_dict}"
+                },
                 "functions": []
               },
               {
@@ -283,7 +308,12 @@
                 "where": [],
                 "interval_unit": "s",
                 "time_field": null,
-                "filter_dict": "${extra_filter_dict}",
+                "filter_dict": {
+                  "service_name": "$service_name",
+                  "span_name": "$endpoint_name",
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "${extra_filter_dict}"
+                },
                 "functions": []
               }
             ],
@@ -316,7 +346,11 @@
                   ],
                   "interval_unit": "s",
                   "time_field": "time",
-                  "filter_dict": "${extra_filter_dict}",
+                  "filter_dict": {
+                    "service_name": "$service_name",
+                    "span_name": "$endpoint_name",
+                    "bk_instance_id": "$bk_instance_id"
+                  },
                   "functions": []
                 },
                 {
@@ -336,11 +370,16 @@
                   "where": [],
                   "interval_unit": "s",
                   "time_field": null,
-                  "filter_dict": "${extra_filter_dict}",
+                  "filter_dict": {
+                    "service_name": "$service_name",
+                    "span_name": "$endpoint_name",
+                    "bk_instance_id": "$bk_instance_id"
+                  },
                   "functions": []
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           },
           "yAxisIndex": 1,
           "chart_type": "line"
@@ -392,7 +431,12 @@
                 "where": [],
                 "interval_unit": "s",
                 "time_field": "time",
-                "filter_dict": "${extra_filter_dict}",
+                "filter_dict": {
+                  "service_name": "$service_name",
+                  "span_name": "$endpoint_name",
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "${extra_filter_dict}"
+                },
                 "functions": [
                   {
                     "id": "increase",
@@ -422,7 +466,12 @@
                 "where": [],
                 "interval_unit": "s",
                 "time_field": null,
-                "filter_dict": "${extra_filter_dict}",
+                "filter_dict": {
+                  "service_name": "$service_name",
+                  "span_name": "$endpoint_name",
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "${extra_filter_dict}"
+                },
                 "functions": [
                   {
                     "id": "increase",
@@ -456,7 +505,11 @@
                   "where": [],
                   "interval_unit": "s",
                   "time_field": "time",
-                  "filter_dict": "${extra_filter_dict}",
+                  "filter_dict": {
+                    "service_name": "$service_name",
+                    "span_name": "$endpoint_name",
+                    "bk_instance_id": "$bk_instance_id"
+                  },
                   "functions": [
                     {
                       "id": "increase",
@@ -486,7 +539,11 @@
                   "where": [],
                   "interval_unit": "s",
                   "time_field": null,
-                  "filter_dict": "${extra_filter_dict}",
+                  "filter_dict": {
+                    "service_name": "$service_name",
+                    "span_name": "$endpoint_name",
+                    "bk_instance_id": "$bk_instance_id"
+                  },
                   "functions": [
                     {
                       "id": "increase",
@@ -500,7 +557,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         },
         {
@@ -531,7 +589,12 @@
                 ],
                 "interval_unit": "s",
                 "time_field": "time",
-                "filter_dict": "${extra_filter_dict}",
+                "filter_dict": {
+                  "service_name": "$service_name",
+                  "span_name": "$endpoint_name",
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "${extra_filter_dict}"
+                },
                 "functions": [
                   {
                     "id": "rate",
@@ -576,7 +639,11 @@
                   ],
                   "interval_unit": "s",
                   "time_field": "time",
-                  "filter_dict": "${extra_filter_dict}",
+                  "filter_dict": {
+                    "service_name": "$service_name",
+                    "span_name": "$endpoint_name",
+                    "bk_instance_id": "$bk_instance_id"
+                  },
                   "functions": [
                     {
                       "id": "rate",
@@ -599,7 +666,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         },
         {
@@ -630,7 +698,12 @@
                 ],
                 "interval_unit": "s",
                 "time_field": "time",
-                "filter_dict": "${extra_filter_dict}",
+                "filter_dict": {
+                  "service_name": "$service_name",
+                  "span_name": "$endpoint_name",
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "${extra_filter_dict}"
+                },
                 "functions": [
                   {
                     "id": "rate",
@@ -675,7 +748,11 @@
                   ],
                   "interval_unit": "s",
                   "time_field": "time",
-                  "filter_dict": "${extra_filter_dict}",
+                  "filter_dict": {
+                    "service_name": "$service_name",
+                    "span_name": "$endpoint_name",
+                    "bk_instance_id": "$bk_instance_id"
+                  },
                   "functions": [
                     {
                       "id": "rate",
@@ -698,7 +775,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         },
         {
@@ -729,7 +807,12 @@
                 ],
                 "interval_unit": "s",
                 "time_field": "time",
-                "filter_dict": "${extra_filter_dict}",
+                "filter_dict": {
+                  "service_name": "$service_name",
+                  "span_name": "$endpoint_name",
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "${extra_filter_dict}"
+                },
                 "functions": [
                   {
                     "id": "rate",
@@ -774,7 +857,11 @@
                   ],
                   "interval_unit": "s",
                   "time_field": "time",
-                  "filter_dict": "${extra_filter_dict}",
+                  "filter_dict": {
+                    "service_name": "$service_name",
+                    "span_name": "$endpoint_name",
+                    "bk_instance_id": "$bk_instance_id"
+                  },
                   "functions": [
                     {
                       "id": "rate",
@@ -797,7 +884,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         }
       ],
@@ -1716,12 +1804,7 @@
           "dataType": "table",
           "api": "apm_metric.endpointList",
           "data": {
-            "app_name": "$app_name",
-            "transparent_filter_dict": {
-              "service_name": "$service_name",
-              "span_name": "$endpoint_name",
-              "bk_instance_id": "$bk_instance_id"
-            }
+            "app_name": "$app_name"
           },
           "fields": {
             "endpoint_name": "endpoint_name",
