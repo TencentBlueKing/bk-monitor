@@ -26,6 +26,7 @@ class QuickSolutionsConfig:
             "注册": ["注册", "reg"],
             "对局": ["对局", "排队", "bat"],
     }
+    TMP_HEADERS = ["biz", "biz_name", "tmp", "tmp_bk", "tmp_bk_ratio"]
     QUICK_SOLUTIONS_TEMPLATE = (
         "eyJkaWdlc3QiOiJhYTBhZTZlODkzYmJmNjcwNjNlMmQ5MTY1NDhlNjI3ZiIsInRlbXBsYXRlX2RhdGEi"
         "OnsiZXhwb3J0ZXJfdmVyc2lvbiI6MSwicGlwZWxpbmVfdGVtcGxhdGVfZGF0YSI6eyJyZWZzIjp7fSwi"
