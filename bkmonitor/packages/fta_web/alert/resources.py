@@ -101,7 +101,7 @@ from fta_web.alert.serializers import (
     AlertSuggestionSerializer,
     EventSearchSerializer,
 )
-from fta_web.alert.utils import add_aggs, add_overview, slice_time_interval
+from fta_web.alert.utils import add_aggs, add_overview, slice_time_interval, get_previous_month_range_unix
 from fta_web.models.alert import (
     SEARCH_TYPE_CHOICES,
     AlertFeedback,
@@ -115,7 +115,6 @@ from monitor_web.aiops.metric_recommend.constant import (
 )
 from monitor_web.constants import AlgorithmType
 from monitor_web.models import CustomEventGroup
-from .utils import get_previous_month_range_unix
 
 logger = logging.getLogger("root")
 
@@ -141,7 +140,7 @@ class GetTmpData(Resource):
             params = {'bk_biz_ids': [biz],
                 'status': [],
                 'conditions': [],
-                'query_string': '',
+                'query_string': '告警来源 : "tnm" AND -告警名称 : "Ping告警" AND -告警名称 : "上报超时告警" AND -告警名称 : "服务器系统时间偏移告警"',
                 'start_time': start_time,
                 'end_time': end_time,
                 'fields': ['plugin_id'],
