@@ -303,4 +303,5 @@ export default {
   暂无匹配: 'No match found',
   右键更多操作: 'Right-click for more actions',
   在节点右键进行更多操作: 'Right-click on the node for more actions',
+  '前往{0}查看相关数据': 'Go to {0} to view related data',
 };
