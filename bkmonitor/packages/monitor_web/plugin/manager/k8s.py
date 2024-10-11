@@ -37,7 +37,7 @@ class K8sPluginManager(BasePluginManager):
 
         # 数据接入
         if not skip_access:
-            PluginDataAccessor(version, self.operator, data_label=self.plugin.label).access()
+            PluginDataAccessor(version, self.operator, data_label="qcloud_exporter").access()
 
         # 标记为已发布
         version.stage = PluginVersionHistory.Stage.RELEASE
