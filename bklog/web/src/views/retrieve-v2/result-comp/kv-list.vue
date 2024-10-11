@@ -47,6 +47,7 @@
         <div class="field-value">
           <text-segmentation
             :content="formatterStr(data, field)"
+            :data="data"
             :field="getFieldItem(field)"
             :menu-click="(type, content, isLink) => handleMenuClick(type, content, field, isLink)"
           />
