@@ -79,7 +79,22 @@ export const createImg = (url: string) => {
   img.src = url;
   return img;
 };
-
+/**
+ *
+ * @param obj
+ * @param result
+ * @returns
+ */
+export const flattenObject = (obj: Record<string, any>, result = {}): Record<string, any> => {
+  for (const [key, value] of Object.entries(obj || {})) {
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      flattenObject(value, result);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+};
 /**
  * @description: 将viewOptions传入queryConfig用于跳转到其他页面
  * @param {any} queryConfig
@@ -91,6 +106,7 @@ export const queryConfigTransform = (queryConfig: any, viewOptions: IViewOptions
   group_by: viewOptions?.group_by?.length ? viewOptions?.group_by : queryConfig?.group_by,
   interval: viewOptions?.interval || queryConfig?.interval,
   method: viewOptions?.method || queryConfig?.method,
+  filter_dict: flattenObject(queryConfig?.filter_dict || {}),
 });
 
 export const isShadowEqual = (v: Record<string, any>, o: Record<string, any>) => {
@@ -110,7 +126,9 @@ export const isShadowEqual = (v: Record<string, any>, o: Record<string, any>) =>
 };
 
 export const specialEqual = (v: any, o: any) => {
+  // biome-ignore lint/suspicious/noDoubleEquals: <explanation>
   if (v === o || v == o) return true;
+  // biome-ignore lint/suspicious/noDoubleEquals: <explanation>
   if ([[], null, undefined, 0, {}].some(i => i == v) && [[], null, undefined, 0, {}].some(i => i == o)) return true;
   if (Array.isArray(v) && Array.isArray(o)) {
     return JSON.stringify(v.slice().sort()) === JSON.stringify(o.slice().sort());
@@ -332,22 +350,38 @@ export const filterDictConvertedToWhere = (
   excludes: string[] = ['bk_biz_id']
 ): Record<string, any> => {
   try {
+    const filterDict = structuredClone(queryConfig.filter_dict || {});
     const filterDictTargets = queryConfig.filter_dict?.targets || [];
-    let where = [];
-    if (!!filterDictTargets.length) {
-      where = Object.entries(filterDictTargets[0]).reduce((total, item) => {
-        const [key, value] = item;
-        if (value === undefined || value === 'undefined') return total;
-        const res = {
-          key,
-          condition: 'and',
-          method: 'eq',
-          value: Array.isArray(value) ? value.map(val => `${val}`) : [`${value}`],
-        };
-        if (!excludes.includes(key)) total.push(res);
-        return total;
-      }, []);
+    if ('targets' in filterDict) {
+      filterDict.targets = undefined;
     }
+    let where = [];
+    const flatFilterDict = flattenObject(queryConfig.filter_dict || {});
+    where = Object.entries({
+      ...flatFilterDict,
+      ...filterDictTargets[0],
+    }).reduce((total, item) => {
+      const [key, value] = item;
+      if (
+        value === undefined ||
+        value === 'undefined' ||
+        value === null ||
+        value === '' ||
+        (Array.isArray(value) && value.length === 0) ||
+        (typeof value === 'object' && !Object.keys(value).length)
+      ) {
+        return total;
+      }
+
+      const res = {
+        key,
+        condition: 'and',
+        method: 'eq',
+        value: Array.isArray(value) ? value.map(val => `${val}`) : [`${value}`],
+      };
+      if (!excludes.includes(key)) total.push(res);
+      return total;
+    }, []);
     queryConfig.where = [...(queryConfig?.where || []), ...where];
   } catch (error) {
     console.error(error);
@@ -394,6 +428,7 @@ export const parseMetricId = (metricId: string) => {
   const splitFieldList = metricId.split('.');
   const dataSourceLabel = splitFieldList[0];
   switch (dataSourceLabel) {
+    // biome-ignore lint/suspicious/noFallthroughSwitchClause: <explanation>
     case 'bk_monitor':
       if (splitFieldList[1] === 'log') {
         return {
@@ -573,11 +608,10 @@ export function padTextToWidth(targetText: string, widthInPx: number): string {
   // console.log(textWidth);
   if (textWidth >= widthInPx) {
     return targetText; // 如果目标文本宽度已经大于或等于目标宽度，直接返回目标文本
-  } else {
-    const padLength = Math.round((widthInPx - textWidth) / 3.56); // 假设字符的宽度为 3.56px
-    const paddedText = String(targetText).padStart(padLength + String(targetText).length, ' '); // 向前填充空格
-    return paddedText;
   }
+  const padLength = Math.round((widthInPx - textWidth) / 3.56); // 假设字符的宽度为 3.56px
+  const paddedText = String(targetText).padStart(padLength + String(targetText).length, ' '); // 向前填充空格
+  return paddedText;
 }
 
 /**
