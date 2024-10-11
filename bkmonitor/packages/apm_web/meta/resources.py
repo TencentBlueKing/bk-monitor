@@ -441,8 +441,8 @@ class ApplicationInfoByAppNameResource(ApiAuthResource):
         data = ApplicationInfoResource().request({"application_id": application.application_id})
         start_time = validated_request_data.get("start_time")
         end_time = validated_request_data.get("end_time")
-        data["trace_data_status"] = DataStatus.NO_DATA
         if start_time and end_time:
+            data["trace_data_status"] = DataStatus.NO_DATA
             if ApplicationHandler.have_data(application, start_time, end_time):
                 data["trace_data_status"] = DataStatus.NORMAL
         return data
@@ -1682,11 +1682,15 @@ class StorageStatusResource(Resource):
                 if not getattr(app, f"is_enabled_{data_type.datasource_type}"):
                     status_mapping[data_type.value] = StorageStatus.DISABLED
                     continue
-                status_mapping[data_type.value] = (
-                    StorageStatus.NORMAL
-                    if telemetry_handler_registry(data_type.value, app=app).storage_status
-                    else StorageStatus.ERROR
-                )
+                try:
+                    status_mapping[data_type.value] = (
+                        StorageStatus.NORMAL
+                        if telemetry_handler_registry(data_type.value, app=app).storage_status
+                        else StorageStatus.ERROR
+                    )
+                except Exception as e:
+                    status_mapping[data_type.value] = StorageStatus.ERROR
+                    logger.warning(_("获取{type}存储状态失败,详情: {detail}").format(type=data_type.value, detail=e))
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
         return status_mapping

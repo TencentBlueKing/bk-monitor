@@ -25,6 +25,7 @@ from metadata.models.bcs.resource import (
     PodMonitorInfo,
     ServiceMonitorInfo,
 )
+from metadata.models.vm.utils import check_create_fed_vm_data_link
 from metadata.utils.bcs import change_cluster_router, get_bcs_dataids
 
 logger = logging.getLogger("metadata")
@@ -220,6 +221,9 @@ def discover_bcs_clusters():
             if cluster.bk_cloud_id is None:
                 # 更新云区域ID
                 update_bcs_cluster_cloud_id_config(bk_biz_id, cluster_id)
+
+            # 若集群变为联邦集群的子集群且此前未创建过联邦集群的汇聚链路，需要额外进行联邦汇聚链路创建操作
+            check_create_fed_vm_data_link(cluster)
 
             logger.debug("cluster_id:{},project_id:{} already exists,skip create it".format(cluster_id, project_id))
             continue
