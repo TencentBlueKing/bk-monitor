@@ -52,8 +52,6 @@ export default class MyComponent extends tsc<object> {
   unWatch = null;
   loading = true;
   hasLogin = false;
-  loadingTime: number;
-  isInit = true;
   get orignUrl() {
     return process.env.NODE_ENV === 'development' ? `${process.env.proxyUrl}/` : `${location.origin}${window.site_url}`;
   }
@@ -77,11 +75,8 @@ export default class MyComponent extends tsc<object> {
     }
     this.loading = true;
     const grafanaUrl = await this.handleGetGrafanaUrl();
-    // 优化逻辑 若此时距离页面加载在 3s 内，则重载 iframe
-    const needReload = !this.isInit && Date.now() - this.loadingTime < 3000;
-    if (!this.grafanaUrl || needReload) {
+    if (!this.grafanaUrl) {
       this.grafanaUrl = grafanaUrl;
-      this.isInit = false;
       setTimeout(() => (this.loading = false), 2000);
     } else {
       this.loading = false;
@@ -146,7 +141,6 @@ export default class MyComponent extends tsc<object> {
     return '';
   }
   mounted() {
-    this.loadingTime = Date.now();
     window.addEventListener('message', this.handleMessage, false);
   }
 
@@ -179,10 +173,10 @@ export default class MyComponent extends tsc<object> {
   }
   isAllowedUrl(url: string) {
     // 验证URL格式是否合法
-    let parsedUrl: URL | string;
+    let parsedUrl: string | URL;
     try {
       parsedUrl = new URL(url);
-    } catch (e) {
+    } catch {
       return false; // 不是合法的URL
     }
     if (!parsedUrl.protocol.match(/^https?:$/)) {
@@ -247,6 +241,7 @@ export default class MyComponent extends tsc<object> {
           class='grafana-wrap-frame'
           allow='fullscreen'
           src={this.grafanaUrl}
+          title='grafana'
           onLoad={this.handleLoad}
         />
       </div>
