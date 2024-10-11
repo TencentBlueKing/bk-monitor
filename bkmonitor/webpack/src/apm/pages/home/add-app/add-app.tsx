@@ -43,6 +43,12 @@ export default class AddApp extends tsc<object> {
     },
   ];
 
+  handleSuccess() {
+    this.$router.push({
+      name: 'home',
+    });
+  }
+
   render() {
     return (
       <div class='app-add-page'>
@@ -65,7 +71,7 @@ export default class AddApp extends tsc<object> {
           </div>
           <AppAddForm
             onCancel={() => this.$router.back()}
-            onSuccess={() => this.$router.back()}
+            onSuccess={() => this.handleSuccess()}
           />
         </div>
       </div>
