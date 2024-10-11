@@ -67,8 +67,7 @@ class CollectorPluginMixin(MetricJsonBaseSerializer):
         key = serializers.CharField(required=False, label="名称")
         required = serializers.BooleanField(required=False, label="是否必填", default=False)
         election = serializers.ListField(required=False, label="列表选项")
-        theme = serializers.CharField(required=False, label="主题")
-        language = serializers.CharField(required=False, label="语言设置")
+        options = serializers.DictField(required=False, label="选项")
 
     config_json = ConfigJsonSeriliazer(required=False, many=True, default=[], label="采集配置")
     plugin_display_name = StrictCharField(required=True, allow_blank=True, label="插件别名")
