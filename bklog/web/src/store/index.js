@@ -40,6 +40,7 @@ import {
   sessionShowFieldObj,
   formatDate,
 } from '@/common/util';
+import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import axios from 'axios';
 import Vuex from 'vuex';
 
@@ -961,6 +962,13 @@ const store = new Vuex.Store({
       }
       let begin = state.indexItem.begin;
       const { size, ...otherPrams } = getters.retrieveParams;
+
+      // 每次请求这里需要根据选择日期时间这里计算最新的timestamp
+      // 最新的 start_time, end_time 也要记录下来，用于字段统计时，保证请求的参数一致
+      const { datePickerValue } = state.indexItem;
+      const [start_time, end_time] = handleTransformToTimestamp(datePickerValue);
+      commit('updateIndexItem', { start_time, end_time });
+
       if (!payload?.isPagination) store.commit('retrieve/updateChartKey');
       const searchCount = payload.searchCount ?? state.indexSetQueryResult.search_count + 1;
       commit(payload.isPagination ? 'updateIndexSetQueryResult' : 'resetIndexSetQueryResult', {
@@ -982,6 +990,8 @@ const store = new Vuex.Store({
         bk_biz_id: state.bkBizId,
         size,
         ...otherPrams,
+        start_time,
+        end_time,
       };
 
       // 更新联合查询的begin
