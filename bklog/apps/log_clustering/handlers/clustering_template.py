@@ -19,24 +19,29 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.conf.urls import include, url
-from rest_framework import routers
+from apps.log_clustering.models import ClusteringTemplate
 
-from apps.log_clustering.views.clustering_config_views import ClusteringConfigViewSet
-from apps.log_clustering.views.clustering_monitor_views import ClusteringMonitorViewSet
-from apps.log_clustering.views.clustering_template_views import (
-    ClusteringTemplateViewSet,
-)
-from apps.log_clustering.views.pattern_views import PatternViewSet
-from apps.log_clustering.views.report_views import ReportViewSet
 
-router = routers.DefaultRouter(trailing_slash=True)
-router.register(r"pattern", PatternViewSet, basename="pattern_set")
-router.register(r"report", ReportViewSet, basename="report")
-router.register(r"clustering_config", ClusteringConfigViewSet, basename="clustering_config")
-router.register(r"clustering_monitor", ClusteringMonitorViewSet, basename="clustering_monitor")
-router.register(r"clustering_template", ClusteringTemplateViewSet, basename="clustering_template")
+class ClusteringTemplateHandler(object):
+    def __init__(self, space_uid: str):
+        self.space_uid = space_uid
 
-urlpatterns = [
-    url(r"^", include(router.urls)),
-]
+    def get_template(self):
+        data = ClusteringTemplate.objects.filter(space_uid=self.space_uid).values(
+            "id", "space_uid", "template_name", "predefined_varibles"
+        )
+        # 空间存在模板
+        if data.exists():
+            return list(data)
+        # TODO:不存在模板，后台获取系统默认的正则规则，创建模板并返回
+
+    def create_template(self, template_name, predefined_varibles):
+        instance = ClusteringTemplate.objects.create(
+            space_uid=self.space_uid, template_name=template_name, predefined_varibles=predefined_varibles
+        )
+        return {
+            "id": instance.id,
+            "space_uid": instance.space_uid,
+            "template_name": instance.template_name,
+            "predefined_varibles": instance.predefined_varibles,
+        }
