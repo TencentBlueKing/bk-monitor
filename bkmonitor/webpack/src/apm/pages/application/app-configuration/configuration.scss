@@ -829,6 +829,18 @@
       min-width: 80px;
     }
 
+    .edit-btn-no-authority {
+      color: #c4c6cc;
+      background-color: #faf9fd;
+      border-color: #dcdee5;
+
+      &:hover {
+        color: #c4c6cc;
+        background-color: #faf9fd;
+        border-color: #dcdee5;
+      }
+    }
+
     .history-btn {
       width: 32px;
       height: 32px;

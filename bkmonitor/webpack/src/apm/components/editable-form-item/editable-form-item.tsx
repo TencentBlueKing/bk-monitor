@@ -256,6 +256,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
             class='edit-item expired-select'
             v-model={this.lcoalValue}
             max={this.maxExpired}
+            placeholder={this.$t('最大为{n}天', { n: this.maxExpired }) as string}
           />
         );
       case 'select':
@@ -402,14 +403,14 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
     return (
       <div class='editable-form-item'>
         {this.showLabel && (
-          <label class='form-item-label'>
+          <span class='form-item-label'>
             <span
               class={{ 'tooltip-text': this.tooltips.length }}
               v-bk-tooltips={{ content: this.tooltips, disabled: !this.tooltips.length, allowHTML: false }}
             >
               {this.label}
             </span>
-          </label>
+          </span>
         )}
         <div class='form-item-value'>
           <div class='value-content'>

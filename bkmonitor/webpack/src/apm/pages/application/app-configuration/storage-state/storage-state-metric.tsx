@@ -77,10 +77,15 @@ export default class Metric extends tsc<IProps> {
                 label={this.$t('存储表名称')}
                 prop={'result_table_id'}
               />
-              <bk-table-column label={this.$t('存储类型')} />
               <bk-table-column
+                formatter={row => row?.storage_type_alias || row?.storage_type || '--'}
+                label={this.$t('存储类型')}
+                prop={'storage_type_alias'}
+              />
+              <bk-table-column
+                formatter={row => row?.storage_cluster_alias || row?.storage_cluster || '--'}
                 label={this.$t('存储集群')}
-                prop={'storage_type'}
+                prop={'storage_cluster_alias'}
               />
               <bk-table-column
                 label={this.$t('有效期')}
