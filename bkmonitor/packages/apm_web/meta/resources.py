@@ -453,19 +453,27 @@ class StartResource(Resource):
         application_id = serializers.IntegerField(label="应用id")
         type = serializers.ChoiceField(label="需要开启的数据源", choices=TelemetryDataType.values())
 
+    @classmethod
+    def translate_data_status_when_start(cls, data_status):
+        return DataStatus.NO_DATA if data_status == DataStatus.DISABLED else data_status
+
     @atomic
     def perform_request(self, validated_data):
         application = Application.objects.get(application_id=validated_data["application_id"])
 
         if validated_data["type"] == TelemetryDataType.TRACE.value:
             application.is_enabled_trace = True
+            application.trace_data_status = self.translate_data_status_when_start(application.trace_data_status)
             Application.start_plugin_config(validated_data["application_id"])
         elif validated_data["type"] == TelemetryDataType.PROFILING.value:
             application.is_enabled_profiling = True
+            application.profiling_data_status = self.translate_data_status_when_start(application.profiling_data_status)
         elif validated_data["type"] == TelemetryDataType.METRIC.value:
             application.is_enabled_metric = True
+            application.metric_data_status = self.translate_data_status_when_start(application.metric_data_status)
         elif validated_data["type"] == TelemetryDataType.LOG.value:
             application.is_enabled_log = True
+            application.log_data_status = self.translate_data_status_when_start(application.log_data_status)
         else:
             raise ValueError(_("不支持的data_source: {}").format(validated_data["type"]))
 
@@ -499,13 +507,17 @@ class StopResource(Resource):
 
         if validated_data["type"] == TelemetryDataType.TRACE.value:
             application.is_enabled_trace = False
+            application.trace_data_status = DataStatus.DISABLED
             Application.stop_plugin_config(validated_data["application_id"])
         elif validated_data["type"] == TelemetryDataType.PROFILING.value:
             application.is_enabled_profiling = False
+            application.profiling_data_status = DataStatus.DISABLED
         elif validated_data["type"] == TelemetryDataType.METRIC.value:
             application.is_enabled_metric = False
+            application.metric_data_status = DataStatus.DISABLED
         elif validated_data["type"] == TelemetryDataType.LOG.value:
             application.is_enabled_log = False
+            application.log_data_status = DataStatus.DISABLED
 
         res = api.apm_api.stop_application(application_id=validated_data["application_id"], type=validated_data["type"])
         application.save()
