@@ -15,6 +15,7 @@ import logging
 import operator
 from collections import defaultdict
 
+from django.core.cache import cache
 from django.utils.translation import gettext_lazy as _lazy
 from django.utils.translation import ugettext as _
 from opentelemetry.semconv.resource import ResourceAttributes
@@ -26,6 +27,7 @@ from apm_web.constants import (
     AlertLevel,
     AlertStatus,
     Apdex,
+    ApmCacheKey,
     CategoryEnum,
     DataStatus,
     SceneEventKey,
@@ -720,12 +722,17 @@ class ServiceListResource(PageListResource):
         collects = CollectServiceResource.get_collect_config(application).config_value
 
         res = []
-        data_status_mapping = ServiceHandler.get_service_data_status_mapping(
-            application,
-            validate_data["start_time"],
-            validate_data["end_time"],
-            services,
+        # 先获取缓存数据
+        data_status_mapping = cache.get(
+            ApmCacheKey.APP_SERVICE_STATUS_KEY.format(application_id=application.application_id)
         )
+        if not data_status_mapping:
+            data_status_mapping = ServiceHandler.get_service_data_status_mapping(
+                application,
+                validate_data["start_time"],
+                validate_data["end_time"],
+                services,
+            )
         labels_mapping = group_by(
             ApmMetaConfig.list_service_config_values(bk_biz_id, app_name, [i["topo_key"] for i in services], "labels"),
             operator.attrgetter("level_key"),

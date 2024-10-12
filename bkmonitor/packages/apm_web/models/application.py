@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 from celery import task
 from django.conf import settings
+from django.core.cache import cache
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
@@ -26,6 +27,7 @@ from apm_web.constants import (
     DEFAULT_DB_CONFIG_PREDICATE_KEY,
     DEFAULT_NO_DATA_PERIOD,
     ApdexConfigEnum,
+    ApmCacheKey,
     CustomServiceMatchType,
     CustomServiceType,
     DataStatus,
@@ -303,13 +305,21 @@ class Application(AbstractRecordModel):
         start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
         return RequestCountInstance(self, start_time, end_time).query_instance()
 
-    def set_service_count(self):
-        """刷新应用的服务数量"""
+    def set_service_count_and_data_status(self):
+        """刷新应用的服务数量和各个数据源的状态"""
         from apm_web.handlers.service_handler import ServiceHandler
 
+        # 刷新服务数量
         services = ServiceHandler.list_services(self)
         self.service_count = len(services)
         self.save()
+
+        # 刷新数据状态
+        start_time, end_time = get_datetime_range("minute", self.no_data_period)
+        start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
+        service_status_mapping = ServiceHandler.get_service_data_status_mapping(self, start_time, end_time, services)
+        key = ApmCacheKey.APP_SERVICE_STATUS_KEY.format(application_id=self.application_id)
+        cache.set(key, service_status_mapping)
 
     def set_data_status(self):
         from apm_web.handlers.backend_data_handler import telemetry_handler_registry

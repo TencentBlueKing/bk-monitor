@@ -917,3 +917,10 @@ OPERATOR_MAP = {"=": "equal", "!=": "not_equal", "exists": "exists", "does not e
 DEFAULT_MAX_VALUE = 10000
 
 DEFAULT_SPLIT_SYMBOL = "--"
+
+
+class ApmCacheKey:
+    """一些 APM 的缓存 Key"""
+
+    # 存放应用下服务的数据状态
+    APP_SERVICE_STATUS_KEY = "apm:application:{application_id}:service_data_status"
