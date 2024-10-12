@@ -14,6 +14,7 @@ import json
 import logging
 import operator
 from collections import defaultdict
+from json import JSONDecodeError
 
 from django.core.cache import cache
 from django.utils.translation import gettext_lazy as _lazy
@@ -726,6 +727,11 @@ class ServiceListResource(PageListResource):
         data_status_mapping = cache.get(
             ApmCacheKey.APP_SERVICE_STATUS_KEY.format(application_id=application.application_id)
         )
+        if data_status_mapping:
+            try:
+                data_status_mapping = json.loads(data_status_mapping)
+            except JSONDecodeError:
+                pass
         if not data_status_mapping:
             data_status_mapping = ServiceHandler.get_service_data_status_mapping(
                 application,

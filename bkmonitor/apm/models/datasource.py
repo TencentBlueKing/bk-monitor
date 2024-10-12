@@ -1142,7 +1142,10 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     BUILTIN_APP_NAME = "builtin_profile_app"
     _CACHE_BUILTIN_DATASOURCE: Optional['ProfileDataSource'] = None
 
-    profile_bk_biz_id = models.IntegerField("Profile数据源创建在 bkbase 的业务 id(非业务下创建会与 bk_biz_id 不一致)", null=True)
+    profile_bk_biz_id = models.IntegerField(
+        "Profile数据源创建在 bkbase 的业务 id(非业务下创建会与 bk_biz_id 不一致)",
+        null=True,
+    )
     retention = models.IntegerField("过期时间", null=True)
     created = models.DateTimeField("创建时间", auto_now_add=True)
     updated = models.DateTimeField("更新时间", auto_now=True)

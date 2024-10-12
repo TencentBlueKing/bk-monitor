@@ -8,6 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
+
 from celery import task
 from django.conf import settings
 from django.core.cache import cache
@@ -319,7 +321,7 @@ class Application(AbstractRecordModel):
         start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
         service_status_mapping = ServiceHandler.get_service_data_status_mapping(self, start_time, end_time, services)
         key = ApmCacheKey.APP_SERVICE_STATUS_KEY.format(application_id=self.application_id)
-        cache.set(key, service_status_mapping)
+        cache.set(key, json.dumps(service_status_mapping))
 
     def set_data_status(self):
         from apm_web.handlers.backend_data_handler import telemetry_handler_registry
