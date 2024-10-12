@@ -415,7 +415,7 @@
           const dimensionSortStr = this.dimension.sort().join(',');
           const catchDimensionSortStr = this.catchDimension.sort().join(',');
           const isShowInfo = dimensionSortStr !== catchDimensionSortStr;
-          if (isShowInfo) {
+          if (isShowInfo && !this.isExternal) { // 外部版不能改维度
             this.$bkInfo({
               type: 'warning',
               title: this.$t('修改维度字段会影响已有备注、告警配置，如无必要，请勿随意变动。请确定是否修改？'),

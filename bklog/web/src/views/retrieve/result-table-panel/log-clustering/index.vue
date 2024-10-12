@@ -40,6 +40,7 @@
           :cluster-switch="clusterSwitch"
           :strategy-submit-status="watchStrategySubmitStatus"
         />
+        <div v-else></div>
 
         <finger-operate
           :finger-operate-data="fingerOperateData"
