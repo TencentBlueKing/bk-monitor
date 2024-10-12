@@ -428,6 +428,11 @@ class ViewSetActionEnum(ChoicesEnum):
         view_set="ClusteringConfigViewSet",
         view_action="access_status",
     )
+    CLUSTERING_CONFIG_VIEWSET_CONFIG = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="ClusteringConfigViewSet",
+        view_action="get_config",
+    )
     PATTERN_VIEWSET_SEARCH = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="PatternViewSet", view_action="search"
     )
@@ -561,6 +566,7 @@ class ViewSetActionEnum(ChoicesEnum):
         FIELD_VIEWSET_TOPK,
         # ======================================= 字段分析-FieldViewSet =======================================
         CLUSTERING_CONFIG_VIEWSET_STATUS,
+        CLUSTERING_CONFIG_VIEWSET_CONFIG,
         PATTERN_VIEWSET_SEARCH,
         # ======================================= 收藏-FavoriteViewSet =======================================
         FAVORITE_VIEWSET_RETRIEVE,
