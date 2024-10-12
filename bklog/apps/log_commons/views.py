@@ -56,7 +56,7 @@ from apps.utils.drf import list_route
 # 用户白皮书在文档中心的根路径
 DOCS_USER_GUIDE_ROOT = f"LogSearch/{settings.VERSION[:3]}"
 
-DOCS_LIST = ["产品白皮书", "应用运维文档", "开发架构文档"]
+DOCS_LIST = ["UserGuide", "应用运维文档", "开发架构文档"]
 
 DEFAULT_DOC = DOCS_LIST[0]
 
