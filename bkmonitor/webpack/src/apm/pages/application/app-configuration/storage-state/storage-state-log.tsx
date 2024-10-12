@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Inject, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { setup } from 'monitor-api/modules/apm_meta';
@@ -32,9 +32,10 @@ import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 
 import EditableFormItem from '../../../../components/editable-form-item/editable-form-item';
 import PanelItem from '../../../../components/panel-item/panel-item';
+import * as authorityMap from '../../../home/authority-map';
 import StorageInfoSkeleton from '../skeleton/storage-info-skeleton';
 
-import type { ETelemetryDataType, IAppInfo, ILogStorageInfo, IndicesItem } from '../type';
+import type { ETelemetryDataType, IAppInfo, IClusterItem, ILogStorageInfo, IndicesItem } from '../type';
 
 import './storage-state-log.scss';
 interface IProps {
@@ -44,6 +45,7 @@ interface IProps {
   indicesList: IndicesItem[];
   storageInfo?: ILogStorageInfo;
   telemetryDataType?: ETelemetryDataType;
+  clusterList: IClusterItem[];
   onChange?: (params: ILogStorageInfo) => void;
 }
 @Component
@@ -55,12 +57,24 @@ export default class Log extends tsc<IProps> {
   // 存储信息
   @Prop({ type: Object, default: () => ({}) }) storageInfo: ILogStorageInfo;
   @Prop({ type: String, default: '' }) telemetryDataType: ETelemetryDataType;
+  @Prop({ type: Array, required: true }) clusterList: any[];
+
+  @Inject('authority') authority;
 
   healthMaps = {
     green: window.i18n.tc('健康'),
     yellow: window.i18n.tc('部分异常'),
     red: window.i18n.tc('异常'),
   };
+
+  /** 选中的集群 */
+  get currentCluster() {
+    return this.clusterList.find(item => item.storage_cluster_id === this.storageInfo?.es_storage_cluster);
+  }
+
+  get retentionDaysMax() {
+    return this.currentCluster?.setup_config.retention_days_max || 7;
+  }
 
   async handleUpdateValue(value, field: string) {
     try {
@@ -84,6 +98,18 @@ export default class Log extends tsc<IProps> {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * @desc 修改副本数校验规则
+   * @param { * } val
+   * @param { String } filed
+   */
+  initValidator(val, _filed: string) {
+    if (!/(^\d+$)|(^\d+\.\d+$)/.test(val)) {
+      return this.$t('输入正确数字');
+    }
+    return '';
   }
 
   render() {
@@ -124,11 +150,15 @@ export default class Log extends tsc<IProps> {
               </div>
               <div class='item-row'>
                 <EditableFormItem
+                  authority={this.authority.MANAGE_AUTH}
+                  authorityName={authorityMap.MANAGE_AUTH}
                   formType='expired'
                   label={this.$t('过期时间')}
+                  maxExpired={this.retentionDaysMax}
                   showEditable={true}
                   tooltips={this.$t('过期时间')}
                   updateValue={val => this.handleUpdateValue(val, 'es_retention')}
+                  validator={val => this.initValidator(val, 'es_retention')}
                   value={this.storageInfo?.es_retention}
                 />
                 <EditableFormItem
