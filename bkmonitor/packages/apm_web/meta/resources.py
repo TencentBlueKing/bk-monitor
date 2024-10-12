@@ -507,7 +507,7 @@ class StopResource(Resource):
         elif validated_data["type"] == TelemetryDataType.LOG.value:
             application.is_enabled_log = False
 
-        res = api.apm_api.stop_application(validated_data, type=TelemetryDataType.TRACE.value)
+        res = api.apm_api.stop_application(validated_data, type=validated_data["type"])
         application.save()
 
         from apm_web.tasks import APMEvent, report_apm_application_event
