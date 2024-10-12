@@ -1048,13 +1048,13 @@ export class LineChart
         this.handleDrillDown(menuItem.childValue);
         break;
       case 'relate-alert':
-        this.panel?.targets?.forEach(target => {
+        for (const target of this.panel?.targets || []) {
           if (target.data?.query_configs?.length) {
             let queryConfig = deepClone(target.data.query_configs);
             queryConfig = variablesService.transformVariables(queryConfig);
             target.data.query_configs = queryConfig;
           }
-        });
+        }
         handleRelateAlert(this.panel, this.timeRange);
         break;
       default:

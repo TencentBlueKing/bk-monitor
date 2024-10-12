@@ -158,19 +158,18 @@ export default class BasicInfo extends tsc<object> {
   rules = {
     logValue: [
       {
-        validator: val => !(this.localRelationInfo.logType && val.trim?.() === ''),
-        message:
-          this.localRelationInfo.logType === 'bk_log' ? window.i18n.t('输入关联日志') : window.i18n.t('选择索引集'),
+        validator: val => !(this.localRelationInfo.relatedBizId && val.trim?.() === ''),
+        message: window.i18n.t('选择索引集'),
         trigger: 'blur',
       },
     ],
-    relatedBizId: [
-      {
-        validator: val => !(this.localRelationInfo.logType && val.trim?.() === ''),
-        message: window.i18n.t('选择业务'),
-        trigger: 'blur',
-      },
-    ],
+    // relatedBizId: [
+    //   {
+    //     validator: val => !(this.localRelationInfo.logType && val.trim?.() === ''),
+    //     message: window.i18n.t('选择业务'),
+    //     trigger: 'blur',
+    //   },
+    // ],
     appId: [
       {
         validator: val => !(this.localRelationInfo.bizId && !val),
@@ -330,13 +329,15 @@ export default class BasicInfo extends tsc<object> {
       this.handleCmdbChange(this.localRelationInfo.cmdb);
     }
     if (logRelation.log_type) {
-      // 关联日志
       this.localRelationInfo.logType = logRelation.log_type;
-      this.localRelationInfo.logValue = logRelation.value;
+      // 关联日志
       if (logRelation.log_type === 'bk_log') {
         this.localRelationInfo.relatedBizId = logRelation.related_bk_biz_id;
         await this.handleLogBizChange(logRelation.related_bk_biz_id);
         this.localRelationInfo.logValue = logRelation.value;
+      } else {
+        this.localRelationInfo.logValue = '';
+        this.localRelationInfo.relatedBizId = '';
       }
     }
     if (appRelation.relate_bk_biz_id) {
@@ -503,34 +504,32 @@ export default class BasicInfo extends tsc<object> {
   }
   /** 获取提交参数 */
   getParams() {
+    const { logValue, relatedBizId, apdex, cmdb, bizId, appId } = this.localRelationInfo;
     const params: any = {
       ...this.params,
       ...this.formData,
       uri_relation: [],
       apdex_relation: {
-        apdex_value: Number(this.localRelationInfo.apdex),
+        apdex_value: Number(apdex),
       },
     };
     // 关联CMDB
-    if (this.localRelationInfo.cmdb) {
+    if (cmdb) {
       params.cmdb_relation = {
-        template_id: this.localRelationInfo.cmdb,
+        template_id: cmdb,
       };
     }
+
     // 关联日志
-    if (this.localRelationInfo.logType) {
-      const { logType, logValue, relatedBizId } = this.localRelationInfo;
+    if (logValue && relatedBizId) {
       params.log_relation = {
-        log_type: logType,
+        log_type: 'bk_log',
         value: logValue,
         related_bk_biz_id: relatedBizId,
       };
-      // biome-ignore lint/performance/noDelete: <explanation>
-      if (logType !== 'bk_log') delete params.related_bk_biz_id;
     }
     // 关联应用
-    if (this.localRelationInfo.bizId) {
-      const { bizId, appId } = this.localRelationInfo;
+    if (bizId) {
       params.app_relation = {
         relate_bk_biz_id: bizId,
         relate_app_name: appId,
@@ -830,7 +829,7 @@ export default class BasicInfo extends tsc<object> {
           <div class='content'>
             {this.isEditing ? (
               <div class='edit-form-item'>
-                <bk-select
+                {/* <bk-select
                   vModel={this.localRelationInfo.logType}
                   searchable
                   onChange={() => this.handleRelationLogChange()}
@@ -842,7 +841,7 @@ export default class BasicInfo extends tsc<object> {
                       name={option.name}
                     />
                   ))}
-                </bk-select>
+                </bk-select> */}
                 <bk-form
                   ref='logForm'
                   {...{
@@ -852,42 +851,34 @@ export default class BasicInfo extends tsc<object> {
                     },
                   }}
                 >
-                  {this.localRelationInfo.logType === 'bk_log' ? (
-                    <div class='relation-log-select relation-log-form-item'>
-                      <bk-form-item property='relatedBizId'>
-                        <bk-select
-                          vModel={this.localRelationInfo.relatedBizId}
-                          display-key='name'
-                          id-Key='id'
-                          list={this.bizSelectList}
-                          enable-virtual-scroll
-                          searchable
-                          onChange={v => this.handleLogBizChange(v)}
-                        />
-                      </bk-form-item>
-                      <bk-form-item property='logValue'>
-                        <bk-select
-                          vModel={this.localRelationInfo.logValue}
-                          searchable
-                        >
-                          {this.indexSetList.map(option => (
-                            <bk-option
-                              id={option.id}
-                              key={option.id}
-                              name={option.name}
-                            />
-                          ))}
-                        </bk-select>
-                      </bk-form-item>
-                    </div>
-                  ) : (
-                    <bk-form-item property='logValue'>
-                      <bk-input
-                        class='input'
-                        vModel={this.localRelationInfo.logValue}
+                  <div class='relation-log-select relation-log-form-item'>
+                    <bk-form-item property='relatedBizId'>
+                      <bk-select
+                        vModel={this.localRelationInfo.relatedBizId}
+                        display-key='name'
+                        id-Key='id'
+                        list={this.bizSelectList}
+                        enable-virtual-scroll
+                        searchable
+                        onChange={v => this.handleLogBizChange(v)}
                       />
                     </bk-form-item>
-                  )}
+                    <bk-form-item property='logValue'>
+                      <bk-select
+                        style='width:290px'
+                        vModel={this.localRelationInfo.logValue}
+                        searchable
+                      >
+                        {this.indexSetList.map(option => (
+                          <bk-option
+                            id={option.id}
+                            key={option.id}
+                            name={option.name}
+                          />
+                        ))}
+                      </bk-select>
+                    </bk-form-item>
+                  </div>
                 </bk-form>
               </div>
             ) : (
@@ -1110,7 +1101,7 @@ export default class BasicInfo extends tsc<object> {
       </div>,
       <div
         key='uri-info'
-        class={`uri-info ${!this.uriList.length ? 'is-empty' : ''}`}
+        class='uri-info'
       >
         <span class='uri-set-label'>{this.$t('URI配置')}</span>
         <transition-group
@@ -1187,13 +1178,14 @@ export default class BasicInfo extends tsc<object> {
           </div>
         )}
         {!this.isEditing && !this.uriList.length && (
-          <bk-exception
-            class='empty-uri-info'
-            scene='part'
-            type='empty'
-          >
-            <span>{this.$t('当前未配置URI信息')}</span>
-          </bk-exception>
+          <div class='empty-uri-info'>
+            <bk-exception
+              scene='part'
+              type='empty'
+            >
+              <span>{this.$t('当前未配置URI信息')}</span>
+            </bk-exception>
+          </div>
         )}
       </div>,
     ];

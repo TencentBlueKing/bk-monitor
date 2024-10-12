@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop, Watch, Emit } from 'vue-property-decorator';
+import { Component, Ref, Prop, Watch, Emit, Provide } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { serviceList, serviceListAsync } from 'monitor-api/modules/apm_metric';
@@ -34,7 +34,9 @@ import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import FilterPanel, { type IFilterData } from 'monitor-pc/pages/strategy-config/strategy-config-list/filter-panel';
+import { NODE_TYPE_ICON } from 'monitor-ui/chart-plugins/utils';
 
+import authorityStore from '../../../store/modules/authority';
 import ApmHomeResizeLayout from './apm-home-resize-layout';
 
 import type { IAppListItem } from '../typings/app';
@@ -47,6 +49,8 @@ import './apm-home-list.scss';
 interface IProps {
   appName: string;
   appData: Partial<IAppListItem>;
+  authority: boolean;
+  authorityDetail: string;
   timeRange?: TimeRangeType;
 }
 
@@ -66,6 +70,8 @@ export default class ApmServiceList extends tsc<
   })
   appName: string;
   @Prop() timeRange: TimeRangeType;
+  @Prop({ type: Boolean, default: false }) authority: boolean;
+  @Prop({ type: String }) authorityDetail: string;
   @Ref() mainResize: InstanceType<typeof ApmHomeResizeLayout>;
 
   /** 搜索关键词 */
@@ -98,7 +104,11 @@ export default class ApmServiceList extends tsc<
   defaultActiveName = ['category', 'language', 'apply_module', 'have_data'];
   filterShow = true;
   filterLoading = true;
-  /* 左侧统计数据 */
+
+  @Provide('handleShowAuthorityDetail')
+  handleShowAuthorityDetail(actionIds: string | string[]) {
+    authorityStore.getAuthorityDetail(actionIds);
+  }
 
   @Watch('appName', { immediate: true })
   onAppNameChange() {
@@ -270,7 +280,19 @@ export default class ApmServiceList extends tsc<
     this.tableData = data;
     this.tableColumns = columns;
     this.pagination.count = total;
-    this.filterList = filter;
+    this.filterList = filter.map(item => {
+      let newData = item.data;
+      if (item.id === 'category') {
+        newData = item.data.map(dataItem => ({
+          ...dataItem,
+          icon: NODE_TYPE_ICON[dataItem.id],
+        }));
+      }
+      return {
+        ...item,
+        data: newData,
+      };
+    });
 
     this.loadAsyncData(startTime, endTime);
     this.onRouteUrlChange();
@@ -442,7 +464,7 @@ export default class ApmServiceList extends tsc<
     return (
       <div class='apm-home-list'>
         <div class='header'>
-          {this.filterLoading || !this.appData?.app_name ? (
+          {this.filterLoading || !this.appName ? (
             <div
               style='height: 32px; width: 240px'
               class='skeleton-element'
@@ -455,13 +477,24 @@ export default class ApmServiceList extends tsc<
           )}
           <div class='header-right'>
             <bk-button
-              class='mr-8'
+              class={['mr-8', { disabled: !this.authority }]}
+              v-authority={{ active: !this.authority }}
               theme='primary'
-              onClick={this.handleGotoAppOverview}
+              onClick={() =>
+                this.authority ? this.handleGotoAppOverview() : this.handleShowAuthorityDetail(this.authorityDetail)
+              }
             >
-              {this.$t('查看应用')}
+              {this.$t('应用详情')}
             </bk-button>
-            <bk-button onClick={this.handleGoToAppConfig}>{this.$t('应用配置')}</bk-button>
+            <bk-button
+              class={[{ disabled: !this.authority }]}
+              v-authority={{ active: !this.authority }}
+              onClick={() =>
+                this.authority ? this.handleGoToAppConfig() : this.handleShowAuthorityDetail(this.authorityDetail)
+              }
+            >
+              {this.$t('应用配置')}
+            </bk-button>
           </div>
         </div>
         <div class='main'>
@@ -511,9 +544,15 @@ export default class ApmServiceList extends tsc<
                       onClick={this.handleHidePanel}
                     />
                     <bk-button
+                      class={[{ disabled: !this.authority }]}
+                      v-authority={{ active: !this.authority }}
                       theme='primary'
                       outline
-                      onClick={this.handleGotoServiceApply}
+                      onClick={() =>
+                        this.authority
+                          ? this.handleGotoServiceApply()
+                          : this.handleShowAuthorityDetail(this.authorityDetail)
+                      }
                     >
                       <span class='app-add-btn'>
                         <i class='icon-monitor icon-mc-add app-add-icon' />
