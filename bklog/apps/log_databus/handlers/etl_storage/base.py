@@ -36,6 +36,7 @@ from apps.log_databus.constants import (
     CACHE_KEY_CLUSTER_INFO,
     FIELD_TEMPLATE,
     EtlConfig,
+    MetadataType,
 )
 from apps.log_databus.exceptions import (
     EtlParseTimeFieldException,
@@ -62,9 +63,6 @@ class EtlStorage(object):
     etl_config = None
     separator_node_name = "bk_separator_object"
     path_separator_node_name = "bk_separator_object_path"
-
-    def __init__(self):
-        self.etl_field_index = 1
 
     @classmethod
     def get_instance(cls, etl_config=None):
@@ -314,6 +312,7 @@ class EtlStorage(object):
         time_field = built_in_config["time_field"]
         built_in_keys = FieldBuiltInEnum.get_choices()
 
+        etl_field_index = 1
         clustering_default_fields = self._get_log_clustering_default_fields()
         for field in fields:
             # 当在聚类场景的时候 不做下面的format操作
@@ -340,8 +339,8 @@ class EtlStorage(object):
             field_option = {
                 k: v for k, v in field.get("option", {}).items() if k not in ["time_zone", "time_format", "es_format"]
             }
-            field_option["field_index"] = self.etl_field_index
-            self.etl_field_index += 1
+            field_option["field_index"] = etl_field_index
+            etl_field_index += 1
 
             # ES_TYPE
             field_option["es_type"] = FieldDataTypeEnum.get_es_field_type(
@@ -607,6 +606,14 @@ class EtlStorage(object):
             }
         ]
 
+        # 得到field_list中最大的field_index
+        field_index_list = [0]
+        for item in result_table_config["field_list"]:
+            field_index = item["option"].get("field_index")
+            if field_index:
+                field_index_list.append(field_index)
+        etl_field_index = max(field_index_list) + 1
+
         pattern = re.compile(etl_path_regexp)
         match_fields = list(pattern.groupindex.keys())
         for field_name in match_fields:
@@ -616,16 +623,16 @@ class EtlStorage(object):
                     "field_name": field_name,
                     "field_type": "string",
                     "option": {
-                        "metadata_type": "path",
+                        "metadata_type": MetadataType.PATH,
                         "es_doc_values": True,
                         "es_type": "keyword",
-                        "field_index": self.etl_field_index,
+                        "field_index": etl_field_index,
                         "real_path": f"{self.path_separator_node_name}.{field_name}"
                     },
                     "tag": "dimension",
                 }
             )
-            self.etl_field_index += 1
+            etl_field_index += 1
 
     @classmethod
     def switch_result_table(cls, collector_config: CollectorConfig, is_enable=True):
