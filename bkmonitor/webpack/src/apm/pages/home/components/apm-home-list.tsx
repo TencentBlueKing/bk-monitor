@@ -489,7 +489,9 @@ export default class ApmServiceList extends tsc<
             <bk-button
               class={[{ disabled: !this.authority }]}
               v-authority={{ active: !this.authority }}
-              onClick={() => this.handleShowAuthorityDetail(this.authorityDetail)}
+              onClick={() =>
+                this.authority ? this.handleGoToAppConfig() : this.handleShowAuthorityDetail(this.authorityDetail)
+              }
             >
               {this.$t('应用配置')}
             </bk-button>
