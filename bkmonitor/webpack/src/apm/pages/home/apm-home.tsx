@@ -27,7 +27,6 @@
 import { Component, Provide, Mixins } from 'vue-property-decorator';
 
 import { deleteApplication, listApplication } from 'monitor-api/modules/apm_meta';
-import { Debounce } from 'monitor-common/utils/utils';
 import introduceModule, { IntroduceRouteKey } from 'monitor-pc/common/introduce';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import GuidePage from 'monitor-pc/components/guide-page/guide-page';
@@ -79,7 +78,7 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
   showGuideDialog = false;
 
   /* 应用分类数据 */
-  appList: IAppListItem[] = [];
+  originalAppList: IAppListItem[] = [];
   loading = false;
 
   refreshInstance = null;
@@ -100,6 +99,14 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
     return this.appList?.find(item => item.app_name === this.appName);
   }
 
+  get appList() {
+    if (!this.searchCondition) return this.originalAppList;
+    return this.originalAppList.filter(
+      item =>
+        item?.app_alias.toLowerCase().includes(this.searchCondition.toLowerCase()) ||
+        item?.app_name.toLowerCase().includes(this.searchCondition.toLowerCase())
+    );
+  }
   @Provide('handleShowAuthorityDetail')
   handleShowAuthorityDetail(actionIds: string | string[]) {
     authorityStore.getAuthorityDetail(actionIds);
@@ -144,7 +151,7 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
     const params = {
       start_time: startTime,
       end_time: endTime,
-      keyword: this.searchCondition,
+      keyword: '',
       sort: '',
     };
     this.loading = true;
@@ -156,7 +163,7 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
       };
     });
     this.loading = false;
-    this.appList = listData.data.map((item, ind: number) => {
+    this.originalAppList = listData.data.map((item, ind: number) => {
       let firstCode: string = item.app_alias?.slice(0, 1) || '-';
       const charCode = firstCode.charCodeAt(0);
       if (charCode >= 97 && charCode <= 122) {
@@ -170,11 +177,11 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
       };
     });
     // 初始化 app_name
-    if (this.appList.length) {
+    if (this.originalAppList.length) {
       if (!this.appName) {
         this.appName = listData.data[0].app_name;
       } else if (!params.keyword) {
-        const checkedItem = this.appList.find(item => item.app_name === this.appName);
+        const checkedItem = this.originalAppList.find(item => item.app_name === this.appName);
         if (!checkedItem) {
           this.appName = listData.data[0].app_name;
         }
@@ -317,16 +324,6 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
     }
   }
 
-  /**
-   * @description 条件搜索
-   * @param value
-   */
-  @Debounce(300)
-  handleSearchCondition(value) {
-    this.searchCondition = value;
-    this.getAppList();
-  }
-
   render() {
     return (
       <div class='apm-home-wrap-page'>
@@ -377,8 +374,6 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
                 right-icon='bk-icon icon-search'
                 clearable
                 show-clear-only-hover
-                on-right-icon-click={this.handleSearchCondition}
-                onChange={this.handleSearchCondition}
               />
               <div
                 class='app-list-add'
@@ -467,7 +462,9 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
               <EmptyStatus
                 textMap={{ empty: this.$t('暂无数据') }}
                 type={this.searchCondition ? 'search-empty' : 'empty'}
-                onOperation={() => this.handleSearchCondition('')}
+                onOperation={() => {
+                  this.searchCondition = '';
+                }}
               />
             )}
           </div>
