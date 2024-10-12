@@ -167,7 +167,7 @@ class ClusteringConfig(SoftDeleteModel):
         choices=RuleTypeEnum.get_choices(),
         default=RuleTypeEnum.CUSTOMIZE.value,
     )
-    template_id = models.IntegerField(_("模板id"), null=True, blank=True)
+    regex_template_id = models.IntegerField(_("模板id"), null=True, blank=True)
 
     @classmethod
     def get_by_index_set_id(cls, index_set_id: int, raise_exception: bool = True) -> "ClusteringConfig":
@@ -314,6 +314,6 @@ class ClusteringSubscription(SoftDeleteModel):
 
 
 class ClusteringTemplate(SoftDeleteModel):
-    space_uid = models.CharField(_("空间唯一标识"), blank=True, default="", max_length=256, db_index=True)
-    template_name = models.CharField(_("模板名称"), db_index=True, max_length=128)
+    space_uid = models.CharField(_("空间唯一标识"), db_index=True, max_length=256)
+    template_name = models.CharField(_("模板名称"), db_index=True, max_length=256)
     predefined_varibles = models.TextField(_("模板的正则表达式"))

@@ -19,7 +19,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.log_clustering.models import ClusteringTemplate
+from apps.log_clustering.models import ClusteringConfig, ClusteringTemplate
+from apps.log_search.models import LogIndexSet
 
 
 class ClusteringTemplateHandler(object):
@@ -32,10 +33,24 @@ class ClusteringTemplateHandler(object):
         )
         # 空间存在模板
         if data.exists():
+            for ct in data:
+                index_set_ids = ClusteringConfig.objects.filter(regex_template_id=ct["id"]).values_list(
+                    "index_set_id", flat=True
+                )
+                related_list = list(
+                    LogIndexSet.objects.filter(index_set_id__in=index_set_ids).values("index_set_id", "index_set_name")
+                )
+                ct["related_index_set_list"] = related_list
             return list(data)
         # TODO:不存在模板，后台获取系统默认的正则规则，创建模板并返回
+        return [self.create_template("系统默认", "")]
 
     def create_template(self, template_name, predefined_varibles):
+        # 重名检测
+        data = ClusteringTemplate.objects.filter(space_uid=self.space_uid, template_name=template_name)
+        if data.exists():
+            # TODO:不允许重名
+            return
         instance = ClusteringTemplate.objects.create(
             space_uid=self.space_uid, template_name=template_name, predefined_varibles=predefined_varibles
         )
@@ -44,4 +59,36 @@ class ClusteringTemplateHandler(object):
             "space_uid": instance.space_uid,
             "template_name": instance.template_name,
             "predefined_varibles": instance.predefined_varibles,
+            "related_index_set_list": [],
         }
+
+    def update_template(self, template_id, template_name):
+        # 是否存在
+        instance = ClusteringTemplate.objects.filter(id=template_id, is_deleted=False).first()
+        if not instance:
+            # TODO:实例不存在，不能修改
+            return
+        instance.template_name = template_name
+        instance.save()
+        return {"id": instance.id, "space_uid": instance.space_uid, "template_name": instance.template_name}
+
+    def delete_template(self, index_set_id, template_id):
+        instance = ClusteringTemplate.objects.filter(id=template_id).first()
+        if not instance:
+            # TODO:实例不存在，不能删除
+            return
+        index_set_ids = (
+            ClusteringConfig.objects.exclude(index_set_id=index_set_id)
+            .filter(regex_template_id=instance.id)
+            .values_list("index_set_id", flat=True)
+        )
+        related_list = list(
+            LogIndexSet.objects.filter(index_set_id__in=index_set_ids).values("index_set_id", "index_set_name")
+        )
+        # 没有关联的索引集 or 只有当前索引集关联了
+        if not related_list:
+            instance.delete()
+            return
+        # 不允许删除
+        # TODO:有关联的索引集，不允许删除
+        return
