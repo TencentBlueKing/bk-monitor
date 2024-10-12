@@ -40,7 +40,27 @@
           :cluster-switch="clusterSwitch"
           :strategy-submit-status="watchStrategySubmitStatus"
         />
-        <div v-else></div>
+        <div v-else>
+          <div v-if="isShowGroupTag">
+            <bk-tag v-if="getDimensionStr">
+              {{ getDimensionStr }}
+            </bk-tag>
+            <bk-tag
+              v-if="getGroupStr"
+              closable
+              @close="handleCloseGroupTag"
+            >
+              {{ getGroupStr }}
+            </bk-tag>
+            <bk-tag
+              v-if="getYearStr"
+              closable
+              @close="handleCloseYearTag"
+            >
+              {{ getYearStr }}
+            </bk-tag>
+          </div>
+        </div>
 
         <finger-operate
           :finger-operate-data="fingerOperateData"
@@ -53,7 +73,7 @@
       </div>
 
       <div
-        v-if="isShowGroupTag"
+        v-if="isShowGroupTag && !isExternal"
         style="margin: 0 0 16px -6px"
       >
         <bk-tag v-if="getDimensionStr">
