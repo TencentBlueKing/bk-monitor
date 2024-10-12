@@ -47,6 +47,7 @@
         <div class="field-value">
           <text-segmentation
             :content="formatterStr(data, field)"
+            :data="data"
             :field="getFieldItem(field)"
             :menu-click="(type, content, isLink) => handleMenuClick(type, content, field, isLink)"
           />
@@ -223,14 +224,14 @@
           params = {
             fieldName: field ? field : item,
             operation: operator,
-            value: curValue ? curValue : item,
+            value: item ? item : curValue,
           };
         }
 
         if (operator === 'copy') {
           if (!field && curValue === undefined) return;
           params.operation = 'copy';
-          params.value = curValue ? curValue : item;
+          params.value = item ? item : curValue;
         }
 
         if (operator === 'display') {

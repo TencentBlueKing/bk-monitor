@@ -2633,7 +2633,6 @@ class PromqlToQueryConfig(Resource):
     # PromQL match相关算符正则
     re_ignoring_on_op = re.compile(r"(?![A-Za-z0-9_]) ?(ignoring|on) ?\(.*\) ?")
     re_group_op = re.compile(r"(?![A-Za-z0-9_]) ?(group_left|group_right) ?(\([0-9a-zA-Z_ ]*\))?")
-    re_time_step = r"\[\d+[smhdwy](\d+[smhdwy])*?\]"
     # 按表名判断数据源
     re_custom_time_series = re.compile(r"\d+bkmonitor_time_series_\d+")
     # 支持聚合方法
@@ -2651,7 +2650,6 @@ class PromqlToQueryConfig(Resource):
         promql = serializers.CharField(label="查询语句")
         bk_biz_id = serializers.IntegerField(label="业务ID")
         query_config_format = serializers.ChoiceField(choices=("strategy", "graph"), default="strategy")
-        step = serializers.IntegerField(label="时间间隔", required=False)
 
     @classmethod
     def parse_time(cls, s: str) -> int:
@@ -2663,25 +2661,6 @@ class PromqlToQueryConfig(Resource):
         for part in parts:
             seconds += int(part[0]) * cls.time_trans_mapping[part[1]]
         return seconds
-
-    @staticmethod
-    def convert_seconds_to_readable_time(seconds):
-        units = [
-            ("y", 60 * 60 * 24 * 365),  # 年
-            ("w", 60 * 60 * 24 * 7),  # 周
-            ("d", 60 * 60 * 24),  # 天
-            ("h", 60 * 60),  # 小时
-            ("m", 60),  # 分钟
-            ("s", 1),  # 秒
-        ]
-
-        result = []
-        for unit, unit_seconds in units:
-            if seconds >= unit_seconds:
-                value, seconds = divmod(seconds, unit_seconds)
-                result.append(f"{value}{unit}")
-
-        return f"[{''.join(result)}]"
 
     @classmethod
     def check(cls, unify_query_config: Dict):
@@ -2826,11 +2805,12 @@ class PromqlToQueryConfig(Resource):
                     condition["condition"] = "and"
                 conditions.append(condition)
 
-            # 根据table_id格式判定是否为data_label二段式
+            # 根据table_id格式判定是否为data_label二段式, 如果是则需要根据data_label去指标选择器缓存表中查询结果表ID
+            # 计算平台指标没有data_label，table_id 就直接是结果表ID result_table_id
             table_id = query.get("table_id", "")
             result_table_id = ""
             data_label = ""
-            if len(table_id.split(".")) == 1:
+            if len(table_id.split(".")) == 1 and query["data_source"] != DataSourceLabel.BKDATA:
                 data_label = table_id
             else:
                 result_table_id = table_id
@@ -2845,19 +2825,12 @@ class PromqlToQueryConfig(Resource):
             data_type_label = DataTypeLabel.TIME_SERIES
             # 根据data_label查找对应指标缓存结果表
             if not result_table_id:
-                if query["data_source"] == DataSourceLabel.BKDATA:
-                    qs = MetricListCache.objects.filter(
-                        data_source_label=data_source_label,
-                        data_type_label=data_type_label,
-                        metric_field=query["field_name"],
-                    )
-                else:
-                    qs = MetricListCache.objects.filter(
-                        data_label=data_label,
-                        data_source_label=data_source_label,
-                        data_type_label=data_type_label,
-                        metric_field=query["field_name"],
-                    )
+                qs = MetricListCache.objects.filter(
+                    data_label=data_label,
+                    data_source_label=data_source_label,
+                    data_type_label=data_type_label,
+                    metric_field=query["field_name"],
+                )
                 if qs.exists():
                     result_table_id = qs.first().result_table_id
 
@@ -2910,10 +2883,6 @@ class PromqlToQueryConfig(Resource):
     def perform_request(self, params):
         promql = params["promql"]
         query_config_format = params["query_config_format"]
-        step = params.get("step", None)
-        if step is not None:
-            time_step = self.convert_seconds_to_readable_time(step)
-            promql = re.sub(self.re_time_step, time_step, promql)
         try:
             origin_config = api.unify_query.promql_to_struct(promql=promql)["data"]
         except Exception:
