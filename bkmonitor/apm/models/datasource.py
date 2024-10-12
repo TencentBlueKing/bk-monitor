@@ -348,6 +348,7 @@ class LogDataSource(ApmDataSourceConfigBase):
                     collector_config_id=obj.collector_config_id,
                     category_id="application_check",
                     collector_config_name=cls.app_name_to_log_config_name(app_name),
+                    allocation_min_days=0,
                     **storage_params,
                 )
             except BKAPIError as e:
