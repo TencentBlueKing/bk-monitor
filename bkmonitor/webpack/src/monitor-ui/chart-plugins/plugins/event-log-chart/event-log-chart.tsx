@@ -249,7 +249,7 @@ class EventLogChart extends CommonSimpleChart {
                 columns={this.columns as any}
                 data={this.tableData}
                 defaultSize='small'
-                hasColnumSetting={false}
+                hasColumnSetting={false}
                 pagination={this.pagination}
                 paginationType='simple'
                 showExpand={true}

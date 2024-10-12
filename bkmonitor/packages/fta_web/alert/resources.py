@@ -10,19 +10,23 @@ specific language governing permissions and limitations under the License.
 """
 import bisect
 import copy
+import csv
 import json
 import logging
 import time
 from abc import ABCMeta
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
+from functools import reduce
+from io import StringIO
 from typing import Dict, List
 
 from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Count
-from django.http import HttpResponseRedirect
+from django.db.models import Q as DQ
+from django.http import HttpResponse, HttpResponseRedirect
 from django.utils.translation import ugettext as _
 from elasticsearch_dsl import Q
 from rest_framework import serializers
@@ -81,6 +85,7 @@ from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from core.errors.alert import AIOpsMultiAnomlayDetectError, AlertNotFoundError
 from core.unit import load_unit
+from fta_web import constants
 from fta_web.alert.handlers.action import ActionQueryHandler
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.handlers.alert_log import AlertLogHandler
@@ -96,7 +101,7 @@ from fta_web.alert.serializers import (
     AlertSuggestionSerializer,
     EventSearchSerializer,
 )
-from fta_web.alert.utils import add_aggs, add_overview, slice_time_interval
+from fta_web.alert.utils import add_aggs, add_overview, slice_time_interval, get_previous_month_range_unix
 from fta_web.models.alert import (
     SEARCH_TYPE_CHOICES,
     AlertFeedback,
@@ -112,6 +117,129 @@ from monitor_web.constants import AlgorithmType
 from monitor_web.models import CustomEventGroup
 
 logger = logging.getLogger("root")
+
+
+class GetTmpData(Resource):
+    def perform_request(self, validated_request_data):
+        results_format = validated_request_data.get("results", "json")
+        start_time, end_time = validated_request_data.get("start_time", None), validated_request_data.get("end_time", None)
+        biz_list = api.cmdb.get_business()
+        target_biz_ids = []
+        if target_biz_ids:
+            biz_info = {biz.bk_biz_id: biz for biz in biz_list if biz.bk_biz_id in target_biz_ids}
+        else:
+            biz_info = {biz.bk_biz_id: biz for biz in biz_list}
+        # 如果都没未指定时间，则默认为上一个月 且必须以 unix 时间传入为准
+        if not start_time and not end_time:
+            start_time, end_time = get_previous_month_range_unix()
+
+        ret = {}
+        results = []
+        # 时间范围需要调整
+        for biz in biz_info:
+            params = {'bk_biz_ids': [biz],
+                'status': [],
+                'conditions': [],
+                'query_string': '告警来源 : "tnm" AND -告警名称 : "Ping告警" AND -告警名称 : "上报超时告警" AND -告警名称 : "服务器系统时间偏移告警"',
+                'start_time': start_time,
+                'end_time': end_time,
+                'fields': ['plugin_id'],
+                'size': 10,
+                'bk_biz_id': biz}
+            ret[biz] = {i["id"]: i["count"] for i in resource.alert.alert_top_n(params)["fields"][0]["buckets"]}
+        for biz, alert in ret.items():
+            if biz not in biz_info or not alert:
+                continue
+            tmp = alert['"tnm"']
+            bkmonitor = alert.get('"bkmonitor"', 0)
+            row = {
+                "biz": biz,
+                "biz_name": biz_info[biz].display_name,
+                "tmp": tmp,
+                "tmp_bk": bkmonitor + tmp,
+                "tmp_bk_ratio": tmp/(tmp+bkmonitor)
+            }
+            results.append(row)
+        if results_format == "file":
+            timestamp = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
+            filename = f"data_{timestamp}.csv"
+            output = StringIO()
+            # 在内存读写文件 避免污染 Pod 的 OS 文件
+            output.write('\ufeff')
+            # 写入 utf-8 bom 避免纯文本乱码
+            fieldnames = constants.QuickSolutionsConfig.TMP_HEADERS
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in results:
+                writer.writerow(row)
+            output.seek(0)
+            response = HttpResponse(output.getvalue().encode("utf-8"), content_type='text/csv; charset=utf-8')
+            response['Content-Disposition'] = f'attachment; filename={filename}'
+            return response
+        else:
+            return results
+
+
+class GetFtaStrategy(Resource):
+    """
+    游戏业务下统计业务相关策略数据接口
+    """
+
+    def perform_request(self, validated_request_data):
+        """
+        在线： 在线 或 online
+        登录： 登录 或 登陆 或 login
+        注册： 注册 或 registation 或 reg
+        对局： 对局 或 排队 或 battle 或 bat
+        """
+        # 策略业务统计
+        results_format = validated_request_data.get("results", "json")
+        biz_list = api.cmdb.get_business()
+        scenario = constants.QuickSolutionsConfig.SCENARIO
+        to_be_deleted = set()
+        Biz = namedtuple("Biz", ["name", "info"])
+        biz_map = {biz.bk_biz_id: Biz(biz.display_name, defaultdict(int)) for biz in biz_list if biz.bk_biz_id > 0}
+
+        for sce, key_words in scenario.items():
+            query = StrategyModel.objects.filter(
+                reduce(lambda x, y: x | y, (DQ(name__icontains=key) for key in key_words))
+            )
+            query = query.filter(is_enabled=True)
+            # 使用 values 和 annotate 来按 bk_biz_id 分组，然后计算每组的数量
+            result = query.values("bk_biz_id").annotate(count=Count('id'))
+            # 整理结果
+            for item in result:
+                bk_biz_id = int(item["bk_biz_id"])
+                if bk_biz_id < 0:
+                    continue
+                if bk_biz_id not in biz_map:
+                    to_be_deleted.add(bk_biz_id)
+                    continue
+                biz_map[bk_biz_id].info[sce] = item["count"]
+        results = []
+        for biz in biz_map.values():
+            row = {"业务": biz.name}
+            for key in scenario.keys():
+                row[key] = biz.info.get(key, 0)
+            results.append(row)
+        if results_format == "file":
+            timestamp = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
+            filename = f"data_{timestamp}.csv"
+            output = StringIO()
+            # 在内存读写文件 避免污染 Pod 的 OS 文件
+            output.write('\ufeff')
+            # 写入 utf-8 bom 避免纯文本乱码
+            fieldnames = ["业务"] + list(scenario.keys())
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in results:
+                writer.writerow(row)
+            output.seek(0)
+            response = HttpResponse(output.getvalue().encode("utf-8"), content_type='text/csv; charset=utf-8')
+            response['Content-Disposition'] = f'attachment; filename={filename}'
+            return response
+        else:
+            return results
 
 
 class AlertPermissionResource(Resource):

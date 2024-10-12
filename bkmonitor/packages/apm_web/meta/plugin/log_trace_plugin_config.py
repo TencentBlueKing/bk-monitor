@@ -49,13 +49,12 @@ class LogTracePluginConfig(object):
             "output": {
                 "type": "output.bkcollector",
                 "param": {
-                    "otlp_bk_data_token": output_param["bk_data_token"],
+                    "otlp_bk_data_token": output_param["token"],
                     "otlp_grpc_host": f"{host}:4317",
                     "data_type": DATA_TYPE,
-                    "output_type": OUTPUT_TYPE
-                }
-
-            }
+                    "output_type": OUTPUT_TYPE,
+                },
+            },
         }
         steps = [
             {

@@ -45,7 +45,7 @@ interface IAppInfoQuery {
   start_time: number;
   end_time: number;
 }
-
+// app_list service_list
 @Module({ name: 'application', namespaced: true, dynamic: true, store })
 class ApplicationStore extends VuexModule implements IApplicationState {
   /** 插件列表 */
@@ -68,7 +68,7 @@ class ApplicationStore extends VuexModule implements IApplicationState {
    */
   @Action
   async getPluginList() {
-    if (!!this.pluginsList) return;
+    if (this.pluginsList) return;
     const { plugins = [] } = await metaConfigInfo().catch(() => ({}));
     const pluginsList = plugins.map(
       (item): IAppSelectOptItem => ({

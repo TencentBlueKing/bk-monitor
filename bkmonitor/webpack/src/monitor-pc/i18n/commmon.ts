@@ -32,6 +32,7 @@ import formLabel from '../lang/form-label';
 import message from '../lang/message';
 import placeholder from '../lang/placeholder';
 import route from '../lang/route';
+import strategy from '../lang/strategy';
 import tableColumn from '../lang/table-column';
 import tableContent from '../lang/table-content';
 import tips from '../lang/tips';
@@ -56,6 +57,7 @@ const MonitorLangData = {
   tips,
   tooltips,
   title,
+  strategy,
 };
 
 // 比较两个翻译文件是否多出来的词条

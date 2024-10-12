@@ -72,7 +72,7 @@
               <span class="operate-box">
                 <span
                   v-if="showPassword"
-                  class="icon log-icon icon-copy"
+                  class="icon bklog-icon bklog-copy"
                   @click="handleCopy(tokenStr)"
                 ></span>
                 <span
@@ -300,7 +300,7 @@
         {{ $t('编辑') }}
       </bk-button>
       <bk-popover placement="bottom-end">
-        <bk-button class="log-icon icon-lishijilu"></bk-button>
+        <bk-button class="bklog-icon bklog-lishijilu"></bk-button>
         <template #content>
           <div class="create-name-and-time">
             <div

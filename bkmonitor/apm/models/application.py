@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import uuid
 from typing import Optional
 
 from django.conf import settings
@@ -17,7 +18,12 @@ from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 
 from apm.constants import DATABASE_CONNECTION_NAME
-from apm.models.datasource import MetricDataSource, ProfileDataSource, TraceDataSource
+from apm.models.datasource import (
+    LogDataSource,
+    MetricDataSource,
+    ProfileDataSource,
+    TraceDataSource,
+)
 from bkmonitor.utils.cipher import (
     transform_data_id_to_token,
     transform_data_id_to_v1_token,
@@ -30,46 +36,70 @@ class ApmApplication(AbstractRecordModel):
     app_name = models.CharField("应用名称", max_length=50)
     app_alias = models.CharField("应用别名", max_length=128)
     description = models.CharField("应用描述", max_length=255)
+
+    token = models.CharField("应用 Token", max_length=256, default="")
+
     is_enabled = models.BooleanField("是否启用", default=True)
+
+    # 数据源开关
+    is_enabled_log = models.BooleanField("是否开启 Logs 功能", default=True)
+    is_enabled_trace = models.BooleanField("是否开启 Traces 功能", default=True)
+    is_enabled_metric = models.BooleanField("是否开启 Metrics 功能", default=True)
     is_enabled_profiling = models.BooleanField("是否开启 Profiling 功能", default=False)
 
     class Meta:
         unique_together = ("app_name", "bk_biz_id")
 
-    def start(self):
-        for datasource in [MetricDataSource, TraceDataSource]:
-            datasource.start(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+    def start_trace(self):
+        """开启 Trace 数据源"""
+        TraceDataSource.start(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
         self.is_enabled = True
-        self.save(update_fields=["is_enabled"])
+        self.is_enabled_trace = True
+        self.save(update_fields=["is_enabled", "is_enabled_trace"])
 
-    def stop(self):
-        for datasource in [MetricDataSource, TraceDataSource]:
-            datasource.stop(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
-
-        self.is_enabled = False
-        self.save(update_fields=["is_enabled"])
+    def start_metric(self):
+        """开启 Metric 数据源"""
+        MetricDataSource.start(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+        self.is_enabled = True
+        self.is_enabled_metric = True
+        self.save(update_fields=["is_enabled", "is_enabled_metric"])
 
     def start_profiling(self):
-        self.is_enabled_profiling = True
-        self.save(update_fields=["is_enabled_profiling"])
-
+        """开启 Profiling 数据源"""
         profile_datasource = ProfileDataSource.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
         if not profile_datasource:
             ProfileDataSource.apply_datasource(bk_biz_id=self.bk_biz_id, app_name=self.app_name, **{})
+        ProfileDataSource.start(self.bk_biz_id, self.app_name)
+        self.is_enabled = True
+        self.is_enabled_profiling = True
+        self.save(update_fields=["is_enabled", "is_enabled_profiling"])
 
-        from apm.task.tasks import refresh_apm_application_config
+    def start_log(self):
+        """开启 Log 数据源"""
+        LogDataSource.start(self.bk_biz_id, self.app_name)
+        self.is_enabled = True
+        self.is_enabled_log = True
+        self.save(update_fields=["is_enabled", "is_enabled_log"])
 
-        refresh_apm_application_config.delay(self.bk_biz_id, self.app_name)
+    def stop_trace(self):
+        TraceDataSource.stop(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+        self.is_enabled_trace = False
+        self.save(update_fields=["is_enabled_trace"])
 
     def stop_profiling(self):
+        ProfileDataSource.stop(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
         self.is_enabled_profiling = False
         self.save(update_fields=["is_enabled_profiling"])
 
-        profile_datasource = ProfileDataSource.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
-        if profile_datasource:
-            from apm.task.tasks import refresh_apm_application_config
+    def stop_metric(self):
+        MetricDataSource.stop(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+        self.is_enabled_metric = False
+        self.save(update_fields=["is_enabled_metric"])
 
-            refresh_apm_application_config.delay(self.bk_biz_id, self.app_name)
+    def stop_log(self):
+        LogDataSource.stop(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+        self.is_enabled_log = False
+        self.save(update_fields=["is_enabled_log"])
 
     @classmethod
     def get_application(cls, bk_biz_id, app_name):
@@ -79,19 +109,46 @@ class ApmApplication(AbstractRecordModel):
             raise ValueError(_("应用不存在"))
 
     @classmethod
-    def apply_datasource(cls, bk_biz_id, app_name, es_storage_config, options: Optional[dict] = None):
+    def apply_datasource(
+        cls,
+        bk_biz_id,
+        app_name,
+        storage_config: Optional[dict] = None,
+        options: Optional[dict] = None,
+        is_update=False,
+    ):
+        """创建 或 更新数据源"""
+        if not options:
+            options = {}
+
         application = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not application:
             raise ValueError(_("应用({}) 不存在").format(app_name))
 
-        # 默认创建和更新trace数据源和指标数据源
-        for datasource in [TraceDataSource, MetricDataSource]:
-            datasource.apply_datasource(bk_biz_id=bk_biz_id, app_name=app_name, **es_storage_config)
+        # Step1: trace 数据源和 metric 数据源是默认都会创建的
+        if storage_config.get("trace_datasource_option"):
+            TraceDataSource.apply_datasource(
+                bk_biz_id=bk_biz_id, app_name=app_name, **storage_config["trace_datasource_option"]
+            )
+        MetricDataSource.apply_datasource(bk_biz_id=bk_biz_id, app_name=app_name)
 
-        # 创建和更新性能分析数据源
-        if options and options.get("enabled_profiling", False):
-            ProfileDataSource.apply_datasource(bk_biz_id=bk_biz_id, app_name=app_name, **es_storage_config)
-            cls.objects.filter(id=application.id).update(is_enabled_profiling=True)
+        # Step2: 更新功能开关
+        update_params = {
+            "is_enabled_trace": True if options.get("enabled_trace") else False,
+            "is_enabled_log": True if options.get("enabled_log") else False,
+            "is_enabled_metric": True if options.get("enabled_metric") else False,
+            "is_enabled_profiling": True if options.get("enabled_profiling") else False,
+        }
+
+        # Step3: 接入/更新 可选数据源
+        if update_params["is_enabled_profiling"]:
+            ProfileDataSource.apply_datasource(bk_biz_id=bk_biz_id, app_name=app_name)
+        if update_params["is_enabled_log"] and storage_config.get("log_datasource_option"):
+            LogDataSource.apply_datasource(
+                bk_biz_id=bk_biz_id,
+                app_name=app_name,
+                **storage_config["log_datasource_option"],
+            )
 
         configs = {
             "metric_config": application.metric_datasource.to_json(),
@@ -99,50 +156,59 @@ class ApmApplication(AbstractRecordModel):
         }
         if application.profile_datasource:
             configs["profile_config"] = application.profile_datasource.to_json()
+        if application.log_datasource:
+            configs["log_config"] = application.log_datasource.to_json()
+
+        if not is_update:
+            cls.objects.filter(id=application.id).update(**update_params)
 
         return configs
 
     @classmethod
-    def check_application(cls, app, bk_biz_id, app_name, options: Optional[dict] = None):
+    def check_application(cls, bk_biz_id, app_name):
         """检查应用是否已经存在"""
 
         def check_data_source(data_source):
             return data_source and data_source.bk_biz_id != -1 and data_source.result_table_id
 
+        # trace / metric 不允许先前存在(历史逻辑未更改)
+        # 而 log / metric 允许之前曾经创建过，则会被更新(新接入数据源)，所以这里不检查
         trace = TraceDataSource.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         metric = MetricDataSource.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
 
-        if app and check_data_source(trace) and check_data_source(metric):
-            if options and options.get("enabled_profiling", False):
-                profile = ProfileDataSource.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-                if check_data_source(profile):
-                    raise ValueError(_("应用名称(app_name) {} 在该业务({})已经存在").format(app_name, bk_biz_id))
+        for i in [trace, metric]:
+            if check_data_source(i):
+                raise ValueError(f"应用: {app_name} 已创建过数据源: {i.__class__}，请联系管理员删除此数据或者尝试更换应用名称")
 
-            raise ValueError(_("应用名称(app_name) {} 在该业务({})已经存在").format(app_name, bk_biz_id))
+        if cls.origin_objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first():
+            raise ValueError(f"应用: {app_name} 已经被创建。可能为无效数据，请联系管理员删除此数据或者尝试更换应用名称)")
 
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
     def create_application(
         cls, bk_biz_id, app_name, app_alias, description, es_storage_config, options: Optional[dict] = None
     ):
-        application = cls.origin_objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        cls.check_application(application, bk_biz_id, app_name, options)
-        if application:
-            application.app_alias = app_alias
-            application.description = description
-            application.is_deleted = True
-            application.save()
-        else:
-            # step1: 创建应用
-            application = cls.objects.create(
-                bk_biz_id=bk_biz_id,
-                app_name=app_name,
-                app_alias=app_alias,
-                description=description,
-            )
+        cls.check_application(bk_biz_id, app_name)
 
-        # step2: 创建结果表
-        datasource_info = cls.apply_datasource(bk_biz_id, app_name, es_storage_config, options)
+        # step1: 创建应用
+        application = cls.objects.create(
+            bk_biz_id=bk_biz_id,
+            app_name=app_name,
+            app_alias=app_alias,
+            token=uuid.uuid4().hex,  # 长度 32，(16 个随机字符的 16 进制表示)
+            description=description,
+        )
+        # step2: 创建结果表 (创建的时候 Trace 和 Log 使用同一个数据源)
+        datasource_info = cls.apply_datasource(
+            bk_biz_id,
+            app_name,
+            storage_config={
+                "trace_datasource_option": es_storage_config,
+                "log_datasource_option": es_storage_config,
+            },
+            options=options,
+            is_update=False,
+        )
 
         # step3: 创建虚拟指标
         if bk_biz_id in settings.APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID:
@@ -155,6 +221,7 @@ class ApmApplication(AbstractRecordModel):
             "app_name": app_name,
             "application_id": application.id,
             "datasource_info": datasource_info,
+            "datasource_option": es_storage_config,
         }
 
     @cached_property
@@ -169,17 +236,29 @@ class ApmApplication(AbstractRecordModel):
     def profile_datasource(self):
         return ProfileDataSource.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
 
+    @cached_property
+    def log_datasource(self):
+        return LogDataSource.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
+
     def get_bk_data_token(self):
-        if not self.metric_datasource:
-            return ""
+        # 1. 优先使用 model 里的 token
+        if self.token:
+            return self.token
+
+        # 2. 兼容逻辑，保留下面的 token 生成逻辑(历史已创建的应用，使用的是动态生成的 token)
         params = {
-            "trace_data_id": self.trace_datasource.bk_data_id,
-            "metric_data_id": self.metric_datasource.bk_data_id,
             "bk_biz_id": self.bk_biz_id,
             "app_name": self.app_name,
         }
+        if self.trace_datasource:
+            params["trace_data_id"] = self.trace_datasource.bk_data_id
+        if self.metric_datasource:
+            params["metric_data_id"] = self.metric_datasource.bk_data_id
+        if self.log_datasource:
+            params["log_data_id"] = self.log_datasource.bk_data_id
         if self.profile_datasource:
             params["profile_data_id"] = self.profile_datasource.bk_data_id
+            # 一开始没有预留 profile 的位置，所以如果开启了 profile，需要走单独的函数生成 token
             return transform_data_id_to_v1_token(**params)
         return transform_data_id_to_token(**params)
 

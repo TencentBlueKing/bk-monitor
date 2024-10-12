@@ -1,0 +1,21 @@
+.origin-content {
+  font-family: var(--table-fount-family);
+  font-size: var(--table-fount-size);
+  color: var(--table-fount-color);
+
+  .black-mark {
+    margin-right: 2px;
+    background: #e6e6e6;
+    border-radius: 2px;
+  }
+
+  .origin-value {
+    margin: 0 4px 0 2px;
+    word-break: break-all;
+  }
+
+  mark {
+    padding: 0 2px;
+    border-radius: 2px;
+  }
+}

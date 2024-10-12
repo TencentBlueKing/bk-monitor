@@ -72,12 +72,12 @@ def udp_handler(url, method, timeout, headers, data):
             try:
                 # 发送消息
                 udp_socket.sendto(sliced_data, (address, port))
-                logger.debug("[push_to_gateway] send metrics success, len: %s", len(data))
             except Exception as e:
                 logger.exception(
-                    "[push_to_gateway] send metrics to (%s:%s) error: %s, len: %s", address, port, e, len(data)
+                    "[push_to_gateway] send metrics to (%s:%s) error: %s, len: %s", address, port, e, len(sliced_data)
                 )
                 raise
+        logger.info("[push_to_gateway] send metrics success, len: %s", len(data))
 
     return handle
 

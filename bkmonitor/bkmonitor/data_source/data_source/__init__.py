@@ -24,6 +24,8 @@ from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 
 import constants.event
+from bkm_space.api import SpaceApi
+from bkm_space.define import SpaceTypeEnum
 from bkmonitor.data_source.unify_query.functions import (
     AggMethods,
     CpAggMethods,
@@ -1106,12 +1108,16 @@ class BkdataTimeSeriesDataSource(TimeSeriesDataSource):
 
         # 对用户的请求进行鉴权
         if bk_biz_id:
-            bk_biz_id = str(kwargs["bk_biz_id"])
             table_prefix = re.match(r"^(\d*)", self.table).groups()[0]
             if not table_prefix or table_prefix == str(settings.BK_DATA_BK_BIZ_ID):
                 # 目标表前缀没有业务信息，或者前缀业务属于监控平台对接计算平台的业务，则不需要鉴权
                 return
-            if table_prefix != bk_biz_id:
+            if table_prefix != str(bk_biz_id):
+                if bk_biz_id < 0:
+                    space_uid = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id).space_uid
+                    target_space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
+                    if target_space and str(target_space.bk_biz_id) == table_prefix:
+                        return
                 logger.error(f"用户请求bkdata数据源无权限(result_table_id:{self.table}, 业务id: {bk_biz_id})")
                 raise PermissionDeniedError(action_name=bk_biz_id)
 
@@ -1657,7 +1663,6 @@ class BkMonitorLogDataSource(DataSource):
     def query_log(
         self, start_time: int = None, end_time: int = None, limit: int = None, offset: int = None, *args, **kwargs
     ) -> Tuple[List, int]:
-
         q = self._get_queryset(
             table=self.table,
             select=self.select,

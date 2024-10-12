@@ -264,4 +264,12 @@ export default {
   编辑故障属性: 'Edit Incident Attribute',
   故障负责人: 'Incident Person in Charge',
   故障标签: 'Incident Label',
+  '通过持续上报服务的关键性能指标，可以实时了解服务的运行状态，如响应时间、吞吐量等':
+    'By continuously reporting key performance indicators of services, you can understand the running status of services in real time, such as response time, throughput, etc.',
+  '服务日志提供了详细的错误信息和上下文，有助于快速定位和解决问题':
+    'Service logs provide detailed error information and context, which helps to quickly locate and solve problems',
+  '从用户发起请求到服务响应的全链路追踪，追踪请求在多个服务之间的调用情况，帮助业务识别性能瓶颈和延迟原因':
+    'Full-link tracking from user request to service response, tracking the calling situation of the request between multiple services, helping business identify performance bottlenecks and delay reasons',
+  '通过分析函数调用栈和内存分配情况，找出性能瓶颈并进行针对性优化':
+    'By analyzing function call stacks and memory allocation, find performance bottlenecks and optimize them accordingly',
 };

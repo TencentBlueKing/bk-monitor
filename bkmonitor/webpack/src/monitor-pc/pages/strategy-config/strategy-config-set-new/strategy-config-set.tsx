@@ -607,7 +607,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       try {
         dimension && (dimension = JSON.parse(dimension));
         condition && (condition = JSON.parse(condition));
-      } catch (e) {
+      } catch {
         dimension = [];
         condition = [];
       }
@@ -1377,6 +1377,20 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     return item;
   }
 
+  // 根据 监控数据 修改 判断条件 相关配置
+  changeTriggerConfigCount(type: 'alert' | 'event' | 'log' | 'MultivariateAnomalyDetection' | 'time_series'): void {
+    // 仅在新建时，调整默认值
+    if (this.$route.name !== 'strategy-config-add') return;
+    switch (type) {
+      case 'log':
+      case 'event':
+        this.analyzingConditions.triggerConfig.count = 1;
+        break;
+      default:
+        break;
+    }
+  }
+
   // 弹出指标选择器
   handleShowMetric(item) {
     this.monitorDataEditMode = 'Edit';
@@ -1392,6 +1406,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.handleAddNullMetric(item);
     this.handleResetMetricAlias();
     this.showRealtimeStrategy = !!window?.show_realtime_strategy;
+    this.changeTriggerConfigCount(item.type);
   }
 
   // 继续添加指标
@@ -1581,12 +1596,12 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
 
   handleMouseDown(e) {
     const node = e.target;
-    const { parentNode } = node;
+    const { nextElementSibling } = node;
 
-    if (!parentNode) return;
+    if (!nextElementSibling) return;
 
     const nodeRect = node.getBoundingClientRect();
-    const rect = parentNode.getBoundingClientRect();
+    const rect = nextElementSibling.getBoundingClientRect();
     document.onselectstart = () => false;
     document.ondragstart = () => false;
     this.strategyView.isActive = true;
@@ -2443,6 +2458,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
    */
   handleSceneConfigMetricChange(metrics) {
     this.multivariateAnomalyDetectionParams.metrics = metrics;
+  }
+  handleMultivariateAnomalyRefreshView() {
     /* refleshKey用于控制图表数据刷新 */
     this.multivariateAnomalyDetectionParams.refleshKey = random(8);
   }
@@ -2743,13 +2760,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
             class='set-content-right'
           >
             <div
+              class={['drag', { active: this.strategyView.isActive }]}
+              on-mousedown={this.handleMouseDown}
+            />
+            <div
               style={{ width: this.rightWidth }}
               class='right-wrapper'
             >
-              <div
-                class={['drag', { active: this.strategyView.isActive }]}
-                on-mousedown={this.handleMouseDown}
-              />
               <StrategyView
                 activeModelMd={this.activeModelIndex}
                 aiopsChartType={this.localAiopsChartType}
@@ -2766,6 +2783,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 multivariateAnomalyDetectionParams={this.multivariateAnomalyDetectionParams}
                 sourceData={this.sourceData}
                 strategyTarget={this.strategyTarget}
+                onMultivariateAnomalyRefreshView={this.handleMultivariateAnomalyRefreshView}
               />
             </div>
           </div>

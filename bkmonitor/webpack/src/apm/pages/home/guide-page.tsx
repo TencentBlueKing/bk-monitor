@@ -30,13 +30,13 @@ import { skipToDocsLink } from 'monitor-common/utils/docs';
 
 import AppStore from '../../store/modules/app';
 
-import type { IGuideLink } from './app-list';
 import type { IAppSelectOptItem } from './app-select';
+import type { IGuideLink } from './typings/app';
 
 import './guide-page.scss';
 
 interface IEvents {
-  onCreateApp: void;
+  onCreateApp: () => void;
 }
 interface IProps {
   isDialogContent?: boolean;

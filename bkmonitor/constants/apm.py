@@ -1,8 +1,11 @@
 from dataclasses import dataclass
+from enum import Enum
 from typing import List
 
 from django.db.models import TextChoices
+from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import ugettext_lazy as _lazy
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -749,3 +752,109 @@ class ApmMetrics:
             cls.BK_APM_DURATION_DELTA,
             cls.BK_APM_DURATION_BUCKET,
         ]
+
+
+class OtlpProtocol:
+    GRPC: str = "grpc"
+    HTTP_JSON: str = "http/json"
+
+    @classmethod
+    def choices(cls):
+        return [
+            (cls.GRPC, _("gRPC 上报")),
+            (cls.HTTP_JSON, _("HTTP/Protobuf 上报")),
+        ]
+
+
+class TelemetryDataType(Enum):
+    METRIC = "metric"
+    LOG = "log"
+    TRACE = "trace"
+    PROFILING = "profiling"
+
+    @classmethod
+    def choices(cls):
+        return [
+            (cls.METRIC, _("指标")),
+            (cls.LOG, _("日志")),
+            (cls.TRACE, _("调用链")),
+            (cls.PROFILING, _("性能分析")),
+        ]
+
+    @property
+    def alias(self):
+        return {
+            self.METRIC.value: _lazy("指标"),
+            self.LOG.value: _lazy("日志"),
+            self.TRACE.value: _lazy("调用链"),
+            self.PROFILING.value: _lazy("性能分析"),
+        }.get(self.value, self.value)
+
+    @cached_property
+    def datasource_type(self):
+        return {
+            self.METRIC.value: "metric",
+            self.LOG.value: "log",
+            self.TRACE.value: "trace",
+            self.PROFILING.value: "profiling",
+        }.get(self.value)
+
+    @classmethod
+    def values(cls):
+        return [i.value for i in cls]
+
+    @classmethod
+    def get_filter_fields(cls):
+        return [
+            {"id": cls.METRIC.value, "name": _("指标")},
+            {"id": cls.LOG.value, "name": _("日志")},
+            {"id": cls.TRACE.value, "name": _("调用链")},
+            {"id": cls.PROFILING.value, "name": _("性能分析")},
+        ]
+
+    @cached_property
+    def no_data_strategy_enabled(self):
+        return {
+            self.PROFILING.value: False,
+        }.get(self.value, True)
+
+
+class FormatType:
+    # 默认：补充协议 + url 路径
+    DEFAULT = "default"
+    # simple：仅返回域名
+    SIMPLE = "simple"
+
+    @classmethod
+    def choices(cls):
+        return [(cls.DEFAULT, cls.DEFAULT), (cls.SIMPLE, cls.SIMPLE)]
+
+
+class BkCollectorComp:
+    """一些 bk-collector 的固定值"""
+
+    NAMESPACE = "bkmonitor-operator"
+
+    DEPLOYMENT_NAME = "bkm-collector"
+
+    # ConfigMap 模版
+    # ConfigMap: 平台配置名称
+    CONFIG_MAP_PLATFORM_TPL_NAME = "bk-collector-platform.conf.tpl"
+    # ConfigMap: 应用配置名称
+    CONFIG_MAP_APPLICATION_TPL_NAME = "bk-collector-application.conf.tpl"
+
+    # Secrets 配置
+    SECRET_PLATFORM_NAME = "bk-collector-platform"
+    SECRET_SUBCONFIG_APM_NAME = "bk-collector-subconfig-apm-{}-{}"  # 这里的名字不能随意变，逻辑上依赖
+    SECRET_PLATFORM_CONFIG_FILENAME_NAME = "platform.conf"
+    SECRET_APPLICATION_CONFIG_FILENAME_NAME = "application-{}.conf"  # 这里的名字不能随意变，逻辑上依赖
+    SECRET_APPLICATION_CONFIG_MAX_COUNT = 20  # 每个 Secret 存放 20 个 APM 应用配置
+
+    # Labels 过滤条件
+    LABEL_COMPONENT_VALUE = "bk-collector"
+    LABEL_TYPE_SUB_CONFIG = "subconfig"
+    LABEL_TYPE_PLATFORM_CONFIG = "platform"
+    LABEL_SOURCE_APPLICATION_CONFIG = "apm"
+
+    # 缓存 KEY: 安装了 bk-collector 的集群 id 列表
+    CACHE_KEY_CLUSTER_IDS = "bk-collector:clusters"

@@ -50,7 +50,7 @@
               class="list-item display-item"
               :key="field"
             >
-              <span class="icon log-icon icon-drag-dots"></span>
+              <span class="icon bklog-icon bklog-drag-dots"></span>
               <div class="field_name">{{ field }}</div>
               <div
                 :class="['operate-button', disabledRemove && 'disabled']"
@@ -134,7 +134,7 @@
         dragOptions: {
           animation: 150,
           tag: 'ul',
-          handle: '.icon-drag-dots',
+          handle: '.bklog-drag-dots',
           'ghost-class': 'sortable-ghost-class',
         },
       };
@@ -215,7 +215,7 @@
             background-color: #f5f6fa;
 
             &.display-item {
-              .icon-drag-dots {
+              .bklog-drag-dots {
                 width: 16px;
                 font-size: 14px;
                 color: #979ba5;

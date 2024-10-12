@@ -208,6 +208,8 @@ class SearchHandler(object):
         self.addition = copy.deepcopy(search_dict.get("addition", []))
         self.ip_chooser = copy.deepcopy(search_dict.get("ip_chooser", {}))
         self.from_favorite_id = self.search_dict.get("from_favorite_id", 0)
+        # 检索模式
+        self.search_mode = self.search_dict.get("search_mode", "ui")
 
         self.use_time_range = search_dict.get("use_time_range", True)
         # 构建时间字段
@@ -679,8 +681,8 @@ class SearchHandler(object):
             "storage_cluster_id": self.storage_cluster_id,
             "start_time": self.start_time,
             "end_time": self.end_time,
-            "query_string": self.query_string,
             "filter": self.filter,
+            "query_string": self.query_string,
             "sort_list": self.sort_list,
             "start": self.start,
             "size": once_size,
@@ -873,11 +875,12 @@ class SearchHandler(object):
             index_set_id=self.index_set_id,
             params=params,
             search_type=search_type,
+            search_mode=self.search_mode,
             result=result,
         )
 
-    @cache_five_minute("search_history_{username}_{index_set_id}_{search_type}_{params}", need_md5=True)
-    def _cache_history(self, *, username, index_set_id, params, search_type, result):  # noqa
+    @cache_five_minute("search_history_{username}_{index_set_id}_{search_type}_{params}_{search_mode}", need_md5=True)
+    def _cache_history(self, *, username, index_set_id, params, search_type, search_mode, result):  # noqa
         history_params = copy.deepcopy(params)
         history_params.update({"start_time": self.start_time, "end_time": self.end_time, "time_range": self.time_range})
 
@@ -889,6 +892,7 @@ class SearchHandler(object):
                         "params": history_params,
                         "index_set_id": self.index_set_id,
                         "search_type": search_type,
+                        "search_mode": search_mode,
                         "from_favorite_id": self.from_favorite_id,
                     }
                 }
@@ -898,6 +902,7 @@ class SearchHandler(object):
                 index_set_id=self.index_set_id,
                 params=history_params,
                 search_type=search_type,
+                search_mode=search_mode,
                 from_favorite_id=self.from_favorite_id,
             )
 
@@ -1257,8 +1262,8 @@ class SearchHandler(object):
                         search_type="default",
                         index_set_type=IndexSetType.SINGLE.value,
                     )
-                    .order_by("-rank", "-created_at")
-                    .values("id", "params")
+                    .order_by("-rank", "-created_at")[:10]
+                    .values("id", "params", "search_mode")
                 )
             else:
                 history_obj = (
@@ -1269,7 +1274,7 @@ class SearchHandler(object):
                         index_set_type=IndexSetType.SINGLE.value,
                     )
                     .order_by("created_by", "-created_at")
-                    .values("id", "params", "created_by", "created_at")
+                    .values("id", "params", "search_mode", "created_by", "created_at")
                 )
         else:
             history_obj = (
@@ -1279,8 +1284,8 @@ class SearchHandler(object):
                     index_set_ids=index_set_ids,
                     index_set_type=IndexSetType.UNION.value,
                 )
-                .order_by("-rank", "-created_at")
-                .values("id", "params", "created_by", "created_at")
+                .order_by("-rank", "-created_at")[:10]
+                .values("id", "params", "search_mode", "created_by", "created_at")
             )
         history_obj = SearchHandler._deal_repeat_history(history_obj)
         return_data = []
@@ -1747,6 +1752,16 @@ class SearchHandler(object):
         new_filter_list: list = []
         for item in filter_list:
             field: str = item.get("key") if item.get("key") else item.get("field")
+            # 全文检索key & 存量query_string转换
+            if field in ["*", "__query_string__"]:
+                value = item.get("value", [])
+                value = ",".join(value) if isinstance(value, list) else value
+                if value:
+                    if field == "*":
+                        value = "\"" + value.replace('"', '\\"') + "\""
+                    self.query_string = value
+                continue
+
             _type = "field"
             if self.mapping_handlers.is_nested_field(field):
                 _type = FieldDataTypeEnum.NESTED.value
@@ -2544,6 +2559,7 @@ class UnionSearchHandler(object):
             "start_time": self.search_dict.get("start_time"),
             "end_time": self.search_dict.get("end_time"),
             "time_range": self.search_dict.get("time_range"),
+            "search_mode": self.search_dict.get("search_mode"),
         }
 
         result.update(

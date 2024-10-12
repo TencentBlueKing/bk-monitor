@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { IMetricDetail } from './typings';
+import type { MetricDetail } from './typings';
 
 // 函数组件value
 export interface IFuncValueItem {
@@ -102,6 +102,6 @@ export const noticeMethod = [
 ];
 
 export interface IMultivariateAnomalyDetectionParams {
-  metrics: IMetricDetail[];
+  metrics: MetricDetail[];
   refleshKey: string;
 }

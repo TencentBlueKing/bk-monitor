@@ -261,6 +261,7 @@ class MonitorBaseEchart extends BaseEchart {
     }
     let liHtmls = [];
     let ulStyle = '';
+    let hasWrapText = true;
     const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
     if (params[0]?.data?.tooltips) {
       liHtmls.push(params[0].data.tooltips);
@@ -306,10 +307,11 @@ class MonitorBaseEchart extends BaseEchart {
       const maxLen = Math.ceil((window.innerHeight - 100) / 20);
       if (list.length > maxLen && this.tooltipSize) {
         const cols = Math.ceil(list.length / maxLen);
+        if (cols > 1) hasWrapText = false;
         this.tableToolSize = this.tableToolSize
           ? Math.min(this.tableToolSize, this.tooltipSize[0])
           : this.tooltipSize[0];
-        ulStyle = `display:flex; flex-wrap:wrap; width: ${Math.min(5 + cols * this.tableToolSize, window.innerWidth / 1.33)}px;`;
+        ulStyle = `display:flex; flex-wrap:wrap; width: ${Math.min(5 + cols * this.tableToolSize, window.innerWidth / 2)}px;`;
       }
     }
     const lastItem = this.tooltipsContentLastItemFn?.(params);
@@ -317,7 +319,7 @@ class MonitorBaseEchart extends BaseEchart {
             <p class="tooltips-header">
                 ${pointTime}
             </p>
-            <ul class="tooltips-content" style="${ulStyle}">
+            <ul class="tooltips-content ${hasWrapText ? 'wrap-text' : ''}" style="${ulStyle}">
                 ${liHtmls?.join('')}
                 ${lastItem || ''}
             </ul>

@@ -135,7 +135,7 @@ interface IEventItem {
 const commonTableProps: ICommonTableProps = {
   checkable: false,
   defaultSize: 'medium',
-  hasColnumSetting: false,
+  hasColumnSetting: false,
   paginationType: 'normal',
   columns: [
     { id: 'bkDataId', name: window.i18n.tc('数据ID'), type: 'string', props: { minWidth: 100 } },
@@ -245,7 +245,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
    * 处理自定义指标表格特有的数据
    */
   handleCustomMetricTable() {
-    this.tableData.hasColnumSetting = true;
+    this.tableData.hasColumnSetting = true;
     this.tableData.columns.splice(
       2,
       0,

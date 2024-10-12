@@ -47,6 +47,7 @@ def search_history_record(func):
                 index_set_id=history_obj["index_set_id"],
                 params=history_obj["params"],
                 search_type=history_obj["search_type"],
+                search_mode=history_obj["search_mode"],
                 from_favorite_id=history_obj["from_favorite_id"],
                 duration=time_consume,
             )

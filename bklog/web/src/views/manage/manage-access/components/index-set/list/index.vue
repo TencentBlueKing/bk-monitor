@@ -86,7 +86,7 @@
             </span>
             <span
               v-if="row.is_desensitize"
-              class="bk-icon log-icon icon-masking"
+              class="bk-icon bklog-icon bklog-masking"
               v-bk-tooltips.top="$t('已脱敏')"
             >
             </span>

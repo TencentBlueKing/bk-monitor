@@ -1456,7 +1456,8 @@ class DimensionUnifyQuery(Resource):
             "type": "dimension",
             "scenario": "os",
             "params": {
-                "data_label": query_config["data_label"],
+                # query_config 未必都有这个字段： data_label
+                "data_label": query_config.get("data_label", ""),
                 "data_source_label": query_config["data_source_label"],
                 "data_type_label": query_config["data_type_label"],
                 "result_table_id": query_config["table"],

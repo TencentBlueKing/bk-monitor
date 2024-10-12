@@ -500,6 +500,10 @@ BUILTIN_DATA_RT_REDIS_KEY = os.getenv(
     "BKAPP_BUILTIN_DATA_RT_REDIS_KEY", "bkmonitorv3:spaces:built_in_result_table_detail"
 )
 
+# eco system
+ECOSYSTEM_REPOSITORY_URL = ""
+ECOSYSTEM_CODE_ROOT_URL = ""
+
 # APM config
 APM_ACCESS_URL = ""
 APM_BEST_PRACTICE_URL = ""

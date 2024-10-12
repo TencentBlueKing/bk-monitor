@@ -108,11 +108,6 @@ const TimeSeriesProps = {
     type: Boolean,
     default: false,
   },
-  // 是否展示more tools
-  showHeaderMoreTool: {
-    type: Boolean,
-    default: false,
-  },
   // 自定义时间范围
   customTimeRange: Array as PropType<string[]>,
   // 自定义更多菜单
@@ -380,7 +375,7 @@ export default defineComponent({
         maxX &&
         // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
         (formatterFunc = (v: any) => {
-          const duration = dayjs.duration(dayjs.tz(maxX).diff(dayjs.tz(minX))).asSeconds();
+          const duration = Math.abs(dayjs.duration(dayjs.tz(maxX).diff(dayjs.tz(minX))).asSeconds());
           if (onlyBeginEnd && v > minX && v < maxX) {
             return '';
           }
@@ -835,7 +830,7 @@ export default defineComponent({
       props.isUseAlone ? (errorMsg.value = '') : props.clearErrorMsg();
     }
     function handleRestore() {
-      if (!!enableSelectionRestoreAll.value) {
+      if (enableSelectionRestoreAll.value) {
         handleRestoreEvent();
       } else {
         dataZoom(undefined, undefined);
@@ -941,7 +936,7 @@ export default defineComponent({
                 menuList={this.menuList}
                 metrics={this.metrics}
                 showAddMetric={this.showAddMetric}
-                showMore={this.isInHover}
+                showMore={true}
                 subtitle={this.panel.subTitle || ''}
                 title={this.panel.title}
                 onAlarmClick={this.handleAlarmClick}
