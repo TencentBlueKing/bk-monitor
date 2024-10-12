@@ -119,6 +119,7 @@ export default class ServiceApply extends tsc<IProps> {
       key = JSON.stringify(this.markdownParams || {});
     }
     const rawMarkdownStr = this.markdownMap.get(key) || '';
+
     return rawMarkdownStr.replace(/{{service_name}}/gim, this.formData.serviceName);
   }
   /** 获取应用列表 */
@@ -198,6 +199,17 @@ export default class ServiceApply extends tsc<IProps> {
       checkLang.checked = false;
     }
     language.checked = val;
+  }
+
+  handleJumpToService() {
+    const { href } = this.$router.resolve({
+      name: 'service',
+      query: {
+        'filter-app_name': this.appName,
+        'filter-service_name': this.formData.serviceName,
+      },
+    });
+    window.open(`/?bizId=${this.$store.getters.bizId}${href}`, '_blank');
   }
   render() {
     const rowContent = (name: string, content, subTitle?) => [
@@ -319,51 +331,61 @@ export default class ServiceApply extends tsc<IProps> {
             </div>
           )}
         </div>
-        <div
-          style='flex: 1'
-          class='row-content-wrap is-markdown'
-        >
-          {rowContent(
-            this.$tc('上报示例'),
-            this.markdownLoading ? (
-              <div class='markdown-skeleton'>
-                {Array.of(35, 65, 55, 85, 75, 45, 95).map(w => (
-                  <div
-                    key={w}
-                    style={{
-                      width: `${w}%`,
-                    }}
-                    class='skeleton-element markdown-skeleton-item'
+        {this.formData.serviceName && (
+          <div
+            style='flex: 1'
+            class='row-content-wrap is-markdown'
+          >
+            {rowContent(
+              this.$tc('上报示例'),
+              this.markdownLoading ? (
+                <div class='markdown-skeleton'>
+                  {Array.of(35, 65, 55, 85, 75, 45, 95).map(w => (
+                    <div
+                      key={w}
+                      style={{
+                        width: `${w}%`,
+                      }}
+                      class='skeleton-element markdown-skeleton-item'
+                    />
+                  ))}
+                </div>
+              ) : this.markdownStr ? (
+                <div class='view-main'>
+                  <MarkdownViewer
+                    flowchartStyle={false}
+                    value={this.markdownStr}
                   />
-                ))}
-              </div>
-            ) : this.markdownStr && this.formData.serviceName ? (
-              <div class='view-main'>
-                <MarkdownViewer
-                  flowchartStyle={false}
-                  value={this.markdownStr}
-                />
-              </div>
-            ) : (
-              <bk-exception
-                scene='part'
-                type='empty'
-              >
-                {!this.formData.serviceName ? this.$t('请输入服务名') : this.$t('暂无数据')}
-              </bk-exception>
-            ),
-            this.guideUrl && (
-              <bk-button
-                class='access-guide'
-                theme='primary'
-                onClick={() => window.open(this.guideUrl)}
-              >
-                <i class='icon-monitor icon-mc-detail' />
-                {this.$tc('详情接入指引')}
-              </bk-button>
-            )
-          )}
-        </div>
+                  <i18n path='前往{0}查看相关数据'>
+                    <bk-button
+                      text
+                      onClick={this.handleJumpToService}
+                    >
+                      「服务详情」
+                    </bk-button>
+                  </i18n>
+                </div>
+              ) : (
+                <bk-exception
+                  scene='part'
+                  type='empty'
+                >
+                  {this.$t('暂无数据')}
+                </bk-exception>
+              ),
+              this.guideUrl && (
+                <bk-button
+                  class='access-guide'
+                  theme='primary'
+                  onClick={() => window.open(this.guideUrl)}
+                >
+                  <i class='icon-monitor icon-mc-detail' />
+                  {this.$tc('详情接入指引')}
+                </bk-button>
+              )
+            )}
+          </div>
+        )}
       </div>
     );
   }

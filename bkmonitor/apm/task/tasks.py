@@ -179,3 +179,11 @@ def k8s_bk_collector_discover_cron():
 
     # [2] 为安装了 bk-collector 的集群创建默认应用 && 下发配置 !!!具体实现交给 apm.tasks 模块处理
     logger.info("[bk_collector_discover_cron] end")
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def create_application_async(application_id, storage_config, options):
+    """后台创建应用"""
+
+    application = ApmApplication.objects.get(id=application_id)
+    application.apply_datasource(storage_config, storage_config, options)

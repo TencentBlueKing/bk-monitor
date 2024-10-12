@@ -28,6 +28,12 @@
 
     .header-right {
       display: flex;
+
+      .disabled {
+        color: #fff;
+        background: #dcdee5;
+        border-color:  #dcdee5;
+      }
     }
   }
   // 右侧主体部分
@@ -117,6 +123,12 @@
         .app-list-btns {
           display: flex;
           align-items: center;
+
+          .disabled {
+            color: #fff;
+            background: #dcdee5;
+            border-color:  #dcdee5;
+          }
         }
 
         .icon-double-up {
@@ -183,6 +195,7 @@
               margin-bottom: 16px;
 
               .bk-table {
+                z-index: 0;
                 height: 100%;
                 overflow-y: auto;
               }
@@ -191,12 +204,14 @@
                 position: sticky;
                 top: 0;
                 z-index: 99;
+                margin-right: 1px;
               }
 
               .bk-table-pagination-wrapper {
                 position: sticky;
                 bottom: 0;
                 z-index: 99;
+                margin-right: 1px;
                 background: #fff;
               }
 
