@@ -338,6 +338,7 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
             >
               <AlarmTools
                 class='alarm-tools'
+                isShowStrategy={false}
                 panel={this.alarmToolsPanel}
               />
               <DashboardTools

@@ -464,7 +464,7 @@ export default class ApmServiceList extends tsc<
     return (
       <div class='apm-home-list'>
         <div class='header'>
-          {this.filterLoading ? (
+          {this.filterLoading || !this.appName ? (
             <div
               style='height: 32px; width: 240px'
               class='skeleton-element'
