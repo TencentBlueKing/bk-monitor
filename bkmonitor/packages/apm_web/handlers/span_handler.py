@@ -31,6 +31,10 @@ class SpanHandler:
     def get_lastly_span(cls, bk_biz_id, app_name):
         """获取一天内最近一条span"""
         app = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        if not app.trace_result_table_id:
+            # 未开启 trace，这里直接返回空
+            return None
+
         start, end = cls.get_day_edge()
         response = api.apm_api.query_es(
             table_id=app.trace_result_table_id,
