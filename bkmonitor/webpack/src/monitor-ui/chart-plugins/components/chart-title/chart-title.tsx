@@ -28,7 +28,7 @@ import { modifiers, Component as tsc } from 'vue-tsx-support';
 
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
 
-import { createMetricTitleTooltips, fitPosition } from '../../utils';
+import { createMetricTitleTooltips, deduplicateByField, fitPosition } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import ChartMenu, { type IChartTitleMenuEvents } from './chart-title-menu';
 
@@ -163,18 +163,6 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   }
 
   get metricTitleTooltips() {
-    // 根据传入的 field 去重
-    const deduplicateByField = (arr, field = 'id') => {
-      const map = new Map();
-
-      for (const item of arr) {
-        // 去重
-        item[field] && map.set(item[field], item);
-      }
-
-      // 从 map 的 values 中生成去重后的数组
-      return Array.from(map.values());
-    };
     return this.showMetricAlarm
       ? createMetricTitleTooltips(this.metricTitleData)
       : deduplicateByField(this.metrics, 'metric_id')
