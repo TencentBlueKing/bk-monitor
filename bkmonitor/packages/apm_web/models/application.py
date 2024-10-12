@@ -652,12 +652,11 @@ class Application(AbstractRecordModel):
         application = cls.objects.filter(application_id=application_id).first()
         if not application:
             raise ValueError(_("应用不存在"))
-        datasource_info = api.apm_api.apply_datasource(
-            {"application_id": application.application_id, **datasource_option}
-        )
-        application.trace_result_table_id = datasource_info["trace_config"]["result_table_id"]
-        application.metric_result_table_id = datasource_info["metric_config"]["result_table_id"]
-        application.time_series_group_id = datasource_info["metric_config"]["time_series_group_id"]
+        api.apm_api.apply_datasource({"application_id": application.application_id, **datasource_option})
+        detail = api.apm_api.detail_application(application_id=application.application_id)
+        application.trace_result_table_id = detail["trace_config"]["result_table_id"]
+        application.metric_result_table_id = detail["metric_config"]["result_table_id"]
+        application.time_series_group_id = detail["metric_config"]["time_series_group_id"]
         application.save()
         if datasource_option.get("trace_datasource_option"):
             ApmMetaConfig.application_config_setup(
