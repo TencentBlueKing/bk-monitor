@@ -9,10 +9,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import copy
-import datetime
 import json
 
-from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 
@@ -114,7 +112,8 @@ class TelemetryBackendHandler:
         }
         if query_config_kwargs:
             for query_config in target["data"]["query_configs"]:
-                query_config.update(**query_config_kwargs)
+                query_config.update(query_config_kwargs)
+        target["data"].update(kwargs)
         return target
 
     @classmethod
@@ -130,8 +129,6 @@ class TelemetryBackendHandler:
             template["gridPos"]["x"] = x_pos
             template["gridPos"]["y"] = y_pos
             target = cls.build_call_back_target(**kwargs)
-            if isinstance(target.get("data"), dict):
-                target["data"].update(**kwargs)
             template["targets"] = [target]
             templates.append(template)
         return templates
@@ -382,28 +379,8 @@ class LogBackendHandler(TelemetryBackendHandler):
         }
 
 
-class BkdataCountMixIn:
-    @classmethod
-    def build_call_back_target(cls, application_id, telemetry_data_type, **kwargs) -> dict:
-        grain = kwargs.pop("grain", "1m")
-        target = {
-            "data_type": "data_type_label",
-            "datasource": "data_source_label",
-            "api": "apm_meta.dataHistogram",
-            "primary_key": application_id,
-            "data": {
-                "telemetry_data_type": telemetry_data_type,
-                "data_view_config": {"grain": grain},
-            },
-        }
-        if kwargs:
-            data_view_config = target["data"]["data_view_config"]
-            data_view_config.update(**kwargs)
-        return target
-
-
 @telemetry_handler_registry.register
-class MetricBackendHandler(BkdataCountMixIn, TelemetryBackendHandler):
+class MetricBackendHandler(TelemetryBackendHandler):
     """
     指标后端适配器
     """
@@ -430,82 +407,97 @@ class MetricBackendHandler(BkdataCountMixIn, TelemetryBackendHandler):
         return self.bk_base_data_info.get("vm_result_table_id")
 
     def storage_info(self):
-        return GetRawDataStoragesInfo().request(raw_data_id=self.bk_base_data_id) if self.bk_base_data_id else []
+        storage_info = []
+        result_table = api.bkdata.get_result_table(result_table_id=self.bk_vm_result_table_id)
+        storage = result_table.get("storages", {}).get("vm")
+        if storage:
+            try:
+                expire_info = json.loads(storage.get("storage_cluster", {}).get("expires", "{}"))
+                list_expire = expire_info.get("list_expire", [])
+            except Exception:  # pylint: disable=broad-except
+                list_expire = []
+            expire = list_expire[0] if list_expire else {}
+            ret_storage = {
+                "raw_data_id": self.bk_base_data_id,
+                "bk_biz_id": self.app.bk_biz_id,
+                "result_table_id": self.bk_vm_result_table_id,
+                "storage_type": "vm",
+                "storage_type_alias": "",
+                "storage_cluster": storage.get("storage_cluster", {}).get("storage_cluster_config_id"),
+                "storage_cluster_alias": storage.get("storage_cluster", {}).get("cluster_name"),
+                "expire_time": expire.get("value", "30d"),
+                "expire_time_alias": expire.get("name", _("30天")),
+                "status": "running",
+                "status_display": _("运行中"),
+                "created_at": storage["created_at"],
+                "created_by": storage["created_by"],
+            }
+            storage_info.append(ret_storage)
+        return storage_info
 
     @property
     def storage_status(self):
         storages = self.storage_info() or [{}]
         return all([storage.get("status") == "running" for storage in storages])
 
-    def data_sampling(self, **kwargs):
-        resp_data = []
-        if self.bk_base_data_id:
-            resp = GetDataBusSamplingData().request(data_id=self.bk_base_data_id)
-            for log in resp:
-                log_content = json.loads(log["value"])
-                time_str = datetime.datetime.fromtimestamp(
-                    int(log_content["time"]) / 1000, timezone.get_current_timezone()
-                ).strftime("%Y-%m-%d %H:%M:%S")
-                resp_data.append({"raw_log": log_content, "sampling_time": time_str})
-        return resp_data
+    def data_sampling(self, size: int = 10, **kwargs):
+        resp = api.metadata.kafka_tail({"table_id": self.result_table_id, "size": size}) if self.result_table_id else []
+        return [{"raw_log": log, "sampling_time": log.get("datetime", "")} for log in resp]
 
     def get_data_view_config(self, **kwargs):
         view_params = {
-            "application_id": self.app.application_id,
-            "telemetry_data_type": self.telemetry.value,
+            "data_type_label": DataTypeLabel.TIME_SERIES,
+            "data_source_label": DataSourceLabel.PROMETHEUS,
+            "bk_biz_id": self.app.bk_biz_id,
+            "query_config_kwargs": {
+                "table": self.result_table_id,
+                "promql": f'count({{__name__=~"custom:{self.result_table_id}:.*"}})',
+            },
         }
         kwargs.update(view_params)
         return self.build_data_count_query(
             **kwargs,
         )
 
-    def get_data_view(self, start_time: int, end_time: int, **kwargs):
-        return (
-            GetStorageMetricsDataCount().request(
-                data_set_ids=[self.bk_vm_result_table_id],
-                storages=["vm"],
-                start_time=start_time,
-                end_time=end_time,
-                **kwargs,
-            )
-            if self.bk_vm_result_table_id
-            else []
-        )
+    @classmethod
+    def build_call_back_target(cls, data_type_label, data_source_label, **kwargs) -> dict:
+        grain = kwargs.pop("grain", "1m")
+        query_config_kwargs = kwargs.pop("query_config_kwargs", {})
+        target = {
+            "data_type": "time_series",
+            "datasource": "time_series",
+            "api": "grafana.graphUnifyQuery",
+            "data": {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        "data_source_label": data_source_label,
+                        "data_type_label": data_type_label,
+                        "table": "",
+                        "promql": "",
+                        "interval": cls.GRAIN_MAPPING[grain],
+                        "agg_interval": 60,
+                        "alias": "a",
+                    }
+                ],
+            },
+        }
+        if query_config_kwargs:
+            for query_config in target["data"]["query_configs"]:
+                query_config.update(query_config_kwargs)
+        target["data"].update(kwargs)
+        return target
 
     def get_data_count(self, start_time: int, end_time: int, **kwargs):
-        resp = self.get_data_view(start_time, end_time, **kwargs)
-        count = 0
-        for data in resp:
-            for point in data["series"]:
-                if point["output_count"]:
-                    count += point["output_count"]
-        return count
-
-    def get_data_histogram(self, start_time, end_time, grain="1d"):
-        resp = self.get_data_view(start_time, end_time, time_grain=grain)
-        datapoints = (
-            [[view_series["output_count"], view_series["time"] * 1000] for view_series in resp[0]["series"]]
-            if resp
-            else []
+        view_config = self.get_data_view_config(
+            start_time=start_time, end_time=end_time, bk_biz_id=self.app.bk_biz_id, **kwargs
         )
-        histograms = {
-            "metrics": [],
-            "series": [
-                {
-                    "target": "COUNT(rawdata)",
-                    "metric_field": "_result",
-                    "alias": "_result_",
-                    "type": "bar",
-                    "unit": "",
-                    "dimensions": {},
-                    "dimensions_translation": {},
-                    "datapoints": datapoints,
-                }
-            ]
-            if datapoints
-            else [],
-        }
-        return histograms
+        data = resource.grafana.graph_unify_query(view_config[0]["targets"][0]["data"])
+        count = 0
+        for line in data["series"]:
+            for point in line["datapoints"]:
+                count += point[0]
+        return count
 
     def get_no_data_strategy_config(self, **kwargs):
         return {
@@ -529,7 +521,7 @@ class MetricBackendHandler(BkdataCountMixIn, TelemetryBackendHandler):
 
 
 @telemetry_handler_registry.register
-class ProfilingBackendHandler(BkdataCountMixIn, TelemetryBackendHandler):
+class ProfilingBackendHandler(TelemetryBackendHandler):
     """
     性能分析后端适配器
     """
@@ -561,7 +553,25 @@ class ProfilingBackendHandler(BkdataCountMixIn, TelemetryBackendHandler):
             **kwargs,
         )
 
-    def get_data_view(self, start_time: int, end_time: int, **kwargs):
+    @classmethod
+    def build_call_back_target(cls, application_id, telemetry_data_type, **kwargs) -> dict:
+        grain = kwargs.pop("grain", "1m")
+        target = {
+            "data_type": "data_type_label",
+            "datasource": "data_source_label",
+            "api": "apm_meta.dataHistogram",
+            "primary_key": application_id,
+            "data": {
+                "telemetry_data_type": telemetry_data_type,
+                "data_view_config": {"grain": grain},
+            },
+        }
+        if kwargs:
+            data_view_config = target["data"]["data_view_config"]
+            data_view_config.update(kwargs)
+        return target
+
+    def _get_data_view(self, start_time: int, end_time: int, **kwargs):
         storages = self.storage_info()
         storage_result_table_id = None
         for storage in storages:
@@ -581,7 +591,7 @@ class ProfilingBackendHandler(BkdataCountMixIn, TelemetryBackendHandler):
         )
 
     def get_data_count(self, start_time: int, end_time: int, **kwargs):
-        resp = self.get_data_view(start_time, end_time, **kwargs)
+        resp = self._get_data_view(start_time, end_time, **kwargs)
         count = 0
         for data in resp:
             for point in data["series"]:
@@ -590,7 +600,7 @@ class ProfilingBackendHandler(BkdataCountMixIn, TelemetryBackendHandler):
         return count
 
     def get_data_histogram(self, start_time, end_time, grain="1d"):
-        resp = self.get_data_view(start_time, end_time, time_grain=grain)
+        resp = self._get_data_view(start_time, end_time, time_grain=grain)
         datapoints = (
             [[view_series["output_count"], view_series["time"] * 1000] for view_series in resp[0]["series"]]
             if resp
