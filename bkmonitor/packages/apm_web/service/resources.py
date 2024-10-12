@@ -442,10 +442,12 @@ class ServiceConfigResource(Resource):
             k: [g.id for g in group] for k, group in itertools.groupby(relations, operator.attrgetter("uri"))
         }
 
+        username = get_request_username()
+        update_at = arrow.now().datetime
         for index, item in enumerate(uri_relations):
             qs = relations.filter(uri=item)
             if qs.exists():
-                qs.update(rank=index)
+                qs.update(rank=index, updated_by=username, updated_at=update_at)
                 del delete_uris[item]
             else:
                 UriServiceRelation.objects.create(uri=item, rank=index, **filter_params)
@@ -461,7 +463,7 @@ class ServiceConfigResource(Resource):
             username = get_request_username()
 
             if qs.exists():
-                qs.update(updated_by=username, **relation)
+                qs.update(updated_by=username, updated_at=arrow.now().datetime, **relation)
             else:
                 model.objects.create(
                     bk_biz_id=bk_biz_id,
