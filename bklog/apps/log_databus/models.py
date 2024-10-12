@@ -513,7 +513,6 @@ class CleanStash(SoftDeleteModel):
     clean_type = models.CharField(_("模板类型"), max_length=64)
     etl_params = models.JSONField(_("etl配置"), null=True, blank=True)
     etl_fields = models.JSONField(_("etl字段"), null=True, blank=True)
-    etl_path_regexp = models.CharField(_("etl路径正则配置"), null=True, blank=True, max_length=512)
     collector_config_id = models.IntegerField(_("采集项列表"), db_index=True)
     bk_biz_id = models.IntegerField(_("业务id"))
 

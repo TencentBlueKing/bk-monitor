@@ -61,8 +61,10 @@ class EtlStorage(object):
     # 子类需重载
     etl_config = None
     separator_node_name = "bk_separator_object"
-    path_separator_node_name = "bk_path_separator_object"
-    etl_field_index = 1
+    path_separator_node_name = "bk_separator_object_path"
+
+    def __init__(self):
+        self.etl_field_index = 1
 
     @classmethod
     def get_instance(cls, etl_config=None):
@@ -423,7 +425,6 @@ class EtlStorage(object):
         hot_warm_config: dict = None,
         es_shards: int = settings.ES_SHARDS,
         index_settings: dict = None,
-        etl_path_regexp: str = "",
     ):
         """
         创建或更新结果表
@@ -439,7 +440,6 @@ class EtlStorage(object):
         :param hot_warm_config: 冷热数据配置
         :param es_shards: es分片数
         :param index_settings: 索引配置
-        :param etl_path_regexp: 采集路径分割的正则
         """
         from apps.log_databus.handlers.collector import build_result_table_id
 
@@ -546,6 +546,7 @@ class EtlStorage(object):
         result_table_config = self.get_result_table_config(fields, etl_params, built_in_config, es_version=es_version)
 
         # 添加元数据路径配置到结果表配置中
+        etl_path_regexp = etl_params.get("path_regexp", "")
         self.add_metadata_path_configs(etl_path_regexp, result_table_config)
 
         params.update(result_table_config)
@@ -606,7 +607,8 @@ class EtlStorage(object):
             }
         ]
 
-        match_fields = re.findall(r"\?P<(.*?)>", etl_path_regexp)
+        pattern = re.compile(etl_path_regexp)
+        match_fields = list(pattern.groupindex.keys())
         for field_name in match_fields:
             result_table_config["field_list"].append(
                 {
@@ -614,7 +616,7 @@ class EtlStorage(object):
                     "field_name": field_name,
                     "field_type": "string",
                     "option": {
-                        "is_metadata": True,
+                        "metadata_type": "path",
                         "es_doc_values": True,
                         "es_type": "keyword",
                         "field_index": self.etl_field_index,

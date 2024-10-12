@@ -760,8 +760,9 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
         label=_("原文自定义分词符"), required=False, allow_blank=True, allow_null=True, default="", trim_whitespace=False
     )
     retain_extra_json = serializers.BooleanField(label=_("是否保留未定义JSON字段"), required=False, default=False)
-    enable_retain_content = serializers.BooleanField(label=_("是否保留失败日志"), required=False, default=False)
-    record_parse_failure = serializers.BooleanField(label=_("是否记录清洗失败标记"), required=False, default=False)
+    enable_retain_content = serializers.BooleanField(label=_("是否保留失败日志"), required=False, default=True)
+    record_parse_failure = serializers.BooleanField(label=_("是否记录清洗失败标记"), required=False, default=True)
+    path_regexp = serializers.CharField(label=_("采集路径分割的正则"), required=False, allow_null=True)
 
     def validate(self, attrs):
         ret = super().validate(attrs)
@@ -871,7 +872,6 @@ class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer):
     view_roles = serializers.ListField(label=_("查看权限"), required=False, default=[])
     need_assessment = serializers.BooleanField(label=_("是否需要评估配置"), required=False, default=False)
     assessment_config = AssessmentConfig(label=_("评估配置"), required=False)
-    etl_path_regexp = serializers.CharField(label=_("采集路径分割的正则"), required=False, allow_null=True)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -1000,7 +1000,6 @@ class CleanStashSerializer(serializers.Serializer):
     etl_params = serializers.DictField(label=_("清洗配置"), required=True)
     etl_fields = serializers.ListField(child=serializers.DictField(), label=_("字段配置"), required=True)
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
-    etl_path_regexp = serializers.CharField(label=_("采集路径分割的正则"), required=False, allow_null=True)
 
 
 class CleanTemplateListSerializer(DataModelSerializer):

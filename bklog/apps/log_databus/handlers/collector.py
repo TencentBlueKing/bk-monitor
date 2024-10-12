@@ -2318,7 +2318,6 @@ class CollectorHandler(object):
             "etl_fields": params["etl_fields"],
             "collector_config_id": int(self.collector_config_id),
             "bk_biz_id": params["bk_biz_id"],
-            "etl_path_regexp": params.get("etl_path_regexp", ""),
         }
         CleanStash.objects.filter(collector_config_id=self.collector_config_id).delete()
         logger.info("delete clean stash {}".format(self.collector_config_id))
