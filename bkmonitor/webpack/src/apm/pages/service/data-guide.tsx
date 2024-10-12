@@ -380,7 +380,7 @@ export default class ServiceApply extends tsc<IProps> {
                   onClick={() => window.open(this.guideUrl)}
                 >
                   <i class='icon-monitor icon-mc-detail' />
-                  {this.$tc('详情接入指引')}
+                  {this.$tc('完整接入指引')}
                 </bk-button>
               )
             )}
