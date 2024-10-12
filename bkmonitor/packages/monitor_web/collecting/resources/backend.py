@@ -1010,37 +1010,36 @@ class SaveCollectConfigResource(Resource):
             if plugin_id not in [settings.TENCENT_CLOUD_METRIC_PLUGIN_ID, qcloud_exporter_plugin_id]:
                 raise ValueError(f"Only support {settings.TENCENT_CLOUD_METRIC_PLUGIN_ID} k8s collector")
 
-            if plugin_id == settings.TENCENT_CLOUD_METRIC_PLUGIN_ID:
-                plugin_id = qcloud_exporter_plugin_id
+            plugin_id = qcloud_exporter_plugin_id
 
-                # 检查是否配置了腾讯云指标插件配置
-                if not settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG:
-                    raise ValueError("TENCENT_CLOUD_METRIC_PLUGIN_CONFIG is not set, please contact administrator")
+            # 检查是否配置了腾讯云指标插件配置
+            if not settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG:
+                raise ValueError("TENCENT_CLOUD_METRIC_PLUGIN_CONFIG is not set, please contact administrator")
 
-                plugin_config: Dict[str, Any] = settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG
-                plugin_params = {
-                    "plugin_id": plugin_id,
-                    "bk_biz_id": data['bk_biz_id'],
-                    "plugin_type": PluginType.K8S,
-                    "label": plugin_config.get("label", "os"),
-                    "plugin_display_name": _(plugin_config.get("plugin_display_name", "腾讯云指标采集")),
-                    "description_md": plugin_config.get("description_md", ""),
-                    "logo": plugin_config.get("logo", ""),
-                    "version_log": plugin_config.get("version_log", ""),
-                    "metric_json": [],
-                    "collector_json": plugin_config["collector_json"],
-                    "config_json": plugin_config.get("config_json", []),
-                    "data_label": settings.TENCENT_CLOUD_METRIC_PLUGIN_ID,
-                }
+            plugin_config: Dict[str, Any] = settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG
+            plugin_params = {
+                "plugin_id": plugin_id,
+                "bk_biz_id": data['bk_biz_id'],
+                "plugin_type": PluginType.K8S,
+                "label": plugin_config.get("label", "os"),
+                "plugin_display_name": _(plugin_config.get("plugin_display_name", "腾讯云指标采集")),
+                "description_md": plugin_config.get("description_md", ""),
+                "logo": plugin_config.get("logo", ""),
+                "version_log": plugin_config.get("version_log", ""),
+                "metric_json": [],
+                "collector_json": plugin_config["collector_json"],
+                "config_json": plugin_config.get("config_json", []),
+                "data_label": settings.TENCENT_CLOUD_METRIC_PLUGIN_ID,
+            }
 
-                # 检查是否已经创建了腾讯云指标采集插件
-                if CollectorPluginMeta.objects.filter(plugin_id=plugin_id).exists():
-                    # 更新插件
-                    plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=PluginType.K8S)
-                    plugin_manager.update_version(plugin_params)
-                else:
-                    # 创建插件
-                    resource.plugin.create_plugin(plugin_params)
+            # 检查是否已经创建了腾讯云指标采集插件
+            if CollectorPluginMeta.objects.filter(plugin_id=plugin_id).exists():
+                # 更新插件
+                plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=PluginType.K8S)
+                plugin_manager.update_version(plugin_params)
+            else:
+                # 创建插件
+                resource.plugin.create_plugin(plugin_params)
 
         return CollectorPluginMeta.objects.get(plugin_id=plugin_id)
 
