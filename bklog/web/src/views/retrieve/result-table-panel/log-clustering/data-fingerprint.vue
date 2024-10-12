@@ -239,11 +239,12 @@
             <bk-user-selector
               style="margin-top: 4px"
               class="principal-input"
+              placeholder=" "
+              multiple
+              :disabled="isExternal"
               :api="userApi"
               :empty-text="$t('无匹配人员')"
               :value="row.owners"
-              placeholder=" "
-              multiple
               @change="val => handleChangePrincipal(val, row)"
             >
             </bk-user-selector>
@@ -332,7 +333,7 @@
             <div class="tools">
               <span>{{ remark.showTime }}</span>
               <div
-                v-if="remark.username === username"
+                v-if="remark.username === username && !isExternal"
                 class="icon"
               >
                 <i
@@ -347,7 +348,10 @@
             </div>
           </div>
         </div>
-        <div class="add-new-remark">
+        <div
+          v-if="!isExternal"
+          class="add-new-remark"
+        >
           <div
             class="text-btn"
             @click="handleClickAddNewRemark"
@@ -542,6 +546,9 @@
       },
       username() {
         return this.$store.state.userMeta?.username;
+      },
+      isExternal() {
+        return this.$store.state.isExternal;
       },
     },
     watch: {
@@ -928,6 +935,7 @@
         );
       },
       handleHoverRemarkIcon(e, row) {
+        if (this.isExternal && !row.remark.length) return;
         if (!this.popoverInstance) {
           this.currentRemarkList = row.remark
             .map(item => ({
