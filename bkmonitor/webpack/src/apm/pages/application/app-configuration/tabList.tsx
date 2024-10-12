@@ -32,6 +32,7 @@ interface ITab {
   name: string;
   label: string;
   status: 'disabled' | 'no_data' | 'normal';
+  tips?: string;
 }
 
 interface IProps {
@@ -68,6 +69,10 @@ export default class TabList extends tsc<IProps, IEvent> {
               <li
                 key={item.name}
                 class={[{ active: this.active === item.name }, `status-${item.status || 'disabled'}`]}
+                v-bk-tooltips={{
+                  content: item.tips,
+                  disabled: item.status !== 'disabled' || !item.tips,
+                }}
                 onClick={() => this.handleActiveChange(item)}
               >
                 <span class={['point']} />
