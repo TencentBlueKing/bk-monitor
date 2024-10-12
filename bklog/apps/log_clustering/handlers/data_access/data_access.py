@@ -204,8 +204,8 @@ class DataAccessHandler(BaseAiopsHandler):
             clustering_config.bkdata_etl_processing_id = result["processing_id"]
             clustering_config.bkdata_etl_result_table_id = result["result_table_id"]
             clustering_config.save()
-            # 新建rt后需要启动清洗任务
-            self.start_bkdata_clean(result["result_table_id"])
+            # 新建rt后需要启动清洗任务，并且从尾部开始消费
+            self.start_bkdata_clean(result["result_table_id"], from_tail=True)
             return
 
         params.update({"processing_id": clustering_config.bkdata_etl_processing_id})
@@ -224,16 +224,17 @@ class DataAccessHandler(BaseAiopsHandler):
             }
         )
 
-    def start_bkdata_clean(self, bkdata_result_table_id):
-        return BkDataDatabusApi.post_tasks(
-            params={
-                "result_table_id": bkdata_result_table_id,
-                "storages": ["kafka"],
-                "bk_username": self.conf.get("bk_username"),
-                "operator": self.conf.get("bk_username"),
-                "no_request": True,
-            }
-        )
+    def start_bkdata_clean(self, bkdata_result_table_id, from_tail=False):
+        params = {
+            "result_table_id": bkdata_result_table_id,
+            "storages": ["kafka"],
+            "bk_username": self.conf.get("bk_username"),
+            "operator": self.conf.get("bk_username"),
+            "no_request": True,
+        }
+        if from_tail:
+            params["consume_position"] = "tail"
+        return BkDataDatabusApi.post_tasks(params=params)
 
     def add_cluster_group(self, result_table_id):
         storage_config = BkDataMetaApi.result_tables.storages({"result_table_id": result_table_id})

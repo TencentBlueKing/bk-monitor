@@ -155,36 +155,40 @@ class ClusteringConfigHandler(object):
 
         # 创建流程
         # 聚类配置优先级：参数传入 -> 数据库默认配置 -> 代码默认配置
-        clustering_config = ClusteringConfig.objects.create(
-            model_id=conf.get("model_id", ""),  # 模型id 需要判断是否为预测 flow流程
-            collector_config_id=collector_config_id,
-            collector_config_name_en=collector_config_name_en,
-            es_storage=es_storage,
-            min_members=params.get("min_members", default_conf.get("min_members", OnlineTaskTrainingArgs.MIN_MEMBERS)),
-            max_dist_list=OnlineTaskTrainingArgs.MAX_DIST_LIST,
-            predefined_varibles=params.get(
-                "predefined_varibles",
-                default_conf.get("predefined_varibles", OnlineTaskTrainingArgs.PREDEFINED_VARIBLES),
-            ),
-            depth=OnlineTaskTrainingArgs.DEPTH,
-            delimeter=params.get("delimeter", default_conf.get("delimeter", OnlineTaskTrainingArgs.DELIMETER)),
-            max_log_length=params.get(
-                "max_log_length", default_conf.get("max_log_length", OnlineTaskTrainingArgs.MAX_LOG_LENGTH)
-            ),
-            is_case_sensitive=params.get(
-                "is_case_sensitive", default_conf.get("is_case_sensitive", OnlineTaskTrainingArgs.IS_CASE_SENSITIVE)
-            ),
-            clustering_fields=clustering_fields,
-            bk_biz_id=bk_biz_id,
-            filter_rules=params.get("filter_rules", default_conf.get("filter_rules", [])),
+        clustering_config = ClusteringConfig.objects.update_or_create(
             index_set_id=index_set_id,
-            signature_enable=True,
-            source_rt_name=log_index_set_data["result_table_id"],
-            category_id=log_index_set.category_id,
-            related_space_pre_bk_biz_id=related_space_pre_bk_biz_id,  # 查询space关联的真实业务之前的业务id
-            new_cls_strategy_enable=params["new_cls_strategy_enable"],
-            normal_strategy_enable=params["normal_strategy_enable"],
-            access_finished=False,
+            defaults=dict(
+                model_id=conf.get("model_id", ""),  # 模型id 需要判断是否为预测 flow流程
+                collector_config_id=collector_config_id,
+                collector_config_name_en=collector_config_name_en,
+                es_storage=es_storage,
+                min_members=params.get(
+                    "min_members", default_conf.get("min_members", OnlineTaskTrainingArgs.MIN_MEMBERS)
+                ),
+                max_dist_list=OnlineTaskTrainingArgs.MAX_DIST_LIST,
+                predefined_varibles=params.get(
+                    "predefined_varibles",
+                    default_conf.get("predefined_varibles", OnlineTaskTrainingArgs.PREDEFINED_VARIBLES),
+                ),
+                depth=OnlineTaskTrainingArgs.DEPTH,
+                delimeter=params.get("delimeter", default_conf.get("delimeter", OnlineTaskTrainingArgs.DELIMETER)),
+                max_log_length=params.get(
+                    "max_log_length", default_conf.get("max_log_length", OnlineTaskTrainingArgs.MAX_LOG_LENGTH)
+                ),
+                is_case_sensitive=params.get(
+                    "is_case_sensitive", default_conf.get("is_case_sensitive", OnlineTaskTrainingArgs.IS_CASE_SENSITIVE)
+                ),
+                clustering_fields=clustering_fields,
+                bk_biz_id=bk_biz_id,
+                filter_rules=params.get("filter_rules", default_conf.get("filter_rules", [])),
+                signature_enable=True,
+                source_rt_name=log_index_set_data["result_table_id"],
+                category_id=log_index_set.category_id,
+                related_space_pre_bk_biz_id=related_space_pre_bk_biz_id,  # 查询space关联的真实业务之前的业务id
+                new_cls_strategy_enable=params["new_cls_strategy_enable"],
+                normal_strategy_enable=params["normal_strategy_enable"],
+                access_finished=False,
+            ),
         )
 
         access_clustering.delay(index_set_id=index_set_id)
