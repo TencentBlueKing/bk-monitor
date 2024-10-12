@@ -119,10 +119,10 @@ class CreateApplicationResource(Resource):
             description=validated_data["description"],
             es_storage_config=datasource_options,
             options={
-                "enabled_profiling": validated_data.get("enabled_profiling", False),
-                "enabled_trace": validated_data.get("enabled_trace", False),
-                "enabled_metric": validated_data.get("enabled_metric", False),
-                "enabled_log": validated_data.get("enabled_log", False),
+                "is_enabled_profiling": validated_data.get("enabled_profiling", False),
+                "is_enabled_trace": validated_data.get("enabled_trace", False),
+                "is_enabled_metric": validated_data.get("enabled_metric", False),
+                "is_enabled_log": validated_data.get("enabled_log", False),
             },
         )
 
@@ -192,14 +192,9 @@ class ApplyDatasourceResource(Resource):
         except ApmApplication.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        return ApmApplication.apply_datasource(
-            bk_biz_id=application.bk_biz_id,
-            app_name=application.app_name,
-            storage_config={
-                "trace_datasource_option": validated_request_data.get("trace_datasource_option"),
-                "log_datasource_option": validated_request_data.get("log_datasource_option"),
-            },
-            is_update=True,
+        return application.apply_datasource(
+            trace_storage_config=validated_request_data.get("trace_datasource_option"),
+            log_storage_config=validated_request_data.get("log_datasource_option"),
         )
 
 
@@ -601,7 +596,7 @@ class QueryTopoNodeResource(Resource):
     class ResponseSerializer(serializers.ModelSerializer):
         class Meta:
             model = TopoNode
-            fields = ("extra_data", "topo_key")
+            fields = ("extra_data", "topo_key", "created_at", "updated_at")
 
         def to_representation(self, instance):
             data = super(QueryTopoNodeResource.ResponseSerializer, self).to_representation(instance)

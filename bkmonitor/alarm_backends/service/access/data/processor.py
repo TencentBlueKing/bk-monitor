@@ -311,7 +311,7 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         # 当点数大于阈值时，将数据拆分为多个批量任务
         point_total = len(points)
-        if point_total > settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD or 500000:
+        if point_total > (settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD or 500000):
             # 超过50w点，或者触发了分批处理阈值， 则记录策略信息
             metrics.PROCESS_OVER_FLOW.labels(
                 module="access.data",

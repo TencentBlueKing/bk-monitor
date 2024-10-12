@@ -321,7 +321,9 @@ export class LineChart
   }
   // 图表tooltip 可用于继承组件重写该方法
   handleSetTooltip() {
-    return {};
+    return {
+      extraCssText: 'max-width: 50%',
+    };
   }
   /**
    * @description: 获取图表数据
@@ -899,7 +901,7 @@ export class LineChart
       // 获取y轴上可设置的最小的精确度
       const precision = this.handleGetMinPrecision(
         item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
-        unitFormatter,
+        getValueFormat(this.yAxisNeedUnitGetter ? item.unit || '' : ''),
         item.unit
       );
       if (item.name) {
@@ -1046,13 +1048,13 @@ export class LineChart
         this.handleDrillDown(menuItem.childValue);
         break;
       case 'relate-alert':
-        this.panel?.targets?.forEach(target => {
+        for (const target of this.panel?.targets || []) {
           if (target.data?.query_configs?.length) {
             let queryConfig = deepClone(target.data.query_configs);
             queryConfig = variablesService.transformVariables(queryConfig);
             target.data.query_configs = queryConfig;
           }
-        });
+        }
         handleRelateAlert(this.panel, this.timeRange);
         break;
       default:
@@ -1180,7 +1182,7 @@ export class LineChart
     if (!data || data.length === 0) {
       return 0;
     }
-    data.sort();
+    data.sort((a, b) => a - b);
     const len = data.length;
     if (data[0] === data[len - 1]) {
       if (['none', ''].includes(unit) && !data[0].toString().includes('.')) return 0;
@@ -1198,7 +1200,7 @@ export class LineChart
     sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
     while (precision < 5) {
       const samp = sampling.reduce((pre, cur) => {
-        pre[formattter(cur, precision).text] = 1;
+        pre[Number(formattter(cur, precision).text)] = 1;
         return pre;
       }, {});
       if (Object.keys(samp).length >= sampling.length) {

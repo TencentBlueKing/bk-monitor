@@ -18,7 +18,7 @@
 
 ```shell
 git clone {{ECOSYSTEM_REPOSITORY_URL}}
-cd examples/go-examples/helloworld
+cd {{ECOSYSTEM_REPOSITORY_NAME}}/examples/go-examples/helloworld
 docker build -t helloworld-go:latest .
 ```
 
@@ -61,7 +61,7 @@ docker run -e TOKEN="{{access_config.token}}" \
 
 OpenTelemetry 提供标准化的框架和工具包，用于创建和管理 Traces、Metrics、Logs 数据。
 
-示例项目提供集成 OpenTelemetry Go SDK 并将遥测数据发送到 bk-collector 的方式，可以参考 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/go-examples/helloworld/service/otlp/otlp.go" target="_blank">service/otlp/otlp.go</a> 进行接入
+示例项目提供集成 OpenTelemetry Go SDK 并将观测数据发送到 bk-collector 的方式，可以参考 <a href="{{ECOSYSTEM_CODE_ROOT_URL}}/examples/go-examples/helloworld/service/otlp/otlp.go" target="_blank">service/otlp/otlp.go</a> 进行接入
 
 #### 3.1.2 关键配置
 

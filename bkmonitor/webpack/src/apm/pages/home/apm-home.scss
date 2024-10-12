@@ -82,6 +82,10 @@
       display: flex;
       margin: 0 16px 12px;
 
+      .bk-form-control {
+        flex: 1;
+      }
+
       .app-list-add {
         display: flex;
         align-items: center;
@@ -118,10 +122,10 @@
         height: 36px;
         padding: 0 16px;
         line-height: 36px;
+        cursor: pointer;
 
         &:hover {
           color: #313238;
-          cursor: pointer;
           background: #f0f1f5;
 
           .item-content {
@@ -206,6 +210,31 @@
         }
       }
 
+      .disabled {
+        &:hover {
+          background-color: #f5f7fa;
+        }
+
+        .first-code {
+          background-color: #dcdee5;
+        }
+
+        .item-content {
+          color: #c4c6cc;
+
+          &:hover {
+            cursor: pointer;
+          }
+      }
+
+    }
+
+    .data-item.disabled .biz-name-01 .biz-app-alias,
+    .data-item.disabled .biz-name-01 .biz-app-name
+     {
+        color: #c4c6cc;
+    }
+
       .selected {
         background-color: #e1ecff;
 
@@ -233,8 +262,8 @@
 .table-operate-options-component-more-items {
   padding: 4px 0;
 
-  & :hover {
-    color: #63656e !important;
+  .more-item:hover {
+    color: #63656e;
   }
 
   & :nth-last-child(2) {

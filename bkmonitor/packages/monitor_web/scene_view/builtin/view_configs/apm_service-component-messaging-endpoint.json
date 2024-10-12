@@ -969,8 +969,9 @@
                 "interval_unit": "s",
                 "time_field": "time",
                 "filter_dict": {
-                  "service_name": "${service_name}",
-                  "span_name": "$endpoint_name"
+                  "service_name": "$service_name",
+                  "span_name": "$endpoint_name",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": []
               }
@@ -997,7 +998,7 @@
                   "interval_unit": "s",
                   "time_field": "time",
                   "filter_dict": {
-                    "service_name": "${service_name}",
+                    "service_name": "$service_name",
                     "span_name": "$endpoint_name"
                   },
                   "functions": []
@@ -1064,7 +1065,8 @@
                 "time_field": "time",
                 "filter_dict": {
                   "service_name": "$service_name",
-                  "span_name": "$endpoint_name"
+                  "span_name": "$endpoint_name",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": []
               }
@@ -1153,7 +1155,8 @@
                 "time_field": "time",
                 "filter_dict": {
                   "service_name": "$service_name",
-                  "span_name": "$endpoint_name"
+                  "span_name": "$endpoint_name",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": []
               },
@@ -1176,7 +1179,8 @@
                 "time_field": null,
                 "filter_dict": {
                   "service_name": "$service_name",
-                  "span_name": "$endpoint_name"
+                  "span_name": "$endpoint_name",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": []
               }
@@ -1295,8 +1299,9 @@
                 "interval_unit": "s",
                 "time_field": "time",
                 "filter_dict": {
-                  "service_name": "${service_name}",
-                  "span_name": "$endpoint_name"
+                  "service_name": "$service_name",
+                  "span_name": "$endpoint_name",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -1328,8 +1333,9 @@
                 "interval_unit": "s",
                 "time_field": null,
                 "filter_dict": {
-                  "service_name": "${service_name}",
-                  "span_name": "$endpoint_name"
+                  "service_name": "$service_name",
+                  "span_name": "$endpoint_name",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -1449,7 +1455,8 @@
                 "time_field": "time",
                 "filter_dict": {
                   "service_name": "${service_name}",
-                  "span_name": "$endpoint_name"
+                  "span_name": "$endpoint_name",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -1497,7 +1504,7 @@
                   "time_field": "time",
                   "filter_dict": {
                     "service_name": "${service_name}",
-                    "span_name": "$endpoint_name"
+                    "span_name": "$endpoint_name",
                   },
                   "functions": [
                     {
@@ -1556,7 +1563,8 @@
                 "time_field": "time",
                 "filter_dict": {
                   "service_name": "${service_name}",
-                  "span_name": "$endpoint_name"
+                  "span_name": "$endpoint_name",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -1662,8 +1670,9 @@
                 "interval_unit": "s",
                 "time_field": "time",
                 "filter_dict": {
-                  "service_name": "${service_name}",
-                  "span_name": "$endpoint_name"
+                  "service_name": "$service_name",
+                  "span_name": "$endpoint_name",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {

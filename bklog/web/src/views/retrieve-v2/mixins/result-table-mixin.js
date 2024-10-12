@@ -465,9 +465,11 @@ export default {
       switch (option.operation) {
         case 'is':
         case 'is not':
+        case 'not':
         case 'new-search-page-is':
           const { fieldName, operation, value } = option;
-          this.handleAddCondition(fieldName, operation, value === '--' ? [] : [value], isLink);
+          const operator = operation === 'not' ? 'is not' : operation;
+          this.handleAddCondition(fieldName, operator, value === '--' ? [] : [value], isLink);
           break;
         case 'copy':
           copyMessage(option.value);
