@@ -313,6 +313,8 @@ class NodeManInstaller(BaseInstaller):
             "parent_id": self.collect_config.deployment_config_id or 0,
         }
         new_version = DeploymentConfigVersion.objects.create(**deployment_config_params)
+        self.collect_config.deployment_config = new_version
+        self.collect_config.save()
 
         # 部署插件采集
         diff_node = self._deploy(new_version)
@@ -329,7 +331,6 @@ class NodeManInstaller(BaseInstaller):
             self.collect_config.last_operation = operation
         else:
             self.collect_config.last_operation = OperationType.EDIT if self.collect_config.pk else OperationType.CREATE
-        self.collect_config.deployment_config = new_version
         self.collect_config.save()
 
         # 如果是首次创建，更新部署配置关联的采集配置ID
