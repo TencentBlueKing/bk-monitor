@@ -170,7 +170,6 @@ class UnifyQueryHandler(object):
         query_list = []
         for index, index_info in enumerate(index_info_list):
             query_dict = {
-                "query_string": self.query_string,
                 "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
                 "table_id": BaseIndexSetHandler.get_data_label(
                     index_info["origin_scenario_id"], index_info["index_set_id"]
@@ -179,6 +178,7 @@ class UnifyQueryHandler(object):
                 "dimensions": [],
                 "time_field": "time",
                 "conditions": self.transform_additions(index_info),
+                "query_string": self.query_string,
                 "function": [],
             }
 
@@ -322,7 +322,7 @@ class UnifyQueryHandler(object):
         for addition in new_addition:
             # 全文检索key & 存量query_string转换
             if addition["field"] in ["*", "__query_string__"]:
-                value = addition["value"] if isinstance(addition["value"], list) else addition["value"].split(",")
+                value = ",".join(addition["value"]) if isinstance(addition["value"], list) else addition["value"]
                 if value:
                     if addition["field"] == "*":
                         value = "\"" + value.replace('"', '\\"') + "\""
