@@ -37,7 +37,7 @@ class ApdexConfigSerializer(serializers.Serializer):
 class ServiceApdexConfigSerializer(serializers.ModelSerializer):
     class Meta:
         model = ApdexServiceRelation
-        fields = ["apdex_value"]
+        fields = ["apdex_value", "updated_at", "updated_by"]
 
 
 class CustomServiceSerializer(serializers.ModelSerializer):
