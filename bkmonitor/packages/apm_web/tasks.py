@@ -89,10 +89,16 @@ def refresh_application():
     logger.info("[REFRESH_APPLICATION] task start")
 
     for application in Application.objects.filter(is_enabled=True):
-        # 刷新数据状态
-        application.set_data_status()
-        # 刷新服务数量
-        application.set_service_count()
+        try:
+            # 刷新数据状态
+            application.set_data_status()
+            # 刷新服务数量
+            application.set_service_count()
+        except Exception as e:  # noqa
+            logger.warning(
+                f"[REFRESH_APPLICATION] "
+                f"refresh data failed: {application.bk_biz_id}{application.app_name}, error: {e}"
+            )
 
     logger.info("[REFRESH_APPLICATION] task finished")
 
