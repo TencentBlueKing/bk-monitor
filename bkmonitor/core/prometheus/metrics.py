@@ -28,12 +28,32 @@ from core.prometheus.tools import get_metric_agg_gateway_url, udp_handler
 logger = logging.getLogger(__name__)
 
 
+class Empty:
+    pass
+
+
+DeploymentNotSet = Empty()
+DEPLOYMENT = DeploymentNotSet
+
+
+def refresh_deployment():
+    with open('/etc/hostname', 'r') as f:
+        hostname = f.read().strip()
+    if hostname.count("-") < 2:
+        return ""
+    return hostname.rsplit("-", 2)[0]
+
+
 def report_all(job: str = settings.DEFAULT_METRIC_PUSH_JOB, registry: BkCollectorRegistry = REGISTRY):
     """
     批量上报指标
     """
+    global DEPLOYMENT
+    if DEPLOYMENT is DeploymentNotSet:
+        DEPLOYMENT = refresh_deployment()
     if not get_metric_agg_gateway_url():
         return
+    METRIC_PUSH_COUNT.labels(deployment=DEPLOYMENT).inc()
     try:
         # 发送消息
         push_to_gateway(gateway="", job=job, registry=registry, handler=udp_handler)
@@ -69,6 +89,12 @@ class StatusEnum:
     def from_exc(cls, expr):
         return cls.FAILED if expr else cls.SUCCESS
 
+
+METRIC_PUSH_COUNT = Counter(
+    name="bkmonitor_metric_push_count",
+    documentation="metric 推送次数",
+    labelnames=("deployment",),
+)
 
 CRON_TASK_EXECUTE_TIME = Histogram(
     name="bkmonitor_cron_task_execute_time",
