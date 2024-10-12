@@ -45,7 +45,7 @@ interface IProps {
 
 @Component
 export default class AddAppForm extends tsc<IProps> {
-  @Ref() addForm: any;
+  @Ref('addForm') addFormRef: any;
   list = [
     {
       id: ETelemetryDataType.metric,
@@ -114,6 +114,8 @@ export default class AddAppForm extends tsc<IProps> {
   saveLoading = false;
   saveToServiceLoading = false;
 
+  isVerify = false;
+
   /** 检查 应用名 是否重名 */
   async handleCheckDuplicateName(val: string) {
     const { exists } = await checkDuplicateName({ app_name: val }).catch(() => ({ exists: true }));
@@ -130,7 +132,7 @@ export default class AddAppForm extends tsc<IProps> {
       [ETelemetryDataType.trace]: true,
       [ETelemetryDataType.profiling]: false,
     };
-    this.addForm?.clearError?.();
+    this.addFormRef?.clearError?.();
   }
 
   /* 保存 */
@@ -141,7 +143,7 @@ export default class AddAppForm extends tsc<IProps> {
       this.saveLoading = true;
     }
 
-    const isPass = await this.addForm.validate();
+    const isPass = await this.addFormRef?.validate().catch(() => false);
     if (isPass) {
       // 保存接口
       const params = {
@@ -184,6 +186,10 @@ export default class AddAppForm extends tsc<IProps> {
     this.$emit('cancel');
   }
 
+  async handleBlur() {
+    this.isVerify = await this.addFormRef?.validate().catch(() => false);
+  }
+
   render() {
     return (
       <div class='add-app-form-component'>
@@ -210,6 +216,7 @@ export default class AddAppForm extends tsc<IProps> {
               v-model={this.formData.ID}
               maxlength={50}
               placeholder={this.$t('1-50字符，由小写字母、数字、下划线(_)、中划线(-)组成')}
+              onBlur={() => this.handleBlur()}
             />
           </bk-form-item>
           <bk-form-item
@@ -222,6 +229,7 @@ export default class AddAppForm extends tsc<IProps> {
               class='input input-width'
               v-model={this.formData.name}
               placeholder={this.$t('1-50字符')}
+              onBlur={() => this.handleBlur()}
             />
           </bk-form-item>
           <bk-form-item label={this.$t('描述')}>
@@ -258,6 +266,7 @@ export default class AddAppForm extends tsc<IProps> {
           <bk-form-item>
             <bk-button
               class='mr-8'
+              disabled={!this.isVerify}
               loading={this.saveLoading}
               theme='primary'
               onClick={() => this.handleSave()}
@@ -266,6 +275,7 @@ export default class AddAppForm extends tsc<IProps> {
             </bk-button>
             <bk-button
               class='mr-8'
+              disabled={!this.isVerify}
               loading={this.saveToServiceLoading}
               theme='primary'
               onClick={() => this.handleSave(true)}
