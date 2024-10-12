@@ -724,9 +724,8 @@ class ServiceListResource(PageListResource):
 
         res = []
         # 先获取缓存数据
-        data_status_mapping = cache.get(
-            ApmCacheKey.APP_SERVICE_STATUS_KEY.format(application_id=application.application_id)
-        )
+        cache_key = ApmCacheKey.APP_SERVICE_STATUS_KEY.format(application_id=application.application_id)
+        data_status_mapping = cache.get(cache_key)
         if data_status_mapping:
             try:
                 data_status_mapping = json.loads(data_status_mapping)
@@ -739,6 +738,8 @@ class ServiceListResource(PageListResource):
                 validate_data["end_time"],
                 services,
             )
+            cache.set(cache_key, json.dumps(data_status_mapping))
+
         labels_mapping = group_by(
             ApmMetaConfig.list_service_config_values(bk_biz_id, app_name, [i["topo_key"] for i in services], "labels"),
             operator.attrgetter("level_key"),

@@ -348,6 +348,7 @@ class LogDataSource(ApmDataSourceConfigBase):
                     collector_config_id=obj.collector_config_id,
                     category_id="application_check",
                     collector_config_name=cls.app_name_to_log_config_name(app_name),
+                    allocation_min_days=0,
                     **storage_params,
                 )
             except BKAPIError as e:
@@ -1162,21 +1163,21 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     @atomic(using=DATABASE_CONNECTION_NAME)
     def apply_datasource(cls, bk_biz_id, app_name, **options):
         option = options["option"]
+        profile_bk_biz_id = bk_biz_id
+        if bk_biz_id < 0:
+            # 非业务创建 profile 将创建在公共业务下
+            profile_bk_biz_id = settings.BK_DATA_BK_BIZ_ID
+
         obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
 
         if not obj:
             if not option:
                 # 如果没有 profileDatasource 并且没有开启 直接返回
                 return
-            obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
+            obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name, profile_bk_biz_id=profile_bk_biz_id)
         elif obj.bk_data_id != -1:
             # 如果有 dataId 证明创建过了 profile 因为都是内置配置所以不支持更新 直接返回
             return
-
-        profile_bk_biz_id = bk_biz_id
-        if bk_biz_id < 0:
-            # 非业务创建 profile 将创建在公共业务下
-            profile_bk_biz_id = settings.BK_DATA_BK_BIZ_ID
 
         # 创建接入
         apm_maintainers = ",".join(settings.APM_APP_BKDATA_MAINTAINER)
@@ -1186,7 +1187,6 @@ class ProfileDataSource(ApmDataSourceConfigBase):
             operator=get_global_user(),
             name_stuffix=bk_biz_id,
         ).provider()
-        obj.profile_bk_biz_id = profile_bk_biz_id
         obj.bk_data_id = essentials["bk_data_id"]
         obj.result_table_id = essentials["result_table_id"]
         obj.retention = essentials["retention"]
