@@ -337,6 +337,8 @@
 }
 
 .base-info-wrap {
+  margin-bottom: 16px;
+
   .edit-config-form {
     .bk-label {
       padding-right: 24px;
@@ -801,16 +803,16 @@
   // todo 这里后续需要根据平台左侧菜单是否打开调整下宽度和位置
   .submit-handle {
     // padding-bottom: 38px;
-    position: fixed;
-    bottom: 0px;
-    left: 0px;
-    z-index: 999;
-    width: 100vw;
+    position: absolute;
+    bottom: -20px;
+    left: -16px;
+    z-index: 10;
+    width: calc(100% + 32px);
     height: 48px;
     padding-left: 24px;
     line-height: 48px;
-    background: #fafbfd;
-    box-shadow: 0 -2px 6px 0 #00000014;
+    background: rgb(250, 251, 253);
+    box-shadow: rgba(0, 0, 0, 0.08) 0px -2px 6px 0px;
 
     button {
       width: 88px;
@@ -825,6 +827,18 @@
 
     .edit-btn {
       min-width: 80px;
+    }
+
+    .edit-btn-no-authority {
+      color: #c4c6cc;
+      background-color: #faf9fd;
+      border-color: #dcdee5;
+
+      &:hover {
+        color: #c4c6cc;
+        background-color: #faf9fd;
+        border-color: #dcdee5;
+      }
     }
 
     .history-btn {

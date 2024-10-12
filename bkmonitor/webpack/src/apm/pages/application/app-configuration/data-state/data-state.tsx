@@ -65,21 +65,25 @@ export default class DataStatus extends tsc<object> {
         name: ETelemetryDataType.metric,
         label: window.i18n.tc('指标'),
         status: this.appInfo.metric_data_status,
+        tips: window.i18n.tc('指标数据未开启'),
       },
       {
         name: ETelemetryDataType.log,
         label: window.i18n.tc('日志'),
         status: this.appInfo.log_data_status,
+        tips: window.i18n.tc('日志数据未开启'),
       },
       {
         name: ETelemetryDataType.trace,
         label: window.i18n.tc('调用链'),
         status: this.appInfo.trace_data_status,
+        tips: window.i18n.tc('调用链数据未开启'),
       },
       {
         name: ETelemetryDataType.profiling,
         label: window.i18n.tc('性能分析'),
         status: this.appInfo.profiling_data_status,
+        tips: window.i18n.tc('性能分析数据未开启'),
       },
     ];
   }

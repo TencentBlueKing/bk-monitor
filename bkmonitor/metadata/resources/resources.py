@@ -100,8 +100,8 @@ class CreateDataIDResource(Resource):
             except ValueError:
                 raise ValueError(_("空间唯一标识{}错误").format(space_uid))
 
-        request = get_request()
-        bk_app_code = get_app_code_by_request(request)
+        request = get_request(peaceful=True)
+        bk_app_code = get_app_code_by_request(request) if request else None
         # 当请求的 app_code 为空时，记录请求，用于后续优化处理
         if not bk_app_code:
             logger.error(

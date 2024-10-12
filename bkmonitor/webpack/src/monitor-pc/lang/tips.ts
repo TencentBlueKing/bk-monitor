@@ -303,4 +303,9 @@ export default {
   暂无匹配: 'No match found',
   右键更多操作: 'Right-click for more actions',
   在节点右键进行更多操作: 'Right-click on the node for more actions',
+  指标数据未开启: 'Metric data is not enabled',
+  日志数据未开启: 'Log data is not enabled',
+  调用链数据未开启: 'Trace data is not enabled',
+  性能分析数据未开启: 'Profiling data is not enabled',
+  '前往{0}查看相关数据': 'Go to {0} to view related data',
 };
