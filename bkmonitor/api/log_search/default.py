@@ -420,6 +420,13 @@ class UpdateCustomReportResource(LogSearchAPIGWResource):
     action = "/{collector_config_id}/databus_custom_update/"
     method = "POST"
 
+    def get_request_url(self, validated_request_data):
+        """
+        获取最终请求的url，也可以由子类进行重写
+        """
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
 
 class StartCollectorsResource(LogSearchAPIGWResource):
     """

@@ -316,7 +316,7 @@ class LogDataSource(ApmDataSourceConfigBase):
             "es_shards": options.get("es_shards", settings.APM_APP_DEFAULT_ES_SHARDS),
         }
 
-        if not obj.bk_data_id:
+        if obj.bk_data_id == -1:
             # 指定了存储集群会有默认的清洗规则所以这里不需要配置规则
             try:
                 valid_log_config_name = cls.app_name_to_log_config_name(app_name)
@@ -344,7 +344,12 @@ class LogDataSource(ApmDataSourceConfigBase):
         else:
             # 更新
             try:
-                api.apm_api.update_custom_report(collector_config_id=obj.collector_config_id, **storage_params)
+                api.log_search.update_custom_report(
+                    collector_config_id=obj.collector_config_id,
+                    category_id="application_check",
+                    collector_config_name=cls.app_name_to_log_config_name(app_name),
+                    **storage_params,
+                )
             except BKAPIError as e:
                 raise BKAPIError(f"更新日志自定义上报失败：{e}")
 
@@ -1161,7 +1166,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
                 # 如果没有 profileDatasource 并且没有开启 直接返回
                 return
             obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
-        elif obj.bk_data_id:
+        elif obj.bk_data_id != -1:
             # 如果有 dataId 证明创建过了 profile 因为都是内置配置所以不支持更新 直接返回
             return
 
