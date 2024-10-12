@@ -1312,10 +1312,11 @@ class MetaInstrumentGuides(Resource):
         OTLP_EXPORTER_HTTP_PORT = 4318
 
         def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
-            application_info: Dict[str, Any] = ApplicationInfoByAppNameResource().request(
-                {"app_name": attrs["app_name"], "bk_biz_id": attrs["bk_biz_id"]}
-            )
-            data_token: str = QueryBkDataToken().request({"application_id": application_info["application_id"]})
+            app = Application.objects.filter(bk_biz_id=attrs["bk_biz_id"], app_name=attrs["app_name"]).first()
+            if app is None:
+                raise ValueError(_(f'应用({attrs["app_name"]})不存在'))
+
+            data_token: str = QueryBkDataToken().request({"application_id": app.application_id})
 
             attrs["access_config"] = {
                 "token": data_token,
@@ -1325,13 +1326,13 @@ class MetaInstrumentGuides(Resource):
                     "protocol": OtlpProtocol.GRPC,
                     "endpoint": f"{attrs['base_endpoint']}:{self.OTLP_EXPORTER_GRPC_PORT}",
                     "http_endpoint": f"{attrs['base_endpoint']}:{self.OTLP_EXPORTER_HTTP_PORT}",
-                    "enable_metrics": application_info.get("is_enabled_metric", False),
-                    "enable_logs": application_info.get("is_enabled_log", False),
-                    "enable_traces": application_info.get("is_enabled_trace", False),
+                    "enable_metrics": app.is_enabled_metric,
+                    "enable_logs": app.is_enabled_log,
+                    "enable_traces": app.is_enabled_trace,
                 },
                 "profiling": {
                     # 语意参考：https://grafana.com/docs/pyroscope/latest/configure-client/
-                    "enabled": application_info.get("is_enabled_profiling", False),
+                    "enabled": app.is_enabled_profiling,
                     "endpoint": f"{attrs['base_endpoint']}:{self.OTLP_EXPORTER_HTTP_PORT}/pyroscope",
                 },
             }
