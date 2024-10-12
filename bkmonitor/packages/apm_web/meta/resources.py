@@ -861,20 +861,29 @@ class ListApplicationResource(PageListResource):
     def perform_request(self, validate_data):
         applications = Application.objects.filter(bk_biz_id=validate_data["bk_biz_id"])
 
-        def sort_by_status(app):
-            s = 0
-            if app.get("trace_data_status") == DataStatus.NORMAL:
-                s += 1
-            if app.get("profiling_data_status") == DataStatus.NORMAL:
-                s += 1
-            if app.get("metric_data_status") == DataStatus.NORMAL:
-                s += 1
-            if app.get("log_data_status") == DataStatus.NORMAL:
-                s += 1
-            return s
+        def sort_rule(app):
+            """
+            排序规则
+            1. 有数据的优先
+            2. 有服务的其次
+            3. 分组内按名称排序
+            """
+            first, second, third = 1, 1, app.get("app_name", "")
+            if (
+                app.get("trace_data_status") == DataStatus.NORMAL
+                or app.get("profiling_data_status") == DataStatus.NORMAL
+                or app.get("metric_data_status") == DataStatus.NORMAL
+                or app.get("log_data_status") == DataStatus.NORMAL
+            ):
+                first = 0
 
-        # 优先展示 有数据的
-        data = sorted(self.ApplicationSerializer(applications, many=True).data, key=sort_by_status, reverse=True)
+            if app.get("service_count", 0) > 0:
+                second = 0
+
+            return first, second, third
+
+        # 排序
+        data = sorted(self.ApplicationSerializer(applications, many=True).data, key=sort_rule)
         # 不分页
         validate_data["page_size"] = len(data)
         return self.get_pagination_data(data, validate_data)
