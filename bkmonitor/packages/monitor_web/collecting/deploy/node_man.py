@@ -235,7 +235,10 @@ class NodeManInstaller(BaseInstaller):
             }
 
         subscription_params = self._get_deploy_params(target_version)
-        if operate_type == "create":
+        if not operate_type:
+            subscription_id = last_version.subscription_id
+            task_id = None
+        elif operate_type == "create":
             # 新建订阅任务
             result = api.node_man.create_subscription(**subscription_params)
             subscription_id = result["subscription_id"]
@@ -276,7 +279,8 @@ class NodeManInstaller(BaseInstaller):
 
         # 更新部署记录及采集配置
         target_version.subscription_id = subscription_id
-        target_version.task_ids = [task_id]
+        if task_id:
+            target_version.task_ids = [task_id]
         target_version.save()
 
         return diff_result["nodes"]
