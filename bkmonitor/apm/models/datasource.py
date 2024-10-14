@@ -151,14 +151,19 @@ class ApmDataSourceConfigBase(models.Model):
 
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
-    def apply_datasource(cls, bk_biz_id, app_name, **option):
+    def apply_datasource(cls, bk_biz_id, app_name, **options):
         obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not obj:
             obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
         # 创建data_id
         obj.create_data_id()
         # 创建结果表
-        obj.create_or_update_result_table(**option)
+        obj.create_or_update_result_table(**options)
+
+        option = options["option"]
+        if not option:
+            # 关闭
+            obj.stop(bk_biz_id, app_name)
 
 
 class MetricDataSource(ApmDataSourceConfigBase):
@@ -294,16 +299,24 @@ class LogDataSource(ApmDataSourceConfigBase):
 
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
-    def apply_datasource(cls, bk_biz_id, app_name, **option):
+    def apply_datasource(cls, bk_biz_id, app_name, **options):
+        option = options["option"]
+        obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+
+        if not obj:
+            if not option:
+                # 如果没有 logDatasource 并且没有开启 直接返回
+                return
+            obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
+
         storage_params = {
-            "storage_cluster_id": option["es_storage_cluster"],
-            "retention": option.get("es_retention", settings.APM_APP_DEFAULT_ES_RETENTION),
-            "storage_replies": option.get("es_number_of_replicas", settings.APM_APP_DEFAULT_ES_REPLICAS),
-            "es_shards": option.get("es_shards", settings.APM_APP_DEFAULT_ES_SHARDS),
+            "storage_cluster_id": options["es_storage_cluster"],
+            "retention": options.get("es_retention", settings.APM_APP_DEFAULT_ES_RETENTION),
+            "storage_replies": options.get("es_number_of_replicas", settings.APM_APP_DEFAULT_ES_REPLICAS),
+            "es_shards": options.get("es_shards", settings.APM_APP_DEFAULT_ES_SHARDS),
         }
 
-        obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if not obj:
+        if obj.bk_data_id == -1:
             # 指定了存储集群会有默认的清洗规则所以这里不需要配置规则
             try:
                 valid_log_config_name = cls.app_name_to_log_config_name(app_name)
@@ -323,19 +336,21 @@ class LogDataSource(ApmDataSourceConfigBase):
             except BKAPIError as e:
                 raise BKAPIError(f"创建日志自定义上报失败：{e}")
 
-            cls.objects.create(
-                bk_biz_id=bk_biz_id,
-                app_name=app_name,
-                result_table_id=cls.get_table_id(bk_biz_id, app_name),
-                collector_config_id=response["collector_config_id"],
-                bk_data_id=response["bk_data_id"],
-                index_set_id=response["index_set_id"],
-            )
-
+            obj.result_table_id = cls.get_table_id(bk_biz_id, app_name)
+            obj.collector_config_id = response["collector_config_id"]
+            obj.bk_data_id = response["bk_data_id"]
+            obj.index_set_id = response["index_set_id"]
+            obj.save()
         else:
             # 更新
             try:
-                api.apm_api.update_custom_report(**storage_params)
+                api.log_search.update_custom_report(
+                    collector_config_id=obj.collector_config_id,
+                    category_id="application_check",
+                    collector_config_name=cls.app_name_to_log_config_name(app_name),
+                    allocation_min_days=0,
+                    **storage_params,
+                )
             except BKAPIError as e:
                 raise BKAPIError(f"更新日志自定义上报失败：{e}")
 
@@ -1128,7 +1143,10 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     BUILTIN_APP_NAME = "builtin_profile_app"
     _CACHE_BUILTIN_DATASOURCE: Optional['ProfileDataSource'] = None
 
-    profile_bk_biz_id = models.IntegerField("Profile数据源创建在 bkbase 的业务 id(非业务下创建会与 bk_biz_id 不一致)")
+    profile_bk_biz_id = models.IntegerField(
+        "Profile数据源创建在 bkbase 的业务 id(非业务下创建会与 bk_biz_id 不一致)",
+        null=True,
+    )
     retention = models.IntegerField("过期时间", null=True)
     created = models.DateTimeField("创建时间", auto_now_add=True)
     updated = models.DateTimeField("更新时间", auto_now=True)
@@ -1143,18 +1161,24 @@ class ProfileDataSource(ApmDataSourceConfigBase):
 
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
-    def apply_datasource(cls, bk_biz_id, app_name, **option):
+    def apply_datasource(cls, bk_biz_id, app_name, **options):
+        option = options["option"]
         profile_bk_biz_id = bk_biz_id
         if bk_biz_id < 0:
             # 非业务创建 profile 将创建在公共业务下
             profile_bk_biz_id = settings.BK_DATA_BK_BIZ_ID
 
         obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if obj and obj.bk_biz_id and obj.result_table_id:
-            # 如果数据存在并且字段有值说明已创建过 profile 数据源不支持更新
+
+        if not obj:
+            if not option:
+                # 如果没有 profileDatasource 并且没有开启 直接返回
+                return
+            obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name, profile_bk_biz_id=profile_bk_biz_id)
+        elif obj.bk_data_id != -1:
+            # 如果有 dataId 证明创建过了 profile 因为都是内置配置所以不支持更新 直接返回
             return
 
-        obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name, profile_bk_biz_id=profile_bk_biz_id)
         # 创建接入
         apm_maintainers = ",".join(settings.APM_APP_BKDATA_MAINTAINER)
         essentials = BkDataDorisProvider.from_datasource_instance(
@@ -1166,7 +1190,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
         obj.bk_data_id = essentials["bk_data_id"]
         obj.result_table_id = essentials["result_table_id"]
         obj.retention = essentials["retention"]
-        obj.save(update_fields=["bk_data_id", "result_table_id", "updated", "retention"])
+        obj.save()
 
         return
 
@@ -1196,7 +1220,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
 
     @classmethod
     def stop(cls, bk_biz_id, app_name):
-        instance = cls.objects.get(bk_data_id=bk_biz_id, app_name=app_name)
+        instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
         api.bkdata.stop_databus_cleans(result_table_id=instance["result_table_id"])
 
 

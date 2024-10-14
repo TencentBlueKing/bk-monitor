@@ -251,7 +251,7 @@ class PluginRegisterResource(Resource):
         self.operator = ""
 
         request = get_request(peaceful=True)
-        if request:
+        if request and getattr(request, "user", None):
             self.operator = request.user.username
 
     def delay(self, request_data=None, **kwargs):

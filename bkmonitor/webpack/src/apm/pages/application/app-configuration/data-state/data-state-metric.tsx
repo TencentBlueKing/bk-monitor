@@ -39,6 +39,7 @@ import {
 import { copyText } from 'monitor-common/utils/utils';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { isEnFn } from 'monitor-pc/utils/index';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
 import BarAlarmChart from 'monitor-ui/chart-plugins/plugins/apm-relation-graph/components/bar-alarm-chart';
 // import { ApdexChart } from 'monitor-ui/chart-plugins/plugins/apdex-chart/apdex-chart';
@@ -292,8 +293,14 @@ export default class DataStatusMetric extends tsc<IProps> {
    */
   handlePageChange(option: string) {
     const { id } = this.strategyInfo;
-    const hash =
-      option === 'edit' ? `#/strategy-config/edit/${String(id)}` : `#/event-center?queryString=strategy_id:${id}`;
+    let hash = '';
+    if (option === 'edit') {
+      hash = `#/strategy-config/edit/${String(id)}`;
+    } else {
+      const isEn = isEnFn();
+      hash = `#/event-center?queryString=${isEn ? 'strategy_id' : this.$t('策略ID')} : ${id}`;
+    }
+
     const url = location.href.replace(location.hash, hash);
     window.open(url, '_blank');
   }

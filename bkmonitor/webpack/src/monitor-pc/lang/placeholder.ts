@@ -299,4 +299,5 @@ export default {
   请输入自定义标签: 'Please enter custom tags',
   '1-50字符，由小写字母、数字、下划线(_)、中划线(-)组成':
     '1-50 characters, consisting of lowercase letters, numbers, underscores (_), and hyphens (-)',
+  '最大为{n}天': 'Up to {n} days',
 };

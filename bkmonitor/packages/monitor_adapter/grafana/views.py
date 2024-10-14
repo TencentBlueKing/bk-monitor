@@ -84,7 +84,11 @@ class RedirectDashboardView(ProxyView):
             raise Http404
         dashboard_info = dashboards[0]
         uid = dashboard_info["uid"]
-        route_path = f"#/grafana/d/{uid}"
+        route_path = f"/grafana/d/{uid}"
+        if request.GET.get("pure", ""):
+            return redirect(route_path)
+
+        route_path = f"#{route_path}"
         # 透传仪表盘参数
         params = {k: v for k, v in request.GET.items() if k.startswith("var-")}
         params["bizId"] = org_name

@@ -477,7 +477,7 @@ export default class Strategy extends tsc<object> {
           class={['edit-strategy-box', type]}
           onClick={() => this.editStrategy(type)}
         >
-          <i class={['bk-icon log-icon', type === 'alarm' ? 'icon-new-alarm' : 'icon-sudden-increase']}></i>
+          <i class={['bklog-icon log-icon', type === 'alarm' ? 'bklog-new-alarm' : 'bklog-sudden-increase']}></i>
           {/* <span class='num'>1</span> */}
         </div>
         <div slot='content'>
