@@ -11,11 +11,11 @@ specific language governing permissions and limitations under the License.
 import logging
 
 from django.utils.functional import cached_property
-from monitor_web.models import CollectConfigMeta
-from monitor_web.statistics.v2.base import BaseCollector
 
 from core.drf_resource import resource
 from core.statistics.metric import Metric, register
+from monitor_web.models import CollectConfigMeta
+from monitor_web.statistics.v2.base import BaseCollector
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,7 @@ class CollectConfigCollector(BaseCollector):
                 label=collect_config.label,
                 plugin_type=collect_config.collect_type,
                 plugin_id=collect_config.plugin_id,
+                status=collect_config.operation_result,
             ).inc()
 
     @register(labelnames=("bk_biz_id", "bk_biz_name"))
