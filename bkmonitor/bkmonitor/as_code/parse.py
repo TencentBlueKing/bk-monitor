@@ -352,7 +352,7 @@ def sync_grafana_dashboards(bk_biz_id: int, dashboards: Dict[str, Dict]):
         inputs = []
         for input_field in dashboard.get("__inputs", []):
             if input_field["type"] != "datasource":
-                raise ValueError(f"dashboard({dashboard['name']}) input type({input_field['type']}) is unknown")
+                raise ValueError(f"dashboard({dashboard['title']}) input type({input_field['type']}) is unknown")
 
             uid = datasource_mapping.get(input_field["name"])
             if uid:
@@ -360,7 +360,7 @@ def sync_grafana_dashboards(bk_biz_id: int, dashboards: Dict[str, Dict]):
             else:
                 if input_field["pluginId"] not in datasource_types:
                     raise ValueError(
-                        f"dashboard({dashboard['name']}) input datasource({input_field['pluginId']}) is unknown"
+                        f"dashboard({dashboard['title']}) input datasource({input_field['pluginId']}) is unknown"
                     )
                 datasource = datasource_types[input_field["pluginId"]]
             inputs.append({"name": input_field["name"], **datasource})
