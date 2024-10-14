@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('log_databus', '0039_auto_20240112_1530'),
+        ('log_databus', '0040_auto_20240419_0954'),
     ]
 
     operations = [
