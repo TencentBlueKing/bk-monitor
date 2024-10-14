@@ -182,6 +182,14 @@ def k8s_bk_collector_discover_cron():
     logger.info("[bk_collector_discover_cron] end")
 
 
+@app.task(ignore_result=True, queue="celery_cron")
+def create_application_async(application_id, storage_config, options):
+    """后台创建应用"""
+
+    application = ApmApplication.objects.get(id=application_id)
+    application.apply_datasource(storage_config, storage_config, options)
+
+
 def bmw_task_cron():
     """
     定时检测所有应用的 BMW 预计算任务是否正常运行

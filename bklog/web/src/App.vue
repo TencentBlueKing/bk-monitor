@@ -58,9 +58,9 @@
         @toggle="handleToggle"
       >
         <template #menu>
-          <div class="biz-menu">
+          <!-- <div class="biz-menu">
             <biz-menu-select :is-expand="isExpand" />
-          </div>
+          </div> -->
           <bk-navigation-menu
             :default-active="activeManageNav.id"
             :item-default-bg-color="navThemeColor"

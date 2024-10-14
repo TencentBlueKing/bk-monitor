@@ -213,7 +213,7 @@ class NodeManInstaller(BaseInstaller):
         """
         部署插件采集
         """
-        if self.collect_config.deployment_config_id:
+        if self.collect_config.deployment_config_id and self.collect_config.deployment_config_id != target_version.pk:
             last_version: DeploymentConfigVersion = self.collect_config.deployment_config
         else:
             last_version = None
@@ -235,7 +235,10 @@ class NodeManInstaller(BaseInstaller):
             }
 
         subscription_params = self._get_deploy_params(target_version)
-        if operate_type == "create":
+        if not operate_type:
+            subscription_id = last_version.subscription_id
+            task_id = None
+        elif operate_type == "create":
             # 新建订阅任务
             result = api.node_man.create_subscription(**subscription_params)
             subscription_id = result["subscription_id"]
@@ -276,7 +279,8 @@ class NodeManInstaller(BaseInstaller):
 
         # 更新部署记录及采集配置
         target_version.subscription_id = subscription_id
-        target_version.task_ids = [task_id]
+        if task_id:
+            target_version.task_ids = [task_id]
         target_version.save()
 
         return diff_result["nodes"]
@@ -313,6 +317,11 @@ class NodeManInstaller(BaseInstaller):
             "parent_id": self.collect_config.deployment_config_id or 0,
         }
         new_version = DeploymentConfigVersion.objects.create(**deployment_config_params)
+
+        # 如果是新建的采集配置，需要先保存以生成采集配置ID
+        if not self.collect_config.pk:
+            self.collect_config.deployment_config = new_version
+            self.collect_config.save()
 
         # 部署插件采集
         diff_node = self._deploy(new_version)
@@ -847,7 +856,7 @@ class NodeManInstaller(BaseInstaller):
                 node_path = "/".join(link.bk_inst_name for link in reversed(topo_links.get(node_id, [])))
                 if not node_path:
                     node_path = f"{_('未知节点')}({node_id})"
-                diff_mapping[node_info["diff_type"]] = {
+                diff_mapping[node_id] = {
                     "child": node_info["child"],
                     "node_path": node_path,
                     "label_name": node_info["diff_type"],

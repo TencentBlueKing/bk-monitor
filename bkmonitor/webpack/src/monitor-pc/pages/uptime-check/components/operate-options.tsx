@@ -32,7 +32,7 @@ import './operate-options.scss';
 
 export interface IOperateOption {
   id: string;
-  name?: TranslateResult | string;
+  name?: string | TranslateResult;
   authority?: boolean;
   disable?: boolean;
   authorityDetail?: string;
@@ -94,11 +94,12 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
       <div class='table-operate-options-component'>
         {this.options?.outside.map(item => (
           <span
+            key={item.id}
             v-bk-tooltips={{
               content: item?.tip,
               placement: 'top',
               boundary: 'window',
-              disabled: !Boolean(item?.tip),
+              disabled: !item?.tip,
               allowHTML: false,
             }}
           >
@@ -132,7 +133,8 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
           >
             {this.options?.popover?.map(item => (
               <span
-                class='more-item'
+                key={item.id}
+                class={['more-item', { authority: !item.authority }]}
                 v-authority={{ active: !item.authority }}
                 onClick={() =>
                   item.authority

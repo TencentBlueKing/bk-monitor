@@ -2171,7 +2171,7 @@ export default class BasicInfo extends tsc<IProps> {
           </div>
         </PanelItem>
         <PanelItem
-          class='custom-service-panel-item'
+          class={'custom-service-panel-item pb-24'}
           flexDirection='column'
           title={this.$t('自定义服务')}
         >
@@ -2209,13 +2209,15 @@ export default class BasicInfo extends tsc<IProps> {
         <div class='header-tool'>
           {!this.isEditing && (
             <bk-button
-              class='edit-btn'
-              v-authority={{ active: !this.authority }}
+              class={['edit-btn', { 'edit-btn-no-authority': !this.authority.MANAGE_AUTH }]}
+              v-authority={{ active: !this.authority.MANAGE_AUTH }}
               size='normal'
               theme='primary'
               outline
               onClick={() => {
-                this.authority ? this.handleEditClick(true) : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH);
+                this.authority.MANAGE_AUTH
+                  ? this.handleEditClick(true)
+                  : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH);
               }}
             >
               {this.$t('编辑')}

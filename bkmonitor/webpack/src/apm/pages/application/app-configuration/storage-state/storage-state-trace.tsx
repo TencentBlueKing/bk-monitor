@@ -98,9 +98,7 @@ export default class Trace extends tsc<IProps, IEvent> {
 
   /** 选中的集群 */
   get currentCluster() {
-    return this.clusterList.find(
-      item => item.storage_cluster_id === this.appInfo.application_datasource_config.es_storage_cluster
-    );
+    return this.clusterList.find(item => item.storage_cluster_id === this.storageInfo?.es_storage_cluster);
   }
   /** 过期时间的最大值 */
   get retentionDaysMax() {
@@ -228,7 +226,7 @@ export default class Trace extends tsc<IProps, IEvent> {
    */
   checkClusterValue(value: number) {
     const selectItem = this.clusterList.find(item => item.storage_cluster_id === value);
-    const { es_retention, es_number_of_replicas, es_shards } = this.appInfo.application_datasource_config;
+    const { es_retention, es_number_of_replicas, es_shards } = this.storageInfo;
     const { es_shards_max, number_of_replicas_max, retention_days_max } = selectItem.setup_config;
     const compareMap = [
       {

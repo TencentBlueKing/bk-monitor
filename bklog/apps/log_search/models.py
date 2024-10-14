@@ -391,13 +391,14 @@ class LogIndexSet(SoftDeleteModel):
     list_operate.__name__ = "操作列表"
 
     def save(self, *args, **kwargs):
-        queryset = LogIndexSet.objects.filter(
-            space_uid=self.space_uid, index_set_name=self.index_set_name, is_deleted=False
-        )
-        if queryset.exists() and queryset[0].index_set_id != self.index_set_id:
-            raise IndexSetNameDuplicateException(
-                IndexSetNameDuplicateException.MESSAGE.format(index_set_name=self.index_set_name)
+        if self.pk is None:
+            queryset = LogIndexSet.objects.filter(
+                space_uid=self.space_uid, index_set_name=self.index_set_name, is_deleted=False
             )
+            if queryset.exists() and queryset[0].index_set_id != self.index_set_id:
+                raise IndexSetNameDuplicateException(
+                    IndexSetNameDuplicateException.MESSAGE.format(index_set_name=self.index_set_name)
+                )
         super().save(*args, **kwargs)
 
     @property

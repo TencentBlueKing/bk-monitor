@@ -275,7 +275,8 @@ export default class StrategySetTarget extends Vue {
   // 文件类型loading
   loading = false;
 
-  passwordInputReadonly = true;
+  passwordInputReadonly = !(this.$route.name === 'collect-config-add'); // 新建时，默认可输入
+  
   changedPasswordValue = false; // 密码输入框是否发生过变更
   customPlaceholder = '';
 

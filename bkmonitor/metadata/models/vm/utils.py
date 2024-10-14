@@ -16,6 +16,7 @@ from typing import Dict, Optional
 
 from django.conf import settings
 from django.db.models import Q
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 from core.drf_resource import api
 from core.errors.api import BKAPIError
@@ -380,6 +381,11 @@ def get_timestamp_len(data_id: Optional[int] = None, etl_config: Optional[str] =
     return TimestampLen.MILLISECOND_LEN.value
 
 
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(1))
+def get_data_name(data_id):
+    return DataSource.objects.get(bk_data_id=data_id).data_name
+
+
 def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
     """接入 v2 版本的 bkdata vm"""
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access v2 vm", bk_biz_id, table_id, data_id)
@@ -413,7 +419,8 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
         )
 
     try:
-        data_name = DataSource.objects.get(bk_data_id=data_id).data_name
+        # NOTE: 这里可能因为事务+异步的原因，导致查询时DB中的DataSource未就绪，添加重试机制
+        data_name = get_data_name(data_id)
     except DataSource.DoesNotExist:
         logger.error("create vm data link error, data_id: %s not found", data_id)
         return
