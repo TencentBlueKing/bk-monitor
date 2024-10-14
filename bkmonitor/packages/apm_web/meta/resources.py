@@ -853,6 +853,8 @@ class ListApplicationResource(PageListResource):
                 "metric_data_status",
                 "log_data_status",
                 "service_count",
+                "trace_result_table_id",
+                "metric_result_table_id",
             ]
 
     def get_filter_fields(self):
