@@ -36,9 +36,7 @@ class QuickStartOverview(metaclass=base.FieldMeta):
     class Meta:
         name = "QUICK_START_OVERVIEW"
         scope = base.ScopeType.OPEN.value
-        value = """本指南通过一个示例项目，介绍如何将 Traces、Metrics、Logs、Profiling 四类观测数据接入蓝鲸应用性能监控。
-
-入门项目功能齐全且可在开发环境运行，可以通过该项目快速接入并体验蓝鲸应用性能监控相关功能。"""
+        value = """本示例仅演示如何将 <a href="https://opentelemetry.io/docs/concepts/signals/traces/" target="_blank">Traces</a>、<a href="https://opentelemetry.io/docs/concepts/signals/metrics/" target="_blank">Metrics</a>、<a href="https://opentelemetry.io/docs/concepts/signals/logs/" target="_blank">Logs</a>、<a href="https://grafana.com/docs/pyroscope/latest/introduction/profiling/" target="_blank">Profiling</a> 四类观测数据接入蓝鲸应用性能监控。"""
 
 
 class MustConfigResources(metaclass=base.FieldMeta):
