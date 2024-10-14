@@ -100,7 +100,9 @@ class RegexTemplateHandler(object):
     def update_template(self, template_id, template_name):
         instance = RegexTemplate.objects.filter(id=template_id, is_deleted=False).first()
         if not instance:
-            raise RegexTemplateNotExistException(RegexTemplateException.MESSAGE.format(regex_template_id=template_id))
+            raise RegexTemplateNotExistException(
+                RegexTemplateNotExistException.MESSAGE.format(regex_template_id=template_id)
+            )
         instance.template_name = template_name
         instance.save()
         return {"id": instance.id, "space_uid": instance.space_uid, "template_name": instance.template_name}
@@ -108,7 +110,9 @@ class RegexTemplateHandler(object):
     def delete_template(self, template_id):
         instance = RegexTemplate.objects.filter(id=template_id, is_deleted=False).first()
         if not instance:
-            raise RegexTemplateNotExistException(RegexTemplateException.MESSAGE.format(regex_template_id=template_id))
+            raise RegexTemplateNotExistException(
+                RegexTemplateNotExistException.MESSAGE.format(regex_template_id=template_id)
+            )
         index_set_ids = ClusteringConfig.objects.filter(regex_template_id=instance.id).values_list(
             "index_set_id", flat=True
         )
