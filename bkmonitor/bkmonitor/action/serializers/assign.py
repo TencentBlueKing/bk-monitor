@@ -33,6 +33,14 @@ class TagSerializer(serializers.Serializer):
     display_key = serializers.CharField(label="字段显示值", default="")
     display_value = serializers.CharField(label="字段值的显示值", default="")
 
+    def validate(self, attrs):
+        unsafe_chars = {"<", ">", "&", '"', "'", "`"}
+        for value in attrs.values():
+            value = set(value)
+            if value & unsafe_chars:
+                raise ValidationError(detail=_("不能包含特殊字符"))
+        return attrs
+
 
 class UpgradeConfigSerializer(serializers.Serializer):
     is_enabled = serializers.BooleanField(label="是否生效", required=False, default=False)
