@@ -160,7 +160,7 @@ class UpdateOnlineService(BasePipeLineService):
             "delimeter",
             "max_log_length",
             "is_case_sensitive",
-            "rule_type",
+            "regex_rule_type",
             "regex_template_id",
         ]
         model_field_modified = False
@@ -172,12 +172,17 @@ class UpdateOnlineService(BasePipeLineService):
         if model_field_modified:
             clustering_config.save(update_fields=model_fields)
             current = current.extend(UpdateOnlineModel(index_set_id=index_set_id).update_online_model)
-        if params["rule_type"] == "template":
-            regex_template_id = params["regex_template_id"]
+        # 使用了模板且模板有更改，修改模板以及所有引用该模板的索引集聚类配置
+        if params["regex_rule_type"] == "template":
+            regex_template_id = int(params["regex_template_id"])
             predefined_varibles = params["predefined_varibles"]
             instance = RegexTemplate.objects.get(id=regex_template_id)
-            instance.predefined_varibles = predefined_varibles
-            instance.save()
+            if instance.predefined_varibles != predefined_varibles:
+                instance.predefined_varibles = predefined_varibles
+                instance.save()
+                ClusteringConfig.objects.filter(regex_template_id=regex_template_id).update(
+                    predefined_varibles=predefined_varibles
+                )
 
         # 3. 检查聚类字段是否有变更
         if "clustering_fields" in params and clustering_config.clustering_fields != params["clustering_fields"]:

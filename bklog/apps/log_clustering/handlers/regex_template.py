@@ -19,10 +19,15 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from collections import defaultdict
+
+from django.db import transaction
+from django.utils.translation import ugettext as _
+
 from apps.log_clustering.exceptions import (
     DuplicateNameException,
-    RegexTemplateException,
     RegexTemplateNotExistException,
+    RegexTemplateReferencedException,
 )
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.models import ClusteringConfig, RegexTemplate
@@ -33,7 +38,8 @@ class RegexTemplateHandler(object):
     def __init__(self, space_uid: str):
         self.space_uid = space_uid
 
-    def get_template(self):
+    @transaction.atomic
+    def list_templates(self):
         data = RegexTemplate.objects.filter(space_uid=self.space_uid).values(
             "id", "space_uid", "template_name", "predefined_varibles"
         )
@@ -42,7 +48,7 @@ class RegexTemplateHandler(object):
             # 不存在模板，创建系统模板
             instance = RegexTemplate.objects.create(
                 space_uid=self.space_uid,
-                template_name="系统默认",
+                template_name=_("系统默认"),
                 predefined_varibles=OnlineTaskTrainingArgs.PREDEFINED_VARIBLES,
             )
             return [
@@ -69,7 +75,7 @@ class RegexTemplateHandler(object):
 
         # 引用该模板的 索引集id列表
         # 创建一个映射，从 regex_template_id 到 index_set_id 的列表
-        template_to_index_set = {}
+        template_to_index_set = defaultdict(list)
         for config in config_data:
             if config["regex_template_id"] not in template_to_index_set:
                 template_to_index_set[config["regex_template_id"]] = []
@@ -85,8 +91,11 @@ class RegexTemplateHandler(object):
             ]
         return list(data)
 
+    @transaction.atomic
     def create_template(self, template_name):
-        instance, created = RegexTemplate.objects.get_or_create(space_uid=self.space_uid, template_name=template_name)
+        instance, created = RegexTemplate.objects.get_or_create(
+            space_uid=self.space_uid, template_name=_(template_name)
+        )
         if not created:
             raise DuplicateNameException(DuplicateNameException.MESSAGE.format(name=template_name))
         return {
@@ -97,8 +106,9 @@ class RegexTemplateHandler(object):
             "related_index_set_list": [],
         }
 
+    @transaction.atomic
     def update_template(self, template_id, template_name):
-        instance = RegexTemplate.objects.filter(id=template_id, is_deleted=False).first()
+        instance = RegexTemplate.objects.filter(id=template_id).first()
         if not instance:
             raise RegexTemplateNotExistException(
                 RegexTemplateNotExistException.MESSAGE.format(regex_template_id=template_id)
@@ -107,21 +117,20 @@ class RegexTemplateHandler(object):
         instance.save()
         return {"id": instance.id, "space_uid": instance.space_uid, "template_name": instance.template_name}
 
+    @transaction.atomic
     def delete_template(self, template_id):
-        instance = RegexTemplate.objects.filter(id=template_id, is_deleted=False).first()
+        instance = RegexTemplate.objects.filter(id=template_id).first()
         if not instance:
             raise RegexTemplateNotExistException(
                 RegexTemplateNotExistException.MESSAGE.format(regex_template_id=template_id)
             )
-        index_set_ids = ClusteringConfig.objects.filter(regex_template_id=instance.id).values_list(
-            "index_set_id", flat=True
+        index_set_ids = list(
+            ClusteringConfig.objects.filter(regex_template_id=instance.id).values_list("index_set_id", flat=True)
         )
-        related_list = list(
-            LogIndexSet.objects.filter(index_set_id__in=index_set_ids).values("index_set_id", "index_set_name")
-        )
-        # 没有关联的索引集
-        if not related_list:
-            instance.delete()
-            return
-        # 有关联的索引集，不允许删除
-        raise RegexTemplateException(RegexTemplateException.MESSAGE.format(regex_template_id=template_id))
+        # 有关联的索引集
+        if LogIndexSet.objects.filter(index_set_id__in=index_set_ids).exists():
+            raise RegexTemplateReferencedException(
+                RegexTemplateReferencedException.MESSAGE.format(regex_template_id=template_id)
+            )
+        instance.delete()
+        return

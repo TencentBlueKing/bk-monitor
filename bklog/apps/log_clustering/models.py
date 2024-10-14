@@ -161,13 +161,13 @@ class ClusteringConfig(SoftDeleteModel):
     normal_strategy_output = models.CharField(_("日志数量告警输出结果表"), max_length=255, default="", null=True, blank=True)
     access_finished = models.BooleanField(_("是否接入完成"), default=True)
 
-    rule_type = models.CharField(
+    regex_rule_type = models.CharField(
         _("规则类型"),
         max_length=64,
         choices=RuleTypeEnum.get_choices(),
         default=RuleTypeEnum.CUSTOMIZE.value,
     )
-    regex_template_id = models.IntegerField(_("模板id"), null=True, blank=True)
+    regex_template_id = models.IntegerField(_("模板id"), default=0)
 
     @classmethod
     def get_by_index_set_id(cls, index_set_id: int, raise_exception: bool = True) -> "ClusteringConfig":

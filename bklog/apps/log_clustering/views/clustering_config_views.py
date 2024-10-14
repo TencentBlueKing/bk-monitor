@@ -182,7 +182,7 @@ class ClusteringConfigViewSet(APIViewSet):
         @apiParam {Str} clustering_fields 聚合字段
         @apiParam {Int} [min_members] 最小日志数量
         @apiParam {Str} [predefined_varibles] 预先定义的正则表达式
-        @apiParam {Str} [rule_type] 规则类型
+        @apiParam {Str} [regex_rule_type] 规则类型
         @apiParam {Str} [regex_template_id] 正则模板id
         @apiParam {Str} [delimeter] 分词符
         @apiParam {Int} [max_log_length] 最大日志长度
@@ -202,6 +202,8 @@ class ClusteringConfigViewSet(APIViewSet):
                 "index_set_id":1,
                 "min_members":1,
                 "predefined_varibles":"xxx",
+                "regex_rule_type": "customize",
+                "regex_template_id": 0
                 "delimeter":"xx",
                 "max_log_length":1,
                 "is_case_sensitive":1,

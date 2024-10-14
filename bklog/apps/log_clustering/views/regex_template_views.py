@@ -24,22 +24,16 @@ from rest_framework.response import Response
 from apps.generic import APIViewSet
 from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
 from apps.log_clustering.serializers import RegexTemplateSerializer
-from apps.utils.drf import detail_route, list_route
 
 
 class RegexTemplateViewSet(APIViewSet):
-    lookup_field = "regex_template_id"
+    lookup_field = "id"
 
-    def get_permissions(self):
-        return []
-
-    # TODO:待完善
-    @list_route(methods=["GET"], url_path="list")
-    def get_template(self, request, *args, **kwargs):
+    def list(self, request, *args, **kwargs):
         """
-        @api {get} /regex_template/list?space_uid=$space_uid 1_聚类正则模板-模板列表
+        @api {get} /regex_template/?space_uid=$space_uid 1_聚类正则模板-模板列表
         @apiDescription 指定空间下的聚类正则模板列表
-        @apiName get_regex_template
+        @apiName regex_template list
         @apiGroup log_clustering
         @apiSuccess {Int} id 模板ID
         @apiSuccess {String} template_name 模板名称
@@ -80,12 +74,11 @@ class RegexTemplateViewSet(APIViewSet):
         }
         """
         space_uid = request.query_params.get("space_uid")
-        return Response(RegexTemplateHandler(space_uid).get_template())
+        return Response(RegexTemplateHandler(space_uid).list_templates())
 
-    @list_route(methods=["POST"], url_path="create")
-    def create_template(self, request, *args, **kwargs):
+    def create(self, request, *args, **kwargs):
         """
-        @api {post} /regex_template/create/ 2_聚类正则模板-创建
+        @api {post} /regex_template/ 2_聚类正则模板-创建
         @apiName create_regex_template
         @apiGroup log_clustering
         @apiParamExample {Json} 请求参数
@@ -110,10 +103,9 @@ class RegexTemplateViewSet(APIViewSet):
         data = self.params_valid(RegexTemplateSerializer)
         return Response(RegexTemplateHandler(data["space_uid"]).create_template(template_name=data["template_name"]))
 
-    @detail_route(methods=["POST"], url_path="update")
-    def update_template(self, request, regex_template_id, *args, **kwargs):
+    def partial_update(self, request, *args, id=None, **kwargs):
         """
-        @api {post} /regex_template/$regex_template_id/update/ 2_聚类正则模板-修改
+        @api {patch} /regex_template/$regex_template_id/ 2_聚类正则模板-修改
         @apiName update_regex_template
         @apiGroup log_clustering
         @apiParamExample {Json} 请求参数
@@ -136,19 +128,14 @@ class RegexTemplateViewSet(APIViewSet):
         space_uid = request.data.get("space_uid")
         template_name = request.data.get("template_name")
         return Response(
-            RegexTemplateHandler(space_uid).update_template(template_id=regex_template_id, template_name=template_name)
+            RegexTemplateHandler(space_uid).update_template(template_id=int(id), template_name=template_name)
         )
 
-    @list_route(methods=["POST"], url_path="delete")
-    def delete_template(self, request, regex_template_id, *args, **kwargs):
+    def destroy(self, request, *args, id=None, **kwargs):
         """
-        @api {post} /regex_template/$regex_template_id/delete/ 2_聚类正则模板-创建
+        @api {delete} /regex_template/$regex_template_id/?space_uid=$space_uid 2_聚类正则模板-创建
         @apiName delete_regex_template
         @apiGroup log_clustering
-        @apiParamExample {Json} 请求参数
-        {
-            "space_uid": "bkcc__2"
-        }
         @apiSuccessExample {json} 成功返回:
         {
             "message": "",
@@ -157,5 +144,5 @@ class RegexTemplateViewSet(APIViewSet):
             "result": true
         }
         """
-        space_uid = request.data.get("space_uid")
-        return Response(RegexTemplateHandler(space_uid).delete_template(template_id=regex_template_id))
+        space_uid = request.query_params.get("space_uid")
+        return Response(RegexTemplateHandler(space_uid).delete_template(template_id=int(id)))
