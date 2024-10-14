@@ -50,7 +50,7 @@
           </i18n>
         </div>
         <div
-          v-if="!isEmptyChart && !isFold"
+          v-if="!isFold"
           class="converge-cycle"
           @click.stop
         >
@@ -113,7 +113,7 @@
   import ChartMenu from './chart-menu.vue';
 
   @Component({
-    name: 'chart-title',
+    name: 'chart-title-v2',
     components: {
       ChartMenu,
     },
@@ -138,7 +138,7 @@
     ];
 
     get retrieveParams() {
-      return this.$store.state.retrieveParams;
+      return this.$store.getters.retrieveParams;
     }
 
     get tookTime() {
@@ -147,6 +147,7 @@
 
     @Watch('retrieveParams.interval')
     watchChangeChartInterval(newVal) {
+      console.log('watchChangeChartInterval')
       this.chartInterval = newVal;
     }
 
@@ -166,7 +167,6 @@
     // 汇聚周期改变
     handleIntervalChange() {
       this.$emit('interval-change', this.chartInterval);
-      this.$store.commit('retrieve/updateChartKey');
     }
   }
 </script>

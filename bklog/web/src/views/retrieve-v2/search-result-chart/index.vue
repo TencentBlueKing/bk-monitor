@@ -30,7 +30,7 @@
     :class="['monitor-echarts-container', { 'is-fold': isFold }]"
     data-test-id="retrieve_div_generalTrendEcharts"
   >
-    <chart-title
+    <chart-title-v2
       ref="chartTitle"
       :is-fold="isFold"
       :title="$t('总趋势')"
@@ -39,7 +39,7 @@
       @interval-change="handleChangeInterval"
       @toggle-expand="toggleExpand"
     >
-    </chart-title>
+    </chart-title-v2>
     <TrendChart
       ref="chartRef"
       v-show="!isFold"
@@ -50,9 +50,9 @@
 </template>
 
 <script setup>
-  import ChartTitle from '@/components/monitor-echarts/components/chart-title-new.vue';
+  import ChartTitleV2 from '@/components/monitor-echarts/components/chart-title-v2.vue';
   import TrendChart from '@/components/monitor-echarts/trend-chart';
-  import { ref, nextTick, watch, onMounted, computed } from 'vue';
+  import { ref, watch, onMounted, computed } from 'vue';
   import useStore from '@/hooks/use-store';
 
   const emit = defineEmits(['toggle-change']);
