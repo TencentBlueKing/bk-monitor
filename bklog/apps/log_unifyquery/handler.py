@@ -322,7 +322,7 @@ class UnifyQueryHandler(object):
         for addition in new_addition:
             # 全文检索key & 存量query_string转换
             if addition["field"] in ["*", "__query_string__"]:
-                value = ",".join(addition["value"]) if isinstance(addition["value"], list) else addition["value"]
+                value = " OR ".join(addition["value"]) if isinstance(addition["value"], list) else addition["value"]
                 if value:
                     if addition["field"] == "*":
                         value = "\"" + value.replace('"', '\\"') + "\""
