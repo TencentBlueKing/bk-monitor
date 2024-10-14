@@ -23,11 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { onMounted, Ref } from 'vue';
+import { nextTick, onMounted, Ref } from 'vue';
 
 import * as Echarts from 'echarts';
 
-import EchartOptions from '../components/monitor-echarts/options/bar-chart-option';
+import BarCharOptionHelper from '../components/monitor-echarts/options/bar-chart-option';
+import chartOption from './trend-chart-options';
 
 export type TrandChartOption = {
   target: Ref<HTMLDivElement | null>;
@@ -40,117 +41,31 @@ export type EchartData = {
 };
 export default ({ target }: TrandChartOption) => {
   let chartInstance: Echarts.ECharts = null;
-  const chartOptionInstance = new EchartOptions({});
+  const options: any = Object.assign({}, chartOption);
+  const barChartOptionInstance = new BarCharOptionHelper({});
+
+  const delegateMethod = (name: string, ...args) => {
+    return chartInstance?.[name](...args);
+  };
+  // resize
+  // const resize = (options: EChartOption = null) => {
+  //   delegateMethod('resize', options);
+  // };
+
+  const dispatchAction = payload => {
+    delegateMethod('dispatchAction', payload);
+  };
 
   const updateChart = (data: EchartData[]) => {
-    const { options } = chartOptionInstance.getOptions({});
-    options.series = [
-      {
-        data: data,
-        type: 'bar',
-      },
-    ];
-    chartInstance.setOption({
-      title: {
-        show: false,
-      },
-      useUTC: false,
-      color: [
-        '#A3C5FD',
-        '#EAB839',
-        '#6ED0E0',
-        '#EF843C',
-        '#E24D42',
-        '#1F78C1',
-        '#BA43A9',
-        '#705DA0',
-        '#508642',
-        '#CCA300',
-        '#447EBC',
-        '#C15C17',
-        '#890F02',
-        '#0A437C',
-        '#6D1F62',
-        '#584477',
-        '#B7DBAB',
-        '#F4D598',
-        '#70DBED',
-        '#F9BA8F',
-        '#F29191',
-        '#82B5D8',
-        '#E5A8E2',
-        '#AEA2E0',
-        '#629E51',
-        '#E5AC0E',
-        '#64B0C8',
-        '#E0752D',
-        '#BF1B00',
-        '#0A50A1',
-        '#962D82',
-        '#614D93',
-        '#9AC48A',
-        '#F2C96D',
-        '#65C5DB',
-        '#F9934E',
-        '#EA6460',
-        '#5195CE',
-        '#D683CE',
-        '#806EB7',
-        '#3F6833',
-        '#967302',
-        '#2F575E',
-        '#99440A',
-        '#58140C',
-        '#052B51',
-        '#511749',
-        '#3F2B5B',
-        '#E0F9D7',
-        '#FCEACA',
-        '#CFFAFF',
-        '#F9E2D2',
-        '#FCE2DE',
-        '#BADFF4',
-        '#F9D9F9',
-        '#DEDAF7',
-      ],
-      tooltip: {
-        show: true,
-        trigger: 'axis',
-        axisPointer: { type: 'line', label: { backgroundColor: '#6a7985' } },
-        transitionDuration: 0,
-        alwaysShowContent: false,
-        backgroundColor: 'rgba(0,0,0,0.8)',
-        borderWidth: 0,
-        textStyle: { fontSize: 12 },
-        extraCssText: 'border-radius: 0',
-      },
-      grid: { containLabel: true, left: 0, right: 26, top: 16, bottom: 0, backgroundColor: 'transparent' },
-      xAxis: {
-        type: 'time',
-        data: data.map(d => d[0]),
-        axisLine: {
-          lineStyle: {
-            type: 'dashed',
-            color: '#666',
-          },
-          show: true,
-        },
-      },
-      yAxis: {
-        type: 'value',
-        axisLine: {
-          lineStyle: {
-            type: 'dashed',
-            color: '#666',
-          },
-        },
-      },
-      series: [
-        {
-          data: data.map(d => d[1]),
-          type: 'bar',
-        },
-      ],
+    options.series[0].data = data;
+    options.xAxis[0].axisLabel.formatter = barChartOptionInstance.handleSetFormatterFunc(data);
+    chartInstance.setOption(options);
+    nextTick(() => {
+      dispatchAction({
+        type: 'takeGlobalCursor',
+        key: 'dataZoomSelect',
+        dataZoomSelectActive: true,
+      });
     });
   };
   onMounted(() => {
