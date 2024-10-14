@@ -856,7 +856,7 @@ class NodeManInstaller(BaseInstaller):
                 node_path = "/".join(link.bk_inst_name for link in reversed(topo_links.get(node_id, [])))
                 if not node_path:
                     node_path = f"{_('未知节点')}({node_id})"
-                diff_mapping[node_info["diff_type"]] = {
+                diff_mapping[node_id] = {
                     "child": node_info["child"],
                     "node_path": node_path,
                     "label_name": node_info["diff_type"],
