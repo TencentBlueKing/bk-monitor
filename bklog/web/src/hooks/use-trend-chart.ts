@@ -71,6 +71,11 @@ export default ({ target }: TrandChartOption) => {
   onMounted(() => {
     if (target.value) {
       chartInstance = Echarts.init(target.value);
+      chartInstance.on('dblclick', () => {
+        dispatchAction({
+          type: 'restore',
+        });
+      });
     }
   });
 
