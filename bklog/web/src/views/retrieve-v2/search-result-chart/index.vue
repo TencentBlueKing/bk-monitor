@@ -74,9 +74,8 @@
   const toggleExpand = val => {
     isFold.value = val;
     localStorage.setItem('chartIsFold', val);
-    nextTick(() => {
-      emit('toggle-change', !isFold.value, chartContainer.value?.offsetHeight);
-    });
+    const offsetHeight = chartContainer.value?.offsetHeight;
+    emit('toggle-change', !isFold.value, offsetHeight);
   };
 
   const handleChangeInterval = v => {
@@ -87,6 +86,8 @@
 
   onMounted(() => {
     isFold.value = JSON.parse(localStorage.getItem('chartIsFold') || 'false');
+    const offsetHeight = chartContainer.value?.offsetHeight;
+    emit('toggle-change', !isFold.value, offsetHeight);
   });
 
   watch(() => chartKey.value, () => {

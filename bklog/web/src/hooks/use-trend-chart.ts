@@ -49,7 +49,7 @@ export default ({ target }: TrandChartOption) => {
   const barChartOptionInstance = new BarCharOptionHelper({});
   const store = useStore();
 
-  const retrieveParams = computed(() => store.getters.retrieveParams);
+  const datepickerValue = computed(() => store.state.indexItem.datePickerValue);
   let cachedTimRange = [];
   const delegateMethod = (name: string, ...args) => {
     return chartInstance?.[name](...args);
@@ -84,7 +84,7 @@ export default ({ target }: TrandChartOption) => {
       const timeTo = dayjs.tz(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm:ss');
 
       if (!cachedTimRange.length) {
-        cachedTimRange = [retrieveParams.value.start_time, retrieveParams.value.end_time];
+        cachedTimRange = [datepickerValue.value[0], datepickerValue.value[1]];
       }
 
       dispatchAction({
@@ -112,7 +112,7 @@ export default ({ target }: TrandChartOption) => {
             store.dispatch('handleTrendDataZoom', {
               start_time: cachedTimRange[0],
               end_time: cachedTimRange[1],
-              format: false,
+              format: true,
             });
             cachedTimRange = [];
           }
