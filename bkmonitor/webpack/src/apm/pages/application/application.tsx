@@ -241,6 +241,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
       this.routeList[1].name = `${this.$tc('应用')}：${this.appName}`;
       this.routeList[1].selectOption.value = this.appName;
       this.pageKey += 1;
+      this.handleGetAppInfo();
     } else {
       const dashboardId = this.$route.query.dashboardId;
       this.$router.push({
@@ -259,7 +260,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
 
   /** 获取应用信息 */
   async handleGetAppInfo() {
-    let queryTimeRange;
+    let queryTimeRange: [number, number];
     const { from, to } = this.$route.query;
     if (from && to) {
       const timeRanges = [from, to];
@@ -279,7 +280,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
 
     if (data) {
       this.appInfo = data;
-      this.viewHasNoData = this.appInfo.data_status === 'no_data';
+      this.viewHasNoData = this.appInfo.trace_data_status === 'no_data';
       this.isReady = true;
     }
   }
@@ -309,10 +310,11 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   }
   /** 更多设置 */
   handleSettingsMenuSelect(option) {
+    console.log(this.appInfo.app_name);
     this.$router.push({
       name: 'application-config',
       params: {
-        id: this.appInfo.application_id,
+        appName: this.appInfo.app_name,
       },
       query: {
         active: option.id,

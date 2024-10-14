@@ -81,7 +81,10 @@ def create_vm_data_link(
 ):
     # 获取数据源名称对应的资源，便于后续组装整个链路
     logger.info(
-        "create vm data link for table_id: %s, data_name: %s, vm_cluster_name: %s", table_id, data_name, vm_cluster_name
+        "create_vm_data_link: create vm data link for table_id: %s, data_name: %s, vm_cluster_name: %s",
+        table_id,
+        data_name,
+        vm_cluster_name,
     )
 
     data_id_name = utils.get_bkdata_data_id_name(data_name)
@@ -97,9 +100,21 @@ def create_vm_data_link(
         }
     ]
     vm_data_bus_config = DataLinkResourceConfig.compose_vm_data_bus_config(name, name, data_id_name, sinks)
-    # 下发资源
-    data = {"config": [vm_table_id_config, vm_storage_binding_config, vm_data_bus_config]}
-    api.bkdata.apply_data_link(data)
+
+    # 是否是联邦集群的代理集群，若是，则无需创建DATABUS
+    is_fed_cluster = bcs_cluster_id and BcsFederalClusterInfo.objects.filter(fed_cluster_id=bcs_cluster_id).exists()
+    configs = [vm_table_id_config, vm_storage_binding_config]
+
+    if not is_fed_cluster:
+        configs.append(vm_data_bus_config)
+
+    logger.info("create_vm_data_link: apply configs: %s,is_fed_cluster: %s", configs, is_fed_cluster)
+
+    # 调用计算平台接口，申请V4链路
+    api.bkdata.apply_data_link({"config": configs})
+
+    logger.info("create_vm_data_link: apply success")
+
     # 创建记录
     DataLinkResource.objects.update_or_create(
         data_id_name=data_id_name,
@@ -122,14 +137,20 @@ def create_vm_data_link(
             status=DataLinkResourceStatus.OK.value,
             content=vm_storage_binding_config,
         ),
-        DataLinkResourceConfig(
-            kind=DataLinkKind.DATABUS.value,
-            name=name,
-            namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-            status=DataLinkResourceStatus.OK.value,
-            content=vm_data_bus_config,
-        ),
     ]
+
+    # 只有非联邦集群的代理集群时，才需要DATABUS
+    if not is_fed_cluster:
+        records.append(
+            DataLinkResourceConfig(
+                kind=DataLinkKind.DATABUS.value,
+                name=name,
+                namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+                status=DataLinkResourceStatus.OK.value,
+                content=vm_data_bus_config,
+            ),
+        )
+
     DataLinkResourceConfig.objects.bulk_create(records)
     # 创建 vm 记录
     from metadata.models import AccessVMRecord, ClusterInfo
@@ -146,7 +167,7 @@ def create_vm_data_link(
     )
 
     logger.info(
-        "create vm data link for table_id: %s, data_name: %s, vm_cluster_name: %s success",
+        "create_vm_data_link: create vm data link for table_id: %s, data_name: %s, vm_cluster_name: %s success",
         table_id,
         data_name,
         vm_cluster_name,
@@ -161,6 +182,8 @@ def create_fed_vm_data_link(
     vm_cluster_id: Optional[int] = None,
     bcs_cluster_id: Optional[str] = None,
 ):
+    from metadata.models import AccessVMRecord, ClusterInfo
+
     # 如果不是集群，则直接忽略
     if not bcs_cluster_id:
         return
@@ -177,8 +200,28 @@ def create_fed_vm_data_link(
         data_name,
         vm_cluster_name,
     )
-
+    # NOTE: 这里需要兼容 data_id为V3链路，此前已经接入过VM的情形
     data_id_name = utils.get_bkdata_data_id_name(data_name)
+    try:
+        api.bkdata.get_data_link(
+            kind=DataLinkKind.get_choice_value(DataLinkKind.DATAID.value),
+            namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+            name=data_id_name,
+        )
+    except Exception:  # pylint: disable=broad-except
+        logger.info(
+            "create_fed_vm_data_link: data_id_name->{} does not exist in bkbase ,now try to use v3 data_id_name".format(
+                data_id_name
+            )
+        )
+        vm_record = AccessVMRecord.objects.filter(result_table_id=table_id)
+        if not vm_record:
+            logger.error("create_fed_vm_data_link: data_id_name does not exists in anywhere!")
+            return
+        data_id_name = utils.get_bkdata_data_id_name_v3(vm_record.first().vm_result_table_id)
+
+    logger.info("create_fed_vm_data_link: data_id_name->%s", data_id_name)
+
     # 满足计算平台 40 长度的限制
     name = f"{utils.get_bkdata_table_id(table_id)}_fed"
     # 针对联邦做处理
@@ -233,7 +276,6 @@ def create_fed_vm_data_link(
     # 根据存储创建多条记录
     records, vm_records = [], []
     # 如果 vm 集群ID不存在，则通过集群名称获取
-    from metadata.models import AccessVMRecord, ClusterInfo
 
     if not vm_cluster_id:
         vm_cluster_id = ClusterInfo.objects.get(cluster_name=vm_cluster_name).cluster_id

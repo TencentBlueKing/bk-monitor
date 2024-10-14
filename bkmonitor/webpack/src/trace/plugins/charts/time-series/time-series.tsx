@@ -108,11 +108,6 @@ const TimeSeriesProps = {
     type: Boolean,
     default: false,
   },
-  // 是否展示more tools
-  showHeaderMoreTool: {
-    type: Boolean,
-    default: false,
-  },
   // 自定义时间范围
   customTimeRange: Array as PropType<string[]>,
   // 自定义更多菜单
@@ -941,7 +936,7 @@ export default defineComponent({
                 menuList={this.menuList}
                 metrics={this.metrics}
                 showAddMetric={this.showAddMetric}
-                showMore={this.isInHover}
+                showMore={true}
                 subtitle={this.panel.subTitle || ''}
                 title={this.panel.title}
                 onAlarmClick={this.handleAlarmClick}

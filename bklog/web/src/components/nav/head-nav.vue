@@ -39,6 +39,8 @@
         />
         <span class="logo-text">{{ platformData.name }}</span>
       </div>
+      <div class="nav-separator">|</div>
+      <BizMenuSelect class="head-navi-left"></BizMenuSelect>
     </div>
     <div
       class="nav-center fl"
@@ -75,7 +77,7 @@
             <span
               :class="{
                 'setting bk-icon icon-cog-shape icon-language-container': true,
-                active: isShowGlobalDialog || isShowGlobalDropdown
+                active: isShowGlobalDialog || isShowGlobalDropdown,
               }"
             ></span>
           </div>
@@ -151,7 +153,7 @@
           >
             <div class="icon-circle-container">
               <span
-                class="log-icon icon-icon-help-document-fill"
+                class="icon bklog-icon bklog-help"
                 slot="dropdown-trigger"
               ></span>
             </div>
@@ -257,12 +259,14 @@
 
   import { menuArr } from './complete-menu';
   import LogVersion from './log-version';
+  import BizMenuSelect from '@/components/biz-menu';
 
   export default {
     name: 'HeaderNav',
     components: {
       LogVersion,
       GlobalDialog,
+      BizMenuSelect,
     },
     mixins: [navMenuMixin],
     props: {
@@ -349,6 +353,7 @@
       this.language = jsCookie.get('blueking_language') || 'zh-cn';
       this.$store.commit('updateMenuList', menuArr);
       setTimeout(() => this.requestMySpaceList(), 10);
+      this.getGlobalsData();
       this.getUserInfo();
       window.bus.$on('showGlobalDialog', this.handleGoToMyReport);
     },
@@ -371,6 +376,18 @@
         } finally {
           this.usernameRequested = true;
         }
+      },
+      // 获取全局数据和 判断是否可以保存 已有的日志聚类
+      getGlobalsData() {
+        if (Object.keys(this.globalsData).length) return;
+        this.$http
+          .request('collect/globals')
+          .then(res => {
+            this.$store.commit('globals/setGlobalsData', res.data);
+          })
+          .catch(e => {
+            console.warn(e);
+          });
       },
       jumpToHome() {
         this.$store.commit('updateIsShowGlobalDialog', false);
@@ -621,9 +638,11 @@
     .nav-left {
       display: flex;
       align-items: center;
-      width: 278px;
+      min-width: max-content;
+      max-width: 180px;
       height: 100%;
       padding-left: 16px;
+      margin-right: 315px;
       font-size: 18px;
 
       .log-logo-container {
@@ -643,6 +662,25 @@
           width: 40px;
           height: 40px;
           margin-right: 10px;
+        }
+      }
+
+      .nav-separator {
+        margin: 0px 2px 0 18px;
+        font-size: 20px;
+        color: #5f616b;
+      }
+
+      .head-navi-left {
+        &.biz-menu-select {
+          .menu-select {
+            background-color: #182132;
+          }
+
+          .menu-select-list {
+            top: 52px;
+            left: 138px;
+          }
         }
       }
     }
@@ -702,34 +740,34 @@
 
       @include clearfix;
 
-    .setting {
-      position: relative;
-      font-size: 15px;
-      cursor: pointer;
-
-      &::before {
+      .setting {
         position: relative;
-        z-index: 999;
-      }
+        font-size: 15px;
+        cursor: pointer;
 
-      &.active,
-      &:hover {
-        color: #d3d9e4;
-      }
+        &::before {
+          position: relative;
+          z-index: 999;
+        }
 
-      &.active::after,
-      &:hover::after {
-        position: absolute;
-        left: 50%;
-        z-index: 99;
-        width: 30px;
-        height: 30px;
-        content: '';
-        background: linear-gradient(270deg, #253047, #263247);
-        border-radius: 50%;
-        transform: translateX(-50%);
+        &.active,
+        &:hover {
+          color: #d3d9e4;
+        }
+
+        &.active::after,
+        &:hover::after {
+          position: absolute;
+          left: 50%;
+          z-index: 99;
+          width: 30px;
+          height: 30px;
+          content: '';
+          background: linear-gradient(270deg, #253047, #263247);
+          border-radius: 50%;
+          transform: translateX(-50%);
+        }
       }
-    }
 
       .select-business {
         margin-right: 22px;
@@ -791,7 +829,7 @@
             background: linear-gradient(270deg, #253047, #263247);
             transition: all 0.2s;
 
-            .log-icon {
+            .bklog-icon {
               color: #d3d9e4;
               transition: all 0.2s;
             }
@@ -819,6 +857,10 @@
           color: #3c96ff;
         }
       }
+    }
+
+    .icon-language {
+      font-size: 20px;
     }
 
     .icon-chinese::before {

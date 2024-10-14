@@ -8,6 +8,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from django.utils.translation import ugettext_lazy as _
+from rest_framework import serializers
+
 from apm_web.constants import ServiceRelationLogTypeChoices
 from apm_web.models import (
     Application,
@@ -15,22 +18,19 @@ from apm_web.models import (
     CMDBServiceRelation,
     LogServiceRelation,
 )
-from django.utils.translation import ugettext_lazy as _
-from rest_framework import serializers
-
 from core.drf_resource import api
 
 
 class CMDBServiceRelationSerializer(serializers.ModelSerializer):
     class Meta:
         model = CMDBServiceRelation
-        fields = ["template_id"]
+        fields = ["template_id", "updated_at", "updated_by"]
 
 
 class LogServiceRelationSerializer(serializers.ModelSerializer):
     class Meta:
         model = LogServiceRelation
-        fields = ["log_type", "related_bk_biz_id", "value"]
+        fields = ["log_type", "related_bk_biz_id", "value", "updated_at", "updated_by"]
 
     def validate(self, attrs):
         if attrs["log_type"] == ServiceRelationLogTypeChoices.BK_LOG:
@@ -45,7 +45,7 @@ class LogServiceRelationSerializer(serializers.ModelSerializer):
 class AppServiceRelationSerializer(serializers.ModelSerializer):
     class Meta:
         model = AppServiceRelation
-        fields = ["relate_bk_biz_id", "relate_app_name"]
+        fields = ["relate_bk_biz_id", "relate_app_name", "updated_at", "updated_by"]
 
 
 class ApplicationListSerializer(serializers.ModelSerializer):
@@ -71,6 +71,7 @@ class ServiceConfigSerializer(serializers.Serializer):
     log_relation = LogServiceRelationSerializer(required=False, allow_null=True)
     apdex_relation = ServiceApdexConfigSerializer(required=False, allow_null=True)
     uri_relation = serializers.ListSerializer(required=False, allow_null=True, child=serializers.CharField())
+    labels = serializers.ListSerializer(required=False, allow_null=True, child=serializers.CharField())
 
 
 class LogServiceRelationOutputSerializer(serializers.ModelSerializer):
@@ -99,4 +100,13 @@ class LogServiceRelationOutputSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LogServiceRelation
-        fields = ["log_type", "related_bk_biz_id", "related_bk_biz_name", "value", "value_alias", "log_type_alias"]
+        fields = [
+            "log_type",
+            "related_bk_biz_id",
+            "related_bk_biz_name",
+            "value",
+            "value_alias",
+            "log_type_alias",
+            "updated_at",
+            "updated_by",
+        ]

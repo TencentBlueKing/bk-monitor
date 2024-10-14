@@ -50,7 +50,7 @@ class GetReceiverResource(Resource):
             all_members.update(members)
 
         user_list = api.bk_login.get_all_user(
-            page_size=500, fields="username,display_name", exact_lookups=",".join(all_members)
+            page_size=500, fields="username,display_name", exact_lookups=",".join(sorted(all_members))
         )["results"]
 
         display_name = {user["username"]: user["display_name"] for user in user_list}
@@ -105,7 +105,7 @@ class NoticeGroupDetailResource(Resource):
         user_info_dict = {}
         try:
             for user in api.bk_login.get_all_user(
-                fields="username,display_name,logo", exact_lookups=",".join(usernames)
+                fields="username,display_name,logo", exact_lookups=",".join(sorted(usernames))
             )["results"]:
                 user_info_dict[user["username"]] = user
         except Exception as e:

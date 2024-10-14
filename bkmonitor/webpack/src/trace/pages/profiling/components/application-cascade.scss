@@ -25,6 +25,20 @@
     flex-direction: column;
     height: 308px;
 
+    .exception-wrap-item {
+      width: 482px;
+      height: 100%;
+
+      .bk-exception-img {
+        height: 170px;
+      }
+
+      .bk-exception-footer {
+        margin-top: -16px;
+        color: #63656e;
+      }
+    }
+
     .search-wrap {
       display: flex;
       align-items: center;
@@ -89,6 +103,17 @@
             }
           }
 
+          .menu-apm-point {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            margin-right: 8px;
+            margin-left: 2px;
+            background: #ffe6e6;
+            border: 1px solid #ea3636;
+            border-radius: 50%;
+          }
+
           .name {
             flex: 1;
             overflow: hidden;
@@ -129,7 +154,7 @@
               background-color: #e1ecff;
 
               .name,
-              .icon-mc-grafana-home {
+              .icon-mokuai {
                 color: #3a84ff;
               }
             }
@@ -138,8 +163,9 @@
               color: #63656e;
             }
 
-            .icon-mc-grafana-home {
+            .icon-mokuai {
               margin-right: 5.5px;
+              font-size: 12px;
               color: #c4c6cc;
             }
           }
@@ -203,7 +229,7 @@
 
           .no-select-text {
             font-size: 14px;
-            color: #63656E;
+            color: #63656e;
           }
         }
       }
@@ -225,7 +251,7 @@
       .loading-text {
         margin-top: 18px;
         font-size: 14px;
-        color: #63656E;
+        color: #63656e;
       }
     }
 
@@ -240,11 +266,13 @@
         align-items: center;
         justify-content: center;
         height: 100%;
+        color: #63656e;
         cursor: pointer;
 
         .icon-jia {
           margin-right: 5px;
           font-size: 14px;
+          color: #979ba5;
         }
       }
     }

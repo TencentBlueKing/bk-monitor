@@ -188,7 +188,7 @@ export default class MaskingExtract extends tsc<IProps> {
               </div>
               <div class='form-item-tips'>
                 <i
-                  class='log-icon icon-info-fill'
+                  class='bklog-icon bklog-info-fill'
                   v-bk-tooltips={{ content: this.$t('字段名与表达式至少填写 1 个') }}
                 ></i>
               </div>

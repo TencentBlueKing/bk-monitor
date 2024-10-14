@@ -701,7 +701,7 @@ class RelatedLogChart extends CommonSimpleChart {
                 checkable={false}
                 columns={this.columns}
                 data={this.tableData}
-                hasColnumSetting={false}
+                hasColumnSetting={false}
                 jsonViewerDataKey='source'
                 pagination={null}
                 showExpand={true}

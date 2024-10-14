@@ -206,7 +206,10 @@ class BaseQuery:
         ThreadPool().map_ignore_exception(
             self._collect_option_values, [(q, queryset, field, option_values) for field in fields]
         )
-        return option_values
+
+        # UnifyQuery tag_values 目前还不支持 limit，此处进行截断，避免返回量大导致前端组件卡死的问题
+        # 后续会支持 limit，并且请求速度会进一步加快，可以考虑放开一个更大的 limit
+        return {field: values[: self.OPTION_VALUES_MAX_SIZE] for field, values in option_values.items()}
 
     @classmethod
     def _collect_option_values(
@@ -215,7 +218,7 @@ class BaseQuery:
         if q.using == cls.USING_LOG:
             q = q.metric(field=field, method="count").group_by(field)
         else:
-            q = q.metric(field="bk_apm_count", method="count").tag_values(field)
+            q = q.metric(field="bk_apm_count", method="count").tag_values(field).time_field("time")
 
         for bucket in queryset.add_query(q):
             option_values.setdefault(field, []).append(bucket[field])

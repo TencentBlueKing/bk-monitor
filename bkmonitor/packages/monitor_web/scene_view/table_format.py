@@ -16,6 +16,7 @@ import arrow
 from arrow.parser import ParserError
 from django.utils.translation import gettext_lazy as _lazy
 
+from apm_web.constants import DataStatus
 from core.unit import load_unit
 
 
@@ -57,6 +58,7 @@ class TableFormat(DefaultTableFormat):
         overview_calculator=None,
         overview_calculate_handler=None,
         asyncable: bool = False,
+        props: dict = None,
         display_handler=None,
     ):
         self.id = id
@@ -72,6 +74,8 @@ class TableFormat(DefaultTableFormat):
         self.action_id = action_id
         self.overview_calculator = overview_calculator
         self.asyncable = asyncable
+        self.props = props or {}
+
         self.overview_calculate_handler = overview_calculate_handler
         # display_handler 为觉得此列是否需要展示的 handler
         self.display_handler = display_handler
@@ -112,6 +116,7 @@ class TableFormat(DefaultTableFormat):
             "filter_list": self.filter_list,
             "actionId": self.action_id,
             "asyncable": self.asyncable,
+            "props": self.props,
         }
 
     def display(self, request_data) -> bool:
@@ -438,6 +443,47 @@ class StatusTableFormat(TableFormat):
         if self.tips_format and self.show_tips(row[self.id]):
             status["tips"] = self.tips_format.format(**row)
         return status
+
+
+class DataStatusTableFormat(TableFormat):
+    """
+    数据状态列 用于显示功能的数据状态
+    1. 绿色勾: 开启了功能并且此功能有数据
+    2. 红色感叹号: 开启了功能但是功能无数据
+    3. 灰色叉叉: 未开启功能
+    """
+
+    value_map = {
+        DataStatus.NO_DATA: _lazy("无数据"),
+        DataStatus.NORMAL: _lazy("正常"),
+        DataStatus.DISABLED: _lazy("未开启"),
+    }
+
+    column_type = "data_status"
+
+    def get_filter_key(self, row):
+        text = self.value_map.get(row.get(self.id), _lazy("未开启"))
+        return {"text": text, "value": row.get(self.id)}
+
+    def format(self, row):
+        return {"icon": row.get(self.id)}
+
+
+class DataPointsTableFormat(TableFormat):
+    """
+    趋势图列
+    会在表格上显示趋势图
+    """
+
+    column_type = "datapoints"
+
+    def __init__(self, unit: str = None, *args, **kwargs):
+        super(DataPointsTableFormat, self).__init__(*args, **kwargs)
+        self.unit = unit
+
+    def format(self, row: dict) -> any:
+        series = row.get(self.id)
+        return {"datapoints": series, "unit": self.unit}
 
 
 class CollectTableFormat(TableFormat):

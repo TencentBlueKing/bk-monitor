@@ -33,7 +33,7 @@ const LogWebpackPlugin = require('./webpack/log-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const CliMonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const devProxyUrl = 'http://appdev.bktencent.com:9002';
-const devHost = 'appdev.bktencent.com';
+const devHost = 'appdev.woa.com';
 const loginHost = 'https://paas-dev.bktencent.com';
 const devPort = 8001;
 
@@ -57,6 +57,7 @@ const logPluginConfig = {
       window.COLLECTOR_GUIDE_URL = '\${COLLECTOR_GUIDE_URL}'
       window.FEATURE_TOGGLE = \${FEATURE_TOGGLE | n}
       window.FEATURE_TOGGLE_WHITE_LIST = \${FEATURE_TOGGLE_WHITE_LIST | n}
+      window.SPACE_UID_WHITE_LIST = \${SPACE_UID_WHITE_LIST | n}
       window.FIELD_ANALYSIS_CONFIG = \${FIELD_ANALYSIS_CONFIG | n}
       window.REAL_TIME_LOG_MAX_LENGTH = '\${REAL_TIME_LOG_MAX_LENGTH}'
       window.REAL_TIME_LOG_SHIFT_LENGTH = '\${REAL_TIME_LOG_SHIFT_LENGTH}'

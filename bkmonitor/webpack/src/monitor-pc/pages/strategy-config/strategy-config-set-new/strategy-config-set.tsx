@@ -607,7 +607,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       try {
         dimension && (dimension = JSON.parse(dimension));
         condition && (condition = JSON.parse(condition));
-      } catch (e) {
+      } catch {
         dimension = [];
         condition = [];
       }
@@ -1377,6 +1377,20 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     return item;
   }
 
+  // 根据 监控数据 修改 判断条件 相关配置
+  changeTriggerConfigCount(type: 'alert' | 'event' | 'log' | 'MultivariateAnomalyDetection' | 'time_series'): void {
+    // 仅在新建时，调整默认值
+    if (this.$route.name !== 'strategy-config-add') return;
+    switch (type) {
+      case 'log':
+      case 'event':
+        this.analyzingConditions.triggerConfig.count = 1;
+        break;
+      default:
+        break;
+    }
+  }
+
   // 弹出指标选择器
   handleShowMetric(item) {
     this.monitorDataEditMode = 'Edit';
@@ -1392,6 +1406,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.handleAddNullMetric(item);
     this.handleResetMetricAlias();
     this.showRealtimeStrategy = !!window?.show_realtime_strategy;
+    this.changeTriggerConfigCount(item.type);
   }
 
   // 继续添加指标

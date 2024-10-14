@@ -8,11 +8,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
-
+import base64
+import gzip
 import logging
 
+import jinja2
 from django.conf import settings
+from kubernetes import client
+from opentelemetry import trace
 
 from apm.constants import (
     DEFAULT_APM_ATTRIBUTE_CONFIG,
@@ -22,12 +25,16 @@ from apm.constants import (
     GLOBAL_CONFIG_BK_BIZ_ID,
 )
 from apm.core.bk_collector_config import BkCollectorConfig
+from apm.core.cluster_config import ClusterConfig
 from apm.models.subscription_config import SubscriptionConfig
+from bkmonitor.utils.bcs import BcsKubeClient
 from bkmonitor.utils.common_utils import count_md5
-from constants.apm import SpanKindKey
+from constants.apm import BkCollectorComp, SpanKindKey
 from core.drf_resource import api
 
 logger = logging.getLogger("apm")
+
+tracer = trace.get_tracer(__name__)
 
 
 class PlatformConfig(BkCollectorConfig):
@@ -40,7 +47,7 @@ class PlatformConfig(BkCollectorConfig):
     @classmethod
     def refresh(cls):
         """
-        下发平台默认配置到主机上
+        [旧] 下发平台默认配置到主机上 （通过节点管理）
         """
         bk_host_ids = cls.get_target_hosts()
         if not bk_host_ids:
@@ -50,9 +57,53 @@ class PlatformConfig(BkCollectorConfig):
         platform_config = cls.get_platform_config()
 
         try:
-            cls.deploy(platform_config, bk_host_ids)
+            cls.deploy_to_nodeman(platform_config, bk_host_ids)
         except Exception:  # noqa
             logger.exception("auto deploy bk-collector platform config error")
+
+    @classmethod
+    def refresh_k8s(cls):
+        """
+        下发平台默认配置到 K8S 集群
+
+        # 1. 获取所有集群ID列表
+        # 2. 针对每一个集群
+        #    2.1 从集群中获取模版配置
+        #    2.2 获取到模板，则下发，否则忽略该集群
+        """
+        cluster_mapping = ClusterConfig.get_cluster_mapping()
+        for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
+            with tracer.start_as_current_span(
+                f"cluster-id: {cluster_id}", attributes={"bk_biz_ids": cc_bk_biz_ids}
+            ) as s:
+                try:
+                    platform_config_tpl = ClusterConfig.platform_config_tpl(cluster_id)
+                    if platform_config_tpl is None:
+                        # 如果集群中不存在 bk-collector 的平台配置模版，则不下发
+                        continue
+
+                    # bk_biz_id = cc_bk_biz_ids[0]
+                    # if len(cc_bk_biz_ids) != 1:
+                    #     logger.warning(
+                    #         f"[post-deploy-bk_collector] cluster_id: {cluster_id} record multiple bk_biz_id!",
+                    #     )
+
+                    # Step1: 创建默认应用
+                    # default_application = ApplicationHelper.create_default_application(bk_biz_id)
+
+                    # Step2: 往集群的 bk-collector 下发配置
+                    platform_config_context = PlatformConfig.get_platform_config()
+                    tpl = jinja2.Template(platform_config_tpl)
+                    platform_config = tpl.render(platform_config_context)
+                    PlatformConfig.deploy_to_k8s(cluster_id, platform_config)
+
+                    # s.add_event("default_application", attributes={"id": default_application.id})
+                    s.add_event("platform_secret", attributes={"name": BkCollectorComp.SECRET_PLATFORM_NAME})
+                    s.set_status(trace.StatusCode.OK)
+                except Exception as e:  # pylint: disable=broad-except
+                    # 仅记录异常
+                    s.record_exception(exception=e)
+                    logger.error(f"refresh platform config to cluster: {cluster_id} failed, error: {e}")
 
     @classmethod
     def get_platform_config(cls):
@@ -118,7 +169,9 @@ class PlatformConfig(BkCollectorConfig):
             },
             "metric_bk_apm_duration_delta_config": {
                 "name": "traces_deriver/delta_duration",
-                "operations": [{"metric_name": "bk_apm_duration_delta", "type": "delta_duration", "rules": metric_dimension_rules}],
+                "operations": [
+                    {"metric_name": "bk_apm_duration_delta", "type": "delta_duration", "rules": metric_dimension_rules}
+                ],
             },
             "metric_bk_apm_duration_bucket_config": {
                 "name": "traces_deriver/bucket",
@@ -200,6 +253,10 @@ class PlatformConfig(BkCollectorConfig):
         }
 
     @classmethod
+    def get_license_config(cls):
+        return {"name": "license_checker/common", **DEFAULT_PLATFORM_LICENSE_CONFIG}
+
+    @classmethod
     def get_token_checker_config(cls):
         # 需要判断是否有指定密钥，如有，优先级最高
         x_key = getattr(settings, settings.AES_X_KEY_FIELD)
@@ -209,7 +266,7 @@ class PlatformConfig(BkCollectorConfig):
         return {
             "name": "token_checker/aes256",
             "resource_key": "bk.data.token",
-            "type": "aes256",
+            "type": "aes256WithMeta|fixed",
             "salt": settings.BK_DATA_TOKEN_SALT,
             "decoded_key": x_key,
             "decoded_iv": settings.BK_DATA_AES_IV.decode()
@@ -248,7 +305,7 @@ class PlatformConfig(BkCollectorConfig):
         ]
 
     @classmethod
-    def deploy(cls, platform_config, bk_host_ids):
+    def deploy_to_nodeman(cls, platform_config, bk_host_ids):
         """
         下发bk-collector的平台配置
         """
@@ -318,5 +375,62 @@ class PlatformConfig(BkCollectorConfig):
                 )
 
     @classmethod
-    def get_license_config(cls):
-        return {"name": "license_checker/common", **DEFAULT_PLATFORM_LICENSE_CONFIG}
+    def deploy_to_k8s(cls, cluster_id, platform_config):
+        gzip_content = gzip.compress(platform_config.encode())
+        b64_content = base64.b64encode(gzip_content)
+
+        bcs_client = BcsKubeClient(cluster_id)
+        secrets = bcs_client.client_request(
+            bcs_client.core_api.list_namespaced_secret,
+            namespace=BkCollectorComp.NAMESPACE,
+            label_selector="component={},template=false,type={}".format(
+                BkCollectorComp.LABEL_COMPONENT_VALUE,
+                BkCollectorComp.LABEL_TYPE_PLATFORM_CONFIG,
+            ),
+        )
+        if len(secrets.items) > 0:
+            # 存在，且与已有的数据不一致，则更新
+            logger.info(f"{cluster_id} apm platform config already exists.")
+            need_update = False
+            sec = secrets.items[0]
+            if isinstance(sec.data, dict):
+                old_content = sec.data.get(BkCollectorComp.SECRET_PLATFORM_CONFIG_FILENAME_NAME, "")
+                old_platform_config = gzip.decompress(base64.b64decode(old_content)).decode()
+                if old_platform_config != platform_config:
+                    need_update = True
+            else:
+                need_update = True
+
+            if need_update:
+                logger.info(f"{cluster_id} apm platform config has changed, update it.")
+                sec.data = {BkCollectorComp.SECRET_PLATFORM_CONFIG_FILENAME_NAME: b64_content}
+                bcs_client.client_request(
+                    bcs_client.core_api.patch_namespaced_secret,
+                    name=BkCollectorComp.SECRET_PLATFORM_NAME,
+                    namespace=BkCollectorComp.NAMESPACE,
+                    body=sec,
+                )
+                logger.info(f"{cluster_id} apm platform config update successful.")
+        else:
+            # 不存在，则创建
+            logger.info(f"{cluster_id} apm platform config not exists, create it.")
+            sec = client.V1Secret(
+                type="Opaque",
+                metadata=client.V1ObjectMeta(
+                    name=BkCollectorComp.SECRET_PLATFORM_NAME,
+                    namespace=BkCollectorComp.NAMESPACE,
+                    labels={
+                        "component": BkCollectorComp.LABEL_COMPONENT_VALUE,
+                        "type": BkCollectorComp.LABEL_TYPE_PLATFORM_CONFIG,
+                        "template": "false",
+                    },
+                ),
+                data={BkCollectorComp.SECRET_PLATFORM_CONFIG_FILENAME_NAME: b64_content},
+            )
+
+            bcs_client.client_request(
+                bcs_client.core_api.create_namespaced_secret,
+                namespace=BkCollectorComp.NAMESPACE,
+                body=sec,
+            )
+            logger.info(f"{cluster_id} apm platform config create successful.")

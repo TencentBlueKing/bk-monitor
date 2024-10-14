@@ -99,7 +99,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": []
               }
@@ -133,7 +134,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         }
       ],
@@ -193,7 +195,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": []
               }
@@ -237,7 +240,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           },
           "yAxisIndex": 0,
           "chart_type": "bar"
@@ -282,7 +286,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": []
               },
@@ -306,7 +311,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": []
               }
@@ -372,7 +378,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           },
           "yAxisIndex": 1,
           "chart_type": "line"
@@ -427,7 +434,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -461,7 +469,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -548,7 +557,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         },
         {
@@ -582,7 +592,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -655,7 +666,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         },
         {
@@ -689,7 +701,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -762,7 +775,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         },
         {
@@ -796,7 +810,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -869,7 +884,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         }
       ],
@@ -1793,7 +1809,8 @@
           "fields": {
             "endpoint_name": "endpoint_name",
             "app_name": "app_name",
-            "service_name": "service_name"
+            "service_name": "service_name",
+            "extra_filter_dict": "extra_filter_dict"
           }
         }
       ]

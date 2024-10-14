@@ -145,16 +145,22 @@ class QueryDataLinkInfoResource(Resource):
         """
         # 清洗配置信息（Kafka）
         logger.info("QueryDataLinkInfoResource: start to get bk_data_id etl infos")
-        cluster = models.ClusterInfo.objects.get(cluster_id=ds.mq_cluster_id)
-        mq_config = models.KafkaTopicInfo.objects.get(id=ds.mq_config_id)
+        etl_infos = {}
+        try:
+            cluster = models.ClusterInfo.objects.get(cluster_id=ds.mq_cluster_id)
+            mq_config = models.KafkaTopicInfo.objects.get(id=ds.mq_config_id)
 
-        etl_infos = {
-            "Kafka集群ID": cluster.cluster_id,
-            "Kafka集群名称": cluster.cluster_name,
-            "Kafka集群域名": cluster.domain_name,
-            "Topic": mq_config.topic,
-            "分区数量": mq_config.partition,
-        }
+            etl_infos.update(
+                {
+                    "Kafka集群ID": cluster.cluster_id,
+                    "Kafka集群名称": cluster.cluster_name,
+                    "Kafka集群域名": cluster.domain_name,
+                    "Topic": mq_config.topic,
+                    "分区数量": mq_config.partition,
+                }
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            etl_infos.update({'status': '集群配置获取异常', 'info': str(e)})
         return etl_infos
 
     def _get_table_ids_details(self, table_ids):
@@ -200,9 +206,7 @@ class QueryDataLinkInfoResource(Resource):
                     )
 
             except Exception as e:  # pylint: disable=broad-except
-                logger.error(
-                    "QueryDataLinkInfoResource: failed to get table_id({}) details, error: {}".format(table_id, e)
-                )
+                table_ids_details[table_id] = {'status': '查询异常', 'info': str(e)}
 
         return table_ids_details
 
@@ -218,12 +222,14 @@ class QueryDataLinkInfoResource(Resource):
                 bkbase_details.append({"异常信息": "接入计算平台记录不存在！"})
                 continue
             for vm in vmrts:
+                vm_cluster = models.ClusterInfo.objects.get(cluster_id=vm.vm_cluster_id)
                 bkbase_details.append(
                     {
                         "VM结果表ID": vm.vm_result_table_id,
                         "查询集群ID": vm.vm_cluster_id,
                         "接入集群ID": vm.storage_cluster_id,
                         "计算平台ID": vm.bk_base_data_id,
+                        "查询集群地址": vm_cluster.domain_name,
                     }
                 )
         return bkbase_details
@@ -237,6 +243,7 @@ class QueryDataLinkInfoResource(Resource):
         try:
             now = timezone.now()
             expired_time = now - timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
+            remote_expired_time = now - timedelta(seconds=5 * 24 * 3600)
             ts_group = models.TimeSeriesGroup.objects.get(bk_data_id=bk_data_id)
             ts_metrics = models.TimeSeriesMetric.objects.filter(group_id=ts_group.time_series_group_id)
             remote_metrics = ts_group.get_metrics_from_redis()
@@ -247,17 +254,18 @@ class QueryDataLinkInfoResource(Resource):
                 # 检查该指标是否存在于 TimeSeriesMetric 中
                 if field_name in metric_dict:
                     metric = metric_dict[field_name]
-                    # 检查 last_modify_time 是否超过一个月
-                    if metric.last_modify_time < expired_time:
-                        remote_time = datetime.fromtimestamp(remote_metric['last_modify_time'], tz=timezone.utc)
-                        time_difference = (remote_time - metric.last_modify_time).total_seconds() / 3600
+                    remote_time = datetime.fromtimestamp(remote_metric['last_modify_time'], tz=timezone.utc)
+                    time_difference = (remote_time - metric.last_modify_time).total_seconds() / 3600
+                    # 检查 last_modify_time 是否超过一个月，若Transfer侧时间超过五天未修改，说明该指标已禁用
+                    if (metric.last_modify_time < expired_time) and not (remote_time < remote_expired_time):
                         expired_metric_infos.append(
                             {
                                 'metric_name': metric.field_name,
-                                '上次修改时间': metric.last_modify_time,
+                                'DB上次修改时间': metric.last_modify_time.strftime("%Y-%m-%d %H:%M:%S"),
+                                # Note：DB修改时间理论上应该晚于远端修改时间
                                 'Transfer/计算平台时间': datetime.fromtimestamp(
                                     remote_metric['last_modify_time'], tz=timezone.utc
-                                ),
+                                ).strftime("%Y-%m-%d %H:%M:%S"),
                                 "时间差": "{}小时".format(time_difference),
                             }
                         )
@@ -303,13 +311,11 @@ class QueryDataLinkInfoResource(Resource):
                         }
                     )
                 else:
-                    error_rt_detail_router_infos.append({table_id: {"路由信息": "路由正常"}})
+                    error_rt_detail_router_infos.append({table_id: {"status": "路由正常"}})
             except models.TimeSeriesGroup.DoesNotExist as e:
-                logger.error("Failed to get table_id({}) details, error: {}".format(table_id, e))
-                error_rt_detail_router_infos.append({table_id: {"路由信息": "时序分组不存在"}})
+                error_rt_detail_router_infos.append({table_id: {'status': "时序分组不存在", "info": str(e)}})
             except Exception as e:  # pylint: disable=broad-except
-                logger.error("Failed to get table_id({}) details, error: {}".format(table_id, e))
-                error_rt_detail_router_infos.append({table_id: {"路由信息": "存在异常"}})
+                error_rt_detail_router_infos.append({table_id: {"status": "查询异常", "info": str(e)}})
         return error_rt_detail_router_infos
 
     def _check_space_to_result_table_router(self, table_ids, authorized_space_uids):
@@ -320,26 +326,34 @@ class QueryDataLinkInfoResource(Resource):
         space_to_result_table_router_infos = {}
 
         for item in authorized_space_uids:
-            # 从 Redis 获取当前空间的路由信息
-            space_router = RedisTools.hget(SPACE_TO_RESULT_TABLE_KEY, item)
-            space_router_data = json.loads(space_router.decode('utf-8'))
+            try:
+                # 从 Redis 获取当前空间的路由信息
+                space_router = RedisTools.hget(SPACE_TO_RESULT_TABLE_KEY, item)
+                space_router_data = json.loads(space_router.decode('utf-8'))
 
-            # 初始化每个空间的记录列表
-            space_to_result_table_router_infos[item] = []
+                # 初始化每个空间的记录列表
+                space_to_result_table_router_infos[item] = []
 
-            for table_id in table_ids:
-                # 检查 table_id 是否在 space_router 中
-                if table_id in space_router_data:
-                    # 保存对应的记录及其 filters
-                    record = space_router_data[table_id]
-                    # 将所需信息添加到当前 space_uid 的列表中
-                    space_to_result_table_router_infos[item].append(
-                        {'table_id': table_id, 'filters': record['filters'], 'status': '正常'}  # 标记状态为正常
-                    )
-                else:
-                    # 如果记录未找到，记录 table_id 并标记为异常
-                    space_to_result_table_router_infos[item].append(
-                        {'table_id': table_id, 'filters': None, 'status': '异常'}  # 由于不存在，filters 设置为 None  # 标记状态为异常
-                    )
+                for table_id in table_ids:
+                    # 检查 table_id 是否在 space_router 中
+                    if table_id in space_router_data:
+                        # 保存对应的记录及其 filters
+                        record = space_router_data[table_id]
+                        # 将所需信息添加到当前 space_uid 的列表中
+                        space_to_result_table_router_infos[item].append(
+                            {'table_id': table_id, 'filters': record['filters'], 'status': '正常'}  # 标记状态为正常
+                        )
+                    else:
+                        # 如果记录未找到，记录 table_id 并标记为异常
+                        space_to_result_table_router_infos[item].append(
+                            {
+                                'table_id': table_id,
+                                'filters': None,
+                                'status': '异常',
+                            }  # 由于不存在，filters 设置为 None 并标记状态为异常，需要额外检查
+                        )
+            except Exception as e:
+                space_to_result_table_router_infos[item] = [{'status': '空间路由信息不存在/异常', 'info': str(e)}]
+                continue
 
         return space_to_result_table_router_infos

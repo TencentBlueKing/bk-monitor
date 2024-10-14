@@ -28,7 +28,6 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { checkDuplicateName } from 'monitor-api/modules/apm_meta';
 
-import type { ICreateAppFormData } from './app-list';
 import type { IAppSelectOptItem } from './app-select';
 
 import './app-add-form.scss';
@@ -144,16 +143,6 @@ export default class AppAddForm extends tsc<IProps> {
           }
         }
       }, 100);
-    });
-  }
-  /**
-   * @desc 配置应用
-   * @param { Stirng } id
-   */
-  handleConfig(id) {
-    this.$router.push({
-      name: 'application-config',
-      params: { id },
     });
   }
 

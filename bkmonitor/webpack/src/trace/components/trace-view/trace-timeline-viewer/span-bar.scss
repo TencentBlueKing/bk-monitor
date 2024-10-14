@@ -1,26 +1,33 @@
 .span-bar-wrapper {
+  position: absolute;
+  top: 0;
+  right: 0;
   bottom: 0;
   left: 0;
-  position: absolute;
-  right: 0;
-  top: 0;
-  overflow: hidden;
   z-index: 0;
+  overflow: hidden;
 }
 
 .span-bar {
-  border-radius: 2px;
-  min-width: 2px;
   position: absolute;
-  height: 12px;
   top: 32%;
+  min-width: 2px;
+  height: 12px;
+  border-radius: 2px;
 
   // 推断服务条纹样式
   &.is-infer {
     background-color: #fff !important;
-    background-image: linear-gradient(135deg, #dddfe3 35%, transparent 35%,
-    transparent 50%, #dddfe3 50%, #dddfe3 85%,
-    transparent 85%, transparent);
+    background-image: linear-gradient(
+      135deg,
+      #dddfe3 35%,
+      transparent 35%,
+      transparent 50%,
+      #dddfe3 50%,
+      #dddfe3 85%,
+      transparent 85%,
+      transparent
+    );
     background-size: 4px 4px;
   }
 
@@ -34,53 +41,63 @@
     }
   }
 }
+
 .span-bar-rpc {
   position: absolute;
   top: 35%;
   bottom: 35%;
   z-index: 1;
 }
+
 .span-bar-label {
-  color: #979BA5;
+  position: absolute;
+  padding: 0 4px;
   font-size: 12px;
   line-height: 12px;
+  color: #979ba5;
   white-space: nowrap;
-  padding: 0 4px;
-  position: absolute;
 }
+
 .span-bar-label.is-right {
-  left: 100%;
+  right: 0;
 }
+
 .span-bar-label.is-left {
-  right: 100%;
+  left: 0;
 }
+
 .span-row.is-expanded .span-bar-label,
 .span-row:hover .span-bar-label {
   color: #000;
 }
+
 .span-bar-log-marker {
-  background-color: rgba(0, 0, 0, .5);
-  cursor: pointer;
-  height: 60%;
-  min-width: 1px;
   position: absolute;
   top: 20%;
+  min-width: 1px;
+  height: 60%;
+  cursor: pointer;
+  background-color: rgba(0, 0, 0, 0.5);
 }
+
 .span-bar-log-marker:hover {
   background-color: #000;
 }
+
 .span-bar-log-marker::before,
 .span-bar-log-marker::after {
-  content: "";
   position: absolute;
   top: 0;
-  bottom: 0;
   right: 0;
+  bottom: 0;
+  content: '';
   border: 1px solid transparent;
 }
+
 .span-bar-log-marker::after {
   left: 0;
 }
+
 .span-bar-log-hint {
   pointer-events: none;
 }

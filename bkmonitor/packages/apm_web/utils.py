@@ -14,21 +14,6 @@ import math
 from core.drf_resource import api
 
 
-def group_by(iterators, get_key):
-    res = {}
-    for item in iterators:
-        key = get_key(item)
-        if not key:
-            continue
-
-        if key in res:
-            res[key].append(item)
-        else:
-            res[key] = [item]
-
-    return res
-
-
 def list_remote_service_callers(bk_biz_id, app_name, remote_service_name):
     """获取自定义服务所有主调服务方"""
     response = api.apm_api.query_topo_relation(bk_biz_id=bk_biz_id, app_name=app_name, to_topo_key=remote_service_name)

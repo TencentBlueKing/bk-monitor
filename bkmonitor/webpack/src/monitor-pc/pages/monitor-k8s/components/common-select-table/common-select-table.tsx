@@ -635,7 +635,7 @@ export default class CommonSelectTable extends tsc<ICommonSelectTableProps, ICom
               columns={this.columns}
               data={this.tableData}
               defaultSize='small'
-              hasColnumSetting={this.showHeader && this.showMode === 'list'}
+              hasColumnSetting={this.showHeader && this.showMode === 'list'}
               highlightCurrentRow={true}
               overviewData={this.overviewData}
               pagination={null}

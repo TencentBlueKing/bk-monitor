@@ -55,7 +55,7 @@
         >
           <span
             v-if="!syncLoading"
-            class="log-icon icon-tongbu"
+            class="bklog-icon bklog-tongbu"
           ></span>
           <span
             v-else
