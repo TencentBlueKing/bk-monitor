@@ -155,7 +155,7 @@ class ImportGrafanaDashboard(ImportBaseResource):
         from django.utils.translation import ugettext_lazy as _
 
         if not validated_request_data.get("file_list"):
-            raise ValidationError(_("导入失败，未上传grafana仪表盘json文件"))
+            raise ValidationError(_("导入失败，未上传任何文件"))
 
         file_dict = defaultdict(list)
         for f in validated_request_data["file_list"]:
