@@ -1271,7 +1271,7 @@ class GetIncidentTopoByEntity(DataAccessAPIResource):
         snapshot_id = serializers.CharField(required=True, label="图谱快照ID")
 
 
-class GetStorageMetricsDataCount(UseSaaSAuthInfoMixin, DataAccessAPIResource):
+class GetStorageMetricsDataCount(DataAccessAPIResource):
     """
     获取数据源数据
     """
@@ -1293,13 +1293,14 @@ class GetStorageMetricsDataCount(UseSaaSAuthInfoMixin, DataAccessAPIResource):
                 attrs["end_time"] = str(attrs["end_time"]) + "s"
             return attrs
 
-        def full_request_data(self, validated_request_data):
-            validated_request_data["bkdata_authentication_method"] = "token"
-            validated_request_data["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
-            return validated_request_data
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super(GetStorageMetricsDataCount, self).full_request_data(validated_request_data)
+        validated_request_data["bk_username"] = settings.COMMON_USERNAME
+        self.bk_username = settings.COMMON_USERNAME
+        return validated_request_data
 
 
-class GetDataBusSamplingData(UseSaaSAuthInfoMixin, DataAccessAPIResource):
+class GetDataBusSamplingData(DataAccessAPIResource):
     """
     获取采样数据
     """
@@ -1310,13 +1311,14 @@ class GetDataBusSamplingData(UseSaaSAuthInfoMixin, DataAccessAPIResource):
     class RequestSerializer(CommonRequestSerializer):
         data_id = serializers.IntegerField(required=True, label="数据源ID")
 
-        def full_request_data(self, validated_request_data):
-            validated_request_data["bkdata_authentication_method"] = "token"
-            validated_request_data["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
-            return validated_request_data
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super(GetDataBusSamplingData, self).full_request_data(validated_request_data)
+        validated_request_data["bk_username"] = settings.COMMON_USERNAME
+        self.bk_username = settings.COMMON_USERNAME
+        return validated_request_data
 
 
-class GetRawDataStoragesInfo(UseSaaSAuthInfoMixin, DataAccessAPIResource):
+class GetRawDataStoragesInfo(DataAccessAPIResource):
     """
     获取存储信息
     """
@@ -1328,7 +1330,8 @@ class GetRawDataStoragesInfo(UseSaaSAuthInfoMixin, DataAccessAPIResource):
         raw_data_id = serializers.IntegerField(required=True, label="数据源ID")
         with_sql = serializers.BooleanField(required=False, label="默认参数", default=True)
 
-        def full_request_data(self, validated_request_data):
-            validated_request_data["bkdata_authentication_method"] = "token"
-            validated_request_data["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
-            return validated_request_data
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super(GetRawDataStoragesInfo, self).full_request_data(validated_request_data)
+        validated_request_data["bk_username"] = settings.COMMON_USERNAME
+        self.bk_username = settings.COMMON_USERNAME
+        return validated_request_data
