@@ -126,3 +126,18 @@ class ClusteringConfigHasExistException(BaseClusteringException):
 class ClusteringDebugException(BaseClusteringException):
     ERROR_CODE = "020"
     MESSAGE = _("调试过程异常: {e}")
+
+
+class DuplicateNameException(BaseClusteringException):
+    ERROR_CODE = "021"
+    MESSAGE = _("模板名称已存在: {name}")
+
+
+class RegexTemplateNotExistException(BaseClusteringException):
+    ERROR_CODE = "021"
+    MESSAGE = _("该模板不存在: {regex_template_id}")
+
+
+class RegexTemplateException(BaseClusteringException):
+    ERROR_CODE = "022"
+    MESSAGE = _("该模板已被引用，不允许删除: {regex_template_id}")

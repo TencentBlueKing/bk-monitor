@@ -235,7 +235,7 @@ class SendReportSerializer(serializers.Serializer):
     is_enabled = serializers.BooleanField(required=False, default=True)
 
 
-class ClusteringTemplateSerializer(serializers.Serializer):
+class RegexTemplateSerializer(serializers.Serializer):
     space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
     template_name = serializers.CharField(required=False)
     predefined_varibles = serializers.CharField(required=False, allow_blank=True)

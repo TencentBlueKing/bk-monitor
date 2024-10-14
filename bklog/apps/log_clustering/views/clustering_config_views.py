@@ -182,6 +182,8 @@ class ClusteringConfigViewSet(APIViewSet):
         @apiParam {Str} clustering_fields 聚合字段
         @apiParam {Int} [min_members] 最小日志数量
         @apiParam {Str} [predefined_varibles] 预先定义的正则表达式
+        @apiParam {Str} [rule_type] 规则类型
+        @apiParam {Str} [regex_template_id] 正则模板id
         @apiParam {Str} [delimeter] 分词符
         @apiParam {Int} [max_log_length] 最大日志长度
         @apiParam {Int} [is_case_sensitive] 是否大小写忽略

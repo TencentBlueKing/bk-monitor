@@ -43,7 +43,7 @@ from apps.log_clustering.handlers.pipline_service.base_pipline_service import (
     BasePipeLineService,
 )
 from apps.log_clustering.handlers.pipline_service.constants import OperatorServiceEnum
-from apps.log_clustering.models import ClusteringConfig
+from apps.log_clustering.models import ClusteringConfig, RegexTemplate
 
 
 class AiopsLogOnlineService(BasePipeLineService):
@@ -160,6 +160,8 @@ class UpdateOnlineService(BasePipeLineService):
             "delimeter",
             "max_log_length",
             "is_case_sensitive",
+            "rule_type",
+            "regex_template_id",
         ]
         model_field_modified = False
         for field in model_fields:
@@ -170,6 +172,12 @@ class UpdateOnlineService(BasePipeLineService):
         if model_field_modified:
             clustering_config.save(update_fields=model_fields)
             current = current.extend(UpdateOnlineModel(index_set_id=index_set_id).update_online_model)
+        if params["rule_type"] == "template":
+            regex_template_id = params["regex_template_id"]
+            predefined_varibles = params["predefined_varibles"]
+            instance = RegexTemplate.objects.get(id=regex_template_id)
+            instance.predefined_varibles = predefined_varibles
+            instance.save()
 
         # 3. 检查聚类字段是否有变更
         if "clustering_fields" in params and clustering_config.clustering_fields != params["clustering_fields"]:
