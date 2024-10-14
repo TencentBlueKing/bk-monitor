@@ -887,6 +887,8 @@ class SaveCollectConfigResource(Resource):
                     target_nodes.append({"bk_host_id": node["bk_host_id"]})
                 elif "bk_inst_id" in node and "bk_obj_id" in node:
                     target_nodes.append({"bk_inst_id": node["bk_inst_id"], "bk_obj_id": node["bk_obj_id"]})
+                    if "bk_biz_id" in node:
+                        target_nodes[-1]["bk_biz_id"] = node["bk_biz_id"]
                 elif "bcs_cluster_id" in node:
                     target_nodes.append({"bcs_cluster_id": node["bcs_cluster_id"]})
             attrs["target_nodes"] = target_nodes
