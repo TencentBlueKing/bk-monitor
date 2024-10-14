@@ -86,7 +86,7 @@ class RedirectDashboardView(ProxyView):
         uid = dashboard_info["uid"]
         route_path = f"/grafana/d/{uid}"
         if request.GET.get("pure", ""):
-            return redirect(route_path)
+            return redirect(route_path + f"?orgName={org_name}&bizId={org_name}")
 
         route_path = f"#{route_path}"
         # 透传仪表盘参数
