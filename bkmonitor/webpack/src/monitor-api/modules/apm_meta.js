@@ -86,6 +86,7 @@ export default {
   dataViewConfig,
   dataHistogram,
   dataSampling,
+  dataStatus,
   storageInfo,
   storageFieldInfo,
   storageStatus,
