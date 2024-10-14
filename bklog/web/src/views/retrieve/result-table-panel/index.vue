@@ -99,7 +99,7 @@
       }),
       isAiopsToggle() {
         // 日志聚类总开关
-        if (this.isExternal || this.isUnionSearch) return false; // 外部版或联合查询时不包含日志聚类
+        if (this.isUnionSearch) return false; // 联合查询时不包含日志聚类
         const { bkdata_aiops_toggle: bkdataAiopsToggle } = window.FEATURE_TOGGLE;
         const aiopsBizList = window.FEATURE_TOGGLE_WHITE_LIST?.bkdata_aiops_toggle;
 
