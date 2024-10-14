@@ -24,7 +24,7 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-  import BkTrendChart from './trend-char.vue';
+  import BkTrendChart from './trend-chart.vue';
   defineProps({
     isFold: {
       type: Boolean,
@@ -38,20 +38,5 @@
   };
 </script>
 <template>
-  <div class="monitor-echart-wrap">
-    <bk-trend-chart></bk-trend-chart>
-  </div>
+  <bk-trend-chart></bk-trend-chart>
 </template>
-<style lang="scss" scoped>
-  .monitor-echart-wrap {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    padding-top: 18px;
-    color: #63656e;
-    background-color: #fff;
-    background-repeat: repeat;
-    background-position: top;
-    border-radius: 2px;
-  }
-</style>

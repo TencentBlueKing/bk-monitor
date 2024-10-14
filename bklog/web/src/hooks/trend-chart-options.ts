@@ -479,7 +479,7 @@ export default {
       data: [],
       name: '',
       type: 'bar',
-      barMinHeight: 4,
+      barMinHeight: 0,
       z: 4,
       markLine: {},
       markArea: {},

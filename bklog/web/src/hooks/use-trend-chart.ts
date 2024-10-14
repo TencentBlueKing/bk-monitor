@@ -23,9 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { nextTick, onMounted, Ref } from 'vue';
+import { computed, nextTick, onMounted, Ref } from 'vue';
 
+// @ts-ignore
+import useStore from '@/hooks/use-store';
+import dayjs from 'dayjs';
 import * as Echarts from 'echarts';
+import { debounce } from 'lodash';
 
 import BarCharOptionHelper from '../components/monitor-echarts/options/bar-chart-option';
 import chartOption from './trend-chart-options';
@@ -43,20 +47,24 @@ export default ({ target }: TrandChartOption) => {
   let chartInstance: Echarts.ECharts = null;
   const options: any = Object.assign({}, chartOption);
   const barChartOptionInstance = new BarCharOptionHelper({});
+  const store = useStore();
 
+  const retrieveParams = computed(() => store.getters.retrieveParams);
+  let cachedTimRange = [];
   const delegateMethod = (name: string, ...args) => {
     return chartInstance?.[name](...args);
   };
-  // resize
-  // const resize = (options: EChartOption = null) => {
-  //   delegateMethod('resize', options);
-  // };
 
   const dispatchAction = payload => {
     delegateMethod('dispatchAction', payload);
   };
 
   const updateChart = (data: EchartData[]) => {
+    if (!data.length) {
+      chartInstance?.setOption({});
+      return;
+    }
+
     options.series[0].data = data;
     options.xAxis[0].axisLabel.formatter = barChartOptionInstance.handleSetFormatterFunc(data);
     chartInstance.setOption(options);
@@ -68,14 +76,48 @@ export default ({ target }: TrandChartOption) => {
       });
     });
   };
+
+  const handleDataZoom = debounce(event => {
+    const [batch] = event.batch;
+    if (batch.startValue && batch.endValue) {
+      const timeFrom = dayjs.tz(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm:ss');
+      const timeTo = dayjs.tz(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm:ss');
+
+      if (!cachedTimRange.length) {
+        cachedTimRange = [retrieveParams.value.start_time, retrieveParams.value.end_time];
+      }
+
+      dispatchAction({
+        type: 'restore',
+      });
+
+      // 更新Store中的时间范围
+      // 同时会自动更新chartKey，触发接口更新当前最新数据
+      store.dispatch('handleTrendDataZoom', { start_time: timeFrom, end_time: timeTo, format: true });
+    }
+  });
+
   onMounted(() => {
     if (target.value) {
       chartInstance = Echarts.init(target.value);
-      chartInstance.on('dblclick', () => {
+
+      chartInstance.on('dataZoom', handleDataZoom);
+      target.value.ondblclick = () => {
         dispatchAction({
           type: 'restore',
         });
-      });
+
+        nextTick(() => {
+          if (cachedTimRange.length) {
+            store.dispatch('handleTrendDataZoom', {
+              start_time: cachedTimRange[0],
+              end_time: cachedTimRange[1],
+              format: false,
+            });
+            cachedTimRange = [];
+          }
+        });
+      };
     }
   });
 

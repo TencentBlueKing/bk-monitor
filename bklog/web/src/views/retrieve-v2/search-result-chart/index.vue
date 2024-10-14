@@ -34,40 +34,73 @@
       ref="chartTitle"
       :is-fold="isFold"
       :title="$t('总趋势')"
-      :total-count="totalNumShow"
+      :total-count="searchTotal"
+      :loading="isLoading"
       @interval-change="handleChangeInterval"
       @toggle-expand="toggleExpand"
     >
     </chart-title>
-    <MonitorEcharts
+    <TrendChart
       ref="chartRef"
       v-show="!isFold"
       :is-fold="isFold"
+      @polling="handlePolling"
     />
   </div>
 </template>
 
 <script setup>
   import ChartTitle from '@/components/monitor-echarts/components/chart-title-new.vue';
-  import MonitorEcharts from '@/components/monitor-echarts/monitor-echarts-new';
-  import { ref, nextTick, emit } from 'vue';
+  import TrendChart from '@/components/monitor-echarts/trend-chart';
+  import { ref, nextTick, watch, onMounted, computed } from 'vue';
+  import useStore from '@/hooks/use-store';
+
+  const emit = defineEmits(['toggle-change']);
+
+  const store = useStore();
+  const chartKey = computed(() => store.state.retrieve.chartKey);
+  const searchTotal = computed(() => store.state.searchTotal);
+  const isResultLoading = computed(() => store.state.indexSetQueryResult.is_loading || store.state.indexFieldInfo.is_loading)
 
   const isFold = ref(false);
   const chartContainer = ref(null);
   const chartInterval = ref('auto');
-  const totalNumShow = ref(0);
+  const isLoading = ref(false);
 
-  const toggleExpand = isFold => {
-    isFold.value = isFold;
-    localStorage.setItem('chartIsFold', isFold);
+  const handlePolling = (val) => {
+    isLoading.value = val;
+  }
+
+  const toggleExpand = val => {
+    isFold.value = val;
+    localStorage.setItem('chartIsFold', val);
     nextTick(() => {
-      $emit('toggle-change', !isFold.value, chartContainer.value?.offsetHeight);
+      emit('toggle-change', !isFold.value, chartContainer.value?.offsetHeight);
     });
   };
 
   const handleChangeInterval = v => {
     chartInterval.value = v;
+    store.commit('updateIndexItem', { interval: v });
+    store.commit('retrieve/updateChartKey', { prefix: 'chart_interval_' });
   };
+
+  onMounted(() => {
+    isFold.value = JSON.parse(localStorage.getItem('chartIsFold') || 'false');
+  });
+
+  watch(() => chartKey.value, () => {
+    if (isResultLoading.value) {
+      return;
+    }
+
+    store.commit('updateIsSetDefaultTableColumn', false);
+    store.dispatch('requestIndexSetFieldInfo').then(() => {
+      store.dispatch('requestIndexSetQuery', { formChartChange: true });
+    });
+  }, {
+    immediate: true
+  });
 </script>
 
 <style scoped lang="scss">

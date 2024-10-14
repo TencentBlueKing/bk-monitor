@@ -10,16 +10,17 @@
   const store = useStore();
   const route = useRoute();
 
-  const CancelToken = axios.CancelToken;
+  const emit = defineEmits(['polling']);
 
+  const CancelToken = axios.CancelToken;
 
   const isUnionSearch = computed(() => store.getters.isUnionSearch);
   const unionIndexList = computed(() => store.getters.unionIndexList);
   const retrieveParams = computed(() => store.getters.retrieveParams);
   const chartKey = computed(() => store.state.retrieve.chartKey);
+  const interval = computed(() => retrieveParams.value.interval);
 
   const refDataTrendCanvas = ref(null);
-  const interval = ref('auto');
 
   const { updateChart } = useTrendChart({
     target: refDataTrendCanvas,
@@ -37,9 +38,10 @@
     '1d': 86400,
   };
 
-  let timeRange = [];
-  let finishPolling = false;
-  let isStart = false;
+  const finishPolling = ref(false);
+  const isStart = ref(false);
+  const isLoading = ref(false);
+
   let requestInterval = 0;
   let pollingEndTime = 0;
   let pollingStartTime = 0;
@@ -72,20 +74,30 @@
   };
 
   const handleIntervalSplit = (startTime, endTime) => {
+    // 如果是手动变更汇聚周期导致的更新
+    // 这里禁止进一步进行更新interval, 避免重置
+    if(/^chart_interval_/.test(chartKey.value)) {
+      return;
+    }
+
     const duration = (endTime - startTime) / 3600;
+    let intervalTemp = interval.value;
+
     if (duration < 1) {
       // 小于1小时 1min
-      interval.value = '1m';
+      intervalTemp = '1m';
     } else if (duration < 6) {
       // 小于6小时 5min
-      interval.value = '5m';
+      intervalTemp = '5m';
     } else if (duration < 72) {
       // 小于72小时 1hour
-      interval.value = '1h';
+      intervalTemp = '1h';
     } else {
       // 大于72小时 1day
-      interval.value = '1d';
+      intervalTemp = '1d';
     }
+
+    store.commit('updateIndexItem', { interval: intervalTemp });
   };
 
   // 获取时间分片数组
@@ -102,21 +114,20 @@
 
   // 需要更新图表数据
   const getSeriesData = (startTimeStamp, endTimeStamp) => {
-    if (startTimeStamp && endTimeStamp) {
-      timeRange = [startTimeStamp, endTimeStamp];
-      finishPolling = false;
-      isStart = false;
-      // todo: 更新全局时间 && 拉取全量数据统计条数
-    }
-
     // 轮循结束
-    if (finishPolling) return;
+    if (finishPolling.value) return;
 
     // 请求间隔时间
-    requestInterval = isStart ? requestInterval : handleRequestSplit(startTimeStamp, endTimeStamp);
-    if (!isStart) {
+    requestInterval = isStart.value ? requestInterval : handleRequestSplit(startTimeStamp, endTimeStamp);
+
+    if (!isStart.value) {
       // 获取坐标分片间隔
       handleIntervalSplit(startTimeStamp, endTimeStamp);
+      isLoading.value = true;
+      emit('polling', !isLoading.value);
+
+      // 第一次发起请求清空数据
+      updateChart([]);
 
       // 获取分片起止时间
       const curStartTimestamp = getIntegerTime(startTimeStamp);
@@ -131,9 +142,10 @@
       if (pollingStartTime < startTimeStamp || requestInterval === 0) {
         pollingStartTime = startTimeStamp;
         // 轮询结束
-        finishPolling = true;
+        finishPolling.value = true;
+        emit('polling', false);
       }
-      isStart = true;
+      isStart.value = true;
     } else {
       pollingEndTime = pollingStartTime;
       pollingStartTime = pollingStartTime - requestInterval;
@@ -181,7 +193,8 @@
 
             if (pollingStartTime <= retrieveParams.value.start_time) {
               // 轮询结束
-              finishPolling = true;
+              finishPolling.value = true;
+              emit('polling', false);
             }
 
             for (let i = 0; i < targetArr.length; i++) {
@@ -193,31 +206,37 @@
               }
             }
           } else {
-            finishPolling = true;
+            finishPolling.value = true;
+            emit('polling', false);
           }
 
           updateChart(optionData.value);
 
-          if (!finishPolling) {
+          if (!finishPolling.value) {
             getSeriesData();
           }
         })
-        .catch(() => false);
+        .finally(() => {
+          isLoading.value = false;
+        });
     } else {
-      finishPolling = true;
+      finishPolling.value = true;
+      emit('polling', false);
     }
   };
 
+
   watch(
-    () => chartKey,
+    () => chartKey.value,
     () => {
-      finishPolling = false;
-      isStart = false;
+      finishPolling.value = false;
+      isStart.value = false;
+      logChartCancel?.();
       getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
     },
     {
-      immediate: true
-    }
+      immediate: true,
+    },
   );
 </script>
 <script>
@@ -226,5 +245,26 @@
   };
 </script>
 <template>
-  <div ref="refDataTrendCanvas" style="height: 110px;"></div>
+  <div
+    v-bkloading="{ isLoading: isLoading }"
+    class="monitor-echart-wrap"
+  >
+    <div
+      ref="refDataTrendCanvas"
+      style="height: 110px"
+    ></div>
+  </div>
 </template>
+<style lang="scss" scoped>
+  .monitor-echart-wrap {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding-top: 18px;
+    color: #63656e;
+    background-color: #fff;
+    background-repeat: repeat;
+    background-position: top;
+    border-radius: 2px;
+  }
+</style>
