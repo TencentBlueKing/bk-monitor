@@ -1403,3 +1403,14 @@ class StorageClusterRecord(SoftDeleteModel):
         verbose_name = _("索引集存储集群记录")
         verbose_name_plural = _("索引集存储集群记录")
         ordering = ("-updated_at",)
+
+
+class UserIndexSetCustomConfig(SoftDeleteModel):
+    """用户索引集自定义配置"""
+    username = models.CharField(_("用户name"), max_length=256)
+    index_set_ids = models.JSONField(_("索引集ID列表"), default=list)
+    index_set_config = models.JSONField(_("用户索引集配置"), default=dict)
+
+    class Meta:
+        verbose_name = _("用户索引集自定义配置")
+        verbose_name_plural = _("用户索引集自定义配置")

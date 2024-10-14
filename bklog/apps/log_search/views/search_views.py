@@ -61,6 +61,7 @@ from apps.log_search.exceptions import BaseSearchIndexSetException
 from apps.log_search.handlers.index_set import (
     IndexSetFieldsConfigHandler,
     IndexSetHandler,
+    UserIndexSetConfigHandler,
 )
 from apps.log_search.handlers.search.async_export_handlers import AsyncExportHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import (
@@ -88,6 +89,7 @@ from apps.log_search.serializers import (
     UnionSearchHistorySerializer,
     UnionSearchSearchExportSerializer,
     UpdateIndexSetFieldsConfigSerializer,
+    UserIndexSetCustomConfigSerializer,
 )
 from apps.utils.drf import detail_route, list_route
 from apps.utils.local import get_request_external_username, get_request_username
@@ -819,6 +821,10 @@ class SearchViewSet(APIViewSet):
                 index_set_id, {"start_time": start_time, "end_time": end_time}
             )
             fields = search_handler_esquery.fields(scope)
+
+        # 添加用户索引集自定义配置
+        fields_width = UserIndexSetConfigHandler([int(index_set_id)]).get_index_set_config().get("fields_width", {})
+        fields.update({"fields_width": fields_width})
         return Response(fields)
 
     @detail_route(methods=["GET"], url_path="bcs_web_console")
@@ -1354,7 +1360,12 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(UnionSearchFieldsSerializer)
-        return Response(UnionSearchHandler().union_search_fields(data))
+        fields = UnionSearchHandler().union_search_fields(data)
+
+        # 添加用户索引集自定义配置
+        fields_width = UserIndexSetConfigHandler(data["index_set_ids"]).get_index_set_config().get("fields_width", {})
+        fields.update({"fields_width": fields_width})
+        return Response(fields)
 
     @list_route(methods=["POST"], url_path="union_search/export")
     def union_search_export(self, request, *args, **kwargs):
@@ -1566,3 +1577,46 @@ class SearchViewSet(APIViewSet):
         data = self.params_valid(UnionSearchHistorySerializer)
         index_set_ids = sorted([int(index_set_id) for index_set_id in data["index_set_ids"].split(",")])
         return Response(SearchHandlerEsquery.search_history(index_set_ids=index_set_ids, is_union_search=True))
+
+    @list_route(methods=["POST"], url_path="user_index_set_custom_config")
+    def update_or_create_config(self, request):
+        """
+        @api {post} /search/index_set/user_index_set_custom_config/ 更新或创建用户索引集自定义配置
+        @apiDescription 更新或创建用户索引集自定义配置
+        @apiName user_index_set_custom_config
+        @apiGroup 11_Search
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "id": 2,
+                "created_at": "2024-10-14T10:03:12.006939Z",
+                "created_by": "admin",
+                "updated_at": "2024-10-15T01:50:46.971658Z",
+                "updated_by": "admin",
+                "is_deleted": false,
+                "deleted_at": null,
+                "deleted_by": null,
+                "username": "admin",
+                "index_set_ids": [
+                    496,
+                    497
+                ],
+                "index_set_config": {
+                    "fields_width": {
+                        "dtEventTimeStamp": "12",
+                        "serverIp": 10,
+                        "log": 80
+                    }
+                }
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(UserIndexSetCustomConfigSerializer)
+        return Response(
+            UserIndexSetConfigHandler(index_set_ids=data["index_set_ids"]).update_or_create(
+                index_set_config=data["index_set_config"]
+            )
+        )

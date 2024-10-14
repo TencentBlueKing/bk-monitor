@@ -902,3 +902,14 @@ class FetchStatisticsGraphSerializer(QueryFieldBaseSerializer):
     threshold = serializers.IntegerField(label=_("去重数量阈值"), required=False, default=10)
     limit = serializers.IntegerField(label=_("top条数"), required=False, default=5)
     distinct_count = serializers.IntegerField(label=_("去重条数"), required=False)
+
+
+class IndexSetCustomConfigSerializer(serializers.Serializer):
+    fields_width = serializers.JSONField(label=_("索引集字段宽度配置"), required=True)
+
+
+class UserIndexSetCustomConfigSerializer(serializers.Serializer):
+    index_set_ids = serializers.ListField(
+        label=_("索引集ID列表"), required=True, allow_empty=False, child=serializers.IntegerField()
+    )
+    index_set_config = IndexSetCustomConfigSerializer(label=_("用户索引集配置"), required=True)
