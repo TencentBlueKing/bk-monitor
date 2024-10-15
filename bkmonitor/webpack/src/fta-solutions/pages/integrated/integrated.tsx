@@ -172,8 +172,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
       )
     );
     this.listPluginData = list.filter(
-      item =>
-        (item.data.length && item.data.some(set => set?.data?.some(child => child.show))) || item.id === 'AVAILABLE'
+      item => item.data.length && item.data.some(set => set?.data?.some(child => child.show))
     );
   }
   // 关键字匹配
