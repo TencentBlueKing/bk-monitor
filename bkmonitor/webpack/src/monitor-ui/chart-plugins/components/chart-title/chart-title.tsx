@@ -75,6 +75,8 @@ export interface IChartTitleProps {
   inited?: boolean;
   /** 修改掉菜单的点击区域, 为true时 菜单区域仅为icon区域 */
   customArea?: boolean;
+  // 数据步长（步长过大情况时需要）
+  collectIntervalDisplay?: string;
 }
 
 interface IChartTitleEvent {
@@ -112,6 +114,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   @Prop({ type: Boolean, default: true }) showTitleIcon: boolean;
   @Prop({ type: Boolean, default: false }) isInstant: boolean;
   @Prop({ type: Boolean, default: true }) inited: boolean;
+  @Prop({ type: String, default: '' }) collectIntervalDisplay: string;
 
   @Ref('chartTitle') chartTitleRef: HTMLDivElement;
   // 是否只读模式
@@ -370,8 +373,9 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                     appendTo: 'parent',
                   }}
                 >
-                  {this.metricTitleData.collect_interval}
-                  {this.metricTitleData.collect_interval < 10 ? 'm' : 's'}
+                  {this.collectIntervalDisplay
+                    ? this.collectIntervalDisplay
+                    : `${this.metricTitleData.collect_interval}${this.metricTitleData.collect_interval < 10 ? 'm' : 's'}`}
                 </span>
               ) : undefined,
               (this.$scopedSlots as any)?.customSlot?.(),

@@ -36,6 +36,7 @@ export const noDataStrategyDisable = request('POST', 'apm/meta/application/nodat
 export const dataViewConfig = request('POST', 'apm/meta/application/{pk}/data_view_config/');
 export const dataHistogram = request('POST', 'apm/meta/application/{pk}/data_histogram/');
 export const dataSampling = request('POST', 'apm/meta/application/{pk}/data_sampling/');
+export const dataStatus = request('GET', 'apm/meta/application/{pk}/data_status/');
 export const storageInfo = request('POST', 'apm/meta/application/{pk}/storage_info/');
 export const storageFieldInfo = request('POST', 'apm/meta/application/{pk}/storage_field_info/');
 export const storageStatus = request('GET', 'apm/meta/application/{pk}/storage_status/');
