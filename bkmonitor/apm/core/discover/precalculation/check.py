@@ -48,7 +48,7 @@ class PreCalculateCheck:
         """
         获取未执行预计算任务的应用列表、正在运行预计算任务的应用列表
         """
-        start_time, end_time = get_datetime_range(period="day", distance=cls.TIME_DELTA, rounding=False)
+        start_time, end_time = get_datetime_range(period="minute", distance=cls.TIME_DELTA, rounding=False)
         start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
         logger.info(f"[PreCalculateCheck] request_count time range: {start_time} - {end_time}")
 
