@@ -529,7 +529,7 @@ class ServiceHandler:
 
         # Log 数据状态
         if status[TelemetryDataType.LOG.value] != DataStatus.DISABLED:
-            log_response = ServiceLogHandler.get_log_count_mapping(app.bk_biz_id, app.app_name)
+            log_response = ServiceLogHandler.get_log_count_mapping(app.bk_biz_id, app.app_name, start_time, end_time)
             for service_name, data_status in log_response.items():
                 res[service_name].update({TelemetryDataType.LOG.value: data_status})
 
