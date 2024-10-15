@@ -224,7 +224,6 @@
     watch: {
       chartKey: {
         handler() {
-          console.log('chartKey changed')
           this.handleLogChartCancel();
           this.localAddition = this.retrieveParams.addition;
           this.$refs.chartRef?.handleCloseTimer();
