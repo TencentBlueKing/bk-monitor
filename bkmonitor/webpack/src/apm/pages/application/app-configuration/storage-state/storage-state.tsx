@@ -132,9 +132,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
 
   async getStorageStatus() {
     this.storageStatusLoading = true;
-    const data = await storageStatus(this.appInfo.application_id, {
-      telemetry_data_type: this.activeTab,
-    }).catch(() => this.storageStatus);
+    const data = await storageStatus(this.appInfo.application_id).catch(() => this.storageStatus);
     if (data) {
       this.storageStatus = data;
       for (const tab of this.tabList) {

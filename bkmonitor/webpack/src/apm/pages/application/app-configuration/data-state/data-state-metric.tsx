@@ -124,7 +124,9 @@ export default class DataStatusMetric extends tsc<IProps> {
   }
 
   created() {
-    this.getNoDataStrategyInfo();
+    if (this.activeTab !== ETelemetryDataType.profiling) {
+      this.getNoDataStrategyInfo();
+    }
     this.getDataView();
     this.getSamplingList();
   }
@@ -470,11 +472,13 @@ export default class DataStatusMetric extends tsc<IProps> {
                 label={this.$t('原始数据')}
                 scopedSlots={logSlots}
               />
-              <bk-table-column
-                width='200'
-                label={this.$t('采样时间')}
-                scopedSlots={{ default: props => props.row.sampling_time }}
-              />
+              {this.activeTab !== ETelemetryDataType.profiling && (
+                <bk-table-column
+                  width='200'
+                  label={this.$t('采样时间')}
+                  scopedSlots={{ default: props => props.row.sampling_time }}
+                />
+              )}
               <bk-table-column
                 width='180'
                 label={this.$t('操作')}
