@@ -16,8 +16,11 @@ import math
 import re
 from collections import defaultdict
 from itertools import chain
+from functools import reduce
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import parse_qs
+from box import Box
+from pandas import DataFrame
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
@@ -952,20 +955,78 @@ class RecommendMetricManager(AIOPSManager):
         :return: 以graph_panel作为模板，基于指标推荐结果构建的panels配置列表
         """
         graph_panels = []
+        # 过滤条件字典
+        filter_conditions = defaultdict(list)
+        metric_info_recommends = []
+
+        # 预定义定的查询需要显示的字段集合
+        pre_field_set = {"id",
+                         "bk_biz_id",
+                         "dimensions",
+                         "result_table_id",
+                         "data_source_label",
+                         "data_type_label",
+                         "metric_field",
+                         "result_table_label",
+                         "result_table_label_name",
+                         "metric_field_name",
+                         }
+        # 总的查询需要显示的字段集合
+        field_set = pre_field_set.copy()
 
         recommend_metrics = json.loads(recommended_results["recommend_metrics"])
 
         for recommend_metric in recommend_metrics:
-            base_graph_panel = copy.deepcopy(graph_panel)
 
             # 获取当前推荐指标的详情
             metric_name, dimensions = cls.parse_recommend_metric(recommend_metric[0])
             metric_info = parse_metric_id(metric_name)
             if not metric_info:
                 continue
-            metric = MetricListCache.objects.filter(**metric_info).first()
-            if not metric:
+
+            for key, value in metric_info.items():
+                filter_conditions[key + "__in"].append(value)
+
+            metric_info_recommends.append((metric_info, metric_name, dimensions, recommend_metric))
+            # 更新查询需要显示的字段集合
+            field_set.update(set(metric_info.keys()))
+
+        # 批量获取所有需要查询的指标
+        metric_data = MetricListCache.objects.filter(**filter_conditions).values(*field_set)
+
+        df = DataFrame(metric_data)
+
+        def generate_conditions(x, y):
+            # 用于生成DataFrame所要求格式的过滤条件
+            # 例如： df=df[(df["id"]>1) & (df["name"]=="张三")] ,过滤id > 1 并且 name == "张三" 的数据
+            if not isinstance(x, tuple):
+                return x & (df[str(y[0])] == y[1])
+            return (df[str(x[0])] == x[1]) & (df[str(y[0])] == y[1])
+
+        for metric_info, metric_name, dimensions, recommend_metric in metric_info_recommends:
+            base_graph_panel = copy.deepcopy(graph_panel)
+
+            condition = reduce(generate_conditions, metric_info.items())
+            # 获取到目标数据，并转为字典
+            metric = df[condition].to_dict()
+            # 转为字典后，数据格式如下：
+            # {'id': [1, 2],   # 符合过滤条件的id列表，各个列表中的值一一对应，共同组成一条记录
+            # 'metric_field': ['agent-gse', 'disk-readonly-gse'],   #符合过滤条件的metric_field列表
+            # 'data_source_label': ['bk_monitor', 'bk_monitor'],
+            #  'result_table_label': ['os', 'os'],
+            #  'result_table_id': ['system.event', 'system.event'],
+            #  'result_table_label_name': ['操作系统', '操作系统'],
+            #  'metric_field_name': ['Agent心跳丢失', '磁盘只读'],}
+
+            if not metric.get("id"):
+                # 没有获取到目标数据，跳过
                 continue
+
+            # 重新构建metric的数据结构，将value的值转为string或int类型（理论上只有一条记录符合过滤条件）
+            metric = {key: list(item_dic.values())[0] for key, item_dic in metric.items()}
+
+            # metric转为对象，方便后面直接通过属性访问
+            metric = Box(metric)
 
             recommend_info = {
                 "reasons": recommend_metric[3],

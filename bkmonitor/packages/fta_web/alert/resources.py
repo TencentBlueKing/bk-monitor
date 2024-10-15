@@ -2240,6 +2240,16 @@ class MetricRecommendationResource(AIOpsBaseResource):
     def perform_request(self, validated_request_data):
         result = super(MetricRecommendationResource, self).perform_request(validated_request_data)
 
+        # 参数列表,每个列表同位置的元素一一对应，共同组成一对查询参数
+        alert_metric_ids = []
+        rec_metric_hashs = []
+        bk_biz_ids = []
+        usernames = []
+
+        username = get_request_username()
+
+        # 收集需要查询的参数
+        query_params = {}
         for label_info in result.get("recommended_metrics", []):
             for metric_info in label_info["metrics"]:
                 for recommend_panel in metric_info["panels"]:
@@ -2248,14 +2258,23 @@ class MetricRecommendationResource(AIOpsBaseResource):
                     recommendation_metric = recommend_panel["id"]
                     bk_biz_id = recommend_panel["bk_biz_id"]
 
-                    feedback = MetricRecommendationFeedbackResource.get_feedback(
-                        alert_metric_id=alert_metric_id,
-                        recommendation_metric=recommendation_metric,
-                        bk_biz_id=bk_biz_id,
-                        username=get_request_username(),
-                    )
+                    # 将参数放入列表
+                    alert_metric_ids.append(alert_metric_id)
+                    rec_metric_hashs.append(
+                        MetricRecommendationFeedback.generate_recommendation_metric_hash(recommendation_metric))
+                    bk_biz_ids.append(bk_biz_id)
+                    usernames.append(username)
 
-                    recommend_panel["feedback"] = feedback
+                    # 收集查询参数,并保留对应的recommend_panel
+                    query_params[(alert_metric_id, recommendation_metric, bk_biz_id, username)] = recommend_panel
+
+        # 批量查询反馈信息
+        feedback_results = MetricRecommendationFeedbackResource.get_feedback_batch(alert_metric_ids, rec_metric_hashs,
+                                                                                   bk_biz_ids, usernames)
+
+        for (alert_metric_id, recommendation_metric, bk_biz_id, username), recommend_panel in query_params.items():
+            recommend_panel["feedback"] = feedback_results[
+                (alert_metric_id, recommendation_metric, bk_biz_id, username)]
 
         return result
 
@@ -2298,6 +2317,44 @@ class MetricRecommendationFeedbackResource(Resource):
                 bad_count = feedback_annotate_item["feedback__count"]
         return good_count, bad_count
 
+    @staticmethod
+    def get_feedback_count_batch(alert_metric_ids: List, rec_metric_hashs: List, bk_biz_ids: List) -> Dict:
+        """批量获取业务下，告警指标,被推荐指标关系下的点赞和点踩数
+           每个参数列表同位置的元素一一对应，共同组成一对查询参数。
+           非批量查询时，model.objects.filter(alert_metric_id=alert_metric_ids[0],
+           recommendation_metric_hash=rec_metric_hashs[0], bk_biz_id=bk_biz_ids[0])
+
+           :param alert_metric_ids: 告警指标名列表
+           :param rec_metric_hashs: 被推荐指标的hash列表
+           :param bk_biz_ids: 业务id列表
+           :return: {(alert_metric_id, recommendation_metric, bk_biz_id): (点赞数,点踩数), ...}
+           """
+        # 提取所有唯一的参数组合
+        params = list(zip(alert_metric_ids, rec_metric_hashs, bk_biz_ids))
+
+        # 用于存储最终结果
+        result = {}
+        # 存储每个组合的具体点赞和点踩数
+        feedback_count = defaultdict(lambda: {"good_count": 0, "bad_count": 0})
+
+        # 一次性获取所有需要的数据
+        feedback_data = MetricRecommendationFeedback.objects.filter(
+            DQ(alert_metric_id__in=alert_metric_ids) &
+            DQ(bk_biz_id__in=bk_biz_ids) &
+            DQ(recommendation_metric_hash__in=rec_metric_hashs)
+        ).values_list('alert_metric_id', 'recommendation_metric_hash', 'bk_biz_id', 'feedback')
+
+        # 统计每个组合的点赞和点踩数
+        for alert_id, rec_metric_hash, bk_biz_id, feedback in feedback_data:
+            feedback_count[(alert_id, rec_metric_hash, bk_biz_id)][feedback + "_count"] += 1
+
+        # 将最终统计结果存入result
+        for alert_id, rec_metric_hash, bk_biz_id in params:
+            result[(alert_id, rec_metric_hash, bk_biz_id)] = list(
+                feedback_count[(alert_id, rec_metric_hash, bk_biz_id)].values())
+
+        return result
+
     @classmethod
     def get_feedback(cls, alert_metric_id, recommendation_metric, bk_biz_id, username):
         """获取用户的反馈
@@ -2326,6 +2383,59 @@ class MetricRecommendationFeedbackResource(Resource):
         }
 
     @classmethod
+    def get_feedback_batch(cls, alert_metric_ids: List, rec_metric_hashs: List, bk_biz_ids: List,
+                           usernames: List) -> Dict:
+        """批量获取用户的反馈
+        每个参数列表同位置的元素一一对应，共同组成一对查询参数。
+        非批量查询时，model.objects.filter(alert_metric_id=alert_metric_ids[0],
+        recommendation_metric_hash=rec_metric_hashs[0], bk_biz_id=bk_biz_ids[0], create_user=usernames[0])
+
+        :param alert_metric_ids: 告警指标名列表
+        :param rec_metric_hashs: 被推荐指标的hash列表
+        :param bk_biz_ids: 业务id列表
+        :param usernames: 用户名列表
+
+        :return: result: {(alert_metric_id, recommendation_metric, bk_biz_id, username): (点赞数,点踩数,用户反馈), ...}
+        """
+
+        # 批量查询点赞数和点踩数
+        # 调用另一个方法来获取每个组合的点赞数和点踩数
+        feedback_counts = cls.get_feedback_count_batch(alert_metric_ids, rec_metric_hashs, bk_biz_ids)
+
+        # 批量查询用户反馈
+        # 使用Django ORM的Q对象进行多条件过滤查询，获取所有需要的反馈对象
+        feedback_objects = MetricRecommendationFeedback.objects.filter(
+            DQ(alert_metric_id__in=alert_metric_ids) &
+            DQ(recommendation_metric_hash__in=rec_metric_hashs) &
+            DQ(bk_biz_id__in=bk_biz_ids) &
+            DQ(create_user__in=usernames)
+        ).values('alert_metric_id', 'recommendation_metric_hash', 'bk_biz_id', 'create_user', 'feedback')
+
+        # 构建字典，用于快速查找反馈对象
+        # 将查询到的反馈对象转换为字典，以查询参数组合作为键，方便后续快速检索
+        feedback_dict = {
+            (fo['alert_metric_id'], fo['recommendation_metric_hash'], fo['bk_biz_id'], fo['create_user']): fo[
+                'feedback'] for fo in feedback_objects}
+
+        result = {}
+        # 将四个列表打包成一个元组的列表，每个元组包含一组查询参数
+        params_list = list(zip(alert_metric_ids, rec_metric_hashs, bk_biz_ids, usernames))
+        for alert_metric_id, rec_metric_hash, bk_biz_id, username in params_list:
+            # 从之前获取的点赞数和点踩数字典中获取当前组合的点赞数和点踩数
+            good_count, bad_count = feedback_counts[(alert_metric_id, rec_metric_hash, bk_biz_id)]
+            # 从反馈字典中获取当前用户的反馈信息
+            feedback = feedback_dict.get((alert_metric_id, rec_metric_hash, bk_biz_id, username))
+
+            # 将获取到的点赞数、点踩数和用户反馈信息组合成一个新的字典项，并添加到结果字典中
+            result[(alert_metric_id, rec_metric_hash, bk_biz_id, username)] = {
+                "good": good_count,
+                "bad": bad_count,
+                "self": feedback,
+            }
+
+        return result
+
+    @staticmethod
     def get_recommend_metric_bkdata_rt_id(bk_biz_id):
         """获取被推荐指标的计算平台结果表id
 
