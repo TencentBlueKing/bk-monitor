@@ -308,4 +308,6 @@ export default {
   调用链数据未开启: 'Trace data is not enabled',
   性能分析数据未开启: 'Profiling data is not enabled',
   '前往{0}查看相关数据': 'Go to {0} to view related data',
+  '尚未接入服务{0}': 'Service {0} has not been accessed',
+  '数据统计中，请耐心等待': 'Data statistics in progress, please wait patiently',
 };
