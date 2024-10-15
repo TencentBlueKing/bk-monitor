@@ -38,8 +38,7 @@ class APMEvent(Enum):
     def event_template(self, data_sources: dict = None, updated_telemetry_types: [] = None):
         data_sources_template = _("变更的数据源: ")
         if updated_telemetry_types:
-            for key in updated_telemetry_types:
-                data_sources_template += _("{}、").format(key)
+            data_sources_template += "、".join(updated_telemetry_types)
 
         content = _("应用当前整体状态为: ")
         if data_sources:
@@ -67,12 +66,18 @@ class APMEvent(Enum):
             ),
         }.get(self.value)
         if updated_telemetry_types:
-            return body_template + "\n" + data_sources_template.rstrip("、") + "\n" + content
+            return body_template + "\n" + data_sources_template + "\n" + content
         else:
             return body_template + "\n" + content
 
 
-def build_event_body(app: Application, bk_biz_id: int, apm_event: APMEvent, data_sources: dict = None, updated_telemetry_types:[] = None):
+def build_event_body(
+    app: Application,
+    bk_biz_id: int,
+    apm_event: APMEvent,
+    data_sources: dict = None,
+    updated_telemetry_types: list = None,
+):
     event_body_map = {"event_name": _("监控平台{}").format(apm_event.event_name)}
     response_biz_data = api.cmdb.get_business(bk_biz_ids=[bk_biz_id])
     if response_biz_data:
@@ -94,7 +99,7 @@ def build_event_body(app: Application, bk_biz_id: int, apm_event: APMEvent, data
         if apm_event is APMEvent.APP_CREATE
         else strftime_local(app.update_time),
     }
-    content = apm_event.event_template(data_sources,updated_telemetry_types).format(**event_body_params)
+    content = apm_event.event_template(data_sources, updated_telemetry_types).format(**event_body_params)
     event_body_map["event"] = {"content": content}
     return [event_body_map]
 
@@ -124,7 +129,9 @@ def refresh_application():
 
 
 @task(ignore_result=True)
-def report_apm_application_event(bk_biz_id, application_id, apm_event: APMEvent, data_sources: dict = None, updated_telemetry_types:[] = None):
+def report_apm_application_event(
+    bk_biz_id, application_id, apm_event: APMEvent, data_sources: dict = None, updated_telemetry_types: list = None
+):
     logger.info(f"[report_apm_application_event] task start, bk_biz_id({bk_biz_id}), application_id({application_id})")
 
     application = Application.objects.get(application_id=application_id)

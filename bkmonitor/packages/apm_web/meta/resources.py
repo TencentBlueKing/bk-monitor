@@ -228,18 +228,12 @@ class CreateApplicationResource(Resource):
 
         from apm_web.tasks import APMEvent, report_apm_application_event
 
-        switch_on_data_sources = {
-            TelemetryDataType.TRACE.value: validated_request_data["enabled_trace"],
-            TelemetryDataType.PROFILING.value: validated_request_data["enabled_profiling"],
-            TelemetryDataType.METRIC.value: validated_request_data["enabled_metric"],
-            TelemetryDataType.LOG.value: validated_request_data["enabled_log"],
-        }
+        switch_on_data_sources = app.get_data_sources()
         report_apm_application_event.delay(
             validated_request_data["bk_biz_id"],
             app.application_id,
             apm_event=APMEvent.APP_CREATE,
             data_sources=switch_on_data_sources,
-            updated_telemetry_types=None
         )
         return app
 
@@ -485,21 +479,15 @@ class StartResource(Resource):
         application.is_enabled = True
         application.save()
 
-        switch_on_data_sources = {
-            TelemetryDataType.TRACE.value: application.is_enabled_trace,
-            TelemetryDataType.PROFILING.value: application.is_enabled_profiling,
-            TelemetryDataType.METRIC.value: application.is_enabled_metric,
-            TelemetryDataType.LOG.value: application.is_enabled_metric,
-        }
-
         from apm_web.tasks import APMEvent, report_apm_application_event
 
+        switch_on_data_sources = application.get_data_sources()
         report_apm_application_event.delay(
             application.bk_biz_id,
             application.application_id,
             apm_event=APMEvent.APP_UPDATE,
             data_sources=switch_on_data_sources,
-            updated_telemetry_types=[validated_data["type"]]
+            updated_telemetry_types=[validated_data["type"]],
         )
         return res
 
@@ -532,19 +520,13 @@ class StopResource(Resource):
 
         from apm_web.tasks import APMEvent, report_apm_application_event
 
-        switch_on_data_sources = {
-            TelemetryDataType.TRACE.value: application.is_enabled_trace,
-            TelemetryDataType.PROFILING.value: application.is_enabled_profiling,
-            TelemetryDataType.METRIC.value: application.is_enabled_metric,
-            TelemetryDataType.LOG.value: application.is_enabled_metric,
-        }
-
+        switch_on_data_sources = application.get_data_sources()
         report_apm_application_event.delay(
             application.bk_biz_id,
             application.application_id,
             apm_event=APMEvent.APP_UPDATE,
             data_sources=switch_on_data_sources,
-            updated_telemetry_types=[validated_data["type"]]
+            updated_telemetry_types=[validated_data["type"]],
         )
         return res
 
