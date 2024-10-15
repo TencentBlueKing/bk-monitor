@@ -94,6 +94,7 @@ export interface EditModel {
   authorized_users: string[];
   resources: number[];
   expire_time?: string;
+  action_multiple?: string[];
 }
 
 export const STATUS_LIST = [
