@@ -62,9 +62,6 @@ class ConsulData:
     bk_biz_name: str
     app_id: str
     app_name: str
-    is_enabled: bool
-    is_enabled_trace: bool
-    is_enabled_metric: bool
 
     # kafka链接信息
     kafka_info: ConsulKafkaInfo
@@ -110,9 +107,6 @@ class ConsulHandler:
             else application.bk_biz_id,
             app_id=application.id,
             app_name=application.app_name,
-            is_enabled=application.is_enabled,
-            is_enabled_trace=application.is_enabled_trace,
-            is_enabled_metric=application.is_enabled_metric,
             kafka_info=ConsulKafkaInfo(
                 host=f"{datasource_info['mq_config']['cluster_config']['domain_name']}"
                 f":"
