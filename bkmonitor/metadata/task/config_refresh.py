@@ -286,13 +286,20 @@ def refresh_es_storage():
     es_storages_by_cluster = es_storages.values('storage_cluster_id').distinct()
 
     for cluster in es_storages_by_cluster:
-        cluster_id = cluster['storage_cluster_id']
-        cluster_storages = es_storages.filter(storage_cluster_id=cluster_id)
-        count = cluster_storages.count()
-        logger.info("refresh_es_storage:refresh cluster_id->[%s] es_storages count->[%s]", cluster_id, count)
-        # 5.1 为每个集群创建批量任务
-        for s in range(start, count, step):
-            manage_es_storage.delay(cluster_storages[s : s + step])
+        try:
+            cluster_id = cluster['storage_cluster_id']
+            cluster_storages = es_storages.filter(storage_cluster_id=cluster_id)
+            count = cluster_storages.count()
+            logger.info("refresh_es_storage:refresh cluster_id->[%s] es_storages count->[%s]", cluster_id, count)
+            # 5.1 为每个集群创建批量任务
+            for s in range(start, count, step):
+                try:
+                    manage_es_storage.delay(cluster_storages[s : s + step])
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.error("refresh_es_storage:refresh cluster_id->[%s] failed for->[%s]", cluster_id, e)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("refresh_es_storage:refresh cluster_id->[%s] failed for->[%s]", cluster.cluster_id, e)
+            continue
 
     end_time = time.time()  # 记录结束时间
     logger.info("refresh_es_storage:es_storage cron task started successfully,use %.2f seconds.", end_time - start_time)
