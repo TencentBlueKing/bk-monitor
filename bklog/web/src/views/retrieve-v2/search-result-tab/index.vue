@@ -11,34 +11,28 @@
     },
   });
   const emit = defineEmits(['input']);
-  const isExternal = computed(() => store.state.isExternal);
-  const indexItem = computed(() => store.state.indexItem);
+  const indexSetItem = computed(() =>
+    store.state.retrieve.indexSetList?.find(item => item.index_set_id === store.state.indexId),
+  );
+
   const isAiopsToggle = computed(() => {
-    // 日志聚类总开关
-    if (isExternal.value || indexItem.value.isUnionIndex) return false; // 外部版或联合查询时不包含日志聚类
-    const { bkdata_aiops_toggle: bkdataAiopsToggle } = window.FEATURE_TOGGLE;
-    const aiopsBizList = window.FEATURE_TOGGLE_WHITE_LIST?.bkdata_aiops_toggle;
-    switch (bkdataAiopsToggle) {
-      case 'on':
-        return true;
-      case 'off':
-        return false;
-      default:
-        return aiopsBizList ? aiopsBizList.some(item => item.toString() === this.bkBizId) : false;
-    }
+    return (
+      (indexSetItem.value?.scenario_id === 'log' && indexSetItem.value.collector_config_id !== null) ||
+      indexSetItem.value?.scenario_id === 'bkdata'
+    );
   });
+
   // 可切换Tab数组
   const panelList = computed(() => {
-    const list = [
-      { name: 'origin', label: $t('原始日志') },
-      // { name: 'clustering', label: $t('日志聚类') },
+    return  [
+      { name: 'origin', label: $t('原始日志'), disabled: false },
+      { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value },
       // { name: 'chartAnalysis', label: $t('图表分析') },
     ];
-    if (isAiopsToggle.value) {
-      list.push({ name: 'clustering', label: $t('日志聚类') });
-    }
-    return list;
   });
+
+  const renderPanelList = computed(() => panelList.value.filter(item => !item.disabled));
+
   // after边框
   const isAfter = item => {
     const afterListMap = {
@@ -58,7 +52,7 @@
 <template>
   <div class="retrieve-tab">
     <span
-      v-for="item in panelList"
+      v-for="item in renderPanelList"
       :key="item.label"
       :class="['retrieve-panel', { 'retrieve-after': isAfter(item) }, { activeClass: value === item.name }]"
       @click="handleActive(item.name)"
