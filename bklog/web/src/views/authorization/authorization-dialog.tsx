@@ -67,7 +67,6 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   /** 点开编辑时的被授权用户列表 */
   baseUserList = [];
   exportUser = '';
-  userExportList = [];
   actionCatchSelectObj = {};
   actionSelectListObj = {};
   authorizedUsersList = [];
@@ -99,9 +98,9 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
     return this.addType === 'alone';
   }
 
-  get authorizedShowUsersList() {
+  get authorizedFilterUsersList() {
     const userSet = new Set();
-    const userList = this.authorizedUsersList
+    return this.authorizedUsersList
       .map(item => {
         if (!userSet.has(item.authorized_user)) {
           userSet.add(item.authorized_user);
@@ -112,6 +111,10 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
         }
       })
       .filter(Boolean);
+  }
+
+  get authorizedShowUsersList() {
+    const userList = [...this.authorizedFilterUsersList];
     userList.unshift({
       id: '__all__',
       name: window.mainComponent.$t('所有人'),
@@ -139,7 +142,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   }
 
   async handleActionChange(val: string) {
-    if (!val) return;
+    if (!val || val === '-') return;
     this.resourceList = await this.getActionSelectList(val);
   }
 
@@ -155,15 +158,26 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
     });
     this.actionList.forEach(item => {
       if (!newVal.includes(item.id)) this.actionCatchSelectObj[item.id] = [];
+      this.handleQuestAction(item.id);
     });
     this.formData.action_multiple = newVal;
   }
 
-  async handleToggleAction(val: string, action) {
-    if (val && !this.actionSelectListObj[action.id]) {
-      action.list = await this.getActionSelectList(action.id);
-      this.actionSelectListObj[action.id] = action.list;
+  async handleQuestAction(actionID) {
+    const actionIndex = this.actionShowList.findIndex(item => item.id === actionID);
+    if (!this.actionSelectListObj[actionID] && actionIndex >= 0) {
+      this.actionShowList[actionIndex].list = await this.getActionSelectList(actionID);
+      this.actionSelectListObj[actionID] = this.actionShowList[actionIndex].list;
     }
+  }
+
+  async handleSelectExportConfig(user) {
+    const userAuthorized = this.authorizedUsersList.filter(item => item.authorized_user === user);
+    this.formData.action_multiple = [];
+    userAuthorized.forEach(item => {
+      this.actionCatchSelectObj[item.action_id] = item.resources;
+    });
+    this.handleClickActionList(userAuthorized.map(item => item.action_id));
   }
 
   handleSelectAction(val: string, action) {
@@ -199,12 +213,13 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   @Emit('change')
   handleCancel(val?: boolean) {
     this.loading = false;
-    this.actionSelectListObj = {};
-    this.actionCatchSelectObj = {};
-    this.actionShowList = [];
-    this.authorizedUsersList = [];
     setTimeout(() => {
       this.addType = 'alone';
+      this.actionSelectListObj = {};
+      this.actionCatchSelectObj = {};
+      this.actionShowList = [];
+      this.authorizedUsersList = [];
+      this.exportUser = '';
     }, 300);
     return val ?? !this.value;
   }
@@ -257,7 +272,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
         authorized_users: rest.authorized_users.map(val => val.replace(/[\r\n]/g, '')),
 
         ...(expire_time ? { expire_time } : {}),
-        authorizer: formData?.authorizer || this.authorizer,
+        authorizer: this.authorizer,
         operate_type: this.rowData ? 'update' : 'create',
         view_type: this.viewType === 'approval' ? 'user' : this.viewType,
       },
@@ -403,9 +418,11 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
               style='min-width: 120px; display: inline-block;'
               v-model={this.exportUser}
               behavior='simplicity'
+              popover-min-width={200}
               searchable
+              onSelected={this.handleSelectExportConfig}
             >
-              {this.userExportList.map(item => (
+              {this.authorizedFilterUsersList.map(item => (
                 <bk-option
                   id={item.id}
                   key={item.id}
@@ -471,7 +488,6 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
                 multiple
                 searchable
                 onSelected={v => this.handleSelectAction(v, action)}
-                onToggle={v => this.handleToggleAction(v, action)}
               >
                 {action.list.map(item => (
                   <bk-option
