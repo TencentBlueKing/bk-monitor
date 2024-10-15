@@ -42,7 +42,7 @@ import { type MonitorEchartOptions, echarts } from 'monitor-ui/monitor-echarts/t
 
 import './base-echart.scss';
 
-const MOUSE_EVENTS = ['click', 'dblclick', 'mouseover', 'mouseout', 'mousedown', 'mouseup', 'globalout'];
+const MOUSE_EVENTS = ['click', 'dblclick', 'mouseover', 'mouseout', 'mousedown', 'mouseup', 'globalout', 'brushEnd'];
 export const BaseChartProps = {
   // 视图高度
   height: {
@@ -355,6 +355,14 @@ export default defineComponent({
         type: 'takeGlobalCursor',
         key: 'dataZoomSelect',
         dataZoomSelectActive: true,
+      });
+
+      dispatchAction({
+        type: 'takeGlobalCursor',
+        key: 'brush',
+        brushOption: {
+          brushType: 'lineX', // 指定选框类型
+        },
       });
     }
     // 初始化chart 事件

@@ -74,6 +74,7 @@ export default defineComponent({
       no_data: [],
     });
     const applicationListLoading = ref(false);
+
     const localFormData = reactive<RetrievalFormData>({
       type: SearchType.Profiling,
       server: {
@@ -81,6 +82,13 @@ export default defineComponent({
         service_name: '',
       },
       isComparison: false,
+      dateComparison: {
+        enable: false,
+        start: undefined,
+        end: undefined,
+        diffStart: undefined,
+        diffEnd: undefined,
+      },
       where: [],
       comparisonWhere: [],
     });
@@ -139,7 +147,19 @@ export default defineComponent({
      */
     function handleComparisonChange(val: boolean) {
       localFormData.isComparison = val;
+      if (!val) {
+        localFormData.dateComparison.enable = false;
+      }
       handleEmitChange(true);
+    }
+
+    /**
+     * 时间对比开关
+     * @param val 开关状态
+     */
+    function handleDataComparisonChange(val: boolean) {
+      localFormData.dateComparison.enable = val;
+      handleEmitChange(false);
     }
 
     const labelList = ref<string[]>([]);
@@ -272,6 +292,7 @@ export default defineComponent({
       handleApplicationChange,
       handleDetailClick,
       handleComparisonChange,
+      handleDataComparisonChange,
       addCondition,
       deleteCondition,
       handleConditionChange,
@@ -321,15 +342,30 @@ export default defineComponent({
                 key='comparison'
                 class='comparison form-item'
               >
-                <div class='label'>{this.t('对比模式')}</div>
-                <div class='content'>
-                  <Switcher
-                    modelValue={this.localFormData.isComparison}
-                    size='small'
-                    theme='primary'
-                    onChange={this.handleComparisonChange}
-                  />
+                <div class='comparison-item'>
+                  <div class='label'>{this.t('对比模式')}</div>
+                  <div class='content'>
+                    <Switcher
+                      modelValue={this.localFormData.isComparison}
+                      size='small'
+                      theme='primary'
+                      onChange={this.handleComparisonChange}
+                    />
+                  </div>
                 </div>
+                {this.localFormData.isComparison && (
+                  <div class='comparison-item'>
+                    <div class='label'>{this.t('时间对比')}</div>
+                    <div class='content'>
+                      <Switcher
+                        modelValue={this.localFormData.dateComparison.enable}
+                        size='small'
+                        theme='primary'
+                        onChange={this.handleDataComparisonChange}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>,
             ]}
 
