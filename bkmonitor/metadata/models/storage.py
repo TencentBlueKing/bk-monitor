@@ -2753,7 +2753,7 @@ class ESStorage(models.Model, StorageResultTable):
                 )
                 should_create = True
 
-        # 6. 若should_create为True，执行创建/跟新 索引逻辑
+        # 6. 若should_create为True，执行创建/更新 索引逻辑
         if not should_create:
             logger.info(
                 "update_index_v2: table_id->[%s] index->[%s] everything is ok,nothing to do",

@@ -138,7 +138,8 @@ def update_time_series_metrics(time_series_metrics):
                 table_id_list.append(time_series_group.table_id)
         except Exception as e:
             logger.error(
-                "data_id->[%s], table_id->[%s] try to update ts metrics from redis failed, error->[%s], traceback_detail->[%s]",
+                "data_id->[%s], table_id->[%s] try to update ts metrics from redis failed, error->[%s], "
+                "traceback_detail->[%s]",
                 # noqa
                 time_series_group.bk_data_id,
                 time_series_group.table_id,
@@ -184,19 +185,26 @@ def _manage_es_storage(es_storage):
         # 先预创建各个时间段的index，
         # 1. 同时判断各个预创建好的index是否字段与数据库的一致
         # 2. 也判断各个创建的index是否有大小需要切片的需要
-        logger.info("table_id->[%s] start to create index", es_storage.table_id)
+        logger.info("manage_es_storage:table_id->[%s] start to create index", es_storage.table_id)
 
         # 如果index_settings和mapping_settings为空，则说明对应配置信息有误，记录日志并触发告警
         if not es_storage.index_settings or es_storage.index_settings == '{}':
-            logger.error("table_id->[%s] need to create index,but index_settings invalid", es_storage.table_id)
+            logger.error(
+                "manage_es_storage:table_id->[%s] need to create index,but index_settings invalid", es_storage.table_id
+            )
             return
         if not es_storage.mapping_settings or es_storage.mapping_settings == '{}':
-            logger.error("table_id->[%s] need to create index,but mapping_settings invalid", es_storage.table_id)
+            logger.error(
+                "manage_es_storage:table_id->[%s] need to create index,but mapping_settings invalid",
+                es_storage.table_id,
+            )
             return
 
         if not es_storage.index_exist():
             #   如果该table_id的index在es中不存在，说明要走初始化流程
-            logger.info("table_id->[%s] found no index in es,will create new one", es_storage.table_id)
+            logger.info(
+                "manage_es_storage:table_id->[%s] found no index in es,will create new one", es_storage.table_id
+            )
             es_storage.create_index_and_aliases(es_storage.slice_gap)
         else:
             # 否则走更新流程
@@ -211,11 +219,11 @@ def _manage_es_storage(es_storage):
         # 重新分配索引数据
         es_storage.reallocate_index()
 
-        logger.info("table_id->[%s] create index successfully", es_storage.table_id)
-        logger.debug("es_storage->[{}] cron task success.".format(es_storage.table_id))
+        logger.info("manage_es_storage:table_id->[%s] create index successfully", es_storage.table_id)
+        logger.info("manage_es_storage:es_storage->[{}] cron task success.".format(es_storage.table_id))
     except Exception as e:  # pylint: disable=broad-except
         # 记录异常集群的信息
-        logger.error("es_storage index lifecycle failed,table_id->{}".format(es_storage.table_id))
+        logger.error("manage_es_storage:es_storage index lifecycle failed,table_id->{}".format(es_storage.table_id))
         logger.exception(e)
 
 
