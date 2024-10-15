@@ -27,7 +27,7 @@ from apps.log_clustering.constants import (
     DEFAULT_NOTIFY_RECEIVER_TYPE,
 )
 from apps.log_clustering.models import ClusteringConfig, NoticeGroup
-from apps.log_databus.constants import ADMIN_REQUEST_USER, EMPTY_REQUEST_USER
+from apps.log_databus.constants import EMPTY_REQUEST_USER
 from apps.log_search.models import LogIndexSet
 
 
@@ -71,6 +71,5 @@ class MonitorUtils(object):
     @classmethod
     def _generate_maintainer(cls, index_set_id):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id)
-        maintainers = {clustering_config.created_by}
-        maintainers = maintainers - {ADMIN_REQUEST_USER, EMPTY_REQUEST_USER}
+        maintainers = {clustering_config.created_by} - {EMPTY_REQUEST_USER}
         return maintainers

@@ -117,9 +117,10 @@ class ClusteringConfigHandler(object):
 
         log_index_set = LogIndexSet.objects.get(index_set_id=index_set_id)
 
-        if log_index_set.scenario_id == Scenario.BKDATA or (
+        if not log_index_set.scenario_id == Scenario.BKDATA and not (
             log_index_set.scenario_id == Scenario.LOG and log_index_set.collector_config_id
         ):
+            # 以下类型允许接入聚类: 1. 计算平台索引，2. 采集项索引
             raise ClusteringAccessNotSupportedException()
 
         collector_config_id = log_index_set.collector_config_id
