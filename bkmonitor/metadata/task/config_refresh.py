@@ -255,7 +255,7 @@ def refresh_es_storage():
     logger.info("refresh_es_storage:start to refresh es_storage")
     start_time = time.time()  # 记录开始时间
 
-    # 获取设置中的黑名单和白名单
+    # 1. 获取设置中的黑名单和白名单
     es_blacklist = getattr(settings, "ES_CLUSTER_BLACKLIST", [])
     # es_cluster_wl = getattr(settings, "ES_SERIAL_CLUSTER_LIST", [])
 
@@ -266,23 +266,23 @@ def refresh_es_storage():
     #     )
     #     manage_es_storage.delay(es_storage_data)
 
+    # 2.筛选出需要创建索引且不在黑名单中的集群
     # Note：由于白名单中的集群涉及的索引数量过大，现不再采用串行处理方式，改为根据ES集群ID分组进行索引轮转任务
-    # 筛选出需要创建索引且不在黑名单中的集群
     es_storages = models.ESStorage.objects.filter(source_type=EsSourceType.LOG.value, need_create_index=True).exclude(
         storage_cluster_id__in=es_blacklist
     )
 
-    # 过滤掉无效的表，进一步减少轮转的索引数据量
+    # 3. 过滤掉无效的表，进一步减少轮转的索引数据量
     table_id_list = models.ResultTable.objects.filter(
         table_id__in=es_storages.values_list("table_id", flat=True), is_enable=True, is_deleted=False
     ).values_list("table_id", flat=True)
 
     es_storages = es_storages.filter(table_id__in=table_id_list)
 
-    # 设置每个任务处理的记录数
+    # 4. 设置每个任务处理的记录数
     start, step = 0, 100
 
-    # 按 storage_cluster_id 分组下发轮转任务，提高并发性能，降低ES集群的压力
+    # 5. 按 storage_cluster_id 分组下发轮转任务，提高并发性能，降低ES集群的压力
     es_storages_by_cluster = es_storages.values('storage_cluster_id').distinct()
 
     for cluster in es_storages_by_cluster:
@@ -290,7 +290,7 @@ def refresh_es_storage():
         cluster_storages = es_storages.filter(storage_cluster_id=cluster_id)
         count = cluster_storages.count()
         logger.info("refresh_es_storage:refresh cluster_id->[%s] es_storages count->[%s]", cluster_id, count)
-        # 为每个集群创建批量任务
+        # 5.1 为每个集群创建批量任务
         for s in range(start, count, step):
             manage_es_storage.delay(cluster_storages[s : s + step])
 
