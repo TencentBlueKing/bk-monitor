@@ -58,6 +58,11 @@
           padding-bottom: 13px;
           background-color: #fff;
 
+          .title {
+            display: inline-block;
+            line-height: 27px;
+          }
+
           .folding {
             font-size: 22px;
           }
@@ -120,7 +125,7 @@
         align-items: center;
         justify-content: space-between;
 
-        .app-list-btns {
+        .app-list-bts {
           display: flex;
           align-items: center;
 

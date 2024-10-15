@@ -234,14 +234,13 @@ export default class DetailsSide extends tsc<IProps> {
   @Watch('show')
   handleWatchShow(val: boolean) {
     if (val) {
+      this.initData();
       this.selected = this.selectOptions[0]?.id || 'default';
       if (this.dataType === EDataType.avgDuration) {
         // 响应耗时默认是 平均响应耗时
         this.selected = 'AVG';
       }
       this.getData();
-    } else {
-      this.initData();
     }
   }
 

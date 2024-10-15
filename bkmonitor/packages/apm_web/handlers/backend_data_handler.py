@@ -10,7 +10,10 @@ specific language governing permissions and limitations under the License.
 """
 import copy
 import json
+from datetime import datetime
 
+import pytz
+from django.conf import settings
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 
@@ -62,7 +65,7 @@ class TelemetryBackendHandler:
         "type": "graph",
         "gridPos": {"x": 0, "y": 0, "w": 12, "h": 6},
         "targets": [],
-        "options": {"time_series": {"type": "bar"}},
+        "options": {"time_series": {}},
     }
 
     GRAIN_MAPPING = {
@@ -83,7 +86,10 @@ class TelemetryBackendHandler:
         return self.app.fetch_datasource_info(self.telemetry.datasource_type, attr_name="result_table_id")
 
     @classmethod
-    def build_call_back_target(cls, data_type_label, data_source_label, table_name, metric_field, **kwargs) -> dict:
+    def build_call_back_target(cls, data_type_label, data_source_label, **kwargs) -> dict:
+        table_name = kwargs.get("table_name", "__default__")
+        metric_field = kwargs.get("metric_field", "bk_apm_count")
+        method_method = kwargs.get("method_method", "COUNT")
         grain = kwargs.pop("grain", "1m")
         query_config_kwargs = kwargs.pop("query_config_kwargs", {})
         target = {
@@ -97,7 +103,7 @@ class TelemetryBackendHandler:
                         "data_source_label": data_source_label,
                         "data_type_label": data_type_label,
                         "table": table_name,
-                        "metrics": [{"field": metric_field, "method": "COUNT", "alias": "A"}],
+                        "metrics": [{"field": metric_field, "method": method_method, "alias": "A"}],
                         "group_by": [],
                         "display": True,
                         "where": [],
@@ -119,8 +125,8 @@ class TelemetryBackendHandler:
     @classmethod
     def build_data_count_query(cls, **kwargs):
         templates = []
-        for idx, grain_config in enumerate([(_("分钟数据量"), "1m", 0, 0), (_("日数据量"), "1d", 12, 0)]):
-            title, grain, x_pos, y_pos = grain_config
+        for idx, grain_config in enumerate([(_("分钟数据量"), "1m", None, 0, 0), (_("日数据量"), "1d", "bar", 12, 0)]):
+            title, grain, display_type, x_pos, y_pos = grain_config
             kwargs["grain"] = grain
             _id = idx + 1
             template = copy.deepcopy(cls.CALL_BACK_PARAMS_FRAME)
@@ -128,6 +134,9 @@ class TelemetryBackendHandler:
             template["title"] = title
             template["gridPos"]["x"] = x_pos
             template["gridPos"]["y"] = y_pos
+            template["options"]["collect_interval_display"] = grain
+            if display_type:
+                template["options"]["time_series"]["type"] = display_type
             target = cls.build_call_back_target(**kwargs)
             template["targets"] = [target]
             templates.append(template)
@@ -211,6 +220,7 @@ class TraceBackendHandler(TelemetryBackendHandler):
             "data_source_label": DataSourceLabel.CUSTOM,
             "table_name": self.metric_result_table_id,
             "metric_field": "bk_apm_count",
+            "method_method": "SUM",
         }
         kwargs.update(view_params)
         return self.build_data_count_query(
@@ -242,7 +252,7 @@ class TraceBackendHandler(TelemetryBackendHandler):
                     "data_type_label": DataTypeLabel.TIME_SERIES,
                     "alias": "a",
                     "result_table_id": f"{self.metric_result_table_id}",
-                    "agg_method": "COUNT",
+                    "agg_method": "SUM",
                     "agg_interval": 60,
                     "agg_dimension": [],
                     "agg_condition": [],
@@ -325,6 +335,7 @@ class LogBackendHandler(TelemetryBackendHandler):
             "data_source_label": DataSourceLabel.BK_LOG_SEARCH,
             "table_name": self.result_table_id,
             "metric_field": "_index",
+            "method_method": "COUNT",
             "query_config_kwargs": {"index_set_id": self.index_set_id},
         }
         kwargs.update(view_params)
@@ -347,15 +358,15 @@ class LogBackendHandler(TelemetryBackendHandler):
         return {
             "result_table_id": self.result_table_id,
             "name": f"BKAPM-{_('无数据告警')}-{self.app.app_name}-{self.telemetry.value}",
-            "metric_id": f"{self.result_table_id}._index",
+            "metric_id": f"bk_log_search.index_set.{self.index_set_id}",
             "metric_field": "_index",
             "data_source_label": DataSourceLabel.PROMETHEUS,
-            "data_type_label": DataTypeLabel.TIME_SERIES,
+            "data_type_label": DataTypeLabel.LOG,
             "index_set_id": self.index_set_id,
             "query_configs": [
                 {
                     "data_source_label": DataSourceLabel.BK_LOG_SEARCH,
-                    "data_type_label": DataTypeLabel.TIME_SERIES,
+                    "data_type_label": DataTypeLabel.LOG,
                     "index_set_id": self.index_set_id,
                     "result_table_id": self.result_table_id,
                     "agg_method": "COUNT",
@@ -364,7 +375,7 @@ class LogBackendHandler(TelemetryBackendHandler):
                     "agg_condition": [],
                     "alias": "a",
                     "metric_field": "_index",
-                    "metric_id": f"{self.result_table_id}._index",
+                    "metric_id": f"bk_log_search.index_set.{self.index_set_id}",
                     "query_string": "*",
                     "group_by": [],
                     "display": True,
@@ -374,6 +385,8 @@ class LogBackendHandler(TelemetryBackendHandler):
                     "time_field": "dtEventTimeStamp",
                     "filter_dict": {},
                     "functions": [],
+                    "bkmonitor_strategy_id": "_index",
+                    "alert_name": "_index",
                 }
             ],
         }
@@ -441,8 +454,27 @@ class MetricBackendHandler(TelemetryBackendHandler):
         return all([storage.get("status") == "running" for storage in storages])
 
     def data_sampling(self, size: int = 10, **kwargs):
+        # 指定时区
+        target_timezone = pytz.timezone(settings.TIME_ZONE)
         resp = api.metadata.kafka_tail({"table_id": self.result_table_id, "size": size}) if self.result_table_id else []
-        return [{"raw_log": log, "sampling_time": log.get("datetime", "")} for log in resp]
+        sampling_log_response = []
+        for log in resp:
+            log_data = log.get("data", [])
+            formatted_time_with_colon = None
+            for log_record in log_data:
+                if "timestamp" not in log_record:
+                    continue
+                timestamp_s = log_record["timestamp"] / 1000
+                localized_dt = (
+                    datetime.utcfromtimestamp(timestamp_s).replace(tzinfo=pytz.utc).astimezone(target_timezone)
+                )
+                # 格式化为指定的字符串格式
+                formatted_time = localized_dt.strftime('%Y-%m-%d %H:%M:%S%z')
+                formatted_time_with_colon = f"{formatted_time[:-2]}:{formatted_time[-2:]}"
+                if formatted_time_with_colon:
+                    break
+            sampling_log_response.append({"raw_log": log, "sampling_time": formatted_time_with_colon})
+        return sampling_log_response
 
     def get_data_view_config(self, **kwargs):
         view_params = {
@@ -451,7 +483,8 @@ class MetricBackendHandler(TelemetryBackendHandler):
             "bk_biz_id": self.app.bk_biz_id,
             "query_config_kwargs": {
                 "table": self.result_table_id,
-                "promql": f'count({{__name__=~"custom:{self.result_table_id}:.*"}})',
+                "promql": f'count({{__name__=~"custom:{self.result_table_id}:.*"}}) - '
+                f'count({{__name__=~"custom:{self.result_table_id}:^(apm|bk_apm).*"}})',
             },
         }
         kwargs.update(view_params)
@@ -500,9 +533,13 @@ class MetricBackendHandler(TelemetryBackendHandler):
         return count
 
     def get_no_data_strategy_config(self, **kwargs):
+        promql = (
+            f'count({{__name__=~"custom:{self.result_table_id}:.*"}}) - '
+            f'count({{__name__=~"custom:{self.result_table_id}:^(apm|bk_apm).*"}})'
+        )
         return {
             "result_table_id": self.result_table_id,
-            "metric_id": f'count({{__name__=~"custom:{self.result_table_id}:.*"}})',
+            "metric_id": promql,
             "metric_field": None,
             "name": f"BKAPM-{_('无数据告警')}-{self.app.app_name}-{self.telemetry.value}",
             "data_source_label": DataSourceLabel.PROMETHEUS,
@@ -512,7 +549,7 @@ class MetricBackendHandler(TelemetryBackendHandler):
                     "data_source_label": DataSourceLabel.PROMETHEUS,
                     "data_type_label": DataTypeLabel.TIME_SERIES,
                     "table": self.result_table_id,
-                    "promql": f'count({{__name__=~"custom:{self.result_table_id}:.*"}})',
+                    "promql": promql,
                     "agg_interval": 60,
                     "alias": "a",
                 }

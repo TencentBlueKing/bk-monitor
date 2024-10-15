@@ -565,10 +565,19 @@ class Application(AbstractRecordModel):
 
     def set_init_datasource(self, datasource_option, enabled_profiling, enabled_trace, enabled_metric, enabled_log):
         # 更新数据源开关
+        # profiling
         self.is_enabled_profiling = enabled_profiling
+        self.profiling_data_status = DataStatus.NO_DATA if enabled_profiling else DataStatus.DISABLED
+        # trace
         self.is_enabled_trace = enabled_trace
+        self.trace_data_status = DataStatus.NO_DATA if enabled_trace else DataStatus.DISABLED
+        # metric
         self.is_enabled_metric = enabled_metric
+        self.metric_data_status = DataStatus.NO_DATA if enabled_metric else DataStatus.DISABLED
+        # log
         self.is_enabled_log = enabled_log
+        self.log_data_status = DataStatus.NO_DATA if enabled_log else DataStatus.DISABLED
+
         self.save()
 
         ApmMetaConfig.application_config_setup(

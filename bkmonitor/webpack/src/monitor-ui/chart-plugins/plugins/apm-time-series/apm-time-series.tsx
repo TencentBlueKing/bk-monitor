@@ -238,7 +238,7 @@ export default class ApmTimeSeries extends TimeSeries {
       }
       await Promise.all(promiseList).catch(() => false);
       this.metrics = metrics || [];
-      if (series.length) {
+      if (series.length && series?.some(s => !!s?.datapoints?.length)) {
         const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
         /* 派出图表数据包含的维度*/
         this.emitDimensions(series);

@@ -393,6 +393,7 @@ export default class DataStatusMetric extends tsc<IProps> {
                           showHeader={false}
                           showXAxis={true}
                           showXAxisNum={2}
+                          xAxisFormat={'MM-DD HH:mm'}
                         />
                       ) : (
                         <span class='no-data-text'>{this.$t('暂无数据')}</span>
