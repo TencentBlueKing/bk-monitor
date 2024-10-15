@@ -35,6 +35,7 @@ import {
   TitleComponent,
   ToolboxComponent,
   TooltipComponent,
+  BrushComponent,
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
@@ -82,6 +83,7 @@ echarts.use([
   MarkPointComponent,
   GraphicComponent,
   GeoComponent,
+  BrushComponent,
 ]);
 
 export { echarts };

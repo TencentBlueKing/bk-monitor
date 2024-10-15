@@ -135,7 +135,7 @@ export default defineComponent({
     bkTooltips,
   },
   props: TimeSeriesProps,
-  emits: ['loading', 'errorMsg'],
+  emits: ['loading', 'errorMsg', 'chartData'],
   setup(props, { emit }) {
     const timeSeriesRef = ref<HTMLDivElement>();
     const chartWrapperRef = ref<HTMLDivElement>();
@@ -588,6 +588,7 @@ export default defineComponent({
                     }))
                   );
                   handleClearErrorMsg();
+                  emit('chartData', res.series);
                   return true;
                 })
                 .catch(error => {
@@ -866,6 +867,10 @@ export default defineComponent({
       return '';
     }
 
+    function setOptions(newOptions) {
+      options.value = newOptions;
+    }
+
     return {
       ...unWathChartData,
       ...useLegendRet,
@@ -917,6 +922,7 @@ export default defineComponent({
       isChartLoading,
       hoverAllTooltips,
       tooltipsContentLastItem,
+      setOptions,
     };
   },
   render() {
