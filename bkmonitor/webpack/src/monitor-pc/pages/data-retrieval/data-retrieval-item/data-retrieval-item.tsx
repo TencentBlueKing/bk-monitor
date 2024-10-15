@@ -260,7 +260,10 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
         </div>
         {this.metricValStr
           ? [
-              <div class='query-item-group'>
+              <div
+                key={1}
+                class='query-item-group'
+              >
                 <div class='query-item-wrap flex-1'>
                   <div class='query-item-label'>{this.$t('汇聚方法')}</div>
                   <div class='query-item-content'>
@@ -291,7 +294,10 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
                   </div>
                 </div>
               </div>,
-              <div class='query-item-group'>
+              <div
+                key={'query-item-group'}
+                class='query-item-group'
+              >
                 <div class='query-item-wrap query-item-group-by'>
                   <div class='query-item-label'>{this.$t('维度')}</div>
                   <div class='query-item-content'>
@@ -303,9 +309,9 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
                       placeholder={String(this.$t('选择'))}
                       search-key={['name', 'id']}
                       tag-tpl={this.aggDimensionTagTpl}
+                      tooltip-key='__null__' // 这里有xss注入问题 改成一个不可能字符串字段
                       tpl={this.aggDimensionOptionTpl}
                       trigger='focus'
-                      // tooltip-key="id"
                       onChange={() => this.emitChange()}
                     />
                   </div>
