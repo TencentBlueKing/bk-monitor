@@ -41,26 +41,26 @@ class APMEvent(Enum):
             for key in updated_telemetry_types:
                 data_sources_template += _("{}、").format(key)
 
-        content = _("应用当前上报的整体状态为: ")
+        content = _("应用当前整体状态为: ")
         if data_sources:
             for key, value in data_sources.items():
                 value = "enabled" if value else "disabled"
                 content += _("\n - {}: {};").format(key, value)
         body_template = {
             "app_create": _(
-                "\n有新APM应用创建，请关注！"
+                "\n有新 APM 应用创建，请关注！"
                 "\n应用名称：{app_name},"
                 "\n应用别名：{app_alias}, "
-                "\n业务ID：{bk_biz_id}, "
+                "\n业务 ID：{bk_biz_id}, "
                 "\n业务名称：{bk_biz_name}, "
                 "\n创建者：{operator}，"
                 "\n创建时间：{operate_time}"
             ),
             "app_update": _(
-                "\n有APM应用更新，请关注！"
+                "\n有 APM 应用更新，请关注！"
                 "\n应用名称：{app_name},"
                 "\n应用别名：{app_alias}, "
-                "\n业务ID：{bk_biz_id}, "
+                "\n业务 ID：{bk_biz_id}, "
                 "\n业务名称：{bk_biz_name}, "
                 "\n更新者：{operator}，"
                 "\n更新时间：{operate_time}"
