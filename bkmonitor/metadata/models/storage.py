@@ -2538,7 +2538,6 @@ class ESStorage(models.Model, StorageResultTable):
                             self.table_id,
                             last_index_name,
                         )
-                    now_gap += self.slice_gap
                     continue
 
                 # 2.5 判断当前轮次别名是否有指向旧的index，如果存在则需要解除（走到这里说明新索引 last_index_name一定存在，可以放心删除）
@@ -2619,7 +2618,7 @@ class ESStorage(models.Model, StorageResultTable):
         """
         try:
             # 获取索引的健康状态
-            logger.info("is_index_ready:table_id->[%s] check index->[{}] health", self.table_id, index_name)
+            logger.info("is_index_ready:table_id->[%s] check index->[%s] health", self.table_id, index_name)
             health = es_client.cluster.health(index=index_name, level=ES_INDEX_CHECK_LEVEL, request_timeout=5)
             index_health = health[ES_INDEX_CHECK_LEVEL].get(index_name, {})
 
