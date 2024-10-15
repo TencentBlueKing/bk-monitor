@@ -328,7 +328,6 @@ class ExternalPermission(OperateRecordModel):
         if "__all__" in authorized_users:
             authorized_users = list(
                 cls.objects.filter(
-                    action_id=validated_request_data["action_id"],
                     space_uid=validated_request_data["space_uid"],
                 )
                 .values_list("authorized_user", flat=True)
