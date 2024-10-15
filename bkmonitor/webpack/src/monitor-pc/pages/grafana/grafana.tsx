@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { getDashboardList } from 'monitor-api/modules/grafana';
 import bus from 'monitor-common/utils/event-bus';
 
-import { DASHBOARD_ID_KEY } from '../../constant/constant';
+import { DASHBOARD_ID_KEY, UPDATE_GRAFANA_KEY } from '../../constant/constant';
 import { getDashboardCache } from './utils';
 
 import './grafana.scss';
@@ -52,6 +52,7 @@ export default class MyComponent extends tsc<object> {
   unWatch = null;
   loading = true;
   hasLogin = false;
+  showAlert = false;
   get orignUrl() {
     return process.env.NODE_ENV === 'development' ? `${process.env.proxyUrl}/` : `${location.origin}${window.site_url}`;
   }
@@ -65,6 +66,7 @@ export default class MyComponent extends tsc<object> {
   }
   @Watch('url', { immediate: true })
   async handleUrlChange() {
+    this.showAlert = !localStorage.getItem(UPDATE_GRAFANA_KEY);
     if (this.$store.getters.bizIdChangePedding) {
       this.loading = true;
       this.grafanaUrl = `${this.orignUrl}${this.$store.getters.bizIdChangePedding.replace('/home', '')}/?orgName=${
@@ -230,12 +232,41 @@ export default class MyComponent extends tsc<object> {
       }
     }
   }
+  handleCloseUpdateAlert() {
+    localStorage.setItem(UPDATE_GRAFANA_KEY, 'true');
+    this.showAlert = false;
+  }
   render() {
     return (
       <div
         class='grafana-wrap'
         v-monitor-loading={{ isLoading: this.loading }}
       >
+        {this.showAlert && (
+          <bk-alert
+            class='grafana-update-alert'
+            show-icon={false}
+            type='info'
+            closable
+            onClose={this.handleCloseUpdateAlert}
+          >
+            <div
+              class='grafana-update-alert-title'
+              slot='title'
+            >
+              <i class='icon-monitor icon-inform' />
+              {this.$t('Grafana已经升级到10版本，来看看有哪些功能差异')}
+              <bk-button
+                size='small'
+                theme='primary'
+                text
+              >
+                {this.$t('查看详情')}
+                <i class='icon-monitor icon-fenxiang link-icon' />
+              </bk-button>
+            </div>
+          </bk-alert>
+        )}
         <iframe
           ref='iframe'
           class='grafana-wrap-frame'
