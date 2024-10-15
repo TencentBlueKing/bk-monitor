@@ -224,7 +224,7 @@ class ClusteringConfigViewSet(APIViewSet):
         }
         """
         params = self.params_valid(ClusteringConfigSerializer)
-        return Response(ClusteringConfigHandler(index_set_id=index_set_id).update(params=params))
+        return Response(ClusteringConfigHandler(index_set_id=index_set_id).synchronous_update(params=params))
 
     @detail_route(methods=["GET"], url_path="access/status")
     def access_status(self, request, index_set_id, *args, **kwargs):

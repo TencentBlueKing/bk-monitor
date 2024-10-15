@@ -21,7 +21,6 @@ the project delivered to anyone in the future.
 """
 from collections import defaultdict
 
-from django.db import transaction
 from django.utils.translation import ugettext as _
 
 from apps.log_clustering.exceptions import (
@@ -35,22 +34,15 @@ from apps.log_search.models import LogIndexSet
 
 
 class RegexTemplateHandler(object):
-    def __init__(self, space_uid: str):
-        self.space_uid = space_uid
-
-    @transaction.atomic
-    def list_templates(self):
-        data = RegexTemplate.objects.filter(space_uid=self.space_uid).values(
+    def list_templates(self, space_uid):
+        data = RegexTemplate.objects.filter(space_uid=space_uid).values(
             "id", "space_uid", "template_name", "predefined_varibles"
         )
-        # 空间不存在模板，创建系统默认
-        if not data.exists():
-            # 不存在模板，创建系统模板
-            instance = RegexTemplate.objects.create(
-                space_uid=self.space_uid,
-                template_name=_("系统默认"),
-                predefined_varibles=OnlineTaskTrainingArgs.PREDEFINED_VARIBLES,
-            )
+        # 空间是否有系统默认模板
+        instance, created = RegexTemplate.objects.get_or_create(
+            space_uid=space_uid, template_name=_("系统默认"), predefined_varibles=OnlineTaskTrainingArgs.PREDEFINED_VARIBLES
+        )
+        if created:
             return [
                 {
                     "id": instance.id,
@@ -91,11 +83,8 @@ class RegexTemplateHandler(object):
             ]
         return list(data)
 
-    @transaction.atomic
-    def create_template(self, template_name):
-        instance, created = RegexTemplate.objects.get_or_create(
-            space_uid=self.space_uid, template_name=_(template_name)
-        )
+    def create_template(self, space_uid, template_name):
+        instance, created = RegexTemplate.objects.get_or_create(space_uid=space_uid, template_name=template_name)
         if not created:
             raise DuplicateNameException(DuplicateNameException.MESSAGE.format(name=template_name))
         return {
@@ -106,7 +95,6 @@ class RegexTemplateHandler(object):
             "related_index_set_list": [],
         }
 
-    @transaction.atomic
     def update_template(self, template_id, template_name):
         instance = RegexTemplate.objects.filter(id=template_id).first()
         if not instance:
@@ -117,7 +105,6 @@ class RegexTemplateHandler(object):
         instance.save()
         return {"id": instance.id, "space_uid": instance.space_uid, "template_name": instance.template_name}
 
-    @transaction.atomic
     def delete_template(self, template_id):
         instance = RegexTemplate.objects.filter(id=template_id).first()
         if not instance:

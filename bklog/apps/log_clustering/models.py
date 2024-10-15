@@ -30,7 +30,7 @@ from django.utils.translation import ugettext_lazy as _
 from apps.log_clustering.constants import (
     LogColShowTypeEnum,
     PatternEnum,
-    RuleTypeEnum,
+    RegexRuleTypeEnum,
     StrategiesType,
     SubscriptionTypeEnum,
     YearOnYearChangeEnum,
@@ -164,8 +164,8 @@ class ClusteringConfig(SoftDeleteModel):
     regex_rule_type = models.CharField(
         _("规则类型"),
         max_length=64,
-        choices=RuleTypeEnum.get_choices(),
-        default=RuleTypeEnum.CUSTOMIZE.value,
+        choices=RegexRuleTypeEnum.get_choices(),
+        default=RegexRuleTypeEnum.CUSTOMIZE.value,
     )
     regex_template_id = models.IntegerField(_("模板id"), default=0)
 
@@ -317,3 +317,7 @@ class RegexTemplate(SoftDeleteModel):
     space_uid = models.CharField(_("空间唯一标识"), db_index=True, max_length=256)
     template_name = models.CharField(_("模板名称"), db_index=True, max_length=256)
     predefined_varibles = models.TextField(_("模板的正则表达式"))
+
+    class Meta:
+        verbose_name = _("聚类正则模板")
+        verbose_name_plural = _("聚类正则模板")

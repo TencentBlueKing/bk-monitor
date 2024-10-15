@@ -259,7 +259,7 @@ class OwnerConfigEnum(ChoicesEnum):
     )
 
 
-class RuleTypeEnum(ChoicesEnum):
+class RegexRuleTypeEnum(ChoicesEnum):
     CUSTOMIZE = "customize"
     TEMPLATE = "template"
 

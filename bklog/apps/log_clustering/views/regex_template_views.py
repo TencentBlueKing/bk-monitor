@@ -21,13 +21,39 @@ the project delivered to anyone in the future.
 
 from rest_framework.response import Response
 
-from apps.generic import APIViewSet
+from apps.generic import ModelViewSet
+from apps.iam import ActionEnum
+from apps.iam.handlers.drf import BusinessActionPermission
+from apps.log_clustering.exceptions import RegexTemplateNotExistException
 from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
-from apps.log_clustering.serializers import RegexTemplateSerializer
+from apps.log_clustering.models import RegexTemplate
+from apps.log_clustering.serializers import (
+    CreateRegexTemplateSerializer,
+    UpdateRegexTemplateSerializer,
+)
 
 
-class RegexTemplateViewSet(APIViewSet):
+class RegexTemplateViewSet(ModelViewSet):
     lookup_field = "id"
+
+    def get_permissions(self):
+        if self.action == "list":
+            space_uid = self.request.query_params.get("space_uid")
+            return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS], space_uid)]
+        elif self.action in ["create", "partial_update", "destroy"]:
+            if self.action == "create":
+                space_uid = self.request.data.get("space_uid")
+            else:
+                template_id = self.kwargs[self.lookup_field]
+                template_obj = RegexTemplate.objects.filter(id=template_id).first()
+                if not template_obj:
+                    raise RegexTemplateNotExistException(
+                        RegexTemplateNotExistException.MESSAGE.format(template_id=template_id)
+                    )
+                space_uid = template_obj.space_uid
+            return [BusinessActionPermission([ActionEnum.MANAGE_DESENSITIZE_RULE], space_uid)]
+
+        return []
 
     def list(self, request, *args, **kwargs):
         """
@@ -38,6 +64,7 @@ class RegexTemplateViewSet(APIViewSet):
         @apiSuccess {Int} id 模板ID
         @apiSuccess {String} template_name 模板名称
         @apiSuccess {String} predefined_varibles 正则表达式
+        @apiSuccess {Array} related_index_set_list 模板关联的索引集
         @apiSuccessExample {json} 成功返回:
         {
             "message": "",
@@ -74,7 +101,7 @@ class RegexTemplateViewSet(APIViewSet):
         }
         """
         space_uid = request.query_params.get("space_uid")
-        return Response(RegexTemplateHandler(space_uid).list_templates())
+        return Response(RegexTemplateHandler().list_templates(space_uid=space_uid))
 
     def create(self, request, *args, **kwargs):
         """
@@ -100,8 +127,10 @@ class RegexTemplateViewSet(APIViewSet):
             "result": true
         }
         """
-        data = self.params_valid(RegexTemplateSerializer)
-        return Response(RegexTemplateHandler(data["space_uid"]).create_template(template_name=data["template_name"]))
+        data = self.params_valid(CreateRegexTemplateSerializer)
+        return Response(
+            RegexTemplateHandler().create_template(space_uid=data["space_uid"], template_name=data["template_name"])
+        )
 
     def partial_update(self, request, *args, id=None, **kwargs):
         """
@@ -110,7 +139,6 @@ class RegexTemplateViewSet(APIViewSet):
         @apiGroup log_clustering
         @apiParamExample {Json} 请求参数
         {
-            "space_uid": "bkcc__2",
             "template_name": "aaa"
         }
         @apiSuccessExample {json} 成功返回:
@@ -125,15 +153,14 @@ class RegexTemplateViewSet(APIViewSet):
             "result": true
         }
         """
-        space_uid = request.data.get("space_uid")
-        template_name = request.data.get("template_name")
+        data = self.params_valid(UpdateRegexTemplateSerializer)
         return Response(
-            RegexTemplateHandler(space_uid).update_template(template_id=int(id), template_name=template_name)
+            RegexTemplateHandler().update_template(template_id=int(id), template_name=data["template_name"])
         )
 
     def destroy(self, request, *args, id=None, **kwargs):
         """
-        @api {delete} /regex_template/$regex_template_id/?space_uid=$space_uid 2_聚类正则模板-创建
+        @api {delete} /regex_template/$regex_template_id/ 2_聚类正则模板-删除
         @apiName delete_regex_template
         @apiGroup log_clustering
         @apiSuccessExample {json} 成功返回:
@@ -144,5 +171,4 @@ class RegexTemplateViewSet(APIViewSet):
             "result": true
         }
         """
-        space_uid = request.query_params.get("space_uid")
-        return Response(RegexTemplateHandler(space_uid).delete_template(template_id=int(id)))
+        return Response(RegexTemplateHandler().delete_template(template_id=int(id)))

@@ -32,6 +32,7 @@ from apps.log_clustering.constants import (
     CLUSTERING_CONFIG_DEFAULT,
     CLUSTERING_CONFIG_EXCLUDE,
     DEFAULT_CLUSTERING_FIELDS,
+    RegexRuleTypeEnum,
 )
 from apps.log_clustering.exceptions import (
     BkdataFieldsException,
@@ -48,7 +49,7 @@ from apps.log_clustering.handlers.aiops.aiops_model.aiops_model_handler import (
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.handlers.pipline_service.constants import OperatorServiceEnum
-from apps.log_clustering.models import ClusteringConfig
+from apps.log_clustering.models import ClusteringConfig, RegexTemplate
 from apps.log_clustering.tasks.msg import access_clustering
 from apps.log_clustering.utils import pattern
 from apps.log_databus.constants import EtlConfig
@@ -219,6 +220,20 @@ class ClusteringConfigHandler(object):
         )
         self.data.save(update_fields=["task_records"])
         return pipeline.id
+
+    def synchronous_update(self, params):
+        self.update(params)
+        # 使用了模板且模板有更改，修改模板以及所有引用该模板的索引集聚类配置
+        if params["regex_rule_type"] == RegexRuleTypeEnum.TEMPLATE.value:
+            predefined_varibles = params["predefined_varibles"]
+            instance = RegexTemplate.objects.get(id=params["regex_template_id"])
+            if instance.predefined_varibles != predefined_varibles:
+                instance.predefined_varibles = predefined_varibles
+                instance.save()
+                configs = ClusteringConfig.objects.filter(regex_template_id=params["regex_template_id"])
+                for c in configs:
+                    update_params = {"predefined_varibles": c.predefined_varibles}
+                    self.update(update_params)
 
     def get_access_status(self, task_id=None, include_update=False):
         """
