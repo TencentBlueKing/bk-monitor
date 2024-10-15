@@ -904,12 +904,25 @@ class FetchStatisticsGraphSerializer(QueryFieldBaseSerializer):
     distinct_count = serializers.IntegerField(label=_("去重条数"), required=False)
 
 
-class IndexSetCustomConfigSerializer(serializers.Serializer):
-    fields_width = serializers.JSONField(label=_("索引集字段宽度配置"), required=True)
-
-
 class UserIndexSetCustomConfigSerializer(serializers.Serializer):
+    index_set_id = serializers.IntegerField(label=_("索引集ID"), required=False)
     index_set_ids = serializers.ListField(
-        label=_("索引集ID列表"), required=True, allow_empty=False, child=serializers.IntegerField()
+        label=_("索引集ID列表"), required=False, allow_empty=False, child=serializers.IntegerField()
     )
-    index_set_config = IndexSetCustomConfigSerializer(label=_("用户索引集配置"), required=True)
+    index_set_type = serializers.ChoiceField(label=_("索引集类型"), required=True, choices=IndexSetType.get_choices())
+    index_set_config = serializers.JSONField(label=_("索引集字段宽度配置"), required=True)
+
+    def validate(self, attrs):
+        index_set_id = attrs.get('index_set_id')
+        index_set_ids = attrs.get('index_set_ids')
+        index_set_type = attrs.get('index_set_type')
+
+        if index_set_type == IndexSetType.SINGLE.value and not index_set_id:
+            raise serializers.ValidationError(
+                _("参数校验失败: index_set_id 必须被提供")
+            )
+        elif index_set_type == IndexSetType.UNION.value and not index_set_ids:
+            raise serializers.ValidationError(
+                _("参数校验失败: index_set_ids 必须被提供")
+            )
+        return attrs

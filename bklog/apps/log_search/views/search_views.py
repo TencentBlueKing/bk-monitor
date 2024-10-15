@@ -823,8 +823,8 @@ class SearchViewSet(APIViewSet):
             fields = search_handler_esquery.fields(scope)
 
         # 添加用户索引集自定义配置
-        fields_width = UserIndexSetConfigHandler([int(index_set_id)]).get_index_set_config().get("fields_width", {})
-        fields.update({"fields_width": fields_width})
+        index_set_config = UserIndexSetConfigHandler(index_set_id=int(index_set_id)).get_index_set_config()
+        fields.update({"index_set_config": index_set_config})
         return Response(fields)
 
     @detail_route(methods=["GET"], url_path="bcs_web_console")
@@ -1363,8 +1363,11 @@ class SearchViewSet(APIViewSet):
         fields = UnionSearchHandler().union_search_fields(data)
 
         # 添加用户索引集自定义配置
-        fields_width = UserIndexSetConfigHandler(data["index_set_ids"]).get_index_set_config().get("fields_width", {})
-        fields.update({"fields_width": fields_width})
+        index_set_config = UserIndexSetConfigHandler(
+            index_set_ids=data["index_set_ids"],
+            index_set_type=IndexSetType.UNION.value,
+        ).get_index_set_config()
+        fields.update({"index_set_config": index_set_config})
         return Response(fields)
 
     @list_route(methods=["POST"], url_path="union_search/export")
@@ -1589,23 +1592,15 @@ class SearchViewSet(APIViewSet):
         {
             "result": true,
             "data": {
-                "id": 2,
-                "created_at": "2024-10-14T10:03:12.006939Z",
-                "created_by": "admin",
-                "updated_at": "2024-10-15T01:50:46.971658Z",
-                "updated_by": "admin",
-                "is_deleted": false,
-                "deleted_at": null,
-                "deleted_by": null,
+                "id": 7,
                 "username": "admin",
-                "index_set_ids": [
-                    496,
-                    497
-                ],
+                "index_set_id": 495,
+                "index_set_ids": [],
+                "index_set_hash": "35051070e572e47d2c26c241ab88307f",
                 "index_set_config": {
                     "fields_width": {
-                        "dtEventTimeStamp": "12",
-                        "serverIp": 10,
+                        "dtEventTimeStamp": 12,
+                        "serverIp": 15,
                         "log": 80
                     }
                 }
@@ -1616,7 +1611,9 @@ class SearchViewSet(APIViewSet):
         """
         data = self.params_valid(UserIndexSetCustomConfigSerializer)
         return Response(
-            UserIndexSetConfigHandler(index_set_ids=data["index_set_ids"]).update_or_create(
-                index_set_config=data["index_set_config"]
-            )
+            UserIndexSetConfigHandler(
+                index_set_id=data.get("index_set_id"),
+                index_set_ids=data.get("index_set_ids"),
+                index_set_type=data["index_set_type"],
+            ).update_or_create(index_set_config=data["index_set_config"])
         )
