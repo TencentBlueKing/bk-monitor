@@ -56,6 +56,8 @@ from metadata.utils.redis_tools import RedisTools
 
 from .constants import (
     ES_ALIAS_EXPIRED_DELAY_DAYS,
+    ES_INDEX_CHECK_LEVEL,
+    ES_READY_STATUS,
     ESNamespacedClientType,
     EventGroupStatus,
 )
@@ -2122,14 +2124,13 @@ class ESStorage(models.Model, StorageResultTable):
         判断该index是否已经存在,优先v2，随后v1
         :return: True | False
         """
-        es_client = self.get_client()
-        stat_info_list = es_client.indices.stats(self.search_format_v2())
+        stat_info_list = self.es_client.indices.stats(self.search_format_v2())
         for stat_index_name in list(stat_info_list["indices"].keys()):
             re_result = self.index_re_v2.match(stat_index_name)
             if re_result:
                 logger.debug("table_id->[%s] found v2 index list->[%s]", self.table_id, str(stat_info_list))
                 return True
-        stat_info_list = es_client.indices.stats(self.search_format_v1())
+        stat_info_list = self.es_client.indices.stats(self.search_format_v1())
         for stat_index_name in list(stat_info_list["indices"].keys()):
             re_result = self.index_re_v1.match(stat_index_name)
             if re_result:
@@ -2140,7 +2141,6 @@ class ESStorage(models.Model, StorageResultTable):
 
     def _get_index_infos(self, namespaced: str) -> Tuple[Dict[str, Dict[str, Any]], str]:
         index_version = ""
-        client = self.get_client()
         extra = {ESNamespacedClientType.CAT.value: {"format": "json"}, ESNamespacedClientType.INDICES.value: {}}[
             namespaced
         ]
@@ -2149,8 +2149,8 @@ class ESStorage(models.Model, StorageResultTable):
             ESNamespacedClientType.INDICES.value: lambda d: d["indices"],
         }[namespaced]
         func = {
-            ESNamespacedClientType.CAT.value: client.cat.indices,
-            ESNamespacedClientType.INDICES.value: client.indices.stats,
+            ESNamespacedClientType.CAT.value: self.es_client.cat.indices,
+            ESNamespacedClientType.INDICES.value: self.es_client.indices.stats,
         }[namespaced]
 
         index_info_map: Dict[str, Dict[str, Any]] = getdata(func(index=self.search_format_v2(), **extra))
@@ -2327,8 +2327,7 @@ class ESStorage(models.Model, StorageResultTable):
         now_time = self.now
         now_gap = 0
 
-        # 1. 获取客户端
-        es_client = self.get_client()
+        # 1. 获取客户端 self.es_client
         # 统一的将所有【.】分割符改为【_】
         index_name = self.index_name
 
@@ -2343,7 +2342,7 @@ class ESStorage(models.Model, StorageResultTable):
                 current_index_wildcard = "{}_{}_*".format(self.index_name, current_time_str)
 
                 # 获取这个index的大小信息，这是需要兼容判断是否有未来数据写入到index上了
-                stat_info = es_client.indices.stats(current_index_wildcard)
+                stat_info = self.es_client.indices.stats(current_index_wildcard)
                 max_index = -1
 
                 # 判断获取最大的index名字
@@ -2363,7 +2362,7 @@ class ESStorage(models.Model, StorageResultTable):
                 max_index_name = "{}_{}_{}".format(self.index_name, current_time_str, max_index)
 
                 # 如果已经存在的index，不必重复创建
-                is_index_exists = es_client.indices.exists(index=max_index_name)
+                is_index_exists = self.es_client.indices.exists(index=max_index_name)
                 # 如果一个index是不存在的，则默认需要创建
                 should_create = not is_index_exists
 
@@ -2403,7 +2402,7 @@ class ESStorage(models.Model, StorageResultTable):
                 # 如果判断要创建index，需要先判断这个index是否有数据了
                 try:
                     # 如果是存在数据的，需要创建一个新的index
-                    if es_client.count(index=max_index_name).get("count", 0) != 0:
+                    if self.es_client.count(index=max_index_name).get("count", 0) != 0:
                         logger.info(
                             "index->[{}] already has data, will keep it and create new index.".format(max_index_name)
                         )
@@ -2413,7 +2412,7 @@ class ESStorage(models.Model, StorageResultTable):
 
                     # 不存在数据的，则删除并重新创建
                     else:
-                        es_client.indices.delete(max_index_name)
+                        self.es_client.indices.delete(max_index_name)
                         logger.warning(
                             "index->[{}] is differ from database config, "
                             "will be delete and recreated.".format(max_index_name)
@@ -2432,7 +2431,7 @@ class ESStorage(models.Model, StorageResultTable):
 
                 # 创建索引需要增加一个请求超时的防御
                 logger.info("index->[{}] trying to create, index_body->[{}]".format(index_name, self.index_body))
-                response = self._create_index_with_retry(es_client, current_index)
+                response = self._create_index_with_retry(self.es_client, current_index)
                 logger.info("index->[{}] now is created, response->[{}]".format(index_name, response))
 
                 # 需要将对应的别名指向这个新建的index
@@ -2440,8 +2439,8 @@ class ESStorage(models.Model, StorageResultTable):
                 new_current_alias_name = "write_{}_{}".format(current_time_str, index_name)
                 old_current_alias_name = "{}_{}_write".format(index_name, current_time_str)
 
-                es_client.indices.put_alias(index=current_index, name=new_current_alias_name)
-                es_client.indices.put_alias(index=current_index, name=old_current_alias_name)
+                self.es_client.indices.put_alias(index=current_index, name=new_current_alias_name)
+                self.es_client.indices.put_alias(index=current_index, name=old_current_alias_name)
 
                 logger.info(
                     "index->[{}] now has write alias->[{} | {}]".format(
@@ -2451,8 +2450,8 @@ class ESStorage(models.Model, StorageResultTable):
 
                 # 清理别名
                 if len(delete_index_list) != 0:
-                    es_client.indices.delete_alias(index=",".join(delete_index_list), name=old_current_alias_name)
-                    es_client.indices.delete_alias(index=",".join(delete_index_list), name=new_current_alias_name)
+                    self.es_client.indices.delete_alias(index=",".join(delete_index_list), name=old_current_alias_name)
+                    self.es_client.indices.delete_alias(index=",".join(delete_index_list), name=new_current_alias_name)
                     logger.info(
                         "index->[{}] has delete relation to alias->[{} | {}]".format(
                             delete_index_list, old_current_alias_name, new_current_alias_name
@@ -2468,8 +2467,13 @@ class ESStorage(models.Model, StorageResultTable):
     def create_or_update_aliases(self, ahead_time=1440):
         """
         更新alias，如果有已存在的alias，则将其指向最新的index，并根据ahead_time前向预留一定的alias
+        只有当即将切换的索引完全就绪时，才进行索引-别名的绑定关系切换，防止数据丢失
         """
-        es_client = self.get_client()
+
+        logger.info("create_or_update_aliases: start to create or update aliases for table_id->[%s]", self.table_id)
+        # 0. 获取ES句柄，复用 self.es_client
+
+        # 1.获取并组装当前最新的索引信息（索引名称、时间）
         current_index_info = self.current_index_info()
         last_index_name = self.make_index_name(
             current_index_info["datetime_object"], current_index_info["index"], current_index_info["index_version"]
@@ -2480,75 +2484,104 @@ class ESStorage(models.Model, StorageResultTable):
         now_gap = 0
         index_name = self.index_name
 
+        # 2. 循环，直至超出ahead_time，可以提前创建出未来ahead_time时间的别名,并添加索引完全就绪判断机制（green）
         while now_gap <= ahead_time:
+            # 2.1 当前轮次时间信息
             round_time = now_datetime_object + datetime.timedelta(minutes=now_gap)
             round_time_str = round_time.strftime(self.date_format)
 
             try:
+                # 2.2 组装当前轮次的读写别名信息
                 round_alias_name = f"write_{round_time_str}_{index_name}"
                 round_read_alias_name = f"{index_name}_{round_time_str}_read"
-
-                # 检查即将指向的索引是否存在
+                logger.info(
+                    "create_or_update_aliases: now try to manage for table_id->[%s] alias_name->[%s] "
+                    "round_time_str->[%s]",
+                    self.table_id,
+                    round_alias_name,
+                    round_time_str,
+                )
+                # 2.3 获取当前轮次的读写别名对应的已经绑定的索引信息
                 try:
-                    es_client.indices.get(index=last_index_name)
+                    # 2.3.1 此处提前获取主要是为后续当新索引不存在时，需要获取到上一次的已就绪的索引，为下一轮次（未来）的读写别名-索引关系的创建作准备
+                    index_list = self.es_client.indices.get_alias(name=round_alias_name).keys()
+                    logger.info(
+                        "create_or_update_aliases: table_id->[%s] alias_name->[%s] has index->[%s].",
+                        self.table_id,
+                        round_alias_name,
+                        index_list,
+                    )
                 except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
+                    # 2.3.2 若发生异常，说明当前轮次的读写别名不存在已经绑定的索引，index_list赋为空
                     logger.warning(
-                        "table_id->[%s] index->[%s] does not exist, will skip alias creation.",
+                        "create_or_update_aliases: table_id->[%s] alias_name->[%s] does not exists, "
+                        "nothing will be deleted.",
+                        self.table_id,
+                        round_alias_name,
+                    )
+                    index_list = []
+
+                # 2.4 检查即将指向的索引是否就绪，只有当完全就绪（各个分片均已green）时，才进行切换
+                is_ready = self.is_index_ready(self.es_client, last_index_name)
+                if not is_ready:
+                    # 2.4.1 如果索引未就绪，记录日志并跳过，将last_index_name变为上次的索引
+                    logger.warning(
+                        "create_or_update_aliases: table_id->[%s] index->[%s] is not ready, will skip creation.",
                         self.table_id,
                         last_index_name,
                     )
-                    now_gap += self.slice_gap
+                    # 将索引赋值为上次的已就绪索引,为下一轮次作准备
+                    if index_list:
+                        last_index_name = list(index_list)[-1]
+                        logger.info(
+                            "create_or_update_aliases: table_id->[%s] will use index->[%s] for next round.",
+                            self.table_id,
+                            last_index_name,
+                        )
                     continue
 
-                # 3.1 判断这个别名是否有指向旧的index，如果存在则需要解除
-                try:
-                    # 此处是非通配的别名，所以会有NotFound的异常
-                    index_list = es_client.indices.get_alias(name=round_alias_name).keys()
-
-                    # 排除已经指向最新index的alias
-                    delete_list = []
+                # 2.5 判断当前轮次别名是否有指向旧的index，如果存在则需要解除（走到这里说明新索引 last_index_name一定存在，可以放心删除）
+                delete_list = []
+                if index_list:
                     for alias_index in index_list:
                         if alias_index != last_index_name:
                             delete_list.append(alias_index)
-
                     logger.info(
-                        "table_id->[%s] found alias_name->[%s] is relay with index->[%s] all will be deleted.",
+                        "create_or_update_aliases: table_id->[%s] found alias_name->[%s] is relay with index->[%s] "
+                        "all will be deleted.",
                         self.table_id,
                         round_alias_name,
                         delete_list,
                     )
-                except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
-                    # 可能是在创建未来的alias，所以不一定会有别名关联的index
-                    logger.info(
-                        "table_id->[%s] alias_name->[%s] found not index relay, will not delete any thing.",
-                        self.table_id,
-                        round_alias_name,
-                    )
-                    delete_list = []
 
-                # 组装需要新增或删除的索引和别名的关联关系
+                # 2.6 组装需要新增或删除的索引和别名的关联关系
                 actions = [
                     {"add": {"index": last_index_name, "alias": round_alias_name}},
                     {"add": {"index": last_index_name, "alias": round_read_alias_name}},
                 ]
-                # 如果需要删除的列表不为空，则添加对应的 `remove` 操作
+                # 2.7 如果需要删除的列表不为空，则添加对应的 `remove` 操作
                 if delete_list:
                     for _index in delete_list:
                         actions.append({"remove": {"index": _index, "alias": round_alias_name}})
                     logger.info(
-                        "table_id->[%s] last_index->[%s] index->[%s] alias->[%s] need delete",
+                        "create_or_update_aliases:table_id->[%s],last_index->[%s],index->[%s],alias->[%s] need delete",
                         self.table_id,
                         last_index_name,
                         delete_list,
                         round_alias_name,
                     )
 
-                # 3.2 需要将循环中的别名都指向了最新的index
-                response = es_client.indices.update_aliases(body={"actions": actions})
-                logger.info("table_id->[%s] actions->[%s] update alias response [%s]", self.table_id, actions, response)
+                # 2.8 需要将循环中的别名都指向了最新的index
+                response = self.es_client.indices.update_aliases(body={"actions": actions})
+                logger.info(
+                    "create_or_update_aliases: table_id->[%s] actions->[%s] update alias response [%s]",
+                    self.table_id,
+                    actions,
+                    response,
+                )
 
                 logger.info(
-                    "table_id->[%s] now has index->[%s] and alias->[%s | %s]",
+                    "create_or_update_aliases: table_id->[%s] now has index->[%s] and alias->[%s | %s]",
                     self.table_id,
                     last_index_name,
                     round_alias_name,
@@ -2556,19 +2589,57 @@ class ESStorage(models.Model, StorageResultTable):
                 )
 
             finally:
-                logger.info("all operations for index->[{}] gap->[{}] now is done.".format(self.table_id, now_gap))
+                # 2.9 结束当前轮次循环，进入下一次循环
+                logger.info(
+                    "create_or_update_aliases: all operations for index->[{}] gap->[{}] now is done.".format(
+                        self.table_id, now_gap
+                    )
+                )
                 # slice_gap maybe zero, will cause dead loop
                 if self.slice_gap <= 0:
                     return
                 now_gap += self.slice_gap
 
     def create_index_and_aliases(self, ahead_time=1440):
+        # 1. 创建索引
         self.create_index_v2()
+        # 2. 更新对应的别名<->索引绑定关系
         self.create_or_update_aliases(ahead_time)
 
     def update_index_and_aliases(self, ahead_time=1440):
+        # 1. 更新索引
         self.update_index_v2()
+        # 2. 更新对应的别名<->索引绑定关系
         self.create_or_update_aliases(ahead_time)
+
+    def is_index_ready(self, es_client, index_name: str) -> bool:
+        """
+        检查索引的健康状态（是否在各个分片均已就绪）
+        """
+        try:
+            # 获取索引的健康状态
+            logger.info("is_index_ready:table_id->[%s] check index->[%s] health", self.table_id, index_name)
+            health = es_client.cluster.health(index=index_name, level=ES_INDEX_CHECK_LEVEL, request_timeout=5)
+            index_health = health[ES_INDEX_CHECK_LEVEL].get(index_name, {})
+
+            # 检查索引健康状态是否为 green
+            if index_health.get('status') == ES_READY_STATUS:
+                return True
+            else:
+                logger.warning(
+                    "is_index_ready:table_id->[%s] index->[%s] health is not green, will retry later.",
+                    self.table_id,
+                    index_name,
+                )
+                return False
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                "is_index_ready:table_id->[%s] index->[%s] health check failed,info->[%s].",
+                self.table_id,
+                index_name,
+                str(e),
+            )
+            return False
 
     def create_index_v2(self):
         """
@@ -2578,10 +2649,9 @@ class ESStorage(models.Model, StorageResultTable):
             return False
 
         now_datetime_object = self.now
-        es_client = self.get_client()
         new_index_name = self.make_index_name(now_datetime_object, 0, "v2")
         # 创建index
-        response = self._create_index_with_retry(es_client, new_index_name)
+        response = self._create_index_with_retry(self.es_client, new_index_name)
         logger.info(
             "table_id->[%s] has created new index->[%s],response->[%s]", self.table_id, new_index_name, response
         )
@@ -2593,16 +2663,18 @@ class ESStorage(models.Model, StorageResultTable):
         此处仍然保留每个小时创建新的索引，主要是为了在发生异常的时候，可以降低影响的索引范围（最多一个小时）
         :return: True | raise Exception
         """
+        # 1. 首先，校验当前结果表是否处于启用状态
         if not self.is_index_enable():
             return False
 
+        logger.info("update_index_v2: table_id->[%s] start to update index", self.table_id)
         now_datetime_object = self.now
 
-        # 0. 获取客户端
-        es_client = self.get_client()
+        # 2. 获取ES客户端,self.es_client,复用以减少句柄开销
 
-        # 1. 获取当前最新的index
+        # 3. 获取当前最新的index
         try:
+            # 3.1 正常获取并组装当前最新的index信息
             current_index_info = self.current_index_info()
             last_index_name = self.make_index_name(
                 current_index_info["datetime_object"], current_index_info["index"], current_index_info["index_version"]
@@ -2610,29 +2682,38 @@ class ESStorage(models.Model, StorageResultTable):
             index_size_in_byte = current_index_info["size"]
 
         except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
-            logger.warn(
-                "attention! table_id->[%s] can not found any index to update,will do create function", self.table_id
+            # 3.2 若当前索引不存在，走索引创建流程
+            logger.error(
+                "update_index_v2：attention! table_id->[%s] can not found any index to update,will do create function",
+                self.table_id,
             )
             return self.create_index_v2()
 
-        # 1.1 兼容旧任务，将不合理的超前index清理掉
+        # 4. 兼容旧任务，将不合理的超前index清理掉
         # 如果最新时间超前了，要对应处理一下,通常发生在旧任务应用新的es代码过程中
         # 循环处理，以应对预留时间被手动加长,导致超前index有多个的场景
         while now_datetime_object < current_index_info["datetime_object"]:
-            logger.warn("table_id->[%s] delete index->[%s] because it has ahead time", self.table_id, last_index_name)
-            es_client.indices.delete(index=last_index_name)
+            # 4.1. 清理超前时间的index
+            logger.info(
+                "update_index_v2: table_id->[%s] last_index->[%s] is ahead of now ,will delete it",
+                self.table_id,
+                last_index_name,
+            )
+            self.es_client.indices.delete(index=last_index_name)
             # 重新获取最新的index，这里没做防护，默认存在超前的index，就一定存在不超前的可用index
             current_index_info = self.current_index_info()
             last_index_name = self.make_index_name(
                 current_index_info["datetime_object"], current_index_info["index"], current_index_info["index_version"]
             )
 
-        # 2. 判断index是否需要分割
+        # 5. 判断index是否需要分割，三个判断条件
         # 如果是小于分割大小的，不必进行处理
         should_create = False
+        # 5.1 如果index大小大于分割大小，需要创建新的index
         if index_size_in_byte / 1024.0 / 1024.0 / 1024.0 > self.slice_size:
             logger.info(
-                "table_id->[%s] index->[%s] current_size->[%s] is larger than slice size->[%s], create new index slice",
+                "update_index_v2: table_id->[%s] index->[%s] current_size->[%s] is larger than slice size->[%s], "
+                "create new index slice",
                 self.table_id,
                 last_index_name,
                 index_size_in_byte,
@@ -2640,86 +2721,116 @@ class ESStorage(models.Model, StorageResultTable):
             )
             should_create = True
 
-        # mapping 不一样了，也需要创建新的index
+        # 5.2 mapping 不一样了，也需要创建新的index
         if not self.is_mapping_same(last_index_name):
             logger.info(
-                "table_id->[%s] index->[%s] mapping is not the same, will create the new",
+                "update_index_v2: table_id->[%s] index->[%s] mapping is not the same, will create the new",
                 self.table_id,
                 last_index_name,
             )
             should_create = True
 
-        # 达到保存期限进行分裂
+        # 5.3 达到保存期限进行分裂
         expired_time_point = self.now - datetime.timedelta(days=self.retention)
         if current_index_info["datetime_object"] < expired_time_point:
             logger.info(
-                "table_id->[%s] index->[%s] has arrive retention date, will create the new",
+                "update_index_v2: table_id->[%s] index->[%s] has arrive retention date, will create the new",
                 self.table_id,
                 last_index_name,
             )
             should_create = True
 
+        # 5.4 暖数据等待天数大于0且当前索引未过期，需要创建新的index
         # arrive warm_phase_days date to split index
         # avoid index always not split, it not be allocate to cold node
         if self.warm_phase_days > 0:
             expired_time_point = self.now - datetime.timedelta(days=self.warm_phase_days)
             if current_index_info["datetime_object"] < expired_time_point:
                 logger.info(
-                    "table_id->[%s] index->[%s] has arrive warm_phase_days date, will create the new",
+                    "update_index_v2: table_id->[%s] index->[%s] has arrive warm_phase_days date, will create the new",
                     self.table_id,
                     last_index_name,
                 )
                 should_create = True
 
-        # 2.0 判断新的index信息：日期以及对应的index
+        # 6. 若should_create为True，执行创建/跟新 索引逻辑
         if not should_create:
             logger.info(
-                "table_id->[%s] index->[%s] everything is ok,nothing to do",
+                "update_index_v2: table_id->[%s] index->[%s] everything is ok,nothing to do",
                 self.table_id,
                 last_index_name,
             )
             return True
 
+        logger.info(
+            "update_index_v2: table_id->[%s] index->[%s] need to create new index", self.table_id, last_index_name
+        )
         new_index = 0
-        # 判断日期是否当前的时期或时间
+        # 7. 判断日期是否是当前日期
         if now_datetime_object.strftime(self.date_format) == current_index_info["datetime_object"].strftime(
             self.date_format
         ):
-            # 如果当前index并没有写入过数据(count==0),则对其进行删除重建操作即可
-            if es_client.count(index=last_index_name).get("count", 0) == 0:
+            # 7.1 如果当前index并没有写入过数据(count==0),则对其进行删除重建操作即可
+            if self.es_client.count(index=last_index_name).get("count", 0) == 0:
                 new_index = current_index_info["index"]
-                es_client.indices.delete(index=last_index_name)
+                self.es_client.indices.delete(index=last_index_name)
                 logger.info(
-                    "table_id->[%s] has index->[%s] which has not data, will be deleted for new index create.",
+                    "update_index_v2: table_id->[%s] has index->[%s] which has not data, will be deleted for new "
+                    "index create.",
                     self.table_id,
                     last_index_name,
                 )
-            # 否则原来的index不动，新增一个index，并把alias指向过去
+            # 7.2 否则原来的index不动，新增一个index，并把alias指向过去
             else:
                 new_index = current_index_info["index"] + 1
-                logger.info("table_id->[%s] index->[%s] has data, so new index will create", self.table_id, new_index)
+                logger.info(
+                    "update_index_v2: table_id->[%s] index->[%s] has data, so new index will create",
+                    self.table_id,
+                    new_index,
+                )
 
-        # 但凡涉及到index新增，都使用v2版本的格式
+        # 8. 但凡涉及到index新增，都使用v2版本的格式
         new_index_name = self.make_index_name(now_datetime_object, new_index, "v2")
-        logger.info("table_id->[%s] will create new index->[%s]", self.table_id, new_index_name)
+        logger.info("update_index_v2: table_id->[%s] will create new index->[%s]", self.table_id, new_index_name)
 
-        # 2.1 创建新的index,添加重试机制
-        response = self._create_index_with_retry(es_client, new_index_name)
-        logger.info("table_id->[%s] create new index_name->[%s] response [%s]", self.table_id, new_index_name, response)
+        # 9. 创建新的index,添加重试机制
+        response = self._create_index_with_retry(new_index_name)
+        logger.info(
+            "update_index_v2: table_id->[%s] create new index_name->[%s] response [%s]",
+            self.table_id,
+            new_index_name,
+            response,
+        )
         return True
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
-    def _create_index_with_retry(self, es_client, new_index_name):
+    def _create_index_with_retry(self, new_index_name):
         # 判断index是否已经存在，如果存在则不创建
-        if es_client.indices.exists(index=new_index_name):
+        if self.es_client.indices.exists(index=new_index_name):
+            logger.info(
+                "create_index_with_retry: table_id->[%s] index->[%s] has already exists, will not create",
+                self.table_id,
+                new_index_name,
+            )
             return
         try:
-            response = es_client.indices.create(
+            response = self.es_client.indices.create(
                 index=new_index_name, body=self.index_body, params={"request_timeout": 30}
             )
+            logger.info(
+                "create_index_with_retry: table_id->[%s] create new index_name->[%s] response [%s]",
+                self.table_id,
+                new_index_name,
+                response,
+            )
             return response
-        except Exception as e:
-            logger.error("Failed to create index: %s with error: %s", new_index_name, str(e))
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                "create_index_with_retry: table_id -> [%s] failed to create index: %s with error: %s",
+                self.table_id,
+                new_index_name,
+                str(e),
+            )
             raise
 
     def clean_index(self):
@@ -2736,8 +2847,7 @@ class ESStorage(models.Model, StorageResultTable):
         )
 
         # 2. 获取这个table_id相关的所有index名字
-        es_client = self.get_client()
-        index_list = es_client.indices.get("{}*".format(self.index_name))
+        index_list = self.es_client.indices.get("{}*".format(self.index_name))
         delete_count = 0
 
         # 3. 遍历所有的index
@@ -2775,7 +2885,7 @@ class ESStorage(models.Model, StorageResultTable):
                 continue
 
             # 如果小于时间节点，需要将index清理
-            es_client.indices.delete(index_name)
+            self.es_client.indices.delete(index_name)
             logger.info(
                 "table_id->[{}] now has delete index_name->[{}] for datetime->[{}]".format(
                     self.table_id, index_name, datetime_str
@@ -2817,9 +2927,8 @@ class ESStorage(models.Model, StorageResultTable):
         if not self.can_delete():
             return
         # 获取所有的写入别名
-        es_client = self.get_client()
 
-        alias_list = es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
+        alias_list = self.es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
 
         filter_result = self.group_expired_alias(alias_list, self.retention)
 
@@ -2835,7 +2944,7 @@ class ESStorage(models.Model, StorageResultTable):
                         self.table_id,
                         alias_info["expired_alias"],
                     )
-                    es_client.indices.delete_alias(index=index_name, name=",".join(alias_info["expired_alias"]))
+                    self.es_client.indices.delete_alias(index=index_name, name=",".join(alias_info["expired_alias"]))
                     logger.warning(
                         "table_id->[%s] delete_alias_list->[%s] is deleted.",
                         self.table_id,
@@ -2850,7 +2959,7 @@ class ESStorage(models.Model, StorageResultTable):
                 index_name,
             )
             try:
-                es_client.indices.delete(index=index_name)
+                self.es_client.indices.delete(index=index_name)
             except (
                 elasticsearch5.ElasticsearchException,
                 elasticsearch.ElasticsearchException,
@@ -2879,11 +2988,10 @@ class ESStorage(models.Model, StorageResultTable):
             "write_alias": "write_alias"
         }
         """
-        es_client = self.get_client()
 
         # 判断最后一个index的配置是否和数据库的一致，如果不是，表示需要重建
         try:
-            es_mappings = es_client.indices.get_mapping(index=index_name)[index_name]["mappings"]
+            es_mappings = self.es_client.indices.get_mapping(index=index_name)[index_name]["mappings"]
             current_mapping = {}
             if es_mappings.get(self.table_id):
                 current_mapping = es_mappings[self.table_id]["properties"]
@@ -2994,13 +3102,12 @@ class ESStorage(models.Model, StorageResultTable):
             }
         }
         """
-        es_client = self.get_client()
-        index_list = es_client.indices.get("{}*".format(self.index_name))
+        index_list = self.es_client.indices.get("{}*".format(self.index_name))
 
         result = []
         for index_name in index_list:
             body = {"aggs": {"field_values": {"terms": {"field": tag_name, "size": 10000}}}, "size": 0}
-            res = es_client.search(index=index_name, body=body)
+            res = self.es_client.search(index=index_name, body=body)
             buckets = res["aggregations"]["field_values"]["buckets"]
             tag_values = [bucket["key"] for bucket in buckets]
             result += tag_values
@@ -3129,10 +3236,8 @@ class ESStorage(models.Model, StorageResultTable):
         allocation_attr_value = warm_phase_settings["allocation_attr_value"]
         allocation_type = warm_phase_settings["allocation_type"]
 
-        es_client = self.get_client()
-
         # 获取索引对应的别名
-        alias_list = es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
+        alias_list = self.es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
 
         filter_result = self.group_expired_alias(alias_list, self.warm_phase_days, need_delay_delete_alias=False)
 
@@ -3149,7 +3254,7 @@ class ESStorage(models.Model, StorageResultTable):
             )
             return
 
-        ilo = IndexList(es_client, index_names=reallocate_index_list)
+        ilo = IndexList(self.es_client, index_names=reallocate_index_list)
         # 过滤掉已经被 allocate 过的 index
         ilo.filter_allocated(key=allocation_attr_name, value=allocation_attr_value, allocation_type=allocation_type)
 
@@ -3270,22 +3375,20 @@ class ESStorage(models.Model, StorageResultTable):
         return f"{index}_snapshot_{datetime.strftime(self.snapshot_date_format)}"
 
     def expired_index(self):
-        es_client = self.es_client
-        alias_list = es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
+        alias_list = self.es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
         expired_index_info = self.group_expired_alias(alias_list, self.retention)
         ret = []
 
         for expired_index, expired_info in expired_index_info.items():
             if expired_info["not_expired_alias"]:
                 continue
-            if es_client.count(index=expired_index).get("count", 0) != 0:
+            if self.es_client.count(index=expired_index).get("count", 0) != 0:
                 ret.append(expired_index)
         return ret
 
     def current_snapshot_info(self):
-        es_client = self.es_client
         try:
-            snapshots = es_client.snapshot.get(
+            snapshots = self.es_client.snapshot.get(
                 self.snapshot_obj.target_snapshot_repository_name, self.search_snapshot
             ).get("snapshots", [])
         except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
@@ -3326,7 +3429,6 @@ class ESStorage(models.Model, StorageResultTable):
         if self.is_snapshot_stopped:
             return
 
-        es_client = self.es_client
         current_snapshot_info = self.current_snapshot_info()
         now = self.now
 
@@ -3354,7 +3456,7 @@ class ESStorage(models.Model, StorageResultTable):
                     ]
                 )
 
-                es_client.snapshot.create(
+                self.es_client.snapshot.create(
                     self.snapshot_obj.target_snapshot_repository_name,
                     new_snapshot_name,
                     {"indices": ",".join(expired_index), "include_global_state": False},
@@ -3368,7 +3470,6 @@ class ESStorage(models.Model, StorageResultTable):
         logger.info("table_id->[%s] has created new snapshot ->[%s]", self.table_id, new_snapshot_name)
 
     def create_target_index_meta_info(self, index_name, snapshot_name):
-        es_client = self.es_client
         create_obj = {
             "table_id": self.table_id,
             "start_time": datetime.datetime.fromtimestamp(
@@ -3377,8 +3478,8 @@ class ESStorage(models.Model, StorageResultTable):
             "end_time": datetime.datetime.fromtimestamp(
                 int(self.__get_last_time_content(index_name, False).get("time")) / 1000
             ).astimezone(timezone(settings.TIME_ZONE)),
-            "doc_count": es_client.count(index=index_name).get("count"),
-            "store_size": es_client.indices.stats(index=index_name, metric="store")["_all"]["primaries"]["store"][
+            "doc_count": self.es_client.count(index=index_name).get("count"),
+            "store_size": self.es_client.indices.stats(index=index_name, metric="store")["_all"]["primaries"]["store"][
                 "size_in_bytes"
             ],
             "cluster_id": self.storage_cluster_id,
@@ -3411,9 +3512,8 @@ class ESStorage(models.Model, StorageResultTable):
         logger.info("table_id -> [%s] filter expired snapshot before %s days", self.table_id, expired_days)
         expired_datetime_point = self.now - datetime.timedelta(days=expired_days)
 
-        es_client = self.es_client
         try:
-            snapshots = es_client.snapshot.get(
+            snapshots = self.es_client.snapshot.get(
                 self.snapshot_obj.target_snapshot_repository_name, self.search_snapshot
             ).get("snapshots", [])
         except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):

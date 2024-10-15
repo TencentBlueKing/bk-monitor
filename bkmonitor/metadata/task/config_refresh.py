@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import logging
+import time
 import traceback
 
 from confluent_kafka import TopicCollection
@@ -26,9 +27,8 @@ from metadata.config import (
     PERIODIC_TASK_DEFAULT_TTL,
 )
 from metadata.models.constants import EsSourceType
+from metadata.task.tasks import manage_es_storage
 from metadata.utils import consul_tools
-
-from .tasks import manage_es_storage
 
 logger = logging.getLogger("metadata")
 
@@ -252,33 +252,50 @@ def refresh_kafka_topic_info():
 
 @share_lock(identify="metadata_refreshESStorage", ttl=7200)
 def refresh_es_storage():
-    logger.info("start to refresh es_storage")
-    # 轮转黑名单
-    es_blacklist = getattr(settings, "ES_CLUSTER_BLACKLIST", [])
+    logger.info("refresh_es_storage:start to refresh es_storage")
+    start_time = time.time()  # 记录开始时间
 
-    # NOTE: 这是临时处理；如果在白名单中，则按照串行处理
-    es_cluster_wl = getattr(settings, "ES_SERIAL_CLUSTER_LIST", [])
-    if es_cluster_wl:
-        # 这里集群不会太多
-        es_storage_data = models.ESStorage.objects.filter(storage_cluster_id__in=es_cluster_wl, need_create_index=True)
-        manage_es_storage.delay(es_storage_data)
-    # 设置每100条记录，拆分为一个任务
-    start, step = 0, 100
-    # 仅管理日志内建的集群索引,且只有need_create_index为True的才需要创建索引
+    # 1. 获取设置中的黑名单和白名单
+    es_blacklist = getattr(settings, "ES_CLUSTER_BLACKLIST", [])
+    # es_cluster_wl = getattr(settings, "ES_SERIAL_CLUSTER_LIST", [])
+
+    # # 处理白名单中的集群，串行处理
+    # if es_cluster_wl:
+    #     es_storage_data = models.ESStorage.objects.filter(
+    #         storage_cluster_id__in=es_cluster_wl, need_create_index=True
+    #     )
+    #     manage_es_storage.delay(es_storage_data)
+
+    # 2.筛选出需要创建索引且不在黑名单中的集群
+    # Note：由于白名单中的集群涉及的索引数量过大，现不再采用串行处理方式，改为根据ES集群ID分组进行索引轮转任务
     es_storages = models.ESStorage.objects.filter(source_type=EsSourceType.LOG.value, need_create_index=True).exclude(
-        storage_cluster_id__in=(es_cluster_wl + es_blacklist)
+        storage_cluster_id__in=es_blacklist
     )
-    # 添加一步过滤，用以减少任务的数量
+
+    # 3. 过滤掉无效的表，进一步减少轮转的索引数据量
     table_id_list = models.ResultTable.objects.filter(
         table_id__in=es_storages.values_list("table_id", flat=True), is_enable=True, is_deleted=False
     ).values_list("table_id", flat=True)
+
     es_storages = es_storages.filter(table_id__in=table_id_list)
 
-    count = es_storages.count()
-    for s in range(start, count, step):
-        manage_es_storage.delay(es_storages[s : s + step])
+    # 4. 设置每个任务处理的记录数
+    start, step = 0, 100
 
-    logger.info("es_storage cron task started success.")
+    # 5. 按 storage_cluster_id 分组下发轮转任务，提高并发性能，降低ES集群的压力
+    es_storages_by_cluster = es_storages.values('storage_cluster_id').distinct()
+
+    for cluster in es_storages_by_cluster:
+        cluster_id = cluster['storage_cluster_id']
+        cluster_storages = es_storages.filter(storage_cluster_id=cluster_id)
+        count = cluster_storages.count()
+        logger.info("refresh_es_storage:refresh cluster_id->[%s] es_storages count->[%s]", cluster_id, count)
+        # 5.1 为每个集群创建批量任务
+        for s in range(start, count, step):
+            manage_es_storage.delay(cluster_storages[s : s + step])
+
+    end_time = time.time()  # 记录结束时间
+    logger.info("refresh_es_storage:es_storage cron task started successfully,use %.2f seconds.", end_time - start_time)
 
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshBCSInfo")
