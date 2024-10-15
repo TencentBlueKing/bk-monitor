@@ -239,6 +239,7 @@ class CreateApplicationResource(Resource):
             app.application_id,
             apm_event=APMEvent.APP_CREATE,
             data_sources=switch_on_data_sources,
+            updated_telemetry_types=None
         )
         return app
 
@@ -483,7 +484,13 @@ class StartResource(Resource):
 
         application.is_enabled = True
         application.save()
-        switch_on_data_sources = {validated_data["type"]: True}
+
+        switch_on_data_sources = {
+            TelemetryDataType.TRACE.value: application.is_enabled_trace,
+            TelemetryDataType.PROFILING.value: application.is_enabled_profiling,
+            TelemetryDataType.METRIC.value: application.is_enabled_metric,
+            TelemetryDataType.LOG.value: application.is_enabled_metric,
+        }
 
         from apm_web.tasks import APMEvent, report_apm_application_event
 
@@ -492,6 +499,7 @@ class StartResource(Resource):
             application.application_id,
             apm_event=APMEvent.APP_UPDATE,
             data_sources=switch_on_data_sources,
+            updated_telemetry_types=[validated_data["type"]]
         )
         return res
 
@@ -524,11 +532,19 @@ class StopResource(Resource):
 
         from apm_web.tasks import APMEvent, report_apm_application_event
 
+        switch_on_data_sources = {
+            TelemetryDataType.TRACE.value: application.is_enabled_trace,
+            TelemetryDataType.PROFILING.value: application.is_enabled_profiling,
+            TelemetryDataType.METRIC.value: application.is_enabled_metric,
+            TelemetryDataType.LOG.value: application.is_enabled_metric,
+        }
+
         report_apm_application_event.delay(
             application.bk_biz_id,
             application.application_id,
             apm_event=APMEvent.APP_UPDATE,
-            data_sources={validated_data["type"]: False},
+            data_sources=switch_on_data_sources,
+            updated_telemetry_types=[validated_data["type"]]
         )
         return res
 
