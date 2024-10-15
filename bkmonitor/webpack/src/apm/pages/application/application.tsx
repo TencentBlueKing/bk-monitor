@@ -101,10 +101,10 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
       id: 'basicConfiguration',
       name: window.i18n.tc('基础配置'),
     },
-    {
-      id: 'customService',
-      name: window.i18n.tc('自定义服务'),
-    },
+    // {
+    //   id: 'customService',
+    //   name: window.i18n.tc('自定义服务'),
+    // },
     {
       id: 'storageState',
       name: window.i18n.tc('存储状态'),
@@ -143,6 +143,9 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
         {
           id: 'home',
           name: 'APM',
+          query: {
+            app_name: appName,
+          },
         },
         {
           id: 'application',
@@ -238,6 +241,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
           'filter-app_name': this.appName,
         },
       });
+      this.routeList[0].query = { app_name: this.appName };
       this.routeList[1].name = `${this.$tc('应用')}：${this.appName}`;
       this.routeList[1].selectOption.value = this.appName;
       this.pageKey += 1;
