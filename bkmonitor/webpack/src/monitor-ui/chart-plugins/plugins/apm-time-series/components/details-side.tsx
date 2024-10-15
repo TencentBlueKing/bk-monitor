@@ -239,9 +239,8 @@ export default class DetailsSide extends tsc<IProps> {
         // 响应耗时默认是 平均响应耗时
         this.selected = 'AVG';
       }
-      this.getData();
-    } else {
       this.initData();
+      this.getData();
     }
   }
 

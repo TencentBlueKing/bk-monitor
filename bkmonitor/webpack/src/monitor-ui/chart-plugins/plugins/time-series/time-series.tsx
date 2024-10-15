@@ -525,7 +525,7 @@ export class LineChart
             });
           });
         }
-        const formatData = seriesList.find(item => item.data?.length > 0)?.data;
+        const formatData = seriesList.find(item => item.data?.length > 0)?.data || [];
         const formatterFunc = this.handleSetFormatterFunc(formatData);
         const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
 
