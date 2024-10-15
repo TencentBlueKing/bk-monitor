@@ -660,7 +660,6 @@ class GetVariableValue(Resource):
             else:
                 metric = MetricListCache.objects.filter(
                     data_source_label=DataSourceLabel.BK_LOG_SEARCH,
-                    data_type_label=DataTypeLabel.TIME_SERIES,
                     result_table_id=params["result_table_id"],
                     bk_biz_id=bk_biz_id,
                 ).first()
