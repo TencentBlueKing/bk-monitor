@@ -20,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from functools import reduce
 from io import StringIO
-from typing import Dict, List
+from typing import Any, Dict, List, Tuple
 
 from django.conf import settings
 from django.core.cache import cache
@@ -2555,3 +2555,158 @@ class QuickAlertAck(QuickActionTokenResource):
             alerts_already_ack=len(result["alerts_already_ack"]),
             alerts_not_abnormal=len(result["alerts_not_abnormal"]),
         )
+
+
+class GetAlertDataRetrievalResource(Resource):
+    """
+    获取告警数据检索配置
+    """
+
+    EVENT_DATASOURCES = [
+        (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.EVENT),
+        (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
+        (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
+    ]
+
+    METRIC_DATASOURCES = [
+        (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
+        (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
+        (DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES),
+        (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
+        (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
+    ]
+
+    class RequestSerializer(serializers.Serializer):
+        alert_id = AlertIDField(required=True, label="告警ID")
+
+    @classmethod
+    def metric_query_config_to_query(cls, query_config: Dict, filter_dict: Dict) -> Dict:
+        """
+        将query_config转换为图标查询配置
+        """
+        # 如果存在raw_query_config，直接使用
+        if query_config.get("raw_query_config"):
+            query_config = query_config["raw_query_config"]
+
+        query = {
+            "data_source_label": query_config["data_source_label"],
+            "data_type_label": query_config["data_type_label"],
+            "functions": query_config.get("functions", []),
+            "refId": query_config["alias"],
+            "index_set_id": query_config.get("index_set_id"),
+            "result_table_id": query_config.get("result_table_id", ""),
+            "data_label": query_config.get("data_label"),
+            "query_string": query_config.get("query_string", ""),
+            "method": query_config.get("agg_method", "COUNT"),
+            "interval": query_config.get("agg_interval", 60),
+            "group_by": query_config.get("agg_dimension", []),
+            "where": query_config.get("agg_condition", []),
+            "time_field": query_config.get("time_field"),
+        }
+
+        if filter_dict:
+            where = AIOPSManager.create_where_with_dimensions(query_config["agg_condition"], filter_dict)
+            group_by = list(set(query["group_by"]) & set(filter_dict.keys()))
+            if "le" in query_config["group_by"]:
+                # 针对le做特殊处理
+                group_by.append("le")
+            query["where"] = where
+            query["group_by"] = group_by
+
+        return query
+
+    @classmethod
+    def generate_event_query_params(cls, item: Dict, filter_dict: Dict) -> Dict:
+        """
+        TODO: 事件检索跳转参数
+        """
+        return {}
+
+    @classmethod
+    def generate_metric_query_params(cls, item: Dict, filter_dict: Dict) -> List[Dict]:
+        """
+        指标检索跳转参数
+        """
+        query_configs = item["query_configs"]
+        data_source = (query_configs[0]["data_source_label"], query_configs[0]["data_type_label"])
+
+        # promql模式查询
+        if data_source == (DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES):
+            query_config = query_configs[0]
+            return [
+                {
+                    "data": {
+                        "mode": "code",
+                        "source": query_config["promql"],
+                        "format": "time_series",
+                        "type": "range",
+                        "step": query_config["agg_interval"],
+                        "filter_dict": filter_dict,
+                    }
+                }
+            ]
+
+        # UI模式查询
+        # 查询配置处理
+        queries = []
+        for query_config in query_configs:
+            query = cls.metric_query_config_to_query(query_config, filter_dict)
+            queries.append(query)
+
+        # 表达式处理
+        expressions = []
+        expression = item["expression"] or "a"
+        functions = item.get("functions", [])
+        if expression != "a" or functions:
+            # 如果添加了表达式，需要将子查询隐藏
+            for query in queries:
+                query["display"] = False
+
+            expressions.append(
+                {
+                    "expression": expression,
+                    "functions": functions,
+                    "alias": chr(ord("a") + len(queries)),
+                    "active": True,
+                }
+            )
+
+        return [{"data": {"mode": "ui", "query_configs": queries, "expressionList": expressions}}]
+
+    def perform_request(self, params: Dict[str, Any]):
+        alert_id = params["alert_id"]
+        alert = AlertDocument.get(alert_id)
+        if not alert.strategy:
+            return []
+
+        item = alert.strategy["items"][0]
+        query_configs = item["query_configs"]
+        if not query_configs:
+            return []
+
+        data_source: Tuple[str, str] = (query_configs[0]["data_source_label"], query_configs[0]["data_type_label"])
+
+        # 根据告警维度生成过滤条件
+        filter_dict = {}
+        try:
+            dimensions = alert.event.extra_info.origin_alarm.data.dimensions.to_dict()
+            dimension_fields = alert.event.extra_info.origin_alarm.data.dimension_fields
+            dimension_fields = [field for field in dimension_fields if not field.startswith("bk_task_index_")]
+            filter_dict = {
+                key: value
+                for key, value in dimensions.items()
+                if key in dimension_fields and not (key == "le" and value is None)
+            }
+        except Exception:  # noqa
+            pass
+
+        # 事件检索
+        if data_source in self.EVENT_DATASOURCES:
+            result = {"type": "event", "params": self.generate_event_query_params(item, filter_dict)}
+        # 指标检索
+        elif data_source in self.METRIC_DATASOURCES:
+            result = {"type": "metric", "params": self.generate_metric_query_params(item, filter_dict)}
+        else:
+            result = {}
+
+        return result

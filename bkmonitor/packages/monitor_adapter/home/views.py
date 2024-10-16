@@ -36,6 +36,8 @@ from bkmonitor.utils.local import local
 from common.decorators import timezone_exempt, track_site_visit
 from common.log import logger
 from core.errors.api import BKAPIError
+from fta_web.alert.handlers.alert import ActionInstance
+from fta_web.alert.serializers import ActionInstanceDocument
 from monitor.models import GlobalConfig
 from monitor_web.iam.resources import CallbackResource
 from packages.monitor_web.new_report.resources import ReportCallbackResource
@@ -76,6 +78,36 @@ def event_center_proxy(request):
     if batch_action:
         redirect_url = f"{redirect_url}&batchAction={batch_action}"
     return redirect(redirect_url.format(bk_biz_id=bk_biz_id, collect_id=collect_id))
+
+
+def event_center_query_proxy(request):
+    """
+    告警通知数据检索跳转
+    """
+    action_id = request.GET.get("collectId")
+    bk_biz_id = request.GET.get("bizId")
+    if not (action_id and bk_biz_id):
+        return HttpResponseNotFound(_("无效的告警事件链接"))
+
+    # 移动端跳转到告警详情页
+    if request.is_mobile():
+        return redirect(f"/weixin/?bizId={bk_biz_id}&collectId={action_id}")
+
+    # 提取告警ID
+    action = ActionInstanceDocument.get(action_id)
+    if action:
+        alert_ids = action.alert_id
+    else:
+        alert_ids = ActionInstance.objects.get(id=str(action_id)[10:]).alerts
+
+    pc_url = f"?bizId={bk_biz_id}#/data-retrieval"
+
+    # 如果没有告警ID，直接跳转到数据检索页
+    if not alert_ids:
+        return redirect(pc_url)
+
+    # TODO: 拼接跳转链接
+    return redirect(pc_url)
 
 
 def path_route_proxy(request):
