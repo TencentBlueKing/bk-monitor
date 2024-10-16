@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 from api.cmdb import client
 
 # 空间功能控制
-from apm.models import ApmApplication
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceFunction, SpaceTypeEnum
 from core.drf_resource import resource
@@ -79,7 +78,9 @@ class APMController(BaseController):
 
     @property
     def accessed(self):
-        return ApmApplication.objects.filter(bk_biz_id=self.space.bk_biz_id, is_deleted=False).exists()
+        from apm_web.models import Application
+
+        return Application.objects.filter(bk_biz_id=self.space.bk_biz_id, is_deleted=False).exists()
 
 
 @register_controller(SpaceFunction.HOST_PROCESS.value)
