@@ -132,7 +132,8 @@ def access_bkdata(bk_biz_id: int, table_id: str, data_id: int):
             bcs_cluster_id=bcs_cluster_id,
             storage_cluster_id=vm_data["cluster_id"],
             vm_cluster_id=vm_cluster["cluster_id"],
-            bk_base_data_id=vm_data["bk_data_id"],
+            bk_base_data_id=vm_data["bk_data_id"],  # 计算平台数据ID
+            bk_base_data_name=data_name_and_topic["data_name"],  # 计算平台数据名称
             vm_result_table_id=vm_data["clean_rt_id"],
         )
     except Exception as e:
@@ -382,8 +383,11 @@ def get_timestamp_len(data_id: Optional[int] = None, etl_config: Optional[str] =
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_fixed(1))
-def get_data_name(data_id):
-    return DataSource.objects.get(bk_data_id=data_id).data_name
+def get_data_source(data_id):
+    """
+    根据 data_id 获取对应的 DataSource，重试三次，间隔1秒，规避事务未及时提交导致的查询失败问题
+    """
+    return DataSource.objects.get(bk_data_id=data_id)
 
 
 def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
@@ -420,7 +424,7 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
 
     try:
         # NOTE: 这里可能因为事务+异步的原因，导致查询时DB中的DataSource未就绪，添加重试机制
-        data_name = get_data_name(data_id)
+        ds = get_data_source(data_id)
     except DataSource.DoesNotExist:
         logger.error("create vm data link error, data_id: %s not found", data_id)
         return
@@ -437,7 +441,7 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
 
         create_fed_vm_data_link(
             table_id=table_id,
-            data_name=data_name,
+            data_source=ds,
             vm_cluster_name=vm_cluster_name,
             bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
         )
@@ -447,14 +451,14 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
     try:
         create_vm_data_link(
             table_id=table_id,
-            data_name=data_name,
+            get_data_source=ds,
             vm_cluster_name=vm_cluster_name,
             bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
         )
         # 创建联邦
         create_fed_vm_data_link(
             table_id=table_id,
-            data_name=data_name,
+            data_source=ds,
             vm_cluster_name=vm_cluster_name,
             bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
         )

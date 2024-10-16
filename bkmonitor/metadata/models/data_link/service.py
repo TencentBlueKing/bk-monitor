@@ -16,6 +16,7 @@ from django.db.transaction import atomic
 
 from core.drf_resource import api
 from metadata import config
+from metadata.models import DataSource
 from metadata.models.bcs import BcsFederalClusterInfo
 from metadata.models.data_link import utils
 from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
@@ -74,15 +75,17 @@ def get_data_id(data_name: str, namespace: Optional[str] = settings.DEFAULT_VM_D
 @atomic(config.DATABASE_CONNECTION_NAME)
 def create_vm_data_link(
     table_id: str,
-    data_name: str,
+    data_source: DataSource,
     vm_cluster_name: str,
     vm_cluster_id: Optional[int] = None,
     bcs_cluster_id: Optional[str] = None,
 ):
     # 获取数据源名称对应的资源，便于后续组装整个链路
+    data_name = data_source.data_name
     logger.info(
-        "create_vm_data_link: create vm data link for table_id: %s, data_name: %s, vm_cluster_name: %s",
+        "create_vm_data_link: create vm data link for table_id: %s, data_id: %s, data_name: %s,vm_cluster_name: %s",
         table_id,
+        data_source.bk_data_id,
         data_name,
         vm_cluster_name,
     )
@@ -157,12 +160,12 @@ def create_vm_data_link(
 
     if not vm_cluster_id:
         vm_cluster_id = ClusterInfo.objects.get(cluster_name=vm_cluster_name).cluster_id
-    # NOTE: 不需要关心计算平台data_id, 这里设置为-1
     AccessVMRecord.objects.create(
         result_table_id=table_id,
         bcs_cluster_id=bcs_cluster_id,
         vm_cluster_id=vm_cluster_id,
-        bk_base_data_id=-1,
+        bk_base_data_id=data_source.bk_data_id,
+        bk_base_data_name=data_id_name,
         vm_result_table_id=f"{settings.DEFAULT_BKDATA_BIZ_ID}_{name}",
     )
 
@@ -177,50 +180,71 @@ def create_vm_data_link(
 @atomic(config.DATABASE_CONNECTION_NAME)
 def create_fed_vm_data_link(
     table_id: str,
-    data_name: str,
+    data_source: DataSource,
     vm_cluster_name: str,
     vm_cluster_id: Optional[int] = None,
     bcs_cluster_id: Optional[str] = None,
 ):
     from metadata.models import AccessVMRecord, ClusterInfo
 
-    # 如果不是集群，则直接忽略
+    data_name = data_source.data_name
+
+    # 如果不是集群的data_id，则直接忽略
     if not bcs_cluster_id:
+        logger.info(
+            "create_fed_vm_data_link： data_id->[%s] is not belong to any cluster, ignore it ", data_source.bk_data_id
+        )
         return
+
     # 判断是否为联邦集群的子集群，如果不是，则直接返回
     objs = BcsFederalClusterInfo.objects.filter(sub_cluster_id=bcs_cluster_id)
     if not (objs.exists() and utils.is_k8s_metric_data_id(data_name)):
-        logger.info("not federal sub cluster or not builtin datasource")
+        logger.info(
+            "create_fed_vm_data_link： data_id->[%s] ,cluster_id->[%s] is not federal sub cluster or not "
+            "builtin datasource",
+            data_source.bk_data_id,
+            bcs_cluster_id,
+        )
         return
 
     # 获取数据源名称对应的资源，便于后续组装整个链路
     logger.info(
-        "create_fed_vm_data_link for table_id: %s, data_name: %s, vm_cluster_name: %s",
+        "create_fed_vm_data_link for table_id->[%s], bk_data_id->[%s],data_name->[%s], vm_cluster_name->[%s]",
         table_id,
+        data_source.bk_data_id,
         data_name,
         vm_cluster_name,
     )
-    # NOTE: 这里需要兼容 data_id为V3链路，此前已经接入过VM的情形
-    data_id_name = utils.get_bkdata_data_id_name(data_name)
-    try:
-        api.bkdata.get_data_link(
-            kind=DataLinkKind.get_choice_value(DataLinkKind.DATAID.value),
-            namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-            name=data_id_name,
-        )
-    except Exception:  # pylint: disable=broad-except
-        logger.info(
-            "create_fed_vm_data_link: data_id_name->{} does not exist in bkbase ,now try to use v3 data_id_name".format(
-                data_id_name
-            )
-        )
-        vm_record = AccessVMRecord.objects.filter(result_table_id=table_id)
-        if not vm_record:
-            logger.error("create_fed_vm_data_link: data_id_name does not exists in anywhere!")
-            return
-        data_id_name = utils.get_bkdata_data_id_name_v3(vm_record.first().vm_result_table_id)
 
-    logger.info("create_fed_vm_data_link: data_id_name->%s", data_id_name)
+    # NOTE: 这里需要兼容此前已经接入过VM的情形,接入VM时的data_id_name统一从AccessVMRecord中获取
+    vm_record = AccessVMRecord.objects.filter(result_table_id=table_id)
+    if vm_record.exists():
+        data_id_name = vm_record.first().bkbase_data_name
+        bkbase_data_id = vm_record.first().bkbase_data_id
+        logger.info(
+            "create_fed_vm_data_link: vm_record exists,will use data_id_name->[%s],bkbase_data_id->["
+            "%s].bk_data_id->[%s]",
+            data_id_name,
+            bkbase_data_id,
+            data_source.bk_data_id,
+        )
+    else:
+        data_id_name = utils.get_bkdata_data_id_name(data_name)
+        bkbase_data_id = data_source.bk_data_id
+        logger.info(
+            "create_fed_vm_data_link: vm_record not exists,will use data_id_name->[%s],bkbase_data_id->[%s],"
+            "bk_data_id->[%s]",
+            data_id_name,
+            bkbase_data_id,
+            data_source.bk_data_id,
+        )
+
+    logger.info(
+        "create_fed_vm_data_link: data_id_name->[%s],bkbase_data_id->[%s].bk_data_id->[%s]",
+        data_id_name,
+        bkbase_data_id,
+        data_source.bk_data_id,
+    )
 
     # 满足计算平台 40 长度的限制
     name = f"{utils.get_bkdata_table_id(table_id)}_fed"
@@ -271,12 +295,12 @@ def create_fed_vm_data_link(
         logger.info("create_fed_vm_data_link start to apply data link")
         api.bkdata.apply_data_link(data)
     except Exception as e:
-        logger.error("create_fed_vm_data_link apply data link error: %s", e)
+        logger.error("create_fed_vm_data_link apply data link error->[%s]", str(e))
         return
     # 根据存储创建多条记录
     records, vm_records = [], []
-    # 如果 vm 集群ID不存在，则通过集群名称获取
 
+    # 如果 vm 集群ID不存在，则通过集群名称获取
     if not vm_cluster_id:
         vm_cluster_id = ClusterInfo.objects.get(cluster_name=vm_cluster_name).cluster_id
 
@@ -285,7 +309,7 @@ def create_fed_vm_data_link(
             data_id_name=data_id_name,
             vm_table_id_name=dl["rt_name"],
             vm_binding_name=dl["vm_storage_binding_name"],
-            defaults={"data_bus_name": name, "sink_name": name},
+            defaults={"data_bus_name": name, "conditional_sink_name": name},
         )
         records.append(
             DataLinkResourceConfig(
@@ -310,7 +334,8 @@ def create_fed_vm_data_link(
                 result_table_id=dl["raw_rt_id"],
                 bcs_cluster_id=bcs_cluster_id,
                 vm_cluster_id=vm_cluster_id,
-                bk_base_data_id=-1,
+                bk_base_data_id=bkbase_data_id,  # 计算平台的数据ID
+                bk_base_data_name=data_id_name,  # 计算平台的数据名称
                 vm_result_table_id=f"{settings.DEFAULT_BKDATA_BIZ_ID}_{dl['rt_name']}",
             )
         )
@@ -341,8 +366,11 @@ def create_fed_vm_data_link(
     AccessVMRecord.objects.bulk_create(vm_records)
 
     logger.info(
-        "create_fed_vm_data_link for table_id: %s, data_name: %s, vm_cluster_name: %s success",
+        "create_fed_vm_data_link for table_id->%s, data_name->[%s], vm_cluster_name->[%s],bk_base_data_name->[%s],"
+        "bk_base_data_id->[%s] success",
         table_id,
         data_name,
         vm_cluster_name,
+        data_id_name,
+        bkbase_data_id,
     )
