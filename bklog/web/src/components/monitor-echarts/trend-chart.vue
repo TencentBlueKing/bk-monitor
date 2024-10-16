@@ -180,7 +180,6 @@
 
           const keys = [...(optionData.keys())];
           keys.sort((a, b) => a[0] - b[0]);
-          // const data = keys.map(key => ({ name: key, value: optionData.get(key)[0], timestamp: optionData.get(key)[1] }))
           const data = keys.map(key => [optionData.get(key)[1], optionData.get(key)[0], key]);
           updateChart(data, currentInterval);
 
