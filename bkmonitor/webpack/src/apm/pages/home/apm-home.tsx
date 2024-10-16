@@ -37,7 +37,7 @@ import OperateOptions from 'monitor-pc/pages/uptime-check/components/operate-opt
 // import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import authorityMixinCreate from '../../../apm/mixins/authorityMixin';
-import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
+// import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
 import authorityStore from '../../store/modules/authority';
 import * as authorityMap from '../home/authority-map';
 import AddAppSide from './add-app/add-app-side';
@@ -68,12 +68,12 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
   /** 显示引导页 */
   showGuidePage = false;
   // menu list
-  menuList: IMenuItem[] = [
-    {
-      id: 'help-docs',
-      name: window.i18n.tc('帮助文档'),
-    },
-  ];
+  // menuList: IMenuItem[] = [
+  //   {
+  //     id: 'help-docs',
+  //     name: window.i18n.tc('帮助文档'),
+  //   },
+  // ];
   /** 是否显示帮助文档弹窗 */
   showGuideDialog = false;
 
@@ -346,12 +346,12 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
                 onRefleshChange={this.handleRefreshChange}
                 onTimeRangeChange={this.handleTimeRangeChange}
               />
-              <ListMenu
+              {/* <ListMenu
                 list={this.menuList}
                 onMenuSelect={this.handleSettingsMenuSelect}
               >
                 <i class='icon-monitor icon-mc-more-tool' />
-              </ListMenu>
+              </ListMenu> */}
             </div>
           )}
         </NavBar>
