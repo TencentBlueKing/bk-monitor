@@ -516,6 +516,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "unit": "ns",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -619,6 +620,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "unit": "ns",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -722,6 +724,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "unit": "ns",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1347,6 +1350,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "unit": "ns",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1452,6 +1456,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "unit": "ns",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1557,6 +1562,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "unit": "ns",
             "query_configs": [
               {
                 "data_source_label": "custom",

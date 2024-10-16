@@ -660,6 +660,7 @@
           "alias": "P50",
           "data": {
             "app_name": "${app_name}",
+            "unit": "ns",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -761,6 +762,7 @@
           "alias": "P95",
           "data": {
             "app_name": "${app_name}",
+            "unit": "ns",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -862,6 +864,7 @@
           "alias": "P99",
           "data": {
             "app_name": "${app_name}",
+            "unit": "ns",
             "query_configs": [
               {
                 "data_source_label": "custom",
