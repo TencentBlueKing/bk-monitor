@@ -148,9 +148,9 @@ export default defineComponent({
 
     function handleSourceData() {
       const { appList, appName } = props;
-      const appId = appList.find(app => app.app_name === appName)?.application_id || '';
-      if (appId) {
-        const hash = `#/apm/application/config/${appId}?active=dataStatus`;
+      const name = appList.find(app => app.app_name === appName)?.app_name || '';
+      if (name) {
+        const hash = `#/apm/application/config/${name}?active=dataStatus`;
         const url = location.href.replace(location.hash, hash);
         window.open(url, '_blank');
       }

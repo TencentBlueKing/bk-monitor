@@ -220,7 +220,7 @@
     () => {
       if (!isRequsting) {
         finishPolling.value = false;
-        console.log('trigger - update');
+
         isStart.value = false;
         optionData.clear();
         logChartCancel?.();
