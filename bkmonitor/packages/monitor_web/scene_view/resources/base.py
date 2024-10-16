@@ -92,6 +92,11 @@ class PageListResource(ApiAuthResource, ABC):
                 if isinstance(cmp_b, dict):
                     cmp_b = cmp_b["value"]
 
+                if cmp_a is None:
+                    return -1 if not reverse else 1
+                if cmp_b is None:
+                    return 1 if not reverse else -1
+
                 if cmp_a > cmp_b:
                     return 1 if not reverse else -1
                 if cmp_a < cmp_b:
