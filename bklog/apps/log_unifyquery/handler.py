@@ -325,12 +325,12 @@ class UnifyQueryHandler(object):
                 value_list = addition["value"] if isinstance(addition["value"], list) else addition["value"].split(",")
                 new_value_list = []
                 for value in value_list:
-                    if not value:
-                        continue
                     if addition["field"] == "*":
                         value = "\"" + value.replace('"', '\\"') + "\""
-                    new_value_list.append(value)
-                self.query_string = " OR ".join(new_value_list)
+                    if value:
+                        new_value_list.append(value)
+                if new_value_list:
+                    self.query_string = " OR ".join(new_value_list)
                 continue
             if addition["operator"] in BASE_OP_MAP:
                 field_list.append(
