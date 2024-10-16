@@ -1899,4 +1899,6 @@ export default {
   有效期: 'Validity period',
   创建者: 'Creator',
   告警历史: 'Alarm history',
+  上报配置: 'Upload configuration',
+  '需先填写「服务名」，生成上报示例': 'Please fill in the service name first, and generate the reporting example',
 };
