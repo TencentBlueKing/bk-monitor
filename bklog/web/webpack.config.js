@@ -38,7 +38,6 @@ const devPort = 8001;
 
 let devConfig = {
   port: devPort,
-  host: devHost,
   devProxyUrl,
   loginHost,
   proxy: {},
