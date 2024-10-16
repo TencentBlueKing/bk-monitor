@@ -278,9 +278,13 @@ class DynamicUnifyQueryResource(Resource):
         end_time = validate_data["end_time"]
 
         if require_fill_series:
+            interval = get_bar_interval_number(
+                validate_data["start_time"],
+                validate_data["end_time"],
+            )
             response = {
                 "metrics": response.get("metrics"),
-                "series": fill_series(response.get("series", []), start_time, end_time),
+                "series": fill_series(response.get("series", []), start_time, end_time, interval),
             }
 
         if validate_data.get("unit"):
@@ -1461,7 +1465,15 @@ class ApdexQueryResource(ApiAuthResource):
             response = ApdexRange(
                 application, start_time, end_time, interval=get_bar_interval_number(start_time, end_time)
             ).query_range()
-            return {"metrics": [], "series": fill_series(response.get("series", []), start_time, end_time)}
+            return {
+                "metrics": [],
+                "series": fill_series(
+                    response.get("series", []),
+                    start_time,
+                    end_time,
+                    interval=get_bar_interval_number(start_time, end_time),
+                ),
+            }
 
         return {"metrics": [], "series": []}
 
