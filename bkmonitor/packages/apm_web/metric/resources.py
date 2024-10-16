@@ -323,7 +323,7 @@ class ServiceListResource(PageListResource):
             ),
             SyncTimeLinkTableFormat(
                 id="service_name",
-                width=200,
+                min_width=200,
                 name=_lazy("服务名称"),
                 checked=True,
                 url_format="/service/?filter-service_name={service_name}&filter-app_name={app_name}",
