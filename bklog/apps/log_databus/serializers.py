@@ -40,6 +40,7 @@ from apps.log_databus.constants import (
     EtlConfig,
     KafkaInitialOffsetEnum,
     LabelSelectorOperator,
+    MetadataType,
     PluginParamLogicOpEnum,
     PluginParamOpEnum,
     SyslogFilterFieldEnum,
@@ -763,6 +764,9 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
     enable_retain_content = serializers.BooleanField(label=_("是否保留失败日志"), required=False, default=True)
     record_parse_failure = serializers.BooleanField(label=_("是否记录清洗失败标记"), required=False, default=True)
     path_regexp = serializers.CharField(label=_("采集路径分割的正则"), required=False, allow_null=True)
+    metadata_type = serializers.ChoiceField(
+        label=_("元数据类型"), choices=MetadataType.get_choices(), default=MetadataType.BLANK.value
+    )
 
     def validate(self, attrs):
         ret = super().validate(attrs)

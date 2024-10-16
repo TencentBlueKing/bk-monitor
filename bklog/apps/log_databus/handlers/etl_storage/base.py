@@ -623,7 +623,7 @@ class EtlStorage(object):
                     "field_name": field_name,
                     "field_type": "string",
                     "option": {
-                        "metadata_type": MetadataType.PATH,
+                        "metadata_type": MetadataType.PATH.value,
                         "es_doc_values": True,
                         "es_type": "keyword",
                         "field_index": etl_field_index,
