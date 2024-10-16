@@ -285,7 +285,6 @@
               style="margin-top: -20px"
               :type="'textarea'"
               :rows="3"
-              :maxlength="255"
               :right-icon="'bk-icon icon-refresh'"
               v-model="logOriginal"
               @right-icon-click="refreshClick"
@@ -387,10 +386,10 @@
             <div class="origin-log-config">
               <bk-radio-group v-model="formData.log_reporting_time">
                 <bk-radio :value="true">
-                  <span v-bk-tooltips="$t('平台上报日志的时间，默认选择该设置；')">{{ $t('日志上报时间') }}</span>
+                  <span v-bk-tooltips="$t('平台上报日志的时间，默认选择该设置')">{{ $t('日志上报时间') }}</span>
                 </bk-radio>
                 <bk-radio :value="false">
-                  <span v-bk-tooltips="$t('你可以自行指定日志展示时间，勾选前请提前清洗日志时间；')">{{
+                  <span v-bk-tooltips="$t('你可以自行指定日志展示时间，勾选前请提前清洗日志时间')">{{
                     $t('指定字段为日志时间')
                   }}</span>
                 </bk-radio>
@@ -400,7 +399,7 @@
           <div
             v-if="formData.log_reporting_time === false"
             class="origin-log-config flex-box select-container"
-            style="display: flex; margin: 5px 0"
+            style="display: flex; margin: 10px 0"
           >
             <bk-form-item
               ext-cls="en-bk-form"
@@ -415,13 +414,14 @@
                 <bk-select
                   ext-cls="log-time-select"
                   v-model="formData.field_name"
-                  :clearable="false"
+                  clearable
+                  searchable
                   :popover-min-width="160"
                 >
                   <bk-option
                     v-for="option in renderFieldNameList"
                     :id="option.field_name"
-                    :key="option.field_index"
+                    :key="`${option.field_index}${option.field_name}`"
                     :name="option.field_name"
                   >
                   </bk-option>
@@ -441,7 +441,8 @@
                 <bk-select
                   ext-cls="log-time-select"
                   v-model="formData.time_format"
-                  :clearable="false"
+                  clearable
+                  searchable
                   :popover-min-width="360"
                 >
                   <bk-option
@@ -468,7 +469,8 @@
                   ext-cls="log-time-select"
                   v-model="formData.time_zone"
                   :popover-min-width="160"
-                  :clearable="false"
+                  clearable
+                  searchable
                 >
                   <bk-option
                     v-for="item in globalsData.time_zone"
@@ -500,7 +502,7 @@
                   <span
                     v-bk-tooltips="
                       $t(
-                        '日志存在多种格式时，可以保留不符合解析规则的日志，避免遗漏；未解析的日志可以通过 _prase.failure 进行过滤，为 true 时表示解析失败；',
+                        '日志存在多种格式时，可以保留不符合解析规则的日志，避免遗漏；未解析的日志可以通过 _prase.failure 进行过滤，为 true 时表示解析失败',
                       )
                     "
                     >{{ $t('保留') }}</span
@@ -513,32 +515,21 @@
             </div>
           </bk-form-item>
           <bk-form-item
-            v-if="formData.etl_params.enable_retain_content"
             ext-cls="en-bk-form"
             :icon-offset="120"
-            :label="$t('元数据')"
+            :label="$t('路径元数据')"
             :required="true"
-            :desc="'定义元数据并补充至日志中，可通过元数据进行过滤筛选；'"
+            :desc="'定义元数据并补充至日志中，可通过元数据进行过滤筛选'"
           >
             <div class="origin-log-config">
-              <bk-select
-                ext-cls="log-time-select"
-                v-model="metaData"
-                :popover-min-width="160"
-                :clearable="false"
-              >
-                <bk-option
-                  v-for="item in metaDataList"
-                  :id="item.id"
-                  :key="item.id"
-                  :name="item.name"
-                >
-                </bk-option>
-              </bk-select>
+              <bk-switcher
+                v-model="enableMetaData"
+                theme="primary"
+              ></bk-switcher>
             </div>
           </bk-form-item>
           <bk-form-item
-            v-if="formData.etl_params.enable_retain_content && metaData === 'path'"
+            v-if="enableMetaData"
             ext-cls="en-bk-form"
             :label="$t('路径样例')"
             :required="true"
@@ -552,7 +543,7 @@
             </div>
           </bk-form-item>
           <bk-form-item
-            v-if="formData.etl_params.enable_retain_content && metaData === 'path'"
+            v-if="enableMetaData"
             ext-cls="en-bk-form"
             :label="$t('采集路径分割正则')"
             :required="true"
@@ -587,7 +578,7 @@
                 :key="item.field_index"
               >
                 <bk-input
-                  style="width: 120px"
+                  style="width: 110px"
                   disabled
                   :placeholder="' '"
                   v-model="item.field_name"
@@ -595,7 +586,7 @@
                 ></bk-input>
                 <span>: </span>
                 <bk-input
-                  style="width: 120px"
+                  style="width: 400px"
                   disabled
                   :placeholder="' '"
                   v-model="item.value"
@@ -1097,12 +1088,6 @@
             name: this.$t('自定义'),
           },
         ],
-        metaDataList: [
-          {
-            id: 'path',
-            name: this.$t('路径元数据'),
-          },
-        ],
         visibleBkBiz: [], // 多业务选择id列表
         cacheVisibleList: [], // 缓存多业务选择下拉框
         visibleIsToggle: false,
@@ -1130,7 +1115,7 @@
           participleState: 'default',
         },
         originParticipleState: 'default',
-        metaData: 'path',
+        enableMetaData: false,
         pathExample: '',
         defaultParticipleStr: '@&()=\'",;:<>[]{}/ \\n\\t\\r\\\\',
         catchEtlConfig: '',
@@ -1177,10 +1162,7 @@
         return true;
       },
       showDebugPathRegexBtn() {
-        if (this.formData.etl_params.path_regexp && this.pathExample) {
-          return true;
-        }
-        return false;
+        return this.formData.etl_params.path_regexp && this.pathExample;
       },
       hasFields() {
         return this.formData.fields.length;
@@ -1407,17 +1389,20 @@
 
         const logTimeOption = {};
         etlFields.forEach(row => {
-          Object.assign(logTimeOption, {
-            log_reporting_time: row.is_time ? false : true,
-            field_name: row.is_time ? row.field_name : '',
-            time_format: row.is_time ? row.option.time_format : '',
-            time_zone: row.is_time ? row.option.time_zone : '',
-          });
+          if (row.is_time) {
+            Object.assign(logTimeOption, {
+              log_reporting_time: false,
+              field_name: row.field_name,
+              time_format: row.option.time_format,
+              time_zone: row.option.time_zone,
+            });
+          }
         });
 
         this.visibleBkBiz = visibleBkBizList;
         this.cacheVisibleList = visibleBkBizList;
         this.fieldType = clean_type;
+        this.enableMetaData = etlParams.path_regexp ? true : false;
         Object.assign(this.formData, {
           etl_config: this.fieldType,
           etl_params: Object.assign(
@@ -1720,7 +1705,7 @@
             data: {
               time_format,
               time_zone,
-              data: timeValueItem.value,
+              data: timeValueItem?.value || '',
             },
           })
           .then(res => {
@@ -1846,7 +1831,6 @@
         } = this.curCollect;
         const option = { time_zone: '', time_format: '' };
         const copyFields = fields ? JSON.parse(JSON.stringify(fields)) : [];
-        const logTimeOption = {};
         copyFields.forEach(row => {
           row.value = '';
           if (row.is_delete) {
@@ -1861,13 +1845,6 @@
           } else {
             row.option = Object.assign({}, option);
           }
-
-          Object.assign(logTimeOption, {
-            log_reporting_time: row.is_time ? false : true,
-            field_name: row.is_time ? row.field_name : '',
-            time_format: row.is_time ? row.option.time_format : '',
-            time_zone: row.is_time ? row.option.time_zone : '',
-          });
         });
 
         this.params.etl_config = etl_config;
@@ -1896,7 +1873,6 @@
             etlParams ? JSON.parse(JSON.stringify(etlParams)) : {},
           ),
           fields: copyFields.filter(item => !item.is_built_in),
-          ...logTimeOption,
         });
         if (!this.copyBuiltField.length) {
           this.copyBuiltField = copyFields.filter(item => item.is_built_in);
@@ -2235,15 +2211,27 @@
               this.formData.fields.splice(0, this.formData.fields.length);
 
               this.params.etl_config = clean_type;
-              const previousStateFields = etlFields.map(item => ({
-                ...item,
-                participleState: item.tokenize_on_chars ? 'custom' : 'default',
-              }));
+              const logTimeOption = {};
+              const previousStateFields = etlFields.map(item => {
+                if (item.is_time) {
+                  Object.assign(logTimeOption, {
+                    log_reporting_time: false,
+                    field_name: item.field_name,
+                    time_format: item.option.time_format,
+                    time_zone: item.option.time_zone,
+                  });
+                }
+                return {
+                  ...item,
+                  participleState: item.tokenize_on_chars ? 'custom' : 'default',
+                };
+              });
               Object.assign(this.params.etl_params, {
                 separator_regexp: etlParams.separator_regexp || '',
                 separator: etlParams.separator || '',
               });
               this.fieldType = clean_type;
+              this.enableMetaData = etlParams.path_regexp ? true : false;
 
               Object.assign(this.formData, {
                 etl_config: this.fieldType,
@@ -2253,10 +2241,12 @@
                     separator_regexp: '',
                     separator: '',
                     retain_extra_json: false,
+                    enable_retain_content: true,
                   },
                   etlParams ? JSON.parse(JSON.stringify(etlParams)) : {},
                 ),
                 fields: previousStateFields,
+                ...logTimeOption,
               });
               if (etlParams.original_text_tokenize_on_chars) {
                 this.originParticipleState = 'custom';
@@ -2398,7 +2388,7 @@
           etl_params: {
             separator_regexp: etlParams.separator_regexp,
             separator: etlParams.separator,
-            path_regexp: etlParams.path_regexp,
+            path_regexp: this.enableMetaData ? etlParams.path_regexp : null,
             enable_retain_content: etlParams.enable_retain_content,
             record_parse_failure: etlParams.enable_retain_content,
             ...payload,
@@ -2433,7 +2423,7 @@
             item.option.time_zone = '';
             item.option.time_format = '';
           } else if (item.field_name === field_name) {
-            // 当不是日志上报时间时，处理特定字段
+            // 当不是日志上报时间时
             item.is_time = true;
             item.option.time_zone = time_zone;
             item.option.time_format = time_format;

@@ -125,6 +125,7 @@
                 >
                   <bk-input
                     v-model.trim="props.row.field_name"
+                    class="participle-disabled-input"
                     :disabled="getFieldEditDisabled(props.row)"
                     @blur="checkFieldNameItem(props.row)"
                   ></bk-input>
@@ -301,7 +302,7 @@
             <bk-table-column
               :render-header="renderHeaderParticipleName"
               :resizable="false"
-              :width="200"
+              min-width="200"
               align="left"
             >
               <template #default="props">
@@ -313,14 +314,14 @@
                       {{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}
                     </div>
                   </template>
-                  <div v-else>不分词</div>
+                  <div v-else>{{ $t('不分词') }}</div>
                 </template>
                 <template v-else>
                   <div v-if="props.row.field_type === 'string'">
                     <bk-popconfirm
                       trigger="click"
                       :is-show="isShowParticiple"
-                      ext-cls=""
+                      class="participle-popconfirm"
                       @confirm="handleConfirmParticiple(props.row, props.$index)"
                     >
                       <div slot="content">
@@ -379,37 +380,34 @@
                           </bk-form>
                         </div>
                       </div>
-                      <div @click="handlePopover(props.row, props.$index)">
+                      <div
+                        class="participle-cell-wrap"
+                        @click="handlePopover(props.row, props.$index)"
+                      >
                         <div
-                          style="margin-left: 10px"
-                          v-if="props.row.isEdited"
+                          style="width: 85%"
+                          v-if="props.row.is_analyzed"
                         >
-                          <template v-if="props.row.is_analyzed">
-                            <div>
-                              {{
-                                props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词'
-                              }}
-                            </div>
-                            <div style="margin-top: -10px">
-                              {{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}
-                            </div>
-                          </template>
-                          <div v-else>{{ $t('不分词') }}</div>
+                          <div>
+                            {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}
+                          </div>
+                          <div style="margin-top: -10px">
+                            {{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}
+                          </div>
                         </div>
-                        <bk-input
+                        <div
+                          style="width: 85%"
                           v-else
-                          style="width: 199px"
-                          :placeholder="$t('请选择')"
-                          :right-icon="'participle-select-icon bk-icon icon-angle-down'"
-                          @click="handlePopover(props.row, props.$index)"
                         >
-                        </bk-input>
+                          {{ $t('不分词') }}
+                        </div>
+                        <div class="participle-select-icon bk-icon icon-angle-down"></div>
                       </div>
                     </bk-popconfirm>
                   </div>
                   <div v-else>
                     <bk-input
-                      style="border: none"
+                      class="participle-disabled-input"
                       disabled
                       :placeholder="$t('无需设置')"
                     >
@@ -664,6 +662,7 @@
     async mounted() {
       this.retainExtraText = this.retainExtraJson;
       this.reset();
+      this.$emit('handle-table-data', this.changeTableList);
     },
     methods: {
       reset() {
@@ -708,7 +707,6 @@
           }
         });
         this.formData.tableList.splice(0, this.formData.tableList.length, ...arr);
-        this.$emit('handle-table-data', this.formData.tableList);
       },
       resetField() {
         this.$emit('reset');
@@ -894,6 +892,7 @@
           result = '';
         }
         row.fieldErr = result;
+        this.$emit('handle-table-data', this.changeTableList);
 
         return result;
       },
@@ -1044,6 +1043,7 @@
       isDisableOperate(row) {
         if (this.isSetDisabled) return;
         row.is_delete = !row.is_delete;
+        this.$emit('handle-table-data', this.changeTableList);
       },
       filedNameIsConflict(fieldIndex, fieldName) {
         const otherFieldNameList = this.formData.tableList.filter(item => item.field_index !== fieldIndex);
@@ -1109,6 +1109,13 @@
         border: 1px solid transparent;
       }
 
+      .participle-disabled-input {
+        .bk-form-input[disabled] {
+          /* stylelint-disable-next-line declaration-no-important */
+          border-color: transparent !important;
+        }
+      }
+
       .bk-select {
         height: 50px;
         border: 1px solid transparent;
@@ -1128,7 +1135,6 @@
       }
 
       .participle-select-icon {
-        margin: 12px -6px 0px 0px;
         font-size: 20px;
         font-weight: 500;
         color: #979ba5;
@@ -1185,6 +1191,20 @@
       .empty-text {
         color: #979ba5;
       }
+
+      .participle-popconfirm {
+        width: 100%;
+
+        .bk-tooltip-ref {
+          width: 100%;
+        }
+
+        .participle-cell-wrap {
+          display: flex;
+          align-items: center;
+          margin-left: 10px;
+        }
+      }
     }
 
     .preview-panel-left {
@@ -1200,7 +1220,7 @@
       border-radius: 0 2px 2px 0;
 
       .preview-item {
-        height: 43px;
+        height: 51px;
         padding: 0 10px;
         overflow: hidden;
         line-height: 43px;
