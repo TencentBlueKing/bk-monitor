@@ -318,6 +318,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 essentials=essentials,
                 start=start,
                 end=end,
+                offset=data["offset"],
                 profile_id=data.get("profile_id"),
                 filter_labels=data.get("filter_labels"),
                 is_compared=data.get("is_compared"),
@@ -342,6 +343,10 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         else:
             extra_params = {"limit": {"offset": 0, "rows": NORMAL_SERVICE_MAX_QUERY_SIZE}}
 
+        start_time = data["filter_labels"].pop("start", "")
+        end_time = data["filter_labels"].pop("end", "")
+        if start_time and end_time:
+            start, end = self._enlarge_duration(start_time, end_time, offset=data["offset"])
         tree_converter = self.query(
             bk_biz_id=essentials["bk_biz_id"],
             app_name=essentials["app_name"],
@@ -374,6 +379,10 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         diagram_types = data["diagram_types"]
         options = {"sort": data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
         if data.get("is_compared"):
+            start_time = data["diff_filter_labels"].pop("start", "")
+            end_time = data["diff_filter_labels"].pop("end", "")
+            if start_time and end_time:
+                start, end = self._enlarge_duration(start_time, end_time, offset=data["offset"])
             diff_tree_converter = self.query(
                 bk_biz_id=essentials["bk_biz_id"],
                 app_name=essentials["app_name"],
@@ -432,6 +441,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         essentials,
         start,
         end,
+        offset=None,
         profile_id=None,
         filter_labels=None,
         is_compared=False,
@@ -448,6 +458,10 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             # 向分钟取整
             dimension = "FLOOR((dtEventTimeStamp / 1000) / 60) * 60000"
 
+        start_time = filter_labels.pop("start", "")
+        end_time = filter_labels.pop("end", "")
+        if start_time and end_time:
+            start, end = self._enlarge_duration(start_time, end_time, offset=offset)
         tendency_data = self.query(
             api_type=APIType.SELECT_COUNT,
             bk_biz_id=essentials["bk_biz_id"],
@@ -467,6 +481,11 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         )
 
         compare_tendency_result = {}
+        if is_compared:
+            start_time = diff_filter_labels.pop("start", "")
+            end_time = diff_filter_labels.pop("end", "")
+            if start_time and end_time:
+                start, end = self._enlarge_duration(start_time, end_time, offset=offset)
         if is_compared:
             compare_tendency_data = self.query(
                 api_type=APIType.SELECT_COUNT,
