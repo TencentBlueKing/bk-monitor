@@ -240,7 +240,9 @@ class TraceBackendHandler(TelemetryBackendHandler):
         return count
 
     def get_no_data_strategy_config(self, **kwargs):
-        promql = f'sum(sum_over_time({{__name__="custom:{self.result_table_id}:bk_apm_count}}[1m])) or vector(0)'
+        promql = (
+            f'sum(sum_over_time({{__name__="custom:{self.metric_result_table_id}:bk_apm_count"}}[1m])) or vector(0)'
+        )
         return {
             "result_table_id": self.result_table_id,
             "metric_id": promql,
