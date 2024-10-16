@@ -734,11 +734,19 @@ class ServiceListResource(PageListResource):
             paginated_data["filter"] = filter_fields
             return paginated_data
 
-        # 获取服务列表
+        # 1. 获取服务列表
         services = ServiceHandler.list_services(application)
-        # 获取服务收藏列表
+
+        # 主动更新一下缓存，防止出现服务数和缓存里数量不一致的问题
+        # 这里通过 update 方式，指定字段更新，是为了不自动变更 update_user， update_time 字段
+        Application.objects.filter(bk_biz_id=application.bk_biz_id, app_name=application.app_name).update(
+            service_count=len(services)
+        )
+
+        # 2. 获取服务收藏列表
         collects = CollectServiceResource.get_collect_config(application).config_value
 
+        # 3. 获取服务的数据状态
         res = []
         # 先获取缓存数据
         cache_key = ApmCacheKey.APP_SERVICE_STATUS_KEY.format(application_id=application.application_id)
@@ -749,10 +757,13 @@ class ServiceListResource(PageListResource):
             except JSONDecodeError:
                 pass
         if not data_status_mapping:
+            # 数据状态是指最新的一个状态，所以这里使用无数据周期配置，而不是页面选择的起止时间
+            start_time, end_time = get_datetime_range("minute", application.no_data_period)
+            start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
             data_status_mapping = ServiceHandler.get_service_data_status_mapping(
                 application,
-                validate_data["start_time"],
-                validate_data["end_time"],
+                start_time,
+                end_time,
                 services,
             )
             cache.set(cache_key, json.dumps(data_status_mapping))
