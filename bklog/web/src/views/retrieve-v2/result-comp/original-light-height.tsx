@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getFlatObjValues } from '../../../common/util';
 import TextSegmentation from './text-segmentation';
+import JsonFormatter from '../../../global/json-formatter.vue';
 
 import './original-light-height.scss';
 
@@ -38,7 +39,7 @@ interface IProps {
   operatorConfig: object;
 }
 @Component
-export default class QueryStatement extends tsc<IProps> {
+export default class OriginalLightHeight extends tsc<IProps> {
   /** 原始日志 */
   @Prop({ type: Object, required: true }) originJson;
   @Prop({ type: Array<any>, required: true }) visibleFields;
@@ -54,6 +55,10 @@ export default class QueryStatement extends tsc<IProps> {
 
   get unionIndexItemList() {
     return this.$store.getters.unionIndexItemList;
+  }
+
+  get formatValue() {
+    return this.originJson || {};
   }
 
   // 扁平化对象所有数据
@@ -99,7 +104,7 @@ export default class QueryStatement extends tsc<IProps> {
         class='origin-content'
         title={this.tableLineIsWarp ? '' : this.strOriginJson}
       >
-        {Object.entries(this.fieldMapDataObj).map(([key, value]) => {
+        {/* {Object.entries(this.fieldMapDataObj).map(([key, value]) => {
           return (
             <span>
               <span class='black-mark'>&nbsp;{key}:&nbsp;</span>
@@ -112,7 +117,8 @@ export default class QueryStatement extends tsc<IProps> {
               </span>
             </span>
           );
-        })}
+        })} */}
+        <JsonFormatter jsonValue={this.formatValue} fields={ this.visibleFields }></JsonFormatter>
       </span>
     );
   }

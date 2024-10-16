@@ -73,7 +73,7 @@
         <bk-table-column :class-name="`original-str${tableLineIsWarp ? ' is-wrap' : ''}`">
           <!-- eslint-disable-next-line -->
           <template slot-scope="{ row, column, $index }">
-            <div :class="['str-content', 'origin-str', { 'is-limit': getLimitState($index) }]">
+            <div :class="['str-content', 'origin-str']">
               <!-- eslint-disable-next-line vue/no-v-html -->
               <!-- <span>{{ JSON.stringify(row) }}</span> -->
               <original-light-height
@@ -82,7 +82,7 @@
                 :visible-fields="getShowTableVisibleFields"
                 @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
               />
-              <template v-if="!isLimitExpandView">
+              <!-- <template v-if="!isLimitExpandView">
                 <p
                   v-if="!cacheExpandStr.includes($index)"
                   class="show-whole-btn"
@@ -97,7 +97,7 @@
                 >
                   {{ $t('收起') }}
                 </p>
-              </template>
+              </template> -->
             </div>
           </template>
         </bk-table-column>

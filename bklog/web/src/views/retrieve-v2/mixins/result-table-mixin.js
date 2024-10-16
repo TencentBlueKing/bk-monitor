@@ -286,7 +286,7 @@ export default {
     },
     // 展开表格行JSON
     tableRowClick(row, option, column) {
-      if (column.className?.includes('original-str')) return;
+      if (column?.className?.includes('original-str') ?? true) return;
       const ele = this.$refs.resultTable;
       ele.toggleRowExpansion(row);
     },
