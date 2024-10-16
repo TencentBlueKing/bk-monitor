@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
+from opentelemetry.trace import StatusCode
 
 from alarm_backends.core.storage.redis import Cache
 from apm import types
@@ -233,7 +234,7 @@ class StatisticsQuery(BaseQuery):
 
         error_q: QueryConfigBuilder = (
             q.filter(groups_filter)
-            .filter(**{f"{OtlpKey.STATUS_CODE}__neq": 0})
+            .filter(**{f"{OtlpKey.STATUS_CODE}__eq": StatusCode.ERROR.value})
             .metric(field=OtlpKey.STATUS_CODE, method="count", alias="error_count")
         )
         for err_bucket in queryset.add_query(error_q).after({}):

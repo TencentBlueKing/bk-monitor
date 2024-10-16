@@ -170,7 +170,7 @@ export class LineChart
     if (this.readonly) return ['fullscreen'];
     if (this.customMenuList) return this.customMenuList;
     const [target] = this.panel.targets;
-    return target.datasource === 'time_series'
+    return target?.datasource === 'time_series'
       ? ['save', 'more', 'fullscreen', 'explore', 'area', 'drill-down', 'relate-alert']
       : ['screenshot', 'area'];
   }
@@ -178,7 +178,7 @@ export class LineChart
   // 是否显示添加指标到策略选项
   get showAddMetric(): boolean {
     const [target] = this.panel.targets;
-    return !this.readonly && target.datasource === 'time_series';
+    return !this.readonly && target?.datasource === 'time_series';
   }
 
   // 只需要一条_result_的数据
@@ -321,7 +321,9 @@ export class LineChart
   }
   // 图表tooltip 可用于继承组件重写该方法
   handleSetTooltip() {
-    return {};
+    return {
+      extraCssText: 'max-width: 50%',
+    };
   }
   /**
    * @description: 获取图表数据
@@ -368,7 +370,7 @@ export class LineChart
         ...this.viewOptions,
         interval,
       });
-      timeShiftList.forEach(time_shift => {
+      for (const time_shift of timeShiftList) {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
         const list = this.panel.targets.map(item => {
           const newPrarams = {
@@ -398,8 +400,14 @@ export class LineChart
               group_by: config.group_by.filter(key => !item.ignore_group_by.includes(key)),
             }));
           }
+          const primaryKey = item?.primary_key;
+          const paramsArr = [];
+          if (primaryKey) {
+            paramsArr.push(primaryKey);
+          }
+          paramsArr.push(newPrarams);
           return (this as any).$api[item.apiModule]
-            [item.apiFunc](newPrarams, {
+            [item.apiFunc](...paramsArr, {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
               needMessage: false,
             })
@@ -423,7 +431,7 @@ export class LineChart
             });
         });
         promiseList.push(...list);
-      });
+      }
       await Promise.all(promiseList).catch(() => false);
       this.metrics = metrics || [];
       if (series.length) {
@@ -506,7 +514,8 @@ export class LineChart
             });
           });
         }
-        const formatterFunc = this.handleSetFormatterFunc(seriesList[0].data);
+        const formatData = seriesList.find(item => item.data?.length > 0)?.data;
+        const formatterFunc = this.handleSetFormatterFunc(formatData);
         const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
 
         const chartBaseOptions = MONITOR_LINE_OPTIONS;
@@ -777,7 +786,7 @@ export class LineChart
       maxX &&
       // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
       (formatterFunc = (v: any) => {
-        const duration = dayjs.tz(maxX).diff(dayjs.tz(minX), 'second');
+        const duration = Math.abs(dayjs.tz(maxX).diff(dayjs.tz(minX), 'second'));
         if (onlyBeginEnd && v > minX && v < maxX) {
           return '';
         }
@@ -892,7 +901,7 @@ export class LineChart
       // 获取y轴上可设置的最小的精确度
       const precision = this.handleGetMinPrecision(
         item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
-        unitFormatter,
+        getValueFormat(this.yAxisNeedUnitGetter ? item.unit || '' : ''),
         item.unit
       );
       if (item.name) {
@@ -1039,13 +1048,13 @@ export class LineChart
         this.handleDrillDown(menuItem.childValue);
         break;
       case 'relate-alert':
-        this.panel?.targets?.forEach(target => {
+        for (const target of this.panel?.targets || []) {
           if (target.data?.query_configs?.length) {
             let queryConfig = deepClone(target.data.query_configs);
             queryConfig = variablesService.transformVariables(queryConfig);
             target.data.query_configs = queryConfig;
           }
-        });
+        }
         handleRelateAlert(this.panel, this.timeRange);
         break;
       default:
@@ -1173,7 +1182,7 @@ export class LineChart
     if (!data || data.length === 0) {
       return 0;
     }
-    data.sort();
+    data.sort((a, b) => a - b);
     const len = data.length;
     if (data[0] === data[len - 1]) {
       if (['none', ''].includes(unit) && !data[0].toString().includes('.')) return 0;
@@ -1191,7 +1200,7 @@ export class LineChart
     sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
     while (precision < 5) {
       const samp = sampling.reduce((pre, cur) => {
-        pre[formattter(cur, precision).text] = 1;
+        pre[Number(formattter(cur, precision).text)] = 1;
         return pre;
       }, {});
       if (Object.keys(samp).length >= sampling.length) {

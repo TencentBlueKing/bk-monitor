@@ -351,3 +351,26 @@ class UpdateConfigInstanceCountResource(Resource):
         for config in config_list:
             cache_data = result_dict.get(config.deployment_config.subscription_id)
             CollectConfigMeta.objects.filter(id=config.id).update(cache_data=cache_data)
+
+        # 更新k8s插件采集配置的状态
+        for collect_config in config_list:
+            # 跳过非k8s插件
+            if collect_config.plugin.plugin_type != PluginType.K8S:
+                continue
+
+            error_count, total_count = 0, 0
+            installer = get_collect_installer(collect_config)
+            for node in installer.status():
+                for instance in node["child"]:
+                    if instance["status"] in [CollectStatus.FAILED, CollectStatus.UNKNOWN]:
+                        error_count += 1
+                    total_count += 1
+
+            # 更新缓存
+            cache_data = {
+                "error_instance_count": error_count,
+                "total_instance_count": total_count,
+            }
+            if collect_config.cache_data != cache_data:
+                collect_config.cache_data = cache_data
+                collect_config.save(not_update_user=True, update_fields=["cache_data"])

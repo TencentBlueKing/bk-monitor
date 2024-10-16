@@ -11,16 +11,28 @@ specific language governing permissions and limitations under the License.
 
 
 from django.conf import settings
+from django.utils.translation import get_language
 
 from bkmonitor.views import serializers
 from core.drf_resource.base import Resource
 
-# 用户白皮书在文档中心的根路径
-DOCS_USER_GUIDE_ROOT = "监控平台"
-
 DOCS_LIST = ["产品白皮书", "应用运维文档", "开发架构文档"]
 
 DEFAULT_DOC = DOCS_LIST[0]
+
+PATH_MAPPING = {
+    DEFAULT_DOC: "UserGuide",
+    "应用运维文档": "Operation",
+    "开发架构文档": "Architecture",
+}
+
+
+def make_prefix(doc_name):
+    lang = "EN" if get_language() == "en" else "ZH"
+    return (
+        f"{settings.BK_DOCS_SITE_URL.rstrip('/')}/markdown/{lang}/"
+        f"Monitor/{settings.BK_DOC_VERSION}/{PATH_MAPPING[doc_name]}/"
+    )
 
 
 class GetDocLinkResource(Resource):
@@ -33,11 +45,14 @@ class GetDocLinkResource(Resource):
 
     def perform_request(self, validated_request_data):
         md_path = validated_request_data["md_path"].strip("/")
-        if not (md_path.split("/", 1)[0] in DOCS_LIST or md_path.startswith(DOCS_USER_GUIDE_ROOT)):
-            # 自动补全默认使用产品白皮书
-            md_path = "/".join([DOCS_USER_GUIDE_ROOT, DEFAULT_DOC, md_path])
-        doc_url = f"{settings.BK_DOCS_SITE_URL.rstrip('/')}/markdown/{md_path.lstrip('/')}"
-        return doc_url
+        for doc_name in DOCS_LIST:
+            if doc_name in md_path:
+                break
+        else:
+            doc_name = DEFAULT_DOC
+        prefix = make_prefix(doc_name)
+        suffix = md_path.split(doc_name)[-1].lstrip("/")
+        return prefix + suffix
 
 
 class GetLinkMappingResource(Resource):

@@ -121,7 +121,7 @@
           class="menu-select-extension-item"
           @mousedown.stop="experienceDemo"
         >
-          <span class="icon log-icon icon-app-store"></span>
+          <span class="icon bklog-icon bklog-app-store"></span>
           {{ $t('体验DEMO') }}
         </div>
       </div>
@@ -207,7 +207,7 @@
         return this.mySpaceList.find(item => item.space_uid === this.spaceUid)?.space_name;
       },
       bizNameIcon() {
-        return this.bizName[0].toLocaleUpperCase();
+        return this.bizName?.[0]?.toLocaleUpperCase() ?? '';
       },
       showSpaceTypeIdList() {
         // 外部版不展示空间分类
@@ -343,12 +343,27 @@
           this.$refs.menuSearchInput.focus();
         }, 100);
       },
+      debounceUpdateRouter() {
+        return debounce(60, space => {
+          if (`${space.bk_biz_id}` !== this.$route.query.bizId || space.space_uid !== this.$route.query.spaceUid) {
+            this.$router.push({
+              query: {
+                ...(this.$route.query ?? {}),
+                bizId: space.bk_biz_id,
+                spaceUid: space.space_uid,
+              },
+            });
+          }
+        });
+      },
       /**
        * @desc: 点击下拉框的空间选项
        * @param {Object} space 点击的空间
        * @param {String} type 点的是哪个分组的空间
        */
       handleClickMenuItem(space, type) {
+        this.debounceUpdateRouter()(space);
+
         try {
           if (this.isExternalAuth) {
             this.exterlAuthSpaceName = space.space_name;
@@ -414,7 +429,6 @@
       align-items: center;
       height: 32px;
       padding: 0 4px 0 8px;
-      background-color: #2b354d;
       border-radius: 2px;
 
       &-name {

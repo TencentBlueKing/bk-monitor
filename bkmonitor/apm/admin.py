@@ -56,6 +56,7 @@ register(
     ("bk_biz_id", "app_name", "from_endpoint_name", "category", "topo_node_key"),
     ("bk_biz_id", "app_name"),
 )
+register(models.LogDataSource)
 register(models.TraceDataSource)
 register(models.MetricDataSource)
 register(models.ProfileDataSource)

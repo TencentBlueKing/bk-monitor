@@ -96,17 +96,26 @@ def array_chunk(data, size=100):
     return [data[i : i + size] for i in range(0, len(data), size)]
 
 
-def get_toggle_data():
+def get_toggle_data(request):
     toggle_list = FeatureToggleObject.toggle_list(**{"is_viewed": True})
     field_analysis_config, __ = FeatureToggle.objects.get_or_create(
         name=FIELD_ANALYSIS_CONFIG,
         defaults={
-            "status": "debug",
+            "status": "on",
             "is_viewed": True,
-            "feature_config": {"scenario_id_white_list": ["es", "log"]},
+            "feature_config": {"scenario_id_white_list": ["es", "log", "bkdata"]},
             "biz_id_white_list": [],
         },
     )
+    # 获取用户名
+    username = request.user.username
+    for toggle in toggle_list:
+        config = toggle.feature_config
+        if isinstance(config, dict):
+            # 获取用户白名单
+            user_list = config.get("user_white_list", [])
+            if username in user_list:
+                toggle.status = "on"
     data = {
         # 实时日志最大长度
         "REAL_TIME_LOG_MAX_LENGTH": "20000",
@@ -121,6 +130,15 @@ def get_toggle_data():
                 toggle.name: toggle.biz_id_white_list
                 for toggle in toggle_list
                 if isinstance(toggle.biz_id_white_list, list)
+            }
+        ),
+        "SPACE_UID_WHITE_LIST": json.dumps(
+            {
+                toggle.name: toggle.feature_config["space_uid_white_list"]
+                for toggle in toggle_list
+                if toggle.feature_config
+                and isinstance(toggle.feature_config, dict)
+                and toggle.feature_config.get("space_uid_white_list", [])
             }
         ),
     }

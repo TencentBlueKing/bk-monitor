@@ -1,16 +1,16 @@
 @import '@/scss/mixins/overflow-tips.scss';
 @import '@/scss/mixins/flex.scss';
 
-.filed-item {
+.filed-item-old {
   margin-bottom: 6px;
 
   .hidden-icon {
-    &.icon-drag-dots {
+    &.bklog-drag-dots {
       visibility: hidden;
     }
   }
 
-  .icon-drag-dots {
+  .bklog-drag-dots {
     width: 16px;
     padding-left: 4px;
     font-size: 14px;
@@ -25,7 +25,7 @@
     background-color: #f4f5f8;
     // transition: background .2s linear;
 
-    .icon-drag-dots {
+    .bklog-drag-dots {
       opacity: 1;
       transition: opacity 0.2s linear;
     }

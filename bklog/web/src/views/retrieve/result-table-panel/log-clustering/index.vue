@@ -35,13 +35,31 @@
         class="cluster-nav"
         data-test-id="cluster_div_fingerOperate"
       >
-        <div class="left-container">
-          <div></div>
-          <strategy
-            style="margin-left: 20px"
-            :cluster-switch="clusterSwitch"
-            :strategy-submit-status="watchStrategySubmitStatus"
-          />
+        <strategy
+          v-if="!isExternal"
+          :cluster-switch="clusterSwitch"
+          :strategy-submit-status="watchStrategySubmitStatus"
+        />
+        <div v-else>
+          <div v-if="isShowGroupTag">
+            <bk-tag v-if="getDimensionStr">
+              {{ getDimensionStr }}
+            </bk-tag>
+            <bk-tag
+              v-if="getGroupStr"
+              closable
+              @close="handleCloseGroupTag"
+            >
+              {{ getGroupStr }}
+            </bk-tag>
+            <bk-tag
+              v-if="getYearStr"
+              closable
+              @close="handleCloseYearTag"
+            >
+              {{ getYearStr }}
+            </bk-tag>
+          </div>
         </div>
 
         <finger-operate
@@ -55,7 +73,7 @@
       </div>
 
       <div
-        v-if="isShowGroupTag"
+        v-if="isShowGroupTag && !isExternal"
         style="margin: 0 0 16px -6px"
       >
         <bk-tag v-if="getDimensionStr">
@@ -353,6 +371,9 @@
       },
       isShowTopNav() {
         return this.exhibitAll && this.clusterSwitch && !this.isShowClusterStep;
+      },
+      isExternal() {
+        return this.$store.state.isExternal;
       },
     },
     watch: {
@@ -681,11 +702,6 @@
       margin-bottom: 12px;
       color: #63656e;
       @include flex-justify(space-between);
-
-      .left-container {
-        flex-wrap: nowrap;
-        @include flex-justify(space-between);
-      }
     }
 
     .bk-alert {

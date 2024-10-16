@@ -11,10 +11,12 @@ specific language governing permissions and limitations under the License.
 import datetime
 import functools
 import itertools
+import json
 import operator
 import re
 from multiprocessing.pool import ApplyResult
 
+import arrow
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
 from rest_framework import serializers
@@ -31,6 +33,7 @@ from apm_web.handlers.span_handler import SpanHandler
 from apm_web.icon import get_icon
 from apm_web.models import (
     ApdexServiceRelation,
+    ApmMetaConfig,
     Application,
     AppServiceRelation,
     CMDBServiceRelation,
@@ -70,19 +73,35 @@ class ServiceInfoResource(Resource):
         start_time = serializers.IntegerField(required=False, default=None, label="数据开始时间")
         end_time = serializers.IntegerField(required=False, default=None, label="数据结束时间")
 
-    def get_operate_record(self, bk_biz_id, app_name, service_name):
+    @classmethod
+    def fill_operate_record(
+        cls, service_info, app_relation_info, log_relation_info, cmdb_relation_info, uri_relation_list, apdex_info
+    ):
         """获取操作记录"""
-        relation = AppServiceRelation.objects.filter(
-            bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
-        ).first()
-        return {
-            "created_at": relation.created_at if relation else None,
-            "updated_at": relation.updated_at if relation else None,
-            "created_by": relation.created_by if relation else None,
-            "updated_by": relation.updated_by if relation else None,
-        }
+        default_username = "system"
 
-    def get_cmdb_relation_info(self, bk_biz_id, app_name, service_name):
+        def bigger_than_update(lft_info, rgt_info):
+            lft_time = lft_info.get("updated_at") or 0
+            rgt_time = rgt_info.get("updated_at") or 0
+            if arrow.get(lft_time) > arrow.get(rgt_time):
+                rgt_info["updated_at"] = lft_info.get("updated_at")
+                rgt_info["updated_by"] = lft_info.get("updated_by") or default_username
+
+        bigger_than_update(app_relation_info, service_info)
+        bigger_than_update(log_relation_info, service_info)
+        bigger_than_update(cmdb_relation_info, service_info)
+        for uri_relation_info in uri_relation_list:
+            bigger_than_update(uri_relation_info, service_info)
+        bigger_than_update(apdex_info, service_info)
+
+        # 如果没有，则设置默认值
+        service_info["created_at"] = service_info.get("created_at")
+        service_info["created_by"] = service_info.get("created_by") or default_username
+        service_info["updated_at"] = service_info.get("updated_at")
+        service_info["updated_by"] = service_info.get("updated_by") or default_username
+
+    @classmethod
+    def get_cmdb_relation_info(cls, bk_biz_id, app_name, service_name):
         query = CMDBServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
         if not query.exists():
             return {}
@@ -97,16 +116,20 @@ class ServiceInfoResource(Resource):
             "template_name": template.get("name"),
             "first_category": template.get("first_category"),
             "second_category": template.get("second_category"),
+            "updated_by": instance.updated_by,
+            "updated_at": instance.updated_at,
         }
 
-    def get_log_relation_info(self, bk_biz_id, app_name, service_name):
+    @classmethod
+    def get_log_relation_info(cls, bk_biz_id, app_name, service_name):
         query = LogServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
         if query.exists():
             return LogServiceRelationOutputSerializer(instance=query.first()).data
 
         return {}
 
-    def get_app_relation_info(self, bk_biz_id, app_name, service_name):
+    @classmethod
+    def get_app_relation_info(cls, bk_biz_id, app_name, service_name):
         query = AppServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
         if query.exists():
             instance = query.first()
@@ -119,26 +142,25 @@ class ServiceInfoResource(Resource):
 
         return {}
 
-    def get_uri_relation_info(self, bk_biz_id, app_name, service_name):
+    @classmethod
+    def get_uri_relation_info(cls, bk_biz_id, app_name, service_name):
         query = UriServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name)
         if not query.exists():
             return []
 
-        return list(query.order_by("rank").values("id", "uri", "rank"))
+        return list(query.order_by("rank").values("id", "uri", "rank", "updated_at", "updated_by"))
 
-    def get_apdex_relation_info(self, bk_biz_id, app_name, service_name, topo_node):
+    @classmethod
+    def get_apdex_relation_info(cls, bk_biz_id, app_name, service_name, topo_node):
         instance = ServiceHandler.get_apdex_relation_info(bk_biz_id, app_name, service_name, topo_node)
         if not instance:
             return {}
         return ServiceApdexConfigSerializer(instance=instance).data
 
-    def get_profiling_info(self, app, bk_biz_id, app_name, service_name, start_time, end_time):
+    @classmethod
+    def get_profiling_info(cls, app, bk_biz_id, app_name, service_name, start_time, end_time):
         """获取服务的 profiling 状态"""
-
-        res = {}
-        res["application_id"] = app.application_id
-
-        res["is_enabled_profiling"] = app.is_enabled_profiling
+        res = {"application_id": app.application_id, "is_enabled_profiling": app.is_enabled_profiling}
         if app.is_enabled_profiling:
             # 获取此服务是否有 Profiling 数据
             count = QueryTemplate(bk_biz_id, app_name).get_service_count(start_time, end_time, service_name)
@@ -147,6 +169,13 @@ class ServiceInfoResource(Resource):
             res["is_profiling_data_normal"] = False
 
         return res
+
+    @classmethod
+    def get_labels(cls, bk_biz_id, app_name, service_name):
+        config_instance = ApmMetaConfig.get_service_config_value(bk_biz_id, app_name, service_name, "labels")
+        if config_instance:
+            return json.loads(config_instance.config_value)
+        return []
 
     def perform_request(self, validate_data):
         # 获取请求数据
@@ -172,13 +201,16 @@ class ServiceInfoResource(Resource):
             "end_time": validate_data["end_time"],
         }
         pool = ThreadPool()
-        topo_node_res = pool.apply_async(ServiceHandler.list_nodes, kwds={"bk_biz_id": bk_biz_id, "app_name": app_name})
+        topo_node_res = pool.apply_async(
+            ServiceHandler.list_nodes, kwds={"bk_biz_id": bk_biz_id, "app_name": app_name, "service_name": service_name}
+        )
         instance_res = pool.apply_async(RelationMetricHandler.list_instances, kwds=query_instance_param)
         app_relation = pool.apply_async(self.get_app_relation_info, args=(bk_biz_id, app_name, service_name))
         log_relation = pool.apply_async(self.get_log_relation_info, args=(bk_biz_id, app_name, service_name))
         cmdb_relation = pool.apply_async(self.get_cmdb_relation_info, args=(bk_biz_id, app_name, service_name))
         uri_relation = pool.apply_async(self.get_uri_relation_info, args=(bk_biz_id, app_name, service_name))
-        operate_record = pool.apply_async(self.get_operate_record, args=(bk_biz_id, app_name, service_name))
+        labels = pool.apply_async(self.get_labels, args=(bk_biz_id, app_name, service_name))
+
         profiling_info = {}
         if validate_data.get("start_time") and validate_data.get("end_time"):
             profiling_info = pool.apply_async(
@@ -190,24 +222,32 @@ class ServiceInfoResource(Resource):
 
         # 获取服务信息
         service_info = {"extra_data": {}, "topo_key": service_name}
-        service_info.update(operate_record.get())
+        resp = topo_node_res.get()
+        for service in resp:
+            if service["topo_key"] == validate_data["service_name"]:
+                service_info.update(service)
+
+        app_relation_info = app_relation.get()
+        log_relation_info = log_relation.get()
+        cmdb_relation_info = cmdb_relation.get()
+        uri_relation_info = uri_relation.get()
+        apdex_info = self.get_apdex_relation_info(bk_biz_id, app_name, service_name, resp)
+        self.fill_operate_record(
+            service_info, app_relation_info, log_relation_info, cmdb_relation_info, uri_relation_info, apdex_info
+        )
         if isinstance(profiling_info, ApplyResult):
             execute_res = profiling_info.get()
             if isinstance(execute_res, dict):
                 service_info.update(execute_res)
-        resp = topo_node_res.get()
 
         service_info["relation"] = {
-            "app_relation": app_relation.get(),
-            "log_relation": log_relation.get(),
-            "cmdb_relation": cmdb_relation.get(),
-            "uri_relation": uri_relation.get(),
-            "apdex_relation": self.get_apdex_relation_info(bk_biz_id, app_name, service_name, resp),
+            "app_relation": app_relation_info,
+            "log_relation": log_relation_info,
+            "cmdb_relation": cmdb_relation_info,
+            "uri_relation": uri_relation_info,
+            "apdex_relation": apdex_info,
         }
 
-        for service in resp:
-            if service["topo_key"] == validate_data["service_name"]:
-                service_info.update(service)
         # 一级目录名称
         category_key = service_info["extra_data"].get("category", "")
         service_info["extra_data"]["category_name"] = CategoryEnum.get_label_by_key(category_key)
@@ -225,6 +265,8 @@ class ServiceInfoResource(Resource):
         # 实例数
         instances = instance_res.get()
         service_info["instance_count"] = len(instances)
+        # 自定义标签
+        service_info["labels"] = labels.get()
         # 响应
         return service_info
 
@@ -380,6 +422,8 @@ class ServiceConfigResource(Resource):
         update_relation(validated_request_data.get("apdex_relation"), ApdexServiceRelation)
 
         self.update_uri(bk_biz_id, app_name, service_name, validated_request_data["uri_relation"])
+        if validated_request_data.get("labels"):
+            self.update_labels(bk_biz_id, app_name, service_name, validated_request_data["labels"])
 
         # 下发修改后的配置
         application_id = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get().application_id
@@ -398,10 +442,12 @@ class ServiceConfigResource(Resource):
             k: [g.id for g in group] for k, group in itertools.groupby(relations, operator.attrgetter("uri"))
         }
 
+        username = get_request_username()
+        update_at = arrow.now().datetime
         for index, item in enumerate(uri_relations):
             qs = relations.filter(uri=item)
             if qs.exists():
-                qs.update(rank=index)
+                qs.update(rank=index, updated_by=username, updated_at=update_at)
                 del delete_uris[item]
             else:
                 UriServiceRelation.objects.create(uri=item, rank=index, **filter_params)
@@ -417,7 +463,7 @@ class ServiceConfigResource(Resource):
             username = get_request_username()
 
             if qs.exists():
-                qs.update(updated_by=username, **relation)
+                qs.update(updated_by=username, updated_at=arrow.now().datetime, **relation)
             else:
                 model.objects.create(
                     bk_biz_id=bk_biz_id,
@@ -427,6 +473,15 @@ class ServiceConfigResource(Resource):
                     created_by=username,
                     **relation,
                 )
+
+    def update_labels(self, bk_biz_id, app_name, service_name, labels):
+        ApmMetaConfig.service_config_setup(
+            bk_biz_id,
+            app_name,
+            service_name,
+            "labels",
+            json.dumps(labels),
+        )
 
 
 class UriregularVerifyResource(Resource):

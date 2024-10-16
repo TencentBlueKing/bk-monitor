@@ -29,9 +29,9 @@ def install_grafana():
 
 def ebpf_discover_cron():
     """
-    定时寻找安装DeepFlow的集群
+    定时寻找安装 DeepFlow 的集群
     """
-    logger.info(f"[ebpf_discover_cron] start")
+    logger.info("[ebpf_discover_cron] start")
 
     cluster_ids = ClusterRelation.all_cluster_ids()
     logger.info(f"[ebpf_discover_cron] start to discover deepflow in {len(cluster_ids)} clusters")
@@ -39,7 +39,7 @@ def ebpf_discover_cron():
         DeepflowInstaller(cluster_id).check_installed()
 
     install_grafana.delay()
-    logger.info(f"[ebpf_discover_cron] end")
+    logger.info("[ebpf_discover_cron] end")
 
 
 def cluster_discover_cron():
@@ -47,4 +47,4 @@ def cluster_discover_cron():
     定时发现所有集群
     """
     RelationHandler.find_clusters()
-    logger.info(f"[cluster_discover_cron] end.")
+    logger.info("[cluster_discover_cron] end.")

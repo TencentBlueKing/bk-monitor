@@ -35,7 +35,7 @@ class HostCheckResponseSer(serializers.Serializer):
 
 
 class HostDetailsRequestSer(base.ScopeSelectorBaseSer):
-    host_list = serializers.ListField(child=base.HostInfoWithMetaSer(), default=[])
+    host_list = serializers.ListField(child=base.HostInfoWithMetaSer(), default=[], allow_empty=True)
 
     class Meta:
         swagger_schema_fields = {"example": mock_data.API_HOST_DETAILS_REQUEST}

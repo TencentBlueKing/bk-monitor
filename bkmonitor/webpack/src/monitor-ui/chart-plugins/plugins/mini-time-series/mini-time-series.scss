@@ -27,6 +27,12 @@
     color: #63656E;
     white-space: nowrap;
   }
+
+  .last-value-overflow {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .mini-time-series-chart-tooltip {

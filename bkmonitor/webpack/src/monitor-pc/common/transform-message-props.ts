@@ -32,6 +32,7 @@ const MESSAGE_THEME_LIST = ['error', 'warning'];
  */
 export const transformMessageProps = (params: Record<string, any>) => {
   let props = params;
+  if (typeof params === 'string') return { message: params };
   if (!props || typeof props !== 'object') return props;
   if (MESSAGE_FIELD in props) {
     props = {

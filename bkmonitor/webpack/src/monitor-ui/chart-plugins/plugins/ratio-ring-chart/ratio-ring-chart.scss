@@ -22,11 +22,14 @@
 
     .chart-instance {
       flex: 1;
+      min-width: 0;
     }
 
     .chart-legend {
       display: flex;
       flex: 2;
+      flex-basis: auto;
+      flex-shrink: 0;
       align-items: center;
       max-width: 55%;
       overflow: auto;

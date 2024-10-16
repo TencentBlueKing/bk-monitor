@@ -308,6 +308,9 @@ export default class DataRetrieval extends tsc<object> {
   cacheTimeRange = [];
   cancelFn = null; // 取消查询接口
 
+  // 自动刷新
+  refreshInstance = null;
+
   // 是否开启（框选/复位）全部操作
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
@@ -446,7 +449,7 @@ export default class DataRetrieval extends tsc<object> {
   get scenarioAllList() {
     const list = deepClone(this.scenarioList);
     const res = list.reduce((total, cur) => {
-      const child = cur.children || [];
+      const child = Array.isArray(cur.children) ? cur.children : [];
       return total.concat(child);
     }, []);
     return res;
@@ -3016,6 +3019,21 @@ export default class DataRetrieval extends tsc<object> {
     promqlItem.filter_dict = {};
     this.handleQueryProxy();
   }
+
+  handleRefreshChange(v: number) {
+    window.clearInterval(this.refreshInstance);
+    this.refreshInstance = null;
+    if (v <= 0) return;
+    this.refreshInstance = setInterval(() => {
+      this.refleshNumber += 1;
+    }, v);
+  }
+
+  destroyed() {
+    window.clearInterval(this.refreshInstance);
+    this.refreshInstance = null;
+  }
+
   render() {
     // 查询项/表达式头部区域
     const titleSlot = (item: IDataRetrieval.ILocalValue, index: number) => (
@@ -3407,6 +3425,7 @@ export default class DataRetrieval extends tsc<object> {
                   timeRange={this.compareValue.tools?.timeRange}
                   timezone={this.compareValue.tools?.timezone}
                   onImmediateReflesh={() => (this.refleshNumber += 1)}
+                  onRefleshIntervalChange={v => this.handleRefreshChange(v)}
                   onTimeRangeChange={this.handleToolsTimeRangeChange}
                   onTimezoneChange={this.handleTimezoneChange}
                 >

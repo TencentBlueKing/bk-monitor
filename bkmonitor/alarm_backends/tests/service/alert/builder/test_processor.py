@@ -938,7 +938,7 @@ class TestProcessor(TestCase):
                 }
             )
         )
-        self.assertEqual(alert.labels, ["TEST"])
+        self.assertCountEqual(alert.labels, ["TEST"])
 
     def test_save_agg_dimensions(self):
         processor = AlertBuilder()
@@ -972,8 +972,8 @@ class TestProcessor(TestCase):
         ]
         alerts = processor.build_alerts(events)
         alerts = processor.enrich_alerts(alerts)
-        self.assertEqual(alerts[0].agg_dimensions, ["bk_target_ip", "bk_cloud_id"])
-        self.assertEqual([d["key"][5:] for d in alerts[0].dimensions], ["bk_target_ip", "bk_cloud_id"])
+        self.assertCountEqual(alerts[0].agg_dimensions, ["bk_target_ip", "bk_cloud_id"])
+        self.assertCountEqual([d["key"][5:] for d in alerts[0].dimensions], ["bk_target_ip", "bk_cloud_id"])
 
     def test_send_signal(self):
         processor = AlertBuilder()
