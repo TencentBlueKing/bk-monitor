@@ -24,6 +24,7 @@ from alarm_backends.service.scheduler.app import app
 from apm.core.application_config import ApplicationConfig
 from apm.core.cluster_config import BkCollectorInstaller
 from apm.core.discover.base import TopoHandler
+from apm.core.discover.precalculation.check import PreCalculateCheck
 from apm.core.discover.precalculation.consul_handler import ConsulHandler
 from apm.core.discover.precalculation.storage import PrecalculateStorage
 from apm.core.discover.profile.base import DiscoverHandler as ProfileDiscoverHandler
@@ -187,3 +188,17 @@ def create_application_async(application_id, storage_config, options):
 
     application = ApmApplication.objects.get(id=application_id)
     application.apply_datasource(storage_config, storage_config, options)
+
+    # 异步分派预计算任务
+    bmw_task_cron.delay(countdown=60)
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def bmw_task_cron():
+    """
+    定时检测所有应用的 BMW 预计算任务是否正常运行
+    """
+
+    unopened_mapping, running_mapping = PreCalculateCheck.get_application_info_mapping()
+    distribution = PreCalculateCheck.calculate_distribution(unopened_mapping, running_mapping)
+    PreCalculateCheck.distribute(distribution)

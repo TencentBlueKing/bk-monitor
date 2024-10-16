@@ -80,14 +80,16 @@ class Histogram(LabelHandleMixin, BaseHistogram):
     def _child_samples(self):
         samples = []
         acc = 0
+        tobe_sampled = False
         for i, bound in enumerate(self._upper_bounds):
-            if self._buckets[i].get():
-                acc += self._buckets[i].get()
-                samples.append(("_bucket", {"le": floatToGoString(bound)}, acc, None, None))
-        if acc > 0:
+            if not tobe_sampled and self._buckets[i].get():
+                tobe_sampled = True
+            acc += self._buckets[i].get()
+            samples.append(("_bucket", {"le": floatToGoString(bound)}, acc, None, None))
+        if tobe_sampled:
             samples.append(("_count", {}, acc, None, None))
             samples.append(("_sum", {}, self._sum.get(), None, None))
-        return tuple(samples)
+        return tuple(samples) if tobe_sampled else ()
 
 
 class Counter(LabelHandleMixin, BaseCounter):

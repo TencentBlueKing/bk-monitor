@@ -19,18 +19,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.utils.translation import ugettext_lazy as _  # noqa
+
 from apps.api import MonitorApi
-from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
 from apps.log_clustering.constants import (
     DEFAULT_NOTICE_WAY,
     DEFAULT_NOTIFY_RECEIVER_TYPE,
 )
-from apps.log_clustering.exceptions import ClusteringClosedException
-from apps.log_clustering.models import NoticeGroup
-from apps.log_databus.constants import ADMIN_REQUEST_USER, EMPTY_REQUEST_USER
+from apps.log_clustering.models import ClusteringConfig, NoticeGroup
+from apps.log_databus.constants import EMPTY_REQUEST_USER
 from apps.log_search.models import LogIndexSet
-from django.utils.translation import ugettext_lazy as _  # noqa
 
 
 class MonitorUtils(object):
@@ -56,11 +54,11 @@ class MonitorUtils(object):
         if notice_group:
             return notice_group.notice_group_id
         log_index_set = LogIndexSet.objects.filter(index_set_id=log_index_set_id).first()
-        maintainers = cls._generate_maintainer(log_index_set=log_index_set)
+        maintainers = cls._generate_maintainer(index_set_id=log_index_set_id)
         notice_receiver = cls.generate_notice_receiver(receivers=maintainers, notice_tye=DEFAULT_NOTIFY_RECEIVER_TYPE)
         group = cls.save_notice_group(
             bk_biz_id=bk_biz_id,
-            name=_("{}_{}运维人员").format(log_index_set_id, log_index_set.index_set_name),
+            name=_("{}_{}聚类告警组").format(log_index_set_id, log_index_set.index_set_name),
             message="",
             notice_receiver=notice_receiver,
             notice_way=DEFAULT_NOTICE_WAY,
@@ -71,14 +69,7 @@ class MonitorUtils(object):
         return group["id"]
 
     @classmethod
-    def _generate_maintainer(cls, log_index_set: LogIndexSet):
-        maintainers = {
-            log_index_set.updated_by,
-            log_index_set.created_by,
-        }
-        maintainers = maintainers - {ADMIN_REQUEST_USER, EMPTY_REQUEST_USER}
-        if not FeatureToggleObject.switch(BKDATA_CLUSTERING_TOGGLE):
-            raise ClusteringClosedException()
-        conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
-        maintainers.update(conf.get("maintainers", []))
+    def _generate_maintainer(cls, index_set_id):
+        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id)
+        maintainers = {clustering_config.created_by} - {EMPTY_REQUEST_USER}
         return maintainers

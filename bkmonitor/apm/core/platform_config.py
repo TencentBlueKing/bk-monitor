@@ -112,6 +112,7 @@ class PlatformConfig(BkCollectorConfig):
             "sampler_config": cls.get_sampler_config(),
             "token_checker_config": cls.get_token_checker_config(),
             "resource_filter_config": cls.get_resource_filter_config(),
+            "resource_fill_dimensions_config": cls.get_resource_fill_dimensions_config(),
             "qps_config": cls.get_qps_config(),
             "metric_configs": cls.list_metric_config(),
             "license_config": cls.get_license_config(),
@@ -272,6 +273,28 @@ class PlatformConfig(BkCollectorConfig):
             "decoded_iv": settings.BK_DATA_AES_IV.decode()
             if isinstance(settings.BK_DATA_AES_IV, bytes)
             else settings.BK_DATA_AES_IV,
+        }
+
+    @classmethod
+    def get_resource_fill_dimensions_config(cls):
+        """
+        维度补充配置（目前先固定返回，暂不支持可配置）
+        第一层，先根据上报的客户端IP，填充 resource 下的 net.host.ip 字段（如果不存在则赋值）
+        第二层，根据 net.host.ip 字段，继续补充 k8s 下的 pod 相关信息
+        """
+        return {
+            "name": "resource_filter/fill_dimensions",
+            "from_record": [
+                {
+                    "source": "request.client.ip",
+                    "destination": "resource.net.host.ip",
+                }
+            ],
+            "from_cache": {
+                "key": "resource.net.host.ip",
+                "dimensions": ["k8s.namespace.name", "k8s.pod.name", "k8s.pod.ip", "k8s.bcs.cluster.id"],
+                "cache": {"key": "k8s.pod.ip", "url": "http://bkmonitor-operator-stack-operator:8080/pods"},
+            },
         }
 
     @classmethod
