@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import dayjs from 'dayjs';
+
 export default {
   useUTC: false,
   color: [
@@ -261,7 +263,7 @@ export default {
     padding: 5,
     formatter: function (params) {
       return `<div>
-        <strong>${params[0]?.data?.[2] ?? params[0].name}</strong>
+        <strong>${dayjs.tz(params[0]?.data?.[0]).format('YYYY-MM-DD HH:MM:ss') ?? params[0].name}</strong>
         <div style="display: flex; align-items: center;"><span style="display: inline-block; background-color:${params[0].color};margin-right: 4px;width: 6px;height: 6px; border-radius: 50%;"></span> ${params[0]?.data?.[1]} </div>
       </div>`;
     },
@@ -483,7 +485,6 @@ export default {
       name: '',
       type: 'bar',
       barMinHeight: 0,
-      barMaxWidth: '30%',
       z: 4,
       markLine: {},
       markArea: {},
@@ -516,7 +517,7 @@ export default {
       },
       label: {},
       animationDuration: 1000, // 动画持续时间
-      animationEasing: 'cubicOut' // 动画缓动效果
+      animationEasing: 'cubicOut', // 动画缓动效果
     },
   ],
   visualMap: [],
