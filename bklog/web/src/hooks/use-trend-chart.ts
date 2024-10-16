@@ -31,7 +31,6 @@ import dayjs from 'dayjs';
 import * as Echarts from 'echarts';
 import { debounce } from 'lodash';
 
-import BarCharOptionHelper from '../components/monitor-echarts/options/bar-chart-option';
 import chartOption from './trend-chart-options';
 
 export type TrandChartOption = {
@@ -46,7 +45,6 @@ export type EchartData = {
 export default ({ target }: TrandChartOption) => {
   let chartInstance: Echarts.ECharts = null;
   const options: any = Object.assign({}, chartOption);
-  const barChartOptionInstance = new BarCharOptionHelper({});
   const store = useStore();
 
   const datepickerValue = computed(() => store.state.indexItem.datePickerValue);
@@ -61,11 +59,11 @@ export default ({ target }: TrandChartOption) => {
 
   const formatTimeString = (data, interval) => {
     if (/\d+(s|m|h)$/.test(interval)) {
-      return dayjs(data).format('HH:mm:ss').replace(/00(:00)?(:00)?$/, '');
+      return dayjs.tz(data).format('HH:mm:ss').replace(/:00$/, '');
     }
 
     if (/\d+d$/.test(interval)) {
-      return dayjs(data).format('MM-DD HH:mm:ss').replace(/00(:00)?(:00)?$/, '');
+      return dayjs.tz(data).format('MM-DD HH:mm:ss').replace(/00:00:00$/, '');
     }
   };
 
@@ -77,6 +75,7 @@ export default ({ target }: TrandChartOption) => {
 
     options.series[0].data = data;
     options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, interval);
+    options.xAxis[0].minInterval = /\d+s$/.test(interval) ? 1000 : 60000;
 
     chartInstance.setOption(options);
     nextTick(() => {
@@ -90,12 +89,10 @@ export default ({ target }: TrandChartOption) => {
 
   const handleDataZoom = debounce(event => {
     const [batch] = event.batch;
-    console.log('handleDataZoom', batch);
 
     if (batch.startValue && batch.endValue) {
-      const options = chartInstance.getOption().series[0].data;
-      const timeFrom = options[batch.startValue][0];
-      const timeTo = options[batch.endValue][0];
+      const timeFrom = dayjs.tz(batch.startValue).format('YYYY-MM-DD HH:mm:ss');
+      const timeTo = dayjs.tz(batch.endValue).format('YYYY-MM-DD HH:mm:ss');
 
       if (!cachedTimRange.length) {
         cachedTimRange = [datepickerValue.value[0], datepickerValue.value[1]];

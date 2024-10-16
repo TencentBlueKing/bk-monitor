@@ -358,7 +358,7 @@ export default {
   ],
   xAxis: [
     {
-      type: 'category',
+      type: 'time',
       boundaryGap: false,
       axisTick: {
         show: false,
