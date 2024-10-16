@@ -578,6 +578,14 @@ class Application(AbstractRecordModel):
             self.application_id, self.APPLICATION_LOG_DATASOURCE_CONFIG_KEY, datasource_option
         )
 
+    def get_data_sources(self):
+        return {
+            TelemetryDataType.TRACE.value: self.is_enabled_trace,
+            TelemetryDataType.PROFILING.value: self.is_enabled_profiling,
+            TelemetryDataType.METRIC.value: self.is_enabled_metric,
+            TelemetryDataType.LOG.value: self.is_enabled_log,
+        }
+
     def set_init_dimensions_config(self):
         dimensions_value = {self.DimensionConfig.DIMENSIONS: DefaultDimensionConfig.DEFAULT_DIMENSIONS}
         ApmMetaConfig.application_config_setup(self.application_id, self.DIMENSION_CONFIG_KEY, dimensions_value)

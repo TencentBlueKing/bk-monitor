@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from apm_web.decorators import user_visit_record
 from apm_web.meta.resources import (
     ApplicationInfoByAppNameResource,
     ApplicationInfoResource,
@@ -195,9 +196,9 @@ class ApplicationViewSet(ResourceViewSet):
         ),
         ResourceRoute("POST", ListApplicationAsyncResource, endpoint="list_application_async"),
         ResourceRoute("POST", InstanceDiscoverKeysResource, endpoint="instance_discover_keys"),
-        ResourceRoute("POST", ServiceDetailResource, endpoint="service_detail"),
+        ResourceRoute("POST", ServiceDetailResource, endpoint="service_detail", decorators=[user_visit_record]),
         ResourceRoute("POST", EndpointDetailResource, endpoint="endpoint_detail"),
-        ResourceRoute("POST", ServiceListResource, endpoint="service_list"),
+        ResourceRoute("POST", ServiceListResource, endpoint="service_list", decorators=[user_visit_record]),
         ResourceRoute("POST", QueryExceptionEventResource, endpoint="query_exception_event"),
         ResourceRoute("POST", QueryExceptionDetailEventResource, endpoint="query_exception_detail_event"),
         ResourceRoute("POST", QueryExceptionEndpointResource, endpoint="query_exception_endpoint"),
