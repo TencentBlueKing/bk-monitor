@@ -132,7 +132,8 @@ def access_bkdata(bk_biz_id: int, table_id: str, data_id: int):
             bcs_cluster_id=bcs_cluster_id,
             storage_cluster_id=vm_data["cluster_id"],
             vm_cluster_id=vm_cluster["cluster_id"],
-            bk_base_data_id=vm_data["bk_data_id"],
+            bk_base_data_id=vm_data["bk_data_id"],  # 计算平台数据ID
+            bk_base_data_name=data_name_and_topic["data_name"],  # 计算平台数据名称
             vm_result_table_id=vm_data["clean_rt_id"],
         )
     except Exception as e:
@@ -382,12 +383,20 @@ def get_timestamp_len(data_id: Optional[int] = None, etl_config: Optional[str] =
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_fixed(1))
-def get_data_name(data_id):
-    return DataSource.objects.get(bk_data_id=data_id).data_name
+def get_data_source(data_id):
+    """
+    根据 data_id 获取对应的 DataSource，重试三次，间隔1秒，规避事务未及时提交导致的查询失败问题
+    """
+    return DataSource.objects.get(bk_data_id=data_id)
 
 
 def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
-    """接入 v2 版本的 bkdata vm"""
+    """
+    接入计算平台V4链路
+    @param bk_biz_id: 业务ID
+    @param table_id: 结果表ID
+    @param data_id: 数据源ID
+    """
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access v2 vm", bk_biz_id, table_id, data_id)
 
     from metadata.models import AccessVMRecord, DataSource, Space, SpaceVMInfo
@@ -396,18 +405,20 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
         create_vm_data_link,
     )
 
+    # 0. 确认空间信息
     # NOTE: 0 业务没有空间信息，不需要查询或者创建空间及空间关联的 vm
     space_data = {}
     try:
         # NOTE: 这里 bk_biz_id 为整型
         space_data = Space.objects.get_space_info_by_biz_id(int(bk_biz_id))
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         logger.error("get space error by biz_id: %s, error: %s", bk_biz_id, e)
 
+    # 1，获取VM集群信息
     vm_cluster = get_vm_cluster_id_name(
         space_type=space_data.get("space_type", ""), space_id=space_data.get("space_id", "")
     )
-    # 校验是否存在，如果不存在，则进行创建记录
+    # 1.1 校验是否存在SpaceVMInfo记录，如果不存在，则进行创建记录
     if (
         space_data
         and not SpaceVMInfo.objects.filter(
@@ -419,42 +430,42 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
         )
 
     try:
-        # NOTE: 这里可能因为事务+异步的原因，导致查询时DB中的DataSource未就绪，添加重试机制
-        data_name = get_data_name(data_id)
+        # 1.2 NOTE: 这里可能因为事务+异步的原因，导致查询时DB中的DataSource未就绪，添加重试机制
+        ds = get_data_source(data_id)
     except DataSource.DoesNotExist:
         logger.error("create vm data link error, data_id: %s not found", data_id)
         return
 
-    # 获取 vm 集群名称
+    # 2. 获取 vm 集群名称
     vm_cluster_name = vm_cluster.get("cluster_name")
 
-    # 获取数据源对应的集群 ID
+    # 3. 获取数据源对应的集群 ID
     data_type_cluster = get_data_type_cluster(data_id=data_id)
 
-    # 检查是否已经接入过VM，若已经接入过VM，尝试进行联邦集群检查和创建联邦汇聚链路操作
+    # 4. 检查是否已经接入过VM，若已经接入过VM，尝试进行联邦集群检查和创建联邦汇聚链路操作
     if AccessVMRecord.objects.filter(result_table_id=table_id).exists():
         logger.info("table_id: %s has already been created,now try to create fed vm data link", table_id)
 
         create_fed_vm_data_link(
             table_id=table_id,
-            data_name=data_name,
+            data_source=ds,
             vm_cluster_name=vm_cluster_name,
             bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
         )
         return
 
-    # 接入 vm 链路
+    # 5. 接入 vm 链路
     try:
         create_vm_data_link(
             table_id=table_id,
-            data_name=data_name,
+            get_data_source=ds,
             vm_cluster_name=vm_cluster_name,
             bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
         )
         # 创建联邦
         create_fed_vm_data_link(
             table_id=table_id,
-            data_name=data_name,
+            data_source=ds,
             vm_cluster_name=vm_cluster_name,
             bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
         )
