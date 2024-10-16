@@ -28,6 +28,7 @@ import { Component, PropSync, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { dataStatus } from 'monitor-api/modules/apm_meta';
 import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 
@@ -48,51 +49,80 @@ export default class DataStatus extends tsc<object> {
   ];
 
   activeTab = ETelemetryDataType.trace;
+  tabList = [
+    {
+      name: ETelemetryDataType.metric,
+      label: window.i18n.tc('指标'),
+      status: 'disabled',
+      disabledTips: window.i18n.tc('指标数据未开启'),
+      noDataTips: window.i18n.tc('指标无最新数据'),
+    },
+    {
+      name: ETelemetryDataType.log,
+      label: window.i18n.tc('日志'),
+      status: 'disabled',
+      disabledTips: window.i18n.tc('日志数据未开启'),
+      noDataTips: window.i18n.tc('日志无最新数据'),
+    },
+    {
+      name: ETelemetryDataType.trace,
+      label: window.i18n.tc('调用链'),
+      status: 'disabled',
+      disabledTips: window.i18n.tc('调用链数据未开启'),
+      noDataTips: window.i18n.tc('调用链无最新数据'),
+    },
+    {
+      name: ETelemetryDataType.profiling,
+      label: window.i18n.tc('性能分析'),
+      status: 'disabled',
+      disabledTips: window.i18n.tc('性能分析数据未开启'),
+      noDataTips: window.i18n.tc('性能分析无最新数据'),
+    },
+  ];
 
   // 派发到子孙组件内的视图配置变量
   // 视图变量
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {};
   // 时间间隔
-  @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1d', 'now'];
+  @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-6h', 'now'];
   /** 时区 */
   @ProvideReactive('timezone') timezone: string = getDefaultTimezone();
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
 
-  get tabList() {
-    return [
-      {
-        name: ETelemetryDataType.metric,
-        label: window.i18n.tc('指标'),
-        status: this.appInfo.metric_data_status,
-        tips: window.i18n.tc('指标数据未开启'),
-      },
-      {
-        name: ETelemetryDataType.log,
-        label: window.i18n.tc('日志'),
-        status: this.appInfo.log_data_status,
-        tips: window.i18n.tc('日志数据未开启'),
-      },
-      {
-        name: ETelemetryDataType.trace,
-        label: window.i18n.tc('调用链'),
-        status: this.appInfo.trace_data_status,
-        tips: window.i18n.tc('调用链数据未开启'),
-      },
-      {
-        name: ETelemetryDataType.profiling,
-        label: window.i18n.tc('性能分析'),
-        status: this.appInfo.profiling_data_status,
-        tips: window.i18n.tc('性能分析数据未开启'),
-      },
-    ];
-  }
+  dataStatusMap = {
+    [ETelemetryDataType.metric]: 'disabled',
+    [ETelemetryDataType.log]: 'disabled',
+    [ETelemetryDataType.trace]: 'disabled',
+    [ETelemetryDataType.profiling]: 'disabled',
+  };
+  dataStatusLoading = false;
 
   created() {
+    this.timezone = getDefaultTimezone();
+    this.getDataStatus();
+  }
+
+  /**
+   * @description 获取tab状态数据
+   */
+  async getDataStatus() {
+    this.dataStatusLoading = true;
+    const endTime = dayjs().unix();
+    const startTime = endTime - 60 * 5;
+    const data = await dataStatus(this.appInfo.application_id, {
+      start_time: startTime,
+      end_time: endTime,
+    }).catch(() => this.dataStatusMap);
+    this.dataStatusMap = data;
+    for (const tab of this.tabList) {
+      tab.status = this.dataStatusMap[tab.name];
+    }
     if (this.tabList.find(item => item.name === this.activeTab)?.status === 'disabled') {
       this.activeTab = this.tabList.find(item => item.status !== 'disabled')?.name || ETelemetryDataType.trace;
     }
-    this.timezone = getDefaultTimezone();
+    this.dataStatusLoading = false;
+    this.handleChangeActiveTab(this.activeTab);
   }
 
   /**
@@ -101,6 +131,7 @@ export default class DataStatus extends tsc<object> {
    */
   handleTimeRangeChange(date) {
     this.timeRange = date;
+    this.getDataStatus();
   }
   handleTimezoneChange(timezone: string) {
     updateTimezone(timezone);
@@ -142,11 +173,15 @@ export default class DataStatus extends tsc<object> {
     return (
       <div class='conf-content data-status-wrap'>
         <div class='data-status-tab-wrap'>
-          <TabList
-            activeTab={this.activeTab}
-            tabList={this.tabList}
-            onChange={this.handleChangeActiveTab}
-          />
+          {this.dataStatusLoading ? (
+            <div class='skeleton-element w-300 h-32' />
+          ) : (
+            <TabList
+              activeTab={this.activeTab}
+              tabList={this.tabList}
+              onChange={this.handleChangeActiveTab}
+            />
+          )}
           <TimeRange
             class='data-status-time'
             timezone={this.timezone}

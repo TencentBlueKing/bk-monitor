@@ -1216,12 +1216,12 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     @classmethod
     def start(cls, bk_biz_id, app_name):
         instance = cls.objects.get(bk_data_id=bk_biz_id, app_name=app_name)
-        api.bkdata.start_databus_cleans(result_table_id=instance["result_table_id"])
+        api.bkdata.start_databus_cleans(result_table_id=instance.result_table_id)
 
     @classmethod
     def stop(cls, bk_biz_id, app_name):
         instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        api.bkdata.stop_databus_cleans(result_table_id=instance["result_table_id"])
+        api.bkdata.stop_databus_cleans(result_table_id=instance.result_table_id)
 
 
 class DataLink(models.Model):

@@ -518,9 +518,10 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
           return;
         }
         if (urlStr.startsWith('?')) {
-          this.$router.push({
-            path: urlStr,
-          });
+          window.location.href = urlStr;
+          // this.$router.push({
+          //   path: urlStr,
+          // });
           return;
         }
         this.$router.push({
@@ -636,7 +637,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
         data={value.datapoints || []}
         disableHover={true}
         groupId={this.chartGroupIdsMap[column.id]}
-        lastValueWidth={52}
+        lastValueWidth={80}
         unit={value.unit}
         unitDecimal={value?.unitDecimal}
         valueTitle={value.valueTitle}

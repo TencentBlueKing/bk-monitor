@@ -23,43 +23,53 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { INodeType, TargetObjectType } from 'monitor-pc/components/monitor-ip-selector/typing';
 
-export interface ICreateAppFormData {
-  name: string;
-  enName: string;
-  desc: string;
-  pluginId: string;
-  enableProfiling: boolean;
-  enableTracing: boolean;
-  plugin_config?: {
-    target_node_type: INodeType;
-    target_object_type: TargetObjectType;
-    target_nodes: any[];
-    data_encoding: string;
-    paths: string[];
-  };
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import './filter-dict.scss';
+interface IFilterDictProps {
+  filterDict: Record<string, string>;
 }
-
-export interface IGuideLink {
-  access_url: string;
-  best_practice: string;
-  metric_description: string;
-}
-
-export interface IAppListItem {
-  app_alias: string;
-  app_name: string;
-  application_id: number;
-  firstCode: string;
-  permission: {
-    [key: string]: boolean;
-  };
-  loading: false;
-  service_count?: number;
-  firstCodeColor: string;
-  profiling_data_status: string;
-  data_status: string;
-  metric_result_table_id: string;
-  trace_result_table_id: string;
+@Component
+export default class FilterDict extends tsc<
+  IFilterDictProps,
+  {
+    onDelete: () => void;
+  }
+> {
+  @Prop({
+    default: () => ({}),
+    type: Object,
+  })
+  filterDict: Record<string, string>;
+  render() {
+    return (
+      <div class='filter-dict-wrap'>
+        <div class='collapse-item-title'>
+          <span class='title-left'>{this.$t('维度信息')}</span>
+          <span class='title-center' />
+          <span class='title-right'>
+            <i
+              class={['icon-monitor icon-mc-delete-line']}
+              v-bk-tooltips_top={this.$t('删除')}
+              onClick={() => this.$emit('delete')}
+            />
+          </span>
+        </div>
+        <div class='filter-dict'>
+          {Object.entries(this.filterDict).map(([key, value]) => (
+            <bk-tag
+              key={key}
+              class='filter-dict-item'
+              v-bk-overflow-tips
+              closable={false}
+            >
+              {key}({value})
+            </bk-tag>
+          ))}
+        </div>
+      </div>
+    );
+  }
 }

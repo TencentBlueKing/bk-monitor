@@ -415,6 +415,7 @@ export type PanelOption = {
   header?: {
     tips: string; // 提示
   };
+  collect_interval_display?: string; // 数据步长（步长过大情况时需要，正常情况无此字段）
 } & ISelectorList &
   IDashboardCommon &
   IVariablesOption &

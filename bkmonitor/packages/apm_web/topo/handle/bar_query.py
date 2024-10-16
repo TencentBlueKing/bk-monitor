@@ -104,7 +104,12 @@ class BarQuery(BaseQuery):
                 origin_series.append([(error_count, info_count, warn_count), t])
 
         # 将告警数据使用统一的时间戳补充逻辑
-        origin_series = fill_series([{"datapoints": origin_series}], self.start_time, self.end_time)
+        origin_series = fill_series(
+            [{"datapoints": origin_series}],
+            self.start_time,
+            self.end_time,
+            interval=get_bar_interval_number(self.start_time, self.end_time),
+        )
         res = []
         for item in origin_series[0]["datapoints"]:
 

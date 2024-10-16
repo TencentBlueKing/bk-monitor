@@ -525,6 +525,7 @@
   .column-header-wrap {
     .column-header-title,
     .column-header-content {
+      display: flex;
       padding: 0 15px;
     }
 

@@ -115,11 +115,15 @@ export default class AddAppForm extends tsc<IProps> {
   saveToServiceLoading = false;
 
   isVerify = false;
+  isCheckDuplicateName = false;
 
   /** 检查 应用名 是否重名 */
   async handleCheckDuplicateName(val: string) {
-    const { exists } = await checkDuplicateName({ app_name: val }).catch(() => ({ exists: true }));
-    return !exists;
+    const pass = await checkDuplicateName({ app_name: val })
+      .then(data => !data.exists)
+      .catch(() => false);
+    this.isCheckDuplicateName = pass;
+    return pass;
   }
 
   initForm() {
@@ -144,41 +148,44 @@ export default class AddAppForm extends tsc<IProps> {
     }
 
     const isPass = await this.addFormRef?.validate().catch(() => false);
-    if (isPass) {
-      // 保存接口
-      const params = {
-        app_name: this.formData.ID,
-        app_alias: this.formData.name,
-        description: this.formData.desc,
-        enabled_profiling: this.formData[ETelemetryDataType.profiling],
-        enabled_trace: this.formData[ETelemetryDataType.trace],
-        enabled_metric: this.formData[ETelemetryDataType.metric],
-        enabled_log: this.formData[ETelemetryDataType.log],
-        es_storage_config: null,
-      };
-      const res = await createApplication(params)
-        .then(() => true)
-        .catch(() => false);
-      if (res) {
-        this.$bkMessage({
-          theme: 'success',
-          message: this.$t('保存成功'),
-        });
-        this.$emit('success');
-        if (isAccess) {
-          // 跳转到接入服务页面
-          this.$router.push({
-            name: 'service-add',
-            params: {
-              appName: params.app_name as string,
-            },
+    setTimeout(async () => {
+      this.isVerify = isPass && this.isCheckDuplicateName;
+      if (isPass && this.isCheckDuplicateName) {
+        // 保存接口
+        const params = {
+          app_name: this.formData.ID,
+          app_alias: this.formData.name,
+          description: this.formData.desc,
+          enabled_profiling: this.formData[ETelemetryDataType.profiling],
+          enabled_trace: this.formData[ETelemetryDataType.trace],
+          enabled_metric: this.formData[ETelemetryDataType.metric],
+          enabled_log: this.formData[ETelemetryDataType.log],
+          es_storage_config: null,
+        };
+        const res = await createApplication(params)
+          .then(() => true)
+          .catch(() => false);
+        if (res) {
+          this.$bkMessage({
+            theme: 'success',
+            message: this.$t('保存成功'),
           });
+          this.$emit('success');
+          if (isAccess) {
+            // 跳转到接入服务页面
+            this.$router.push({
+              name: 'service-add',
+              params: {
+                appName: params.app_name as string,
+              },
+            });
+          }
+          this.initForm();
         }
-        this.initForm();
       }
-    }
-    this.saveLoading = false;
-    this.saveToServiceLoading = false;
+      this.saveLoading = false;
+      this.saveToServiceLoading = false;
+    }, 200);
   }
 
   handleCancel() {
@@ -187,7 +194,10 @@ export default class AddAppForm extends tsc<IProps> {
   }
 
   async handleBlur() {
-    this.isVerify = await this.addFormRef?.validate().catch(() => false);
+    const isPass = await this.addFormRef?.validate().catch(() => false);
+    setTimeout(() => {
+      this.isVerify = isPass && this.isCheckDuplicateName;
+    }, 200);
   }
 
   render() {

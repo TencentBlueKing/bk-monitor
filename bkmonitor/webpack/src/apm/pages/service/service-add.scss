@@ -14,4 +14,22 @@
     padding: 24px;
     overflow: auto;
   }
+
+  .service-add-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 108px;
+    height: 26px;
+    margin-left: 16px;
+    font-size: 12px;
+    color: #3a84ff;
+    cursor: pointer;
+    background: #e1ecff;
+    border-radius: 2px;
+
+    .icon-monitor {
+      margin-right: 6px;
+    }
+  }
 }
