@@ -648,7 +648,7 @@ export default class ApmServiceList extends tsc<
                           ) : (
                             <TableSkeleton
                               class='table-skeleton'
-                              type={2}
+                              type={5}
                             />
                           )}
                         </div>

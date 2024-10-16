@@ -385,7 +385,10 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
               <AddAppSide
                 isShow={this.isShowAppAdd}
                 onShowChange={v => this.handleToggleAppAdd(v)}
-                onSuccess={this.getAppList}
+                onSuccess={v => {
+                  this.appName = v;
+                  this.getAppList();
+                }}
               />
             </div>
             {this.loading ? (
