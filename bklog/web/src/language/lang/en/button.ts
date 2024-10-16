@@ -197,4 +197,5 @@ export default {
   按annotation选择: 'According To Annotation',
   单独授权: 'Separate authorization',
   批量授权: 'Batch authorization',
+  新增告警组: 'Add New Alarm Group',
 };
