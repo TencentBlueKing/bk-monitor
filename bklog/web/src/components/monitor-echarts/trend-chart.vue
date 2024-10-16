@@ -5,7 +5,6 @@
   import { useRoute } from 'vue-router/composables';
   import axios from 'axios';
 
-  import dayjs from 'dayjs';
   import http from '@/api';
   const store = useStore();
   const route = useRoute();
@@ -65,12 +64,13 @@
     const duration = (endTime - startTime) / 3600;
 
     // 按照分钟统计
-    const durationMin = (endTime - startTime) / 600;
+    const durationMin = (endTime - startTime) / 60;
 
     if (duration < 1) {
       // 小于1小时 1min
       intervalTemp = '1m';
       currentInterval = '1m';
+      intervalTemp = 'auto';
 
       if (durationMin < 5) {
         currentInterval = '30s';
@@ -181,7 +181,7 @@
           const keys = [...(optionData.keys())];
           keys.sort((a, b) => a[0] - b[0]);
           // const data = keys.map(key => ({ name: key, value: optionData.get(key)[0], timestamp: optionData.get(key)[1] }))
-          const data = keys.map(key => [optionData.get(key)[1], optionData.get(key)[0], key]); //({ name: key, value: optionData.get(key)[0], timestamp: optionData.get(key)[1] }));
+          const data = keys.map(key => [optionData.get(key)[1], optionData.get(key)[0], key]);
           updateChart(data, currentInterval);
 
           if (!finishPolling.value && requestInterval > 0) {

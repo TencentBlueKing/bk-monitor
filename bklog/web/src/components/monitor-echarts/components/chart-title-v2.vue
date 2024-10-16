@@ -56,7 +56,7 @@
         >
           <span>{{ $t('汇聚周期') }}</span>
           <bk-select
-            style="width: 80px"
+            style="width: 120px"
             ext-cls="select-custom"
             v-model="chartInterval"
             :clearable="false"
