@@ -395,7 +395,7 @@ export default class ServiceApply extends tsc<
             class='row-content-wrap'
           >
             {rowContent(
-              <i18n path='前往{0}查看相关数据'>
+              <i18n path='稍等几分钟后，前往 {0} 查看相关数据'>
                 <bk-button
                   text
                   onClick={this.handleJumpToService}
