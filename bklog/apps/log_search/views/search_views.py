@@ -824,7 +824,7 @@ class SearchViewSet(APIViewSet):
 
         # 添加用户索引集自定义配置
         index_set_config = UserIndexSetConfigHandler(index_set_id=int(index_set_id)).get_index_set_config()
-        fields.update({"index_set_config": index_set_config})
+        fields.update({"user_custom_config": index_set_config})
         return Response(fields)
 
     @detail_route(methods=["GET"], url_path="bcs_web_console")
@@ -1367,7 +1367,7 @@ class SearchViewSet(APIViewSet):
             index_set_ids=data["index_set_ids"],
             index_set_type=IndexSetType.UNION.value,
         ).get_index_set_config()
-        fields.update({"index_set_config": index_set_config})
+        fields.update({"user_custom_config": index_set_config})
         return Response(fields)
 
     @list_route(methods=["POST"], url_path="union_search/export")
@@ -1581,12 +1581,12 @@ class SearchViewSet(APIViewSet):
         index_set_ids = sorted([int(index_set_id) for index_set_id in data["index_set_ids"].split(",")])
         return Response(SearchHandlerEsquery.search_history(index_set_ids=index_set_ids, is_union_search=True))
 
-    @list_route(methods=["POST"], url_path="user_index_set_custom_config")
+    @list_route(methods=["POST"], url_path="user_custom_config")
     def update_or_create_config(self, request):
         """
-        @api {post} /search/index_set/user_index_set_custom_config/ 更新或创建用户索引集自定义配置
+        @api {post} /search/index_set/user_custom_config/ 更新或创建用户索引集自定义配置
         @apiDescription 更新或创建用户索引集自定义配置
-        @apiName user_index_set_custom_config
+        @apiName user_custom_config
         @apiGroup 11_Search
         @apiSuccessExample {json} 成功返回:
         {

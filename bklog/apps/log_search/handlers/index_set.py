@@ -1732,8 +1732,11 @@ class UserIndexSetConfigHandler(object):
             index_set_type: str = IndexSetType.SINGLE.value,
     ):
         self.index_set_id = index_set_id
-        self.index_set_ids = sorted(index_set_ids)
+        self.index_set_ids = index_set_ids
         self.index_set_type = index_set_type
+        # 对列表进行排序
+        if self.index_set_ids:
+            self.index_set_ids.sort()
 
     def update_or_create(self, index_set_config: dict):
         """
