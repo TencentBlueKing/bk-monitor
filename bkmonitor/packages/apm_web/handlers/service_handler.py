@@ -435,7 +435,6 @@ class ServiceHandler:
 
         elif ServiceHandler.is_remote_service_by_node(node):
             return metric(
-                metric,
                 **endpoint_metrics_param,
                 where=[
                     {
@@ -448,7 +447,6 @@ class ServiceHandler:
 
         else:
             return metric(
-                metric,
                 **endpoint_metrics_param,
                 where=[{"key": "service_name", "method": "eq", "value": [service_name]}],
             )
