@@ -40,7 +40,7 @@ interface FormData {
 
 interface IProps {
   onCancel?: () => void;
-  onSuccess?: () => void;
+  onSuccess?: (v: string) => void;
 }
 
 @Component
@@ -170,7 +170,7 @@ export default class AddAppForm extends tsc<IProps> {
             theme: 'success',
             message: this.$t('保存成功'),
           });
-          this.$emit('success');
+          this.$emit('success', params.app_name as string);
           if (isAccess) {
             // 跳转到接入服务页面
             this.$router.push({

@@ -36,7 +36,7 @@ interface IProps {
 
 interface IEvent {
   onShowChange?: (val: boolean) => void;
-  onSuccess?: () => void;
+  onSuccess?: (val: string) => void;
 }
 
 @Component
@@ -49,8 +49,9 @@ export default class AddApplication extends tsc<IProps, IEvent> {
   }
 
   @Emit('success')
-  handleSuccess() {
+  handleSuccess(v) {
     this.handleShowChange(false);
+    return v;
   }
 
   render() {
