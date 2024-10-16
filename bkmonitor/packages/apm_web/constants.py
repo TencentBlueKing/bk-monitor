@@ -936,7 +936,7 @@ class LogIndexSource:
     @classmethod
     def get_source_label(cls, key):
         return {
-            cls.HOST: "通过主机关联",
-            cls.RELATION: "通过关联配置关联",
-            cls.CUSTOM_REPORT: "通过自定义上报关联",
+            cls.HOST: "主机关联",
+            cls.RELATION: "关联配置",
+            cls.CUSTOM_REPORT: "自定义上报",
         }.get(key, key)

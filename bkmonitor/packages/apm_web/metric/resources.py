@@ -866,11 +866,23 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
                 ignore_keys=column_metric.get("ignore_keys"),
             )
 
-        return ServiceHandler.get_service_metric_range_mapping(
+        interval = get_bar_interval_number(metric_params["start_time"], metric_params["end_time"])
+        response = ServiceHandler.get_service_metric_range_mapping(
             column_metric["metric"],
             **metric_params,
             ignore_keys=column_metric.get("ignore_keys"),
+            extra_params={"interval": interval},
         )
+        # 添加上补空逻辑
+        res = {}
+        for k, v in response.items():
+            res[k] = fill_series(
+                [{"datapoints": v}],
+                metric_params["start_time"],
+                metric_params["end_time"],
+                interval=interval,
+            )[0]["datapoints"]
+        return res
 
     @classmethod
     def _get_condition_service_names(cls, strategy: dict):

@@ -506,8 +506,19 @@ class ServiceHandler:
         )
 
     @classmethod
-    def get_service_metric_range_mapping(cls, metric, application, start_time, end_time, ignore_keys=None):
+    def get_service_metric_range_mapping(
+        cls,
+        metric,
+        application,
+        start_time,
+        end_time,
+        ignore_keys=None,
+        extra_params=None,
+    ):
         """获取服务的指标数据(range查询)（兼容自定义服务、组件类服务名称）"""
+        if not extra_params:
+            extra_params = {}
+
         # 查询普通服务
         response = metric(
             **{
@@ -516,6 +527,7 @@ class ServiceHandler:
                 "end_time": end_time,
                 # index: 0
                 "group_by": ["service_name"],
+                **extra_params,
             }
         ).get_range_calculate_values_mapping(ignore_keys)
         # 查询组件类服务: DB
@@ -526,6 +538,7 @@ class ServiceHandler:
                 "end_time": end_time,
                 # index: 0, 1, 2
                 "group_by": ["service_name", "db_system"],
+                **extra_params,
             }
         ).get_range_calculate_values_mapping(ignore_keys)
         # 查询组件类服务: MESSAGING
@@ -536,6 +549,7 @@ class ServiceHandler:
                 "end_time": end_time,
                 # index: 0, 1, 2
                 "group_by": ["service_name", "messaging_system"],
+                **extra_params,
             }
         ).get_range_calculate_values_mapping(ignore_keys)
         # 单独查询自定义服务指标 (因为不同service_name可以访问同一个自定义服务)
@@ -546,6 +560,7 @@ class ServiceHandler:
                 "end_time": end_time,
                 # index: 0
                 "group_by": ["peer_service"],
+                **extra_params,
             }
         ).get_range_calculate_values_mapping(ignore_keys)
         return cls._combine_metric_data(
