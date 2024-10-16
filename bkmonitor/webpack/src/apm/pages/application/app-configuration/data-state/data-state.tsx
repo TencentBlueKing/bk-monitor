@@ -84,7 +84,7 @@ export default class DataStatus extends tsc<object> {
   // 视图变量
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {};
   // 时间间隔
-  @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1d', 'now'];
+  @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-6h', 'now'];
   /** 时区 */
   @ProvideReactive('timezone') timezone: string = getDefaultTimezone();
   // 对比的时间
