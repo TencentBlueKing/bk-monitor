@@ -118,6 +118,7 @@
 
       pollingEndTime = endTimeStamp;
       pollingStartTime = requestInterval > 0 ? pollingEndTime - requestInterval : startTimeStamp;
+
       isStart.value = true;
     } else {
       pollingEndTime = pollingStartTime;
@@ -186,6 +187,7 @@
           }
 
           const keys = [...optionData.keys()];
+
           keys.sort((a, b) => a[0] - b[0]);
           const data = keys.map(key => [optionData.get(key)[1], optionData.get(key)[0], key]);
           updateChart(data, currentInterval);
@@ -202,6 +204,7 @@
           isRequsting = false;
           updateChart([]);
         })
+
         .finally(() => {
           isLoading.value = false;
         });
