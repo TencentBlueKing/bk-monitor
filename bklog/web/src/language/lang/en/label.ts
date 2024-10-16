@@ -703,4 +703,6 @@ export default {
   无需设置: 'No setup required',
   默认分词符: 'Default word breaker',
   可见范围设置: 'Visible range settings',
+  无: 'None',
+  不分词: 'No word separation',
 };

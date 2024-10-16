@@ -420,10 +420,12 @@ export default class FieldInfo extends tsc<IProps> {
             {row.is_analyzed ? (
               <div>
                 <div>{row.tokenize_on_chars ? row.tokenize_on_chars : this.$t('默认分词符')}</div>
-                <div>大小写敏感: {row.is_case_sensitive ? '是' : '否'}</div>
+                <div>
+                  {this.$t('大小写敏感')}: {row.is_case_sensitive ? this.$t('是') : this.$t('否')}
+                </div>
               </div>
             ) : (
-              <div>无</div>
+              <div>{this.$t('不分词')}</div>
             )}
           </div>
         );
