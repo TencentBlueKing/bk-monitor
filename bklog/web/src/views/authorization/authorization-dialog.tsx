@@ -86,6 +86,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
     authorized_users: [{ required: true, message: $i18n.t('必填项'), trigger: 'blur' }],
     action_id: [{ required: true, message: $i18n.t('必填项'), trigger: 'blur' }],
     action_multiple: [{ required: true, message: $i18n.t('必填项'), trigger: 'blur' }],
+    resources: [{ required: true, message: $i18n.t('必填项'), trigger: 'blur' }],
     expire_time: [{ required: true, message: $i18n.t('必填项'), trigger: 'change' }],
   };
 
@@ -114,11 +115,15 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   }
 
   get authorizedShowUsersList() {
-    const userList = [...this.authorizedFilterUsersList];
-    userList.unshift({
-      id: '__all__',
-      name: window.mainComponent.$t('所有人'),
-    });
+    const userList = [
+      {
+        id: '__all__',
+        name: window.mainComponent.$t('所有人'),
+      },
+    ];
+    if (!this.formData.authorized_users.includes('__all__')) {
+      userList.push(...this.authorizedFilterUsersList);
+    }
     return userList;
   }
 
@@ -143,6 +148,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
 
   async handleActionChange(val: string) {
     if (!val || val === '-') return;
+    this.formData.resources = [];
     this.resourceList = await this.getActionSelectList(val);
   }
 
@@ -382,7 +388,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
             property='resources'
           >
             <div class='custom-label'>
-              <span class='label'>{this.$t('操作实例')}</span>
+              <span class='label required'>{this.$t('操作实例')}</span>
               <span class='hint'>
                 ({this.$t('来源于授权人:')} {this.authorizer})
               </span>
@@ -480,7 +486,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
               property='resources'
             >
               <div class='custom-label'>
-                <span class='label'>{action.name}</span>
+                <span class='label required'>{action.name}</span>
               </div>
               <bk-select
                 v-model={action.select}
