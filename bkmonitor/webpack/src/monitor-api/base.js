@@ -117,7 +117,7 @@ export const request = (method, url) => {
         })
         .catch(err => {
           const message = makeMessage(err.error_details || err.message, traceparent, config.needTraceId);
-          if (config.needMessage) {
+          if (message && config.needMessage) {
             bkMessage(message);
           }
           // !err.error_details && err.message && (err.message = message);
@@ -168,7 +168,7 @@ export const request = (method, url) => {
       })
       .catch(err => {
         const message = makeMessage(err.error_details || err.message || '', traceparent, config.needTraceId);
-        if (config.needMessage && !noMessageCode.includes(err.code)) {
+        if (message && config.needMessage && !noMessageCode.includes(err.code)) {
           bkMessage(message);
         }
         // !err.error_details && err.message && (err.message = message);
