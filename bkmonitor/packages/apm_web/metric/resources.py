@@ -1991,56 +1991,26 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             "end_time": data["end_time"],
         }
         if service_name:
+            endpoints_metric_res = pool.apply_async(
+                ServiceHandler.get_service_metric,
+                kwds={
+                    "metric": ENDPOINT_LIST,
+                    "application": application,
+                    "start_time": data["start_time"],
+                    "end_time": data["end_time"],
+                    "service_name": service_name,
+                    "bk_instance_id": query_param.get("bk_instance_id"),
+                },
+            )
+
             node = ServiceHandler.get_node(bk_biz_id, app_name, service_name)
             if ComponentHandler.is_component_by_node(node):
                 query_param["category"] = node["extra_data"]["category"]
                 query_param["service_name"] = ComponentHandler.get_component_belong_service(service_name)
                 query_param["category_kind_value"] = node["extra_data"]["predicate_value"]
-                endpoints_metric_res = pool.apply_async(
-                    ENDPOINT_LIST,
-                    kwds={
-                        **endpoint_metrics_param,
-                        "where": ComponentHandler.get_component_metric_filter_params(
-                            bk_biz_id,
-                            app_name,
-                            service_name,
-                            query_param.get("bk_instance_id"),
-                        )
-                        + [
-                            {
-                                "key": "service_name",
-                                "method": "eq",
-                                "value": [ComponentHandler.get_component_belong_service(service_name)],
-                            }
-                        ],
-                    },
-                )
-
-            elif ServiceHandler.is_remote_service_by_node(node):
-                query_param["service_name"] = service_name
-                endpoints_metric_res = pool.apply_async(
-                    ENDPOINT_LIST,
-                    kwds={
-                        **endpoint_metrics_param,
-                        "where": [
-                            {
-                                "key": "peer_service",
-                                "method": "eq",
-                                "value": [ServiceHandler.get_remote_service_origin_name(service_name)],
-                            }
-                        ],
-                    },
-                )
-
             else:
+                # 自定义服务 / 普通服务
                 query_param["service_name"] = service_name
-                endpoints_metric_res = pool.apply_async(
-                    ENDPOINT_LIST,
-                    kwds={
-                        **endpoint_metrics_param,
-                        "where": [{"key": "service_name", "method": "eq", "value": [service_name]}],
-                    },
-                )
 
             node_mapping[service_name] = node
         else:
@@ -2087,7 +2057,6 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             if category_kind_key in CategoryEnum.list_component_generate_keys():
                 # 如果此接口是 db\messaging 类型 那么需要获取这个接口的服务名称(添加上后缀)
                 node_name = ComponentHandler.generate_component_name(node_name, endpoint["category_kind"]["value"])
-            if category_kind_key:
                 extra_filter_dict.update(
                     {
                         OtlpKey.get_metric_dimension_key(category_kind_key): endpoint["category_kind"]["value"],
