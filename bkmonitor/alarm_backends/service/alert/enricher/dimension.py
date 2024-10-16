@@ -8,6 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import logging
+import os
 
 from django.utils.translation import ugettext as _
 
@@ -17,9 +19,59 @@ from alarm_backends.core.cache.cmdb import (
     ServiceInstanceManager,
     TopoManager,
 )
-from alarm_backends.service.alert.enricher import BaseAlertEnricher
+from alarm_backends.core.cache.models.uptimecheck import UptimecheckCacheManager
+from alarm_backends.service.alert.enricher import (
+    BaseAlertEnricher,
+    BaseEventEnricher,
+    Event,
+)
 from alarm_backends.service.alert.enricher.translator import TranslatorFactory
 from constants.alert import EventTargetType
+
+logger = logging.getLogger("alert.enricher")
+
+
+class PreEventEnricher(BaseEventEnricher):
+    """
+    alert.builder模块，预处理trigger推送的事件
+    """
+
+    # drop event where uptime check task_id not exists
+    # 可以通过配置bk-monitor-alarm-alert-worker 的 env 来注入环境变量 DISABLE_DROP_UP_EVENT
+    DISABLE_DROP_UP_EVENT = os.getenv("DISABLE_DROP_UP_EVENT", False)
+
+    def enrich_event(self, event) -> Event:
+        if event.is_dropped():
+            return event
+        # pass
+        event = self.uptime_check_task_exist(event)
+        return event
+
+    @classmethod
+    def uptime_check_task_exist(self, event):
+        def enabled():
+            # 默认开启丢弃判定
+            if self.DISABLE_DROP_UP_EVENT:
+                return False
+            if "tags.task_id" in event.dedupe_keys and event.category == "uptimecheck":
+                return event.metric and "uptimecheck." in event.metric[0]
+            return False
+
+        def enrich():
+            # 拨测任务id 已经不存在的告警，直接丢弃记录日志
+            task_id = None
+            for tag in event.tags:
+                if tag["key"] == "task_id":
+                    task_id = tag["value"]
+                    break
+            if task_id is not None:
+                if not UptimecheckCacheManager.get_task(task_id):
+                    event.drop()
+                    logger.warning("[enrich event] strategy(%s) task id(%s) not exists", event.strategy_id, task_id)
+
+        if enabled():
+            enrich()
+        return event
 
 
 class DimensionOrderEnricher(BaseAlertEnricher):
