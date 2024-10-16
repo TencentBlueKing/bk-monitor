@@ -14,7 +14,9 @@ import json
 import logging
 import operator
 from collections import defaultdict
+from json import JSONDecodeError
 
+from django.core.cache import cache
 from django.utils.translation import gettext_lazy as _lazy
 from django.utils.translation import ugettext as _
 from opentelemetry.semconv.resource import ResourceAttributes
@@ -26,6 +28,7 @@ from apm_web.constants import (
     AlertLevel,
     AlertStatus,
     Apdex,
+    ApmCacheKey,
     CategoryEnum,
     DataStatus,
     SceneEventKey,
@@ -371,7 +374,6 @@ class ServiceListResource(PageListResource):
                 checked=True,
                 unit="ns",
                 decimal=2,
-                sortable=True,
                 asyncable=True,
                 width=80,
             ),
@@ -381,7 +383,6 @@ class ServiceListResource(PageListResource):
                 checked=True,
                 unit="ns",
                 decimal=2,
-                sortable=True,
                 asyncable=True,
                 width=80,
             ),
@@ -722,12 +723,23 @@ class ServiceListResource(PageListResource):
         collects = CollectServiceResource.get_collect_config(application).config_value
 
         res = []
-        data_status_mapping = ServiceHandler.get_service_data_status_mapping(
-            application,
-            validate_data["start_time"],
-            validate_data["end_time"],
-            services,
-        )
+        # 先获取缓存数据
+        cache_key = ApmCacheKey.APP_SERVICE_STATUS_KEY.format(application_id=application.application_id)
+        data_status_mapping = cache.get(cache_key)
+        if data_status_mapping:
+            try:
+                data_status_mapping = json.loads(data_status_mapping)
+            except JSONDecodeError:
+                pass
+        if not data_status_mapping:
+            data_status_mapping = ServiceHandler.get_service_data_status_mapping(
+                application,
+                validate_data["start_time"],
+                validate_data["end_time"],
+                services,
+            )
+            cache.set(cache_key, json.dumps(data_status_mapping))
+
         labels_mapping = group_by(
             ApmMetaConfig.list_service_config_values(bk_biz_id, app_name, [i["topo_key"] for i in services], "labels"),
             operator.attrgetter("level_key"),
@@ -1776,7 +1788,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             ),
             StatusTableFormat(
                 id="apdex",
-                name=_lazy("状态"),
+                name=_lazy("Apdex"),
                 checked=True,
                 status_map_cls=Apdex,
                 filterable=True,
@@ -2045,17 +2057,19 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             node_name = endpoint["service_name"]
 
             # 添加额外的查询条件 让右侧图标查询指标时查到正确的数据(通过图标配置中 metric_condition 指定)
-            endpoint["extra_filter_dict"] = {"kind": endpoint["kind"]}
+            extra_filter_dict = {"kind": endpoint["kind"]}
             category_kind_key = endpoint.get("category_kind", {}).get("key")
             if category_kind_key in CategoryEnum.list_component_generate_keys():
                 # 如果此接口是 db\messaging 类型 那么需要获取这个接口的服务名称(添加上后缀)
                 node_name = ComponentHandler.generate_component_name(node_name, endpoint["category_kind"]["value"])
             if category_kind_key:
-                endpoint["extra_filter_dict"].update(
+                extra_filter_dict.update(
                     {
                         OtlpKey.get_metric_dimension_key(category_kind_key): endpoint["category_kind"]["value"],
                     }
                 )
+            # 放入 value 字段中(兼容前端的格式)
+            endpoint["extra_filter_dict"] = {"value": extra_filter_dict}
 
             metric = self.get_endpoint_metric(endpoints_metric, node_mapping.get(node_name), endpoint)
 

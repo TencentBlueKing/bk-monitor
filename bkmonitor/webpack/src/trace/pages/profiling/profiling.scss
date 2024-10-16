@@ -63,4 +63,17 @@
     padding: 0 !important;
     background-color: #f5f7fa;
   }
+
+  .bk-modal-header {
+    height: 52px;
+    line-height: 52px;
+    text-align: center;
+    background: #fff;
+    box-shadow: 0 1px 0 0 #dcdee5, 0 3px 4px 0 rgba(64, 112, 203, 0.06);
+
+    .bk-dialog-title {
+      font-size: 16px;
+      color: #63656e;
+    }
+  }
 }

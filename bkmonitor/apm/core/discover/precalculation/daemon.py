@@ -21,7 +21,6 @@ from collections import defaultdict
 
 from django.conf import settings
 
-from alarm_backends.core.storage.redis import Cache
 from apm.core.discover.precalculation.consul_handler import ConsulHandler
 from apm.models import ApmApplication, MetricDataSource, TraceDataSource
 from bkmonitor.utils import group_by
@@ -29,22 +28,6 @@ from bkmonitor.utils.time_tools import get_datetime_range
 from core.drf_resource import api, resource
 
 logger = logging.getLogger("apm")
-
-
-class PrecalculateGrayRelease:
-    KEY = "monitor:apm:pre_calculate:gray_release"
-
-    redis_cli = Cache("cache")
-
-    @classmethod
-    def add(cls, app_id):
-        """将应用添加进预计算灰度名单中"""
-        cls.redis_cli.sadd(cls.KEY, app_id)
-
-    @classmethod
-    def exist(cls, app_id):
-        """判断此应用是否在灰度名单中"""
-        return cls.redis_cli.sismember(cls.KEY, app_id)
 
 
 class DaemonTaskHandler:
@@ -55,8 +38,6 @@ class DaemonTaskHandler:
     @classmethod
     def execute(cls, app_id, queue=None, body=None):
         try:
-            # 0. 添加到灰度名单 待未来去除
-            PrecalculateGrayRelease.add(app_id)
             # 1. 刷新配置到consul
             data_id = ConsulHandler.check_update_by_app_id(app_id)
 
@@ -119,36 +100,33 @@ class DaemonTaskHandler:
                 )
                 continue
 
-            if PrecalculateGrayRelease.exist(app.id):
-                start_time, end_time = get_datetime_range("minute", 10)
-                start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
+            start_time, end_time = get_datetime_range("minute", 10)
+            start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
 
-                # 常驻任务方式进行预计算
-                is_running = cls.is_daemon_task_running(
+            # 常驻任务方式进行预计算
+            is_running = cls.is_daemon_task_running(
+                deployed_biz_id, trace_datasource[0].bk_data_id, start_time, end_time
+            )
+            if is_running:
+                is_receive_data = cls.is_daemon_task_receive_data(
                     deployed_biz_id, trace_datasource[0].bk_data_id, start_time, end_time
                 )
-                if is_running:
-                    is_receive_data = cls.is_daemon_task_receive_data(
-                        deployed_biz_id, trace_datasource[0].bk_data_id, start_time, end_time
-                    )
-                    if not is_receive_data:
-                        if cls.is_normal(metric_datasource[0], start_time, end_time):
-                            apps_for_reload.append(app)
-                            logger.info(
-                                f"[{index}/{len(apps)}] ({app.bk_biz_id}){app.app_name} "
-                                f"running: ok | data_status: ok | daemon_receive_data: bad -> reload"
-                            )
-                        else:
-                            logger.info(
-                                f"[{index}/{len(apps)}] ({app.bk_biz_id}){app.app_name} "
-                                f"task: ok(daemon, empty data) -> skip"
-                            )
+                if not is_receive_data:
+                    if cls.is_normal(metric_datasource[0], start_time, end_time):
+                        apps_for_reload.append(app)
+                        logger.info(
+                            f"[{index}/{len(apps)}] ({app.bk_biz_id}){app.app_name} "
+                            f"running: ok | data_status: ok | daemon_receive_data: bad -> reload"
+                        )
                     else:
-                        apps_for_daemon.append(app)
-                        logger.info(f"[{index}/{len(apps)}] ({app.bk_biz_id}){app.app_name} task ok(daemon) -> skip")
+                        logger.info(
+                            f"[{index}/{len(apps)}] ({app.bk_biz_id}){app.app_name} "
+                            f"task: ok(daemon, empty data) -> skip"
+                        )
                 else:
-                    apps_for_create.append(app)
-                    logger.info(f"[{index}/{len(apps)}] ({app.bk_biz_id}){app.app_name} running: bad -> create")
+                    apps_for_daemon.append(app)
+                    logger.info(f"[{index}/{len(apps)}] ({app.bk_biz_id}){app.app_name} task ok(daemon) -> skip")
+
             else:
                 # 定时任务方式进行预计算
                 apps_for_beat.append(app)
@@ -157,8 +135,9 @@ class DaemonTaskHandler:
         return apps_for_beat, apps_for_daemon, apps_for_reload, apps_for_create
 
     @classmethod
-    def is_normal(cls, metric_datasource, start_time, end_time):
-        """获取此应用是否有数据"""
+    def get_application_request_count(cls, metric_datasource, start_time, end_time):
+        """获取应用的总数据量"""
+
         query = {
             "id": "bk_apm_count",
             "expression": "a",
@@ -191,11 +170,22 @@ class DaemonTaskHandler:
             "bk_biz_id": metric_datasource.bk_biz_id,
         }
 
-        result = resource.grafana.graph_unify_query(query)
-        if not result or not result.get("series"):
-            return False
+        try:
+            result = resource.grafana.graph_unify_query(query)
+            if not result or not result.get("series"):
+                return 0
 
-        return sum(i[0] for i in result["series"][0]["datapoints"]) > 0
+            return sum(i[0] for i in result["series"][0]["datapoints"])
+        except Exception as e:  # noqa
+            logger.warning(
+                f"failed to get request_count of app: {metric_datasource.bk_biz_id}-{metric_datasource.app_name}",
+            )
+            return 0
+
+    @classmethod
+    def is_normal(cls, metric_datasource, start_time, end_time):
+        """获取此应用是否有数据"""
+        return cls.get_application_request_count(metric_datasource, start_time, end_time) > 0
 
     @classmethod
     def is_daemon_task_receive_data(cls, deployed_biz_id, bk_data_id, start_time, end_time):

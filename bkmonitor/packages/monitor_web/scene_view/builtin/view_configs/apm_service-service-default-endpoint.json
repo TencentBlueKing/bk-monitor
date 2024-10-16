@@ -978,9 +978,10 @@
                 "interval_unit": "s",
                 "time_field": "time",
                 "filter_dict": {
-                  "service_name": "${service_name}",
+                  "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": []
               }
@@ -1075,7 +1076,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": []
               }
@@ -1165,7 +1167,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": []
               },
@@ -1189,7 +1192,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "${extra_filter_dict}"
                 },
                 "functions": []
               }
@@ -1309,9 +1313,10 @@
                 "interval_unit": "s",
                 "time_field": "time",
                 "filter_dict": {
-                  "service_name": "${service_name}",
+                  "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -1343,9 +1348,10 @@
                 "interval_unit": "s",
                 "time_field": null,
                 "filter_dict": {
-                  "service_name": "${service_name}",
+                  "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -1465,9 +1471,10 @@
                 "interval_unit": "s",
                 "time_field": "time",
                 "filter_dict": {
-                  "service_name": "${service_name}",
+                  "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -1573,9 +1580,10 @@
                 "interval_unit": "s",
                 "time_field": "time",
                 "filter_dict": {
-                  "service_name": "${service_name}",
+                  "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -1683,7 +1691,8 @@
                 "filter_dict": {
                   "service_name": "${service_name}",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {

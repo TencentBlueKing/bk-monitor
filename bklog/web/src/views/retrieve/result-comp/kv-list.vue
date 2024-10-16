@@ -453,7 +453,7 @@
           margin: 0 0 0 6px;
         }
 
-        .icon-copy {
+        .bklog-copy {
           font-size: 24px;
           cursor: pointer;
           transform: rotate(0);

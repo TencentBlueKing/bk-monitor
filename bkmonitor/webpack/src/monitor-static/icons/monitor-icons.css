@@ -2,9 +2,9 @@
 @font-face {
   font-family: 'icon-monitor'; /* Project id 1185924 */
   src:
-    url('monitor-icons.woff2?t=1727425585056') format('woff2'),
-    url('monitor-icons.woff?t=1727425585056') format('woff'),
-    url('monitor-icons.ttf?t=1727425585056') format('truetype');
+    url('monitor-icons.woff2?t=1728643762023') format('woff2'),
+    url('monitor-icons.woff?t=1728643762023') format('woff'),
+    url('monitor-icons.ttf?t=1728643762023') format('truetype');
 }
 
 .icon-monitor {
@@ -13,6 +13,10 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-mokuai:before {
+  content: '\e7b3';
 }
 
 .icon-mc-apm-topo:before {

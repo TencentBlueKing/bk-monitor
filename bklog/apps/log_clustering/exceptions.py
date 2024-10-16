@@ -128,16 +128,21 @@ class ClusteringDebugException(BaseClusteringException):
     MESSAGE = _("调试过程异常: {e}")
 
 
-class DuplicateNameException(BaseClusteringException):
+class ClusteringAccessNotSupportedException(BaseClusteringException):
     ERROR_CODE = "021"
+    MESSAGE = _("该索引集类型不支持接入日志聚类")
+
+
+class DuplicateNameException(BaseClusteringException):
+    ERROR_CODE = "022"
     MESSAGE = _("模板名称已存在: {name}")
 
 
 class RegexTemplateNotExistException(BaseClusteringException):
-    ERROR_CODE = "022"
+    ERROR_CODE = "023"
     MESSAGE = _("该模板不存在: {regex_template_id}")
 
 
 class RegexTemplateReferencedException(BaseClusteringException):
-    ERROR_CODE = "023"
+    ERROR_CODE = "024"
     MESSAGE = _("该模板已被其他索引集引用，不允许删除: {regex_template_id}")

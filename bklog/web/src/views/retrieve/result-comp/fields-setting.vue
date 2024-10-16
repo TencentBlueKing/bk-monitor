@@ -87,6 +87,7 @@
         <div class="fields-tab-container">
           <bk-tab
             :active.sync="activeFieldTab"
+            :labelHeight="42"
             type="unborder-card"
           >
             <template v-for="(panel, index) in fieldTabPanels">
@@ -806,20 +807,20 @@
 
     .fields-tab-container {
       width: 723px;
-      padding: 10px 24px 0;
+      padding: 0px 10px 0 10px;
     }
 
     .fields-list-container {
       display: flex;
       width: 723px;
-      padding: 0 24px 14px;
-      margin-top: -20px;
+      padding: 0 10px 14px 10px;
+      margin-top: -30px;
 
       .total-fields-list,
       .visible-fields-list,
       .sort-fields-list {
-        width: 320px;
-        height: 319px;
+        width: 330px;
+        height: 268px;
         border: 1px solid #dcdee5;
 
         .text-action {
@@ -854,8 +855,8 @@
         }
 
         .select-list {
-          height: 276px;
-          padding: 10px 0;
+          height: 223px;
+          padding: 4px 0;
           overflow: auto;
 
           @include scroller;
@@ -863,7 +864,7 @@
           .select-item {
             display: flex;
             align-items: center;
-            padding: 0 16px;
+            padding: 0 8px;
             font-size: 12px;
             line-height: 32px;
 
@@ -1018,7 +1019,7 @@
 
     .field-alias-setting {
       position: absolute;
-      top: 10px;
+      top: 0px;
       right: 20px;
       display: flex;
       align-items: center;

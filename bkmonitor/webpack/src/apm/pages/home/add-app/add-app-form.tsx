@@ -45,7 +45,7 @@ interface IProps {
 
 @Component
 export default class AddAppForm extends tsc<IProps> {
-  @Ref() addForm: any;
+  @Ref('addForm') addFormRef: any;
   list = [
     {
       id: ETelemetryDataType.metric,
@@ -79,9 +79,9 @@ export default class AddAppForm extends tsc<IProps> {
     ID: '',
     name: '',
     desc: '',
-    [ETelemetryDataType.metric]: false,
-    [ETelemetryDataType.log]: false,
-    [ETelemetryDataType.trace]: false,
+    [ETelemetryDataType.metric]: true,
+    [ETelemetryDataType.log]: true,
+    [ETelemetryDataType.trace]: true,
     [ETelemetryDataType.profiling]: false,
   };
   rules = {
@@ -112,6 +112,9 @@ export default class AddAppForm extends tsc<IProps> {
     ],
   };
   saveLoading = false;
+  saveToServiceLoading = false;
+
+  isVerify = false;
 
   /** 检查 应用名 是否重名 */
   async handleCheckDuplicateName(val: string) {
@@ -124,18 +127,23 @@ export default class AddAppForm extends tsc<IProps> {
       ID: '',
       name: '',
       desc: '',
-      [ETelemetryDataType.metric]: false,
+      [ETelemetryDataType.metric]: true,
       [ETelemetryDataType.log]: true,
-      [ETelemetryDataType.trace]: false,
+      [ETelemetryDataType.trace]: true,
       [ETelemetryDataType.profiling]: false,
     };
-    this.addForm?.clearError?.();
+    this.addFormRef?.clearError?.();
   }
 
   /* 保存 */
   async handleSave(isAccess = false) {
-    this.saveLoading = true;
-    const isPass = await this.addForm.validate();
+    if (isAccess) {
+      this.saveToServiceLoading = true;
+    } else {
+      this.saveLoading = true;
+    }
+
+    const isPass = await this.addFormRef?.validate().catch(() => false);
     if (isPass) {
       // 保存接口
       const params = {
@@ -156,26 +164,30 @@ export default class AddAppForm extends tsc<IProps> {
           theme: 'success',
           message: this.$t('保存成功'),
         });
-        this.initForm();
         this.$emit('success');
         if (isAccess) {
           // 跳转到接入服务页面
-          const routeData = this.$router.resolve({
+          this.$router.push({
             name: 'service-add',
             params: {
-              appName: this.formData.name as string,
+              appName: params.app_name as string,
             },
           });
-          window.location.href = routeData.href;
         }
+        this.initForm();
       }
     }
     this.saveLoading = false;
+    this.saveToServiceLoading = false;
   }
 
   handleCancel() {
     this.initForm();
     this.$emit('cancel');
+  }
+
+  async handleBlur() {
+    this.isVerify = await this.addFormRef?.validate().catch(() => false);
   }
 
   render() {
@@ -193,17 +205,18 @@ export default class AddAppForm extends tsc<IProps> {
           }}
         >
           <bk-form-item
-            class='cluster-select-item'
+            class='cluster-select-item input-width'
             error-display-type='normal'
             label={this.$t('应用ID')}
             property='ID'
             required
           >
             <bk-input
-              class='input'
+              class='input input-width'
               v-model={this.formData.ID}
               maxlength={50}
               placeholder={this.$t('1-50字符，由小写字母、数字、下划线(_)、中划线(-)组成')}
+              onBlur={() => this.handleBlur()}
             />
           </bk-form-item>
           <bk-form-item
@@ -213,14 +226,15 @@ export default class AddAppForm extends tsc<IProps> {
             required
           >
             <bk-input
-              class='input'
+              class='input input-width'
               v-model={this.formData.name}
               placeholder={this.$t('1-50字符')}
+              onBlur={() => this.handleBlur()}
             />
           </bk-form-item>
           <bk-form-item label={this.$t('描述')}>
             <bk-input
-              class='input'
+              class='input input-width'
               v-model={this.formData.desc}
               maxlength='100'
               type='textarea'
@@ -252,6 +266,7 @@ export default class AddAppForm extends tsc<IProps> {
           <bk-form-item>
             <bk-button
               class='mr-8'
+              disabled={!this.isVerify}
               loading={this.saveLoading}
               theme='primary'
               onClick={() => this.handleSave()}
@@ -260,7 +275,8 @@ export default class AddAppForm extends tsc<IProps> {
             </bk-button>
             <bk-button
               class='mr-8'
-              loading={this.saveLoading}
+              disabled={!this.isVerify}
+              loading={this.saveToServiceLoading}
               theme='primary'
               onClick={() => this.handleSave(true)}
             >

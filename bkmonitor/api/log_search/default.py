@@ -346,9 +346,9 @@ class ListEsRouterResource(LogSearchAPIByApiGwResource):
         space_uid = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
 
-class DataBusCollectorsResource(LogSearchAPIGWResource):
+class DataBusCollectorsResource(LogSearchAPIByApiGwResource):
     """
-    数据采集器列表
+    采集项列表
     """
 
     action = "/databus_collectors/{collector_config_id}/"
@@ -365,9 +365,9 @@ class DataBusCollectorsResource(LogSearchAPIGWResource):
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
 
 
-class DataBusCollectorsIndicesResource(LogSearchAPIGWResource):
+class DataBusCollectorsIndicesResource(LogSearchAPIByApiGwResource):
     """
-    数据采集器索引列表
+    采集项索引列表
     """
 
     action = "/databus_collectors/{collector_config_id}/indices_info/"
@@ -384,7 +384,7 @@ class DataBusCollectorsIndicesResource(LogSearchAPIGWResource):
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
 
 
-class LogSearchIndexSetResource(LogSearchAPIGWResource):
+class LogSearchIndexSetResource(LogSearchAPIByApiGwResource):
     """
     索引集列表
     """
@@ -420,6 +420,13 @@ class UpdateCustomReportResource(LogSearchAPIGWResource):
     action = "/{collector_config_id}/databus_custom_update/"
     method = "POST"
 
+    def get_request_url(self, validated_request_data):
+        """
+        获取最终请求的url，也可以由子类进行重写
+        """
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
 
 class StartCollectorsResource(LogSearchAPIGWResource):
     """
@@ -429,6 +436,13 @@ class StartCollectorsResource(LogSearchAPIGWResource):
     action = "/databus_collectors/{collector_config_id}/start/"
     method = "POST"
 
+    def get_request_url(self, validated_request_data):
+        """
+        获取最终请求的url，也可以由子类进行重写
+        """
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
 
 class StopCollectorsResource(LogSearchAPIGWResource):
     """
@@ -437,3 +451,10 @@ class StopCollectorsResource(LogSearchAPIGWResource):
 
     action = "/databus_collectors/{collector_config_id}/stop/"
     method = "POST"
+
+    def get_request_url(self, validated_request_data):
+        """
+        获取最终请求的url，也可以由子类进行重写
+        """
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
