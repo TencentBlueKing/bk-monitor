@@ -55,6 +55,7 @@ interface IProps {
   unit?: string;
   unitDecimal?: number;
   showLastMarkPoint?: boolean;
+  lastValueWidth?: number;
   /* 以下参数为对比图专用 */
   compareX?: number;
   referX?: number;
@@ -82,6 +83,8 @@ export default class MiniTimeSeries extends tsc<IProps> {
   @Prop({ type: String, default: window.i18n.tc('数量') }) valueTitle: string;
   /* 是否标记最后一个点并且右侧显示其值 */
   @Prop({ type: Boolean, default: true }) showLastMarkPoint: boolean;
+  /* 固定右侧值的显示宽度 */
+  @Prop({ type: Number, default: 0 }) lastValueWidth: number;
 
   options: MonitorEchartOptions = {
     grid: {
@@ -375,7 +378,22 @@ export default class MiniTimeSeries extends tsc<IProps> {
           onMouseover={this.handleMouseover}
           onMouseup={this.handleMouseUp}
         />
-        {this.showLastMarkPoint && this.lastValue ? <span class='last-value'>{this.lastValue}</span> : undefined}
+        {this.showLastMarkPoint && this.lastValue ? (
+          this.lastValueWidth ? (
+            <span
+              style={{
+                'max-width': `${this.lastValueWidth}px`,
+                'min-width': `${this.lastValueWidth}px`,
+              }}
+              class='last-value-overflow'
+              v-bk-overflow-tips
+            >
+              {this.lastValue}
+            </span>
+          ) : (
+            <span class='last-value'>{this.lastValue}</span>
+          )
+        ) : undefined}
       </div>
     );
   }

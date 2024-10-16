@@ -228,12 +228,7 @@ class CreateApplicationResource(Resource):
 
         from apm_web.tasks import APMEvent, report_apm_application_event
 
-        switch_on_data_sources = {
-            TelemetryDataType.TRACE.value: validated_request_data["enabled_trace"],
-            TelemetryDataType.PROFILING.value: validated_request_data["enabled_profiling"],
-            TelemetryDataType.METRIC.value: validated_request_data["enabled_metric"],
-            TelemetryDataType.LOG.value: validated_request_data["enabled_log"],
-        }
+        switch_on_data_sources = app.get_data_sources()
         report_apm_application_event.delay(
             validated_request_data["bk_biz_id"],
             app.application_id,
@@ -453,19 +448,27 @@ class StartResource(Resource):
         application_id = serializers.IntegerField(label="应用id")
         type = serializers.ChoiceField(label="需要开启的数据源", choices=TelemetryDataType.values())
 
+    @classmethod
+    def translate_data_status_when_start(cls, data_status):
+        return DataStatus.NO_DATA if data_status == DataStatus.DISABLED else data_status
+
     @atomic
     def perform_request(self, validated_data):
         application = Application.objects.get(application_id=validated_data["application_id"])
 
         if validated_data["type"] == TelemetryDataType.TRACE.value:
             application.is_enabled_trace = True
+            application.trace_data_status = self.translate_data_status_when_start(application.trace_data_status)
             Application.start_plugin_config(validated_data["application_id"])
         elif validated_data["type"] == TelemetryDataType.PROFILING.value:
             application.is_enabled_profiling = True
+            application.profiling_data_status = self.translate_data_status_when_start(application.profiling_data_status)
         elif validated_data["type"] == TelemetryDataType.METRIC.value:
             application.is_enabled_metric = True
+            application.metric_data_status = self.translate_data_status_when_start(application.metric_data_status)
         elif validated_data["type"] == TelemetryDataType.LOG.value:
             application.is_enabled_log = True
+            application.log_data_status = self.translate_data_status_when_start(application.log_data_status)
         else:
             raise ValueError(_("不支持的data_source: {}").format(validated_data["type"]))
 
@@ -475,15 +478,16 @@ class StartResource(Resource):
 
         application.is_enabled = True
         application.save()
-        switch_on_data_sources = {validated_data["type"]: True}
 
         from apm_web.tasks import APMEvent, report_apm_application_event
 
+        switch_on_data_sources = application.get_data_sources()
         report_apm_application_event.delay(
             application.bk_biz_id,
             application.application_id,
             apm_event=APMEvent.APP_UPDATE,
             data_sources=switch_on_data_sources,
+            updated_telemetry_types=[validated_data["type"]],
         )
         return res
 
@@ -499,24 +503,30 @@ class StopResource(Resource):
 
         if validated_data["type"] == TelemetryDataType.TRACE.value:
             application.is_enabled_trace = False
+            application.trace_data_status = DataStatus.DISABLED
             Application.stop_plugin_config(validated_data["application_id"])
         elif validated_data["type"] == TelemetryDataType.PROFILING.value:
             application.is_enabled_profiling = False
+            application.profiling_data_status = DataStatus.DISABLED
         elif validated_data["type"] == TelemetryDataType.METRIC.value:
             application.is_enabled_metric = False
+            application.metric_data_status = DataStatus.DISABLED
         elif validated_data["type"] == TelemetryDataType.LOG.value:
             application.is_enabled_log = False
+            application.log_data_status = DataStatus.DISABLED
 
         res = api.apm_api.stop_application(application_id=validated_data["application_id"], type=validated_data["type"])
         application.save()
 
         from apm_web.tasks import APMEvent, report_apm_application_event
 
+        switch_on_data_sources = application.get_data_sources()
         report_apm_application_event.delay(
             application.bk_biz_id,
             application.application_id,
             apm_event=APMEvent.APP_UPDATE,
-            data_sources={validated_data["type"]: False},
+            data_sources=switch_on_data_sources,
+            updated_telemetry_types=[validated_data["type"]],
         )
         return res
 
@@ -849,20 +859,29 @@ class ListApplicationResource(PageListResource):
     def perform_request(self, validate_data):
         applications = Application.objects.filter(bk_biz_id=validate_data["bk_biz_id"])
 
-        def sort_by_status(app):
-            s = 0
-            if app.get("trace_data_status") == DataStatus.NORMAL:
-                s += 1
-            if app.get("profiling_data_status") == DataStatus.NORMAL:
-                s += 1
-            if app.get("metric_data_status") == DataStatus.NORMAL:
-                s += 1
-            if app.get("log_data_status") == DataStatus.NORMAL:
-                s += 1
-            return s
+        def sort_rule(app):
+            """
+            排序规则
+            1. 有数据的优先
+            2. 有服务的其次
+            3. 分组内按名称排序
+            """
+            first, second, third = 1, 1, app.get("app_name", "")
+            if (
+                app.get("trace_data_status") == DataStatus.NORMAL
+                or app.get("profiling_data_status") == DataStatus.NORMAL
+                or app.get("metric_data_status") == DataStatus.NORMAL
+                or app.get("log_data_status") == DataStatus.NORMAL
+            ):
+                first = 0
 
-        # 优先展示 有数据的
-        data = sorted(self.ApplicationSerializer(applications, many=True).data, key=sort_by_status, reverse=True)
+            if app.get("service_count", 0) > 0:
+                second = 0
+
+            return first, second, third
+
+        # 排序
+        data = sorted(self.ApplicationSerializer(applications, many=True).data, key=sort_rule)
         # 不分页
         validate_data["page_size"] = len(data)
         return self.get_pagination_data(data, validate_data)
@@ -1312,10 +1331,11 @@ class MetaInstrumentGuides(Resource):
         OTLP_EXPORTER_HTTP_PORT = 4318
 
         def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
-            application_info: Dict[str, Any] = ApplicationInfoByAppNameResource().request(
-                {"app_name": attrs["app_name"], "bk_biz_id": attrs["bk_biz_id"]}
-            )
-            data_token: str = QueryBkDataToken().request({"application_id": application_info["application_id"]})
+            app = Application.objects.filter(bk_biz_id=attrs["bk_biz_id"], app_name=attrs["app_name"]).first()
+            if app is None:
+                raise ValueError(_(f'应用({attrs["app_name"]})不存在'))
+
+            data_token: str = QueryBkDataToken().request({"application_id": app.application_id})
 
             attrs["access_config"] = {
                 "token": data_token,
@@ -1325,13 +1345,13 @@ class MetaInstrumentGuides(Resource):
                     "protocol": OtlpProtocol.GRPC,
                     "endpoint": f"{attrs['base_endpoint']}:{self.OTLP_EXPORTER_GRPC_PORT}",
                     "http_endpoint": f"{attrs['base_endpoint']}:{self.OTLP_EXPORTER_HTTP_PORT}",
-                    "enable_metrics": application_info.get("is_enabled_metric", False),
-                    "enable_logs": application_info.get("is_enabled_log", False),
-                    "enable_traces": application_info.get("is_enabled_trace", False),
+                    "enable_metrics": app.is_enabled_metric,
+                    "enable_logs": app.is_enabled_log,
+                    "enable_traces": app.is_enabled_trace,
                 },
                 "profiling": {
                     # 语意参考：https://grafana.com/docs/pyroscope/latest/configure-client/
-                    "enabled": application_info.get("is_enabled_profiling", False),
+                    "enabled": app.is_enabled_profiling,
                     "endpoint": f"{attrs['base_endpoint']}:{self.OTLP_EXPORTER_HTTP_PORT}/pyroscope",
                 },
             }

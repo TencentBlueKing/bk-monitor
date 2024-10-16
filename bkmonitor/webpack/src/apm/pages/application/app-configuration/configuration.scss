@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 @import '../../../theme';
 
 .application-configuration {
@@ -830,14 +831,14 @@
     }
 
     .edit-btn-no-authority {
-      color: #c4c6cc;
-      background-color: #faf9fd;
-      border-color: #dcdee5;
+      color: #fff !important;
+      background: #dcdee5 !important;
+      border-color:  #dcdee5 !important;
 
       &:hover {
-        color: #c4c6cc;
-        background-color: #faf9fd;
-        border-color: #dcdee5;
+        color: #fff !important;
+        background: #dcdee5 !important;
+        border-color:  #dcdee5 !important;
       }
     }
 
@@ -862,7 +863,7 @@
     margin-left: 10px;
     font-size: 12px;
 
-    /* stylelint-disable-next-line declaration-no-important */
+    
     font-weight: normal !important;
   }
 
@@ -889,7 +890,7 @@
   }
 
   .log-path-icon {
-    /* stylelint-disable-next-line declaration-no-important */
+    
     font-size: 18px !important;
     color: #c4c6cc;
     cursor: pointer;
@@ -1110,13 +1111,13 @@
       }
 
       .bk-form-textarea:focus {
-        /* stylelint-disable-next-line declaration-no-important */
+        
         background-color: #313238 !important;
         border-radius: 2px;
       }
 
       .bk-form-textarea[disabled] {
-        /* stylelint-disable-next-line declaration-no-important */
+        
         background-color: #313238 !important;
         border-radius: 2px;
       }
@@ -1249,7 +1250,6 @@
   }
 
   .bk-dialog-tool {
-    /* stylelint-disable-next-line declaration-no-important */
     cursor: default !important;
 
     .icon-mc-close {
@@ -1287,7 +1287,7 @@
 
 .panel-intro {
   .dropdown-list-item-disabled {
-    /* stylelint-disable-next-line declaration-no-important */
+    
     color: #c4c6cc !important;
     pointer-events: none;
     cursor: not-allowed;
@@ -1296,7 +1296,7 @@
   .bk-icon.icon-plus-circle {
     display: inline;
 
-    /* stylelint-disable-next-line declaration-no-important */
+    
     font-size: 18px !important;
     line-height: none;
   }
@@ -1323,12 +1323,12 @@
       border-radius: 2px 2px 0 0;
 
       &.is-not-default {
-        /* stylelint-disable-next-line declaration-no-important */
+        
         background: #f0f5ff !important;
       }
 
       .close {
-        /* stylelint-disable-next-line declaration-no-important */
+        
         font-size: 20px !important;
         cursor: pointer;
       }
@@ -1359,7 +1359,7 @@
   }
 
   .bk-label {
-    /* stylelint-disable-next-line declaration-no-important */
+    
     font-size: 12px !important;
   }
 
