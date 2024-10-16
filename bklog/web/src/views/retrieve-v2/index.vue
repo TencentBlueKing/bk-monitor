@@ -99,13 +99,10 @@
     }
   };
 
-  const handleSpaceIdChange = (resetParams = true) => {
-    if (resetParams) {
-      store.commit('resetIndexsetItemParams');
-      store.commit('updateIndexId', '');
-      store.commit('updateUnionIndexList', []);
-    }
-
+  const handleSpaceIdChange = () => {
+    store.commit('resetIndexsetItemParams');
+    store.commit('updateIndexId', '');
+    store.commit('updateUnionIndexList', []);
     getIndexSetList();
     store.dispatch('requestFavoriteList');
   };
@@ -177,6 +174,15 @@
       }
     },
     { deep: true },
+  );
+
+  watch(
+    () => store.state.indexItem.isUnionIndex,
+    () => {
+      if (store.state.indexItem.isUnionIndex && activeTab.value === 'clustering') {
+        activeTab.value = 'origin';
+      }
+    },
   );
 </script>
 <template>

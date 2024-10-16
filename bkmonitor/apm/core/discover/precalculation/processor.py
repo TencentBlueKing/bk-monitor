@@ -28,8 +28,8 @@ from opentelemetry.trace import StatusCode
 from apm.constants import KindCategory
 from apm.models import ApmApplication
 from apm_web.handlers.span_infer import InferenceHandler
-from apm_web.utils import group_by
 from bkm_space.api import SpaceApi
+from bkmonitor.utils import group_by
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import (
     OtlpKey,
@@ -44,6 +44,7 @@ logger = logging.getLogger("apm")
 class PrecalculateProcessor:
     """
     预计算处理类
+    [旧] 目前应用已经迁移至 BMW 预计算处
     """
 
     def __init__(self, storage, bk_biz_id, app_name):

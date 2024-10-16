@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, computed, watch } from 'vue';
+  import { ref, computed, watch, nextTick } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
@@ -32,6 +32,20 @@
     return indexFieldInfo.value.is_loading;
   });
 
+  const isIndexFieldLoading = computed(() => store.state.indexFieldInfo.is_loading);
+
+  watch(
+    () => isIndexFieldLoading.value,
+    () => {
+      nextTick(() => {
+        console.log('isIndexFieldLoading')
+        uiQueryValue.value.forEach(
+          v => (v.field_type = (indexFieldInfo.value.fields ?? []).find(f => f.field_name === v.field)?.field_type),
+        );
+      });
+    },
+  );
+
   watch(
     keyword,
     () => {
@@ -48,7 +62,12 @@
     addition,
     () => {
       uiQueryValue.value.splice(0);
-      uiQueryValue.value.push(...addition.value);
+      uiQueryValue.value.push(
+        ...addition.value.map(v => ({
+          ...v,
+          field_type: (indexFieldInfo.value.fields ?? []).find(f => f.field_name === v.field)?.field_type,
+        })),
+      );
     },
     { immediate: true, deep: true },
   );

@@ -40,6 +40,7 @@ import {
   sessionShowFieldObj,
   formatDate,
 } from '@/common/util';
+import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import axios from 'axios';
 import Vuex from 'vuex';
 
@@ -850,11 +851,14 @@ const store = new Vuex.Store({
           ipSelectValue.value = [result.ip_chooser];
         } else {
           if (!result.addition) result.addition = [];
-          result.addition.push({
-            field: '_ip-select_',
-            operator: '',
-            value: [result.ip_chooser],
-          });
+
+          if (Object.keys(result.ip_chooser ?? {}).length) {
+            result.addition.push({
+              field: '_ip-select_',
+              operator: '',
+              value: [result.ip_chooser],
+            });
+          }
         }
       }
 
@@ -958,6 +962,13 @@ const store = new Vuex.Store({
       }
       let begin = state.indexItem.begin;
       const { size, ...otherPrams } = getters.retrieveParams;
+
+      // 每次请求这里需要根据选择日期时间这里计算最新的timestamp
+      // 最新的 start_time, end_time 也要记录下来，用于字段统计时，保证请求的参数一致
+      const { datePickerValue } = state.indexItem;
+      const [start_time, end_time] = handleTransformToTimestamp(datePickerValue);
+      commit('updateIndexItem', { start_time, end_time });
+
       if (!payload?.isPagination) store.commit('retrieve/updateChartKey');
       const searchCount = payload.searchCount ?? state.indexSetQueryResult.search_count + 1;
       commit(payload.isPagination ? 'updateIndexSetQueryResult' : 'resetIndexSetQueryResult', {
@@ -979,6 +990,8 @@ const store = new Vuex.Store({
         bk_biz_id: state.bkBizId,
         size,
         ...otherPrams,
+        start_time,
+        end_time,
       };
 
       // 更新联合查询的begin
@@ -1116,9 +1129,17 @@ const store = new Vuex.Store({
     },
 
     requestIndexSetValueList({ commit, state }, payload) {
-      const filterFn = field => field.field_type !== 'text' && field.es_doc_values;
+      const filterFn = field =>
+        field.es_doc_values &&
+        !field.is_built_in &&
+        ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'].includes(field.field_type) &&
+        !/^__dist_/.test(field.field_name);
+
       const mapFn = field => field.field_name;
-      const fields = payload?.fields?.length ? payload.fields : state.indexFieldInfo.fields.filter(filterFn).map(mapFn);
+      const fields = (payload?.fields?.length ? payload.fields : state.indexFieldInfo.fields)
+        .filter(filterFn)
+        .map(mapFn);
+
       commit('updateIndexFieldInfo', { aggs_items: [] });
       if (!fields.length) return;
 

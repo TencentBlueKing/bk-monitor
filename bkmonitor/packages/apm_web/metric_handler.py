@@ -327,8 +327,6 @@ class MetricHandler:
 
         res = defaultdict(list)
         for k, series_list in group_values.items():
-            if 'upstreamService' in k:
-                print("dd")
             calculate_v = self.calculation.range_cal({"series": series_list})
             series_response = calculate_v.get("series")
             if series_response:
@@ -429,6 +427,13 @@ class RequestCountInstance(MetricHandler):
     metric_id = CalculationMethod.REQUEST_COUNT
     aggs_method = "SUM"
     metric_field = "bk_apm_count"
+
+
+class DurationBucket(MetricHandler):
+    metric_id = CalculationMethod.DURATION_BUCKET
+    aggs_method = "AVG"
+    metric_field = "bk_apm_duration_bucket"
+    default_group_by = ["le"]
 
 
 class ErrorCountInstance(MetricHandler):

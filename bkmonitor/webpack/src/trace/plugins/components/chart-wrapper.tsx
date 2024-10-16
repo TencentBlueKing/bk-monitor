@@ -63,7 +63,7 @@ export default defineComponent({
     const readonly = useReadonlyInject();
 
     /** 鼠标在图表内 */
-    const showHeaderMoreTool = ref(false);
+    const showHeaderMoreTool = ref(true);
     /** 图表加载状态 */
     const loading = ref(false);
     /** 是否显示大图 */
@@ -194,8 +194,6 @@ export default defineComponent({
           'hover-style': this.needCheck && this.needHoverStryle,
           'row-chart': this.panel.type === 'row',
         }}
-        onMouseenter={() => (this.showHeaderMoreTool = true)}
-        onMouseleave={() => (this.showHeaderMoreTool = false)}
       >
         {!!window.graph_watermark && (
           <div

@@ -76,6 +76,11 @@ class ComponentHandler:
             return False
 
     @classmethod
+    def generate_component_name(cls, service_name, predicate_value):
+        """获取组件类服务名称"""
+        return f"{service_name}-{predicate_value}"
+
+    @classmethod
     def get_component_belong_service(cls, name: str) -> str:
         """
         获取组件归属的服务名称 需要先确保此服务名城为组件类服务
@@ -335,22 +340,6 @@ class ComponentHandler:
                 if system:
                     res.setdefault(service_name, {})[system] = info
                     break
-
-        return res
-
-    @classmethod
-    def get_service_component_name_metrics(cls, app, start_time, end_time, metric_clz=None):
-        """
-        获取service服务下属的组件指标值
-        返回 xxx-redis: {"request_count": "0"}
-        """
-        data = cls.get_service_component_metrics(app, start_time, end_time, metric_clz)
-
-        res = {}
-        for service_name, item in data.items():
-            for k, v in item.items():
-                name = f"{service_name}-{k}"
-                res[name] = v
 
         return res
 

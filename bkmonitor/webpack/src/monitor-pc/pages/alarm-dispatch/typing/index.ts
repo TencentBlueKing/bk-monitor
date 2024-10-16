@@ -128,7 +128,7 @@ export interface IRuleGroup {
 
 export interface LevelItem {
   value: number;
-  name: TranslateResult | string;
+  name: string | TranslateResult;
   icon?: string;
   color?: string;
 }
@@ -459,7 +459,7 @@ export class RuleData {
       this.replaceData = [];
     }
   }
-  setVerificatory(field: string, v: boolean, tips?: TranslateResult | string) {
+  setVerificatory(field: string, v: boolean, tips?: string | TranslateResult) {
     this.verificatory[field] = v;
     this.validateTips[field] = tips ? tips : '';
   }

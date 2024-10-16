@@ -101,9 +101,9 @@ def get_toggle_data(request):
     field_analysis_config, __ = FeatureToggle.objects.get_or_create(
         name=FIELD_ANALYSIS_CONFIG,
         defaults={
-            "status": "debug",
+            "status": "on",
             "is_viewed": True,
-            "feature_config": {"scenario_id_white_list": ["es", "log"]},
+            "feature_config": {"scenario_id_white_list": ["es", "log", "bkdata"]},
             "biz_id_white_list": [],
         },
     )
@@ -130,6 +130,15 @@ def get_toggle_data(request):
                 toggle.name: toggle.biz_id_white_list
                 for toggle in toggle_list
                 if isinstance(toggle.biz_id_white_list, list)
+            }
+        ),
+        "SPACE_UID_WHITE_LIST": json.dumps(
+            {
+                toggle.name: toggle.feature_config["space_uid_white_list"]
+                for toggle in toggle_list
+                if toggle.feature_config
+                and isinstance(toggle.feature_config, dict)
+                and toggle.feature_config.get("space_uid_white_list", [])
             }
         ),
     }

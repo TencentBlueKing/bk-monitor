@@ -1293,18 +1293,20 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
         result_table_id=output_table_name,
         metric_field="is_anomaly",
     )
-    rt_query_config.intelligent_detect = {
-        "data_flow_id": detect_data_flow.data_flow.flow_id,
-        "data_source_label": DataSourceLabel.BK_DATA,
-        "data_type_label": DataTypeLabel.TIME_SERIES,
-        "result_table_id": output_table_name,
-        "metric_field": "is_anomaly",
-        "extend_fields": {"values": ["anomaly_sort", "extra_info"]},
-        "agg_condition": [],
-        "agg_dimension": scene_params.agg_dimensions,
-        "plan_id": plan_id,
-        "agg_method": "",
-    }
+    rt_query_config.intelligent_detect.update(
+        {
+            "data_flow_id": detect_data_flow.data_flow.flow_id,
+            "data_source_label": DataSourceLabel.BK_DATA,
+            "data_type_label": DataTypeLabel.TIME_SERIES,
+            "result_table_id": output_table_name,
+            "metric_field": "is_anomaly",
+            "extend_fields": {"values": ["anomaly_sort", "extra_info"]},
+            "agg_condition": [],
+            "agg_dimension": scene_params.agg_dimensions,
+            "plan_id": plan_id,
+            "agg_method": "",
+        }
+    )
     # 如果是保存后的第一次接入，则清空接入message内容
     if rt_query_config.intelligent_detect.get("retries", 0) == 0:
         rt_query_config.intelligent_detect["message"] = ""

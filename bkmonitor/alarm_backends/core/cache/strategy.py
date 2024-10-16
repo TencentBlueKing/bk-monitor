@@ -21,7 +21,6 @@ from typing import Callable, Dict, Iterable, List, Set, Tuple, Union
 
 import arrow
 from django.conf import settings
-from six.moves import map
 
 from alarm_backends.constants import CONST_ONE_DAY
 from alarm_backends.core.cache.base import CacheManager

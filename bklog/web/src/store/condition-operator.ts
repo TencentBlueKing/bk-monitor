@@ -29,6 +29,7 @@ type ConsitionItem = {
   value: string[];
   relation?: 'AND' | 'OR';
   isInclude?: boolean;
+  field_type?: string;
 };
 
 class ConditionOperator {
@@ -105,7 +106,7 @@ class ConditionOperator {
     }
 
     // 在前端的逻辑中，只有Text String类型的字段才支持配置是否启用通配符
-    if (this.containOperatorList.includes(this.item.operator) && typeof this.item.isInclude === 'boolean') {
+    if (this.containOperatorList.includes(this.item.operator) && ['text', 'string'].includes(this.item.field_type)) {
       let value = '';
       // 首先判断是且还是或 如果是且则先加一个and
       value = this.operatorRelationVlaue === 'AND' ? 'and ' : '';

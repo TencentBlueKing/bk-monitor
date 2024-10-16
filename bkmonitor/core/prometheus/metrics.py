@@ -49,6 +49,8 @@ def report_all(job: str = settings.DEFAULT_METRIC_PUSH_JOB, registry: BkCollecto
     批量上报指标
     """
     global DEPLOYMENT
+    if registry.is_empty():
+        return
     if DEPLOYMENT is DeploymentNotSet:
         DEPLOYMENT = refresh_deployment()
     if not get_metric_agg_gateway_url():

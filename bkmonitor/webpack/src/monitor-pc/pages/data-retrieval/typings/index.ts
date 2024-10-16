@@ -45,7 +45,7 @@ export interface whereItem {
 
 export interface IOption {
   id: number | string;
-  name: TranslateResult | string;
+  name: string | TranslateResult;
 }
 // 收藏列表
 export declare namespace IFavList {
@@ -83,7 +83,7 @@ export declare namespace IDataRetrieval {
   type tabId = 'event' | 'log' | 'monitor'; // 数据检索 | 日志检索 | 事件检索
   interface ITabList {
     id: tabId;
-    name: TranslateResult | string;
+    name: string | TranslateResult;
   }
 
   type IOption = 'copy' | 'delete' | 'enable' | 'source'; // 对应的操作：源码、开启、复制、删除
@@ -249,7 +249,7 @@ export declare namespace IDataRetrievalView {
   }
   interface IOptionItem {
     id?: string;
-    name: TranslateResult | string;
+    name: string | TranslateResult;
     value?: number | string;
   }
 }
@@ -304,12 +304,14 @@ interface IDataRetrievalPromqlItem {
   enable: boolean;
   alias: string;
   step: number | string;
+  filter_dict?: Record<string, string>;
 }
 export class DataRetrievalPromqlItem {
   alias = '';
   code = '';
   enable = true;
   errMsg = '';
+  filter_dict?: Record<string, string> = undefined;
   key = random(8);
   step = 'auto';
   constructor(data?: IDataRetrievalPromqlItem) {
@@ -319,6 +321,7 @@ export class DataRetrievalPromqlItem {
     this.enable = data.enable || true;
     this.alias = data.alias || 'a';
     this.step = (data.step as any) || 'auto';
+    this.filter_dict = data?.filter_dict;
     this.errMsg = '';
   }
 }
@@ -359,7 +362,7 @@ export declare namespace IEventRetrieval {
   }
 
   interface ITipsContentListItem {
-    label: TranslateResult | string;
+    label: string | TranslateResult;
     value: string[];
   }
 

@@ -1,0 +1,25 @@
+/* stylelint-disable declaration-no-important */
+.log-wrap {
+    .editable-form-item {
+        height: 20px;
+        margin-bottom: 12px;
+
+
+    }
+
+    .item-content {
+        margin-bottom: 24px !important;
+    }
+
+    .form-content {
+        padding-bottom: 24px !important;;
+
+        .item-row {
+            &:last-child {
+                .editable-form-item {
+                    margin-bottom: 0px;
+                }
+            }
+        }
+    }
+}
