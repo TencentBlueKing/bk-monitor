@@ -417,7 +417,7 @@ class AvgDurationInstance(PromqlInstanceQueryMixin):
     query_type = "instance"
     promql_format = (
         'sum {group_by} (increase('
-        '{{__name__="custom:{table_id}:__default__:bk_apm_duration_sum"{where}}}[{interval}s])) '
+        '{{__name__="custom:{table_id}:__default__:bk_apm_duration_sum"{where}}}[{interval}s])) or vector(0) '
         '/ sum {group_by} (increase('
         '{{__name__="custom:{table_id}:__default__:bk_apm_total"{where}}}[{interval}s])) '
     )
@@ -511,7 +511,8 @@ class ServiceFlowAvgDuration(PromqlInstanceQueryMixin):
     metric_id = CalculationMethod.SERVICE_FLOW_DURATION
     promql_format = (
         'sum {group_by} (sum_over_time('
-        '{{__name__="custom:{table_id}:__default__:apm_service_to_apm_service_flow_sum"{where}}}[{interval}s])) '
+        '{{__name__="custom:{table_id}:__default__:'
+        'apm_service_to_apm_service_flow_sum"{where}}}[{interval}s])) or vector(0) '
         '/ sum {group_by} (sum_over_time('
         '{{__name__="custom:{table_id}:__default__:apm_service_to_apm_service_flow_count"{where}}}[{interval}s]))'
     )

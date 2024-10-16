@@ -334,8 +334,14 @@ class ServiceHandler:
         # Step2: 从 topo_node 指标补充
         node_response = api.apm_api.query_topo_node(bk_biz_id=bk_biz_id, app_name=app_name)
         for i in node_response:
-            if i.get("topo_key") and i.get("topo_key") not in node_mapping:
-                node_mapping[i["topo_key"]] = i
+            topo_key = i.get("topo_key")
+            if not topo_key:
+                continue
+
+            if topo_key in node_mapping:
+                node_mapping[topo_key].update(i)
+            else:
+                node_mapping[topo_key] = i
 
         return node_mapping
 
@@ -398,6 +404,56 @@ class ServiceHandler:
         return res
 
     @classmethod
+    def get_service_metric(cls, metric, application, start_time, end_time, service_name, bk_instance_id=None):
+        """获取某个 service 的指标项"""
+        # 根据 service 的类型使用不同的逻辑
+        from apm_web.handlers.component_handler import ComponentHandler
+
+        endpoint_metrics_param = {
+            "application": application,
+            "start_time": start_time,
+            "end_time": end_time,
+        }
+        node = ServiceHandler.get_node(application.bk_biz_id, application.app_name, service_name)
+        if ComponentHandler.is_component_by_node(node):
+            return metric(
+                **endpoint_metrics_param,
+                where=ComponentHandler.get_component_metric_filter_params(
+                    application.bk_biz_id,
+                    application.app_name,
+                    service_name,
+                    bk_instance_id,
+                )
+                + [
+                    {
+                        "key": "service_name",
+                        "method": "eq",
+                        "value": [ComponentHandler.get_component_belong_service(service_name)],
+                    }
+                ],
+            )
+
+        elif ServiceHandler.is_remote_service_by_node(node):
+            return metric(
+                metric,
+                **endpoint_metrics_param,
+                where=[
+                    {
+                        "key": "peer_service",
+                        "method": "eq",
+                        "value": [ServiceHandler.get_remote_service_origin_name(service_name)],
+                    }
+                ],
+            )
+
+        else:
+            return metric(
+                metric,
+                **endpoint_metrics_param,
+                where=[{"key": "service_name", "method": "eq", "value": [service_name]}],
+            )
+
+    @classmethod
     def get_service_metric_instant_mapping(cls, metric, application, start_time, end_time, ignore_keys=None):
         """获取所有服务的 metric 指标（instant 查询）"""
         metric_id = metric(
@@ -456,8 +512,19 @@ class ServiceHandler:
         )
 
     @classmethod
-    def get_service_metric_range_mapping(cls, metric, application, start_time, end_time, ignore_keys=None):
+    def get_service_metric_range_mapping(
+        cls,
+        metric,
+        application,
+        start_time,
+        end_time,
+        ignore_keys=None,
+        extra_params=None,
+    ):
         """获取服务的指标数据(range查询)（兼容自定义服务、组件类服务名称）"""
+        if not extra_params:
+            extra_params = {}
+
         # 查询普通服务
         response = metric(
             **{
@@ -466,6 +533,7 @@ class ServiceHandler:
                 "end_time": end_time,
                 # index: 0
                 "group_by": ["service_name"],
+                **extra_params,
             }
         ).get_range_calculate_values_mapping(ignore_keys)
         # 查询组件类服务: DB
@@ -476,6 +544,7 @@ class ServiceHandler:
                 "end_time": end_time,
                 # index: 0, 1, 2
                 "group_by": ["service_name", "db_system"],
+                **extra_params,
             }
         ).get_range_calculate_values_mapping(ignore_keys)
         # 查询组件类服务: MESSAGING
@@ -486,6 +555,7 @@ class ServiceHandler:
                 "end_time": end_time,
                 # index: 0, 1, 2
                 "group_by": ["service_name", "messaging_system"],
+                **extra_params,
             }
         ).get_range_calculate_values_mapping(ignore_keys)
         # 单独查询自定义服务指标 (因为不同service_name可以访问同一个自定义服务)
@@ -496,6 +566,7 @@ class ServiceHandler:
                 "end_time": end_time,
                 # index: 0
                 "group_by": ["peer_service"],
+                **extra_params,
             }
         ).get_range_calculate_values_mapping(ignore_keys)
         return cls._combine_metric_data(
@@ -508,6 +579,9 @@ class ServiceHandler:
     @classmethod
     def get_service_data_status_mapping(cls, app, start_time, end_time, all_services):
         """获取应用下各个服务的数据状态"""
+        if len(all_services) == 0:
+            return []
+
         status = {
             TelemetryDataType.METRIC.value: DataStatus.NO_DATA if app.is_enabled_metric else DataStatus.DISABLED,
             TelemetryDataType.LOG.value: DataStatus.NO_DATA if app.is_enabled_log else DataStatus.DISABLED,
@@ -529,7 +603,7 @@ class ServiceHandler:
 
         # Log 数据状态
         if status[TelemetryDataType.LOG.value] != DataStatus.DISABLED:
-            log_response = ServiceLogHandler.get_log_count_mapping(app.bk_biz_id, app.app_name)
+            log_response = ServiceLogHandler.get_log_count_mapping(app.bk_biz_id, app.app_name, start_time, end_time)
             for service_name, data_status in log_response.items():
                 res[service_name].update({TelemetryDataType.LOG.value: data_status})
 

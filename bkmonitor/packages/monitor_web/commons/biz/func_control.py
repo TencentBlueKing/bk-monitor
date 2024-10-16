@@ -79,7 +79,7 @@ class APMController(BaseController):
 
     @property
     def accessed(self):
-        return ApmApplication.objects.filter(bk_biz_id=self.space.bk_biz_id).exists()
+        return ApmApplication.objects.filter(bk_biz_id=self.space.bk_biz_id, is_deleted=False).exists()
 
 
 @register_controller(SpaceFunction.HOST_PROCESS.value)

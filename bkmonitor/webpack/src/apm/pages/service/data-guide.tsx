@@ -39,7 +39,12 @@ interface IProps {
   defaultAppName: string; // 应用名
 }
 @Component
-export default class ServiceApply extends tsc<IProps> {
+export default class ServiceApply extends tsc<
+  IProps,
+  {
+    onUpdateGuideUrl: string;
+  }
+> {
   @Prop({ type: String, default: '' }) defaultAppName: IProps['defaultAppName'];
   loading = false;
   /** 应用 */
@@ -151,6 +156,7 @@ export default class ServiceApply extends tsc<IProps> {
     const data = await metaConfigInfo()
       .then(data => {
         this.guideUrl = data?.setup?.guide_url?.access_url || '';
+        this.$emit('updateGuideUrl', this.guideUrl);
         return data;
       })
       .catch(() => {
@@ -211,12 +217,24 @@ export default class ServiceApply extends tsc<IProps> {
     });
     window.open(`/?bizId=${this.$store.getters.bizId}${href}`, '_blank');
   }
+  createIndexIcon(index: number) {
+    return <span class='service-index-icon'>{index}</span>;
+  }
+  createInfoIcon() {
+    return (
+      <span class='service-add-info'>
+        <i class='icon-monitor icon-hint' />
+        {this.$t('需先填写「服务名」，生成上报示例')}
+      </span>
+    );
+  }
   render() {
-    const rowContent = (name: string, content, subTitle?) => [
+    const rowContent = (name: any, index: number, content?: any, showInfo = false) => [
       !!name && (
         <div class={['row-title']}>
+          {this.createIndexIcon(index)}
           {name}
-          {subTitle}
+          {showInfo && this.createInfoIcon()}
         </div>
       ),
       <div
@@ -233,7 +251,8 @@ export default class ServiceApply extends tsc<IProps> {
       >
         <div class='row-content-wrap'>
           {rowContent(
-            this.$tc('配置选择'),
+            this.$tc('上报配置'),
+            1,
             <div class='select-config-wrap'>
               <bk-form
                 label-width={114}
@@ -244,6 +263,19 @@ export default class ServiceApply extends tsc<IProps> {
                   },
                 }}
               >
+                <bk-form-item
+                  class='service-name-form'
+                  label={this.$tc('服务名')}
+                  property='serviceName'
+                  required
+                >
+                  <bk-input
+                    style='width:394px;'
+                    placeholder={this.$t('请输入服务名')}
+                    value={this.formData.serviceName}
+                    onChange={this.handleServiceNameChange}
+                  />
+                </bk-form-item>
                 <bk-form-item label={this.$tc('所属应用')}>
                   <bk-select
                     style='width:394px;'
@@ -263,19 +295,6 @@ export default class ServiceApply extends tsc<IProps> {
                       );
                     })}
                   </bk-select>
-                </bk-form-item>
-                <bk-form-item
-                  class='service-name-form'
-                  label={this.$tc('服务名')}
-                  property='serviceName'
-                  required
-                >
-                  <bk-input
-                    style='width:394px;'
-                    placeholder={this.$t('请输入服务名')}
-                    value={this.formData.serviceName}
-                    onChange={this.handleServiceNameChange}
-                  />
                 </bk-form-item>
                 <bk-form-item label={this.$tc('选择语言')}>
                   <bk-input style='display: none' />
@@ -328,7 +347,8 @@ export default class ServiceApply extends tsc<IProps> {
                   </bk-select>
                 </bk-form-item>
               </bk-form>
-            </div>
+            </div>,
+            true
           )}
         </div>
         {this.formData.serviceName && (
@@ -338,6 +358,7 @@ export default class ServiceApply extends tsc<IProps> {
           >
             {rowContent(
               this.$tc('上报示例'),
+              2,
               this.markdownLoading ? (
                 <div class='markdown-skeleton'>
                   {Array.of(35, 65, 55, 85, 75, 45, 95).map(w => (
@@ -356,14 +377,6 @@ export default class ServiceApply extends tsc<IProps> {
                     flowchartStyle={false}
                     value={this.markdownStr}
                   />
-                  <i18n path='前往{0}查看相关数据'>
-                    <bk-button
-                      text
-                      onClick={this.handleJumpToService}
-                    >
-                      「服务详情」
-                    </bk-button>
-                  </i18n>
                 </div>
               ) : (
                 <bk-exception
@@ -372,17 +385,26 @@ export default class ServiceApply extends tsc<IProps> {
                 >
                   {this.$t('暂无数据')}
                 </bk-exception>
-              ),
-              this.guideUrl && (
-                <bk-button
-                  class='access-guide'
-                  theme='primary'
-                  onClick={() => window.open(this.guideUrl)}
-                >
-                  <i class='icon-monitor icon-mc-detail' />
-                  {this.$tc('完整接入指引')}
-                </bk-button>
               )
+            )}
+          </div>
+        )}
+        {!this.markdownLoading && this.formData.serviceName && (
+          <div
+            style='padding-bottom: 0'
+            class='row-content-wrap'
+          >
+            {rowContent(
+              <i18n path='前往{0}查看相关数据'>
+                <bk-button
+                  text
+                  onClick={this.handleJumpToService}
+                >
+                  「服务详情」
+                </bk-button>
+              </i18n>,
+              3,
+              undefined
             )}
           </div>
         )}

@@ -924,3 +924,19 @@ class ApmCacheKey:
 
     # 存放应用下服务的数据状态
     APP_SERVICE_STATUS_KEY = "apm:application:{application_id}:service_data_status"
+
+
+class LogIndexSource:
+    """服务日志的数据关联来源"""
+
+    HOST = "host"
+    RELATION = "relation"
+    CUSTOM_REPORT = "custom_report"
+
+    @classmethod
+    def get_source_label(cls, key):
+        return {
+            cls.HOST: "主机关联",
+            cls.RELATION: "关联配置",
+            cls.CUSTOM_REPORT: "自定义上报",
+        }.get(key, key)

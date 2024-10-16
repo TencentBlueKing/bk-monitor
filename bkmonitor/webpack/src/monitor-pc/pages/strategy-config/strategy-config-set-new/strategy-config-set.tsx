@@ -2238,7 +2238,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       .catch(err => {
         this.sourceData.promqlError = true;
         this.monitorDataLoading = false;
-        this.sourceData.errorMsg = err.data.message || '';
+        this.sourceData.errorMsg = err.data?.message || err.message || '';
       });
     if (this.sourceData.promqlError || ['blur', 'enter'].includes(type)) {
       this.monitorDataLoading = false;

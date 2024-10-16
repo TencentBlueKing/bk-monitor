@@ -2207,6 +2207,13 @@ export default class BasicInfo extends tsc<IProps> {
         </div>
       </PanelItem> */}
         <div class='header-tool'>
+          <div
+            class='history-btn'
+            v-bk-tooltips={{ content: this.$t('变更记录'), allowHTML: false }}
+            onClick={() => (this.record.show = true)}
+          >
+            <i class='icon-monitor icon-lishijilu' />
+          </div>
           {!this.isEditing && (
             <bk-button
               class={['edit-btn', { 'edit-btn-no-authority': !this.authority.MANAGE_AUTH }]}
@@ -2223,13 +2230,6 @@ export default class BasicInfo extends tsc<IProps> {
               {this.$t('编辑')}
             </bk-button>
           )}
-          <div
-            class='history-btn'
-            v-bk-tooltips={{ content: this.$t('变更记录'), allowHTML: false }}
-            onClick={() => (this.record.show = true)}
-          >
-            <i class='icon-monitor icon-lishijilu' />
-          </div>
         </div>
         {this.isEditing ? (
           <div class='submit-handle'>

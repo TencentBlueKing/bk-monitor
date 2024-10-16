@@ -41,7 +41,6 @@ import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
 import applicationStore from '../../store/modules/application';
 import AppAddForm from '../home/app-add-form';
 import * as authorityMap from './../home/authority-map';
-import NoDataGuide from './app-add/no-data-guide';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
@@ -68,9 +67,6 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   pageKey = 0;
   // 是否展示引导页
   showGuidePages = false;
-
-  // 显示无数据指引弹窗
-  showGuideDialog = false;
 
   /** 视图无数据 */
   viewHasNoData = true;
@@ -101,10 +97,10 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
       id: 'basicConfiguration',
       name: window.i18n.tc('基础配置'),
     },
-    {
-      id: 'customService',
-      name: window.i18n.tc('自定义服务'),
-    },
+    // {
+    //   id: 'customService',
+    //   name: window.i18n.tc('自定义服务'),
+    // },
     {
       id: 'storageState',
       name: window.i18n.tc('存储状态'),
@@ -143,6 +139,9 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
         {
           id: 'home',
           name: 'APM',
+          query: {
+            app_name: appName,
+          },
         },
         {
           id: 'application',
@@ -238,6 +237,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
           'filter-app_name': this.appName,
         },
       });
+      this.routeList[0].query = { app_name: this.appName };
       this.routeList[1].name = `${this.$tc('应用')}：${this.appName}`;
       this.routeList[1].selectOption.value = this.appName;
       this.pageKey += 1;
@@ -310,7 +310,6 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   }
   /** 更多设置 */
   handleSettingsMenuSelect(option) {
-    console.log(this.appInfo.app_name);
     this.$router.push({
       name: 'application-config',
       params: {
@@ -321,9 +320,16 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
       },
     });
   }
-  handleCloseGuideDialog() {
-    this.showGuideDialog = false;
+
+  handleGotoServiceApply() {
+    this.$router.push({
+      name: 'service-add',
+      params: {
+        appName: this.appName,
+      },
+    });
   }
+
   render() {
     return (
       <div class='application'>
@@ -356,18 +362,25 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
               <div slot='noData'>
                 <CommonAlert class='no-data-alert'>
                   <div slot='title'>
-                    <bk-spin
-                      size='mini'
-                      theme='warning'
-                    />
-                    <i18n path='当前数据还未加载完成，如数据长时间未加载出来可{0}'>
-                      <span
-                        class='link'
-                        onClick={() => (this.showGuideDialog = true)}
-                      >
-                        {this.$t('查看操作指引')}
-                      </span>
-                    </i18n>
+                    {this.appInfo.service_count ? (
+                      [
+                        <bk-spin
+                          key='1'
+                          size='mini'
+                          theme='warning'
+                        />,
+                        <span key='2'>{this.$t('数据统计中，请耐心等待')}</span>,
+                      ]
+                    ) : (
+                      <i18n path='尚未接入服务{0}'>
+                        <span
+                          class='link'
+                          onClick={this.handleGotoServiceApply}
+                        >
+                          {this.$t('去接入服务')}
+                        </span>
+                      </i18n>
+                    )}
                   </div>
                 </CommonAlert>
               </div>
@@ -401,20 +414,6 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
           v-model={this.showAddDialog}
           pluginId={this.pluginId}
         />
-        <bk-dialog
-          width={1280}
-          ext-cls='no-data-guide-dialog'
-          mask-close={true}
-          position={{ top: 50 }}
-          show-footer={false}
-          value={this.showGuideDialog}
-          on-cancel={this.handleCloseGuideDialog}
-        >
-          <NoDataGuide
-            appName={this.appInfo?.app_name}
-            type='noData'
-          />
-        </bk-dialog>
       </div>
     );
   }

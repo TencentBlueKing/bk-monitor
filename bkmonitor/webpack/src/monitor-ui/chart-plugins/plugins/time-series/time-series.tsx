@@ -212,6 +212,10 @@ export class LineChart
   get needAllAlertMarkArea() {
     return this.panel.options?.time_series?.needAllAlertMarkArea;
   }
+  // 自定义数据步长 collect_interval_display
+  get collectIntervalDisplay() {
+    return this.panel.options?.collect_interval_display;
+  }
 
   @Watch('viewOptions')
   // 用于配置后台图表数据的特殊设置
@@ -354,6 +358,15 @@ export class LineChart
         start_time: start_time ? dayjs(start_time).unix() : startTime,
         end_time: end_time ? dayjs(end_time).unix() : endTime,
       };
+      if (this.collectIntervalDisplay === '1d') {
+        // 如果数据步长为1天 则时间范围最小为7天
+        const weekTime = 7 * 24 * 60 * 60;
+        const dTime = 24 * 60 * 60;
+        if (params.end_time - params.start_time < weekTime) {
+          params.start_time = params.end_time - weekTime;
+        }
+        params.end_time = params.end_time + dTime;
+      }
       if (this.bkBizId) {
         params = Object.assign({}, params, {
           bk_biz_id: this.bkBizId,
@@ -514,7 +527,7 @@ export class LineChart
             });
           });
         }
-        const formatData = seriesList.find(item => item.data?.length > 0)?.data;
+        const formatData = seriesList.find(item => item.data?.length > 0)?.data || [];
         const formatterFunc = this.handleSetFormatterFunc(formatData);
         const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
 
@@ -1103,7 +1116,9 @@ export class LineChart
     );
     const result = targets.map(item => {
       item.data.query_configs = item.data.query_configs.map(query => {
-        query.group_by = [id];
+        const groupBySet = new Set(query.group_by);
+        groupBySet.add(id);
+        query.group_by = [...groupBySet];
         query.where = [];
         query.filter_dict = {};
         return query;
@@ -1295,6 +1310,7 @@ export class LineChart
         {this.showChartHeader && (
           <ChartHeader
             class='draggable-handle'
+            collectIntervalDisplay={this.collectIntervalDisplay}
             descrition={this.panel.options?.header?.tips || ''}
             draging={this.panel.draging}
             drillDownOption={this.drillDownOptions}

@@ -1512,6 +1512,7 @@ export default {
   服务类型: 'Service Type',
   应用名或ID: 'Application name or ID',
   请输入服务搜索: 'Please enter a service search',
+  接入中: 'Connecting',
 
   // 指标图表类
   告警趋势: 'Alarm Trend',
@@ -1898,4 +1899,6 @@ export default {
   有效期: 'Validity period',
   创建者: 'Creator',
   告警历史: 'Alarm history',
+  上报配置: 'Upload configuration',
+  '需先填写「服务名」，生成上报示例': 'Please fill in the service name first, and generate the reporting example',
 };
