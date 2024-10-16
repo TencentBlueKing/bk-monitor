@@ -14,16 +14,16 @@ import json
 import logging
 import math
 import re
+import operator
 from collections import defaultdict
 from itertools import chain
 from functools import reduce
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import parse_qs
-from box import Box
-from pandas import DataFrame
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
+from django.db.models import Q as DQ
 
 from bkmonitor.aiops.utils import AiSetting, ReadOnlyAiSetting
 from bkmonitor.dataflow.constant import VisualType
@@ -955,21 +955,21 @@ class RecommendMetricManager(AIOPSManager):
         :return: 以graph_panel作为模板，基于指标推荐结果构建的panels配置列表
         """
         graph_panels = []
-        # 过滤条件字典
-        filter_conditions = defaultdict(list)
-        metric_info_recommends = []
+        # 字段与目标值的映射
+        field_values_map = defaultdict(list)
+        # 过滤条件分组字典，过滤字段相同的为一个组
+        filter_conditions_group = defaultdict(list)
 
         # 预定义定的查询需要显示的字段集合
-        pre_field_set = {"id",
-                         "bk_biz_id",
-                         "dimensions",
+        pre_field_set = {"bk_biz_id",
                          "result_table_id",
-                         "data_source_label",
-                         "data_type_label",
+                         "dimensions",
                          "metric_field",
+                         "metric_field_name",
+                         "data_type_label",
+                         "data_source_label",
                          "result_table_label",
                          "result_table_label_name",
-                         "metric_field_name",
                          }
         # 总的查询需要显示的字段集合
         field_set = pre_field_set.copy()
@@ -977,7 +977,6 @@ class RecommendMetricManager(AIOPSManager):
         recommend_metrics = json.loads(recommended_results["recommend_metrics"])
 
         for recommend_metric in recommend_metrics:
-
             # 获取当前推荐指标的详情
             metric_name, dimensions = cls.parse_recommend_metric(recommend_metric[0])
             metric_info = parse_metric_id(metric_name)
@@ -985,105 +984,96 @@ class RecommendMetricManager(AIOPSManager):
                 continue
 
             for key, value in metric_info.items():
-                filter_conditions[key + "__in"].append(value)
+                field_values_map[key].append(value)
 
-            metric_info_recommends.append((metric_info, metric_name, dimensions, recommend_metric))
+            # 对过滤字段进行分组，并保存与当前metric_info相关的信息
+            filter_conditions_group[tuple(sorted(metric_info.keys()))].append(
+                (metric_info, metric_name, dimensions, recommend_metric))
             # 更新查询需要显示的字段集合
             field_set.update(set(metric_info.keys()))
 
+        # 生成过滤条件
+        filter_conditions = reduce(operator.or_, [DQ(**{key + "__in": field_values_map[key] for key in key_tuple})
+                                                  for key_tuple in filter_conditions_group.keys()])
+
         # 批量获取所有需要查询的指标
-        metric_data = MetricListCache.objects.filter(**filter_conditions).values(*field_set)
+        metric_data_set = MetricListCache.objects.filter(filter_conditions).values(*field_set)
 
-        df = DataFrame(metric_data)
+        for key_tuple, met_info_recommends in filter_conditions_group.items():
 
-        def generate_conditions(x, y):
-            # 用于生成DataFrame所要求格式的过滤条件
-            # 例如： df=df[(df["id"]>1) & (df["name"]=="张三")] ,过滤id > 1 并且 name == "张三" 的数据
-            if not isinstance(x, tuple):
-                return x & (df[str(y[0])] == y[1])
-            return (df[str(x[0])] == x[1]) & (df[str(y[0])] == y[1])
-
-        for metric_info, metric_name, dimensions, recommend_metric in metric_info_recommends:
-            base_graph_panel = copy.deepcopy(graph_panel)
-
-            condition = reduce(generate_conditions, metric_info.items())
-            # 获取到目标数据，并转为字典
-            metric = df[condition].to_dict()
-            # 转为字典后，数据格式如下：
-            # {'id': [1, 2],   # 符合过滤条件的id列表，各个列表中的值一一对应，共同组成一条记录
-            # 'metric_field': ['agent-gse', 'disk-readonly-gse'],   #符合过滤条件的metric_field列表
-            # 'data_source_label': ['bk_monitor', 'bk_monitor'],
-            #  'result_table_label': ['os', 'os'],
-            #  'result_table_id': ['system.event', 'system.event'],
-            #  'result_table_label_name': ['操作系统', '操作系统'],
-            #  'metric_field_name': ['Agent心跳丢失', '磁盘只读'],}
-
-            if not metric.get("id"):
-                # 没有获取到目标数据，跳过
-                continue
-
-            # 重新构建metric的数据结构，将value的值转为string或int类型（理论上只有一条记录符合过滤条件）
-            metric = {key: list(item_dic.values())[0] for key, item_dic in metric.items()}
-
-            # metric转为对象，方便后面直接通过属性访问
-            metric = Box(metric)
-
-            recommend_info = {
-                "reasons": recommend_metric[3],
-                "class": recommend_metric[2],
-                "src_metric_id": alert.event["metric"][0],
-                "anomaly_points": recommend_metric[4] if isinstance(recommend_metric[4], list) else [],
+            # 根据key_tuple组成新的key，用于查询
+            metric_dic = {
+                tuple(data[key] for key in key_tuple): data
+                for data in metric_data_set
             }
 
-            # 维度中文名映射
-            dim_mappings = {item["id"]: item["name"] for item in metric.dimensions if item.get("is_dimension", True)}
-            dimension_keys = sorted(dimensions.keys())
+            for metric_info, metric_name, dimensions, recommend_metric in met_info_recommends:
+                base_graph_panel = copy.deepcopy(graph_panel)
+                metric_data = metric_dic.get(tuple(metric_info[key] for key in key_tuple))
 
-            base_graph_panel["id"] = recommend_metric[0]
-            base_graph_panel["type"] = "aiops-dimension-lint"
-            base_graph_panel["enable_threshold"] = False
-            base_graph_panel["title"] = "_".join(
-                map(lambda x: f"{dim_mappings.get(x, x)}: {dimensions[x]}", dimension_keys)
-            )
-            base_graph_panel["subTitle"] = metric_name
-            base_graph_panel["bk_biz_id"] = alert.event.bk_biz_id
-            base_graph_panel["recommend_info"] = recommend_info
-            base_graph_panel["result_table_label"] = metric.result_table_label
-            base_graph_panel["result_table_label_name"] = metric.result_table_label_name
-            base_graph_panel["metric_name_alias"] = metric.metric_field_name
+                if not metric_data:
+                    # 没有获取到目标数据，跳过
+                    continue
 
-            base_graph_panel["targets"][0]["data"]["function"] = {}
-            base_graph_panel["targets"][0]["api"] = "alert.alertGraphQuery"
-            base_graph_panel["targets"][0]["alias"] = ""
-            base_graph_panel["targets"][0]["data"]["id"] = alert.id
+                metric = MetricListCache(**metric_data)
 
-            # 补充维度过滤条件
-            where = []
-            dimension_keys = sorted(dimensions.keys())
-            for condition_key in dimension_keys:
-                condition_value = dimensions[condition_key]
-                condition = {
-                    "key": condition_key,
-                    "value": [condition_value] if not isinstance(condition_value, list) else condition_value,
-                    "method": "eq",
+                recommend_info = {
+                    "reasons": recommend_metric[3],
+                    "class": recommend_metric[2],
+                    "src_metric_id": alert.event["metric"][0],
+                    "anomaly_points": recommend_metric[4] if isinstance(recommend_metric[4], list) else [],
                 }
-                if len(where) > 0:
-                    condition["condition"] = "and"
-                where.append(condition)
 
-            # 因为推荐指标不一定具有告警相同的维度，因此这里不对维度进行任何聚合，只做指标的推荐
-            query_configs = base_graph_panel["targets"][0]["data"]["query_configs"]
-            for query_config in query_configs:
-                query_config["group_by"] = []
-                query_config["where"] = where
-                query_config["data_source_label"] = metric.data_source_label
-                query_config["data_type_label"] = metric.data_type_label
-                query_config["table"] = metric.result_table_id
-                query_config["functions"] = [{"id": "time_shift", "params": [{"id": "n", "value": "$time_shift"}]}]
-                for query_metric in query_config["metrics"]:
-                    query_metric["field"] = metric.metric_field
+                # 维度中文名映射
+                dim_mappings = {item["id"]: item["name"] for item in metric.dimensions if
+                                item.get("is_dimension", True)}
+                dimension_keys = sorted(dimensions.keys())
 
-            graph_panels.append(base_graph_panel)
+                base_graph_panel["id"] = recommend_metric[0]
+                base_graph_panel["type"] = "aiops-dimension-lint"
+                base_graph_panel["enable_threshold"] = False
+                base_graph_panel["title"] = "_".join(
+                    map(lambda x: f"{dim_mappings.get(x, x)}: {dimensions[x]}", dimension_keys)
+                )
+                base_graph_panel["subTitle"] = metric_name
+                base_graph_panel["bk_biz_id"] = alert.event.bk_biz_id
+                base_graph_panel["recommend_info"] = recommend_info
+                base_graph_panel["result_table_label"] = metric.result_table_label
+                base_graph_panel["result_table_label_name"] = metric.result_table_label_name
+                base_graph_panel["metric_name_alias"] = metric.metric_field_name
+
+                base_graph_panel["targets"][0]["data"]["function"] = {}
+                base_graph_panel["targets"][0]["api"] = "alert.alertGraphQuery"
+                base_graph_panel["targets"][0]["alias"] = ""
+                base_graph_panel["targets"][0]["data"]["id"] = alert.id
+
+                # 补充维度过滤条件
+                where = []
+                dimension_keys = sorted(dimensions.keys())
+                for condition_key in dimension_keys:
+                    condition_value = dimensions[condition_key]
+                    condition = {
+                        "key": condition_key,
+                        "value": [condition_value] if not isinstance(condition_value, list) else condition_value,
+                        "method": "eq",
+                    }
+                    if len(where) > 0:
+                        condition["condition"] = "and"
+                    where.append(condition)
+
+                # 因为推荐指标不一定具有告警相同的维度，因此这里不对维度进行任何聚合，只做指标的推荐
+                query_configs = base_graph_panel["targets"][0]["data"]["query_configs"]
+                for query_config in query_configs:
+                    query_config["group_by"] = []
+                    query_config["where"] = where
+                    query_config["data_source_label"] = metric.data_source_label
+                    query_config["data_type_label"] = metric.data_type_label
+                    query_config["table"] = metric.result_table_id
+                    query_config["functions"] = [{"id": "time_shift", "params": [{"id": "n", "value": "$time_shift"}]}]
+                    for query_metric in query_config["metrics"]:
+                        query_metric["field"] = metric.metric_field
+
+                graph_panels.append(base_graph_panel)
 
         return graph_panels
 
