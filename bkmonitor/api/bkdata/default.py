@@ -1335,3 +1335,15 @@ class GetRawDataStoragesInfo(DataAccessAPIResource):
         validated_request_data["bk_username"] = settings.COMMON_USERNAME
         self.bk_username = settings.COMMON_USERNAME
         return validated_request_data
+
+
+class GetBkbaseRawDataWithDataId(UseSaaSAuthInfoMixin, DataAccessAPIResource):
+    """
+    获取计算平台对应的data_id的raw_data信息，适用于获取V3链路迁移至V4链路后的data_name
+    """
+
+    action = "v3/access/rawdata/{bkbase_data_id}/?"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        bkbase_data_id = serializers.CharField(required=True, label="计算平台对应的data_id")

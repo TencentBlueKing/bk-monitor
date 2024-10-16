@@ -1,0 +1,18 @@
+.filter-dict-wrap {
+  margin: 10px 0;
+
+  .collapse-item-title {
+    margin-bottom: 6px;
+  }
+
+  .filter-dict {
+    display: flex;
+    flex-wrap: wrap;
+
+    &-item {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}

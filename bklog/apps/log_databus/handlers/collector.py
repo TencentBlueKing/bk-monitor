@@ -3467,10 +3467,11 @@ class CollectorHandler(object):
         bcs_std_collector_config_name_en = bcs_collector_config_name["bcs_std_collector"]["collector_config_name_en"]
 
         # 默认设置为空,做为一个标识
-        path_collector = std_collector = ""
+        path_collector = std_collector = None
+        path_collector_config = std_collector_config = None
         # 注入索引集标签
         tag_id = IndexSetTag.get_tag_id(data["bcs_cluster_id"])
-        is_send_create_notify = False
+        is_send_path_create_notify = is_send_std_create_notify = False
         # 容器配置是否创建标识
         is_exist_bcs_path = False
         is_exist_bcs_std = False
@@ -3513,7 +3514,7 @@ class CollectorHandler(object):
                     conf=conf,
                     async_bkdata=False,
                 )
-                is_send_create_notify = True
+                is_send_path_create_notify = True
                 # 注入索引集标签
                 IndexSetHandler(path_collector_config.index_set_id).add_tag(tag_id=tag_id)
             if config["enable_stdout"] and not is_exist_bcs_std:
@@ -3543,6 +3544,7 @@ class CollectorHandler(object):
                     async_bkdata=False,
                 )
                 # 注入索引集标签
+                is_send_std_create_notify = True
                 IndexSetHandler(std_collector_config.index_set_id).add_tag(tag_id=tag_id)
 
         collectors = CollectorConfig.objects.filter(rule_id=rule_id)
@@ -3567,21 +3569,26 @@ class CollectorHandler(object):
         path_container_config, std_container_config = self.get_container_configs(
             data["config"], path_collector=path_collector, rule_id=rule_id
         )
-        self.deal_self_call(
-            collector_config_id=path_collector.collector_config_id,
-            collector=path_collector,
-            func=self.compare_config,
-            **{"data": {"configs": path_container_config}},
-        )
-        self.deal_self_call(
-            collector_config_id=std_collector.collector_config_id,
-            collector=std_collector,
-            func=self.compare_config,
-            **{"data": {"configs": std_container_config}},
-        )
+        if path_collector:
+            self.deal_self_call(
+                collector_config_id=path_collector.collector_config_id,
+                collector=path_collector,
+                func=self.compare_config,
+                **{"data": {"configs": path_container_config}},
+            )
+        if std_collector:
+            self.deal_self_call(
+                collector_config_id=std_collector.collector_config_id,
+                collector=std_collector,
+                func=self.compare_config,
+                **{"data": {"configs": std_container_config}},
+            )
 
-        if is_send_create_notify:
+        if is_send_path_create_notify:
             self.send_create_notify(path_collector_config)
+
+        if is_send_std_create_notify:
+            self.send_create_notify(std_collector_config)
 
         return {
             "rule_id": rule_id,

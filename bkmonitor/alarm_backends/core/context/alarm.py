@@ -25,7 +25,7 @@ from bkmonitor.aiops.alert.utils import (
     RecommendMetricManager,
 )
 from bkmonitor.aiops.utils import ReadOnlyAiSetting
-from bkmonitor.documents import AlertLog
+from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.models.aiops import AIFeatureSettings
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.event_related_info import get_alert_relation_info
@@ -880,3 +880,28 @@ class Alarm(BaseContextObject):
     def link_layouts(self):
         # 模块链接，先回退
         return []
+
+    @cached_property
+    def query_url(self):
+        alert: AlertDocument = self.parent.alert
+
+        if not alert.strategy:
+            return None
+
+        item = alert.strategy["items"][0]
+        query_configs = item["query_configs"]
+        if not query_configs:
+            return None
+
+        data_source = (query_configs[0]["data_source_label"], query_configs[0]["data_type_label"])
+        if data_source not in [
+            (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
+            (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
+            (DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES),
+            (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
+            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
+        ]:
+            return None
+
+        url = self.detail_url
+        return f"{url}&type=query"

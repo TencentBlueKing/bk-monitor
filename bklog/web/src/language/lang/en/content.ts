@@ -927,4 +927,6 @@ export default {
   副本: 'copy',
   新建检索: 'New search',
   '收起查询/弹出选项': 'Collapse query/Popup options',
+  '导入{0}的权限配置': 'Import the permission configuration of {0}',
+  至少选择一个操作权限: 'Select at least one operation permission',
 };

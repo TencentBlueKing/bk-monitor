@@ -655,7 +655,7 @@ export default defineComponent({
               });
             });
           }
-          const formatterFunc = handleSetFormatterFunc(seriesList[0].data);
+          const formatterFunc = handleSetFormatterFunc(seriesList?.[0]?.data || []);
           const { maxThreshold } = handleSetThreholds();
 
           const chartBaseOptions = MONITOR_LINE_OPTIONS;

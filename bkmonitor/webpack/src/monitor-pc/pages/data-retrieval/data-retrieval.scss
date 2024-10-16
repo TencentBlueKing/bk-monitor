@@ -64,7 +64,6 @@
     }
   }
 
-
   .data-retrieval-main {
     position: relative;
     z-index: 9;
@@ -134,7 +133,7 @@
         .title-wrap {
           padding: 16px 14px 0;
           background-color: #fff;
-          box-shadow: inset 0px 3px 4px 0px rgba(64,112,203,.06);
+          box-shadow: inset 0px 3px 4px 0px rgba(64, 112, 203, 0.06);
 
           .title-main {
             position: relative;
@@ -174,7 +173,7 @@
               font-size: 16px;
               // margin-right: 8px;margin-right
               cursor: pointer;
-              transition: all .3s ease-in-out;
+              transition: all 0.3s ease-in-out;
               transform-origin: center;
             }
           }
@@ -255,11 +254,11 @@
                   margin-right: 2px;
                   font-size: 14px;
                   color: #63656e;
-                  transition: all .2s ease-in-out;
-                  transform: scale(.5) rotate(0deg);
+                  transition: all 0.2s ease-in-out;
+                  transform: scale(0.5) rotate(0deg);
 
                   &.acitve {
-                    transform: scale(.5) rotate(90deg);
+                    transform: scale(0.5) rotate(90deg);
                   }
                 }
 
@@ -302,7 +301,7 @@
 
                 .icon-mc-sorce {
                   font-size: 10px;
-                  transform: scale(.9);
+                  transform: scale(0.9);
                 }
 
                 .is-source {
@@ -454,7 +453,7 @@
             font-size: 14px;
           }
 
-          &>:not(:last-child) {
+          & > :not(:last-child) {
             margin-right: 8px;
           }
 
@@ -623,7 +622,7 @@
     align-items: center;
     justify-content: flex-end;
 
-    &>:not(:last-child) {
+    & > :not(:last-child) {
       margin-right: 8px;
     }
 
@@ -639,7 +638,7 @@
 }
 
 .flip-list-move {
-  transition: transform .5s;
+  transition: transform 0.5s;
 }
 
 .filp-list-none-move {

@@ -73,3 +73,17 @@
     cursor: pointer;
   }
 }
+
+.strategy-create-groups {
+  cursor: pointer;
+
+  .groups-btn {
+    display: flex;
+    align-items: center;
+
+    .icon-plus-circle {
+      margin-right: 6px;
+      font-size: 16px;
+    }
+  }  
+}

@@ -40,7 +40,7 @@ class CreateORUpdateExternalPermissionSLZ(serializers.Serializer):
     operate_type = serializers.CharField(required=False, label="操作类型", default=OperateEnum.CREATE.value)
     space_uid = serializers.CharField(required=True, label="空间ID")
     action_id = serializers.CharField(required=True, label="操作类型")
-    resources = serializers.ListField(required=True, label="资源列表")
+    resources = serializers.ListField(required=True, label="资源列表", allow_empty=False)
     expire_time = serializers.DateTimeField(required=False, default=None, label="过期时间", allow_null=True)
 
 

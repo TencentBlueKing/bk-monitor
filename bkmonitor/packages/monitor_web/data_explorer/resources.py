@@ -770,6 +770,7 @@ class GetGraphQueryConfig(Resource):
                         "alias": query_config["alias"],
                         "promql": query_config["promql"],
                         "step": query_config["interval"],
+                        "filter_dict": query_config.get("filter_dict", {}),
                     }
                 )
 
@@ -826,6 +827,7 @@ class GetPromqlQueryConfig(Resource):
             promql = serializers.CharField(label="PromQL")
             step = serializers.CharField(default="auto")
             alias = serializers.CharField()
+            filter_dict = serializers.DictField(required=False, default={})
 
         bk_biz_id = serializers.IntegerField(label="业务ID")
         query_configs = serializers.ListField(label="查询配置", child=QueryConfigSerializer())
@@ -860,6 +862,7 @@ class GetPromqlQueryConfig(Resource):
                             "promql": query_config["promql"],
                             "interval": interval,
                             "alias": query_config["alias"],
+                            "filter_dict": query_config.get("filter_dict", {}),
                         }
                     ],
                     "expression": "",

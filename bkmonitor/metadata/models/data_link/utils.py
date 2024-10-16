@@ -46,13 +46,6 @@ def get_bkdata_table_id(table_id: str) -> str:
     return table_id[:40]
 
 
-def get_bkdata_data_id_name_v3(vm_rt: str) -> str:
-    """获取V3链路在计算平台对应的data_id_name"""
-    processed_table_id = vm_rt.split("_")[1:]
-    result = "_".join(processed_table_id)
-    return result
-
-
 def compose_config(tpl: str, render_params: Dict, err_msg_prefix: Optional[str] = "compose config") -> Dict:
     """渲染配置模板"""
     content = Template(tpl).render(**render_params)

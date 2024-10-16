@@ -323,6 +323,9 @@ export default class Strategy extends tsc<object> {
       '_blank',
     );
   }
+  handleCreateUserGroups() {
+    window.open(`${window.MONITOR_URL}/?bizId=${this.bkBizId}#/alarm-group/add`, '_blank');
+  }
   render() {
     const strategyDialog = () => (
       <bk-dialog
@@ -453,6 +456,7 @@ export default class Strategy extends tsc<object> {
           >
             <bk-select
               v-model={this.formData.user_groups}
+              ext-popover-cls='strategy-create-groups'
               display-tag
               multiple
               searchable
@@ -463,6 +467,14 @@ export default class Strategy extends tsc<object> {
                   name={item.name}
                 ></bk-option>
               ))}
+              <div
+                class='groups-btn'
+                slot='extension'
+                onClick={() => this.handleCreateUserGroups()}
+              >
+                <i class='bk-icon icon-plus-circle'></i>
+                {$i18n.t('新增告警组')}
+              </div>
             </bk-select>
           </bk-form-item>
         </bk-form>

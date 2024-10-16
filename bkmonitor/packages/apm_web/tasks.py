@@ -129,11 +129,13 @@ def refresh_application():
 
 
 @task(ignore_result=True)
-def report_apm_application_event(bk_biz_id, application_id, apm_event: APMEvent, updated_telemetry_types: list = None):
+def report_apm_application_event(
+    bk_biz_id, application_id, apm_event: APMEvent, data_sources: dict = None, updated_telemetry_types: list = None
+):
     logger.info(f"[report_apm_application_event] task start, bk_biz_id({bk_biz_id}), application_id({application_id})")
 
     application = Application.objects.get(application_id=application_id)
-    data = build_event_body(application, bk_biz_id, apm_event, updated_telemetry_types)
+    data = build_event_body(application, bk_biz_id, apm_event, data_sources, updated_telemetry_types)
     config_info = settings.APM_CUSTOM_EVENT_REPORT_CONFIG
     data_id = config_info.get("data_id", "")
     token = config_info.get("token", "")
