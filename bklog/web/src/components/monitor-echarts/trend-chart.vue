@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, computed, watch } from 'vue';
+  import { ref, computed, watch, onUnmounted } from 'vue';
   import useStore from '@/hooks/use-store';
   import useTrendChart from '@/hooks/use-trend-chart';
   import { useRoute } from 'vue-router/composables';
@@ -26,28 +26,17 @@
     target: refDataTrendCanvas,
   });
 
-  const intervalMap = {
-    '5s': 5,
-    '1m': 60,
-    '5m': 300,
-    '15m': 900,
-    '30m': 1800,
-    '1h': 3600,
-    '4h': 14400,
-    '12h': 43200,
-    '1d': 86400,
-  };
-
   const finishPolling = ref(false);
   const isStart = ref(false);
   const isLoading = ref(false);
 
+  let isRequsting = false;
   let requestInterval = 0;
   let pollingEndTime = 0;
   let pollingStartTime = 0;
   let logChartCancel = null;
-
-  const optionData = ref([]);
+  let currentInterval = 0;
+  let optionData = new Map();
 
   const handleRequestSplit = (startTime, endTime) => {
     const duration = (endTime - startTime) / 3600;
@@ -62,54 +51,53 @@
     return 86400 / 2;
   };
 
-  const getIntegerTime = time => {
-    if (interval.value === '1d') {
-      // 如果周期是 天 则特殊处理
-      const step = dayjs.tz(time * 1000).format('YYYY-MM-DD');
-      return Date.parse(`${step} 00:00:00`) / 1000;
-    }
-
-    const step = intervalMap[interval.value];
-    return Math.floor(time / step) * step;
-  };
-
   const handleIntervalSplit = (startTime, endTime) => {
+    currentInterval = interval.value;
+    let intervalTemp = interval.value;
+
     // 如果是手动变更汇聚周期导致的更新
     // 这里禁止进一步进行更新interval, 避免重置
-    if(/^chart_interval_/.test(chartKey.value)) {
+    if (/^chart_interval_/.test(chartKey.value)) {
       return;
     }
 
+    // 按照小时统计
     const duration = (endTime - startTime) / 3600;
-    let intervalTemp = interval.value;
+
+    // 按照分钟统计
+    const durationMin = (endTime - startTime) / 600;
 
     if (duration < 1) {
       // 小于1小时 1min
       intervalTemp = '1m';
+      currentInterval = '1m';
+
+      if (durationMin < 5) {
+        currentInterval = '30s';
+      }
+
+      if (durationMin < 2) {
+        currentInterval = '5s';
+      }
+
+      if (durationMin < 1) {
+        currentInterval = '1s';
+      }
     } else if (duration < 6) {
       // 小于6小时 5min
       intervalTemp = '5m';
+      currentInterval = intervalTemp;
     } else if (duration < 72) {
       // 小于72小时 1hour
       intervalTemp = '1h';
+      currentInterval = '1h';
     } else {
       // 大于72小时 1day
       intervalTemp = '1d';
+      currentInterval = '1d';
     }
 
     store.commit('updateIndexItem', { interval: intervalTemp });
-  };
-
-  // 获取时间分片数组
-  const getTimeRange = (startTime, endTime) => {
-    // 根据时间范围获取和横坐标分片
-    const rangeArr = [];
-    const range = intervalMap[interval.value] * 1000;
-    for (let index = endTime * 1000; index >= startTime * 1000; index = index - range) {
-      rangeArr.push([index, 0]);
-    }
-
-    return rangeArr;
   };
 
   // 需要更新图表数据
@@ -121,38 +109,31 @@
     requestInterval = isStart.value ? requestInterval : handleRequestSplit(startTimeStamp, endTimeStamp);
 
     if (!isStart.value) {
+      isRequsting = true;
+      optionData.clear();
       // 获取坐标分片间隔
       handleIntervalSplit(startTimeStamp, endTimeStamp);
       isLoading.value = true;
       emit('polling', !isLoading.value);
 
-      // 第一次发起请求清空数据
-      updateChart([]);
-
-      // 获取分片起止时间
-      const curStartTimestamp = getIntegerTime(startTimeStamp);
-      const curEndTimestamp = getIntegerTime(endTimeStamp);
-
-      // 获取分片结果数组
-      optionData.value = getTimeRange(curStartTimestamp, curEndTimestamp);
-
       pollingEndTime = endTimeStamp;
-      pollingStartTime = pollingEndTime - requestInterval;
-
-      if (pollingStartTime < startTimeStamp || requestInterval === 0) {
-        pollingStartTime = startTimeStamp;
-        // 轮询结束
-        finishPolling.value = true;
-        emit('polling', false);
-      }
+      pollingStartTime = requestInterval > 0 ? (pollingEndTime - requestInterval) : startTimeStamp;
       isStart.value = true;
     } else {
       pollingEndTime = pollingStartTime;
       pollingStartTime = pollingStartTime - requestInterval;
+    }
 
-      if (pollingStartTime < retrieveParams.value.start_time) {
-        pollingStartTime = retrieveParams.value.start_time;
-      }
+    if (pollingStartTime < startTimeStamp) {
+      pollingStartTime = startTimeStamp;
+      // 轮询结束
+      finishPolling.value = true;
+      isRequsting = false;
+      emit('polling', false);
+    }
+
+    if (pollingStartTime < retrieveParams.value.start_time) {
+      pollingStartTime = retrieveParams.value.start_time;
     }
 
     if ((!isUnionSearch.value && !!route.params?.indexId) || (isUnionSearch.value && unionIndexList.value?.length)) {
@@ -161,7 +142,7 @@
       const queryData = {
         ...retrieveParams.value,
         time_range: 'customized',
-        interval: interval.value,
+        interval: currentInterval,
         // 每次轮循的起始时间
         start_time: pollingStartTime,
         end_time: pollingEndTime,
@@ -187,57 +168,58 @@
         .then(res => {
           if (res?.data) {
             const originChartData = res?.data?.aggs?.group_by_histogram?.buckets || [];
-            const targetArr = originChartData.map(item => {
-              return [item.key, item.doc_count];
+
+            originChartData.forEach(item => {
+              optionData.set(item.key_as_string, [(optionData.get(item.key_as_string)?.[0] ?? 0) + item.doc_count, item.key]);
             });
-
-            if (pollingStartTime <= retrieveParams.value.start_time) {
-              // 轮询结束
-              finishPolling.value = true;
-              emit('polling', false);
-            }
-
-            for (let i = 0; i < targetArr.length; i++) {
-              for (let j = 0; j < optionData.value.length; j++) {
-                if (optionData.value[j][0] === targetArr[i][0] && targetArr[i][1] > 0) {
-                  // 根据请求结果匹配对应时间下数量叠加
-                  optionData.value[j][1] = optionData.value[j][1] + targetArr[i][1];
-                }
-              }
-            }
           } else {
             finishPolling.value = true;
+            isRequsting = false;
             emit('polling', false);
           }
 
-          updateChart(optionData.value);
+          const keys = [...(optionData.keys())];
+          keys.sort((a, b) => a[0] - b[0]);
+          const data = keys.map(key => [key, optionData.get(key)[0]])
+          updateChart(data, currentInterval);
 
-          if (!finishPolling.value) {
-            getSeriesData();
+          if (!finishPolling.value && requestInterval > 0) {
+            getSeriesData(startTimeStamp, endTimeStamp);
+            return;
           }
+
+          isRequsting = false;
         })
         .finally(() => {
           isLoading.value = false;
         });
     } else {
       finishPolling.value = true;
+      isRequsting = false;
       emit('polling', false);
     }
   };
 
-
   watch(
     () => chartKey.value,
     () => {
-      finishPolling.value = false;
-      isStart.value = false;
-      logChartCancel?.();
-      getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
+      if (!isRequsting) {
+        console.log('isRequsting', new Date().getTime());
+        finishPolling.value = false;
+        isStart.value = false;
+        optionData.clear();
+        logChartCancel?.();
+        getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
+      }
     },
     {
       immediate: true,
     },
   );
+
+  onUnmounted(() => {
+    logChartCancel?.();
+  });
 </script>
 <script>
   export default {

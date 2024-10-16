@@ -59,14 +59,25 @@ export default ({ target }: TrandChartOption) => {
     delegateMethod('dispatchAction', payload);
   };
 
-  const updateChart = (data: EchartData[]) => {
+  const formatTimeString = (data, interval) => {
+    if (/\d+(s|m|h)$/.test(interval)) {
+      return dayjs(data).format('HH:mm:ss').replace(/00(:00)?(:00)?$/, '');
+    }
+
+    if (/\d+d$/.test(interval)) {
+      return dayjs(data).format('MM-DD HH:mm:ss').replace(/00(:00)?(:00)?$/, '');
+    }
+  };
+
+  const updateChart = (data: EchartData[], interval: string) => {
     if (!data.length) {
       chartInstance?.setOption({});
       return;
     }
 
     options.series[0].data = data;
-    options.xAxis[0].axisLabel.formatter = barChartOptionInstance.handleSetFormatterFunc(data);
+    options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, interval);
+
     chartInstance.setOption(options);
     nextTick(() => {
       dispatchAction({
@@ -79,9 +90,12 @@ export default ({ target }: TrandChartOption) => {
 
   const handleDataZoom = debounce(event => {
     const [batch] = event.batch;
+    console.log('handleDataZoom', batch);
+
     if (batch.startValue && batch.endValue) {
-      const timeFrom = dayjs.tz(+batch.startValue.toFixed(0)).format('YYYY-MM-DD HH:mm:ss');
-      const timeTo = dayjs.tz(+batch.endValue.toFixed(0)).format('YYYY-MM-DD HH:mm:ss');
+      const options = chartInstance.getOption().series[0].data;
+      const timeFrom = options[batch.startValue][0];
+      const timeTo = options[batch.endValue][0];
 
       if (!cachedTimRange.length) {
         cachedTimRange = [datepickerValue.value[0], datepickerValue.value[1]];

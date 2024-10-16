@@ -358,7 +358,7 @@ export default {
   ],
   xAxis: [
     {
-      type: 'time',
+      type: 'category',
       boundaryGap: false,
       axisTick: {
         show: false,
@@ -381,7 +381,6 @@ export default {
         symbolSize: [10, 15],
       },
       axisLabel: {
-        // formatter: barChartOptionInstance.handleSetFormatterFunc,
         fontSize: 12,
         color: '#979BA5',
         showMinLabel: false,
