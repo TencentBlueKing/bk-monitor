@@ -84,7 +84,7 @@ export default {
     '#F9D9F9',
     '#DEDAF7',
   ],
-  animation: false,
+  animation: true,
   tool: {
     show: false,
   },
@@ -483,6 +483,7 @@ export default {
       name: '',
       type: 'bar',
       barMinHeight: 0,
+      barMaxWidth: '30%',
       z: 4,
       markLine: {},
       markArea: {},
@@ -514,6 +515,8 @@ export default {
         opacity: 1,
       },
       label: {},
+      animationDuration: 1000, // 动画持续时间
+      animationEasing: 'cubicOut' // 动画缓动效果
     },
   ],
   visualMap: [],
