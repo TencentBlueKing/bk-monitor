@@ -74,7 +74,7 @@ class ActionProcessor(BaseActionProcessor):
         params.update(ActionPlugin.PUBLIC_PARAMS)
         return params
 
-    def execute(self):
+    def execute(self, failed_times=0):
         """
         执行
         :return:
