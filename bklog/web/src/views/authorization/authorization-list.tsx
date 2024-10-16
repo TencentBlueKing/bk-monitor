@@ -95,6 +95,7 @@ export interface EditModel {
   resources: number[];
   expire_time?: string;
   action_multiple?: string[];
+  actionShowList?: any[];
 }
 
 export const STATUS_LIST = [
