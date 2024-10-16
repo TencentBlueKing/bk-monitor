@@ -32,6 +32,7 @@ from apps.log_clustering.constants import (
     CLUSTERING_CONFIG_DEFAULT,
     CLUSTERING_CONFIG_EXCLUDE,
     DEFAULT_CLUSTERING_FIELDS,
+    RegexRuleTypeEnum,
 )
 from apps.log_clustering.exceptions import (
     BkdataFieldsException,
@@ -48,7 +49,7 @@ from apps.log_clustering.handlers.aiops.aiops_model.aiops_model_handler import (
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.handlers.pipline_service.constants import OperatorServiceEnum
-from apps.log_clustering.models import ClusteringConfig
+from apps.log_clustering.models import ClusteringConfig, RegexTemplate
 from apps.log_clustering.tasks.msg import access_clustering
 from apps.log_clustering.utils import pattern
 from apps.log_databus.constants import EtlConfig
@@ -219,6 +220,27 @@ class ClusteringConfigHandler(object):
         )
         self.data.save(update_fields=["task_records"])
         return pipeline.id
+
+    def synchronous_update(self, params):
+        pipeline_id = self.update(params)
+        # 类型:自定义
+        if params["regex_rule_type"] == RegexRuleTypeEnum.CUSTOMIZE.value:
+            return [pipeline_id]
+        instance = RegexTemplate.objects.get(id=params["regex_template_id"])
+        # 模板无变化
+        if instance.predefined_varibles == params["predefined_varibles"]:
+            return [pipeline_id]
+        instance.predefined_varibles = params["predefined_varibles"]
+        instance.save()
+
+        pipeline_ids = [pipeline_id]
+        configs = ClusteringConfig.objects.exclude(index_set_id=self.index_set_id).filter(
+            regex_template_id=params["regex_template_id"], signature_enable=True
+        )
+        update_params = {"predefined_varibles": params["predefined_varibles"]}
+        for c in configs:
+            pipeline_ids.append(ClusteringConfigHandler(index_set_id=c.index_set_id).update(update_params))
+        return pipeline_ids
 
     def get_access_status(self, task_id=None, include_update=False):
         """

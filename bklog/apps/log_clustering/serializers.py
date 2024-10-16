@@ -32,6 +32,7 @@ from apps.log_clustering.constants import (
     StrategiesType,
 )
 from apps.utils.drf import DateTimeFieldWithEpoch
+from bkm_space.serializers import SpaceUIDField
 
 
 class PatternSearchSerlaizer(serializers.Serializer):
@@ -232,3 +233,12 @@ class SendReportSerializer(serializers.Serializer):
     end_time = serializers.IntegerField(label="结束时间", required=False, default=None, allow_null=True)
     is_manager_created = serializers.BooleanField(required=False, default=False)
     is_enabled = serializers.BooleanField(required=False, default=True)
+
+
+class CreateRegexTemplateSerializer(serializers.Serializer):
+    space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
+    template_name = serializers.CharField(required=True)
+
+
+class UpdateRegexTemplateSerializer(serializers.Serializer):
+    template_name = serializers.CharField(required=True)
