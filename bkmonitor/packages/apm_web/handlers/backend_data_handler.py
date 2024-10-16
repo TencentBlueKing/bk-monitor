@@ -495,6 +495,24 @@ class MetricBackendHandler(TelemetryBackendHandler):
         )
 
     @classmethod
+    def build_data_count_query(cls, **kwargs):
+        # TODO replace in 10 days
+        template = copy.deepcopy(cls.CALL_BACK_PARAMS_FRAME)
+        template["id"] = 0
+        template["title"] = _("分钟数据量")
+        template["gridPos"]["x"] = 0
+        template["gridPos"]["y"] = 0
+        template["gridPos"]["w"] = 24
+        template["gridPos"]["h"] = 6
+        template["options"]["collect_interval_display"] = "1m"
+
+        kwargs["grain"] = "1m"
+        target = cls.build_call_back_target(**kwargs)
+
+        template["targets"] = [target]
+        return [template]
+
+    @classmethod
     def build_call_back_target(cls, data_type_label, data_source_label, **kwargs) -> dict:
         grain = kwargs.pop("grain", "1m")
         query_config_kwargs = kwargs.pop("query_config_kwargs", {})
