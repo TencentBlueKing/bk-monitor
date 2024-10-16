@@ -235,13 +235,11 @@ class ClusteringConfigHandler(object):
 
         pipeline_ids = [pipeline_id]
         configs = ClusteringConfig.objects.exclude(index_set_id=self.index_set_id).filter(
-            regex_template_id=params["regex_template_id"]
+            regex_template_id=params["regex_template_id"], signature_enable=True
         )
+        update_params = {"predefined_varibles": params["predefined_varibles"]}
         for c in configs:
-            self.index_set_id = c.index_set_id
-            self.data = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id)
-            update_params = {"predefined_varibles": c.predefined_varibles}
-            pipeline_ids.append(self.update(update_params))
+            pipeline_ids.append(ClusteringConfigHandler(index_set_id=c.index_set_id).update(update_params))
         return pipeline_ids
 
     def get_access_status(self, task_id=None, include_update=False):
