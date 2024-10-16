@@ -949,7 +949,7 @@ const store = new Vuex.Store({
      */
     requestIndexSetQuery(
       { commit, state, getters, dispatch },
-      payload = { isPagination: false, cancelToken: null, searchCount: undefined },
+      payload = { isPagination: false, cancelToken: null, searchCount: undefined, formChartChange: false },
     ) {
       if (
         (!state.indexItem.isUnionIndex && !state.indexId) ||
@@ -969,7 +969,9 @@ const store = new Vuex.Store({
       const [start_time, end_time] = handleTransformToTimestamp(datePickerValue);
       commit('updateIndexItem', { start_time, end_time });
 
-      if (!payload?.isPagination) store.commit('retrieve/updateChartKey');
+      if (!payload?.isPagination && !payload.formChartChange) {
+        store.commit('retrieve/updateChartKey');
+      }
       const searchCount = payload.searchCount ?? state.indexSetQueryResult.search_count + 1;
       commit(payload.isPagination ? 'updateIndexSetQueryResult' : 'resetIndexSetQueryResult', {
         is_loading: true,
@@ -1038,6 +1040,7 @@ const store = new Vuex.Store({
               const indexSetQueryResult = state.indexSetQueryResult;
               const logList = parseBigNumberList(rsolvedData.list);
               const originLogList = parseBigNumberList(rsolvedData.origin_log_list);
+
               rsolvedData.list = payload.isPagination ? indexSetQueryResult.list.concat(logList) : logList;
               rsolvedData.origin_log_list = payload.isPagination
                 ? indexSetQueryResult.origin_log_list.concat(originLogList)
@@ -1340,6 +1343,24 @@ const store = new Vuex.Store({
     },
     clearApiError({ commit }, apiName) {
       commit('CLEAR_API_ERROR', apiName);
+    },
+
+    handleTrendDataZoom({ commit }, payload) {
+      const { start_time, end_time, format } = payload;
+
+      const [startTimeStamp, endTimeStamp] = format
+        ? handleTransformToTimestamp([start_time, end_time])
+        : [start_time, end_time];
+
+      commit('updateIndexItem', {
+        start_time: startTimeStamp,
+        end_time: endTimeStamp,
+        datePickerValue: [start_time, end_time],
+      });
+
+      // 这里通过增加 prefix 标识当前是由图表缩放导致的更新操作
+      // 用于后续逻辑判定使用
+      commit('retrieve/updateChartKey', { prefix: 'chart_zoom_' });
     },
   },
 });
