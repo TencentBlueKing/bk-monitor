@@ -960,7 +960,7 @@ class RecommendMetricManager(AIOPSManager):
         # 过滤条件分组字典，过滤字段相同的为一个组
         filter_conditions_group = defaultdict(list)
 
-        # 预定义定的查询需要显示的字段集合
+        # 预定义定查询需要显示的字段集合
         pre_field_set = {"bk_biz_id",
                          "result_table_id",
                          "dimensions",
@@ -971,9 +971,9 @@ class RecommendMetricManager(AIOPSManager):
                          "result_table_label",
                          "result_table_label_name",
                          }
+
         # 总的查询需要显示的字段集合
         field_set = pre_field_set.copy()
-
         recommend_metrics = json.loads(recommended_results["recommend_metrics"])
 
         for recommend_metric in recommend_metrics:

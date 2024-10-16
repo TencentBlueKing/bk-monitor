@@ -2329,7 +2329,7 @@ class MetricRecommendationFeedbackResource(Resource):
            :param bk_biz_ids: 业务id列表
            :return: {(alert_metric_id, recommendation_metric, bk_biz_id): (点赞数,点踩数), ...}
            """
-        # 提取所有唯一的参数组合
+        # 提取所有的参数组合
         params = list(zip(alert_metric_ids, rec_metric_hashs, bk_biz_ids))
 
         # 用于存储最终结果
@@ -2399,11 +2399,9 @@ class MetricRecommendationFeedbackResource(Resource):
         """
 
         # 批量查询点赞数和点踩数
-        # 调用另一个方法来获取每个组合的点赞数和点踩数
         feedback_counts = cls.get_feedback_count_batch(alert_metric_ids, rec_metric_hashs, bk_biz_ids)
 
         # 批量查询用户反馈
-        # 使用Django ORM的Q对象进行多条件过滤查询，获取所有需要的反馈对象
         feedback_objects = MetricRecommendationFeedback.objects.filter(
             DQ(alert_metric_id__in=alert_metric_ids) &
             DQ(recommendation_metric_hash__in=rec_metric_hashs) &
@@ -2412,13 +2410,11 @@ class MetricRecommendationFeedbackResource(Resource):
         ).values('alert_metric_id', 'recommendation_metric_hash', 'bk_biz_id', 'create_user', 'feedback')
 
         # 构建字典，用于快速查找反馈对象
-        # 将查询到的反馈对象转换为字典，以查询参数组合作为键，方便后续快速检索
         feedback_dict = {
             (fo['alert_metric_id'], fo['recommendation_metric_hash'], fo['bk_biz_id'], fo['create_user']): fo[
                 'feedback'] for fo in feedback_objects}
 
         result = {}
-        # 将四个列表打包成一个元组的列表，每个元组包含一组查询参数
         params_list = list(zip(alert_metric_ids, rec_metric_hashs, bk_biz_ids, usernames))
         for alert_metric_id, rec_metric_hash, bk_biz_id, username in params_list:
             # 从之前获取的点赞数和点踩数字典中获取当前组合的点赞数和点踩数
