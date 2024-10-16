@@ -2431,7 +2431,7 @@ class ESStorage(models.Model, StorageResultTable):
 
                 # 创建索引需要增加一个请求超时的防御
                 logger.info("index->[{}] trying to create, index_body->[{}]".format(index_name, self.index_body))
-                response = self._create_index_with_retry(self.es_client, current_index)
+                response = self._create_index_with_retry(current_index)
                 logger.info("index->[{}] now is created, response->[{}]".format(index_name, response))
 
                 # 需要将对应的别名指向这个新建的index
@@ -2651,7 +2651,7 @@ class ESStorage(models.Model, StorageResultTable):
         now_datetime_object = self.now
         new_index_name = self.make_index_name(now_datetime_object, 0, "v2")
         # 创建index
-        response = self._create_index_with_retry(self.es_client, new_index_name)
+        response = self._create_index_with_retry(new_index_name)
         logger.info(
             "table_id->[%s] has created new index->[%s],response->[%s]", self.table_id, new_index_name, response
         )
@@ -2753,7 +2753,7 @@ class ESStorage(models.Model, StorageResultTable):
                 )
                 should_create = True
 
-        # 6. 若should_create为True，执行创建/跟新 索引逻辑
+        # 6. 若should_create为True，执行创建/更新 索引逻辑
         if not should_create:
             logger.info(
                 "update_index_v2: table_id->[%s] index->[%s] everything is ok,nothing to do",

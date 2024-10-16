@@ -42,7 +42,8 @@ class AccessVMRecord(models.Model):
     storage_cluster_id = models.IntegerField("对接使用的storage域名", null=True, blank=True, help_text="对接使用的集群ID")
     # vm 对应的集群ID
     vm_cluster_id = models.IntegerField("集群ID", null=True, blank=True, help_text="因为查询 vm 集群已经统一，不需要再单独记录")
-    bk_base_data_id = models.IntegerField("数据平台的data_id", help_text="数据平台的data_id")
+    bk_base_data_id = models.IntegerField("计算平台数据ID", help_text="计算平台数据ID")
+    bk_base_data_name = models.CharField("计算平台数据名称", max_length=64, help_text="计算平台数据名称", default="")
     vm_result_table_id = models.CharField("VM 结果表rt", max_length=64, help_text="VM 结果表rt")
     remark = models.CharField("接入备注", max_length=256, null=True, blank=True, help_text="接入备注")
 
