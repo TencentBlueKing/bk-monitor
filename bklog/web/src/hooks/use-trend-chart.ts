@@ -58,12 +58,19 @@ export default ({ target }: TrandChartOption) => {
   };
 
   const formatTimeString = (data, interval) => {
-    if (/\d+(s|m|h)$/.test(interval)) {
+    if (/\d+s$/.test(interval)) {
+      return dayjs.tz(data).format('HH:mm:ss');
+    }
+
+    if (/\d+(m|h)$/.test(interval)) {
       return dayjs.tz(data).format('HH:mm:ss').replace(/:00$/, '');
     }
 
     if (/\d+d$/.test(interval)) {
-      return dayjs.tz(data).format('MM-DD HH:mm:ss').replace(/00:00:00$/, '');
+      return dayjs
+        .tz(data)
+        .format('MM-DD HH:mm:ss')
+        .replace(/00:00:00$/, '');
     }
   };
 

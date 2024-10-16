@@ -215,53 +215,58 @@ export default {
       },
     },
   ],
-  tooltip: [
-    {
-      show: true,
-      trigger: 'axis',
-      axisPointer: {
-        type: 'cross',
-        label: {
-          backgroundColor: '#6a7985',
-          show: false,
-        },
-        axis: 'auto',
-        crossStyle: {
-          color: 'transparent',
-          opacity: 0,
-          width: 0,
-          type: 'dashed',
-          textStyle: {},
-        },
-        animation: 'auto',
-        animationDurationUpdate: 200,
-        animationEasingUpdate: 'exponentialOut',
+  tooltip: {
+    show: true,
+    trigger: 'axis',
+    axisPointer: {
+      type: 'cross',
+      label: {
+        backgroundColor: '#6a7985',
+        show: false,
       },
-      transitionDuration: 0,
-      alwaysShowContent: false,
-      backgroundColor: 'rgba(0,0,0,0.8)',
-      borderWidth: 0,
-      textStyle: {
-        fontSize: 12,
-        color: '#fff',
+      axis: 'auto',
+      crossStyle: {
+        color: 'transparent',
+        opacity: 0,
+        width: 0,
+        type: 'dashed',
+        textStyle: {},
       },
-      extraCssText: 'border-radius: 0',
-      appendToBody: true,
-      zlevel: 0,
-      z: 60,
-      showContent: true,
-      triggerOn: 'mousemove|click',
-      displayMode: 'single',
-      renderMode: 'auto',
-      confine: false,
-      showDelay: 0,
-      hideDelay: 100,
-      enterable: false,
-      borderColor: '#333',
-      borderRadius: 4,
-      padding: 5,
+      animation: 'auto',
+      animationDurationUpdate: 200,
+      animationEasingUpdate: 'exponentialOut',
     },
-  ],
+    transitionDuration: 0,
+    alwaysShowContent: false,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    borderWidth: 0,
+    textStyle: {
+      fontSize: 12,
+      color: '#fff',
+    },
+    extraCssText: 'border-radius: 0',
+    appendToBody: true,
+    zlevel: 0,
+    z: 60,
+    showContent: true,
+    triggerOn: 'mousemove|click',
+    displayMode: 'single',
+    renderMode: 'auto',
+    confine: false,
+    showDelay: 0,
+    hideDelay: 100,
+    enterable: false,
+    borderColor: '#333',
+    borderRadius: 4,
+    padding: 5,
+    formatter: function (params) {
+      debugger;
+      return `<div>
+        <strong>${params[0]?.data?.[2] ?? params[0].name}</strong>
+        <div style="display: flex; align-items: center;"><span style="display: inline-block; background-color:${params[0].color};margin-right: 4px;width: 6px;height: 6px; border-radius: 50%;"></span> ${params[0]?.data?.[1]} </div>
+      </div>`;
+    },
+  },
   yAxis: [
     {
       type: 'value',
