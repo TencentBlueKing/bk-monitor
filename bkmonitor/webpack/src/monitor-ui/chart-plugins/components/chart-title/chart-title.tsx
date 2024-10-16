@@ -363,7 +363,8 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               {this.title}
             </div>
             {this.inited && [
-              this.showTitleIcon && this.showMetricAlarm && this.metricTitleData?.collect_interval ? (
+              (this.showTitleIcon && this.showMetricAlarm && this.metricTitleData?.collect_interval) ||
+              this.collectIntervalDisplay ? (
                 <span
                   key='title-interval'
                   class='title-interval'
