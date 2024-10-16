@@ -78,6 +78,7 @@ export default ({ target }: TrandChartOption) => {
     if (!chartInstance) {
       return;
     }
+
     options.series[0].data = data;
     options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, interval);
     options.xAxis[0].minInterval = /\d+s$/.test(interval) ? 1000 : 60000;

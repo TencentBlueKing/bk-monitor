@@ -25,7 +25,6 @@
  */
 
 import dayjs from 'dayjs';
-
 export default {
   useUTC: false,
   color: [
