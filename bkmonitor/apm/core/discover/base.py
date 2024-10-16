@@ -21,8 +21,6 @@ from django.conf import settings
 from opentelemetry.semconv.resource import ResourceAttributes
 
 from apm import constants
-from apm.core.discover.precalculation.processor import PrecalculateProcessor
-from apm.core.discover.precalculation.storage import PrecalculateStorage
 from apm.models import ApmApplication, ApmTopoDiscoverRule, TraceDataSource
 from apm.utils.base import divide_biscuit
 from apm.utils.es_search import limits
@@ -353,7 +351,6 @@ class TopoHandler:
         """application spans discover"""
 
         start = datetime.datetime.now()
-        pre_calculate_storage = PrecalculateStorage(self.bk_biz_id, self.app_name)
         trace_id_count = 0
         span_count = 0
         max_result_count, per_trace_size, index_name = self._get_trace_task_splits()
@@ -385,24 +382,6 @@ class TopoHandler:
 
             # 拓扑发现任务
             topo_params = [(c, topo_spans, "topo") for c in DiscoverBase.DISCOVER_CLS]
-
-            # 预计算任务
-            if pre_calculate_storage.is_valid:
-                # 灰度应用不参与定时任务中的预计算功能
-                from apm.core.discover.precalculation.daemon import (
-                    PrecalculateGrayRelease,
-                )
-
-                if not PrecalculateGrayRelease.exist(self.application.id):
-                    pre_calculate_params = [
-                        (
-                            PrecalculateProcessor(pre_calculate_storage, self.bk_biz_id, self.app_name),
-                            all_spans,
-                            "pre_calculate",
-                        )
-                    ]
-                    topo_params += pre_calculate_params
-
             pool.map_ignore_exception(self._discover_handle, topo_params)
 
         logger.info(
