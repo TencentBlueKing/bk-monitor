@@ -240,33 +240,21 @@ class TraceBackendHandler(TelemetryBackendHandler):
         return count
 
     def get_no_data_strategy_config(self, **kwargs):
+        promql = f'sum(sum_over_time({{__name__="custom:{self.result_table_id}:bk_apm_count}}[1m])) or vector(0)'
         return {
-            "result_table_id": self.metric_result_table_id,
-            "metric_id": f"custom.{self.metric_result_table_id}.bk_apm_count",
+            "result_table_id": self.result_table_id,
+            "metric_id": promql,
             "metric_field": "bk_apm_count",
             "name": f"BKAPM-{_('无数据告警')}-{self.app.app_name}-{self.telemetry.value}",
             "data_source_label": DataSourceLabel.PROMETHEUS,
             "data_type_label": DataTypeLabel.TIME_SERIES,
             "query_configs": [
                 {
-                    "data_source_label": DataSourceLabel.CUSTOM,
+                    "data_source_label": DataSourceLabel.PROMETHEUS,
                     "data_type_label": DataTypeLabel.TIME_SERIES,
-                    "alias": "a",
-                    "result_table_id": f"{self.metric_result_table_id}",
-                    "agg_method": "SUM",
+                    "promql": promql,
                     "agg_interval": 60,
-                    "agg_dimension": [],
-                    "agg_condition": [],
-                    "metric_field": "bk_apm_count",
-                    "unit": "ns",
-                    "metric_id": f"custom.{self.metric_result_table_id}.bk_apm_count",
-                    "index_set_id": "",
-                    "query_string": "*",
-                    "custom_event_name": "bk_apm_count",
-                    "functions": [],
-                    "time_field": "time",
-                    "bkmonitor_strategy_id": "bk_apm_count",
-                    "alert_name": "bk_apm_count",
+                    "alias": "a",
                 }
             ],
         }
@@ -357,38 +345,22 @@ class LogBackendHandler(TelemetryBackendHandler):
         return count
 
     def get_no_data_strategy_config(self, **kwargs):
+        table_id = self.result_table_id.replace(".", ":")
+        promql = f'sum(count_over_time({{__name__="bklog:{table_id}:_index"}}[1m])) or vector(0)'
         return {
             "result_table_id": self.result_table_id,
-            "name": f"BKAPM-{_('无数据告警')}-{self.app.app_name}-{self.telemetry.value}",
-            "metric_id": f"bk_log_search.index_set.{self.index_set_id}",
+            "metric_id": promql,
             "metric_field": "_index",
+            "name": f"BKAPM-{_('无数据告警')}-{self.app.app_name}-{self.telemetry.value}",
             "data_source_label": DataSourceLabel.PROMETHEUS,
-            "data_type_label": DataTypeLabel.LOG,
-            "index_set_id": self.index_set_id,
+            "data_type_label": DataTypeLabel.TIME_SERIES,
             "query_configs": [
                 {
-                    "data_source_label": DataSourceLabel.BK_LOG_SEARCH,
-                    "data_type_label": DataTypeLabel.LOG,
-                    "index_set_id": self.index_set_id,
-                    "result_table_id": self.result_table_id,
-                    "agg_method": "COUNT",
+                    "data_source_label": DataSourceLabel.PROMETHEUS,
+                    "data_type_label": DataTypeLabel.TIME_SERIES,
+                    "promql": promql,
                     "agg_interval": 60,
-                    "agg_dimension": [],
-                    "agg_condition": [],
                     "alias": "a",
-                    "metric_field": "_index",
-                    "metric_id": f"bk_log_search.index_set.{self.index_set_id}",
-                    "query_string": "*",
-                    "group_by": [],
-                    "display": True,
-                    "where": [],
-                    "interval": 60,
-                    "interval_unit": "s",
-                    "time_field": "dtEventTimeStamp",
-                    "filter_dict": {},
-                    "functions": [],
-                    "bkmonitor_strategy_id": "_index",
-                    "alert_name": "_index",
                 }
             ],
         }
@@ -556,7 +528,7 @@ class MetricBackendHandler(TelemetryBackendHandler):
     def get_no_data_strategy_config(self, **kwargs):
         promql = (
             f'count({{__name__=~"custom:{self.result_table_id}:.*"}}) - '
-            f'count({{__name__=~"custom:{self.result_table_id}:^(apm|bk_apm).*"}})'
+            f'count({{__name__=~"custom:{self.result_table_id}:^(apm|bk_apm).*"}}) or vector(0)'
         )
         return {
             "result_table_id": self.result_table_id,
@@ -569,7 +541,6 @@ class MetricBackendHandler(TelemetryBackendHandler):
                 {
                     "data_source_label": DataSourceLabel.PROMETHEUS,
                     "data_type_label": DataTypeLabel.TIME_SERIES,
-                    "table": self.result_table_id,
                     "promql": promql,
                     "agg_interval": 60,
                     "alias": "a",
