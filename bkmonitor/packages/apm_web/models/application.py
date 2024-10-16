@@ -313,8 +313,9 @@ class Application(AbstractRecordModel):
 
         # 刷新服务数量
         services = ServiceHandler.list_services(self)
-        self.service_count = len(services)
-        self.save()
+
+        # 这里通过update方式，指定字段更新，是为了不自动变更 update_user， update_time 字段
+        Application.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).update(service_count=len(services))
 
         # 刷新数据状态
         start_time, end_time = get_datetime_range("minute", self.no_data_period)
@@ -330,6 +331,7 @@ class Application(AbstractRecordModel):
         start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
         # NOTICE: data_status / profile_data_status 目前暂无接口用到只在指标中使用考虑指标处换成实时查询
 
+        update_field_values = {}
         for data_type in TelemetryDataType:
             # 未定义的telemetry类型数据状态
             if not getattr(self, f"{data_type.datasource_type}_data_status", False):
@@ -356,8 +358,10 @@ class Application(AbstractRecordModel):
                         f"[Application] set app: {self.app_name} | {data_type.value} data_status failed: {e}"
                     )
                     data_status = DataStatus.NO_DATA
-            setattr(self, f"{data_type.datasource_type}_data_status", data_status)
-        self.save()
+            update_field_values[f"{data_type.datasource_type}_data_status"] = data_status
+
+        # 这里通过update方式，指定字段更新，是为了不自动变更 update_user， update_time 字段
+        Application.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).update(**update_field_values)
 
     @property
     def language_ids(self):
@@ -565,10 +569,19 @@ class Application(AbstractRecordModel):
 
     def set_init_datasource(self, datasource_option, enabled_profiling, enabled_trace, enabled_metric, enabled_log):
         # 更新数据源开关
+        # profiling
         self.is_enabled_profiling = enabled_profiling
+        self.profiling_data_status = DataStatus.NO_DATA if enabled_profiling else DataStatus.DISABLED
+        # trace
         self.is_enabled_trace = enabled_trace
+        self.trace_data_status = DataStatus.NO_DATA if enabled_trace else DataStatus.DISABLED
+        # metric
         self.is_enabled_metric = enabled_metric
+        self.metric_data_status = DataStatus.NO_DATA if enabled_metric else DataStatus.DISABLED
+        # log
         self.is_enabled_log = enabled_log
+        self.log_data_status = DataStatus.NO_DATA if enabled_log else DataStatus.DISABLED
+
         self.save()
 
         ApmMetaConfig.application_config_setup(

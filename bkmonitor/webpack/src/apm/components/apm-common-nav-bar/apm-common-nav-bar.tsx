@@ -189,23 +189,25 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
               {index > 0 ? <span class='item-split'>/</span> : undefined}
               {!item.selectOption?.loading ? (
                 [
-                  <span
-                    key='1'
-                    class={{
-                      'item-name': true,
-                      'parent-nav': !!item.id && index < len - 1 && !item.notLink,
-                      'only-title': len === 1,
-                      [item.class]: !!item.class,
-                    }}
-                    onClick={() => item.id && index < len - 1 && this.handleGotoPage(item)}
-                  >
-                    <span class='item-name-text'>{item.name}</span>
-                    {!!item.subName && (
-                      <span class='item-sub-name'>
-                        {item.name ? '-' : ''}&nbsp;{item.subName}
-                      </span>
-                    )}
-                  </span>,
+                  (!item.selectOption || item.selectOption.value) && (
+                    <span
+                      key='1'
+                      class={{
+                        'item-name': true,
+                        'parent-nav': !!item.id && index < len - 1 && !item.notLink,
+                        'only-title': len === 1,
+                        [item.class]: !!item.class,
+                      }}
+                      onClick={() => item.id && index < len - 1 && this.handleGotoPage(item)}
+                    >
+                      <span class='item-name-text'>{item.name}</span>
+                      {!!item.subName && (
+                        <span class='item-sub-name'>
+                          {item.name ? '-' : ''}&nbsp;{item.subName}
+                        </span>
+                      )}
+                    </span>
+                  ),
                   item.selectOption && (
                     <bk-select
                       popover-options={{
@@ -220,11 +222,32 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
                       onToggle={() => this.handleNavSelectShow(item)}
                     >
                       <div
-                        class={{ 'arrow-wrap': true, active: this.navSelectShow[item.id] }}
+                        class={{ 'select-trigger': true, active: this.navSelectShow[item.id] }}
                         slot='trigger'
                       >
-                        <i class='icon-monitor icon-mc-arrow-down' />
+                        {!item.selectOption.value && (
+                          <span
+                            class={{
+                              'item-name': true,
+                              'parent-nav': !!item.id && index < len - 1 && !item.notLink,
+                              'only-title': len === 1,
+                              [item.class]: !!item.class,
+                            }}
+                            onClick={() => item.id && index < len - 1 && this.handleGotoPage(item)}
+                          >
+                            <span class='item-name-text'>{item.name}</span>
+                            {!!item.subName && (
+                              <span class='item-sub-name'>
+                                {item.name ? '-' : ''}&nbsp;{item.subName}
+                              </span>
+                            )}
+                          </span>
+                        )}
+                        <div class='arrow-wrap'>
+                          <i class='icon-monitor icon-mc-arrow-down' />
+                        </div>
                       </div>
+
                       {this.sortSelectList(item.selectOption).map((selectItem, index) => (
                         <bk-option
                           id={selectItem.id}

@@ -46,6 +46,15 @@ class IndexSetResource(LogSearchAPIGWResource):
         return url.format(index_set_id=validated_request_data.pop("index_set_id"))
 
 
+class ESQueryDslResource(LogSearchAPIGWResource):
+    """
+    日志查询接口（DSL）
+    """
+
+    action = "esquery_dsl/"
+    method = "POST"
+
+
 class ESQuerySearchResource(LogSearchAPIGWResource):
     """
     日志查询接口

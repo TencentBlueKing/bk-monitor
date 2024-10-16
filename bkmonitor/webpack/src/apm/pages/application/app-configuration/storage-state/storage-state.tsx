@@ -63,25 +63,29 @@ export default class StorageState extends tsc<IStorageStateProps> {
       name: ETelemetryDataType.metric,
       label: window.i18n.tc('指标'),
       status: 'disabled',
-      tips: window.i18n.tc('指标数据未开启'),
+      disabledTips: window.i18n.tc('指标数据未开启'),
+      noDataTips: window.i18n.tc('指标无最新数据'),
     },
     {
       name: ETelemetryDataType.log,
       label: window.i18n.tc('日志'),
       status: 'disabled',
-      tips: window.i18n.tc('日志数据未开启'),
+      disabledTips: window.i18n.tc('日志数据未开启'),
+      noDataTips: window.i18n.tc('日志无最新数据'),
     },
     {
       name: ETelemetryDataType.trace,
       label: window.i18n.tc('调用链'),
       status: 'disabled',
-      tips: window.i18n.tc('调用链数据未开启'),
+      disabledTips: window.i18n.tc('调用链数据未开启'),
+      noDataTips: window.i18n.tc('调用链无最新数据'),
     },
     {
       name: ETelemetryDataType.profiling,
       label: window.i18n.tc('性能分析'),
       status: 'disabled',
-      tips: window.i18n.tc('性能分析数据未开启'),
+      disabledTips: window.i18n.tc('性能分析数据未开启'),
+      noDataTips: window.i18n.tc('性能分析无最新数据'),
     },
   ];
   /* 存储信息 */
@@ -132,9 +136,7 @@ export default class StorageState extends tsc<IStorageStateProps> {
 
   async getStorageStatus() {
     this.storageStatusLoading = true;
-    const data = await storageStatus(this.appInfo.application_id, {
-      telemetry_data_type: this.activeTab,
-    }).catch(() => this.storageStatus);
+    const data = await storageStatus(this.appInfo.application_id).catch(() => this.storageStatus);
     if (data) {
       this.storageStatus = data;
       for (const tab of this.tabList) {

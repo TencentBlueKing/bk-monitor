@@ -31,13 +31,13 @@ import introduceModule, { IntroduceRouteKey } from 'monitor-pc/common/introduce'
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import GuidePage from 'monitor-pc/components/guide-page/guide-page';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
-import AlarmTools from 'monitor-pc/pages/monitor-k8s/components/alarm-tools';
+// import AlarmTools from 'monitor-pc/pages/monitor-k8s/components/alarm-tools';
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 import OperateOptions from 'monitor-pc/pages/uptime-check/components/operate-options';
-import { PanelModel } from 'monitor-ui/chart-plugins/typings';
+// import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import authorityMixinCreate from '../../../apm/mixins/authorityMixin';
-import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
+// import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
 import authorityStore from '../../store/modules/authority';
 import * as authorityMap from '../home/authority-map';
 import AddAppSide from './add-app/add-app-side';
@@ -45,7 +45,7 @@ import AppHomeList from './components/apm-home-list';
 import ApmHomeResizeLayout from './components/apm-home-resize-layout';
 import NavBar from './nav-bar';
 import ApmHomeSkeleton from './skeleton/apm-home-skeleton';
-import { charColor, OPERATE_OPTIONS, ALERT_PANEL_DATA } from './utils';
+import { charColor, OPERATE_OPTIONS } from './utils'; // ALERT_PANEL_DATA
 
 import type { IAppListItem } from './typings/app';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -68,12 +68,12 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
   /** 显示引导页 */
   showGuidePage = false;
   // menu list
-  menuList: IMenuItem[] = [
-    {
-      id: 'help-docs',
-      name: window.i18n.tc('帮助文档'),
-    },
-  ];
+  // menuList: IMenuItem[] = [
+  //   {
+  //     id: 'help-docs',
+  //     name: window.i18n.tc('帮助文档'),
+  //   },
+  // ];
   /** 是否显示帮助文档弹窗 */
   showGuideDialog = false;
 
@@ -91,12 +91,12 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
   searchCondition = '';
 
   /** 仪表盘工具栏 策略和告警panel */
-  alarmToolsPanel = null;
+  // alarmToolsPanel = null;
   // 帮助文档弹窗数据
   apmIntroduceData = null;
 
   get appData() {
-    return this.appList?.find(item => item.app_name === this.appName);
+    return this.originalAppList?.find(item => item.app_name === this.appName);
   }
 
   get appList() {
@@ -115,7 +115,7 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
   created() {
     this.initRouteParams();
     this.getAppList();
-    this.alarmToolsPanel = new PanelModel(ALERT_PANEL_DATA);
+    // this.alarmToolsPanel = new PanelModel(ALERT_PANEL_DATA);
   }
   mounted() {
     // 帮助文档弹窗数据
@@ -333,11 +333,11 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
               class='dashboard-tools-wrap'
               slot='handler'
             >
-              <AlarmTools
+              {/* <AlarmTools
                 class='alarm-tools'
                 isShowStrategy={false}
                 panel={this.alarmToolsPanel}
-              />
+              /> */}
               <DashboardTools
                 isSplitPanel={false}
                 showListMenu={false}
@@ -346,12 +346,12 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
                 onRefleshChange={this.handleRefreshChange}
                 onTimeRangeChange={this.handleTimeRangeChange}
               />
-              <ListMenu
+              {/* <ListMenu
                 list={this.menuList}
                 onMenuSelect={this.handleSettingsMenuSelect}
               >
                 <i class='icon-monitor icon-mc-more-tool' />
-              </ListMenu>
+              </ListMenu> */}
             </div>
           )}
         </NavBar>
@@ -420,13 +420,35 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
                       v-authority={{ active: !item?.permission[authorityMap.VIEW_AUTH] }}
                       v-bk-overflow-tips
                     >
-                      <span class='biz-app-alias'>{item.app_alias}</span>
-                      <span class='biz-app-name'>（{item.app_name}）</span>
+                      <span
+                        class='biz-app-alias'
+                        v-bk-overflow-tips={{ content: `${item.app_alias}（${item.app_name}）` }}
+                      >
+                        {item.app_alias}
+                      </span>
+                      <span
+                        class='biz-app-name'
+                        v-bk-overflow-tips={{ content: `${item.app_alias}（${item.app_name}）` }}
+                      >
+                        （{item.app_name}）
+                      </span>
                     </div>
+                    {item.metric_result_table_id || item.trace_result_table_id ? null : (
+                      <bk-tag theme='info'>{this.$t('接入中')}...</bk-tag>
+                    )}
                     <div class='item-content'>
                       <span class='item-service-count'>{item?.service_count}</span>
                       <OperateOptions
-                        class='operate'
+                        class={[
+                          [
+                            'operate',
+                            { 'more-btn-disabled': !item.metric_result_table_id && !item.trace_result_table_id },
+                          ],
+                        ]}
+                        v-bk-tooltips={{
+                          content: this.$t('接入中'),
+                          disabled: Boolean(item.metric_result_table_id || item.trace_result_table_id),
+                        }}
                         options={{
                           outside: [],
                           popover: OPERATE_OPTIONS.map(o => ({
@@ -445,6 +467,8 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
                                 : authorityMap.VIEW_AUTH,
                           })),
                         }}
+                        isClickShow={false}
+                        isMouseOverShow={Boolean(item.metric_result_table_id || item.trace_result_table_id)}
                         onOptionClick={id => this.handleConfig(id, item)}
                       >
                         <div

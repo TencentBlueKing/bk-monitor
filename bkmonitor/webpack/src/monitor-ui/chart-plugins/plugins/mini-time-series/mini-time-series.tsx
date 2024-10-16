@@ -202,7 +202,7 @@ export default class MiniTimeSeries extends tsc<IProps> {
               ...this.getSymbolItemStyle(),
               ...this.getSeriesStyle(),
               data: this.data.map(item => ({
-                value: [item[1], item[0] || 0],
+                value: [item[1], item[0]],
               })),
             },
           ],
@@ -271,7 +271,13 @@ export default class MiniTimeSeries extends tsc<IProps> {
     const markPointData = [];
     const seriesData = this.options.series[0].data || [];
     if (this.showLastMarkPoint && seriesData.length) {
-      const lastItem = seriesData[seriesData.length - 1];
+      let lastItem = seriesData[seriesData.length - 1];
+      for (let i = seriesData.length - 1; i >= 0; i--) {
+        if (typeof lastItem.value[1] !== 'number' && typeof seriesData[i].value[1] === 'number') {
+          lastItem = seriesData[i];
+          break;
+        }
+      }
       const valueFormatter = getValueFormat(this.unit);
       const valueItem = valueFormatter(lastItem.value[1], this.unitDecimal);
       this.lastValue = `${valueItem.text}${valueItem.suffix}`;
@@ -388,10 +394,10 @@ export default class MiniTimeSeries extends tsc<IProps> {
               class='last-value-overflow'
               v-bk-overflow-tips
             >
-              {this.lastValue}
+              {this.lastValue === 'undefined' ? '--' : this.lastValue}
             </span>
           ) : (
-            <span class='last-value'>{this.lastValue}</span>
+            <span class='last-value'>{this.lastValue === 'undefined' ? '--' : this.lastValue}</span>
           )
         ) : undefined}
       </div>
