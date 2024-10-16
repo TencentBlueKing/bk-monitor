@@ -579,6 +579,9 @@ class ServiceHandler:
     @classmethod
     def get_service_data_status_mapping(cls, app, start_time, end_time, all_services):
         """获取应用下各个服务的数据状态"""
+        if len(all_services) == 0:
+            return []
+
         status = {
             TelemetryDataType.METRIC.value: DataStatus.NO_DATA if app.is_enabled_metric else DataStatus.DISABLED,
             TelemetryDataType.LOG.value: DataStatus.NO_DATA if app.is_enabled_log else DataStatus.DISABLED,
