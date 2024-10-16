@@ -35,24 +35,49 @@ class APMEvent(Enum):
     def event_name(self):
         return {"app_create": _("新APM应用创建"), "app_update": _("APM应用更新")}.get(self.value)
 
-    def event_template(self, data_sources: dict = None):
-        data_sources_template = _("开启了以下datasource上报: {}").format(
-            ", ".join([key for key, enabled in data_sources.items() if enabled]) or "None"
-        )
+    def event_template(self, data_sources: dict = None, updated_telemetry_types: list = None):
+        data_sources_template = _("变更的数据源: ")
+        if updated_telemetry_types:
+            data_sources_template += "、".join(updated_telemetry_types)
+
+        content = _("应用当前整体状态为: ")
+        if data_sources:
+            for key, value in data_sources.items():
+                value = "enabled" if value else "disabled"
+                content += _("\n - {}: {};").format(key, value)
         body_template = {
             "app_create": _(
-                "有新APM应用创建，请关注！应用名称：{app_name}, 应用别名：{app_alias}, "
-                "业务ID：{bk_biz_id}, 业务名称：{bk_biz_name}, 创建者：{operator}，创建时间：{operate_time}"
+                "\n有新 APM 应用创建，请关注！"
+                "\n应用名称：{app_name},"
+                "\n应用别名：{app_alias}, "
+                "\n业务 ID：{bk_biz_id}, "
+                "\n业务名称：{bk_biz_name}, "
+                "\n创建者：{operator}，"
+                "\n创建时间：{operate_time}"
             ),
             "app_update": _(
-                "有APM应用更新，请关注！应用名称：{app_name}, 应用别名：{app_alias}, "
-                "业务ID：{bk_biz_id}, 业务名称：{bk_biz_name}, 更新者：{operator}，更新时间：{operate_time}"
+                "\n有 APM 应用更新，请关注！"
+                "\n应用名称：{app_name},"
+                "\n应用别名：{app_alias}, "
+                "\n业务 ID：{bk_biz_id}, "
+                "\n业务名称：{bk_biz_name}, "
+                "\n更新者：{operator}，"
+                "\n更新时间：{operate_time}"
             ),
         }.get(self.value)
-        return body_template + "\n" + data_sources_template
+        if updated_telemetry_types:
+            return body_template + "\n" + data_sources_template + "\n" + content
+        else:
+            return body_template + "\n" + content
 
 
-def build_event_body(app: Application, bk_biz_id: int, apm_event: APMEvent, data_sources: dict = None):
+def build_event_body(
+    app: Application,
+    bk_biz_id: int,
+    apm_event: APMEvent,
+    data_sources: dict = None,
+    updated_telemetry_types: list = None,
+):
     event_body_map = {"event_name": _("监控平台{}").format(apm_event.event_name)}
     response_biz_data = api.cmdb.get_business(bk_biz_ids=[bk_biz_id])
     if response_biz_data:
@@ -74,7 +99,7 @@ def build_event_body(app: Application, bk_biz_id: int, apm_event: APMEvent, data
         if apm_event is APMEvent.APP_CREATE
         else strftime_local(app.update_time),
     }
-    content = apm_event.event_template(data_sources).format(**event_body_params)
+    content = apm_event.event_template(data_sources, updated_telemetry_types).format(**event_body_params)
     event_body_map["event"] = {"content": content}
     return [event_body_map]
 
@@ -104,11 +129,11 @@ def refresh_application():
 
 
 @task(ignore_result=True)
-def report_apm_application_event(bk_biz_id, application_id, apm_event: APMEvent, data_sources: dict = None):
+def report_apm_application_event(bk_biz_id, application_id, apm_event: APMEvent, updated_telemetry_types: list = None):
     logger.info(f"[report_apm_application_event] task start, bk_biz_id({bk_biz_id}), application_id({application_id})")
 
     application = Application.objects.get(application_id=application_id)
-    data = build_event_body(application, bk_biz_id, apm_event, data_sources)
+    data = build_event_body(application, bk_biz_id, apm_event, updated_telemetry_types)
     config_info = settings.APM_CUSTOM_EVENT_REPORT_CONFIG
     data_id = config_info.get("data_id", "")
     token = config_info.get("token", "")
