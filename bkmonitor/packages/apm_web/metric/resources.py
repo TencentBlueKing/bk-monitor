@@ -721,6 +721,19 @@ class ServiceListResource(PageListResource):
         app_name = validate_data["app_name"]
         application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
 
+        if not application.trace_result_table_id or not application.metric_result_table_id:
+            # 接入中应用 返回空数据
+            filter_fields = []
+            # 获取顶部过滤项 (服务 tab 页)
+            if validate_data["view_mode"] == self.RequestSerializer.VIEW_MODE_SERVICES:
+                filter_fields = CategoryEnum.get_filter_fields()
+            elif validate_data["view_mode"] == self.RequestSerializer.VIEW_MODE_HOME:
+                filter_fields = self._get_filter_fields_by_services([])
+
+            paginated_data = self.get_pagination_data([], validate_data)
+            paginated_data["filter"] = filter_fields
+            return paginated_data
+
         # 获取服务列表
         services = ServiceHandler.list_services(application)
         # 获取服务收藏列表
