@@ -89,9 +89,10 @@ def event_center_proxy(request):
         if alert_ids:
             params = resource.alert.get_alert_data_retrieval(alert_id=alert_ids[0])
             if params:
-                params_str = urlencode({"targets": json.dumps(params, ensure_ascii=False)})
-                query_url = f"/?bizId={bk_biz_id}#/data-retrieval?{params_str}"
-                return redirect(query_url)
+                if params["type"] == "metric":
+                    params_str = urlencode({"targets": json.dumps(params["params"], ensure_ascii=False)})
+                    query_url = f"/?bizId={bk_biz_id}#/data-retrieval?{params_str}"
+                    return redirect(query_url)
 
     redirect_url = rio_url if request.is_mobile() else pc_url
     if batch_action:

@@ -101,7 +101,12 @@ from fta_web.alert.serializers import (
     AlertSuggestionSerializer,
     EventSearchSerializer,
 )
-from fta_web.alert.utils import add_aggs, add_overview, slice_time_interval, get_previous_month_range_unix
+from fta_web.alert.utils import (
+    add_aggs,
+    add_overview,
+    get_previous_month_range_unix,
+    slice_time_interval,
+)
 from fta_web.models.alert import (
     SEARCH_TYPE_CHOICES,
     AlertFeedback,
@@ -122,7 +127,9 @@ logger = logging.getLogger("root")
 class GetTmpData(Resource):
     def perform_request(self, validated_request_data):
         results_format = validated_request_data.get("results", "json")
-        start_time, end_time = validated_request_data.get("start_time", None), validated_request_data.get("end_time", None)
+        start_time, end_time = validated_request_data.get("start_time", None), validated_request_data.get(
+            "end_time", None
+        )
         biz_list = api.cmdb.get_business()
         target_biz_ids = []
         if target_biz_ids:
@@ -137,7 +144,8 @@ class GetTmpData(Resource):
         results = []
         # 时间范围需要调整
         for biz in biz_info:
-            params = {'bk_biz_ids': [biz],
+            params = {
+                'bk_biz_ids': [biz],
                 'status': [],
                 'conditions': [],
                 'query_string': '告警来源 : "tnm" AND -告警名称 : "Ping告警" AND -告警名称 : "上报超时告警" AND -告警名称 : "服务器系统时间偏移告警"',
@@ -145,7 +153,8 @@ class GetTmpData(Resource):
                 'end_time': end_time,
                 'fields': ['plugin_id'],
                 'size': 10,
-                'bk_biz_id': biz}
+                'bk_biz_id': biz,
+            }
             ret[biz] = {i["id"]: i["count"] for i in resource.alert.alert_top_n(params)["fields"][0]["buckets"]}
         for biz, alert in ret.items():
             if biz not in biz_info or not alert:
@@ -157,7 +166,7 @@ class GetTmpData(Resource):
                 "biz_name": biz_info[biz].display_name,
                 "tmp": tmp,
                 "tmp_bk": bkmonitor + tmp,
-                "tmp_bk_ratio": tmp/(tmp+bkmonitor)
+                "tmp_bk_ratio": tmp / (tmp + bkmonitor),
             }
             results.append(row)
         if results_format == "file":
@@ -2607,7 +2616,7 @@ class GetAlertDataRetrievalResource(Resource):
         if filter_dict:
             where = AIOPSManager.create_where_with_dimensions(query_config["agg_condition"], filter_dict)
             group_by = list(set(query["group_by"]) & set(filter_dict.keys()))
-            if "le" in query_config["group_by"]:
+            if "le" in query_config.get("agg_dimension", []):
                 # 针对le做特殊处理
                 group_by.append("le")
             query["where"] = where
