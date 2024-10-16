@@ -222,18 +222,27 @@ class ClusteringConfigHandler(object):
         return pipeline.id
 
     def synchronous_update(self, params):
-        self.update(params)
-        # 使用了模板且模板有更改，修改模板以及所有引用该模板的索引集聚类配置
-        if params["regex_rule_type"] == RegexRuleTypeEnum.TEMPLATE.value:
-            predefined_varibles = params["predefined_varibles"]
-            instance = RegexTemplate.objects.get(id=params["regex_template_id"])
-            if instance.predefined_varibles != predefined_varibles:
-                instance.predefined_varibles = predefined_varibles
-                instance.save()
-                configs = ClusteringConfig.objects.filter(regex_template_id=params["regex_template_id"])
-                for c in configs:
-                    update_params = {"predefined_varibles": c.predefined_varibles}
-                    self.update(update_params)
+        pipeline_id = self.update(params)
+        # 类型:自定义
+        if params["regex_rule_type"] == RegexRuleTypeEnum.CUSTOMIZE.value:
+            return [pipeline_id]
+        instance = RegexTemplate.objects.get(id=params["regex_template_id"])
+        # 模板无变化
+        if instance.predefined_varibles == params["predefined_varibles"]:
+            return [pipeline_id]
+        instance.predefined_varibles = params["predefined_varibles"]
+        instance.save()
+
+        pipeline_ids = [pipeline_id]
+        configs = ClusteringConfig.objects.exclude(index_set_id=self.index_set_id).filter(
+            regex_template_id=params["regex_template_id"]
+        )
+        for c in configs:
+            self.index_set_id = c.index_set_id
+            self.data = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id)
+            update_params = {"predefined_varibles": c.predefined_varibles}
+            pipeline_ids.append(self.update(update_params))
+        return pipeline_ids
 
     def get_access_status(self, task_id=None, include_update=False):
         """

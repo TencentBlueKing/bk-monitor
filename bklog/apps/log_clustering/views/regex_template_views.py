@@ -35,6 +35,7 @@ from apps.log_clustering.serializers import (
 
 class RegexTemplateViewSet(ModelViewSet):
     lookup_field = "id"
+    model = RegexTemplate
 
     def get_permissions(self):
         if self.action == "list":
@@ -48,10 +49,10 @@ class RegexTemplateViewSet(ModelViewSet):
                 template_obj = RegexTemplate.objects.filter(id=template_id).first()
                 if not template_obj:
                     raise RegexTemplateNotExistException(
-                        RegexTemplateNotExistException.MESSAGE.format(template_id=template_id)
+                        RegexTemplateNotExistException.MESSAGE.format(regex_template_id=template_id)
                     )
                 space_uid = template_obj.space_uid
-            return [BusinessActionPermission([ActionEnum.MANAGE_DESENSITIZE_RULE], space_uid)]
+            return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS], space_uid)]
 
         return []
 
@@ -154,9 +155,7 @@ class RegexTemplateViewSet(ModelViewSet):
         }
         """
         data = self.params_valid(UpdateRegexTemplateSerializer)
-        return Response(
-            RegexTemplateHandler().update_template(template_id=int(id), template_name=data["template_name"])
-        )
+        return Response(RegexTemplateHandler().update_template(template_id=id, template_name=data["template_name"]))
 
     def destroy(self, request, *args, id=None, **kwargs):
         """
@@ -171,4 +170,4 @@ class RegexTemplateViewSet(ModelViewSet):
             "result": true
         }
         """
-        return Response(RegexTemplateHandler().delete_template(template_id=int(id)))
+        return Response(RegexTemplateHandler().delete_template(template_id=id))

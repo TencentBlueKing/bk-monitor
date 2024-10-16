@@ -167,7 +167,7 @@ class ClusteringConfig(SoftDeleteModel):
         choices=RegexRuleTypeEnum.get_choices(),
         default=RegexRuleTypeEnum.CUSTOMIZE.value,
     )
-    regex_template_id = models.IntegerField(_("模板id"), default=0)
+    regex_template_id = models.IntegerField(_("模板ID"), default=0)
 
     @classmethod
     def get_by_index_set_id(cls, index_set_id: int, raise_exception: bool = True) -> "ClusteringConfig":
