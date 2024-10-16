@@ -235,7 +235,8 @@ class TraceBackendHandler(TelemetryBackendHandler):
         count = 0
         for line in data["series"]:
             for point in line["datapoints"]:
-                count += point[0]
+                point_count = point[0] if isinstance(point[0], int) else 0
+                count += point_count
         return count
 
     def get_no_data_strategy_config(self, **kwargs):
@@ -351,7 +352,8 @@ class LogBackendHandler(TelemetryBackendHandler):
         count = 0
         for line in data["series"]:
             for point in line["datapoints"]:
-                count += point[0]
+                point_count = point[0] if isinstance(point[0], int) else 0
+                count += point_count
         return count
 
     def get_no_data_strategy_config(self, **kwargs):
@@ -529,7 +531,8 @@ class MetricBackendHandler(TelemetryBackendHandler):
         count = 0
         for line in data["series"]:
             for point in line["datapoints"]:
-                count += point[0]
+                point_count = point[0] if isinstance(point[0], int) else 0
+                count += point_count
         return count
 
     def get_no_data_strategy_config(self, **kwargs):
@@ -632,8 +635,9 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
         count = 0
         for data in resp:
             for point in data["series"]:
-                if point["output_count"]:
-                    count += point["output_count"]
+                if point.get("output_count"):
+                    point_count = point["output_count"] if isinstance(point["output_count"], int) else 0
+                    count += point_count
         return count
 
     def get_data_histogram(self, start_time, end_time, grain="1d"):
