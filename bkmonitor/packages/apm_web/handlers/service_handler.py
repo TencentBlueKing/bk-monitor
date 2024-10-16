@@ -334,8 +334,14 @@ class ServiceHandler:
         # Step2: 从 topo_node 指标补充
         node_response = api.apm_api.query_topo_node(bk_biz_id=bk_biz_id, app_name=app_name)
         for i in node_response:
-            if i.get("topo_key") and i.get("topo_key") not in node_mapping:
-                node_mapping[i["topo_key"]] = i
+            topo_key = i.get("topo_key")
+            if not topo_key:
+                continue
+
+            if topo_key in node_mapping:
+                node_mapping[topo_key].update(i)
+            else:
+                node_mapping[topo_key] = i
 
         return node_mapping
 
