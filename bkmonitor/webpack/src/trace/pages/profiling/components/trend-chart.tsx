@@ -67,14 +67,20 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    comparisonDate: {
+      type: Array as PropType<[number, number][]>,
+      default: () => [],
+    },
     queryParams: {
       type: Object as PropType<IQueryParams>,
       default: () => ({}),
     },
   },
-  setup(props) {
+  emits: ['chartData'],
+  setup(props, { emit }) {
     const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
     const searchType = inject<Ref<SearchType>>('profilingSearchType');
+    const timeSeriesChartRef = ref();
 
     const timezone = ref<string>(getDefaultTimezone());
     const refleshImmediate = ref<number | string>('');
@@ -84,6 +90,7 @@ export default defineComponent({
     const chartType = ref('all');
     const loading = ref(false);
     const chartRef = ref<Element>();
+    const chartData = ref([]);
 
     const timeRange = computed(() => toolsFormData.value.timeRange);
     const refreshInterval = computed(() => toolsFormData.value.refreshInterval);
@@ -141,17 +148,51 @@ export default defineComponent({
       }
     );
 
+    watch(props.comparisonDate, date => {
+      const { series, ...params } = timeSeriesChartRef.value.options;
+      timeSeriesChartRef.value.setOptions({
+        ...params,
+        series: series.map((item, ind) => ({
+          ...item,
+          markArea: {
+            show: !!date[ind]?.length,
+            itemStyle: {
+              color: ['rgba(58, 132, 255, 0.1)', 'rgba(255, 86, 86, 0.1)'][ind],
+            },
+            data: [
+              [
+                {
+                  xAxis: date[ind]?.[0] || 0,
+                },
+                {
+                  xAxis: date[ind]?.[1] || 0,
+                },
+              ],
+            ],
+          },
+        })),
+      });
+    });
+
     function handleCollapseChange(v) {
       collapse.value = v;
     }
+
+    function handleChartData(data) {
+      chartData.value = data;
+      emit('chartData', data);
+    }
+
     return {
       chartRef,
+      timeSeriesChartRef,
       chartType,
       panel,
       collapse,
       handleCollapseChange,
       loading,
       chartCustomTooltip,
+      handleChartData,
     };
   },
   render() {
@@ -167,10 +208,12 @@ export default defineComponent({
                 {this.collapse && this.panel && (
                   <TimeSeries
                     key={this.chartType}
+                    ref='timeSeriesChartRef'
                     customTooltip={this.chartCustomTooltip}
                     panel={this.panel}
                     showChartHeader={false}
                     showHeaderMoreTool={false}
+                    onChartData={this.handleChartData}
                     onLoading={val => (this.loading = val)}
                   />
                 )}

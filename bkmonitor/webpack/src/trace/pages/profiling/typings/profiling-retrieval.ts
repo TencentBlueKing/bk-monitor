@@ -46,6 +46,15 @@ export interface RetrievalFormData {
   type: SearchType;
   /** 是否开启对比模式 */
   isComparison: boolean;
+  /** 时间对比 */
+  dateComparison: {
+    /** 开关 */
+    enable: boolean;
+    start?: number;
+    end?: number;
+    diffStart?: number;
+    diffEnd?: number;
+  };
   /** 应用/服务 */
   server: {
     app_name: string;
