@@ -34,6 +34,8 @@ from metadata.utils.basic import get_biz_id_by_space_uid
 
 from .common import Label, OptionBase
 from .constants import (
+    DATA_LINK_V3_VERSION_NAME,
+    DATA_LINK_V4_VERSION_NAME,
     IGNORED_CONSUL_SYNC_DATA_IDS,
     IGNORED_STORAGE_CLUSTER_TYPES,
     DataIdCreatedFromSystem,
@@ -143,32 +145,12 @@ class DataSource(models.Model):
 
         return self._mq_cluster
 
-    # @property
-    # def datalink_version(self):
-    #     """数据源对应的数据链路版本"""
-    #
-    #     try:
-    #         bkbase_data_id_name = utils.get_bkdata_data_id_name(self.data_name)
-    #         table_id = DataSourceResultTable.objects.get(bk_data_id=self.bk_data_id).table_id
-    #         vm_record = AccessVMRecord.objects.get(result_table_id=table_id)
-    #         bkbase_raw_data = api.bkdata.get_bkbase_raw_data_with_data_id(bkbase_data_id=vm_record.bk_base_data_id)
-    #         bkbase_raw_data_name = bkbase_raw_data.get("raw_data_name")
-    #     except Exception as e:
-    #         return DATA_LINK_V3_VERSION_NAME
-    #
-    #     query_data_name = [bkbase_raw_data_name, bkbase_data_id_name]
-    #
-    #     for bkbase_data_name in query_data_name:
-    #         try:
-    #             api.bkdata.get_data_link(
-    #                 kind=DataLinkKind.get_choice_value(DataLinkKind.DATAID.value),
-    #                 namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE, name=bkbase_data_name
-    #             )
-    #             return DATA_LINK_V4_VERSION_NAME
-    #         except BKAPIError:
-    #             continue
-    #
-    #     return DATA_LINK_V3_VERSION_NAME
+    @property
+    def datalink_version(self):
+        """数据源对应的数据链路版本"""
+        if self.created_from == DataIdCreatedFromSystem.BKDATA.value:
+            return DATA_LINK_V4_VERSION_NAME
+        return DATA_LINK_V3_VERSION_NAME
 
     @property
     def consul_config_path(self):

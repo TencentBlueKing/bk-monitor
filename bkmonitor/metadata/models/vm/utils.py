@@ -391,7 +391,7 @@ def get_data_source(data_id):
 
 
 def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
-    """接入 v2 版本的 bkdata vm"""
+    """接入计算平台V4链路"""
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access v2 vm", bk_biz_id, table_id, data_id)
 
     from metadata.models import AccessVMRecord, DataSource, Space, SpaceVMInfo
