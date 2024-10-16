@@ -20,6 +20,7 @@ from alarm_backends.service.alert.enricher.cmdb import CMDBEnricher
 from alarm_backends.service.alert.enricher.dimension import (
     DimensionOrderEnricher,
     MonitorTranslateEnricher,
+    PreEventEnricher,
     StandardTranslateEnricher,
 )
 from alarm_backends.service.alert.enricher.kubernetes_cmdb import KubernetesCMDBEnricher
@@ -30,6 +31,7 @@ from alarm_backends.service.alert.enricher.whitelist import BizWhiteListFor3rdEv
 logger = logging.getLogger("alert.enricher")
 
 INSTALLED_EVENT_ENRICHER: List[Type[BaseEventEnricher]] = [
+    PreEventEnricher,
     CMDBEnricher,
     BizWhiteListFor3rdEvent,
 ]

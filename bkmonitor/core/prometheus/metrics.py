@@ -37,11 +37,14 @@ DEPLOYMENT = DeploymentNotSet
 
 
 def refresh_deployment():
-    with open('/etc/hostname', 'r') as f:
-        hostname = f.read().strip()
-    if hostname.count("-") < 2:
+    try:
+        with open('/etc/hostname', 'r') as f:
+            hostname = f.read().strip()
+        if hostname.count("-") < 2:
+            return ""
+        return hostname.rsplit("-", 2)[0]
+    except FileNotFoundError:
         return ""
-    return hostname.rsplit("-", 2)[0]
 
 
 def report_all(job: str = settings.DEFAULT_METRIC_PUSH_JOB, registry: BkCollectorRegistry = REGISTRY):
