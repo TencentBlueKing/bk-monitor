@@ -308,4 +308,6 @@ export default {
   调用链数据未开启: 'Trace data is not enabled',
   性能分析数据未开启: 'Profiling data is not enabled',
   '前往{0}查看相关数据': 'Go to {0} to view related data',
+  'Grafana已经升级到10版本，来看看有哪些功能差异':
+    'Grafana has been upgraded to version 10.1. What are the differences in functions?',
 };
