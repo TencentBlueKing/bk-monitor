@@ -27,6 +27,7 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getDashboardList } from 'monitor-api/modules/grafana';
+import { skipToDocsLink } from 'monitor-common/utils/docs';
 import bus from 'monitor-common/utils/event-bus';
 
 import { DASHBOARD_ID_KEY, UPDATE_GRAFANA_KEY } from '../../constant/constant';
@@ -236,6 +237,9 @@ export default class MyComponent extends tsc<object> {
     localStorage.setItem(UPDATE_GRAFANA_KEY, 'true');
     this.showAlert = false;
   }
+  gotoDocs() {
+    skipToDocsLink('grafanaFeatures');
+  }
   render() {
     return (
       <div
@@ -260,6 +264,7 @@ export default class MyComponent extends tsc<object> {
                 size='small'
                 theme='primary'
                 text
+                onClick={this.gotoDocs}
               >
                 {this.$t('查看详情')}
                 <i class='icon-monitor icon-fenxiang link-icon' />

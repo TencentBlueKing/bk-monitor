@@ -74,6 +74,7 @@ export const DOCS_LINK_MAP = {
     event: 'UserGuide/ProductFeatures/alarm-configurations/events_monitor.md', // 事件告警策略文档
     log: 'UserGuide/ProductFeatures/alarm-configurations/log_monitor.md', // 如何监控日志平台的数据
     alert: 'UserGuide/ProductFeatures/alarm-configurations/composite_monitor.md', // 关联告警策略文档
+    grafanaFeatures: 'UserGuide/Appendix/grafana10.md', // grafana 功能说明文档
   },
   BKOther: {
     bkLogQueryString: '日志平台/产品白皮书/data-visualization/query_string.md', // 日志平台 查询语句语法
@@ -121,6 +122,7 @@ export function linkJump(type: DocLinkType, path: string) {
       url = concatMonitorDocsUrl(path);
       break;
   }
+  console.info(url, '=========');
   window.open(url, '_blank');
 }
 
@@ -130,7 +132,10 @@ export function linkJump(type: DocLinkType, path: string) {
  * @param { Record<string, string> } localMap
  * @param { Record<string, IDocLinkData> } remoteMap
  */
-export function skipToDocsLink(id, remoteMap = {}) {
+export function skipToDocsLink(
+  id: keyof (typeof DOCS_LINK_MAP)['BKOther'] | keyof (typeof DOCS_LINK_MAP)['Monitor'],
+  remoteMap = {}
+) {
   let path = '';
   let type = DocLinkType.Link;
   // 先匹配接口返回文档链接
