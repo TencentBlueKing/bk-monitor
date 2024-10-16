@@ -260,7 +260,6 @@ export default {
     borderRadius: 4,
     padding: 5,
     formatter: function (params) {
-      debugger;
       return `<div>
         <strong>${params[0]?.data?.[2] ?? params[0].name}</strong>
         <div style="display: flex; align-items: center;"><span style="display: inline-block; background-color:${params[0].color};margin-right: 4px;width: 6px;height: 6px; border-radius: 50%;"></span> ${params[0]?.data?.[1]} </div>

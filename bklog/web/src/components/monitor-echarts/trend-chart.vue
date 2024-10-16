@@ -117,7 +117,7 @@
       emit('polling', !isLoading.value);
 
       pollingEndTime = endTimeStamp;
-      pollingStartTime = requestInterval > 0 ? (pollingEndTime - requestInterval) : startTimeStamp;
+      pollingStartTime = requestInterval > 0 ? pollingEndTime - requestInterval : startTimeStamp;
       isStart.value = true;
     } else {
       pollingEndTime = pollingStartTime;
@@ -170,17 +170,23 @@
             const originChartData = res?.data?.aggs?.group_by_histogram?.buckets || [];
 
             originChartData.forEach(item => {
-              optionData.set(item.key_as_string, [(optionData.get(item.key_as_string)?.[0] ?? 0) + item.doc_count, item.key]);
+              optionData.set(item.key_as_string, [
+                (optionData.get(item.key_as_string)?.[0] ?? 0) + item.doc_count,
+                item.key,
+              ]);
             });
-          } else {
+          }
+
+          if (!res?.result) {
             finishPolling.value = true;
             isRequsting = false;
             emit('polling', false);
+            updateChart([]);
+            return;
           }
 
-          const keys = [...(optionData.keys())];
+          const keys = [...optionData.keys()];
           keys.sort((a, b) => a[0] - b[0]);
-          // const data = keys.map(key => ({ name: key, value: optionData.get(key)[0], timestamp: optionData.get(key)[1] }))
           const data = keys.map(key => [optionData.get(key)[1], optionData.get(key)[0], key]);
           updateChart(data, currentInterval);
 
@@ -190,6 +196,11 @@
           }
 
           isRequsting = false;
+        })
+        .catch(() => {
+          finishPolling.value = true;
+          isRequsting = false;
+          updateChart([]);
         })
         .finally(() => {
           isLoading.value = false;
@@ -205,11 +216,12 @@
     () => chartKey.value,
     () => {
       if (!isRequsting) {
-        console.log('isRequsting', new Date().getTime());
         finishPolling.value = false;
+        console.log('trigger - update');
         isStart.value = false;
         optionData.clear();
         logChartCancel?.();
+        updateChart([]);
         getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
       }
     },

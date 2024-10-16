@@ -75,10 +75,10 @@ export default ({ target }: TrandChartOption) => {
   };
 
   const updateChart = (data: EchartData[], interval: string) => {
-    if (!data.length) {
-      chartInstance?.setOption({});
-      return;
-    }
+    // if (!data.length) {
+    //   chartInstance?.setOption({});
+    //   return;
+    // }
 
     options.series[0].data = data;
     options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, interval);
