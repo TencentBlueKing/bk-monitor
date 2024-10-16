@@ -53,6 +53,7 @@ def active_biz_ids():
     biz_count = len(biz_ids)
     if biz_count > 100 and not RING_NODE_REFRESHED:
         refresh_ring_nodes(biz_count)
+        RING_NODE_REFRESHED = True
     return biz_ids
 
 
