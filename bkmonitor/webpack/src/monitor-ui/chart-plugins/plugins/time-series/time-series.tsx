@@ -1116,7 +1116,9 @@ export class LineChart
     );
     const result = targets.map(item => {
       item.data.query_configs = item.data.query_configs.map(query => {
-        query.group_by = [id];
+        const groupBySet = new Set(query.group_by);
+        groupBySet.add(id);
+        query.group_by = [...groupBySet];
         query.where = [];
         query.filter_dict = {};
         return query;
