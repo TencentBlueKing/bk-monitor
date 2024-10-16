@@ -62,6 +62,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   @Prop({ required: false, type: Object, default: null }) rowData: EditModel | null;
   @Prop({ required: true, type: Array, default: [] }) actionList: { id: string; name: string }[];
   @Ref() formRef: any;
+  @Ref() actionFormRef: any;
 
   resourceList = [];
   /** 点开编辑时的被授权用户列表 */
@@ -70,7 +71,9 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   actionCatchSelectObj = {};
   actionSelectListObj = {};
   authorizedUsersList = [];
-  actionShowList = [];
+  actionData = {
+    actionShowList: [],
+  };
   loading = false;
   addType: AddType = 'alone';
 
@@ -88,6 +91,10 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
     action_multiple: [{ required: true, message: $i18n.t('必填项'), trigger: 'blur' }],
     resources: [{ required: true, message: $i18n.t('必填项'), trigger: 'blur' }],
     expire_time: [{ required: true, message: $i18n.t('必填项'), trigger: 'change' }],
+  };
+
+  actionRules = {
+    select: [{ required: true, message: $i18n.t('必填项'), trigger: 'blur' }],
   };
 
   /** 编辑授权且为操作实例的弹窗 */
@@ -153,7 +160,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   }
 
   handleClickActionList(newVal: string[]) {
-    this.actionShowList = newVal.map(item => {
+    this.actionData.actionShowList = newVal.map(item => {
       const newObj = {
         name: this.actionList.find(aItem => aItem.id === item).name,
         id: item,
@@ -170,10 +177,10 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   }
 
   async handleQuestAction(actionID) {
-    const actionIndex = this.actionShowList.findIndex(item => item.id === actionID);
+    const actionIndex = this.actionData.actionShowList.findIndex(item => item.id === actionID);
     if (!this.actionSelectListObj[actionID] && actionIndex >= 0) {
-      this.actionShowList[actionIndex].list = await this.getActionSelectList(actionID);
-      this.actionSelectListObj[actionID] = this.actionShowList[actionIndex].list;
+      this.actionData.actionShowList[actionIndex].list = await this.getActionSelectList(actionID);
+      this.actionSelectListObj[actionID] = this.actionData.actionShowList[actionIndex].list;
     }
   }
 
@@ -223,7 +230,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
       this.addType = 'alone';
       this.actionSelectListObj = {};
       this.actionCatchSelectObj = {};
-      this.actionShowList = [];
+      this.actionData.actionShowList = [];
       this.authorizedUsersList = [];
       this.exportUser = '';
     }, 300);
@@ -231,13 +238,23 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   }
 
   async handleConfirm() {
+    let checkActionMultiple = true;
+    if (!this.isAloneAddForm && !!this.actionData.actionShowList.length) {
+      try {
+        await this.actionFormRef?.validate();
+      } catch (error) {
+        checkActionMultiple = false;
+      }
+    }
     try {
       if (this.isAloneAddForm) {
         this.formData.action_multiple = ['-'];
       } else {
+        this.formData.resources = [0];
         this.formData.action_id = '-';
       }
       await this.formRef.validate(async valid => {
+        if (!checkActionMultiple) return;
         if (valid) {
           this.loading = true;
           let res = null;
@@ -249,7 +266,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
               const requestData = actionMultiple.map(item => ({
                 ...reset,
                 action_id: item,
-                resources: this.actionShowList.find(aItem => aItem.id === item)?.select || [],
+                resources: this.actionData.actionShowList.find(aItem => aItem.id === item)?.select || [],
               }));
               const resList = await Promise.all(requestData.map(item => this.authorizedRequest(item)));
               res = resList[0];
@@ -309,9 +326,10 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
     if (!this.isAloneAddForm) {
       this.formData.action_multiple = [];
       this.actionCatchSelectObj = {};
-      this.actionShowList = [];
+      this.actionData.actionShowList = [];
     } else {
       this.formData.action_id = '';
+      this.formData.resources = [];
     }
   }
 
@@ -479,32 +497,43 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
             </bk-checkbox-group>
           </bk-form-item>
 
-          {this.actionShowList.map(action => (
-            <bk-form-item
-              v-show={!this.isAloneAddForm && !this.rowData}
-              error-display-type='normal'
-              property='resources'
-            >
-              <div class='custom-label'>
-                <span class='label required'>{action.name}</span>
-              </div>
-              <bk-select
-                v-model={action.select}
-                disabled={!!this.rowData && this.viewType === 'resource'}
-                multiple
-                searchable
-                onSelected={v => this.handleSelectAction(v, action)}
+          <bk-form
+            ref='actionFormRef'
+            form-type='vertical'
+            {...{
+              props: {
+                model: this.actionData,
+              },
+            }}
+          >
+            {this.actionData.actionShowList.map((action, index) => (
+              <bk-form-item
+                v-show={!this.isAloneAddForm && !this.rowData}
+                error-display-type='normal'
+                property={`actionShowList.${index}.select`}
+                rules={this.actionRules.select}
               >
-                {action.list.map(item => (
-                  <bk-option
-                    id={item.uid}
-                    key={item.uid}
-                    name={item.text}
-                  ></bk-option>
-                ))}
-              </bk-select>
-            </bk-form-item>
-          ))}
+                <div class='custom-label'>
+                  <span class='label required'>{action.name}</span>
+                </div>
+                <bk-select
+                  v-model={action.select}
+                  disabled={!!this.rowData && this.viewType === 'resource'}
+                  multiple
+                  searchable
+                  onSelected={v => this.handleSelectAction(v, action)}
+                >
+                  {action.list.map(item => (
+                    <bk-option
+                      id={item.uid}
+                      key={item.uid}
+                      name={item.text}
+                    ></bk-option>
+                  ))}
+                </bk-select>
+              </bk-form-item>
+            ))}
+          </bk-form>
         </div>
       );
     };
