@@ -77,6 +77,7 @@ from apps.log_search.exceptions import (
     ScenarioNotSupportedException,
     SourceDuplicateException,
 )
+from apps.log_search.utils import fetch_request_username
 from apps.models import (
     JsonField,
     MultiStrSplitByCommaField,
@@ -525,7 +526,7 @@ class LogIndexSet(SoftDeleteModel):
                 # 这里只要近似值，只要取到其中一个即可，没有必要将全部索引的时间都查出来
                 break
 
-        mark_index_set_ids = set(IndexSetUserFavorite.batch_get_mark_index_set(index_set_ids, get_request_username()))
+        mark_index_set_ids = set(IndexSetUserFavorite.batch_get_mark_index_set(index_set_ids, fetch_request_username()))
 
         index_set_data = array_group(
             list(
