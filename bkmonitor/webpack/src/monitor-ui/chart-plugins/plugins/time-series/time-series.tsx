@@ -361,9 +361,11 @@ export class LineChart
       if (this.collectIntervalDisplay === '1d') {
         // 如果数据步长为1天 则时间范围最小为7天
         const weekTime = 7 * 24 * 60 * 60;
+        const dTime = 24 * 60 * 60;
         if (params.end_time - params.start_time < weekTime) {
           params.start_time = params.end_time - weekTime;
         }
+        params.end_time = params.end_time + dTime;
       }
       if (this.bkBizId) {
         params = Object.assign({}, params, {
