@@ -309,10 +309,17 @@ class ResultTable(models.Model):
         :param is_builtin: 是否为系统内置的结果表
         :return: result_table instance | raise Exception
         """
+        logger.info(
+            "create_result_table: start to create result table for bk_data_id->[%s],table_id->[%s]," "bk_biz_id->[%s]",
+            bk_data_id,
+            table_id,
+            bk_biz_id,
+        )
         # 判断label是否真实存在的配置
         if not Label.exists_label(label_id=label, label_type=Label.LABEL_TYPE_RESULT_TABLE):
             logger.error(
-                "user->[%s] try to create rt->[%s] with label->[%s] but is not exists, " "nothing will do.",
+                "create_result_table: user->[%s] try to create rt->[%s] with label->[%s] but is not exists, "
+                "nothing will do.",
                 operator,
                 table_id,
                 label,
@@ -323,7 +330,7 @@ class ResultTable(models.Model):
         # 1. 判断data_source是否存在
         datasource_qs = DataSource.objects.filter(bk_data_id=bk_data_id)
         if not datasource_qs.exists():
-            logger.error("bk_data_id->[%s] is not exists, nothing will do.", bk_data_id)
+            logger.error("create_result_table: bk_data_id->[%s] is not exists, nothing will do.", bk_data_id)
             raise ValueError(_("数据源ID不存在，请确认"))
         datasource = datasource_qs.first()
         allow_access_v2_data_link = datasource.etl_config == EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value
@@ -331,7 +338,8 @@ class ResultTable(models.Model):
         # 非系统创建的结果表，不可以使用容器监控的表前缀名
         if operator != "system" and table_id.startswith(config.BCS_TABLE_ID_PREFIX):
             logger.error(
-                "operator->[%s] try to create table->[%s] which is reserved prefix, nothing will do.",
+                "create_result_table: operator->[%s] try to create table->[%s] which is reserved prefix, nothing will "
+                "do.",
                 operator,
                 table_id,
             )
@@ -339,7 +347,7 @@ class ResultTable(models.Model):
 
         if cls.objects.filter(table_id=table_id).exists():
             logger.error(
-                "table_id->[%s] or table_name_zh->[%s] is already exists, change and try again.",
+                "create_result_table: table_id->[%s] or table_name_zh->[%s] is already exists, change and try again.",
                 table_id,
                 table_name_zh,
             )
@@ -351,7 +359,8 @@ class ResultTable(models.Model):
             start_string = "%s_" % bk_biz_id
             if not table_id.startswith(start_string):
                 logger.error(
-                    "user->[%s] try to set table->[%s] under biz->[%s] but table_id is not start with->[%s], "
+                    "create_result_table: user->[%s] try to set table->[%s] under biz->[%s] but table_id is not start "
+                    "with->[%s],"
                     "maybe something go wrong?",
                     operator,
                     table_id,
@@ -364,7 +373,8 @@ class ResultTable(models.Model):
             # 全业务的结果表，不可以已数字下划线开头
             if re.match(r"\d+_", table_id):
                 logger.error(
-                    "user->[%s] try to create table->[%s] which is starts with number, but set table under "
+                    "create_result_table: user->[%s] try to create table->[%s] which is starts with number, "
+                    "but set table under"
                     "biz_id->[0], maybe something go wrong?",
                     operator,
                     table_id,
@@ -397,10 +407,24 @@ class ResultTable(models.Model):
         # 当业务不为 0 时，才进行空间和数据源的关联
         # 因为不会存在部分创建失败的情况，所以，仅在创建时处理即可
         space_type, space_id = None, None
+        logger.info(
+            "create_result_table: target_bk_biz_id->[%s],table_id->[%s],bk_data_id->[%s]",
+            target_bk_biz_id,
+            table_id,
+            bk_data_id,
+        )
         if target_bk_biz_id != 0:
             try:
                 from metadata.models import Space
 
+                logger.info(
+                    "create_result_table:create space data source, bk_biz_id->[%s], table_id->[%s],"
+                    "space_type->[%s], space_id->[%s]",
+                    bk_biz_id,
+                    table_id,
+                    space_type,
+                    space_id,
+                )
                 # 获取空间信息
                 space = Space.objects.get_space_info_by_biz_id(bk_biz_id=int(target_bk_biz_id))
                 # data id 已有所属记录，则不处理（dataid 和 rt 是1对多的关系）
@@ -412,7 +436,8 @@ class ResultTable(models.Model):
                 )
             except Exception as e:
                 logger.error(
-                    "create space data source error, target_bk_biz_id type: %s, value: %s, error: %s",
+                    "create_result_table: create space data source error, target_bk_biz_id type: %s, value: %s, "
+                    "error: %s",
                     type(target_bk_biz_id),
                     target_bk_biz_id,
                     e,
@@ -446,8 +471,8 @@ class ResultTable(models.Model):
             time_option=time_option,
         )
 
-        logger.debug(
-            "table_id->[%s] default field is created with include_cmdb_level->[%s]",
+        logger.info(
+            "create_result_table: table_id->[%s] default field is created with include_cmdb_level->[%s]",
             result_table.table_id,
             include_cmdb_level,
         )
@@ -465,7 +490,9 @@ class ResultTable(models.Model):
 
         # 4. 创建data_id和该结果表的关系
         DataSourceResultTable.objects.create(bk_data_id=bk_data_id, table_id=table_id, creator=operator)
-        logger.info("result_table->[{}] now has relate to bk_data->[{}]".format(result_table, bk_data_id))
+        logger.info(
+            "create_result_table: result_table->[{}] now has relate to bk_data->[{}]".format(result_table, bk_data_id)
+        )
 
         # 5. 创建实际结果表
         if default_storage_config is None:
@@ -496,16 +523,16 @@ class ResultTable(models.Model):
                     space_id,
                     allow_access_v2_data_link,
                 )
-        except Exception as e:
-            logger.error("access vm error: %s", e)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("create_result_table: access vm error: %s", e)
 
         # 因为多个事务嵌套，针对 ES 的操作放在最后执行
         try:
             if default_storage == ClusterInfo.TYPE_ES:
                 es_storage = ESStorage.objects.get(table_id=table_id)
                 on_commit(lambda: es_storage.create_es_index(is_sync_db=is_sync_db))
-        except Exception as e:
-            logger.error("create es storage index error, %s", e)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("create_result_table: create es storage index error, %s", e)
 
         return result_table
 
