@@ -28,7 +28,7 @@ import { modifiers, Component as tsc } from 'vue-tsx-support';
 
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
 
-import { createMetricTitleTooltips, fitPosition } from '../../utils';
+import { createMetricTitleTooltips, deduplicateByField, fitPosition } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import ChartMenu, { type IChartTitleMenuEvents } from './chart-title-menu';
 
@@ -165,7 +165,9 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   get metricTitleTooltips() {
     return this.showMetricAlarm
       ? createMetricTitleTooltips(this.metricTitleData)
-      : this.metrics.map(metric => createMetricTitleTooltips(metric)).join('<hr class="custom-hr" />');
+      : deduplicateByField(this.metrics, 'metric_id')
+          .map(metric => createMetricTitleTooltips(metric))
+          .join('<hr class="custom-hr" />');
   }
 
   get currentMetricsIds() {

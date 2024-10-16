@@ -26,6 +26,7 @@
 <template>
   <div class="fingerprint-setting fl-sb">
     <div
+      v-if="!isExternal"
       class="is-near24"
       v-bk-tooltips="{ content: $t('请先新建新类告警策略'), disabled: strategyHaveSubmit }"
     >
@@ -60,7 +61,10 @@
       </div>
     </div> -->
 
-    <div class="fl-sb">
+    <div
+      class="fl-sb"
+      v-if="!isExternal"
+    >
       <bk-dropdown-menu
         ref="refOfSubscriptionDropdown"
         align="right"
@@ -127,7 +131,10 @@
       </div>
       <template #content>
         <div class="group-popover">
-          <div class="piece">
+          <div
+            v-if="!isExternal"
+            class="piece"
+          >
             <span>
               <span class="title">{{ $t('维度') }}</span>
               <i
@@ -329,6 +336,9 @@
       groupList() {
         return this.fingerOperateData.groupList.filter(item => !this.dimension.includes(item.id));
       },
+      isExternal() {
+        return this.$store.state.isExternal;
+      },
     },
     watch: {
       group: {
@@ -346,7 +356,7 @@
     },
     mounted() {
       this.handleShowMorePopover();
-      this.checkReportIsExistedDebounce();
+      !this.isExternal && this.checkReportIsExistedDebounce();
     },
     beforeUnmount() {
       this.popoverInstance = null;
@@ -405,7 +415,7 @@
           const dimensionSortStr = this.dimension.sort().join(',');
           const catchDimensionSortStr = this.catchDimension.sort().join(',');
           const isShowInfo = dimensionSortStr !== catchDimensionSortStr;
-          if (isShowInfo) {
+          if (isShowInfo && !this.isExternal) { // 外部版不能改维度
             this.$bkInfo({
               type: 'warning',
               title: this.$t('修改维度字段会影响已有备注、告警配置，如无必要，请勿随意变动。请确定是否修改？'),

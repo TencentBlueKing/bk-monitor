@@ -126,3 +126,8 @@ class ClusteringConfigHasExistException(BaseClusteringException):
 class ClusteringDebugException(BaseClusteringException):
     ERROR_CODE = "020"
     MESSAGE = _("调试过程异常: {e}")
+
+
+class ClusteringAccessNotSupportedException(BaseClusteringException):
+    ERROR_CODE = "021"
+    MESSAGE = _("该索引集类型不支持接入日志聚类")

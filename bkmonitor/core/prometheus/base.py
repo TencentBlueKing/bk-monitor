@@ -9,11 +9,20 @@ from prometheus_client import Histogram as BaseHistogram
 from prometheus_client import Metric
 from prometheus_client.utils import INF, floatToGoString
 
+CollectorRegistry.is_empty = lambda self: False
+
 
 class BkCollectorRegistry(CollectorRegistry):
     """
     适配蓝鲸监控聚合网关的采集器
     """
+
+    def is_empty(self):
+        empty = True
+        for collector in self._collector_to_names:
+            if any(collector._samples()):
+                return False
+        return empty
 
     def collect(self):
         """Yields metrics from the collectors in the registry."""
@@ -60,7 +69,6 @@ class LabelHandleMixin:
 
 # 定制化指标类，目前仅支持 Histogram, Counter, Gauge
 class Histogram(LabelHandleMixin, BaseHistogram):
-
     DEFAULT_BUCKETS = (0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 2.5, 5.0, 7.5, 10.0, 30.0, INF)
 
     def __init__(self, *args, registry=REGISTRY, buckets=DEFAULT_BUCKETS, **kwargs):
@@ -73,10 +81,12 @@ class Histogram(LabelHandleMixin, BaseHistogram):
         samples = []
         acc = 0
         for i, bound in enumerate(self._upper_bounds):
-            acc += self._buckets[i].get()
-            samples.append(("_bucket", {"le": floatToGoString(bound)}, acc, None, None))
-        samples.append(("_count", {}, acc, None, None))
-        samples.append(("_sum", {}, self._sum.get(), None, None))
+            if self._buckets[i].get():
+                acc += self._buckets[i].get()
+                samples.append(("_bucket", {"le": floatToGoString(bound)}, acc, None, None))
+        if acc > 0:
+            samples.append(("_count", {}, acc, None, None))
+            samples.append(("_sum", {}, self._sum.get(), None, None))
         return tuple(samples)
 
 
@@ -88,6 +98,8 @@ class Counter(LabelHandleMixin, BaseCounter):
         return super(Counter, self).labels(*labelvalues, **labelkwargs)
 
     def _child_samples(self):
+        if not self._value.get():
+            return ()
         return (("_total", {}, self._value.get(), None, None),)
 
 

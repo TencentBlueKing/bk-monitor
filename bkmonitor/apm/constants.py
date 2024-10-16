@@ -577,3 +577,12 @@ class ProfileQueryType:
 
     # cpu查询
     CPU = "cpu"
+
+
+class ApmBmwTaskStatus:
+    """APM 预计算任务状态"""
+
+    # 正常运行
+    RUNNING = "running"
+    # 未开启
+    UNOPENED = "unopened"
