@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import base64
 import json
 from urllib import parse
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 
 from blueapps.account import ConfFixture
 from blueapps.account.decorators import login_exempt
@@ -35,6 +35,7 @@ from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.local import local
 from common.decorators import timezone_exempt, track_site_visit
 from common.log import logger
+from core.drf_resource import resource
 from core.errors.api import BKAPIError
 from fta_web.alert.handlers.alert import ActionInstance
 from fta_web.alert.serializers import ActionInstanceDocument
@@ -71,43 +72,31 @@ def event_center_proxy(request):
     pc_url = "/?bizId={bk_biz_id}&routeHash=event-center/?collectId={collect_id}"
     collect_id = request.GET.get("collectId")
     bk_biz_id = request.GET.get("bizId")
+    proxy_type = request.GET.get("type", "event")
     batch_action = request.GET.get("batchAction")
     if not (collect_id and bk_biz_id):
         return HttpResponseNotFound(_("无效的告警事件链接"))
+
+    if proxy_type == "query" and not request.is_mobile():
+        # 提取告警ID
+        action = ActionInstanceDocument.get(collect_id)
+        if action:
+            alert_ids = action.alert_id
+        else:
+            alert_ids = ActionInstance.objects.get(id=str(collect_id)[10:]).alerts
+
+        # 如果没有告警ID，直接跳转到数据检索页
+        if alert_ids:
+            params = resource.alert.get_alert_data_retrieval(alert_id=alert_ids[0])
+            if params:
+                params_str = urlencode({"targets": json.dumps(params, ensure_ascii=False)})
+                query_url = f"/?bizId={bk_biz_id}#/data-retrieval?{params_str}"
+                return redirect(query_url)
+
     redirect_url = rio_url if request.is_mobile() else pc_url
     if batch_action:
         redirect_url = f"{redirect_url}&batchAction={batch_action}"
     return redirect(redirect_url.format(bk_biz_id=bk_biz_id, collect_id=collect_id))
-
-
-def event_center_query_proxy(request):
-    """
-    告警通知数据检索跳转
-    """
-    action_id = request.GET.get("collectId")
-    bk_biz_id = request.GET.get("bizId")
-    if not (action_id and bk_biz_id):
-        return HttpResponseNotFound(_("无效的告警事件链接"))
-
-    # 移动端跳转到告警详情页
-    if request.is_mobile():
-        return redirect(f"/weixin/?bizId={bk_biz_id}&collectId={action_id}")
-
-    # 提取告警ID
-    action = ActionInstanceDocument.get(action_id)
-    if action:
-        alert_ids = action.alert_id
-    else:
-        alert_ids = ActionInstance.objects.get(id=str(action_id)[10:]).alerts
-
-    pc_url = f"?bizId={bk_biz_id}#/data-retrieval"
-
-    # 如果没有告警ID，直接跳转到数据检索页
-    if not alert_ids:
-        return redirect(pc_url)
-
-    # TODO: 拼接跳转链接
-    return redirect(pc_url)
 
 
 def path_route_proxy(request):
