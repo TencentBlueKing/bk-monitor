@@ -187,6 +187,22 @@ class ClusteringConfigHandler(object):
             normal_strategy_enable=params["normal_strategy_enable"],
             access_finished=False,
         )
+        # 空间是否存在模板
+        queryset = RegexTemplate.objects.filter(space_uid=log_index_set.space_uid)
+        if queryset.exists():
+            first_template = queryset.first()
+            clustering_config.regex_template_id = first_template.id
+        else:
+            from django.utils.translation import ugettext as _
+
+            regex_template, created = RegexTemplate.objects.get_or_create(
+                space_uid=log_index_set.space_uid,
+                template_name=_("系统默认"),
+                predefined_varibles=OnlineTaskTrainingArgs.PREDEFINED_VARIBLES,
+            )
+            clustering_config.regex_template_id = regex_template.id
+        clustering_config.regex_rule_type = RegexRuleTypeEnum.TEMPLATE.value
+        clustering_config.save()
 
         access_clustering.delay(index_set_id=index_set_id)
         return model_to_dict(clustering_config, exclude=CLUSTERING_CONFIG_EXCLUDE)

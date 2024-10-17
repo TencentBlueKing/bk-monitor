@@ -35,14 +35,14 @@ from apps.log_search.models import LogIndexSet
 
 class RegexTemplateHandler(object):
     def list_templates(self, space_uid):
-        data = RegexTemplate.objects.filter(space_uid=space_uid).values(
-            "id", "space_uid", "template_name", "predefined_varibles"
-        )
-        # 空间是否有系统默认模板
-        instance, created = RegexTemplate.objects.get_or_create(
-            space_uid=space_uid, template_name=_("系统默认"), predefined_varibles=OnlineTaskTrainingArgs.PREDEFINED_VARIBLES
-        )
-        if created:
+        # 空间是否有模板
+        templates = RegexTemplate.objects.filter(space_uid=space_uid)
+        if not templates.exists():
+            instance, created = RegexTemplate.objects.get_or_create(
+                space_uid=space_uid,
+                template_name=_("系统默认"),
+                predefined_varibles=OnlineTaskTrainingArgs.PREDEFINED_VARIBLES,
+            )
             return [
                 {
                     "id": instance.id,
@@ -53,6 +53,7 @@ class RegexTemplateHandler(object):
                 }
             ]
         # 存在，返回列表
+        data = templates.values("id", "space_uid", "template_name", "predefined_varibles")
         template_ids = [rt["id"] for rt in data]
         config_data = list(
             ClusteringConfig.objects.filter(regex_template_id__in=template_ids).values(
