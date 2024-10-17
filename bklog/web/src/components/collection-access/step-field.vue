@@ -73,7 +73,6 @@
             v-if="isCleanField && !isSetEdit"
             ext-cls="en-bk-form"
             :label="$t('采集项')"
-            :required="true"
           >
             <bk-select
               style="width: 520px"
@@ -118,7 +117,6 @@
           <bk-form-item
             ext-cls="en-bk-form"
             :label="$t('原始日志')"
-            :required="true"
           >
             <div class="origin-log-config">
               <bk-radio-group v-model="formData.etl_params.retain_original_text">
@@ -177,7 +175,6 @@
           <bk-form-item
             ext-cls="en-bk-form"
             :label="$t('模式选择')"
-            :required="true"
           >
             <!-- 模式选择 -->
             <div class="field-step field-method-step">
@@ -270,7 +267,6 @@
             :property="'log_original'"
             :rules="rules.log_original"
             :label="$t('日志样例')"
-            :required="true"
           >
             <div
               class="view-log-btn"
@@ -297,7 +293,6 @@
             property="etl_params.separator_regexp"
             :rules="rules.separator_regexp"
             :label="$t('正则表达式')"
-            :required="true"
           >
             <!-- 正则表达式输入框 -->
             <div class="field-method-regex">
@@ -325,7 +320,6 @@
           <bk-form-item
             ext-cls="en-bk-form"
             :label="$t('字段列表')"
-            :required="true"
           >
             <div
               :class="{ 'view-log-btn': true, disabled: !hasFields }"
@@ -381,7 +375,6 @@
             :label="$t('指定日志时间')"
             property="log_reporting_time"
             :rules="rules.log_reporting_time"
-            :required="true"
           >
             <div class="origin-log-config">
               <bk-radio-group v-model="formData.log_reporting_time">
@@ -405,7 +398,6 @@
               ext-cls="en-bk-form"
               :icon-offset="120"
               :label="''"
-              :required="true"
               property="field_name"
               :rules="rules.field_name"
             >
@@ -494,7 +486,6 @@
             ext-cls="en-bk-form"
             :icon-offset="120"
             :label="$t('保留失败日志')"
-            :required="true"
           >
             <div class="origin-log-config">
               <bk-radio-group v-model="formData.etl_params.enable_retain_content">
@@ -518,7 +509,6 @@
             ext-cls="en-bk-form"
             :icon-offset="120"
             :label="$t('路径元数据')"
-            :required="true"
             :desc="'定义元数据并补充至日志中，可通过元数据进行过滤筛选'"
           >
             <div class="origin-log-config">
@@ -532,7 +522,6 @@
             v-if="enableMetaData"
             ext-cls="en-bk-form"
             :label="$t('路径样例')"
-            :required="true"
           >
             <div class="origin-log-config">
               <bk-input
@@ -546,7 +535,6 @@
             v-if="enableMetaData"
             ext-cls="en-bk-form"
             :label="$t('采集路径分割正则')"
-            :required="true"
             property="etl_params.path_regexp"
             :rules="rules.path_regexp"
           >
@@ -605,7 +593,6 @@
           <bk-form-item
             ext-cls="en-bk-form"
             :label="$t('可见范围')"
-            :required="true"
           >
             <div class="origin-log-config">
               <bk-radio-group v-model="formData.visible_type">
@@ -988,32 +975,6 @@
             },
             {
               regex: /^[A-Za-z0-9_]+$/,
-              trigger: 'blur',
-            },
-          ],
-          log_original: [
-            {
-              validator: val => {
-                return this.logOriginal;
-              },
-              trigger: 'change',
-            },
-          ],
-          log_reporting_time: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-          separator_regexp: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-          path_regexp: [
-            {
-              required: true,
               trigger: 'blur',
             },
           ],
@@ -1621,6 +1582,7 @@
           },
           data,
         };
+
         this.$http
           .request('collect/fieldCollection', updateData)
           .then(res => {
@@ -1869,6 +1831,7 @@
               original_text_is_case_sensitive: false,
               original_text_tokenize_on_chars: '',
               enable_retain_content: true,
+              path_regexp: '',
             },
             etlParams ? JSON.parse(JSON.stringify(etlParams)) : {},
           ),
@@ -2382,15 +2345,15 @@
           original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
           original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
           retain_extra_json: etlParams.retain_extra_json ?? false,
+          path_regexp: this.enableMetaData ? etlParams.path_regexp : null,
+          enable_retain_content: etlParams.enable_retain_content,
+          record_parse_failure: etlParams.enable_retain_content,
         };
         const data = {
           clean_type: etlConfig,
           etl_params: {
             separator_regexp: etlParams.separator_regexp,
             separator: etlParams.separator,
-            path_regexp: this.enableMetaData ? etlParams.path_regexp : null,
-            enable_retain_content: etlParams.enable_retain_content,
-            record_parse_failure: etlParams.enable_retain_content,
             ...payload,
           },
           etl_fields: fieldsData,
@@ -2420,13 +2383,17 @@
           if (isReportingTime) {
             // 当指定日志时间为日志上报时间时
             item.is_time = false;
-            item.option.time_zone = '';
-            item.option.time_format = '';
+            if (item.option) {
+              item.option.time_zone = '';
+              item.option.time_format = '';
+            }
           } else if (item.field_name === field_name) {
             // 当不是日志上报时间时
             item.is_time = true;
-            item.option.time_zone = time_zone;
-            item.option.time_format = time_format;
+            if (item.option) {
+              item.option.time_zone = time_zone;
+              item.option.time_format = time_format;
+            }
           }
 
           return item;
