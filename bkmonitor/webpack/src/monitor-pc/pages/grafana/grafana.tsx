@@ -67,7 +67,7 @@ export default class MyComponent extends tsc<object> {
   }
   @Watch('url', { immediate: true })
   async handleUrlChange() {
-    this.showAlert = !localStorage.getItem(UPDATE_GRAFANA_KEY);
+    // this.showAlert = !localStorage.getItem(UPDATE_GRAFANA_KEY);
     if (this.$store.getters.bizIdChangePedding) {
       this.loading = true;
       this.grafanaUrl = `${this.orignUrl}${this.$store.getters.bizIdChangePedding.replace('/home', '')}/?orgName=${
@@ -274,6 +274,9 @@ export default class MyComponent extends tsc<object> {
         )}
         <iframe
           ref='iframe'
+          style={{
+            'min-height': this.showAlert ? 'calc(100% - 32px)' : '100%',
+          }}
           class='grafana-wrap-frame'
           allow='fullscreen'
           src={this.grafanaUrl}

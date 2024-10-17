@@ -833,19 +833,19 @@
     .edit-btn-no-authority {
       color: #fff !important;
       background: #dcdee5 !important;
-      border-color:  #dcdee5 !important;
+      border-color: #dcdee5 !important;
 
       &:hover {
         color: #fff !important;
         background: #dcdee5 !important;
-        border-color:  #dcdee5 !important;
+        border-color: #dcdee5 !important;
       }
     }
 
     .history-btn {
       width: 32px;
       height: 32px;
-      margin-left: 8px;
+      margin-right: 8px;
       line-height: 30px;
       text-align: center;
       cursor: pointer;
@@ -863,7 +863,6 @@
     margin-left: 10px;
     font-size: 12px;
 
-    
     font-weight: normal !important;
   }
 
@@ -890,7 +889,6 @@
   }
 
   .log-path-icon {
-    
     font-size: 18px !important;
     color: #c4c6cc;
     cursor: pointer;
@@ -1111,13 +1109,11 @@
       }
 
       .bk-form-textarea:focus {
-        
         background-color: #313238 !important;
         border-radius: 2px;
       }
 
       .bk-form-textarea[disabled] {
-        
         background-color: #313238 !important;
         border-radius: 2px;
       }
@@ -1287,7 +1283,6 @@
 
 .panel-intro {
   .dropdown-list-item-disabled {
-    
     color: #c4c6cc !important;
     pointer-events: none;
     cursor: not-allowed;
@@ -1296,7 +1291,6 @@
   .bk-icon.icon-plus-circle {
     display: inline;
 
-    
     font-size: 18px !important;
     line-height: none;
   }
@@ -1323,12 +1317,10 @@
       border-radius: 2px 2px 0 0;
 
       &.is-not-default {
-        
         background: #f0f5ff !important;
       }
 
       .close {
-        
         font-size: 20px !important;
         cursor: pointer;
       }
@@ -1359,7 +1351,6 @@
   }
 
   .bk-label {
-    
     font-size: 12px !important;
   }
 

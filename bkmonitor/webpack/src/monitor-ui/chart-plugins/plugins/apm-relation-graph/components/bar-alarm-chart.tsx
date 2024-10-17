@@ -65,6 +65,7 @@ interface IProps {
   enableZoom?: boolean;
   groupId?: string;
   showXAxisNum?: number;
+  xAxisFormat?: string;
   getData?: TGetData;
   onDataZoom?: () => void;
   onSliceTimeRangeChange?: (v: number[]) => void;
@@ -93,6 +94,8 @@ export default class BarAlarmChart extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) needRestoreEvent: boolean;
   @Prop({ type: Boolean, default: false }) enableZoom: boolean;
   @Prop({ type: String, default: '' }) groupId: string;
+  /* x轴label格式 */
+  @Prop({ type: String, default: 'HH:mm' }) xAxisFormat: string;
 
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
@@ -242,12 +245,16 @@ export default class BarAlarmChart extends tsc<IProps> {
             const start = this.localData[0].time;
             const end = this.localData[len - 1].time;
             const center = this.localData[Math.floor(len / 2)].time;
-            this.xAxis = [dayjs(start).format('HH:mm'), dayjs(center).format('HH:mm'), dayjs(end).format('HH:mm')];
+            this.xAxis = [
+              dayjs(start).format(this.xAxisFormat),
+              dayjs(center).format(this.xAxisFormat),
+              dayjs(end).format(this.xAxisFormat),
+            ];
           } else if (this.showXAxisNum === 2) {
             const len = this.localData.length;
             const start = this.localData[0].time;
             const end = this.localData[len - 1].time;
-            this.xAxis = [dayjs(start).format('HH:mm'), dayjs(end).format('HH:mm')];
+            this.xAxis = [dayjs(start).format(this.xAxisFormat), dayjs(end).format(this.xAxisFormat)];
           }
 
           if (this.enableSelect) {

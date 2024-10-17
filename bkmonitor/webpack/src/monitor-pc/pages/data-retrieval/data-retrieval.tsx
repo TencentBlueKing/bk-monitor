@@ -2918,7 +2918,7 @@ export default class DataRetrieval extends tsc<object> {
             })
             .catch(err => {
               isErr = true;
-              errMsg = err.data.message || '';
+              errMsg = err.data?.message || err.message || '';
               const promqlItem = this.promqlData.find(p => p.key === item.key);
               promqlItem.errMsg = errMsg;
               reject(err);

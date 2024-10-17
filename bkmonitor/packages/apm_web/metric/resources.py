@@ -278,9 +278,13 @@ class DynamicUnifyQueryResource(Resource):
         end_time = validate_data["end_time"]
 
         if require_fill_series:
+            interval = get_bar_interval_number(
+                validate_data["start_time"],
+                validate_data["end_time"],
+            )
             response = {
                 "metrics": response.get("metrics"),
-                "series": fill_series(response.get("series", []), start_time, end_time),
+                "series": fill_series(response.get("series", []), start_time, end_time, interval),
             }
 
         if validate_data.get("unit"):
@@ -323,7 +327,7 @@ class ServiceListResource(PageListResource):
             ),
             SyncTimeLinkTableFormat(
                 id="service_name",
-                width=200,
+                min_width=200,
                 name=_lazy("服务名称"),
                 checked=True,
                 url_format="/service/?filter-service_name={service_name}&filter-app_name={app_name}",
@@ -717,11 +721,32 @@ class ServiceListResource(PageListResource):
         app_name = validate_data["app_name"]
         application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
 
-        # 获取服务列表
+        if not application.trace_result_table_id or not application.metric_result_table_id:
+            # 接入中应用 返回空数据
+            filter_fields = []
+            # 获取顶部过滤项 (服务 tab 页)
+            if validate_data["view_mode"] == self.RequestSerializer.VIEW_MODE_SERVICES:
+                filter_fields = CategoryEnum.get_filter_fields()
+            elif validate_data["view_mode"] == self.RequestSerializer.VIEW_MODE_HOME:
+                filter_fields = self._get_filter_fields_by_services([])
+
+            paginated_data = self.get_pagination_data([], validate_data)
+            paginated_data["filter"] = filter_fields
+            return paginated_data
+
+        # 1. 获取服务列表
         services = ServiceHandler.list_services(application)
-        # 获取服务收藏列表
+
+        # 主动更新一下缓存，防止出现服务数和缓存里数量不一致的问题
+        # 这里通过 update 方式，指定字段更新，是为了不自动变更 update_user， update_time 字段
+        Application.objects.filter(bk_biz_id=application.bk_biz_id, app_name=application.app_name).update(
+            service_count=len(services)
+        )
+
+        # 2. 获取服务收藏列表
         collects = CollectServiceResource.get_collect_config(application).config_value
 
+        # 3. 获取服务的数据状态
         res = []
         # 先获取缓存数据
         cache_key = ApmCacheKey.APP_SERVICE_STATUS_KEY.format(application_id=application.application_id)
@@ -732,10 +757,13 @@ class ServiceListResource(PageListResource):
             except JSONDecodeError:
                 pass
         if not data_status_mapping:
+            # 数据状态是指最新的一个状态，所以这里使用无数据周期配置，而不是页面选择的起止时间
+            start_time, end_time = get_datetime_range("minute", application.no_data_period)
+            start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
             data_status_mapping = ServiceHandler.get_service_data_status_mapping(
                 application,
-                validate_data["start_time"],
-                validate_data["end_time"],
+                start_time,
+                end_time,
                 services,
             )
             cache.set(cache_key, json.dumps(data_status_mapping))
@@ -849,11 +877,23 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
                 ignore_keys=column_metric.get("ignore_keys"),
             )
 
-        return ServiceHandler.get_service_metric_range_mapping(
+        interval = get_bar_interval_number(metric_params["start_time"], metric_params["end_time"])
+        response = ServiceHandler.get_service_metric_range_mapping(
             column_metric["metric"],
             **metric_params,
             ignore_keys=column_metric.get("ignore_keys"),
+            extra_params={"interval": interval},
         )
+        # 添加上补空逻辑
+        res = {}
+        for k, v in response.items():
+            res[k] = fill_series(
+                [{"datapoints": v}],
+                metric_params["start_time"],
+                metric_params["end_time"],
+                interval=interval,
+            )[0]["datapoints"]
+        return res
 
     @classmethod
     def _get_condition_service_names(cls, strategy: dict):
@@ -1461,7 +1501,15 @@ class ApdexQueryResource(ApiAuthResource):
             response = ApdexRange(
                 application, start_time, end_time, interval=get_bar_interval_number(start_time, end_time)
             ).query_range()
-            return {"metrics": [], "series": fill_series(response.get("series", []), start_time, end_time)}
+            return {
+                "metrics": [],
+                "series": fill_series(
+                    response.get("series", []),
+                    start_time,
+                    end_time,
+                    interval=get_bar_interval_number(start_time, end_time),
+                ),
+            }
 
         return {"metrics": [], "series": []}
 
@@ -1966,56 +2014,26 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             "end_time": data["end_time"],
         }
         if service_name:
+            endpoints_metric_res = pool.apply_async(
+                ServiceHandler.get_service_metric,
+                kwds={
+                    "metric": ENDPOINT_LIST,
+                    "application": application,
+                    "start_time": data["start_time"],
+                    "end_time": data["end_time"],
+                    "service_name": service_name,
+                    "bk_instance_id": query_param.get("bk_instance_id"),
+                },
+            )
+
             node = ServiceHandler.get_node(bk_biz_id, app_name, service_name)
             if ComponentHandler.is_component_by_node(node):
                 query_param["category"] = node["extra_data"]["category"]
                 query_param["service_name"] = ComponentHandler.get_component_belong_service(service_name)
                 query_param["category_kind_value"] = node["extra_data"]["predicate_value"]
-                endpoints_metric_res = pool.apply_async(
-                    ENDPOINT_LIST,
-                    kwds={
-                        **endpoint_metrics_param,
-                        "where": ComponentHandler.get_component_metric_filter_params(
-                            bk_biz_id,
-                            app_name,
-                            service_name,
-                            query_param.get("bk_instance_id"),
-                        )
-                        + [
-                            {
-                                "key": "service_name",
-                                "method": "eq",
-                                "value": [ComponentHandler.get_component_belong_service(service_name)],
-                            }
-                        ],
-                    },
-                )
-
-            elif ServiceHandler.is_remote_service_by_node(node):
-                query_param["service_name"] = service_name
-                endpoints_metric_res = pool.apply_async(
-                    ENDPOINT_LIST,
-                    kwds={
-                        **endpoint_metrics_param,
-                        "where": [
-                            {
-                                "key": "peer_service",
-                                "method": "eq",
-                                "value": [ServiceHandler.get_remote_service_origin_name(service_name)],
-                            }
-                        ],
-                    },
-                )
-
             else:
+                # 自定义服务 / 普通服务
                 query_param["service_name"] = service_name
-                endpoints_metric_res = pool.apply_async(
-                    ENDPOINT_LIST,
-                    kwds={
-                        **endpoint_metrics_param,
-                        "where": [{"key": "service_name", "method": "eq", "value": [service_name]}],
-                    },
-                )
 
             node_mapping[service_name] = node
         else:
@@ -2062,7 +2080,6 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             if category_kind_key in CategoryEnum.list_component_generate_keys():
                 # 如果此接口是 db\messaging 类型 那么需要获取这个接口的服务名称(添加上后缀)
                 node_name = ComponentHandler.generate_component_name(node_name, endpoint["category_kind"]["value"])
-            if category_kind_key:
                 extra_filter_dict.update(
                     {
                         OtlpKey.get_metric_dimension_key(category_kind_key): endpoint["category_kind"]["value"],
