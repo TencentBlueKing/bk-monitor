@@ -34,7 +34,7 @@
         <span class="icon bklog-icon bklog-xiazai"></span>
       </div> -->
     <div v-if="!isUnionSearch"
-      :class="{ 'operation-icon': true, 'disabled-icon': !queueStatus }"
+      :class="{ 'operation-icon': true, 'disabled-icon':false }"
       data-test-id="fieldForm_div_exportData"
       @mouseenter="handleShowAlarmPopover"
     >
