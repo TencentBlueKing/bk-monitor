@@ -1773,11 +1773,6 @@ class NoDataStrategyInfoResource(Resource):
 
     def get_strategy(self, bk_biz_id: int, app: Application, telemetry_data_type: str):
         """检测策略存在与否，不存在则创建"""
-        # 不分页获取所有已注册的策略
-        strategies = resource.strategies.get_strategy_list_v2(bk_biz_id=bk_biz_id, page=0, page_size=0).get(
-            "strategy_config_list", []
-        )
-        strategy_map = {strategy["id"]: strategy for strategy in strategies}
         # 获取数据库存储的策略
         strategy_config, is_created = ApmMetaConfig.objects.get_or_create(
             config_level=ApmMetaConfig.APPLICATION_LEVEL,
@@ -1786,9 +1781,15 @@ class NoDataStrategyInfoResource(Resource):
             defaults={"config_value": {"id": -1, "notice_group_id": -1}},
         )
         strategy_id = strategy_config.config_value["id"]
-        # 匹配则返回
-        if strategy_id in strategy_map.keys():
-            return strategy_map[strategy_id]
+        # 获取已注册的策略
+        if strategy_id > 0:
+            conditions = [{"key": "id", "value": [strategy_id]}]
+            strategies = resource.strategies.get_strategy_list_v2(
+                bk_biz_id=bk_biz_id, conditions=conditions, page=0, page_size=0
+            ).get("strategy_config_list", [])
+            # 匹配则返回
+            if strategies:
+                return strategies[0]
         # 不匹配则创建新策略
         return self.registry_strategy(bk_biz_id, app, strategy_config, telemetry_data_type)
 
@@ -1971,16 +1972,18 @@ class NoDataStrategyStatusResource(Resource):
         except ApmMetaConfig.DoesNotExist:
             raise ValueError(_("配置信息不存在"))
         strategy_id = config.config_value["id"]
+        conditions = [{"key": "id", "value": [strategy_id]}]
         # 已注册的策略
-        strategies = resource.strategies.get_strategy_list_v2(bk_biz_id=app.bk_biz_id).get("strategy_config_list", [])
-        strategy_ids = [strategy["id"] for strategy in strategies]
+        strategies = resource.strategies.get_strategy_list_v2(bk_biz_id=app.bk_biz_id, conditions=conditions).get(
+            "strategy_config_list", []
+        )
         # 检测策略存在情况，不存在则创建
-        if strategy_id not in strategy_ids:
+        if not strategies:
             new_strategy = NoDataStrategyInfoResource.registry_strategy(app.bk_biz_id, app, config, telemetry_data_type)
             if new_strategy:
                 strategy_id = new_strategy["id"]
         # 更新策略状态
-        if strategy_id:
+        if strategy_id and self.is_enabled is not None:
             resource.strategies.update_partial_strategy_v2(
                 bk_biz_id=app.bk_biz_id,
                 ids=[strategy_id],
