@@ -391,7 +391,7 @@ class BCSClusterInfo(models.Model):
             # 针对联邦集群，跳过 k8s 内置指标的 data_id 下发
             if is_fed_cluster and usage != self.DATA_TYPE_CUSTOM_METRIC:
                 continue
-            dataid_config = self.make_config(register_info)
+            dataid_config = self.make_config(register_info,is_fed_cluster)
             name = self.compose_dataid_resource_name(
                 register_info["datasource_name"].lower(), is_fed_cluster=is_fed_cluster
             )

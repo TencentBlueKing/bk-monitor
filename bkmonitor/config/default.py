@@ -1358,6 +1358,9 @@ BCS_DATA_CONVERGENCE_CONFIG = {}
 # 是否启用 BCS CC 的项目接口
 ENABLE_BCS_CC_PROJECT_API = False
 
+# BCS 联邦代理集群独立VM存储配置
+BCS_PROXY_CLUSTER_VM_STORAGE_CLUSTER_NAME = 'monitor-plat'
+
 # 独立的vm集群的空间列表
 SINGLE_VM_SPACE_ID_LIST = []
 

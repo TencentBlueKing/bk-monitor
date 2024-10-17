@@ -460,7 +460,7 @@ class TimeSeriesGroup(CustomGroupBase):
 
         default_resp = []
         try:
-            vm_rt = AccessVMRecord.objects.get(result_table_id=self.table_id).vm_result_table_id
+            vm_rt = AccessVMRecord.objects.filter(result_table_id=self.table_id).first().vm_result_table_id
         except AccessVMRecord.DoesNotExist:
             return default_resp
         # 获取指标
