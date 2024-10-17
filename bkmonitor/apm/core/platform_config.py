@@ -267,7 +267,7 @@ class PlatformConfig(BkCollectorConfig):
         return {
             "name": "token_checker/aes256",
             "resource_key": "bk.data.token",
-            "type": "aes256WithMeta|fixed",
+            "type": "aes256",
             "salt": settings.BK_DATA_TOKEN_SALT,
             "decoded_key": x_key,
             "decoded_iv": settings.BK_DATA_AES_IV.decode()
