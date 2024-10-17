@@ -37,7 +37,7 @@
 
   const handleRequestSplit = (startTime, endTime) => {
     const duration = (endTime - startTime) / 3600;
-    if (duration < 6) {
+    if (duration <= 6) {
       // 小于6小时 一次性请求
       return 0;
     }
@@ -68,10 +68,10 @@
       // 小于1小时 1min
       intervalTemp = '1m';
       currentInterval = '1m';
-      intervalTemp = 'auto';
 
       if (durationMin < 5) {
         currentInterval = '30s';
+        intervalTemp = 'auto';
       }
 
       if (durationMin < 2) {
@@ -95,7 +95,10 @@
       currentInterval = '1d';
     }
 
-    store.commit('updateIndexItem', { interval: intervalTemp });
+    // 只有在图表框选范围时才进行interval更新
+    if (/^chart_zoom_/.test(chartKey.value)) {
+      store.commit('updateIndexItem', { interval: intervalTemp });
+    }
   };
 
   // 需要更新图表数据
@@ -128,6 +131,12 @@
 
     if (pollingStartTime < retrieveParams.value.start_time) {
       pollingStartTime = retrieveParams.value.start_time;
+    }
+
+    if (pollingStartTime > pollingEndTime) {
+      // 轮询结束
+      finishPolling.value = true;
+      return;
     }
 
     if ((!isUnionSearch.value && !!route.params?.indexId) || (isUnionSearch.value && unionIndexList.value?.length)) {
@@ -221,7 +230,8 @@
   watch(
     () => finishPolling.value,
     () => {
-      // emit('polling', !finishPolling.value && isStart.value);
+      console.log('finishPolling', finishPolling.value)
+      emit('polling', finishPolling.value);
     },
   );
 

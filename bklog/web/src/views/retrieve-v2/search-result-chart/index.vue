@@ -55,7 +55,7 @@
   import { ref, watch, onMounted, computed } from 'vue';
   import useStore from '@/hooks/use-store';
 
-  const emit = defineEmits(['toggle-change']);
+  const emit = defineEmits(['toggle-change', 'change-queue-res']);
 
   const store = useStore();
   const chartKey = computed(() => store.state.retrieve.chartKey);
@@ -69,6 +69,7 @@
 
   const handlePolling = (val) => {
     isLoading.value = val;
+    emit('change-queue-res', val);
   }
 
   const toggleExpand = val => {
