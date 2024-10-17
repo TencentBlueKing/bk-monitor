@@ -949,7 +949,7 @@ const store = new Vuex.Store({
      */
     requestIndexSetQuery(
       { commit, state, getters, dispatch },
-      payload = { isPagination: false, cancelToken: null, searchCount: undefined, formChartChange: false },
+      payload = { isPagination: false, cancelToken: null, searchCount: undefined, formChartChange: true },
     ) {
       if (
         (!state.indexItem.isUnionIndex && !state.indexId) ||
@@ -969,7 +969,7 @@ const store = new Vuex.Store({
       const [start_time, end_time] = handleTransformToTimestamp(datePickerValue);
       commit('updateIndexItem', { start_time, end_time });
 
-      if (!payload?.isPagination && !payload.formChartChange) {
+      if (!payload?.isPagination && payload.formChartChange) {
         store.commit('retrieve/updateChartKey');
       }
       const searchCount = payload.searchCount ?? state.indexSetQueryResult.search_count + 1;
