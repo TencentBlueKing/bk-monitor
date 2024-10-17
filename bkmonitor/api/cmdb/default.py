@@ -23,7 +23,7 @@ from rest_framework import serializers
 from api.cmdb.define import _split_member_list
 from bkm_space.api import SpaceApi
 from bkmonitor.commons.tools import batch_request
-from bkmonitor.utils.cache import CacheType, using_cache
+from bkmonitor.utils.cache import CacheType, mem_cache, using_cache
 from bkmonitor.utils.common_utils import to_dict
 from bkmonitor.utils.ip import exploded_ip, is_v6
 from bkmonitor.utils.thread_backend import ThreadPool
@@ -260,6 +260,7 @@ class GetHostByTopoNode(CacheResource):
         topo_nodes = serializers.DictField(label="拓扑节点", child=serializers.ListField(), required=False)
 
     def perform_request(self, params):
+        mem_cache.clear()
         hosts = get_host_dict_by_biz(params["bk_biz_id"], params["fields"])
 
         if params.get("topo_nodes", {}):
