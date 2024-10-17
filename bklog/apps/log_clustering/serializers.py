@@ -27,6 +27,7 @@ from apps.log_clustering.constants import (
     DEFULT_FILTER_NOT_CLUSTERING_OPERATOR,
     OwnerConfigEnum,
     PatternEnum,
+    RegexRuleTypeEnum,
     RemarkConfigEnum,
     StrategiesAlarmLevelEnum,
     StrategiesType,
@@ -84,6 +85,10 @@ class ClusteringConfigSerializer(serializers.Serializer):
     is_case_sensitive = serializers.IntegerField(required=False)
     new_cls_strategy_enable = serializers.BooleanField(default=False)
     normal_strategy_enable = serializers.BooleanField(default=False)
+    regex_rule_type = serializers.ChoiceField(
+        choices=RegexRuleTypeEnum.get_choices(), default=RegexRuleTypeEnum.CUSTOMIZE.value
+    )
+    regex_template_id = serializers.IntegerField(default=0)
 
 
 class ClusteringDebugSerializer(serializers.Serializer):
