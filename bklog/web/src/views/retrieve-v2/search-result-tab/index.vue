@@ -1,5 +1,5 @@
 <script setup>
-  import { defineEmits, defineProps, computed } from 'vue';
+  import { defineEmits, defineProps, computed, watch } from 'vue';
   import useStore from '@/hooks/use-store';
   import useLocale from '@/hooks/use-locale';
   const { $t } = useLocale();
@@ -27,11 +27,16 @@
     return  [
       { name: 'origin', label: $t('原始日志'), disabled: false },
       { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value },
-      // { name: 'chartAnalysis', label: $t('图表分析') },
     ];
   });
 
   const renderPanelList = computed(() => panelList.value.filter(item => !item.disabled));
+
+  watch(() => isAiopsToggle.value, () => {
+    if (!isAiopsToggle.value && props.value === 'clustering') {
+      emit('input', 'origin');
+    }
+  }, { immediate: true })
 
   // after边框
   const isAfter = item => {
