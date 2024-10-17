@@ -43,6 +43,7 @@
         :data="tableData"
         :header-cell-class-name="cellClassName"
         :key="tableKey"
+        @header-dragend="setTableData(tableData)"
         @row-mouse-enter="handleRowEnter"
         @row-mouse-leave="handleRowLeave"
         @sort-change="handleSortChange"
@@ -502,11 +503,18 @@
                   {{ item.display_name }}
                 </span>
                 <span
-                  v-if="overflowRowIds.includes(row.rowId)"
+                  v-if="overflowRowIds[row.rowId]"
                   class="process-status-3 process-overflow"
                   @click="openProcessView(row, 'row-overflow')"
+                  v-bk-tooltips="{
+                    content: () => row.component.map(({display_name}) => display_name).join('、'),
+                    showOnInit: false,
+                    placements: ['top'],
+                    interactive: false,
+                    allowHTML: false,
+                  }"
                 >
-                  {{ `...` }}
+                  {{ `+${overflowRowIds[row.rowId]}` }}
                 </span>
               </div>
               <div
@@ -583,6 +591,7 @@ import type { CheckType, ICheck, IPageConfig, ISort, ITableRow } from '../perfor
 import { AlarmStatus } from '../types';
 import UnresolveList from '../unresolve-list/unresolve-list.vue';
 import IpStatusTips, { handleIpStatusData } from './ip-status-tips';
+import { countElementsNotInFirstRow } from '../../strategy-config/util';
 
 /** 告警类型对应的颜色 */
 const alarmColorMap: { [key in AlarmStatus]: string } = {
@@ -698,7 +707,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
     },
   ];
 
-  overflowRowIds: string[] = [];
+  overflowRowIds = {};
   hoverMarkId = '';
   // 表格数据
   tableData: ITableRow[] = [];
@@ -793,11 +802,11 @@ export default class PerformanceTable extends Vue<MonitorVue> {
     });
 
     await this.$nextTick();
-    this.overflowRowIds = [];
+    this.overflowRowIds = {};
     this.tableData.forEach((item, index) => {
       const ref = this.$refs[`table-row-${index}`];
       const overflow = ref && (ref as HTMLElement).clientHeight > 30;
-      overflow && this.overflowRowIds.push(item.rowId);
+      overflow && (this.overflowRowIds[item.rowId] = countElementsNotInFirstRow(ref as HTMLElement));
     });
   }
 
@@ -1293,6 +1302,9 @@ $processColors: #ea3636 #c4c6cc #63656e;
         .process-overflow {
           position: absolute;
           top: 0;
+          height: 24px;
+          line-height: 18px;
+          white-space: nowrap;
         }
 
         .no-process-text {
