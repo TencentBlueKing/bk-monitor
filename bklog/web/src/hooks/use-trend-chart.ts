@@ -74,6 +74,38 @@ export default ({ target }: TrandChartOption) => {
     }
   };
 
+  const getIntervalValue = (interval: string) => {
+    const timeunit = {
+      s: 1000,
+      m: 60 * 1000,
+      h: 60 * 60 * 1000,
+      d: 24 * 60 * 60 * 1000,
+    };
+
+    const matchs = (interval ?? '1h').match(/(\d+)(s|m|h|d)/);
+    const num = matchs[1];
+    const unit = matchs[2];
+
+    return timeunit[unit] * Number(num);
+  };
+
+  const getMinValue = (data, interval) => {
+    const minValue = data[0]?.[0];
+    if (!minValue || data?.length > 5) {
+      return 'dataMin';
+    }
+    return minValue - getIntervalValue(interval);
+  };
+
+  const getMaxValue = (data, interval) => {
+    const maxValue = data.slice(-1)?.[0]?.[0];
+
+    if (!maxValue || data?.length > 5) {
+      return 'dataMax';
+    }
+    return maxValue + getIntervalValue(interval);
+  };
+
   const updateChart = (data: EchartData[], interval: string) => {
     if (!chartInstance) {
       return;
@@ -81,7 +113,9 @@ export default ({ target }: TrandChartOption) => {
 
     options.series[0].data = data;
     options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, interval);
-    options.xAxis[0].minInterval = /\d+s$/.test(interval) ? 1000 : 60000;
+    options.xAxis[0].minInterval = getIntervalValue(interval);
+    options.xAxis[0].min = getMinValue(data, interval);
+    options.xAxis[0].max = getMaxValue(data, interval);
 
     chartInstance.setOption(options);
     nextTick(() => {
