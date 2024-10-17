@@ -21,6 +21,7 @@ the project delivered to anyone in the future.
 """
 import copy
 import hashlib
+import re
 from typing import Any, Dict, List, Union
 
 from django.conf import settings
@@ -35,6 +36,7 @@ from apps.log_databus.constants import (
     CACHE_KEY_CLUSTER_INFO,
     FIELD_TEMPLATE,
     EtlConfig,
+    MetadataType,
 )
 from apps.log_databus.exceptions import (
     EtlParseTimeFieldException,
@@ -60,6 +62,7 @@ class EtlStorage(object):
     # 子类需重载
     etl_config = None
     separator_node_name = "bk_separator_object"
+    path_separator_node_name = "bk_separator_object_path"
 
     @classmethod
     def get_instance(cls, etl_config=None):
@@ -541,6 +544,10 @@ class EtlStorage(object):
         built_in_config = collector_scenario.get_built_in_config(es_version, self.etl_config)
         result_table_config = self.get_result_table_config(fields, etl_params, built_in_config, es_version=es_version)
 
+        # 添加元数据路径配置到结果表配置中
+        etl_path_regexp = etl_params.get("path_regexp", "")
+        self.add_metadata_path_configs(etl_path_regexp, result_table_config)
+
         params.update(result_table_config)
 
         # 字段mapping优化
@@ -579,6 +586,53 @@ class EtlStorage(object):
             instance.save()
 
         return {"table_id": instance.table_id, "params": params}
+
+    def add_metadata_path_configs(self, etl_path_regexp: str, result_table_config: dict):
+        """
+        往结果表中添加元数据的路径配置
+        :param etl_path_regexp: 采集路径分割正则
+        :param result_table_config: 需要更新的结果表配置
+        :return:
+        """
+        # 加入路径的清洗配置
+        if not etl_path_regexp:
+            return
+        result_table_config["option"]["separator_configs"] = [
+            {
+                "separator_node_name": self.path_separator_node_name,
+                "separator_node_action": "regexp",
+                "separator_node_source": "filename",
+                "separator_regexp": etl_path_regexp,
+            }
+        ]
+
+        # 得到field_list中最大的field_index
+        field_index_list = [0]
+        for item in result_table_config["field_list"]:
+            field_index = item["option"].get("field_index")
+            if field_index:
+                field_index_list.append(field_index)
+        etl_field_index = max(field_index_list) + 1
+
+        pattern = re.compile(etl_path_regexp)
+        match_fields = list(pattern.groupindex.keys())
+        for field_name in match_fields:
+            result_table_config["field_list"].append(
+                {
+                    "description": "",
+                    "field_name": field_name,
+                    "field_type": "string",
+                    "option": {
+                        "metadata_type": MetadataType.PATH,
+                        "es_doc_values": True,
+                        "es_type": "keyword",
+                        "field_index": etl_field_index,
+                        "real_path": f"{self.path_separator_node_name}.{field_name}"
+                    },
+                    "tag": "dimension",
+                }
+            )
+            etl_field_index += 1
 
     @classmethod
     def switch_result_table(cls, collector_config: CollectorConfig, is_enable=True):

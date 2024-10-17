@@ -347,6 +347,10 @@
         return debounce(60, space => {
           if (`${space.bk_biz_id}` !== this.$route.query.bizId || space.space_uid !== this.$route.query.spaceUid) {
             this.$router.push({
+              params: {
+                ...(this.$route.params ?? {}),
+                indexId: undefined
+              },
               query: {
                 ...(this.$route.query ?? {}),
                 bizId: space.bk_biz_id,
