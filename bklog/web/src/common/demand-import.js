@@ -61,6 +61,7 @@ import {
   bkOptionGroup,
   bkPagination,
   bkPopover,
+  bkPopconfirm,
   bkProcess,
   bkProgress,
   bkRadio,
@@ -126,6 +127,7 @@ Vue.use(bkOption);
 Vue.use(bkOptionGroup);
 Vue.use(bkPagination);
 Vue.use(bkPopover);
+Vue.use(bkPopconfirm);
 Vue.use(bkProcess);
 Vue.use(bkProgress);
 Vue.use(bkRadio);

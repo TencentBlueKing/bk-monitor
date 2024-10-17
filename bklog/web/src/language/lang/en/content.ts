@@ -929,4 +929,11 @@ export default {
   '收起查询/弹出选项': 'Collapse query/Popup options',
   '导入{0}的权限配置': 'Import the permission configuration of {0}',
   至少选择一个操作权限: 'Select at least one operation permission',
+  '平台上报日志的时间，默认选择该设置': 'Time to report logs on the platform, select this setting by default',
+  '你可以自行指定日志展示时间，勾选前请提前清洗日志时间':
+    'You can specify the log display time by yourself. Please clean the log time in advance before checking',
+  '日志存在多种格式时，可以保留不符合解析规则的日志，避免遗漏；未解析的日志可以通过 _prase.failure 进行过滤，为 true 时表示解析失败':
+    'When there are multiple formats in the log, you can retain logs that do not meet the analytical rules to avoid omissions; uncomfortable logs can be filtered through _prase.failure, which indicates the analysis failure when true',
+  '定义元数据并补充至日志中，可通过元数据进行过滤筛选':
+    'Define meta -data and supplement it to the log, you can filter and screen through metadata',
 };
