@@ -2273,8 +2273,17 @@ class MetricRecommendationResource(AIOpsBaseResource):
                                                                                    bk_biz_ids, usernames)
 
         for (alert_metric_id, recommendation_metric, bk_biz_id, username), recommend_panel in query_params.items():
-            recommend_panel["feedback"] = feedback_results[
-                (alert_metric_id, recommendation_metric, bk_biz_id, username)]
+            try:
+                recommend_panel["feedback"] = feedback_results[
+                    (alert_metric_id, recommendation_metric, bk_biz_id, username)]
+            except KeyError:
+                recommend_panel["feedback"] = {
+                    {
+                        "good": 0,
+                        "bad": 0,
+                        "self": None,
+                    }
+                }
 
         return result
 
