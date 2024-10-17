@@ -122,6 +122,7 @@ def process_stage_string(query_string):
     extracted_parts = [match.group(0) for match in matches]
 
     query_string = re.sub(combined_pattern, "", query_string, flags=re.IGNORECASE)
+    query_string = re.sub(r"^\s*(AND|OR)\s+", "", query_string, flags=re.IGNORECASE)
 
     stage_conditions = []
     for stage in extracted_parts:
