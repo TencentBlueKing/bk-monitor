@@ -2330,7 +2330,7 @@
     },
     "panel_tool": {
       "method_select": false,
-      "compare_select": true,
+      "compare_select": false,
       "columns_toggle": false,
       "interval_select": false,
       "split_switcher": false
