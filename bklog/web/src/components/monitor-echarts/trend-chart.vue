@@ -203,15 +203,20 @@
     }
   };
 
+  let runningTimer = null;
+
   watch(
     () => chartKey.value,
     () => {
       logChartCancel?.();
-      finishPolling.value = false;
-      isStart.value = false;
-      optionData.clear();
-      updateChart([]);
-      getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
+      runningTimer && clearTimeout(runningTimer);
+      runningTimer = setTimeout(() => {
+        finishPolling.value = false;
+        isStart.value = false;
+        optionData.clear();
+        updateChart([]);
+        getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
+      });
     },
     {
       immediate: true,
