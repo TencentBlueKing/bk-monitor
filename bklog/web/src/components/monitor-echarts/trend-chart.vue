@@ -27,7 +27,6 @@
 
   const finishPolling = ref(false);
   const isStart = ref(false);
-  const isLoading = ref(false);
 
   let requestInterval = 0;
   let pollingEndTime = 0;
@@ -111,7 +110,6 @@
       optionData.clear();
       // 获取坐标分片间隔
       handleIntervalSplit(startTimeStamp, endTimeStamp);
-      isLoading.value = true;
 
       pollingEndTime = endTimeStamp;
       pollingStartTime = requestInterval > 0 ? pollingEndTime - requestInterval : startTimeStamp;
@@ -193,10 +191,6 @@
         .catch(() => {
           finishPolling.value = true;
           updateChart([]);
-        })
-
-        .finally(() => {
-          isLoading.value = false;
         });
     } else {
       finishPolling.value = true;
@@ -209,12 +203,13 @@
     () => chartKey.value,
     () => {
       logChartCancel?.();
+      updateChart([]);
+      optionData.clear();
+
       runningTimer && clearTimeout(runningTimer);
       runningTimer = setTimeout(() => {
         finishPolling.value = false;
         isStart.value = false;
-        optionData.clear();
-        updateChart([]);
         getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
       });
     },
@@ -226,7 +221,7 @@
   watch(
     () => finishPolling.value,
     () => {
-      emit('polling', !finishPolling.value);
+      // emit('polling', !finishPolling.value && isStart.value);
     },
   );
 
@@ -241,7 +236,7 @@
 </script>
 <template>
   <div
-    v-bkloading="{ isLoading: isLoading }"
+    v-bkloading="{ isLoading: false }"
     class="monitor-echart-wrap"
   >
     <div
