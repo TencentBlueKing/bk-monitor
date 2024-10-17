@@ -257,6 +257,9 @@
             <bk-table
               :data="eventData"
               :outer-border="false"
+              :height="tableVirtualRenderConfig.height"
+              :virtual-render="tableVirtualRenderConfig.isActive"
+              row-key="custom_event_id"
             >
               <bk-table-column
                 :label="$t('事件名称')"
@@ -993,6 +996,8 @@ import type { CreateElement } from 'vue';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
 const NULL_LABEL = '__null_label__';
+/** 表格数据达到15条是开启虚拟滚动 */
+const TABLE_ROW_COUNT = 15;
 
 interface IGroupListItem {
   name: string;
@@ -1287,6 +1292,12 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
       emptyType = 'search-empty';
     }
     return emptyType;
+  }
+
+  get tableVirtualRenderConfig() {
+    return this.eventData.length > TABLE_ROW_COUNT
+      ? { height: '600', isActive: true }
+      : { height: undefined, isActive: false };
   }
 
   // @Watch('metricTable')
