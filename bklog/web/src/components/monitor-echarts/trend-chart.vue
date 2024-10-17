@@ -29,7 +29,6 @@
   const isStart = ref(false);
   const isLoading = ref(false);
 
-  let isRequsting = false;
   let requestInterval = 0;
   let pollingEndTime = 0;
   let pollingStartTime = 0;
@@ -109,7 +108,6 @@
     requestInterval = isStart.value ? requestInterval : handleRequestSplit(startTimeStamp, endTimeStamp);
 
     if (!isStart.value) {
-      isRequsting = true;
       optionData.clear();
       // 获取坐标分片间隔
       handleIntervalSplit(startTimeStamp, endTimeStamp);
@@ -129,7 +127,6 @@
       pollingStartTime = startTimeStamp;
       // 轮询结束
       finishPolling.value = true;
-      isRequsting = false;
       emit('polling', false);
     }
 
@@ -180,7 +177,6 @@
 
           if (!res?.result) {
             finishPolling.value = true;
-            isRequsting = false;
             emit('polling', false);
             updateChart([]);
             return;
@@ -196,12 +192,9 @@
             getSeriesData(startTimeStamp, endTimeStamp);
             return;
           }
-
-          isRequsting = false;
         })
         .catch(() => {
           finishPolling.value = true;
-          isRequsting = false;
           updateChart([]);
         })
 
@@ -210,7 +203,6 @@
         });
     } else {
       finishPolling.value = true;
-      isRequsting = false;
       emit('polling', false);
     }
   };
@@ -218,15 +210,12 @@
   watch(
     () => chartKey.value,
     () => {
-      if (!isRequsting) {
-        finishPolling.value = false;
-
-        isStart.value = false;
-        optionData.clear();
-        logChartCancel?.();
-        updateChart([]);
-        getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
-      }
+      logChartCancel?.();
+      finishPolling.value = false;
+      isStart.value = false;
+      optionData.clear();
+      updateChart([]);
+      getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
     },
     {
       immediate: true,
