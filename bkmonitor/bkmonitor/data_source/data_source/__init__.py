@@ -14,11 +14,13 @@ import logging
 import re
 from abc import ABCMeta
 from collections import defaultdict
+from functools import reduce
 from itertools import product
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 from django.conf import settings
 from django.db.models import Q
+from django.db.models.sql import AND, OR
 from django.utils import timezone, tree
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
@@ -147,6 +149,42 @@ def dict_to_q(filter_dict):
             ret = _ret
 
     return ret
+
+
+def conditions_to_q(conditions):
+    if not conditions:
+        return Q()
+
+    ret = Q()
+
+    where_cond = []
+    for cond in conditions:
+        field_lookup = "{}__{}".format(cond["key"], cond["method"])
+        value = cond["value"]
+
+        if not isinstance(value, (list, tuple)):
+            value = [value]
+
+        condition = cond.get("condition") or "and"
+        if condition.upper() == AND:
+            where_cond.append(Q(**{field_lookup: value}))
+        elif condition.upper() == OR:
+            if where_cond:
+                q = Q(reduce(lambda x, y: x & y, where_cond))
+                ret = (ret | q) if ret else q
+            where_cond = [Q(**{field_lookup: value})]
+        else:
+            raise Exception("Unsupported connector(%s)" % condition)
+
+    if where_cond:
+        q = Q(reduce(lambda x, y: x & y, where_cond))
+        ret = (ret | q) if ret else q
+
+    return ret
+
+
+def filter_dict_to_conditions(filter_dict: Dict, conditions: List[Dict]):
+    return _filter_dict_to_conditions(filter_dict, conditions)
 
 
 def _list_to_q(key, value):

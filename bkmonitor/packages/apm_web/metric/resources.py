@@ -15,6 +15,7 @@ import logging
 import operator
 from collections import defaultdict
 from json import JSONDecodeError
+from typing import List
 
 from django.core.cache import cache
 from django.utils.translation import gettext_lazy as _lazy
@@ -41,6 +42,7 @@ from apm_web.db.db_utils import get_service_from_params
 from apm_web.handlers.application_handler import ApplicationHandler
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
+from apm_web.handlers.metric_handler import MetricHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.icon import get_icon
 from apm_web.metric.constants import (
@@ -72,6 +74,7 @@ from apm_web.utils import (
     get_bar_interval_number,
     handle_filter_fields,
 )
+from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions, q_to_dict
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.request import get_request
@@ -2804,3 +2807,37 @@ class MetricDetailStatisticsResource(Resource):
         )
         s = ServiceMetricStatistics(**validated_data)
         return s.list(template)
+
+
+class GetFieldOptionValuesResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        app_name = serializers.CharField(label="应用名称")
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
+        limit = serializers.IntegerField(label="查询数量", default=10000, required=False)
+        field = serializers.CharField(label="字段")
+        metric_field = serializers.CharField(label="指标")
+        filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
+        where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
+
+        def validate(self, attrs):
+            # 合并查询条件
+            attrs["filter_dict"] = q_to_dict(
+                conditions_to_q(filter_dict_to_conditions(attrs.get("filter_dict") or {}, attrs.get("where") or []))
+            )
+            return attrs
+
+    def perform_request(self, validated_request_data):
+        metric_handler: MetricHandler = MetricHandler(
+            validated_request_data["bk_biz_id"], validated_request_data["app_name"]
+        )
+        option_values: List[str] = metric_handler.get_field_option_values(
+            metric_field=validated_request_data["metric_field"],
+            field=validated_request_data["field"],
+            filter_dict=validated_request_data.get("filter_dict"),
+            limit=validated_request_data["limit"],
+            start_time=validated_request_data["start_time"],
+            end_time=validated_request_data["end_time"],
+        )
+        return [{"value": value, "text": value} for value in sorted(option_values)]
