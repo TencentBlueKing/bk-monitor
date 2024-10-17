@@ -352,6 +352,7 @@ class GetEventGroupResource(MetaDataAPIGWResource):
         event_group_id = serializers.IntegerField(label="事件分组ID")
         with_result_table_info = serializers.BooleanField(label="是否返回数据源信息", required=False)
         need_refresh = serializers.BooleanField(required=False, label="是否需要实时刷新", default=False)
+        event_infos_limit = serializers.IntegerField(required=False, default=None, label="事件信息列表上限")
 
 
 class SingleQueryEventGroupResource(MetaDataAPIGWResource):
