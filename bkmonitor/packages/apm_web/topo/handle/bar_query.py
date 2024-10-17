@@ -17,7 +17,7 @@ from urllib.parse import urljoin
 
 from django.conf import settings
 
-from apm_web.constants import AlertLevel, DataStatus
+from apm_web.constants import AlertLevel
 from apm_web.handlers.compatible import CompatibleQuery
 from apm_web.metric_handler import (
     ApdexRange,
@@ -37,13 +37,6 @@ from monitor_web.scene_view.builtin.apm import ApmBuiltinProcessor
 class BarQuery(BaseQuery):
     def execute(self) -> dict:
         if not self.params.get("endpoint_name"):
-            # 拓扑图需要应用 trace / metrics 正常
-            if (
-                self.application.trace_data_status == DataStatus.NO_DATA
-                and self.data_type != BarChartDataType.Alert.value
-            ):
-                return {"metrics": [], "series": []}
-
             return getattr(self, f"get_{self.data_type}_series")()
         else:
             if not self.service_name:
@@ -104,7 +97,12 @@ class BarQuery(BaseQuery):
                 origin_series.append([(error_count, info_count, warn_count), t])
 
         # 将告警数据使用统一的时间戳补充逻辑
-        origin_series = fill_series([{"datapoints": origin_series}], self.start_time, self.end_time)
+        origin_series = fill_series(
+            [{"datapoints": origin_series}],
+            self.start_time,
+            self.end_time,
+            interval=get_bar_interval_number(self.start_time, self.end_time),
+        )
         res = []
         for item in origin_series[0]["datapoints"]:
 

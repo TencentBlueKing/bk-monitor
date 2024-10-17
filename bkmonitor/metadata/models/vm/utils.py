@@ -458,7 +458,7 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
     try:
         create_vm_data_link(
             table_id=table_id,
-            get_data_source=ds,
+            data_source=ds,
             vm_cluster_name=vm_cluster_name,
             bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
         )

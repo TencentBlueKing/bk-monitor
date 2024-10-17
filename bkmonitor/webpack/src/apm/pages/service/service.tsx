@@ -125,6 +125,9 @@ export default class Service extends tsc<object> {
         {
           id: 'home',
           name: 'APM',
+          query: {
+            app_name: appName,
+          },
         },
         {
           id: 'application',

@@ -60,4 +60,6 @@ export interface IAppListItem {
   firstCodeColor: string;
   profiling_data_status: string;
   data_status: string;
+  metric_result_table_id: string;
+  trace_result_table_id: string;
 }
