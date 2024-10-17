@@ -7,6 +7,11 @@
   }
 
   .add-app-form-component  {
+    min-height: calc(-440px + 100vh);
+    padding: 24px 32px;
+    margin-top: 0;
+    background-color: rgb(255, 255, 255);
+
     .form-item {
       padding: 0;
 
@@ -14,10 +19,6 @@
         left: 0;
       }
     }
-  }
-
-  .bk-textarea-wrapper {
-    background-color: #fff;
   }
 
   .app-add-content {
