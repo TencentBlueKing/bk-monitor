@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    v-bkloading="{ isLoading: loading }"
     class="dialog-update"
+    v-bkloading="{ isLoading: loading }"
   >
     <div class="dialog-update-left">
       <div class="left-title">
@@ -67,12 +67,12 @@
                   <!-- snmp多用户 -->
                   <auto-multi
                     v-if="item.auth_json !== undefined"
-                    :key="index"
-                    :template-data="[]"
-                    :souce-data="item.auth_json"
-                    :tips-data="[]"
-                    :param-type="paramType"
                     :allow-add="false"
+                    :key="index"
+                    :param-type="paramType"
+                    :souce-data="item.auth_json"
+                    :template-data="[]"
+                    :tips-data="[]"
                     @canSave="bool => handleSnmpAuthCanSave(bool, item)"
                     @triggerData="triggerAuthData"
                   />
@@ -82,29 +82,32 @@
                   />
                   <verify-input
                     v-else
+                    :class="{ 'params-item': true, 'params-item-code': item.type === 'code' }"
                     :key="index"
-                    class="params-item"
                     :show-validate.sync="item.validate.isValidate"
                     :validator="item.validate"
                     position="right"
                   >
                     <auto-complete-input
-                      :key="index"
-                      v-model.trim="item.default"
                       class="mb10"
+                      v-model.trim="item.default"
+                      :config="item"
+                      :key="index"
                       :tips-data="[]"
                       :type="item.type"
-                      :config="item"
-                      @input="handleInput(item)"
                       @error-message="msg => handleErrorMessage(msg, item)"
                       @file-change="file => configJsonFileChange(file, item)"
+                      @input="handleInput(item)"
                     >
                       <template slot="prepend">
                         <bk-popover
-                          placement="top"
                           :tippy-options="tippyOptions"
+                          placement="top"
                         >
-                          <div class="group-text">
+                          <div
+                            class="group-text"
+                            :class="{ 'tag-list-text': item.type === 'tag_list' }"
+                          >
                             {{ item.alias || item.name }}
                           </div>
                           <div slot="content">
@@ -164,16 +167,16 @@
           <bk-form-item class="update-footer">
             <bk-button
               class="update-footer-btn"
-              theme="primary"
-              :title="$t('提交')"
               :loading="updateLoading"
+              :title="$t('提交')"
+              theme="primary"
               @click="handleSubmit"
             >
               {{ $t('提交') }}
             </bk-button>
             <bk-button
-              theme="default"
               :title="$t('取消')"
+              theme="default"
               @click="handleCancel(false)"
             >
               {{ $t('取消') }}
@@ -190,8 +193,8 @@
         <ul class="record-list">
           <li
             v-for="(item, index) in versionLog"
-            :key="index"
             class="record-list-item"
+            :key="index"
           >
             <div
               class="item-title"
@@ -349,17 +352,16 @@ export default {
     },
     triggerAuthData(v) {
       if (this.configJson) {
-        this.configJson.forEach(item => {
+        for (const item of this.configJson) {
           if (item.auth_json) {
-            return (item.auth_json = v);
+            item.auth_json = v;
           }
-          return { ...item };
-        });
+        }
       }
     },
     handleConfigJson(runtimeParams) {
       const handleDefaultValue = list => {
-        list.forEach(item => {
+        for (const item of list) {
           if (item.auth_json) {
             handleDefaultValue(item.auth_json);
           }
@@ -370,7 +372,7 @@ export default {
             item.default = item.value?.filename;
             item.file_base64 = item.value?.file_base64;
           }
-        });
+        }
       };
       handleDefaultValue(runtimeParams);
       const configJson = runtimeParams.map(item => {
@@ -405,7 +407,7 @@ export default {
     handleConfigJsonParams() {
       const formData = {};
       const fn = list => {
-        list.forEach(set => {
+        for (const set of list) {
           if (set.auth_json) {
             fn(set.auth_json[0]);
           } else {
@@ -415,7 +417,7 @@ export default {
               mode: set.mode,
             };
           }
-        });
+        }
       };
       fn(this.configJson);
       return formData;
@@ -428,14 +430,13 @@ export default {
       const collector = {};
       const plugin = {};
       const formData = this.handleConfigJsonParams();
-      Object.keys(formData).forEach(key => {
-        const item = formData[key];
+      for (const [key, item] of Object.entries(formData)) {
         if (item.mode === 'collector') {
           collector[key] = item.value;
         } else {
           plugin[key] = item.value;
         }
-      });
+      }
       const params = {
         params: {
           collector,
@@ -521,7 +522,7 @@ export default {
     .left-form {
       margin-top: 10px;
 
-      ::v-deep .bk-label {
+      .bk-label {
         /* stylelint-disable-next-line declaration-no-important */
         width: 100% !important;
         font-size: 12px;
@@ -529,7 +530,8 @@ export default {
 
       &-wrap {
         min-height: 272px;
-        // overflow: auto;
+        overflow: auto;
+
         .mb10 {
           margin-bottom: 10px;
         }
@@ -543,20 +545,16 @@ export default {
           color: #979ba5;
         }
 
-        ::v-deep.auto-complete-input {
+        .auto-complete-input {
           .group-prepend {
             flex-shrink: 0;
             padding: 0 20px;
           }
         }
 
-        ::v-deep.step-verify-input {
+        .step-verify-input {
           height: 32px;
           margin-bottom: 10px;
-
-          &:last-child {
-            margin-bottom: 0;
-          }
 
           .tooltips-icon {
             /* stylelint-disable-next-line declaration-no-important */
@@ -573,11 +571,15 @@ export default {
           .auto-complete-input-select {
             height: 100%;
           }
+
+          &.params-item-code {
+            align-items: flex-start;
+          }
         }
 
-        ::v-deep.auto-complete-input-select {
+        .auto-complete-input-select {
           .bk-tooltip {
-            // display: flex;
+            display: inline-flex;
             height: 32px;
 
             .prepend-text {
@@ -589,6 +591,18 @@ export default {
             height: 32px;
           }
         }
+      }
+
+      .tag-list-text {
+        position: relative;
+        padding: 0 20px;
+        overflow: hidden;
+        line-height: 30px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        background: #f2f4f8;
+        border: 1px solid#c4c6cc;
+        border-right: 0;
       }
 
       .update-footer {
@@ -666,6 +680,26 @@ export default {
         }
       }
     }
+  }
+}
+</style>
+<style lang="scss">
+.params-item-code {
+  align-items: flex-start;
+
+  .group-text {
+    position: relative;
+    padding: 0 20px;
+    overflow: hidden;
+    line-height: 30px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: #f2f4f8;
+    border: 1px solid#c4c6cc;
+  }
+
+  .code-select-editor {
+    margin-top: 0px;
   }
 }
 </style>

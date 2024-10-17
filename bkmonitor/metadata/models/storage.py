@@ -17,7 +17,7 @@ import logging
 import re
 import time
 import traceback
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import arrow
 import curator
@@ -34,6 +34,7 @@ from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 from pytz import timezone
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 from bkmonitor.dataflow import auth
 from bkmonitor.dataflow.task.cmdblevel import CMDBPrepareAggregateTask
@@ -53,7 +54,11 @@ from metadata.models.influxdb_cluster import InfluxDBTool
 from metadata.utils import consul_tools, es_tools, go_time, influxdb_tools
 from metadata.utils.redis_tools import RedisTools
 
-from .constants import ES_ALIAS_EXPIRED_DELAY_DAYS, EventGroupStatus
+from .constants import (
+    ES_ALIAS_EXPIRED_DELAY_DAYS,
+    ESNamespacedClientType,
+    EventGroupStatus,
+)
 from .es_snapshot import EsSnapshot, EsSnapshotIndice
 from .influxdb_cluster import (
     InfluxDBClusterInfo,
@@ -99,6 +104,7 @@ class ClusterInfo(models.Model):
     # 默认注册系统名
     DEFAULT_REGISTERED_SYSTEM = "_default"
     LOG_PLATFORM_REGISTERED_SYSTEM = "log-search-4"
+    BKDATA_REGISTERED_SYSTEM = "bkdata"
 
     cluster_id = models.AutoField("集群ID", primary_key=True)
     # 集群中文名，便于管理员维护
@@ -120,7 +126,7 @@ class ClusterInfo(models.Model):
     custom_option = models.TextField("自定义标签", default="")
     # 供部分http协议连接方案的存储使用，配置可以为http或者https等
     schema = models.CharField("访问协议", max_length=32, default=None, null=True)
-    # ssl/tls 校验参数相关
+    # ssl/tls 校验参数相关，Kafka场景下，使用了schema和ssl_verification_mode两个字段
     is_ssl_verify = models.BooleanField("SSL验证是否强验证", default=False)
     ssl_verification_mode = models.CharField("CA 校验模式", max_length=16, null=True, default="none")
     ssl_certificate_authorities = models.TextField("CA 内容", null=True, default="")
@@ -628,6 +634,11 @@ class StorageResultTable(object):
     def consul_config(self):
         """返回一个实际存储的consul配置"""
         pass
+
+    @property
+    def storage_type(self):
+        """返回存储类型"""
+        return self.STORAGE_TYPE
 
     def update_storage(self, **kwargs):
         """更新存储配置"""
@@ -1767,6 +1778,8 @@ class ESStorage(models.Model, StorageResultTable):
     storage_cluster_id = models.IntegerField("存储集群")
     source_type = models.CharField("数据源类型", max_length=16, default="log", help_text="数据源类型，仅对日志内置集群索引进行生命周期管理")
     index_set = models.TextField("索引集", blank=True, null=True)
+    # 新增标记位，用于标识是否需要创建索引
+    need_create_index = models.BooleanField("是否需要创建索引", default=True)
 
     @classmethod
     def refresh_consul_table_config(cls):
@@ -1854,6 +1867,7 @@ class ESStorage(models.Model, StorageResultTable):
         enable_create_index=True,
         source_type=constants.EsSourceType.LOG.value,
         index_set=None,
+        need_create_index=True,
         **kwargs,
     ):
         """
@@ -1873,6 +1887,7 @@ class ESStorage(models.Model, StorageResultTable):
         :param enable_create_index: 启用创建索引，默认为 True；针对非内置的数据源，不能创建索引
         :param source_type: 数据源类型，默认日志自建
         :param index_set: 索引集
+        :param need_create_index: 是否需要创建索引，默认为 True
         :param kwargs: 其他配置参数
         :return:
         """
@@ -1931,6 +1946,7 @@ class ESStorage(models.Model, StorageResultTable):
             time_zone=time_zone,
             source_type=source_type,
             index_set=index_set,
+            need_create_index=need_create_index,
         )
         logger.info("result_table->[{}] now has es_storage will try to create index.".format(table_id))
 
@@ -2122,6 +2138,46 @@ class ESStorage(models.Model, StorageResultTable):
         logger.info("table_id->[%s] no index", self.table_id)
         return False
 
+    def _get_index_infos(self, namespaced: str) -> Tuple[Dict[str, Dict[str, Any]], str]:
+        index_version = ""
+        client = self.get_client()
+        extra = {ESNamespacedClientType.CAT.value: {"format": "json"}, ESNamespacedClientType.INDICES.value: {}}[
+            namespaced
+        ]
+        getdata = {
+            ESNamespacedClientType.CAT.value: lambda d: {idx["index"]: idx for idx in d},
+            ESNamespacedClientType.INDICES.value: lambda d: d["indices"],
+        }[namespaced]
+        func = {
+            ESNamespacedClientType.CAT.value: client.cat.indices,
+            ESNamespacedClientType.INDICES.value: client.indices.stats,
+        }[namespaced]
+
+        index_info_map: Dict[str, Dict[str, Any]] = getdata(func(index=self.search_format_v2(), **extra))
+        if len(index_info_map) != 0:
+            index_version = "v2"
+        else:
+            index_info_map: Dict[str, Dict[str, Any]] = getdata(func(index=self.search_format_v1(), **extra))
+            if len(index_info_map) != 0:
+                index_version = "v1"
+
+        return index_info_map, index_version
+
+    def get_index_names(self) -> List[str]:
+        index_info_map, index_version = self._get_index_infos(ESNamespacedClientType.CAT.value)
+        if index_version == "v2":
+            index_re = self.index_re_v2
+        else:
+            index_re = self.index_re_v1
+
+        index_names: List[str] = []
+        for index_name in index_info_map:
+            if index_re.match(index_name) is None:
+                logger.warning("index->[%s] is not match re, skipped", index_name)
+                continue
+            index_names.append(index_name)
+        return index_names
+
     def get_index_stats(self):
         """
         获取index的统计信息
@@ -2137,19 +2193,9 @@ class ESStorage(models.Model, StorageResultTable):
           }
         }
         """
-        client = self.get_client()
+        return self._get_index_infos(ESNamespacedClientType.INDICES.value)
 
-        index_version = ""
-        stat_info_list = client.indices.stats(self.search_format_v2())
-        if len(stat_info_list["indices"]) != 0:
-            index_version = "v2"
-        else:
-            stat_info_list = client.indices.stats(self.search_format_v1())
-            if len(stat_info_list["indices"]) != 0:
-                index_version = "v1"
-
-        return stat_info_list["indices"], index_version
-
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def current_index_info(self):
         """
         返回当前使用的最新index相关的信息
@@ -2239,6 +2285,7 @@ class ESStorage(models.Model, StorageResultTable):
             return f"v2_{self.index_name}_{datetime_object.strftime(self.date_format)}_{index}"
         return f"{self.index_name}_{datetime_object.strftime(self.date_format)}_{index}"
 
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def get_client(self):
         """获取该结果表的客户端句柄"""
         return es_tools.get_client(self.storage_cluster_id)
@@ -2385,8 +2432,8 @@ class ESStorage(models.Model, StorageResultTable):
 
                 # 创建索引需要增加一个请求超时的防御
                 logger.info("index->[{}] trying to create, index_body->[{}]".format(index_name, self.index_body))
-                es_client.indices.create(index=current_index, body=self.index_body, params={"request_timeout": 30})
-                logger.info("index->[{}] now is created.".format(current_index))
+                response = self._create_index_with_retry(es_client, current_index)
+                logger.info("index->[{}] now is created, response->[{}]".format(index_name, response))
 
                 # 需要将对应的别名指向这个新建的index
                 # 新旧类型的alias都会创建，防止transfer未更新导致异常
@@ -2441,6 +2488,18 @@ class ESStorage(models.Model, StorageResultTable):
                 round_alias_name = f"write_{round_time_str}_{index_name}"
                 round_read_alias_name = f"{index_name}_{round_time_str}_read"
 
+                # 检查即将指向的索引是否存在
+                try:
+                    es_client.indices.get(index=last_index_name)
+                except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
+                    logger.warning(
+                        "table_id->[%s] index->[%s] does not exist, will skip alias creation.",
+                        self.table_id,
+                        last_index_name,
+                    )
+                    now_gap += self.slice_gap
+                    continue
+
                 # 3.1 判断这个别名是否有指向旧的index，如果存在则需要解除
                 try:
                     # 此处是非通配的别名，所以会有NotFound的异常
@@ -2477,14 +2536,16 @@ class ESStorage(models.Model, StorageResultTable):
                     for _index in delete_list:
                         actions.append({"remove": {"index": _index, "alias": round_alias_name}})
                     logger.info(
-                        "table_id->[%s] index->[%s] alias->[%s] need delete",
+                        "table_id->[%s] last_index->[%s] index->[%s] alias->[%s] need delete",
                         self.table_id,
+                        last_index_name,
                         delete_list,
                         round_alias_name,
                     )
 
                 # 3.2 需要将循环中的别名都指向了最新的index
-                es_client.indices.update_aliases(body={"actions": actions})
+                response = es_client.indices.update_aliases(body={"actions": actions})
+                logger.info("table_id->[%s] actions->[%s] update alias response [%s]", self.table_id, actions, response)
 
                 logger.info(
                     "table_id->[%s] now has index->[%s] and alias->[%s | %s]",
@@ -2520,8 +2581,10 @@ class ESStorage(models.Model, StorageResultTable):
         es_client = self.get_client()
         new_index_name = self.make_index_name(now_datetime_object, 0, "v2")
         # 创建index
-        es_client.indices.create(index=new_index_name, body=self.index_body, params={"request_timeout": 30})
-        logger.info("table_id->[%s] has created new index->[%s]", self.table_id, new_index_name)
+        response = self._create_index_with_retry(es_client, new_index_name)
+        logger.info(
+            "table_id->[%s] has created new index->[%s],response->[%s]", self.table_id, new_index_name, response
+        )
         return True
 
     def update_index_v2(self):
@@ -2640,11 +2703,23 @@ class ESStorage(models.Model, StorageResultTable):
         new_index_name = self.make_index_name(now_datetime_object, new_index, "v2")
         logger.info("table_id->[%s] will create new index->[%s]", self.table_id, new_index_name)
 
-        # 2.1 创建新的index
-        es_client.indices.create(index=new_index_name, body=self.index_body, params={"request_timeout": 30})
-        logger.info("table_id->[%s] new index_name->[%s] is created now", self.table_id, new_index_name)
-
+        # 2.1 创建新的index,添加重试机制
+        response = self._create_index_with_retry(es_client, new_index_name)
+        logger.info("table_id->[%s] create new index_name->[%s] response [%s]", self.table_id, new_index_name, response)
         return True
+
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+    def _create_index_with_retry(self, es_client, new_index_name):
+        logger.info("Attempting to create index: %s", new_index_name)
+        try:
+            response = es_client.indices.create(
+                index=new_index_name, body=self.index_body, params={"request_timeout": 30}
+            )
+            logger.info("Successfully created index: %s with response: %s", new_index_name, response)
+            return response
+        except Exception as e:
+            logger.error("Failed to create index: %s with error: %s", new_index_name, str(e))
+            raise
 
     def clean_index(self):
         """
@@ -3435,6 +3510,15 @@ class BkDataStorage(models.Model, StorageResultTable):
         """
         return {}
 
+    @property
+    def data_source(self):
+        """
+        对应的监控平台数据源ID
+        """
+        from metadata.models import DataSourceResultTable
+
+        return DataSourceResultTable.objects.filter(table_id=self.table_id).first().bk_data_id
+
     @classmethod
     def create_table(cls, table_id, is_sync_db=False, is_access_now=False, **kwargs):
         try:
@@ -3695,12 +3779,17 @@ class BkDataStorage(models.Model, StorageResultTable):
 
     def generate_bk_data_etl_config(self):
         from metadata.models.result_table import ResultTableField
+        from metadata.models.vm.constants import TimestampLen
+        from metadata.models.vm.utils import get_timestamp_len
 
         qs = ResultTableField.objects.filter(table_id=self.table_id)
         etl_dimension_assign = []
         etl_metric_assign = []
         etl_time_assign = []
         time_field_name = "time"
+
+        timestamp_len = get_timestamp_len(self.data_source)
+        time_format = TimestampLen.get_choice_value(timestamp_len)
 
         fields = []
         i = 1
@@ -3805,7 +3894,7 @@ class BkDataStorage(models.Model, StorageResultTable):
                 "conf": {
                     "timezone": 8,
                     "output_field_name": "timestamp",
-                    "time_format": "Unix Time Stamp(seconds)",
+                    "time_format": time_format,
                     "time_field_name": time_field_name,
                     "timestamp_len": 10,
                     "encoding": "UTF-8",

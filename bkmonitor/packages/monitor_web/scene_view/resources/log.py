@@ -19,7 +19,7 @@ to the current version of the project delivered to anyone in the future.
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
-from apm_web.utils import get_interval
+from apm_web.utils import get_bar_interval_number, get_interval
 from core.drf_resource import Resource, api
 from core.errors.api import BKAPIError
 from monitor_web.scene_view.resources.base import PageListResource
@@ -73,7 +73,10 @@ class GetIndexSetLogSeries(Resource, IndexSetQueryMixin):
         interval = validated_request_data["interval"]
 
         time_field = self.get_index_time_field(bk_biz_id, index_set_id)
-        interval = get_interval(start_time, end_time, interval)
+        if validated_request_data.get("bar_count"):
+            interval = f"{get_bar_interval_number(start_time, end_time)}s"
+        else:
+            interval = get_interval(start_time, end_time, interval)
 
         params = {}
         if validated_request_data.get("keyword"):
@@ -84,7 +87,7 @@ class GetIndexSetLogSeries(Resource, IndexSetQueryMixin):
             aggs={"log_count": {"date_histogram": {"field": time_field, "interval": interval}}},
             start_time=start_time,
             end_time=end_time,
-            **params
+            **params,
         )
 
         buckets = response.get("aggregations", {}).get("log_count", {}).get("buckets", [])
@@ -144,7 +147,7 @@ class ListIndexSetLog(PageListResource, IndexSetQueryMixin):
             size=validated_request_data["limit"],
             start=validated_request_data["offset"],
             sort_list=[[time_field, "desc"]],
-            **params
+            **params,
         )
 
         res = []

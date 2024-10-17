@@ -8,11 +8,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
 import logging
 import re
 from typing import List
 
 from django.conf import settings
+from django.core.cache import caches
 from django.utils.translation import ugettext as _
 
 from bkm_space.api import SpaceApi
@@ -28,9 +30,14 @@ from core.drf_resource.base import Resource
 from core.errors.api import BKAPIError
 from monitor_web.commons.biz.func_control import CM
 
-BK_MONITOR_SITE_URL = "/o/bk_monitorv3/"
-
 logger = logging.getLogger(__name__)
+
+
+cache = caches["default"]
+for cache_type in ["redis", "locmem"]:
+    if cache_type in settings.CACHES:
+        cache = caches[cache_type]
+        break
 
 
 class BusinessListOptionResource(Resource):
@@ -172,7 +179,11 @@ class ListSpacesResource(Resource):
 
 class ListStickySpacesResource(Resource):
     def perform_request(self, validated_request_data):
-        return api.metadata.list_sticky_spaces(validated_request_data)
+        username = validated_request_data.get("username") or get_request_username()
+        try:
+            return SpaceApi.list_sticky_spaces(username=username)
+        except Exception:
+            return api.metadata.list_sticky_spaces(validated_request_data)
 
 
 class StickSpaceResource(Resource):
@@ -234,7 +245,7 @@ class CreateSpaceResource(Resource):
         validated_request_data["username"] = username
         space_info = api.metadata.create_space(validated_request_data)
         # 刷新全量空间列表
-        SpaceApi.list_spaces(refresh=True)
+        SpaceApi.list_spaces_dict(using_cache=False)
         # 主动创建的空间都是负数，只有cmdb业务类型空间和cmdb业务id一致为正数
         bk_biz_id = -space_info["id"]
         # iam 授权
@@ -273,11 +284,11 @@ class SpaceIntroduceResource(CacheResource):
                     'introduce': [_('采集的指标丰富多达100个指标和8种系统事件'), _('可以按集群和模块拓扑进行数据的汇总'), _('提供默认的主机和事件策略')],
                     'buttons': [{'name': _('接入主机'), 'url': settings.AGENT_SETUP_URL}, {'name': 'DEMO', 'url': ''}],
                     'links': [
-                        {'name': _('快速接入'), 'url': _('产品白皮书/scene-host/host_monitor.md')},
-                        {'name': _('进程配置'), 'url': _('产品白皮书/scene-process/process_monitor_overview.md')},
-                        {'name': _('操作系统指标'), 'url': _('产品白皮书/scene-host/host_metrics.md')},
-                        {'name': _('进程指标'), 'url': _('产品白皮书/scene-process/process_metrics.md')},
-                        {'name': _('操作系统事件'), 'url': _('产品白皮书/scene-host/host_events.md')},
+                        {'name': _('快速接入'), 'url': 'ProductFeatures/scene-host/host_monitor.md'},
+                        {'name': _('进程配置'), 'url': 'ProductFeatures/scene-process/process_monitor_overview.md'},
+                        {'name': _('操作系统指标'), 'url': 'ProductFeatures/scene-host/host_metrics.md'},
+                        {'name': _('进程指标'), 'url': 'ProductFeatures/scene-process/process_metrics.md'},
+                        {'name': _('操作系统事件'), 'url': 'ProductFeatures/scene-host/host_events.md'},
                     ],
                 },
             }
@@ -292,9 +303,9 @@ class SpaceIntroduceResource(CacheResource):
                     'introduce': [_('支持HTTP(s)、TCP、UDP、ICMP协议'), _('提供单点可用率、响应时长、期望响应码等指标'), _('提供节点TOP和地图等图表')],
                     'buttons': [{'name': _('新建拨测'), 'url': '#/uptime-check/task-add'}, {'name': 'DEMO', 'url': ''}],
                     'links': [
-                        {'name': _('开启拨测'), 'url': _('产品白皮书/scene-synthetic/synthetic_monitor.md')},
-                        {'name': _('拨测指标说明'), 'url': _('产品白皮书/scene-synthetic/synthetic_metrics.md')},
-                        {'name': _('拨测策略说明'), 'url': _('产品白皮书/scene-synthetic/synthetic_default_rules.md')},
+                        {'name': _('开启拨测'), 'url': 'ProductFeatures/scene-synthetic/synthetic_monitor.md'},
+                        {'name': _('拨测指标说明'), 'url': 'ProductFeatures/scene-synthetic/synthetic_metrics.md'},
+                        {'name': _('拨测策略说明'), 'url': 'ProductFeatures/scene-synthetic/synthetic_default_rules.md'},
                     ],
                 },
             }
@@ -313,9 +324,9 @@ class SpaceIntroduceResource(CacheResource):
                     ],
                     'buttons': [{'name': _('新建应用'), 'url': '#/apm/application/add'}, {'name': 'DEMO', 'url': ''}],
                     'links': [
-                        {'name': _('开启APM'), 'url': _('产品白皮书/scene-apm/apm_monitor_overview.md')},
-                        {'name': _('APM指标说明'), 'url': _('产品白皮书/scene-apm/apm_metrics.md')},
-                        {'name': _('APM策略说明'), 'url': _('产品白皮书/scene-apm/apm_default_rules.md')},
+                        {'name': _('开启APM'), 'url': 'ProductFeatures/scene-apm/apm_monitor_overview.md'},
+                        {'name': _('APM指标说明'), 'url': 'ProductFeatures/scene-apm/apm_metrics.md'},
+                        {'name': _('APM策略说明'), 'url': 'ProductFeatures/scene-apm/apm_default_rules.md'},
                     ],
                 },
             }
@@ -340,9 +351,9 @@ class SpaceIntroduceResource(CacheResource):
                     ],
                     'buttons': [{'name': _('接入Kubernetes'), 'url': settings.BK_BCS_HOST}, {'name': 'DEMO', 'url': ''}],
                     'links': [
-                        {'name': _('开启容器监控'), 'url': _('产品白皮书/scene-k8s/k8s_monitor_overview.md')},
-                        {'name': _('容器指标说明'), 'url': _('产品白皮书/scene-k8s/k8s_metrics.md')},
-                        {'name': _('k8s策略说明'), 'url': _('产品白皮书/scene-k8s/k8s_default_rules.md')},
+                        {'name': _('开启容器监控'), 'url': 'ProductFeatures/scene-k8s/k8s_monitor_overview.md'},
+                        {'name': _('容器指标说明'), 'url': 'ProductFeatures/scene-k8s/k8s_metrics.md'},
+                        {'name': _('k8s策略说明'), 'url': 'ProductFeatures/scene-k8s/k8s_default_rules.md'},
                     ],
                 },
             }
@@ -369,13 +380,14 @@ class SpaceIntroduceResource(CacheResource):
                     'introduce': [_('结合插件提供本地和远程采集两种方式'), _('提供基于配置平台节点的动态扩缩容'), _('提供物理和容器环境的采集')],
                     'buttons': [{'name': _('新建数据采集'), 'url': '#/collect-config/add'}, {'name': 'DEMO', 'url': ''}],
                     'links': [
-                        {'name': _('什么是指标和维度'), 'url': _('产品白皮书/integrations-metrics/what_metrics.md')},
-                        {'name': _('开始指标数据采集'), 'url': _('产品白皮书/integrations-metrics/collect_tasks.md')},
-                        {'name': _('插件制作快速入门'), 'url': _('产品白皮书/integrations-metric-plugins/plugins.md')},
+                        {'name': _('什么是指标和维度'), 'url': 'ProductFeatures/integrations-metrics/what_metrics.md'},
+                        {'name': _('开始指标数据采集'), 'url': 'ProductFeatures/integrations-metrics/collect_tasks.md'},
+                        {'name': _('插件制作快速入门'), 'url': 'ProductFeatures/integrations-metric-plugins/plugins.md'},
                     ],
                 },
             }
 
+        tag_intro_key = "introduce:{}:{}".format(tag, bk_biz_id)
         func = {
             "performance": performance,
             "uptime-check": uptime_check,
@@ -385,7 +397,15 @@ class SpaceIntroduceResource(CacheResource):
             "collect-config": collect_config,
             "plugin-manager": collect_config,
         }.get(tag, lambda: {})
-        return func()
+        ret_from_cache = cache.get(tag_intro_key)
+        if ret_from_cache:
+            return json.loads(ret_from_cache)
+
+        ret = func()
+        if not ret["is_no_data"] and not ret["is_no_source"]:
+            # 该业务对应场景已经在使用中， 持久化该结果
+            cache.set(tag_intro_key, json.dumps(ret), None)
+        return ret
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]

@@ -29,10 +29,11 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getGroupByCount } from 'monitor-api/modules/data_explorer';
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
+import { skipToDocsLink } from 'monitor-common/utils/docs';
 // import { handleTimeRange } from '../../../utils';
 import { deepClone } from 'monitor-common/utils/utils';
 
-import { handleGotoLink } from '../../../common/constant';
+import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import FieldFiltering from '../event-retrieval/field-filtering';
 import HandleBtn from '../handle-btn/handle-btn';
@@ -69,7 +70,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
   formLoading = false;
 
   /** 维度过滤loading 获取维度数据时触发 */
-  gourpByLoading = false;
+  groupByLoading = false;
 
   /** 请求的时间范围换成你 */
   timeRangeCache: [number, number] = null;
@@ -163,7 +164,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
       query_string: this.localValue.query_string.trim(),
       where: this.localValue.where.map((item, index) => ({
         ...item,
-        condition: !!index ? item.condition : undefined,
+        condition: index ? item.condition : undefined,
       })),
     };
   }
@@ -330,9 +331,9 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
    * @description: 获取维度列表数据
    */
 
-  getGroupByList(timeRange?: { start_time: number; end_time: number }) {
+  getGroupByList(time?: { start_time: number; end_time: number }) {
     if (!this.currentGroupByVarPramas.result_table_id) return;
-    timeRange = timeRange ? timeRange : this.timeRange;
+    const timeRange = time ? time : this.timeRange;
     this.timeRangeCache = [timeRange.start_time, timeRange.end_time];
     const params = {
       ...timeRange,
@@ -340,7 +341,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
       filter_dict: {},
       index_set_id: '',
     };
-    this.gourpByLoading = true;
+    this.groupByLoading = true;
     return getGroupByCount(params)
       .then(res => {
         this.handleCountChange(res.total);
@@ -350,7 +351,9 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
       .catch(() => {
         this.emptyStatusChange('500');
       })
-      .finally(() => (this.gourpByLoading = false));
+      .finally(() => {
+        this.groupByLoading = false;
+      });
   }
 
   @Emit('emptyStatusChange')
@@ -410,50 +413,64 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
 
   render() {
     // 查询语句的提示内容
-    const tipsContentTpl = () => (
-      <div
-        id='tips-content'
-        class='query-tips-content-wrapper'
-      >
+    const tipsContent = () => (
+      <div class='tips-content-main'>
         <div class='tips-content-title'>
           {this.$t('可输入SQL语句进行快速查询')}
           <a
             class='link'
             target='_blank'
-            onClick={() => handleGotoLink('bkLogQueryString')}
+            onClick={() => {
+              skipToDocsLink('bkLogQueryString');
+            }}
           >
             {this.$t('查看语法')}
             <i class='icon-monitor icon-mc-link' />
           </a>
         </div>
         <ul class='tips-content-list'>
-          {this.tipsContentList.map(item => (
-            <li class='tips-content-item'>
+          {this.tipsContentList.map((item, index) => (
+            <li
+              key={index}
+              class='tips-content-item'
+            >
               <div class='tips-content-item-label'>{item.label}</div>
-              {item.value.map(val => (
-                <div class='tips-content-item-val'>{val}</div>
+              {item.value.map((val, vIndex) => (
+                <div
+                  key={vIndex}
+                  class='tips-content-item-val'
+                >
+                  {val}
+                </div>
               ))}
             </li>
           ))}
         </ul>
       </div>
     );
+    const tipsContentTpl = () => (
+      <div
+        id='tips-content'
+        class='query-tips-content-wrapper'
+      >
+        {this.groupByLoading ? <TableSkeleton type={4} /> : tipsContent()}
+      </div>
+    );
     return (
       <div class='event-retrieval-wrapper'>
-        <div
-          class='event-retrieval-bg'
-          v-bkloading={{ isLoading: this.formLoading }}
-        >
+        <div class='event-retrieval-bg'>
           <div class='er-from-item'>
             <div class='er-from-item-label'>{this.$t('事件类型')}</div>
             <bk-select
               vModel={this.localValue.eventType}
               clearable={false}
+              loading={this.formLoading}
               onSelected={this.handleChangeEventType}
             >
               {this.eventTypeList.map(item => (
                 <bk-option
                   id={item.id}
+                  key={item.id}
                   name={item.name}
                 />
               ))}
@@ -469,6 +486,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
                 vModel={this.localValue.result_table_id}
                 clearable={false}
                 ext-popover-cls={'event-retrieval-data-id-select-popover'}
+                loading={this.formLoading}
                 searchable={true}
                 onSelected={this.handleInitLocalValue}
               >
@@ -511,6 +529,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
             <bk-input
               class='query-string-input'
               vModel={this.localValue.query_string}
+              disabled={this.formLoading}
               type='textarea'
               onBlur={this.handleQueryStringBlur}
               onFocus={this.handleInputFocus}
@@ -539,11 +558,12 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
         </div>
         <FieldFiltering
           class='field-filtering'
-          v-bkloading={{ isLoading: this.gourpByLoading }}
           total={this.total}
           value={this.groupByList}
           onAddCondition={this.handleAddFilterCondition}
-          onChange={list => (this.groupByList = list)}
+          onChange={list => {
+            this.groupByList = list;
+          }}
         />
         {tipsContentTpl()}
       </div>

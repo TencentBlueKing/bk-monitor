@@ -51,6 +51,11 @@ export default class MessageChart extends CommonSimpleChart {
     limit: 10,
   };
   total = 0;
+
+  get description() {
+    return this.panel.options?.header?.tips || '';
+  }
+
   async getPanelData(start_time?: string, end_time?: string) {
     const res = await this.beforeGetPanelData(start_time, end_time);
     if (!res) return;
@@ -143,10 +148,27 @@ export default class MessageChart extends CommonSimpleChart {
   render() {
     return (
       <div class='message-chart'>
-        <div class='message-chart-title'>{this.panel.title}</div>
+        <div class='message-chart-title'>
+          {this.panel.title}
+          {!!this.description && (
+            <i
+              class='bk-icon icon-info-circle tips-icon'
+              v-bk-tooltips={{
+                content: this.description,
+                allowHTML: true,
+                boundary: 'window',
+                distance: 0,
+                placements: ['top'],
+              }}
+            />
+          )}
+        </div>
         {!this.empty ? (
           [
-            <div class='message-chart-pagination'>
+            <div
+              key={'01'}
+              class='message-chart-pagination'
+            >
               {this.$t('共计')}
               <span class='bold-num'>{this.pagination.count}</span>
               {this.$t('条')}
@@ -178,7 +200,10 @@ export default class MessageChart extends CommonSimpleChart {
                 </bk-button>
               </div>
             </div>,
-            <div class='collapse-wrapper'>
+            <div
+              key={'02'}
+              class='collapse-wrapper'
+            >
               <bk-collapse
                 class='message-chart-collapse'
                 active-name={this.expand}
@@ -204,8 +229,13 @@ export default class MessageChart extends CommonSimpleChart {
                       class='collapse-item-content'
                       slot='content'
                     >
-                      {item.content.slice(0, item.showAll ? item.content.length - 1 : 4).map(text => (
-                        <pre class='content-item'>{text}</pre>
+                      {item.content.slice(0, item.showAll ? item.content.length - 1 : 4).map((text, index) => (
+                        <pre
+                          key={index}
+                          class='content-item'
+                        >
+                          {text}
+                        </pre>
                       ))}
                       {item.content.length > 4 && (
                         <bk-button

@@ -14,6 +14,7 @@ export const applicationInfoByAppName = request('GET', 'apm/meta/application/app
 export const listApplicationAsync = request('POST', 'apm/meta/application/list_application_async/');
 export const instanceDiscoverKeys = request('POST', 'apm/meta/application/instance_discover_keys/');
 export const serviceDetail = request('POST', 'apm/meta/application/service_detail/');
+export const endpointDetail = request('POST', 'apm/meta/application/endpoint_detail/');
 export const serviceList = request('POST', 'apm/meta/application/service_list/');
 export const queryExceptionEvent = request('POST', 'apm/meta/application/query_exception_event/');
 export const queryExceptionDetailEvent = request('POST', 'apm/meta/application/query_exception_detail_event/');
@@ -59,6 +60,7 @@ export default {
   listApplicationAsync,
   instanceDiscoverKeys,
   serviceDetail,
+  endpointDetail,
   serviceList,
   queryExceptionEvent,
   queryExceptionDetailEvent,

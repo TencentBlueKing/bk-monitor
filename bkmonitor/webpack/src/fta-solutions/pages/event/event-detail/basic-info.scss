@@ -20,7 +20,7 @@ $text: #313238;
   margin-top: 24px;
   background: #fff;
   border-radius: 2px;
-  box-shadow: 0px 1px 2px 0px rgba(0,0,0,.10);
+  box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
 
   .bar {
     &-recovered {
@@ -141,7 +141,7 @@ $text: #313238;
             justify-content: flex-end;
 
             /* stylelint-disable-next-line declaration-no-important */
-            color: #63656e!important;
+            color: #63656e !important;
 
             &.fb-146 {
               flex-basis: 146px;
@@ -280,6 +280,14 @@ $text: #313238;
             font-size: 14px;
             font-weight: 400;
             color: #000;
+            .right-icon {
+              margin-left: 8px;
+              color: $red;
+              cursor: pointer;
+              &.icon-tishi {
+                font-size: 16px;
+              }
+            }
           }
         }
       }
@@ -331,7 +339,7 @@ $text: #313238;
       cursor: pointer;
       background-color: #f0f1f5;
       border-radius: 2px;
-      transition: background-color .2s;
+      transition: background-color 0.2s;
 
       .icon-monitor {
         margin-left: 6px;

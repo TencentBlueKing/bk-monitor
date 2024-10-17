@@ -13,16 +13,12 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
-import curlify
-import requests
-from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from opentelemetry import trace
-from requests import RequestException
 
-from api.bkdata.default import QueryDataResource
 from apm_web.models import Application
 from core.drf_resource import api
+from core.errors.api import BKAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -126,39 +122,20 @@ class Query:
 
     def _execute(self):
         # bkData need a raw string with double quotes
-        with tracer.start_as_current_span("query_profile") as span:
-            sql = json.dumps(self.to_dict())
-            logger.info("[ProfileDatasource] query_data params: %s", sql)
+        sql = json.dumps(self.to_dict())
+        logger.info("[ProfileDatasource] query_data params: %s", sql)
 
-            try:
-                url = f"{QueryDataResource.base_url}{QueryDataResource.action}"
-                params = {
-                    "sql": sql,
-                    "bk_app_code": settings.APP_CODE,
-                    "bk_app_secret": settings.SECRET_KEY,
-                    "prefer_storage": "doris",
-                    "bk_username": settings.COMMON_USERNAME,
-                    "bkdata_authentication_method": "user",
-                }
-                span.set_attribute("profile.query.url", url)
-                span.set_attribute("profile.query.params", json.dumps(params))
-                response = requests.post(url=url, json=params, headers={"Content-Type": "application/json"})
-                logger.info(f"[ProfileDatasource] request elapsed: {response.elapsed.total_seconds()}s")
-                span.set_attribute("profile.query.elapsed", response.elapsed.total_seconds())
-                span.set_attribute("profile.query.curl", curlify.to_curl(response.request))
-                res = response.json()
-            except RequestException as e:
-                logger.exception(f"query bkdata doris failed, error: {e}")
-                span.record_exception(e)
-                return None
+        try:
+            params = {
+                "sql": sql,
+                "prefer_storage": "doris",
+                "_user_request": True,
+            }
+            return api.bkdata.query_data(**params)
+        except BKAPIError as e:
+            logger.exception(f"query bkdata doris failed, error: {e}")
 
-            if not res["result"]:
-                err_msg = "query bkdata doris failed: %s", res["message"]
-                logger.error(err_msg)
-                span.record_exception(ValueError(err_msg))
-                return None
-
-            return res["data"]
+        return None
 
 
 class QueryTemplate:

@@ -238,7 +238,7 @@ export default class AlarmDetail extends Vue {
     };
     this.statusMap = {
       ABNORMAL: this.$tc('未恢复'),
-      CLOSED: this.$tc('已关闭'),
+      CLOSED: this.$tc('已失效'),
       RECOVERED: this.$tc('已恢复'),
     };
     this.handleGetData();

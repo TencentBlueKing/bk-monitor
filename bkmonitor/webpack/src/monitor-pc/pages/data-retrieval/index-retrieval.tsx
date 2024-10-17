@@ -46,9 +46,15 @@ export default class IndexRetrieval extends Mixins(authorityMixinCreate(authMap)
   @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Provide('authorityMap') authorityMap;
 
-  beforeRouteEnter(to: Route, from: Route, next: Function) {
-    next((vm: IndexRetrieval) => {
-      vm.dataRetrieval.handleBeforeRouteEnter(to, from);
+  // beforeRouteEnter(to: Route, from: Route, next: Function) {
+  //   next((vm: IndexRetrieval) => {
+  //     vm.dataRetrieval.handleBeforeRouteEnter(to, from);
+  //   });
+  // }
+  created() {
+    this.$nextTick(() => {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      this.dataRetrieval.handleBeforeRouteEnter(this.$route, { name: '' } as Route);
     });
   }
   beforeRouteLeave(to, from, next) {
@@ -56,6 +62,11 @@ export default class IndexRetrieval extends Mixins(authorityMixinCreate(authMap)
     next();
   }
   render() {
-    return <DataRetrieval ref='dataRetrieval' />;
+    return (
+      <DataRetrieval
+        key={this.$store.getters.bizId}
+        ref='dataRetrieval'
+      />
+    );
   }
 }

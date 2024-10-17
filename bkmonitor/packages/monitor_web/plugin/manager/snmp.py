@@ -15,11 +15,11 @@ import os
 
 import yaml
 from django.utils.translation import ugettext as _
+
+from core.errors.plugin import PluginParseError, SNMPMetricNumberError
 from monitor_web.plugin.constant import SNMP_MAX_METRIC_NUM
 from monitor_web.plugin.manager.base import PluginManager
 from monitor_web.plugin.serializers import SNMPSerializer
-
-from core.errors.plugin import PluginParseError, SNMPMetricNumberError
 
 
 class SNMPPluginManager(PluginManager):
@@ -31,7 +31,7 @@ class SNMPPluginManager(PluginManager):
     templates_dirname = "snmp_templates"
     serializer_class = SNMPSerializer
 
-    def get_debug_config_context(self, config_version, info_version, param, target_nodes):
+    def _get_debug_config_context(self, config_version, info_version, param, target_nodes):
         collector_data = param["collector"]
         plugin_data = param["plugin"]
         context = {
@@ -120,14 +120,14 @@ class SNMPPluginManager(PluginManager):
                 },
                 "params": {"context": plugin_params},
             },
-            self.get_bkmonitorbeat_deploy_step("bkmonitorbeat_prometheus_remote.conf", {"context": collector_params}),
+            self._get_bkmonitorbeat_deploy_step("bkmonitorbeat_prometheus_remote.conf", {"context": collector_params}),
         ]
         return deploy_steps
 
-    def get_remote_stage(self, meta_dict):
+    def _get_remote_stage(self, meta_dict):
         return True
 
-    def get_collector_json(self, plugin_params):
+    def _get_collector_json(self, plugin_params):
         file_name = "config.yaml.tpl"
         config_yaml_path = ""
         for filename in self.filename_list:
@@ -137,7 +137,7 @@ class SNMPPluginManager(PluginManager):
         if not config_yaml_path:
             raise PluginParseError({"msg": _("无法获取SNMP对应的配置文件")})
 
-        content = yaml.load(self.read_file(config_yaml_path), Loader=yaml.FullLoader)
+        content = yaml.load(self._read_file(config_yaml_path), Loader=yaml.FullLoader)
         content["if_mib"].pop("auth")
         snmp_collector_json = {
             "snmp_version": content["if_mib"].pop("version"),

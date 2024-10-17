@@ -31,6 +31,7 @@ from apm.core.handlers.query.proxy import QueryProxy
 from apm.models import (
     ApdexConfig,
     ApmApplication,
+    ApmDataSourceConfigBase,
     ApmInstanceDiscover,
     ApmMetricDimension,
     ApmTopoDiscoverRule,
@@ -851,6 +852,7 @@ class QueryEndpointResource(Resource):
         category_kind_value = serializers.CharField(required=False, label="类型具体值", default="")
         service_name = serializers.CharField(required=False, label="服务名称", allow_blank=True, default="")
         bk_instance_id = serializers.CharField(required=False, label="实例id", allow_blank=True, default="")
+        filters = serializers.DictField(label="查询条件", required=False)
 
     def perform_request(self, data):
         filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
@@ -869,6 +871,9 @@ class QueryEndpointResource(Resource):
                 app_name=data["app_name"],
             ).first()
             endpoints = endpoints.filter(service_name=instance.topo_node_key)
+        if data.get("filters"):
+            endpoints = endpoints.filter(**data["filters"])
+
         return [
             {
                 "endpoint_name": endpoint.endpoint_name,
@@ -975,6 +980,12 @@ class QueryOptionValuesSerializer(serializers.Serializer):
     start_time = serializers.IntegerField(required=True, label="数据开始时间")
     end_time = serializers.IntegerField(required=True, label="数据开始时间")
     fields = serializers.ListField(child=serializers.CharField(), label="查询字段")
+    datasource_type = serializers.ChoiceField(
+        required=False,
+        label="数据源类型",
+        default=ApmDataSourceConfigBase.TRACE_DATASOURCE,
+        choices=(ApmDataSourceConfigBase.METRIC_DATASOURCE, ApmDataSourceConfigBase.TRACE_DATASOURCE),
+    )
 
 
 class QueryTraceOptionValues(Resource):
@@ -984,7 +995,11 @@ class QueryTraceOptionValues(Resource):
 
     def perform_request(self, validated_data):
         return QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"]).query_option_values(
-            QueryMode.TRACE, validated_data["start_time"], validated_data["end_time"], validated_data["fields"]
+            QueryMode.TRACE,
+            validated_data["datasource_type"],
+            validated_data["start_time"],
+            validated_data["end_time"],
+            validated_data["fields"],
         )
 
 
@@ -995,7 +1010,11 @@ class QuerySpanOptionValues(Resource):
 
     def perform_request(self, validated_data):
         return QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"]).query_option_values(
-            QueryMode.SPAN, validated_data["start_time"], validated_data["end_time"], validated_data["fields"]
+            QueryMode.SPAN,
+            validated_data["datasource_type"],
+            validated_data["start_time"],
+            validated_data["end_time"],
+            validated_data["fields"],
         )
 
 

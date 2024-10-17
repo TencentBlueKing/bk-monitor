@@ -306,7 +306,7 @@ export default defineComponent({
     const askTipMsg = (isAak, status, ackOperator) => {
       const statusNames = {
         RECOVERED: t('告警已恢复'),
-        CLOSED: t('告警已关闭'),
+        CLOSED: t('告警已失效'),
       };
       if (!isAak) {
         return statusNames[status];

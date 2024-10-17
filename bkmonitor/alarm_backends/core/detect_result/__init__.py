@@ -18,7 +18,7 @@ from alarm_backends.constants import (
 )
 from alarm_backends.core.cache import key
 
-CONST_MAX_LEN_CHECK_RESULT = 60  # 检测结果缓存，默认只保留60条数据
+CONST_MAX_LEN_CHECK_RESULT = 30  # 检测结果缓存，默认只保留30条数据
 
 ANOMALY_LABEL = "ANOMALY"  # 异常标识
 

@@ -270,12 +270,12 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
       limit: this.pageSize,
       offset: this.page * this.pageSize,
     };
-    !!this.page ? (this.loading = true) : (this.tableLoading = true);
+    this.page ? (this.loading = true) : (this.tableLoading = true);
     return logQuery(params, { needRes: true })
       .then(({ data = [], meta = { total: 0 } }) => {
         this.total = meta.total;
         this.isNoMoreData = data.length < this.pageSize;
-        !!this.page ? this.tableData.push(...data) : (this.tableData = data);
+        this.page ? this.tableData.push(...data) : (this.tableData = data);
       })
       .finally(() => {
         this.loading = false;
@@ -504,7 +504,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
             </div>
             <div class='collapse-content'>
               <div class='chart'>
-                {!!this.chartKey ? (
+                {this.chartKey ? (
                   <MonitorEcharts
                     key={this.chartKey}
                     height={164}
@@ -521,10 +521,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
               </div>
             </div>
           </div>
-          <bk-table
-            v-bkloading={{ isLoading: this.tableLoading }}
-            data={this.tableColumnList.length ? this.tableData : []}
-          >
+          <bk-table data={!this.tableLoading && this.tableColumnList.length ? this.tableData : []}>
             <bk-table-column
               scopedSlots={{
                 default: expandScopedSlots,
@@ -535,27 +532,28 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
               <RetrievalEmptyShow
                 emptyStatus={this.emptyStatus}
                 eventMetricParams={this.eventMetricParams}
-                queryLoading={this.isFirstSearch || this.tableLoading || this.loading}
+                queryLoading={false}
                 showType={'event'}
                 onClickEventBtn={this.handleClickEmptyBtn}
               />
             </div>
-            {this.tableColumnList.map(column => (
+            {this.tableColumnList.map((column, index) => (
               <bk-table-column
+                key={index}
                 {...{
                   props: column,
                 }}
               />
             ))}
           </bk-table>
-          <div
+          {/* <div
             class='table-loading-wrap'
             v-bkloading={{ isLoading: this.loading }}
           >
             {!!this.tableData.length && this.isNoMoreData ? (
               <span class='no-more-data-text'>{this.$t('没有更多数据')}</span>
             ) : undefined}
-          </div>
+          </div> */}
         </div>
         <CollectChart
           collect-list={this.collectList}

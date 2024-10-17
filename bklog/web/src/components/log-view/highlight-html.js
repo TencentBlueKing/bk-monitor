@@ -142,7 +142,9 @@ export default {
           <span>
             {isShowKey && (
               <span>
-                <span style='background: #EBECF0; color: #313238;'>{item.key}:</span>
+                <span style='background: #EBECF0; color: #313238; display: inline-block; line-height: 16px; padding: 0 2px;'>
+                  {item.key}:
+                </span>
                 {'\u00a0'}
               </span>
             )}

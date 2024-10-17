@@ -30,9 +30,7 @@ class NodeDiscover(DiscoverBase):
 
     @property
     def extra_data_factory(self):
-        return defaultdict(
-            lambda: {"category": "", "kind": "", "predicate_value": "", "instance": {}, "service_language": ""}
-        )
+        return defaultdict(lambda: {"category": "", "kind": "", "predicate_value": "", "service_language": ""})
 
     def discover(self, origin_data):
         rules, other_rule = self.get_rules()
@@ -51,8 +49,16 @@ class NodeDiscover(DiscoverBase):
             self.find_remote_service(span, match_rule, find_instances)
 
             topo_key = get_topo_instance_key(
-                match_rule.instance_keys, match_rule.topo_kind, match_rule.category_id, span
+                match_rule.instance_keys,
+                match_rule.topo_kind,
+                match_rule.category_id,
+                span,
+                component_predicate_key=match_rule.predicate_key,
             )
+            if match_rule.topo_kind == ApmTopoDiscoverRule.TOPO_COMPONENT:
+                # 组件类型的节点名称需要添加上服务名称的前缀 (不考虑拼接后与用户定义的服务重名情况需要引导用户进行更改)
+                topo_key = f"{self.get_service_name(span)}-{topo_key}"
+
             find_instances[topo_key]["category"] = match_rule.category_id
             find_instances[topo_key]["kind"] = match_rule.topo_kind
             find_instances[topo_key]["predicate_value"] = extract_field_value(match_rule.predicate_key, span)
@@ -61,13 +67,12 @@ class NodeDiscover(DiscoverBase):
             )
 
             if match_rule.topo_kind == ApmTopoDiscoverRule.TOPO_COMPONENT:
-                # supply instance info via instance keys
-                for instance_key in match_rule.instance_keys:
-                    key_value = extract_field_value(instance_key, span)
-                    find_instances[topo_key]["instance"][".".join(instance_key)] = key_value
 
                 other_rule_topo_key = get_topo_instance_key(
-                    other_rule.instance_keys, other_rule.topo_kind, other_rule.category_id, span
+                    other_rule.instance_keys,
+                    other_rule.topo_kind,
+                    other_rule.category_id,
+                    span,
                 )
                 further_instances[other_rule_topo_key] = {
                     "category": other_rule.category_id,
@@ -118,7 +123,10 @@ class NodeDiscover(DiscoverBase):
 
         if exists_field(predicate_key, span):
             instance_key = get_topo_instance_key(
-                [predicate_key], ApmTopoDiscoverRule.TOPO_REMOTE_SERVICE, rule.category_id, span
+                [predicate_key],
+                ApmTopoDiscoverRule.TOPO_REMOTE_SERVICE,
+                rule.category_id,
+                span,
             )
             instance_map[instance_key]["category"] = rule.category_id
             # remote service found by span additionally

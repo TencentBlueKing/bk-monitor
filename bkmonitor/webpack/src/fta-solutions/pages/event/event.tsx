@@ -69,7 +69,7 @@ import EmptyTable from './empty-table';
 import EventChart from './event-chart';
 import AlarmConfirm from './event-detail/alarm-confirm';
 import AlarmDispatch from './event-detail/alarm-dispatch';
-import EventDetailSlider, { type TType as TSliderType } from './event-detail/event-detail-slider';
+// import EventDetailSlider from './event-detail/event-detail-slider';
 import ManualDebugStatus from './event-detail/manual-debug-status';
 import ManualProcess from './event-detail/manual-process';
 import QuickShield from './event-detail/quick-shield';
@@ -91,6 +91,7 @@ import {
 } from './typings/event';
 import { INIT_COMMON_FILTER_DATA, getOperatorDisabled } from './utils';
 
+import type { TType as TSliderType } from './event-detail/event-detail-slider';
 // import { showAccessRequest } from 'monitor-pc/components/access-request-dialog';
 import type { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -141,8 +142,8 @@ export const commonAlertFieldMap = {
       name: window.i18n.tc('已恢复'),
     },
     {
-      id: isEn ? 'CLOSED' : '已关闭',
-      name: window.i18n.tc('已关闭'),
+      id: isEn ? 'CLOSED' : '已失效',
+      name: window.i18n.tc('已失效'),
     },
   ],
   severity: [
@@ -308,6 +309,9 @@ const filterIconMap = {
 };
 @Component({
   name: 'Event',
+  components: {
+    EventDetailSlider: () => import('./event-detail/event-detail-slider'),
+  },
 })
 class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   // 监控左侧栏是否收缩配置 自愈默认未收缩
@@ -401,8 +405,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       details: [
         {
           severity: 1,
-          dimension: '',
+          dimension: [],
           trigger: '',
+          alertId: '',
           strategy: {
             id: '',
             name: '',
@@ -589,10 +594,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       await Promise.all([vm.handleGetFilterData(), vm.handleGetTableData(true)]);
       vm.handleRefleshChange(vm.refleshInterval);
       // 正常进入告警页情况下不打开详情，只有通过告警通知进入的才展开详情
-      const queryString = vm.$route.query;
-      const paramString = vm.$route.params;
-      const needShowDetail = /(^id).+/g.test(queryString.queryString as string);
-      if ((Object.keys(queryString).length || Object.keys(paramString).length) && needShowDetail) {
+      const needShowDetail = !!vm.$route.query.collectId && location.search.includes('specEvent');
+      if (needShowDetail) {
         vm.handleFirstShowDetail();
       }
       // 批量弹窗 (batchAction=xxx并且queryString 包含action_id 搜索 则弹出弹窗)
@@ -619,14 +622,14 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
 
   async mounted() {
     const { contentWrap } = this.$refs as any;
-    (contentWrap as HTMLDivElement).addEventListener('scroll', this.handleDisbaleHover, false);
+    (contentWrap as HTMLDivElement).addEventListener('scroll', this.handleDisableHover, false);
   }
 
   beforeDestroy() {
     this.routeStateKeyList = [];
     window.removeEventListener('popstate', this.handlePopstate);
     const { contentWrap } = this.$refs as any;
-    (contentWrap as HTMLDivElement).removeEventListener('scroll', this.handleDisbaleHover, false);
+    (contentWrap as HTMLDivElement).removeEventListener('scroll', this.handleDisableHover, false);
     window.clearInterval(this.refleshInstance);
   }
   // 拼一个查询语句，然后查询 未恢复的且处理阶段都不满足 的异常通知人数据（显示是通知人为空）
@@ -643,7 +646,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     }
     this.handleQueryStringChange(queryString);
   }
-  handleDisbaleHover() {
+  handleDisableHover() {
     const { contentTable } = this.$refs as any;
     clearTimeout(this.disableHoverTimer);
     if (!contentTable.classList.contains('disable-hover')) {
@@ -831,9 +834,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         !onlyOverview && (this.filterInputStatus = 'success');
         return res.data || {};
       })
-      .catch(({ message, code }) => {
+      .catch(({ error_details, message, code }) => {
         if (code !== grammaticalErrorCode) {
-          this.$bkMessage({ message, theme: 'error' });
+          this.$bkMessage(error_details || { message, theme: 'error' });
         }
         return {
           aggs: [],
@@ -900,9 +903,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         !onlyOverview && (this.filterInputStatus = 'success');
         return res.data || {};
       })
-      .catch(({ message, code }) => {
+      .catch(({ error_details, message, code }) => {
         if (code !== grammaticalErrorCode) {
-          this.$bkMessage({ message, theme: 'error' });
+          this.$bkMessage(error_details || { message, theme: 'error' });
         }
         return {
           aggs: [],
@@ -1014,9 +1017,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         !onlyOverview && (this.filterInputStatus = 'success');
         return res.data || {};
       })
-      .catch(({ message, code }) => {
+      .catch(({ error_details, message, code }) => {
         if (code !== grammaticalErrorCode) {
-          this.$bkMessage({ message, theme: 'error' });
+          this.$bkMessage(error_details || { message, theme: 'error' });
         }
         return {
           aggs: [],
@@ -1092,6 +1095,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       }
       const valueMap: any = {};
       const list = [];
+      // biome-ignore lint/complexity/noForEach: <explanation>
       (fieldList || []).forEach(item => {
         valueMap[item.field] =
           item.buckets.map(set => {
@@ -1231,9 +1235,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     const data = await EventStoreModule.getAlertEventCount({ ids });
     this.eventCounts = data;
     if (data) {
-      this.tableData.forEach(item => {
+      for (const item of this.tableData) {
         item.event_count = data[item.id] || -1;
-      });
+      }
     }
   }
   /**
@@ -1267,7 +1271,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           overview,
           actionOverview,
           faultOverview,
-          ...overview.children,
+          ...(overview?.children || []),
           ...actionOverview.children,
           ...(enable_aiops_incident && faultOverview.children ? faultOverview.children : []),
         ].find(item => item.id === this.activeFilterId)?.name || '';
@@ -1411,8 +1415,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           key,
         },
       };
-      this.routeStateKeyList.length === 0 ? this.$router.replace(params) : this.$router.push(params);
-      this.routeStateKeyList.push(key);
+      setTimeout(() => {
+        if (this.$store.getters.paddingRoute?.name.includes('event-center')) {
+          this.routeStateKeyList.length === 0 ? this.$router.replace(params) : this.$router.push(params);
+          this.routeStateKeyList.push(key);
+        }
+      }, 100);
     }
     this.tableLoading = false;
   }
@@ -1511,9 +1519,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     const promiseFn = this.searchType === 'action' ? actionDateHistogram : alertDateHistogram;
     const { unit, series, code } = await promiseFn(params, { needRes: true, needMessage: false })
       .then(res => res.data)
-      .catch(({ code, message }) => {
+      .catch(({ code, message, error_details }) => {
         if (code !== grammaticalErrorCode) {
-          this.$bkMessage({ message, theme: 'error' });
+          this.$bkMessage(error_details || { message, theme: 'error' });
         }
         return {
           series: [],
@@ -1604,12 +1612,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   handleRefleshChange(v: number) {
     window.clearInterval(this.refleshInstance);
     this.refleshInterval = v;
-    v > 0 &&
-      (this.refleshInstance = setInterval(() => {
-        this.chartKey = random(10);
-        this.handleGetFilterData();
-        this.handleGetTableData();
-      }, this.refleshInterval));
+    if (v <= 0) return;
+    this.refleshInstance = setInterval(() => {
+      this.chartKey = random(10);
+      this.handleGetFilterData();
+      this.handleGetTableData();
+    }, this.refleshInterval);
   }
   /**
    * @description: 点击立刻刷新图标触发
@@ -1788,32 +1796,31 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         this.dialog.quickShield.show = true;
         this.dialog.quickShield.ids = this.selectedList;
         const details = [];
-        this.selectedList.forEach(item => {
-          const detail = this.tableData.find(tableitem => tableitem.id === item);
+        for (const alertId of this.selectedList) {
+          const detail = this.tableData.find(tableitem => tableitem.id === alertId);
           details.push({
             severity: detail.severity,
-            dimension: detail.dimension_message,
+            dimension: detail.dimensions,
             trigger: detail.description,
+            alertId: alertId,
             strategy: {
               id: detail.strategy_id,
               name: detail.strategy_name,
             },
           });
-        });
+        }
         this.dialog.quickShield.details = details;
         this.batchUrlUpdate(EBatchAction.quickShield);
         break;
       }
       case 'chat': {
-        const assignees = [];
-        this.selectedList.forEach(item => {
+        let assignees = [];
+        for (const item of this.selectedList) {
           const detail = this.tableData.find(tableitem => tableitem.id === item);
-          detail.assignee?.forEach(val => {
-            if (!assignees.includes(val)) {
-              assignees.push(val);
-            }
+          assignees = detail.assignee?.map(val => {
+            return !assignees.includes(val);
           });
-        });
+        }
         this.chatGroupDialog.assignee = assignees;
         this.chatGroupDialog.alertIds.splice(0, this.chatGroupDialog.alertIds.length, ...this.selectedList);
         this.chatGroupShowChange(true);
@@ -1843,8 +1850,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           key,
         },
       };
-      this.$router.replace(params);
-      this.routeStateKeyList.push(key);
+      this.$nextTick(() => {
+        if (this.$route.name.includes('event-center')) {
+          this.$router.replace(params);
+          this.routeStateKeyList.push(key);
+        }
+      });
     }
   }
 
@@ -1870,14 +1881,16 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     this.dialog.quickShield.details = [
       {
         severity: v.severity,
-        dimension: v.dimension_message,
+        dimension: v.dimensions,
         trigger: v.description,
+        alertId: v.id,
         strategy: {
           id: v?.strategy_id as unknown as string,
           name: v?.strategy_name,
         },
       },
     ];
+    // EventModuleStore.setDimensionList(v.dimensions || []);
   }
   /**
    * @description: 手动处理
@@ -1954,12 +1967,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    */
   quickShieldSucces(v: boolean) {
     if (v) {
-      this.tableData.forEach(item => {
+      for (const item of this.tableData) {
         if (this.dialog.quickShield.ids.includes(item.id)) {
           item.is_shielded = true;
           item.shield_operator = [window.username || window.user_name];
         }
-      });
+      }
     }
   }
 
@@ -2033,12 +2046,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    */
   handleConfirmAfter(v: boolean) {
     if (v) {
-      this.tableData.forEach(item => {
+      for (const item of this.tableData) {
         if (this.dialog.alarmConfirm.ids.includes(item.id)) {
           item.is_ack = true;
           item.ack_operator = window.username || window.user_name;
         }
-      });
+      }
     }
   }
   /* 告警分派弹窗 */
@@ -2050,7 +2063,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   }
   /* 分派成功 */
   handleAlarmDispatchSuccess(data: { ids: string[]; users: string[] }) {
-    this.tableData.forEach(item => {
+    for (const item of this.tableData) {
       if (data.ids.includes(item.id)) {
         if (item.appointee) {
           const usersSet = new Set();
@@ -2062,7 +2075,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           item.appointee = data.users;
         }
       }
-    });
+    }
   }
   /**
    * @description: 切换告警列表tab时触发
@@ -2342,11 +2355,11 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     }
     if (val === 'clear-filter') {
       this.queryString = '';
-      Object.keys(this.condition).forEach(key => {
-        if (this.condition[key].length) {
+      for (const [key, val] of Object.entries(this.condition)) {
+        if (val.length) {
           this.condition[key] = [];
         }
-      });
+      }
       this.noDataType = 'empty';
       this.handleGetTableData();
       return;
@@ -2407,7 +2420,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             display: this.filterWidth > 200 ? 'flex' : 'none',
           }}
           class={`event-filter ${this.isSplitEventPanel ? 'hidden' : ''}`}
-          onScroll={e => (this.filterScrollTop = (e.target as HTMLDivElement).scrollTop)}
+          onScroll={e => {
+            this.filterScrollTop = (e.target as HTMLDivElement).scrollTop;
+          }}
         >
           <div class='filter-list'>{this.commonFilterData?.map(item => this.filterListComponent(item))}</div>
           <div class='filter-search'>
@@ -2459,7 +2474,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               style={{ marginLeft: this.filterWidth > 200 ? '24px' : '0px' }}
               class='header-title'
             >
-              {this.activeFilterName || this.$t('事件中心')}
+              {this.$t(this.activeFilterName)}
             </span>
             <DashboardTools
               class='header-tools'
@@ -2695,14 +2710,16 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             />
           ) : undefined}
         </div>
-        <EventDetailSlider
-          activeTab={this.detailInfo.activeTab}
-          bizId={this.detailInfo.bizId}
-          eventId={this.detailInfo.id}
-          isShow={this.detailInfo.isShow}
-          type={this.detailInfo.type}
-          onShowChange={v => (this.detailInfo.isShow = v)}
-        />
+        {this.detailInfo.isShow && (
+          <event-detail-slider
+            activeTab={this.detailInfo.activeTab}
+            bizId={this.detailInfo.bizId}
+            eventId={this.detailInfo.id}
+            isShow={this.detailInfo.isShow}
+            type={this.detailInfo.type}
+            onShowChange={v => (this.detailInfo.isShow = v)}
+          />
+        )}
         {this.getOperateDialogComponent()}
         <ChatGroup
           alarmEventName={this.chatGroupDialog.alertName}

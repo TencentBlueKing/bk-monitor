@@ -228,11 +228,33 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     this.tableSize = this.defaultSize;
   }
   // 常用值格式化
-  commonFormatter(val: ITableItem<'string'>) {
+  commonFormatter(val: ITableItem<'string'>, column: ITableColumn) {
     if (typeof val !== 'number' && !val) return '--';
+    if (typeof val === 'object') {
+      return (
+        <span class='string-col'>
+          {val.icon ? (
+            val.icon.length > 30 ? (
+              <img
+                alt=''
+                src={val.icon}
+              />
+            ) : (
+              <i class={['icon-monitor', 'link-icon', val.icon]} />
+            )
+          ) : (
+            ''
+          )}
+          <TextOverflowCopy val={val?.name || ''} />
+        </span>
+      );
+    }
     return (
       <span class='string-col'>
-        <TextOverflowCopy val={val} />
+        <TextOverflowCopy
+          isEveryCopy={column.name === 'Span Name'}
+          val={val}
+        />
       </span>
     );
   }
@@ -342,11 +364,14 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
     const hasPermission = row.permission?.[column.actionId] ?? true;
     return (
       <div
-        class='link-col'
+        class={['link-col', { 'disabled-click': !!val?.disabledClick }]}
         v-authority={{ active: !hasPermission }}
-        onClick={e =>
-          hasPermission ? this.handleLinkClick(val, e) : this.handleShowAuthorityDetail?.(column.actionId)
-        }
+        onClick={e => {
+          if (val?.disabledClick) {
+            return;
+          }
+          hasPermission ? this.handleLinkClick(val, e) : this.handleShowAuthorityDetail?.(column.actionId);
+        }}
       >
         {val.icon ? (
           val.icon.length > 30 ? (
@@ -360,12 +385,12 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
         ) : (
           ''
         )}
-        {` ${val.display_value || val.value}`}
+        {` ${val.display_value || val.value || val?.name || ''}`}
       </div>
     );
   }
   // link格式化
-  statckLinkFormatter(column: ITableColumn, val: ITableItem<'stack_link'>, row: TableRow) {
+  stackLinkFormatter(column: ITableColumn, val: ITableItem<'stack_link'>, row: TableRow) {
     const hasPermission = row.permission?.[column.actionId] ?? true;
     return (
       <div class='stack-link-col'>
@@ -466,6 +491,12 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       } else {
         // 跳转路径和当前路径一致，不进行跳转
         if (route.fullPath === this.$route.fullPath) {
+          return;
+        }
+        if (urlStr.startsWith('?')) {
+          this.$router.push({
+            path: urlStr,
+          });
           return;
         }
         this.$router.push({
@@ -637,13 +668,13 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
       case 'link_list':
         return this.linkListFormatter(column, value as ITableItem<'link_list'>, row);
       case 'stack_link':
-        return this.statckLinkFormatter(column, value as ITableItem<'stack_link'>, row);
+        return this.stackLinkFormatter(column, value as ITableItem<'stack_link'>, row);
       case 'relation':
         return this.relationFormatter(value as ITableItem<'relation'>);
       case 'more_operate':
         return this.moreOperateFormatter(value as ITableItem<'more_operate'>);
       default:
-        return this.commonFormatter(value as ITableItem<'string'>);
+        return this.commonFormatter(value as ITableItem<'string'>, column);
     }
   }
   /**

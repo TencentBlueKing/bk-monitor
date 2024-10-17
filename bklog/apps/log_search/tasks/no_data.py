@@ -27,7 +27,10 @@ def no_data_check():
             "index_set_id", flat=True
         )
     )
-    index_set_id_list = LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True).values_list(
+    space_uid_list = set(
+        LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True).values_list("space_uid", flat=True)
+    )
+    index_set_id_list = LogIndexSet.objects.filter(space_uid__in=space_uid_list, is_active=True).values_list(
         "index_set_id", flat=True
     )
     multi_execute_func = MultiExecuteFunc()
@@ -44,11 +47,16 @@ def no_data_check():
 
 
 def index_set_no_data_check(index_set_id):
-    result = SearchHandler(index_set_id=index_set_id, search_dict={"time_range": "1d", "size": 1}).search(
-        search_type=None
-    )
-    if result["total"] == 0:
+    try:
+        result = SearchHandler(index_set_id=index_set_id, search_dict={"time_range": "1d", "size": 1}).search(
+            search_type=None
+        )
+        if result["total"] == 0:
+            LogIndexSet.set_tag(index_set_id, InnerTag.NO_DATA.value)
+            logger.warning(f"[no data check] index_set_id => [{index_set_id}] no have data")
+            return
+    except Exception as e:  # pylint: disable=broad-except
         LogIndexSet.set_tag(index_set_id, InnerTag.NO_DATA.value)
-        logger.warning(f"[no data check] index_set_id => [{index_set_id}] no have data")
+        logger.warning(f"[no data check] index_set_id => [{index_set_id}] check failed: {e}")
         return
     LogIndexSet.delete_tag_by_name(index_set_id, InnerTag.NO_DATA.value)

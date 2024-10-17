@@ -25,10 +25,7 @@
 -->
 <template>
   <div>
-    <div
-      class="performance"
-      v-monitor-loading="{ isLoading }"
-    >
+    <div class="performance">
       <!-- 筛选面板 -->
       <overview-panel
         :active="tableInstance.panelKey"
@@ -47,7 +44,12 @@
         @filter-update="({ search, panelKey }) => handleUpdateRouteQuery(panelKey, search)"
       />
       <!-- 表格区域 -->
+      <table-skeleton
+        class="table-skeleton-border"
+        v-if="isLoading"
+      />
       <performance-table
+        v-else
         ref="table"
         :key="tableKey"
         :columns="columns"
@@ -77,6 +79,8 @@ import { typeTools } from 'monitor-common/utils/utils';
 import { commonPageSizeSet } from 'monitor-common/utils';
 
 import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import TableSkeleton from '../../components/skeleton/table-skeleton.tsx';
+import commonPageSizeMixin from '../../mixins/commonPageSizeMixin';
 import PerformanceModule from '../../store/modules/performance';
 
 import OverviewPanel from './components/overview-panel.vue';
@@ -93,6 +97,7 @@ Component.registerHooks(['beforeRouteLeave', 'beforeRouteEnter']);
     OverviewPanel,
     PerformanceTool,
     PerformanceTable,
+    TableSkeleton,
   },
 })
 export default class Performance extends Vue {
@@ -401,7 +406,7 @@ export default class Performance extends Vue {
   handleLimitChange(limit: number) {
     this.tableInstance.page = 1;
     this.tableInstance.pageSize = limit;
-    commonPageSizeSet(limit)
+    commonPageSizeSet(limit);
     this.handleResetCheck();
     this.reLimitData();
   }
@@ -518,6 +523,11 @@ export default class Performance extends Vue {
 
   &.performance-laoding {
     min-height: calc(100vh - 80px);
+  }
+
+  .table-skeleton-border {
+    padding: 16px;
+    border: 1px solid #dcdee5;
   }
 }
 </style>

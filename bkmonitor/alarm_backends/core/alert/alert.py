@@ -588,17 +588,6 @@ class Alert:
         self._refresh_db = True
         self.data.setdefault("extra_info", {})[key] = value
 
-    def update_agg_dimensions(self, strategy):
-        """
-        更新dimension的维度排序
-        """
-        agg_dimensions = []
-        for item in strategy.get("items", []):
-            for query_config in item["query_configs"]:
-                if len(query_config.get("agg_dimension", [])) > len(agg_dimensions):
-                    agg_dimensions = query_config["agg_dimension"]
-        self.update_extra_info("agg_dimensions", agg_dimensions)
-
     def update_severity_source(self, source=""):
         self.update_extra_info("severity_source", source)
 
@@ -725,6 +714,9 @@ class Alert:
             "extra_info": event.extra_info or {},
             "is_blocked": False,
         }
+
+        # 补全维度信息
+        data["extra_info"]["agg_dimensions"] = [key[5:] for key in event.dedupe_keys if key.startswith("tags.")]
 
         alert = cls(data)
         alert.update_data_id_info(event)
@@ -861,8 +853,8 @@ class Alert:
         if self.is_new():
             if is_blocked:
                 # 当被流控的时候，还是上报策略, 没有策略的，按照告警名称来
-                metrics.Alert_QOS_COUNT.labels(strategy_id=self.strategy_id or self.alert_name, is_blocked="1").inc()
-            metrics.Alert_QOS_COUNT.labels(strategy_id=metrics.TOTAL_TAG, is_blocked="1" if is_blocked else "0").inc()
+                metrics.ALERT_QOS_COUNT.labels(strategy_id=self.strategy_id or self.alert_name, is_blocked="1").inc()
+            metrics.ALERT_QOS_COUNT.labels(strategy_id=metrics.TOTAL_TAG, is_blocked="1" if is_blocked else "0").inc()
 
         if is_blocked:
             # 被熔断，返回熔断日志

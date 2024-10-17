@@ -217,6 +217,7 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
             >
               {item.children.map(child => (
                 <li
+                  key={child.id}
                   class={['child-list-item', { active: child.id === item.childValue }]}
                   v-bk-tooltips={{
                     content: child.id,

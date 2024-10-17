@@ -84,7 +84,7 @@ export const COLOR_LIST = [
   '#DEDAF7',
 ];
 
-export const COLOR_LIST_BAR = ['#689DF3', '#4051A3', ...COLOR_LIST];
+export const COLOR_LIST_BAR = ['#4051A3', ...COLOR_LIST];
 
 /** 离群检测算法图表线条颜色组 */
 export const COLOR_LIST_OUTLIER = [
@@ -381,7 +381,7 @@ export const MONITOR_PIE_OPTIONS = {
 export const CHINA_MAP_OPTIONS = {
   tooltip: {
     formatter(params: any) {
-      if (isNaN(params.value)) return '';
+      if (Number.isNaN(params.value)) return '';
       return `${params.seriesName}<br />${params.name}：${params.value}`;
     }, // 数据格式化
   },

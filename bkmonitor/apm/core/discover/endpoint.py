@@ -11,9 +11,15 @@ specific language governing permissions and limitations under the License.
 from datetime import datetime
 
 from opentelemetry.semconv.resource import ResourceAttributes
+from opentelemetry.semconv.trace import SpanAttributes
 
-from apm.core.discover.base import DiscoverBase, extract_field_value
-from apm.models import Endpoint, TraceDataSource
+from apm.core.discover.base import (
+    DiscoverBase,
+    exists_field,
+    extract_field_value,
+    get_topo_instance_key,
+)
+from apm.models import ApmTopoDiscoverRule, Endpoint, TraceDataSource
 from constants.apm import OtlpKey
 
 
@@ -51,26 +57,48 @@ class EndpointDiscover(DiscoverBase):
         need_create_instances = set()
 
         for span in origin_data:
+            found_keys = []
+
+            # Step1: 找普通接口
             match_rule = self.get_match_rule(span, rules, other_rule)
-
             endpoint_name = extract_field_value(match_rule.endpoint_key, span)
-
             service_name = extract_field_value((OtlpKey.RESOURCE, ResourceAttributes.SERVICE_NAME), span)
             category_kind_key, category_kind_value = TraceDataSource.get_category_kind(span[OtlpKey.ATTRIBUTES])
             span_kind = span.get(OtlpKey.KIND)
-
-            found_key = (
-                endpoint_name,
-                service_name,
-                match_rule.category_id,
-                category_kind_key,
-                category_kind_value,
-                span_kind,
+            found_keys.append(
+                (
+                    endpoint_name,
+                    service_name,
+                    match_rule.category_id,
+                    category_kind_key,
+                    category_kind_value,
+                    span_kind,
+                )
             )
-            if found_key in exists_endpoints:
-                need_update_instance_ids |= exists_endpoints[found_key]
-            else:
-                need_create_instances.add(found_key)
+            # Step2: 找自定义服务接口
+            if exists_field((OtlpKey.ATTRIBUTES, SpanAttributes.PEER_SERVICE), span):
+                peer_service_topo_key = get_topo_instance_key(
+                    [(OtlpKey.ATTRIBUTES, SpanAttributes.PEER_SERVICE)],
+                    ApmTopoDiscoverRule.TOPO_REMOTE_SERVICE,
+                    match_rule.category_id,
+                    span,
+                )
+                found_keys.append(
+                    (
+                        endpoint_name,
+                        peer_service_topo_key,
+                        match_rule.category_id,
+                        category_kind_key,
+                        category_kind_value,
+                        span_kind,
+                    )
+                )
+
+            for k in found_keys:
+                if k in exists_endpoints:
+                    need_update_instance_ids |= exists_endpoints[k]
+                else:
+                    need_create_instances.add(k)
 
         # only update update_time
         Endpoint.objects.filter(id__in=need_update_instance_ids).update(updated_at=datetime.now())

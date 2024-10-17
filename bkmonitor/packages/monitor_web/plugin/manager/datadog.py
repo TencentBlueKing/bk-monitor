@@ -20,12 +20,12 @@ from django.conf import settings
 from django.template import engines
 from django.template.base import VariableNode
 from django.utils.translation import ugettext as _
+
+from core.errors.plugin import PluginParseError
 from monitor_web.commons.file_manager import PluginFileManager
 from monitor_web.plugin.constant import OS_TYPE_TO_DIRNAME
 from monitor_web.plugin.manager.base import PluginManager
 from monitor_web.plugin.serializers import DataDogSerializer
-
-from core.errors.plugin import PluginParseError
 
 
 class DataDogPluginManager(PluginManager):
@@ -50,7 +50,7 @@ class DataDogPluginManager(PluginManager):
         kwargs.update(dict(add_dirs=self.fetch_lib_dirs()))
         return super(DataDogPluginManager, self).make_package(**kwargs)
 
-    def get_debug_config_context(self, config_version, info_version, param, target_nodes):
+    def _get_debug_config_context(self, config_version, info_version, param, target_nodes):
         collector_data = param["collector"]
         plugin_data = param.get("plugin", {})
 
@@ -90,11 +90,11 @@ class DataDogPluginManager(PluginManager):
                 },
                 "params": {"context": plugin_params},
             },
-            self.get_bkmonitorbeat_deploy_step("bkmonitorbeat_script.conf", {"context": collector_params}),
+            self._get_bkmonitorbeat_deploy_step("bkmonitorbeat_script.conf", {"context": collector_params}),
         ]
         return deploy_steps
 
-    def get_collector_json(self, plugin_params):
+    def _get_collector_json(self, plugin_params):
         meta_dict = yaml.load(plugin_params["meta.yaml"], Loader=yaml.FullLoader)
 
         if not meta_dict.get("datadog_check_name"):
@@ -125,7 +125,7 @@ class DataDogPluginManager(PluginManager):
             if not os.path.exists(config_yaml_path):
                 raise PluginParseError({"msg": _("缺少 conf.yaml.tpl 配置模板文件")})
 
-            config_template_content = self.read_file(config_yaml_path)
+            config_template_content = self._read_file(config_yaml_path)
             collector_json["config_yaml"] = config_template_content
 
         return collector_json
@@ -159,7 +159,7 @@ class DataDogPluginFileManager(PluginFileManager):
 
     @classmethod
     def save_lib(cls, plugin_base, check_name, os_type, plugin_id):
-        plugin_os_path = os.path.join(plugin_base, OS_TYPE_TO_DIRNAME[os_type])
+        plugin_os_path = str(os.path.join(plugin_base, OS_TYPE_TO_DIRNAME[os_type]))
         lib_path = os.path.join(plugin_os_path, os.listdir(plugin_os_path)[0], "lib")
         if not os.path.exists(lib_path):
             raise PluginParseError({"msg": _("缺少 lib 文件夹")})
@@ -177,16 +177,10 @@ class DataDogPluginFileManager(PluginFileManager):
         """
         保存目录
         先将目录压缩成tgz，再进行
-        :param dir_path:
-        :param dir_name:
-        :param plugin_id:
-        :return:
         """
-        # file_tree = os.walk(dir_path)
-        tar_name = dir_name + ".zip"
+        tar_name = f"{dir_name}.zip"
         tar_path = os.path.join(os.path.dirname(dir_path), tar_name)
-
-        shutil.make_archive(os.path.join(os.path.dirname(dir_path), dir_name), "zip", dir_path)
+        shutil.make_archive(os.path.join(str(os.path.dirname(dir_path)), dir_name), "zip", dir_path)
 
         with open(tar_path, "rb") as f:
             file_content = f.read()
@@ -201,7 +195,7 @@ class DataDogPluginFileManager(PluginFileManager):
         return {"config_yaml": conf_content, "datadog_check_name": datadog_check_name}
 
     @classmethod
-    def get_yaml_config_content(self, plugin_base):
+    def get_yaml_config_content(cls, plugin_base):
         conf_yaml_path = os.path.join(plugin_base, os.listdir(plugin_base)[0], "etc", "conf.yaml.tpl")
         if not os.path.exists(conf_yaml_path):
             conf_yaml_path = os.path.join(plugin_base, os.listdir(plugin_base)[0], "etc", "conf.yaml.example")

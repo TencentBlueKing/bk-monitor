@@ -165,7 +165,7 @@ export default {
 
 .log-version {
   display: flex;
-  margin: -33px -24px -26px;
+  margin: -33px -24px -24px;
 
   &-left {
     display: flex;

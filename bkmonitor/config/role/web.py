@@ -24,6 +24,7 @@ from ..tools.environment import (
     IS_CONTAINER_MODE,
     NEW_ENV,
     PAAS_VERSION,
+    ROLE,
 )
 
 # fmt: off
@@ -207,6 +208,15 @@ CACHES = {
     "login_db": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "account_cache"},
     "dummy": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"},
     "locmem": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    "space": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "space",
+        'OPTIONS': {
+            # 5w空间支持
+            'MAX_ENTRIES': 50000,
+            'CULL_FREQUENCY': 0,
+        },
+    },
 }
 CACHES["default"] = CACHES["db"]
 
@@ -246,7 +256,7 @@ if USE_DJANGO_CACHE_REDIS:
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_PATH = SITE_URL
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
-if USE_DJANGO_CACHE_REDIS:
+if USE_DJANGO_CACHE_REDIS and ROLE == "web":
     # 配置redis缓存后， 使用缓存存session
     SESSION_ENGINE = "django.contrib.sessions.backends.cache"
     SESSION_CACHE_ALIAS = "redis"
@@ -299,11 +309,6 @@ CELERYBEAT_SCHEDULER = "monitor.schedulers.MonitorDatabaseScheduler"
 CELERY_ENABLE_UTC = False
 
 CELERYBEAT_SCHEDULE = {
-    "monitor_web.tasks.update_config_status": {
-        "task": "monitor_web.tasks.update_config_status",
-        "schedule": crontab(),
-        "enabled": False,
-    },
     "monitor_web.tasks.update_config_instance_count": {
         "task": "monitor_web.tasks.update_config_instance_count",
         "schedule": crontab(minute=0),  # todo 该任务的周期需建议和节点管理的自动执行的周期保持一致
@@ -330,8 +335,8 @@ CELERYBEAT_SCHEDULE = {
         "schedule": crontab(minute="*/10"),
         "enabled": True,
     },
-    "monitor_web.tasks.update_aiops_dataflow_status": {
-        "task": "monitor_web.tasks.update_aiops_dataflow_status",
+    "monitor_web.tasks.maintain_aiops_strategies": {
+        "task": "monitor_web.tasks.maintain_aiops_strategies",
         "schedule": crontab(minute="*/10"),
         "enabled": False,
     },

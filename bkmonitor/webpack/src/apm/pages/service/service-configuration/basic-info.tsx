@@ -253,6 +253,7 @@ export default class BasicInfo extends tsc<object> {
       created_at: createTime,
       updated_by: updateUser,
       updated_at: updateTime,
+      instance_count,
     } = data;
     this.record.data = { createUser, createTime, updateTime, updateUser };
     this.uriList = (relation.uri_relation || []).map(item => item.uri);
@@ -260,6 +261,7 @@ export default class BasicInfo extends tsc<object> {
       topo_key: topoKey,
       extra_data: extraData || {},
       relation,
+      instance_count,
     });
     this.setRelationInfo();
     this.isLoading = false;
@@ -469,7 +471,7 @@ export default class BasicInfo extends tsc<object> {
         value: logValue,
         related_bk_biz_id: relatedBizId,
       };
-      if (logType !== 'bk_log') delete params.related_bk_biz_id;
+      if (logType !== 'bk_log') params.related_bk_biz_id = undefined;
     }
     // 关联应用
     if (this.localRelationInfo.bizId) {
@@ -523,7 +525,7 @@ export default class BasicInfo extends tsc<object> {
 
       if (this.debuggerResult?.length)
         return this.debuggerResult.map(item => (
-          <span>
+          <span key={item}>
             {item}
             <br />
           </span>

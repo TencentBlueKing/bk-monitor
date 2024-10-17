@@ -108,6 +108,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     assignee: [],
   };
   actions = []; // 处理记录数据
+  total = 0; // 记录数据总条数
 
   isLoading = false;
   tabShow = false;
@@ -203,9 +204,9 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       action_ids: authMap,
       bk_biz_id: this.basicInfo.bk_biz_id,
     }).catch(() => []);
-    data.forEach(item => {
+    for (const item of data) {
       this.authorityConfig[item.action_id] = !!item.is_allowed;
-    });
+    }
   }
   // 获取告警详情数据
   async getDetailData() {
@@ -237,11 +238,12 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       page_size: 100,
       alert_ids: [this.id],
       status: ['failure', 'success', 'partial_failure'],
-      ordering: ['create_time'],
+      ordering: ['-create_time'],
       conditions: [{ key: 'parent_action_id', value: [0], method: 'eq' }], // 处理状态数据写死条件
     };
-    const { actions, overview } = await searchAction(params);
+    const { actions, overview, total } = await searchAction(params);
     this.actions = actions;
+    this.total = total;
     this.$set(this.basicInfo, 'overview', overview);
   }
 
@@ -383,7 +385,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       bk_host_innerip: '0.0.0.0',
       bk_cloud_id: '0',
     };
-    this.basicInfo.dimensions.forEach(item => {
+    for (const item of this.basicInfo.dimensions) {
       if (hostMap.includes(item.key) && item.value) {
         params.bk_host_id = item.value;
       }
@@ -393,7 +395,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       if (ipMap.includes(item.key) && item.value) {
         params.bk_host_innerip = item.value;
       }
-    });
+    }
     this.logRetrieval.ip = params.bk_host_innerip;
     this.logRetrieval.indexList = await listIndexByHost(params).catch(() => []);
     // 如果查不到索引集则显示提示
@@ -434,14 +436,16 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       }
       const data = await graphTraceQuery({ ...queryConfig, ...params }).catch(() => ({ series: [] }));
       const traceIdSet = new Set();
-      data.series.forEach(item => {
-        const idIndex = item.columns.findIndex(c => c === 'bk_trace_id');
-        item.data_points.forEach(d => {
-          if (d[idIndex]) {
-            traceIdSet.add(d[idIndex]);
+      if (data.series?.length) {
+        for (const item of data.series) {
+          const idIndex = item.columns.findIndex(c => c === 'bk_trace_id');
+          for (const d of item.data_points) {
+            if (d[idIndex]) {
+              traceIdSet.add(d[idIndex]);
+            }
           }
-        });
-      });
+        }
+      }
       this.traceIds = Array.from(traceIdSet);
     } else {
       this.traceIds = [];
@@ -460,7 +464,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       this.basicInfo.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.data_label ||
       this.basicInfo.extend_info?.data_label ||
       '';
-    if (!!resultTableId) {
+    if (resultTableId) {
       const sceneInfo = await getPluginInfoByResultTable({
         result_table_id: resultTableId,
         data_label: dataLabel || undefined,
@@ -484,16 +488,20 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     const detail = [
       {
         severity: this.basicInfo?.severity,
-        dimension: this.basicInfo?.dimension_message || '--',
+        dimension: this.basicInfo?.dimensions || [],
         trigger: this.basicInfo?.description || '--',
+        alertId: this.basicInfo.id,
         strategy: {
           id: this.basicInfo?.extra_info?.strategy?.id,
           name: this.basicInfo?.extra_info?.strategy?.name,
         },
       },
     ];
+    // EventModuleStore.setDimensionList(this.basicInfo?.dimensions || []);
+
     return [
       <AlarmConfirm
+        key='alarm-confirm'
         bizIds={[this.basicInfo.bk_biz_id]}
         ids={[this.id]}
         show={alarmConfirm.show}
@@ -501,6 +509,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
         onConfirm={this.handleConfirmAfter}
       />,
       <QuickShield
+        key='quick-shield'
         authority={this.authority}
         bizIds={[this.basicInfo.bk_biz_id]}
         details={detail}
@@ -513,6 +522,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       />,
       this.logRetrieval.isMounted ? (
         <LogRetrievalDialog
+          key='log-retrieval'
           bizId={this.basicInfo.bk_biz_id}
           indexList={this.logRetrieval.indexList}
           ip={this.logRetrieval.ip}
@@ -522,16 +532,20 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
         />
       ) : undefined,
       <HandleStatusDialog
+        key='status'
         v-model={this.dialog.statusDialog.show}
         actions={this.actions}
+        total={this.total}
       />,
       <Feedback
+        key='feedback'
         ids={[this.basicInfo.id]}
         show={feedback.show}
         onChange={this.handleFeedback}
         onConfirm={this.handleFeedBackConfirm}
       />,
       <ManualProcess
+        key='manual-process'
         alertIds={this.dialog.manualProcess.alertIds}
         bizIds={this.dialog.manualProcess.bizIds}
         show={this.dialog.manualProcess.show}
@@ -540,12 +554,14 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
         onShowChange={this.manualProcessShowChange}
       />,
       <ManualDebugStatus
+        key='manual-debug-status'
         actionIds={this.dialog.manualProcess.actionIds}
         bizIds={this.dialog.manualProcess.bizIds}
         debugKey={this.dialog.manualProcess.debugKey}
         mealInfo={this.dialog.manualProcess.mealInfo}
       />,
       <AlarmDispatch
+        key='alarm-dispatch'
         alertIds={this.dialog.alarmDispatch.alertIds}
         bizIds={this.dialog.alarmDispatch.bizIds}
         show={this.dialog.alarmDispatch.show}

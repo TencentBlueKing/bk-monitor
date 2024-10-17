@@ -339,7 +339,7 @@ export default class FieldFilterComp extends tsc<object> {
             placeholder={this.$t('搜索字段名')}
             right-icon='icon-search'
             clearable
-            onChange={() => this.handleSearch}
+            onChange={this.filterListByCondition}
           ></bk-input>
           <bk-popover
             ref='filterPopover'
@@ -393,7 +393,6 @@ export default class FieldFilterComp extends tsc<object> {
                       date-picker-value={this.datePickerValue}
                       field-alias-map={this.fieldAliasMap}
                       field-item={item}
-                      filed-count-array={this.filedCountArray}
                       is-front-statistics={this.isFrontStatistics}
                       retrieve-params={this.retrieveParams}
                       retrieve-search-number={this.retrieveSearchNumber}
@@ -422,7 +421,6 @@ export default class FieldFilterComp extends tsc<object> {
                   date-picker-value={this.datePickerValue}
                   field-alias-map={this.fieldAliasMap}
                   field-item={item}
-                  filed-count-array={this.filedCountArray}
                   is-front-statistics={this.isFrontStatistics}
                   retrieve-params={this.retrieveParams}
                   retrieve-search-number={this.retrieveSearchNumber}
@@ -454,7 +452,6 @@ export default class FieldFilterComp extends tsc<object> {
                   date-picker-value={this.datePickerValue}
                   field-alias-map={this.fieldAliasMap}
                   field-item={item}
-                  filed-count-array={this.filedCountArray}
                   is-front-statistics={this.isFrontStatistics}
                   retrieve-params={this.retrieveParams}
                   retrieve-search-number={this.retrieveSearchNumber}

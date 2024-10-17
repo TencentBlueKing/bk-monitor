@@ -120,6 +120,7 @@ const store = new Vuex.Store({
     isNotVisibleFieldsShow: false,
     showAlert: false, // 是否展示跑马灯
     isLimitExpandView: false,
+    storeIsShowClusterStep: false,
   },
   // 公共 getters
   getters: {
@@ -161,6 +162,7 @@ const store = new Vuex.Store({
     isShowMaskingTemplate: state =>
       state.maskingToggle.toggleString === 'on' || state.maskingToggle.toggleList.includes(Number(state.bkBizId)),
     isLimitExpandView: state => state.isLimitExpandView,
+    storeIsShowClusterStep: state => state.storeIsShowClusterStep,
   },
   // 公共 mutations
   mutations: {
@@ -315,6 +317,9 @@ const store = new Vuex.Store({
     updateIsLimitExpandView(state, val) {
       localStorage.setItem('EXPAND_SEARCH_VIEW', JSON.stringify(val));
       state.isLimitExpandView = val;
+    },
+    updateStoreIsShowClusterStep(state, val) {
+      state.storeIsShowClusterStep = val;
     },
   },
   actions: {

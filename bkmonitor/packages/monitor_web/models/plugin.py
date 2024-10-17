@@ -23,6 +23,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
 
+from bkmonitor.commons.storage import get_default_image_storage
 from bkmonitor.utils.db.fields import JsonField, YamlField
 from bkmonitor.utils.user import get_global_user
 from core.drf_resource import api
@@ -53,9 +54,10 @@ class CollectorPluginMeta(OperateRecordModelBase):
         (PluginType.PROCESS, "Process"),
         (PluginType.SNMP_TRAP, PluginType.SNMP_TRAP),
         (PluginType.SNMP, PluginType.SNMP),
+        (PluginType.K8S, PluginType.K8S),
     )
 
-    VIRTUAL_PLUGIN_TYPE = [PluginType.LOG, PluginType.PROCESS, PluginType.SNMP_TRAP]
+    VIRTUAL_PLUGIN_TYPE = [PluginType.LOG, PluginType.PROCESS, PluginType.SNMP_TRAP, PluginType.K8S]
 
     plugin_id = models.CharField("插件ID", max_length=64, primary_key=True)
     bk_biz_id = models.IntegerField("业务ID", default=0, blank=True, db_index=True)
@@ -92,7 +94,7 @@ class CollectorPluginMeta(OperateRecordModelBase):
         return True
 
     @cached_property
-    def release_version(self):
+    def release_version(self) -> Optional["PluginVersionHistory"]:
         """
         最新的发布版本
         """
@@ -209,7 +211,7 @@ class CollectorPluginMeta(OperateRecordModelBase):
             if config is None:
                 config = CollectorPluginConfig.objects.create()
             if info is None:
-                info = CollectorPluginInfo.objects.create()
+                info: CollectorPluginInfo = CollectorPluginInfo.objects.create()
             version = self.versions.create(
                 config_version=config_version,
                 info_version=info_version,
@@ -688,7 +690,7 @@ class CollectorPluginInfo(OperateRecordModelBase):
     plugin_display_name = models.CharField("插件别名", max_length=64, default="")
     metric_json = JsonField("指标配置", default=[])
     description_md = models.TextField("插件描述，markdown文本", default="")
-    logo = models.ImageField("logo文件", null=True)
+    logo = models.ImageField("logo文件", null=True, storage=get_default_image_storage())
     enable_field_blacklist = models.BooleanField("是否开启黑名单", default=False)
 
     def __str__(self):
@@ -825,7 +827,8 @@ class PluginVersionHistory(OperateRecordModelBase):
 
     @property
     def is_official(self):
-        return Signature(self.signature).verificate("official", self)
+        # 官方插件ID都是以bkplugin_作为前缀
+        return self.plugin.plugin_id.startswith("bkplugin_")
 
     @property
     def is_safety(self):
