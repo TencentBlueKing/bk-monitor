@@ -788,7 +788,11 @@ class CollectorRegexDebugSerializer(serializers.Serializer):
 class CollectorEtlTimeSerializer(serializers.Serializer):
     time_format = serializers.CharField(label=_("时间格式"), required=True)
     time_zone = serializers.IntegerField(label=_("时区"), required=True)
-    data = serializers.CharField(label=_("时间内容"), required=True)
+    data = serializers.CharField(
+        label=_("时间内容"),
+        required=True,
+        error_messages={'blank': _("字段对应时间不存在，校验失败;")},
+    )
 
 
 class CollectorEtlFieldsSerializer(TokenizeOnCharsSerializer):
