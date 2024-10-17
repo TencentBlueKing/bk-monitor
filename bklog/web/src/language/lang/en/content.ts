@@ -927,6 +927,8 @@ export default {
   副本: 'copy',
   新建检索: 'New search',
   '收起查询/弹出选项': 'Collapse query/Popup options',
+  '导入{0}的权限配置': 'Import the permission configuration of {0}',
+  至少选择一个操作权限: 'Select at least one operation permission',
   '平台上报日志的时间，默认选择该设置': 'Time to report logs on the platform, select this setting by default',
   '你可以自行指定日志展示时间，勾选前请提前清洗日志时间':
     'You can specify the log display time by yourself. Please clean the log time in advance before checking',

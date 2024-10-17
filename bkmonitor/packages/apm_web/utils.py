@@ -206,44 +206,64 @@ def merge_dicts(d1, d2):
     return merged
 
 
-def fill_series(series, start_time, end_time):
+def fill_series(series, start_time, end_time, interval):
     """
     调整时间戳 将无数据的柱子值设置为 None (适用于柱状图查询)
     """
-    # 检查按照最低一分钟聚合的话 是否少于默认数量 30个 如果小于则需要按照原本的数量进行切分
+    interval = interval * 1000
     default_size = 30
     c = int(math.ceil((end_time - start_time) / 60))
     size = default_size if c > default_size else c
 
-    timestamp_range = split_by_size(start_time, end_time, size=size)
+    timestamp_range = [(a * 1000, b * 1000) for a, b in split_by_size(start_time, end_time, size=size)]
+
     if not series:
-        return [{"datapoints": [[None, int((s + e) / 2) * 1000] for s, e in timestamp_range]}]
+        return [{"datapoints": [[None, int((s + e) / 2)] for s, e in timestamp_range]}]
 
     res = []
-    for i in series:
-        result = [[None, int((t_e + t_s) / 2) * 1000] for t_e, t_s in timestamp_range]
-        # 如果数据点数量比切分的时间范围数量大 说明有数据点不能放入时间范围中 去掉尾部元素
-        dps = (
-            i["datapoints"] if len(i["datapoints"]) <= len(timestamp_range) else i["datapoints"][: len(timestamp_range)]
-        )
-        for j, d in enumerate(dps):
-            value, timestamp = d
-            if j > 0:
-                # 往前移动被覆盖元素
-                # 这里的情况可能是 UnifyQuery 返回的前 n 个元素 比 timestamp_range 中 n-1 位的开始时间要小的问题
-                # 所以这个 n 位元素应该放在 n-1 位 需要整个 time_range 往前移动
-                if timestamp_range[j - 1][0] <= timestamp <= timestamp_range[j - 1][1]:
-                    result[j - 1] = d
-                    result[j - 2] = i["datapoints"][j - 1]
-                    continue
 
-            if result[j][0] is None:
-                result[j] = d
+    for i in series:
+        result = [[None, int((t_e + t_s) / 2)] for t_e, t_s in timestamp_range]
+        dps = i["datapoints"]
+
+        for j, (value, timestamp) in enumerate(dps):
+            # 如果当前数据点落在此 time_range 区间 补充数据点
+            for k, (start, end) in enumerate(timestamp_range):
+                if start <= timestamp <= end:
+                    result[k] = [value, timestamp]
+                    break
+
+            # 检查前一个时间点是否存在且与当前时间点之间的间隔大于 interval 如果不是则不补充空数据避免图表出现断点
+            if j > 0:
+                prev_timestamp = dps[j - 1][1]
+                if timestamp - prev_timestamp > interval:
+                    # 插入空数据点
+                    empty_count = (timestamp - prev_timestamp) // interval - 1
+                    for m in range(1, empty_count + 1):
+                        missing_timestamp = prev_timestamp + m * interval
+                        for n, (start, end) in enumerate(timestamp_range):
+                            if start <= missing_timestamp <= end:
+                                result[n] = [None, missing_timestamp]
+                                break
+
+        if len(result) < default_size:
+            first_timestamp = result[0][1] if result[0][0] is not None else start_time
+            last_timestamp = result[-1][1] if result[-1][0] is not None else end_time
+
+            # 头部插入
+            while len(result) < default_size and first_timestamp > start_time:
+                first_timestamp -= interval
+                result.insert(0, [None, first_timestamp])
+
+            # 尾部插入
+            while len(result) < default_size and last_timestamp < end_time:
+                last_timestamp += interval
+                result.append([None, last_timestamp])
 
         res.append(
             {
                 **i,
-                "datapoints": sorted(result, key=lambda t: t[-1]),
+                "datapoints": result,
             }
         )
 

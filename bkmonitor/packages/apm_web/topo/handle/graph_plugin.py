@@ -67,6 +67,14 @@ class PrePlugin(Plugin):
     def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
         raise NotImplementedError
 
+    @property
+    def metric_params(self):
+        return {
+            "application": self._runtime["application"],
+            "start_time": self._runtime["start_time"],
+            "end_time": self._runtime["end_time"],
+        }
+
     @classmethod
     def diff(cls, attrs, other_attrs):
         """获取对比信息"""
@@ -690,7 +698,7 @@ class NodeErrorRateFull(PrePlugin, ValuesPluginMixin):
 
     def get_total_error_count_mapping(self):
         values_mapping = self.metric(
-            **self._runtime,
+            **self.metric_params,
             **{
                 "group_by": ["from_apm_service_name", "to_apm_service_name", "from_span_error", "to_span_error"],
                 "where": [
@@ -757,7 +765,7 @@ class ErrorCountStatusCodeMixin(PrePlugin, ValuesPluginMixin):
 
         # Step1: 查询总错误数
         values_mapping = self.metric(
-            **self._runtime,
+            **self.metric_params,
             **{"group_by": [group_key], "where": [{"key": where_key, "method": "eq", "value": ["true"]}]},
         ).get_instance_values_mapping()
         for k, attrs in values_mapping.items():
@@ -773,7 +781,7 @@ class ErrorCountStatusCodeMixin(PrePlugin, ValuesPluginMixin):
     def get_status_code_mapping(self, group_specific_key, group_key, where_key, metric_key):
         res = defaultdict(lambda: defaultdict(int))
         values_mapping = self.metric(
-            **self._runtime,
+            **self.metric_params,
             **{
                 "group_by": [group_key, group_specific_key],
                 "where": [
@@ -1102,7 +1110,7 @@ class NodeApdex(PrePlugin):
 
         # Step1: 计算服务节点的 Apdex
         response = self.metric(
-            **self._runtime,
+            **self.metric_params,
             **{
                 "group_by": [
                     OtlpKey.get_metric_dimension_key("resource.service.name"),
@@ -1115,7 +1123,7 @@ class NodeApdex(PrePlugin):
 
         # Step2: 计算组件节点的 Apdex
         component_response = self.metric(
-            **self._runtime,
+            **self.metric_params,
             **{
                 "group_by": [
                     OtlpKey.get_metric_dimension_key("resource.service.name"),
@@ -1140,7 +1148,7 @@ class NodeApdex(PrePlugin):
 
         # Step3: 计算自定义服务节点的 Apdex
         custom_service_response = self.metric(
-            **self._runtime, **{"group_by": [OtlpKey.get_metric_dimension_key("attributes.peer.service")]}
+            **self.metric_params, **{"group_by": [OtlpKey.get_metric_dimension_key("attributes.peer.service")]}
         ).get_instance_calculate_values_mapping(
             ignore_keys=[OtlpKey.get_metric_dimension_key(OtlpKey.STATUS_CODE), Apdex.DIMENSION_KEY]
         )
@@ -2034,17 +2042,14 @@ class ServiceNameFilter(Filter):
         if not filter_service_name:
             return nodes, edges
 
-        valid_nodes = set()
         new_nodes, new_edges = [], []
 
         for k, v, attrs in edges:
             if k == filter_service_name or v == filter_service_name:
                 new_edges.append((k, v, attrs))
-                valid_nodes.add(k)
-                valid_nodes.add(v)
 
         for node_id, attrs in nodes:
-            if node_id in valid_nodes:
+            if node_id == filter_service_name:
                 new_nodes.append((node_id, attrs))
 
         return new_nodes, new_edges

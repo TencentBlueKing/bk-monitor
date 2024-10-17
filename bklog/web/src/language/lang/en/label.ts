@@ -685,6 +685,7 @@ export default {
   新建检索: 'New Search',
   所属分组: 'Group',
   仅支持输入数值类型: 'Only supports numeric input types',
+  索引字段: 'Index Field',
   指定日志时间: 'Specify log time',
   自然语言分词: 'Natural language segmentation',
   清洗设置: 'Cleaning settings',
