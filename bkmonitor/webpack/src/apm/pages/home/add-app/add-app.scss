@@ -1,8 +1,24 @@
+/* stylelint-disable declaration-no-important */
 .app-add-page {
   height: 100%;
 
   .mr8 {
     margin-right: 8px;
+  }
+
+  .add-app-form-component  {
+    min-height: calc(-440px + 100vh);
+    padding: 24px 32px;
+    margin-top: 0;
+    background-color: rgb(255, 255, 255);
+
+    .form-item {
+      padding: 0;
+
+      .err-msg {
+        left: 0;
+      }
+    }
   }
 
   .app-add-content {
@@ -16,8 +32,9 @@
     }
 
     .report-type-wrap {
-      width: 560px;
+      width: 560px !important;
     }
+    
 
     .app-add-desc {
       margin-bottom: 12px;
