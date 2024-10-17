@@ -217,7 +217,7 @@ export default class AddAppForm extends tsc<IProps> {
           <bk-form-item
             class='cluster-select-item input-width'
             error-display-type='normal'
-            label={this.$t('应用ID')}
+            label={this.$t('应用名')}
             property='ID'
             required
           >
@@ -231,7 +231,7 @@ export default class AddAppForm extends tsc<IProps> {
           </bk-form-item>
           <bk-form-item
             error-display-type='normal'
-            label={this.$t('应用名')}
+            label={this.$t('应用别名')}
             property='name'
             required
           >
