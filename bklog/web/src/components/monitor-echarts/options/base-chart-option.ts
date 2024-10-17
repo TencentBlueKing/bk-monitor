@@ -41,7 +41,7 @@ export default class EchartsSeries {
     this.lineWidth = lineWidth || 1;
   }
   // 设置x轴label formatter方法
-  public handleSetFormatterFunc(seriesData: any) {
+  public handleSetFormatterFunc(seriesData: any, map?: Map<number, string[]>) {
     let formatterFunc = null;
     const minX = Array.isArray(seriesData[0]) ? seriesData[0][0] : seriesData[0].x;
     const [maxX] = seriesData[seriesData.length - 1];
@@ -50,14 +50,19 @@ export default class EchartsSeries {
       (formatterFunc = (v: any) => {
         // 用绝对值兼容倒叙的情况
         const duration = Math.abs(dayjs.duration(dayjs(maxX).diff(dayjs(minX))).asSeconds());
+        const stringValue = map?.get(v)?.[1];
         if (duration < 60 * 60 * 24) {
+          if (duration < 60 * 5) {
+            return stringValue ?? dayjs.tz(v).format('HH:mm:ss').replace(/:00$/, '');
+          }
+
           return dayjs.tz(v).format('HH:mm:ss').replace(/:00$/, '');
         }
         if (duration < 60 * 60 * 24 * 2) {
-          return dayjs.tz(v).format('HH:mm');
+          return dayjs.tz(v).format('HH:mm:ss').replace(/:00$/, '');
         }
         if (duration < 60 * 60 * 24 * 8) {
-          return dayjs.tz(v).format('MM-DD HH:mm');
+          return dayjs.tz(v).format('MM-DD HH:mm:ss').replace(/:00$/, '');
         }
         if (duration <= 60 * 60 * 24 * 30 * 12) {
           return dayjs.tz(v).format('MM-DD');

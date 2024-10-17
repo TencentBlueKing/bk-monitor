@@ -10,4 +10,54 @@
     min-height: 100%;
     border: 0;
   }
+
+  .grafana-update-alert {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 32px;
+
+    .bk-alert-wraper {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      height: 32px;
+      padding: 0px;
+
+      .bk-alert-content {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+      }
+    }
+
+    &-title {
+      display: flex;
+      align-items: center;
+      padding-left: 12px;
+
+      i {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 10px;
+        font-size: 16px;
+        color: #3a84ff;
+
+        &::before {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+      }
+
+      .link-icon {
+        display: inline-flex;
+        margin-left: 4px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+    }
+  }
 }

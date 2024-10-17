@@ -39,7 +39,12 @@ interface IProps {
   defaultAppName: string; // 应用名
 }
 @Component
-export default class ServiceApply extends tsc<IProps> {
+export default class ServiceApply extends tsc<
+  IProps,
+  {
+    onUpdateGuideUrl: string;
+  }
+> {
   @Prop({ type: String, default: '' }) defaultAppName: IProps['defaultAppName'];
   loading = false;
   /** 应用 */
@@ -119,6 +124,7 @@ export default class ServiceApply extends tsc<IProps> {
       key = JSON.stringify(this.markdownParams || {});
     }
     const rawMarkdownStr = this.markdownMap.get(key) || '';
+
     return rawMarkdownStr.replace(/{{service_name}}/gim, this.formData.serviceName);
   }
   /** 获取应用列表 */
@@ -150,6 +156,7 @@ export default class ServiceApply extends tsc<IProps> {
     const data = await metaConfigInfo()
       .then(data => {
         this.guideUrl = data?.setup?.guide_url?.access_url || '';
+        this.$emit('updateGuideUrl', this.guideUrl);
         return data;
       })
       .catch(() => {
@@ -199,12 +206,35 @@ export default class ServiceApply extends tsc<IProps> {
     }
     language.checked = val;
   }
+
+  handleJumpToService() {
+    const { href } = this.$router.resolve({
+      name: 'service',
+      query: {
+        'filter-app_name': this.appName,
+        'filter-service_name': this.formData.serviceName,
+      },
+    });
+    window.open(`/?bizId=${this.$store.getters.bizId}${href}`, '_blank');
+  }
+  createIndexIcon(index: number) {
+    return <span class='service-index-icon'>{index}</span>;
+  }
+  createInfoIcon() {
+    return (
+      <span class='service-add-info'>
+        <i class='icon-monitor icon-hint' />
+        {this.$t('需先填写「服务名」，生成上报示例')}
+      </span>
+    );
+  }
   render() {
-    const rowContent = (name: string, content, subTitle?) => [
+    const rowContent = (name: any, index: number, content?: any, showInfo = false) => [
       !!name && (
         <div class={['row-title']}>
+          {this.createIndexIcon(index)}
           {name}
-          {subTitle}
+          {showInfo && this.createInfoIcon()}
         </div>
       ),
       <div
@@ -221,7 +251,8 @@ export default class ServiceApply extends tsc<IProps> {
       >
         <div class='row-content-wrap'>
           {rowContent(
-            this.$tc('配置选择'),
+            this.$tc('上报配置'),
+            1,
             <div class='select-config-wrap'>
               <bk-form
                 label-width={114}
@@ -232,6 +263,19 @@ export default class ServiceApply extends tsc<IProps> {
                   },
                 }}
               >
+                <bk-form-item
+                  class='service-name-form'
+                  label={this.$tc('服务名')}
+                  property='serviceName'
+                  required
+                >
+                  <bk-input
+                    style='width:394px;'
+                    placeholder={this.$t('请输入服务名')}
+                    value={this.formData.serviceName}
+                    onChange={this.handleServiceNameChange}
+                  />
+                </bk-form-item>
                 <bk-form-item label={this.$tc('所属应用')}>
                   <bk-select
                     style='width:394px;'
@@ -251,19 +295,6 @@ export default class ServiceApply extends tsc<IProps> {
                       );
                     })}
                   </bk-select>
-                </bk-form-item>
-                <bk-form-item
-                  class='service-name-form'
-                  label={this.$tc('服务名')}
-                  property='serviceName'
-                  required
-                >
-                  <bk-input
-                    style='width:394px;'
-                    placeholder={this.$t('请输入服务名')}
-                    value={this.formData.serviceName}
-                    onChange={this.handleServiceNameChange}
-                  />
                 </bk-form-item>
                 <bk-form-item label={this.$tc('选择语言')}>
                   <bk-input style='display: none' />
@@ -316,54 +347,67 @@ export default class ServiceApply extends tsc<IProps> {
                   </bk-select>
                 </bk-form-item>
               </bk-form>
-            </div>
+            </div>,
+            true
           )}
         </div>
-        <div
-          style='flex: 1'
-          class='row-content-wrap is-markdown'
-        >
-          {rowContent(
-            this.$tc('上报示例'),
-            this.markdownLoading ? (
-              <div class='markdown-skeleton'>
-                {Array.of(35, 65, 55, 85, 75, 45, 95).map(w => (
-                  <div
-                    key={w}
-                    style={{
-                      width: `${w}%`,
-                    }}
-                    class='skeleton-element markdown-skeleton-item'
+        {this.formData.serviceName && (
+          <div
+            style='flex: 1'
+            class='row-content-wrap is-markdown'
+          >
+            {rowContent(
+              this.$tc('上报示例'),
+              2,
+              this.markdownLoading ? (
+                <div class='markdown-skeleton'>
+                  {Array.of(35, 65, 55, 85, 75, 45, 95).map(w => (
+                    <div
+                      key={w}
+                      style={{
+                        width: `${w}%`,
+                      }}
+                      class='skeleton-element markdown-skeleton-item'
+                    />
+                  ))}
+                </div>
+              ) : this.markdownStr ? (
+                <div class='view-main'>
+                  <MarkdownViewer
+                    flowchartStyle={false}
+                    value={this.markdownStr}
                   />
-                ))}
-              </div>
-            ) : this.markdownStr && this.formData.serviceName ? (
-              <div class='view-main'>
-                <MarkdownViewer
-                  flowchartStyle={false}
-                  value={this.markdownStr}
-                />
-              </div>
-            ) : (
-              <bk-exception
-                scene='part'
-                type='empty'
-              >
-                {!this.formData.serviceName ? this.$t('请输入服务名') : this.$t('暂无数据')}
-              </bk-exception>
-            ),
-            this.guideUrl && (
-              <bk-button
-                class='access-guide'
-                theme='primary'
-                onClick={() => window.open(this.guideUrl)}
-              >
-                <i class='icon-monitor icon-mc-detail' />
-                {this.$tc('详情接入指引')}
-              </bk-button>
-            )
-          )}
-        </div>
+                </div>
+              ) : (
+                <bk-exception
+                  scene='part'
+                  type='empty'
+                >
+                  {this.$t('暂无数据')}
+                </bk-exception>
+              )
+            )}
+          </div>
+        )}
+        {!this.markdownLoading && this.formData.serviceName && (
+          <div
+            style='padding-bottom: 0'
+            class='row-content-wrap'
+          >
+            {rowContent(
+              <i18n path='稍等几分钟后，前往 {0} 查看相关数据'>
+                <bk-button
+                  text
+                  onClick={this.handleJumpToService}
+                >
+                  「服务详情」
+                </bk-button>
+              </i18n>,
+              3,
+              undefined
+            )}
+          </div>
+        )}
       </div>
     );
   }

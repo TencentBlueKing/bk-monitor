@@ -321,6 +321,9 @@ export default class Strategy extends tsc<object> {
       '_blank',
     );
   }
+  handleCreateUserGroups() {
+    window.open(`${window.MONITOR_URL}/?bizId=${this.bkBizId}#/alarm-group/add`, '_blank');
+  }
   render() {
     const strategyDialog = () => (
       <bk-dialog
@@ -451,6 +454,7 @@ export default class Strategy extends tsc<object> {
           >
             <bk-select
               v-model={this.formData.user_groups}
+              ext-popover-cls='strategy-create-groups'
               display-tag
               multiple
               searchable
@@ -461,6 +465,14 @@ export default class Strategy extends tsc<object> {
                   name={item.name}
                 ></bk-option>
               ))}
+              <div
+                class='groups-btn'
+                slot='extension'
+                onClick={() => this.handleCreateUserGroups()}
+              >
+                <i class='bk-icon icon-plus-circle'></i>
+                {$i18n.t('新增告警组')}
+              </div>
             </bk-select>
           </bk-form-item>
         </bk-form>
@@ -477,7 +489,7 @@ export default class Strategy extends tsc<object> {
           class={['edit-strategy-box', type]}
           onClick={() => this.editStrategy(type)}
         >
-          <i class={['bk-icon log-icon', type === 'alarm' ? 'icon-new-alarm' : 'icon-sudden-increase']}></i>
+          <i class={['bklog-icon log-icon', type === 'alarm' ? 'bklog-new-alarm' : 'bklog-sudden-increase']}></i>
           {/* <span class='num'>1</span> */}
         </div>
         <div slot='content'>

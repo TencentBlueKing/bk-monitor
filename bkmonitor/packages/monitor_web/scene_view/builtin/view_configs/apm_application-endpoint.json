@@ -99,7 +99,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": []
               }
@@ -194,7 +195,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": []
               }
@@ -253,7 +255,7 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "unit": "percentunit",
-            "expression": "a / b",
+            "expression": "b / c",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -262,7 +264,7 @@
                   {
                     "field": "bk_apm_count",
                     "method": "SUM",
-                    "alias": "a"
+                    "alias": "b"
                   }
                 ],
                 "table": "${table_id}",
@@ -284,7 +286,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": []
               },
@@ -295,7 +298,7 @@
                   {
                     "field": "bk_apm_count",
                     "method": "SUM",
-                    "alias": "b"
+                    "alias": "c"
                   }
                 ],
                 "table": "${table_id}",
@@ -308,13 +311,14 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": []
               }
             ],
             "unify_query_param": {
-              "expression": "a / b",
+              "expression": "b / c",
               "query_configs": [
                 {
                   "data_source_label": "custom",
@@ -323,7 +327,7 @@
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "a"
+                      "alias": "b"
                     }
                   ],
                   "table": "${table_id}",
@@ -356,7 +360,7 @@
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "b"
+                      "alias": "c"
                     }
                   ],
                   "table": "${table_id}",
@@ -430,7 +434,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -464,7 +469,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -586,7 +592,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -694,7 +701,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -802,7 +810,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -1138,7 +1147,7 @@
           "data": {
             "app_name": "${app_name}",
             "unit": "percentunit",
-            "expression": "a / b",
+            "expression": "b / c",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1147,7 +1156,7 @@
                   {
                     "field": "bk_apm_count",
                     "method": "SUM",
-                    "alias": "a"
+                    "alias": "b"
                   }
                 ],
                 "table": "${table_id}",
@@ -1178,7 +1187,7 @@
                   {
                     "field": "bk_apm_count",
                     "method": "SUM",
-                    "alias": "b"
+                    "alias": "c"
                   }
                 ],
                 "table": "${table_id}",
@@ -1195,7 +1204,7 @@
               }
             ],
             "unify_query_param": {
-              "expression": "a / b",
+              "expression": "b / c",
               "query_configs": [
                 {
                   "data_source_label": "custom",
@@ -1204,7 +1213,7 @@
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "a"
+                      "alias": "b"
                     }
                   ],
                   "table": "${table_id}",
@@ -1235,7 +1244,7 @@
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "b"
+                      "alias": "c"
                     }
                   ],
                   "table": "${table_id}",

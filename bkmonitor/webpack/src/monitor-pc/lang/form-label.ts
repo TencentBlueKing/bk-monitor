@@ -1043,6 +1043,7 @@ export default {
   容器项目: 'BCS',
   平台产品: 'Platform products',
   支撑产品: 'Supported products',
+  清除已勾选: 'Clear checked',
 
   // 拨测
   自建拨测: 'Self-built Probe',
@@ -1512,6 +1513,7 @@ export default {
   服务类型: 'Service Type',
   应用名或ID: 'Application name or ID',
   请输入服务搜索: 'Please enter a service search',
+  接入中: 'Connecting',
 
   // 指标图表类
   告警趋势: 'Alarm Trend',
@@ -1887,17 +1889,17 @@ export default {
   选择语言: 'Select language',
   默认上报地址: 'Default reporting address',
   上报示例: 'Reporting example',
-  详情接入指引: 'Detail access guide',
+  完整接入指引: 'Complete access guide',
   请输入服务名: 'Please enter the service name',
   应用ID: 'Application ID',
   数据上报: 'Data reporting',
   调用链: 'Call chain',
-  数据上报: 'Data reporting',
   性能分析: 'Performance analysis',
   存储表名称: 'Storage table name',
-  应用ID: 'Application ID',
   存储类型: 'Storage type',
   有效期: 'Validity period',
   创建者: 'Creator',
   告警历史: 'Alarm history',
+  上报配置: 'Upload configuration',
+  '需先填写「服务名」，生成上报示例': 'Please fill in the service name first, and generate the reporting example',
 };

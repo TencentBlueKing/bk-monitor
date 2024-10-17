@@ -1122,7 +1122,7 @@ export default class BasicInfo extends tsc<IProps> {
               >
                 <EditableFormItem
                   formType='input'
-                  label={this.$t('应用ID')}
+                  label={this.$t('应用名')}
                   showEditable={false}
                   value={this.appInfo.app_name}
                 />
@@ -1179,7 +1179,7 @@ export default class BasicInfo extends tsc<IProps> {
               >
                 <EditableFormItem
                   formType='input'
-                  label={this.$t('应用ID')}
+                  label={this.$t('应用名')}
                   showEditable={false}
                   value={this.appInfo.app_name}
                 />
@@ -2171,7 +2171,7 @@ export default class BasicInfo extends tsc<IProps> {
           </div>
         </PanelItem>
         <PanelItem
-          class='custom-service-panel-item'
+          class={'custom-service-panel-item pb-24'}
           flexDirection='column'
           title={this.$t('自定义服务')}
         >
@@ -2207,20 +2207,6 @@ export default class BasicInfo extends tsc<IProps> {
         </div>
       </PanelItem> */}
         <div class='header-tool'>
-          {!this.isEditing && (
-            <bk-button
-              class='edit-btn'
-              v-authority={{ active: !this.authority }}
-              size='normal'
-              theme='primary'
-              outline
-              onClick={() => {
-                this.authority ? this.handleEditClick(true) : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH);
-              }}
-            >
-              {this.$t('编辑')}
-            </bk-button>
-          )}
           <div
             class='history-btn'
             v-bk-tooltips={{ content: this.$t('变更记录'), allowHTML: false }}
@@ -2228,6 +2214,22 @@ export default class BasicInfo extends tsc<IProps> {
           >
             <i class='icon-monitor icon-lishijilu' />
           </div>
+          {!this.isEditing && (
+            <bk-button
+              class={['edit-btn', { 'edit-btn-no-authority': !this.authority.MANAGE_AUTH }]}
+              v-authority={{ active: !this.authority.MANAGE_AUTH }}
+              size='normal'
+              theme='primary'
+              outline
+              onClick={() => {
+                this.authority.MANAGE_AUTH
+                  ? this.handleEditClick(true)
+                  : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH);
+              }}
+            >
+              {this.$t('编辑')}
+            </bk-button>
+          )}
         </div>
         {this.isEditing ? (
           <div class='submit-handle'>

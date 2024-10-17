@@ -24,13 +24,13 @@ from core.drf_resource import api
 class CMDBServiceRelationSerializer(serializers.ModelSerializer):
     class Meta:
         model = CMDBServiceRelation
-        fields = ["template_id"]
+        fields = ["template_id", "updated_at", "updated_by"]
 
 
 class LogServiceRelationSerializer(serializers.ModelSerializer):
     class Meta:
         model = LogServiceRelation
-        fields = ["log_type", "related_bk_biz_id", "value"]
+        fields = ["log_type", "related_bk_biz_id", "value", "updated_at", "updated_by"]
 
     def validate(self, attrs):
         if attrs["log_type"] == ServiceRelationLogTypeChoices.BK_LOG:
@@ -45,7 +45,7 @@ class LogServiceRelationSerializer(serializers.ModelSerializer):
 class AppServiceRelationSerializer(serializers.ModelSerializer):
     class Meta:
         model = AppServiceRelation
-        fields = ["relate_bk_biz_id", "relate_app_name"]
+        fields = ["relate_bk_biz_id", "relate_app_name", "updated_at", "updated_by"]
 
 
 class ApplicationListSerializer(serializers.ModelSerializer):
@@ -100,4 +100,13 @@ class LogServiceRelationOutputSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LogServiceRelation
-        fields = ["log_type", "related_bk_biz_id", "related_bk_biz_name", "value", "value_alias", "log_type_alias"]
+        fields = [
+            "log_type",
+            "related_bk_biz_id",
+            "related_bk_biz_name",
+            "value",
+            "value_alias",
+            "log_type_alias",
+            "updated_at",
+            "updated_by",
+        ]

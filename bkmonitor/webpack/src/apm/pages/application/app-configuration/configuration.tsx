@@ -185,6 +185,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
         });
       }
       Object.assign(this.appInfo, res);
+      this.authority.MANAGE_AUTH = res?.permission?.manage_apm_application_v2 || false;
       const {
         // app_name: appName,
         create_user: createUser,

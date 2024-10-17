@@ -27,7 +27,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='apmapplication',
             name='is_enabled_log',
-            field=models.BooleanField(default=True, verbose_name='是否开启 Logs 功能'),
+            field=models.BooleanField(default=False, verbose_name='是否开启 Logs 功能'),
         ),
         migrations.AddField(
             model_name='apmapplication',

@@ -478,7 +478,7 @@ class RelatedLogChart extends CommonSimpleChart {
     // const url = location.href.replace(location.hash, hash);
     // window.open(url, '_blank');
     const url = `${window.bk_log_search_url}#/manage/log-collection/collection-item?bizId=${
-      this.bkBizId || this.relatedBkBizId
+      this.bkBizId || (this.relatedBkBizId === -1 ? window.cc_biz_id : this.relatedBkBizId)
     }`;
     window.open(url);
   }

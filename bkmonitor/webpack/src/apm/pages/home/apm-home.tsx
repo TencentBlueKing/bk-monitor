@@ -24,28 +24,28 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Provide } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Component, Provide, Mixins } from 'vue-property-decorator';
 
 import { deleteApplication, listApplication } from 'monitor-api/modules/apm_meta';
-import { Debounce } from 'monitor-common/utils/utils';
 import introduceModule, { IntroduceRouteKey } from 'monitor-pc/common/introduce';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import GuidePage from 'monitor-pc/components/guide-page/guide-page';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
-import AlarmTools from 'monitor-pc/pages/monitor-k8s/components/alarm-tools';
+// import AlarmTools from 'monitor-pc/pages/monitor-k8s/components/alarm-tools';
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 import OperateOptions from 'monitor-pc/pages/uptime-check/components/operate-options';
-import { PanelModel } from 'monitor-ui/chart-plugins/typings';
+// import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
-import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
+import authorityMixinCreate from '../../../apm/mixins/authorityMixin';
+// import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
 import authorityStore from '../../store/modules/authority';
+import * as authorityMap from '../home/authority-map';
 import AddAppSide from './add-app/add-app-side';
 import AppHomeList from './components/apm-home-list';
 import ApmHomeResizeLayout from './components/apm-home-resize-layout';
 import NavBar from './nav-bar';
 import ApmHomeSkeleton from './skeleton/apm-home-skeleton';
-import { charColor, OPERATE_OPTIONS, ALERT_PANEL_DATA } from './utils';
+import { charColor, OPERATE_OPTIONS } from './utils'; // ALERT_PANEL_DATA
 
 import type { IAppListItem } from './typings/app';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -55,7 +55,7 @@ import './apm-home.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
 @Component({})
-export default class AppList extends tsc<object> {
+export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) {
   routeList: INavItem[] = [
     {
       id: '',
@@ -68,17 +68,17 @@ export default class AppList extends tsc<object> {
   /** 显示引导页 */
   showGuidePage = false;
   // menu list
-  menuList: IMenuItem[] = [
-    {
-      id: 'help-docs',
-      name: window.i18n.tc('帮助文档'),
-    },
-  ];
+  // menuList: IMenuItem[] = [
+  //   {
+  //     id: 'help-docs',
+  //     name: window.i18n.tc('帮助文档'),
+  //   },
+  // ];
   /** 是否显示帮助文档弹窗 */
   showGuideDialog = false;
 
   /* 应用分类数据 */
-  appList: IAppListItem[] = [];
+  originalAppList: IAppListItem[] = [];
   loading = false;
 
   refreshInstance = null;
@@ -91,14 +91,22 @@ export default class AppList extends tsc<object> {
   searchCondition = '';
 
   /** 仪表盘工具栏 策略和告警panel */
-  alarmToolsPanel = null;
+  // alarmToolsPanel = null;
   // 帮助文档弹窗数据
   apmIntroduceData = null;
 
   get appData() {
-    return this.appList?.find(item => item.app_name === this.appName);
+    return this.originalAppList?.find(item => item.app_name === this.appName);
   }
 
+  get appList() {
+    if (!this.searchCondition) return this.originalAppList;
+    return this.originalAppList.filter(
+      item =>
+        item?.app_alias.toLowerCase().includes(this.searchCondition.toLowerCase()) ||
+        item?.app_name.toLowerCase().includes(this.searchCondition.toLowerCase())
+    );
+  }
   @Provide('handleShowAuthorityDetail')
   handleShowAuthorityDetail(actionIds: string | string[]) {
     authorityStore.getAuthorityDetail(actionIds);
@@ -107,7 +115,7 @@ export default class AppList extends tsc<object> {
   created() {
     this.initRouteParams();
     this.getAppList();
-    this.alarmToolsPanel = new PanelModel(ALERT_PANEL_DATA);
+    // this.alarmToolsPanel = new PanelModel(ALERT_PANEL_DATA);
   }
   mounted() {
     // 帮助文档弹窗数据
@@ -143,7 +151,7 @@ export default class AppList extends tsc<object> {
     const params = {
       start_time: startTime,
       end_time: endTime,
-      keyword: this.searchCondition,
+      keyword: '',
       sort: '',
     };
     this.loading = true;
@@ -155,7 +163,7 @@ export default class AppList extends tsc<object> {
       };
     });
     this.loading = false;
-    this.appList = listData.data.map((item, ind: number) => {
+    this.originalAppList = listData.data.map((item, ind: number) => {
       let firstCode: string = item.app_alias?.slice(0, 1) || '-';
       const charCode = firstCode.charCodeAt(0);
       if (charCode >= 97 && charCode <= 122) {
@@ -169,11 +177,11 @@ export default class AppList extends tsc<object> {
       };
     });
     // 初始化 app_name
-    if (this.appList.length) {
+    if (this.originalAppList.length) {
       if (!this.appName) {
         this.appName = listData.data[0].app_name;
       } else if (!params.keyword) {
-        const checkedItem = this.appList.find(item => item.app_name === this.appName);
+        const checkedItem = this.originalAppList.find(item => item.app_name === this.appName);
         if (!checkedItem) {
           this.appName = listData.data[0].app_name;
         }
@@ -316,16 +324,6 @@ export default class AppList extends tsc<object> {
     }
   }
 
-  /**
-   * @description 条件搜索
-   * @param value
-   */
-  @Debounce(300)
-  handleSearchCondition(value) {
-    this.searchCondition = value;
-    this.getAppList();
-  }
-
   render() {
     return (
       <div class='apm-home-wrap-page'>
@@ -335,10 +333,11 @@ export default class AppList extends tsc<object> {
               class='dashboard-tools-wrap'
               slot='handler'
             >
-              <AlarmTools
+              {/* <AlarmTools
                 class='alarm-tools'
+                isShowStrategy={false}
                 panel={this.alarmToolsPanel}
-              />
+              /> */}
               <DashboardTools
                 isSplitPanel={false}
                 showListMenu={false}
@@ -347,12 +346,12 @@ export default class AppList extends tsc<object> {
                 onRefleshChange={this.handleRefreshChange}
                 onTimeRangeChange={this.handleTimeRangeChange}
               />
-              <ListMenu
+              {/* <ListMenu
                 list={this.menuList}
                 onMenuSelect={this.handleSettingsMenuSelect}
               >
                 <i class='icon-monitor icon-mc-more-tool' />
-              </ListMenu>
+              </ListMenu> */}
             </div>
           )}
         </NavBar>
@@ -375,8 +374,6 @@ export default class AppList extends tsc<object> {
                 right-icon='bk-icon icon-search'
                 clearable
                 show-clear-only-hover
-                on-right-icon-click={this.handleSearchCondition}
-                onChange={this.handleSearchCondition}
               />
               <div
                 class='app-list-add'
@@ -388,7 +385,10 @@ export default class AppList extends tsc<object> {
               <AddAppSide
                 isShow={this.isShowAppAdd}
                 onShowChange={v => this.handleToggleAppAdd(v)}
-                onSuccess={this.getAppList}
+                onSuccess={v => {
+                  this.appName = v;
+                  this.getAppList();
+                }}
               />
             </div>
             {this.loading ? (
@@ -398,34 +398,80 @@ export default class AppList extends tsc<object> {
                 {this.appList.map(item => (
                   <li
                     key={item.application_id}
-                    class={['data-item', { selected: this.appName === item.app_name }]}
-                    onClick={() => this.handleAppClick(item)}
+                    class={[
+                      'data-item',
+                      { selected: this.appName === item.app_name },
+                      { disabled: !item?.permission[authorityMap.VIEW_AUTH] },
+                    ]}
+                    onClick={() =>
+                      item?.permission[authorityMap.VIEW_AUTH]
+                        ? this.handleAppClick(item)
+                        : this.handleShowAuthorityDetail(this.authorityMap.VIEW_AUTH)
+                    }
                   >
                     <div
                       style={{
-                        background: item.firstCodeColor,
+                        background: item?.permission[authorityMap.VIEW_AUTH] ? item.firstCodeColor : '#DCDEE5;',
                       }}
-                      class='first-code'
+                      class={['first-code']}
+                      v-authority={{ active: !item?.permission[authorityMap.VIEW_AUTH] }}
                     >
                       {item.firstCode}
                     </div>
                     <div
-                      class='biz-name-01'
+                      class={['biz-name-01']}
+                      v-authority={{ active: !item?.permission[authorityMap.VIEW_AUTH] }}
                       v-bk-overflow-tips
                     >
-                      <span>{item.app_alias}</span>
-                      <span>（{item.app_name}）</span>
+                      <span
+                        class='biz-app-alias'
+                        v-bk-overflow-tips={{ content: `${item.app_alias}（${item.app_name}）` }}
+                      >
+                        {item.app_alias}
+                      </span>
+                      <span
+                        class='biz-app-name'
+                        v-bk-overflow-tips={{ content: `${item.app_alias}（${item.app_name}）` }}
+                      >
+                        （{item.app_name}）
+                      </span>
                     </div>
+                    {item.metric_result_table_id || item.trace_result_table_id ? null : (
+                      <bk-tag theme='info'>{this.$t('接入中')}...</bk-tag>
+                    )}
                     <div class='item-content'>
                       <span class='item-service-count'>{item?.service_count}</span>
                       <OperateOptions
-                        class='operate'
+                        class={[
+                          [
+                            'operate',
+                            { 'more-btn-disabled': !item.metric_result_table_id && !item.trace_result_table_id },
+                          ],
+                        ]}
+                        v-bk-tooltips={{
+                          content: this.$t('接入中'),
+                          disabled: Boolean(item.metric_result_table_id || item.trace_result_table_id),
+                        }}
                         options={{
                           outside: [],
                           popover: OPERATE_OPTIONS.map(o => ({
                             ...o,
+                            authority:
+                              o.id === 'delete'
+                                ? item?.permission[authorityMap.VIEW_AUTH] && item?.permission[authorityMap.MANAGE_AUTH]
+                                : item?.permission[authorityMap.VIEW_AUTH],
+                            authorityDetail:
+                              o.id === 'delete'
+                                ? !item?.permission[authorityMap.VIEW_AUTH]
+                                  ? authorityMap.VIEW_AUTH
+                                  : !item?.permission[authorityMap.MANAGE_AUTH]
+                                    ? authorityMap.MANAGE_AUTH
+                                    : null
+                                : authorityMap.VIEW_AUTH,
                           })),
                         }}
+                        isClickShow={false}
+                        isMouseOverShow={Boolean(item.metric_result_table_id || item.trace_result_table_id)}
                         onOptionClick={id => this.handleConfig(id, item)}
                       >
                         <div
@@ -443,7 +489,9 @@ export default class AppList extends tsc<object> {
               <EmptyStatus
                 textMap={{ empty: this.$t('暂无数据') }}
                 type={this.searchCondition ? 'search-empty' : 'empty'}
-                onOperation={() => this.handleSearchCondition('')}
+                onOperation={() => {
+                  this.searchCondition = '';
+                }}
               />
             )}
           </div>
@@ -452,6 +500,8 @@ export default class AppList extends tsc<object> {
               key={this.refreshKey}
               appData={this.appData}
               appName={this.appName}
+              authority={this.appData?.permission[authorityMap.VIEW_AUTH]}
+              authorityDetail={authorityMap.VIEW_AUTH}
               timeRange={this.timeRange}
               onRouteUrlChange={this.handleReplaceRouteUrl}
             />

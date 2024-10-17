@@ -891,6 +891,8 @@ export default defineComponent({
       queryString.value = componentData.queryString;
       traceListPagination.offset = 0;
       curTimestamp.value = handleTransformToTimestamp(timeRange.value);
+      // 获取图表配置列表
+      searchStore.getPanelList(state.app);
       handleQueryScope();
     }
     /* 收藏列表 */
@@ -1068,9 +1070,9 @@ export default defineComponent({
     }
     /** 更多操作 */
     function handleMenuSelectChange() {
-      const appId = appList.value?.find(app => app.app_name === state.app)?.application_id || '';
-      if (appId) {
-        const url = location.href.replace(location.hash, `#/apm/application/config/${appId}`);
+      const appName = appList.value?.find(app => app.app_name === state.app)?.app_name || '';
+      if (appName) {
+        const url = location.href.replace(location.hash, `#/apm/application/config/${appName}`);
         window.open(url, '_blank');
       }
     }
@@ -1542,7 +1544,7 @@ export default defineComponent({
           (
             <span>
               {t('耗时')}
-              <span class='label-tips'>{`（${t('支持')} ns, μs, ms, s）`}</span>
+              <span class='label-tips'>{`（${t('支持')} ns, μs, ms, s, m, h, d）`}</span>
             </span>
           ) as any,
           (

@@ -58,6 +58,10 @@
 
   .apm-home-content {
     height: calc(100% - 48px);
+
+    .collapse.icon-angle-right {
+      background-color: #3A84FF;
+    }
   }
 
   /*应用列表*/
@@ -81,6 +85,10 @@
     .app-list-search {
       display: flex;
       margin: 0 16px 12px;
+
+      .bk-form-control {
+        flex: 1;
+      }
 
       .app-list-add {
         display: flex;
@@ -118,18 +126,38 @@
         height: 36px;
         padding: 0 16px;
         line-height: 36px;
+        cursor: pointer;
 
         &:hover {
           color: #313238;
-          cursor: pointer;
           background: #f0f1f5;
 
           .item-content {
-            background: #dcdee5;
-            border-radius: 50%;
-
             .operate {
               display: block;
+
+              &:hover {
+                .more-btn {
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  width: 20px;
+                  height: 20px;
+                  color: #63656e;
+                  background: #dcdee5;
+                  border-radius: 50%;
+                }
+              }
+            }
+
+            .operate.more-btn-disabled {
+              cursor: not-allowed;
+
+              .more-btn {
+                color: #C4C6CC;
+                background-color: #f0f1f5;
+              }
+
             }
 
             .item-service-count {
@@ -186,6 +214,19 @@
             text-overflow: ellipsis;
             white-space: nowrap;
           }
+
+        }
+
+        .bk-tag {
+          height: 16px;
+          padding: 0 4px;
+          font-family: MicrosoftYaHei;
+          font-size: 10px;
+          line-height: 16px;
+          color: #3A84FF;
+          text-align: left;
+          background: #F0F5FF;
+          border-radius: 2px;
         }
 
         .item-content {
@@ -205,6 +246,31 @@
           }
         }
       }
+
+      .disabled {
+        &:hover {
+          background-color: #f5f7fa;
+        }
+
+        .first-code {
+          background-color: #dcdee5;
+        }
+
+        .item-content {
+          color: #c4c6cc;
+
+          &:hover {
+            cursor: pointer;
+          }
+      }
+
+    }
+
+    .data-item.disabled .biz-name-01 .biz-app-alias,
+    .data-item.disabled .biz-name-01 .biz-app-name
+     {
+        color: #c4c6cc;
+    }
 
       .selected {
         background-color: #e1ecff;
@@ -233,8 +299,8 @@
 .table-operate-options-component-more-items {
   padding: 4px 0;
 
-  & :hover {
-    color: #63656e !important;
+  .more-item:hover {
+    color: #63656e;
   }
 
   & :nth-last-child(2) {

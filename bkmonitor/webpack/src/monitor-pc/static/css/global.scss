@@ -376,13 +376,14 @@
     &-item {
       display: flex;
       flex: 1;
-      align-items: center;
+      align-items: baseline;
       height: 18px;
       margin: 2px 4px;
       margin-right: 5px;
 
       .item-series {
         display: flex;
+        flex-shrink: 0;
         align-items: center;
         justify-content: center;
         width: 6px;
@@ -392,16 +393,22 @@
       }
 
       .item-name {
+        min-width: 0;
         margin-right: 5px;
         color: #f1f3fa;
       }
 
+      .wrap-text {
+        word-break: break-all;
+        white-space: pre-wrap;
+      }
+
       .item-value {
         display: flex;
+        flex-shrink: 0;
         align-items: center;
         height: 18px;
         padding: 0 5px;
-        // flex: 1;
         margin-left: auto;
         color: rgba(255, 255, 255, 0.8);
         background-color: rgba(1, 1, 1, 0.8);

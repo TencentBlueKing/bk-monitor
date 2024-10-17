@@ -10,9 +10,34 @@ specific language governing permissions and limitations under the License.
 """
 import copy
 import re
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
 from elasticsearch_dsl import Q
 
+
+def get_previous_month_range_unix(today=None):
+    # 获取当前日期
+    if today is None:
+        today = datetime.now()
+    
+    # 获取上个月的最后一天（即当前月的第一天减去一天）
+    last_day_of_previous_month = today.replace(day=1) - relativedelta(days=1)
+    
+    # 获取上个月的第一天（即上个月最后一天的月份的第一天）
+    first_day_of_previous_month = last_day_of_previous_month.replace(day=1)
+    
+    # 格式化日期为 YYYYMMDD
+    first_day_str = first_day_of_previous_month.strftime('%Y%m%d')
+    last_day_str = last_day_of_previous_month.strftime('%Y%m%d')
+    
+    # 转换为 Unix 时间戳
+    start_unix_timestamp = int(first_day_of_previous_month.timestamp())
+    # 对于结束日期，将时间调整到当天的最后一秒
+    end_of_previous_month = last_day_of_previous_month.replace(hour=23, minute=59, second=59)
+    end_unix_timestamp = int(end_of_previous_month.timestamp())
+    
+    return start_unix_timestamp, end_unix_timestamp
 
 def slice_by_interval_seconds(start_time: int, end_time: int, interval_seconds: int) -> list:
     """按天或周切分时间，返回每一天或每一周的起始和结束时间戳"""

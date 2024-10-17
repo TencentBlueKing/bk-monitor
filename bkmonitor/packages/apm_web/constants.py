@@ -155,7 +155,7 @@ class CategoryEnum:
             {
                 "id": cls.DB,
                 "name": cls.get_label_by_key(cls.DB),
-                "icon": "icon-DB",
+                "icon": "icon-shujuku",
             },
             {
                 "id": cls.MESSAGING,
@@ -170,7 +170,7 @@ class CategoryEnum:
             {
                 "id": cls.OTHER,
                 "name": cls.get_label_by_key(cls.OTHER),
-                "icon": "icon-zidingyi",
+                "icon": "icon-mc-service-unknown",
             },
         ]
 
@@ -917,3 +917,26 @@ OPERATOR_MAP = {"=": "equal", "!=": "not_equal", "exists": "exists", "does not e
 DEFAULT_MAX_VALUE = 10000
 
 DEFAULT_SPLIT_SYMBOL = "--"
+
+
+class ApmCacheKey:
+    """一些 APM 的缓存 Key"""
+
+    # 存放应用下服务的数据状态
+    APP_SERVICE_STATUS_KEY = "apm:application:{application_id}:service_data_status"
+
+
+class LogIndexSource:
+    """服务日志的数据关联来源"""
+
+    HOST = "host"
+    RELATION = "relation"
+    CUSTOM_REPORT = "custom_report"
+
+    @classmethod
+    def get_source_label(cls, key):
+        return {
+            cls.HOST: "主机关联",
+            cls.RELATION: "关联配置",
+            cls.CUSTOM_REPORT: "自定义上报",
+        }.get(key, key)

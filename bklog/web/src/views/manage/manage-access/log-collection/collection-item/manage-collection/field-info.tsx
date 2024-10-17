@@ -341,6 +341,26 @@ export default class FieldInfo extends tsc<IProps> {
       default: ({ row }) => <span>{row.field_alias || '--'}</span>,
     };
 
+    const fieldNameSlot = {
+      default: ({ row }) => {
+        return (
+          <div>
+            {row.field_name}
+            {row.metadata_type === 'path' ? (
+              <bk-tag
+                radius='6px'
+                theme='info'
+              >
+                元数据
+              </bk-tag>
+            ) : (
+              ''
+            )}
+          </div>
+        );
+      },
+    };
+
     const getMaskingPopover = row => {
       if (!row.desensitize_config?.length) return;
       return (
@@ -389,36 +409,27 @@ export default class FieldInfo extends tsc<IProps> {
       );
     };
 
-    const getTokenizeOnCharsStr = row => {
-      if (!row.is_analyzed) return '';
-      return row.tokenize_on_chars ? row.tokenize_on_chars : this.$t('默认');
-    };
-
     const maskingStateSlot = {
       default: ({ row }) => <div>{getMaskingPopover(row)}</div>,
     };
 
-    const analyzedSlot = {
-      default: ({ row }) => <span class={{ 'bk-icon icon-check-line': row.is_analyzed }}></span>,
-    };
-
     const tokenizeSlot = {
-      default: ({ row }) => (
-        <div
-          class='title-overflow'
-          v-bk-overflow-tips
-        >
-          <span>{getTokenizeOnCharsStr(row)}</span>
-        </div>
-      ),
-    };
-
-    const caseSensitiveSlot = {
-      default: ({ row }) => <span class={{ 'bk-icon icon-check-line': row.is_case_sensitive }}></span>,
-    };
-
-    const timeSlot = {
-      default: ({ row }) => <span class={{ 'bklog-icon bklog-date-picker': row.field_name === this.timeField }}></span>,
+      default: ({ row }) => {
+        return (
+          <div>
+            {row.is_analyzed ? (
+              <div>
+                <div>{row.tokenize_on_chars ? row.tokenize_on_chars : this.$t('默认分词符')}</div>
+                <div>
+                  {this.$t('大小写敏感')}: {row.is_case_sensitive ? this.$t('是') : this.$t('否')}
+                </div>
+              </div>
+            ) : (
+              <div>{this.$t('不分词')}</div>
+            )}
+          </div>
+        );
+      },
     };
 
     return (
@@ -447,7 +458,7 @@ export default class FieldInfo extends tsc<IProps> {
           <TableColumn
             key={'field_name'}
             label={this.$t('字段名')}
-            prop={'field_name'}
+            scopedSlots={fieldNameSlot}
           ></TableColumn>
 
           <TableColumn
@@ -471,39 +482,15 @@ export default class FieldInfo extends tsc<IProps> {
           {this.isShowMaskingTemplate && (
             <TableColumn
               key={'masking_state'}
-              width='160'
               label={this.$t('脱敏状态')}
               scopedSlots={maskingStateSlot}
             ></TableColumn>
           )}
 
           <TableColumn
-            key={'is_analyzed'}
-            width='80'
-            label={this.$t('分词')}
-            scopedSlots={analyzedSlot}
-          ></TableColumn>
-
-          <TableColumn
             key={'tokenize_on_chars'}
-            width='180'
             label={this.$t('分词符')}
             scopedSlots={tokenizeSlot}
-          ></TableColumn>
-
-          <TableColumn
-            key={'is_case_sensitive'}
-            width='120'
-            align={'center'}
-            label={this.$t('大小写敏感')}
-            scopedSlots={caseSensitiveSlot}
-          ></TableColumn>
-
-          <TableColumn
-            key={'time'}
-            width='80'
-            label={this.$t('时间')}
-            scopedSlots={timeSlot}
           ></TableColumn>
         </Table>
       </div>
