@@ -209,10 +209,10 @@
     () => chartKey.value,
     () => {
       logChartCancel?.();
+      // isStart.value = false;
       runningTimer && clearTimeout(runningTimer);
       runningTimer = setTimeout(() => {
         finishPolling.value = false;
-        isStart.value = false;
         optionData.clear();
         updateChart([]);
         getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
