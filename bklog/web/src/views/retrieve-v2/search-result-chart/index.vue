@@ -97,7 +97,7 @@
 
     store.commit('updateIsSetDefaultTableColumn', false);
     store.dispatch('requestIndexSetFieldInfo').then(() => {
-      store.dispatch('requestIndexSetQuery', { formChartChange: true });
+      store.dispatch('requestIndexSetQuery', { formChartChange: false });
     });
   }, {
     immediate: true
