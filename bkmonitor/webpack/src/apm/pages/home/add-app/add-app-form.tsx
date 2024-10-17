@@ -160,14 +160,16 @@ export default class AddAppForm extends tsc<IProps> {
 
   /* 保存 */
   async handleSave(isAccess = false) {
-    await this.validateForm();
-    if (!this.isVerifyFn()) {
-      return;
-    }
     if (isAccess) {
       this.saveToServiceLoading = true;
     } else {
       this.saveLoading = true;
+    }
+    await this.validateForm();
+    if (!this.isVerifyFn()) {
+      this.saveLoading = false;
+      this.saveToServiceLoading = false;
+      return;
     }
     const params = {
       app_name: this.formData.appName,
@@ -187,7 +189,7 @@ export default class AddAppForm extends tsc<IProps> {
         theme: 'success',
         message: this.$t('保存成功'),
       });
-      this.$emit('success');
+      this.$emit('success', params.app_name as string);
       if (isAccess) {
         // 跳转到接入服务页面
         this.$router.push({
