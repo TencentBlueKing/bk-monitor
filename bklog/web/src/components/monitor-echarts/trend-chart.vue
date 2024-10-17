@@ -221,7 +221,7 @@
   watch(
     () => finishPolling.value,
     () => {
-      emit('polling', !finishPolling.value && isStart.value);
+      // emit('polling', !finishPolling.value && isStart.value);
     },
   );
 
