@@ -1023,34 +1023,36 @@ class StrategyCacheManager(CacheManager):
         try:
             strategies_map = cls.get_strategies_map()
         except Exception as e:
-            strategies_map = {}
-            exc = e
+            logger.exception("refresh strategy error when get_strategies_map: %s", e)
+            duration = time.time() - start_time
+            metrics.ALARM_CACHE_TASK_TIME.labels("0", "strategy", str(e)).observe(duration)
+            metrics.report_all()
+            return
 
-        # 如果获取全量策略异常，则不进行获取此期间变更的策略
-        if exc is None:
-            histories = StrategyHistoryModel.objects.filter(create_time__gt=datetime.fromtimestamp(start_time))
-            if not histories.exists():
-                logger.info(
-                    f"[refresh_strategy_cache]: no changed strategy found in the past {time.time() - start_time}"
-                    f" seconds"
+        # 获取策略历史数据
+        histories = StrategyHistoryModel.objects.filter(create_time__gt=datetime.fromtimestamp(start_time))
+        if not histories.exists():
+            logger.info(
+                f"[refresh_strategy_cache]: no changed strategy found in the past {time.time() - start_time}"
+                f" seconds"
+            )
+        else:
+            target_biz_set, to_be_deleted_strategy_ids = cls.handle_history_strategies(histories)
+            # 如果有策略待删除，则记录日志
+            if to_be_deleted_strategy_ids:
+                logger.info(f"[refresh_strategy_cache]: to_be_deleted_strategy_ids: {to_be_deleted_strategy_ids}")
+
+                # 删除待删除的策略
+                for strategy_id, _ in to_be_deleted_strategy_ids:
+                    strategies_map.pop(strategy_id, None)
+            try:
+                changed_strategies_map = (
+                    cls.get_strategies_map({"bk_biz_id__in": target_biz_set}) if target_biz_set else {}
                 )
-            else:
-                target_biz_set, to_be_deleted_strategy_ids = cls.handle_history_strategies(histories)
-                # 如果有策略待删除，则记录日志
-                if to_be_deleted_strategy_ids:
-                    logger.info(f"[refresh_strategy_cache]: to_be_deleted_strategy_ids: {to_be_deleted_strategy_ids}")
-
-                    # 删除待删除的策略
-                    for strategy_id, _ in to_be_deleted_strategy_ids:
-                        strategies_map.pop(strategy_id, None)
-                try:
-                    changed_strategies_map = (
-                        cls.get_strategies_map({"bk_biz_id__in": target_biz_set}) if target_biz_set else {}
-                    )
-                    strategies_map.update(changed_strategies_map)
-                except Exception as e:
-                    logger.info(f"[refresh_strategy_cache]: get data of changed_strategies_map failed: {e}")
-                    exc = e
+                strategies_map.update(changed_strategies_map)
+            except Exception as e:
+                logger.exception(f"[refresh_strategy_cache]: get data of changed_strategies_map failed: {e}")
+                exc = e
 
         processors: List[Callable[[List[Dict]], None]] = [
             cls.add_target_shield_condition,
