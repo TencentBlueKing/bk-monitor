@@ -189,7 +189,7 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
               {index > 0 ? <span class='item-split'>/</span> : undefined}
               {!item.selectOption?.loading ? (
                 [
-                  (!item.selectOption || item.selectOption.value) && (
+                  (!item.selectOption || (index < len - 1 && !item.notLink)) && (
                     <span
                       key='1'
                       class={{
@@ -225,15 +225,12 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
                         class={{ 'select-trigger': true, active: this.navSelectShow[item.id] }}
                         slot='trigger'
                       >
-                        {!item.selectOption.value && (
+                        {(index === len - 1 || item.notLink) && (
                           <span
                             class={{
                               'item-name': true,
-                              'parent-nav': !!item.id && index < len - 1 && !item.notLink,
-                              'only-title': len === 1,
                               [item.class]: !!item.class,
                             }}
-                            onClick={() => item.id && index < len - 1 && this.handleGotoPage(item)}
                           >
                             <span class='item-name-text'>{item.name}</span>
                             {!!item.subName && (
