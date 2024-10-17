@@ -461,6 +461,8 @@ export default class ApmServiceList extends tsc<
    */
   handleClearSearch() {
     this.searchKeyWord = '';
+    this.checkedFilter = [];
+    this.filterCondition = [];
     this.pagination.current = 1;
     this.getServiceList();
   }
@@ -641,14 +643,14 @@ export default class ApmServiceList extends tsc<
                                 textMap={{
                                   empty: this.$t('暂无数据'),
                                 }}
-                                type={this.searchKeyWord?.length ? 'search-empty' : 'empty'}
+                                type={this.searchKeyWord || this.filterCondition?.length ? 'search-empty' : 'empty'}
                                 onOperation={() => this.handleClearSearch()}
                               />
                             </CommonTable>
                           ) : (
                             <TableSkeleton
                               class='table-skeleton'
-                              type={2}
+                              type={5}
                             />
                           )}
                         </div>

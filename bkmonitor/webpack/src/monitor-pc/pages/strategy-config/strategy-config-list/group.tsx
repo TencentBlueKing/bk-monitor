@@ -118,6 +118,7 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
         </div>
         <i
           class='icon-monitor icon-mc-clear'
+          v-bk-tooltips={{ content: this.$t('清除已勾选') }}
           onClick={event => this.handleClearChecked(event, item)}
         />
       </div>
