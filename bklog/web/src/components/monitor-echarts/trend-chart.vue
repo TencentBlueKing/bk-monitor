@@ -112,7 +112,6 @@
       // 获取坐标分片间隔
       handleIntervalSplit(startTimeStamp, endTimeStamp);
       isLoading.value = true;
-      emit('polling', !isLoading.value);
 
       pollingEndTime = endTimeStamp;
       pollingStartTime = requestInterval > 0 ? pollingEndTime - requestInterval : startTimeStamp;
@@ -127,7 +126,6 @@
       pollingStartTime = startTimeStamp;
       // 轮询结束
       finishPolling.value = true;
-      emit('polling', false);
     }
 
     if (pollingStartTime < retrieveParams.value.start_time) {
@@ -177,7 +175,6 @@
 
           if (!res?.result) {
             finishPolling.value = true;
-            emit('polling', false);
             updateChart([]);
             return;
           }
@@ -203,22 +200,33 @@
         });
     } else {
       finishPolling.value = true;
-      emit('polling', false);
     }
   };
+
+  let runningTimer = null;
 
   watch(
     () => chartKey.value,
     () => {
       logChartCancel?.();
-      finishPolling.value = false;
-      isStart.value = false;
-      optionData.clear();
-      updateChart([]);
-      getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
+      runningTimer && clearTimeout(runningTimer);
+      runningTimer = setTimeout(() => {
+        finishPolling.value = false;
+        isStart.value = false;
+        optionData.clear();
+        updateChart([]);
+        getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
+      });
     },
     {
       immediate: true,
+    },
+  );
+
+  watch(
+    () => finishPolling.value,
+    () => {
+      emit('polling', !finishPolling.value);
     },
   );
 
