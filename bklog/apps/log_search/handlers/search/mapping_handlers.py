@@ -753,7 +753,7 @@ class MappingHandlers(object):
                         field_alias: str = ""
                     _field.update({"description": field_alias, "field_alias": field_alias})
 
-                    if "option" in field_info:
+                    if field_info.get("option"):
                         # 加入元数据标识
                         metadata_type = field_info["option"].get("metadata_type")
                         if metadata_type:
