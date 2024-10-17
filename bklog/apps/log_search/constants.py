@@ -1355,7 +1355,11 @@ class TimeZoneEnum(ChoicesEnum):
         result = []
         for i in range(-12, 13, 1):
             result.append(
-                {"id": i, "name": "UTC" + ("+" if i >= 0 else "") + f"{i:02}:00", "default": True if i == 8 else False}
+                {
+                    "id": i,
+                    "name": "UTC" + ("+" if i >= 0 else "-") + f"{abs(i):02}:00",
+                    "default": True if i == 8 else False,
+                }
             )
         return result
 
