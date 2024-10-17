@@ -40,8 +40,8 @@ export default {
     isIndexSetLoading: false,
   },
   mutations: {
-    updateChartKey(state) {
-      state.chartKey = random(10);
+    updateChartKey(state, payload) {
+      state.chartKey = (payload?.prefix ?? '') + random(10);
     },
     updateCachePickerValue(state, payload) {
       state.cacheDatePickerValue = payload;

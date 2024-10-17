@@ -38,7 +38,6 @@
     () => isIndexFieldLoading.value,
     () => {
       nextTick(() => {
-        console.log('isIndexFieldLoading')
         uiQueryValue.value.forEach(
           v => (v.field_type = (indexFieldInfo.value.fields ?? []).find(f => f.field_name === v.field)?.field_type),
         );
