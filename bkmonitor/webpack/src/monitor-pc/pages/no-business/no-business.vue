@@ -35,8 +35,8 @@
       >
         <img
           class="card-img"
-          src="../../static/images/svg/new-business.svg"
           alt=""
+          src="../../static/images/svg/new-business.svg"
         />
         <p class="card-title">
           {{ $t('新业务接入') }}
@@ -57,8 +57,8 @@
       >
         <img
           class="card-img"
-          src="../../static/images/svg/get-access.svg"
           alt=""
+          src="../../static/images/svg/get-access.svg"
         />
         <p class="card-title">
           {{ $t('获取权限') }}
@@ -66,7 +66,7 @@
         <!-- 权限中心带业务ID -->
         <template v-if="getAccess.url && getAccess.businessName">
           <p class="card-detail">
-            {{ $t('您没有业务{name}的权限', { name: getAccess.businessName }) + $tc('先申请吧') }}
+            {{ $t('您没有业务 {name} 的权限先申请吧', { name: getAccess.businessName }) }}
           </p>
           <bk-button
             class="common-btn"
@@ -108,8 +108,8 @@
       >
         <img
           class="card-img"
-          src="../../static/images/svg/demo-business.svg"
           alt=""
+          src="../../static/images/svg/demo-business.svg"
         />
         <p class="card-title">
           {{ $t('业务DEMO') }}
@@ -129,9 +129,10 @@
 </template>
 
 <script lang="ts">
+import { Component, Vue } from 'vue-property-decorator';
+
 import { fetchBusinessInfo } from 'monitor-api/modules/commons';
 import { getUrlParam } from 'monitor-common/utils';
-import { Component, Vue } from 'vue-property-decorator';
 // 20231205 代码还原，先保留原有部分
 // import { showAccessRequest } from '../../components/access-request-dialog';
 interface INewBusiness {
