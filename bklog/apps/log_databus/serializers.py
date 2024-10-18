@@ -40,6 +40,7 @@ from apps.log_databus.constants import (
     EtlConfig,
     KafkaInitialOffsetEnum,
     LabelSelectorOperator,
+    MetadataTypeEnum,
     PluginParamLogicOpEnum,
     PluginParamOpEnum,
     SyslogFilterFieldEnum,
@@ -749,6 +750,16 @@ class TokenizeOnCharsSerializer(serializers.Serializer):
         return ret
 
 
+class CollectorMetadataSerializer(serializers.Serializer):
+    field_name = serializers.CharField(label=_("字段名"), required=True)
+    value = serializers.CharField(label=_("字段的值"), required=True, allow_null=True, allow_blank=True)
+    metadata_type = serializers.ChoiceField(
+        label=_("元数据类型"),
+        required=True,
+        choices=MetadataTypeEnum.get_choices(),
+    )
+
+
 class CollectorEtlParamsSerializer(serializers.Serializer):
     separator_regexp = serializers.CharField(label=_("正则表达式"), required=False, allow_null=True, allow_blank=True)
     separator = serializers.CharField(
@@ -763,6 +774,11 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
     enable_retain_content = serializers.BooleanField(label=_("是否保留失败日志"), required=False, default=True)
     record_parse_failure = serializers.BooleanField(label=_("是否记录清洗失败标记"), required=False, default=True)
     path_regexp = serializers.CharField(label=_("采集路径分割的正则"), required=False, allow_null=True, allow_blank=True)
+    metadata_fields = serializers.ListField(
+        child=CollectorMetadataSerializer(),
+        label=_("元数据字段配置"),
+        required=False,
+    )
 
     def validate(self, attrs):
         ret = super().validate(attrs)
@@ -856,7 +872,6 @@ class CollectorETLParamsFieldSerializer(serializers.Serializer):
 
     etl_params = CollectorEtlParamsSerializer(required=False)
     fields = serializers.ListField(child=CollectorEtlFieldsSerializer(), label=_("字段配置"), required=False)
-    metadata_fields = serializers.ListField(child=serializers.DictField(), label=_("元数据字段配置"), required=False)
 
 
 class AssessmentConfig(serializers.Serializer):

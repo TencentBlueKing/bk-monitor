@@ -79,7 +79,6 @@ from apps.log_databus.constants import (
     ETLProcessorChoices,
     LabelSelectorOperator,
     LogPluginInfo,
-    MetadataType,
     RunStatus,
     TargetNodeTypeEnum,
     TopoType,
@@ -2305,16 +2304,11 @@ class CollectorHandler(object):
         etl_params.setdefault("original_text_tokenize_on_chars", "")
         config["etl_params"] = etl_params
 
-        metadata_fields = []
         etl_fields = config.get("etl_fields", [])
         for etl_field in etl_fields:
-            if etl_field.get("metadata_type") == MetadataType.PATH:
-                metadata_fields.append(etl_field)
-                continue
             etl_field.setdefault("is_case_sensitive", False)
             etl_field.setdefault("tokenize_on_chars", "")
         config["etl_fields"] = etl_fields
-        config["metadata_fields"] = metadata_fields
         return config
 
     def create_clean_stash(self, params: dict):
