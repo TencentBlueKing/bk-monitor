@@ -1043,6 +1043,7 @@ export default {
   容器项目: 'BCS',
   平台产品: 'Platform products',
   支撑产品: 'Supported products',
+  清除已勾选: 'Clear checked',
 
   // 拨测
   自建拨测: 'Self-built Probe',

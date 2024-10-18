@@ -261,35 +261,6 @@ export default class DataStatusMetric extends tsc<IProps> {
     };
   }
   /**
-   * @desc 开关前置校验
-   * @param { boolean } value 当前开关状态
-   */
-  preCheckChange(value: boolean) {
-    return new Promise((resolve, reject) => {
-      this.$bkInfo({
-        title: value ? this.$t('你确认要关闭？') : this.$t('你确认要开启？'),
-        confirmLoading: true,
-
-        confirmFn: async () => {
-          const api = value ? noDataStrategyDisable : noDataStrategyEnable;
-          const isPass = await api({
-            application_id: this.appInfo.application_id,
-            telemetry_data_type: this.activeTab,
-          })
-            .then(() => {
-              this.getNoDataStrategyInfo();
-              return true;
-            })
-            .catch(() => false);
-          isPass ? resolve(true) : reject();
-        },
-        cancelFn: () => {
-          reject();
-        },
-      });
-    });
-  }
-  /**
    * @desc 告警跳转
    * @param { string } option
    */
@@ -309,7 +280,25 @@ export default class DataStatusMetric extends tsc<IProps> {
   handleRefresh() {
     this.getSamplingList();
   }
-
+  handleClickCheckWrap(e: MouseEvent) {
+    e.preventDefault();
+    this.$refs.switcherRef.isLoading = true;
+  }
+  async handleConfirmCheck() {
+    const api = this.strategyInfo.is_enabled ? noDataStrategyDisable : noDataStrategyEnable;
+    this.$refs.switcherRef.isLoading = true;
+    return await api({
+      application_id: this.appInfo.application_id,
+      telemetry_data_type: this.activeTab,
+    }).then(() => {
+      this.getNoDataStrategyInfo();
+      this.$refs.switcherRef.isLoading = false;
+      this.strategyInfo.is_enabled = !this.strategyInfo.is_enabled;
+    });
+  }
+  handleCancelCheck() {
+    this.$refs.switcherRef.isLoading = false;
+  }
   render() {
     const logSlots = {
       default: props => [
@@ -370,12 +359,27 @@ export default class DataStatusMetric extends tsc<IProps> {
                     >
                       {this.$t('无数据告警')}
                     </span>
-                    <bk-switcher
-                      pre-check={() => this.preCheckChange(this.strategyInfo.is_enabled)}
-                      size='small'
-                      theme='primary'
-                      value={this.strategyInfo.is_enabled}
-                    />
+                    <bk-popconfirm
+                      tippy-options={{
+                        onHide: () => {
+                          this.$refs.switcherRef.isLoading = false;
+                          return true;
+                        },
+                      }}
+                      title={this.strategyInfo.is_enabled ? this.$t('确认关闭？') : this.$t('确认开启？')}
+                      trigger='click'
+                      onCancel={() => this.handleCancelCheck()}
+                      onConfirm={() => this.handleConfirmCheck()}
+                    >
+                      <div onMousedown={this.handleClickCheckWrap}>
+                        <bk-switcher
+                          ref='switcherRef'
+                          size='small'
+                          theme='primary'
+                          value={this.strategyInfo.is_enabled}
+                        />
+                      </div>
+                    </bk-popconfirm>
                   </div>
                 </div>
                 <div class='content-card-right'>
