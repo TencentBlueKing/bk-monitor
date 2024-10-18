@@ -339,8 +339,12 @@ class EtlConfig(object):
     CUSTOM = "custom"
 
 
-class MetadataType(object):
+class MetadataTypeEnum(ChoicesEnum):
     PATH = "path"
+
+    _choices_labels = (
+        (PATH, _("路径元数据")),
+    )
 
 
 class EtlConfigChoices(ChoicesEnum):
