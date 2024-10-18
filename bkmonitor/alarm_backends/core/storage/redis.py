@@ -105,16 +105,34 @@ class BaseRedisCache(object):
 
     @classmethod
     def instance(cls, backend, conf=None):
+        """
+        创建或获取缓存实例。
+
+        该函数旨在为给定的后端名称提供一个缓存实例。它首先检查是否已经为该后端创建了一个实例，
+        如果没有，它将尝试基于提供的配置或环境变量生成一个实例。
+
+        :param cls: 请求实例化的类。
+        :param backend: 字符串，表示缓存后端的名称。
+        :param conf: 可选参数，用于为后端提供特定的配置。
+        :return:
+        """
+        # 构建实例属性名称，以避免直接属性访问的不透明度
         _instance = "_%s_instance" % backend
+
+        # 检查是否已经为给定的后端创建了实例,如果创建了直接返回，所以这是一个单例模式
+        # 相当于它变成了一个全局的redis工具类
         if not hasattr(cls, _instance):
+            # 如果提供了特定的配置，使用它来创建实例
             if conf is not None:
                 ins = cls(conf)
                 setattr(cls, _instance, ins)
+            # 尝试从预定义的映射中获取配置
             elif backend in CACHE_BACKEND_CONF_MAP:
                 ins = cls(CACHE_BACKEND_CONF_MAP[backend])
                 setattr(cls, _instance, ins)
             else:
-                # 尝试基于环境变量查找
+                # 尝试从cache_conf_with_router获取config配置，backend格式需要为“[type]-xxx”
+                # type 需要被定义在 CACHE_BACKEND_CONF_MAP中，否则config为None
                 config = cache_conf_with_router(backend)
                 if config is not None:
                     setattr(cls, _instance, Cache.__new__(Cache, backend, config))
@@ -134,21 +152,33 @@ class BaseRedisCache(object):
         raise NotImplementedError()
 
     def refresh_instance(self):
+        """
+        刷新实例。
+
+        此方法旨在关闭当前实例和只读实例（如果已存在），并尝试重新创建新的实例。
+        它尝试最多三次创建新实例，如果成功，则更新最后刷新时间。
+        """
+        # 如果当前实例不为空，则关闭当前实例和只读实例
         if self._instance is not None:
             self.close_instance(self._instance)
             self.close_instance(self._readonly_instance)
 
+        # 尝试最多三次创建新的实例和只读实例
         for _ in range(3):
             try:
+                # 成功创建实例后，更新刷新时间，并退出循环
                 self._instance, self._readonly_instance = self.create_instance()
                 self.refresh_time = time.time()
                 break
+            # 捕获异常并记录日志
             except Exception as err:
                 logger.exception(err)
 
     def __getattr__(self, name):
+        # 从_instance中获取到熟悉，这里的command对应的就是redis中的各种命令，比如set命令
         command = getattr(self._instance, name)
 
+        # 对command进行再包装，然后返回
         def handle(*args, **kwargs):
             exception = None
             for _ in range(3):
@@ -269,14 +299,18 @@ class Cache(redis.Redis):
         "InstanceCache": InstanceCache,
     }
 
+    # 从settings中获取CACHE_BACKEND_TYPE的值，如果未设置，则默认使用"RedisCache"
+    # 这是为了确定缓存后端的类型，根据应用场景的不同可以选择不同的缓存系统
     CacheBackendType = getattr(settings, "CACHE_BACKEND_TYPE", "RedisCache")
 
     def __new__(cls, backend, connection_conf=None):
         if not backend:
             raise
+        # 根据连接配置获取缓存类型设置，如果没有显式设置，则使用类的默认缓存类型
         cache_type = connection_conf and connection_conf.pop("_cache_type", None) or cls.CacheBackendType
         try:
             type_ = cls.CacheTypes[cache_type]
+            # 根据不同的缓存类型，创建缓存实例，通过instance类方法获取缓存实例
             return type_.instance(backend, connection_conf)
         except Exception:
             logger.exception("fail to use %s [%s]", backend, " ".join(sys.argv))
