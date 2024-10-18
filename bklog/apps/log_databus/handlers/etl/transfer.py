@@ -28,6 +28,7 @@ from apps.decorators import user_operation_record
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 from apps.log_clustering.tasks.flow import update_clustering_clean
+from apps.log_databus.constants import MetadataType
 from apps.log_databus.exceptions import CollectorActiveException
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
@@ -55,6 +56,7 @@ class TransferEtlHandler(EtlHandler):
         etl_params=None,
         fields=None,
         username="",
+        metadata_fields=None,
         *args,
         **kwargs,
     ):
@@ -168,6 +170,12 @@ class TransferEtlHandler(EtlHandler):
         for field in origin_fields:
             if field.get("tokenize_on_chars"):
                 field["tokenize_on_chars"] = unicode_str_encode(field["tokenize_on_chars"])
+
+        # 在清洗配置中加入元数据字段信息
+        metadata_fields = metadata_fields or []
+        for metadata_field in metadata_fields:
+            metadata_field["metadata_type"] = MetadataType.PATH
+            origin_fields.append(metadata_field)
 
         CollectorHandler(collector_config_id=self.collector_config_id).create_clean_stash(
             {
