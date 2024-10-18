@@ -34,7 +34,7 @@
         <span class="icon bklog-icon bklog-xiazai"></span>
       </div> -->
     <div v-if="!isUnionSearch"
-      :class="{ 'operation-icon': true, 'disabled-icon':false }"
+      :class="{ 'operation-icon': true, 'disabled-icon': !queueStatus }"
       data-test-id="fieldForm_div_exportData"
       @mouseenter="handleShowAlarmPopover"
     >
@@ -241,12 +241,13 @@
           desensitize: this.$t('脱敏'),
           // origin: this.$t('原始'),
         },
-        queueStatus: true
+        // queueStatus: true
       };
     },
     computed: {
       ...mapState({
-        totalCount: state => state.searchTotal
+        totalCount: state => state.searchTotal,
+        queueStatus: state => !state.retrieve.isTrendDataLoading
       }),
       ...mapGetters({
         bkBizId: 'bkBizId',
