@@ -50,6 +50,7 @@ from apps.log_clustering.handlers.aiops.aiops_model.aiops_model_handler import (
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.handlers.pipline_service.constants import OperatorServiceEnum
+from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
 from apps.log_clustering.models import ClusteringConfig, RegexTemplate
 from apps.log_clustering.tasks.msg import access_clustering
 from apps.log_clustering.utils import pattern
@@ -199,6 +200,12 @@ class ClusteringConfigHandler(object):
                 access_finished=False,
             ),
         )
+        # 空间是否存在模板
+        regex_template = RegexTemplateHandler().list_templates(space_uid=log_index_set.space_uid)[0]
+        clustering_config.regex_template_id = regex_template["id"]
+        clustering_config.predefined_varibles = regex_template["predefined_varibles"]
+        clustering_config.regex_rule_type = RegexRuleTypeEnum.TEMPLATE.value
+        clustering_config.save()
 
         access_clustering.delay(index_set_id=index_set_id)
         return model_to_dict(clustering_config, exclude=CLUSTERING_CONFIG_EXCLUDE)
