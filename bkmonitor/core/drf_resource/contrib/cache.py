@@ -25,7 +25,7 @@ class CacheResource(six.with_metaclass(abc.ABCMeta, Resource)):
 
     # 缓存类型
     cache_type = None
-    # 后台缓存时间
+    # 后台缓存类型
     backend_cache_type = None
     # 缓存是否与用户关联
     cache_user_related = None
