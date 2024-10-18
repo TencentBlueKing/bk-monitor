@@ -1152,6 +1152,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
               if (!this.isRoutePage) {
                 return [
                   <MonitorImport
+                    key='monitorImport'
                     class='mr-24'
                     v-authority={{ active: !this.authority.MANAGE_AUTH }}
                     accept='application/json'
@@ -1167,6 +1168,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                   </MonitorImport>,
 
                   <MonitorExport
+                    key='monitorExport'
                     class='ml-0 mr-24'
                     v-authority={{ active: !this.authority.MANAGE_AUTH }}
                     onClick={cb =>
@@ -1179,12 +1181,14 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                     </span>
                   </MonitorExport>,
                   <span
+                    key='mr-12'
                     class='mr-12'
                     onClick={this.handleShowData}
                   >
                     {this.$t('数据预览')}
                   </span>,
                   <bk-switcher
+                    key='dataPreview'
                     v-model={this.dataPreview}
                     size='small'
                     theme='primary'
@@ -1193,6 +1197,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
               }
               return [
                 <MonitorImport
+                  key='monitorImport'
                   class='mr-24'
                   v-authority={{ active: !this.authority.MANAGE_AUTH }}
                   return-text={true}
@@ -1206,6 +1211,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                   </span>
                 </MonitorImport>,
                 <MonitorExport
+                  key='monitorExport'
                   class='mr-24'
                   v-authority={{ active: !this.authority.MANAGE_AUTH }}
                   onClick={cb =>
@@ -1217,7 +1223,10 @@ export default class MetricDimensionDialog extends tsc<IProps> {
                     <span class='shangchuan'>{this.$t('导出')}</span>
                   </span>
                 </MonitorExport>,
-                <span class='tingyong-swtich'>
+                <span
+                  key='tingyong'
+                  class='tingyong-swtich'
+                >
                   <span class='tip-text mr-10'>{this.$t('隐藏已停用')}</span>
                   <bk-switcher
                     v-model={this.hideStop}
@@ -1373,11 +1382,15 @@ export default class MetricDimensionDialog extends tsc<IProps> {
           <span class='footer-tip'>
             {this.hasWrongFormat.length
               ? [
-                  <span class='icon-monitor icon-remind' />,
-                  <span>
+                  <span
+                    key='icon'
+                    class='icon-monitor icon-remind'
+                  />,
+                  <span key='font'>
                     {this.$t('当前有多项{0}存在格式错误，可对指标名称进行统一格式转换', [this.hasWrongFormat.join('')])}
                   </span>,
                   <span
+                    key='event'
                     class='zhuanhuang'
                     onClick={this.handleOneClickTransFrom}
                   >
