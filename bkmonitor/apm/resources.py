@@ -146,6 +146,10 @@ class CreateApplicationSimpleResource(Resource):
         deployment_ids = serializers.ListField(label="环境", child=serializers.CharField(max_length=255), required=False)
         language_ids = serializers.ListField(label="语言", child=serializers.CharField(max_length=255), required=False)
         space_uid = serializers.CharField(label="空间唯一标识", required=False, default="")
+        enabled_profiling = serializers.BooleanField(label="是否开启 Profiling 功能", required=False, default=False)
+        enabled_trace = serializers.BooleanField(label="是否开启 Trace 功能", required=False, default=True)
+        enabled_metric = serializers.BooleanField(label="是否开启 Metric 功能", required=False, default=True)
+        enabled_log = serializers.BooleanField(label="是否开启 Log 功能", required=False, default=False)
 
     def fill_default(self, validate_data):
         if not validate_data.get("bk_biz_id"):
