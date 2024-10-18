@@ -762,7 +762,7 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
     retain_extra_json = serializers.BooleanField(label=_("是否保留未定义JSON字段"), required=False, default=False)
     enable_retain_content = serializers.BooleanField(label=_("是否保留失败日志"), required=False, default=True)
     record_parse_failure = serializers.BooleanField(label=_("是否记录清洗失败标记"), required=False, default=True)
-    path_regexp = serializers.CharField(label=_("采集路径分割的正则"), required=False, allow_null=True)
+    path_regexp = serializers.CharField(label=_("采集路径分割的正则"), required=False, allow_null=True, allow_blank=True)
 
     def validate(self, attrs):
         ret = super().validate(attrs)

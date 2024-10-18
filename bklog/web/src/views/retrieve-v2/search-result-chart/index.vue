@@ -44,7 +44,6 @@
       ref="chartRef"
       v-show="!isFold"
       :is-fold="isFold"
-      @polling="handlePolling"
     />
   </div>
 </template>
@@ -60,23 +59,19 @@
   const store = useStore();
   const chartKey = computed(() => store.state.retrieve.chartKey);
   const searchTotal = computed(() => store.state.searchTotal);
-  const isResultLoading = computed(() => store.state.indexSetQueryResult.is_loading || store.state.indexFieldInfo.is_loading)
+  const isResultLoading = computed(() => store.state.indexSetQueryResult.is_loading || store.state.indexFieldInfo.is_loading);
+  const getOffsetHeight = computed(() => (chartContainer.value?.offsetHeight || 32) - (!isFold.value ? 0 : 110));
 
   const isFold = ref(false);
   const chartContainer = ref(null);
   const chartInterval = ref('auto');
-  const isLoading = ref(false);
+  const isLoading = computed(() => store.state.retrieve.isTrendDataLoading)
 
-  const handlePolling = (val) => {
-    isLoading.value = val;
-    emit('change-queue-res', val);
-  }
 
   const toggleExpand = val => {
     isFold.value = val;
     localStorage.setItem('chartIsFold', val);
-    const offsetHeight = chartContainer.value?.offsetHeight;
-    emit('toggle-change', !isFold.value, offsetHeight);
+    emit('toggle-change', !isFold.value, getOffsetHeight.value);
   };
 
   const handleChangeInterval = v => {
@@ -87,8 +82,7 @@
 
   onMounted(() => {
     isFold.value = JSON.parse(localStorage.getItem('chartIsFold') || 'false');
-    const offsetHeight = chartContainer.value?.offsetHeight;
-    emit('toggle-change', !isFold.value, offsetHeight);
+    emit('toggle-change', !isFold.value, getOffsetHeight.value);
   });
 
   watch(() => chartKey.value, () => {
