@@ -50,7 +50,7 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
   limitFilter = {
     value: '10',
     position: 'top',
-    key: 'request',
+    key: 1,
   };
   limitType = 1;
   handleAdd() {

@@ -33,7 +33,7 @@ import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel'
 import CallerBarChart from '../chart/caller-bar-chart';
 import CallerPieChart from '../chart/caller-pie-chart';
 import { dashboardPanelList, dialogPanelList } from '../testData';
-import { TAB_TABLE_TYPE, CHART_TYPE } from '../utils';
+import { TAB_TABLE_TYPE, CHART_TYPE, LIMIT_TYPE_LIST } from '../utils';
 import TabBtnGroup from './common-comp/tab-btn-group';
 
 import type { IServiceConfig, IColumn, IDataItem } from '../type';
@@ -67,6 +67,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   isShowDimension = false;
   chartPanels = CHART_TYPE;
   chartActive = 'caller-pie-chart';
+  dimensionValue = 1;
   dashboardPanels = dashboardPanelList;
   drillValue = '';
   column = [
@@ -83,9 +84,10 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   curDimensionKey = '';
   curRowData = {};
   get dialogSelectList() {
-    let list = [];
-    this.panels.slice(0, 2).map(item => (list = [...list, ...item.columns]));
-    return list;
+    // let list = [];
+    // this.panels.slice(0, 2).map(item => (list = [...list, ...item.columns]));
+    // return list;
+    return LIMIT_TYPE_LIST;
   }
   get dialogPanel() {
     return dialogPanelList.find(item => item.type === this.chartActive) || {};
@@ -358,12 +360,15 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
               list={this.chartPanels}
               onChange={this.changeChartTab}
             />
-            <bk-select class='multi-dialog-select ml10'>
+            <bk-select
+              class='multi-dialog-select ml10'
+              v-model={this.dimensionValue}
+            >
               {this.dialogSelectList.map(option => (
                 <bk-option
-                  id={option.prop}
-                  key={option.prop}
-                  name={option.label}
+                  id={option.id}
+                  key={option.id}
+                  name={option.name}
                 />
               ))}
             </bk-select>

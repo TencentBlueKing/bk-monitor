@@ -46,7 +46,7 @@ export default class ContrastView extends tsc<object> {
       value: 'yesterday',
     },
     {
-      label: this.$t('前1周'),
+      label: this.$t('上周'),
       value: 'week',
     },
   ];

@@ -1053,7 +1053,7 @@ export const dashboardPanels = [
   },
   {
     id: 3,
-    title: '超时率',
+    title: '异常率/超时率',
     gridPos: {
       x: 16,
       y: 0,

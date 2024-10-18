@@ -75,8 +75,24 @@ export default class ApmServiceCallerCallee extends tsc<object> {
   dateData = [];
   diffTypeData = [];
   tableColData = [];
+
+  // 左侧主被调切换
   changeTab(id: string) {
     this.activeKey = id;
+    this.handleUpdateRouteQuery({ filterType: id });
+    console.log(this.$route.query, this.$route);
+  }
+
+  // 路由同步关键字
+  handleUpdateRouteQuery(data) {
+    const routerParams = {
+      name: this.$route.name,
+      query: {
+        ...this.$route.query,
+        ...data,
+      },
+    };
+    this.$router.replace(routerParams).catch(() => {});
   }
   // 筛选查询
   searchFilterData(data) {
@@ -135,6 +151,16 @@ export default class ApmServiceCallerCallee extends tsc<object> {
       operate: 1,
       values: [date],
     });
+  }
+  mounted() {
+    const queryData = this.$route.query;
+    if (queryData?.filterType) {
+      console.log('111');
+      this.activeKey = queryData.filterType;
+    } else {
+      // this.handleUpdateRouteQuery({ filterType: this.activeKey });
+    }
+    console.log(queryData?.filterType, this.$route.query, this.$route);
   }
 
   render() {

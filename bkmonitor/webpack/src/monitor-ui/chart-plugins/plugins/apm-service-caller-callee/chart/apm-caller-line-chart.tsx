@@ -74,7 +74,11 @@ export default class ApmCallerLineChart extends LineChart {
   render() {
     return (
       <div class='time-series apm-caller-line-chart'>
-        <ChartHeader title={this.panel.title} />
+        <ChartHeader
+          menuList={this.menuList}
+          showMore={false}
+          title={this.panel.title}
+        />
         {!this.empty ? (
           <div class='time-series-content'>
             <div
