@@ -44,7 +44,13 @@
         slot="content"
         class="list-content"
       >
+        <table-skeleton
+          style="padding: 16px"
+          :type="3"
+          v-if="subscribedLoading"
+        />
         <bk-table
+          v-else
           v-bkloading="{ isLoading: subscribedLoading, zIndex: 1 }"
           style="margin-top: 15px"
           :data="subscribedTableData"
@@ -219,6 +225,8 @@ import ListCollapse from './components/list-collapse.vue';
 import ReceiverList from './components/receiver-list.vue';
 import type { ITableColumnItem } from './types';
 
+import TableSkeleton from '../../components/skeleton/table-skeleton';
+
 const { i18n } = window;
 const frequencyMap: string[] = [
   ,
@@ -244,6 +252,7 @@ const hourTextMap = {
   components: {
     ListCollapse,
     ReceiverList,
+    TableSkeleton,
   },
 })
 export default class EmailSubscriptions extends Vue {
@@ -427,9 +436,11 @@ export default class EmailSubscriptions extends Vue {
    * 人员信息
    */
   private getReceiver() {
+    this.subscribedLoading = true
     return groupList({ bk_biz_id: this.$store.getters.bizId || +window.cc_biz_id }).then(res => {
       this.groupList = res;
-    });
+    })
+    .finally(() => this.subscribedLoading = false);
   }
 
   private handleItemClick(arr: string[], type: 'subAcitveList' | 'sendActiveList') {

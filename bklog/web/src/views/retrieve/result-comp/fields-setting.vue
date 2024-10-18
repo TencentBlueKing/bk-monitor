@@ -87,6 +87,7 @@
         <div class="fields-tab-container">
           <bk-tab
             :active.sync="activeFieldTab"
+            :labelHeight="42"
             type="unborder-card"
           >
             <template v-for="(panel, index) in fieldTabPanels">
@@ -122,13 +123,13 @@
                   v-bk-overflow-tips
                   >{{ getFiledDisplay(item.field_name) }}</span
                 >
-                <span class="icon log-icon icon-filled-right-arrow"></span>
+                <span class="icon bklog-icon bklog-filled-right-arrow"></span>
               </li>
             </ul>
           </div>
           <!-- 中间的箭头 -->
           <div class="sort-icon">
-            <span class="icon log-icon icon-double-arrow"></span>
+            <span class="icon bklog-icon bklog-double-arrow"></span>
           </div>
           <!-- 设置显示字段 -->
           <div
@@ -139,7 +140,7 @@
               <!-- 已选项列表 -->
               <span>{{ $t('已选项列表') + '(' + shadowVisible.length + ')' }}</span>
               <span
-                class="icon log-icon icon-info-fill"
+                class="icon bklog-icon bklog-info-fill"
                 v-bk-tooltips="$t('支持拖拽更改顺序，从上向下对应列表列从左到右顺序')"
               ></span>
               <span
@@ -159,7 +160,7 @@
                   class="select-item"
                   :key="item"
                 >
-                  <span class="icon log-icon icon-drag-dots"></span>
+                  <span class="icon bklog-icon bklog-drag-dots"></span>
                   <span
                     class="field-name"
                     v-bk-overflow-tips
@@ -182,7 +183,7 @@
               <!-- 已选项列表 -->
               <span>{{ $t('已选项列表') + '(' + shadowSort.length + ')' }}</span>
               <span
-                class="icon log-icon icon-info-fill"
+                class="icon bklog-icon bklog-info-fill"
                 v-bk-tooltips="$t('支持拖拽更改顺序，排在上面的拥有更高的排序权重')"
               ></span>
               <span
@@ -202,7 +203,7 @@
                   class="select-item"
                   :key="item[0]"
                 >
-                  <span class="icon log-icon icon-drag-dots"></span>
+                  <span class="icon bklog-icon bklog-drag-dots"></span>
                   <span
                     :style="`width: calc(100% - ${fieldWidth}px);`"
                     class="field-name"
@@ -300,7 +301,7 @@
         dragOptions: {
           animation: 150,
           tag: 'ul',
-          handle: '.icon-drag-dots',
+          handle: '.bklog-drag-dots',
           'ghost-class': 'sortable-ghost-class',
         },
       };
@@ -806,20 +807,20 @@
 
     .fields-tab-container {
       width: 723px;
-      padding: 10px 24px 0;
+      padding: 0px 10px 0 10px;
     }
 
     .fields-list-container {
       display: flex;
       width: 723px;
-      padding: 0 24px 14px;
-      margin-top: -20px;
+      padding: 0 10px 14px 10px;
+      margin-top: -30px;
 
       .total-fields-list,
       .visible-fields-list,
       .sort-fields-list {
-        width: 320px;
-        height: 319px;
+        width: 330px;
+        height: 268px;
         border: 1px solid #dcdee5;
 
         .text-action {
@@ -838,7 +839,7 @@
           color: #313238;
           border-bottom: 1px solid #dcdee5;
 
-          .icon-info-fill {
+          .bklog-info-fill {
             margin-left: 8px;
             font-size: 14px;
             color: #979ba5;
@@ -854,8 +855,8 @@
         }
 
         .select-list {
-          height: 276px;
-          padding: 10px 0;
+          height: 223px;
+          padding: 4px 0;
           overflow: auto;
 
           @include scroller;
@@ -863,11 +864,11 @@
           .select-item {
             display: flex;
             align-items: center;
-            padding: 0 16px;
+            padding: 0 8px;
             font-size: 12px;
             line-height: 32px;
 
-            .icon-drag-dots {
+            .bklog-drag-dots {
               width: 16px;
               font-size: 14px;
               color: #979ba5;
@@ -886,7 +887,7 @@
               background: #eaf3ff;
               transition: background 0.2s linear;
 
-              .icon-drag-dots {
+              .bklog-drag-dots {
                 opacity: 1;
                 transition: opacity 0.2s linear;
               }
@@ -904,7 +905,7 @@
           white-space: nowrap;
         }
 
-        .icon-filled-right-arrow {
+        .bklog-filled-right-arrow {
           width: 24px;
           font-size: 16px;
           color: #3a84ff;
@@ -916,7 +917,7 @@
           transform-origin: right center;
         }
 
-        &:hover .icon-filled-right-arrow {
+        &:hover .bklog-filled-right-arrow {
           opacity: 1;
           transition: opacity 0.2s linear;
         }
@@ -997,7 +998,7 @@
         justify-content: center;
         width: 35px;
 
-        .icon-double-arrow {
+        .bklog-double-arrow {
           font-size: 12px;
           color: #989ca5;
         }
@@ -1018,7 +1019,7 @@
 
     .field-alias-setting {
       position: absolute;
-      top: 10px;
+      top: 0px;
       right: 20px;
       display: flex;
       align-items: center;

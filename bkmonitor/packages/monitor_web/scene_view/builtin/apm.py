@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from django.utils.translation import gettext as _
 from rest_framework import serializers
@@ -17,8 +17,10 @@ from rest_framework import serializers
 from apm_web.constants import HostAddressType
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
+from apm_web.handlers.metric_handler import MetricHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application
+from constants.apm import MetricTemporality, TRPCMetricTag, TrpcTagDrillOperation
 from core.drf_resource import api
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
@@ -66,7 +68,10 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "service-default-log",
         "service-default-topo",
         "service-default-db",
+        "service-default-caller_callee",
     ]
+
+    REQUIRE_CONFIG_VIEW_IDS = ["service-default-caller_callee"]
 
     APM_TRACE_PREFIX = "apm_trace"
 
@@ -154,6 +159,34 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
             return cls._get_non_host_view_config(builtin_view, params)
 
+        if builtin_view == "apm_service-service-default-caller_callee":
+            # if params.get("category") != CategoryEnum.TRPC:
+            #     view_config["hidden"] = True
+            #     return view_config
+
+            # 补充配置
+            view_config["options"]["caller"] = {
+                "tags": TRPCMetricTag.caller_tags(),
+                "support_operations": TrpcTagDrillOperation.caller_support_operations(),
+            }
+            view_config["options"]["callee"] = {
+                "tags": TRPCMetricTag.callee_tags(),
+                "support_operations": TrpcTagDrillOperation.callee_support_operations(),
+            }
+
+            # 补充查询
+            service_temporality = params.get("service_temporality")
+            if service_temporality not in [MetricTemporality.CUMULATIVE, MetricTemporality.DELTA]:
+                service_temporality = (
+                    MetricHandler(bk_biz_id, app_name)
+                    .get_trpc_server_config(server=params["service_name"])
+                    .get("temporality")
+                )
+
+            if service_temporality == MetricTemporality.CUMULATIVE:
+                # 添加 increase 函数
+                cls._add_functions(view_config, [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}])
+
         return view_config
 
     @classmethod
@@ -195,6 +228,25 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         """替换模版中的变量"""
         content = json.dumps(view_config)
         return json.loads(content.replace(target, str(value)))
+
+    @classmethod
+    def _add_functions(cls, view_config: Dict[str, Any], functions: List[Dict[str, Any]]):
+        for panel in (view_config.get("overview_panels") or []) + (view_config.get("panels") or []):
+            cls._add_functions(panel, functions)
+
+        for target in view_config.get("targets") or []:
+            target_data = target.get("data")
+            if not target_data:
+                continue
+
+            for query_config in target_data.get("query_configs") or []:
+                query_config.setdefault("functions", []).extend(functions)
+
+            if not target_data.get("unify_query_param"):
+                continue
+
+            for query_config in target_data["unify_query_param"].get("query_configs") or []:
+                query_config.setdefault("functions", []).extend(functions)
 
     @classmethod
     def _add_config_from_host(cls, view, view_config):
@@ -336,6 +388,8 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         return {
             "app_name": params.get("apm_app_name"),
             "service_name": params.get("apm_service_name"),
+            "service_temporality": params.get("apm_service_temporality"),
+            "category": params.get("apm_category"),
         }
 
     @classmethod
@@ -436,6 +490,12 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 params.update(
                     {
                         "apm_service_name": "${service_name}",
+                    }
+                )
+            if list_config_item["id"] in cls.REQUIRE_CONFIG_VIEW_IDS:
+                params.update(
+                    {
+                        "apm_service_temporality": "${service_temporality}",
                     }
                 )
 

@@ -344,6 +344,7 @@ export default (): ValueFormatCategory[] => [
       { name: 'Hertz (1/s)', id: 'hertz', fn: decimalSIPrefix('Hz') },
       { name: 'nanoseconds (ns)', id: 'ns', fn: toNanoSeconds },
       { name: 'microseconds (µs)', id: 'µs', fn: toMicroSeconds },
+      { name: 'microseconds (µs)', id: 'μs', fn: toMicroSeconds },
       { name: 'milliseconds (ms)', id: 'ms', fn: toMilliSeconds },
       { name: 'seconds (s)', id: 's', fn: toSeconds },
       { name: 'minutes (m)', id: 'm', fn: toMinutes },

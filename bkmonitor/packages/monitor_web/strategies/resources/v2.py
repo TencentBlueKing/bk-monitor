@@ -56,12 +56,14 @@ from bkmonitor.strategy.new_strategy import (
 from bkmonitor.utils.request import get_source_app
 from bkmonitor.utils.time_format import duration_string, parse_duration
 from bkmonitor.utils.user import get_global_user
+from bkmonitor.utils.cache import CacheType
 from constants.alert import EventStatus
 from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.common import SourceApp
 from constants.data_source import DATA_CATEGORY, DataSourceLabel, DataTypeLabel
 from constants.strategy import SPLIT_DIMENSIONS, DataTarget, TargetFieldType
 from core.drf_resource import api, resource
+from core.drf_resource.contrib.cache import CacheResource
 from core.drf_resource.base import Resource
 from core.errors.bkmonitor.data_source import CmdbLevelValidateError
 from core.errors.strategy import StrategyNameExist
@@ -2327,14 +2329,54 @@ class GetPlainStrategyListV2Resource(Resource):
         }
 
 
-class GetTargetDetail(Resource):
-    """
-    获取监控目标详情
-    """
+class GetTargetDetailWithCache(CacheResource):
+    """获取监控目标详情，具有缓存功能"""
+    backend_cache_type = CacheType.CC_CACHE_ALWAYS
+    cache_user_related = False
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        strategy_ids = serializers.ListField(required=True, label="策略ID列表", child=serializers.IntegerField())
+        strategy_id = serializers.IntegerField(required=True, label="策略ID")
+
+    def perform_request(self, validate_data):
+        """
+        为了获取最佳的性能，在执行request()方法之前，请先执行set_mapping()方法，传入策略和监控目标的映射关系字典，以避免频繁查询数据库。
+        并且请显示使用instance.request()的方式执行perform_request，而非使用instance()方式，
+        使用instance()方式执行时会重新实例化，导致先前执行的set_mapping失效。
+
+        example:
+            >>instance = GetTargetDetailWithCache()
+            >>instance.set_mapping({xxx})
+            >>instance.request(xxx)
+        """
+
+        strategy_id = validate_data["strategy_id"]
+        if not hasattr(self, "strategy_target_mapping"):
+            bk_biz_id = StrategyModel.objects.get(id=strategy_id).bk_biz_id
+            target = ItemModel.objects.get(strategy_id=strategy_id).target
+            logger.warning("Please call set_mapping() before calling perform_request().")
+        else:
+            bk_biz_id = self.strategy_target_mapping[strategy_id][0]
+            target = self.strategy_target_mapping[strategy_id][1]
+
+        return self.get_target_detail(bk_biz_id, target)
+
+    def set_mapping(self, mapping: Dict) -> None:
+        """
+        设置策略和监控目标的映射关系
+        格式:{ strategy_id:(bk_biz_id,target) }
+        """
+
+        if not isinstance(mapping, dict):
+            logging.error("Invalid type for 'mapping'. Expected dict.")
+            raise TypeError("mapping must be a dict.")
+
+        self.strategy_target_mapping = mapping
+
+    def cache_write_trigger(self, target_info: Any) -> bool:
+        """获取到监控目标信息不为None，则进行缓存"""
+        if target_info:
+            return True
+        return False
 
     @classmethod
     def get_target_detail(cls, bk_biz_id: int, target: List[List[Dict]]):
@@ -2446,6 +2488,16 @@ class GetTargetDetail(Resource):
             "target_detail": target_detail,
         }
 
+
+class GetTargetDetail(Resource):
+    """
+    获取监控目标详情
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        strategy_ids = serializers.ListField(required=True, label="策略ID列表", child=serializers.IntegerField())
+
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
         strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=params["strategy_ids"]).only(
@@ -2454,10 +2506,16 @@ class GetTargetDetail(Resource):
         strategy_ids = [strategy.id for strategy in strategies]
         items = ItemModel.objects.filter(strategy_id__in=strategy_ids)
 
+        get_target_detail_with_cache = GetTargetDetailWithCache()
+        # 提前设置策略与监控目标映射，避免频繁查询数据库
+        get_target_detail_with_cache.set_mapping({item.strategy_id: (bk_biz_id, item.target) for item in items})
+
         empty_strategy_ids = []
         result = {}
         for item in items:
-            info = self.get_target_detail(bk_biz_id, item.target)
+            # 使用instance.request()方式调用，而非instance()方式。
+            # instance()方式执行时会重新实例化，导致先前执行的set_mapping失效
+            info = get_target_detail_with_cache.request({"strategy_id": item.strategy_id})
 
             if info:
                 result[item.strategy_id] = info
@@ -2805,11 +2863,12 @@ class PromqlToQueryConfig(Resource):
                     condition["condition"] = "and"
                 conditions.append(condition)
 
-            # 根据table_id格式判定是否为data_label二段式
+            # 根据table_id格式判定是否为data_label二段式, 如果是则需要根据data_label去指标选择器缓存表中查询结果表ID
+            # 计算平台指标没有data_label，table_id 就直接是结果表ID result_table_id
             table_id = query.get("table_id", "")
             result_table_id = ""
             data_label = ""
-            if len(table_id.split(".")) == 1:
+            if len(table_id.split(".")) == 1 and query["data_source"] != DataSourceLabel.BKDATA:
                 data_label = table_id
             else:
                 result_table_id = table_id
@@ -2817,6 +2876,8 @@ class PromqlToQueryConfig(Resource):
                 "data_source"
             ] == DataSourceLabel.CUSTOM:
                 data_source_label = DataSourceLabel.CUSTOM
+            elif query["data_source"] == DataSourceLabel.BKDATA:
+                data_source_label = DataSourceLabel.BK_DATA
             else:
                 data_source_label = DataSourceLabel.BK_MONITOR_COLLECTOR
             data_type_label = DataTypeLabel.TIME_SERIES

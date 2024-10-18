@@ -27,17 +27,15 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Editor, type Viewer } from '@toast-ui/editor';
+import codeSyntaxHighlight from '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight-all';
 
-// import codeSyntaxHighlight from '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight-all';
-// import Prism from 'prismjs';
-// import 'prismjs/components/prism-python.js';
 import fixUrlPlugin from './fixUrlPlugin';
 
-// import 'prismjs/themes/prism.css';
 import type { EditorPlugin } from '@toast-ui/editor/types/editor';
 
+import 'prismjs/themes/prism.css';
+import '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight.css';
 import './viewer.scss';
-// import '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight.css';
 import '@toast-ui/editor/dist/toastui-editor.css';
 
 interface IMarkdowViewerProps {
@@ -57,29 +55,30 @@ export default class MarkdowViewer extends tsc<IMarkdowViewerProps> {
   @Watch('value')
   onValueChange(val: string, preVal: string) {
     if (val !== preVal) {
-      this.editor.setMarkdown(val);
+      this.editor.destroy();
+      this.createEditor();
     }
   }
 
   mounted() {
+    this.createEditor();
+  }
+  createEditor() {
     const eventOption = {};
     this.editorEvents.forEach(event => {
       eventOption[event] = (...args: any) => {
         this.$emit(event, ...args);
       };
     });
-
     this.editor = Editor.factory({
       el: this.$refs.viewer as HTMLElement,
       events: eventOption,
       initialValue: this.value,
       height: this.height,
       viewer: true,
-      plugins: [fixUrlPlugin as EditorPlugin],
-      // plugins: [codeSyntaxHighlight]
+      plugins: [fixUrlPlugin as EditorPlugin, codeSyntaxHighlight],
     });
   }
-
   destroyed() {
     this.editorEvents.forEach(event => this.editor.off(event));
     this.editor.destroy();

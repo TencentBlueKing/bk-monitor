@@ -28,8 +28,8 @@
     :style="{ 'background-image': backgroundUrl }"
     class="monitor-echart-wrap"
     v-bkloading="{ isLoading: loading, zIndex: 2000 }"
-    @mouseenter="showTitleTool = true"
-    @mouseleave="showTitleTool = false"
+    @mouseenter="isHover = true"
+    @mouseleave="isHover = false"
   >
     <div
       v-if="chartTitle || $slots.title"
@@ -409,7 +409,7 @@ export default class MonitorEcharts extends Vue {
   chart = null;
   localChartHeight = 0; //
   clickTimer = null;
-  showTitleTool = false;
+  showTitleTool = true;
   extendMetricData: any = null;
   alarmStatus: IAlarmStatus = { status: 0, alert_number: 0, strategy_number: 0 };
   // tooltips大小 [width, height]
@@ -442,6 +442,8 @@ export default class MonitorEcharts extends Vue {
     // 是否处于移动中
     moving: false,
   };
+  isHover = false; // 是否处于hover状态
+  isIntersecting = false; // 是否处于可视区域
   // 监控图表默认配置
   get defaultOptions(): MonitorEchartOptions {
     if (this.chartType === 'bar' || this.chartType === 'line') {
@@ -698,7 +700,8 @@ export default class MonitorEcharts extends Vue {
   // 注册Intersection监听
   registerObserver(): void {
     this.intersectionObserver = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
+      for(const entry of entries) {
+        this.isIntersecting = entry.isIntersecting;
         if (this.needObserver) {
           if (entry.intersectionRatio > 0) {
             this.handleSeriesData();
@@ -711,7 +714,7 @@ export default class MonitorEcharts extends Vue {
             isVisiable && this.handleSeriesData();
           }
         }
-      });
+      }
     });
   }
   // 获取seriesData
@@ -720,8 +723,8 @@ export default class MonitorEcharts extends Vue {
     if (this.chartType === 'line' && !this.enableSelectionRestoreAll) {
       this.showRestore = !!startTime;
     }
-    this.intersectionObserver?.unobserve?.(this.$el);
-    this.intersectionObserver?.disconnect?.();
+    // this.intersectionObserver?.unobserve?.(this.$el);
+    // this.intersectionObserver?.disconnect?.();
     this.needObserver = false;
     try {
       const isRange = startTime && startTime.length > 0 && endTime && endTime.length > 0;
@@ -937,7 +940,10 @@ export default class MonitorEcharts extends Vue {
   }
   // 设置tooltip
   handleSetTooltip(params) {
-    if (!this.showTitleTool) return undefined;
+    if(!this.isIntersecting) {
+      return undefined;
+    }
+    // if (!this.isHover) return undefined;
     if (!params || params.length < 1 || params.every(item => item.value[1] === null)) {
       this.chartType === 'line' &&
         (this.curValue = {
@@ -1422,6 +1428,8 @@ export default class MonitorEcharts extends Vue {
     }
     this.delegateMethod('dispose');
     this.chart = null;
+    this.intersectionObserver?.unobserve?.(this.$el);
+    this.intersectionObserver?.disconnect?.();
   }
 
   handleScatterTipOutside() {

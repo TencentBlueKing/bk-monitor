@@ -53,7 +53,7 @@ class CmdbHostCache(CacheBase):
         return result
 
     @classmethod
-    def refresh(cls):
+    def refresh(cls, bk_biz_ids=None):
         from apps.log_search.handlers.biz import BizHandler
 
         businesses = BizHandler.list()
@@ -68,6 +68,9 @@ class CmdbHostCache(CacheBase):
         for biz in businesses:
             bk_biz_id = biz["bk_biz_id"]
             biz_ids.append(bk_biz_id)
+            # 有传入实际参数
+            if bk_biz_ids and (bk_biz_id not in bk_biz_ids):
+                continue
             objs = {}
             try:
                 objs = cls.refresh_by_biz(bk_biz_id)
@@ -84,12 +87,17 @@ class CmdbHostCache(CacheBase):
             pipeline.expire(cls.CACHE_KEY, cls.CACHE_TIMEOUT)
             pipeline.execute()
 
+        # 有实际参数
+        if bk_biz_ids:
+            logger.info(
+                "cache_key({}) refresh CMDB data finished, amount: updated: {}".format(cls.CACHE_KEY, len(new_keys))
+            )
+            return
         old_biz_ids = {biz_id.decode() for biz_id in cls.cache.hkeys(biz_cache_key)}
         new_biz_ids = {str(biz_id) for biz_id in biz_ids}
         delete_biz_ids = old_biz_ids - new_biz_ids
         if delete_biz_ids:
             cls.cache.hdel(biz_cache_key, *delete_biz_ids)
-
         cls.cache.expire(biz_cache_key, cls.CACHE_TIMEOUT)
         # 清理业务下已被删除的对象数据
         old_keys = {key.decode() for key in cls.cache.hkeys(cls.CACHE_KEY)}

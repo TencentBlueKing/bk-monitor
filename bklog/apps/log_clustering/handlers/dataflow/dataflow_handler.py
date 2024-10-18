@@ -239,18 +239,38 @@ class DataFlowHandler(BaseAiopsHandler):
             is_not_null_rules = OPERATOR_AND.join([f" `{field}` is not null " for field in fields_name_list])
 
         for index, filter_rule in enumerate(filter_rules):
-            if not all_fields_dict.get(filter_rule.get("fields_name")):
+            # 切割嵌套字段
+            field_name_parts = filter_rule.get("fields_name", "").split(".", 1)
+
+            if len(field_name_parts) == 1:
+                field_name = field_name_parts[0]
+                nested_field_name = ""
+            else:
+                field_name = field_name_parts[0]
+                nested_field_name = field_name_parts[1]
+            if not all_fields_dict.get(field_name):
                 continue
             if index > 0:
                 # 如果不是第一个条件，则把运算符加进去
                 rules.append(filter_rule.get("logic_operator"))
-            rules.extend(
-                [
-                    f"`{all_fields_dict.get(filter_rule.get('fields_name'))}`",
-                    cls.change_op(filter_rule.get("op")),
-                    "'{}'".format(filter_rule.get("value")),
-                ]
-            )
+
+            if nested_field_name:
+                # 如果有嵌套字段，则用JSON提取的方式
+                rules.extend(
+                    [
+                        f"JSON_VALUE(`{all_fields_dict[field_name]}`, '$.{nested_field_name}')",
+                        cls.change_op(filter_rule.get("op")),
+                        "'{}'".format(filter_rule.get("value")),
+                    ]
+                )
+            else:
+                rules.extend(
+                    [
+                        f"`{all_fields_dict[field_name]}`",
+                        cls.change_op(filter_rule.get("op")),
+                        "'{}'".format(filter_rule.get("value")),
+                    ]
+                )
 
         if rules and is_not_null_rules != "":
             rules_str = " ".join([OPERATOR_AND, "(", is_not_null_rules, ")", OPERATOR_AND, "(", *rules, ")"])
@@ -946,7 +966,7 @@ class DataFlowHandler(BaseAiopsHandler):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
 
         st_list = OnlineTaskTrainingArgs.ST_LIST
-        if clustering_config.max_log_length == OnlineTaskTrainingArgs.MAX_DIST_LIST_OLD:
+        if clustering_config.max_dist_list == OnlineTaskTrainingArgs.MAX_DIST_LIST_OLD:
             # 旧版参数兼容
             st_list = OnlineTaskTrainingArgs.ST_LIST_OLD
 
@@ -975,6 +995,10 @@ class DataFlowHandler(BaseAiopsHandler):
         更新预测节点 更新在线训练任务
         """
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+
+        if not clustering_config.predict_flow_id:
+            logger.info(f"index_set({index_set_id}) has no predict_flow_id, skip update predict node")
+            return
 
         # 更新模型训练节点 (预测节点)
         self.update_predict_node(index_set_id=index_set_id)
@@ -1054,11 +1078,7 @@ class DataFlowHandler(BaseAiopsHandler):
         @return:
         """
         for node in nodes:
-            table_name = node["node_config"].get("table_name")
-            if not table_name:
-                continue
-            # 预测节点
-            if table_name.endswith(RealTimePredictFlowNode.PREDICT_NODE):
+            if node["node_type"] == NodeType.MODEL:
                 return node
 
     def deal_update_filter_predict_flow_node(self, target_nodes, filter_rule, not_clustering_rule, flow_id):
@@ -1416,7 +1436,7 @@ class DataFlowHandler(BaseAiopsHandler):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
 
         st_list = OnlineTaskTrainingArgs.ST_LIST
-        if clustering_config.max_log_length == OnlineTaskTrainingArgs.MAX_DIST_LIST_OLD:
+        if clustering_config.max_dist_list == OnlineTaskTrainingArgs.MAX_DIST_LIST_OLD:
             # 旧版参数兼容
             st_list = OnlineTaskTrainingArgs.ST_LIST_OLD
 

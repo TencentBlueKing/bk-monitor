@@ -360,6 +360,11 @@ CELERYBEAT_SCHEDULE = {
         "schedule": crontab(minute="*/10"),
         "enabled": True,
     },
+    "apm_web.tasks.application_create_check": {
+        "task": "apm_web.tasks.application_create_check",
+        "schedule": crontab(minute="*/1"),
+        "enabled": True,
+    },
     "monitor_web.tasks.keep_alive": {
         "task": "monitor_web.tasks.keep_alive",
         "schedule": crontab(),
@@ -370,6 +375,11 @@ CELERYBEAT_SCHEDULE = {
         "task": "monitor_web.tasks.update_statistics_data",
         "schedule": crontab(),
         "enabled": True,
+    },
+    "monitor_web.tasks.update_target_detail": {
+        "task": "monitor_web.tasks.update_target_detail",
+        "schedule": crontab(minute="*/15"),
+        "enabled": True
     },
 }
 

@@ -58,20 +58,20 @@
             :class="['result-icon-box', { 'light-icon': !showRetrieveCondition }]"
             @click="handleClickResultIcon('search')"
           >
-            <span class="bk-icon log-icon icon-jiansuo"></span>
+            <span class="bk-icon bklog-icon bklog-jiansuo"></span>
           </div>
           <template #content>
             <div>{{ iconSearchStr }}</div>
           </template>
         </bk-popover>
       </div>
-      <div
+      <!-- <div
         v-if="!isAsIframe"
         id="bizSelectorGuide"
         class="biz-menu-box"
       >
         <biz-menu-select theme="light"></biz-menu-select>
-      </div>
+      </div> -->
     </div>
     <!-- 检索结果 -->
     <!-- <div class="result-text"></div> -->
@@ -98,7 +98,7 @@
         <slot name="trigger">
           <div class="auto-refresh-trigger">
             <span
-              :class="['log-icon', isAutoRefresh ? 'icon-auto-refresh' : 'icon-no-refresh']"
+              :class="['bklog-icon', isAutoRefresh ? 'icon-auto-refresh' : 'icon-no-refresh']"
               data-test-id="retrieve_span_periodicRefresh"
               @click.stop="handleRefreshDebounce"
             ></span>
@@ -140,7 +140,7 @@
             class="more-operation"
             id="more-operator"
           >
-            <i class="bk-icon log-icon icon-ellipsis-more"></i>
+            <i class="bklog-icon bklog-ellipsis-more"></i>
           </div>
         </slot>
         <template #content>
@@ -606,15 +606,15 @@
           margin-right: 2px;
         }
 
-        &::after {
-          position: absolute;
-          top: 6px;
-          right: -25px;
-          width: 1px;
-          height: 14px;
-          content: '';
-          background-color: #dcdee5;
-        }
+        // &::after {
+        //   position: absolute;
+        //   top: 6px;
+        //   right: -25px;
+        //   width: 1px;
+        //   height: 14px;
+        //   content: '';
+        //   background-color: #dcdee5;
+        // }
 
         .result-icon-box {
           width: 32px;
@@ -705,7 +705,7 @@
       white-space: nowrap;
       cursor: pointer;
 
-      .log-icon {
+      .bklog-icon {
         padding: 0 5px 0 17px;
         font-size: 14px;
         color: #63656e;
@@ -751,7 +751,7 @@
       white-space: nowrap;
       cursor: pointer;
 
-      .icon-ellipsis-more {
+      .bklog-ellipsis-more {
         display: flex;
         align-items: center;
         justify-content: center;

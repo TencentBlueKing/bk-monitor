@@ -421,6 +421,11 @@ INFLUXDB_ADDITIONAL_INFO_FOR_UNIFY_QUERY = "query_router_info"
 # 查询 vm 存储的路由信息
 QUERY_VM_STORAGE_ROUTER_KEY = "query_vm_router"
 
+# ES索引就绪状态
+ES_READY_STATUS = "green"
+# ES索引健康状态检查级别
+ES_INDEX_CHECK_LEVEL = "indices"
+
 # 批量写入数量限制
 BULK_CREATE_BATCH_SIZE = 2000
 
@@ -438,6 +443,11 @@ DB_DUPLICATE_ID = 1062
 
 # ES别名延迟过期时间
 ES_ALIAS_EXPIRED_DELAY_DAYS = 1
+
+# V3链路版本
+DATA_LINK_V3_VERSION_NAME = 'V3'
+# V4链路版本
+DATA_LINK_V4_VERSION_NAME = 'V4'
 
 
 class ESScopeTypes(Enum):

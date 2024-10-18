@@ -27,12 +27,12 @@ import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
+import { throttle } from 'lodash';
 
 import { getValueFormat } from '../../../monitor-echarts/valueFormats/valueFormats';
 import { type MonitorEchartOptions, echarts } from '../../typings/index';
 
 import './mini-time-series.scss';
-
 enum EPointType {
   compare = 'compare',
   end = 'end',
@@ -55,6 +55,7 @@ interface IProps {
   unit?: string;
   unitDecimal?: number;
   showLastMarkPoint?: boolean;
+  lastValueWidth?: number;
   /* 以下参数为对比图专用 */
   compareX?: number;
   referX?: number;
@@ -82,6 +83,8 @@ export default class MiniTimeSeries extends tsc<IProps> {
   @Prop({ type: String, default: window.i18n.tc('数量') }) valueTitle: string;
   /* 是否标记最后一个点并且右侧显示其值 */
   @Prop({ type: Boolean, default: true }) showLastMarkPoint: boolean;
+  /* 固定右侧值的显示宽度 */
+  @Prop({ type: Number, default: 0 }) lastValueWidth: number;
 
   options: MonitorEchartOptions = {
     grid: {
@@ -128,13 +131,51 @@ export default class MiniTimeSeries extends tsc<IProps> {
   hoverPoint = {
     isHover: false,
   };
+
+  resizeObserver = null;
+  intersectionObserver: IntersectionObserver = null;
+  throttleHandleResize = () => {};
+
   mounted() {
-    this.initChart();
+    this.throttleHandleResize = throttle(this.handleResize, 300);
+    this.resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        if (entry.contentRect.width) {
+          this.throttleHandleResize();
+        }
+      }
+    });
+    this.resizeObserver.observe(this.$el);
+    setTimeout(this.registerObserver, 20);
   }
   destroyed() {
     (this as any).instance?.dispose?.();
     (this as any).instance = null;
+    this.resizeObserver?.unobserve?.(this.$el);
     this.isMouseOver = false;
+    this.unregisterOberver();
+  }
+
+  // 注册Intersection监听
+  registerObserver() {
+    if (this.intersectionObserver) {
+      this.unregisterOberver();
+    }
+    this.intersectionObserver = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (this.intersectionObserver && entry.intersectionRatio > 0) {
+          this.initChart();
+        }
+      }
+    });
+    this.intersectionObserver.observe(this.$el);
+  }
+  unregisterOberver() {
+    if (this.intersectionObserver) {
+      this.intersectionObserver.unobserve(this.$el);
+      this.intersectionObserver.disconnect();
+      this.intersectionObserver = null;
+    }
   }
 
   initChart() {
@@ -146,10 +187,12 @@ export default class MiniTimeSeries extends tsc<IProps> {
           yAxis: {
             ...this.options.yAxis,
             max: v => {
-              return v.max + ((v.max * this.chartStyle.chartWarpHeight) / this.chartStyle.lineMaxHeight - v.max);
+              return v.max + (((v.max || 1) * this.chartStyle.chartWarpHeight) / this.chartStyle.lineMaxHeight - v.max);
             },
             min: v => {
-              return 0 - ((v.max * this.chartStyle.chartWarpHeight) / this.chartStyle.lineMaxHeight - v.max) / 1.5;
+              return (
+                0 - (((v.max || 1) * this.chartStyle.chartWarpHeight) / this.chartStyle.lineMaxHeight - v.max) / 1.5
+              );
             },
           },
           tooltip: this.getTooltipParams(),
@@ -159,7 +202,7 @@ export default class MiniTimeSeries extends tsc<IProps> {
               ...this.getSymbolItemStyle(),
               ...this.getSeriesStyle(),
               data: this.data.map(item => ({
-                value: [item[1], item[0] || 0],
+                value: [item[1], item[0]],
               })),
             },
           ],
@@ -228,7 +271,13 @@ export default class MiniTimeSeries extends tsc<IProps> {
     const markPointData = [];
     const seriesData = this.options.series[0].data || [];
     if (this.showLastMarkPoint && seriesData.length) {
-      const lastItem = seriesData[seriesData.length - 1];
+      let lastItem = seriesData[seriesData.length - 1];
+      for (let i = seriesData.length - 1; i >= 0; i--) {
+        if (typeof lastItem.value[1] !== 'number' && typeof seriesData[i].value[1] === 'number') {
+          lastItem = seriesData[i];
+          break;
+        }
+      }
       const valueFormatter = getValueFormat(this.unit);
       const valueItem = valueFormatter(lastItem.value[1], this.unitDecimal);
       this.lastValue = `${valueItem.text}${valueItem.suffix}`;
@@ -292,6 +341,10 @@ export default class MiniTimeSeries extends tsc<IProps> {
     };
   }
 
+  handleResize() {
+    (this as any).instance?.resize?.();
+  }
+
   /**
    * @description 其他附加的初始化动作
    */
@@ -331,7 +384,22 @@ export default class MiniTimeSeries extends tsc<IProps> {
           onMouseover={this.handleMouseover}
           onMouseup={this.handleMouseUp}
         />
-        {this.showLastMarkPoint && this.lastValue ? <span class='last-value'>{this.lastValue}</span> : undefined}
+        {this.showLastMarkPoint && this.lastValue ? (
+          this.lastValueWidth ? (
+            <span
+              style={{
+                'max-width': `${this.lastValueWidth}px`,
+                'min-width': `${this.lastValueWidth}px`,
+              }}
+              class='last-value-overflow'
+              v-bk-overflow-tips
+            >
+              {this.lastValue === 'undefined' ? '--' : this.lastValue}
+            </span>
+          ) : (
+            <span class='last-value'>{this.lastValue === 'undefined' ? '--' : this.lastValue}</span>
+          )
+        ) : undefined}
       </div>
     );
   }

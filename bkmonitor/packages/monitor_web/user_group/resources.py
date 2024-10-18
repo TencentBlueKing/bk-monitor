@@ -57,7 +57,7 @@ class DutyPlanUserTranslaterResource(Resource):
             self.user_list = {
                 user["username"]: user["display_name"]
                 for user in api.bk_login.get_all_user(
-                    page_size=500, fields="username,display_name", exact_lookups=",".join(set(all_members))
+                    page_size=500, fields="username,display_name", exact_lookups=",".join(sorted(set(all_members)))
                 )["results"]
             }
         except Exception as error:

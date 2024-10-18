@@ -19,6 +19,7 @@ from apm_web.metric.resources import (
     ErrorListByTraceIdsResource,
     ErrorListResource,
     ExceptionDetailListResource,
+    GetFieldOptionValuesResource,
     HostInstanceDetailListResource,
     InstanceListResource,
     MetricDetailStatisticsResource,
@@ -112,4 +113,5 @@ class MetricViewSet(ResourceViewSet):
         ResourceRoute("POST", ExceptionDetailListResource, "exception_detail_list"),
         ResourceRoute("POST", ServiceQueryExceptionResource, "service_query_exception"),
         ResourceRoute("GET", MetricDetailStatisticsResource, "metric_statistics"),
+        ResourceRoute("POST", GetFieldOptionValuesResource, "get_field_option_values"),
     ]

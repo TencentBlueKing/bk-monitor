@@ -26,7 +26,7 @@
 
 <template>
   <div class="no-index-set-container">
-    <span class="icon log-icon icon-index-set"></span>
+    <span class="icon bklog-icon bklog-index-set"></span>
     <h2 class="main-tip">{{ $t('当前业务无数据可检索') }}</h2>
     <!-- 要使用检索功能，请先创建索引集 -->
     <div

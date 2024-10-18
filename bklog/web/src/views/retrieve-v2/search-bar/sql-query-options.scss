@@ -1,0 +1,146 @@
+.sql-query-options {
+  position: relative;
+  width: 100%;
+  min-height: 140px;
+  max-height: 260px;
+  overflow: auto;
+  background: #fff;
+
+  .list-item {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    line-height: 32px;
+    background-color: #fff;
+
+    .item-type-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+
+      .bklog-icon {
+        font-size: 16px;
+      }
+    }
+
+    .item-text {
+      flex: 1;
+      min-width: 150px;
+      padding: 0 8px;
+      font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
+      color: #63656e;
+    }
+
+    .item-description {
+      flex: 2;
+      margin-left: 24px;
+      color: #979ba5;
+
+      .item-callout {
+        padding: 0 4px;
+        font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
+        color: #313238;
+        background-color: #f4f6fa;
+      }
+    }
+
+    &.active {
+      background-color: #eaf3ff;
+
+      .item-text {
+        color: #313238;
+      }
+
+      .item-callout {
+        background-color: #fff;
+      }
+    }
+
+    &:not(.active) {
+      &:hover {
+        cursor: pointer;
+        background-color: #f4f6fa;
+      }
+    }
+  }
+
+  /* 字段 icon 样式 */
+  .field-list-item.list-item {
+    .item-type-icon {
+      color: #936501;
+      background-color: #fef6e6;
+    }
+
+    &:hover,
+    &.active {
+      .item-type-icon {
+        color: #010101;
+        background-color: #fdedcc;
+      }
+    }
+  }
+
+  /* 值 icon 样式 */
+  .value-list-item.list-item {
+    /* stylelint-disable-next-line no-descending-specificity */
+    .item-type-icon {
+      color: #02776e;
+      background-color: #e6f2f1;
+    }
+
+    &:hover,
+    &.active {
+      .item-type-icon {
+        color: #010101;
+        background-color: #cce5e3;
+      }
+    }
+  }
+
+  /* AND OR icon 样式 */
+  .continue-list-item.list-item {
+    /* stylelint-disable-next-line no-descending-specificity */
+    .item-type-icon {
+      color: #7800a6;
+      background-color: #f2e6f6;
+    }
+
+    &:hover,
+    &.active {
+      .item-type-icon {
+        color: #000;
+        background-color: #e4cced;
+      }
+    }
+  }
+
+  /* : :* icon 样式 */
+  .colon-list-item.list-item {
+    /* stylelint-disable-next-line no-descending-specificity */
+    .item-type-icon {
+      color: #006bb4;
+      background-color: #e6f0f8;
+    }
+
+    &:hover,
+    &.active {
+      .item-type-icon {
+        color: #000;
+        background-color: #cce1f0;
+      }
+    }
+  }
+
+  /*   tips查询语法 样式*/
+  .history-title-item.list-item {
+    cursor: default;
+    background-color: #fff;
+    border-top: 1px solid #dcdee5;
+
+    .item-text {
+      color: #979ba5;
+    }
+  }
+}
