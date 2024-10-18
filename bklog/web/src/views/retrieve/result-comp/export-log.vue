@@ -34,7 +34,7 @@
         <span class="icon bklog-icon bklog-xiazai"></span>
       </div> -->
     <div
-      :class="{ 'operation-icon': true, 'disabled-icon': false }"
+      :class="{ 'operation-icon': true, 'disabled-icon': !queueStatus }"
       data-test-id="fieldForm_div_exportData"
       @mouseenter="handleShowAlarmPopover"
     >
