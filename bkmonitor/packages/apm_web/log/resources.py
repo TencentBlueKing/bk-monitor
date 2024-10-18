@@ -111,6 +111,7 @@ class ServiceRelationListResource(Resource, HostIndexQueryMixin):
                         "index_set_name": index_set_info['index_set_name'],
                         "related_bk_biz_id": item["related_bk_biz_id"],
                         "source": item["source"],
+                        "log_type": "bk_log",
                     }
                 )
 
