@@ -241,12 +241,13 @@
           desensitize: this.$t('脱敏'),
           // origin: this.$t('原始'),
         },
-        queueStatus: true
+        // queueStatus: true
       };
     },
     computed: {
       ...mapState({
-        totalCount: state => state.searchTotal
+        totalCount: state => state.searchTotal,
+        queueStatus: state => !state.retrieve.isTrendDataLoading
       }),
       ...mapGetters({
         bkBizId: 'bkBizId',

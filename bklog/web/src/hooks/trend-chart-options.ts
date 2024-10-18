@@ -85,7 +85,7 @@ export default {
     '#F9D9F9',
     '#DEDAF7',
   ],
-  animation: true,
+  // animation: true,
   tool: {
     show: false,
   },
@@ -490,7 +490,6 @@ export default {
       zlevel: 0,
       coordinateSystem: 'cartesian2d',
       legendHoverLink: true,
-      barMinAngle: 0,
       large: false,
       largeThreshold: 400,
       progressive: 3000,

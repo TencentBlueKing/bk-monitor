@@ -44,7 +44,6 @@
       ref="chartRef"
       v-show="!isFold"
       :is-fold="isFold"
-      @polling="handlePolling"
     />
   </div>
 </template>
@@ -66,12 +65,8 @@
   const isFold = ref(false);
   const chartContainer = ref(null);
   const chartInterval = ref('auto');
-  const isLoading = ref(false);
+  const isLoading = computed(() => store.state.retrieve.isTrendDataLoading)
 
-  const handlePolling = (val) => {
-    isLoading.value = val;
-    emit('change-queue-res', val);
-  }
 
   const toggleExpand = val => {
     isFold.value = val;

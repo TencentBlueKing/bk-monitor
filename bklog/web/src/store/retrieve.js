@@ -38,8 +38,12 @@ export default {
     filedSettingConfigID: 1,
     indexSetList: [],
     isIndexSetLoading: false,
+    isTrendDataLoading: false,
   },
   mutations: {
+    updateTrendDataLoading(state, payload) {
+      state.isTrendDataLoading = payload;
+    },
     updateChartKey(state, payload) {
       state.chartKey = (payload?.prefix ?? '') + random(10);
     },
