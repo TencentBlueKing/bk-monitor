@@ -2926,14 +2926,17 @@ class CustomServiceMatchListResource(Resource):
                     k, v = str(i).split("=")
                     url_param_paris[k] = v
 
+                param_filter = True
                 for param in param_rules:
                     val = url_param_paris.get(param["name"])
                     if not val:
-                        continue
+                        param_filter = False
+                        break
                     if not Matcher.operator_match(val, param["value"], param["operator"]):
-                        continue
-
-                res.add(f"{item}")
+                        param_filter = False
+                        break
+                if param_filter:
+                    res.add(f"{item}")
 
         return list(res)
 
