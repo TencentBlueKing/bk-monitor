@@ -34,6 +34,8 @@ from metadata.utils.basic import get_biz_id_by_space_uid
 
 from .common import Label, OptionBase
 from .constants import (
+    DATA_LINK_V3_VERSION_NAME,
+    DATA_LINK_V4_VERSION_NAME,
     IGNORED_CONSUL_SYNC_DATA_IDS,
     IGNORED_STORAGE_CLUSTER_TYPES,
     DataIdCreatedFromSystem,
@@ -142,6 +144,13 @@ class DataSource(models.Model):
             self._mq_cluster = ClusterInfo.objects.get(cluster_id=self.mq_cluster_id)
 
         return self._mq_cluster
+
+    @property
+    def datalink_version(self):
+        """数据源对应的数据链路版本"""
+        if self.created_from == DataIdCreatedFromSystem.BKDATA.value:
+            return DATA_LINK_V4_VERSION_NAME
+        return DATA_LINK_V3_VERSION_NAME
 
     @property
     def consul_config_path(self):

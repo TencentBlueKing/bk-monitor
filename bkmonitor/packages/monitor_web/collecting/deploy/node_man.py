@@ -663,10 +663,10 @@ class NodeManInstaller(BaseInstaller):
 
             # 处理scope
             for scope in instance_result["instance_info"].get("scope", []):
-                if "ip" in scope:
-                    instance["scope_ids"].append(host["bk_host_id"])
-                elif "bk_obj_id" in scope and "bk_inst_id" in scope:
+                if "bk_obj_id" in scope and "bk_inst_id" in scope:
                     instance["scope_ids"].append(f"{scope['bk_obj_id']}|{scope['bk_inst_id']}")
+                elif "ip" in scope:
+                    instance["scope_ids"].append(host["bk_host_id"])
 
             # 处理服务实例与主机差异字段
             if instance["instance_id"].startswith("service|instance"):

@@ -555,6 +555,7 @@ APM_TRPC_ENABLED = False
 APM_BMW_DEPLOY_BIZ_ID = 0
 # 在列表中业务，才会创建虚拟指标， [2]
 APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
+APM_BMW_TASK_QUEUES = []
 # 拓扑发现允许的最大 Span 数量(预估值)
 PER_ROUND_SPAN_MAX_SIZE = 1000
 
@@ -1419,6 +1420,9 @@ BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")
 
 # 监控平台apigw代码
 BK_APIGW_NAME = os.getenv("BK_APIGW_NAME", "bk-monitor")
+
+# 集群内operator服务默认名称
+K8S_OPERATOR_SERVICE_NAME = "bkmonitor-operator-stack-operator"
 
 # 默认K8S插件采集集群ID
 K8S_PLUGIN_COLLECT_CLUSTER_ID = ""

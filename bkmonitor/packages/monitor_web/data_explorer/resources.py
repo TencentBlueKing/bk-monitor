@@ -69,9 +69,6 @@ class GetGraphQueryConfig(Resource):
                 method = serializers.CharField()
                 value = serializers.ListField(child=serializers.CharField(allow_blank=True))
 
-            class FilterDictSerializer(serializers.Serializer):
-                targets = serializers.ListField(default=[], child=serializers.DictField())
-
             data_source_label = serializers.CharField(label="数据源标签")
             data_type_label = serializers.CharField(label="数据类型标签")
             metric = serializers.CharField(label="查询指标字段", required=False)
@@ -89,7 +86,7 @@ class GetGraphQueryConfig(Resource):
             where = serializers.ListField(label="查询条件", child=WhereSerializer(), required=False)
             time_field = serializers.CharField(label="时间字段", allow_blank=True, allow_null=True, default=None)
             functions = serializers.ListField(label="计算函数参数", default=[], child=FunctionSerializer())
-            filter_dict = FilterDictSerializer(required=False, allow_null=True)
+            filter_dict = serializers.DictField(required=False, allow_null=True)
             data_label = serializers.CharField(label="数据标识", required=False, allow_blank=True, allow_null=True)
 
             # 是否展示单指标
@@ -106,6 +103,11 @@ class GetGraphQueryConfig(Resource):
                     raise ValidationError("index_set_id can not be empty.")
                 # elif attrs["data_source_label"] != DataSourceLabel.BK_LOG_SEARCH and not attrs.get("table"):
                 #     raise ValidationError("table can not be empty.")
+
+                if isinstance(attrs.get("filter_dict"), dict):
+                    if not attrs["filter_dict"].get("targets"):
+                        attrs["filter_dict"]["targets"] = []
+
                 return attrs
 
         bk_biz_id = serializers.IntegerField(label="业务ID")
@@ -770,6 +772,7 @@ class GetGraphQueryConfig(Resource):
                         "alias": query_config["alias"],
                         "promql": query_config["promql"],
                         "step": query_config["interval"],
+                        "filter_dict": query_config.get("filter_dict", {}),
                     }
                 )
 
@@ -826,6 +829,7 @@ class GetPromqlQueryConfig(Resource):
             promql = serializers.CharField(label="PromQL")
             step = serializers.CharField(default="auto")
             alias = serializers.CharField()
+            filter_dict = serializers.DictField(required=False, default={})
 
         bk_biz_id = serializers.IntegerField(label="业务ID")
         query_configs = serializers.ListField(label="查询配置", child=QueryConfigSerializer())
@@ -860,6 +864,7 @@ class GetPromqlQueryConfig(Resource):
                             "promql": query_config["promql"],
                             "interval": interval,
                             "alias": query_config["alias"],
+                            "filter_dict": query_config.get("filter_dict", {}),
                         }
                     ],
                     "expression": "",

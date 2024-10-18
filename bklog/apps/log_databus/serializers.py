@@ -192,7 +192,7 @@ class PluginParamSerializer(serializers.Serializer):
     )
     conditions = PluginConditionSerializer(required=False)
     multiline_pattern = serializers.CharField(label=_("行首正则"), required=False, allow_blank=True)
-    multiline_max_lines = serializers.IntegerField(label=_("最多匹配行数"), required=False, max_value=1000)
+    multiline_max_lines = serializers.IntegerField(label=_("最多匹配行数"), required=False, max_value=5000)
     multiline_timeout = serializers.IntegerField(label=_("最大耗时"), required=False, max_value=10)
     tail_files = serializers.BooleanField(label=_("是否增量采集"), required=False, default=True)
     ignore_older = serializers.IntegerField(label=_("文件扫描忽略时间"), required=False, default=2678400)
@@ -352,7 +352,7 @@ class ContainerConfigSerializer(serializers.Serializer):
 
 class MultilineSerializer(serializers.Serializer):
     multiline_pattern = serializers.CharField(label=_("行首正则"), required=False, allow_blank=True, allow_null=True)
-    multiline_max_lines = serializers.IntegerField(label=_("最多匹配行数"), required=False, max_value=1000, allow_null=True)
+    multiline_max_lines = serializers.IntegerField(label=_("最多匹配行数"), required=False, max_value=5000, allow_null=True)
     multiline_timeout = serializers.CharField(label=_("最大耗时"), required=False, allow_blank=True, allow_null=True)
 
 
@@ -760,6 +760,9 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
         label=_("原文自定义分词符"), required=False, allow_blank=True, allow_null=True, default="", trim_whitespace=False
     )
     retain_extra_json = serializers.BooleanField(label=_("是否保留未定义JSON字段"), required=False, default=False)
+    enable_retain_content = serializers.BooleanField(label=_("是否保留失败日志"), required=False, default=True)
+    record_parse_failure = serializers.BooleanField(label=_("是否记录清洗失败标记"), required=False, default=True)
+    path_regexp = serializers.CharField(label=_("采集路径分割的正则"), required=False, allow_null=True, allow_blank=True)
 
     def validate(self, attrs):
         ret = super().validate(attrs)
@@ -785,7 +788,11 @@ class CollectorRegexDebugSerializer(serializers.Serializer):
 class CollectorEtlTimeSerializer(serializers.Serializer):
     time_format = serializers.CharField(label=_("时间格式"), required=True)
     time_zone = serializers.IntegerField(label=_("时区"), required=True)
-    data = serializers.CharField(label=_("时间内容"), required=True)
+    data = serializers.CharField(
+        label=_("时间内容"),
+        required=True,
+        error_messages={'blank': _("字段对应时间不存在，校验失败;")},
+    )
 
 
 class CollectorEtlFieldsSerializer(TokenizeOnCharsSerializer):
@@ -1334,7 +1341,7 @@ class ContainerCollectorYamlSerializer(serializers.Serializer):
 
     class MultilineSerializer(serializers.Serializer):
         pattern = serializers.CharField(label=_("行首正则"), required=False, allow_blank=True, allow_null=True)
-        maxLines = serializers.IntegerField(label=_("最多匹配行数"), required=False, max_value=1000, allow_null=True)
+        maxLines = serializers.IntegerField(label=_("最多匹配行数"), required=False, max_value=5000, allow_null=True)
         timeout = serializers.CharField(label=_("最大耗时"), required=False, allow_blank=True, allow_null=True)
 
     class LabelSelectorSerializer(serializers.Serializer):

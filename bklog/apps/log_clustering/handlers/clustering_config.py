@@ -36,6 +36,7 @@ from apps.log_clustering.constants import (
 from apps.log_clustering.exceptions import (
     BkdataFieldsException,
     BkdataRegexException,
+    ClusteringAccessNotSupportedException,
     ClusteringConfigHasExistException,
     ClusteringConfigNotExistException,
     ClusteringDebugException,
@@ -56,7 +57,7 @@ from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
-from apps.log_search.models import LogIndexSet
+from apps.log_search.models import LogIndexSet, Scenario
 from apps.models import model_to_dict
 from apps.utils.function import map_if
 from apps.utils.local import activate_request
@@ -108,13 +109,20 @@ class ClusteringConfigHandler(object):
     def create(self, index_set_id, params):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id, raise_exception=False)
 
-        if clustering_config and clustering_config.task_records:
+        if clustering_config:
             # 已接入过聚类的，不允许再创建
             raise ClusteringConfigHasExistException(
                 ClusteringConfigHasExistException.MESSAGE.format(index_set_id=index_set_id)
             )
 
         log_index_set = LogIndexSet.objects.get(index_set_id=index_set_id)
+
+        if not log_index_set.scenario_id == Scenario.BKDATA and not (
+            log_index_set.scenario_id == Scenario.LOG and log_index_set.collector_config_id
+        ):
+            # 以下类型允许接入聚类: 1. 计算平台索引，2. 采集项索引
+            raise ClusteringAccessNotSupportedException()
+
         collector_config_id = log_index_set.collector_config_id
         log_index_set_data, *_ = log_index_set.indexes
 
@@ -155,7 +163,7 @@ class ClusteringConfigHandler(object):
 
         # 创建流程
         # 聚类配置优先级：参数传入 -> 数据库默认配置 -> 代码默认配置
-        clustering_config = ClusteringConfig.objects.update_or_create(
+        clustering_config, created = ClusteringConfig.objects.update_or_create(
             index_set_id=index_set_id,
             defaults=dict(
                 model_id=conf.get("model_id", ""),  # 模型id 需要判断是否为预测 flow流程

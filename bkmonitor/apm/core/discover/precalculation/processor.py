@@ -44,6 +44,7 @@ logger = logging.getLogger("apm")
 class PrecalculateProcessor:
     """
     预计算处理类
+    [旧] 目前应用已经迁移至 BMW 预计算处
     """
 
     def __init__(self, storage, bk_biz_id, app_name):

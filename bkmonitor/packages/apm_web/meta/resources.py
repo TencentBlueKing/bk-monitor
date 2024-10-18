@@ -228,12 +228,7 @@ class CreateApplicationResource(Resource):
 
         from apm_web.tasks import APMEvent, report_apm_application_event
 
-        switch_on_data_sources = {
-            TelemetryDataType.TRACE.value: validated_request_data["enabled_trace"],
-            TelemetryDataType.PROFILING.value: validated_request_data["enabled_profiling"],
-            TelemetryDataType.METRIC.value: validated_request_data["enabled_metric"],
-            TelemetryDataType.LOG.value: validated_request_data["enabled_log"],
-        }
+        switch_on_data_sources = app.get_data_sources()
         report_apm_application_event.delay(
             validated_request_data["bk_biz_id"],
             app.application_id,
@@ -483,15 +478,16 @@ class StartResource(Resource):
 
         application.is_enabled = True
         application.save()
-        switch_on_data_sources = {validated_data["type"]: True}
 
         from apm_web.tasks import APMEvent, report_apm_application_event
 
+        switch_on_data_sources = application.get_data_sources()
         report_apm_application_event.delay(
             application.bk_biz_id,
             application.application_id,
             apm_event=APMEvent.APP_UPDATE,
             data_sources=switch_on_data_sources,
+            updated_telemetry_types=[validated_data["type"]],
         )
         return res
 
@@ -524,11 +520,13 @@ class StopResource(Resource):
 
         from apm_web.tasks import APMEvent, report_apm_application_event
 
+        switch_on_data_sources = application.get_data_sources()
         report_apm_application_event.delay(
             application.bk_biz_id,
             application.application_id,
             apm_event=APMEvent.APP_UPDATE,
-            data_sources={validated_data["type"]: False},
+            data_sources=switch_on_data_sources,
+            updated_telemetry_types=[validated_data["type"]],
         )
         return res
 
@@ -853,6 +851,8 @@ class ListApplicationResource(PageListResource):
                 "metric_data_status",
                 "log_data_status",
                 "service_count",
+                "trace_result_table_id",
+                "metric_result_table_id",
             ]
 
     def get_filter_fields(self):
@@ -1717,6 +1717,39 @@ class StorageStatusResource(Resource):
                     )
                 except Exception as e:
                     status_mapping[data_type.value] = StorageStatus.ERROR
+                    logger.warning(_("获取{type}存储状态失败,详情: {detail}").format(type=data_type.value, detail=e))
+        except Application.DoesNotExist:
+            raise ValueError(_("应用不存在"))
+        return status_mapping
+
+
+class DataStatusResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        application_id = serializers.IntegerField(label="应用id")
+        start_time = serializers.IntegerField(label="检查开始时间")
+        end_time = serializers.IntegerField(label="检查结束时间")
+
+    def perform_request(self, validated_request_data):
+        # 获取应用
+        try:
+            app = Application.objects.get(application_id=validated_request_data["application_id"])
+            start_time = validated_request_data["start_time"]
+            end_time = validated_request_data["end_time"]
+            status_mapping = {}
+            for data_type in TelemetryDataType:
+                if not getattr(app, f"is_enabled_{data_type.datasource_type}"):
+                    status_mapping[data_type.value] = DataStatus.DISABLED
+                    continue
+                try:
+                    status_mapping[data_type.value] = (
+                        DataStatus.NORMAL
+                        if telemetry_handler_registry(data_type.value, app=app).get_data_count(start_time, end_time)
+                        else DataStatus.NO_DATA
+                    )
+                except ValueError as e:
+                    status_mapping[data_type.value] = getattr(
+                        app, f"{data_type.datasource_type}_data_status", DataStatus.NO_DATA
+                    )
                     logger.warning(_("获取{type}存储状态失败,详情: {detail}").format(type=data_type.value, detail=e))
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))

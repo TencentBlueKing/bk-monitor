@@ -50,7 +50,7 @@
               @change="handleKeepField"
             >
               <span
-                style="margin-right: 20px"
+                style="margin-right: 20px; line-height: 30px"
                 class="bk-label"
                 >{{ $t('保留未定义字段') }}</span
               >
@@ -74,13 +74,6 @@
         <span class="visible-deleted-text">
           {{ $t('已隐藏 {n} 项', { n: deletedNum }) }}
         </span>
-        <span
-          v-if="!isTempField"
-          class="field-method-link fr"
-          @click.stop="viewStandard"
-        >
-          {{ $t('查看内置字段') }}
-        </span>
       </div>
     </div>
 
@@ -92,19 +85,25 @@
       >
         <bk-table
           class="field-table"
+          :class="!isPreviewMode ? 'add-field-table' : ''"
           :data="changeTableList"
           :empty-text="$t('暂无内容')"
           row-key="field_index"
+          col-border
           size="small"
         >
           <template>
-            <!-- <bk-table-column -->
-            <!-- :label="$t('列')" align="center" :resizable="false" width="40" v-if="!isPreviewMode && extractMethod ===
-            'bk_log_delimiter'">
-            <template slot-scope="props">
-              <span>{{ props.row.field_index }}</span>
-            </template> -->
-            <!-- </bk-table-column> -->
+            <bk-table-column
+              label=""
+              align="center"
+              :resizable="false"
+              width="40"
+              v-if="!isPreviewMode && extractMethod === 'bk_log_delimiter'"
+            >
+              <template slot-scope="props">
+                <span>{{ props.row.field_index }}</span>
+              </template>
+            </bk-table-column>
             <!-- 字段名 -->
             <bk-table-column
               :label="$t('字段名')"
@@ -126,6 +125,7 @@
                 >
                   <bk-input
                     v-model.trim="props.row.field_name"
+                    class="participle-disabled-input"
                     :disabled="getFieldEditDisabled(props.row)"
                     @blur="checkFieldNameItem(props.row)"
                   ></bk-input>
@@ -176,7 +176,7 @@
               </template>
             </bk-table-column>
             <!-- 字段说明 -->
-            <bk-table-column
+            <!-- <bk-table-column
               :render-header="renderHeaderDescription"
               :resizable="false"
               min-width="100"
@@ -195,7 +195,7 @@
                   :disabled="props.row.is_delete || isSetDisabled"
                 ></bk-input>
               </template>
-            </bk-table-column>
+            </bk-table-column> -->
             <!-- 类型 -->
             <bk-table-column
               :label="$t('类型')"
@@ -283,7 +283,7 @@
             </bk-table-column>-->
             <!-- 字符串类型下才能设置分词， 分词和维度只能选其中一个，且分词和时间不能同时存在, 选定时间后就同时勾选维度-->
             <!-- 分词 -->
-            <bk-table-column
+            <!-- <bk-table-column
               :render-header="renderHeaderParticipleName"
               :resizable="false"
               :width="getParticipleWidth"
@@ -297,133 +297,122 @@
                 >
                 </bk-checkbox>
               </template>
-            </bk-table-column>
+            </bk-table-column> -->
             <!-- 分词符 -->
             <bk-table-column
-              :label="$t('分词符')"
+              :render-header="renderHeaderParticipleName"
               :resizable="false"
-              :width="getCustomizeTableWidth"
+              min-width="200"
               align="left"
             >
               <template #default="props">
-                <div class="participle-box">
-                  <bk-select
-                    ext-cls="select-custom"
-                    v-model="props.row.participleState"
-                    :clearable="false"
-                    :disabled="getCustomizeDisabled(props.row)"
-                    :popover-min-width="160"
-                    @change="val => handleChangeParticipleState(val, props.$index)"
-                  >
-                    <bk-option
-                      v-for="option in participleList"
-                      :id="option.id"
-                      :key="option.id"
-                      :name="option.name"
-                    >
-                      <div v-bk-tooltips.right="option.placeholder">{{ option.name }}</div>
-                    </bk-option>
-                  </bk-select>
-                  <bk-input
-                    v-if="props.row.participleState === 'custom'"
-                    v-model="props.row.tokenize_on_chars"
-                    :disabled="getCustomizeDisabled(props.row)"
-                  >
-                  </bk-input>
-                </div>
-              </template>
-            </bk-table-column>
-            <!-- 大小写敏感 -->
-            <bk-table-column
-              :label="$t('大小写敏感')"
-              :resizable="false"
-              :width="80"
-              align="center"
-            >
-              <template #default="props">
-                <bk-checkbox
-                  v-model="props.row.is_case_sensitive"
-                  :disabled="getCustomizeDisabled(props.row)"
-                >
-                </bk-checkbox>
-              </template>
-            </bk-table-column>
-            <!-- 时间 -->
-            <bk-table-column
-              width="60"
-              :label="$t('时间')"
-              :render-header="$renderHeader"
-              :resizable="false"
-              align="center"
-            >
-              <template #default="props">
-                <template v-if="isShowFieldDateIcon(props.row)">
-                  <template v-if="isPreviewMode">
-                    <div class="field-date field-date-disable">
-                      <i :class="{ 'bklog-icon': true, 'icon-date-picker': true, active: props.row.is_time }"></i>
+                <!-- 预览模式-->
+                <template v-if="isPreviewMode">
+                  <template v-if="props.row.is_analyzed">
+                    <div>
+                      {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}；
+                      {{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}
                     </div>
                   </template>
-                  <template v-else>
-                    <div
-                      v-if="props.row.is_delete"
-                      :class="['field-date field-date-disable', { 'field-date-active': props.row.is_time }]"
+                  <div v-else>{{ $t('不分词') }}</div>
+                </template>
+                <template v-else>
+                  <div v-if="props.row.field_type === 'string'">
+                    <bk-popconfirm
+                      trigger="click"
+                      :is-show="isShowParticiple"
+                      class="participle-popconfirm"
+                      @confirm="handleConfirmParticiple(props.row, props.$index)"
                     >
-                      <i :class="{ 'bklog-icon': true, 'icon-date-picker': true, active: props.row.is_time }"></i>
-                    </div>
-                    <template v-else>
-                      <bk-popover
-                        v-if="props.row.is_time"
-                        :arrow="false"
-                        :distance="3"
-                        :ref="`more${props.$index}`"
-                        placement="bottom-start"
-                        theme="light"
-                        trigger="click"
-                      >
-                        <div class="field-date field-date-active">
-                          <i class="bklog-icon bklog-date-picker"></i>
-                        </div>
-                        <template #content>
-                          <div>
-                            <ul
-                              class="field-dropdown-list"
-                              slot="dropdown-content"
+                      <div slot="content">
+                        <div>
+                          <bk-form
+                            class="participle-form"
+                            :label-width="95"
+                            :model="formData"
+                          >
+                            <bk-form-item
+                              :label="$t('分词')"
+                              :property="'source_name'"
                             >
-                              <li
-                                class="dropdown-item"
-                                @click.stop="setDateFormat(props.row, props.$index)"
+                              <bk-switcher
+                                v-model="currentIsAnalyzed"
+                                theme="primary"
+                                :disabled="getCustomizeDisabled(props.row, 'analyzed')"
+                                @change="() => handelChangeAnalyzed()"
+                              ></bk-switcher>
+                            </bk-form-item>
+                            <bk-form-item
+                              :label="$t('分词符')"
+                              :property="'participle'"
+                            >
+                              <div class="bk-button-group">
+                                <bk-button
+                                  v-for="option in participleList"
+                                  class="participle-btn"
+                                  :class="currentParticipleState === option.id ? 'is-selected' : ''"
+                                  :key="option.id"
+                                  :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
+                                  :disabled="getCustomizeDisabled(props.row)"
+                                  @click="handleChangeParticipleState(option.id, props.$index)"
+                                >
+                                  {{ option.name }}
+                                </bk-button>
+                              </div>
+                              <bk-input
+                                style="margin-top: 10px"
+                                v-if="currentParticipleState === 'custom'"
+                                v-model="currentTokenizeOnChars"
+                                :disabled="getCustomizeDisabled(props.row)"
                               >
-                                {{ '编辑时间格式' }}
-                              </li>
-                              <li
-                                class="dropdown-item"
-                                @click.stop="cancelDateFormat(props.row, props.$index)"
-                              >
-                                {{ '取消设为时间' }}
-                              </li>
-                            </ul>
+                              </bk-input>
+                            </bk-form-item>
+                            <bk-form-item
+                              :label="$t('大小写敏感')"
+                              :property="'is_case_sensitive'"
+                            >
+                              <bk-switcher
+                                v-model="currentIsCaseSensitive"
+                                theme="primary"
+                                :disabled="getCustomizeDisabled(props.row)"
+                              ></bk-switcher>
+                            </bk-form-item>
+                          </bk-form>
+                        </div>
+                      </div>
+                      <div
+                        class="participle-cell-wrap"
+                        @click="handlePopover(props.row, props.$index)"
+                      >
+                        <div
+                          style="width: 85%"
+                          v-if="props.row.is_analyzed"
+                        >
+                          <div>
+                            {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}
                           </div>
-                        </template>
-                      </bk-popover>
-                      <template v-else>
-                        <div
-                          v-if="hasDateField"
-                          class="field-date"
-                          v-bk-tooltips.right="$t('只能设置一个数据时间，如果要更改请先取消原来的')"
-                          @click.stop="setDateFormat(props.row)"
-                        >
-                          <i class="bklog-icon bklog-date-picker"></i>
+                          <div style="margin-top: -10px">
+                            {{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}
+                          </div>
                         </div>
                         <div
+                          style="width: 85%"
                           v-else
-                          class="field-date"
-                          @click.stop="setDateFormat(props.row)"
                         >
-                          <i class="bklog-icon bklog-date-picker"></i>
+                          {{ $t('不分词') }}
                         </div>
-                      </template>
-                    </template>
-                  </template>
+                        <div class="participle-select-icon bk-icon icon-angle-down"></div>
+                      </div>
+                    </bk-popconfirm>
+                  </div>
+                  <div v-else>
+                    <bk-input
+                      class="participle-disabled-input"
+                      disabled
+                      :placeholder="$t('无需设置')"
+                    >
+                    </bk-input>
+                  </div>
                 </template>
               </template>
             </bk-table-column>
@@ -482,102 +471,6 @@
       </template>
     </div>
 
-    <bk-dialog
-      v-if="!isPreviewMode"
-      width="680"
-      ext-cls="field-date-dialog"
-      v-model="dialogDate"
-      :auto-close="false"
-      :header-position="'left'"
-      :mask-close="false"
-      :title="$t('选择时间格式')"
-      @cancel="resetDateDialog"
-    >
-      <template #default>
-        <div style="width: 560px; padding-left: 12px">
-          <p class="prompt">{{ $t('设置了时间格式后将替换默认的数据时间') }}</p>
-          <!-- <p class="prompt">时间指<span>数据时间</span>，而非录入时间</p> -->
-          <bk-form
-            ref="dateForm"
-            :label-width="145"
-            :model="dialogField"
-          >
-            <bk-form-item
-              :label="$t('数据时间')"
-              :property="'source_name'"
-            >
-              <bk-input
-                v-model="dialogField.time_value"
-                :placeholder="$t('字段的预览值')"
-                disabled
-              ></bk-input>
-            </bk-form-item>
-            <bk-form-item
-              :label="$t('时间格式')"
-              :property="'time_format'"
-              :rules="rules.time_format"
-              required
-            >
-              <bk-select
-                v-model="dialogField.time_format"
-                :clearable="false"
-                searchable
-                @selected="formatChange"
-              >
-                <bk-option
-                  v-for="item in globalsData.field_date_format"
-                  :id="item.id"
-                  :key="item.id"
-                  :name="item.name + ' (' + item.description + ')'"
-                >
-                </bk-option>
-              </bk-select>
-            </bk-form-item>
-            <bk-form-item
-              :label="$t('时区选择')"
-              :property="'time_zone'"
-              :rules="rules.time_zone"
-              required
-            >
-              <bk-select
-                v-model="dialogField.time_zone"
-                :clearable="false"
-              >
-                <bk-option
-                  v-for="item in globalsData.time_zone"
-                  :id="item.id"
-                  :key="item.id"
-                  :name="item.name"
-                >
-                </bk-option>
-              </bk-select>
-            </bk-form-item>
-          </bk-form>
-        </div>
-      </template>
-      <template #footer>
-        <div>
-          <bk-button
-            v-if="!timeCheckResult"
-            :disabled="!dialogField.time_value || checkLoading"
-            :icon="checkLoading ? 'loading' : ''"
-            theme="primary"
-            @click.stop="requestCheckTime"
-          >
-            {{ $t('确定') }}
-          </bk-button>
-          <bk-button
-            v-else
-            :icon="checkLoading ? 'loading' : ''"
-            theme="primary"
-            @click.stop="confirmHandle"
-          >
-            {{ $t('确定') }}
-          </bk-button>
-          <bk-button @click.stop="resetDateDialog">{{ $t('取消') }}</bk-button>
-        </div>
-      </template>
-    </bk-dialog>
     <bk-dialog
       v-model="isReset"
       :title="$t('重置确认')"
@@ -647,23 +540,23 @@
       return {
         isReset: false,
         dialogDate: false,
-        dialogField: {
-          time_zone: '', // 默认值 8
-          time_format: '',
-          time_value: '',
-        },
         curRow: {},
         formData: {
           tableList: [],
         },
-        timeCheckResult: false,
+        isShowParticiple: false,
+        // timeCheckResult: false,
         checkLoading: false,
         retainOriginalText: true, // 保留原始日志
         retainExtraText: false,
+        currentIsAnalyzed: false,
+        currentParticipleState: '',
+        currentTokenizeOnChars: '',
+        currentIsCaseSensitive: false,
         participleList: [
           {
             id: 'default',
-            name: this.$t('默认'),
+            name: this.$t('自然语言分词'),
             placeholder: this.$t('自然语言分词，按照日常语法习惯进行分词'),
           },
           {
@@ -709,18 +602,6 @@
             //     trigger: 'change'
             // }
           ],
-          time_zone: [
-            {
-              required: true,
-              trigger: 'change',
-            },
-          ],
-          time_format: [
-            {
-              required: true,
-              trigger: 'change',
-            },
-          ],
           notCheck: [
             {
               validator() {
@@ -741,9 +622,6 @@
       isSettingDisable() {
         return !this.fields.length;
       },
-      hasDateField() {
-        return this.formData.tableList.find(item => item.is_time && !item.is_delete);
-      },
       deletedNum() {
         return this.formData.tableList.filter(item => item.is_delete).length;
       },
@@ -759,11 +637,6 @@
       changeTableList() {
         return this.deletedVisible ? this.hideDeletedTable : this.tableList;
       },
-      defaultZone() {
-        // 默认时区
-        const item = this.globalsData.time_zone.find(item => item.default);
-        return item ? item.id : '';
-      },
       getParticipleWidth() {
         return this.$store.getters.isEnLanguage ? '65' : '50';
       },
@@ -773,9 +646,6 @@
       getOperatorDisabled() {
         if (this.selectEtlConfig === 'bk_log_json') return true;
         return !this.isPreviewMode && this.extractMethod !== 'bk_log_regexp';
-      },
-      getCustomizeTableWidth() {
-        return this.changeTableList.some(item => item.participleState === 'custom') ? 255 : 70;
       },
     },
     watch: {
@@ -792,6 +662,7 @@
     async mounted() {
       this.retainExtraText = this.retainExtraJson;
       this.reset();
+      this.$emit('handle-table-data', this.changeTableList);
     },
     methods: {
       reset() {
@@ -839,109 +710,6 @@
       },
       resetField() {
         this.$emit('reset');
-      },
-      setDateFormat(row, $index) {
-        if (this.isSetDisabled) return;
-        if ($index || $index === 0) {
-          this.$refs[`more${$index}`].instance.hide(); // 解决当前版本popover层在dialog层之上的问题
-        }
-        this.curRow = row;
-        const option = {
-          time_zone: row.option
-            ? row.option.time_zone || (row.option.time_zone === 0 ? row.option.time_zone : this.defaultZone)
-            : this.defaultZone,
-          time_format: row.option ? row.option.time_format : '',
-          time_value: row.value || '',
-        };
-        if ((!row.is_time || (row.is_time && row.is_delete)) && this.hasDateField) {
-          this.$bkInfo({
-            title: this.$t('重设时间列'),
-            subTitle: this.$t('将此列设置为时间，会将取消已设为时间的列，是否继续？'),
-            type: 'warning',
-            confirmFn: () => {
-              Object.assign(this.dialogField, option);
-              this.dialogDate = true;
-              this.timeCheckResult = !!row.is_time;
-            },
-          });
-          return false;
-        }
-        Object.assign(this.dialogField, option);
-        this.timeCheckResult = !!row.is_time;
-        this.dialogDate = true;
-      },
-      confirmHandle() {
-        this.$refs.dateForm.validate().then(
-          () => {
-            if (!this.timeCheckResult) return;
-            if (!this.curRow.is_time) {
-              this.formData.tableList.forEach(row => {
-                const isCur =
-                  this.extractMethod === 'bk_log_delimiter'
-                    ? this.curRow.field_index === row.field_index
-                    : this.curRow.field_name === row.field_name;
-                if (row.is_time && !isCur) {
-                  this.cancelDateFormat(row);
-                }
-              });
-            }
-            this.curRow.is_analyzed = false; // 分词和时间不能同时设置
-            this.curRow.is_time = true;
-            // this.curRow.is_dimension = true
-            Object.assign(this.curRow.option, {
-              time_zone: this.dialogField.time_zone,
-              time_format: this.dialogField.time_format,
-            });
-            this.resetDateDialog();
-            this.dialogDate = false;
-          },
-          () => {},
-        );
-      },
-      requestCheckTime() {
-        this.$refs.dateForm.validate().then(() => {
-          this.checkLoading = true;
-          const { time_format, time_zone, time_value: timeValue } = this.dialogField;
-          this.$http
-            .request('collect/getCheckTime', {
-              params: {
-                collector_config_id: this.curCollect.collector_config_id,
-              },
-              data: {
-                time_format,
-                time_zone,
-                data: timeValue,
-              },
-            })
-            .then(() => {
-              this.timeCheckResult = true;
-              this.confirmHandle();
-            })
-            .catch(() => {
-              this.timeCheckResult = false;
-            })
-            .finally(() => {
-              this.checkLoading = false;
-            });
-        });
-      },
-      cancelDateFormat(row, $index) {
-        if ($index || $index === 0) {
-          this.$refs[`more${$index}`].instance.hide(); // 解决当前版本popover层在dialog层之上的问题
-        }
-        row.is_time = false;
-        Object.assign(row.option, {
-          time_zone: '',
-          time_format: '',
-        });
-      },
-      resetDateDialog() {
-        this.dialogDate = false;
-        Object.assign(this.dialogField, {
-          time_zone: '',
-          time_format: '',
-          time_value: '',
-        });
       },
       // 当前字段类型是否禁用
       isTypeDisabled(row, option) {
@@ -1010,25 +778,39 @@
         }
         this.checkTypeItem($row);
       },
-      handelChangeAnalyzed(isAnalyzed, $index) {
-        if (!isAnalyzed) {
-          this.changeTableList[$index].is_case_sensitive = false;
-          this.changeTableList[$index].tokenize_on_chars = '';
-          this.changeTableList[$index].participleState = 'default';
+      handlePopover(row) {
+        this.currentParticipleState = row.participleState;
+        this.currentIsCaseSensitive = row.is_case_sensitive;
+        this.currentTokenizeOnChars = row.tokenize_on_chars;
+        this.currentIsAnalyzed = row.is_analyzed;
+      },
+      handleConfirmParticiple(row, $index) {
+        this.$set(row, 'is_analyzed', this.currentIsAnalyzed);
+        this.$set(row, 'is_case_sensitive', this.currentIsCaseSensitive);
+        this.$set(row, 'tokenize_on_chars', this.currentTokenizeOnChars);
+        this.$set(row, 'participleState', this.currentParticipleState);
+        this.$set(row, 'isEdited', true);
+      },
+      handelChangeAnalyzed() {
+        if (!this.currentIsAnalyzed) {
+          this.currentIsCaseSensitive = false;
+          this.currentTokenizeOnChars = '';
+          this.currentParticipleState = 'default';
         }
       },
       handleChangeParticipleState(state, $index) {
-        this.changeTableList[$index].tokenize_on_chars = state === 'custom' ? this.originalTextTokenizeOnChars : '';
+        this.currentParticipleState = state;
+        this.currentTokenizeOnChars = state === 'custom' ? this.originalTextTokenizeOnChars : '';
       },
-      formatChange(val) {
-        this.timeCheckResult = false;
-        this.dialogField.time_format = val;
-      },
-      viewStandard() {
-        if (this.isSettingDisable) return;
+      // formatChange(val) {
+      //   this.timeCheckResult = false;
+      //   this.dialogField.time_format = val;
+      // },
+      // viewStandard() {
+      //   if (this.isSettingDisable) return;
 
-        this.$emit('standard');
-      },
+      //   this.$emit('standard');
+      // },
       judgeNumber(value) {
         if (value === 0) return false;
 
@@ -1110,6 +892,7 @@
           result = '';
         }
         row.fieldErr = result;
+        this.$emit('handle-table-data', this.changeTableList);
 
         return result;
       },
@@ -1252,7 +1035,7 @@
                 class: 'render-Participle title-overflow',
                 directives: [{ name: 'bk-overflow-tips' }],
               },
-              [this.$t('分词')],
+              [this.$t('分词符')],
             ),
           ],
         );
@@ -1260,6 +1043,7 @@
       isDisableOperate(row) {
         if (this.isSetDisabled) return;
         row.is_delete = !row.is_delete;
+        this.$emit('handle-table-data', this.changeTableList);
       },
       filedNameIsConflict(fieldIndex, fieldName) {
         const otherFieldNameList = this.formData.tableList.filter(item => item.field_index !== fieldIndex);
@@ -1278,16 +1062,14 @@
        * @returns {Boolean}
        */
       getCustomizeDisabled(row, type = 'analyzed-item') {
-        const { is_delete: isDelete, field_type: fieldType, is_time: isTime, is_analyzed: isAnalyzed } = row;
-        let atLastAnalyzed = isAnalyzed;
+        const { is_delete: isDelete, field_type: fieldType } = row;
+        let atLastAnalyzed = this.currentIsAnalyzed;
         if (type === 'analyzed') atLastAnalyzed = true;
-        return (
-          this.isPreviewMode || isDelete || fieldType !== 'string' || isTime || !atLastAnalyzed || this.isSetDisabled
-        );
+        return this.isPreviewMode || isDelete || fieldType !== 'string' || !atLastAnalyzed || this.isSetDisabled;
       },
-      isShowFieldDateIcon(row) {
-        return ['string', 'int', 'long'].includes(row.field_type)
-      },
+      // isShowFieldDateIcon(row) {
+      //   return ['string', 'int', 'long'].includes(row.field_type);
+      // },
     },
   };
 </script>
@@ -1307,10 +1089,64 @@
       right: 0;
     }
 
+    .add-field-table {
+      .bk-table-body {
+        .cell {
+          display: contents;
+          height: 100%;
+
+          /* stylelint-disable-next-line declaration-no-important */
+          padding: 0 !important;
+
+          .tooltips-icon {
+            top: 16px;
+          }
+        }
+      }
+
+      .bk-form-input {
+        height: 50px;
+        border: 1px solid transparent;
+      }
+
+      .participle-disabled-input {
+        .bk-form-input[disabled] {
+          /* stylelint-disable-next-line declaration-no-important */
+          border-color: transparent !important;
+        }
+      }
+
+      .bk-select {
+        height: 50px;
+        border: 1px solid transparent;
+
+        .bk-select-name {
+          height: 50px;
+          padding: 7px 38px 0 13px;
+        }
+
+        .bk-select-angle {
+          top: 12px;
+        }
+
+        &.is-default-trigger.is-unselected:before {
+          top: 8px;
+        }
+      }
+
+      .participle-select-icon {
+        font-size: 20px;
+        font-weight: 500;
+        color: #979ba5;
+      }
+    }
+
     .field-table {
-      .cell {
-        padding-right: 5px;
-        padding-left: 5px;
+      .bk-table-body {
+        .cell {
+          padding-right: 5px;
+          padding-left: 5px;
+        }
       }
 
       .bk-label {
@@ -1355,30 +1191,24 @@
       .empty-text {
         color: #979ba5;
       }
+
+      .participle-popconfirm {
+        width: 100%;
+
+        .bk-tooltip-ref {
+          width: 100%;
+        }
+
+        .participle-cell-wrap {
+          display: flex;
+          align-items: center;
+          margin-left: 10px;
+        }
+      }
     }
 
     .preview-panel-left {
       flex: 1;
-    }
-
-    .participle-box {
-      display: flex;
-      align-items: center;
-      justify-content: start;
-      width: 100%;
-
-      .select-custom {
-        width: 70px;
-        margin-right: 8px;
-      }
-
-      .bk-select-name {
-        padding: 0 22px 0 10px;
-      }
-
-      .bk-form-control {
-        width: 175px;
-      }
     }
 
     .preview-panel-right {
@@ -1390,7 +1220,7 @@
       border-radius: 0 2px 2px 0;
 
       .preview-item {
-        height: 43px;
+        height: 51px;
         padding: 0 10px;
         overflow: hidden;
         line-height: 43px;
@@ -1487,5 +1317,26 @@
   .header {
     /* stylelint-disable-next-line declaration-no-important */
     white-space: normal !important;
+  }
+
+  .participle-form {
+    margin-right: 10px;
+
+    .bk-form-control {
+      width: 200px;
+    }
+
+    .bk-form-item {
+      margin-top: 5px;
+
+      .bk-label {
+        padding: 0 13px 0 0;
+      }
+    }
+
+    .participle-btn {
+      padding: 0 8px;
+      font-size: 12px;
+    }
   }
 </style>
