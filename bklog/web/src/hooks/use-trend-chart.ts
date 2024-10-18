@@ -48,6 +48,12 @@ export default ({ target }: TrandChartOption) => {
   const store = useStore();
 
   const datepickerValue = computed(() => store.state.indexItem.datePickerValue);
+  const retrieveParams = computed(() => store.getters.retrieveParams);
+
+  let chartData = [];
+  let runningInterval = '1m';
+  const optionData = new Map<number, number[]>();
+
   let cachedTimRange = [];
   const delegateMethod = (name: string, ...args) => {
     return chartInstance?.[name](...args);
@@ -76,10 +82,10 @@ export default ({ target }: TrandChartOption) => {
 
   const getIntervalValue = (interval: string) => {
     const timeunit = {
-      s: 1000,
-      m: 60 * 1000,
-      h: 60 * 60 * 1000,
-      d: 24 * 60 * 60 * 1000,
+      s: 1,
+      m: 60,
+      h: 60 * 60,
+      d: 24 * 60 * 60,
     };
 
     const matchs = (interval ?? '1h').match(/(\d+)(s|m|h|d)/);
@@ -89,33 +95,132 @@ export default ({ target }: TrandChartOption) => {
     return timeunit[unit] * Number(num);
   };
 
-  const getMinValue = (data, interval) => {
-    const minValue = data[0]?.[0];
-    if (!minValue || data?.length > 5) {
-      return 'dataMin';
-    }
-    return minValue - getIntervalValue(interval);
+  // const getMinValue = (data, interval) => {
+  //   const minValue = data[0]?.[0];
+  //   if (!minValue || data?.length > 5) {
+  //     return 'dataMin';
+  //   }
+  //   return minValue - getIntervalValue(interval);
+  // };
+
+  // const getMaxValue = (data, interval) => {
+  //   const maxValue = data.slice(-1)?.[0]?.[0];
+
+  //   if (!maxValue || data?.length > 5) {
+  //     return 'dataMax';
+  //   }
+  //   return maxValue + getIntervalValue(interval);
+  // };
+
+  const updateChartData = () => {
+    const keys = [...optionData.keys()];
+
+    keys.sort((a, b) => a[0] - b[0]);
+    const data = keys.map(key => [key, optionData.get(key)[0], optionData.get(key)[1]]);
+    chartData = data;
   };
 
-  const getMaxValue = (data, interval) => {
-    const maxValue = data.slice(-1)?.[0]?.[0];
-
-    if (!maxValue || data?.length > 5) {
-      return 'dataMax';
+  const setRunnningInterval = () => {
+    if (retrieveParams.value.interval !== 'auto') {
+      runningInterval = retrieveParams.value.interval;
+      return;
     }
-    return maxValue + getIntervalValue(interval);
+
+    const { start_time, end_time } = retrieveParams.value;
+
+    // 按照小时统计
+    const durationHour = (end_time - start_time) / 3600;
+
+    // 按照分钟统计
+    const durationMin = (end_time - start_time) / 60;
+
+    if (durationHour < 1) {
+      // 小于1小时 1min
+      runningInterval = '1m';
+
+      if (durationMin < 5) {
+        runningInterval = '30s';
+      }
+
+      if (durationMin < 2) {
+        runningInterval = '5s';
+      }
+
+      if (durationMin < 1) {
+        runningInterval = '1s';
+      }
+    } else if (durationHour < 6) {
+      // 小于6小时 5min
+      runningInterval = '5m';
+    } else if (durationHour < 72) {
+      // 小于72小时 1hour
+      runningInterval = '1h';
+    } else {
+      // 大于72小时 1day
+      runningInterval = '1d';
+    }
   };
 
-  const updateChart = (data: EchartData[], interval: string) => {
+  // 时间向下取整
+  const getIntegerTime = time => {
+    if (runningInterval === '1d') {
+      // 如果周期是 天 则特殊处理
+      const step = dayjs.tz(time * 1000).format('YYYY-MM-DD');
+      return Date.parse(`${step} 00:00:00`) / 1000;
+    }
+
+    const intervalTimestamp = getIntervalValue(runningInterval);
+    return Math.floor(time / intervalTimestamp) * intervalTimestamp;
+  };
+
+  const initChartData = (start_time, end_time) => {
+    setRunnningInterval();
+    const intervalTimestamp = getIntervalValue(runningInterval);
+
+    const startValue = getIntegerTime(start_time);
+    let endValue = getIntegerTime(end_time);
+
+    while (endValue > startValue) {
+      optionData.set(endValue * 1000, [0, null]);
+      endValue = endValue - intervalTimestamp;
+    }
+
+    if (endValue < startValue) {
+      endValue = startValue;
+      optionData.set(endValue * 1000, [0, null]);
+    }
+
+    updateChartData();
+
+    return { interval: runningInterval };
+  };
+  const setChartData = (data: number[][]) => {
+    data.forEach(item => {
+      const [timestamp, value, timestring] = item;
+      optionData.set(timestamp, [value + (optionData.get(timestamp)?.[0] ?? 0), timestring]);
+    });
+
+    updateChartData();
+    updateChart();
+  };
+
+  const clearChartData = () => {
+    optionData.clear();
+    updateChartData();
+    updateChart();
+  };
+
+  const updateChart = () => {
     if (!chartInstance) {
       return;
     }
 
-    options.series[0].data = data;
-    options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, interval);
-    options.xAxis[0].minInterval = getIntervalValue(interval);
-    options.xAxis[0].min = getMinValue(data, interval);
-    options.xAxis[0].max = getMaxValue(data, interval);
+    options.series[0].data = chartData;
+    options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, runningInterval);
+    options.xAxis[0].minInterval = getIntervalValue(runningInterval);
+    // options.xAxis[0].min = getMinValue(chartData, runningInterval);
+    // options.xAxis[0].max = getMaxValue(chartData, runningInterval);
+
 
     chartInstance.setOption(options);
     nextTick(() => {
@@ -172,5 +277,5 @@ export default ({ target }: TrandChartOption) => {
     }
   });
 
-  return { updateChart };
+  return { initChartData, setChartData, clearChartData };
 };
