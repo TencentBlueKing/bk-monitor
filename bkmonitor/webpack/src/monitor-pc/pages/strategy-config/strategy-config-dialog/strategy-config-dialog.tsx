@@ -408,7 +408,30 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
       6: () => ({ is_enabled: this.data.enAbled }),
       7: () => ({ isDel: true }),
       /* 修改标签 */
-      10: () => (this.validateLabelsList() ? false : { labels: this.data.labels }),
+      10: () => {
+        if (this.validateLabelsList()) {
+          return false;
+        }
+        // 构建类型映射的配置
+        const buildTypeMap = () => {
+          const labels = this.data.labels;
+          return {
+            replace: {
+              labels: {
+                labels,
+              },
+            },
+            append: {
+              labels: {
+                labels,
+                append_keys: ['labels'],
+              },
+            },
+          };
+        };
+        // 返回相应的配置
+        return buildTypeMap()[this.type] ?? {};
+      },
       /* 修改生效时间段 */
       12: () => {
         return {
@@ -1102,6 +1125,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
             {this.$t('确认')}
           </bk-button>
         );
+      case 10:
       case 14:
         return [
           <bk-button
