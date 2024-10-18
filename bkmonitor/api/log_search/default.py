@@ -292,6 +292,10 @@ class BkLogSearchClusterGroupsResource(LogSearchAPIGWResource):
     action = "/databus_storage/cluster_groups/"
     method = "GET"
 
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        bk_username = serializers.CharField(required=False, allow_blank=True, label="用户名")
+
 
 class CreateIndexSetResource(LogSearchAPIGWResource):
     """
