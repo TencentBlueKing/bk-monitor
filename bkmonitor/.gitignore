@@ -222,6 +222,7 @@ static/monitor/
 static/weixin/
 static/trace/
 static/apm/
+static/external/
 
 # develop config
 conf/platform/ieod.py
