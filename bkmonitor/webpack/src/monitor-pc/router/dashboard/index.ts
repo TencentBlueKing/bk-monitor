@@ -129,19 +129,19 @@ export default [
     },
   },
   {
-    path: '/grafana/admin',
-    name: 'grafana-admin',
+    path: '/grafana/datasource',
+    name: 'grafana-datasource',
     components: {
       noCache: Grafana,
     },
     props: {
       noCache: {
-        url: 'admin',
+        url: 'datasources',
       },
     },
     meta: {
       title: '仪表盘',
-      navId: 'grafana-admin',
+      navId: 'grafana-datasource',
       navName: '仪表盘',
       noNavBar: true,
       authority: {
