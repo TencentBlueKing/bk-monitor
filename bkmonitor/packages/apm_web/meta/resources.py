@@ -110,7 +110,11 @@ from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.ip import is_v6
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
-from bkmonitor.utils.user import get_global_user, get_request_username
+from bkmonitor.utils.user import (
+    get_backend_username,
+    get_global_user,
+    get_request_username,
+)
 from common.log import logger
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE, EventSeverity
 from constants.apm import (
@@ -2922,14 +2926,17 @@ class CustomServiceMatchListResource(Resource):
                     k, v = str(i).split("=")
                     url_param_paris[k] = v
 
+                param_filter = True
                 for param in param_rules:
                     val = url_param_paris.get(param["name"])
                     if not val:
-                        continue
+                        param_filter = False
+                        break
                     if not Matcher.operator_match(val, param["value"], param["operator"]):
-                        continue
-
-                res.add(f"{item}")
+                        param_filter = False
+                        break
+                if param_filter:
+                    res.add(f"{item}")
 
         return list(res)
 
@@ -3008,7 +3015,11 @@ class ListEsClusterGroupsResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务id")
 
     def perform_request(self, data):
-        cluster_groups = api.log_search.bk_log_search_cluster_groups(bk_biz_id=data["bk_biz_id"])
+        # 在 APM 处获取集群信息 使用后台用户权限获取 避免当前用户无权限报错
+        cluster_groups = api.log_search.bk_log_search_cluster_groups(
+            bk_biz_id=data["bk_biz_id"],
+            bk_username=get_backend_username(),
+        )
         return cluster_groups
 
 
