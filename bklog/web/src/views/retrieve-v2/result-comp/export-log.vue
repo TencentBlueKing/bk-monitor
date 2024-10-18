@@ -192,10 +192,10 @@
       //   type: Number,
       //   default: 0,
       // },
-      visibleFields: {
-        type: Array,
-        require: true,
-      },
+      // visibleFields: {
+      //   type: Array,
+      //   require: true,
+      // },
       // queueStatus: {
       //   type: Boolean,
       //   default: true,
@@ -208,10 +208,10 @@
         type: String,
         default: '',
       },
-      totalFields: {
-        type: Array,
-        require: true,
-      },
+      // totalFields: {
+      //   type: Array,
+      //   require: true,
+      // },
       datePickerValue: {
         type: Array,
         require: true,
@@ -247,7 +247,9 @@
     computed: {
       ...mapState({
         totalCount: state => state.searchTotal,
-        queueStatus: state => !state.retrieve.isTrendDataLoading
+        queueStatus: state => !state.retrieve.isTrendDataLoading,
+        visibleFields: state => state.visibleFields,
+        totalFields: state => state.indexFieldInfo.fields ?? []
       }),
       ...mapGetters({
         bkBizId: 'bkBizId',
