@@ -173,7 +173,7 @@
 
 <script>
   import { blobDownload } from '@/common/util';
-  import { mapGetters } from 'vuex';
+  import { mapGetters, mapState } from 'vuex';
 
   import exportHistory from './export-history';
   import { axiosInstance } from '@/api';
@@ -241,9 +241,14 @@
           desensitize: this.$t('脱敏'),
           // origin: this.$t('原始'),
         },
+        // queueStatus: true
       };
     },
     computed: {
+      ...mapState({
+        // totalCount: state => state.searchTotal,
+        // queueStatus: state => state.retrieve.isTrendDataLoading
+      }),
       ...mapGetters({
         bkBizId: 'bkBizId',
         spaceUid: 'spaceUid',

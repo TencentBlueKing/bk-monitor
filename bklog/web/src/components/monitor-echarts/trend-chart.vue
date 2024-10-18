@@ -16,12 +16,13 @@
   const isUnionSearch = computed(() => store.getters.isUnionSearch);
   const unionIndexList = computed(() => store.getters.unionIndexList);
   const retrieveParams = computed(() => store.getters.retrieveParams);
+  const isLoading = computed(() => store.state.indexFieldInfo.is_loading);
+
   const chartKey = computed(() => store.state.retrieve.chartKey);
-  const interval = computed(() => retrieveParams.value.interval);
 
   const refDataTrendCanvas = ref(null);
 
-  const { updateChart } = useTrendChart({
+  const { initChartData, setChartData, clearChartData } = useTrendChart({
     target: refDataTrendCanvas,
   });
 
@@ -32,12 +33,10 @@
   let pollingEndTime = 0;
   let pollingStartTime = 0;
   let logChartCancel = null;
-  let currentInterval = 0;
-  let optionData = new Map();
 
   const handleRequestSplit = (startTime, endTime) => {
     const duration = (endTime - startTime) / 3600;
-    if (duration < 6) {
+    if (duration <= 6) {
       // 小于6小时 一次性请求
       return 0;
     }
@@ -48,55 +47,7 @@
     return 86400 / 2;
   };
 
-  const handleIntervalSplit = (startTime, endTime) => {
-    currentInterval = interval.value;
-    let intervalTemp = interval.value;
-
-    // 如果是手动变更汇聚周期导致的更新
-    // 这里禁止进一步进行更新interval, 避免重置
-    if (/^chart_interval_/.test(chartKey.value)) {
-      return;
-    }
-
-    // 按照小时统计
-    const duration = (endTime - startTime) / 3600;
-
-    // 按照分钟统计
-    const durationMin = (endTime - startTime) / 60;
-
-    if (duration < 1) {
-      // 小于1小时 1min
-      intervalTemp = '1m';
-      currentInterval = '1m';
-      intervalTemp = 'auto';
-
-      if (durationMin < 5) {
-        currentInterval = '30s';
-      }
-
-      if (durationMin < 2) {
-        currentInterval = '5s';
-      }
-
-      if (durationMin < 1) {
-        currentInterval = '1s';
-      }
-    } else if (duration < 6) {
-      // 小于6小时 5min
-      intervalTemp = '5m';
-      currentInterval = intervalTemp;
-    } else if (duration < 72) {
-      // 小于72小时 1hour
-      intervalTemp = '1h';
-      currentInterval = '1h';
-    } else {
-      // 大于72小时 1day
-      intervalTemp = '1d';
-      currentInterval = '1d';
-    }
-
-    store.commit('updateIndexItem', { interval: intervalTemp });
-  };
+  let runningInterval = 'auto';
 
   // 需要更新图表数据
   const getSeriesData = (startTimeStamp, endTimeStamp) => {
@@ -107,14 +58,13 @@
     requestInterval = isStart.value ? requestInterval : handleRequestSplit(startTimeStamp, endTimeStamp);
 
     if (!isStart.value) {
-      optionData.clear();
-      // 获取坐标分片间隔
-      handleIntervalSplit(startTimeStamp, endTimeStamp);
-
       pollingEndTime = endTimeStamp;
       pollingStartTime = requestInterval > 0 ? pollingEndTime - requestInterval : startTimeStamp;
 
       isStart.value = true;
+      store.commit('retrieve/updateTrendDataLoading', true);
+      const { interval } = initChartData(startTimeStamp, endTimeStamp);
+      runningInterval = interval;
     } else {
       pollingEndTime = pollingStartTime;
       pollingStartTime = pollingStartTime - requestInterval;
@@ -124,10 +74,19 @@
       pollingStartTime = startTimeStamp;
       // 轮询结束
       finishPolling.value = true;
+      store.commit('retrieve/updateTrendDataLoading', false);
     }
 
     if (pollingStartTime < retrieveParams.value.start_time) {
       pollingStartTime = retrieveParams.value.start_time;
+    }
+
+    if (pollingStartTime > pollingEndTime) {
+      // 轮询结束
+      finishPolling.value = true;
+      isStart.value = false;
+      store.commit('retrieve/updateTrendDataLoading', false);
+      return;
     }
 
     if ((!isUnionSearch.value && !!route.params?.indexId) || (isUnionSearch.value && unionIndexList.value?.length)) {
@@ -136,7 +95,7 @@
       const queryData = {
         ...retrieveParams.value,
         time_range: 'customized',
-        interval: currentInterval,
+        interval: runningInterval,
         // 每次轮循的起始时间
         start_time: pollingStartTime,
         end_time: pollingEndTime,
@@ -162,26 +121,16 @@
         .then(res => {
           if (res?.data) {
             const originChartData = res?.data?.aggs?.group_by_histogram?.buckets || [];
-
-            originChartData.forEach(item => {
-              optionData.set(item.key_as_string, [
-                (optionData.get(item.key_as_string)?.[0] ?? 0) + item.doc_count,
-                item.key,
-              ]);
-            });
+            const data =  originChartData.map(item => [item.key, item.doc_count, item.key_as_string]);
+            setChartData(data);
           }
 
-          if (!res?.result) {
+          if (!res?.result || requestInterval === 0) {
+            isStart.value = false;
             finishPolling.value = true;
-            updateChart([]);
+            store.commit('retrieve/updateTrendDataLoading', false);
             return;
           }
-
-          const keys = [...optionData.keys()];
-
-          keys.sort((a, b) => a[0] - b[0]);
-          const data = keys.map(key => [optionData.get(key)[1], optionData.get(key)[0], key]);
-          updateChart(data, currentInterval);
 
           if (!finishPolling.value && requestInterval > 0) {
             getSeriesData(startTimeStamp, endTimeStamp);
@@ -189,11 +138,14 @@
           }
         })
         .catch(() => {
+          isStart.value = false;
           finishPolling.value = true;
-          updateChart([]);
+          store.commit('retrieve/updateTrendDataLoading', false);
         });
     } else {
+      isStart.value = false;
       finishPolling.value = true;
+      store.commit('retrieve/updateTrendDataLoading', false);
     }
   };
 
@@ -203,11 +155,11 @@
     () => chartKey.value,
     () => {
       logChartCancel?.();
-      updateChart([]);
-      optionData.clear();
 
       runningTimer && clearTimeout(runningTimer);
       runningTimer = setTimeout(() => {
+        clearChartData();
+
         finishPolling.value = false;
         isStart.value = false;
         getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
@@ -218,10 +170,18 @@
     },
   );
 
+  const isRenderLoading = ref(false);
   watch(
-    () => finishPolling.value,
+    () => isLoading.value,
     () => {
-      // emit('polling', !finishPolling.value && isStart.value);
+      if (isLoading.value) {
+        isRenderLoading.value = true;
+        return;
+      }
+
+      setTimeout(() => {
+        isRenderLoading.value = false;
+      }, 300);
     },
   );
 
@@ -236,7 +196,7 @@
 </script>
 <template>
   <div
-    v-bkloading="{ isLoading: false }"
+    v-bkloading="{ isLoading: isRenderLoading }"
     class="monitor-echart-wrap"
   >
     <div
