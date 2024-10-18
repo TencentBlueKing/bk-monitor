@@ -992,6 +992,10 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         .join('')
     );
   }
+  handleOverflowEnter(e: MouseEvent, list) {
+    this.handlePopoverShow(e, list.join('、 '));
+  }
+
   /**
    * @description: 展开
    * @param {MouseEvent} e
@@ -1119,6 +1123,29 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         />
       );
     }
+    const overflowGroupDom = (props, type) => {
+      return (
+        <div class='col-classifiy'>
+          {props.row[type]?.length > 0 ? (
+            <div
+              onMouseenter={e => this.handleOverflowEnter(e, props.row[type])}
+              onMouseleave={this.handlePopoverHide}
+            >
+              {props.row[type].map(item => (
+                <span
+                  key={item}
+                  class='tag-item'
+                >
+                  <span class='text-overflow'>{item}</span>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div>--</div>
+          )}
+        </div>
+      );
+    };
     return columList.concat(
       ...this.tableColumn.map(column => {
         if (!(column.disabled || column.checked)) return undefined;
@@ -1353,6 +1380,20 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                     </div>
                   ),
                 }}
+              />
+            );
+          }
+          // 负责人、通知人添加 hover tips
+          if (column.id === 'assignee' || column.id === 'appointee') {
+            return (
+              <bk-table-column
+                key={`${this.searchType}_${column.id}`}
+                scopedSlots={{
+                  default: props => overflowGroupDom(props, column.id),
+                }}
+                formatter={row => (!row[column.id] && row[column.id] !== 0 ? '--' : row[column.id])}
+                label={column.name}
+                prop={column.id}
               />
             );
           }
