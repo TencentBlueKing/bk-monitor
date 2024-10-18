@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, watch } from 'vue';
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button } from 'bkui-vue';
@@ -68,6 +68,20 @@ export default defineComponent({
       trendChartData.value = data;
     }
 
+    const trendQueryParams = computed(() => {
+      const {
+        filter_labels: { start, end, ...filterLabels },
+        diff_filter_labels: { start: diffStart, end: diffEnd, ...diffFilterLabels },
+        ...rest
+      } = props.queryParams;
+
+      return {
+        ...rest,
+        filter_labels: filterLabels,
+        diff_filter_labels: diffFilterLabels,
+      };
+    });
+
     watch(
       () => props.formData.dateComparison.enable,
       val => {
@@ -77,16 +91,12 @@ export default defineComponent({
 
     function handleBrushEnd(data, type) {
       if (type === 'search') {
-        comparisonPosition[0] = data.areas[0].coordRange.map(item => {
-          return Math.floor(item / 1000) * 1000000;
-        });
+        comparisonPosition[0] = data.areas[0].coordRange;
       } else {
-        comparisonPosition[0] = data.areas[0].coordRange.map(item => {
-          return Math.floor(item / 1000) * 1000000;
-        });
+        comparisonPosition[1] = data.areas[0].coordRange;
       }
       emit('comparisonDateChange', {
-        ...props.formData.dateComparison,
+        enable: props.formData.dateComparison.enable,
         start: comparisonPosition[0]?.[0],
         end: comparisonPosition[0]?.[1],
         diffStart: comparisonPosition[1]?.[0],
@@ -97,6 +107,7 @@ export default defineComponent({
     return {
       t,
       trendChartData,
+      trendQueryParams,
       comparisonPosition,
       handleChartData,
       handleBrushEnd,
@@ -128,7 +139,7 @@ export default defineComponent({
         </div>
         <TrendChart
           comparisonDate={this.comparisonPosition}
-          queryParams={this.queryParams}
+          queryParams={this.trendQueryParams}
           onChartData={this.handleChartData}
         />
 
