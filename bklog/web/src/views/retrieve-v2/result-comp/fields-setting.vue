@@ -737,7 +737,6 @@
           }
 
           .panel-name {
-            max-width: 100px;
             padding-left: 20px;
             overflow: hidden;
             text-overflow: ellipsis;

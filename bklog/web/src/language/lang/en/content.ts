@@ -936,4 +936,18 @@ export default {
     'When there are multiple formats in the log, you can retain logs that do not meet the analytical rules to avoid omissions; uncomfortable logs can be filtered through _prase.failure, which indicates the analysis failure when true',
   '定义元数据并补充至日志中，可通过元数据进行过滤筛选':
     'Define meta -data and supplement it to the log, you can filter and screen through metadata',
+  本地导入: 'Local import',
+  其他索引集导入: 'Other index set import',
+  '确定要删除当前规则？': 'Are you sure you want to delete the current rule?',
+  模板名: 'template name',
+  模板名重复: 'Template name repeat',
+  选择索引集: 'Select Index Set',
+  请输入模板名: 'Please enter the template name',
+  导入模式: 'Export type',
+  索引字段: 'Index Field',
+  '当前聚类规则有更变，请调试后进行保存': 'The current clustering rules have changed, please save after debugging.',
+  '当前聚类规则有更改，退出无法保存，是否要要退出？':
+    'The current clustering rules have been changed and cannot be saved after exiting. Do you want to exit?',
+  '当前模板在下列索引集中占用，取消占用后才能删除模板：{n}':
+    'The current template is occupied in the following index set, and the template can be deleted only after the occupation is cancelled: {n}',
 };
