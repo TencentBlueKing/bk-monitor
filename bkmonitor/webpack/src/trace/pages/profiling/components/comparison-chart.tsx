@@ -99,6 +99,7 @@ export default defineComponent({
         brushLink: 'all',
         toolbox: ['lineX', 'clear'],
         brushStyle: {
+          borderType: 'dashed',
           color: ['rgba(58, 132, 255, 0.1)', 'rgba(255, 86, 86, 0.1)'][props.colorIndex],
         },
         outOfBrush: {
@@ -128,6 +129,9 @@ export default defineComponent({
             name: props.title,
             type: 'line',
             data: props.data?.datapoints?.map(item => [item[1], item[0]]) || [],
+            lineStyle: {
+              color: ['#3A84FF', '#EA3636'][props.colorIndex],
+            },
             showSymbol: false,
             unitFormatter:
               props.data.unit !== 'none' ? getValueFormat(props.data.unit || '') : (v: any) => ({ text: v }),
@@ -138,7 +142,6 @@ export default defineComponent({
     });
 
     function handleBrushEnd(val) {
-      console.log(val);
       emit('brushEnd', val);
     }
 

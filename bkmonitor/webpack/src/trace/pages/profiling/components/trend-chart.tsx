@@ -43,7 +43,8 @@ import {
 import { PanelModel } from '../../../plugins/typings';
 import { SearchType, type ToolsFormData } from '../typings';
 
-import type { IQueryParams, IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import type { IQueryParams } from '../../../typings/trace';
+import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './trend-chart.scss';
 import 'monitor-ui/chart-plugins/plugins/profiling-graph/trace-chart/trace-chart.scss';
@@ -110,11 +111,12 @@ export default defineComponent({
 
     watch(
       () => [props.queryParams, chartType.value],
-      () => {
+      (newVal, oldVal) => {
         const { start, end, ...rest } = props.queryParams as IQueryParams;
         const allTrend = chartType.value === 'all'; // 根据类型构造图表配置
         const type = allTrend ? 'line' : 'bar';
         const targetApi = allTrend ? 'apm_profile.query' : 'apm_profile.queryProfileBarGraph';
+        if (JSON.stringify(newVal) === JSON.stringify(oldVal)) return;
         const targetData = {
           ...rest,
           ...(allTrend ? { diagram_types: ['tendency'] } : {}),
@@ -150,6 +152,7 @@ export default defineComponent({
 
     watch(props.comparisonDate, date => {
       const { series, ...params } = timeSeriesChartRef.value.options;
+      console.log(date);
       timeSeriesChartRef.value.setOptions({
         ...params,
         series: series.map((item, ind) => ({

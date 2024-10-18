@@ -399,7 +399,14 @@ export default defineComponent({
     }
 
     function handleComparisonDateChange(comparisonDate) {
-      searchState.formData.dateComparison = comparisonDate;
+      const { enable, start, end, diffStart, diffEnd } = comparisonDate;
+      searchState.formData.dateComparison = {
+        enable,
+        start: Math.floor(start / 1000) * 1000000,
+        end: Math.floor(end / 1000) * 1000000,
+        diffStart: Math.floor(diffStart / 1000) * 1000000,
+        diffEnd: Math.floor(diffEnd / 1000) * 1000000,
+      };
       handleQuery();
     }
 
