@@ -87,6 +87,8 @@ class RegexTemplateHandler(object):
         instance, created = RegexTemplate.objects.get_or_create(space_uid=space_uid, template_name=template_name)
         if not created:
             raise DuplicateNameException(DuplicateNameException.MESSAGE.format(name=template_name))
+        instance.predefined_varibles = OnlineTaskTrainingArgs.PREDEFINED_VARIBLES
+        instance.save()
         return {
             "id": instance.id,
             "space_uid": instance.space_uid,

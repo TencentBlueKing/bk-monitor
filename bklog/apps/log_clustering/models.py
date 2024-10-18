@@ -313,7 +313,7 @@ class ClusteringSubscription(SoftDeleteModel):
         verbose_name_plural = _("日志聚类订阅")
 
 
-class RegexTemplate(SoftDeleteModel):
+class RegexTemplate(models.Model):
     space_uid = models.CharField(_("空间唯一标识"), db_index=True, max_length=256)
     template_name = models.CharField(_("模板名称"), db_index=True, max_length=256)
     predefined_varibles = models.TextField(_("模板的正则表达式"))
