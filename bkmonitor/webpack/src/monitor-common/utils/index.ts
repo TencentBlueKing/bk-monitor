@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { type ISpaceItem } from '../typings';
 import { LOCAL_BIZ_STORE_KEY, COMMON_PAGE_SIZE_KEY } from './constant';
 import { getUrlParam } from './utils';
+
+import type { ISpaceItem } from '../typings';
 
 // merge space list width biz list
 export function mergeSpaceList(spaceList: ISpaceItem[]) {
@@ -178,7 +179,7 @@ export const setGlobalBizId = () => {
  */
 export const lightenDarkenColor = (color: string, amt: number): string => {
   // 从颜色字符串中删除 '#' 并将其转换为数字
-  const num = parseInt(color.replace(/^#/, ''), 16);
+  const num = Number.parseInt(color.replace(/^#/, ''), 16);
 
   // 辅助函数，确保颜色值保持在有效范围（0 到 255）内
   const clamp = (value: number): number => Math.max(0, Math.min(255, value));
@@ -214,6 +215,5 @@ export const commonPageSizeGet = () => {
 };
 
 export * from './constant';
-export * from './docs-link';
 export * from './utils';
 export * from './xss';
