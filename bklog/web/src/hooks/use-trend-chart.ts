@@ -221,6 +221,7 @@ export default ({ target }: TrandChartOption) => {
     // options.xAxis[0].min = getMinValue(chartData, runningInterval);
     // options.xAxis[0].max = getMaxValue(chartData, runningInterval);
 
+
     chartInstance.setOption(options);
     nextTick(() => {
       dispatchAction({
