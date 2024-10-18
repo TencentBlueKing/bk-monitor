@@ -311,6 +311,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST", slz.ListField(label="启用新链路的集群ID列表", default=[])),
         ("K8S_PLUGIN_COLLECT_CLUSTER_ID", slz.CharField(label="默认K8S插件采集集群ID", default="")),
         ("TENCENT_CLOUD_METRIC_PLUGIN_CONFIG", slz.JSONField(label="腾讯云监控插件配置", default={})),
+        ("ENABLED_TARGET_CACHE_BK_BIZ_IDS", slz.ListField(label=_("启用监控目标缓存的业务ID列表"), default=[])),
     ]
 )
 
@@ -474,7 +475,6 @@ STANDARD_CONFIGS = OrderedDict(
         ("DOC_LINK_MAPPING", slz.DictField(label=_("文档链接配置"), default={})),
         # 自定义事件休眠开关
         ("ENABLE_CUSTOM_EVENT_SLEEP", slz.BooleanField(label=_("是否开启自定义事件休眠"), default=False)),
-        ("ENABLED_TARGET_CACHE_BK_BIZ_IDS", slz.ListField(label=_("启用监控目标缓存的业务ID列表"), default=[])),
     ]
 )
 
