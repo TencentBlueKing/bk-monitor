@@ -102,6 +102,11 @@ class RegexTemplateHandler(object):
             raise RegexTemplateNotExistException(
                 RegexTemplateNotExistException.MESSAGE.format(regex_template_id=template_id)
             )
+        duplicate_name_template = RegexTemplate.objects.exclude(id=template_id).filter(
+            space_uid=instance.space_uid, template_name=template_name
+        )
+        if duplicate_name_template.exists():
+            raise DuplicateNameException(DuplicateNameException.MESSAGE.format(name=template_name))
         instance.template_name = template_name
         instance.save()
         return {"id": instance.id, "space_uid": instance.space_uid, "template_name": instance.template_name}

@@ -49,6 +49,7 @@ from apps.log_clustering.handlers.aiops.aiops_model.aiops_model_handler import (
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.handlers.pipline_service.constants import OperatorServiceEnum
+from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
 from apps.log_clustering.models import ClusteringConfig, RegexTemplate
 from apps.log_clustering.tasks.msg import access_clustering
 from apps.log_clustering.utils import pattern
@@ -188,19 +189,9 @@ class ClusteringConfigHandler(object):
             access_finished=False,
         )
         # 空间是否存在模板
-        queryset = RegexTemplate.objects.filter(space_uid=log_index_set.space_uid)
-        if queryset.exists():
-            first_template = queryset.first()
-            clustering_config.regex_template_id = first_template.id
-        else:
-            from django.utils.translation import ugettext as _
-
-            regex_template, created = RegexTemplate.objects.get_or_create(
-                space_uid=log_index_set.space_uid,
-                template_name=_("系统默认"),
-                predefined_varibles=OnlineTaskTrainingArgs.PREDEFINED_VARIBLES,
-            )
-            clustering_config.regex_template_id = regex_template.id
+        regex_template = RegexTemplateHandler().list_templates(space_uid=log_index_set.space_uid)[0]
+        clustering_config.regex_template_id = regex_template["id"]
+        clustering_config.predefined_varibles = regex_template["predefined_varibles"]
         clustering_config.regex_rule_type = RegexRuleTypeEnum.TEMPLATE.value
         clustering_config.save()
 
