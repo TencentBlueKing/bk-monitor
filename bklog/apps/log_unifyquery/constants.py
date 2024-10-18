@@ -47,14 +47,18 @@ FLOATING_NUMERIC_FIELD_TYPES = ["double", "float"]
 BASE_OP_MAP = {
     "=": "eq",
     "!=": "ne",
-    "=~": "req",
-    "!=~": "nreq",
+    "=~": "contains",
+    "!=~": "ncontains",
     "contains": "contains",
     "not contains": "ncontains",
     ">": "gt",
     ">=": "gte",
     "<": "lt",
     "<=": "lte",
+    "is one of": "eq",
+    "is": "eq",
+    "is not one of": "ne",
+    "is not": "ne",
 }
 
 OP_TRANSFORMER = {

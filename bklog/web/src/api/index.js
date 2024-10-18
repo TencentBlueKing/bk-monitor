@@ -143,22 +143,6 @@ async function getPromise(method, url, data, userConfig = {}) {
     return promise;
   }
 
-  // promise = new Promise(async (resolve, reject) => {
-  //   const axiosRequest = http.$request.request(url, data, config);
-
-  //   try {
-  //     const response = await axiosRequest;
-  //     Object.assign(config, response.config || {});
-  //     handleResponse({ config, response, resolve, reject });
-  //   } catch (error) {
-  //     Object.assign(config, error.config);
-  //     reject(error);
-  //   }
-  // }).catch(error => handleReject(error, config))
-  //   .finally(() => {
-  //   // console.log('finally', config)
-  //   });
-
   promise = new Promise(async (resolve, reject) => {
     context.with(trace.setSpan(context.active(), config.span), async () => {
       try {
@@ -171,11 +155,7 @@ async function getPromise(method, url, data, userConfig = {}) {
         reject(error);
       }
     });
-  })
-    .catch(error => handleReject(error, config))
-    .finally(() => {
-      // console.log('finally', config)
-    });
+  }).catch(error => handleReject(error, config));
 
   // 添加请求队列
   http.queue.set(config);
@@ -283,7 +263,7 @@ function handleReject(error, config) {
         config.catchIsShowMessage && messageError(resMessage);
       }
     }
-    return Promise.reject(new Error(message));
+    return Promise.reject(message);
   }
 
   const resMessage = makeMessage(error.message, traceparent);

@@ -16,6 +16,7 @@ from alarm_backends.core.cache.cmdb import HostManager, ServiceInstanceManager
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.detect_result import CheckResult
 from alarm_backends.service.nodata.scenarios.filters import DimensionRangeFilter
+from bkmonitor.utils.cache import mem_cache
 from constants.strategy import HOST_SCENARIO, SERVICE_SCENARIO
 
 SCENARIO_CLS = {}
@@ -155,6 +156,7 @@ class HostScenario(BaseScenario):
     scenarios_type = HOST_SCENARIO
 
     def get_target_instances(self):
+        mem_cache.clear()
         target = self.item.target
         if len(target[0]) == 0:
             return []

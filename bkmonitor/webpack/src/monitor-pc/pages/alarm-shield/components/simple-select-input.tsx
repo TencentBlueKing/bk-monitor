@@ -42,6 +42,8 @@ interface IProps {
 
 interface IEvents {
   onChange?: string;
+  /* 控制情况下失焦 */
+  onNullBlur?: (v: string) => void;
 }
 
 @Component
@@ -59,6 +61,8 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
 
   /* 输入完毕，关闭弹出层时 下次弹出全部选项 */
   isSelected = true;
+
+  timer = null;
 
   get searchList() {
     if (this.value) {
@@ -97,13 +101,18 @@ export default class SimpleSelectInput extends tsc<IProps, IEvents> {
   }
 
   handleBlur() {
-    //
+    this.timer = setTimeout(() => {
+      if (!this.value) {
+        this.$emit('nullBlur');
+      }
+    }, 300);
   }
 
   // 提交，click 和 blur 统一调一个方法
   handleCommit(item) {
     this.handleChange(item.name);
     this.isSelected = false;
+    clearTimeout(this.timer);
   }
 
   @Debounce(300)

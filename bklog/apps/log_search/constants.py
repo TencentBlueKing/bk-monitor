@@ -1355,7 +1355,11 @@ class TimeZoneEnum(ChoicesEnum):
         result = []
         for i in range(-12, 13, 1):
             result.append(
-                {"id": i, "name": "UTC" + ("+" if i >= 0 else "") + f"{i:02}:00", "default": True if i == 8 else False}
+                {
+                    "id": i,
+                    "name": "UTC" + ("+" if i >= 0 else "-") + f"{abs(i):02}:00",
+                    "default": True if i == 8 else False,
+                }
             )
         return result
 
@@ -1404,6 +1408,17 @@ class IndexSetType(ChoicesEnum):
     UNION = "union"
 
     _choices_labels = ((SINGLE, _("单索引集")), (UNION, _("联合索引集")))
+
+
+class SearchMode(ChoicesEnum):
+    """
+    检索模式
+    """
+
+    UI = "ui"
+    SQL = "sql"
+
+    _choices_labels = ((UI, _("UI模式")), (SQL, _("SQL模式")))
 
 
 # 索引集无数据检查缓存前缀

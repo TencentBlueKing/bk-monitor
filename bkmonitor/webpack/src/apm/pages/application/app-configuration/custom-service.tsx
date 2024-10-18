@@ -27,10 +27,8 @@
 import { Component, PropSync, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { customServiceDataView, customServiceList, deleteCustomSerivice } from 'monitor-api/modules/apm_meta';
-import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
+import { customServiceList, deleteCustomSerivice } from 'monitor-api/modules/apm_meta';
 
-import PanelItem from '../../../components/panel-item/panel-item';
 import AddServiceDialog from './add-service-dialog';
 
 import type { IAppInfo, ICustomServiceInfo } from './type';
@@ -76,17 +74,9 @@ export default class CustomService extends tsc<IProps> {
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
 
   created() {
-    this.getDataView();
     this.getServiceList();
   }
 
-  /**
-   * @desc 获取图表数据
-   */
-  async getDataView() {
-    const appId = this.appInfo.application_id;
-    this.dashboardPanels = await customServiceDataView(appId).catch(() => []);
-  }
   /**
    * @desc 获取服务详情列表
    */
@@ -192,7 +182,10 @@ export default class CustomService extends tsc<IProps> {
   render() {
     const serviceNameSlots = {
       default: props => [
-        <div class='service-info'>
+        <div
+          key={`service-info-${props.$index}`}
+          class='service-info'
+        >
           {props.row.icon && props.row.match_type === 'manual' && (
             <img
               class='service-icon'
@@ -216,6 +209,7 @@ export default class CustomService extends tsc<IProps> {
     const operatorSlot = {
       default: props => [
         <bk-button
+          key='operatorSlot_setting'
           class='mr10'
           theme='primary'
           text
@@ -224,6 +218,7 @@ export default class CustomService extends tsc<IProps> {
           {this.$t('设置')}
         </bk-button>,
         <bk-button
+          key='operatorSlot_delete'
           class='mr10'
           theme='primary'
           text
@@ -236,67 +231,46 @@ export default class CustomService extends tsc<IProps> {
 
     return (
       <div class='custom-services-wrap'>
-        <PanelItem title={this.$t('远程服务调用次数')}>
-          <div class='form-content'>
-            <DashboardPanel
-              id={'rpc'}
-              panels={this.dashboardPanels}
-            />
-          </div>
-        </PanelItem>
-        <PanelItem title={this.$t('服务详情')}>
-          <bk-button
-            class='add-service'
-            icon='plus'
-            theme='primary'
-            onClick={() => this.handleAddService()}
-          >
-            {this.$t('新增')}
-          </bk-button>
-          <bk-table
-            class={'service-table'}
-            v-bkloading={{ isLoading: this.tableLoading }}
-            data={this.serviceList}
-            outer-border={false}
-            pagination={this.pagination}
-            row-auto-height={true}
-            on-page-change={this.handlePageChange}
-            on-page-limit-change={this.handleLimitChange}
-            on-sort-change={this.handleSortChange}
-          >
-            <bk-table-column
-              label={this.$t('匹配类型')}
-              scopedSlots={{ default: props => (props.row.match_type === 'auto' ? this.$t('自动') : this.$t('手动')) }}
-            />
-            <bk-table-column
-              label={this.$t('服务名称')}
-              scopedSlots={serviceNameSlots}
-            />
-            <bk-table-column
-              label={this.$t('远程服务类型')}
-              prop={'type'}
-            />
-            <bk-table-column
-              width='160'
-              label={this.$t('域名匹配')}
-              prop={'host_match_count'}
-              scopedSlots={{ default: props => props.row.host_match_count?.value }}
-              sortable='custom'
-            />
-            <bk-table-column
-              width='160'
-              label={this.$t('URI匹配')}
-              prop={'uri_match_count'}
-              scopedSlots={{ default: props => props.row.uri_match_count?.value }}
-              sortable='custom'
-            />
-            <bk-table-column
-              width='180'
-              label={this.$t('操作')}
-              scopedSlots={operatorSlot}
-            />
-          </bk-table>
-        </PanelItem>
+        <bk-table
+          class={'service-table'}
+          v-bkloading={{ isLoading: this.tableLoading }}
+          data={this.serviceList}
+          outer-border={false}
+          pagination={this.pagination}
+          row-auto-height={true}
+          on-page-change={this.handlePageChange}
+          on-page-limit-change={this.handleLimitChange}
+          on-sort-change={this.handleSortChange}
+        >
+          <bk-table-column
+            label={this.$t('服务名称')}
+            scopedSlots={serviceNameSlots}
+          />
+          <bk-table-column
+            label={this.$t('远程服务类型')}
+            prop={'type'}
+          />
+          <bk-table-column
+            width='160'
+            label={this.$t('域名匹配')}
+            prop={'host_match_count'}
+            scopedSlots={{ default: props => props.row.host_match_count?.value }}
+            sortable='custom'
+          />
+          <bk-table-column
+            width='160'
+            label={this.$t('URI匹配')}
+            prop={'uri_match_count'}
+            scopedSlots={{ default: props => props.row.uri_match_count?.value }}
+            sortable='custom'
+          />
+          <bk-table-column
+            width='180'
+            label={this.$t('操作')}
+            scopedSlots={operatorSlot}
+          />
+        </bk-table>
+
         <AddServiceDialog
           v-model={this.showAddDialog}
           appName={this.appInfo.app_name}

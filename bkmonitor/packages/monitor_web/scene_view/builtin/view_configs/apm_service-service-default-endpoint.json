@@ -247,7 +247,7 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "unit": "percentunit",
-            "expression": "a / b",
+            "expression": "b / c",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -256,7 +256,7 @@
                   {
                     "field": "bk_apm_count",
                     "method": "SUM",
-                    "alias": "a"
+                    "alias": "b"
                   }
                 ],
                 "table": "${table_id}",
@@ -288,7 +288,7 @@
                   {
                     "field": "bk_apm_count",
                     "method": "SUM",
-                    "alias": "b"
+                    "alias": "c"
                   }
                 ],
                 "table": "${table_id}",
@@ -306,7 +306,7 @@
               }
             ],
             "unify_query_param": {
-              "expression": "a / b",
+              "expression": "b / c",
               "query_configs": [
                 {
                   "data_source_label": "custom",
@@ -315,7 +315,7 @@
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "a"
+                      "alias": "b"
                     }
                   ],
                   "table": "${table_id}",
@@ -347,7 +347,7 @@
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "b"
+                      "alias": "c"
                     }
                   ],
                   "table": "${table_id}",
@@ -547,6 +547,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "unit": "ns",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -652,6 +653,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "unit": "ns",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -757,6 +759,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "unit": "ns",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -978,9 +981,10 @@
                 "interval_unit": "s",
                 "time_field": "time",
                 "filter_dict": {
-                  "service_name": "${service_name}",
+                  "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": []
               }
@@ -1014,7 +1018,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         }
       ],
@@ -1074,7 +1079,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": []
               }
@@ -1118,7 +1124,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           },
           "yAxisIndex": 0,
           "chart_type": "bar"
@@ -1132,7 +1139,7 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "unit": "percentunit",
-            "expression": "a / b",
+            "expression": "b / c",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1141,7 +1148,7 @@
                   {
                     "field": "bk_apm_count",
                     "method": "SUM",
-                    "alias": "a"
+                    "alias": "b"
                   }
                 ],
                 "table": "${table_id}",
@@ -1163,7 +1170,8 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": []
               },
@@ -1174,7 +1182,7 @@
                   {
                     "field": "bk_apm_count",
                     "method": "SUM",
-                    "alias": "b"
+                    "alias": "c"
                   }
                 ],
                 "table": "${table_id}",
@@ -1187,13 +1195,14 @@
                 "filter_dict": {
                   "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "${extra_filter_dict}"
                 },
                 "functions": []
               }
             ],
             "unify_query_param": {
-              "expression": "a / b",
+              "expression": "b / c",
               "query_configs": [
                 {
                   "data_source_label": "custom",
@@ -1202,7 +1211,7 @@
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "a"
+                      "alias": "b"
                     }
                   ],
                   "table": "${table_id}",
@@ -1235,7 +1244,7 @@
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "b"
+                      "alias": "c"
                     }
                   ],
                   "table": "${table_id}",
@@ -1253,7 +1262,8 @@
                   "functions": []
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           },
           "yAxisIndex": 1,
           "chart_type": "line"
@@ -1306,9 +1316,10 @@
                 "interval_unit": "s",
                 "time_field": "time",
                 "filter_dict": {
-                  "service_name": "${service_name}",
+                  "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -1340,9 +1351,10 @@
                 "interval_unit": "s",
                 "time_field": null,
                 "filter_dict": {
-                  "service_name": "${service_name}",
+                  "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -1429,7 +1441,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         },
         {
@@ -1440,6 +1453,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "unit": "ns",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1461,9 +1475,10 @@
                 "interval_unit": "s",
                 "time_field": "time",
                 "filter_dict": {
-                  "service_name": "${service_name}",
+                  "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -1536,7 +1551,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         },
         {
@@ -1547,6 +1563,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "unit": "ns",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1568,9 +1585,10 @@
                 "interval_unit": "s",
                 "time_field": "time",
                 "filter_dict": {
-                  "service_name": "${service_name}",
+                  "service_name": "$service_name",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -1643,7 +1661,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         },
         {
@@ -1654,6 +1673,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "unit": "ns",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1677,7 +1697,8 @@
                 "filter_dict": {
                   "service_name": "${service_name}",
                   "span_name": "$endpoint_name",
-                  "bk_instance_id": "$bk_instance_id"
+                  "bk_instance_id": "$bk_instance_id",
+                  "extra_filter_dict": "$extra_filter_dict"
                 },
                 "functions": [
                   {
@@ -1750,7 +1771,8 @@
                   ]
                 }
               ]
-            }
+            },
+            "extra_filter_dict": "${extra_filter_dict}"
           }
         }
       ],
@@ -1829,7 +1851,8 @@
           "fields": {
             "endpoint_name": "endpoint_name",
             "app_name": "app_name",
-            "service_name": "service"
+            "service_name": "service",
+            "extra_filter_dict": "extra_filter_dict"
           }
         }
       ]

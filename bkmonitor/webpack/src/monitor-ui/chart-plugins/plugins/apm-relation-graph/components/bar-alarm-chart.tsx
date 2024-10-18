@@ -64,6 +64,8 @@ interface IProps {
   needRestoreEvent?: boolean;
   enableZoom?: boolean;
   groupId?: string;
+  showXAxisNum?: number;
+  xAxisFormat?: string;
   getData?: TGetData;
   onDataZoom?: () => void;
   onSliceTimeRangeChange?: (v: number[]) => void;
@@ -78,6 +80,8 @@ export default class BarAlarmChart extends tsc<IProps> {
   @Prop({ type: Number, default: 32 }) activeItemHeight: number;
   /* 是否展示x轴 */
   @Prop({ type: Boolean, default: false }) showXAxis: boolean;
+  /* 是否展示x轴 */
+  @Prop({ type: Number, default: 3 }) showXAxisNum: number;
   /* 是否展示头部内容 */
   @Prop({ type: Boolean, default: false }) showHeader: boolean;
   /* 是否自适应宽度 */
@@ -90,6 +94,8 @@ export default class BarAlarmChart extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) needRestoreEvent: boolean;
   @Prop({ type: Boolean, default: false }) enableZoom: boolean;
   @Prop({ type: String, default: '' }) groupId: string;
+  /* x轴label格式 */
+  @Prop({ type: String, default: 'HH:mm' }) xAxisFormat: string;
 
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
@@ -234,11 +240,23 @@ export default class BarAlarmChart extends tsc<IProps> {
           this.customChartConnector.setCustomChartInstance(this.chartId, this.chartInstance);
         }
         if (this.localData.length) {
-          const len = this.localData.length;
-          const start = this.localData[0].time;
-          const end = this.localData[len - 1].time;
-          const center = this.localData[Math.floor(len / 2)].time;
-          this.xAxis = [dayjs(start).format('HH:mm'), dayjs(center).format('HH:mm'), dayjs(end).format('HH:mm')];
+          if (this.showXAxisNum === 3) {
+            const len = this.localData.length;
+            const start = this.localData[0].time;
+            const end = this.localData[len - 1].time;
+            const center = this.localData[Math.floor(len / 2)].time;
+            this.xAxis = [
+              dayjs(start).format(this.xAxisFormat),
+              dayjs(center).format(this.xAxisFormat),
+              dayjs(end).format(this.xAxisFormat),
+            ];
+          } else if (this.showXAxisNum === 2) {
+            const len = this.localData.length;
+            const start = this.localData[0].time;
+            const end = this.localData[len - 1].time;
+            this.xAxis = [dayjs(start).format(this.xAxisFormat), dayjs(end).format(this.xAxisFormat)];
+          }
+
           if (this.enableSelect) {
             if (sliceTimeRange?.every?.(v => !!v)) {
               const [sliceStartTime] = sliceTimeRange;

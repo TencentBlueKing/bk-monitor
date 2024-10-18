@@ -32,7 +32,7 @@ import './operate-options.scss';
 
 export interface IOperateOption {
   id: string;
-  name?: TranslateResult | string;
+  name?: string | TranslateResult;
   authority?: boolean;
   disable?: boolean;
   authorityDetail?: string;
@@ -45,6 +45,8 @@ interface IOptions {
 
 interface IOperateOptionsProps {
   options?: IOptions;
+  isMouseOverShow?: boolean;
+  isClickShow?: boolean;
 }
 
 interface IOperateOptionsEvents {
@@ -58,6 +60,8 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
 
   @Prop({ type: Object, default: () => ({}) }) options: IOptions;
+  @Prop({ type: Boolean, default: false }) isMouseOverShow: boolean;
+  @Prop({ type: Boolean, default: true }) isClickShow: boolean;
 
   @Ref('moreItems') moreItemsRef: HTMLDivElement;
 
@@ -74,7 +78,8 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
       this.popoverInstance = this.$bkPopover(e.target, {
         content: this.moreItemsRef,
         arrow: false,
-        trigger: 'click',
+        trigger: this.isMouseOverShow ? 'mouseenter' : 'click',
+        interactive: this.isMouseOverShow,
         placement: 'bottom',
         theme: 'light common-monitor',
         maxWidth: 520,
@@ -94,11 +99,12 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
       <div class='table-operate-options-component'>
         {this.options?.outside.map(item => (
           <span
+            key={item.id}
             v-bk-tooltips={{
               content: item?.tip,
               placement: 'top',
               boundary: 'window',
-              disabled: !Boolean(item?.tip),
+              disabled: !item?.tip,
               allowHTML: false,
             }}
           >
@@ -117,7 +123,16 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
           </span>
         ))}
         {this.options?.popover?.length ? (
-          <div onClick={this.handleShowPopover}>
+          <div
+            onClick={e => {
+              if (!this.isClickShow) return;
+              this.handleShowPopover(e);
+            }}
+            onMouseenter={e => {
+              if (!this.isMouseOverShow) return;
+              this.handleShowPopover(e);
+            }}
+          >
             {this.$slots?.trigger || (
               <div class='option-more'>
                 <span class='bk-icon icon-more' />
@@ -132,7 +147,8 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
           >
             {this.options?.popover?.map(item => (
               <span
-                class='more-item'
+                key={item.id}
+                class={['more-item', { authority: !item.authority }]}
                 v-authority={{ active: !item.authority }}
                 onClick={() =>
                   item.authority

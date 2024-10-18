@@ -338,7 +338,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
       item.conditions.forEach(c => {
         if (c.field === strategyIdKey) {
           c.value.forEach(v => {
-            if (!!v) {
+            if (v) {
               strategyIdSet.add(v);
             }
           });
@@ -396,7 +396,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
             onClick={() => this.handleClickUnifiedSetting()}
           >
             {/* <span class="icon-monitor "></span> */}
-            {!!this.unifiedSettings.conditions.filter(item => !!item.field).length ? (
+            {this.unifiedSettings.conditions.filter(item => !!item.field).length ? (
               <i18n path='已设置{0}个条件'>
                 <span>{this.unifiedSettings.conditions.length}</span>
               </i18n>
@@ -704,13 +704,16 @@ export default class AlarmDispatchConfig extends tsc<object> {
         break;
 
       case 'isEnabled':
-        this.tableData = this.tableData.map((item, index) => {
-          if (item.isCheck) {
-            item.setIsEnabled(value);
-            this.handleDiffRuleItemChange(item, 'isEnabled', index);
-          }
-          return item;
-        });
+        {
+          this.tableData = this.tableData.map((item, index) => {
+            if (item.isCheck) {
+              item.setIsEnabled(value);
+              this.handleDiffRuleItemChange(item, 'isEnabled', index);
+            }
+            return item;
+          });
+        }
+        break;
       default:
         break;
     }
@@ -744,7 +747,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
     allKVOptions(
       [this.$store.getters.bizId],
       (type: string, key: string, values: any) => {
-        if (!!key) {
+        if (key) {
           (this.kvOptionsData[type] as Map<string, any>).set(key, values);
         } else {
           this.kvOptionsData[type] = values;
@@ -774,7 +777,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
     conditions.forEach(item => {
       if (item.field === strategyIdKey) {
         item.value.forEach(v => {
-          if (!!v) {
+          if (v) {
             strategyIdSet.add(v);
           }
         });
@@ -842,7 +845,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
     const transformTableDataToCsvStr = (tableThArr: string[], tableTdArr: Array<string[]>): string => {
       const csvList: string[] = [tableThArr.join(',')];
       tableTdArr.forEach(row => {
-        const rowString = row.reduce((str, item, index) => str + (!!index ? ',' : '') + item, '');
+        const rowString = row.reduce((str, item, index) => str + (index ? ',' : '') + item, '');
         csvList.push(rowString);
       });
       const csvString = csvList.join('\n');
@@ -957,7 +960,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
       this.unifiedSettings.conditions = conditions;
       this.unifiedSettings.targetConditions = conditions;
     };
-    if (!!(this.ruleGroupData.settings as any)?.public_conditions) {
+    if ((this.ruleGroupData.settings as any)?.public_conditions) {
       const allConditions = this.tableData.map(item => item.conditions);
       const statisticsConditions = statisticsSameConditions(allConditions);
       setConidtions(statisticsConditions);
@@ -966,7 +969,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
 
   /* 点击统一设置 */
   handleClickUnifiedSetting(isConditionChange = false) {
-    if (!!this.unifiedSettings.popInstance?.show) {
+    if (this.unifiedSettings.popInstance?.show) {
       this.handleCancelUnifiedSettings();
       return;
     }
@@ -1308,6 +1311,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
               <tr class='process-list'>
                 {this.processList.map((item, index) => (
                   <td
+                    key={index}
                     style={{
                       'border-color': item.bg,
                     }}
@@ -1371,7 +1375,10 @@ export default class AlarmDispatchConfig extends tsc<object> {
               {this.tableData.some(item => item.isCheck) && (
                 <tr class={['batch-list', { 'is-scroll': this.tableScrollTop }]}>
                   {this.tableColumns.map(item => (
-                    <td v-show={item.show}>
+                    <td
+                      key={item.id}
+                      v-show={item.show}
+                    >
                       <div class='batch-list-item'>
                         {hasBatchColumn.includes(item.id) && (
                           <span
@@ -1437,6 +1444,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
                 >
                   {this.tableColumns.map(column => (
                     <td
+                      key={column.id}
                       style={{ width: `${column.width}px`, minWidth: `${column.width}px` }}
                       class='rule-td'
                       v-show={column.show}
@@ -1722,7 +1730,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
                   <div class='notice-content'>
                     <div> {this.$t('间隔{0}分钟，逐个通知', { 0: row.upgradeConfig?.upgradeInterval })}</div>
                     {row.upgradeConfig.userGroups.map((item, num) => (
-                      <span>
+                      <span key={num}>
                         <span
                           class='alarm-group'
                           onClick={e => {
@@ -1794,7 +1802,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
               disabled={false}
               has-delete-icon={true}
               placeholder={this.$t('填写标签，格式key:value')}
-              tooltip-key='name'
+              tooltip-key='__null__' // 这里有xss注入问题 改成一个不可能字符串字段
               onChange={value => {
                 row.setAdditionalTags(value);
                 this.handleAdditionalTagsChange(value, row, index);

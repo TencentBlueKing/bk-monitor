@@ -249,6 +249,7 @@ export default defineComponent({
     const searchSelectValue = ref<ISearchSelectValue[]>([]);
     const durantionRange = ref<null | number[]>(null);
     const traceColumnFilters = ref<Record<string, string[]>>({});
+    const cacheTraceColumnFilters = ref<Record<string, string[]>>({});
     const interfaceListCanLoadMore = ref<boolean>(false);
     const serviceListCanLoadMore = ref<boolean>(false);
     const spanDetails = ref<null | Span>(null);
@@ -395,7 +396,7 @@ export default defineComponent({
         value: Array<any>;
         operator: 'between' | 'equal' | 'logic' | 'not_equal';
       };
-      const filters: IFilterItem[] = [];
+      let filters: IFilterItem[] = [];
 
       // 收集 Trace 列表 表头的查询信息
       Object.keys(traceColumnFilters.value || {}).forEach(key => {
@@ -415,6 +416,23 @@ export default defineComponent({
           operator: 'between',
         });
       }
+
+      const cacheFilter = cacheTraceColumnFilters.value[selectedListType.value] || [];
+      const updatedCacheFilter = filters.reduce((acc, item) => {
+        const index = acc.findIndex(filter => filter.key === item.key);
+        if (index !== -1) {
+          acc[index].value = item.value;
+        } else {
+          acc.push(item);
+        }
+        return acc;
+      }, cacheFilter);
+      // 过滤出有值的项
+      const filterData = updatedCacheFilter.filter(ele => (ele.value || []).length > 0);
+      // 更新缓存和 filters
+      cacheTraceColumnFilters.value[selectedListType.value] = updatedCacheFilter;
+      filters = filterData;
+
       // 收集 侧边栏：服务
       Object.keys(scopeSelects.value).forEach(key => {
         if (key === 'service' && scopeSelects.value[key].value.length) {
@@ -523,7 +541,6 @@ export default defineComponent({
         store.serviceStatisticsType.contain.forEach(item => filters.push(filterTypeMapping[item]));
         store.serviceStatisticsType.interfaceType.forEach(item => filters.push(filterTypeMapping[item]));
       }
-
       const params = {
         app_name: state.app,
         // 改 key
@@ -567,7 +584,6 @@ export default defineComponent({
         store.setTraceDetail(false);
         store.setFilterTraceList([]);
       }
-
       const params = queryScopeParams();
       // 查询语句 的字段检查，非标准要换成 span 视角
       // if (selectedListType.value === 'trace') {
@@ -778,6 +794,9 @@ export default defineComponent({
     async function handleSearchTypeChange(id: string) {
       store.setTraceDetail(false);
       if (id === 'scope') {
+        if (!state.isAlreadyScopeQuery) {
+          state.isAlreadyScopeQuery = true;
+        }
         traceKind.value = 'all';
         handleScopeQueryChange();
         // 点击 范围查询 在这里做一些准备请求
@@ -872,6 +891,8 @@ export default defineComponent({
       queryString.value = componentData.queryString;
       traceListPagination.offset = 0;
       curTimestamp.value = handleTransformToTimestamp(timeRange.value);
+      // 获取图表配置列表
+      searchStore.getPanelList(state.app);
       handleQueryScope();
     }
     /* 收藏列表 */
@@ -1049,9 +1070,9 @@ export default defineComponent({
     }
     /** 更多操作 */
     function handleMenuSelectChange() {
-      const appId = appList.value?.find(app => app.app_name === state.app)?.application_id || '';
-      if (appId) {
-        const url = location.href.replace(location.hash, `#/apm/application/config/${appId}`);
+      const appName = appList.value?.find(app => app.app_name === state.app)?.app_name || '';
+      if (appName) {
+        const url = location.href.replace(location.hash, `#/apm/application/config/${appName}`);
         window.open(url, '_blank');
       }
     }
@@ -1523,7 +1544,7 @@ export default defineComponent({
           (
             <span>
               {t('耗时')}
-              <span class='label-tips'>{`（${t('支持')} ns, μs, ms, s）`}</span>
+              <span class='label-tips'>{`（${t('支持')} ns, μs, ms, s, m, h, d）`}</span>
             </span>
           ) as any,
           (
@@ -1676,6 +1697,7 @@ export default defineComponent({
               queryType={state.searchType}
               searchIdType={searchResultIdType.value}
               spanDetails={spanDetails.value}
+              traceColumnFilters={cacheTraceColumnFilters.value}
               traceListTabelLoading={traceListTabelLoading.value}
               onChangeQuery={val => handleChangeQuery(val)}
               onInterfaceStatisticsChange={handleInterfaceStatisticsChange}

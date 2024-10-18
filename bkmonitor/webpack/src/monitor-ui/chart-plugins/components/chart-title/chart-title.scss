@@ -1,5 +1,11 @@
 $alarmColor: #dcdee5 #63656e #ea3636;
 
+.custom-hr {
+  margin: 10px auto; /* 上下边距和居中 */
+  border: none; /* 移除默认边框样式 */
+  border-top: 1px solid #979ba5; /* 设置浅色边框 */
+}
+
 .title-wrapper {
   width: 100%;
 

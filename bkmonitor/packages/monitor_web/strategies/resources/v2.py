@@ -2863,11 +2863,12 @@ class PromqlToQueryConfig(Resource):
                     condition["condition"] = "and"
                 conditions.append(condition)
 
-            # 根据table_id格式判定是否为data_label二段式
+            # 根据table_id格式判定是否为data_label二段式, 如果是则需要根据data_label去指标选择器缓存表中查询结果表ID
+            # 计算平台指标没有data_label，table_id 就直接是结果表ID result_table_id
             table_id = query.get("table_id", "")
             result_table_id = ""
             data_label = ""
-            if len(table_id.split(".")) == 1:
+            if len(table_id.split(".")) == 1 and query["data_source"] != DataSourceLabel.BKDATA:
                 data_label = table_id
             else:
                 result_table_id = table_id
@@ -2875,6 +2876,8 @@ class PromqlToQueryConfig(Resource):
                 "data_source"
             ] == DataSourceLabel.CUSTOM:
                 data_source_label = DataSourceLabel.CUSTOM
+            elif query["data_source"] == DataSourceLabel.BKDATA:
+                data_source_label = DataSourceLabel.BK_DATA
             else:
                 data_source_label = DataSourceLabel.BK_MONITOR_COLLECTOR
             data_type_label = DataTypeLabel.TIME_SERIES

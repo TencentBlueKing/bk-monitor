@@ -64,7 +64,7 @@ export default defineComponent({
     const errMsg = ref<string>('');
     const showExchange = ref<boolean>(false);
     /** 输入框内容校验 */
-    const inputReg = /^([1-9][0-9]*|0)(\.[0-9]*[1-9])?(ns|n|μs|μ|ms|m|s)$/;
+    const inputReg = /^([1-9][0-9]*|0)(\.[0-9]*[1-9])?(ns|μs|ms|s|m|h|d)$/;
 
     onMounted(() => {
       if (props.range) {
@@ -115,23 +115,22 @@ export default defineComponent({
     };
     /** 将输入框内容转化为 ms 单位 */
     const formatToMs = (str: string) => {
-      const parseStr = str.split(/(ns|n|μs|μ|ms|m|s)$/);
-      const [value, unit] = parseStr;
-      switch (unit) {
-        case 'n':
-        case 'ns':
-          return Number(value) / 10 ** 6;
-        case 'μ':
-        case 'μs':
-          return Number(value) / 10 ** 3;
-        case 'm':
-        case 'ms':
-          return Number(value);
-        case 's':
-          return Number(value) * 10 ** 3;
-        default:
-          return 0;
+      let totalMs = 0;
+      const unitMap = {
+        ns: 1 / 10 ** 6,
+        μs: 1 / 10 ** 3,
+        ms: 1,
+        s: 10 ** 3,
+        m: 10 ** 3 * 60,
+        h: 10 ** 3 * 3600,
+        d: 10 ** 3 * 3600 * 24,
+      };
+      for (const part of str.split(' ')) {
+        const parseStr = part.split(/(ns|μs|ms|s|m|h|d)$/);
+        const [value, unit] = parseStr;
+        totalMs += Number(value) * (unitMap[unit] || 0);
       }
+      return totalMs;
     };
     /** 拖动滑动选择器改变范围数值 */
     const handleSliderChange = (rangeValue: number[] = []) => {
@@ -153,7 +152,7 @@ export default defineComponent({
           handleSetSlider();
         }
       } else {
-        errMsg.value = t('单位仅支持ns, μs, ms, s');
+        errMsg.value = t('单位仅支持ns, μs, ms, s, m, h, d');
       }
     };
     /** 数值互换 */

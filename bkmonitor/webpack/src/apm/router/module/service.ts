@@ -26,10 +26,10 @@
 import type { RouteConfig } from 'vue-router';
 // import * as HomeAuth from '../../pages/home/authority-map';
 const Service = () => import(/* webpackChunkName: "service" */ '../../pages/service/service');
-const ServiceDetail = () => import(/* webpackChunkName: "service-detial" */ '../../pages/service/service-detail');
+const ServiceDetail = () => import(/* webpackChunkName: "service-detail" */ '../../pages/service/service-detail');
 const ServiceAdd = () => import(/* webpackChunkName: "service-add" */ '../../pages/service/service-add');
 const ServiceConfig = () =>
-  import(/* webpackChunkName: "ServiceConfig" */ '../../pages/service/service-configuration/configuration');
+  import(/* webpackChunkName: "ServiceConfig" */ '../../pages/service/service-config/configuration');
 export default [
   {
     path: '/service',
@@ -101,7 +101,7 @@ export default [
       noCache: ServiceAdd,
     },
     meta: {
-      title: '新增服务',
+      title: '接入服务',
       navId: 'service',
       customTitle: false,
       noNavBar: true,

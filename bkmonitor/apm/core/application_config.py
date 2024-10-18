@@ -8,11 +8,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import base64
+import gzip
 import json
 import logging
-from abc import ABC
 from collections import defaultdict
 from typing import List
+
+import jinja2
+from kubernetes import client
+from opentelemetry import trace
 
 from apm.constants import (
     DEFAULT_APM_APPLICATION_ATTRIBUTE_CONFIG,
@@ -21,6 +26,7 @@ from apm.constants import (
     ConfigTypes,
 )
 from apm.core.bk_collector_config import BkCollectorConfig
+from apm.core.cluster_config import ClusterConfig
 from apm.models import (
     ApdexConfig,
     ApmApplication,
@@ -34,15 +40,14 @@ from apm.models import (
     SamplerConfig,
     SubscriptionConfig,
 )
-from bkmonitor.utils.common_utils import count_md5
+from bkmonitor.utils.bcs import BcsKubeClient
+from bkmonitor.utils.common_utils import count_md5, safe_int
+from constants.apm import BkCollectorComp
 from core.drf_resource import api
 
 logger = logging.getLogger("apm")
 
-
-class ConfigBuild(ABC):
-    def build(self):
-        pass
+tracer = trace.get_tracer(__name__)
 
 
 class ApplicationConfig(BkCollectorConfig):
@@ -52,6 +57,7 @@ class ApplicationConfig(BkCollectorConfig):
         self._application: ApmApplication = application
 
     def refresh(self):
+        """[旧] 下发应用配置（通过节点管理）"""
         target_hosts = self.get_target_hosts()
         if not target_hosts:
             logger.info("no bk-collector node, otlp is disabled")
@@ -64,13 +70,49 @@ class ApplicationConfig(BkCollectorConfig):
         except Exception:  # noqa
             logger.exception("auto deploy bk-collector application config error")
 
+    def refresh_k8s(self):
+        """
+        下发应用配置到 K8S 集群
+
+        # 1. 获取应用所在业务的集群 ID 列表
+        # 2. 针对每一个集群
+        #    2.1 从集群中获取模版配置
+        #    2.2 获取到模板，则下发，否则忽略该集群
+        """
+        from apm_ebpf.models import ClusterRelation
+
+        cluster_ids = ClusterRelation.objects.filter(bk_biz_id=self._application.bk_biz_id).values_list(
+            'cluster_id', flat=True
+        )
+
+        for cluster_id in set(cluster_ids):
+            with tracer.start_as_current_span(
+                f"cluster-id: {cluster_id}", attributes={"apm_application_id": self._application.id}
+            ) as s:
+                try:
+                    application_tpl = ClusterConfig.application_config_tpl(cluster_id)
+                    if application_tpl is None:
+                        continue
+
+                    application_config_context = self.get_application_config()
+                    tpl = jinja2.Template(application_tpl)
+                    application_config = tpl.render(application_config_context)
+                    self.deploy_to_k8s(cluster_id, application_config)
+
+                    s.set_status(trace.StatusCode.OK)
+                except Exception as e:  # pylint: disable=broad-except
+                    s.record_exception(exception=e)
+                    logger.info(f"refresh application({self._application.id}) config to k8s({cluster_id}) error({e})")
+
     def get_application_config(self):
+        """获取应用配置上下文"""
         config = {
-            "bk_data_token": self._application.get_bk_data_token(),
             "bk_biz_id": self._application.bk_biz_id,
             "bk_app_name": self._application.app_name,
-            "resource_filter_config": self.get_resource_filter_config(),
         }
+        config.update(self.get_bk_data_id_config())
+        config["bk_data_token"] = self._application.get_bk_data_token()
+        config["resource_filter_config"] = self.get_resource_filter_config()
 
         apdex_config = self.get_apdex_config(ApdexConfig.APP_LEVEL)
         sampler_config = self.get_random_sampler_config(ApdexConfig.APP_LEVEL)
@@ -125,6 +167,26 @@ class ApplicationConfig(BkCollectorConfig):
             config["instance_configs"] = instance_configs
 
         return config
+
+    def get_bk_data_id_config(self):
+        data_ids = {}
+        metric_data_source = self._application.metric_datasource
+        if self._application.is_enabled_metric and metric_data_source:
+            data_ids["metric_data_id"] = metric_data_source.bk_data_id
+
+        log_data_source = self._application.log_datasource
+        if self._application.is_enabled_log and log_data_source:
+            data_ids["log_data_id"] = log_data_source.bk_data_id
+
+        trace_data_source = self._application.trace_datasource
+        if self._application.is_enabled_trace and trace_data_source:
+            data_ids["trace_data_id"] = trace_data_source.bk_data_id
+
+        profile_data_source = self._application.profile_datasource
+        if self._application.is_enabled_profiling and profile_data_source:
+            data_ids["profile_data_id"] = profile_data_source.bk_data_id
+
+        return data_ids
 
     def get_qps_config(self):
         qps = QpsConfig.get_application_qps(self._application.bk_biz_id, app_name=self._application.app_name)
@@ -439,3 +501,106 @@ class ApplicationConfig(BkCollectorConfig):
                 logger.exception(
                     "create apm application config subscription error{}, params:{}".format(e, subscription_params)
                 )
+
+    def deploy_to_k8s(self, cluster_id: str, application_config: str):
+        def secret_subconfig_name(app_id: int):
+            # 1-20, 21-40, 41-60, ......
+            count_boundary = app_id // BkCollectorComp.SECRET_APPLICATION_CONFIG_MAX_COUNT
+            min_boundary = count_boundary * BkCollectorComp.SECRET_APPLICATION_CONFIG_MAX_COUNT + 1
+            max_boundary = (count_boundary + 1) * BkCollectorComp.SECRET_APPLICATION_CONFIG_MAX_COUNT
+            return BkCollectorComp.SECRET_SUBCONFIG_APM_NAME.format(min_boundary, max_boundary)
+
+        def subconfig_filename(app_id: int):
+            return BkCollectorComp.SECRET_APPLICATION_CONFIG_FILENAME_NAME.format(app_id)
+
+        def find_secrets_in_boundary(_secrets: client.V1SecretList, app_id: int):
+            """
+            判断 app_id 是否在某个 secrets 的大小边界内，但并不代表该应用的配置一定存在
+            如果存在，则返回 sec 对象
+            如果不存在，则返回 None
+            """
+            for _sec in _secrets.items:
+                if not isinstance(_sec.data, dict):
+                    continue
+
+                splits = _sec.metadata.name.rsplit('-', 2)
+                if len(splits) != 3:
+                    continue
+
+                _, min_boundary, max_boundary = splits
+                if safe_int(min_boundary) <= int(app_id) <= safe_int(max_boundary):
+                    return _sec
+
+        gzip_content = gzip.compress(application_config.encode())
+        b64_content = base64.b64encode(gzip_content)
+
+        bcs_client = BcsKubeClient(cluster_id)
+        secrets = bcs_client.client_request(
+            bcs_client.core_api.list_namespaced_secret,
+            namespace=BkCollectorComp.NAMESPACE,
+            label_selector="component={},template=false,type={},source={}".format(
+                BkCollectorComp.LABEL_COMPONENT_VALUE,
+                BkCollectorComp.LABEL_TYPE_SUB_CONFIG,
+                BkCollectorComp.LABEL_SOURCE_APPLICATION_CONFIG,
+            ),
+        )
+        sec = find_secrets_in_boundary(secrets, self._application.id)
+        if sec is None:
+            # 不存在，则创建
+            logger.info(f"{cluster_id} apm application({self._application.id}) config not exists, create it.")
+            sec = client.V1Secret(
+                type="Opaque",
+                metadata=client.V1ObjectMeta(
+                    name=secret_subconfig_name(self._application.id),
+                    namespace=BkCollectorComp.NAMESPACE,
+                    labels={
+                        "component": BkCollectorComp.LABEL_COMPONENT_VALUE,
+                        "type": BkCollectorComp.LABEL_TYPE_SUB_CONFIG,
+                        "template": "false",
+                        "source": BkCollectorComp.LABEL_SOURCE_APPLICATION_CONFIG,
+                    },
+                ),
+                data={subconfig_filename(self._application.id): b64_content},
+            )
+
+            bcs_client.client_request(
+                bcs_client.core_api.create_namespaced_secret,
+                namespace=BkCollectorComp.NAMESPACE,
+                body=sec,
+            )
+            logger.info(f"{cluster_id} apm application({self._application.id}) config create successful.")
+        else:
+            # 存在，且与已有的数据不一致，则更新
+            logger.info(f"{cluster_id} apm application({self._application.id}) config secrets already exists.")
+            filename = subconfig_filename(self._application.id)
+            need_update = False
+            if isinstance(sec.data, dict):
+                if filename not in sec.data:
+                    logger.info(
+                        f"{cluster_id} apm application({self._application.id}) config not exists, but secret exists."
+                    )
+                    sec.data[filename] = b64_content
+                    need_update = True
+
+                old_content = sec.data.get(filename, "")
+                old_application_config = gzip.decompress(base64.b64decode(old_content)).decode()
+                if old_application_config != application_config:
+                    logger.info(f"{cluster_id} apm application({self._application.id})  config has changed, update it.")
+                    sec.data[filename] = b64_content
+                    need_update = True
+            else:
+                logger.info(
+                    f"{cluster_id} apm application({self._application.id}) config not exists, "
+                    f"secret exists but not valid."
+                )
+                sec.data = {filename: b64_content}
+                need_update = True
+
+            if need_update:
+                bcs_client.client_request(
+                    bcs_client.core_api.patch_namespaced_secret,
+                    name=sec.metadata.name,
+                    namespace=BkCollectorComp.NAMESPACE,
+                    body=sec,
+                )
+                logger.info(f"{cluster_id} apm application({self._application.id}) config update successful.")

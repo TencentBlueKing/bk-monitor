@@ -360,6 +360,11 @@ CELERYBEAT_SCHEDULE = {
         "schedule": crontab(minute="*/10"),
         "enabled": True,
     },
+    "apm_web.tasks.application_create_check": {
+        "task": "apm_web.tasks.application_create_check",
+        "schedule": crontab(minute="*/1"),
+        "enabled": True,
+    },
     "monitor_web.tasks.keep_alive": {
         "task": "monitor_web.tasks.keep_alive",
         "schedule": crontab(),

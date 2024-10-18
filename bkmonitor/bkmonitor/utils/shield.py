@@ -46,7 +46,15 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
         scope_type = shield["scope_type"]
 
         if category in [ShieldCategory.EVENT, ShieldCategory.ALERT]:
-            return dimension_config["_dimensions"]
+            content = dimension_config["_dimensions"]
+            strategy_ids = self.get_strategy_ids(shield)
+            strategy_name = ""
+            if strategy_ids:
+                strategy_name = strategy_id_to_name.get(strategy_ids[0], "")
+            pre_fix = STRATEGY_NAME_TEMPLATE.format(strategy_name.strip()) + " " + _("维度") + ": "
+            if pre_fix:
+                content = pre_fix + content
+            return content
 
         content = ""
         if category == ShieldCategory.DIMENSION:
@@ -98,7 +106,7 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
 
     @staticmethod
     def get_strategy_ids(shield):
-        if shield["category"] != ShieldCategory.STRATEGY:
+        if shield["category"] not in [ShieldCategory.STRATEGY, ShieldCategory.EVENT, ShieldCategory.ALERT]:
             return []
 
         strategy_ids = shield["dimension_config"]["strategy_id"]

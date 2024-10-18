@@ -53,7 +53,7 @@ export default class AiopsChart extends tsc<IProps> {
   @Prop({ default: () => {}, type: Function }) errorMsgFn: (mgs: string) => void;
 
   loadingList: [boolean, boolean] = [false, false];
-  insideList: [boolean, boolean] = [false, false];
+  insideList: [boolean, boolean] = [true, true];
 
   customTimeRange = null;
 
@@ -97,9 +97,8 @@ export default class AiopsChart extends tsc<IProps> {
       <div class='aiops-chart-wrap'>
         {this.panels.map((panel, index) => (
           <div
+            key={index}
             class='aiops-chart-item'
-            onMouseenter={() => this.handleInside(true, index)}
-            onMouseleave={() => this.handleInside(false, index)}
           >
             {this.loadingList[index] && (
               <img

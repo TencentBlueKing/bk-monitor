@@ -13,7 +13,7 @@ from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
 from constants.alert import EventSeverity
-from constants.apm import OtlpKey, SpanKindKey
+from constants.apm import OtlpKey, SpanKindKey, TelemetryDataType
 
 GLOBAL_CONFIG_BK_BIZ_ID = 0
 DEFAULT_EMPTY_NUMBER = 0
@@ -21,6 +21,13 @@ COLLECT_SERVICE_CONFIG_KEY = "collect_service"
 DEFAULT_NO_DATA_PERIOD = 10  # minute
 DEFAULT_DIMENSION_DATA_PERIOD = 5  # minute
 NODATA_ERROR_STRATEGY_CONFIG_KEY = "nodata_error_strategy_id"
+
+nodata_error_strategy_config_mapping = {
+    TelemetryDataType.TRACE.value: "nodata_error_strategy_id",
+    TelemetryDataType.METRIC.value: "nodata_error_metric_strategy_id",
+    TelemetryDataType.LOG.value: "nodata_error_log_strategy_id",
+    TelemetryDataType.PROFILING.value: "nodata_error_profiling_strategy_id",
+}
 
 DEFAULT_APM_APP_QPS = 500
 
@@ -148,7 +155,7 @@ class CategoryEnum:
             {
                 "id": cls.DB,
                 "name": cls.get_label_by_key(cls.DB),
-                "icon": "icon-DB",
+                "icon": "icon-shujuku",
             },
             {
                 "id": cls.MESSAGING,
@@ -163,7 +170,7 @@ class CategoryEnum:
             {
                 "id": cls.OTHER,
                 "name": cls.get_label_by_key(cls.OTHER),
-                "icon": "icon-zidingyi",
+                "icon": "icon-mc-service-unknown",
             },
         ]
 
@@ -180,6 +187,25 @@ class CategoryEnum:
             return cls.MESSAGING
         return cls.OTHER
 
+    @classmethod
+    def list_span_keys(cls):
+        """获取所有分类字段"""
+        return [
+            SpanAttributes.DB_SYSTEM,
+            SpanAttributes.MESSAGING_SYSTEM,
+            SpanAttributes.RPC_SYSTEM,
+            SpanAttributes.HTTP_METHOD,
+            SpanAttributes.MESSAGING_DESTINATION,
+        ]
+
+    @classmethod
+    def list_component_generate_keys(cls):
+        """获取 APM 手动处理(手动生成服务节点)的字段"""
+        return [
+            SpanAttributes.DB_SYSTEM,
+            SpanAttributes.MESSAGING_SYSTEM,
+        ]
+
 
 class CalculationMethod:
     # 错误率
@@ -194,6 +220,8 @@ class CalculationMethod:
     INSTANCE_COUNT = "instance_count"
     # 健康度
     APDEX = "apdex"
+    # 耗时 Bucket
+    DURATION_BUCKET = "duration_bucket"
 
     # 服务间调用错误率
     SERVICE_FLOW_ERROR_RATE = "service_flow_error_rate"
@@ -254,7 +282,6 @@ class Status:
 class DataStatus:
     NORMAL = "normal"
     NO_DATA = "no_data"
-    STOP = "stop"
     DISABLED = "disabled"
 
     @classmethod
@@ -262,7 +289,6 @@ class DataStatus:
         return {
             cls.NORMAL: _("正常"),
             cls.NO_DATA: _("无数据"),
-            cls.STOP: _("已停止"),
             cls.DISABLED: _("未开启"),
         }.get(key, key)
 
@@ -271,8 +297,21 @@ class DataStatus:
         return {
             cls.NORMAL: {"type": Status.SUCCESS, "text": cls.get_label_by_key(key)},
             cls.NO_DATA: {"type": Status.FAILED, "text": cls.get_label_by_key(key)},
-            cls.STOP: {"type": Status.DISABLED, "text": cls.get_label_by_key(key)},
         }.get(key, {"type": Status.FAILED, "text": cls.get_label_by_key(key)})
+
+
+class StorageStatus:
+    NORMAL = "normal"
+    ERROR = "error"
+    DISABLED = "disabled"
+
+    @classmethod
+    def get_label_by_key(cls, key: str):
+        return {
+            cls.NORMAL: _("正常"),
+            cls.ERROR: _("异常"),
+            cls.DISABLED: _("未开启"),
+        }.get(key, key)
 
 
 class ServiceStatus(EventSeverity):
@@ -878,3 +917,26 @@ OPERATOR_MAP = {"=": "equal", "!=": "not_equal", "exists": "exists", "does not e
 DEFAULT_MAX_VALUE = 10000
 
 DEFAULT_SPLIT_SYMBOL = "--"
+
+
+class ApmCacheKey:
+    """一些 APM 的缓存 Key"""
+
+    # 存放应用下服务的数据状态
+    APP_SERVICE_STATUS_KEY = "apm:application:{application_id}:service_data_status"
+
+
+class LogIndexSource:
+    """服务日志的数据关联来源"""
+
+    HOST = "host"
+    RELATION = "relation"
+    CUSTOM_REPORT = "custom_report"
+
+    @classmethod
+    def get_source_label(cls, key):
+        return {
+            cls.HOST: "主机关联",
+            cls.RELATION: "关联配置",
+            cls.CUSTOM_REPORT: "自定义上报",
+        }.get(key, key)

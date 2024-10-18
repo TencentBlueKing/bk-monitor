@@ -1456,7 +1456,8 @@ class DimensionUnifyQuery(Resource):
             "type": "dimension",
             "scenario": "os",
             "params": {
-                "data_label": query_config["data_label"],
+                # query_config 未必都有这个字段： data_label
+                "data_label": query_config.get("data_label", ""),
                 "data_source_label": query_config["data_source_label"],
                 "data_type_label": query_config["data_type_label"],
                 "result_table_id": query_config["table"],
@@ -1466,6 +1467,9 @@ class DimensionUnifyQuery(Resource):
                 "interval": 600,
                 "field": request_params["dimension_field"],
                 "metric_field": query_config["metrics"][0]["field"],
+                "index_set_id": query_config.get("index_set_id", None),
+                "query_string": query_config.get("query_string", ""),
+                "filter_dict": query_config.get("filter_dict", {}),
             },
         }
         return resource.grafana.get_variable_value(params)

@@ -29,7 +29,9 @@ import Vue from 'vue';
 import cursor from './cursor';
 import EnClass from './en-class';
 import EnStyle from './en-style';
+import LogDrag from './log-drag';
 
 Vue.directive('cursor', cursor);
 Vue.use(EnStyle);
 Vue.use(EnClass);
+Vue.use(LogDrag);

@@ -1,20 +1,20 @@
 .strategy-view-dimensions-component {
   display: flex;
   flex-wrap: wrap;
-  padding: 0 14px;
+  row-gap: 10px;
+  column-gap: 12px;
+  padding: 0 14px 8px;
 
   .dimensions-panel-item {
     display: flex;
+    flex: 1;
+    flex-basis: 170px;
     align-items: center;
     height: 24px;
-    margin-right: 5px;
     line-height: 24px;
 
-    &:not(:last-child) {
-      margin-bottom: 10px;
-    }
-
     .item-title {
+      flex-shrink: 0;
       padding: 0 10px;
       cursor: pointer;
       background: #f0f1f5;
@@ -22,11 +22,18 @@
       border-radius: 2px 0px 0px 2px;
     }
 
+    .item-content {
+      flex: 1;
+      flex-basis: 100px;
+      flex-shrink: 0;
+    }
+
     .item-content-select {
       min-width: 100px;
       margin-left: -1px;
     }
   }
+
   .bk-select.is-default-trigger.is-unselected:before,
   .bk-select-small .bk-select-angle {
     z-index: 1;

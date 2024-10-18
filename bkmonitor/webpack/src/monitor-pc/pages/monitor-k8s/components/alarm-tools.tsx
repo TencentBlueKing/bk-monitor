@@ -36,6 +36,7 @@ interface IAlarmToolProps {
   panel?: PanelModel;
   filters?: Record<string, any>;
   variables?: Record<string, any>;
+  isShowStrategy?: boolean;
 }
 @Component
 export default class AlarmTools extends tsc<IAlarmToolProps> {
@@ -44,6 +45,7 @@ export default class AlarmTools extends tsc<IAlarmToolProps> {
   /** 目标主机、节点数据 */
   @Prop() filters: Record<string, any>;
   @Prop() variables: Record<string, any>;
+  @Prop({ default: true }) isShowStrategy: boolean;
 
   /** 告警数 */
   alarmNum = 0;
@@ -170,14 +172,16 @@ export default class AlarmTools extends tsc<IAlarmToolProps> {
   render() {
     return (
       <div class='alarm-tools'>
-        <span
-          class='alarm-tools-strategy'
-          v-bk-tooltips={{ content: this.$t('策略'), delay: 200, boundary: 'window', placement: 'bottom' }}
-          onClick={() => this.handleToStrategyListAndEvnetCenter()}
-        >
-          <i class='icon-monitor icon-mc-strategy tool-icon' />
-          {this.strategyNum}
-        </span>
+        {this.isShowStrategy ? (
+          <span
+            class='alarm-tools-strategy'
+            v-bk-tooltips={{ content: this.$t('策略'), delay: 200, boundary: 'window', placement: 'bottom' }}
+            onClick={() => this.handleToStrategyListAndEvnetCenter()}
+          >
+            <i class='icon-monitor icon-mc-strategy tool-icon' />
+            {this.strategyNum}
+          </span>
+        ) : null}
         <span
           class={`alarm-tools-alarm ${!this.alarmNum ? 'is-disabled' : ''}`}
           v-bk-tooltips={{

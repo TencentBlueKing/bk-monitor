@@ -42,7 +42,21 @@ export class UseTopoChart {
     this.initEvents();
   }
 
+  /** 获取触发缩放事件时鼠标相对于目标元素的位置 */
+  getMousePositionByTargetEl(event: WheelEvent) {
+    const { left, top } = this.containerHtml?.getBoundingClientRect() || { left: 0, top: 0 };
+    return { x: event.clientX - left, y: event.clientY - top };
+  }
+
+  /** 获取缩放钱鼠标相对于图片原始比例（缩放为1）时的位置 */
+  getSourcePosition(mousePosition: { x: number; y: number; [key: string]: any }) {
+    const unscaledMouseX = (mousePosition.x - this.imgX) / this.scale;
+    const unscaledMouseY = (mousePosition.y - this.imgY) / this.scale;
+    return { unscaledMouseX, unscaledMouseY };
+  }
+
   initEvents() {
+    this.imageHtml?.style.setProperty('transform-origin', '0 0');
     this.containerHtml?.addEventListener('mousedown', (event: MouseEvent) => {
       event.preventDefault();
       this.isDragging = true;
@@ -66,9 +80,13 @@ export class UseTopoChart {
     /** 缩放图片 */
     this.containerHtml?.addEventListener('wheel', (event: WheelEvent) => {
       event.preventDefault();
+      const mousePosition = this.getMousePositionByTargetEl(event);
+      const { unscaledMouseX, unscaledMouseY } = this.getSourcePosition(mousePosition);
       this.scale += event.deltaY * -this.zoomSpeed;
       this.scale = Math.max(this.scale, 1); // 设置最小缩放限制
       this.scale = Math.min(this.scale, 50); // 设置最大缩放限制
+      this.imgX = mousePosition.x - unscaledMouseX * this.scale;
+      this.imgY = mousePosition.y - unscaledMouseY * this.scale;
       this.updateImageTransform();
     });
   }

@@ -32,7 +32,6 @@ import StrategyIpv6 from 'monitor-pc/pages/strategy-config/strategy-ipv6/strateg
 
 import documentLinkMixin from '../../../mixins/documentLinkMixin';
 
-import type { ICreateAppFormData } from '../../home/app-list';
 import type { IDescData, ThemeType } from './select-card-item';
 import type { IIpV6Value, INodeType } from 'monitor-pc/components/monitor-ip-selector/typing';
 
