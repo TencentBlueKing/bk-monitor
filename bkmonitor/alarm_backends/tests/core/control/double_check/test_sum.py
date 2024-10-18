@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 """
 import json
 
-import fakeredis
 import mock
 import pytest
 from django.conf import settings
@@ -193,14 +192,14 @@ class TestSumDoubleCheck:
                             "metric_field": "idle",
                             "agg_dimension": ["ip", "bk_cloud_id"],
                             "id": 2,
-                            "agg_method": "SUM",
+                            "agg_method": "COUNT",
                             "agg_condition": [],
                             "agg_interval": 60,
                             "result_table_id": "system.cpu_detail",
                             "unit": "%",
                             "data_type_label": "time_series",
                             "metric_id": "bk_monitor.system.cpu_detail.idle",
-                            "data_source_label": "bk_apm",
+                            "data_source_label": "bk_monitor",
                         }
                     ],
                 },

@@ -54,7 +54,7 @@ export const handleRelateAlert = (panel: PanelModel, timeRange: string[]) => {
   }
   let queryString = '';
   for (const metricId of Object.keys(metricIdMap)) {
-    queryString += `${queryString.length ? ' or ' : ''}指标ID : ${metricId}`;
+    queryString += `${queryString.length ? ' OR ' : ''}指标ID : ${metricId}`;
   }
   let promqlString = '';
   for (const promql of promqlSet) {

@@ -81,6 +81,7 @@ class BkLogDelimiterEtlStorage(EtlStorage):
             "separator_node_name": self.separator_node_name,
             "separator": etl_params["separator"],
             "etl_flat": etl_params.get("etl_flat", False),
+            "enable_retain_content": etl_params.get("enable_retain_content", False),
         }
 
         if built_in_config.get("option") and isinstance(built_in_config["option"], dict):

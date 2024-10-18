@@ -69,26 +69,44 @@
       }
     }
 
-    .arrow-wrap {
-      width: 26px;
-      height: 26px;
-      margin-left: 1px;
-      font-size: 12px;
-      line-height: 26px;
-      color: #979ba5;
-      text-align: center;
-      background-color: transparent;
+    .select-trigger {
+      display: flex;
+      cursor: pointer;
       border-radius: 2px;
+
+      .item-name {
+        padding-left: 5px;
+        cursor: pointer;
+      }
 
       &:hover {
         background-color: #f0f1f5;
       }
 
       &.active {
-        color: #3a84ff;
+
         background-color: #e1ecff;
-        transform: rotateZ(180deg);
+
+        .arrow-wrap {
+          color: #3a84ff;
+          transform: rotateZ(180deg);
+        }
+
+        .item-name {
+          color: #3a84ff;
+        }
       }
+    }
+
+    .arrow-wrap {
+      width: 26px;
+      height: 26px;
+      font-size: 12px;
+      line-height: 26px;
+      color: #979ba5;
+      text-align: center;
+      background-color: transparent;
+      border-radius: 2px;
     }
 
     .skeleton-element {

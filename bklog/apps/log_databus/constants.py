@@ -339,6 +339,10 @@ class EtlConfig(object):
     CUSTOM = "custom"
 
 
+class MetadataType(object):
+    PATH = "path"
+
+
 class EtlConfigChoices(ChoicesEnum):
     _choices_labels = (
         (EtlConfig.BK_LOG_TEXT, _("直接入库")),

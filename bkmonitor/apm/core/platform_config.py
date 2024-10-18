@@ -267,7 +267,8 @@ class PlatformConfig(BkCollectorConfig):
         return {
             "name": "token_checker/aes256",
             "resource_key": "bk.data.token",
-            "type": "aes256WithMeta|fixed",
+            "type": "aes256",
+            "version": "v2",
             "salt": settings.BK_DATA_TOKEN_SALT,
             "decoded_key": x_key,
             "decoded_iv": settings.BK_DATA_AES_IV.decode()
@@ -293,7 +294,7 @@ class PlatformConfig(BkCollectorConfig):
             "from_cache": {
                 "key": "resource.net.host.ip",
                 "dimensions": ["k8s.namespace.name", "k8s.pod.name", "k8s.pod.ip", "k8s.bcs.cluster.id"],
-                "cache": {"key": "k8s.pod.ip", "url": "http://bkmonitor-operator-stack-operator:8080/pods"},
+                "cache": {"key": "k8s.pod.ip", "url": f"http://{settings.K8S_OPERATOR_SERVICE_NAME}:8080/pods"},
             },
         }
 
