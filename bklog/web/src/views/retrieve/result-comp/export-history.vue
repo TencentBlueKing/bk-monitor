@@ -368,15 +368,15 @@
           window.open($row.download_url);
           return;
         }
-        this.openDownloadUrl($row.search_dict);
+        this.openDownloadUrl({...$row.search_dict, log_index_set_id: $row.log_index_set_id });
         this.startStatusPolling();
       },
       retryExport($row) {
         // 异常任务直接异步下载
         if ($row.export_type === 'sync') {
-          this.openDownloadUrl($row.search_dict);
+          this.openDownloadUrl({...$row.search_dict, log_index_set_id: $row.log_index_set_id });
         } else {
-          this.downloadAsync($row.search_dict);
+          this.downloadAsync({...$row.search_dict, log_index_set_id: $row.log_index_set_id });
         }
         this.startStatusPolling();
       },
