@@ -26,6 +26,7 @@
 import { Component, Ref, Prop, Watch, Emit, Provide } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import axios from 'axios';
 import { serviceList, serviceListAsync } from 'monitor-api/modules/apm_metric';
 import { commonPageSizeSet, commonPageSizeGet } from 'monitor-common/utils';
 import { Debounce } from 'monitor-common/utils/utils';
@@ -85,6 +86,8 @@ export default class ApmServiceList extends tsc<
 
   /** 初次请求 */
   firstRequest = true;
+
+  cancelTokenSource = null;
 
   /** 服务表格数据 */
   tableData: IAPMService[] = [];
@@ -268,7 +271,9 @@ export default class ApmServiceList extends tsc<
       condition_list: [],
       view_mode: 'page_home',
     };
-    const { columns, data, total, filter } = await serviceList(params)
+    this.cancelTokenSource?.cancel?.();
+    this.cancelTokenSource = axios.CancelToken.source();
+    const { columns, data, total, filter } = await serviceList(params, { cancelToken: this.cancelTokenSource.token })
       .catch(() => {
         return {
           columns: [],
@@ -311,13 +316,16 @@ export default class ApmServiceList extends tsc<
       name: item.name,
     }));
     for (const field of fields) {
-      serviceListAsync({
-        app_name: this.appName,
-        start_time: startTime,
-        end_time: endTime,
-        column: field,
-        service_names: services,
-      }).then(serviceData => {
+      serviceListAsync(
+        {
+          app_name: this.appName,
+          start_time: startTime,
+          end_time: endTime,
+          column: field,
+          service_names: services,
+        },
+        { cancelToken: this.cancelTokenSource.token }
+      ).then(serviceData => {
         this.mapAsyncData(serviceData, field, valueTitleList);
       });
     }
