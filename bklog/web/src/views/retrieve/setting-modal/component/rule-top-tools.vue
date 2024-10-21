@@ -278,6 +278,7 @@
   import * as authorityMap from '@/common/authority-map';
   import FromAddInput from './from-input';
   import TemplateOption from './template-option';
+  import dayjs from 'dayjs';
   export default {
     components: {
       FromAddInput,
@@ -530,15 +531,7 @@
           return;
         }
         const eleLink = document.createElement('a');
-
-        const date = new Date();
-        const Y = `${date.getFullYear()}`;
-        const M = `${date.getMonth() + 1 < 10 ? `0${date.getMonth() + 1}` : date.getMonth() + 1}`;
-        const D = `${date.getDate()}`;
-        const h = `${date.getHours()}`;
-        const m = `${date.getMinutes()}`;
-        const s = date.getSeconds();
-        const time = `${Y}${M}${D}${h}${m}${s}`;
+        const time = `${dayjs().format('YYYYMMDDHHmmss')}`;
         eleLink.download = filename || `bk_log_search_download_${time}.json`;
         eleLink.style.display = 'none';
         const jsonStr = this.rulesList.reduce((pre, cur, index) => {
