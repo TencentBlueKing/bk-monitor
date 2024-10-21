@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 import json
 import re
 from collections import defaultdict
-from typing import Optional
+from typing import Optional, List
 
 from django.conf import settings
 from django.db import transaction
@@ -89,6 +89,7 @@ from apps.log_search.models import (
     Space,
     StorageClusterRecord,
     UserIndexSetFieldsConfig,
+    UserIndexSetCustomConfig,
 )
 from apps.log_search.tasks.mapping import sync_single_index_set_mapping_snapshot
 from apps.log_search.tasks.sync_index_set_archive import sync_index_set_archive
@@ -1721,3 +1722,56 @@ class IndexSetFieldsConfigHandler(object):
 
     def delete(self):
         IndexSetFieldsConfig.delete_config(self.config_id)
+
+
+class UserIndexSetConfigHandler(object):
+    def __init__(
+            self,
+            index_set_id: int = None,
+            index_set_ids: List[int] = None,
+            index_set_type: str = IndexSetType.SINGLE.value,
+    ):
+        self.index_set_id = index_set_id
+        self.index_set_ids = index_set_ids
+        self.index_set_type = index_set_type
+        # 对列表进行排序
+        if self.index_set_ids:
+            self.index_set_ids.sort()
+
+    def update_or_create(self, index_set_config: dict):
+        """
+        更新或创建用户索引集自定义配置
+        :param index_set_config: 索引集配置
+        """
+        if self.index_set_type == IndexSetType.SINGLE.value:
+            model_params = {"index_set_id": self.index_set_id}
+            index_set_id = self.index_set_id
+        elif self.index_set_type == IndexSetType.UNION.value:
+            model_params = {"index_set_ids": self.index_set_ids}
+            index_set_id = self.index_set_ids
+
+        index_set_hash = UserIndexSetCustomConfig.get_index_set_hash(index_set_id)
+        model_params.update({"index_set_config": index_set_config})
+
+        obj, _ = UserIndexSetCustomConfig.objects.update_or_create(
+            username=get_request_username(),
+            index_set_hash=index_set_hash,
+            defaults=model_params,
+        )
+        return model_to_dict(obj)
+
+    def get_index_set_config(self):
+        """
+        获取用户索引集配置
+        """
+        if self.index_set_type == IndexSetType.SINGLE.value:
+            index_set_id = self.index_set_id
+        elif self.index_set_type == IndexSetType.UNION.value:
+            index_set_id = self.index_set_ids
+
+        index_set_hash = UserIndexSetCustomConfig.get_index_set_hash(index_set_id)
+        obj = UserIndexSetCustomConfig.objects.filter(
+            index_set_hash=index_set_hash,
+            username=get_request_username(),
+        ).first()
+        return obj.index_set_config if obj else {}
