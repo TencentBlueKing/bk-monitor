@@ -36,7 +36,7 @@ from apps.log_databus.constants import (
     CACHE_KEY_CLUSTER_INFO,
     FIELD_TEMPLATE,
     EtlConfig,
-    MetadataType,
+    MetadataTypeEnum,
 )
 from apps.log_databus.exceptions import (
     EtlParseTimeFieldException,
@@ -623,7 +623,7 @@ class EtlStorage(object):
                     "field_name": field_name,
                     "field_type": "string",
                     "option": {
-                        "metadata_type": MetadataType.PATH,
+                        "metadata_type": MetadataTypeEnum.PATH.value,
                         "es_doc_values": True,
                         "es_type": "keyword",
                         "field_index": etl_field_index,

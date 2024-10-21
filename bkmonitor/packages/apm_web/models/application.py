@@ -639,13 +639,13 @@ class Application(AbstractRecordModel):
                 ResourceEnum.APM_APPLICATION.create_simple_instance(self.application_id, {"bk_biz_id": self.bk_biz_id}),
                 creator=self.update_user,
             )
-            Application.authorization_to_maintainers.delay(self.application_id)
+            Application.authorization_to_maintainers.delay(self.update_user, self.application_id)
         except Exception as e:  # pylint: disable=broad-except
             logger.warning("application->({}) grant creator action failed, reason: {}".format(self.application_id, e))
 
     @staticmethod
     @task()
-    def authorization_to_maintainers(app_id):
+    def authorization_to_maintainers(creator, app_id):
         """给业务的负责人授权"""
         logger.info(f"[authorization_to_maintainers] grant app_id: {app_id}")
         application = Application.get_application_by_app_id(app_id)
@@ -655,7 +655,7 @@ class Application(AbstractRecordModel):
         except Exception as e:
             raise ValueError("get maintainers failed with error: %s", e)
 
-        permission = Permission()
+        permission = Permission(username=creator)
         for user in list(maintainers):
             permission.grant_creator_action(
                 ResourceEnum.APM_APPLICATION.create_simple_instance(app_id, {"bk_biz_id": application.bk_biz_id}),

@@ -18,7 +18,6 @@ from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
 from elasticsearch_dsl import Q
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
@@ -329,7 +328,7 @@ class LogDataSource(ApmDataSourceConfigBase):
                         "category_id": "application_check",
                         # 兼容集群不支持冷热配置
                         "allocation_min_days": 0,
-                        "description": _("APM 应用日志自定义上报") + f"(BkBizId: {bk_biz_id} AppName: {app_name})",
+                        "description": f"APM({app_name})",
                         **storage_params,
                     }
                 )
