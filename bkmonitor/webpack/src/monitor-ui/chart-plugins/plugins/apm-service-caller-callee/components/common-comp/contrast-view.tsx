@@ -92,6 +92,7 @@ export default class ContrastView extends tsc<IProps> {
       }
       this.checkboxGroupValue = checkboxGroupValue;
       this.dateTime = dateTime;
+      this.showCustom = !!dateTime.length;
     }
   }
 
