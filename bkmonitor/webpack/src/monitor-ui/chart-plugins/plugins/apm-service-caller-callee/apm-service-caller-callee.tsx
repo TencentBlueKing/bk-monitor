@@ -46,6 +46,10 @@ import './apm-service-caller-callee.scss';
 export default class ApmServiceCallerCallee extends tsc<object> {
   // 筛选具体的key list
   searchListData = SEARCH_KEY_LIST;
+  /* 已选的对比日期 */
+  contrastDates = [];
+  /* 已选的groupBy */
+  groupBy = [];
   filterData = {
     // 主调筛选值
     caller: JSON.parse(JSON.stringify(DEFAULT_FILTER)),
@@ -106,6 +110,14 @@ export default class ApmServiceCallerCallee extends tsc<object> {
     this.filterData[this.activeKey].find(item => item.label === key).values = [row[key]];
   }
 
+  /**
+   * @description 对比日期选择
+   * @param val
+   */
+  handleContrastDatesChange(val: string[]) {
+    this.contrastDates = val;
+  }
+
   changeFilterData({ val, item }) {
     console.log(val, item);
   }
@@ -123,7 +135,13 @@ export default class ApmServiceCallerCallee extends tsc<object> {
     this.tableColData = [...this.dateData, ...this.diffTypeData];
   }
   handleGroupFilter() {}
-  handleGroupChange() {}
+  /**
+   * @description groupBy 数据
+   * @param val
+   */
+  handleGroupChange(val: string[]) {
+    this.groupBy = val;
+  }
 
   handleChoosePoint(date) {
     if (this.filterDataList.findIndex(item => item.label === 'time') !== -1) {
@@ -150,10 +168,13 @@ export default class ApmServiceCallerCallee extends tsc<object> {
           </div>
           <div class='caller-callee-right'>
             <CallerCalleeContrast
+              contrastDates={this.contrastDates}
+              groupBy={this.groupBy}
               searchList={this.searchListData}
-              onChangeDate={this.changeDate}
-              onCheck={this.handleCheck}
-              onGroupChange={this.handleGroupChange}
+              // onChangeDate={this.changeDate}
+              // onCheck={this.handleCheck}
+              onContrastDatesChange={this.handleContrastDatesChange}
+              onGroupByChange={this.handleGroupChange}
               onGroupFilter={this.handleGroupFilter}
             />
           </div>
