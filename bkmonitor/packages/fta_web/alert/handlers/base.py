@@ -288,9 +288,8 @@ class BaseQueryHandler:
         处理 query_string
         """
         query_string = self.query_string if query_string is None else query_string
-        query_string, stage_conditions = process_stage_string(query_string)
+        query_string = process_stage_string(query_string)
 
-        search_object = self.add_conditions(search_object, stage_conditions)
         if query_string.strip():
             query_dsl = self.query_transformer.transform_query_string(query_string)
             if isinstance(query_dsl, str):
@@ -414,7 +413,7 @@ class BaseQueryHandler:
 
         if actual_field.startswith("tags."):
             # tags 标签需要做嵌套查询
-            tag_key = actual_field[len("tags.") :]
+            tag_key = actual_field[len("tags."):]
 
             # 进行桶聚合
             new_search_object = (
