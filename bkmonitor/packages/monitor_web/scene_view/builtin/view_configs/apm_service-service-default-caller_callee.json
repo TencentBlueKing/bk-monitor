@@ -5,7 +5,7 @@
   "name": "主被调",
   "variables": [],
   "panels": [],
-  "1_overview_panels": [
+  "overview_panels": [
     {
       "id": 1,
       "title": "CallerCallee",
@@ -19,7 +19,7 @@
       }
     }
   ],
-  "overview_panels": [
+  "extra_panels": [
     {
       "id": "caller",
       "title": "主调",
