@@ -1,82 +1,101 @@
-.group-by-view {
-  width: 100%;
-  height: 100%;
+/* stylelint-disable declaration-no-important */
+.apm-service-caller-callee-group-by-view {
   display: flex;
   align-items: center;
+  width: 100%;
+  height: 100%;
+  padding-left: 16px;
+
   .ml-8 {
     margin-left: 8px;
   }
+
+  .bk-tag {
+    margin-left: 8px;
+  }
+
   .group-by-add {
     display: inline-block;
     width: 22px;
     height: 22px;
+    margin-left: 12px;
+    line-height: 20px;
+    color: #979ba5;
+    text-align: center;
+    cursor: pointer;
     background: #ffffff;
     border: 1px solid #c4c6cc;
     border-radius: 2px;
-    cursor: pointer;
-    text-align: center;
-    color: #979ba5;
-    line-height: 20px;
-    margin-left: 12px;
   }
+
   .limit-selector {
-    margin-left: 24px;
     display: flex;
     align-items: center;
+    margin-left: 24px;
   }
+
   .group-by-select {
+    position: relative;
     width: 150px;
     height: 32px;
-    line-height: 32px;
-    border-bottom: 1px solid #dddfe6;
-    text-align: left;
     padding: 0 20px 0 5px;
     overflow: hidden;
+    line-height: 32px;
+    text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
     cursor: pointer;
-    position: relative;
+    border-bottom: 1px solid #dddfe6;
+
     .icon-arrow-down {
+      position: absolute;
+      top: 2px;
+      right: 2px;
       font-size: 20px;
       color: #979ba5;
-      position: absolute;
-      right: 2px;
-      top: 2px;
     }
   }
+
   .group-by-tag-view {
     margin-right: 4px;
   }
 }
-.group-by-selector {
+
+.apm-service-caller-callee-group-by-selector {
   .tippy-tooltip {
     padding: 3px 0 !important;
   }
-}
-.group-by-select-list {
-  width: 150px;
-  height: 300px;
-  overflow: auto;
-  background: #fff;
-  .group-by-select-item {
-    cursor: pointer;
-    height: 30px;
-    line-height: 30px;
-    padding: 0 8px 0 12px;
-    position: relative;
-    &:hover {
-      background: #e1ecff;
-      color: #3a84ff;
-    }
-    &.active {
-      color: #3a84ff;
-      background: #f4f6fa;
-      .icon-mc-check-small {
+
+  .group-by-select-list {
+    width: 150px;
+    height: 300px;
+    overflow: auto;
+    background: #fff;
+
+    .group-by-select-item {
+      position: relative;
+      height: 30px;
+      padding: 0 8px 0 12px;
+      line-height: 30px;
+      cursor: pointer;
+
+      &:hover {
         color: #3a84ff;
-        font-size: 20px;
-        position: absolute;
-        right: 5px;
+        background: #e1ecff;
+      }
+
+      &.active {
+        color: #3a84ff;
+        background: #f4f6fa;
+
+        .icon-mc-check-small {
+          position: absolute;
+          right: 5px;
+          font-size: 20px;
+          color: #3a84ff;
+        }
       }
     }
   }
 }
+

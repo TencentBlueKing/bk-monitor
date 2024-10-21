@@ -24,52 +24,113 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { EPreDateType } from '../../type';
+
 import './contrast-view.scss';
+
+interface IProps {
+  value?: string[];
+  onChange?: (val: string[]) => void;
+}
 @Component({
   name: 'ContrastView',
   components: {},
 })
-export default class ContrastView extends tsc<object> {
+export default class ContrastView extends tsc<IProps> {
+  @Prop({ type: Array, default: () => [] }) value: string[];
+  localValue = [];
+  /* 预设日期 */
   checkboxGroupValue = [];
+  /* 日期选择器时间 */
   initDateTime = '';
+  /* 是否显示时间选择器 */
   isShowPicker = false;
+  /* 是否显示添加按钮 */
+  showCustom = false;
+  /* 日期选择器禁用配置 */
   pickerOptions = {
     disabledDate: this.setDisabledDate,
   };
+  /* 日期选择器展开状态 */
+  datePickOpen = false;
+  /* 自定义日期tag */
   dateTime = [];
+  /* 预设日期 */
   typeList = [
     {
       label: this.$t('昨天'),
-      value: 'yesterday',
+      value: EPreDateType.yesterday,
     },
     {
-      label: this.$t('前1周'),
-      value: 'week',
+      label: this.$t('上周'),
+      value: EPreDateType.lastWeek,
     },
   ];
-  handleAdd() {
-    if (!this.isDateAdd) {
-      this.isShowPicker = !this.isShowPicker;
-      this.initDateTime = '';
-    }
-  }
-  @Emit('clear')
-  handleClose(item) {
-    this.dateTime = this.dateTime.filter(date => date !== item);
-    return this.handleFormateDate();
-  }
-  /** 设置日历组件禁用时间 */
-  setDisabledDate(date) {
-    return date && date.valueOf() > Date.now();
-  }
+
   get isChooseDateOrType() {
     return this.checkboxGroupValue.length === 1 && this.dateTime.length === 1;
   }
   get isDateAdd() {
     return this.checkboxGroupValue.length === 2 || this.dateTime.length === 2 || this.isChooseDateOrType;
+  }
+  @Watch('value', { immediate: true })
+  handleWatchValue(value) {
+    if (JSON.stringify(value) !== JSON.stringify(this.localValue)) {
+      this.localValue = value;
+      const typeList = this.typeList.map(item => item.value);
+      const checkboxGroupValue = [];
+      const dateTime = [];
+      for (const item of value) {
+        if (typeList.includes(item)) {
+          checkboxGroupValue.push(item);
+        } else {
+          dateTime.push(item);
+        }
+      }
+      this.checkboxGroupValue = checkboxGroupValue;
+      this.dateTime = dateTime;
+      this.showCustom = !!dateTime.length;
+    }
+  }
+
+  @Emit('change')
+  handleChange() {
+    const result = [];
+    for (const item of this.checkboxGroupValue) {
+      result.push(item);
+    }
+    for (const item of this.dateTime) {
+      result.push(item);
+    }
+    this.localValue = result;
+    return result;
+  }
+  /**
+   * @description 展开日期选择器
+   */
+  handleAdd() {
+    if (!this.isDateAdd) {
+      this.isShowPicker = !this.isShowPicker;
+      this.initDateTime = '';
+      this.$nextTick(() => {
+        this.datePickOpen = true;
+      });
+    }
+  }
+  /**
+   * @description 删除自定义日期
+   * @param item
+   */
+  handleClose(item) {
+    this.dateTime = this.dateTime.filter(date => date !== item);
+    this.handleChange();
+  }
+  /** 设置日历组件禁用时间 */
+  setDisabledDate(date) {
+    return date && date.valueOf() > Date.now();
   }
 
   disabledCheck(key) {
@@ -88,21 +149,39 @@ export default class ContrastView extends tsc<object> {
     return dateArr;
   }
 
-  @Emit('changeDate')
+  /* 日期选择器选择 */
   changePicker(date) {
     this.isShowPicker = false;
     date && this.dateTime.push(date);
-    return this.handleFormateDate();
+    this.handleChange();
   }
-  @Emit('check')
+
+  /* 选择预设日期 */
   handleCheckboxChange() {
-    const typeList = this.typeList.filter(item => this.checkboxGroupValue.includes(item.value));
-    return typeList;
+    this.handleChange();
+  }
+  /**
+   * @description 自定义日期显示
+   * @param v
+   */
+  handleShowCustomChange(v: boolean) {
+    this.showCustom = v;
+    if (!v) {
+      this.dateTime = [];
+      this.isShowPicker = false;
+    }
+  }
+  /**
+   * @description 日期选择器展开
+   * @param state
+   */
+  handleOpenChange(state) {
+    this.datePickOpen = state;
   }
 
   render() {
     return (
-      <div class='contrast-view'>
+      <div class='apm-service-caller-callee-contrast-view'>
         <bk-checkbox-group
           class='contrast-view-checkbox-group'
           v-model={this.checkboxGroupValue}
@@ -111,6 +190,10 @@ export default class ContrastView extends tsc<object> {
           {this.typeList.map(item => (
             <bk-checkbox
               key={item.value}
+              v-bk-tooltips={{
+                disabled: !this.isDateAdd || !this.disabledCheck(item.value),
+                content: this.$t('最多选择不超过两个日期'),
+              }}
               disabled={this.disabledCheck(item.value)}
               label={item.value}
             >
@@ -119,7 +202,12 @@ export default class ContrastView extends tsc<object> {
           ))}
         </bk-checkbox-group>
         <div class='contrast-custom'>
-          <span>{this.$t('自定义日期')}</span>
+          <bk-checkbox
+            value={this.showCustom}
+            onChange={this.handleShowCustomChange}
+          >
+            {this.$t('自定义日期')}
+          </bk-checkbox>
           {this.dateTime.map(
             item =>
               !!item && (
@@ -132,17 +220,26 @@ export default class ContrastView extends tsc<object> {
                 </bk-tag>
               )
           )}
-          <span
-            class={['contrast-custom-add', { disabled: this.isDateAdd }]}
-            onClick={this.handleAdd}
-          >
-            <i class='icon-monitor icon-plus-line' />
-          </span>
+          {!this.isShowPicker && this.showCustom ? (
+            <span
+              class={['contrast-custom-add', { disabled: this.isDateAdd }]}
+              v-bk-tooltips={{
+                disabled: !this.isDateAdd,
+                content: this.$t('最多选择不超过两个日期'),
+              }}
+              onClick={this.handleAdd}
+            >
+              <i class='icon-monitor icon-plus-line' />
+            </span>
+          ) : undefined}
           {this.isShowPicker && (
             <bk-date-picker
               class='custom-date-picker'
               v-model={this.initDateTime}
+              behavior='simplicity'
+              open={this.datePickOpen}
               options={this.pickerOptions}
+              on-open-change={this.handleOpenChange}
               onChange={this.changePicker}
             />
           )}

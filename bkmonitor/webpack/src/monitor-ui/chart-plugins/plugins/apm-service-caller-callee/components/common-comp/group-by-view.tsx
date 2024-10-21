@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Emit } from 'vue-property-decorator';
+import { Component, Prop, Emit, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { LIMIT_TYPE_LIST } from '../../utils';
@@ -34,9 +34,10 @@ import type { IServiceConfig } from '../../type';
 import './group-by-view.scss';
 interface IGroupByViewProps {
   searchList: IServiceConfig[];
+  groupBy?: string[];
 }
 interface IGroupByViewEvent {
-  onChange: () => void;
+  onChange?: (val: string[]) => void;
 }
 @Component({
   name: 'GroupByView',
@@ -44,95 +45,154 @@ interface IGroupByViewEvent {
 })
 export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEvent> {
   @Prop({ required: true, type: Array, default: () => [] }) searchList: IServiceConfig[];
-  limitTypeList = LIMIT_TYPE_LIST;
+  @Prop({ type: Array, default: () => [] }) groupBy: string[];
+
+  /* groupBy已选项tag */
+  groupBySelectedTags: IServiceConfig[] = [];
+  /* groupBy已选项key */
+  groupBySelectedKey = [];
+  /* groupBy可选项  */
+  groupByList: IServiceConfig[] = [];
+  /* 是否显示选择器 */
   isShowPicker = false;
-  changedValue = [];
+
+  limitTypeList = LIMIT_TYPE_LIST;
   limitFilter = {
     value: '10',
     position: 'top',
     key: 'request',
   };
   limitType = 1;
-  handleAdd() {
-    this.isShowPicker = true;
+
+  @Watch('groupBy', { immediate: true })
+  handleWatchGroupBy() {
+    if (JSON.stringify(this.groupBySelectedKey) !== JSON.stringify(this.groupBy)) {
+      this.groupBySelectedKey = [...this.groupBy];
+      const groupByTags = [];
+      const groupBySet = new Set(this.groupBy);
+      this.groupByList = this.searchList.map(item => {
+        const checked = groupBySet.has(item.label);
+        if (checked) {
+          groupByTags.push(item);
+        }
+        return {
+          ...item,
+          checked: checked,
+        };
+      });
+      this.groupBySelectedTags = groupByTags;
+    }
+  }
+
+  @Watch('searchList', { immediate: true })
+  handleWatchSearchList() {
+    const groupBySet = new Set(this.groupBy);
+    this.groupByList = this.searchList.map(item => ({
+      ...item,
+      checked: groupBySet.has(item.label),
+    }));
   }
   @Emit('change')
+  emitChange() {
+    return this.groupBySelectedKey;
+  }
+
   handleChange() {
-    this.isShowPicker = false;
-    return {
-      value: this.changedValue,
-      data: this.showKeyList,
-    };
-  }
-  get showKeyList() {
-    return this.searchList.filter(item => this.changedValue.includes(item.label)).map(item => item.name);
-  }
-  // 选中key值
-  chooseSelect(item) {
-    const { label } = item;
-    const isHas = this.changedValue.includes(label);
-    if (isHas) {
-      this.changedValue = this.changedValue.filter(val => val !== label);
-    } else {
-      this.changedValue.push(label);
+    const groupByKey = [];
+    const groupByTags = [];
+    for (const item of this.groupByList) {
+      if (item.checked) {
+        groupByKey.push(item.label);
+        groupByTags.push(item);
+      }
     }
-    this.changedValue = [...new Set(this.changedValue)];
+    this.groupBySelectedKey = groupByKey;
+    this.groupBySelectedTags = groupByTags;
   }
-  renderTagView() {
-    const len = this.showKeyList.length;
-    if (len > 2) {
-      const list = this.showKeyList.slice(0, 2);
-      return (
-        <div>
-          {list.map(item => (
-            <bk-tag key={item}>{item}</bk-tag>
-          ))}
-          <bk-tag v-bk-tooltips={this.showKeyList.slice(2).join('、')}> +{len - 2}</bk-tag>
-        </div>
-      );
-    }
-    return this.showKeyList.map(item => <bk-tag key={item}>{item}</bk-tag>);
-  }
+
   @Emit('filter')
   handleChangeLimit() {
     return this.limitFilter;
   }
+  /**
+   * @description 展示选择器
+   */
+  handleAdd() {
+    this.isShowPicker = true;
+  }
+  /**
+   * @description 选中
+   * @param item
+   */
+  chooseSelect(item) {
+    item.checked = !item.checked;
+    this.handleChange();
+  }
+  /* 收起groupBy选择 */
+  handleHide() {
+    this.isShowPicker = false;
+    this.emitChange();
+  }
+
+  renderTagView() {
+    const len = this.groupBySelectedTags.length;
+    if (len > 2) {
+      const list = this.groupBySelectedTags.slice(0, 2);
+      return (
+        <div>
+          {list.map(item => (
+            <bk-tag key={item.label}>{item.name}</bk-tag>
+          ))}
+          <bk-tag
+            v-bk-tooltips={this.groupBySelectedTags
+              .slice(2)
+              .map(item => item.name)
+              .join('、')}
+          >
+            {' '}
+            +{len - 2}
+          </bk-tag>
+        </div>
+      );
+    }
+    return this.groupBySelectedTags.map(item => <bk-tag key={item.label}>{item.name}</bk-tag>);
+  }
+
   render() {
     return (
-      <div class='group-by-view'>
+      <div class='apm-service-caller-callee-group-by-view'>
         <div class='group-by-tag-view'>
-          {!this.isShowPicker && this.changedValue.length > 0 && this.renderTagView()}
+          {!this.isShowPicker && this.groupBySelectedKey.length > 0 && this.renderTagView()}
         </div>
         {this.isShowPicker ? (
           <bk-popover
-            ext-cls='group-by-selector'
+            ext-cls='apm-service-caller-callee-group-by-selector'
             arrow={false}
             placement='bottom'
             theme='light'
             trigger='click'
-            onHide={this.handleChange}
+            onHide={this.handleHide}
           >
             <div
               class='group-by-select'
-              title={this.showKeyList.join(',')}
+              title={this.groupBySelectedTags.map(item => item.name).join(',')}
             >
-              {this.showKeyList.join(',')}
+              {this.groupBySelectedTags.map(item => item.name).join(',')}
               <i class='icon-monitor icon-arrow-down' />
             </div>
             <div
               class='group-by-select-list'
               slot='content'
             >
-              {this.searchList.map(option => {
-                const isActive = this.changedValue.includes(option.label);
+              {this.groupByList.map(option => {
                 return (
                   <div
                     key={option.label}
-                    class={['group-by-select-item', { active: isActive }]}
+                    class={['group-by-select-item', { active: option.checked }]}
                     onClick={() => this.chooseSelect(option)}
                   >
                     {option.name}
-                    {isActive && <i class='icon-monitor icon-mc-check-small' />}
+                    {option.checked && <i class='icon-monitor icon-mc-check-small' />}
                   </div>
                 );
               })}
@@ -146,7 +206,7 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
             <i class='icon-monitor icon-plus-line' />
           </span>
         )}
-        {this.changedValue.length > 0 && !this.isShowPicker && (
+        {this.groupBySelectedKey.length > 0 && !this.isShowPicker && (
           <div class='limit-selector'>
             <span>limit</span>
             <bk-select
