@@ -150,6 +150,14 @@ export const alarmBarChartDataTransform = (dataType: EDataType, series: any[]) =
   );
 };
 
+function toFixedSixDecimalPlaces(num: number) {
+  const result = num * 100;
+  if (result < 1 && result > 0) {
+    return `${Number.parseFloat(result.toFixed(4))}%`;
+  }
+  return `${result.toFixed(2)}%`;
+}
+
 export const getAlarmItemStatusTips = (dataType: EDataType, item: IAlarmDataItem) => {
   if (dataType === EDataType.Alert) {
     const textMap = {
@@ -176,9 +184,9 @@ export const getAlarmItemStatusTips = (dataType: EDataType, item: IAlarmDataItem
     };
   }
   const textMap = {
-    [EAlarmType.green]: `${window.i18n.tc('错误率')}：${(item.value * 100).toFixed(2)}%`,
-    [EAlarmType.yellow]: `${window.i18n.tc('错误率')}：${(item.value * 100).toFixed(2)}%`,
-    [EAlarmType.red]: `${window.i18n.tc('错误率')}：${(item.value * 100).toFixed(2)}%`,
+    [EAlarmType.green]: `${window.i18n.tc('错误率')}：${toFixedSixDecimalPlaces(item.value)}%`,
+    [EAlarmType.yellow]: `${window.i18n.tc('错误率')}：${toFixedSixDecimalPlaces(item.value)}%`,
+    [EAlarmType.red]: `${window.i18n.tc('错误率')}：${toFixedSixDecimalPlaces(item.value)}%`,
     [EAlarmType.gray]: window.i18n.t('无请求数据'),
   };
   return {

@@ -67,6 +67,14 @@ class PrePlugin(Plugin):
     def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
         raise NotImplementedError
 
+    @property
+    def metric_params(self):
+        return {
+            "application": self._runtime["application"],
+            "start_time": self._runtime["start_time"],
+            "end_time": self._runtime["end_time"],
+        }
+
     @classmethod
     def diff(cls, attrs, other_attrs):
         """获取对比信息"""
@@ -292,25 +300,6 @@ class EdgeDurationP50(DurationUnitMixin, ValuesPluginMixin, PrePlugin):
     metric: Type[MetricHandler] = functools.partial(
         ServiceFlowDurationBucket,
         group_by=["from_apm_service_name", "to_apm_service_name"],
-        functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.5"}]}],
-    )
-
-    def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
-        return self.get_instance_values_mapping()
-
-    @classmethod
-    def _ignore_keys(cls):
-        return ["le"]
-
-
-@PluginProvider.pre_plugin
-@dataclass
-class EdgeDurationP50(DurationUnitMixin, ValuesPluginMixin, PrePlugin):
-    id: str = TopoEdgeDataType.DURATION_P50.value
-    type: GraphPluginType = GraphPluginType.EDGE
-    metric: Type[MetricHandler] = functools.partial(
-        ServiceFlowDurationBucket,
-        group_by=["from_apm_service_name", "to_apm_service_name"],
         functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.50"}]}],
     )
 
@@ -358,6 +347,25 @@ class EdgeDurationP99(DurationUnitMixin, ValuesPluginMixin, PrePlugin):
     @classmethod
     def _ignore_keys(cls):
         return ["le"]
+
+
+@PluginProvider.pre_plugin
+@dataclass
+class EdgeErrorCount(PrePlugin, ValuesPluginMixin):
+    """边错误数"""
+
+    id: str = TopoEdgeDataType.ERROR_COUNT.value
+    type: GraphPluginType = GraphPluginType.EDGE
+    metric: Type[MetricHandler] = ServiceFlowCount
+
+    def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
+        return self.get_instance_values_mapping(
+            group_by=["from_apm_service_name", "to_apm_service_name"],
+            where=[
+                {"key": "from_span_error", "method": "eq", "value": ["true"]},
+                {"condition": "or", "key": "to_span_error", "method": "eq", "value": ["true"]},
+            ],
+        )
 
 
 @PluginProvider.pre_plugin
@@ -637,7 +645,7 @@ class NodeErrorRateCaller(PrePlugin, ValuesPluginMixin):
             total_count = attr[self.id]
             caller_count = caller_error_mapping.get(node, {}).get(self.id, 0)
 
-            res[node] = {self.id: round((caller_count / total_count), 2) if total_count else None}
+            res[node] = {self.id: round((caller_count / total_count), 6) if total_count else None}
 
         return res
 
@@ -661,7 +669,7 @@ class NodeErrorRateCallee(PrePlugin, ValuesPluginMixin):
             total_count = attr[self.id]
             callee_count = callee_error_mapping.get(node, {}).get(self.id, 0)
 
-            res[node] = {self.id: round((callee_count / total_count) if total_count else None, 2)}
+            res[node] = {self.id: round((callee_count / total_count) if total_count else None, 6)}
 
         return res
 
@@ -684,13 +692,13 @@ class NodeErrorRateFull(PrePlugin, ValuesPluginMixin):
             total_count = attr[self.id]
             error_count = error_mapping.get(node, {}).get(self.id, 0)
 
-            res[node] = {self.id: round((error_count / total_count) if total_count else None, 2)}
+            res[node] = {self.id: round((error_count / total_count) if total_count else None, 6)}
 
         return res
 
     def get_total_error_count_mapping(self):
         values_mapping = self.metric(
-            **self._runtime,
+            **self.metric_params,
             **{
                 "group_by": ["from_apm_service_name", "to_apm_service_name", "from_span_error", "to_span_error"],
                 "where": [
@@ -757,7 +765,7 @@ class ErrorCountStatusCodeMixin(PrePlugin, ValuesPluginMixin):
 
         # Step1: 查询总错误数
         values_mapping = self.metric(
-            **self._runtime,
+            **self.metric_params,
             **{"group_by": [group_key], "where": [{"key": where_key, "method": "eq", "value": ["true"]}]},
         ).get_instance_values_mapping()
         for k, attrs in values_mapping.items():
@@ -773,7 +781,7 @@ class ErrorCountStatusCodeMixin(PrePlugin, ValuesPluginMixin):
     def get_status_code_mapping(self, group_specific_key, group_key, where_key, metric_key):
         res = defaultdict(lambda: defaultdict(int))
         values_mapping = self.metric(
-            **self._runtime,
+            **self.metric_params,
             **{
                 "group_by": [group_key, group_specific_key],
                 "where": [
@@ -1102,7 +1110,7 @@ class NodeApdex(PrePlugin):
 
         # Step1: 计算服务节点的 Apdex
         response = self.metric(
-            **self._runtime,
+            **self.metric_params,
             **{
                 "group_by": [
                     OtlpKey.get_metric_dimension_key("resource.service.name"),
@@ -1115,7 +1123,7 @@ class NodeApdex(PrePlugin):
 
         # Step2: 计算组件节点的 Apdex
         component_response = self.metric(
-            **self._runtime,
+            **self.metric_params,
             **{
                 "group_by": [
                     OtlpKey.get_metric_dimension_key("resource.service.name"),
@@ -1140,7 +1148,7 @@ class NodeApdex(PrePlugin):
 
         # Step3: 计算自定义服务节点的 Apdex
         custom_service_response = self.metric(
-            **self._runtime, **{"group_by": [OtlpKey.get_metric_dimension_key("attributes.peer.service")]}
+            **self.metric_params, **{"group_by": [OtlpKey.get_metric_dimension_key("attributes.peer.service")]}
         ).get_instance_calculate_values_mapping(
             ignore_keys=[OtlpKey.get_metric_dimension_key(OtlpKey.STATUS_CODE), Apdex.DIMENSION_KEY]
         )
@@ -1348,8 +1356,8 @@ class NodeColor(PostPlugin):
         WHITE = "#DCDEE5"
 
     def process(self, data_type, edge_data_type, node_data, graph):
-        # 如果节点无数据 那么颜色就是灰色
-        if not node_data.get(NodeHaveData.id):
+        # 如果数据类型不是告警并且节点无数据 那么颜色就是灰色
+        if data_type != BarChartDataType.Alert.value and not node_data.get(NodeHaveData.id):
             node_data[self.id] = self.Color.WHITE
             return
 
@@ -1790,6 +1798,7 @@ class TableViewConverter(ViewConverter):
             EdgeAvgDuration,
             EdgeRequestCount,
             EdgeErrorRate,
+            EdgeErrorCount,
         ]
     )
 
@@ -1821,7 +1830,13 @@ class TableViewConverter(ViewConverter):
             },
             {
                 "id": "request_count",
-                "name": "调用数",
+                "name": "请求数",
+                "sortable": "custom",
+                "type": "number",
+            },
+            {
+                "id": "error_count",
+                "name": "错误数",
                 "sortable": "custom",
                 "type": "number",
             },
@@ -1914,7 +1929,8 @@ class TableViewConverter(ViewConverter):
             if f"_{TopoEdgeDataType.DURATION_AVG.value}" in attrs
             else None,
             "request_count": attrs.get(TopoEdgeDataType.REQUEST_COUNT.value),
-            "error_rate": attrs.get(TopoEdgeDataType.ERROR_RATE.value),
+            "error_count": attrs.get(EdgeErrorCount.id),
+            "error_rate": attrs.get(EdgeErrorRate.id),
             "operators": operators,
         }
 
@@ -2026,17 +2042,14 @@ class ServiceNameFilter(Filter):
         if not filter_service_name:
             return nodes, edges
 
-        valid_nodes = set()
         new_nodes, new_edges = [], []
 
         for k, v, attrs in edges:
             if k == filter_service_name or v == filter_service_name:
                 new_edges.append((k, v, attrs))
-                valid_nodes.add(k)
-                valid_nodes.add(v)
 
         for node_id, attrs in nodes:
-            if node_id in valid_nodes:
+            if node_id == filter_service_name:
                 new_nodes.append((node_id, attrs))
 
         return new_nodes, new_edges

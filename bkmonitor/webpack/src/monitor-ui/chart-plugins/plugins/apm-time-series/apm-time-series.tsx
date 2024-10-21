@@ -113,7 +113,7 @@ export default class ApmTimeSeries extends TimeSeries {
   }
 
   tooltipsContentLastItem(params) {
-    if (this.panel.options?.apm_time_series?.sceneType === 'overview' && this.apmMetric === EDataType.requestCount) {
+    if (this.apmMetric === EDataType.requestCount) {
       try {
         let count = 0;
         for (const p of params) {
@@ -238,7 +238,7 @@ export default class ApmTimeSeries extends TimeSeries {
       }
       await Promise.all(promiseList).catch(() => false);
       this.metrics = metrics || [];
-      if (series.length) {
+      if (series.length && series?.some(s => !!s?.datapoints?.length)) {
         const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
         /* 派出图表数据包含的维度*/
         this.emitDimensions(series);
@@ -251,8 +251,6 @@ export default class ApmTimeSeries extends TimeSeries {
             return [JSON.parse(point[0])?.anomaly_score ?? point[0], point[1]];
           }),
         }));
-        const xAxisList = Array.from(xAxisSet).sort();
-        console.info(xAxisList);
         const isBar = this.panel.options?.time_series?.type === 'bar';
         let seriesList = this.handleTransformSeries(
           seriesResult.map((item, index) => ({

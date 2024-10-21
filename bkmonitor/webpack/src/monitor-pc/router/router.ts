@@ -82,6 +82,7 @@ const router = new VueRouter({
   routes,
 });
 export const isAuthority = async (page: string | string[]) => {
+  if (!page) return true;
   const data: { isAllowed: boolean }[] = await authorityStore.checkAllowedByActionIds({
     action_ids: Array.isArray(page) ? page : [page],
   });
@@ -99,7 +100,7 @@ const specialReportRouteList = [
   'new-dashboard',
   'import-dashboard',
   'folder-dashboard',
-  'grafana-datasource',
+  'grafana-admin',
 ];
 router.beforeEach(async (to, from, next) => {
   store.commit('app/SET_PADDING_ROUTE', to);

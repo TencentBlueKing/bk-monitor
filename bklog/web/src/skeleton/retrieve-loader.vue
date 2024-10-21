@@ -76,6 +76,10 @@
         type: Boolean,
         required: false,
       },
+      isNewSearch: {
+        type: Boolean,
+        default: false,
+      },
     },
     data() {
       return {
@@ -88,21 +92,27 @@
         return new Array(this.loaderLen).fill('');
       },
       columnField() {
+        const visibleTable = !this.visibleFields.length
+          ? Array(3).fill({ width: '', minWidth: 0 })
+          : this.visibleFields;
         return this.isOriginalField
           ? [
               { width: 160, minWidth: 0, field_name: 'time' },
               { width: '', minWidth: 0, field_name: 'log' },
             ]
-          : this.visibleFields;
+          : visibleTable;
+      },
+      loaderClassName() {
+        return this.isNewSearch ? '.result-table-container' : '.result-scroll-container';
       },
     },
     mounted() {
       if (this.isLoading) this.loaderLen = 12;
-      const ele = document.querySelector('.result-scroll-container');
+      const ele = document.querySelector(this.loaderClassName);
       if (ele) ele.addEventListener('scroll', this.handleScroll);
     },
     beforeDestroy() {
-      const ele = document.querySelector('.result-scroll-container');
+      const ele = document.querySelector(this.loaderClassName);
       if (ele) ele.removeEventListener('scroll', this.handleScroll);
     },
     methods: {
@@ -115,7 +125,7 @@
           return;
         }
 
-        const el = document.querySelector('.result-scroll-container');
+        const el = document.querySelector(this.loaderClassName);
         if (el.scrollHeight - el.offsetHeight - el.scrollTop < 100) {
           this.throttle = true;
           setTimeout(() => {

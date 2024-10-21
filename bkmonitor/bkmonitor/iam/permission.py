@@ -116,11 +116,17 @@ class Permission(object):
 
     @classmethod
     def get_iam_client(cls):
-        app_info = (settings.APP_CODE, settings.SECRET_KEY)
+        app_code, secret_key = settings.APP_CODE, settings.SECRET_KEY
         if settings.ROLE in ["api", "worker"]:
             # 后台api模式下使用SaaS身份
-            app_info = (settings.SAAS_APP_CODE, settings.SAAS_SECRET_KEY)
-        return CompatibleIAM(*app_info, settings.BK_IAM_INNER_HOST, settings.BK_COMPONENT_API_URL)
+            app_code, secret_key = settings.SAAS_APP_CODE, settings.SAAS_SECRET_KEY
+
+        bk_apigateway_url = (
+            settings.IAM_API_BASE_URL
+            if settings.IAM_API_BASE_URL
+            else f"{settings.BK_COMPONENT_API_URL}/api/bk-iam/prod/"
+        )
+        return CompatibleIAM(app_code, secret_key, settings.BK_IAM_INNER_HOST, None, bk_apigateway_url)
 
     def grant_creator_action(self, resource: Resource, creator: str = None, raise_exception=False):
         """

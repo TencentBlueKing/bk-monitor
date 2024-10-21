@@ -36,6 +36,7 @@ import {
   toRefs,
   watch,
   KeepAlive,
+  onUnmounted,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
@@ -45,8 +46,10 @@ import { Checkbox, Dialog, Loading, Popover, Radio, Table } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/index';
 import { listOptionValues, spanDetail, traceDetail } from 'monitor-api/modules/apm_trace';
 import { random } from 'monitor-common/utils/utils';
+import { echartsDisconnect } from 'monitor-ui/monitor-echarts/utils';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
+import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import transformTraceTree from '../../../components/trace-view/model/transform-trace-data';
 import { formatDate, formatDuration, formatTime } from '../../../components/trace-view/utils/date';
@@ -60,7 +63,6 @@ import InterfaceStatistics from './interface-statistics';
 import ServiceStatistics from './service-statistics';
 import SimpleList from './simple-list/simple-list';
 import TraceDetail from './trace-detail';
-import TableSkeleton from '../../../components/skeleton/table-skeleton';
 
 import type { PanelModel } from '../../../plugins/typings';
 import type { IAppItem, ISpanListItem, ITraceListItem } from '../../../typings';
@@ -132,6 +134,10 @@ export default defineComponent({
     appList: {
       type: Array as PropType<IAppItem[]>,
       default: () => [],
+    },
+    traceColumnFilters: {
+      type: Object as PropType<Record<string, string[]>>,
+      default: () => {},
     },
   },
   emits: [
@@ -776,6 +782,10 @@ export default defineComponent({
     const chartList = computed<PanelModel[]>(() => searchStore.chartPanelList);
     const isListLoading = computed<boolean>(() => store.loading);
 
+    onUnmounted(() => {
+      echartsDisconnect(searchStore.dashboardId);
+    });
+
     watch(
       () => route.query,
       () => {
@@ -966,9 +976,9 @@ export default defineComponent({
     }
     function handleSourceData() {
       const { appList, appName } = props;
-      const appId = appList.find(app => app.app_name === appName)?.application_id || '';
-      if (appId) {
-        const hash = `#/apm/application/config/${appId}?active=dataStatus`;
+      const name = appList.find(app => app.app_name === appName)?.app_name || '';
+      if (name) {
+        const hash = `#/apm/application/config/${name}?active=dataStatus`;
         const url = location.href.replace(location.hash, hash);
         window.open(url, '_blank');
       }
@@ -989,7 +999,13 @@ export default defineComponent({
       selectedInterfaceStatisticsType.value.length = 0;
       selectedServiceStatisticsType.value.length = 0;
       // 表头筛选重置
-      columnFilters.value = {};
+      const filters = (props.traceColumnFilters[v] || []).filter(item => item.value?.length > 0) || [];
+      const columnFiltersValue = filters.reduce((acc, item) => {
+        acc[item.key] = item.value;
+        return acc;
+      }, {});
+
+      columnFilters.value = filters.length > 0 ? columnFiltersValue : {};
       store.resetTable();
       emit('listTypeChange');
       getFilterValues();

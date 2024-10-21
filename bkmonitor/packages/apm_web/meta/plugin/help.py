@@ -8,39 +8,43 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import copy
 import os
-from collections import defaultdict
+import typing
 
-from apm_web.meta.plugin.plugin import DeploymentEnum, LanguageEnum
+from jinja2 import Environment, FileSystemLoader, Template
+
+from .context_manager.base import FieldManager, ScopeType
+from .plugin import LanguageEnum
 
 
 class Help:
-    help_md_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "help_md")
+    help_md_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "help_md_new")
 
-    def __init__(self, plugin_id):
-        self._plugin_id = plugin_id
+    def __init__(self, context: typing.Dict[str, typing.Any]):
+        self.env: Environment = Environment(loader=FileSystemLoader(searchpath=self.help_md_path))
+        self.context: typing.Dict[str, str] = context
+        self.context.update(FieldManager.get_context(ScopeType.OPEN.value))
 
-    def get_help_md(self):
-        help_md_map = {}
-        for file, content in self.scan_help_md():
-            help_md_map[file] = content
+    def get_help_md(self, plugin_id: str, language: str, deployment_id: str) -> str:
 
-        result = defaultdict(dict)
-        for language in LanguageEnum.get_values():
-            for deployment in DeploymentEnum.get_values():
-                result[language.id][deployment.id] = help_md_map.get(
-                    f"{self._plugin_id}.{language.id}.{deployment.id}",
-                    help_md_map.get(f"{self._plugin_id}.{language.id}.{deployment.category.id}", ""),
-                )
-        return result
+        context: typing.Dict[str, typing.Any] = copy.deepcopy(self.context)
+        if language == LanguageEnum.GOLANG.id:
+            # Go OTLP SDK 不能传 schema，OT SDK 设计如此，所以引导也不加
+            context["access_config"]["otlp"]["endpoint"] = context["access_config"]["otlp"]["endpoint"].replace(
+                "http://", ""
+            )
+            context["access_config"]["otlp"]["http_endpoint"] = context["access_config"]["otlp"][
+                "http_endpoint"
+            ].replace("http://", "")
 
-    def scan_help_md(self):
-        for file in os.listdir(self.help_md_path):
-            if file.startswith(self._plugin_id):
-                yield file.replace(".md", ""), self.load_md_file(file.replace(".md", ""))
+        rendered_context: typing.Dict[str, str] = {}
+        for field, val in context.items():
+            if isinstance(val, str):
+                # 对 string 字段先渲染一遍
+                val = Template(val).render(context)
+            rendered_context[field] = val
 
-    @classmethod
-    def load_md_file(cls, filename):
-        file_path = os.path.join(cls.help_md_path, f"{filename}.md")
-        with open(file_path, "r", encoding="utf8") as f:
-            return f.read()
+        filename: str = f"{plugin_id}.{language}.{deployment_id}.md"
+        template: Template = self.env.get_template(filename)
+        return template.render(rendered_context)

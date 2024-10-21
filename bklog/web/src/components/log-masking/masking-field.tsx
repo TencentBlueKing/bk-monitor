@@ -343,7 +343,7 @@ export default class MaskingField extends tsc<IProps> {
   }
 
   getFieldIcon(fieldType) {
-    return fieldTypeMap[fieldType] ? fieldTypeMap[fieldType].icon : 'log-icon icon-unkown';
+    return fieldTypeMap[fieldType] ? fieldTypeMap[fieldType].icon : 'bklog-icon bklog-unkown';
   }
   /** 获取字段列表样式 */
   getFieldItemStyle(fieldItem: IFieldItem) {
@@ -744,7 +744,7 @@ export default class MaskingField extends tsc<IProps> {
       [
         h('span', this.$t('脱敏规则')),
         h('span', {
-          class: 'log-icon icon-brush',
+          class: 'bklog-icon bklog-brush',
           directives: [
             {
               name: 'bk-tooltips',
@@ -755,7 +755,7 @@ export default class MaskingField extends tsc<IProps> {
             click: this.handleClearRule,
           },
         }),
-        h('span', { class: ['log-icon icon-double-arrow', { 'is-show-sync': this.isShowSyncBtn }] }),
+        h('span', { class: ['bklog-icon bklog-double-arrow', { 'is-show-sync': this.isShowSyncBtn }] }),
         h(
           'span',
           {
@@ -779,7 +779,7 @@ export default class MaskingField extends tsc<IProps> {
       [
         h('span', this.$t('脱敏预览')),
         h('span', {
-          class: 'log-icon icon-info-fill',
+          class: 'bklog-icon bklog-info-fill',
           directives: [
             {
               name: 'bk-tooltips',
@@ -1269,7 +1269,7 @@ export default class MaskingField extends tsc<IProps> {
                 onMouseleave={() => this.handleLeaveRow()}
               >
                 <i
-                  class={['field-type-icon', this.getFieldIcon(item.field_type) || 'log-icon icon-unkown']}
+                  class={['field-type-icon', this.getFieldIcon(item.field_type) || 'bklog-icon bklog-unkown']}
                   v-bk-tooltips={{
                     content: fieldTypeMap[item.field_type]?.name,
                     disabled: !fieldTypeMap[item.field_type],

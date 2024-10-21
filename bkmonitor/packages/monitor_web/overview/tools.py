@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import datetime
+from collections import defaultdict
 from typing import Any, Dict, List, Union
 
 import arrow
@@ -19,13 +20,12 @@ from bkm_space.errors import NoRelatedResourceError
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.models import StrategyModel
 from bkmonitor.utils.common_utils import host_key
-from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from bkmonitor.utils.time_tools import hms_string, localtime, now
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from monitor_web.models import CollectConfigMeta
 from monitor_web.models.uptime_check import UptimeCheckNode, UptimeCheckTask
-from monitor_web.uptime_check.constants import BEAT_STATUS
+from monitor_web.uptime_check.constants import BEAT_STATUS, UPTIME_CHECK_DB
 
 
 class MonitorStatus(object):
@@ -364,25 +364,70 @@ class UptimeCheckMonitorInfo(BaseMonitorInfo):
                 task_id__notice_data_map[task["id"]] = task_data
 
     def normal_info(self):
-        # 按需取字段，在字段均命中索引时 DB 查询无需回表，同时数据行数多的情况下也能加速返回
+        # 1. 按需取字段，在字段均命中索引时 DB 查询无需回表，同时数据行数多的情况下也能加速返回
         task_list: List[Dict[str, Any]] = list(
             # 默认取100条拨测任务
             UptimeCheckTask.objects.filter(bk_biz_id=self.bk_biz_id)
-            .values("id", "name")
+            .values("id", "name", "protocol", "config")
             .order_by("-id")[:100]
         )
 
-        # bksql 不支持 __in lookup，考虑到单个请求耗时较短（< 30ms），此处采用多线程并发调用降低整体请求耗时
-        task_id__notice_data_map: Dict[int, Dict[str, Any]] = {}
-        task_id__warning_data_map: Dict[int, Dict[str, Any]] = {}
-        th_list: List[InheritParentThread] = [
-            InheritParentThread(
-                target=self.collect_task_datas, args=(task, task_id__notice_data_map, task_id__warning_data_map)
+        # 2. 拼接查询拨测任务可用率的promql语句
+        protocol_map_task_id = defaultdict(list)
+        for task in task_list:
+            protocol_map_task_id[task["protocol"].lower()].append(str(task["id"]))
+        period = task_list[0]["config"].get("period", 60) if len(task_list) > 0 else 60
+        base_query = (
+            "min by (task_id) "
+            "(min_over_time(bkmonitor:{uptime_check_db}:{protocol}:available{{task_id=~'{task_ids}'}}"
+            "[{period}s]))"
+        )
+        queries = [
+            base_query.format(
+                uptime_check_db=UPTIME_CHECK_DB, protocol=protocol, task_ids="|".join(task_ids), period=period
             )
-            for task in task_list
+            for protocol, task_ids in protocol_map_task_id.items()
         ]
-        run_threads(th_list)
+        promql = " or ".join(queries)
 
+        # 3. 根据promql查询某个node_id最近一个采集周期内的拨测任务可用率
+        interval = 60
+        now = arrow.utcnow().timestamp
+        data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
+        data_source = data_source_class(
+            bk_biz_id=self.bk_biz_id,
+            promql=promql,
+            interval=interval,
+        )
+        query = UnifyQuery(bk_biz_id=self.bk_biz_id, data_sources=[data_source], expression="")
+        datas = query.query_data(start_time=(now - interval) * 1000, end_time=now * 1000)
+
+        # 4. 根据获取到的拨测任务可用率分类组合拨测任务列表
+        warning_tasks = []
+        notice_tasks = []
+        for task in task_list:
+            for data in datas:
+                if str(task["id"]) == data["task_id"]:
+                    task_available = data["_result_"] * 100
+                    if task_available < 60:
+                        warning_tasks.append(
+                            {
+                                "task_id": task["id"],
+                                "task_name": task["name"],
+                                "available": task_available,
+                            }
+                        )
+                    elif task_available < 80:
+                        notice_tasks.append(
+                            {
+                                "task_id": task["id"],
+                                "task_name": task["name"],
+                                "available": task_available,
+                            }
+                        )
+                    break
+
+        # 5. 获取外部运营商的数量
         carrieroperator_count: int = (
             UptimeCheckNode.objects.filter(Q(bk_biz_id=self.bk_biz_id) | Q(is_common=True))
             .values("carrieroperator")
@@ -392,8 +437,8 @@ class UptimeCheckMonitorInfo(BaseMonitorInfo):
 
         return {
             "single_supplier": carrieroperator_count == 1,
-            "notice_task": list(task_id__notice_data_map.values()),
-            "warning_task": list(task_id__warning_data_map.values()),
+            "notice_task": notice_tasks,
+            "warning_task": warning_tasks,
         }
 
     def get_task_id(self, alert):

@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
+import datetime
 import logging
 import operator
 import re
 import time
 import typing
 from collections import defaultdict
+from copy import deepcopy
 from functools import reduce
 from itertools import chain, product, zip_longest
 from typing import Any, Callable, Dict, List, Optional, Tuple
-from copy import deepcopy
+
 import arrow
+import pytz
 from django.conf import settings
 from django.db.models import Count, Q, QuerySet
 from django.utils.translation import ugettext_lazy as _
@@ -52,12 +55,15 @@ from bkmonitor.strategy.new_strategy import (
 )
 from bkmonitor.utils.request import get_source_app
 from bkmonitor.utils.time_format import duration_string, parse_duration
+from bkmonitor.utils.user import get_global_user
+from bkmonitor.utils.cache import CacheType
 from constants.alert import EventStatus
 from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.common import SourceApp
 from constants.data_source import DATA_CATEGORY, DataSourceLabel, DataTypeLabel
 from constants.strategy import SPLIT_DIMENSIONS, DataTarget, TargetFieldType
 from core.drf_resource import api, resource
+from core.drf_resource.contrib.cache import CacheResource
 from core.drf_resource.base import Resource
 from core.errors.bkmonitor.data_source import CmdbLevelValidateError
 from core.errors.strategy import StrategyNameExist
@@ -2032,6 +2038,9 @@ class UpdatePartialStrategyV2Resource(Resource):
         更新策略标签
         """
         strategy.labels = labels
+        strategy.save_labels()
+
+        return None, [], []
 
     @staticmethod
     def update_is_enabled(strategy: Strategy, is_enabled: bool):
@@ -2039,6 +2048,7 @@ class UpdatePartialStrategyV2Resource(Resource):
         更新策略启停状态
         """
         strategy.is_enabled = is_enabled
+        return StrategyModel, ["is_enabled"], [strategy.instance]
 
     @staticmethod
     def update_notice_group_list(strategy: Strategy, notice_group_list: List[int]):
@@ -2050,6 +2060,8 @@ class UpdatePartialStrategyV2Resource(Resource):
 
         strategy.notice.user_groups = notice_group_list
 
+        return StrategyActionConfigRelation, ["user_groups"], [action.instance, strategy.notice.instance]
+
     @staticmethod
     def update_trigger_config(strategy: Strategy, trigger_config: Dict):
         """
@@ -2058,12 +2070,16 @@ class UpdatePartialStrategyV2Resource(Resource):
         for detect in strategy.detects:
             detect.trigger_config.update(trigger_config)
 
+        return DetectModel, ["trigger_config"], [detect.instance for detect in strategy.detects]
+
     @staticmethod
     def update_alarm_interval(strategy: Strategy, alarm_interval: int):
         """
         更新通知间隔
         """
         strategy.notice.config["notify_interval"] = alarm_interval * 60
+
+        return StrategyActionConfigRelation, ["config"], [strategy.notice.instance]
 
     @staticmethod
     def update_send_recovery_alarm(strategy: Strategy, send_recovery_alarm: bool):
@@ -2076,6 +2092,8 @@ class UpdatePartialStrategyV2Resource(Resource):
         if not send_recovery_alarm and ActionSignal.RECOVERED in strategy.notice.signal:
             strategy.notice.signal.remove(ActionSignal.RECOVERED)
 
+        return StrategyActionConfigRelation, ["signal"], [strategy.notice.instance]
+
     @staticmethod
     def update_recovery_config(strategy: Strategy, recovery_config: Dict):
         """
@@ -2083,6 +2101,8 @@ class UpdatePartialStrategyV2Resource(Resource):
         """
         for detect in strategy.detects:
             detect.recovery_config = recovery_config
+
+        return DetectModel, ["recovery_config"], [detect.instance for detect in strategy.detects]
 
     @staticmethod
     def update_target(strategy: Strategy, target: List[List[Dict]]):
@@ -2095,11 +2115,16 @@ class UpdatePartialStrategyV2Resource(Resource):
         for item in strategy.items:
             item.target = target
 
+        return ItemModel, ["target"], [item.instance for item in strategy.items]
+
     @staticmethod
     def update_algorithms(strategy: Strategy, algorithms: List[dict]):
         """更新检测算法。"""
         for item in strategy.items:
             item.algorithms = [Algorithm(strategy.id, item.id, **data) for data in algorithms]
+            item.save_algorithms()
+
+        return None, [], []
 
     @staticmethod
     def update_message_template(strategy: Strategy, message_template: str):
@@ -2109,10 +2134,14 @@ class UpdatePartialStrategyV2Resource(Resource):
         for template in strategy.notice.config["template"]:
             template["message_tmpl"] = message_template
 
+        return StrategyActionConfigRelation, ["config"], [strategy.notice.instance]
+
     @staticmethod
     def update_no_data_config(strategy: Strategy, no_data_config: Dict):
         for item in strategy.items:
             UpdatePartialStrategyV2Resource.update_dict_recursive(item.no_data_config, no_data_config)
+
+        return ItemModel, ["no_data_config"], [item.instance for item in strategy.items]
 
     @staticmethod
     def update_notice(strategy: Strategy, notice: Dict):
@@ -2165,6 +2194,13 @@ class UpdatePartialStrategyV2Resource(Resource):
                 }
             )
 
+        strategy.save_notice()
+        return (
+            StrategyActionConfigRelation,
+            ["user_groups", "options"],
+            [action.instance for action in strategy.actions],
+        )
+
     @staticmethod
     def update_actions(strategy: Strategy, actions: List[Dict]):
         new_actions = []
@@ -2184,19 +2220,36 @@ class UpdatePartialStrategyV2Resource(Resource):
 
         strategy.actions = new_actions
 
+        strategy.save_actions()
+        return None, [], []
+
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
         config: Dict = params["edit_data"]
 
         strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=params["ids"])
 
+        updates_data = defaultdict(lambda: {"cls": None, "keys": [], "objs": []})
+        updates_data["update_time"]["cls"] = StrategyModel
+        updates_data["update_time"]["keys"] = ["update_time", "update_user"]
         for strategy in Strategy.from_models(strategies):
             for key, value in config.items():
                 update_method: Callable[[Strategy, Any], None] = getattr(self, f"update_{key}", None)
                 if not update_method:
                     continue
-                update_method(strategy, value)
-            strategy.save()
+                update_cls, update_keys, update_objs = update_method(strategy, value)
+                if update_cls:
+                    updates_data[key]["cls"] = update_cls
+                    updates_data[key]["keys"] = update_keys
+                    updates_data[key]["objs"].extend(update_objs)
+
+            strategy.instance.update_time = datetime.datetime.now(tz=pytz.timezone(settings.TIME_ZONE))
+            strategy.instance.update_user = get_global_user()
+            updates_data["update_time"]["objs"].append(strategy.instance)
+
+        for update_data in updates_data.values():
+            update_data["cls"].objects.bulk_update(update_data["objs"], update_data["keys"])
+
         # 编辑后需要重置AsCode相关配置
         strategies.update(hash="", snippet="")
 
@@ -2276,14 +2329,54 @@ class GetPlainStrategyListV2Resource(Resource):
         }
 
 
-class GetTargetDetail(Resource):
-    """
-    获取监控目标详情
-    """
+class GetTargetDetailWithCache(CacheResource):
+    """获取监控目标详情，具有缓存功能"""
+    backend_cache_type = CacheType.CC_CACHE_ALWAYS
+    cache_user_related = False
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        strategy_ids = serializers.ListField(required=True, label="策略ID列表", child=serializers.IntegerField())
+        strategy_id = serializers.IntegerField(required=True, label="策略ID")
+
+    def perform_request(self, validate_data):
+        """
+        为了获取最佳的性能，在执行request()方法之前，请先执行set_mapping()方法，传入策略和监控目标的映射关系字典，以避免频繁查询数据库。
+        并且请显示使用instance.request()的方式执行perform_request，而非使用instance()方式，
+        使用instance()方式执行时会重新实例化，导致先前执行的set_mapping失效。
+
+        example:
+            >>instance = GetTargetDetailWithCache()
+            >>instance.set_mapping({xxx})
+            >>instance.request(xxx)
+        """
+
+        strategy_id = validate_data["strategy_id"]
+        if not hasattr(self, "strategy_target_mapping"):
+            bk_biz_id = StrategyModel.objects.get(id=strategy_id).bk_biz_id
+            target = ItemModel.objects.get(strategy_id=strategy_id).target
+            logger.warning("Please call set_mapping() before calling perform_request().")
+        else:
+            bk_biz_id = self.strategy_target_mapping[strategy_id][0]
+            target = self.strategy_target_mapping[strategy_id][1]
+
+        return self.get_target_detail(bk_biz_id, target)
+
+    def set_mapping(self, mapping: Dict) -> None:
+        """
+        设置策略和监控目标的映射关系
+        格式:{ strategy_id:(bk_biz_id,target) }
+        """
+
+        if not isinstance(mapping, dict):
+            logging.error("Invalid type for 'mapping'. Expected dict.")
+            raise TypeError("mapping must be a dict.")
+
+        self.strategy_target_mapping = mapping
+
+    def cache_write_trigger(self, target_info: Any) -> bool:
+        """获取到监控目标信息不为None，则进行缓存"""
+        if target_info:
+            return True
+        return False
 
     @classmethod
     def get_target_detail(cls, bk_biz_id: int, target: List[List[Dict]]):
@@ -2395,6 +2488,16 @@ class GetTargetDetail(Resource):
             "target_detail": target_detail,
         }
 
+
+class GetTargetDetail(Resource):
+    """
+    获取监控目标详情
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        strategy_ids = serializers.ListField(required=True, label="策略ID列表", child=serializers.IntegerField())
+
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
         strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=params["strategy_ids"]).only(
@@ -2403,10 +2506,16 @@ class GetTargetDetail(Resource):
         strategy_ids = [strategy.id for strategy in strategies]
         items = ItemModel.objects.filter(strategy_id__in=strategy_ids)
 
+        get_target_detail_with_cache = GetTargetDetailWithCache()
+        # 提前设置策略与监控目标映射，避免频繁查询数据库
+        get_target_detail_with_cache.set_mapping({item.strategy_id: (bk_biz_id, item.target) for item in items})
+
         empty_strategy_ids = []
         result = {}
         for item in items:
-            info = self.get_target_detail(bk_biz_id, item.target)
+            # 使用instance.request()方式调用，而非instance()方式。
+            # instance()方式执行时会重新实例化，导致先前执行的set_mapping失效
+            info = get_target_detail_with_cache.request({"strategy_id": item.strategy_id})
 
             if info:
                 result[item.strategy_id] = info
@@ -2754,11 +2863,12 @@ class PromqlToQueryConfig(Resource):
                     condition["condition"] = "and"
                 conditions.append(condition)
 
-            # 根据table_id格式判定是否为data_label二段式
+            # 根据table_id格式判定是否为data_label二段式, 如果是则需要根据data_label去指标选择器缓存表中查询结果表ID
+            # 计算平台指标没有data_label，table_id 就直接是结果表ID result_table_id
             table_id = query.get("table_id", "")
             result_table_id = ""
             data_label = ""
-            if len(table_id.split(".")) == 1:
+            if len(table_id.split(".")) == 1 and query["data_source"] != DataSourceLabel.BKDATA:
                 data_label = table_id
             else:
                 result_table_id = table_id
@@ -2766,6 +2876,8 @@ class PromqlToQueryConfig(Resource):
                 "data_source"
             ] == DataSourceLabel.CUSTOM:
                 data_source_label = DataSourceLabel.CUSTOM
+            elif query["data_source"] == DataSourceLabel.BKDATA:
+                data_source_label = DataSourceLabel.BK_DATA
             else:
                 data_source_label = DataSourceLabel.BK_MONITOR_COLLECTOR
             data_type_label = DataTypeLabel.TIME_SERIES

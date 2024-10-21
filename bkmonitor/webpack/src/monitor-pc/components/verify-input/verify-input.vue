@@ -31,13 +31,13 @@
   >
     <slot />
     <span
-      v-show="showValidate && validator.content && position === 'right'"
-      v-bk-tooltips.top-end="validator"
       class="bk-icon icon-exclamation-circle-shape tooltips-icon"
+      v-bk-tooltips.top-end="validator"
+      v-show="showValidate && validator.content && position === 'right'"
     />
     <span
-      v-show="showValidate && position === 'bottom'"
       class="bottom-text"
+      v-show="showValidate && position === 'bottom'"
       >{{ validator.content }}</span
     >
   </div>

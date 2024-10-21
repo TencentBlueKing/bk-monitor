@@ -69,7 +69,7 @@ class ListChart extends TableChart {
               columns={this.columns}
               data={this.tableData}
               defaultSize='small'
-              hasColnumSetting={false}
+              hasColumnSetting={false}
               pagination={this.pagination}
               paginationType='simple'
               showLimit={false}

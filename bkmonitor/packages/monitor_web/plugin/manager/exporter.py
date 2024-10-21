@@ -49,7 +49,7 @@ class ExporterPluginManager(PluginManager):
         kwargs.update(dict(add_files=self.fetch_collector_file()))
         return super(ExporterPluginManager, self).make_package(**kwargs)
 
-    def get_debug_config_context(self, config_version, info_version, param, target_nodes):
+    def _get_debug_config_context(self, config_version, info_version, param, target_nodes):
         specific_version = self.plugin.get_version(config_version, info_version)
         config_json = specific_version.config.config_json
 
@@ -212,7 +212,7 @@ class ExporterPluginManager(PluginManager):
                 },
                 "params": {"context": env_context},
             },
-            self.get_bkmonitorbeat_deploy_step("bkmonitorbeat_prometheus.conf", {"context": collector_params}),
+            self._get_bkmonitorbeat_deploy_step("bkmonitorbeat_prometheus.conf", {"context": collector_params}),
         ]
         for index, file in enumerate(user_files):
             deploy_steps[0]["config"]["config_templates"].append(
@@ -224,7 +224,7 @@ class ExporterPluginManager(PluginManager):
             )
         return deploy_steps
 
-    def get_collector_json(self, plugin_params):
+    def _get_collector_json(self, plugin_params):
         collector_file = {}
         for sys_name, sys_dir in list(OS_TYPE_TO_DIRNAME.items()):
             # 获取不同操作系统下的文件名
@@ -234,7 +234,7 @@ class ExporterPluginManager(PluginManager):
             if any([collector_path in i for i in self.filename_list]):
                 # 读取文件内容
                 collector_file[sys_name] = self.CollectorFile(
-                    data=self.read_file(os.path.join(self.tmp_path, collector_path)), name=collector_name
+                    data=self._read_file(os.path.join(self.tmp_path, collector_path)), name=collector_name
                 )
 
         collector_json = {}

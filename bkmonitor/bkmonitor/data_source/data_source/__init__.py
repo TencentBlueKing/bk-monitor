@@ -24,6 +24,8 @@ from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 
 import constants.event
+from bkm_space.api import SpaceApi
+from bkm_space.define import SpaceTypeEnum
 from bkmonitor.data_source.unify_query.functions import (
     AggMethods,
     CpAggMethods,
@@ -1106,12 +1108,16 @@ class BkdataTimeSeriesDataSource(TimeSeriesDataSource):
 
         # 对用户的请求进行鉴权
         if bk_biz_id:
-            bk_biz_id = str(kwargs["bk_biz_id"])
             table_prefix = re.match(r"^(\d*)", self.table).groups()[0]
             if not table_prefix or table_prefix == str(settings.BK_DATA_BK_BIZ_ID):
                 # 目标表前缀没有业务信息，或者前缀业务属于监控平台对接计算平台的业务，则不需要鉴权
                 return
-            if table_prefix != bk_biz_id:
+            if table_prefix != str(bk_biz_id):
+                if bk_biz_id < 0:
+                    space_uid = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id).space_uid
+                    target_space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
+                    if target_space and str(target_space.bk_biz_id) == table_prefix:
+                        return
                 logger.error(f"用户请求bkdata数据源无权限(result_table_id:{self.table}, 业务id: {bk_biz_id})")
                 raise PermissionDeniedError(action_name=bk_biz_id)
 
@@ -1560,6 +1566,10 @@ class BkMonitorLogDataSource(DataSource):
     def _process_log_queryset(self, queryset):
         return queryset
 
+    @classmethod
+    def handle_limit(cls, limit) -> Optional[int]:
+        return None
+
     def query_data(
         self,
         start_time: int = None,
@@ -1594,7 +1604,7 @@ class BkMonitorLogDataSource(DataSource):
                 order_by=self.order_by,
                 interval=self.interval,
                 where=self._get_filter_dict(bk_obj_id, bk_inst_ids),
-                limit=limit,
+                limit=self.handle_limit(limit),
                 time_field=self.time_field,
                 start_time=start_time,
                 end_time=end_time,
@@ -1653,7 +1663,6 @@ class BkMonitorLogDataSource(DataSource):
     def query_log(
         self, start_time: int = None, end_time: int = None, limit: int = None, offset: int = None, *args, **kwargs
     ) -> Tuple[List, int]:
-
         q = self._get_queryset(
             table=self.table,
             select=self.select,
@@ -1698,6 +1707,10 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
     EXTRA_DISTINCT_FIELD = None
     EXTRA_AGG_DIMENSIONS = []
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.use_full_index_names = True
+
     @classmethod
     def init_by_query_config(cls, query_config: Dict, *args, **kwargs):
         return cls(
@@ -1739,6 +1752,22 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
             return queryset
         return queryset.dsl_date_histogram(False)
 
+    @classmethod
+    def handle_limit(cls, limit) -> int:
+        return limit
+
+    def _process_time_range(
+        self, start_time: Optional[int], end_time: Optional[int]
+    ) -> Tuple[Optional[int], Optional[int]]:
+        if self.time_field == self.DEFAULT_TIME_FIELD:
+            return start_time, end_time
+
+        if start_time:
+            start_time = start_time * 1000
+        if end_time:
+            end_time = end_time * 1000
+        return start_time, end_time
+
     def query_data(
         self,
         start_time: int = None,
@@ -1750,7 +1779,15 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
     ) -> List:
         if limit is not None:
             limit = min(limit, 10000)
+
+        start_time, end_time = self._process_time_range(start_time, end_time)
         return super().query_data(start_time, end_time, limit, search_after_key, *args, **kwargs)
+
+    def query_log(
+        self, start_time: int = None, end_time: int = None, limit: int = None, offset: int = None, *args, **kwargs
+    ) -> Tuple[List, int]:
+        start_time, end_time = self._process_time_range(start_time, end_time)
+        return super().query_log(start_time, end_time, limit, offset, *args, **kwargs)
 
 
 class BkApmTraceTimeSeriesDataSource(BkApmTraceDataSource):

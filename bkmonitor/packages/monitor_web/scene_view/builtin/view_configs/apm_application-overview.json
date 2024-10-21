@@ -27,7 +27,15 @@
           }
         }
       ],
-      "descrition": "根据Apdex进行划分，划分范围为：<br>1.红：0~0.25<br>2.黄：0.25~0.75<br>3.绿：0.75以上"
+      "descrition": "根据Apdex进行划分，划分范围为：<br>1.红：0~0.25<br>2.黄：0.25~0.75<br>3.绿：0.75以上",
+      "options": {
+        "apdex_chart": {
+          "enableContextmenu": true
+        },
+        "time_series": {
+          "hoverAllTooltips": true
+        }
+      }
     },
     {
       "id": 2,
@@ -50,7 +58,15 @@
           }
         }
       ],
-      "descrition": "根据告警事件的数量进行划分，划分范围为：<br>1.红：发生了致命告警<br>2.黄：发生了预警或提醒<br>3.绿：无告警"
+      "descrition": "根据告警事件的数量进行划分，划分范围为：<br>1.红：发生了致命告警<br>2.黄：发生了预警<br>3.蓝：发生了提醒<br>4.绿：无告警",
+      "options": {
+        "apdex_chart": {
+          "enableContextmenu": true
+        },
+        "time_series": {
+          "hoverAllTooltips": true
+        }
+      }
     },
     {
       "id": 3,
@@ -256,7 +272,8 @@
           "enableContextmenu": true
         },
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -358,7 +375,7 @@
           "data": {
             "app_name": "${app_name}",
             "unit": "percentunit",
-            "expression": "a / b",
+            "expression": "b / c",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -367,7 +384,7 @@
                   {
                     "field": "bk_apm_count",
                     "method": "SUM",
-                    "alias": "a"
+                    "alias": "b"
                   }
                 ],
                 "table": "${table_id}",
@@ -397,7 +414,7 @@
                   {
                     "field": "bk_apm_count",
                     "method": "SUM",
-                    "alias": "b"
+                    "alias": "c"
                   }
                 ],
                 "table": "${table_id}",
@@ -413,7 +430,7 @@
               }
             ],
             "unify_query_param": {
-              "expression": "a / b",
+              "expression": "b / c",
               "query_configs": [
                 {
                   "data_source_label": "custom",
@@ -422,7 +439,7 @@
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "a"
+                      "alias": "b"
                     }
                   ],
                   "table": "${table_id}",
@@ -452,7 +469,7 @@
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "b"
+                      "alias": "c"
                     }
                   ],
                   "table": "${table_id}",
@@ -481,7 +498,8 @@
           "enableContextmenu": true
         },
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -642,6 +660,7 @@
           "alias": "P50",
           "data": {
             "app_name": "${app_name}",
+            "unit": "ns",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -743,6 +762,7 @@
           "alias": "P95",
           "data": {
             "app_name": "${app_name}",
+            "unit": "ns",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -844,6 +864,7 @@
           "alias": "P99",
           "data": {
             "app_name": "${app_name}",
+            "unit": "ns",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -944,6 +965,9 @@
           "metric": "avg_duration",
           "unit": "μs",
           "enableContextmenu": true
+        },
+        "time_series": {
+          "hoverAllTooltips": true
         }
       }
     },

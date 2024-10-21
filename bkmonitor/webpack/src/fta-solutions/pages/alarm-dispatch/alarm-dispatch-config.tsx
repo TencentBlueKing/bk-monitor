@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Provide } from 'vue-property-decorator';
+import { Component, Mixins } from 'vue-property-decorator';
 
 import AlarmDispatchConfig from 'monitor-pc/pages/alarm-dispatch/alarm-dispatch-config';
 import * as authorityMap from 'monitor-pc/pages/alarm-dispatch/authority-map';
@@ -32,14 +32,11 @@ import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 Component.registerHooks(['beforeRouteLeave']);
 @Component
 export default class FtaAlarmDispatchConfig extends Mixins(authorityMixinCreate(authorityMap)) {
-  @Provide('authority') authority;
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
-
   get isEffect() {
-    return this.$refs.alarmDispatchConfig?.isEffect;
+    return (this.$refs.alarmDispatchConfig as InstanceType<typeof AlarmDispatchConfig>)?.isEffect;
   }
   get isRuleChange() {
-    return this.$refs.alarmDispatchConfig?.isRuleChange;
+    return (this.$refs.alarmDispatchConfig as InstanceType<typeof AlarmDispatchConfig>)?.isRuleChange;
   }
 
   async beforeRouteLeave(to, from, next) {

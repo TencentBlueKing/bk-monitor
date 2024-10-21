@@ -116,4 +116,7 @@ export default {
   '名称 A-Z ': 'Name A-Z',
   节点层级: 'Node Level',
   监控数据项: 'Monitor Data Item',
+  腾讯云指标采集插件: 'Tencent Cloud Metric Plugin',
+  主调错误率: 'Caller Error Rate',
+  被调错误率: 'Callee Error Rate',
 };

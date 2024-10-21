@@ -25,7 +25,7 @@ from apm_web.topo.serializers import (
     NodeRelationSerializer,
     TopoQueryRequestSerializer,
 )
-from apm_web.utils import fill_series
+from apm_web.utils import fill_series, get_bar_interval_number
 from core.drf_resource import Resource
 
 
@@ -52,6 +52,10 @@ class DataTypeBarQueryResource(Resource):
                 response.get("series", []),
                 validated_request_data["start_time"],
                 validated_request_data["end_time"],
+                interval=get_bar_interval_number(
+                    validated_request_data["start_time"],
+                    validated_request_data["end_time"],
+                ),
             ),
         }
 
@@ -136,7 +140,7 @@ class TopoLinkResource(Resource):
                     validated_request_data["end_time"],
                 )
             elif source_type == SourceType.POD.value:
-                return LinkHelper.get_service_monitor_link(
+                return LinkHelper.get_pod_monitor_link(
                     validated_request_data["source_info"]["bcs_cluster_id"],
                     validated_request_data["source_info"]["namespace"],
                     validated_request_data["source_info"]["pod"],

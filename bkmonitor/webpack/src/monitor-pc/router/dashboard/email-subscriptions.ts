@@ -42,14 +42,13 @@ export default [
       noCache: EmailSubscriptions,
     },
     meta: {
-      title: '邮件订阅',
+      title: window.i18n.tc('route-邮件订阅'),
       navId: 'email-subscriptions',
       navName: '邮件订阅',
       needTitle: true, // 显示侧栏选中的导航标题
       route: {
         parent: 'dashboard',
       },
-      noNavBar: true,
     },
   },
   {

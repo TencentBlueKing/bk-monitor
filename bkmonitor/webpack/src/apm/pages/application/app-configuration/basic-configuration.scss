@@ -1,0 +1,168 @@
+/* stylelint-disable declaration-no-important */
+
+.application-configuration {
+  .pb-24 {
+    padding-bottom: 24px;
+  }
+
+  .base-info-wrap {
+    .form-content {
+      padding-bottom: 24px;
+    }
+
+    .item-content {
+      .item-row {
+        &:last-child {
+          .editable-form-item {
+            margin-bottom: 0px;
+          }
+        }
+      }
+    }
+
+    .editable-form-item {
+      height: 20px;
+    }
+
+    .form-content-row-m12 {
+      .editable-form-item {
+        margin-bottom: 12px;
+      }
+    }
+
+    .form-content-row-m16 {
+      .editable-form-item {
+        margin-bottom: 16px;
+      }
+    }
+
+    .form-data-reporting {
+      .item-row {
+        height: 20px;
+        margin-bottom: 16px;
+      }
+    }
+
+    .form-content-edit {
+      .editable-form-item {
+        margin-bottom: 16px;
+      }
+
+      .bk-form-item + .bk-form-item {
+        margin-top: 16px;
+      }
+    }
+
+    .form-content-switch-edit {
+      .bk-form-item + .bk-form-item {
+        margin-top: 0px;
+      }
+
+      .item-row {
+        margin-bottom: 18px;
+      }
+
+      .bk-form {
+        .item-row:last-child {
+          margin-bottom: 0px;
+        }
+      }
+    }
+
+    .tips-panel-item {
+      .item-header {
+        margin-bottom: 8px;
+      }
+
+      .display-item {
+        height: 20px;
+        margin-bottom: 12px;
+        line-height: 20px;
+
+        &:nth-last-of-type(-n + 2) {
+          margin-bottom: 0px;
+        }
+      }
+
+      .sampling-rules-item {
+        height: auto !important;
+
+        .sampling-rules {
+          .sampling-rule-brackets {
+            height: calc(100% - 16px);
+          }
+
+          .rule-item {
+            margin-bottom: 8px;
+
+            &:last-child {
+              margin-bottom: 0px;
+            }
+          }
+        }
+      }
+    }
+
+    .bk-form-item {
+      &:nth-last-of-type(-n + 2) {
+        margin-bottom: 0px;
+      }
+    }
+  }
+
+  .db-config-title-container {
+    margin-left: 42px;
+  }
+
+  .application-configuration-detail-trigger {
+    display: inline-block;
+    width: 28px;
+    height: 28px;
+    line-height: 28px;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 2px;
+
+    i {
+      font-size: 14px;
+    }
+
+    &.active {
+      background: #e1ecff;
+    }
+  }
+
+  .condition-item-method {
+    border-color: #c4c6cc !important;
+  }
+
+  .custom-service-add {
+    flex: 1;
+    margin-left: 17px;
+    color: #3a84ff;
+
+    i {
+      margin-right: 5px;
+      font-size: 14px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    span {
+      cursor: pointer;
+    }
+  }
+
+  .custom-service-panel-item {
+    .item-content {
+      margin-bottom: 0px !important;
+    }
+  }
+}
+
+.extension {
+  .icon-chahao {
+    margin-right: 8px;
+    font-size: 12px;
+  }
+}
