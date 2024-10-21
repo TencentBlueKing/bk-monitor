@@ -23,9 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref } from 'vue';
-import { computed } from 'vue';
-import { shallowRef } from 'vue';
+import { defineComponent, ref, nextTick, watch, type PropType, shallowRef, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
@@ -42,17 +40,24 @@ export default defineComponent({
       type: Object,
       default: () => null,
     },
+    comparisonDate: {
+      type: Array as PropType<number[]>,
+      default: () => [],
+    },
     title: {
       type: String,
       default: '',
     },
     colorIndex: {
       type: Number,
+      default: 0,
     },
   },
   emits: ['brushEnd'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    const baseEchart = ref(null);
+    const options = ref();
     const defaultOptions = {
       xAxis: [
         {
@@ -158,8 +163,20 @@ export default defineComponent({
       }
       return customData;
     };
-    const options = computed(() => {
-      return {
+
+    watch(
+      () => props.comparisonDate,
+      val => {
+        brushCoordRange.value = val;
+      },
+      {
+        immediate: true,
+      }
+    );
+
+    watchEffect(() => {
+      if (!props.data) return;
+      options.value = {
         ...defaultOptions,
         series: [
           {
@@ -196,14 +213,38 @@ export default defineComponent({
                 }),
               };
             },
+            tooltip: {
+              show: false,
+            },
             data: getSeriesData(true),
             z: 100000,
             silent: true,
           },
         ],
-        ...(isBrushing.value ? { tooltip: false } : {}),
+        ...(isBrushing.value ? { tooltip: { show: false } } : {}),
       };
+      console.log(options.value);
+      nextTick(() => {
+        setChartBrush();
+      });
     });
+
+    /** 设置图表框选区域 */
+    function setChartBrush() {
+      baseEchart.value?.dispatchAction({
+        type: 'brush',
+        areas: brushCoordRange.value.length
+          ? [
+              {
+                brushType: 'lineX',
+                xAxisIndex: 0,
+                coordRange: brushCoordRange.value,
+              },
+            ]
+          : [],
+      });
+    }
+
     function handleBrushEnd(val) {
       isBrushing.value = false;
       brushCoordRange.value = val.areas?.[0]?.coordRange || [];
@@ -217,7 +258,9 @@ export default defineComponent({
 
     return {
       t,
+      baseEchart,
       options,
+      setChartBrush,
       handleBrushEnd,
       handleBrush,
     };
@@ -227,11 +270,13 @@ export default defineComponent({
 
     return (
       <BaseEchart
+        ref='baseEchart'
         notMerge={false}
         options={this.options}
         toolbox={[Toolbox.Brush, Toolbox.DataZoom]}
         onBrush={this.handleBrush}
         onBrushEnd={this.handleBrushEnd}
+        onLoaded={this.setChartBrush}
       />
     );
   },

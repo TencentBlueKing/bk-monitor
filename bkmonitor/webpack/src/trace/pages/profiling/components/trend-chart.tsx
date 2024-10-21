@@ -150,35 +150,38 @@ export default defineComponent({
       }
     );
 
-    watch(props.comparisonDate, date => {
+    watch(props.comparisonDate, () => {
+      handleSetMarkArea();
+    });
+
+    function handleCollapseChange(v) {
+      collapse.value = v;
+    }
+
+    function handleSetMarkArea() {
       const { series, ...params } = timeSeriesChartRef.value.options;
-      console.log(date);
       timeSeriesChartRef.value.setOptions({
         ...params,
         series: series.map((item, ind) => ({
           ...item,
           markArea: {
-            show: !!date[ind]?.length,
+            show: !!props.comparisonDate[ind]?.length,
             itemStyle: {
               color: ['rgba(58, 132, 255, 0.1)', 'rgba(255, 86, 86, 0.1)'][ind],
             },
             data: [
               [
                 {
-                  xAxis: date[ind]?.[0] || 0,
+                  xAxis: props.comparisonDate[ind]?.[0] || 0,
                 },
                 {
-                  xAxis: date[ind]?.[1] || 0,
+                  xAxis: props.comparisonDate[ind]?.[1] || 0,
                 },
               ],
             ],
           },
         })),
       });
-    });
-
-    function handleCollapseChange(v) {
-      collapse.value = v;
     }
 
     function handleChartData(data) {

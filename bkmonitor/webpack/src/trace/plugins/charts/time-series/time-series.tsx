@@ -583,7 +583,6 @@ export default defineComponent({
                     }))
                   );
                   handleClearErrorMsg();
-                  emit('chartData', res.series);
                   return true;
                 })
                 .catch(error => {
@@ -746,6 +745,7 @@ export default defineComponent({
           emptyText.value = t('查无数据');
           empty.value = true;
         }
+        emit('chartData', series);
       } catch (e) {
         empty.value = true;
         emptyText.value = t('出错了');
