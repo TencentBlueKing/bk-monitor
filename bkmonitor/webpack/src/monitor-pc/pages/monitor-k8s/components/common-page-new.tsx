@@ -1885,6 +1885,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                       isSingleChart={this.isSingleChart}
                       needOverviewBtn={!!this.sceneData?.list?.length}
                       panels={this.dashbordMode === 'chart' ? this.preciseFilteringPanels : this.sceneData.list}
+                      sceneData={this.sceneData}
                       singleChartNoPadding={this.isSingleChartNoPadding}
                       // onLinkTo={this.handleUpdateCurrentData}
                       onBackToOverview={this.handleBackToOverview}
