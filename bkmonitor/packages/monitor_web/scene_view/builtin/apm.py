@@ -15,10 +15,12 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from apm_web.constants import HostAddressType
+from apm_web.handlers import metric_group
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
-from apm_web.handlers.metric_handler import MetricHandler
+from apm_web.handlers.metric_group import CalculationType
 from apm_web.handlers.service_handler import ServiceHandler
+from apm_web.metric.constants import SeriesAliasType
 from apm_web.models import Application
 from constants.apm import MetricTemporality, TRPCMetricTag, TrpcTagDrillOperation
 from core.drf_resource import api
@@ -173,15 +175,21 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 "tags": TRPCMetricTag.callee_tags(),
                 "support_operations": TrpcTagDrillOperation.callee_support_operations(),
             }
+            view_config["options"]["common"]["statistics"]["supported_calculation_types"] = CalculationType.choices()
+            view_config["options"]["common"]["angle"][SeriesAliasType.CALLEE.value][
+                "metrics"
+            ] = metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLEE.value]
+            view_config["options"]["common"]["angle"][SeriesAliasType.CALLER.value][
+                "metrics"
+            ] = metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLER.value]
 
             # 补充查询
             service_temporality = params.get("service_temporality")
             if service_temporality not in [MetricTemporality.CUMULATIVE, MetricTemporality.DELTA]:
-                service_temporality = (
-                    MetricHandler(bk_biz_id, app_name)
-                    .get_trpc_server_config(server=params["service_name"])
-                    .get("temporality")
+                group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
+                    metric_group.GroupEnum.TRPC, bk_biz_id, app_name
                 )
+                service_temporality = group.get_server_config(server=params["service_name"]).get("temporality")
 
             if service_temporality == MetricTemporality.CUMULATIVE:
                 # 添加 increase 函数
@@ -231,7 +239,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
     @classmethod
     def _add_functions(cls, view_config: Dict[str, Any], functions: List[Dict[str, Any]]):
-        for panel in (view_config.get("overview_panels") or []) + (view_config.get("panels") or []):
+        for panel in (
+            (view_config.get("overview_panels") or [])
+            + (view_config.get("extra_panels") or [])
+            + (view_config.get("panels") or [])
+        ):
             cls._add_functions(panel, functions)
 
         for target in view_config.get("targets") or []:

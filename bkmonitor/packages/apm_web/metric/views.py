@@ -12,6 +12,7 @@ from apm_web.decorators import user_visit_record
 from apm_web.metric.resources import (
     AlertQueryResource,
     ApdexQueryResource,
+    CalculateByRangeResource,
     CollectServiceResource,
     DynamicUnifyQueryResource,
     EndpointDetailListResource,
@@ -114,4 +115,5 @@ class MetricViewSet(ResourceViewSet):
         ResourceRoute("POST", ServiceQueryExceptionResource, "service_query_exception"),
         ResourceRoute("GET", MetricDetailStatisticsResource, "metric_statistics"),
         ResourceRoute("POST", GetFieldOptionValuesResource, "get_field_option_values"),
+        ResourceRoute("POST", CalculateByRangeResource, "calculate_by_range"),
     ]

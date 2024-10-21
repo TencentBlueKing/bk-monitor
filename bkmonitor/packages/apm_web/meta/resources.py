@@ -53,13 +53,13 @@ from apm_web.constants import (
     nodata_error_strategy_config_mapping,
 )
 from apm_web.db.db_utils import build_filter_params, get_service_from_params
+from apm_web.handlers import metric_group
 from apm_web.handlers.application_handler import ApplicationHandler
 from apm_web.handlers.backend_data_handler import telemetry_handler_registry
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.db_handler import DbComponentHandler
 from apm_web.handlers.endpoint_handler import EndpointHandler
 from apm_web.handlers.instance_handler import InstanceHandler
-from apm_web.handlers.metric_handler import MetricHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.handlers.span_handler import SpanHandler
 from apm_web.icon import get_icon
@@ -3086,7 +3086,10 @@ class ServiceConfigResource(Resource):
     end_time = serializers.IntegerField(label="结束时间", required=False)
 
     def perform_request(self, validate_data):
-        return MetricHandler(validate_data["bk_biz_id"], validate_data["app_name"]).get_trpc_server_config(
+        group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
+            metric_group.GroupEnum.TRPC, validate_data["bk_biz_id"], validate_data["app_name"]
+        )
+        return group.get_server_config(
             server=validate_data["service_name"],
             start_time=validate_data.get("start_time"),
             end_time=validate_data.get("end_time"),

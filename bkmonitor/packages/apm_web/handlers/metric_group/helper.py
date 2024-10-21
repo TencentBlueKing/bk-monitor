@@ -18,20 +18,12 @@ from apm_web.models import Application
 from bkmonitor.data_source import dict_to_q
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.utils.thread_backend import ThreadPool
-from constants.apm import MetricTemporality, TRPCMetricTag
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 logger = logging.getLogger(__name__)
 
 
-class TRPCMetricField:
-    # 主调
-    RPC_CLIENT_HANDLED_SERVER_TOTAL: str = "rpc_client_handled_total"
-    # 被调
-    RPC_SERVER_HANDLED_CLIENT_TOTAL: str = "rpc_server_handled_total"
-
-
-class MetricHandler:
+class MetricHelper:
 
     TIME_FIELD_ACCURACY = 1000
 
@@ -46,8 +38,6 @@ class MetricHandler:
     USING: Tuple[str, str] = (DataTypeLabel.TIME_SERIES, DataSourceLabel.CUSTOM)
 
     def __init__(self, bk_biz_id: int, app_name: str):
-        self.bk_biz_id: int = bk_biz_id
-        self.app_name: str = app_name
         self.table_id: str = Application.get_metric_table_id(bk_biz_id, app_name)
 
     @property
@@ -111,39 +101,6 @@ class MetricHandler:
             option_values |= set(group_option_values_map.get((params["metric_field"], params["field"])) or [])
         return list(option_values)
 
-    def fetch_trpc_server_list(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[str]:
-        return self.get_field_option_values_by_groups(
-            params_list=[
-                {"metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_SERVER_TOTAL, "field": TRPCMetricTag.CALLER_SERVER},
-                {"metric_field": TRPCMetricField.RPC_SERVER_HANDLED_CLIENT_TOTAL, "field": TRPCMetricTag.CALLEE_SERVER},
-            ],
-            start_time=start_time,
-            end_time=end_time,
-        )
-
-    def get_trpc_server_config(
-        self, server: str, start_time: Optional[int] = None, end_time: Optional[int] = None
-    ) -> Dict[str, Any]:
-        sdk_names: List[str] = self.get_field_option_values_by_groups(
-            params_list=[
-                {
-                    "metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_SERVER_TOTAL,
-                    "field": TRPCMetricTag.SDK_NAME,
-                    "filter_dict": {f"{TRPCMetricTag.CALLER_SERVER}__eq": server},
-                },
-                {
-                    "metric_field": TRPCMetricField.RPC_SERVER_HANDLED_CLIENT_TOTAL,
-                    "field": TRPCMetricTag.SDK_NAME,
-                    "filter_dict": {f"{TRPCMetricTag.CALLEE_SERVER}__eq": server},
-                },
-            ],
-            start_time=start_time,
-            end_time=end_time,
-        )
-        if sdk_names:
-            return {"temporality": MetricTemporality.DELTA}
-        return {"temporality": MetricTemporality.CUMULATIVE}
-
     @classmethod
     def _get_time_range(cls, start_time: Optional[int] = None, end_time: Optional[int] = None):
         now: int = int(datetime.datetime.now().timestamp())
@@ -158,3 +115,8 @@ class MetricHandler:
         end_time = min(now, end_time or now)
 
         return start_time * cls.TIME_FIELD_ACCURACY, end_time * cls.TIME_FIELD_ACCURACY
+
+    @classmethod
+    def get_interval(cls, start_time: Optional[int] = None, end_time: Optional[int] = None):
+        start_time, end_time = cls._get_time_range(start_time, end_time)
+        return (end_time - start_time) // cls.TIME_FIELD_ACCURACY

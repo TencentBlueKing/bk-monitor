@@ -1023,3 +1023,7 @@ class MetricTemporality:
     CUMULATIVE: str = "cumulative"
     # 差值（Delta）：指标为 Gauge 类型，数值是上报间隔，计算固定间隔（比如 1 分钟内）的请求量，需要用 sum_over_time 函数
     DELTA: str = "delta"
+
+    @classmethod
+    def choices(cls):
+        return [(cls.CUMULATIVE, _("累积")), (cls.DELTA, _("差值"))]

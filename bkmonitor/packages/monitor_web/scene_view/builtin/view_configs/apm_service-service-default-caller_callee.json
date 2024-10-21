@@ -5,7 +5,7 @@
   "name": "主被调",
   "variables": [],
   "panels": [],
-  "overview_panels": [
+  "1_overview_panels": [
     {
       "id": 1,
       "title": "CallerCallee",
@@ -19,7 +19,7 @@
       }
     }
   ],
-  "extra_panels": [
+  "overview_panels": [
     {
       "id": "caller",
       "title": "主调",
@@ -531,7 +531,7 @@
                     "metrics": [
                       {
                         "alias": "b",
-                        "field": "rpc_server_handled_seconds_count",
+                        "field": "rpc_client_handled_seconds_count",
                         "method": "SUM"
                       }
                     ],
@@ -1314,7 +1314,8 @@
                         "method": "eq",
                         "value": [
                           "success"
-                        ]
+                        ],
+                        "condition": "and"
                       }
                     ]
                   },
@@ -2288,43 +2289,59 @@
     "show_panel_count": false,
     "enable_index_list": true,
     "common": {
-      "variables": {
-        "api": "apm_metric.getFieldOptionValues",
+      "angle": {
         "caller": {
-          "data": {
-            "app_name": "${app_name}",
-            "field": "${field}",
-            "metric_field": "rpc_client_handled_total",
-            "filter_dict": {},
-            "where": [
-              {
-                "key": "caller_server",
-                "method": "eq",
-                "value": [
-                  "${service_name}"
-                ],
-                "condition": "and"
-              }
-            ]
-          }
+          "where": [
+            {
+              "key": "caller_server",
+              "method": "eq",
+              "value": [
+                "${service_name}"
+              ],
+              "condition": "and"
+            }
+          ]
         },
         "callee": {
-          "data": {
-            "app_name": "${app_name}",
-            "field": "${field}",
-            "metric_field": "rpc_server_handled_total",
-            "filter_dict": {},
-            "where": [
-              {
-                "key": "callee_server",
-                "method": "eq",
-                "value": [
-                  "${service_name}"
-                ],
-                "condition": "and"
-              }
-            ]
+          "where": [
+            {
+              "key": "callee_server",
+              "method": "eq",
+              "value": [
+                "${service_name}"
+              ],
+              "condition": "and"
+            }
+          ]
+        }
+      },
+      "statistics": {
+        "api": "apm_metric.calculateByRange",
+        "supported_calculation_types": [],
+        "data": {
+          "app_name": "${app_name}",
+          "metric_group_name": "trpc",
+          "metric_cal_type": "${metric_cal_type}",
+          "baseline": "a",
+          "where": [],
+          "group_by": [],
+          "time_ranges": [],
+          "options": {
+            "trpc": {
+              "kind": "${kind}",
+              "temporality": "${temporality}"
+            }
           }
+        }
+      },
+      "variables": {
+        "api": "apm_metric.getFieldOptionValues",
+        "data": {
+          "app_name": "${app_name}",
+          "field": "${field}",
+          "metric_field": "${rpc_handled_total}",
+          "where": [],
+          "filter_dict": {}
         }
       }
     },

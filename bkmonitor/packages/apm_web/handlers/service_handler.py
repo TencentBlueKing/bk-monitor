@@ -31,8 +31,8 @@ from apm_web.constants import (
     DataStatus,
     TopoNodeKind,
 )
+from apm_web.handlers import metric_group
 from apm_web.handlers.log_handler import ServiceLogHandler
-from apm_web.handlers.metric_handler import MetricHandler
 from apm_web.metric_handler import RequestCountInstance, ServiceFlowCount
 from apm_web.metrics import APPLICATION_LIST
 from apm_web.models import ApdexServiceRelation, Application, ApplicationCustomService
@@ -106,7 +106,10 @@ class ServiceHandler:
 
         trace_services = cls.list_nodes(bk_biz_id, app_name)
         # step0：获取所有的 trpc 服务
-        trpc_server_list = MetricHandler(bk_biz_id, app_name).fetch_trpc_server_list(start_time, end_time)
+        group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
+            metric_group.GroupEnum.TRPC, bk_biz_id, app_name
+        )
+        trpc_server_list = group.fetch_server_list(start_time, end_time)
 
         found_service_names = []
         for service in trace_services:

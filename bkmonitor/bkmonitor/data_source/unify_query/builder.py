@@ -52,13 +52,18 @@ class QueryConfig(Query):
         super().__init__(using, where)
 
         self.reference_name: str = ""
+        # unit：seconds
+        self.interval: Optional[int] = None
         self.metrics: List[Dict[str, Any]] = []
         self.dimension_fields: List[str] = []
+        self.functions: List[Dict[str, Any]] = []
 
     def clone(self) -> "QueryConfig":
         obj: "QueryConfig" = super().clone()
         obj.reference_name = self.reference_name
+        obj.interval = self.interval
         obj.metrics = self.metrics[:]
+        obj.functions = self.functions[:]
         obj.dimension_fields = self.dimension_fields[:]
         return obj
 
@@ -66,8 +71,14 @@ class QueryConfig(Query):
         if reference_name:
             self.reference_name = reference_name
 
+    def set_interval(self, interval: int):
+        self.interval = interval
+
     def add_metric(self, field: str, method: str, alias: Optional[str] = ""):
         self.metrics.append({"field": field, "alias": alias or method, "method": method})
+
+    def add_func(self, _id: str, params: List[Dict[str, Any]]):
+        self.functions.append({"id": _id, "params": params})
 
     def add_dimension_fields(self, field: str):
         if field not in self.dimension_fields:
@@ -87,10 +98,20 @@ class QueryConfigBuilder(BaseDataQuery, QueryMixin, DslMixin):
         clone.query.add_metric(field, method, alias)
         return clone
 
+    def func(self, _id: str, params: List[Dict[str, Any]]) -> "QueryConfigBuilder":
+        clone = self._clone()
+        clone.query.add_func(_id, params)
+        return clone
+
     def tag_values(self, *fields) -> "QueryConfigBuilder":
         clone = self._clone()
         for field in fields:
             clone.query.add_dimension_fields(field)
+        return clone
+
+    def interval(self, interval: int) -> "QueryConfigBuilder":
+        clone = self._clone()
+        clone.query.set_interval(interval)
         return clone
 
     """以下只是显示声明支持方法，同时供 IDE 补全"""
@@ -137,6 +158,7 @@ class QueryHelper:
             limit=query_body["limit"],
             offset=query_body["offset"],
             search_after_key=query_body["search_after_key"],
+            instant=query_body["instant"],
         )
         return data
 
@@ -215,6 +237,7 @@ class UnifyQueryCompiler(SQLCompiler):
                 "distinct": query_config_obj.distinct,
                 "where": [],
                 "metrics": query_config_obj.metrics,
+                "functions": query_config_obj.functions,
                 "group_by": query_config_obj.group_by,
                 "dimension_fields": query_config_obj.dimension_fields or [],
                 "filter_dict": q_to_dict(query_config_obj.where),
@@ -229,6 +252,7 @@ class UnifyQueryCompiler(SQLCompiler):
             "query_configs": query_configs,
             "dimension_fields": query_configs[0]["dimension_fields"],
             "functions": self.query.functions,
+            "instant": self.query.instant,
             "expression": self.query.expression or query_configs[0]["reference_name"],
             "limit": self.query.get_limit(),
             "offset": self.query.offset,
@@ -259,6 +283,8 @@ class UnifyQueryConfig:
     compiler = "UnifyQueryCompiler"
 
     def __init__(self):
+        # 是否返回瞬时量
+        self.instant: bool = False
         self.expression: str = ""
         self.functions: List[Dict[str, Any]] = []
         self.query_configs: List[QueryConfig] = []
@@ -273,6 +299,7 @@ class UnifyQueryConfig:
 
     def clone(self) -> "UnifyQueryConfig":
         obj: "UnifyQueryConfig" = self.__class__()
+        obj.instant = self.instant
         obj.expression = self.expression
         obj.functions = self.functions[:]
         obj.query_configs = self.query_configs[:]
@@ -290,6 +317,9 @@ class UnifyQueryConfig:
     def set_search_after_key(self, search_after_key: Optional[Dict[str, Any]]):
         # None 表示重置
         self.search_after_key = search_after_key
+
+    def set_instant(self, instant: bool):
+        self.instant = instant
 
     def set_expression(self, expression: Optional[str]):
         if expression:
@@ -332,37 +362,43 @@ class UnifyQuerySet(IterMixin):
         self._result_cache = None
         self.query = query or UnifyQueryConfig()
 
-    def _clone(self):
+    def _clone(self) -> "UnifyQuerySet":
         query = self.query.clone()
         clone = self.__class__(query=query)
         return clone
 
-    def after(self, after_key: Optional[Dict[str, Any]] = None):
+    def after(self, after_key: Optional[Dict[str, Any]] = None) -> "UnifyQuerySet":
         clone = self._clone()
         clone.query.set_search_after_key(after_key)
         return clone
 
-    def function(self, **kwargs):
+    def instant(self, instant: bool = True) -> "UnifyQuerySet":
+        clone = self._clone()
+        clone.query.set_instant(instant)
+        clone.query.set_limits(high=1)
+        return clone
+
+    def function(self, **kwargs) -> "UnifyQuerySet":
         clone = self._clone()
         clone.query.add_f(kwargs)
         return clone
 
-    def expression(self, expression: Optional[str]):
+    def expression(self, expression: Optional[str]) -> "UnifyQuerySet":
         clone = self._clone()
         clone.query.set_expression(expression)
         return clone
 
-    def add_query(self, q: QueryConfigBuilder):
+    def add_query(self, q: QueryConfigBuilder) -> "UnifyQuerySet":
         clone = self._clone()
         clone.query.add_q(q.query)
         return clone
 
-    def start_time(self, start_time: int):
+    def start_time(self, start_time: int) -> "UnifyQuerySet":
         clone = self._clone()
         clone.query.set_start_time(start_time)
         return clone
 
-    def end_time(self, end_time: int):
+    def end_time(self, end_time: int) -> "UnifyQuerySet":
         clone = self._clone()
         clone.query.set_end_time(end_time)
         return clone
