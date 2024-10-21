@@ -23,13 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import { defineComponent, ref } from 'vue';
 import { computed } from 'vue';
+import { shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
 import BaseEchart from '../../../plugins/base-echart';
+import { Toolbox } from '../../../plugins/typings';
 
 import './comparison-chart.scss';
 
@@ -52,23 +54,25 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const defaultOptions = {
-      xAxis: {
-        type: 'time',
-        axisLine: {
-          lineStyle: {
-            color: '#F0F1F5',
+      xAxis: [
+        {
+          type: 'time',
+          axisLine: {
+            lineStyle: {
+              color: '#F0F1F5',
+            },
+          },
+          axisLabel: {
+            color: '#979BA5',
+          },
+          axisTick: {
+            show: false,
+          },
+          splitLine: {
+            show: false,
           },
         },
-        axisLabel: {
-          color: '#979BA5',
-        },
-        axisTick: {
-          show: false,
-        },
-        splitLine: {
-          show: false,
-        },
-      },
+      ],
       yAxis: {
         type: 'value',
         axisTick: {
@@ -120,7 +124,40 @@ export default defineComponent({
         containLabel: true,
       },
     };
-
+    const brushCoordRange = shallowRef<number[]>([]);
+    const isBrushing = ref(false);
+    const getSeriesData = (isCustom = false) => {
+      if (!props.data?.datapoints?.length) return [];
+      const data = props.data.datapoints.map(item => [item[1], item[0]]);
+      if (!isCustom) return data;
+      const customData = [];
+      const [start, end] = brushCoordRange.value;
+      for (let i = 0, len = data.length; i < len; i++) {
+        const [time] = data[i];
+        if (i === 0 || i === len - 1) {
+          if (start < time || start > time) {
+            customData.push([start, 1]);
+          }
+          if (end < time || end > time) {
+            customData.push([end, 1]);
+          }
+          customData.push([time, null]);
+          continue;
+        }
+        customData.push([time, null]);
+        if (!brushCoordRange.value.length) continue;
+        const [preTime] = data[i - 1];
+        const [nextTime] = data[i + 1];
+        if (start >= preTime && start <= time) {
+          customData.push([start, 1]);
+          continue;
+        }
+        if (end >= time && end <= nextTime) {
+          customData.push([end, 1]);
+        }
+      }
+      return customData;
+    };
     const options = computed(() => {
       return {
         ...defaultOptions,
@@ -128,7 +165,7 @@ export default defineComponent({
           {
             name: props.title,
             type: 'line',
-            data: props.data?.datapoints?.map(item => [item[1], item[0]]) || [],
+            data: getSeriesData(false),
             lineStyle: {
               color: ['#3A84FF', '#EA3636'][props.colorIndex],
             },
@@ -137,18 +174,52 @@ export default defineComponent({
               props.data.unit !== 'none' ? getValueFormat(props.data.unit || '') : (v: any) => ({ text: v }),
             precision: 2,
           },
+          {
+            type: 'custom',
+            renderItem: (param, api) => {
+              if (Number.isNaN(api.value(1))) return;
+              const isStart = brushCoordRange.value[0] >= api.value(0);
+              const point = api.coord([api.value(0), api.value(1)]);
+              return {
+                type: 'path',
+                shape: {
+                  pathData: 'M 1,0A 1,1 0 0,1 3,0L 3,50A 1,1 0 0,1 1,50L 1,0',
+                  x: isStart ? -1.5 : -1.5,
+                  y: -35,
+                  width: 4,
+                  height: 24,
+                },
+                position: point,
+                style: api.style({
+                  stroke: ['#699DF4', '#FE8A8A'][props.colorIndex],
+                  lineWidth: 3,
+                }),
+              };
+            },
+            data: getSeriesData(true),
+            z: 100000,
+            silent: true,
+          },
         ],
+        ...(isBrushing.value ? { tooltip: false } : {}),
       };
     });
-
     function handleBrushEnd(val) {
+      isBrushing.value = false;
+      brushCoordRange.value = val.areas?.[0]?.coordRange || [];
       emit('brushEnd', val);
+    }
+    function handleBrush(data) {
+      if (!brushCoordRange.value.length) return;
+      isBrushing.value = true;
+      brushCoordRange.value = data.areas?.[0]?.coordRange || [];
     }
 
     return {
       t,
       options,
       handleBrushEnd,
+      handleBrush,
     };
   },
   render() {
@@ -156,7 +227,10 @@ export default defineComponent({
 
     return (
       <BaseEchart
+        notMerge={false}
         options={this.options}
+        toolbox={[Toolbox.Brush, Toolbox.DataZoom]}
+        onBrush={this.handleBrush}
         onBrushEnd={this.handleBrushEnd}
       />
     );

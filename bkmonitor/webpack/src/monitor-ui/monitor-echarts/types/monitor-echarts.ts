@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { BarChart, LineChart, MapChart, PieChart } from 'echarts/charts';
+import { BarChart, LineChart, MapChart, PieChart, CustomChart } from 'echarts/charts';
 import {
   GeoComponent,
   GraphicComponent,
@@ -72,6 +72,7 @@ echarts.use([
   PieChart,
   LineChart,
   MapChart,
+  CustomChart,
   GridComponent,
   LegendComponent,
   TitleComponent,
