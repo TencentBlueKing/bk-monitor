@@ -1404,3 +1404,21 @@ class StorageClusterRecord(SoftDeleteModel):
         verbose_name = _("索引集存储集群记录")
         verbose_name_plural = _("索引集存储集群记录")
         ordering = ("-updated_at",)
+
+
+class UserIndexSetCustomConfig(models.Model):
+    """用户索引集自定义配置"""
+    username = models.CharField(_("用户name"), max_length=256)
+    index_set_id = models.IntegerField(_("索引集ID"), null=True)
+    index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
+    index_set_hash = models.CharField("索引集哈希", max_length=32)
+    index_set_config = models.JSONField(_("用户索引集配置"), default=dict)
+
+    class Meta:
+        verbose_name = _("用户索引集自定义配置")
+        verbose_name_plural = _("用户索引集自定义配置")
+        unique_together = ('username', 'index_set_hash')
+
+    @classmethod
+    def get_index_set_hash(cls, index_set_id: Union[list, int]):
+        return hashlib.md5(str(index_set_id).encode("utf-8")).hexdigest()
