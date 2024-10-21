@@ -39,6 +39,7 @@ import {
   setDefaultTableWidth,
   sessionShowFieldObj,
   formatDate,
+  getStorageIndexItem,
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import axios from 'axios';
@@ -854,7 +855,7 @@ const store = new Vuex.Store({
       }
 
       if (!isUnionIndex && !ids.length && list?.length) {
-        ids.push(list[0].index_set_id);
+        ids.push(getStorageIndexItem(list));
       }
 
       if (route.query?.bizId) {

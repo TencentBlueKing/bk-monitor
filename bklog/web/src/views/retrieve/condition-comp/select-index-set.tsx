@@ -405,6 +405,14 @@ export default class QueryStatement extends tsc<object> {
         }
       }
 
+      if (this.isAloneType) {
+        const catchIndexSetStr = localStorage.getItem('CATCH_INDEX_SET_ID_LIST');
+        const catchIndexSet = catchIndexSetStr ?? '{}';
+        const catchIndexSetList = JSON.parse(catchIndexSet);
+        catchIndexSetList[this.spaceUid] = this.selectAloneVal[0];
+        localStorage.setItem('CATCH_INDEX_SET_ID_LIST', JSON.stringify(catchIndexSetList));
+      }
+
       this.aloneHistory = [];
       this.multipleHistory = [];
       this.changeTypeCatchIDlist = [];
