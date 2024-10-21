@@ -98,7 +98,7 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
                 multiple
                 searchable
               >
-                {item.values.map(item => (
+                {(item?.values || []).map(item => (
                   <bk-option
                     id={item}
                     key={item}

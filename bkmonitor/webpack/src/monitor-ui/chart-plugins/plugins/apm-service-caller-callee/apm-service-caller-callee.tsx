@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { Component } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Component, Prop } from 'vue-property-decorator';
+// import { getFieldOptionValues } from 'monitor-api/modules/apm_metric';
 
+import { CommonSimpleChart } from '../common-simple-chart';
 import { DEFAULT_FILTER } from './baseFIlterList';
 import CallerCalleeContrast from './components/caller-callee-contrast';
 import CallerCalleeFilter from './components/caller-callee-filter';
@@ -43,7 +44,8 @@ import './apm-service-caller-callee.scss';
   name: 'ApmServiceCallerCallee',
   components: {},
 })
-export default class ApmServiceCallerCallee extends tsc<object> {
+export default class ApmServiceCallerCallee extends CommonSimpleChart {
+  @Prop({ type: Object }) sceneData;
   // 筛选具体的key list
   searchListData = SEARCH_KEY_LIST;
   filterData = {
@@ -76,11 +78,18 @@ export default class ApmServiceCallerCallee extends tsc<object> {
   diffTypeData = [];
   tableColData = [];
 
+  get sceneDataOption() {
+    return this.sceneData.options || {};
+  }
+
+  get extraPanels() {
+    return this.sceneData.extra_panels || [];
+  }
+
   // 左侧主被调切换
   changeTab(id: string) {
     this.activeKey = id;
     this.handleUpdateRouteQuery({ filterType: id });
-    console.log(this.$route.query, this.$route);
   }
 
   // 路由同步关键字
@@ -152,15 +161,10 @@ export default class ApmServiceCallerCallee extends tsc<object> {
       values: [date],
     });
   }
+  /** 获取左侧列表可选值 */
+  initFilterValList() {}
   mounted() {
-    const queryData = this.$route.query;
-    if (queryData?.filterType) {
-      console.log('111');
-      this.activeKey = queryData.filterType;
-    } else {
-      // this.handleUpdateRouteQuery({ filterType: this.activeKey });
-    }
-    console.log(queryData?.filterType, this.$route.query, this.$route);
+    console.log(this.sceneData, 'sceneData', this.viewOptions);
   }
 
   render() {
