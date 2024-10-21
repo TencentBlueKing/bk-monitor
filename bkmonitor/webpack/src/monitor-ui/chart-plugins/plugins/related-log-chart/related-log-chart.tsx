@@ -168,7 +168,6 @@ class RelatedLogChart extends CommonSimpleChart {
                     const defaultIndexSet = res[0];
                     const { index_set_id: indexSetId } = defaultIndexSet;
                     this.relatedIndexSetId = indexSetId;
-                    console.log(defaultIndexSet);
                     this.handleRealtionData(defaultIndexSet, start_time, end_time);
                   }
                 });
@@ -181,7 +180,6 @@ class RelatedLogChart extends CommonSimpleChart {
           this.clearErrorMsg();
         })
         .catch(error => {
-          console.error(error);
           this.empty = true;
           this.handleErrorMsgChange(error.msg || error.message);
           this.emptyText = window.i18n.tc('出错了');
