@@ -287,7 +287,13 @@
 </template>
 
 <script>
-  import { readBlobRespToJson, parseBigNumberList, setDefaultTableWidth } from '@/common/util';
+  import {
+    readBlobRespToJson,
+    parseBigNumberList,
+    setDefaultTableWidth,
+    getHaveValueIndexItem,
+    getStorageIndexItem,
+  } from '@/common/util';
   import AuthContainerPage from '@/components/common/auth-container-page';
   import LogIpSelector from '@/components/log-ip-selector/log-ip-selector';
   import indexSetSearchMixin from '@/mixins/indexSet-search-mixin';
@@ -756,7 +762,7 @@
               // 如果都没有权限或者路由带过来的索引集无权限则显示索引集无权限
 
               if (!indexSetList[0]?.permission?.[authorityMap.SEARCH_LOG_AUTH] || isRouteIndex) {
-                const authIndexID = indexId || this.getHaveValueIndexItem(indexSetList);
+                const authIndexID = indexId || getHaveValueIndexItem(indexSetList);
                 this.$store
                   .dispatch('getApplyData', {
                     action_ids: [authorityMap.SEARCH_LOG_AUTH],
@@ -792,7 +798,7 @@
               if (indexId) {
                 // 1、初始进入页面带ID；2、检索ID时切换业务；
                 const indexItem = indexSetList.find(item => item.index_set_id === indexId);
-                this.indexId = indexItem ? indexItem.index_set_id : this.getHaveValueIndexItem(indexSetList);
+                this.indexId = indexItem ? indexItem.index_set_id : getHaveValueIndexItem(indexSetList);
                 this.retrieveLog();
               } else if (this.isInitPage && this.checkIsUnionSearch()) {
                 // 初始化联合查询
@@ -801,7 +807,7 @@
                 // 直接进入检索页
                 this.indexId = indexSetList.some(item => item.index_set_id === this.storedIndexID)
                   ? this.storedIndexID
-                  : this.getHaveValueIndexItem(indexSetList);
+                  : getStorageIndexItem(indexSetList);
                 if (this.isAsIframe) {
                   // 监控 iframe
                   if (this.localIframeQuery.indexId) {
@@ -2107,17 +2113,6 @@
         }
 
         this.setRouteParams('retrieve', params, newQuery);
-        // this.$router.push({
-        //   name: 'retrieve',
-        //   params,
-        //   query: newQuery,
-        // });
-      },
-      getHaveValueIndexItem(indexList) {
-        return (
-          indexList.find(item => !item.tags.map(item => item.tag_id).includes(4))?.index_set_id ||
-          indexList[0].index_set_id
-        );
       },
     },
   };
