@@ -16,7 +16,7 @@ from django.db.transaction import atomic
 
 from core.drf_resource import api
 from metadata import config
-from metadata.models import ClusterInfo, DataSource
+from metadata.models import AccessVMRecord, ClusterInfo, DataSource
 from metadata.models.bcs import BcsFederalClusterInfo
 from metadata.models.data_link import utils
 from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
@@ -24,6 +24,7 @@ from metadata.models.data_link.resource import (
     DataLinkResource,
     DataLinkResourceConfig,
     DataLinkStrategy,
+    FederalSubClusterDataLink,
 )
 
 logger = logging.getLogger("metadata")
@@ -90,10 +91,10 @@ def get_bkbase_v4_datalink_status(
 @atomic(config.DATABASE_CONNECTION_NAME)
 def create_data_link(
     table_id: str,
-    vm_cluster_name: str,
+    storage_name: str,
     strategy_cls: Type[DataLinkStrategy],
+    storage_type: str = ClusterInfo.TYPE_VM,
     data_source: DataSource = None,
-    vm_cluster_id: Optional[int] = None,
     bcs_cluster_id: Optional[str] = None,
 ):
     """
@@ -103,27 +104,28 @@ def create_data_link(
     # 0. 实例化策略
     strategy = strategy_cls()
     logger.info(
-        "create_data_link: start to create data link for table_id->[%s], vm_cluster_name->[%s],bk_data_id->["
-        "%s],strategy->[%s]",
+        "create_data_link: start to create data link for table_id->[%s], storage_name->[%s],storage_type->[%s],"
+        "bk_data_id->[%s],strategy->[%s]",
         table_id,
-        vm_cluster_name,
+        storage_name,
+        storage_type,
         data_source.bk_data_id,
         strategy.name,
     )
 
     # 1. 创建配置
-    apply_configs = strategy.create_configs(data_source, table_id, vm_cluster_name)
+    apply_configs = strategy.create_configs(data_source, table_id, storage_name)
     logger.info("create_data_link: will use configs->[%s] to apply data link", apply_configs)
 
     # 2. 调用计算平台API，创建数据链路
     response = api.bkdata.apply_data_link(apply_configs)
     logger.info("create_data_link: apply data link response->[%s]", response)
 
-    if not vm_cluster_id:
-        vm_cluster_id = ClusterInfo.objects.get(cluster_name=vm_cluster_name).cluster_id
+    # NOTE: 为了和历史的InfluxDBClusterInfo区分开，现改用StorageName + StorageType的方式，获取对应存储集群
+    storage_id = ClusterInfo.objects.get(cluster_name=storage_name, storage_type=storage_type).cluster_id
     # 3. 创建&同步监控平台自身的DB记录
     strategy.create_or_update_metadata_records(
-        data_source, table_id, vm_cluster_name, apply_configs, bcs_cluster_id, vm_cluster_id
+        data_source, table_id, storage_name, apply_configs, bcs_cluster_id, storage_id
     )
 
     logger.info(
@@ -252,6 +254,59 @@ def create_vm_data_link(
 
 
 @atomic(config.DATABASE_CONNECTION_NAME)
+def create_fed_vm_data_link_v2(
+    table_id: str,
+    data_source: DataSource,
+    storage_name: str,
+    storage_type: str = ClusterInfo.TYPE_VM,
+    bcs_cluster_id: Optional[str] = None,
+):
+    objs = BcsFederalClusterInfo.objects.filter(sub_cluster_id=bcs_cluster_id)
+    if not objs.exists():
+        logger.info(
+            "create_fed_vm_data_link： data_id->[%s] ,cluster_id->[%s] is not federal sub cluster or not "
+            "builtin datasource",
+            data_source.bk_data_id,
+            bcs_cluster_id,
+        )
+        return
+
+    bkbase_data_name = utils.get_bkdata_data_id_name(data_source.data_name)
+    bkbase_data_id = data_source.bk_data_id
+
+    # 兼容此前已经接入过VM的情形，即独立集群改造为联邦集群子集群
+    vm_record = AccessVMRecord.objects.filter(result_table_id=table_id)
+    if vm_record.exists():
+        bkbase_data_name = vm_record.first().bk_base_data_name
+        bkbase_data_id = vm_record.first().bk_base_data_id
+
+    logger.info(
+        "create_fed_vm_data_link: will use bkbase_data_name->[%s],bkbase_data_id->[%s].bk_data_id->[%s]",
+        bkbase_data_name,
+        bkbase_data_id,
+        data_source.bk_data_id,
+    )
+
+    strategy_cls = FederalSubClusterDataLink()
+    apply_data = strategy_cls.create_sub_clusters_federal_data_link_configs(
+        table_id=table_id,
+        federal_objs=objs,
+        bkbase_data_name=bkbase_data_name,
+    )
+
+    response = api.bkdata.apply_data_link(apply_data)
+    logger.info("create_fed_vm_data_link: response->[%s]", response)
+
+    storage_id = ClusterInfo.objects.get(cluster_name=storage_name, storage_type=storage_type).cluster_id
+    strategy_cls.create_or_update_metadata_records_for_federal(
+        bcs_cluster_id=bcs_cluster_id,
+        vm_cluster_id=storage_id,
+        bkbase_data_id=bkbase_data_id,
+        bkbase_data_name=bkbase_data_name,
+    )
+
+
+@atomic(config.DATABASE_CONNECTION_NAME)
 def create_fed_vm_data_link(
     table_id: str,
     data_source: DataSource,
@@ -325,8 +380,8 @@ def create_fed_vm_data_link(
             data_source.bk_data_id,
         )
 
-    if data_id_name == "":
-        data_id_name = utils.get_bkdata_data_id_name(data_name)
+    # if data_id_name == "":
+    #     data_id_name = utils.get_bkdata_data_id_name(data_name)
 
     logger.info(
         "create_fed_vm_data_link: data_id_name->[%s],bkbase_data_id->[%s].bk_data_id->[%s]",
@@ -342,6 +397,10 @@ def create_fed_vm_data_link(
     config_list, data_links, conditions = [], [], []
     for obj in objs:
         builtin_name = utils.get_bkdata_table_id(obj.fed_builtin_metric_table_id)  # 该联邦拓扑的代理集群的内置（K8S指标）指标RT
+        if not obj.fed_namespaces:
+            logger.info(
+                "create_fed_vm_data_link: fed_sub_record->[%s] has no fed_namespaces, ignore it", obj.fed_sub_record
+            )
         match_labels = [{"name": "namespace", "value": ns} for ns in obj.fed_namespaces]  # 该子集群被联邦纳管的命名空间列表
         relabels = [{"name": "bcs_cluster_id", "value": obj.fed_cluster_id}]
         sinks = [
