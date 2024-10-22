@@ -262,13 +262,6 @@ class UptimeCheckTask(OperateRecordModel):
         (Protocol.ICMP, "ICMP"),
     )
 
-    DATAID_MAP = {
-        UptimeCheckProtocol.HTTP: settings.UPTIMECHECK_HTTP_DATAID,
-        UptimeCheckProtocol.TCP: settings.UPTIMECHECK_TCP_DATAID,
-        UptimeCheckProtocol.UDP: settings.UPTIMECHECK_UDP_DATAID,
-        UptimeCheckProtocol.ICMP: settings.UPTIMECHECK_ICMP_DATAID,
-    }
-
     class Status(object):
         NEW_DRAFT = "new_draft"
         RUNNING = "running"
@@ -293,7 +286,7 @@ class UptimeCheckTask(OperateRecordModel):
     name = models.CharField("任务名称", max_length=128, db_index=True)
     protocol = models.CharField("协议", choices=PROTOCOL_CHOICES, max_length=10)
     labels = models.JSONField("自定义标签", default=dict)
-    independent_dataid = models.BooleanField("独立数据ID", default=False)
+    indepentent_dataid = models.BooleanField("独立业务数据ID", default=False)
     check_interval = models.PositiveIntegerField("拨测周期(分钟)", default=5)
     # 地点变为可选项
     location = JsonField("地区", default="{}")
@@ -338,14 +331,13 @@ class UptimeCheckTask(OperateRecordModel):
         """
         return "_".join([str(self.bk_biz_id), str(self.pk), "uptimecheckbeat.yml"])
 
-    def get_or_create_dataid(self) -> Tuple[bool, str]:
+    def get_data_id(self) -> Tuple[bool, str]:
         """
         获取或创建数据ID
         """
-        if not self.indepentent_dataid and not self.labels:
-            return False, self.DATAID_MAP[self.protocol.upper()]
+        from monitor_web.commons.data_access import UptimecheckDataAccessor
 
-        return True, ""
+        return UptimecheckDataAccessor(self).get_data_id()
 
     def update_subscription(self):
         """
@@ -508,7 +500,7 @@ class UptimeCheckTask(OperateRecordModel):
         request_with_prefix = resource.uptime_check.generate_sub_config.encode_data_with_prefix(
             self.config.get("request", "")
         )
-        custom_report, data_id = self.get_or_create_dataid()
+        use_custom_report, data_id = self.get_data_id()
         for bk_biz_id in biz_nodes.keys():
             scope = {
                 "bk_biz_id": bk_biz_id,
@@ -533,7 +525,7 @@ class UptimeCheckTask(OperateRecordModel):
                     "context": {
                         "data_id": data_id,
                         "max_timeout": "{}ms".format(timeout),
-                        "custom_report": "true" if custom_report else "false",
+                        "custom_report": "true" if use_custom_report else "false",
                         "tasks": tasks,
                         "config_hosts": self.config.get("hosts", []),
                         # 针对动态节点的情况, 注意，业务ID必须拿当前task的业务ID：

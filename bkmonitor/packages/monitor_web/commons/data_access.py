@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import copy
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict
+from typing import Dict, Tuple
 
 from django.conf import settings
 from django.utils.encoding import force_str
@@ -19,6 +19,8 @@ from django.utils.translation import ugettext as _
 from bkmonitor.utils.common_utils import safe_int
 from core.drf_resource import api
 from core.errors.api import BKAPIError
+from monitor.constants import UptimeCheckProtocol
+from monitor_web.models.uptime_check import UptimeCheckTask
 from monitor_web.plugin.constant import (
     ORIGIN_PLUGIN_EXCLUDE_DIMENSION,
     PLUGIN_REVERSED_DIMENSION,
@@ -656,3 +658,43 @@ class EventDataAccessor(object):
             event_group_id = event_groups[0]["event_group_id"]
             api.metadata.delete_event_group(event_group_id=event_group_id, operator=self.operator)
             return event_group_id
+
+
+class UptimecheckDataAccessor:
+    """
+    拨测数据接入
+    """
+
+    version = "v1"
+
+    DATAID_MAP = {
+        UptimeCheckProtocol.HTTP: settings.UPTIMECHECK_HTTP_DATAID,
+        UptimeCheckProtocol.TCP: settings.UPTIMECHECK_TCP_DATAID,
+        UptimeCheckProtocol.UDP: settings.UPTIMECHECK_UDP_DATAID,
+        UptimeCheckProtocol.ICMP: settings.UPTIMECHECK_ICMP_DATAID,
+    }
+
+    def __init__(self, task: UptimeCheckTask) -> None:
+        self.task = task
+        self.bk_biz_id = task.bk_biz_id
+
+    def get_data_id(self) -> Tuple[bool, str]:
+        """
+        TODO: 获取拨测数据链路ID
+        :return: 是否是自定义上报，数据链路ID
+        """
+        if not self.use_custom_report():
+            return False, self.DATAID_MAP[self.protocol.upper()]
+
+    def use_custom_report(self) -> bool:
+        """
+        是否使用自定义上报
+        """
+        return self.task.indepentent_dataid or self.task.labels
+
+    def access(self):
+        """
+        TODO: 接入数据链路
+        """
+        if not self.use_custom_report():
+            return
