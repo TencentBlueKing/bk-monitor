@@ -300,7 +300,6 @@ class CloseStatusChecker(BaseChecker):
             bk_cloud_id = target_dimensions["bk_cloud_id"] = alert.top_event["bk_cloud_id"]
 
             host = HostManager.get(ip, bk_cloud_id)
-            target_dimensions["bk_host_id"] = host.bk_host_id if host else None
 
             if not host:
                 # 如果主机在缓存中不存在，则直接恢复告警
@@ -313,6 +312,7 @@ class CloseStatusChecker(BaseChecker):
                 self.close(alert, _("CMDB 未查询到告警目标主机 ({}|{}) 的信息，主机可能已被删除，告警关闭").format(ip, bk_cloud_id))
                 return True
 
+            target_dimensions["bk_host_id"] = host.bk_host_id
             topo_link = list(host.topo_link.values())
 
         elif alert.top_event["target_type"] == EventTargetType.SERVICE:
