@@ -255,8 +255,12 @@
               </bk-select>
             </div>
             <bk-table
+              class="custom-event-table"
               :data="eventData"
+              :height="tableVirtualRenderHeight"
               :outer-border="false"
+              row-key="custom_event_id"
+              virtual-render
             >
               <bk-table-column
                 :label="$t('事件名称')"
@@ -1287,6 +1291,10 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
       emptyType = 'search-empty';
     }
     return emptyType;
+  }
+
+  get tableVirtualRenderHeight() {
+    return this.eventData.length ? Math.min(600, (this.eventData.length + 1) * 43 + 10) : undefined;
   }
 
   // @Watch('metricTable')
@@ -2667,6 +2675,11 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         }
         &-date {
           width: 110px;
+        }
+      }
+      :deep(.custom-event-table) {
+        .bk-virtual-render.bk-scroll-x {
+          overflow-x: hidden;
         }
       }
       .mb16 {
