@@ -1573,7 +1573,7 @@ export const dashboardPanels = [
       w: 8,
       h: 6,
     },
-    type: 'apm-heat-map-chart',
+    type: 'apm-heatmap',
     targets: [],
     options: {
       apm_time_series: {

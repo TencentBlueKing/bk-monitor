@@ -27,19 +27,19 @@
 import { Component, Prop, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { EParamsMode, type IServiceConfig } from '../type';
 import ContrastView from './common-comp/contrast-view';
 import GroupByView from './common-comp/group-by-view';
-
-import type { IServiceConfig } from '../type';
 
 import './caller-callee-contrast.scss';
 interface ICallerCalleeContrastProps {
   searchList: IServiceConfig[];
+  contrastDates?: string[];
+  groupBy?: string[];
 }
 interface ICallerCalleeContrastEvent {
-  onChangeDate?: () => void;
-  onCheck?: () => void;
-  onGroupChange?: () => void;
+  onContrastDatesChange?: (val: string[]) => void;
+  onGroupByChange?: (val: string[]) => void;
   onGroupFilter?: () => void;
 }
 @Component({
@@ -48,15 +48,17 @@ interface ICallerCalleeContrastEvent {
 })
 export default class CallerCalleeContrast extends tsc<ICallerCalleeContrastProps, ICallerCalleeContrastEvent> {
   @Prop({ required: true, type: Array, default: () => [] }) searchList: IServiceConfig[];
-  active = 'contrast';
+  @Prop({ type: Array, default: () => [] }) contrastDates: string[];
+  @Prop({ type: Array, default: () => [] }) groupBy: string[];
+  active = EParamsMode.contrast;
   config = [
     {
-      key: 'contrast',
-      label: this.$t('对比'),
+      key: EParamsMode.contrast,
+      label: window.i18n.tc('对比'),
       width: 96,
     },
     {
-      key: 'group',
+      key: EParamsMode.group,
       label: 'Group by',
       width: 129,
     },
@@ -66,23 +68,19 @@ export default class CallerCalleeContrast extends tsc<ICallerCalleeContrastProps
     return this.config.find(item => item.key === this.active);
   }
   handleChange() {
-    this.active = this.active === 'contrast' ? 'group' : 'contrast';
+    this.active = this.active === EParamsMode.contrast ? EParamsMode.group : EParamsMode.contrast;
   }
-  @Emit('changeDate')
-  changeDate(date) {
-    return date;
-  }
-  @Emit('check')
-  handleCheck(data) {
-    return data;
-  }
-  @Emit('group-change')
-  groupByChange(data) {
-    return data;
-  }
+
   @Emit('group-filter')
   groupByFilter(data) {
     return data;
+  }
+
+  handleContrastDatesChange(val: string[]) {
+    this.$emit('contrastDatesChange', val);
+  }
+  handleGroupByChange(val: string[]) {
+    this.$emit('groupByChange', val);
   }
 
   render() {
@@ -101,14 +99,14 @@ export default class CallerCalleeContrast extends tsc<ICallerCalleeContrastProps
         <div class='contrast-right'>
           {this.active === 'contrast' ? (
             <ContrastView
-              onChangeDate={this.changeDate}
-              onCheck={this.handleCheck}
-              onClear={this.changeDate}
+              value={this.contrastDates}
+              onChange={this.handleContrastDatesChange}
             />
           ) : (
             <GroupByView
+              groupBy={this.groupBy}
               searchList={this.searchList}
-              onChange={this.groupByChange}
+              onChange={this.handleGroupByChange}
               onFilter={this.groupByFilter}
             />
           )}

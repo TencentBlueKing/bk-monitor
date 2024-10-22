@@ -67,7 +67,10 @@ export default class ApmServiceCallerCallee extends CommonSimpleChart {
   variablesService = {};
   // 筛选具体的key list
   searchListData = SEARCH_KEY_LIST;
-  /** 初始化filter的对象 */
+  /* 已选的对比日期 */
+  contrastDates = [];
+  /* 已选的groupBy */
+  groupBy = [];
   filterData = {
     caller: [],
     callee: [],
@@ -191,6 +194,14 @@ export default class ApmServiceCallerCallee extends CommonSimpleChart {
     this.filterData[this.activeKey].find(item => item.label === key).values = [row[key]];
   }
 
+  /**
+   * @description 对比日期选择
+   * @param val
+   */
+  handleContrastDatesChange(val: string[]) {
+    this.contrastDates = val;
+  }
+
   changeFilterData({ val, item }) {
     console.log(val, item);
   }
@@ -208,7 +219,13 @@ export default class ApmServiceCallerCallee extends CommonSimpleChart {
     this.tableColData = [...this.dateData, ...this.diffTypeData];
   }
   handleGroupFilter() {}
-  handleGroupChange() {}
+  /**
+   * @description groupBy 数据
+   * @param val
+   */
+  handleGroupChange(val: string[]) {
+    this.groupBy = val;
+  }
 
   /** 点击选中图表里的某个点 */
   handleChoosePoint(date) {
@@ -337,6 +354,13 @@ export default class ApmServiceCallerCallee extends CommonSimpleChart {
               onChangeDate={this.changeDate}
               onCheck={this.handleCheck}
               onGroupChange={this.handleGroupChange}
+              contrastDates={this.contrastDates}
+              groupBy={this.groupBy}
+              searchList={this.searchListData}
+              // onChangeDate={this.changeDate}
+              // onCheck={this.handleCheck}
+              onContrastDatesChange={this.handleContrastDatesChange}
+              onGroupByChange={this.handleGroupChange}
               onGroupFilter={this.handleGroupFilter}
             />
           </div>
