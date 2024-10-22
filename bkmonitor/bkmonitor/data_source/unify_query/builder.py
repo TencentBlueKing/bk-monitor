@@ -325,9 +325,8 @@ class UnifyQueryConfig:
         if expression:
             self.expression = expression
 
-    def add_f(self, func: Optional[Dict[str, Any]]):
-        if func:
-            self.functions.append(func)
+    def add_func(self, _id: str, params: List[Dict[str, Any]]):
+        self.functions.append({"id": _id, "params": params})
 
     def add_q(self, query_config: Optional[QueryConfig]):
         if query_config:
@@ -378,9 +377,9 @@ class UnifyQuerySet(IterMixin):
         clone.query.set_limits(high=1)
         return clone
 
-    def function(self, **kwargs) -> "UnifyQuerySet":
+    def func(self, _id: str, params: List[Dict[str, Any]]) -> "UnifyQuerySet":
         clone = self._clone()
-        clone.query.add_f(kwargs)
+        clone.query.add_func(_id, params)
         return clone
 
     def expression(self, expression: Optional[str]) -> "UnifyQuerySet":

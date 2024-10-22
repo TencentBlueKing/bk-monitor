@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import functools
 from typing import Any, Callable, Dict, List, Optional
 
 from django.db.models import Q
@@ -78,22 +79,27 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         self.temporality: str = kwargs.get("temporality") or MetricTemporality.CUMULATIVE
 
     def handle(self, calculation_type: str, **kwargs) -> List[Dict[str, Any]]:
-        support_calculations: Dict[str, Callable[[Optional[int], Optional[int]], List[Dict[str, Any]]]] = {
-            define.CalculationType.REQUEST_TOTAL: self._request_total,
-            define.CalculationType.SUCCESS_RATE: self._success_rate,
-            define.CalculationType.TIMEOUT_RATE: self._timeout_rate,
-            define.CalculationType.EXCEPTION_RATE: self._exception_rate,
-            define.CalculationType.AVG_DURATION: self._avg_duration,
-            define.CalculationType.P50_DURATION: self._p50_duration,
-            define.CalculationType.P95_DURATION: self._p95_duration,
-            define.CalculationType.P99_DURATION: self._p99_duration,
-        }
-        if calculation_type not in support_calculations:
-            raise ValueError(f"Unsupported calculation type -> {calculation_type}")
-        return support_calculations[calculation_type](**kwargs)
+        return self.get_calculation_method(calculation_type)(**kwargs)
 
     class Meta:
         name = define.GroupEnum.TRPC
+
+    def get_calculation_method(self, calculation_type: str) -> Callable[..., List[Dict[str, Any]]]:
+        support_calculation_methods: Dict[str, Callable[..., List[Dict[str, Any]]]] = {
+            define.CalculationType.REQUEST_TOTAL: self._request_total,
+            define.CalculationType.SUCCESS_RATE: functools.partial(self._request_code_rate, CodeType.SUCCESS),
+            define.CalculationType.TIMEOUT_RATE: functools.partial(self._request_code_rate, CodeType.TIMEOUT),
+            define.CalculationType.EXCEPTION_RATE: functools.partial(self._request_code_rate, CodeType.EXCEPTION),
+            define.CalculationType.AVG_DURATION: self._avg_duration,
+            define.CalculationType.P50_DURATION: functools.partial(self._histogram_quantile_duration, 0.50),
+            define.CalculationType.P95_DURATION: functools.partial(self._histogram_quantile_duration, 0.95),
+            define.CalculationType.P99_DURATION: functools.partial(self._histogram_quantile_duration, 0.99),
+            define.CalculationType.TOP_N: self._top_n,
+            define.CalculationType.BOTTOM_N: self._bottom_n,
+        }
+        if calculation_type not in support_calculation_methods:
+            raise ValueError(f"Unsupported calculation type -> {calculation_type}")
+        return support_calculation_methods[calculation_type]
 
     def q(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> QueryConfigBuilder:
         interval: int = self.metric_helper.get_interval(start_time, end_time)
@@ -104,14 +110,18 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             q = q.func(_id="increase", params=[{"id": "window", "value": f"{interval}s"}])
         return q
 
-    def _request_total(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
-        q: QueryConfigBuilder = self.q(start_time, end_time).metric(
-            field=self.METRIC_FIELDS[self.kind]["rpc_handled_total"], method="SUM", alias="a"
+    def _request_total_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
+        q: QueryConfigBuilder = (
+            self.q(start_time, end_time)
+            .alias("a")
+            .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_total"], method="SUM", alias="a")
         )
-        qs: UnifyQuerySet = self.metric_helper.time_range_qs(start_time, end_time).add_query(q).instant().limit(1)
-        return list(qs)
+        return self.metric_helper.time_range_qs(start_time, end_time).add_query(q).expression("a").instant()
 
-    def _avg_duration(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
+    def _request_total(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
+        return list(self._request_total_qs(start_time, end_time))
+
+    def _avg_duration_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
         sum_q: QueryConfigBuilder = (
             self.q(start_time, end_time)
             .alias("a")
@@ -122,14 +132,16 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             .alias("b")
             .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_count"], method="SUM", alias="b")
         )
-        qs: UnifyQuerySet = (
+        return (
             self.metric_helper.time_range_qs(start_time, end_time)
             .add_query(sum_q)
             .add_query(count_q)
             .expression("(a / b) * 1000")
             .instant()
         )
-        return list(qs)
+
+    def _avg_duration(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
+        return list(self._avg_duration_qs(start_time, end_time))
 
     def _histogram_quantile_duration(
         self, scalar: float, start_time: Optional[int] = None, end_time: Optional[int] = None
@@ -145,19 +157,9 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         )
         return list(qs)
 
-    def _p50_duration(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
-        return self._histogram_quantile_duration(0.50, start_time, end_time)
-
-    def _p95_duration(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
-        return self._histogram_quantile_duration(0.95, start_time, end_time)
-
-    def _p99_duration(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
-        return self._histogram_quantile_duration(0.99, start_time, end_time)
-
-    def _requests_code_rate(
+    def _request_code_rate_qs(
         self, code_type: str, start_time: Optional[int] = None, end_time: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
-
+    ) -> UnifyQuerySet:
         if code_type == CodeType.SUCCESS:
             q: Q = Q(code_type__eq=code_type)
             expression: str = "(a / b) * 100"
@@ -177,23 +179,37 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             .alias("b")
             .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_total"], method="SUM", alias="b")
         )
-        qs: UnifyQuerySet = (
+        return (
             self.metric_helper.time_range_qs(start_time, end_time)
             .add_query(code_q)
             .add_query(total_q)
             .expression(expression)
             .instant()
         )
-        return list(qs)
 
-    def _exception_rate(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
-        return self._requests_code_rate(CodeType.EXCEPTION, start_time, end_time)
+    def _request_code_rate(
+        self, code_type: str, start_time: Optional[int] = None, end_time: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        return list(self._request_code_rate_qs(code_type, start_time, end_time))
 
-    def _timeout_rate(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
-        return self._requests_code_rate(CodeType.TIMEOUT, start_time, end_time)
+    def _get_qs(self, qs_type: str, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
+        return {
+            define.CalculationType.REQUEST_TOTAL: self._request_total_qs,
+            define.CalculationType.SUCCESS_RATE: functools.partial(self._request_code_rate_qs, CodeType.SUCCESS),
+            define.CalculationType.TIMEOUT_RATE: functools.partial(self._request_code_rate_qs, CodeType.TIMEOUT),
+            define.CalculationType.EXCEPTION_RATE: functools.partial(self._request_code_rate_qs, CodeType.EXCEPTION),
+            define.CalculationType.AVG_DURATION: self._avg_duration_qs,
+        }[qs_type](start_time, end_time)
 
-    def _success_rate(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
-        return self._requests_code_rate(CodeType.SUCCESS, start_time, end_time)
+    def _top_n(
+        self, qs_type: str, limit: int, start_time: Optional[int] = None, end_time: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        return list(self._get_qs(qs_type, start_time, end_time).func(_id="topk", params=[{"value": limit}]))
+
+    def _bottom_n(
+        self, qs_type: str, limit: int, start_time: Optional[int] = None, end_time: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        return list(self._get_qs(qs_type, start_time, end_time).func(_id="bottomk", params=[{"value": limit}]))
 
     def fetch_server_list(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[str]:
         return self.metric_helper.get_field_option_values_by_groups(

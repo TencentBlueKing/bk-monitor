@@ -83,6 +83,7 @@
                   }
                 ],
                 "stack": "all",
+                "extra_filter_dict": {},
                 "unify_query_param": {
                   "expression": "A",
                   "query_configs": [
@@ -126,7 +127,8 @@
               "type": "bar",
               "hoverAllTooltips": true
             },
-            "unit": "number"
+            "unit": "number",
+            "is_support_group_by": true
           }
         },
         {
@@ -217,6 +219,7 @@
                   }
                 ],
                 "stack": "all",
+                "extra_filter_dict": {},
                 "unify_query_param": {
                   "expression": "(a / b) * 100",
                   "query_configs": [
@@ -295,7 +298,8 @@
             "time_series": {
               "hoverAllTooltips": true
             },
-            "unit": "percent"
+            "unit": "percent",
+            "is_support_group_by": true
           }
         },
         {
@@ -388,6 +392,7 @@
                   }
                 ],
                 "stack": "all",
+                "extra_filter_dict": {},
                 "unify_query_param": {
                   "expression": "((a / b) * 100) or vector(0)",
                   "query_configs": [
@@ -468,7 +473,8 @@
             "time_series": {
               "hoverAllTooltips": true
             },
-            "unit": "percent"
+            "unit": "percent",
+            "is_support_group_by": true
           }
         },
         {
@@ -551,6 +557,7 @@
                   }
                 ],
                 "stack": "all",
+                "extra_filter_dict": {},
                 "unify_query_param": {
                   "expression": "a / b",
                   "query_configs": [
@@ -621,7 +628,8 @@
             "time_series": {
               "hoverAllTooltips": true
             },
-            "unit": "s"
+            "unit": "s",
+            "is_support_group_by": true
           }
         },
         {
@@ -1040,7 +1048,8 @@
             "time_series": {
               "hoverAllTooltips": true
             },
-            "unit": "s"
+            "unit": "s",
+            "is_support_group_by": false
           }
         },
         {
@@ -1107,6 +1116,7 @@
                 "stack": "all",
                 "unify_query_param": {
                   "expression": "A",
+                  "format": "heatmap",
                   "query_configs": [
                     {
                       "data_source_label": "custom",
@@ -1148,7 +1158,8 @@
             "time_series": {
               "hoverAllTooltips": true
             },
-            "unit": "number"
+            "unit": "number",
+            "is_support_group_by": false
           }
         }
       ]
@@ -1216,6 +1227,7 @@
                   }
                 ],
                 "stack": "all",
+                "extra_filter_dict": {},
                 "unify_query_param": {
                   "expression": "A",
                   "query_configs": [
@@ -1259,7 +1271,8 @@
               "type": "bar",
               "hoverAllTooltips": true
             },
-            "unit": "number"
+            "unit": "number",
+            "is_support_group_by": true
           }
         },
         {
@@ -1350,6 +1363,7 @@
                   }
                 ],
                 "stack": "all",
+                "extra_filter_dict": {},
                 "unify_query_param": {
                   "expression": "(a / b) * 100",
                   "query_configs": [
@@ -1428,7 +1442,8 @@
             "time_series": {
               "hoverAllTooltips": true
             },
-            "unit": "percent"
+            "unit": "percent",
+            "is_support_group_by": true
           }
         },
         {
@@ -1519,6 +1534,7 @@
                   }
                 ],
                 "stack": "all",
+                "extra_filter_dict": {},
                 "unify_query_param": {
                   "expression": "((a / b) * 100) or vector(0)",
                   "query_configs": [
@@ -1597,7 +1613,8 @@
             "time_series": {
               "hoverAllTooltips": true
             },
-            "unit": "percent"
+            "unit": "percent",
+            "is_support_group_by": true
           }
         },
         {
@@ -1680,6 +1697,7 @@
                   }
                 ],
                 "stack": "all",
+                "extra_filter_dict": {},
                 "unify_query_param": {
                   "expression": "a / b",
                   "query_configs": [
@@ -1750,7 +1768,8 @@
             "time_series": {
               "hoverAllTooltips": true
             },
-            "unit": "s"
+            "unit": "s",
+            "is_support_group_by": true
           }
         },
         {
@@ -2169,7 +2188,8 @@
             "time_series": {
               "hoverAllTooltips": true
             },
-            "unit": "s"
+            "unit": "s",
+            "is_support_group_by": false
           }
         },
         {
@@ -2236,6 +2256,7 @@
                 "stack": "all",
                 "unify_query_param": {
                   "expression": "A",
+                  "format": "heatmap",
                   "query_configs": [
                     {
                       "data_source_label": "custom",
@@ -2277,7 +2298,8 @@
             "time_series": {
               "hoverAllTooltips": true
             },
-            "unit": "number"
+            "unit": "number",
+            "is_support_group_by": false
           }
         }
       ]
@@ -2326,6 +2348,26 @@
           "where": [],
           "group_by": [],
           "time_ranges": [],
+          "options": {
+            "trpc": {
+              "kind": "${kind}",
+              "temporality": "${temporality}"
+            }
+          }
+        }
+      },
+      "group_by": {
+        "api": "apm_metric.queryDimensionsByLimit",
+        "supported_methods": [],
+        "supported_calculation_types": [],
+        "data": {
+          "app_name": "${app_name}",
+          "cal_type": "${method}",
+          "metric_group_name": "trpc",
+          "metric_cal_type": "${metric_cal_type}",
+          "limit": "${limit}",
+          "where": [],
+          "group_by": [],
           "options": {
             "trpc": {
               "kind": "${kind}",

@@ -175,7 +175,25 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 "tags": TRPCMetricTag.callee_tags(),
                 "support_operations": TrpcTagDrillOperation.callee_support_operations(),
             }
-            view_config["options"]["common"]["statistics"]["supported_calculation_types"] = CalculationType.choices()
+            view_config["options"]["common"]["statistics"]["supported_calculation_types"] = [
+                {"value": value, "text": text} for value, text in CalculationType.choices()
+            ]
+            view_config["options"]["common"]["group_by"]["supported_calculation_types"] = [
+                {"value": value, "text": text}
+                for value, text in CalculationType.choices()
+                if value
+                in [
+                    CalculationType.REQUEST_TOTAL,
+                    CalculationType.AVG_DURATION,
+                    CalculationType.SUCCESS_RATE,
+                    CalculationType.TIMEOUT_RATE,
+                    CalculationType.EXCEPTION_RATE,
+                ]
+            ]
+            view_config["options"]["common"]["group_by"]["supported_methods"] = [
+                {"value": CalculationType.TOP_N, "text": "top"},
+                {"value": CalculationType.BOTTOM_N, "text": "bottom"},
+            ]
             view_config["options"]["common"]["angle"][SeriesAliasType.CALLEE.value][
                 "metrics"
             ] = metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLEE.value]

@@ -20,6 +20,7 @@ export const serviceQueryException = request('POST', 'apm/metric/metric/service_
 export const metricDetailStatistics = request('GET', 'apm/metric/metric/metric_statistics/');
 export const getFieldOptionValues = request('POST', 'apm/metric/metric/get_field_option_values/');
 export const calculateByRange = request('POST', 'apm/metric/metric/calculate_by_range/');
+export const queryDimensionsByLimit = request('POST', 'apm/metric/metric/query_dimensions_by_limit/');
 
 export default {
   errorListByTraceIds,
@@ -41,5 +42,6 @@ export default {
   serviceQueryException,
   metricDetailStatistics,
   getFieldOptionValues,
-  calculateByRange
+  calculateByRange,
+  queryDimensionsByLimit
 };

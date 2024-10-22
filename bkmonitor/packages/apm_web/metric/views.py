@@ -24,6 +24,7 @@ from apm_web.metric.resources import (
     HostInstanceDetailListResource,
     InstanceListResource,
     MetricDetailStatisticsResource,
+    QueryDimensionsByLimitResource,
     ServiceInstancesResource,
     ServiceListAsyncResource,
     ServiceListResource,
@@ -116,4 +117,5 @@ class MetricViewSet(ResourceViewSet):
         ResourceRoute("GET", MetricDetailStatisticsResource, "metric_statistics"),
         ResourceRoute("POST", GetFieldOptionValuesResource, "get_field_option_values"),
         ResourceRoute("POST", CalculateByRangeResource, "calculate_by_range"),
+        ResourceRoute("POST", QueryDimensionsByLimitResource, "query_dimensions_by_limit"),
     ]

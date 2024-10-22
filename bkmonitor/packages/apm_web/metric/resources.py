@@ -18,6 +18,7 @@ from json import JSONDecodeError
 from typing import Any, Dict, List, Set, Tuple
 
 from django.core.cache import cache
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _lazy
 from django.utils.translation import ugettext as _
 from opentelemetry.semconv.resource import ResourceAttributes
@@ -2971,3 +2972,88 @@ class CalculateByRangeResource(Resource):
             validated_request_data["baseline"], list(alias_aggregated_records_map.keys()), merged_records
         )
         return merged_records
+
+
+class QueryDimensionsByLimitResource(Resource):
+    CALCULATION_TYPE: str = metric_group.CalculationType.TOP_N
+
+    class RequestSerializer(serializers.Serializer):
+        class OptionsSerializer(serializers.Serializer):
+            class TrpcSerializer(serializers.Serializer):
+                kind = serializers.ChoiceField(
+                    label="调用类型",
+                    choices=SeriesAliasType.get_choices(),
+                    required=True,
+                )
+                temporality = serializers.ChoiceField(label="时间性", required=True, choices=MetricTemporality.choices())
+
+            trpc = TrpcSerializer(label="tRPC 配置", required=False)
+
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        app_name = serializers.CharField(label="应用名称")
+        limit = serializers.IntegerField(label="查询数量", default=10, required=False)
+        filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
+        where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
+        group_by = serializers.ListSerializer(label="聚合字段", required=False, default=[], child=serializers.CharField())
+        cal_type = serializers.ChoiceField(
+            label="计算类型",
+            required=False,
+            default=metric_group.CalculationType.TOP_N,
+            choices=[metric_group.CalculationType.TOP_N, metric_group.CalculationType.BOTTOM_N],
+        )
+        metric_group_name = serializers.ChoiceField(
+            label="指标组", required=True, choices=metric_group.GroupEnum.choices()
+        )
+        metric_cal_type = serializers.ChoiceField(
+            label="指标计算类型", required=True, choices=metric_group.CalculationType.choices()
+        )
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
+        options = OptionsSerializer(label="配置", required=False, default={})
+
+        def validate(self, attrs):
+            # 合并查询条件
+            attrs["filter_dict"] = q_to_dict(
+                conditions_to_q(filter_dict_to_conditions(attrs.get("filter_dict") or {}, attrs.get("where") or []))
+            )
+            return attrs
+
+    @classmethod
+    def _format(cls, group_fields: List[str], records: List[Dict[str, Any]]):
+        group_key_result_map: Dict[Tuple, Any] = {}
+        for record in records:
+            group_key: Tuple = tuple((field, record.get(field)) for field in group_fields)
+            group_key_result_map[group_key] = record["_result_"]
+
+        processed_records: List[Dict[str, Any]] = []
+        for group_key, result in group_key_result_map.items():
+            processed_records.append({"dimensions": dict(group_key), "result": result})
+        return processed_records
+
+    @classmethod
+    def _get_extra_filter_dict(cls, records: List[Dict[str, Any]]) -> Dict[str, Any]:
+        q: Q = Q()
+        for record in records:
+            q = q | Q(**{k: v for k, v in record["dimensions"].items() if v is not None})
+        return q_to_dict(q)
+
+    def perform_request(self, validated_request_data):
+        group_name: str = validated_request_data["metric_group_name"]
+        group_fields: List[str] = validated_request_data.get("group_by") or []
+        group: metric_group.BaseMetricGroup = metric_group.MetricGroupRegistry.get(
+            group_name,
+            validated_request_data["bk_biz_id"],
+            validated_request_data["app_name"],
+            group_by=group_fields,
+            filter_dict=validated_request_data.get("filter_dict"),
+            **(validated_request_data["options"].get(group_name) or {}),
+        )
+        records: List[Dict[str, Any]] = group.handle(
+            validated_request_data["cal_type"],
+            qs_type=validated_request_data["metric_cal_type"],
+            limit=validated_request_data["limit"],
+            start_time=validated_request_data.get("start_time"),
+            end_time=validated_request_data.get("end_time"),
+        )
+        records = self._format(group_fields, records)
+        return {"dimensions_list": records, "extra_filter_dict": self._get_extra_filter_dict(records)}
