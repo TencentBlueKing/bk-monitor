@@ -29,6 +29,7 @@ import {
   collectConfigList,
   // collectInstanceStatus,
   frontendCollectConfigDetail,
+  frontendCollectConfigTargetInfo,
 } from 'monitor-api/modules/collecting';
 import { collectingTargetStatus, storageStatus } from 'monitor-api/modules/datalink';
 import { listUserGroup } from 'monitor-api/modules/model';
@@ -44,7 +45,7 @@ import AlertTopic from './components/alert-topic';
 import FieldDetails from './components/field-details';
 import LinkStatus from './components/link-status';
 import StorageState from './components/storage-state';
-import { type DetailData, TCollectorAlertStage, TabEnum } from './typings/detail';
+import { type ChangeConfig, type DetailData, TCollectorAlertStage, TabEnum, type TabProperty } from './typings/detail';
 
 import type { IAlarmGroupList } from './components/alarm-group';
 import type { Route, NavigationGuardNext } from 'vue-router';
@@ -63,10 +64,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
     metric_list: [],
     runtime_params: [],
     subscription_id: undefined,
-    target_info: {},
   };
-
-  loading = false;
 
   allData = {
     [TabEnum.TargetDetail]: {
@@ -84,12 +82,17 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
     },
     [TabEnum.Configuration]: {
       renderKey: random(8),
+      loading: false,
+      tableLoading: false,
     },
     [TabEnum.DataLink]: {
       topicKey: '',
     },
+    [TabEnum.FieldDetails]: {},
   };
 
+  // 采集目标
+  targetInfo: Record<string, any> = {};
   // 告警组
   alarmGroupList: IAlarmGroupList[] = [];
   /* 从采集列表获取当前采集数据 */
@@ -102,6 +105,12 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
     next((vm: CollectorDetail) => {
       vm.collectId = Number(params.id);
     });
+  }
+
+  /* 切换allData数据状态 */
+  handleAllDataChange<T extends TabEnum, K extends TabProperty<T>>(changeConfig: ChangeConfig<T, K>) {
+    const { tab, property, data } = changeConfig;
+    this.$set(this.allData[tab], property, data);
   }
 
   created() {
@@ -123,6 +132,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
         {
           this.getCollectConfigListItem();
           this.getDetails();
+          this.getTargetInfoData();
         }
         break;
       case TabEnum.TargetDetail:
@@ -186,14 +196,29 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
    */
   getDetails() {
     if (!this.collectId || this.detailData.basic_info?.name) return;
-    this.loading = true;
-    frontendCollectConfigDetail({ id: this.collectId })
+    this.allData[TabEnum.Configuration].loading = true;
+    frontendCollectConfigDetail({ id: this.collectId, with_target_info: false })
       .then(res => {
         this.detailData = res;
         this.allData[TabEnum.Configuration].renderKey = random(8);
       })
       .finally(() => {
-        this.loading = false;
+        this.allData[TabEnum.Configuration].loading = false;
+      });
+  }
+
+  /**
+   * @description 获取采集目标列表
+   */
+  getTargetInfoData() {
+    if (!this.collectId || this.targetInfo?.table_data?.length) return;
+    this.allData[TabEnum.Configuration].tableLoading = true;
+    frontendCollectConfigTargetInfo({ id: this.collectId })
+      .then(res => {
+        this.targetInfo = res;
+      })
+      .finally(() => {
+        this.allData[TabEnum.Configuration].tableLoading = false;
       });
   }
 
@@ -298,12 +323,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
 
   render() {
     return (
-      <div
-        class='collector-detail-page'
-        v-bkloading={{
-          isLoading: this.loading,
-        }}
-      >
+      <div class='collector-detail-page'>
         <MonitorTab
           active={this.active}
           on-tab-change={v => this.handleTabChange(v)}
@@ -319,7 +339,11 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
                 key={this.allData[TabEnum.Configuration].renderKey}
                 collectConfigData={this.collectConfigData}
                 detailData={this.detailData}
+                loading={this.allData[TabEnum.Configuration].loading}
                 show={this.active === TabEnum.Configuration}
+                tableLoading={this.allData[TabEnum.Configuration].tableLoading}
+                targetInfo={this.targetInfo}
+                onHandleAllDataChange={this.handleAllDataChange}
               />
             )}
           </bk-tab-panel>
@@ -392,7 +416,10 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             name={TabEnum.FieldDetails}
             renderDirective='if'
           >
-            <FieldDetails detailData={this.detailData} />
+            <FieldDetails
+              detailData={this.detailData}
+              loading={this.allData[TabEnum.Configuration].loading}
+            />
           </bk-tab-panel>
           <span
             class='tab-right-tip'
