@@ -320,7 +320,7 @@ class UnifyQueryHandler(object):
         condition_list = []
         new_addition = self._combine_addition_ip_chooser(index_info=index_info)
         for addition in new_addition:
-            if len(field_list) > 1:
+            if len(field_list) != 0:
                 condition_list.append("and")
             # 全文检索key & 存量query_string转换
             if addition["field"] in ["*", "__query_string__"]:
