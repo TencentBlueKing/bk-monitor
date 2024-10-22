@@ -23,12 +23,26 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import PopInstanceUtil from './pop-instance-util';
+const instance = new PopInstanceUtil({
+  onHiddenFn: () => true,
+  tippyOptions: {
+    hideOnClick: true,
+    theme: 'segment-light',
+    placement: 'bottom',
+    appendTo: document.body,
+  },
+});
 
-declare module '*.vue' {
-  import Vue from 'vue';
-  export default Vue;
-}
-
-declare module '*/store';
-declare module '*.svg';
-declare module '@/hooks/use-locale';
+export default {
+  show: (target, content) => {
+    if (content) {
+      instance.setContent(content);
+    }
+    instance.show(target);
+  },
+  hide: () => {
+    instance.hide();
+  },
+  getInstance: () => instance.getTippyInstance(),
+};
