@@ -34,6 +34,7 @@ import AiopsChart from '../plugins/aiops-chart/aiops-chart';
 import AiopsDimensionLint from '../plugins/aiops-dimension-lint/aiops-dimension-lint';
 import AlarmEventChart from '../plugins/alarm-event-chart/alarm-event-chart';
 import ApdexChart from '../plugins/apdex-chart/apdex-chart';
+import ApmHeatmap from '../plugins/apm-heatmap/apm-heatmap';
 import ApmRelationGraph from '../plugins/apm-relation-graph/apm-relation-graph';
 import ApmServiceCallerCallee from '../plugins/apm-service-caller-callee/apm-service-caller-callee';
 import ApmCallerLineChart from '../plugins/apm-service-caller-callee/chart/apm-caller-line-chart';
@@ -534,6 +535,13 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         return <ApmServiceCallerCallee panel={this.panel} />;
       case 'alarm-event-chart':
         return <AlarmEventChart panel={this.panel} />;
+      case 'apm-heatmap':
+        return (
+          <ApmHeatmap
+            panel={this.panel}
+            onLoading={this.handleChangeLoading}
+          />
+        );
 
       // 不需要报错显示
       // case 'graph':

@@ -27,7 +27,7 @@
 import { Component, Prop, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
+import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
 import type { PanelModel } from '../../../typings';
 
@@ -55,6 +55,7 @@ export default class ChartView extends tsc<IChartViewProps, IChartViewEvent> {
       <div class='caller-callee-chart-view'>
         <DashboardPanel
           id={'caller-callee-chart-view'}
+          column={3}
           panels={this.panelsData}
           onChoosePoint={this.handleChoosePoint}
         />
