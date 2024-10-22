@@ -1722,10 +1722,6 @@ class KafkaStorage(models.Model, StorageResultTable):
         return True
 
 
-def is_false(value):
-    return value is False
-
-
 class ESStorage(models.Model, StorageResultTable):
     """ES存储配置信息"""
 
