@@ -325,6 +325,15 @@ class ExternalPermission(OperateRecordModel):
            2.1 编辑：删除存量权限，如有新增则创建审批单据
         """
         authorized_users = validated_request_data.pop("authorized_users")
+        if "__all__" in authorized_users:
+            authorized_users = list(
+                cls.objects.filter(
+                    space_uid=validated_request_data["space_uid"],
+                )
+                .values_list("authorized_user", flat=True)
+                .distinct()
+            )
+
         view_type = validated_request_data.pop("view_type", ViewTypeEnum.USER.value)
         operate_type = validated_request_data.pop("operate_type", OperateEnum.CREATE.value)
         resources = validated_request_data["resources"]

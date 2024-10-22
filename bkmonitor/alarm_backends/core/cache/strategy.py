@@ -21,7 +21,6 @@ from typing import Callable, Dict, Iterable, List, Set, Tuple, Union
 
 import arrow
 from django.conf import settings
-from six.moves import map
 
 from alarm_backends.constants import CONST_ONE_DAY
 from alarm_backends.core.cache.base import CacheManager
@@ -326,9 +325,9 @@ class StrategyCacheManager(CacheManager):
                     del value["bk_cloud_id"]
 
     @classmethod
-    def get_strategies(cls, filter_dict: Union[Dict, None] = None) -> List[Dict]:
+    def get_strategies_map(cls, filter_dict: Union[Dict, None] = None) -> Dict:
         """
-        获取全部策略配置
+        获取全部策略配置, 返回字典格式
         """
         filter_dict: Dict = filter_dict or {}
         # 初始化策略失效检测信息
@@ -350,6 +349,8 @@ class StrategyCacheManager(CacheManager):
             "related_ids_map": defaultdict(set),
         }
 
+        # 根据给定的过滤条件，从数据库中筛选出所有启用的策略模型，并将它们转换为字典形式
+        # 这个映射的键是策略的唯一标识符，值是策略的内容，便于进一步处理和使用
         strategy_configs_map = {
             strategy.id: strategy.to_dict()
             for strategy in Strategy.from_models(StrategyModel.objects.filter(is_enabled=True).filter(**filter_dict))
@@ -373,9 +374,19 @@ class StrategyCacheManager(CacheManager):
                     result_map[strategy_id] = strategy_config
             except Exception as e:
                 logger.exception("refresh strategy error when handle_strategy[%s]: %s", strategy_id, e)
-
+        # 检测关联策略是否失效
         cls.check_related_strategy(result_map, invalid_strategy_dict)
+        return result_map
 
+    @classmethod
+    def get_strategies(cls, filter_dict: Union[Dict, None] = None) -> List[Dict]:
+        """
+        获取全部策略配置
+        """
+        # 获取字典格式的全部策略配置
+        result_map = cls.get_strategies_map(filter_dict)
+
+        # 提取所有的策略配置重新组成一个列表
         result = []
         for strategy_id, strategy_config in result_map.items():
             result.append(strategy_config)
@@ -680,18 +691,34 @@ class StrategyCacheManager(CacheManager):
     def refresh_strategy_ids(cls, strategies: List[Dict], to_be_deleted_strategy_ids=None):
         """
         刷新策略ID列表缓存
+
+        该方法主要用于更新策略ID列表的缓存。它通过比较传入的策略ID列表与当前缓存中的ID列表，
+        来更新缓存以反映最新的策略状态。如果指定了要删除的策略ID列表，则会相应地从当前缓存中
+        移除这些ID，并根据新的策略列表更新缓存。
+
+        :param strategies: 当前所有的策略信息列表，每条策略包含唯一的ID。
+        :param to_be_deleted_strategy_ids: 可选参数，指定需要从缓存中删除的策略ID列表。
         """
+        # 从传入的策略列表中提取所有策略的ID，形成一个新集合。
         updated_strategy_ids: Set = {strategy["id"] for strategy in strategies}
+        # 从缓存中获取当前保存的所有策略ID，形成一个集合。
         old_strategy_ids: Set = set(cls.get_strategy_ids())
+
+        # 如果指定了需要删除的策略ID列表，则进行增量更新。
         if to_be_deleted_strategy_ids is not None:
             # 增量更新
             # 原列表(old_strategy_ids) - 删除(to_be_deleted_strategy_ids) + 更新(updated_strategy_ids) -> 去重
             updated_strategy_ids |= old_strategy_ids - set(to_be_deleted_strategy_ids)
 
+        # 更新缓存中的策略ID列表。
         cls.cache.set(cls.IDS_CACHE_KEY, json.dumps(list(updated_strategy_ids)), cls.CACHE_TIMEOUT)
+
+        # 遍历旧的策略ID列表，检查是否有不再新策略列表中的ID。
         for strategy_id in old_strategy_ids:
+            # 如果旧列表中的ID在新列表中找不到，则说明该策略已被删除或更改。
             if strategy_id not in updated_strategy_ids:
                 logger.info(f"[smart_strategy_cache]: refresh_strategy_ids delete strategy: {strategy_id}")
+                # 从缓存中删除该策略的相关信息。
                 cls.cache.delete(cls.CACHE_KEY_TEMPLATE.format(strategy_id=strategy_id))
 
     @classmethod
@@ -708,6 +735,7 @@ class StrategyCacheManager(CacheManager):
         old_bk_biz_ids = cls.get_all_bk_biz_ids()
         logger.info(f"[smart_strategy_cache]: refresh_bk_biz_ids old_bk_biz_ids: {len(old_bk_biz_ids)}")
         for biz_id in bk_biz_ids:
+            # 发生变更的业务ID不在旧的业务ID列表中，则添加到旧的业务ID列表中
             if biz_id not in old_bk_biz_ids:
                 old_bk_biz_ids.append(biz_id)
         logger.info(f"[smart_strategy_cache]: refresh_bk_biz_ids new_bk_biz_ids: {len(old_bk_biz_ids)}")
@@ -817,11 +845,26 @@ class StrategyCacheManager(CacheManager):
     def refresh_strategy(cls, strategies: List[Dict], old_groups=None):
         """
         刷新策略缓存
+        该方法用于更新策略的缓存，确保策略及其相关分组信息是最新的
+
+        “策略详情信息”循环缓存，每个策略占用缓存中的一个key, 数据结构是string
+        “策略分组信息”一次性缓存，含所有分组的信息占用缓存中的一个key, 数据结构是hash
+        策略分组信息的结构为:
+        {
+        '623446abe6e6a4b6a9af6531bd45faeb': {1: [1], 'bk_biz_id': 2, 'interval_list': [60], 'default_factory': []},
+        '623446abe6e6a4b6a9af6531bd45faec': {2: [2], 'bk_biz_id': 2, 'interval_list': [120], 'default_factory': []},
+        }
+
+        :param strategies: 新的策略列表，每个策略包含其详细信息
+        :param old_groups: 旧的策略分组信息，如果为None，则进行全量更新。否则进行增量更新，删除不在新策略中的旧分组
         """
+        # 初始化策略分组缓存结构
         strategy_groups = defaultdict(lambda: defaultdict(list))
 
+        # 开启缓存pipeline以优化写入性能
         pipeline = cls.cache.pipeline()
         for strategy in strategies:
+            # 将策略信息存储到缓存中
             pipeline.set(
                 cls.CACHE_KEY_TEMPLATE.format(strategy_id=strategy["id"]), json.dumps(strategy), cls.CACHE_TIMEOUT
             )
@@ -847,20 +890,25 @@ class StrategyCacheManager(CacheManager):
                         except (TypeError, ValueError, AssertionError):
                             continue
 
+        # 判断是否是全量更新
         refresh_all = old_groups is None
         if refresh_all:
-            # 全量更新
+            # 全量更新，获取旧的分组信息
             old_groups = cls.cache.hkeys(cls.STRATEGY_GROUP_CACHE_KEY)
 
+        # 删除不在新策略中的旧分组
         for query_md5 in old_groups:
             if query_md5 not in strategy_groups:
                 if not refresh_all:
                     logger.info(f"[smart_strategy_cache]: refresh_strategy delete old group: {query_md5}")
                 pipeline.hdel(cls.STRATEGY_GROUP_CACHE_KEY, query_md5)
+        # 更新新的分组信息到缓存中
         for query_md5 in strategy_groups:
             pipeline.hset(cls.STRATEGY_GROUP_CACHE_KEY, query_md5, json.dumps(strategy_groups[query_md5]))
+        # 设置缓存过期时间
         pipeline.expire(cls.STRATEGY_GROUP_CACHE_KEY, cls.CACHE_TIMEOUT)
 
+        # 执行pipeline中的所有操作
         pipeline.execute()
 
     @classmethod
@@ -964,28 +1012,61 @@ class StrategyCacheManager(CacheManager):
 
     @classmethod
     def refresh(cls):
+        """
+        全量更新策略缓存
+        """
         start_time = time.time()
         exc = None
 
         # 获取策略列表并缓存
         try:
-            strategies = cls.get_strategies()
+            strategies_map = cls.get_strategies_map()
         except Exception as e:
-            strategies = []
-            exc = e
+            logger.exception("refresh strategy error when get_strategies_map: %s", e)
+            duration = time.time() - start_time
+            metrics.ALARM_CACHE_TASK_TIME.labels("0", "strategy", str(e)).observe(duration)
+            metrics.report_all()
+            return
+
+        # 获取策略历史数据
+        histories = StrategyHistoryModel.objects.filter(create_time__gt=datetime.fromtimestamp(start_time))
+        if not histories.exists():
+            logger.info(
+                f"[refresh_strategy_cache]: no changed strategy found in the past {time.time() - start_time}"
+                f" seconds"
+            )
+        else:
+            target_biz_set, to_be_deleted_strategy_ids = cls.handle_history_strategies(histories)
+            # 如果有策略待删除，则记录日志
+            if to_be_deleted_strategy_ids:
+                logger.info(f"[refresh_strategy_cache]: to_be_deleted_strategy_ids: {to_be_deleted_strategy_ids}")
+
+                # 删除待删除的策略
+                for strategy_id, _ in to_be_deleted_strategy_ids:
+                    strategies_map.pop(strategy_id, None)
+            try:
+                changed_strategies_map = (
+                    cls.get_strategies_map({"bk_biz_id__in": target_biz_set}) if target_biz_set else {}
+                )
+                strategies_map.update(changed_strategies_map)
+            except Exception as e:
+                logger.exception(f"[refresh_strategy_cache]: get data of changed_strategies_map failed: {e}")
+                exc = e
 
         processors: List[Callable[[List[Dict]], None]] = [
             cls.add_target_shield_condition,
             cls.add_enabled_cluster_condition,
-            cls.refresh_strategy_ids,
-            cls.refresh_bk_biz_ids,
-            cls.refresh_strategy,
-            cls.refresh_real_time_strategy_ids,
-            cls.refresh_gse_alarm_strategy_ids,
-            cls.refresh_fta_alert_strategy_ids,
-            cls.refresh_nodata_strategy_ids,
+            cls.refresh_strategy_ids,  # 刷新缓存策略ID
+            cls.refresh_bk_biz_ids,  # 刷新缓存业务ID
+            cls.refresh_strategy,  # 刷新缓存策略详细信息和策略分组信息
+            cls.refresh_real_time_strategy_ids,  # 刷新实时数据的相关策略
+            cls.refresh_gse_alarm_strategy_ids,  # 刷新gse事件策略ID列表缓存
+            cls.refresh_fta_alert_strategy_ids,  # 刷新自愈策略列表缓存
+            cls.refresh_nodata_strategy_ids,  # 刷新无数据策略ID列表缓存
         ]
 
+        # 获取策略列表, 执行缓存策略刷新操作
+        strategies = list(strategies_map.values())
         for processor in processors:
             try:
                 processor(strategies)
@@ -998,6 +1079,50 @@ class StrategyCacheManager(CacheManager):
         metrics.report_all()
 
     @classmethod
+    def handle_history_strategies(cls, histories: List[StrategyHistoryModel]) -> Tuple[Set, Set]:
+        """
+        处理策略历史，确定受影响的业务和待删除的策略。
+
+        :param histories: List[StrategyHistoryModel]，策略历史记录列表。
+        :returns: Tuple[Set, Set]，包含受影响的业务ID集合和待删除的策略ID集合的元组。
+        """
+        target_biz_set = set()
+        # 初始化待删除的策略ID集合
+        to_be_deleted_strategy_ids: Set[Tuple] = set()
+        # 遍历变更策略以确定受影响的业务和待删除的策略
+        for history in histories:
+            # 变更的策略，需要判定is_enabled变化
+            if history.operate != "delete":
+                # 本次增量更新的业务列表
+                target_biz_set.add(history.content["bk_biz_id"])
+                # 判断策略是否启用
+                is_enabled = history.content["is_enabled"]
+                if is_enabled:
+                    continue
+            # 删除的策略，需要记录对应的策略id和对应的group key
+            strategy_id = history.strategy_id
+            query_md5 = ""
+            # 从缓存中获取策略详情
+            strategy = cls.get_strategy_by_id(strategy_id)
+            if not strategy:
+                # 先禁用，再删除的情况下，不一定有缓存，此时不需要处理
+                continue
+            # 根据策略内容生成对应的查询MD5
+            for item in strategy["items"]:
+                query_config = item["query_configs"][0]
+                data_source_label = query_config["data_source_label"]
+                data_type_label = query_config["data_type_label"]
+                is_series = data_type_label in [DataTypeLabel.TIME_SERIES, DataTypeLabel.LOG]
+                is_custom_event = data_source_label == DataSourceLabel.CUSTOM and data_type_label == DataTypeLabel.EVENT
+                is_fta_event = data_source_label == DataSourceLabel.BK_FTA and data_type_label == DataTypeLabel.EVENT
+                if any([is_series, is_custom_event, is_fta_event]):
+                    query_md5 = cls.get_query_md5(strategy["bk_biz_id"], item)
+            # 添加待删除的策略ID和查询MD5到集合中
+            to_be_deleted_strategy_ids.add((strategy_id, query_md5))
+
+        return target_biz_set, to_be_deleted_strategy_ids
+
+    @classmethod
     def smart_refresh(cls):
         """
         增量更新，默认300s内变更的业务将被更新。 更新后将设置最后更新时间。
@@ -1008,56 +1133,40 @@ class StrategyCacheManager(CacheManager):
         last_updated = cls.cache.get(cls.LAST_UPDATED_CACHE_KEY) or 0
         # 增量更新范围（默认5min）
         timeshift = 300
+        # 根据上次更新时间计算本次更新的时间范围
         if last_updated:
             timeshift = start_time - int(last_updated)
         # 获取策略列表并缓存
         histories = StrategyHistoryModel.objects.filter(create_time__gt=datetime.now() - timedelta(seconds=timeshift))
+        # 若无变更策略，则记录日志并返回
         if not histories.exists():
             logger.info(f"[smart_strategy_cache]: no active strategy found in the past {timeshift} seconds, do nothing")
+            # 记录执行时间并更新监控指标
             duration = time.time() - start_time
             metrics.ALARM_CACHE_TASK_TIME.labels("0", "smart_strategy", str(exc)).observe(duration)
             metrics.report_all()
             return
         logger.info(f"[smart_strategy_cache]: active strategy found in the past {timeshift} seconds")
-        target_biz_set = set()
-        to_be_deleted_strategy_ids: Set[Tuple] = set()
-        for history in histories:
-            # 变更的策略，需要判定is_enabled变化
-            if history.operate != "delete":
-                # 本次增量更新的业务列表
-                target_biz_set.add(history.content["bk_biz_id"])
-                is_enabled = history.content["is_enabled"]
-                if is_enabled:
-                    continue
-            # 删除的策略，需要记录对应的策略id和对应的group key
-            strategy_id = history.strategy_id
-            query_md5 = ""
-            strategy = cls.get_strategy_by_id(strategy_id)
-            if not strategy:
-                # 先禁用，再删除的情况下，不一定有缓存，此时不需要处理
-                continue
-            for item in strategy["items"]:
-                query_config = item["query_configs"][0]
-                data_source_label = query_config["data_source_label"]
-                data_type_label = query_config["data_type_label"]
-                is_series = data_type_label in [DataTypeLabel.TIME_SERIES, DataTypeLabel.LOG]
-                is_custom_event = data_source_label == DataSourceLabel.CUSTOM and data_type_label == DataTypeLabel.EVENT
-                is_fta_event = data_source_label == DataSourceLabel.BK_FTA and data_type_label == DataTypeLabel.EVENT
-                if any([is_series, is_custom_event, is_fta_event]):
-                    query_md5 = cls.get_query_md5(strategy["bk_biz_id"], item)
-            to_be_deleted_strategy_ids.add((strategy_id, query_md5))
 
+        # 处理变更的策略
+        target_biz_set, to_be_deleted_strategy_ids = cls.handle_history_strategies(histories)
+
+        # 如果有策略待删除，则记录日志
         if to_be_deleted_strategy_ids:
             logger.info(f"[smart_strategy_cache]: to_be_deleted_strategy_ids: {to_be_deleted_strategy_ids}")
 
+        # 尝试获取目标业务的策略
         try:
             strategies = cls.get_strategies({"bk_biz_id__in": target_biz_set})
         except Exception as e:  # noqa
+            # 若获取策略失败，则记录日志并跳过
             logger.info(f"[smart_strategy_cache]: get target strategies error: {e}")
             strategies = []
             exc = e
+        # 记录待处理的策略数量
         logger.info(f"[smart_strategy_cache]: {len(strategies)} strategy to be processed")
 
+        # 定义更新策略的函数列表
         def refresh_strategy_ids(_strategies):
             return cls.refresh_strategy_ids(_strategies, [ids[0] for ids in to_be_deleted_strategy_ids])
 
@@ -1087,8 +1196,10 @@ class StrategyCacheManager(CacheManager):
             old_nodata_strategy_ids -= without_nodata_strategy_ids
             old_nodata_strategy_ids -= {ids[0] for ids in to_be_deleted_strategy_ids}
 
+            # 更新无数据策略的缓存
             cls.cache.set(cls.NO_DATA_CACHE_KEY, json.dumps(list(old_nodata_strategy_ids)), cls.CACHE_TIMEOUT)
 
+        # 定义处理函数列表
         processors: List[Callable[[List[Dict]], None]] = [
             cls.add_target_shield_condition,
             cls.add_enabled_cluster_condition,
@@ -1102,11 +1213,14 @@ class StrategyCacheManager(CacheManager):
             try:
                 processor(strategies)
             except Exception as e:
+                # 若执行过程中出现异常，则记录日志
                 logger.exception(f"[smart_strategy_cache]: refresh strategy error when {processor.__name__}")
                 exc = e
+        # 记录执行时间并更新最后更新时间的缓存
         duration = time.time() - start_time
         logger.info(f"[smart_strategy_cache]: cache strategy done, cost: {duration}")
         cls.cache.set(cls.LAST_UPDATED_CACHE_KEY, int(start_time), cls.CACHE_TIMEOUT)
+        # 更新监控指标
         metrics.ALARM_CACHE_TASK_TIME.labels("0", "strategy", str(exc)).observe(duration)
         metrics.report_all()
 

@@ -5,8 +5,38 @@
   flex-direction: column;
   min-height: 100%;
 
+  .service-index-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #ffffff;
+    background: #3a84ff;
+    border-radius: 50%;
+  }
+
+  .service-add-info {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 20px;
+    margin-left: 16px;
+    font-size: 12px;
+    font-weight: normal;
+    color: #63656e;
+
+    .icon-monitor {
+      margin-right: 8px;
+      color: #979ba5;
+    }
+  }
+
   .view-main {
-    padding-top: 12px;
+    margin-top: -12px;
 
     .markdown-viewer {
       .toastui-editor-contents {
@@ -70,9 +100,12 @@
     }
 
     .row-title {
+      display: flex;
+      align-items: center;
       margin-bottom: 16px;
       font-size: 14px;
       font-weight: 700;
+      line-height: 20px;
       color: #63656e;
     }
 

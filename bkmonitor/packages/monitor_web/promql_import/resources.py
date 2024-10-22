@@ -44,15 +44,18 @@ class ImportBaseResource(Resource):
     @classmethod
     def convert_metric_field(cls, promql: str, params: dict) -> Tuple[str, str]:
         scenario = "kubernetes"
+
         try:
             mapping_config = MetricMappingConfigModel.objects.get(
-                config_field=params["config_field"], bk_biz_id=params["bk_biz_id"]
+                config_field=params.get("config_field", ""), bk_biz_id=params["bk_biz_id"]
             ).__dict__
         except MetricMappingConfigModel.DoesNotExist:
-            return promql, scenario
-        if mapping_config.get("range_type") == "kubernetes":
+            mapping_config = None
+
+        if not mapping_config or mapping_config.get("range_type") == "kubernetes":
             promql = cls.convert_k8s_dimension(promql)
             return promql, scenario
+
         if cls.re_all_label_values.match(promql):
             if cls.re_label_values.match(promql):
                 query_dict = cls.re_label_values.match(promql).groupdict()
@@ -94,7 +97,7 @@ class ImportGrafanaDashboard(ImportBaseResource):
     k8s_dimension_map = {"cluster_id": "bcs_cluster_id"}
 
     class RequestSerializer(serializers.Serializer):
-        file_list = serializers.ListField(label="导入文件列表")
+        file_list = serializers.ListField(label="导入文件列表", required=False)
         config_field = serializers.CharField(label="映射配置名称", required=False)
         bk_biz_id = serializers.IntegerField(label="业务id")
 
@@ -151,8 +154,9 @@ class ImportGrafanaDashboard(ImportBaseResource):
     def perform_request(self, validated_request_data):
         from django.utils.translation import ugettext_lazy as _
 
-        if not validated_request_data["file_list"]:
-            raise ValidationError(_("导入失败，未上传grafana仪表盘json文件"))
+        if not validated_request_data.get("file_list"):
+            raise ValidationError(_("导入失败，未上传任何文件"))
+
         file_dict = defaultdict(list)
         for f in validated_request_data["file_list"]:
             grafana_config = json.loads(f.read())

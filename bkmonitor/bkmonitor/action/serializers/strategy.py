@@ -981,6 +981,12 @@ class UserGroupDetailSlz(UserGroupSlz):
         DutyRuleSnap.objects.filter(user_group_id=self.instance.id).exclude(
             duty_rule_id__in=self.instance.duty_rules
         ).delete()
-        DutyPlan.objects.filter(user_group_id=self.instance.id).exclude(
+
+        # 在数据量特别大情况下，会判断是否能够快速删除
+        # 如果不能快速删除，则采用批量删除的形式，这也是主要耗时的原因之一
+        # 故参考 https://stackoverflow.com/a/36935536/24637892,
+        # 使用 queryset._raw_delete(using=queryset.db) 私有api来加速这个删除的过程
+        delete_buty_plan_query = DutyPlan.objects.filter(user_group_id=self.instance.id).exclude(
             duty_rule_id__in=self.instance.duty_rules
-        ).delete()
+        )
+        delete_buty_plan_query._raw_delete(delete_buty_plan_query.db)

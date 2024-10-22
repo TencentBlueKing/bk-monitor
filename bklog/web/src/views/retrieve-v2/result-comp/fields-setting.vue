@@ -261,6 +261,7 @@
   import { sessionShowFieldObj } from '@/common/util';
 
   import fieldsSettingOperate from './fields-setting-operate';
+  import { isEqual } from 'lodash';
 
   export default {
     components: {
@@ -296,6 +297,7 @@
           handle: '.bklog-drag-dots',
           'ghost-class': 'sortable-ghost-class',
         },
+        isSortFieldChanged: false,
       };
     },
     computed: {
@@ -415,6 +417,7 @@
       },
       cancelModifyFields() {
         this.$emit('cancel');
+        this.isSortFieldChanged = false;
       },
       filterStatusIcon(val) {
         if (val === 'desc') {
@@ -435,15 +438,18 @@
         return '';
       },
       addField(fieldInfo) {
+        this.isSortFieldChanged = true;
         if (this.activeFieldTab === 'visible') {
           fieldInfo.is_display = true;
           this.shadowVisible.push(fieldInfo.field_name);
         } else {
           fieldInfo.isSorted = true;
+          this.isSortFieldChanged = true;
           this.shadowSort.push([fieldInfo.field_name, 'asc']);
         }
       },
       deleteField(fieldName, index) {
+        this.isSortFieldChanged = true;
         const arr = this.shadowTotal;
         if (this.activeFieldTab === 'visible') {
           this.shadowVisible.splice(index, 1);
@@ -457,6 +463,7 @@
           this.shadowSort.splice(index, 1);
           for (let i = 0; i < arr.length; i++) {
             if (arr[i].field_name === fieldName) {
+              this.isSortFieldChanged = true;
               arr[i].isSorted = false;
               return;
             }
@@ -475,6 +482,7 @@
           this.shadowTotal.forEach(fieldInfo => {
             if (!fieldInfo.isSorted && fieldInfo.es_doc_values) {
               fieldInfo.isSorted = true;
+              this.isSortFieldChanged = true;
               this.shadowSort.push([fieldInfo.field_name, 'asc']);
             }
           });
@@ -489,11 +497,13 @@
         } else {
           this.shadowTotal.forEach(fieldInfo => {
             fieldInfo.isSorted = false;
+            this.isSortFieldChanged = this.isSortFieldChanged || this.shadowSort.length;
             this.shadowSort.splice(0, this.shadowSort.length);
           });
         }
       },
       setOrder(item) {
+        this.isSortFieldChanged = true;
         item[1] = item[1] === 'asc' ? 'desc' : 'asc';
         this.$forceUpdate();
       },
@@ -580,6 +590,11 @@
             data,
           });
           if (this.activeFieldTab === 'sort') {
+            if (this.isSortFieldChanged) {
+              this.$store.dispatch('requestIndexSetQuery', { formChartChange: false }).then(() => {
+                this.isSortFieldChanged = false;
+              });
+            }
             this.$emit('should-retrieve', undefined, false); // 不请求图表
           }
         } catch (error) {

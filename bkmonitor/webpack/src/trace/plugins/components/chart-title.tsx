@@ -28,6 +28,7 @@ import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
+import { deduplicateByField } from 'monitor-ui/chart-plugins/utils';
 
 import { createMetricTitleTooltips } from '../../utils';
 import AlertActionList from './alert-action-list';
@@ -117,6 +118,15 @@ export default defineComponent({
     });
     const showMetricAlarm = computed(() => props.metrics?.length === 1);
     const metricTitleData: ComputedRef<IExtendMetricData> = computed<IExtendMetricData>(() => props.metrics[0]);
+
+    const metricTitleTooltips = () => {
+      return showMetricAlarm.value
+        ? createMetricTitleTooltips(metricTitleData.value)
+        : deduplicateByField(props.metrics, 'metric_id')
+            .map(metric => createMetricTitleTooltips(metric))
+            .join('<hr class="custom-hr" />');
+    };
+
     watch(
       () => props.metrics,
       async (v, o) => {
@@ -242,6 +252,7 @@ export default defineComponent({
       handleAlertListShown,
       handleSuccessLoad,
       isShowAlarmStyle,
+      metricTitleTooltips,
     };
   },
   render() {
@@ -278,7 +289,7 @@ export default defineComponent({
                 <span class='title-interval'>{this.metricTitleData.collect_interval}m</span>
               </Popover>
             ) : undefined}
-            {this.showMetricAlarm && this.metricTitleData ? (
+            {this.metrics?.length ? (
               <Popover
                 v-slots={{
                   default: () => (
@@ -290,7 +301,7 @@ export default defineComponent({
                   content: () => (
                     <div
                       class='common-chart-tooltips-wrap'
-                      v-html={createMetricTitleTooltips(this.metricTitleData)}
+                      v-html={this.metricTitleTooltips()}
                     />
                   ),
                 }}

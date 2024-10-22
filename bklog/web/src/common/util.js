@@ -1180,3 +1180,23 @@ export const sessionShowFieldObj = () => {
 export const getRegExp = (searchValue, flags = 'ig') => {
   return new RegExp(`${searchValue}`.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), flags);
 };
+
+/** url中没有索引集indexID时候，拿浏览器存储的最后一次选中的索引集进行初始化 */
+export const getStorageIndexItem = indexList => {
+  const catchIndexSetStr = localStorage.getItem('CATCH_INDEX_SET_ID_LIST');
+  if (catchIndexSetStr) {
+    const catchIndexSetList = JSON.parse(catchIndexSetStr);
+    const spaceUid = store.state.spaceUid;
+    if (catchIndexSetList[spaceUid] && indexList.some(item => item.index_set_id === catchIndexSetList[spaceUid])) {
+      return catchIndexSetList[spaceUid];
+    }
+  }
+  return getHaveValueIndexItem(indexList);
+};
+
+/** 获取非无数据的索引集 */
+export const getHaveValueIndexItem = indexList => {
+  return (
+    indexList.find(item => !item.tags.map(item => item.tag_id).includes(4))?.index_set_id || indexList[0].index_set_id
+  );
+};

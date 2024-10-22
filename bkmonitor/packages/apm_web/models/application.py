@@ -313,8 +313,9 @@ class Application(AbstractRecordModel):
 
         # 刷新服务数量
         services = ServiceHandler.list_services(self)
-        self.service_count = len(services)
-        self.save()
+
+        # 这里通过update方式，指定字段更新，是为了不自动变更 update_user， update_time 字段
+        Application.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).update(service_count=len(services))
 
         # 刷新数据状态
         start_time, end_time = get_datetime_range("minute", self.no_data_period)
@@ -330,6 +331,7 @@ class Application(AbstractRecordModel):
         start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
         # NOTICE: data_status / profile_data_status 目前暂无接口用到只在指标中使用考虑指标处换成实时查询
 
+        update_field_values = {}
         for data_type in TelemetryDataType:
             # 未定义的telemetry类型数据状态
             if not getattr(self, f"{data_type.datasource_type}_data_status", False):
@@ -351,13 +353,15 @@ class Application(AbstractRecordModel):
                         data_status = DataStatus.NORMAL
                     else:
                         data_status = DataStatus.NO_DATA
-                except ValueError as e:
+                except Exception as e:
                     logger.warning(
                         f"[Application] set app: {self.app_name} | {data_type.value} data_status failed: {e}"
                     )
                     data_status = DataStatus.NO_DATA
-            setattr(self, f"{data_type.datasource_type}_data_status", data_status)
-        self.save()
+            update_field_values[f"{data_type.datasource_type}_data_status"] = data_status
+
+        # 这里通过update方式，指定字段更新，是为了不自动变更 update_user， update_time 字段
+        Application.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).update(**update_field_values)
 
     @property
     def language_ids(self):
@@ -565,10 +569,19 @@ class Application(AbstractRecordModel):
 
     def set_init_datasource(self, datasource_option, enabled_profiling, enabled_trace, enabled_metric, enabled_log):
         # 更新数据源开关
+        # profiling
         self.is_enabled_profiling = enabled_profiling
+        self.profiling_data_status = DataStatus.NO_DATA if enabled_profiling else DataStatus.DISABLED
+        # trace
         self.is_enabled_trace = enabled_trace
+        self.trace_data_status = DataStatus.NO_DATA if enabled_trace else DataStatus.DISABLED
+        # metric
         self.is_enabled_metric = enabled_metric
+        self.metric_data_status = DataStatus.NO_DATA if enabled_metric else DataStatus.DISABLED
+        # log
         self.is_enabled_log = enabled_log
+        self.log_data_status = DataStatus.NO_DATA if enabled_log else DataStatus.DISABLED
+
         self.save()
 
         ApmMetaConfig.application_config_setup(
@@ -577,6 +590,14 @@ class Application(AbstractRecordModel):
         ApmMetaConfig.application_config_setup(
             self.application_id, self.APPLICATION_LOG_DATASOURCE_CONFIG_KEY, datasource_option
         )
+
+    def get_data_sources(self):
+        return {
+            TelemetryDataType.TRACE.value: self.is_enabled_trace,
+            TelemetryDataType.PROFILING.value: self.is_enabled_profiling,
+            TelemetryDataType.METRIC.value: self.is_enabled_metric,
+            TelemetryDataType.LOG.value: self.is_enabled_log,
+        }
 
     def set_init_dimensions_config(self):
         dimensions_value = {self.DimensionConfig.DIMENSIONS: DefaultDimensionConfig.DEFAULT_DIMENSIONS}
@@ -618,13 +639,13 @@ class Application(AbstractRecordModel):
                 ResourceEnum.APM_APPLICATION.create_simple_instance(self.application_id, {"bk_biz_id": self.bk_biz_id}),
                 creator=self.update_user,
             )
-            Application.authorization_to_maintainers.delay(self.application_id)
+            Application.authorization_to_maintainers.delay(self.update_user, self.application_id)
         except Exception as e:  # pylint: disable=broad-except
             logger.warning("application->({}) grant creator action failed, reason: {}".format(self.application_id, e))
 
     @staticmethod
     @task()
-    def authorization_to_maintainers(app_id):
+    def authorization_to_maintainers(creator, app_id):
         """给业务的负责人授权"""
         logger.info(f"[authorization_to_maintainers] grant app_id: {app_id}")
         application = Application.get_application_by_app_id(app_id)
@@ -634,7 +655,7 @@ class Application(AbstractRecordModel):
         except Exception as e:
             raise ValueError("get maintainers failed with error: %s", e)
 
-        permission = Permission()
+        permission = Permission(username=creator)
         for user in list(maintainers):
             permission.grant_creator_action(
                 ResourceEnum.APM_APPLICATION.create_simple_instance(app_id, {"bk_biz_id": application.bk_biz_id}),

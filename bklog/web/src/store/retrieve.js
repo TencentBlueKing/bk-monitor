@@ -38,10 +38,18 @@ export default {
     filedSettingConfigID: 1,
     indexSetList: [],
     isIndexSetLoading: false,
+    isTrendDataLoading: false,
+    trendDataCount: 0,
   },
   mutations: {
-    updateChartKey(state) {
-      state.chartKey = random(10);
+    updateTrendDataLoading(state, payload) {
+      state.isTrendDataLoading = payload;
+    },
+    updateTrendDataCount(state, payload) {
+      state.trendDataCount = payload;
+    },
+    updateChartKey(state, payload) {
+      state.chartKey = (payload?.prefix ?? '') + random(10);
     },
     updateCachePickerValue(state, payload) {
       state.cacheDatePickerValue = payload;

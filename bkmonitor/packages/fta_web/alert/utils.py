@@ -39,6 +39,7 @@ def get_previous_month_range_unix(today=None):
     
     return start_unix_timestamp, end_unix_timestamp
 
+
 def slice_by_interval_seconds(start_time: int, end_time: int, interval_seconds: int) -> list:
     """按天或周切分时间，返回每一天或每一周的起始和结束时间戳"""
     days = []
@@ -96,16 +97,15 @@ def add_aggs(agg_id_map: dict, result: dict, sliced_result: dict):
 
 
 def process_stage_string(query_string):
-    patterns = [
-        r"(AND\s*|OR\s*|\s*)处理阶段\s*:\s*已通知",
-        r"(AND\s*|OR\s*|\s*)处理阶段\s*:\s*已确认",
-        r"(AND\s*|OR\s*|\s*)处理阶段\s*:\s*已屏蔽",
-        r"(AND\s*|OR\s*|\s*)处理阶段\s*:\s*已流控",
-        r"(AND\s*|OR\s*|\s*)stage\s*:\s*is_handled",
-        r"(AND\s*|OR\s*|\s*)stage\s*:\s*is_ack",
-        r"(AND\s*|OR\s*|\s*)stage\s*:\s*is_shielded",
-        r"(AND\s*|OR\s*|\s*)stage\s*:\s*is_blocked",
-    ]
+    """
+    将query_string中的处理阶段信息替换为英文字段名
+    example:
+    >> process_stage_string('处理阶段 : 已通知 AND 告警名称 : "VMStorage内存使用率" OR 状态 : 未恢复')
+    >> 'is_handled : true AND 告警名称 : "VMStorage内存使用率" OR 状态 : 未恢复'
+    >>
+    >> process_stage_string('(((-处理阶段 : 已通知 )) AND 处理阶段 : 已流控) AND -指标ID : "bk_log_search.index_set.53"')
+    >>'((( is_handled : false )) AND is_blocked : true ) AND -指标ID : "bk_log_search.index_set.53"'
+    """
     stage_mapping = {
         "已通知": "is_handled",
         "已确认": "is_ack",
@@ -117,28 +117,19 @@ def process_stage_string(query_string):
         "is_blocked": "is_blocked",
     }
 
-    combined_pattern = '|'.join(patterns)
-    matches = list(re.finditer(combined_pattern, query_string, re.IGNORECASE))
-    extracted_parts = [match.group(0) for match in matches]
+    pattern = fr"(?P<prefix>-|not|)\s*(处理阶段|stage)\s*:\s*(?P<stage>{'|'.join(stage_mapping.keys())})"
+    # 遍历所有匹配到的处理阶段信息
+    for _ in re.findall(pattern, query_string, re.IGNORECASE):
+        match = re.search(pattern, query_string, re.IGNORECASE)
+        value = "false" if match.group("prefix") else "true"
+        stage = match.group("stage")
+        start, end = match.span()
+        # 将查询字符串中的处理阶段信息替换为映射后的英文字段名和对应的值
+        query_string = query_string[:start] + f" {stage_mapping[stage]} : {value} " + query_string[end:]
 
-    query_string = re.sub(combined_pattern, "", query_string, flags=re.IGNORECASE)
-
-    stage_conditions = []
-    for stage in extracted_parts:
-        if "处理阶段" in stage or "stage" in stage:
-            stage_value = stage.split(":")[1].strip()
-            stage_conditions.append(
-                {
-                    "key": "stage",
-                    "value": [stage_mapping.get(stage_value.lower(), stage_value)],
-                    "condition": stage.split("处理阶段")[0].strip().lower()
-                    if "处理阶段" in stage
-                    else stage.split("stage")[0].strip().lower(),
-                    "method": "eq",
-                }
-            )
-
-    return query_string, stage_conditions
+    # 去除查询字符串中的多余空白字符，并去除首尾的空白字符
+    query_string = re.sub(r"\s+", " ", query_string).strip()
+    return query_string
 
 
 def parse_query_str(query_str: str) -> Q:

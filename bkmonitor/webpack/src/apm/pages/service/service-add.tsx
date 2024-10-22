@@ -46,6 +46,7 @@ Component.registerHooks(['beforeRouteEnter']);
 class ServiceAdd extends Mixins(authorityMixinCreate(authorityMap)) {
   @Prop({ type: String, default: '' }) pluginId: IProps['pluginId'];
   @Prop({ type: String, default: '' }) appName: IProps['appName'];
+  guideUrl: string;
   routeList: INavItem[] = [];
 
   /** 页面权限校验实例资源 */
@@ -63,7 +64,9 @@ class ServiceAdd extends Mixins(authorityMixinCreate(authorityMap)) {
       ];
     });
   }
-
+  handleUpdateGuideUrl(url: string) {
+    this.guideUrl = url;
+  }
   render() {
     return (
       <div class='service-add'>
@@ -73,9 +76,25 @@ class ServiceAdd extends Mixins(authorityMixinCreate(authorityMap)) {
           navMode={'display'}
           needBack={true}
           routeList={this.routeList}
-        />
+        >
+          <div slot='custom'>
+            {this.$t('接入服务')}
+            <div
+              class='service-add-link'
+              onClick={() => this.guideUrl && window.open(this.guideUrl)}
+            >
+              <i class='icon-monitor icon-mc-detail' />
+              {this.$tc('完整接入指引')}
+            </div>
+          </div>
+        </CommonNavBar>
         <div class='monitor-k8s-detail service-add-content'>
-          {this.appName && <ServiceApply defaultAppName={this.appName} />}
+          {this.appName && (
+            <ServiceApply
+              defaultAppName={this.appName}
+              onUpdateGuideUrl={this.handleUpdateGuideUrl}
+            />
+          )}
         </div>
       </div>
     );

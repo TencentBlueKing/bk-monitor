@@ -144,7 +144,7 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
   @Watch('drillDownOption', { deep: true })
   drillDownOptionChange() {
     const drillDown = this.menuList.find(item => item.id === 'drill-down');
-    if (!!drillDown) {
+    if (drillDown) {
       /** 服务实例实例 | 主机 | 自定义上报target 优先级从左往右 */
       const defaultKeys = ['bk_target_service_instance_id', 'bk_target_ip', 'target'];
       const optionsKeys = this.drillDownOption.map(item => item.id);
@@ -262,7 +262,7 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
                 </bk-popover>
               )}
               {item.hasLink ? <i class='icon-monitor icon-mc-link link-icon' /> : undefined}
-              {!item.hasLink && item.children?.length && <i class='icon-monitor icon-arrow-right more-icon' />}
+              {!item.hasLink && item.children?.length && <i class='icon-monitor icon-arrow-right' />}
             </li>
           );
           if (item.children?.length && !item.hasLink) {

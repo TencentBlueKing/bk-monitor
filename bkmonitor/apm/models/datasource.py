@@ -18,7 +18,6 @@ from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
 from elasticsearch_dsl import Q
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
@@ -329,7 +328,7 @@ class LogDataSource(ApmDataSourceConfigBase):
                         "category_id": "application_check",
                         # 兼容集群不支持冷热配置
                         "allocation_min_days": 0,
-                        "description": _("APM 应用日志自定义上报") + f"(BkBizId: {bk_biz_id} AppName: {app_name})",
+                        "description": f"APM({app_name})",
                         **storage_params,
                     }
                 )
@@ -1215,13 +1214,13 @@ class ProfileDataSource(ApmDataSourceConfigBase):
 
     @classmethod
     def start(cls, bk_biz_id, app_name):
-        instance = cls.objects.get(bk_data_id=bk_biz_id, app_name=app_name)
-        api.bkdata.start_databus_cleans(result_table_id=instance["result_table_id"])
+        instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        api.bkdata.start_databus_cleans(result_table_id=instance.result_table_id)
 
     @classmethod
     def stop(cls, bk_biz_id, app_name):
         instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        api.bkdata.stop_databus_cleans(result_table_id=instance["result_table_id"])
+        api.bkdata.stop_databus_cleans(result_table_id=instance.result_table_id)
 
 
 class DataLink(models.Model):
