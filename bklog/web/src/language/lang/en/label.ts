@@ -706,4 +706,6 @@ export default {
   可见范围设置: 'Visible range settings',
   无: 'None',
   不分词: 'No word separation',
+  回到旧版: 'Old Version',
+  切换新版: 'New Version',
 };
