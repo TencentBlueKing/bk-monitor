@@ -40,6 +40,8 @@ from apps.log_search.constants import (
     BKDATA_ASYNC_FIELDS,
     DEFAULT_INDEX_OBJECT_FIELDS_PRIORITY,
     DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
+    DEFAULT_TIME_FIELD,
+    DEFAULT_TIME_FIELD_ALIAS_NAME,
     FEATURE_ASYNC_EXPORT_COMMON,
     LOG_ASYNC_FIELDS,
     OPERATORS,
@@ -738,12 +740,13 @@ class MappingHandlers(object):
             for k, v in item.items():
                 temp_dict.update({k: v})
                 # 记录指定日志时间字段信息
-                if _field_name == "dtEventTimeStamp" and k == "option" and "field_index" in item.get("option", {}):
-                    field_time_format_dict = {
-                        "field_name": item.get("alias_name"),
-                        "field_time_zone": item["option"].get("time_zone"),
-                        "field_time_format": item["option"].get("time_format"),
-                    }
+            if _field_name == DEFAULT_TIME_FIELD and item.get("option"):
+                _alias_name = item.get("alias_name")
+                field_time_format_dict = {
+                    "field_name": _field_name if _alias_name == DEFAULT_TIME_FIELD_ALIAS_NAME else _alias_name,
+                    "field_time_zone": item["option"].get("time_zone"),
+                    "field_time_format": item["option"].get("time_format"),
+                }
             if _field_name:
                 schema_dict.update({_field_name: temp_dict})
 
