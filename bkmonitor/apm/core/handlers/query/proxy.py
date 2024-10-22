@@ -60,11 +60,35 @@ class QueryProxy:
 
     @cached_property
     def span_query(self):
-        return SpanQuery(self.bk_biz_id, self.app_name, self.application.trace_datasource.retention)
+        return SpanQuery(
+            self.bk_biz_id,
+            self.app_name,
+            self.application.trace_datasource.retention,
+            overwrite_datasource_configs={
+                ApmDataSourceConfigBase.TRACE_DATASOURCE: {
+                    "get_table_id_func": self.application.trace_datasource.result_table_id
+                },
+                ApmDataSourceConfigBase.METRIC_DATASOURCE: {
+                    "get_table_id_func": self.application.metric_datasource.result_table_id
+                },
+            },
+        )
 
     @cached_property
     def origin_trace_query(self):
-        return OriginTraceQuery(self.bk_biz_id, self.app_name, self.application.trace_datasource.retention)
+        return OriginTraceQuery(
+            self.bk_biz_id,
+            self.app_name,
+            self.application.trace_datasource.retention,
+            overwrite_datasource_configs={
+                ApmDataSourceConfigBase.TRACE_DATASOURCE: {
+                    "get_table_id_func": self.application.trace_datasource.result_table_id
+                },
+                ApmDataSourceConfigBase.METRIC_DATASOURCE: {
+                    "get_table_id_func": self.application.metric_datasource.result_table_id
+                },
+            },
+        )
 
     @cached_property
     def trace_query(self):
