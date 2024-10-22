@@ -12,6 +12,7 @@
     letter-spacing: 0;
     line-height: 22px;
     padding: 16px 0;
+    margin-bottom: 16px;
     // box-shadow: 0 0 1px #dcdee5;
   }
   .search-main {
@@ -19,11 +20,8 @@
     height: calc(100% - 86px);
     overflow: auto;
     .search-item {
-      margin-top: 16px;
+      margin-bottom: 16px;
       padding-right: 24px;
-      &:last-child {
-        margin-bottom: 16px;
-      }
     }
     .search-item-label {
       width: 100%;

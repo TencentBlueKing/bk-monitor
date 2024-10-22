@@ -71,16 +71,16 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
   }
 
   get tagFilterList() {
-    return (this.filterData || []).filter(item => item.values.length > 0);
+    return (this.filterData || []).filter(item => item.value.length > 0);
   }
   get chooseKeyList() {
     return [
       ...[
         {
-          label: 'time',
-          name: '时间',
-          operate: 1,
-          values: [],
+          value: 'time',
+          text: '时间',
+          // operate: 'eq',
+          // values: [],
         },
       ],
       ...this.searchList,
@@ -90,43 +90,44 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
     this.activeKey = id;
     if (id === 'multiple') {
       this.chooseList = [this.singleChooseField];
-      this.tableColumn.map(item => this.chooseList.push(item.label));
+      this.tableColumn.map(item => this.chooseList.push(item.value));
     } else {
-      const option = this.chooseKeyList.find(item => item.label === this.chooseList[0]);
+      const option = this.chooseKeyList.find(item => item.value === this.chooseList[0]);
       this.chooseSingleField(option);
     }
   }
   // 单视角时选择key
   @Emit('change')
   chooseSingleField(item) {
-    this.singleChooseField = item.label;
+    this.singleChooseField = item.value;
     this.tableColumn = [
       {
-        label: item.name,
-        prop: item.label,
+        label: item.text,
+        prop: item.value,
       },
     ];
-    return item;
+    return [item.value];
   }
   // 多视角时选择key
   handleMultiple(val) {
     this.tableColumn = [];
     this.chooseKeyList.map(item => {
-      if (this.chooseList.includes(item.label)) {
+      if (this.chooseList.includes(item.value)) {
         this.tableColumn.push({
-          label: item.name,
-          prop: item.label,
+          label: item.text,
+          prop: item.value,
         });
       }
       return item;
     });
+    this.$emit('change', this.chooseList);
   }
   @Emit('closeTag')
   handleCloseTag(item) {
     return item;
   }
   handleGetKey(key: string) {
-    return this.chooseKeyList.find(item => item.label === key).name;
+    return this.chooseKeyList.find(item => item.value === key).text;
   }
   handleOperate(key: number) {
     return SYMBOL_LIST.find(item => item.value === key).label;
@@ -138,7 +139,7 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
   // 下钻handle
   handleDrill(option) {
     if (this.activeKey === 'multiple') {
-      this.chooseList.push(option.label);
+      this.chooseList.push(option.value);
       this.handleMultiple(this.chooseList);
     } else {
       this.chooseSingleField(option);
@@ -149,11 +150,11 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
     if (this.isSingleView) {
       return this.chooseKeyList.map(item => (
         <span
-          key={item.label}
-          class={['aside-item', { active: this.singleChooseField === item.label }]}
+          key={item.value}
+          class={['aside-item', { active: this.singleChooseField === item.value }]}
           onClick={() => this.chooseSingleField(item)}
         >
-          {item.name}
+          {item.text}
         </span>
       ));
     }
@@ -164,12 +165,12 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
       >
         {this.chooseKeyList.map(item => (
           <bk-checkbox
-            key={item.label}
+            key={item.value}
             class='aside-item'
-            disabled={this.chooseList.length === 1 && this.chooseList.includes(item.label)}
-            value={item.label}
+            disabled={this.chooseList.length === 1 && this.chooseList.includes(item.value)}
+            value={item.value}
           >
-            {item.name}
+            {item.text}
           </bk-checkbox>
         ))}
       </bk-checkbox-group>
@@ -213,9 +214,9 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
                   closable
                   onClose={() => this.handleCloseTag(item)}
                 >
-                  {this.handleGetKey(item.label)}
-                  <span class='tag-symbol'>{this.handleOperate(item.operate)}</span>
-                  {item.values.join('、')}
+                  {this.handleGetKey(item.key)}
+                  <span class='tag-symbol'>{this.handleOperate(item.method)}</span>
+                  {item.value.join('、')}
                 </bk-tag>
               ))}
             </div>

@@ -65,16 +65,16 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
     };
   }
   get showKeyList() {
-    return this.searchList.filter(item => this.changedValue.includes(item.label)).map(item => item.name);
+    return this.searchList.filter(item => this.changedValue.includes(item.value)).map(item => item.text);
   }
   // 选中key值
   chooseSelect(item) {
-    const { label } = item;
-    const isHas = this.changedValue.includes(label);
+    const { value } = item;
+    const isHas = this.changedValue.includes(value);
     if (isHas) {
-      this.changedValue = this.changedValue.filter(val => val !== label);
+      this.changedValue = this.changedValue.filter(val => val !== value);
     } else {
-      this.changedValue.push(label);
+      this.changedValue.push(value);
     }
     this.changedValue = [...new Set(this.changedValue)];
   }
@@ -124,14 +124,14 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
               slot='content'
             >
               {this.searchList.map(option => {
-                const isActive = this.changedValue.includes(option.label);
+                const isActive = this.changedValue.includes(option.value);
                 return (
                   <div
-                    key={option.label}
+                    key={option.value}
                     class={['group-by-select-item', { active: isActive }]}
                     onClick={() => this.chooseSelect(option)}
                   >
-                    {option.name}
+                    {option.text}
                     {isActive && <i class='icon-monitor icon-mc-check-small' />}
                   </div>
                 );

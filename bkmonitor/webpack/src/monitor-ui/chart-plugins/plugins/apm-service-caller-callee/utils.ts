@@ -129,31 +129,31 @@ export const LIMIT_TYPE_LIST = [
 
 export const SYMBOL_LIST = [
   {
-    value: 1,
+    value: 'eq',
     label: '等于',
   },
   {
-    value: 2,
+    value: 'neq',
     label: '不等于',
   },
   {
-    value: 3,
+    value: 'before_req',
     label: '前匹配',
   },
   {
-    value: 4,
+    value: 'after_req',
     label: '后匹配',
   },
   {
-    value: 5,
+    value: 'include',
     label: '包含',
   },
   {
-    value: 6,
+    value: 'exclude',
     label: '不包含',
   },
   {
-    value: 7,
+    value: 'reg',
     label: '正则',
   },
 ];
