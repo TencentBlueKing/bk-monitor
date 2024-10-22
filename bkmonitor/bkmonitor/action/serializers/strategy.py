@@ -198,7 +198,7 @@ class DutyBaseInfoSlz(serializers.ModelSerializer):
         if need_username:
             try:
                 user_list = api.bk_login.get_all_user(
-                    page_size=500, fields="username,display_name", exact_lookups=",".join(set(all_members))
+                    page_size=500, fields="username,display_name", exact_lookups=",".join(sorted(set(all_members)))
                 )["results"]
                 kwargs["user_list"] = {user["username"]: user["display_name"] for user in user_list}
             except BaseException as error:
@@ -911,7 +911,7 @@ class UserGroupDetailSlz(UserGroupSlz):
         user_ids = [user["id"] for user in users if user["type"] == "user"]
         try:
             user_list = api.bk_login.get_all_user(
-                page_size=500, fields="username,display_name", exact_lookups=",".join(set(user_ids))
+                page_size=500, fields="username,display_name", exact_lookups=",".join(sorted(set(user_ids)))
             )["results"]
             user_list = {user["username"]: user["display_name"] for user in user_list}
         except Exception as error:
@@ -981,6 +981,12 @@ class UserGroupDetailSlz(UserGroupSlz):
         DutyRuleSnap.objects.filter(user_group_id=self.instance.id).exclude(
             duty_rule_id__in=self.instance.duty_rules
         ).delete()
-        DutyPlan.objects.filter(user_group_id=self.instance.id).exclude(
+
+        # 在数据量特别大情况下，会判断是否能够快速删除
+        # 如果不能快速删除，则采用批量删除的形式，这也是主要耗时的原因之一
+        # 故参考 https://stackoverflow.com/a/36935536/24637892,
+        # 使用 queryset._raw_delete(using=queryset.db) 私有api来加速这个删除的过程
+        delete_buty_plan_query = DutyPlan.objects.filter(user_group_id=self.instance.id).exclude(
             duty_rule_id__in=self.instance.duty_rules
-        ).delete()
+        )
+        delete_buty_plan_query._raw_delete(delete_buty_plan_query.db)

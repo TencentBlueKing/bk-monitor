@@ -36,7 +36,7 @@ def run_converge(converge_config, instance_id, instance_type, converge_context=N
         ConvergeProcessor,
     )
 
-    logger.info("--begin converge action(%s_%s)--", instance_id, instance_type)
+    logger.info("--begin converge action(%s %s)--", instance_id, instance_type)
 
     exc = None
 

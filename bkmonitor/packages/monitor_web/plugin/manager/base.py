@@ -324,7 +324,7 @@ class BasePluginManager:
 
         return version, need_debug
 
-    def update_version(self, data):
+    def update_version(self, data, target_config_version: int = None, target_info_version: int = None):
         """
         更新插件版本
         """
@@ -354,6 +354,12 @@ class BasePluginManager:
 
         if old_config_md5 != new_config_md5 and current_version.is_release:
             current_config_version += 1
+
+        # 如果有指定的目标版本，则强制设置
+        if target_config_version:
+            current_config_version = target_config_version
+        if target_info_version:
+            current_info_version = target_info_version
 
         if old_config_md5 == new_config_md5:
             if current_version.is_release:

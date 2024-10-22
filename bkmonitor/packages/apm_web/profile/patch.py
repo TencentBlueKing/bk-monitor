@@ -53,10 +53,14 @@ def mocked_bytes(self) -> bytes:
                 # treat it like a field of raw bytes.
                 buf = bytearray()
                 for item in value:
+                    if item is None:  # 跳过None，结果value.encode("utf-8")编码报错问题
+                        continue
                     buf += _preprocess_single(meta.proto_type, "", item)
                 output += _serialize_single(meta.number, TYPE_BYTES, buf)
             else:
                 for item in value:
+                    if item is None:
+                        continue
                     output += (
                         _serialize_single(
                             meta.number,

@@ -85,7 +85,14 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
    * @returns
    */
   boldTitleSlot(item: IGroupData): VNode {
-    const num = item.data.reduce((pre, cur) => (pre += cur?.data.length), 0);
+    const num = item.data.reduce((pre, cur) => {
+      let len = pre;
+      for (const v of cur.data) {
+        // @ts-ignore
+        v.show && len++;
+      }
+      return len;
+    }, 0);
     return (
       <div class='group-title bold'>
         <i class={['bk-icon icon-angle-right', { expand: this.defaultActiveName.includes(item.id) }]} />

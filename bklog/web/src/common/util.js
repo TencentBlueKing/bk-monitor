@@ -833,6 +833,19 @@ export const Debounce =
     return descriptor;
   };
 
+export const formatDateTimeField = (data, fieldType) => {
+  if (fieldType === 'date') {
+    return formatDate(Number(data)) || data || emptyCharacter;
+  }
+
+  // 处理纳秒精度的UTC时间格式
+  if (fieldType === 'date_nanos') {
+    return formatDateNanos(data) || emptyCharacter;
+  }
+
+  return data;
+};
+
 /**
  * 获取 row[key] 内容
  * @example return row.a.b || row['a.b']
@@ -1136,3 +1149,54 @@ export const contextHighlightColor = [
     light: '#E1FCFD',
   },
 ];
+
+export const getOperatorKey = operator => `operator:${operator}`;
+
+/**
+ * 获取字符长度，汉字两个字节
+ * @param str 需要计算长度的字符
+ * @returns 字符长度
+ */
+export const getCharLength = str => {
+  const len = str.length;
+  let bitLen = 0;
+
+  for (let i = 0; i < len; i++) {
+    if ((str.charCodeAt(i) & 0xff00) !== 0) {
+      bitLen += 1;
+    }
+    bitLen += 1;
+  }
+
+  return bitLen;
+};
+
+export const sessionShowFieldObj = () => {
+  // 显示字段缓存
+  const showFieldStr = sessionStorage.getItem('showFieldSession');
+  return !showFieldStr ? {} : JSON.parse(showFieldStr);
+};
+
+export const getRegExp = (searchValue, flags = 'ig') => {
+  return new RegExp(`${searchValue}`.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), flags);
+};
+
+/** url中没有索引集indexID时候，拿浏览器存储的最后一次选中的索引集进行初始化 */
+export const getStorageIndexItem = indexList => {
+  const catchIndexSetStr = localStorage.getItem('CATCH_INDEX_SET_ID_LIST');
+  if (catchIndexSetStr) {
+    const catchIndexSetList = JSON.parse(catchIndexSetStr);
+    const spaceUid = store.state.spaceUid;
+    if (catchIndexSetList[spaceUid] && indexList.some(item => item.index_set_id === catchIndexSetList[spaceUid])) {
+      return catchIndexSetList[spaceUid];
+    }
+  }
+  return getHaveValueIndexItem(indexList);
+};
+
+/** 获取非无数据的索引集 */
+export const getHaveValueIndexItem = indexList => {
+  return (
+    indexList.find(item => !item.tags.map(item => item.tag_id).includes(4))?.index_set_id || indexList[0].index_set_id
+  );
+};

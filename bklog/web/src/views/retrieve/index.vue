@@ -262,15 +262,14 @@
     />
     <!-- 聚类设置全屏弹窗 -->
     <setting-modal
+      v-model="isShowSettingModal"
       :clean-config="cleanConfig"
       :config-data="clusteringData"
       :date-picker-value="datePickerValue"
       :index-set-item="indexSetItem"
-      :is-show-dialog="isShowSettingModal"
       :retrieve-params="retrieveParams"
       :select-choice="clickSettingChoice"
       :total-fields="totalFields"
-      @close-setting="isShowSettingModal = false"
       @update-log-fields="requestFields"
     />
     <!-- 收藏更新弹窗 -->
@@ -288,7 +287,13 @@
 </template>
 
 <script>
-  import { readBlobRespToJson, parseBigNumberList, setDefaultTableWidth } from '@/common/util';
+  import {
+    readBlobRespToJson,
+    parseBigNumberList,
+    setDefaultTableWidth,
+    getHaveValueIndexItem,
+    getStorageIndexItem,
+  } from '@/common/util';
   import AuthContainerPage from '@/components/common/auth-container-page';
   import LogIpSelector from '@/components/log-ip-selector/log-ip-selector';
   import indexSetSearchMixin from '@/mixins/indexSet-search-mixin';
@@ -303,7 +308,6 @@
   import { updateTimezone } from '../../language/dayjs';
   import AddCollectDialog from './collect/add-collect-dialog';
   import CollectIndex from './collect/collect-index';
-  // import IpSelectorDialog from '@/components/collection-access/ip-selector-dialog';
   import SelectIndexSet from './condition-comp/select-index-set.tsx';
   import NoIndexSet from './result-comp/no-index-set';
   import ResultHeader from './result-comp/result-header';
@@ -498,7 +502,7 @@
         isExternal: state => state.isExternal,
         externalMenu: state => state.externalMenu,
       }),
-      ...mapGetters(['asIframe', 'iframeQuery']),
+      ...mapGetters(['asIframe', 'iframeQuery', 'isNewRetrieveRoute']),
       ...mapGetters({
         authMainPageInfo: 'globals/authContainerInfo',
         unionIndexList: 'unionIndexList',
@@ -540,10 +544,26 @@
       },
       spaceUid: {
         async handler() {
+          // 当前改变目标是新版首页
+          if (this.isNewRetrieveRoute) {
+            this.$router.replace({
+              params: {
+                indexId: undefined,
+              },
+              query: {
+                spaceUid: this.spaceUid,
+                bizId: this.bkBizId,
+              },
+            });
+
+            return;
+          }
+
           this.indexId = '';
           this.indexSetList.splice(0);
           this.totalFields.splice(0);
           this.retrieveParams.bk_biz_id = this.bkBizId;
+
           // 外部版 无检索权限跳转后不更新页面数据
           if (!this.isExternal || (this.isExternal && this.externalMenu.includes('retrieve'))) {
             this.fetchPageData();
@@ -575,9 +595,6 @@
         },
       },
     },
-    created() {
-      this.getGlobalsData();
-    },
     mounted() {
       window.bus.$on('retrieveWhenChartChange', this.retrieveWhenChartChange);
     },
@@ -588,7 +605,6 @@
 
     // },
     beforeDestroy() {
-      console.log('--beforeDestroy');
       this.isInDestroy = true;
       updateTimezone();
       this.$store.commit('updateUnionIndexList', []);
@@ -708,7 +724,7 @@
       },
       // 初始化索引集
       requestIndexSetList() {
-        const spaceUid = this.$route.query.spaceUid && this.isFirstLoad ? this.$route.query.spaceUid : this.spaceUid;
+        const spaceUid = this.spaceUid;
         this.basicLoading = true;
         this.$http
           .request('retrieve/getIndexSetList', {
@@ -746,7 +762,7 @@
               // 如果都没有权限或者路由带过来的索引集无权限则显示索引集无权限
 
               if (!indexSetList[0]?.permission?.[authorityMap.SEARCH_LOG_AUTH] || isRouteIndex) {
-                const authIndexID = indexId || this.getHaveValueIndexItem(indexSetList);
+                const authIndexID = indexId || getHaveValueIndexItem(indexSetList);
                 this.$store
                   .dispatch('getApplyData', {
                     action_ids: [authorityMap.SEARCH_LOG_AUTH],
@@ -782,7 +798,7 @@
               if (indexId) {
                 // 1、初始进入页面带ID；2、检索ID时切换业务；
                 const indexItem = indexSetList.find(item => item.index_set_id === indexId);
-                this.indexId = indexItem ? indexItem.index_set_id : this.getHaveValueIndexItem(indexSetList);
+                this.indexId = indexItem ? indexItem.index_set_id : getHaveValueIndexItem(indexSetList);
                 this.retrieveLog();
               } else if (this.isInitPage && this.checkIsUnionSearch()) {
                 // 初始化联合查询
@@ -791,7 +807,7 @@
                 // 直接进入检索页
                 this.indexId = indexSetList.some(item => item.index_set_id === this.storedIndexID)
                   ? this.storedIndexID
-                  : this.getHaveValueIndexItem(indexSetList);
+                  : getStorageIndexItem(indexSetList);
                 if (this.isAsIframe) {
                   // 监控 iframe
                   if (this.localIframeQuery.indexId) {
@@ -1414,16 +1430,6 @@
           queryObj,
         );
 
-        // this.$router.push({
-        //   name: 'retrieve',
-        //   // 联合查询不需要路由索引集ID
-        //   params: this.isUnionSearch
-        //     ? undefined
-        //     : {
-        //         indexId: this.indexId,
-        //       },
-        //   query: queryObj,
-        // });
         // 接口请求
         try {
           this.tableLoading = true;
@@ -1506,7 +1512,6 @@
       },
       // 更新路由参数
       setRouteParams(name = 'retrieve', params, query) {
-        console.log('--setRouteParams', this.isInDestroy);
         if (this.isInDestroy) {
           return;
         }
@@ -1957,18 +1962,6 @@
           this.isSqlSearchType = true;
         }
       },
-      // 获取全局数据和 判断是否可以保存 已有的日志聚类
-      getGlobalsData() {
-        if (Object.keys(this.globalsData).length) return;
-        this.$http
-          .request('collect/globals')
-          .then(res => {
-            this.$store.commit('globals/setGlobalsData', res.data);
-          })
-          .catch(e => {
-            console.warn(e);
-          });
-      },
       initToolTipsMessage(config) {
         const { contextAndRealtime, bcsWebConsole } = config;
         return {
@@ -2120,14 +2113,6 @@
         }
 
         this.setRouteParams('retrieve', params, newQuery);
-        // this.$router.push({
-        //   name: 'retrieve',
-        //   params,
-        //   query: newQuery,
-        // });
-      },
-      getHaveValueIndexItem(indexList) {
-        return indexList.find(item => !item.tags.map(item => item.tag_id).includes(4))?.index_set_id || indexList[0].index_set_id;
       },
     },
   };

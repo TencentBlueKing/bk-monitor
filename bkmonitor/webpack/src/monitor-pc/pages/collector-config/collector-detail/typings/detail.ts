@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import type CollectorDetail from '../collector-detail';
+
 /**
  * @enum {('configuration' | 'DataLink' | 'fieldDetails' | 'StorageState' | 'targetDetail')} 采集详情tab枚举类型
  */
@@ -51,12 +53,11 @@ export enum TabEnum {
 }
 
 export interface DetailData {
-  basic_info: object;
-  extend_info: object;
-  metric_list: object[];
-  runtime_params: object[];
+  basic_info: Record<string, any>;
+  extend_info: Record<string, any>;
+  metric_list: Record<string, any>[];
+  runtime_params: Record<string, any>[];
   subscription_id: number;
-  target_info: object;
 }
 
 export enum TCollectorAlertStage {
@@ -64,3 +65,13 @@ export enum TCollectorAlertStage {
   storage = 'storage',
   transfer = 'transfer',
 }
+
+export type TabData<T extends TabEnum> = CollectorDetail['allData'][T];
+export type TabProperty<T extends TabEnum> = keyof TabData<T>;
+export type TabValue<T extends TabEnum, K extends TabProperty<T>> = TabData<T>[K];
+
+export type ChangeConfig<T extends TabEnum, K extends TabProperty<T>> = {
+  tab: T;
+  property: K;
+  data: TabValue<T, K>;
+};

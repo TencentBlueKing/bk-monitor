@@ -194,6 +194,16 @@ export default class ClusterPopover extends tsc<object> {
                 <i class='icon bk-icon icon-eye'></i>
                 <span>{$i18n.t('查询命中pattern的日志')}</span>
               </span>
+              <div
+                class='new-link'
+                v-bk-tooltips={this.$t('新开标签页')}
+                onClick={e => {
+                  e.stopPropagation();
+                  this.handleClick('show original', true);
+                }}
+              >
+                <i class='log-icon icon-jump'></i>
+              </div>
             </div>
             {/* <div class='event-box'>
               <span

@@ -1,0 +1,38 @@
+/* stylelint-disable declaration-no-important */
+.app-list-skeleton {
+  display: flex;
+  flex-direction: column;
+
+  .expand-header {
+    display: flex;
+    align-items: center;
+    height: 36px;
+    margin-bottom: 16px;
+    border-radius: 2px;
+
+    .header-left {
+      display: flex;
+      flex: 1;
+      align-items: center;
+
+      .skeleton-01{
+        max-width: 24px;
+        height: 24px;
+        margin-right: 8px;
+        margin-left: 16px;
+      }
+
+      .skeleton-02{
+        flex: 1;
+        height: 24px;
+        margin-right: 8px;
+      }
+
+      .skeleton-03{
+        max-width: 20px;
+        height: 24px;
+        margin-right: 16px;
+      }
+    }
+  }
+}

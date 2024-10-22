@@ -52,9 +52,9 @@ const levelOfColor = {
 };
 
 /* 以下路由不显示此组件 */
-// export const AI_WHALE_EXCLUED_ROUTES =
+// export const AI_WHALE_EXCLUDE_ROUTES =
 //   ['event-center', 'event-action', 'event-center-detail', 'event-center-action-detail'];
-export const AI_WHALE_EXCLUED_ROUTES = ['no-business', 'error-exception', 'share']; // 告警页也可显示ai小鲸
+export const AI_WHALE_EXCLUDE_ROUTES = ['no-business', 'error-exception', 'share']; // 告警页也可显示ai小鲸
 
 interface IHostPreviewListItem {
   ip: string;

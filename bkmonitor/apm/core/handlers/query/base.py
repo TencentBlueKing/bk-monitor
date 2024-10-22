@@ -206,7 +206,10 @@ class BaseQuery:
         ThreadPool().map_ignore_exception(
             self._collect_option_values, [(q, queryset, field, option_values) for field in fields]
         )
-        return option_values
+
+        # UnifyQuery tag_values 目前还不支持 limit，此处进行截断，避免返回量大导致前端组件卡死的问题
+        # 后续会支持 limit，并且请求速度会进一步加快，可以考虑放开一个更大的 limit
+        return {field: values[: self.OPTION_VALUES_MAX_SIZE] for field, values in option_values.items()}
 
     @classmethod
     def _collect_option_values(
@@ -215,7 +218,7 @@ class BaseQuery:
         if q.using == cls.USING_LOG:
             q = q.metric(field=field, method="count").group_by(field)
         else:
-            q = q.metric(field="bk_apm_count", method="count").tag_values(field)
+            q = q.metric(field="bk_apm_count", method="count").tag_values(field).time_field("time")
 
         for bucket in queryset.add_query(q):
             option_values.setdefault(field, []).append(bucket[field])
@@ -233,15 +236,6 @@ class BaseQuery:
         def _fill_data():
             _q: QueryConfigBuilder = q.values(*select_fields)
             page_data["data"] = list(queryset.add_query(_q).offset(offset).limit(limit))
-
-        # TODO 数量并没有被使用，获取近 6 h 文档数量在 4w spans / min 的应用下需要 2～3s，先行去除，等完全不需要时将代码删除
-        # def _fill_total():
-        #     _q: QueryConfigBuilder = q.metric(field=count_field, method="count", alias="total")
-        #     page_data["total"] = queryset.add_query(_q)[0]["total"]
-
-        # 为什么要分开获取数据和总数？
-        # 并不是所有的 DB 都能在一次查询里，同时返回数据和命中总数，此处对查询场景进行原子逻辑拆分，同时并发加速
-        # run_threads([InheritParentThread(target=_fill_total), InheritParentThread(target=_fill_data)])
 
         page_data: Dict[str, Union[int, List[Dict[str, Any]]]] = {"total": 0}
 
@@ -264,7 +258,8 @@ class BaseQuery:
                 raise ValueError(_("不支持的查询操作符: %s") % (f['operator']))
 
             key = cls._translate_field(f["key"])
-            return cls.operator_mapping[f["operator"]](q, key, f["value"])
+            # 更新 q，叠加查询条件
+            q = cls.operator_mapping[f["operator"]](q, key, f["value"])
 
         return q
 

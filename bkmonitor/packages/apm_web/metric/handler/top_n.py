@@ -21,7 +21,7 @@ from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.metric_handler import AvgDurationInstance, RequestCountInstance
 from apm_web.models import Application
-from apm_web.utils import group_by
+from bkmonitor.utils import group_by
 from constants.apm import OtlpKey
 from core.unit import load_unit
 from monitor_web.scene_view.builtin.apm import ApmBuiltinProcessor
@@ -358,7 +358,6 @@ class EndpointAvgDurationTopNHandler(TopNHandler):
         )
 
     def top_n(self):
-
         series = self._query_metric()
         sum_count = sum([serie["_result_"] for serie in series])
         result = []

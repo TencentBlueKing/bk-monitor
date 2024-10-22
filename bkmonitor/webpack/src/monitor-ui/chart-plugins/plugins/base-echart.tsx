@@ -116,13 +116,16 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
     const instance = (this as any).instance;
     const width = instance?.getWidth() || 0;
     if (!width || Math.abs(width - v) < 1) return;
-    const { maxXInterval, maxSeriesCount } = instance.getOption().customData || {};
+    const instanceOptions = instance.getOption();
+    const { maxXInterval, maxSeriesCount } = instanceOptions?.customData || {};
     const xInterval = getTimeSeriesXInterval(maxXInterval, v, maxSeriesCount);
-    instance?.setOption({
-      xAxis: {
-        ...xInterval,
-      },
-    });
+    if (instanceOptions.series?.[0]?.type !== 'pie') {
+      instance?.setOption({
+        xAxis: {
+          ...xInterval,
+        },
+      });
+    }
     instance?.resize({
       silent: true,
     });

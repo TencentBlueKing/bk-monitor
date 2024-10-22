@@ -1095,6 +1095,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       }
       const valueMap: any = {};
       const list = [];
+      // biome-ignore lint/complexity/noForEach: <explanation>
       (fieldList || []).forEach(item => {
         valueMap[item.field] =
           item.buckets.map(set => {
@@ -1234,9 +1235,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     const data = await EventStoreModule.getAlertEventCount({ ids });
     this.eventCounts = data;
     if (data) {
-      this.tableData.forEach(item => {
+      for (const item of this.tableData) {
         item.event_count = data[item.id] || -1;
-      });
+      }
     }
   }
   /**
@@ -1270,7 +1271,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           overview,
           actionOverview,
           faultOverview,
-          ...overview.children,
+          ...(overview?.children || []),
           ...actionOverview.children,
           ...(enable_aiops_incident && faultOverview.children ? faultOverview.children : []),
         ].find(item => item.id === this.activeFilterId)?.name || '';
@@ -1611,12 +1612,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   handleRefleshChange(v: number) {
     window.clearInterval(this.refleshInstance);
     this.refleshInterval = v;
-    v > 0 &&
-      (this.refleshInstance = setInterval(() => {
-        this.chartKey = random(10);
-        this.handleGetFilterData();
-        this.handleGetTableData();
-      }, this.refleshInterval));
+    if (v <= 0) return;
+    this.refleshInstance = setInterval(() => {
+      this.chartKey = random(10);
+      this.handleGetFilterData();
+      this.handleGetTableData();
+    }, this.refleshInterval);
   }
   /**
    * @description: 点击立刻刷新图标触发
@@ -1795,7 +1796,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         this.dialog.quickShield.show = true;
         this.dialog.quickShield.ids = this.selectedList;
         const details = [];
-        this.selectedList.forEach(alertId => {
+        for (const alertId of this.selectedList) {
           const detail = this.tableData.find(tableitem => tableitem.id === alertId);
           details.push({
             severity: detail.severity,
@@ -1807,21 +1808,19 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               name: detail.strategy_name,
             },
           });
-        });
+        }
         this.dialog.quickShield.details = details;
         this.batchUrlUpdate(EBatchAction.quickShield);
         break;
       }
       case 'chat': {
-        const assignees = [];
-        this.selectedList.forEach(item => {
+        let assignees = [];
+        for (const item of this.selectedList) {
           const detail = this.tableData.find(tableitem => tableitem.id === item);
-          detail.assignee?.forEach(val => {
-            if (!assignees.includes(val)) {
-              assignees.push(val);
-            }
+          assignees = detail.assignee?.map(val => {
+            return !assignees.includes(val);
           });
-        });
+        }
         this.chatGroupDialog.assignee = assignees;
         this.chatGroupDialog.alertIds.splice(0, this.chatGroupDialog.alertIds.length, ...this.selectedList);
         this.chatGroupShowChange(true);
@@ -1968,12 +1967,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    */
   quickShieldSucces(v: boolean) {
     if (v) {
-      this.tableData.forEach(item => {
+      for (const item of this.tableData) {
         if (this.dialog.quickShield.ids.includes(item.id)) {
           item.is_shielded = true;
           item.shield_operator = [window.username || window.user_name];
         }
-      });
+      }
     }
   }
 
@@ -2047,12 +2046,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    */
   handleConfirmAfter(v: boolean) {
     if (v) {
-      this.tableData.forEach(item => {
+      for (const item of this.tableData) {
         if (this.dialog.alarmConfirm.ids.includes(item.id)) {
           item.is_ack = true;
           item.ack_operator = window.username || window.user_name;
         }
-      });
+      }
     }
   }
   /* 告警分派弹窗 */
@@ -2064,7 +2063,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   }
   /* 分派成功 */
   handleAlarmDispatchSuccess(data: { ids: string[]; users: string[] }) {
-    this.tableData.forEach(item => {
+    for (const item of this.tableData) {
       if (data.ids.includes(item.id)) {
         if (item.appointee) {
           const usersSet = new Set();
@@ -2076,7 +2075,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           item.appointee = data.users;
         }
       }
-    });
+    }
   }
   /**
    * @description: 切换告警列表tab时触发
@@ -2356,11 +2355,11 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     }
     if (val === 'clear-filter') {
       this.queryString = '';
-      Object.keys(this.condition).forEach(key => {
-        if (this.condition[key].length) {
+      for (const [key, val] of Object.entries(this.condition)) {
+        if (val.length) {
           this.condition[key] = [];
         }
-      });
+      }
       this.noDataType = 'empty';
       this.handleGetTableData();
       return;
@@ -2421,7 +2420,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             display: this.filterWidth > 200 ? 'flex' : 'none',
           }}
           class={`event-filter ${this.isSplitEventPanel ? 'hidden' : ''}`}
-          onScroll={e => (this.filterScrollTop = (e.target as HTMLDivElement).scrollTop)}
+          onScroll={e => {
+            this.filterScrollTop = (e.target as HTMLDivElement).scrollTop;
+          }}
         >
           <div class='filter-list'>{this.commonFilterData?.map(item => this.filterListComponent(item))}</div>
           <div class='filter-search'>

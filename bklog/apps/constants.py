@@ -162,6 +162,7 @@ class LuceneReservedLogicOperatorEnum(ChoicesEnum):
     """
     Lucene保留逻辑操作符枚举
     """
+
     AND = "AND"
     OR = "OR"
     NOT = "NOT"
@@ -404,16 +405,45 @@ class ViewSetActionEnum(ChoicesEnum):
     )
     # ======================================= 字段分析-FieldViewSet =======================================
     FIELD_VIEWSET_TOTAL = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FieldViewSet", view_action="fetch_statistics_total"
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="FieldViewSet",
+        view_action="fetch_statistics_total",
     )
     FIELD_VIEWSET_GRAPH = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FieldViewSet", view_action="fetch_statistics_graph"
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="FieldViewSet",
+        view_action="fetch_statistics_graph",
     )
     FIELD_VIEWSET_INFO = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FieldViewSet", view_action="fetch_statistics_info"
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="FieldViewSet",
+        view_action="fetch_statistics_info",
     )
     FIELD_VIEWSET_TOPK = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FieldViewSet", view_action="fetch_topk_list"
+    )
+    # ======================================= 日志聚类-FieldViewSet =======================================
+    CLUSTERING_CONFIG_VIEWSET_STATUS = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="ClusteringConfigViewSet",
+        view_action="access_status",
+    )
+    CLUSTERING_CONFIG_VIEWSET_CONFIG = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="ClusteringConfigViewSet",
+        view_action="get_config",
+    )
+    PATTERN_VIEWSET_SEARCH = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="PatternViewSet", view_action="search"
+    )
+    # ======================================= 收藏-IndexSetViewSet =======================================
+    INDEX_SET_VIEWSET_MARK_FAVORITE = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="IndexSetViewSet", view_action="mark_favorite"
+    )
+    INDEX_SET_VIEWSET_CANCEL_FAVORITE = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="IndexSetViewSet",
+        view_action="cancel_favorite",
     )
     # ======================================= 收藏-FavoriteViewSet =======================================
     FAVORITE_VIEWSET_RETRIEVE = ViewSetAction(
@@ -493,7 +523,9 @@ class ViewSetActionEnum(ChoicesEnum):
     )
     # ======================================= 收藏联合查询-FavoriteUnionSearchViewSet =======================================
     FAVORITE_UNION_SEARCH_VIEWSET_LIST = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FavoriteUnionSearchViewSet", view_action="list"
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="FavoriteUnionSearchViewSet",
+        view_action="list",
     )
     # ======================================= BizsViewSet =======================================
     # BizsViewSet, get_display_name 默认允许
@@ -541,6 +573,13 @@ class ViewSetActionEnum(ChoicesEnum):
         FIELD_VIEWSET_TOTAL,
         FIELD_VIEWSET_GRAPH,
         FIELD_VIEWSET_TOPK,
+        # ======================================= 字段分析-FieldViewSet =======================================
+        CLUSTERING_CONFIG_VIEWSET_STATUS,
+        CLUSTERING_CONFIG_VIEWSET_CONFIG,
+        PATTERN_VIEWSET_SEARCH,
+        # ======================================= 收藏-IndexSetViewSet =======================================
+        INDEX_SET_VIEWSET_MARK_FAVORITE,
+        INDEX_SET_VIEWSET_CANCEL_FAVORITE,
         # ======================================= 收藏-FavoriteViewSet =======================================
         FAVORITE_VIEWSET_RETRIEVE,
         FAVORITE_VIEWSET_LIST,
