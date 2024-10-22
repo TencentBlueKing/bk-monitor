@@ -166,41 +166,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             #     view_config["hidden"] = True
             #     return view_config
 
-            # 补充配置
-            view_config["options"]["caller"] = {
-                "tags": TRPCMetricTag.caller_tags(),
-                "support_operations": TrpcTagDrillOperation.caller_support_operations(),
-            }
-            view_config["options"]["callee"] = {
-                "tags": TRPCMetricTag.callee_tags(),
-                "support_operations": TrpcTagDrillOperation.callee_support_operations(),
-            }
-            view_config["options"]["common"]["statistics"]["supported_calculation_types"] = [
-                {"value": value, "text": text} for value, text in CalculationType.choices()
-            ]
-            view_config["options"]["common"]["group_by"]["supported_calculation_types"] = [
-                {"value": value, "text": text}
-                for value, text in CalculationType.choices()
-                if value
-                in [
-                    CalculationType.REQUEST_TOTAL,
-                    CalculationType.AVG_DURATION,
-                    CalculationType.SUCCESS_RATE,
-                    CalculationType.TIMEOUT_RATE,
-                    CalculationType.EXCEPTION_RATE,
-                ]
-            ]
-            view_config["options"]["common"]["group_by"]["supported_methods"] = [
-                {"value": CalculationType.TOP_N, "text": "top"},
-                {"value": CalculationType.BOTTOM_N, "text": "bottom"},
-            ]
-            view_config["options"]["common"]["angle"][SeriesAliasType.CALLEE.value][
-                "metrics"
-            ] = metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLEE.value]
-            view_config["options"]["common"]["angle"][SeriesAliasType.CALLER.value][
-                "metrics"
-            ] = metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLER.value]
-
             # 补充查询
             service_temporality = params.get("service_temporality")
             if service_temporality not in [MetricTemporality.CUMULATIVE, MetricTemporality.DELTA]:
@@ -212,6 +177,41 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             if service_temporality == MetricTemporality.CUMULATIVE:
                 # 添加 increase 函数
                 cls._add_functions(view_config, [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}])
+
+            view_config = cls._replace_variable(view_config, "${temporality}", service_temporality)
+
+            # 补充配置
+            view_config["overview_panels"][0]["options"]["common"]["angle"][SeriesAliasType.CALLER.value] = {
+                "server": TRPCMetricTag.CALLER_SERVER,
+                "metrics": metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLER.value],
+                "tags": TRPCMetricTag.caller_tags(),
+                "support_operations": TrpcTagDrillOperation.caller_support_operations(),
+            }
+            view_config["overview_panels"][0]["options"]["common"]["angle"][SeriesAliasType.CALLEE.value] = {
+                "server": TRPCMetricTag.CALLEE_SERVER,
+                "metrics": metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLEE.value],
+                "tags": TRPCMetricTag.callee_tags(),
+                "support_operations": TrpcTagDrillOperation.callee_support_operations(),
+            }
+            view_config["overview_panels"][0]["options"]["common"]["statistics"]["supported_calculation_types"] = [
+                {"value": value, "text": text} for value, text in CalculationType.choices()
+            ]
+            view_config["overview_panels"][0]["options"]["common"]["group_by"]["supported_calculation_types"] = [
+                {"value": value, "text": text}
+                for value, text in CalculationType.choices()
+                if value
+                in [
+                    CalculationType.REQUEST_TOTAL,
+                    CalculationType.AVG_DURATION,
+                    CalculationType.SUCCESS_RATE,
+                    CalculationType.TIMEOUT_RATE,
+                    CalculationType.EXCEPTION_RATE,
+                ]
+            ]
+            view_config["overview_panels"][0]["options"]["common"]["group_by"]["supported_methods"] = [
+                {"value": CalculationType.TOP_N, "text": "top"},
+                {"value": CalculationType.BOTTOM_N, "text": "bottom"},
+            ]
 
         return view_config
 
