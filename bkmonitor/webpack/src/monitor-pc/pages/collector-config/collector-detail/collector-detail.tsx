@@ -333,7 +333,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             name={TabEnum.Configuration}
             renderDirective='if'
           >
-            {!!this.collectId && this.detailData.basic_info?.name && (
+            {!!this.collectId && (
               <CollectorConfiguration
                 id={this.collectId as any}
                 key={this.allData[TabEnum.Configuration].renderKey}
