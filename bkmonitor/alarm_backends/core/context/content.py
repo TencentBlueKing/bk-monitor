@@ -26,6 +26,8 @@ from bkmonitor.models import AnomalyRecord
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.template import NoticeRowRenderer
 from constants.alert import TARGET_DIMENSIONS
+from core.drf_resource import api
+from core.errors.api import BKAPIError
 from core.unit import load_unit
 
 from . import BaseContextObject
@@ -318,6 +320,29 @@ class DefaultContent(BaseContextObject):
     def anomaly_dimensions(self):
         return self.parent.alarm.anomaly_dimensions
 
+    @cached_property
+    def remarks(self):
+        alert_id = self.parent.alert.id
+        bk_biz_id = self.parent.business.bk_biz_id
+        try:
+            remarks = list(
+                filter(lambda e: e.get("is_match"), api.monitor.get_experience(bk_biz_id=bk_biz_id, alert_id=alert_id))
+            )
+        except BKAPIError:
+            remarks = ""
+
+        if not remarks:
+            return ""
+        remark_collection = defaultdict(list)
+        for remark in remarks:
+            if remark["type"] == "metric":
+                # 基于指标的告警经验默认最低优先级命中: 0
+                remark_collection[0].append(remark["description"])
+                continue
+            score = len(remark["conditions"])
+            remark_collection[score].append(remark["description"])
+        return " | ".join(remark_collection[max(remark_collection)])
+
 
 class DimensionCollectContent(DefaultContent):
     """
@@ -347,6 +372,7 @@ class DimensionCollectContent(DefaultContent):
         "anomaly_dimensions": defaultdict(lambda: _lazy("维度下钻")),
         "recommended_metrics": defaultdict(lambda: _lazy("关联指标")),
         "receivers": defaultdict(lambda: _lazy("通知人")),
+        "remarks": defaultdict(lambda: _lazy("备注")),
     }
 
     # 短信
@@ -483,6 +509,7 @@ class MultiStrategyCollectContent(DefaultContent):
         "anomaly_dimensions": defaultdict(lambda: _lazy("维度下钻")),
         "recommended_metrics": defaultdict(lambda: _lazy("关联指标")),
         "receivers": defaultdict(lambda: _lazy("通知人")),
+        "remarks": defaultdict(lambda: _lazy("备注")),
     }
 
     # 微信
