@@ -199,6 +199,7 @@ def bmw_task_cron():
     定时检测所有应用的 BMW 预计算任务是否正常运行
     """
 
-    unopened_mapping, running_mapping = PreCalculateCheck.get_application_info_mapping()
-    distribution = PreCalculateCheck.calculate_distribution(unopened_mapping, running_mapping)
+    unopened_mapping, running_mapping, removed_tasks = PreCalculateCheck.get_application_info_mapping()
+    distribution, queue_info = PreCalculateCheck.calculate_distribution(running_mapping, unopened_mapping)
     PreCalculateCheck.distribute(distribution)
+    PreCalculateCheck.batch_remove(removed_tasks)
