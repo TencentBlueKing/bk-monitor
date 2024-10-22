@@ -414,7 +414,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
         }
         // 构建类型映射的配置
         const buildTypeMap = () => {
-          const labels = this.data.labels;
+          const labels = this.data.labels.map(path => path.replace(/^\/|\/$/g, ''));
           return {
             replace: {
               labels: {
@@ -529,7 +529,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
           return {
             algorithms: this.data.detectionConfig.data,
           };
-        } catch (error) {
+        } catch {
           return false;
         }
       },
