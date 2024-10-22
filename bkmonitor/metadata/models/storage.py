@@ -34,7 +34,7 @@ from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 from pytz import timezone
-from tenacity import retry, stop_after_attempt, wait_fixed
+from tenacity import RetryError, retry, retry_if_result, stop_after_attempt, wait_fixed
 
 from bkmonitor.dataflow import auth
 from bkmonitor.dataflow.task.cmdblevel import CMDBPrepareAggregateTask
@@ -226,7 +226,7 @@ class ClusterInfo(models.Model):
             _content = base64.b64encode(content.encode("utf-8"))
             _content_with_prefix = prefix + str(_content, "utf-8")
             return _content_with_prefix
-        except Exception as err:
+        except Exception as err:  # pylint: disable=broad-except
             logger.error("convert cert error, %s", err)
             return ""
 
@@ -321,7 +321,7 @@ class ClusterInfo(models.Model):
                         }
                     )
                     logger.info("cluster({}) init success, ret({})".format(self.cluster_name, ret))
-            except Exception as e:  # noqa
+            except Exception as e:  # pylint: disable=broad-except
                 logger.error("cluster({}) init error, {}".format(self.cluster_name, e))
 
     @classmethod
@@ -1722,6 +1722,10 @@ class KafkaStorage(models.Model, StorageResultTable):
         return True
 
 
+def is_false(value):
+    return value is False
+
+
 class ESStorage(models.Model, StorageResultTable):
     """ES存储配置信息"""
 
@@ -1961,7 +1965,7 @@ class ESStorage(models.Model, StorageResultTable):
             from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
             SpaceTableIDRedis().push_es_table_id_detail(table_id_list=[table_id], is_publish=True)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.error("table_id: %s push detail failed, error: %s", table_id, e)
         return new_record
 
@@ -2083,7 +2087,7 @@ class ESStorage(models.Model, StorageResultTable):
             if healthz["status"] == "red":
                 return True
             return False
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.error("query es cluster error by retry 3, error: %s", e)
             return True
 
@@ -2522,7 +2526,11 @@ class ESStorage(models.Model, StorageResultTable):
                     index_list = []
 
                 # 2.4 检查即将指向的索引是否就绪，只有当完全就绪（各个分片均已green）时，才进行切换
-                is_ready = self.is_index_ready(self.es_client, last_index_name)
+                try:
+                    is_ready = self.is_index_ready(self.es_client, last_index_name)
+                except RetryError:  # 若重试后依然失败，则认为未就绪
+                    is_ready = False
+
                 if not is_ready:
                     # 2.4.1 如果索引未就绪，记录日志并跳过，将last_index_name变为上次的索引
                     logger.warning(
@@ -2612,14 +2620,19 @@ class ESStorage(models.Model, StorageResultTable):
         # 2. 更新对应的别名<->索引绑定关系
         self.create_or_update_aliases(ahead_time)
 
-    def is_index_ready(self, es_client, index_name: str) -> bool:
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_fixed(3),
+        retry=retry_if_result(lambda result: result is False),  # 使用 lambda 表达式
+    )
+    def is_index_ready(self, index_name: str) -> bool:
         """
         检查索引的健康状态（是否在各个分片均已就绪）
         """
         try:
             # 获取索引的健康状态
             logger.info("is_index_ready:table_id->[%s] check index->[%s] health", self.table_id, index_name)
-            health = es_client.cluster.health(index=index_name, level=ES_INDEX_CHECK_LEVEL, request_timeout=5)
+            health = self.es_client.cluster.health(index=index_name, level=ES_INDEX_CHECK_LEVEL, request_timeout=5)
             index_health = health[ES_INDEX_CHECK_LEVEL].get(index_name, {})
 
             # 检查索引健康状态是否为 green
@@ -2770,17 +2783,31 @@ class ESStorage(models.Model, StorageResultTable):
         if now_datetime_object.strftime(self.date_format) == current_index_info["datetime_object"].strftime(
             self.date_format
         ):
-            # 7.1 如果当前index并没有写入过数据(count==0),则对其进行删除重建操作即可
-            if self.es_client.count(index=last_index_name).get("count", 0) == 0:
+            alias_list = self.es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
+            filter_result = self.group_expired_alias(alias_list, self.retention)
+            bounded_not_expired_alias_length = len(filter_result[last_index_name]["not_expired_alias"])
+
+            # 7.1 如果last_index存在已经绑定的别名，且其中的数据为空，那么则进行删除重建操作
+            if (bounded_not_expired_alias_length != 0) and (
+                self.es_client.count(index=last_index_name).get("count", 0) == 0
+            ):
                 new_index = current_index_info["index"]
                 self.es_client.indices.delete(index=last_index_name)
                 logger.info(
-                    "update_index_v2: table_id->[%s] has index->[%s] which has not data, will be deleted for new "
-                    "index create.",
+                    "update_index_v2: table_id->[%s] has index->[%s] which has bounded alias but not data, "
+                    "will be deleted for new index create.",
                     self.table_id,
                     last_index_name,
                 )
-            # 7.2 否则原来的index不动，新增一个index，并把alias指向过去
+            # 7.2 若上一轮次发起创建的index还没有绑定的别名（未就绪 / 已就绪但还未进行别名切换），跳过本次轮转，等候其别名绑定
+            elif bounded_not_expired_alias_length == 0:
+                logger.info(
+                    "update_index_v2: table_id->[%s] index->[%s] has no bounded alias maybe not ready, skip create new index",
+                    self.table_id,
+                    last_index_name,
+                )
+                return
+            # 7.3 否则原来的index不动，新增一个index，并把alias指向过去
             else:
                 new_index = current_index_info["index"] + 1
                 logger.info(
@@ -3294,7 +3321,7 @@ class ESStorage(models.Model, StorageResultTable):
                     self.table_id,
                 )
                 return
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.exception("table_id->[%s] error occurred when allocate: %s", self.table_id, e)
         else:
             logger.info("table_id->[%s] index->[%s] allocate success!", self.table_id, ilo.indices)
@@ -3461,7 +3488,7 @@ class ESStorage(models.Model, StorageResultTable):
                     new_snapshot_name,
                     {"indices": ",".join(expired_index), "include_global_state": False},
                 )
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.exception(
                 "table_id->[%s] create new snapshot ->[%s] failed e -> [%s]", self.table_id, new_snapshot_name, e
             )
@@ -3545,7 +3572,7 @@ class ESStorage(models.Model, StorageResultTable):
             snapshot_name = expired_snapshot.get("snapshot")
             try:
                 self.delete_snapshot(snapshot_name, self.snapshot_obj.target_snapshot_repository_name)
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-except
                 logger.exception("clean snapshot => [%s] failed => %s", snapshot_name, e)
 
         logger.debug("table_id->[%s] has clean snapshot", self.table_id)
@@ -3565,7 +3592,7 @@ class ESStorage(models.Model, StorageResultTable):
             snapshot_name = snapshot.get("snapshot")
             try:
                 self.delete_snapshot(snapshot_name, target_snapshot_repository_name)
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-except
                 logger.exception("delete snapshot [%s] failed => %s", snapshot_name, e)
         logger.info("table_id -> [%s] has delete all snapshot", self.table_id)
 
@@ -3870,7 +3897,7 @@ class BkDataStorage(models.Model, StorageResultTable):
                     return True
                 else:
                     time.sleep(1)
-        except Exception as e:  # noqa
+        except Exception as e:  # pylint: disable=broad-except
             logger.exception(
                 "create/start flow({}) failed, result_id:({}), reason: {}".format(
                     task.flow_name, self.bk_data_result_table_id, e
