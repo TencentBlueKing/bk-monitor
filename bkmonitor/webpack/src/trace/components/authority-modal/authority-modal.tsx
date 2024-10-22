@@ -69,7 +69,7 @@ export default defineComponent({
         } else {
           (top as any).BLUEKING.api.open_app_by_other('bk_iam', applyUrl.value);
         }
-      } catch (_) {
+      } catch {
         // 防止跨域问题
         window.open(applyUrl.value, '_blank');
       }
@@ -170,7 +170,6 @@ export default defineComponent({
       <Dialog
         width='768'
         height={380} // todo
-        extCls='permission-dialog'
         v-slots={{
           default: () => permissionModal(),
           footer: () => modalFooter(),

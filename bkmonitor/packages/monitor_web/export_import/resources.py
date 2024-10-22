@@ -12,14 +12,17 @@ specific language governing permissions and limitations under the License.
 import copy
 import csv
 import datetime
+import inspect
 import json
 import logging
 import os
 import re
 import shutil
 import tarfile
+import time
 import uuid
 from collections import defaultdict
+from pathlib import Path
 from uuid import uuid4
 
 from django.conf import settings
@@ -33,6 +36,7 @@ from bkmonitor.models import ItemModel, QueryConfigModel, StrategyModel
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.text import convert_filename
 from bkmonitor.utils.time_tools import now
+from bkmonitor.utils.user import get_local_username
 from bkmonitor.views import serializers
 from constants.data_source import DataSourceLabel
 from constants.strategy import TargetFieldType
@@ -44,9 +48,10 @@ from core.errors.export_import import (
     ImportHistoryNotExistError,
     UploadPackageError,
 )
-from monitor_web.collecting.constant import OperationResult, OperationType
+from monitor_web.collecting.deploy import get_collect_installer
 from monitor_web.commons.cc.utils import CmdbUtil
 from monitor_web.commons.file_manager import ExportImportManager
+from monitor_web.commons.report.resources import FrontendReportEventResource
 from monitor_web.export_import.constant import (
     DIRECTORY_LIST,
     ConfigType,
@@ -314,7 +319,38 @@ class ExportPackageResource(Resource):
 
         # 五分钟后删除文件夹
         remove_file.apply_async(args=(self.package_path,), countdown=300)
+
+        self.send_frontend_report_event()
+
         return {"download_path": download_path, "download_name": download_name}
+
+    def send_frontend_report_event(self):
+        """
+        发送前端审计上报
+        """
+
+        dimensions = {
+            "resource": f"{Path(inspect.getabsfile(self.__class__)).parent.name}.{self.__class__.__name__}",
+            "user_name": get_local_username(),
+        }
+
+        event_name = "导入导出审计"
+        event_content = (
+            "导出"
+            + f"{len(self.collect_config_ids)}条采集配置,"
+            + f"{len(self.strategy_config_ids)}个策略配置,"
+            + f"{len(self.view_config_ids)}个仪表盘"
+        )
+        timestamp = int(time.time() * 1000)
+
+        # 发送审计上报的请求
+        FrontendReportEventResource().request(
+            bk_biz_id=self.bk_biz_id,
+            dimensions=dimensions,
+            event_name=event_name,
+            event_content=event_content,
+            timestamp=timestamp,
+        )
 
     @step(state="PREPARE_FILE", message=_("准备文件中..."))
     def prepare_file(self):
@@ -996,7 +1032,37 @@ class ImportConfigResource(Resource):
             strategy_config_list.update(import_status=ImportDetailStatus.IMPORTING)
             view_config_list.update(import_status=ImportDetailStatus.IMPORTING)
 
+        # 发送审计上报
+        self.send_frontend_report_event(
+            bk_biz_id, username, len(collect_config_list), len(strategy_config_list), len(view_config_list)
+        )
+
         return {"import_history_id": self.import_history_instance.id}
+
+    def send_frontend_report_event(
+        self,
+        bk_biz_id: int,
+        username: str,
+        len_collect_config_list: int,
+        len_strategy_config_list: int,
+        len_view_config_list: int,
+    ):
+        event_name = "导入导出审计"
+        event_content = f"导入{len_collect_config_list}条采集配置, {len_strategy_config_list}个策略配置, {len_view_config_list}个仪表盘"
+        timestamp = int(time.time() * 1000)
+        dimensions = {
+            "resource": f"{Path(inspect.getabsfile(self.__class__)).parent.name}.{self.__class__.__name__}",
+            "user_name": username,
+        }
+
+        # 发送审计上报的请求
+        FrontendReportEventResource().request(
+            bk_biz_id=bk_biz_id,
+            dimensions=dimensions,
+            event_name=event_name,
+            event_content=event_content,
+            timestamp=timestamp,
+        )
 
 
 class AddMonitorTargetResource(Resource):
@@ -1070,23 +1136,8 @@ class AddMonitorTargetResource(Resource):
                 "target_nodes": collect_target,
                 "remote_collecting_host": deploy_config.remote_collecting_host,
             }
-            create_subscription = True
-            if deploy_config.task_ids:
-                create_subscription = False
-                result = instance.switch_config_version(DeploymentConfigVersion(**deployment_config_params))
-            else:
-                deploy_config.target_node_type = target_node_type
-                deploy_config.target_nodes = collect_target
-                deploy_config.save()
-                result = instance.create_subscription()
-            if result["task_id"]:
-                if create_subscription:
-                    instance.deployment_config.subscription_id = result["subscription_id"]
-                instance.operation_result = OperationResult.PREPARING
-                instance.deployment_config.task_ids = [result["task_id"]]
-                instance.deployment_config.save()
-            instance.last_operation = OperationType.START
-            instance.save()
+            installer = get_collect_installer(instance)
+            installer.install(deployment_config_params)
 
         # 添加策略配置目标
         resource.strategies.bulk_edit_strategy(

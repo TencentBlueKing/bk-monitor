@@ -48,6 +48,7 @@
     position: absolute;
     top: 0px;
     right: 0;
+    z-index: 1;
   }
 
   .detail-wrap-item {
@@ -114,6 +115,8 @@
                 border-right: 1px solid #dcdee5;
 
                 .name-text {
+                  white-space: wrap;
+
                   &.required {
                     position: relative;
 

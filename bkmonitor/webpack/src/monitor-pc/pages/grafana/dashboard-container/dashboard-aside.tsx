@@ -125,7 +125,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     {
       icon: 'icon-shezhi',
       tips: window.i18n.tc('route-仪表盘设置'),
-      router: 'grafana-datasource',
+      router: 'grafana-admin',
     },
   ].filter(Boolean);
 
@@ -761,7 +761,6 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
           v-model={this.showAddForm}
           header-position='left'
           title={this.$t(this.isDashboard ? '新建仪表盘' : '新增目录')}
-          zIndex={1}
           show-footer
           onCancel={this.handleCancel}
         >

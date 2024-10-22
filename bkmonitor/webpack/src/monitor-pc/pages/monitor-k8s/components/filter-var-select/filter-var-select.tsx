@@ -41,7 +41,7 @@ import './filter-var-select.scss';
 const SPLIT_CHART = '-'; // 变量id的分隔符
 
 export interface IProps {
-  label?: TranslateResult | string;
+  label?: string | TranslateResult;
   panel?: IVariableModel;
   customParams?: CustomParamsType;
   multiple?: boolean;
@@ -149,7 +149,7 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
       const [itemKey, filterKey] = item;
       const value = this.multiple
         ? this.localValueCheckedOptions.map(opt => opt[itemKey])
-        : this.localValueCheckedOptions[0]?.[itemKey] ?? this.localValue;
+        : (this.localValueCheckedOptions[0]?.[itemKey] ?? this.localValue);
       total[filterKey] = value;
       return total;
     }, filterDict);
@@ -182,7 +182,7 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
   @Watch('value', { immediate: true })
   valueChange(val: FilterDictType) {
     if (val) {
-      this.localValue = this.multiple ? val[this.localField] ?? [] : val[this.localField] ?? '';
+      this.localValue = this.multiple ? (val[this.localField] ?? []) : (val[this.localField] ?? '');
     }
   }
 
@@ -216,21 +216,9 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
       return isExist;
     });
     let isDisplayBackValue = false;
+    /** 新选项组存在回显值时进行回填 */
     if (defaultId !== null && isExistOptions) {
       this.localValue = this.multiple ? defaultIdsExist : defaultId;
-      isDisplayBackValue = true;
-    }
-    /** 回显值不存在可选项时默认选中第一项 */
-    if (defaultId !== null && !isExistOptions) {
-      // const option = this.localOptions[0];
-      // if (!!option) {
-      //   const { id } = option;
-      //   this.localValue = this.panel.isMultiple ? [id] : id;
-      // } else {
-      //   this.localValue = this.multiple ? [] : '';
-      // }
-      this.localValue = this.multiple ? defaultIds : defaultIds?.[0] || '';
-      this.handleValueChange();
       isDisplayBackValue = true;
     }
     this.tagInputKey = random(8);

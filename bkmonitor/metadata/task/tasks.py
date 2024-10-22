@@ -138,7 +138,9 @@ def update_time_series_metrics(time_series_metrics):
                 table_id_list.append(time_series_group.table_id)
         except Exception as e:
             logger.error(
-                "data_id->[%s], table_id->[%s] try to update ts metrics from redis failed, error->[%s], traceback_detail->[%s]",  # noqa
+                "data_id->[%s], table_id->[%s] try to update ts metrics from redis failed, error->[%s], "
+                "traceback_detail->[%s]",
+                # noqa
                 time_series_group.bk_data_id,
                 time_series_group.table_id,
                 e,
@@ -183,19 +185,26 @@ def _manage_es_storage(es_storage):
         # 先预创建各个时间段的index，
         # 1. 同时判断各个预创建好的index是否字段与数据库的一致
         # 2. 也判断各个创建的index是否有大小需要切片的需要
-        logger.info("table_id->[%s] start to create index", es_storage.table_id)
+        logger.info("manage_es_storage:table_id->[%s] start to create index", es_storage.table_id)
 
         # 如果index_settings和mapping_settings为空，则说明对应配置信息有误，记录日志并触发告警
         if not es_storage.index_settings or es_storage.index_settings == '{}':
-            logger.error("table_id->[%s] need to create index,but index_settings invalid", es_storage.table_id)
+            logger.error(
+                "manage_es_storage:table_id->[%s] need to create index,but index_settings invalid", es_storage.table_id
+            )
             return
         if not es_storage.mapping_settings or es_storage.mapping_settings == '{}':
-            logger.error("table_id->[%s] need to create index,but mapping_settings invalid", es_storage.table_id)
+            logger.error(
+                "manage_es_storage:table_id->[%s] need to create index,but mapping_settings invalid",
+                es_storage.table_id,
+            )
             return
 
         if not es_storage.index_exist():
             #   如果该table_id的index在es中不存在，说明要走初始化流程
-            logger.info("table_id->[%s] found no index in es,will create new one", es_storage.table_id)
+            logger.info(
+                "manage_es_storage:table_id->[%s] found no index in es,will create new one", es_storage.table_id
+            )
             es_storage.create_index_and_aliases(es_storage.slice_gap)
         else:
             # 否则走更新流程
@@ -210,11 +219,11 @@ def _manage_es_storage(es_storage):
         # 重新分配索引数据
         es_storage.reallocate_index()
 
-        logger.info("table_id->[%s] create index successfully", es_storage.table_id)
-        logger.debug("es_storage->[{}] cron task success.".format(es_storage.table_id))
+        logger.info("manage_es_storage:table_id->[%s] create index successfully", es_storage.table_id)
+        logger.info("manage_es_storage:es_storage->[{}] cron task success.".format(es_storage.table_id))
     except Exception as e:  # pylint: disable=broad-except
         # 记录异常集群的信息
-        logger.error("es_storage index lifecycle failed,table_id->{}".format(es_storage.table_id))
+        logger.error("manage_es_storage:es_storage index lifecycle failed,table_id->{}".format(es_storage.table_id))
         logger.exception(e)
 
 
@@ -282,13 +291,20 @@ def multi_push_space_table_ids(space_list: List[Dict]):
     logger.info("multi push space table ids successfully")
 
 
-def _access_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int, bcs_cluster_id: Optional[str] = None):
+def _access_bkdata_vm(
+    bk_biz_id: int,
+    table_id: str,
+    data_id: int,
+    bcs_cluster_id: Optional[str] = None,
+    allow_access_v2_data_link: Optional[bool] = False,
+):
     """接入计算平台 VM 任务
     NOTE: 根据环境变量判断是否启用新版vm链路
     """
     from metadata.models.vm.utils import access_bkdata, access_v2_bkdata_vm
 
-    if settings.ENABLE_V2_VM_DATA_LINK or (
+    # NOTE：只有当allow_access_v2_data_link为True，即单指标单表时序指标数据时，才允许接入V4链路
+    if (settings.ENABLE_V2_VM_DATA_LINK and allow_access_v2_data_link) or (
         bcs_cluster_id and bcs_cluster_id in settings.ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST
     ):
         access_v2_bkdata_vm(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id)
@@ -298,7 +314,12 @@ def _access_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int, bcs_cluster_i
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def access_bkdata_vm(
-    bk_biz_id: int, table_id: str, data_id: int, space_type: Optional[str] = None, space_id: Optional[str] = None
+    bk_biz_id: int,
+    table_id: str,
+    data_id: int,
+    space_type: Optional[str] = None,
+    space_id: Optional[str] = None,
+    allow_access_v2_data_link: Optional[bool] = False,
 ):
     """接入计算平台 VM 任务"""
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access bkdata vm", bk_biz_id, table_id, data_id)
@@ -310,7 +331,13 @@ def access_bkdata_vm(
         obj = BCSClusterInfo.objects.filter(fq).first()
         bcs_cluster_id = obj.cluster_id if obj else None
 
-        _access_bkdata_vm(bk_biz_id=bk_biz_id, table_id=table_id, data_id=data_id, bcs_cluster_id=bcs_cluster_id)
+        _access_bkdata_vm(
+            bk_biz_id=bk_biz_id,
+            table_id=table_id,
+            data_id=data_id,
+            bcs_cluster_id=bcs_cluster_id,
+            allow_access_v2_data_link=allow_access_v2_data_link,
+        )
     except Exception as e:
         logger.error(
             "bk_biz_id: %s, table_id: %s, data_id: %s access vm failed, error: %s", bk_biz_id, table_id, data_id, e

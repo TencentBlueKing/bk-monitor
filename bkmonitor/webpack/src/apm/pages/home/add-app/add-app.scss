@@ -1,0 +1,49 @@
+/* stylelint-disable declaration-no-important */
+.app-add-page {
+  height: 100%;
+
+  .mr8 {
+    margin-right: 8px;
+  }
+
+  .add-app-form-component  {
+    min-height: calc(-440px + 100vh);
+    padding: 24px 32px;
+    margin-top: 0;
+    background-color: rgb(255, 255, 255);
+
+    .form-item {
+      padding: 0;
+
+      .err-msg {
+        left: 0;
+      }
+    }
+  }
+
+  .app-add-content {
+    height: calc(100% - 48px);
+    padding: 16px 24px;
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    .input-width {
+      width: 560px;
+    }
+
+    .report-type-wrap {
+      width: 560px !important;
+    }
+    
+
+    .app-add-desc {
+      margin-bottom: 12px;
+
+      .app-add-question {
+        margin-bottom: 12px;
+        font-size: 16px;
+        color: #313238;
+      }
+    }
+  }
+}

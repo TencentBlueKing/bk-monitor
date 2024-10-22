@@ -43,7 +43,7 @@ interface IBkInfoProps {
   escClose?: any;
   showFooter?: boolean;
   extCls?: string;
-  okText?: TranslateResult | string;
+  okText?: string | TranslateResult;
   cancelText?: string;
   confirmFn: (v: unknown) => void;
   cancelFn: (v: unknown) => void;
@@ -97,6 +97,7 @@ declare global {
     bk_log_search_url: string;
     cluster_setup_url: string;
     bk_docs_site_url: string;
+    bk_doc_version: string;
     agent_setup_url: string;
     bk_component_api_url: string;
     bk_domain: string;

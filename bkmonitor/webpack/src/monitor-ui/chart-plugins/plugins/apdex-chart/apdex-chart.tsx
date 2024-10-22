@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
+import { Component, Inject, Prop } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -58,8 +58,8 @@ interface IApdexChartProps {
   splitNumber?: number;
 }
 interface IApdexChartEvent {
-  onDataZoom: void;
-  onDblClick: void;
+  onDataZoom: () => void;
+  onDblClick: () => void;
 }
 @Component
 export class ApdexChart extends LineChart {
@@ -111,7 +111,7 @@ export class ApdexChart extends LineChart {
       const promiseList = [];
       const timeShiftList = ['', ...this.timeOffset];
       const variablesService = new VariablesService(this.viewOptions);
-      timeShiftList.forEach(time_shift => {
+      for (const time_shift of timeShiftList) {
         const list = this.panel.targets.map(item =>
           (this as any).$api[item.apiModule]
             [item.apiFunc](
@@ -148,13 +148,14 @@ export class ApdexChart extends LineChart {
             })
         );
         promiseList.push(...list);
-      });
+      }
       await Promise.all(promiseList).catch(() => false);
       if (series.length) {
         const seriesList = this.handleTransformSeries(
           series.map(item => ({
             name: item.target,
             cursor: 'auto',
+            // biome-ignore lint/style/noCommaOperator: <explanation>
             data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
             stack: item.stack || random(10),
             unit: item.unit,
@@ -299,6 +300,13 @@ export class ApdexChart extends LineChart {
         name: '预警',
         tips,
         color: '#FFB848',
+      };
+
+    if (v[0] === 3)
+      return {
+        name: '提醒',
+        tips,
+        color: '#699DF4',
       };
     return {
       name: '无告警',

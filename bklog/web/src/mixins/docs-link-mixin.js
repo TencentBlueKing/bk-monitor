@@ -25,12 +25,12 @@
  */
 
 const linkMap = {
-  logExtract: '产品白皮书/integrations-logs/log_simple_format.md', // 日志清洗
-  docCenter: '产品白皮书/intro/README.md', // 产品文档
-  logArchive: '产品白皮书/tools/log_archive.md', // 日志归档
-  logCollection: '产品白皮书/integrations-logs/logs_overview.md', // 日志采集接入
-  bkBase: '基础计算平台/产品白皮书/intro/intro.md', // 基础计算平台
-  queryString: '产品白皮书/data-visualization/query_string.md', // 查询语句语法
+  logExtract: 'UserGuide/ProductFeatures/log-analysis/customize-analyzer.md', // 日志清洗
+  docCenter: 'UserGuide/Intro/README.md', // 产品文档
+  logArchive: 'UserGuide/ProductFeatures/tools/log_archive.md', // 日志归档
+  logCollection: 'UserGuide/ProductFeatures/integrations-logs/logs_overview.md', // 日志采集接入
+  bkBase: 'BK-Base/UserGuide/Introduction/intro.md', // 基础计算平台
+  queryString: 'UserGuide/ProductFeatures/data-visualization/query_string.md' // 查询语句语法
 };
 
 export default {

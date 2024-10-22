@@ -82,7 +82,8 @@
       },
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -179,7 +180,8 @@
       },
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },

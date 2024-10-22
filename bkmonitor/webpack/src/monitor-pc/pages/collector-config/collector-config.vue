@@ -231,12 +231,8 @@
                     v-authority="{
                       active: !authority.MANAGE_AUTH && !(scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus),
                     }"
-                    :class="{ 'btn-disabled': scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus }"
-                    @click="
-                      authority.MANAGE_AUTH || scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus
-                        ? scope.row.taskStatus !== 'STOPPED' && !scope.row.doingStatus && handleUpdateTarget(scope.row)
-                        : handleShowAuthorityDetail()
-                    "
+                    :class="{ 'btn-disabled': checkUpdateTargetDisabled(scope.row) }"
+                    @click="authority.MANAGE_AUTH ? handleUpdateTarget(scope.row) : handleShowAuthorityDetail()"
                   >
                     {{ $t('增删目标') }}
                   </span>
@@ -384,6 +380,7 @@
           >{{ popover.status === 'STOPPED' ? $t('启用') : $t('停用') }}</span
         >
         <span
+          v-if="popover.collectType !== 'K8S'"
           class="operator-group-btn"
           @click="handleCloneConfig"
         >
@@ -894,6 +891,8 @@ export default {
               [item.totalInstanceCount]
             )}）`;
           }
+        } else if (item.objectTypeEn === 'CLUSTER') {
+          item.targetString = this.$t('{0}个集群', [item.totalInstanceCount]);
         }
       });
       return tableData;
@@ -982,7 +981,11 @@ export default {
         ),
       });
     },
+    checkUpdateTargetDisabled(row) {
+      return row.taskStatus === 'STOPPED' || row.doingStatus || row.collectType === 'K8S';
+    },
     handleUpdateTarget(data) {
+      if (this.checkUpdateTargetDisabled(data)) return;
       if (data.needUpdate) {
         this.updataInfo(data);
         return false;

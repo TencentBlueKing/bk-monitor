@@ -41,7 +41,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 // import TemporaryShare from '../../components/temporary-share/temporary-share';
 import * as authorityMap from 'apm/pages/home/authority-map';
-import { Button, Cascader, Dialog, Input, Loading, Popover, Radio } from 'bkui-vue';
+import { Button, Cascader, Dialog, Input, Popover, Radio } from 'bkui-vue';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
 import {
   getFieldOptionValues,
@@ -171,6 +171,9 @@ export default defineComponent({
     };
     getAppList();
     const timeRange = ref<TimeRangeType>(DEFAULT_TIME_RANGE);
+    const cacheTimeRange = ref('');
+    const enableSelectionRestoreAll = ref(true);
+    const showRestore = ref(false);
     const timezone = ref<string>(getDefaultTimezone());
     const refleshImmediate = ref<number | string>('');
     /* 此时间下拉加载时不变 */
@@ -189,6 +192,22 @@ export default defineComponent({
     ];
     const headerToolMenuList: ISelectMenuOption[] = [{ id: 'config', name: t('应用设置') }];
 
+    function handleChartDataZoom(value) {
+      if (JSON.stringify(timeRange.value) !== JSON.stringify(value)) {
+        cacheTimeRange.value = JSON.parse(JSON.stringify(timeRange.value));
+        timeRange.value = value;
+        showRestore.value = true;
+      }
+    }
+    function handleRestoreEvent() {
+      timeRange.value = JSON.parse(JSON.stringify(cacheTimeRange.value));
+      showRestore.value = false;
+    }
+    // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
+    provide('showRestore', showRestore);
+    provide('enableSelectionRestoreAll', enableSelectionRestoreAll);
+    provide('handleChartDataZoom', handleChartDataZoom);
+    provide('handleRestoreEvent', handleRestoreEvent);
     provide(TIME_RANGE_KEY, timeRange);
     provide(TIMEZONE_KEY, timezone);
     provide(REFLESH_INTERVAL_KEY, refleshInterval);
@@ -230,6 +249,7 @@ export default defineComponent({
     const searchSelectValue = ref<ISearchSelectValue[]>([]);
     const durantionRange = ref<null | number[]>(null);
     const traceColumnFilters = ref<Record<string, string[]>>({});
+    const cacheTraceColumnFilters = ref<Record<string, string[]>>({});
     const interfaceListCanLoadMore = ref<boolean>(false);
     const serviceListCanLoadMore = ref<boolean>(false);
     const spanDetails = ref<null | Span>(null);
@@ -290,7 +310,7 @@ export default defineComponent({
       localStorage.setItem('bk_monitor_auto_query_enable', `${val}`);
       state.autoQuery = val;
     };
-    async function handleAppSelectChange(val: string) {
+    async function handleAppSelectChange(val: string, isClickQueryBtn = false) {
       state.app = val;
       traceListPagination.offset = 0;
       traceColumnFilters.value = {};
@@ -298,13 +318,12 @@ export default defineComponent({
         if (!Object.keys(scopeSelects.value).length) {
           await getQueryOptions();
         }
-        if (state.searchType === 'scope' && (state.autoQuery || !state.isAlreadyScopeQuery)) {
-          if (state.isAlreadyScopeQuery) reGetFieldOptionValues();
-          handleQueryScopeDebounce();
-        }
-
         // 获取图表配置列表
         searchStore.getPanelList(state.app);
+        if (state.searchType === 'scope' && (state.autoQuery || !state.isAlreadyScopeQuery || isClickQueryBtn)) {
+          if (state.isAlreadyScopeQuery) reGetFieldOptionValues();
+          handleQueryScopeDebounce(true);
+        }
       }
     }
     /** 获取范围查询条件 */
@@ -376,7 +395,7 @@ export default defineComponent({
         value: Array<any>;
         operator: 'between' | 'equal' | 'logic' | 'not_equal';
       };
-      const filters: IFilterItem[] = [];
+      let filters: IFilterItem[] = [];
 
       // 收集 Trace 列表 表头的查询信息
       Object.keys(traceColumnFilters.value || {}).forEach(key => {
@@ -396,6 +415,23 @@ export default defineComponent({
           operator: 'between',
         });
       }
+
+      const cacheFilter = cacheTraceColumnFilters.value[selectedListType.value] || [];
+      const updatedCacheFilter = filters.reduce((acc, item) => {
+        const index = acc.findIndex(filter => filter.key === item.key);
+        if (index !== -1) {
+          acc[index].value = item.value;
+        } else {
+          acc.push(item);
+        }
+        return acc;
+      }, cacheFilter);
+      // 过滤出有值的项
+      const filterData = updatedCacheFilter.filter(ele => (ele.value || []).length > 0);
+      // 更新缓存和 filters
+      cacheTraceColumnFilters.value[selectedListType.value] = updatedCacheFilter;
+      filters = filterData;
+
       // 收集 侧边栏：服务
       Object.keys(scopeSelects.value).forEach(key => {
         if (key === 'service' && scopeSelects.value[key].value.length) {
@@ -504,7 +540,6 @@ export default defineComponent({
         store.serviceStatisticsType.contain.forEach(item => filters.push(filterTypeMapping[item]));
         store.serviceStatisticsType.interfaceType.forEach(item => filters.push(filterTypeMapping[item]));
       }
-
       const params = {
         app_name: state.app,
         // 改 key
@@ -548,7 +583,6 @@ export default defineComponent({
         store.setTraceDetail(false);
         store.setFilterTraceList([]);
       }
-
       const params = queryScopeParams();
       // 查询语句 的字段检查，非标准要换成 span 视角
       // if (selectedListType.value === 'trace') {
@@ -745,10 +779,10 @@ export default defineComponent({
     };
     const handleQueryScopeDebounce = debounce(300, handleQueryScope);
     /* 范围查询动态参数更新 */
-    function handleScopeQueryChange() {
+    function handleScopeQueryChange(isClickQueryBtn = false) {
       traceListPagination.offset = 0;
       curTimestamp.value = handleTransformToTimestamp(timeRange.value);
-      handleQueryScopeDebounce();
+      handleQueryScopeDebounce(isClickQueryBtn);
     }
     /** 更新耗时过滤条件 */
     function handleDurationChange(range: number[]) {
@@ -759,8 +793,11 @@ export default defineComponent({
     async function handleSearchTypeChange(id: string) {
       store.setTraceDetail(false);
       if (id === 'scope') {
+        if (!state.isAlreadyScopeQuery) {
+          state.isAlreadyScopeQuery = true;
+        }
         traceKind.value = 'all';
-        handleScopeQueryChange();
+        handleScopeQueryChange(true);
         // 点击 范围查询 在这里做一些准备请求
         // 以免出现重复默认项
         conditionList.length = 0;
@@ -853,6 +890,8 @@ export default defineComponent({
       queryString.value = componentData.queryString;
       traceListPagination.offset = 0;
       curTimestamp.value = handleTransformToTimestamp(timeRange.value);
+      // 获取图表配置列表
+      searchStore.getPanelList(state.app);
       handleQueryScope();
     }
     /* 收藏列表 */
@@ -1030,9 +1069,9 @@ export default defineComponent({
     }
     /** 更多操作 */
     function handleMenuSelectChange() {
-      const appId = appList.value?.find(app => app.app_name === state.app)?.application_id || '';
-      if (appId) {
-        const url = location.href.replace(location.hash, `#/apm/application/config/${appId}`);
+      const appName = appList.value?.find(app => app.app_name === state.app)?.app_name || '';
+      if (appName) {
+        const url = location.href.replace(location.hash, `#/apm/application/config/${appName}`);
         window.open(url, '_blank');
       }
     }
@@ -1504,7 +1543,7 @@ export default defineComponent({
           (
             <span>
               {t('耗时')}
-              <span class='label-tips'>{`（${t('支持')} ns, μs, ms, s）`}</span>
+              <span class='label-tips'>{`（${t('支持')} ns, μs, ms, s, m, h, d）`}</span>
             </span>
           ) as any,
           (
@@ -1609,7 +1648,7 @@ export default defineComponent({
                 appList={appList.value}
                 showBottom={state.searchType === 'scope'}
                 onAddCondition={handleAddCondition}
-                onAppChange={handleAppSelectChange}
+                onAppChange={val => handleAppSelectChange(val, true)}
                 onSearchTypeChange={handleSearchTypeChange}
               />
             </div>
@@ -1657,6 +1696,7 @@ export default defineComponent({
               queryType={state.searchType}
               searchIdType={searchResultIdType.value}
               spanDetails={spanDetails.value}
+              traceColumnFilters={cacheTraceColumnFilters.value}
               traceListTabelLoading={traceListTabelLoading.value}
               onChangeQuery={val => handleChangeQuery(val)}
               onInterfaceStatisticsChange={handleInterfaceStatisticsChange}

@@ -18,10 +18,12 @@ import traceback
 from typing import Any, Dict
 
 import arrow
+from celery.signals import task_postrun
 from celery.task import task
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.storage import default_storage
+from django.dispatch import receiver as celery_receiver
 from django.forms import model_to_dict
 from django.utils.translation import ugettext as _
 
@@ -44,13 +46,13 @@ from bkmonitor.dataflow.task.intelligent_detect import (
     MultivariateAnomalyIntelligentModelDetectTask,
     StrategyIntelligentModelDetectTask,
 )
-from bkmonitor.models import ActionConfig, AlgorithmModel
+from bkmonitor.models import ActionConfig, AlgorithmModel, StrategyModel, ItemModel
 from bkmonitor.models.external_iam import ExternalPermissionApplyRecord
 from bkmonitor.strategy.new_strategy import QueryConfig, get_metric_id
 from bkmonitor.strategy.serializers import MultivariateAnomalyDetectionSerializer
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from bkmonitor.utils.sql import sql_format_params
-from bkmonitor.utils.user import set_local_username
+from bkmonitor.utils.user import set_local_username, get_global_user
 from constants.aiops import SCENE_NAME_MAPPING
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.dataflow import ConsumingMode
@@ -60,6 +62,7 @@ from core.errors.bkmonitor.dataflow import DataFlowNotExists
 from core.prometheus import metrics
 from fta_web.tasks import run_init_builtin_action_config
 from monitor_web.commons.cc.utils import CmdbUtil
+from monitor_web.commons.data_access import PluginDataAccessor
 from monitor_web.constants import (
     AIOPS_ACCESS_MAX_RETRIES,
     AIOPS_ACCESS_RETRY_INTERVAL,
@@ -72,6 +75,7 @@ from monitor_web.extend_account.models import UserAccessRecord
 from monitor_web.models.custom_report import CustomEventGroup, CustomTSTable
 from monitor_web.models.plugin import CollectorPluginMeta
 from monitor_web.strategies.built_in import run_build_in
+from monitor_web.plugin.constant import PLUGIN_REVERSED_DIMENSION
 from utils import business, count_md5
 
 logger = logging.getLogger("monitor_web")
@@ -146,14 +150,6 @@ def run_init_builtin(bk_biz_id):
         #     run_init_builtin_assign_group(cc_biz_id)
     else:
         logger.info("[run_init_builtin] skipped with bk_biz_id -> %s", bk_biz_id)
-
-
-@task(ignore_result=True)
-def update_config_status():
-    """
-    周期性查询节点管理任务状态，更新执行中的采集配置的状态
-    """
-    resource.collecting.update_config_status()
 
 
 @task(ignore_result=True)
@@ -253,7 +249,7 @@ def update_metric_list():
 
     # 记录有容器集群的cmdb业务列表
     k8s_biz_set = set()
-    for biz in businesses[offset * biz_num : (offset + 1) * biz_num]:
+    for biz in businesses[offset * biz_num: (offset + 1) * biz_num]:
         biz_count += 1
         for source_type in source_type_use_biz + source_type_add_biz_0:
             # 非容器平台项目，不需要缓存容器指标：
@@ -544,12 +540,7 @@ def polling_aiops_strategy_status(flow_id: int, task_id: int, base_labels: Dict,
     deploy_task_data = {item["id"]: item for item in deploy_data}
     current_deploy_data = deploy_task_data.get(task_id, deploy_data[0])
 
-    if current_deploy_data["status"] in ("running", "pending"):
-        # 如果任务启动流程还在执行中，则下一个周期再继续检
-        polling_aiops_strategy_status.apply_async(
-            args=(flow_id, task_id, base_labels, query_config), countdown=AIOPS_ACCESS_STATUS_POLLING_INTERVAL
-        )
-    elif current_deploy_data["status"] == "success":
+    if current_deploy_data["status"] == "success":
         # 如果任务启动流程已经完成且成功，则认为任务正常启动（内部失败需要在巡检任务通过其他指标检测到）
         report_aiops_access_metrics(base_labels, AccessStatus.SUCCESS)
         query_config.intelligent_detect["status"] = AccessStatus.SUCCESS
@@ -586,6 +577,11 @@ def polling_aiops_strategy_status(flow_id: int, task_id: int, base_labels: Dict,
             query_config.save()
 
         report_aiops_access_metrics(base_labels, AccessStatus.FAILED, err_msg, AccessErrorType.START_FLOW)
+    else:
+        # 如果任务启动流程还在执行中，则下一个周期再继续检
+        polling_aiops_strategy_status.apply_async(
+            args=(flow_id, task_id, base_labels, query_config), countdown=AIOPS_ACCESS_STATUS_POLLING_INTERVAL
+        )
 
 
 def report_aiops_access_metrics(base_labels: Dict, result: str, exception: str = "", exc_type: str = ""):
@@ -1299,19 +1295,75 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
         result_table_id=output_table_name,
         metric_field="is_anomaly",
     )
-    rt_query_config.intelligent_detect = {
-        "data_flow_id": detect_data_flow.data_flow.flow_id,
-        "data_source_label": DataSourceLabel.BK_DATA,
-        "data_type_label": DataTypeLabel.TIME_SERIES,
-        "result_table_id": output_table_name,
-        "metric_field": "is_anomaly",
-        "extend_fields": {"values": ["anomaly_sort", "extra_info"]},
-        "agg_condition": [],
-        "agg_dimension": scene_params.agg_dimensions,
-        "plan_id": plan_id,
-        "agg_method": "",
-    }
+    rt_query_config.intelligent_detect.update(
+        {
+            "data_flow_id": detect_data_flow.data_flow.flow_id,
+            "data_source_label": DataSourceLabel.BK_DATA,
+            "data_type_label": DataTypeLabel.TIME_SERIES,
+            "result_table_id": output_table_name,
+            "metric_field": "is_anomaly",
+            "extend_fields": {"values": ["anomaly_sort", "extra_info"]},
+            "agg_condition": [],
+            "agg_dimension": scene_params.agg_dimensions,
+            "plan_id": plan_id,
+            "agg_method": "",
+        }
+    )
     # 如果是保存后的第一次接入，则清空接入message内容
     if rt_query_config.intelligent_detect.get("retries", 0) == 0:
         rt_query_config.intelligent_detect["message"] = ""
     rt_query_config.save()
+
+
+@task(ignore_result=True)
+def update_metric_json_from_ts_group():
+    """
+    对开启了自动发现的插件指标进行保存
+    """
+    # 排除掉plugin_id为"snmp_v1"，"snmp_v2c"，"snmp_v3"]的插件数据
+    queryset = CollectorPluginMeta.objects.exclude(plugin_id__in=["snmp_v1", "snmp_v2c", "snmp_v3"])
+
+    for instance in queryset:
+        # 如果未开启黑名单或没有超过刷新周期（默认五分钟），直接返回
+        if not instance.current_version.info.enable_field_blacklist or not instance.should_refresh_metric_json(
+                timeout=5 * 60):
+            continue
+
+        plugin_data_info = PluginDataAccessor(instance.current_version, get_global_user())
+        # 查询TSGroup
+        group_list = api.metadata.query_time_series_group(
+            time_series_group_name=plugin_data_info.db_name, label=plugin_data_info.label
+        )
+
+        # 仅对有数据做处理
+        if len(group_list) == 0:
+            return
+        instance.reserved_dimension_list = [
+            field_name for field_name, _ in PLUGIN_REVERSED_DIMENSION + plugin_data_info.dms_field
+        ]
+        instance.update_metric_json_from_ts_group(group_list)
+
+
+@celery_receiver(task_postrun)
+def task_postrun_handler(sender=None, headers=None, body=None, **kwargs):
+    # 清理celery任务的线程变量
+    from bkmonitor.utils.local import local
+
+    local.clear()
+
+
+@task(ignore_result=True)
+def update_target_detail():
+    """
+    对启用了缓存的业务ID，更新监控目标详情缓存
+    """
+    for bk_biz_id in settings.ENABLED_TARGET_CACHE_BK_BIZ_IDS:
+        strategy_ids = StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values_list("id", flat=True)
+        items = ItemModel.objects.filter(strategy_id__in=strategy_ids).only("strategy_id", "target")
+        resource.strategies.get_target_detail_with_cache.set_mapping({item.strategy_id: (bk_biz_id, item.target)
+                                                                      for item in items})
+        for item in items:
+            try:
+                resource.strategies.get_target_detail_with_cache.request.refresh({"strategy_id": item.strategy_id})
+            except Exception as e:
+                logger.exception(f"Update target detail cache failed for strategy id [{item.strategy_id}]: {e}")

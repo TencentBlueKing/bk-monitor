@@ -42,6 +42,49 @@ class ErrorRateCalculation(Calculation):
         return cls.common_unify_result_cal(metric_result)
 
     @classmethod
+    def range_cal(cls, metric_result):
+        total_ts = defaultdict(int)
+        error_ts = defaultdict(int)
+
+        series = metric_result.get("series", [])
+        if not series:
+            return {"metrics": [], "series": []}
+        all_ts = [i[-1] for i in metric_result["series"][0]["datapoints"]]
+        for item in metric_result.get("series", []):
+            if not item.get("datapoints"):
+                continue
+
+            dimensions = item.get("dimensions", {})
+            if "status_code" not in dimensions:
+                # 无效数据
+                continue
+            is_error = True if dimensions["status_code"] == str(StatusCode.ERROR.value) else False
+            for value, timestamp in item["datapoints"]:
+                if not value:
+                    continue
+
+                total_ts[timestamp] += value
+                if is_error:
+                    error_ts[timestamp] += value
+
+        return {
+            "metrics": [],
+            "series": [
+                {
+                    "datapoints": [
+                        (round(error_ts.get(t, 0) / total_ts.get(t), 6), t) for t in all_ts if total_ts.get(t)
+                    ]
+                    if total_ts
+                    else [],
+                    "dimensions": {},
+                    "target": "flow",
+                    "type": "bar",
+                    "unit": "",
+                }
+            ],
+        }
+
+    @classmethod
     def common_unify_result_cal(cls, metric_result):
         sum_count = sum(i["_result_"] for i in metric_result)
         error_count = 0
@@ -168,7 +211,7 @@ class FlowMetricErrorRateCalculation(Calculation):
         此方法会忽略掉除 from_span_error / to_span_error 以外的维度
         所以如果查询中有其他维度不要使用此 Calculation
         """
-        normal_ts = defaultdict(int)
+        total_ts = defaultdict(int)
         error_ts = defaultdict(int)
 
         series = metric_result.get("series", [])
@@ -176,7 +219,7 @@ class FlowMetricErrorRateCalculation(Calculation):
             return {"metrics": [], "series": []}
         all_ts = [i[-1] for i in metric_result["series"][0]["datapoints"]]
 
-        for i, item in enumerate(metric_result.get("series", [])):
+        for item in metric_result.get("series", []):
             if not item.get("datapoints"):
                 continue
 
@@ -188,14 +231,12 @@ class FlowMetricErrorRateCalculation(Calculation):
             from_span_error, to_span_error = self.str_to_bool(dimensions["from_span_error"]), self.str_to_bool(
                 dimensions["to_span_error"]
             )
-            is_normal = not from_span_error and not to_span_error
 
             for value, timestamp in item["datapoints"]:
                 if not value:
                     continue
 
-                if is_normal:
-                    normal_ts[timestamp] = value
+                total_ts[timestamp] += value
 
                 if (
                     (self.calculate_type == "callee" and to_span_error)
@@ -209,11 +250,9 @@ class FlowMetricErrorRateCalculation(Calculation):
             "series": [
                 {
                     "datapoints": [
-                        (round(error_ts.get(t, 0) / (normal_ts.get(t, 0) + error_ts.get(t, 0)), 6), t)
-                        for t in all_ts
-                        if (normal_ts.get(t, 0) + error_ts.get(t, 0))
+                        (round(error_ts.get(t, 0) / total_ts.get(t), 6), t) for t in all_ts if total_ts.get(t)
                     ]
-                    if normal_ts or error_ts
+                    if total_ts
                     else [],
                     "dimensions": {},
                     "target": "flow",
@@ -224,7 +263,6 @@ class FlowMetricErrorRateCalculation(Calculation):
         }
 
     def instance_cal(self, metric_result):
-
         total = sum([i.get("_result_", 0) for i in metric_result])
         if not total:
             return 0

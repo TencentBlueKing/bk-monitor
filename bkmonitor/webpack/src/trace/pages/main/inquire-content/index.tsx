@@ -84,6 +84,10 @@ export default defineComponent({
       type: Object as PropType<Span>,
       default: () => null,
     },
+    traceColumnFilters: {
+      type: Object as PropType<Record<string, string[]>>,
+      default: () => {},
+    },
   },
   emits: [
     'changeQuery',
@@ -144,9 +148,9 @@ export default defineComponent({
 
     function handleSourceData() {
       const { appList, appName } = props;
-      const appId = appList.find(app => app.app_name === appName)?.application_id || '';
-      if (appId) {
-        const hash = `#/apm/application/config/${appId}?active=dataStatus`;
+      const name = appList.find(app => app.app_name === appName)?.app_name || '';
+      if (name) {
+        const hash = `#/apm/application/config/${name}?active=dataStatus`;
         const url = location.href.replace(location.hash, hash);
         window.open(url, '_blank');
       }
@@ -194,6 +198,7 @@ export default defineComponent({
       appList,
       searchIdType,
       spanDetails,
+      traceColumnFilters,
     } = this.$props;
 
     /** 精确查询结果 traceInfo or spanDetails */
@@ -220,6 +225,7 @@ export default defineComponent({
             appList={appList}
             appName={this.appName}
             tableLoading={traceListTabelLoading}
+            traceColumnFilters={traceColumnFilters}
             onColumnFilterChange={val => this.handleColumnFilterChange(val)}
             onColumnSortChange={value => this.$emit('traceListColumnSortChange', value)}
             onInterfaceStatisticsChange={this.handleInterfaceStatisticsChange}

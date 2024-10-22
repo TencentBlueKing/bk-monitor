@@ -256,6 +256,6 @@ class ProcessPluginManager(BuiltInPluginManager):
         collector_params = {"config": collector_params}
 
         deploy_steps = [
-            self.get_bkprocessbeat_deploy_step("monitor_process.conf", {"context": collector_params}),
+            self._get_bkprocessbeat_deploy_step("monitor_process.conf", {"context": collector_params}),
         ]
         return deploy_steps

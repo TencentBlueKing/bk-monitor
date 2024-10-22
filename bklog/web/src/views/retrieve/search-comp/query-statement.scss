@@ -1,6 +1,6 @@
 @import '@/scss/mixins/flex.scss';
 
-.retrieve-tab-item-title {
+.retrieve-tab-item-title-old {
   align-items: center;
   margin: 16px 0 6px;
   font-size: 12px;
@@ -9,7 +9,7 @@
 
   @include flex-justify(space-between);
 
-  .icon-help {
+  .bklog-help {
     margin-left: 7px;
     font-size: 14px;
     color: #979ba5;
@@ -74,7 +74,7 @@
 
       @include flex-center;
 
-      .log-icon {
+      .bklog-icon {
         font-size: 16px;
       }
     }

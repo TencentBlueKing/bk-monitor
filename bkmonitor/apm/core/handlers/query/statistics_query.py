@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
+from opentelemetry.trace import StatusCode
 
 from alarm_backends.core.storage.redis import Cache
 from apm import types
@@ -113,7 +114,7 @@ class StatisticsQuery(BaseQuery):
     def __init__(self, trace_query: TraceQuery, span_query: SpanQuery):
         self.trace_query: TraceQuery = trace_query
         self.span_query: SpanQuery = span_query
-        super().__init__(self.span_query.bk_biz_id, self.span_query.result_table_id, self.span_query.retention)
+        super().__init__(self.span_query.bk_biz_id, self.span_query.app_name, self.span_query.retention)
 
     def query_statistics(
         self,
@@ -134,7 +135,7 @@ class StatisticsQuery(BaseQuery):
 
         k = f"{query_mode}:{queryset.query.start_time}{queryset.query.end_time}{limit}{filters}{es_dsl}"
         params_key = str(hashlib.md5(k.encode()).hexdigest())
-        queryset: UnifyQuerySet = queryset.after(self.get_after_key_param(offset, params_key))
+        queryset: UnifyQuerySet = queryset.after(self._get_after_key_param(offset, params_key))
         return self._query_data(query_mode, q, queryset, offset, params_key, logic_fields)
 
     def _query_data(
@@ -233,7 +234,7 @@ class StatisticsQuery(BaseQuery):
 
         error_q: QueryConfigBuilder = (
             q.filter(groups_filter)
-            .filter(**{f"{OtlpKey.STATUS_CODE}__neq": 0})
+            .filter(**{f"{OtlpKey.STATUS_CODE}__eq": StatusCode.ERROR.value})
             .metric(field=OtlpKey.STATUS_CODE, method="count", alias="error_count")
         )
         for err_bucket in queryset.add_query(error_q).after({}):
@@ -252,7 +253,7 @@ class StatisticsQuery(BaseQuery):
         return list(group_bucket_map.values())
 
     @classmethod
-    def get_after_key_param(cls, offset: int, params_key: str) -> Dict[str, Any]:
+    def _get_after_key_param(cls, offset: int, params_key: str) -> Dict[str, Any]:
         after_key = None
         if offset != 0:
             cache_key: str = f"{params_key}:{offset}"

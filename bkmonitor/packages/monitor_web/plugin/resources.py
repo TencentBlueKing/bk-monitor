@@ -30,7 +30,6 @@ from django.db import IntegrityError, transaction
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as _lazy
 from rest_framework import serializers
-from six.moves import map
 
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.request import get_request
@@ -77,6 +76,7 @@ from monitor_web.plugin.serializers import (
     DataDogSerializer,
     ExporterSerializer,
     JmxSerializer,
+    K8sSerializer,
     LogSerializer,
     PluginRegisterRequestSerializer,
     ProcessSerializer,
@@ -161,10 +161,13 @@ class SaveMetricResource(Resource):
         token_list = None
         plugin_id = validated_request_data["plugin_id"]
         plugin_type = validated_request_data["plugin_type"]
+
+        # 对SNMP类型插件进行特殊处理，限制分组数量
         if plugin_type == CollectorPluginMeta.PluginType.SNMP:
             if len(validated_request_data["metric_json"]) > SNMP_MAX_METRIC_NUM:
                 raise SNMPMetricNumberError(snmp_max_metric_num=SNMP_MAX_METRIC_NUM)
         else:
+            # 计算非SNMP类型插件的指标数量
             metric_num = len(
                 [
                     field
@@ -173,6 +176,7 @@ class SaveMetricResource(Resource):
                     if field["monitor_type"] == "metric"
                 ]
             )
+            # 限制指标数量,不能超过MAX_METRIC_NUM(2000)
             if metric_num > MAX_METRIC_NUM:
                 # 超限制之后，将配置写入GlobalConfig，提供更改能力
                 config, _ = GlobalConfig.objects.get_or_create(key="MAX_METRIC_NUM", defaults={"value": MAX_METRIC_NUM})
@@ -203,6 +207,7 @@ class CreatePluginResource(Resource):
         CollectorPluginMeta.PluginType.PROCESS: ProcessSerializer,
         CollectorPluginMeta.PluginType.SNMP_TRAP: SNMPTrapSerializer,
         CollectorPluginMeta.PluginType.SNMP: SNMPSerializer,
+        CollectorPluginMeta.PluginType.K8S: K8sSerializer,
     }
 
     def validate_request_data(self, request_data):
@@ -212,32 +217,36 @@ class CreatePluginResource(Resource):
             raise UnsupportedPluginTypeError({"plugin_type", request_data.get("plugin_type")})
         return super(CreatePluginResource, self).validate_request_data(request_data)
 
-    def perform_request(self, validated_request_data):
-        plugin_id = validated_request_data["plugin_id"]
-        plugin_type = validated_request_data["plugin_type"]
-        import_plugin_metric_json = validated_request_data.get("import_plugin_metric_json")
+    def perform_request(self, params):
+        # 新建插件默认开启自动发现
+        params["enable_field_blacklist"] = True
+        plugin_id = params["plugin_id"]
+        plugin_type = params["plugin_type"]
+        import_plugin_metric_json = params.get("import_plugin_metric_json")
         with transaction.atomic():
             plugin_manager = PluginManagerFactory.get_manager(plugin=plugin_id, plugin_type=plugin_type)
-            plugin_manager.validate_config_info(
-                validated_request_data["collector_json"], validated_request_data["config_json"]
-            )
+            plugin_manager.validate_config_info(params["collector_json"], params["config_json"])
+
             try:
-                self.request_serializer.save()
+                plugin = self.request_serializer.save()
             except IntegrityError:
                 raise PluginIDExist({"msg": plugin_id})
-            version, need_debug = plugin_manager.create_version(validated_request_data)
+
+            plugin_manager = PluginManagerFactory.get_manager(plugin=plugin)
+            version, need_debug = plugin_manager.create_version(params)
 
             # 如果是新导入的插件，则需要保存其metric_json
             if import_plugin_metric_json:
                 version.info.metric_json = import_plugin_metric_json
                 version.info.save()
 
-        validated_request_data["config_version"] = version.config_version
-        validated_request_data["info_version"] = version.info_version
-        validated_request_data["os_type_list"] = version.os_type_list
-        validated_request_data["need_debug"] = check_skip_debug(need_debug)
-        validated_request_data["signature"] = Signature(version.signature).dumps2yaml() if version.signature else ""
-        return validated_request_data
+        params["config_version"] = version.config_version
+        params["info_version"] = version.info_version
+        params["os_type_list"] = version.os_type_list
+        params["need_debug"] = check_skip_debug(need_debug)
+        params["signature"] = Signature(version.signature).dumps2yaml() if version.signature else ""
+        params["enable_field_blacklist"] = True
+        return params
 
 
 class PluginRegisterResource(Resource):
@@ -247,10 +256,10 @@ class PluginRegisterResource(Resource):
         self.RequestSerializer = PluginRegisterRequestSerializer
         self.plugin_id = None
         self.operator = ""
-        try:
-            self.operator = get_request().user.username
-        except Exception:
-            pass
+
+        request = get_request(peaceful=True)
+        if request and getattr(request, "user", None):
+            self.operator = request.user.username
 
     def delay(self, request_data=None, **kwargs):
         request_data = request_data or kwargs
@@ -272,8 +281,10 @@ class PluginRegisterResource(Resource):
 
         self.plugin_manager = PluginManagerFactory.get_manager(plugin=plugin, operator=self.operator)
         self.plugin_manager.version = version
+
+        # 尝试进行打包、上传和注册操作
         try:
-            tar_name = self.mack_package()
+            tar_name = self.make_package()
             file_name = self.upload_file(tar_name)
             self.register_package(file_name)
             plugin_info = api.node_man.plugin_info(name=self.plugin_id, version=version.version)
@@ -290,13 +301,14 @@ class PluginRegisterResource(Resource):
             logger.exception(e)
             raise RegisterPackageError({"msg": str(e)})
         finally:
+            # 清理临时文件夹
             if os.path.exists(self.plugin_manager.tmp_path):
                 shutil.rmtree(self.plugin_manager.tmp_path)
 
         return {"token": token_list}
 
     @step(state="MAKE_PACKAGE", message=_lazy("文件正在打包中..."))
-    def mack_package(self):
+    def make_package(self):
         return self.plugin_manager.make_package()
 
     def get_file_md5(self, file_name):
@@ -696,6 +708,7 @@ class PluginUpgradeInfoResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         plugin_id = serializers.CharField(required=True, label="插件id")
         config_id = serializers.CharField(required=True, label="配置id")
         config_version = serializers.IntegerField(required=True, label="插件版本")
@@ -730,7 +743,7 @@ class PluginUpgradeInfoResource(Resource):
             version_log_list.append({"version": plugin_version.version, "version_log": version_log})
 
         config_id = data["config_id"]
-        config_detail = resource.collecting.collect_config_detail({"id": config_id})
+        config_detail = resource.collecting.collect_config_detail(id=config_id, bk_biz_id=data["bk_biz_id"])
         runtime_params_dict = {}
 
         def param_key(param):

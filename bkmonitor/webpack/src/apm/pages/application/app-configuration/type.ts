@@ -78,6 +78,7 @@ export interface INoticeGroupItem {
 export interface IClusterConfig {
   cluster_id: number;
   cluster_name: string;
+  storage_cluster_id: string;
 }
 
 export interface IFormatsItem {
@@ -93,7 +94,7 @@ export interface IDimensionItem {
   type: string;
   unit: string;
 }
-
+type TDataStatus = 'disabled' | 'no_data' | 'normal';
 // 应用详情
 export interface IAppInfo {
   application_id: number;
@@ -105,7 +106,6 @@ export interface IAppInfo {
   application_apdex_config: IApdexConfig;
   owner: string;
   is_enabled: boolean;
-  is_enabled_profiling: boolean;
   es_storage_index_name: string;
   application_datasource_config: IDatasourceConfig;
   create_user: string;
@@ -134,6 +134,16 @@ export interface IAppInfo {
     bk_data_id?: number | string;
     subscription_id?: number | string;
   };
+  // 数据上报开关
+  is_enabled_log: boolean;
+  is_enabled_metric: boolean;
+  is_enabled_profiling: boolean;
+  is_enabled_trace: boolean;
+  // 类型状态
+  metric_data_status: TDataStatus;
+  log_data_status: TDataStatus;
+  profiling_data_status: TDataStatus;
+  trace_data_status: TDataStatus;
 }
 
 export interface ClusterOption {
@@ -189,6 +199,14 @@ export interface IFieldItem {
   analysis_field: number;
 }
 
+export interface IStoreItem {
+  es_storage_index_name: string;
+  es_storage_cluster: string;
+  validity: string;
+  health: string;
+  create_user: string;
+  create_time: string;
+}
 export interface IUnitItme {
   name: string;
   formats: IFormatsItem[];
@@ -231,4 +249,46 @@ export interface ICustomServiceInfo {
   uri_match_count: IMatchCount;
   uriMatch: number;
   rule: IRules;
+}
+
+/* telemetry_data_type 字段枚举 */
+export enum ETelemetryDataType {
+  log = 'log',
+  metric = 'metric',
+  profiling = 'profiling',
+  trace = 'trace',
+}
+/* 调用链存储信息 */
+export interface ITracingStorageInfo {
+  es_storage_cluster: number;
+  es_retention: number;
+  es_number_of_replicas: number;
+  es_shards: number;
+  es_slice_size: number;
+}
+
+export interface ILogStorageInfo {
+  es_number_of_replicas: number;
+  es_retention: number;
+  es_shards: number;
+  es_slice_size: number;
+  es_storage_cluster: number;
+  display_storage_cluster_name: string;
+  display_es_storage_index_name: string;
+  display_index_split_rule: string;
+}
+/* 存储信息 */
+export interface IStorageInfo {
+  [key: string]: ITracingStorageInfo & ILogStorageInfo & IMetricStorageInfo[];
+}
+
+/* 存储状态 指标 存储信息 */
+export interface IMetricStorageInfo {
+  result_table_id: string;
+  storage_type: string;
+  expire_time_alias: string;
+  created_by: string;
+  created_at: string;
+  status: 'failed' | 'running' | 'started' | 'stopped';
+  status_display: string;
 }

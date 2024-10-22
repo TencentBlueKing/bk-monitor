@@ -8,12 +8,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
+
 from celery import task
 from django.conf import settings
+from django.core.cache import cache
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
+from opentelemetry import trace
 from opentelemetry.semconv.trace import SpanAttributes
 
 from apm_web.constants import (
@@ -25,6 +29,7 @@ from apm_web.constants import (
     DEFAULT_DB_CONFIG_PREDICATE_KEY,
     DEFAULT_NO_DATA_PERIOD,
     ApdexConfigEnum,
+    ApmCacheKey,
     CustomServiceMatchType,
     CustomServiceType,
     DataStatus,
@@ -37,16 +42,18 @@ from apm_web.constants import (
 from apm_web.meta.plugin.log_trace_plugin_config import LogTracePluginConfig
 from apm_web.meta.plugin.plugin import LOG_TRACE
 from apm_web.metric_handler import RequestCountInstance
-from apm_web.utils import group_by
 from bkmonitor.iam import Permission, ResourceEnum
 from bkmonitor.middlewares.source import get_source_app_code
+from bkmonitor.utils import group_by
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.model_manager import AbstractRecordModel
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.time_tools import get_datetime_range
 from common.log import logger
-from constants.apm import OtlpKey, SpanKindKey
+from constants.apm import OtlpKey, SpanKindKey, TelemetryDataType
 from core.drf_resource import api, resource
+
+tracer = trace.get_tracer(__name__)
 
 
 class Application(AbstractRecordModel):
@@ -54,7 +61,10 @@ class Application(AbstractRecordModel):
     LANGUAGE_KEY = "language"
     PLUGING_KEY = "plugin"
 
+    # trace 存储配置 KEY
     APPLICATION_DATASOURCE_CONFIG_KEY = "application_datasource_config"
+    # log 存储配置 KEY
+    APPLICATION_LOG_DATASOURCE_CONFIG_KEY = "application_log_datasource_config"
 
     class DatasourceConfig:
         ES_RETENTION = "es_retention"
@@ -168,11 +178,20 @@ class Application(AbstractRecordModel):
     metric_result_table_id = models.CharField("指标结果表", max_length=255, default="")
     trace_result_table_id = models.CharField("Trace结果表", max_length=255, default="")
     time_series_group_id = models.IntegerField("时序分组ID", default=0)
-    data_status = models.CharField("数据状态", default=DataStatus.NO_DATA, max_length=50)
-    profiling_data_status = models.CharField("Profiling 数据状态", default=DataStatus.NO_DATA, max_length=50)
     source = models.CharField("来源系统", default=get_source_app_code, max_length=32)
     plugin_config = JsonField("log-trace 插件配置", null=True, blank=True)
+    # ↓ 4 个 Module 功能开关 (这四个字段在 api 侧 model 同样有记录 需要保持同步)
     is_enabled_profiling = models.BooleanField("是否开启 Profiling 功能", default=False)
+    is_enabled_metric = models.BooleanField("是否开启 Metric 功能", default=True)
+    is_enabled_log = models.BooleanField("是否开启 Log 功能", default=False)
+    is_enabled_trace = models.BooleanField("是否开启 Trace 功能", default=True)
+    # ↓ 4 个 Module 数据状态开关 (这四个字段由定时任务刷新)
+    trace_data_status = models.CharField("数据状态", default=DataStatus.NO_DATA, max_length=50)
+    profiling_data_status = models.CharField("Profiling 数据状态", default=DataStatus.DISABLED, max_length=50)
+    metric_data_status = models.CharField("Metric 数据状态", default=DataStatus.NO_DATA, max_length=50)
+    log_data_status = models.CharField("Log 数据状态", default=DataStatus.DISABLED, max_length=50)
+    # ↓ 1 个数据字段 (由定时任务刷新)
+    service_count = models.IntegerField("服务个数", default=0)
 
     class Meta:
         ordering = ["-update_time", "-application_id"]
@@ -288,43 +307,61 @@ class Application(AbstractRecordModel):
         start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
         return RequestCountInstance(self, start_time, end_time).query_instance()
 
+    def set_service_count_and_data_status(self):
+        """刷新应用的服务数量和各个数据源的状态"""
+        from apm_web.handlers.service_handler import ServiceHandler
+
+        # 刷新服务数量
+        services = ServiceHandler.list_services(self)
+
+        # 这里通过update方式，指定字段更新，是为了不自动变更 update_user， update_time 字段
+        Application.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).update(service_count=len(services))
+
+        # 刷新数据状态
+        start_time, end_time = get_datetime_range("minute", self.no_data_period)
+        start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
+        service_status_mapping = ServiceHandler.get_service_data_status_mapping(self, start_time, end_time, services)
+        key = ApmCacheKey.APP_SERVICE_STATUS_KEY.format(application_id=self.application_id)
+        cache.set(key, json.dumps(service_status_mapping))
+
     def set_data_status(self):
+        from apm_web.handlers.backend_data_handler import telemetry_handler_registry
+
         start_time, end_time = get_datetime_range("minute", self.no_data_period)
         start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
         # NOTICE: data_status / profile_data_status 目前暂无接口用到只在指标中使用考虑指标处换成实时查询
 
-        # Step1: 查询 Trace 数据状态
-        count = RequestCountInstance(self, start_time, end_time).query_instance()
-        if count:
-            logger.info(
-                f"[Application] set_data_status ->  "
-                f"bk_biz_id: {self.bk_biz_id} app: {self.app_name} have data in {self.no_data_period} period"
-            )
+        update_field_values = {}
+        for data_type in TelemetryDataType:
+            # 未定义的telemetry类型数据状态
+            if not getattr(self, f"{data_type.datasource_type}_data_status", False):
+                continue
 
-            self.data_status = DataStatus.NORMAL
-        else:
-            self.data_status = DataStatus.NO_DATA
-
-        # Step2: 查询 profile 数据状态
-        from apm_web.profile.doris.querier import QueryTemplate
-
-        try:
-            profile_has_data = QueryTemplate(self.bk_biz_id, self.app_name).exist_data(
-                start_time * 1000, end_time * 1000
-            )
-            if profile_has_data:
-                logger.info(
-                    f"[Application] set_profile_data_status ->  "
-                    f"bk_biz_id: {self.bk_biz_id} app: {self.app_name} have data in {self.no_data_period} period"
-                )
-                self.profiling_data_status = DataStatus.NORMAL
+            # 未打开开关，无需检查
+            if not getattr(self, f"is_enabled_{data_type.datasource_type}", False):
+                data_status = DataStatus.DISABLED
             else:
-                self.profiling_data_status = DataStatus.NO_DATA
-        except ValueError as e:
-            logger.warning(f"[Application] set profiling data_status failed: {e}")
-            self.profiling_data_status = DataStatus.NO_DATA
+                try:
+                    count = telemetry_handler_registry(data_type.value, app=self).get_data_count(start_time, end_time)
+                    if count:
+                        logger.info(
+                            f"[Application] set_data_status ->  "
+                            f"bk_biz_id: {self.bk_biz_id} app: {self.app_name} | {data_type.value} "
+                            f"have data in {self.no_data_period} period"
+                        )
 
-        self.save()
+                        data_status = DataStatus.NORMAL
+                    else:
+                        data_status = DataStatus.NO_DATA
+                except Exception as e:
+                    logger.warning(
+                        f"[Application] set app: {self.app_name} | {data_type.value} data_status failed: {e}"
+                    )
+                    data_status = DataStatus.NO_DATA
+            update_field_values[f"{data_type.datasource_type}_data_status"] = data_status
+
+        # 这里通过update方式，指定字段更新，是为了不自动变更 update_user， update_time 字段
+        Application.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).update(**update_field_values)
 
     @property
     def language_ids(self):
@@ -381,8 +418,11 @@ class Application(AbstractRecordModel):
         plugin_id,
         deployment_ids,
         language_ids,
-        datasource_option,
-        enabled_profiling: bool = False,
+        enabled_profiling,
+        enabled_trace,
+        enabled_metric,
+        enabled_log,
+        storage_options=None,
         plugin_config=None,
     ):
         create_params = {
@@ -390,11 +430,13 @@ class Application(AbstractRecordModel):
             "app_name": app_name,
             "app_alias": app_alias,
             "description": description,
-            "es_storage_config": datasource_option,
+            "enabled_profiling": enabled_profiling,
+            "enabled_trace": enabled_trace,
+            "enabled_metric": enabled_metric,
+            "enabled_log": enabled_log,
+            "es_storage_config": storage_options,
         }
 
-        if enabled_profiling:
-            create_params["enabled_profiling"] = True
         application_info = api.apm_api.create_application(create_params)
 
         application = cls.objects.create(
@@ -405,13 +447,21 @@ class Application(AbstractRecordModel):
             description=description,
         )
 
+        # 初始化应用配置信息: 插件、环境、语言、数据源配置
         application.add_relation(cls.PLUGING_KEY, plugin_id)
         for deployment_id in deployment_ids:
             application.add_relation(cls.DEPLOYMENT_KEY, deployment_id)
         for language_id in language_ids:
             application.add_relation(cls.LANGUAGE_KEY, language_id)
+        application.set_init_datasource(
+            application_info["datasource_option"],
+            enabled_profiling,
+            enabled_trace,
+            enabled_metric,
+            enabled_log,
+        )
 
-        application.set_init_datasource(application_info["datasource_info"], datasource_option)
+        # 初始化配置：apdex、采样、实例名、db 慢语句、qps
         application.set_init_apdex_config()
         application.set_init_sampler_config()
         application.set_init_instance_name_config()
@@ -422,34 +472,60 @@ class Application(AbstractRecordModel):
         # obj.set_init_dimensions_config()
         application.authorization()
 
-        from apm_web.tasks import update_application_config
+        # log-trace 功能单独更新
+        if plugin_config:
+            Application.objects.filter(application_id=application.application_id).update(plugin_config=plugin_config)
 
-        update_application_config.delay(application.application_id)
-        if plugin_id == LOG_TRACE:
-            plugin_config["bk_biz_id"] = bk_biz_id
-            plugin_config["bk_data_id"] = application_info["datasource_info"]["trace_config"]["bk_data_id"]
-            application.set_plugin_config(plugin_config, application.application_id)
         return Application.objects.get(application_id=application.application_id)
 
-    @classmethod
-    def set_plugin_config(cls, plugin_config, application_id):
-        output_param = cls.get_output_param(application_id)
+    def sync_datasource(self):
+        """同步数据源到 saas 中"""
+
+        detail = api.apm_api.detail_application(application_id=self.application_id)
+
+        trace_ds_info = detail.get("trace_config")
+        metric_ds_info = detail.get("metric_config")
+        if not trace_ds_info or not metric_ds_info:
+            # trace/metric 任意一个没有 说明 api 侧创建失败了 此时应用已由 api 侧发送告警事件 这里直接返回等待下一次检查
+            logger.warning(f"[SyncDatasource] apm-api create failed(id: {self.application_id}), skip")
+            return
+
+        self.trace_result_table_id = trace_ds_info["result_table_id"]
+        self.metric_result_table_id = metric_ds_info["result_table_id"]
+        self.time_series_group_id = metric_ds_info["time_series_group_id"]
+
+        self.save()
+
+        # 如果此应用走的是 log-trace 功能
+        if self.get_relation(self.PLUGING_KEY) == LOG_TRACE:
+            self.refresh_log_trace_plugin()
+
+        # 下发配置
+        from apm_web.tasks import update_application_config
+
+        update_application_config.delay(self.application_id)
+
+    def refresh_log_trace_plugin(self, plugin_config=None):
+        if not plugin_config:
+            plugin_config = self.plugin_config
+
+        output_param = self.get_output_param(self.application_id)
         if not output_param.get("host"):
             return
         plugin_config = LogTracePluginConfig().release_log_trace_config(plugin_config, output_param)
-        Application.objects.filter(application_id=application_id).update(plugin_config=plugin_config)
+        Application.objects.filter(application_id=self.application_id).update(plugin_config=plugin_config)
         return plugin_config
 
     @classmethod
     def update_plugin_config(cls, application_id, plugin_config):
         old_application = Application.objects.filter(application_id=application_id).first()
         if old_application.plugin_config != plugin_config:
-            cls.set_plugin_config(plugin_config, application_id)
+            old_application.refresh_log_trace_plugin(plugin_config)
         return plugin_config
 
     @classmethod
     def get_output_param(cls, application_id):
-        bk_data_token = api.apm_api.detail_application({"application_id": application_id})["bk_data_token"]
+        token = api.apm_api.detail_application({"application_id": application_id})["token"]
         # 获取上报地址
         if settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN:
             host = settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN[0]
@@ -457,7 +533,7 @@ class Application(AbstractRecordModel):
             host = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP[0]
         else:
             return {}
-        return {"bk_data_token": bk_data_token, "host": host}
+        return {"token": token, "host": host}
 
     @classmethod
     def stop_plugin_config(cls, application_id):
@@ -491,16 +567,37 @@ class Application(AbstractRecordModel):
             # 删除节点管理采集订阅任务
             return api.node_man.delete_subscription({"subscription_id": app.plugin_config["subscription_id"]})
 
-    def set_init_datasource(self, datasource_info, datasource_option):
-        self.trace_result_table_id = datasource_info["trace_config"]["result_table_id"]
-        self.metric_result_table_id = datasource_info["metric_config"]["result_table_id"]
-        self.time_series_group_id = datasource_info["metric_config"]["time_series_group_id"]
-        # 应用创建时根据是否创建了 profiling 作为开启/关闭状态
-        self.is_enabled_profiling = True if "profile_config" in datasource_info else False
+    def set_init_datasource(self, datasource_option, enabled_profiling, enabled_trace, enabled_metric, enabled_log):
+        # 更新数据源开关
+        # profiling
+        self.is_enabled_profiling = enabled_profiling
+        self.profiling_data_status = DataStatus.NO_DATA if enabled_profiling else DataStatus.DISABLED
+        # trace
+        self.is_enabled_trace = enabled_trace
+        self.trace_data_status = DataStatus.NO_DATA if enabled_trace else DataStatus.DISABLED
+        # metric
+        self.is_enabled_metric = enabled_metric
+        self.metric_data_status = DataStatus.NO_DATA if enabled_metric else DataStatus.DISABLED
+        # log
+        self.is_enabled_log = enabled_log
+        self.log_data_status = DataStatus.NO_DATA if enabled_log else DataStatus.DISABLED
+
         self.save()
+
         ApmMetaConfig.application_config_setup(
             self.application_id, self.APPLICATION_DATASOURCE_CONFIG_KEY, datasource_option
         )
+        ApmMetaConfig.application_config_setup(
+            self.application_id, self.APPLICATION_LOG_DATASOURCE_CONFIG_KEY, datasource_option
+        )
+
+    def get_data_sources(self):
+        return {
+            TelemetryDataType.TRACE.value: self.is_enabled_trace,
+            TelemetryDataType.PROFILING.value: self.is_enabled_profiling,
+            TelemetryDataType.METRIC.value: self.is_enabled_metric,
+            TelemetryDataType.LOG.value: self.is_enabled_log,
+        }
 
     def set_init_dimensions_config(self):
         dimensions_value = {self.DimensionConfig.DIMENSIONS: DefaultDimensionConfig.DEFAULT_DIMENSIONS}
@@ -529,6 +626,12 @@ class Application(AbstractRecordModel):
         }
         ApmMetaConfig.application_config_setup(self.application_id, self.SAMPLER_CONFIG_KEY, sampler_value)
 
+    def fetch_datasource_info(self, datasource_type: str, attr_name: str):
+        if getattr(self, f"{datasource_type}_{attr_name}", None):
+            return getattr(self, f"{datasource_type}_{attr_name}")
+        datasource_config = api.apm_api.detail_application({"application_id": self.application_id})
+        return datasource_config.get(f"{datasource_type}_config", {}).get(attr_name)
+
     def authorization(self):
         try:
             permission = Permission()
@@ -536,13 +639,13 @@ class Application(AbstractRecordModel):
                 ResourceEnum.APM_APPLICATION.create_simple_instance(self.application_id, {"bk_biz_id": self.bk_biz_id}),
                 creator=self.update_user,
             )
-            Application.authorization_to_maintainers.delay(self.application_id)
+            Application.authorization_to_maintainers.delay(self.update_user, self.application_id)
         except Exception as e:  # pylint: disable=broad-except
             logger.warning("application->({}) grant creator action failed, reason: {}".format(self.application_id, e))
 
     @staticmethod
     @task()
-    def authorization_to_maintainers(app_id):
+    def authorization_to_maintainers(creator, app_id):
         """给业务的负责人授权"""
         logger.info(f"[authorization_to_maintainers] grant app_id: {app_id}")
         application = Application.get_application_by_app_id(app_id)
@@ -552,7 +655,7 @@ class Application(AbstractRecordModel):
         except Exception as e:
             raise ValueError("get maintainers failed with error: %s", e)
 
-        permission = Permission()
+        permission = Permission(username=creator)
         for user in list(maintainers):
             permission.grant_creator_action(
                 ResourceEnum.APM_APPLICATION.create_simple_instance(app_id, {"bk_biz_id": application.bk_biz_id}),
@@ -563,17 +666,31 @@ class Application(AbstractRecordModel):
 
     @classmethod
     def setup_datasource(cls, application_id, datasource_option: dict):
+        """
+        更新存储配置
+        datasource_option 格式: {"trace_datasource_option": {...}, "log_datasource_option": {...}}
+        """
         application = cls.objects.filter(application_id=application_id).first()
         if not application:
             raise ValueError(_("应用不存在"))
-        datasource_info = api.apm_api.apply_datasource(
-            {"application_id": application.application_id, **datasource_option}
-        )
-        application.trace_result_table_id = datasource_info["trace_config"]["result_table_id"]
-        application.metric_result_table_id = datasource_info["metric_config"]["result_table_id"]
-        application.time_series_group_id = datasource_info["metric_config"]["time_series_group_id"]
+        api.apm_api.apply_datasource({"application_id": application.application_id, **datasource_option})
+        detail = api.apm_api.detail_application(application_id=application.application_id)
+        application.trace_result_table_id = detail["trace_config"]["result_table_id"]
+        application.metric_result_table_id = detail["metric_config"]["result_table_id"]
+        application.time_series_group_id = detail["metric_config"]["time_series_group_id"]
         application.save()
-        ApmMetaConfig.application_config_setup(application_id, cls.APPLICATION_DATASOURCE_CONFIG_KEY, datasource_option)
+        if datasource_option.get("trace_datasource_option"):
+            ApmMetaConfig.application_config_setup(
+                application_id,
+                cls.APPLICATION_DATASOURCE_CONFIG_KEY,
+                datasource_option["trace_datasource_option"],
+            )
+        if datasource_option.get("log_datasource_option"):
+            ApmMetaConfig.application_config_setup(
+                application_id,
+                cls.APPLICATION_LOG_DATASOURCE_CONFIG_KEY,
+                datasource_option["log_datasource_option"],
+            )
 
     def set_init_apdex_config(self):
         apdex_value = {
@@ -610,6 +727,9 @@ class Application(AbstractRecordModel):
 
     def add_relation(self, relation_key: str, relation_value: str):
         ApplicationRelationInfo.add_relation(self.application_id, relation_key, relation_value)
+
+    def get_relation(self, relation_key):
+        return ApplicationRelationInfo.get_relation(self.application_id, relation_key)
 
     def refresh_config(self):
         config = self.get_transfer_config()
@@ -752,14 +872,24 @@ class ApplicationRelationInfo(models.Model):
     def add_relation(cls, application_id: int, relation_key: str, relation_value: str):
         cls.objects.create(application_id=application_id, relation_key=relation_key, relation_value=relation_value)
 
+    @classmethod
+    def get_relation(cls, application_id, relation_key):
+        instance = cls.objects.filter(application_id=application_id, relation_key=relation_key).first()
+        if not instance:
+            return None
+
+        return instance.relation_value
+
 
 class ApmMetaConfig(models.Model):
+    """业务/应用/服务通用配置"""
+
     BK_BIZ_LEVEL = "bk_biz_level"
     APPLICATION_LEVEL = "application_level"
     SERVICE_LEVEL = "service_level"
 
     config_level = models.CharField("配置级别", max_length=128)
-    level_key = models.CharField("配置目标key", max_length=30)
+    level_key = models.CharField("配置目标key", max_length=528)
     config_key = models.CharField("config key", max_length=255)
     config_value = JsonField("配置信息")
 
@@ -778,6 +908,28 @@ class ApmMetaConfig(models.Model):
         ).first()
 
     @classmethod
+    def get_service_level_key(cls, bk_biz_id, app_name, service_name):
+        """因服务可能没有 id 所以 service_id 约定为 {bk_biz_id}-{app_name}-{service_name} 格式"""
+        return f"{bk_biz_id}-{app_name}-{service_name}"
+
+    @classmethod
+    def get_service_config_value(cls, bk_biz_id, app_name, service_name, config_key):
+        return cls.objects.filter(
+            config_level=cls.SERVICE_LEVEL,
+            level_key=cls.get_service_level_key(bk_biz_id, app_name, service_name),
+            config_key=config_key,
+        ).first()
+
+    @classmethod
+    def list_service_config_values(cls, bk_biz_id, app_name, service_names, config_key):
+        level_keys = [cls.get_service_level_key(bk_biz_id, app_name, i) for i in service_names]
+        return cls.objects.filter(
+            config_level=cls.SERVICE_LEVEL,
+            level_key__in=level_keys,
+            config_key=config_key,
+        )
+
+    @classmethod
     def application_config_setup(cls, application_id, config_key, config_value):
         return cls._setup(cls.APPLICATION_LEVEL, application_id, config_key, config_value)
 
@@ -786,8 +938,16 @@ class ApmMetaConfig(models.Model):
         return cls._setup(cls.BK_BIZ_LEVEL, bk_biz_id, config_key, config_value)
 
     @classmethod
-    def service_config_setup(cls, service_id, config_key, config_value):
-        return cls._setup(cls.SERVICE_LEVEL, service_id, config_key, config_value)
+    def service_config_setup(cls, bk_biz_id, app_name, service_name, config_key, config_value):
+        """
+        服务的元数据配置
+        """
+        return cls._setup(
+            cls.SERVICE_LEVEL,
+            cls.get_service_level_key(bk_biz_id, app_name, service_name),
+            config_key,
+            config_value,
+        )
 
     @classmethod
     def _setup(cls, config_level, level_key, config_key, config_value):

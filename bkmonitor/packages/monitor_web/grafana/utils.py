@@ -117,7 +117,8 @@ def patch_home_panels():
 </div>
 <br><br><br><br>
 <div>
-    <a href="{settings.BK_DOCS_SITE_URL}markdown/Monitor/UserGuide/ProductFeatures/data-visualization/dashboard.md" target="_blank">
+    <a href="{settings.BK_DOCS_SITE_URL}markdown/ZH/Monitor/{settings.BK_DOC_VERSION}"""
+                + """/UserGuide/ProductFeatures/data-visualization/dashboard.md" target="_blank">
         """
                 + _("查看产品文档")
                 + """

@@ -31,7 +31,6 @@ import { listEsClusterGroups } from 'monitor-api/modules/apm_meta';
 import ExpiredSelect from '../../../components/expired-select/expired-select';
 import ClusterTable from './cluster-table';
 
-import type { ICreateAppFormData } from '../../home/app-list';
 import type { IPluginItem, ISetupData } from './app-add';
 
 import './setting-params.scss';

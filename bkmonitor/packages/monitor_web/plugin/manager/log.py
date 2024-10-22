@@ -104,12 +104,12 @@ class LogPluginManager(BuiltInPluginManager):
         )
         return version, need_debug
 
-    def update_version(self, data, target_config_version=None, target_info_version=None):
+    def update_version(self, data, target_config_version: int = None, target_info_version: int = None):
         event_list = self.get_dimensions(data["rules"])
         self.full_request_data(data, event_list)
-        return self._updata_version(data, event_list)
+        return self._update_version(data, event_list)
 
-    def _updata_version(self, data, event_list):
+    def _update_version(self, data, event_list):
         version, need_debug = super(LogPluginManager, self).update_version(data)
         self.release_collector_plugin(version)
         self.modify_result_table(version, event_list)
@@ -187,7 +187,7 @@ class LogPluginManager(BuiltInPluginManager):
             PluginVersionHistory.origin_objects.filter(plugin=current_version.plugin).delete()
             current_version.plugin.delete()
 
-    def get_debug_config_context(self, config_version, info_version, param, target_nodes):
+    def _get_debug_config_context(self, config_version, info_version, param, target_nodes):
         return {}
 
     @staticmethod
@@ -223,13 +223,13 @@ class LogPluginManager(BuiltInPluginManager):
                 step_id = subscription_info[0]["steps"][0]["id"]
 
         deploy_steps = [
-            self.get_bkmonitorbeat_deploy_step(
+            self._get_bkmonitorbeat_deploy_step(
                 "bkmonitorbeat_keyword.conf", {"context": collector_params}, step_id=step_id
             ),
         ]
         return deploy_steps
 
-    def get_collector_json(self, plugin_params):
+    def _get_collector_json(self, plugin_params):
         return {}
 
     @staticmethod

@@ -488,9 +488,9 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
           {
             name: '数据源管理',
             icon: 'icon-monitor icon-shujuku menu-icon',
-            id: 'grafana-datasource',
-            path: '/grafana/datasources',
-            href: '#/grafana/datasources',
+            id: 'grafana-admin',
+            path: '/grafana/admin',
+            href: '#/grafana/admin',
             canStore: true,
           },
           {

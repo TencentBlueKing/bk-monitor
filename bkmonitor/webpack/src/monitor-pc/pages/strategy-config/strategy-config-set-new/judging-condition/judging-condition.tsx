@@ -26,10 +26,10 @@
 import { Component, Emit, Prop, PropSync, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { skipToDocsLink } from 'monitor-common/utils/docs';
 import bus from 'monitor-common/utils/event-bus';
 import { deepClone } from 'monitor-common/utils/utils';
 
-import { handleGotoLink } from '../../../../common/constant';
 import TimePickerMultiple, {
   type IProps as ITimeRangeMultipleProps,
 } from '../../../../components/time-picker-multiple/time-picker-multiple';
@@ -240,7 +240,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
     noticeTemplate.variateListShow = true;
   }
   handleGoto(name) {
-    handleGotoLink(name);
+    skipToDocsLink(name);
   }
 
   /**

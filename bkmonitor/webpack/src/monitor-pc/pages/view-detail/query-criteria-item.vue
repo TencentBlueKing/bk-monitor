@@ -417,7 +417,7 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
       }
       const method = CONDITION_METHOD_LIST.find(set => set.id === item.method);
       result.push(item.key);
-      result.push(method.name);
+      result.push(method?.name || item.method);
       result.push(item.value.map(v => v || `-${window.i18n.t('空')}-`));
     });
     return result;
