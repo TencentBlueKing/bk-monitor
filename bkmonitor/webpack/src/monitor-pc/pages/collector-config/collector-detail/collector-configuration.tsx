@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { renameCollectConfig } from 'monitor-api/modules/collecting';
@@ -32,6 +32,7 @@ import { copyText } from 'monitor-common/utils/utils.js';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import { allSpaceRegex, emojiRegex } from '../../../utils/index';
 import { PLUGIN_MANAGE_AUTH } from '../authority-map';
+import { TabEnum, type TabValue, type TabProperty, type ChangeConfig } from './typings/detail';
 
 import './collector-configuration.scss';
 
@@ -49,6 +50,10 @@ interface IProps {
   show: boolean;
   collectConfigData?: any;
   detailData?: any;
+  targetInfo?: any;
+  loading: boolean;
+  tableLoading: boolean;
+  onHandleAllDataChange: <T extends TabEnum, K extends TabProperty<T>>(changeConfig: ChangeConfig<T, K>) => void;
 }
 
 @Component
@@ -57,6 +62,9 @@ export default class CollectorConfiguration extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({ type: Object, default: () => null }) collectConfigData: any;
   @Prop({ type: Object, default: () => null }) detailData: any;
+  @Prop({ type: Object, default: () => null }) targetInfo: any;
+  @Prop({ type: Boolean, default: false }) loading: boolean;
+  @Prop({ type: Boolean, default: false }) tableLoading: boolean;
 
   @Inject('authority') authority;
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
@@ -65,7 +73,6 @@ export default class CollectorConfiguration extends tsc<IProps> {
   /* 基本信息 */
   basicInfo: any = {};
   runtimeParams = [];
-  targetInfo: any = {};
   basicInfoMap: any = {
     name: window.i18n.t('配置名称'),
     id: 'ID',
@@ -101,8 +108,6 @@ export default class CollectorConfiguration extends tsc<IProps> {
   };
   name = '';
 
-  loading = false;
-
   get historyList() {
     return [
       { label: this.$t('创建人'), value: this.basicInfo?.create_user || '--' },
@@ -112,11 +117,20 @@ export default class CollectorConfiguration extends tsc<IProps> {
     ];
   }
 
+  @Emit('handleAllDataChange')
+  handleAllDataChange<T extends TabEnum, K extends TabProperty<T>>(tab: T, property: K, v: TabValue<T, K>) {
+    return { tab, property, data: v };
+  }
+
   @Watch('show', { immediate: true })
   handleShow(v: boolean) {
     if (v) {
       this.getDetailData();
     }
+  }
+
+  handleLoadingChange(v: boolean) {
+    this.handleAllDataChange(TabEnum.Configuration, 'loading', v);
   }
 
   /**
@@ -165,7 +179,6 @@ export default class CollectorConfiguration extends tsc<IProps> {
       };
     }
     this.runtimeParams = data.runtime_params;
-    this.targetInfo = data.target_info;
   }
 
   /**
@@ -207,7 +220,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
    * @param copyName
    */
   handleUpdateConfigName(data, copyName) {
-    this.loading = true;
+    this.handleLoadingChange(true);
     renameCollectConfig({ id: data.id, name: copyName }, { needMessage: false })
       .then(() => {
         this.basicInfo.name = copyName;
@@ -227,7 +240,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
       .finally(() => {
         this.input.show = false;
         this.errMsg.name = '';
-        this.loading = false;
+        this.handleLoadingChange(false);
       });
   }
   /**
@@ -330,7 +343,12 @@ export default class CollectorConfiguration extends tsc<IProps> {
           </bk-button>
           <HistoryDialog list={this.historyList} />
         </div>
-        <div class='detail-wrap-item'>
+        <div
+          class='detail-wrap-item'
+          v-bkloading={{
+            isLoading: this.loading,
+          }}
+        >
           <div class='wrap-item-title'>{this.$t('基本信息')}</div>
           <div class='wrap-item-content'>
             {Object.keys(this.basicInfoMap).map(key =>
@@ -463,7 +481,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
               : undefined}
           </div>
         </div>
-        {!!this.targetInfo?.table_data?.length && [
+        {[
           <div
             key={1}
             class='split-line mt-24'
@@ -473,18 +491,23 @@ export default class CollectorConfiguration extends tsc<IProps> {
             class='detail-wrap-item'
           >
             <div class='wrap-item-title mt-24'>{this.$t('采集目标')}</div>
-            <bk-button
-              class='mt-10'
-              size='small'
-              theme='primary'
-              text
-              onClick={() => this.handleCopyTarget()}
-            >
-              {this.$t('复制目标')}
-            </bk-button>
+            {!!this.targetInfo?.table_data?.length && (
+              <bk-button
+                class='mt-10'
+                size='small'
+                theme='primary'
+                text
+                onClick={() => this.handleCopyTarget()}
+              >
+                {this.$t('复制目标')}
+              </bk-button>
+            )}
             <div class='wrap-item-content mt-12'>
               {['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(this.targetInfo?.target_node_type) ? (
                 <bk-table
+                  v-bkloading={{
+                    isLoading: this.tableLoading,
+                  }}
                   {...{
                     props: {
                       data: this.targetInfo?.table_data || [],
@@ -539,6 +562,9 @@ export default class CollectorConfiguration extends tsc<IProps> {
                 </bk-table>
               ) : (
                 <bk-table
+                  v-bkloading={{
+                    isLoading: this.tableLoading,
+                  }}
                   {...{
                     props: {
                       data: this.targetInfo.table_data,
