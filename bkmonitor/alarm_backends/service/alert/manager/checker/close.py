@@ -300,6 +300,7 @@ class CloseStatusChecker(BaseChecker):
             bk_cloud_id = target_dimensions["bk_cloud_id"] = alert.top_event["bk_cloud_id"]
 
             host = HostManager.get(ip, bk_cloud_id)
+            target_dimensions["bk_host_id"] = host.bk_host_id if host else None
 
             if not host:
                 # 如果主机在缓存中不存在，则直接恢复告警
