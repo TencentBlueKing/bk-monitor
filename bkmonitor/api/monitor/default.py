@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 
 from django.conf import settings
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from core.drf_resource.contrib.nested_api import KernelAPIResource
 
@@ -137,3 +138,22 @@ class GetActionParamsBackendResource(MonitorAPIGWResource):
 
     action = "/get_action_params_by_config/"
     method = "POST"
+
+
+class GetExperienceResource(MonitorAPIGWResource):
+    """
+    获取告警处理经验
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField()
+        alert_id = serializers.CharField(required=False, label="告警ID")
+        metric_id = serializers.CharField(label="指标", required=False)
+
+        def validate(self, attrs):
+            if "alert_id" not in attrs and "metric_id" not in attrs:
+                raise ValidationError("alert_id and metric_id cannot be empty at the same time")
+            return attrs
+
+    action = "/get_experience/"
+    method = "GET"
