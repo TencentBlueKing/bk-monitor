@@ -1212,7 +1212,7 @@
         {
           "id": "duration_heatmap",
           "title": "耗时热力图",
-          "type": "graph",
+          "type": "apm_heatmap",
           "gridPos": {
             "x": 16,
             "y": 7,
