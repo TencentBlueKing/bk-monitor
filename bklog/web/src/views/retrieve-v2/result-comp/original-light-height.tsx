@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getFlatObjValues } from '../../../common/util';
 import TextSegmentation from './text-segmentation';
-import JsonFormatter from '../../../global/json-formatter.vue';
+// import JsonFormatter from '../../../global/json-formatter.vue';
 
 import './original-light-height.scss';
 
@@ -104,7 +104,7 @@ export default class OriginalLightHeight extends tsc<IProps> {
         class='origin-content'
         title={this.tableLineIsWarp ? '' : this.strOriginJson}
       >
-        {/* {Object.entries(this.fieldMapDataObj).map(([key, value]) => {
+        {Object.entries(this.fieldMapDataObj).map(([key, value]) => {
           return (
             <span>
               <span class='black-mark'>&nbsp;{key}:&nbsp;</span>
@@ -117,8 +117,8 @@ export default class OriginalLightHeight extends tsc<IProps> {
               </span>
             </span>
           );
-        })} */}
-        <JsonFormatter jsonValue={this.formatValue} fields={ this.visibleFields }></JsonFormatter>
+        })}
+        {/* <JsonFormatter jsonValue={this.formatValue} fields={ this.visibleFields }></JsonFormatter> */}
       </span>
     );
   }

@@ -76,33 +76,38 @@
             <div :class="['str-content', 'origin-str']">
               <!-- eslint-disable-next-line vue/no-v-html -->
               <!-- <span>{{ JSON.stringify(row) }}</span> -->
-              <!-- <original-light-height
-                :operator-config="operatorConfig"
-                :origin-json="row"
-                :visible-fields="getShowTableVisibleFields"
-                @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
-              /> -->
-              <JsonFormatter
-                :jsonValue="row"
-                :fields="getShowTableVisibleFields"
-                @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
-              ></JsonFormatter>
-              <!-- <template v-if="!isLimitExpandView">
-                <p
-                  v-if="!cacheExpandStr.includes($index)"
-                  class="show-whole-btn"
-                  @click.stop="handleShowWhole($index)"
-                >
-                  {{ $t('展开全部') }}
-                </p>
-                <p
-                  v-else
-                  class="hide-whole-btn"
-                  @click.stop="handleHideWhole($index)"
-                >
-                  {{ $t('收起') }}
-                </p>
-              </template> -->
+              <template v-if="formatJson">
+                <JsonFormatter
+                  :jsonValue="row"
+                  :fields="getShowTableVisibleFields"
+                  @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
+                ></JsonFormatter>
+              </template>
+              <template v-else>
+                <original-light-height
+                  :operator-config="operatorConfig"
+                  :origin-json="row"
+                  :visible-fields="getShowTableVisibleFields"
+                  @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
+                />
+
+                <template v-if="!isLimitExpandView">
+                  <p
+                    v-if="!cacheExpandStr.includes($index)"
+                    class="show-whole-btn"
+                    @click.stop="handleShowWhole($index)"
+                  >
+                    {{ $t('展开全部') }}
+                  </p>
+                  <p
+                    v-else
+                    class="hide-whole-btn"
+                    @click.stop="handleHideWhole($index)"
+                  >
+                    {{ $t('收起') }}
+                  </p>
+                </template>
+              </template>
             </div>
           </template>
         </bk-table-column>
@@ -168,6 +173,7 @@
 <script>
   import resultTableMixin from '../../mixins/result-table-mixin';
   import JsonFormatter from '../../../../global/json-formatter.vue';
+  import { mapState } from 'vuex';
 
   export default {
     name: 'OriginalList',
@@ -175,6 +181,9 @@
     components: { JsonFormatter },
     inheritAttrs: false,
     computed: {
+      ...mapState({
+        formatJson: state => state.tableJsonFormat,
+      }),
       scrollContent() {
         return document.querySelector('.result-scroll-container');
       },
