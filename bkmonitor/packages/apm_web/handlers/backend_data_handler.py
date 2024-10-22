@@ -459,8 +459,7 @@ class MetricBackendHandler(TelemetryBackendHandler):
             "bk_biz_id": self.app.bk_biz_id,
             "query_config_kwargs": {
                 "table": self.result_table_id,
-                "promql": f'count({{__name__=~"custom:{self.result_table_id}:.*"}}) - '
-                f'count({{__name__=~"custom:{self.result_table_id}:^(apm|bk_apm).*"}})',
+                "promql": f'count({{__name__=~"custom:{self.result_table_id}:.*",__name__!~"^(apm|bk_apm).*"}})',
             },
         }
         kwargs.update(view_params)
@@ -528,10 +527,7 @@ class MetricBackendHandler(TelemetryBackendHandler):
         return count
 
     def get_no_data_strategy_config(self, **kwargs):
-        promql = (
-            f'count({{__name__=~"custom:{self.result_table_id}:.*"}}) - '
-            f'count({{__name__=~"custom:{self.result_table_id}:^(apm|bk_apm).*"}}) or vector(0)'
-        )
+        promql = f'count({{__name__=~"custom:{self.result_table_id}:.*",__name__!~"^(apm|bk_apm).*"}}) or vector(0)'
         return {
             "result_table_id": self.result_table_id,
             "metric_id": promql,
