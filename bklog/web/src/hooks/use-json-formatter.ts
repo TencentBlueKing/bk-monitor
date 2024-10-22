@@ -240,7 +240,7 @@ export default ({
     });
   };
 
-  const setValue = (val, depth = 1) => {
+  const setValue = (val, depth = 3) => {
     setTimeout(() => {
       const targetValue = formatNodes(val, 0, depth);
       editor.set(targetValue);
