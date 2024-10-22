@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Type, Union
 
 from django.utils.translation import ugettext_lazy as _
+from elasticsearch_dsl import A, Q
 
 from apm_web.constants import AlertLevel, Apdex, TopoNodeKind, TopoVirtualServiceKind
 from apm_web.handlers.service_handler import ServiceHandler
@@ -964,36 +965,32 @@ class NodeAlert(PrePlugin):
 
     def _query_normal_metric_alerts(self, handler, severity):
         query = handler.get_search_object(self._runtime["start_time"], self._runtime["end_time"])
+        query = query.query(
+            Q(
+                "bool",
+                must=[
+                    Q("term", severity=severity),
+                    Q(
+                        "nested",
+                        path="event.tags",
+                        query=Q(
+                            "bool",
+                            should=[
+                                Q("term", **{"event.tags.key": "service_name"}),
+                                Q("term", **{"event.tags.key": "db_system"}),
+                                Q("term", **{"event.tags.key": "messaging_system"}),
+                                Q("term", **{"event.tags.key": "peer_service"}),
+                            ],
+                        ),
+                    ),
+                    Q("terms", **{"event.metric": [f"custom.{self.table_id}.{i}" for i in self._NORMAL_METRICS]}),
+                ],
+            )
+        )
+        query = query.extra(size=self._ALERT_MAX_SIZE, _source=["event.tags"])
+        response = query.execute()
+
         res = defaultdict(int)
-        response = query.update_from_dict(
-            {
-                "query": {
-                    "bool": {
-                        "must": [
-                            {"term": {"severity": severity}},
-                            {
-                                "nested": {
-                                    "path": "event.tags",
-                                    "query": {
-                                        "bool": {
-                                            "should": [
-                                                {"term": {"event.tags.key": "service_name"}},
-                                                {"term": {"event.tags.key": "db_system"}},
-                                                {"term": {"event.tags.key": "messaging_system"}},
-                                                {"term": {"event.tags.key": "peer_service"}},
-                                            ]
-                                        }
-                                    },
-                                }
-                            },
-                            {"terms": {"event.metric": [f"custom.{self.table_id}.{i}" for i in self._NORMAL_METRICS]}},
-                        ]
-                    }
-                },
-                "size": self._ALERT_MAX_SIZE,
-                "_source": ["event.tags"],
-            }
-        ).execute()
         for i in response.hits:
             data = i.to_dict()
             tags = data.get("event", {}).get("tags")
@@ -1021,52 +1018,28 @@ class NodeAlert(PrePlugin):
 
     def _query_flow_metric_alerts(self, handler, severity):
         query = handler.get_search_object(self._runtime["start_time"], self._runtime["end_time"])
-        res = {}
-        response = query.update_from_dict(
-            {
-                "query": {
-                    "bool": {
-                        "must": [
-                            {"term": {"severity": severity}},
-                            {
-                                "nested": {
-                                    "path": "event.tags",
-                                    "query": {
-                                        "bool": {
-                                            "filter": [
-                                                {
-                                                    "terms": {
-                                                        "event.tags.key": [
-                                                            "from_apm_service_name",
-                                                            "to_apm_service_name",
-                                                        ]
-                                                    }
-                                                }
-                                            ]
-                                        }
-                                    },
-                                }
-                            },
-                            {"terms": {"event.metric": [f"custom.{self.table_id}.{i}" for i in self.flow_metrics]}},
-                        ]
-                    }
-                },
-                "aggs": {
-                    "nested_tags": {
-                        "nested": {"path": "event.tags"},
-                        "aggs": {
-                            "values": {
-                                "terms": {
-                                    "field": "event.tags.value.raw",
-                                    "size": self._ALERT_MAX_SIZE,
-                                }
-                            }
-                        },
-                    }
-                },
-            }
-        ).execute()
-
+        query = query.query(
+            Q(
+                "bool",
+                must=[
+                    Q("term", severity=severity),
+                    Q(
+                        "nested",
+                        path="event.tags",
+                        query=Q(
+                            "bool",
+                            filter=[Q("terms", **{"event.tags.key": ["from_apm_service_name", "to_apm_service_name"]})],
+                        ),
+                    ),
+                    Q("terms", **{"event.metric": [f"custom.{self.table_id}.{i}" for i in self.flow_metrics]}),
+                ],
+            )
+        )
+        tags_agg = A("nested", path="event.tags")
+        tags_agg.bucket("values", A("terms", field="event.tags.value.raw", size=self._ALERT_MAX_SIZE))
+        query.aggs.bucket("nested_tags", tags_agg)
+        response = query.execute()
+        res = defaultdict(int)
         for i in response.aggregations.nested_tags.values.buckets:
             data = i.to_dict()
             node = data.get("key")
