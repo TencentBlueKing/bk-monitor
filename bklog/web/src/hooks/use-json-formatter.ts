@@ -1,6 +1,8 @@
-import { computed, onMounted, Ref } from 'vue';
+import { computed, h, onMounted, ref, Ref } from 'vue';
 import JSONEditor from 'jsoneditor';
 import 'jsoneditor/dist/jsoneditor.min.css';
+import PopInstanceUtil from '../global/utils/pop-instance-util';
+import useSegmentPop from './use-segment-pop';
 
 export default ({
   target,
@@ -12,6 +14,28 @@ export default ({
   options?: Record<string, any>;
 }) => {
   let editor = null;
+
+
+  const { getSegmentContent } = useSegmentPop({ onSegmentEnumClick: () => {} });
+  let popoverInstance = new PopInstanceUtil({
+    refContent: getSegmentContent(),
+    onHiddenFn: () => true,
+    tippyOptions: {
+      appendTo: document.body,
+      hideOnClick: true
+    }
+  });
+  const  handleDestroy = () => {
+    if (popoverInstance) {
+      popoverInstance.uninstallInstance();
+    }
+  }
+
+  const handleSegmentClick = (e, value) => {
+    if (!value.toString() || value === '--') return;
+    handleDestroy();
+    popoverInstance.show(e.target);
+  }
 
   const computedOptions = computed(() => {
     return {
@@ -175,9 +199,15 @@ export default ({
         element?.setAttribute('data-has-word-split', '1');
         element.innerHTML = '';
         element.append(creatSegmentNodes(vlaues));
+        element.addEventListener('click', e => {
+          if ((e.target as HTMLElement).classList.contains('valid-text')) {
+            handleSegmentClick(e, (e.target as HTMLElement).innerHTML)
+          }
+        });
       }
     });
   };
+
 
   const setValue = (val, depth = 1) => {
     setTimeout(() => {

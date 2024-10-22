@@ -31,3 +31,4 @@ declare module '*.vue' {
 
 declare module '*/store';
 declare module '*.svg';
+declare module '@/hooks/use-locale';
