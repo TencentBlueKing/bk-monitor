@@ -315,7 +315,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
       return (
         <span class='form-item'>
           <span class='item-label'>{label}:</span>
-          <span class='item-content'>{content}</span>
+          <span class='item-content'>{content || '--'}</span>
         </span>
       );
     }
@@ -347,6 +347,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
           class='detail-wrap-item'
           v-bkloading={{
             isLoading: this.loading,
+            zIndex: 0,
           }}
         >
           <div class='wrap-item-title'>{this.$t('基本信息')}</div>
@@ -372,7 +373,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
                             class='edit-span'
                             onClick={() => this.handleEditLabel(key)}
                           >
-                            <span>{this.basicInfo?.[key]}</span>
+                            <span>{this.basicInfo?.[key] || '--'}</span>
                             <span class='icon-monitor icon-bianji' />
                           </span>
                         )}
@@ -392,10 +393,10 @@ export default class CollectorConfiguration extends tsc<IProps> {
                     );
                   }
                   if (key === 'period') {
-                    return `${this.basicInfo?.[key]}s`;
+                    return this.basicInfo?.[key] ? `${this.basicInfo?.[key]}s` : '--';
                   }
                   if (key === 'bk_biz_id') {
-                    return this.getBizInfo(this.basicInfo?.[key]);
+                    return this.basicInfo?.[key] ? this.getBizInfo(this.basicInfo?.[key]) : '--';
                   }
                   if (key === 'log_path' || key === 'filter_patterns') {
                     if (this.basicInfo?.[key]?.length) {
