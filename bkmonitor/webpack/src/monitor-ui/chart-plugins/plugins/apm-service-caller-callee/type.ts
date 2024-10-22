@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 export interface IServiceConfig {
+  value: string;
+  text: string;
   label: string;
   name: string;
   operate: number;
@@ -39,7 +41,19 @@ export interface IColumn {
 export interface IDataItem {
   [key: string]: string;
 }
+export interface IFilterCondition {
+  key: string;
+  method: string;
+  value: IDataItem[];
+  condition: string;
+}
 
+export interface IFilterType {
+  call_filter: IFilterCondition[];
+  group_by_filter: IDataItem[];
+  time_shift: IDataItem[];
+  table_group_by: string[];
+}
 /* 头部对比/group by 切换 */
 export enum EParamsMode {
   contrast = 'contrast',

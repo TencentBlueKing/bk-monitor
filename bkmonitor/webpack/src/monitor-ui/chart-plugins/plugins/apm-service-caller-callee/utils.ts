@@ -59,7 +59,7 @@ export const CHART_TYPE = [
 
 export const TAB_TABLE_REQUEST_COLUMN = [
   {
-    label: '请求数',
+    label: '数值',
     prop: 'request',
   },
   {
@@ -73,17 +73,17 @@ export const TAB_TABLE_TIMEOUT_COLUMN = [
     prop: 'successRate',
   },
   {
-    label: '异常率',
-    prop: 'errorRate',
-  },
-  {
     label: '超时率',
     prop: 'timeoutRate',
+  },
+  {
+    label: '异常率',
+    prop: 'errorRate',
   },
 ];
 export const TAB_TABLE_CONSUMING_COLUMN = [
   {
-    label: '平均耗时',
+    label: 'AVG',
     prop: 'avg',
   },
   {
@@ -91,12 +91,12 @@ export const TAB_TABLE_CONSUMING_COLUMN = [
     prop: 'p50',
   },
   {
-    label: 'P99',
-    prop: 'P50',
-  },
-  {
     label: 'P95',
     prop: 'P95',
+  },
+  {
+    label: 'P99',
+    prop: 'P99',
   },
 ];
 
@@ -120,7 +120,7 @@ export const TAB_TABLE_TYPE = [
 ];
 
 export const LIMIT_TYPE_LIST = [
-  { id: 1, name: '调用量' },
+  { id: 1, name: '请求量' },
   { id: 2, name: '成功率（%）' },
   { id: 3, name: '异常率（%）' },
   { id: 4, name: '超时率（%）' },
@@ -129,31 +129,31 @@ export const LIMIT_TYPE_LIST = [
 
 export const SYMBOL_LIST = [
   {
-    value: 1,
+    value: 'eq',
     label: '等于',
   },
   {
-    value: 2,
+    value: 'neq',
     label: '不等于',
   },
   {
-    value: 3,
+    value: 'before_req',
     label: '前匹配',
   },
   {
-    value: 4,
+    value: 'after_req',
     label: '后匹配',
   },
   {
-    value: 5,
+    value: 'include',
     label: '包含',
   },
   {
-    value: 6,
+    value: 'exclude',
     label: '不包含',
   },
   {
-    value: 7,
+    value: 'reg',
     label: '正则',
   },
 ];

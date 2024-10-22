@@ -532,7 +532,14 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       case 'apm-relation-graph':
         return <ApmRelationGraph panel={this.panel} />;
       case 'apm-service-caller-callee':
-        return <ApmServiceCallerCallee panel={this.panel} />;
+        return (
+          <ApmServiceCallerCallee
+            panel={this.panel}
+            {...{
+              props: this.$attrs,
+            }}
+          />
+        );
       case 'alarm-event-chart':
         return <AlarmEventChart panel={this.panel} />;
       case 'apm-heatmap':

@@ -30,7 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { SYMBOL_LIST } from '../utils';
 
-import type { IServiceConfig } from '../type';
+import type { IServiceConfig, IFilterCondition } from '../type';
 
 import './caller-callee-filter.scss';
 
@@ -49,65 +49,82 @@ interface ICallerCalleeFilterEvent {
 })
 export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, ICallerCalleeFilterEvent> {
   @Prop({ required: true, type: Array, default: () => [] }) searchList: IServiceConfig[];
-  @Prop({ required: true, type: Array, default: () => [] }) filterData: IServiceConfig[];
+  @Prop({ required: true, type: Array, default: () => [] }) filterData: IFilterCondition[];
+  @Prop({ required: true, type: Boolean, default: false }) isLoading: boolean;
   symbolList = SYMBOL_LIST;
+  toggleKey = '';
   @Emit('search')
   handleSearch() {
     return this.filterData;
   }
+
   @Emit('reset')
   handleReset() {
-    this.filterData.map(item => Object.assign(item, { operate: 1, values: [] }));
     return this.filterData;
   }
   @Emit('change')
   changeSelect(val, item) {
     return { val, item };
   }
+  @Emit('toggle')
+  handleToggle(isOpen: boolean, key: string) {
+    this.toggleKey = key;
+    return { isOpen, key };
+  }
   render() {
     return (
       <div class='caller-callee-filter'>
         <div class='search-title'>{this.$t('筛选')}</div>
         <div class='search-main'>
-          {(this.searchList || []).map((item, ind) => (
-            <div
-              key={item.label}
-              class='search-item'
-            >
-              <div class='search-item-label'>
-                <span>{this.$t(item.name)}</span>
-                <bk-select
-                  class='item-label-select'
-                  v-model={this.filterData[ind].operate}
-                  clearable={false}
-                  list={this.symbolList}
-                  size='small'
-                  onChange={val => this.changeSelect(val, item)}
-                >
-                  {this.symbolList.map(item => (
-                    <bk-option
-                      id={item.value}
-                      key={item.value}
-                      name={item.label}
-                    />
-                  ))}
-                </bk-select>
-              </div>
-              <bk-select
-                v-model={this.filterData[ind].values}
-                multiple
-                searchable
+          {(this.searchList || []).map((item, ind) => {
+            return (
+              <div
+                key={item.value}
+                class='search-item'
               >
-                {item.values.map(item => (
-                  <bk-option
-                    id={item}
-                    key={item}
-                    name={item}
-                  />
-                ))}
-              </bk-select>
-            </div>
-          ))}
+                <div class='search-item-label'>
+                  <span>{item.text}</span>
+                  {this.filterData[ind] && (
+                    <bk-select
+                      class='item-label-select'
+                      v-model={this.filterData[ind].method}
+                      clearable={false}
+                      list={this.symbolList}
+                      size='small'
+                      onChange={val => this.changeSelect(val, item)}
+                    >
+                      {this.symbolList.map(opt => (
+                        <bk-option
+                          id={opt.value}
+                          key={opt.value}
+                          name={opt.label}
+                        />
+                      ))}
+                    </bk-select>
+                  )}
+                </div>
+                {this.filterData[ind] && (
+                  <bk-select
+                    v-model={this.filterData[ind].value}
+                    loading={item.value === this.toggleKey && this.isLoading}
+                    allow-create
+                    collapse-tag
+                    display-tag
+                    multiple
+                    onToggle={(val: boolean) => this.handleToggle(val, item.value)}
+                  >
+                    {(item.values || []).map(opt => (
+                      <bk-option
+                        id={opt.value}
+                        key={opt.value}
+                        name={opt.value}
+                      />
+                    ))}
+                  </bk-select>
+                )}
+              </div>
+            );
+          })}
         </div>
         <div class='search-btn-group'>
           <bk-button
