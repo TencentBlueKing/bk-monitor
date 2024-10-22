@@ -39,10 +39,14 @@ export default {
     indexSetList: [],
     isIndexSetLoading: false,
     isTrendDataLoading: false,
+    trendDataCount: 0,
   },
   mutations: {
     updateTrendDataLoading(state, payload) {
       state.isTrendDataLoading = payload;
+    },
+    updateTrendDataCount(state, payload) {
+      state.trendDataCount = payload;
     },
     updateChartKey(state, payload) {
       state.chartKey = (payload?.prefix ?? '') + random(10);
