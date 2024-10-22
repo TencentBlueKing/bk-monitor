@@ -343,6 +343,7 @@ VARIABLES = [
             {"name": "content.ack_operators", "desc": _lazy("确认人"), "example": "admin"},
             {"name": "content.ack_reason", "desc": _lazy("确认原因"), "example": "Process Later"},
             {"name": "content.receivers", "desc": _lazy("通知人"), "example": "lisa,yunweixiaoge"},
+            {"name": "content.remarks", "desc": _lazy("备注"), "example": "known"},
         ],
     },
     {
