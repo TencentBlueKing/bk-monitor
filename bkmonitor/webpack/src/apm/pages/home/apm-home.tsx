@@ -283,7 +283,7 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
       this.$router.push({
         name: 'application-config',
         params: {
-          appName: this.appName,
+          appName: row.app_name,
         },
       });
       return;
@@ -295,7 +295,7 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
       this.$router.push({
         name: 'application-config',
         params: {
-          appName: this.appName,
+          appName: row.app_name,
         },
         query: {
           active: id === 'noDataAlarm' ? 'dataStatus' : id,
@@ -311,7 +311,8 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
     } else if (id === 'delete') {
       this.$bkInfo({
         type: 'warning',
-        title: this.$t('确认删除该应用？'),
+        title: this.$t('确认删除应用？'),
+        subTitle: `${this.$t('应用')}：${row.app_alias}(${row.app_name})`,
         maskClose: true,
         escClose: true,
         confirmFn: () => {
