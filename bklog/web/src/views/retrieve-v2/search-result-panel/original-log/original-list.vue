@@ -76,12 +76,17 @@
             <div :class="['str-content', 'origin-str']">
               <!-- eslint-disable-next-line vue/no-v-html -->
               <!-- <span>{{ JSON.stringify(row) }}</span> -->
-              <original-light-height
+              <!-- <original-light-height
                 :operator-config="operatorConfig"
                 :origin-json="row"
                 :visible-fields="getShowTableVisibleFields"
                 @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
-              />
+              /> -->
+              <JsonFormatter
+                :jsonValue="row"
+                :fields="getShowTableVisibleFields"
+                @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
+              ></JsonFormatter>
               <!-- <template v-if="!isLimitExpandView">
                 <p
                   v-if="!cacheExpandStr.includes($index)"
@@ -162,10 +167,12 @@
 
 <script>
   import resultTableMixin from '../../mixins/result-table-mixin';
+  import JsonFormatter from '../../../../global/json-formatter.vue';
 
   export default {
     name: 'OriginalList',
     mixins: [resultTableMixin],
+    components: { JsonFormatter },
     inheritAttrs: false,
     computed: {
       scrollContent() {

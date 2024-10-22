@@ -73,8 +73,8 @@ export default class PopInstanceUtil {
      * 处理多次点击触发多次请求的事件
      */
     this.delayShowInstance = debounce(target => {
+      this.tippyInstance?.setProps({ triggerTarget: target });
       if (this.isShown()) {
-        this.tippyInstance.setProps({ triggerTarget:target });
         this.repositionTippyInstance();
         return;
       }
