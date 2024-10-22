@@ -19,6 +19,8 @@ export const hostInstanceDetailList = request('POST', 'apm/metric/metric/host_in
 export const serviceQueryException = request('POST', 'apm/metric/metric/service_query_exception/');
 export const metricDetailStatistics = request('GET', 'apm/metric/metric/metric_statistics/');
 
+export const getFieldOptionValues = request('GET', 'apm/metric/metric/get_field_option_values/');
+
 export default {
   errorListByTraceIds,
   unifyQuery,
@@ -38,4 +40,5 @@ export default {
   hostInstanceDetailList,
   serviceQueryException,
   metricDetailStatistics,
+  getFieldOptionValues,
 };
