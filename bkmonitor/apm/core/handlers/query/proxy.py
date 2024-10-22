@@ -66,10 +66,10 @@ class QueryProxy:
             self.application.trace_datasource.retention,
             overwrite_datasource_configs={
                 ApmDataSourceConfigBase.TRACE_DATASOURCE: {
-                    "get_table_id_func": self.application.trace_datasource.result_table_id
+                    "get_table_id_func": lambda *args, **kwargs: self.application.trace_datasource.result_table_id
                 },
                 ApmDataSourceConfigBase.METRIC_DATASOURCE: {
-                    "get_table_id_func": self.application.metric_datasource.result_table_id
+                    "get_table_id_func": lambda *args, **kwargs: self.application.metric_datasource.result_table_id
                 },
             },
         )
@@ -82,10 +82,10 @@ class QueryProxy:
             self.application.trace_datasource.retention,
             overwrite_datasource_configs={
                 ApmDataSourceConfigBase.TRACE_DATASOURCE: {
-                    "get_table_id_func": self.application.trace_datasource.result_table_id
+                    "get_table_id_func": lambda *args, **kwargs: self.application.trace_datasource.result_table_id
                 },
                 ApmDataSourceConfigBase.METRIC_DATASOURCE: {
-                    "get_table_id_func": self.application.metric_datasource.result_table_id
+                    "get_table_id_func": lambda *args, **kwargs: self.application.metric_datasource.result_table_id
                 },
             },
         )
