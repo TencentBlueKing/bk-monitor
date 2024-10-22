@@ -150,7 +150,9 @@
 
   .stack-link-col {
     display: flex;
+    flex: 1;
     flex-direction: column;
+    min-width: 0;
 
     .stack-link-wrap {
       display: flex;
@@ -161,9 +163,12 @@
       .stack-link {
         flex: 1;
         max-width: calc(100% - 36px);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+
+        & > span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
       }
 
       .stack-icon {

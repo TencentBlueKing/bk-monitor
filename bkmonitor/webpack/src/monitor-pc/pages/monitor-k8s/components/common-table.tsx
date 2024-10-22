@@ -438,7 +438,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
             ) : (
               ''
             )}
-            {` ${val.value}`}
+            <span>{` ${val.value}`}</span>
           </div>
           {val.is_stack && <span class='stack-icon'>{this.$t('堆栈')}</span>}
         </div>

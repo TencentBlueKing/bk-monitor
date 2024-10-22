@@ -30,7 +30,7 @@ class ServiceLogInfoResource(Resource, HostIndexQueryMixin):
         service_name = (data["service_name"],)
 
         # Step: 从自定义上报中找日志
-        datasource_index_set_id = ServiceLogHandler.get_datasource_index_set_id(bk_biz_id, app_name)
+        datasource_index_set_id = ServiceLogHandler.get_and_check_datasource_index_set_id(bk_biz_id, app_name)
         if datasource_index_set_id:
             return True
 
@@ -85,8 +85,14 @@ class ServiceRelationListResource(Resource, HostIndexQueryMixin):
                 }
             )
 
+        indexes = api.log_search.search_index_set(bk_biz_id=data["bk_biz_id"])
+
         # Step 从自定义上报中找
-        datasource_index_set_id = ServiceLogHandler.get_datasource_index_set_id(bk_biz_id, app_name)
+        datasource_index_set_id = ServiceLogHandler.get_and_check_datasource_index_set_id(
+            bk_biz_id,
+            app_name,
+            full_indexes=indexes,
+        )
         if datasource_index_set_id:
             index_set_ids.append(
                 {
@@ -96,9 +102,8 @@ class ServiceRelationListResource(Resource, HostIndexQueryMixin):
                 }
             )
 
-        index_set = api.log_search.search_index_set(bk_biz_id=data["bk_biz_id"])
         for item in index_set_ids:
-            index_set_info = next((i for i in index_set if str(i["index_set_id"]) == str(item["index_set_id"])), None)
+            index_set_info = next((i for i in indexes if str(i["index_set_id"]) == str(item["index_set_id"])), None)
             if index_set_info:
                 res.append(
                     {
@@ -106,6 +111,7 @@ class ServiceRelationListResource(Resource, HostIndexQueryMixin):
                         "index_set_name": index_set_info['index_set_name'],
                         "related_bk_biz_id": item["related_bk_biz_id"],
                         "source": item["source"],
+                        "log_type": "bk_log",
                     }
                 )
 

@@ -126,7 +126,6 @@ class AddProjectDataService(BaseService):
     name = _("项目添加rt权限")
 
     def _execute(self, data, parent_data):
-        bk_biz_id = data.get_one_of_inputs("bk_biz_id")
         index_set_id = data.get_one_of_inputs("index_set_id")
         project_id = data.get_one_of_inputs("project_id")
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
@@ -136,7 +135,7 @@ class AddProjectDataService(BaseService):
             clustering_config.save()
         BkDataAuthApi.add_project_data(
             params={
-                "bk_biz_id": bk_biz_id,
+                "bk_biz_id": clustering_config.bk_biz_id,
                 "object_id": clustering_config.bkdata_etl_result_table_id,
                 "project_id": project_id,
             }
