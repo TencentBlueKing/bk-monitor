@@ -375,11 +375,11 @@ CELERYBEAT_SCHEDULE = {
         "task": "monitor_web.tasks.update_metric_json_from_ts_group",
         "schedule": crontab(minute="*/50"),
         "enabled": True,
-    }
+    },
     "monitor_web.tasks.update_target_detail": {
         "task": "monitor_web.tasks.update_target_detail",
         "schedule": crontab(minute="*/15"),
-        "enabled": True
+        "enabled": True,
     },
 }
 
