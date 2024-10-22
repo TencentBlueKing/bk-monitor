@@ -93,6 +93,7 @@ from apps.log_search.models import (
 )
 from apps.log_search.tasks.mapping import sync_single_index_set_mapping_snapshot
 from apps.log_search.tasks.sync_index_set_archive import sync_index_set_archive
+from apps.log_search.utils import fetch_request_username
 from apps.log_trace.handlers.proto.proto import Proto
 from apps.models import model_to_dict
 from apps.utils import APIModel
@@ -655,11 +656,11 @@ class IndexSetHandler(APIModel):
 
     def mark_favorite(self):
         index_set_obj: LogIndexSet = self._get_data()
-        index_set_obj.mark_favorite(get_request_username())
+        index_set_obj.mark_favorite(fetch_request_username())
 
     def cancel_favorite(self):
         index_set_obj: LogIndexSet = self._get_data()
-        index_set_obj.cancel_favorite(get_request_username())
+        index_set_obj.cancel_favorite(fetch_request_username())
 
     @transaction.atomic()
     def update_or_create_desensitize_config(self, params: dict):
