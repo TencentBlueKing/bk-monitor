@@ -280,7 +280,7 @@ def refresh_es_storage():
     es_storages = es_storages.filter(table_id__in=table_id_list)
 
     # 4. 设置每个任务处理的记录数
-    start, step = 0, 100
+    start, step = 0, settings.ES_INDEX_ROTATION_STEP
 
     # 5. 按 storage_cluster_id 分组下发轮转任务，提高并发性能，降低ES集群的压力
     es_storages_by_cluster = es_storages.values('storage_cluster_id').distinct()
@@ -295,6 +295,7 @@ def refresh_es_storage():
             for s in range(start, count, step):
                 try:
                     manage_es_storage.delay(cluster_storages[s : s + step])
+                    time.sleep(settings.ES_INDEX_ROTATION_SLEEP_INTERVAL)  # 等待一段时间，降低master负载
                 except Exception as e:  # pylint: disable=broad-except
                     logger.error("refresh_es_storage:refresh cluster_id->[%s] failed for->[%s]", cluster_id, e)
         except Exception as e:  # pylint: disable=broad-except

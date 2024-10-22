@@ -34,7 +34,7 @@ from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 from pytz import timezone
-from tenacity import retry, stop_after_attempt, wait_fixed
+from tenacity import RetryError, retry, retry_if_result, stop_after_attempt, wait_fixed
 
 from bkmonitor.dataflow import auth
 from bkmonitor.dataflow.task.cmdblevel import CMDBPrepareAggregateTask
@@ -1722,6 +1722,10 @@ class KafkaStorage(models.Model, StorageResultTable):
         return True
 
 
+def is_false(value):
+    return value is False
+
+
 class ESStorage(models.Model, StorageResultTable):
     """ES存储配置信息"""
 
@@ -2522,7 +2526,11 @@ class ESStorage(models.Model, StorageResultTable):
                     index_list = []
 
                 # 2.4 检查即将指向的索引是否就绪，只有当完全就绪（各个分片均已green）时，才进行切换
-                is_ready = self.is_index_ready(self.es_client, last_index_name)
+                try:
+                    is_ready = self.is_index_ready(self.es_client, last_index_name)
+                except RetryError:  # 若重试后依然失败，则认为未就绪
+                    is_ready = False
+
                 if not is_ready:
                     # 2.4.1 如果索引未就绪，记录日志并跳过，将last_index_name变为上次的索引
                     logger.warning(
@@ -2612,6 +2620,11 @@ class ESStorage(models.Model, StorageResultTable):
         # 2. 更新对应的别名<->索引绑定关系
         self.create_or_update_aliases(ahead_time)
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_fixed(3),
+        retry=retry_if_result(lambda result: result is False),  # 使用 lambda 表达式
+    )
     def is_index_ready(self, es_client, index_name: str) -> bool:
         """
         检查索引的健康状态（是否在各个分片均已就绪）
