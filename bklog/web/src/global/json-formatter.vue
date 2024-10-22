@@ -1,5 +1,5 @@
 <template>
-  <span class="origin-content">
+  <span :class="['origin-content', { 'is-rending': true, 'is-rending-end': !isRendindg }]">
     <div
       ref="refJsonEditor"
       :class="['bklog-json-formatter', { 'is-wrap-line': isWrap }]"
@@ -13,6 +13,7 @@
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
+  const isRendindg = ref(false);
 
   const props = defineProps({
     jsonValue: {
@@ -49,10 +50,16 @@
     };
   });
 
+  const deep = computed(() => store.state.tableJsonFormatDeep);
+
   watch(
-    () => formatCounter.value,
+    () => [formatCounter.value, deep.value],
     () => {
-      setValue(formatValue.value.stringValue);
+      isRendindg.value = true;
+      setValue(formatValue.value.stringValue, Number(deep.value));
+      setTimeout(() => {
+        isRendindg.value = false;
+      });
     },
     {
       immediate: true,
@@ -64,6 +71,8 @@
     font-family: var(--table-fount-family);
     font-size: var(--table-fount-size);
     color: var(--table-fount-color);
+
+
 
     .black-mark {
       margin-right: 2px;
