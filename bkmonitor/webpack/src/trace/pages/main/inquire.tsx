@@ -55,8 +55,8 @@ import {
   traceOptions,
 } from 'monitor-api/modules/apm_trace';
 import { createQueryHistory, destroyQueryHistory, listQueryHistory } from 'monitor-api/modules/model';
+import { skipToDocsLink } from 'monitor-common/utils/docs';
 import { deepClone, random } from 'monitor-common/utils/utils';
-import { handleGotoLink } from 'monitor-pc/common/constant';
 import { debounce } from 'throttle-debounce';
 
 import Condition from '../../components/condition/condition';
@@ -1124,7 +1124,7 @@ export default defineComponent({
           <a
             class='link'
             target='_blank'
-            onClick={() => handleGotoLink('bkLogQueryString')}
+            onClick={() => skipToDocsLink('bkLogQueryString')}
           >
             {t('查看语法')}
             <i class='icon-monitor icon-mc-link' />
