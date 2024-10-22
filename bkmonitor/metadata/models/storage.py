@@ -2527,7 +2527,7 @@ class ESStorage(models.Model, StorageResultTable):
 
                 # 2.4 检查即将指向的索引是否就绪，只有当完全就绪（各个分片均已green）时，才进行切换
                 try:
-                    is_ready = self.is_index_ready(self.es_client, last_index_name)
+                    is_ready = self.is_index_ready(last_index_name)
                 except RetryError:  # 若重试后依然失败，则认为未就绪
                     is_ready = False
 
@@ -2802,7 +2802,8 @@ class ESStorage(models.Model, StorageResultTable):
             # 7.2 若上一轮次发起创建的index还没有绑定的别名（未就绪 / 已就绪但还未进行别名切换），跳过本次轮转，等候其别名绑定
             elif bounded_not_expired_alias_length == 0:
                 logger.info(
-                    "update_index_v2: table_id->[%s] index->[%s] has no bounded alias maybe not ready, skip create new index",
+                    "update_index_v2: table_id->[%s] index->[%s] has no bounded alias maybe not ready, skip create "
+                    "new index",
                     self.table_id,
                     last_index_name,
                 )
