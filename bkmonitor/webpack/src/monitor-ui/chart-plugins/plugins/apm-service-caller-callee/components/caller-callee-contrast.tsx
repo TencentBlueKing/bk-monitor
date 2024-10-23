@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 /** 主被调 - 右侧对比模式栏 */
-import { Component, Prop, Emit } from 'vue-property-decorator';
+import { Component, Prop, Emit, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { EParamsMode, type IListItem, type IServiceConfig } from '../type';
@@ -38,11 +38,19 @@ interface ICallerCalleeContrastProps {
   groupBy?: string[];
   supportedCalculationTypes?: IListItem[];
   supportedMethods?: IListItem[];
+  method?: string;
+  limit?: number;
+  metricCalType?: string;
+  paramsMode?: EParamsMode;
 }
 interface ICallerCalleeContrastEvent {
   onContrastDatesChange?: (val: string[]) => void;
   onGroupByChange?: (val: string[]) => void;
   onGroupFilter?: () => void;
+  onMethodChange?: (val: string) => void;
+  onLimitChange?: (val: number) => void;
+  onMetricCalType?: (val: string) => void;
+  onTypeChange?: (val: EParamsMode) => void;
 }
 @Component({
   name: 'CallerCalleeContrast',
@@ -54,6 +62,10 @@ export default class CallerCalleeContrast extends tsc<ICallerCalleeContrastProps
   @Prop({ type: Array, default: () => [] }) supportedMethods: IListItem[];
   @Prop({ type: Array, default: () => [] }) contrastDates: string[];
   @Prop({ type: Array, default: () => [] }) groupBy: string[];
+  @Prop({ type: String, default: '' }) method: string;
+  @Prop({ type: Number, default: 0 }) limit: number;
+  @Prop({ type: String, default: '' }) metricCalType: string;
+  @Prop({ type: String, default: EParamsMode.contrast }) paramsMode: EParamsMode;
   active = EParamsMode.contrast;
   config = [
     {
@@ -71,13 +83,18 @@ export default class CallerCalleeContrast extends tsc<ICallerCalleeContrastProps
   get activeConfig() {
     return this.config.find(item => item.key === this.active);
   }
-  handleChange() {
-    this.active = this.active === EParamsMode.contrast ? EParamsMode.group : EParamsMode.contrast;
+
+  @Watch('paramsMode', { immediate: true })
+  handleWatchParamsMode(val: EParamsMode) {
+    if (this.active !== val) {
+      this.active = val;
+    }
   }
 
-  @Emit('group-filter')
-  groupByFilter(data) {
-    return data;
+  @Emit('typeChange')
+  handleChange() {
+    this.active = this.active === EParamsMode.contrast ? EParamsMode.group : EParamsMode.contrast;
+    return this.active;
   }
 
   handleContrastDatesChange(val: string[]) {
@@ -85,6 +102,19 @@ export default class CallerCalleeContrast extends tsc<ICallerCalleeContrastProps
   }
   handleGroupByChange(val: string[]) {
     this.$emit('groupByChange', val);
+  }
+
+  @Emit('metricCalType')
+  handleChangeMetricCalType(val) {
+    return val;
+  }
+  @Emit('methodChange')
+  handleChangeMethod(val) {
+    return val;
+  }
+  @Emit('limitChange')
+  handleChangeLimit(val) {
+    return val;
   }
 
   render() {
@@ -109,11 +139,16 @@ export default class CallerCalleeContrast extends tsc<ICallerCalleeContrastProps
           ) : (
             <GroupByView
               groupBy={this.groupBy}
+              limit={this.limit}
+              method={this.method}
+              metricCalType={this.metricCalType}
               searchList={this.searchList}
               supportedCalculationTypes={this.supportedCalculationTypes}
               supportedMethods={this.supportedMethods}
               onChange={this.handleGroupByChange}
-              onFilter={this.groupByFilter}
+              onLimitChange={this.handleChangeLimit}
+              onMethodChange={this.handleChangeMethod}
+              onMetricCalType={this.handleChangeMetricCalType}
             />
           )}
         </div>

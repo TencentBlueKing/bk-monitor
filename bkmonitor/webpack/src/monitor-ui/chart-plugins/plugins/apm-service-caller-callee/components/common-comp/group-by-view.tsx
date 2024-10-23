@@ -37,9 +37,15 @@ interface IGroupByViewProps {
   groupBy?: string[];
   supportedCalculationTypes?: IListItem[];
   supportedMethods?: IListItem[];
+  method?: string;
+  limit?: number;
+  metricCalType?: string;
 }
 interface IGroupByViewEvent {
   onChange?: (val: string[]) => void;
+  onMethodChange?: (val: string) => void;
+  onLimitChange?: (val: number) => void;
+  onMetricCalType?: (val: string) => void;
 }
 @Component({
   name: 'GroupByView',
@@ -50,6 +56,9 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
   @Prop({ type: Array, default: () => [] }) supportedCalculationTypes: IListItem[];
   @Prop({ type: Array, default: () => [] }) supportedMethods: IListItem[];
   @Prop({ type: Array, default: () => [] }) groupBy: string[];
+  @Prop({ type: String, default: '' }) method: string;
+  @Prop({ type: Number, default: 0 }) limit: number;
+  @Prop({ type: String, default: '' }) metricCalType: string;
 
   /* groupBy已选项tag */
   groupBySelectedTags: IServiceConfig[] = [];
@@ -59,13 +68,9 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
   groupByList: IServiceConfig[] = [];
   /* 是否显示选择器 */
   isShowPicker = false;
-
-  limitFilter = {
-    value: '10',
-    position: 'top',
-    key: 1,
-  };
-  limitType = 1;
+  localLimit = 0;
+  localMethod = '';
+  localMetricCalType = '';
 
   @Watch('groupBy', { immediate: true })
   handleWatchGroupBy() {
@@ -95,9 +100,45 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
       checked: groupBySet.has(item.value),
     }));
   }
+
+  @Watch('limit', { immediate: true })
+  handleWatchLimit(val) {
+    if (this.localLimit !== val) {
+      this.localLimit = val;
+    }
+  }
+  @Watch('method', { immediate: true })
+  handleWatchMethod(val) {
+    if (this.localMethod !== val) {
+      this.localMethod = val;
+    }
+  }
+  @Watch('metricCalType', { immediate: true })
+  handleWatchMetricCalType(val) {
+    if (this.localMetricCalType !== val) {
+      this.localMetricCalType = val;
+    }
+  }
+
   @Emit('change')
   emitChange() {
     return this.groupBySelectedKey;
+  }
+
+  @Emit('metricCalType')
+  handleChangeMetricCalType(val) {
+    this.localMetricCalType = val;
+    return val;
+  }
+  @Emit('methodChange')
+  handleChangeMethod(val) {
+    this.localMethod = val;
+    return val;
+  }
+  @Emit('limitChange')
+  handleChangeLimit(val) {
+    this.localLimit = val;
+    return val;
   }
 
   handleChange() {
@@ -113,10 +154,6 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
     this.groupBySelectedTags = groupByTags;
   }
 
-  @Emit('filter')
-  handleChangeLimit() {
-    return this.limitFilter;
-  }
   /**
    * @description 展示选择器
    */
@@ -215,10 +252,10 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
             <bk-select
               style='width: 150px;'
               ext-cls='ml-8'
-              v-model={this.limitFilter.key}
+              v-model={this.localMetricCalType}
               behavior='simplicity'
               clearable={false}
-              onChange={this.handleChangeLimit}
+              onChange={this.handleChangeMetricCalType}
             >
               {this.supportedCalculationTypes.map(option => (
                 <bk-option
@@ -231,10 +268,10 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
             <bk-select
               style='width: 90px;'
               ext-cls='ml-8'
-              v-model={this.limitFilter.position}
+              v-model={this.localMethod}
               behavior='simplicity'
               clearable={false}
-              onChange={this.handleChangeLimit}
+              onChange={this.handleChangeMethod}
             >
               {this.supportedMethods.map(option => (
                 <bk-option
@@ -247,7 +284,7 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
             <bk-input
               style='width: 150px;'
               class='ml-8'
-              v-model={this.limitFilter.value}
+              v-model={this.localLimit}
               behavior='simplicity'
               min={1}
               type='number'
