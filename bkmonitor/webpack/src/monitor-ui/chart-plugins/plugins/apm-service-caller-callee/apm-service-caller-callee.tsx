@@ -34,7 +34,6 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import { reviewInterval } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
-// import { DEFAULT_FILTER } from './baseFIlterList';
 import CallerCalleeContrast from './components/caller-callee-contrast';
 import CallerCalleeFilter from './components/caller-callee-filter';
 import CallerCalleeTableChart from './components/caller-callee-table-chart';
@@ -55,12 +54,11 @@ import './apm-service-caller-callee.scss';
 export default class ApmServiceCallerCallee extends CommonSimpleChart {
   @Prop({ type: Object }) sceneData;
   // 顶层注入数据
-  // filterOption 最终需要的filter数据
-  @Provide('filterOption') filterOption: IFilterType = {
+  // callOption 最终需要的filter数据
+  @Provide('callOption') callOption: IFilterType = {
     call_filter: [],
     group_by_filter: [],
     time_shift: [],
-    table_group_by: [],
   };
   /** 过滤列表loading */
   filterLoading = false;
@@ -104,7 +102,7 @@ export default class ApmServiceCallerCallee extends CommonSimpleChart {
   diffTypeData = [];
   tableColData = [];
 
-  @Watch('filterOption')
+  @Watch('callOption')
   handleRefreshData(val: IFilterType) {
     if (val) {
       this.initData();
@@ -112,11 +110,11 @@ export default class ApmServiceCallerCallee extends CommonSimpleChart {
   }
 
   get sceneDataOption() {
-    return this.sceneData.options || {};
+    return this.panel?.options || {};
   }
 
   get extraPanels() {
-    return this.sceneData.extra_panels || [];
+    return this.panel?.extra_panels || [];
   }
 
   get appName() {
@@ -135,12 +133,12 @@ export default class ApmServiceCallerCallee extends CommonSimpleChart {
     return this.commonOptions?.variables?.data || {};
   }
 
-  get statisticsOption() {
-    return this.commonOptions?.statistics;
+  get angleData() {
+    return this.commonOptions?.angle || {};
   }
 
-  get supportedCalculationTypes() {
-    return this.sceneDataOption.supported_calculation_types || [];
+  get statisticsOption() {
+    return this.commonOptions?.statistics;
   }
 
   // 左侧主被调切换
@@ -163,14 +161,14 @@ export default class ApmServiceCallerCallee extends CommonSimpleChart {
   }
   // 筛选查询
   searchFilterData(data) {
-    this.filterOption.call_filter = JSON.parse(JSON.stringify(data));
+    this.callOption.call_filter = JSON.parse(JSON.stringify(data));
     this.initData();
   }
   // 重置
   resetFilterData() {
     const data = (this.filterData || []).map(item => Object.assign(item, { method: 'eq', value: [] }));
     this.filterData[this.activeKey] = data;
-    this.filterOption.call_filter = data;
+    this.callOption.call_filter = data;
   }
   // 获取表格数据
   handleGetTableData() {}
@@ -229,11 +227,11 @@ export default class ApmServiceCallerCallee extends CommonSimpleChart {
 
   /** 点击选中图表里的某个点 */
   handleChoosePoint(date) {
-    if (this.filterOption.call_filter.findIndex(item => item.key === 'time') !== -1) {
-      this.filterOption.call_filter.find(item => item.key === 'time').value = [date];
+    if (this.callOption.call_filter.findIndex(item => item.key === 'time') !== -1) {
+      this.callOption.call_filter.find(item => item.key === 'time').value = [date];
       return;
     }
-    this.filterOption.call_filter.push({
+    this.callOption.call_filter.push({
       key: 'time',
       method: 'eq',
       value: [date],
@@ -252,7 +250,7 @@ export default class ApmServiceCallerCallee extends CommonSimpleChart {
 
   /** 初始化主被调的相关数据 */
   initDefaultData() {
-    const { caller, callee } = this.sceneDataOption;
+    const { caller, callee } = this.angleData;
     const createFilterData = tags =>
       (tags || []).map(item => ({
         key: item.value,
@@ -275,7 +273,7 @@ export default class ApmServiceCallerCallee extends CommonSimpleChart {
   }
   /** 单视角/多视角切换维度字段 */
   changeViewField(group_by: string[]) {
-    this.filterOption.table_group_by = group_by;
+    this.callOption.table_group_by = group_by;
   }
   mounted() {
     this.initDefaultData();
@@ -304,21 +302,21 @@ export default class ApmServiceCallerCallee extends CommonSimpleChart {
       }
       return item;
     });
-    const { where, metrics } = this.commonOptions.angle[this.activeKey];
+    const { where, metrics, server } = this.commonOptions.angle[this.activeKey];
     const interval = reviewInterval(this.viewOptions.interval, endTime - startTime, this.panel.collect_interval);
     const variablesService = new VariablesService({
       ...this.viewOptions,
       interval,
       ...metrics,
+      server,
     });
     const params = {
       start_time: startTime,
       end_time: endTime,
       field: key,
     };
-    const variablesData = Object.assign(this.variablesData, { where });
     const newParams = {
-      ...variablesService.transformVariables(variablesData, {
+      ...variablesService.transformVariables(this.variablesData, {
         ...this.viewOptions,
         interval,
       }),
@@ -396,7 +394,7 @@ export default class ApmServiceCallerCallee extends CommonSimpleChart {
                 onChoosePoint={this.handleChoosePoint}
               />
               <CallerCalleeTableChart
-                filterData={this.filterOption.call_filter}
+                filterData={this.callOption.call_filter}
                 searchList={this.filterTags[this.activeKey]}
                 tableColData={this.tableColData}
                 tableListData={this.tableListData}
