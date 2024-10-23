@@ -9,11 +9,12 @@
   const store = useStore();
   const route = useRoute();
 
-  const version = computed(() => store.state.retrieve.activeVersion);
+  const version = sessionStorage.getItem('retrieve_version') ?? 'v2';
+  // const version = computed(() => store.state.retrieve.activeVersion);
 
   const RetrieveComponent = computed(() => {
     if (route.name === 'retrieve') {
-      if (version.value === 'v1') {
+      if (version === 'v1') {
         return retrieve;
       }
 

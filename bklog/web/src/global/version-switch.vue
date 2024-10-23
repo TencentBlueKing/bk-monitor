@@ -1,6 +1,8 @@
 <script setup lang="ts">
   import useStore from '@/hooks/use-store';
   import useLocale from '@/hooks/use-locale';
+  // import useRoute from '@/hooks/use-route';
+  // import useRouter from '@/hooks/use-router';
   import { computed } from 'vue';
 
   const props = defineProps({
@@ -12,6 +14,10 @@
 
   const store = useStore();
   const { t } = useLocale();
+
+  // const route = useRoute();
+  // const router = useRouter();
+
   const textMap = {
     v2: t('回到旧版'),
     v1: t('切换新版'),
@@ -22,7 +28,11 @@
 
   const handleVersionChanged = () => {
     const nextVersion = props.version === 'v2' ? 'v1' : 'v2';
-    store.commit('retrieve/updateActiveVersion', nextVersion);
+    // store.commit('retrieve/updateActiveVersion', nextVersion);
+    // localStorage.setItem('retrieve_version', nextVersion);
+    sessionStorage.setItem('retrieve_version', nextVersion);
+    window.location.reload();
+    // router.retrieve
   };
 </script>
 <template>
