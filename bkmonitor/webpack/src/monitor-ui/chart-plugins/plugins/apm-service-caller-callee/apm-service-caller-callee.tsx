@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Provide, Watch } from 'vue-property-decorator';
-
+import { Component, Prop, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 // import dayjs from 'dayjs';
 import { getFieldOptionValues } from 'monitor-api/modules/apm_metric';
 import { Debounce } from 'monitor-common/utils';
@@ -33,7 +33,8 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 
 import { reviewInterval } from '../../utils';
 import { VariablesService } from '../../utils/variable';
-import { CommonSimpleChart } from '../common-simple-chart';
+
+import type { PanelModel } from '../../typings';
 // import { DEFAULT_FILTER } from './baseFIlterList';
 import CallerCalleeContrast from './components/caller-callee-contrast';
 import CallerCalleeFilter from './components/caller-callee-filter';
@@ -47,16 +48,21 @@ import { CALLER_CALLEE_TYPE } from './utils';
 import type { IFilterType } from './type';
 
 import './apm-service-caller-callee.scss';
-
+interface IApmServiceCallerCalleeProps {
+  panel: PanelModel;
+}
 @Component({
   name: 'ApmServiceCallerCallee',
   components: {},
 })
-export default class ApmServiceCallerCallee extends CommonSimpleChart {
-  @Prop({ type: Object }) sceneData;
+export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeProps> {
+  @Prop({ required: true, type: Object }) panel: PanelModel;
+
+  @ProvideReactive('callOptions') callOptions: Record<string, any> = {};
+
   // 顶层注入数据
   // filterOption 最终需要的filter数据
-  @Provide('filterOption') filterOption: IFilterType = {
+  @ProvideReactive('filterOption') filterOption: IFilterType = {
     call_filter: [],
     group_by_filter: [],
     time_shift: [],
@@ -103,6 +109,29 @@ export default class ApmServiceCallerCallee extends CommonSimpleChart {
   dateData = [];
   diffTypeData = [];
   tableColData = [];
+  // panel 传递过来的一些变量
+  get panelScopedVars() {
+    const angel = this.panel?.options?.common?.angle || {};
+    const options = this.activeKey === 'caller' ? angel.caller : angel.callee;
+    return {
+      server: options.server,
+      ...options?.metrics,
+    };
+  }
+  @Watch('panel', { immediate: true })
+  handlePanelChange() {
+    this.callOptions = {
+      // panel 传递过来的一些变量
+      ...this.panelScopedVars,
+      // group 字段
+      group_by: [],
+      method: 'topk',
+      limit: '',
+      metric_cal_type: '',
+      // 时间对比 字段
+      time_shift: [],
+    };
+  }
 
   @Watch('filterOption')
   handleRefreshData(val: IFilterType) {
@@ -112,19 +141,11 @@ export default class ApmServiceCallerCallee extends CommonSimpleChart {
   }
 
   get sceneDataOption() {
-    return this.sceneData.options || {};
+    return this.panel.options || {};
   }
 
   get extraPanels() {
-    return this.sceneData.extra_panels || [];
-  }
-
-  get appName() {
-    return this.viewOptions?.app_name || '';
-  }
-
-  get serviceName() {
-    return this.viewOptions?.service_name || '';
+    return this.panel.extra_panels || [];
   }
 
   get commonOptions() {

@@ -493,6 +493,7 @@ export class PanelModel implements IPanelModel {
   dimensions: string[];
   // 是否正在drag中
   draging = false;
+  extra_panels?: PanelModel[];
   // 图表位置
   gridPos!: IGridPos;
   // 组id
@@ -506,9 +507,9 @@ export class PanelModel implements IPanelModel {
   // 图表配置
   options?: PanelOption;
   panels?: PanelModel[];
+
   // 是否显示百分比
   percent?: boolean;
-
   realHeight = 0;
   // 是否显示
   show?: boolean = true;
@@ -519,7 +520,6 @@ export class PanelModel implements IPanelModel {
   title!: string;
   // 图表类型 如 line-chart bar-chart status-chart group
   type!: string;
-
   constructor(model: Partial<IPanelModel> & { panelIds?: (number | string)[] }) {
     this.id = model.id || random(10);
     // biome-ignore lint/complexity/noForEach: <explanation>
