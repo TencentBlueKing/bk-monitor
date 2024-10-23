@@ -189,11 +189,15 @@ export default ({
     return segmentNode;
   };
 
-  const setNodeValueWordSplit = () => {
+  const setNodeValueWordSplit = (path = '') => {
     Array.from(target.value?.querySelectorAll('.jsoneditor-value') ?? []).forEach(element => {
       if (!element.getAttribute('data-has-word-split')) {
         const text = (element as HTMLDivElement).innerText;
-        const fieldName = element.parentElement.closest('tr').querySelector('.jsoneditor-field')?.innerHTML;
+        let fieldName = element.parentElement.closest('tr').querySelector('.jsoneditor-field')?.innerHTML;
+
+        if (path.length) {
+          fieldName = path[0];
+        }
         const field = getField(fieldName);
         const vlaues = getSplitList(field, text);
         element?.setAttribute('data-has-word-split', '1');
@@ -211,7 +215,7 @@ export default ({
 
   const handleExpandNode = args => {
     if (args.isExpand) {
-      setNodeValueWordSplit();
+      setNodeValueWordSplit(args.path);
     }
   };
 
@@ -226,21 +230,6 @@ export default ({
     };
   });
 
-  // Function to format objects to JSON string if depth exceeds maxDepth
-  const formatNodes = (obj, currentDepth, maxDepth) => {
-    if (currentDepth >= maxDepth && typeof obj === 'object' && obj !== null) {
-      return JSON.stringify(obj);
-    }
-
-    if (typeof obj === 'object' && obj !== null) {
-      for (let key in obj) {
-        obj[key] = formatNodes(obj[key], currentDepth + 1, maxDepth);
-      }
-    }
-
-    return obj;
-  };
-
   onMounted(() => {
     if (target) {
       editor = new JSONEditor(target?.value, computedOptions.value);
@@ -248,9 +237,9 @@ export default ({
   });
 
   const setValue = (val, depth = 3) => {
+    console.log(depth);
     setTimeout(() => {
-      const targetValue = formatNodes(JSON.parse(JSON.stringify(val)), 0, depth);
-      editor.set(targetValue);
+      editor.set(val);
       // editor.expand({
       //   path: Object.keys(val ?? {}),
       //   isExpand: false,

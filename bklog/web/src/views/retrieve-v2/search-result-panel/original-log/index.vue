@@ -66,7 +66,7 @@
           ></bk-switcher>
         </div>
         <div style="display: flex; align-items: center; margin-left: 12px">
-          <span class="switch-label">{{ $t('JSON格式化') }}</span>
+          <span class="switch-label">{{ $t('JSON解析') }}</span>
           <bk-switcher
             v-model="isJsonFormat"
             theme="primary"
@@ -81,7 +81,7 @@
               type="number"
               v-model="jsonFormatDeep"
               :min="1"
-              :max="5"
+              :max="15"
               @change="handleJsonFormatDeepChange"
             ></bk-input>
           </span>
@@ -274,7 +274,7 @@
       },
       handleJsonFormatDeepChange(val) {
         const value = Number(val);
-        const target = value > 5 ? 5 : value < 1 ? 1 : value;
+        const target = value > 15 ? 15 : value < 1 ? 1 : value;
         this.$store.commit('updateTableJsonFormatDeep', target);
       },
     },

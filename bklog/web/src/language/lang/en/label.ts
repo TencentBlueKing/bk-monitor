@@ -706,5 +706,5 @@ export default {
   可见范围设置: 'Visible range settings',
   无: 'None',
   不分词: 'No word separation',
-  JSON格式化: 'JSON format',
+  JSON解析: 'JSON format',
 };
