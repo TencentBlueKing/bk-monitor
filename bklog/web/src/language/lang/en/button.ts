@@ -200,4 +200,7 @@ export default {
   新增告警组: 'Add New Alarm Group',
   配置导入: 'Configuration Import',
   管理配置: 'Management Configuration',
+  模板: 'Template',
+  补齐: 'Make up for',
+  新建模板: 'Create template',
 };
