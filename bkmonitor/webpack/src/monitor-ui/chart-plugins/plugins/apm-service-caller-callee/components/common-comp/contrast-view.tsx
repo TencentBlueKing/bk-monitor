@@ -48,8 +48,6 @@ export default class ContrastView extends tsc<IProps> {
   initDateTime = '';
   /* 是否显示时间选择器 */
   isShowPicker = false;
-  /* 是否显示添加按钮 */
-  showCustom = false;
   /* 日期选择器禁用配置 */
   pickerOptions = {
     disabledDate: this.setDisabledDate,
@@ -92,7 +90,6 @@ export default class ContrastView extends tsc<IProps> {
       }
       this.checkboxGroupValue = checkboxGroupValue;
       this.dateTime = dateTime;
-      this.showCustom = !!dateTime.length;
     }
   }
 
@@ -161,17 +158,6 @@ export default class ContrastView extends tsc<IProps> {
     this.handleChange();
   }
   /**
-   * @description 自定义日期显示
-   * @param v
-   */
-  handleShowCustomChange(v: boolean) {
-    this.showCustom = v;
-    if (!v) {
-      this.dateTime = [];
-      this.isShowPicker = false;
-    }
-  }
-  /**
    * @description 日期选择器展开
    * @param state
    */
@@ -202,12 +188,7 @@ export default class ContrastView extends tsc<IProps> {
           ))}
         </bk-checkbox-group>
         <div class='contrast-custom'>
-          <bk-checkbox
-            value={this.showCustom}
-            onChange={this.handleShowCustomChange}
-          >
-            {this.$t('自定义日期')}
-          </bk-checkbox>
+          <span class='custom-title'>{this.$t('自定义日期')}</span>
           {this.dateTime.map(
             item =>
               !!item && (
@@ -220,7 +201,7 @@ export default class ContrastView extends tsc<IProps> {
                 </bk-tag>
               )
           )}
-          {!this.isShowPicker && this.showCustom ? (
+          {!this.isShowPicker ? (
             <span
               class={['contrast-custom-add', { disabled: this.isDateAdd }]}
               v-bk-tooltips={{
