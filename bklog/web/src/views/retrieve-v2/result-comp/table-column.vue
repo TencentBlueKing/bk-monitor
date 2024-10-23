@@ -35,21 +35,34 @@
       :class="['field-container', 'add-to', { active: hasClickEvent }]"
       @click.stop="handleClickContent"
     >
-      <text-segmentation
-        :content="content"
-        :field="field"
-        :menu-click="handleMenuClick"
-      />
+      <template v-if="isJsonFormat">
+        <JsonFormatter
+          :jsonValue="jsonValue"
+          :fields="[field]"
+          :menu-click="handleMenuClick"
+          :filter="false"
+        ></JsonFormatter>
+      </template>
+      <template v-else>
+        <text-segmentation
+          :content="content"
+          :field="field"
+          :menu-click="handleMenuClick"
+        />
+      </template>
     </span>
   </div>
 </template>
 
 <script>
+  import { mapState } from 'vuex';
   import TextSegmentation from './text-segmentation';
+  import JsonFormatter from '@/global/json-formatter.vue';
 
   export default {
     components: {
       TextSegmentation,
+      JsonFormatter,
     },
     props: {
       content: {
@@ -71,8 +84,24 @@
       };
     },
     computed: {
-      tableLineIsWarp() {
-        return this.$store.state.tableLineIsWarp;
+      ...mapState({
+        formatJson: state => state.tableJsonFormat,
+        tableLineIsWarp: state => state.tableLineIsWarp,
+      }),
+
+      isJsonFormat() {
+        return this.formatJson && ['text', 'string'].includes(this.field.field_type) && /^\[|\{/.test(this.content);
+      },
+      jsonValue() {
+        if (this.isJsonFormat) {
+          try {
+            return JSON.parse(this.content);
+          } catch (e) {
+            return {};
+          }
+        }
+
+        return {};
       },
     },
     mounted() {

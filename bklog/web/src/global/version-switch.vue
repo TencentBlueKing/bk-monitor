@@ -1,4 +1,5 @@
 <script setup lang="ts">
+
   import useLocale from '@/hooks/use-locale';
   import { computed } from 'vue';
 
@@ -10,7 +11,6 @@
   });
 
   const { t } = useLocale();
-
   const textMap = {
     v2: t('回到旧版'),
     v1: t('切换新版'),
@@ -23,6 +23,7 @@
     const nextVersion = props.version === 'v2' ? 'v1' : 'v2';
     sessionStorage.setItem('retrieve_version', nextVersion);
     window.location.reload();
+
   };
 </script>
 <template>

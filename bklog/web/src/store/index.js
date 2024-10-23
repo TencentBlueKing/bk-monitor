@@ -163,6 +163,8 @@ const store = new Vuex.Store({
     retrieveDropdownData: {},
     notTextTypeFields: [],
     tableLineIsWarp: true,
+    tableJsonFormat: false,
+    tableJsonFormatDeep: 1,
     isSetDefaultTableColumn: false,
     tookTime: 0,
     searchTotal: 0,
@@ -269,6 +271,12 @@ const store = new Vuex.Store({
   },
   // 公共 mutations
   mutations: {
+    updateTableJsonFormatDeep(state, val) {
+      state.tableJsonFormatDeep = val;
+    },
+    updateTableJsonFormat(state, val) {
+      state.tableJsonFormat = val;
+    },
     updateApiError(state, { apiName, errorMessage }) {
       Vue.set(state.apiErrorInfo, apiName, errorMessage);
     },

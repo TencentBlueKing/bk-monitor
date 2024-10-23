@@ -65,6 +65,27 @@
             @change="handleChangeIsWarp"
           ></bk-switcher>
         </div>
+        <div style="display: flex; align-items: center; margin-left: 12px">
+          <span class="switch-label">{{ $t('JSON格式化') }}</span>
+          <bk-switcher
+            v-model="isJsonFormat"
+            theme="primary"
+            @change="handleJsonFormat"
+          ></bk-switcher>
+          <span
+            style="padding: 0 15px"
+            v-if="isJsonFormat"
+          >
+            <bk-input
+              style="width: 60px"
+              type="number"
+              v-model="jsonFormatDeep"
+              :min="1"
+              :max="5"
+              @change="handleJsonFormatDeepChange"
+            ></bk-input>
+          </span>
+        </div>
         <div class="operation-icons">
           <export-log
             :index-set-list="indexSetList"
@@ -156,6 +177,8 @@
         exportLoading: false,
         expandTextView: false,
         isInitActiveTab: false,
+        isJsonFormat: false,
+        jsonFormatDeep: 1,
       };
     },
     computed: {
@@ -245,6 +268,14 @@
       },
       handleChangeIsWarp(val) {
         this.$store.commit('updateTableLineIsWarp', val);
+      },
+      handleJsonFormat(val) {
+        this.$store.commit('updateTableJsonFormat', val);
+      },
+      handleJsonFormatDeepChange(val) {
+        const value = Number(val);
+        const target = value > 5 ? 5 : value < 1 ? 1 : value;
+        this.$store.commit('updateTableJsonFormatDeep', target);
       },
     },
   };
