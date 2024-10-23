@@ -60,11 +60,11 @@ export const CHART_TYPE = [
 export const TAB_TABLE_REQUEST_COLUMN = [
   {
     label: '数值',
-    prop: 'request',
+    prop: 'a',
   },
   {
     label: '占比',
-    prop: 'proportion',
+    prop: 'growth_rate_a',
   },
 ];
 export const TAB_TABLE_TIMEOUT_COLUMN = [

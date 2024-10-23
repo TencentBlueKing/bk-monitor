@@ -82,6 +82,6 @@ export type CallOptions = {
 } & Record<string, string>;
 
 export type IFilterData = {
-  caller: IFilterCondition[];
-  callee: IFilterCondition[];
+  caller: IColumn[];
+  callee: IColumn[];
 };

@@ -126,9 +126,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
 
   @Emit('showDetail')
   handleShowDetail(row, key) {
-    this.isShowDetail = true;
-    this.curRowData = row;
-    return { row, key };
+    if (row[key]) {
+      this.isShowDetail = true;
+      this.curRowData = row;
+      return { row, key };
+    }
   }
   handleFilterChange() {}
 
@@ -211,12 +213,10 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         scopedSlots={{
           default: ({ row, $index }) => (
             <span
-              class='multi-view-table-link'
+              class={['multi-view-table-link', { 'block-link': !row[item.prop] }]}
               v-bk-overflow-tips
             >
-              <span onClick={() => this.handleShowDetail(row, item.prop)}>
-                {row[item.prop] || `${item.prop}${$index}`}
-              </span>
+              <span onClick={() => this.handleShowDetail(row, item.prop)}>{row[item.prop] || '--'}</span>
               <i
                 class='icon-monitor icon-mc-copy tab-row-icon'
                 onClick={() => this.copyValue(row[item.prop])}
@@ -240,7 +240,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
               class='multi-view-table-txt'
               v-bk-overflow-tips
             >
-              <span onClick={() => this.handleShowDetail(row, item.prop)}>{row[item.prop] || `96${$index}`}</span>
+              <span onClick={() => this.handleShowDetail(row, item.prop)}>{row[item.prop]}</span>
               <i
                 class='icon-monitor icon-mc-line tab-row-icon'
                 onClick={() => this.handleDimension(row, 'request')}

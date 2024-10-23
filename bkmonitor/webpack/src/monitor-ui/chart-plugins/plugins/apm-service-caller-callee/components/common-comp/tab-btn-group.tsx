@@ -33,13 +33,13 @@ interface ITabItem {
   handle?: () => void;
 }
 interface ITabBtnGroupProps {
-  type: string;
-  height: number;
+  type?: string;
+  height?: number;
   list: ITabItem[];
   activeKey: string;
 }
 interface ITabBtnGroupEvent {
-  onChange: () => void;
+  onChange?: (val: string) => void;
 }
 
 import './tab-btn-group.scss';

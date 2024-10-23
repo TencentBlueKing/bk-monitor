@@ -17,7 +17,7 @@
   }
   .multi-view-right {
     min-width: 450px;
-    max-width: 40%;
+    max-width: 60%;
     .head-tab {
       width: 100%;
       height: 42px;
@@ -55,6 +55,9 @@
         font-size: 14px;
         margin-left: 6px;
       }
+    }
+    .block-link {
+      color: #313238;
     }
     .drill-down-btn {
       .icon-arrow-down {
