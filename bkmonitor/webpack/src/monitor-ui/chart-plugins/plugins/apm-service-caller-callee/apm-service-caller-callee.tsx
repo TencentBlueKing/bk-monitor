@@ -45,7 +45,6 @@ interface IApmServiceCallerCalleeProps {
 }
 @Component({
   name: 'ApmServiceCallerCallee',
-  components: {},
 })
 export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeProps> {
   @Prop({ required: true, type: Object }) panel: PanelModel;
