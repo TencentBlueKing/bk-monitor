@@ -126,6 +126,23 @@ export class CommonSimpleChart
   async getPanelData(start_time?: string, end_time?: string) {
     this.beforeGetPanelData(start_time, end_time);
   }
+  /* 粒度计算 */
+  downSampleRangeComputed(downSampleRange: string, timeRange: number[], api: string) {
+    if (downSampleRange === 'raw' || !['unifyQuery', 'graphUnifyQuery'].includes(api)) {
+      return undefined;
+    }
+    if (downSampleRange === 'auto') {
+      let width = 1;
+      if (this.$refs.chart) {
+        width = (this.$refs.chart as Element).clientWidth;
+      } else {
+        width = this.$el.clientWidth - (this.panel.options?.legend?.placement === 'right' ? 320 : 0);
+      }
+      const size = (timeRange[1] - timeRange[0]) / width;
+      return size > 0 ? `${Math.ceil(size)}s` : undefined;
+    }
+    return downSampleRange;
+  }
   render() {
     return <div />;
   }
