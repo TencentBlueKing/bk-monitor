@@ -202,6 +202,12 @@ export default ({ target }: TrandChartOption) => {
 
     updateChartData();
     updateChart();
+
+    const totalCount = optionData.values().reduce((count, item) => {
+      count = count + (item[0] ?? 0);
+      return count;
+    }, 0);
+    return totalCount;
   };
 
   const clearChartData = () => {

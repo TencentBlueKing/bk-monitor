@@ -258,10 +258,8 @@
 <script>
   import VueDraggable from 'vuedraggable';
   import { mapGetters } from 'vuex';
-  import { sessionShowFieldObj } from '@/common/util';
 
   import fieldsSettingOperate from './fields-setting-operate';
-  import { isEqual } from 'lodash';
 
   export default {
     components: {
@@ -385,13 +383,8 @@
             await this.submitFieldsSet(this.currentClickConfigID);
           }
           this.cancelModifyFields();
-          const showFieldObj = sessionShowFieldObj();
-          Object.assign(showFieldObj, { [this.indexId]: this.shadowVisible });
-          sessionStorage.setItem('showFieldSession', JSON.stringify(showFieldObj));
-          this.$store.commit('updateClearTableWidth', 1);
           this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
           await this.$store.dispatch('requestIndexSetFieldInfo');
-          this.$store.commit('resetVisibleFields', this.shadowVisible);
         } catch (error) {
           console.warn(error);
         } finally {
@@ -621,8 +614,6 @@
           this.newConfigStr = '';
           if (this.filedSettingConfigID === configID) {
             this.currentClickConfigID = this.configTabPanels[0].id;
-            // 若删除的元素id与使用当前使用的config_id相同则直接刷新显示字段
-            this.$store.commit('updateClearTableWidth', 1);
             this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
             const { display_fields } = this.configTabPanels[0];
             this.$store.commit('resetVisibleFields', display_fields);

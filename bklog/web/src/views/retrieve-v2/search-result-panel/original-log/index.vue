@@ -219,6 +219,14 @@
           {},
         );
       },
+      showFieldsConfigPopoverNum() {
+        return this.$store.state.showFieldsConfigPopoverNum;
+      },
+    },
+    watch: {
+      showFieldsConfigPopoverNum() {
+        this.handleAddNewConfig();
+      },
     },
     mounted() {
       const expandStr = localStorage.getItem('EXPAND_SEARCH_VIEW');

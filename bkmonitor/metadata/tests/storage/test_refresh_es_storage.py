@@ -14,6 +14,7 @@ from unittest import mock
 import pytest
 from dateutil import tz
 from elasticsearch import NotFoundError
+from tenacity import RetryError
 
 from metadata.models import ESStorage
 
@@ -25,13 +26,37 @@ def es_storage():
         table_id='2_bklog.test_rotation', need_create_index=True, slice_gap=1440, time_zone=0, date_format='%Y%m%d'
     )
 
-    mock_return_value = {
-        'index_version': 'v2',
-        'datetime_object': datetime(2024, 10, 16, 0, 0, tzinfo=tz.tzutc()),
-        'index': 0,
-        'size': 18498270403,
-    }
-    es_storage_ins.current_index_info = mock.Mock(return_value=mock_return_value)
+    # 计数器来控制 mock 返回值
+    call_count = 0
+
+    def mock_current_index_info():
+        nonlocal call_count
+        if call_count == 0:
+            # 第一次返回超前的 datetime 对象
+            call_count += 1
+            return {
+                'index_version': 'v2',
+                'datetime_object': datetime(2024, 10, 16, 0, 0, tzinfo=tz.tzutc()),
+                'index': 0,
+                'size': 18498270403,
+            }
+        else:
+            # 第二次返回不过期的 datetime 对象
+            return {
+                'index_version': 'v2',
+                'datetime_object': datetime(2024, 10, 15, 0, 0, tzinfo=tz.tzutc()),
+                'index': 0,
+                'size': 18498270403,
+            }
+
+    es_storage_ins.is_index_enable = mock.Mock(return_value=True)
+    es_storage_ins.current_index_info = mock.Mock(side_effect=mock_current_index_info)
+    es_storage_ins.slice_size = 10
+    es_storage_ins.retention = 30
+    es_storage_ins.warm_phase_days = 0
+
+    es_storage_ins.is_mapping_same = mock.Mock(return_value=True)
+
     # 使用 patch.object 来模拟 now 属性
     with mock.patch.object(ESStorage, 'now', new_callable=mock.PropertyMock) as mock_now:
         # 定义 now 属性返回的模拟值
@@ -44,6 +69,7 @@ def mock_es_client():
     client = mock.Mock()
     # Mock the return value of indices.stats to simulate a real response
     client.indices.stats.return_value = {"indices": {"ready_index": {"total": {"store": {"size_in_bytes": 123456}}}}}
+    client.indices.indices.delete.return_value = None
     return client
 
 
@@ -93,8 +119,8 @@ def test_create_or_update_aliases_index_not_ready(es_storage, mock_es_client):
     }
 
     es_storage.es_client = mock_es_client
-    is_index_ready = es_storage.is_index_ready(es_storage.es_client, EXPECTED_FUTURE_INDEX)
-    assert not is_index_ready
+    with pytest.raises(RetryError):
+        is_index_ready = es_storage.is_index_ready(EXPECTED_FUTURE_INDEX)  # noqa
 
     mock_es_client.indices.get_alias.return_value = {PAST_AVAILABLE_INDEX: {}}
 
@@ -110,3 +136,17 @@ def test_create_or_update_aliases_index_not_ready(es_storage, mock_es_client):
     assert first_call_args['actions'][0]['add']['index'] == PAST_AVAILABLE_INDEX
 
     assert mock_es_client.indices.update_aliases.call_count == 1
+
+
+@pytest.mark.django_db(databases=["default", "monitor_api"])
+def test_update_index_v2(es_storage, mock_es_client):
+    # 测试超前索引能否正常删除
+    mock_es_client.cluster.health.return_value = {
+        "indices": {
+            EXPECTED_FUTURE_INDEX: {"status": "green"},
+            PAST_AVAILABLE_INDEX: {"status": "green"},  # 设置索引状态为 green，表示就绪
+        }
+    }
+    es_storage.es_client = mock_es_client
+    es_storage.update_index_v2()
+    es_storage.es_client.indices.delete.assert_any_call(index=EXPECTED_FUTURE_INDEX)

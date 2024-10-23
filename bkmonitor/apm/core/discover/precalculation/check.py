@@ -10,7 +10,8 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import logging
-from collections import defaultdict
+import math
+import random
 from dataclasses import dataclass
 
 from django.conf import settings
@@ -43,8 +44,14 @@ class PreCalculateCheck:
     # APM 预计算在 BMW 中的名称
     APM_TASK_KIND = "daemon:apm:pre_calculate"
 
+    _INITIAL_TEMPERATURE = 1000
+    _COOLING_RATE = 0.95
+    _ITERATIONS = 1000
+
     @classmethod
-    def get_application_info_mapping(cls):
+    def get_application_info_mapping(
+        cls,
+    ):
         """
         获取未执行预计算任务的应用列表、正在运行预计算任务的应用列表
         """
@@ -53,8 +60,11 @@ class PreCalculateCheck:
         logger.info(f"[PreCalculateCheck] request_count time range: {start_time} - {end_time}")
 
         # Step1: 获取所有有效的应用
-        apps = ApmApplication.objects.filter(is_enabled=True, is_enabled_trace=True, is_enabled_metric=True)
-        logger.info(f"[PreCalculateCheck] valid apps: {len(apps)}({[f'{i.bk_biz_id}-{i.app_name}' for i in apps]})")
+        applications = ApmApplication.objects.all()
+        valid_apps = applications.filter(is_enabled=True, is_enabled_trace=True, is_enabled_metric=True)
+        logger.info(
+            f"[PreCalculateCheck] valid apps: {len(valid_apps)}({[f'{i.bk_biz_id}-{i.app_name}' for i in valid_apps]})",
+        )
 
         # Step2: 获取所有预计算任务
         daemon_tasks = [
@@ -73,7 +83,7 @@ class PreCalculateCheck:
         unopened_mapping = {}
         running_mapping = {}
 
-        for app in apps:
+        for app in valid_apps:
             trace_datasource = app.trace_datasource
             metric_datasource = app.metric_datasource
             if not trace_datasource or not metric_datasource:
@@ -99,46 +109,109 @@ class PreCalculateCheck:
                     f"[PreCalculateCheck] unopened app: {app.bk_biz_id}-{app.app_name} request_count: {request_count}"
                 )
 
-        return unopened_mapping, running_mapping
+        # Step4: 获取无效应用
+        invalid_task_uni_ids = cls._list_invalid_task_uni_ids(daemon_tasks, applications)
+
+        return unopened_mapping, running_mapping, invalid_task_uni_ids
 
     @classmethod
-    def calculate_distribution(cls, unopened_mapping, running_mapping):
-        """将未分派应用分派到合适的队列中"""
+    def _list_invalid_task_uni_ids(cls, bmw_tasks, applications):
+        """获取无效的任务 id 列表（应用被删除、dataId 为空）"""
+        res = []
+
+        data_id_app_mapping = {}
+        for i in applications:
+            if not i.trace_datasource:
+                continue
+            data_id = i.trace_datasource.bk_data_id
+            if data_id:
+                data_id_app_mapping[str(data_id)] = i
+
+        for task in bmw_tasks:
+            data_id = task["payload"].get("data_id")
+            if not data_id or data_id == "None":
+                logger.info(
+                    f"[PreCalculateCheck] task_id: {task['task_uni_id']} payload.data_id is empty, will be removed",
+                )
+                res.append(task["task_uni_id"])
+            else:
+                if data_id not in data_id_app_mapping:
+                    logger.info(
+                        f"[PreCalculateCheck] task_id: {task['task_uni_id']}"
+                        f" payload.data_id: {data_id} not in valid applications, will be removed"
+                    )
+                    res.append(task["task_uni_id"])
+
+        return list(set(res))
+
+    @classmethod
+    def _calculate_cost(cls, queue_info):
+        # 用请求量的标准差来反映此刻所有队列的均衡程度
+        loads = [info['data_count'] for info in queue_info.values()]
+        mean = sum(loads) / len(loads)
+        return math.sqrt(sum((x - mean) ** 2 for x in loads))
+
+    @classmethod
+    def calculate_distribution(cls, running_mapping, unopened_mapping):
+        """使用模拟退火策略，计算未分派应用到合适队列，避免产生总是分配到固定队列的问题"""
         all_queues = settings.APM_BMW_TASK_QUEUES
         if not all_queues:
             logger.info(f"[PreCalculateCheck] empty bmw task queues, return")
             return {}
 
+        if not unopened_mapping:
+            return {}
+
         logger.info(f"[PreCalculateCheck] total {len(all_queues)} queues({all_queues})")
 
-        sorted_apps = sorted(
-            [(app, info) for app, info in unopened_mapping.items()],
-            key=lambda i: i[-1].request_count,
-            reverse=True,
-        )
+        queue_info = {i: {"data_count": 0, "app_count": 0} for i in all_queues}
+        app_assignment = {}
 
-        queue_load_mapping = defaultdict(int)
-        for app, info in running_mapping.items():
-            queue_load_mapping[info.queue] += info.request_count
-        queue_loads = [(i, 0) for i in all_queues if i not in queue_load_mapping] + sorted(
-            [(queue, request_count) for queue, request_count in queue_load_mapping.items()], key=lambda i: i[-1]
-        )
+        # 先将已分配队列的应用添加到队列信息中
+        for app_id, info in running_mapping.items():
+            queue_info[info.queue]["data_count"] += info.request_count
+            queue_info[info.queue]["app_count"] += 1
+            app_assignment[app_id] = info.queue
 
-        distribution = defaultdict(list)
-        # 贪心 始终将最大量应用分派到负载最小队列
-        for item in sorted_apps:
-            min_value = float("inf")
-            queue_index = 0
-            for index, q in enumerate(queue_loads):
-                if q[-1] < min_value:
-                    min_value = q[-1]
-                    queue_index = index
+        # 为未分配队列的应用分配「随机初始解」
+        for app_id, info in unopened_mapping.items():
+            random_queue = random.choice(all_queues)
+            queue_info[random_queue]["data_count"] += info.request_count
+            queue_info[random_queue]["app_count"] += 1
+            app_assignment[app_id] = random_queue
 
-            distribution[queue_loads[queue_index][0]].append(item[0])
-            load = queue_loads[queue_index]
-            queue_loads[queue_index] = (load[0], load[-1] + item[-1].request_count)
+        current_cost = cls._calculate_cost(queue_info)
+        temperature = cls._INITIAL_TEMPERATURE
+        unopened_ids = list(unopened_mapping.keys())
+        for _ in range(cls._ITERATIONS):
+            # 每次循环随机选择一个应用和一个新队列进行移动
+            app_to_move = random.choice(unopened_ids)
+            new_queue = random.choice(all_queues)
+            # 之前分配的旧队列
+            old_queue = app_assignment[app_to_move]
+            if old_queue != new_queue:
+                queue_info[old_queue]["data_count"] -= unopened_mapping[app_to_move].request_count
+                queue_info[old_queue]["app_count"] -= 1
+                queue_info[new_queue]["data_count"] += unopened_mapping[app_to_move].request_count
+                queue_info[new_queue]["app_count"] += 1
 
-        return distribution
+                app_assignment[app_to_move] = new_queue
+                new_cost = cls._calculate_cost(queue_info)
+                if new_cost < current_cost or random.uniform(0, 1) < math.exp((current_cost - new_cost) / temperature):
+                    # 新队列整体有更低负载 或者 命中概率 则完成移动
+                    current_cost = new_cost
+                else:
+                    # 不移动 保持之前的随机结果
+                    queue_info[old_queue]['data_count'] += unopened_mapping[app_to_move].request_count
+                    queue_info[old_queue]['app_count'] += 1
+                    queue_info[new_queue]['data_count'] -= unopened_mapping[app_to_move].request_count
+                    queue_info[new_queue]['app_count'] -= 1
+                    app_assignment[app_to_move] = old_queue
+
+            temperature *= cls._COOLING_RATE
+
+        # 过滤出未分派的应用返回
+        return {k: v for k, v in app_assignment.items() if k not in running_mapping}
 
     @classmethod
     def distribute(cls, distribute_mapping):
@@ -150,3 +223,10 @@ class PreCalculateCheck:
                 DaemonTaskHandler.execute(app_id, queue)
 
         logger.info(f"[PreCalculateCheck] distribute finished")
+
+    @classmethod
+    def batch_remove(cls, task_uni_ids):
+        logger.info(f"[PreCalculateCheck] remove tasks: \n{json.dumps(task_uni_ids)}")
+        for i in task_uni_ids:
+            DaemonTaskHandler.remove(i)
+        logger.info(f"[PreCalculateCheck] remove finished")

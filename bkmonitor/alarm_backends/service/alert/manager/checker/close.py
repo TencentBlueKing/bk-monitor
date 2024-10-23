@@ -312,6 +312,7 @@ class CloseStatusChecker(BaseChecker):
                 self.close(alert, _("CMDB 未查询到告警目标主机 ({}|{}) 的信息，主机可能已被删除，告警关闭").format(ip, bk_cloud_id))
                 return True
 
+            target_dimensions["bk_host_id"] = host.bk_host_id
             topo_link = list(host.topo_link.values())
 
         elif alert.top_event["target_type"] == EventTargetType.SERVICE:

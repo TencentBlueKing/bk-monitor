@@ -198,4 +198,6 @@ export default {
   单独授权: 'Separate authorization',
   批量授权: 'Batch authorization',
   新增告警组: 'Add New Alarm Group',
+  配置导入: 'Configuration Import',
+  管理配置: 'Management Configuration',
 };

@@ -1101,7 +1101,7 @@ DB_KEYS_EXPIRING = Gauge(
     labelnames=("node", "role", "db", "host", "port", "cluster_name"),
 )
 
-API_FAILED_REQUESTS_TOTAL = Gauge(
+API_FAILED_REQUESTS_TOTAL = Counter(
     name="bkmonitor_api_failed_requests_total",
     documentation="API调用失败计数",
     labelnames=("action", "module", "code", "role", "exception", "user_name"),
