@@ -1074,18 +1074,18 @@ class InstanceListResource(Resource):
         service_name = serializers.CharField(label="服务名称", required=False, allow_blank=True)
         keyword = serializers.CharField(label="关键字", required=False, allow_blank=True)
         category = serializers.CharField(label="分类", required=False)
+        start_time = serializers.IntegerField(label="开始时间")
+        end_time = serializers.IntegerField(label="结束时间")
 
     def perform_request(self, validated_data):
-        # 获取存储周期
-        app = Application.objects.get(bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"])
-        start_time, end_time = get_datetime_range(period="day", distance=app.es_retention, rounding=False)
 
         instances = RelationMetricHandler.list_instances(
             validated_data["bk_biz_id"],
             validated_data["app_name"],
-            int(start_time.timestamp()),
-            int(end_time.timestamp()),
+            validated_data["start_time"],
+            validated_data["end_time"],
             service_name=validated_data.get("service_name"),
+            filter_component=True,
         )
         return self.convert_to_response(validated_data["app_name"], validated_data.get("keyword"), instances)
 
