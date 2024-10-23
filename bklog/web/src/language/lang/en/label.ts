@@ -706,4 +706,7 @@ export default {
   可见范围设置: 'Visible range settings',
   无: 'None',
   不分词: 'No word separation',
+  秒: 'Second',
+  '已耗时{0}秒': '{0} seconds have passed',
+  '正在下发...': 'Issuing...',
 };
