@@ -24,15 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Emit } from 'vue-property-decorator';
+import { Component, Prop, Emit, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-// import { CommonSimpleChart } from '../../common-simple-chart';
 import { PERSPECTIVE_TYPE, SYMBOL_LIST } from '../utils';
 import TabBtnGroup from './common-comp/tab-btn-group';
 import MultiViewTable from './multi-view-table';
 
-import type { IServiceConfig, IColumn, IDataItem } from '../type';
+import type { IServiceConfig, IColumn, IDataItem, CallOptions } from '../type';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './caller-callee-table-chart.scss';
 interface ICallerCalleeTableChartProps {
@@ -55,6 +56,11 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
   @Prop({ required: true, type: Array }) tableColData: IColumn[];
   @Prop({ required: true, type: Array }) tableListData: IDataItem[];
   @Prop({ required: true, type: Array }) tableTabData: IDataItem[];
+
+  @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
+  @InjectReactive('callOptions') readonly callOptions!: CallOptions;
+
   tabList = PERSPECTIVE_TYPE;
   activeKey = 'single';
   chooseList = [];

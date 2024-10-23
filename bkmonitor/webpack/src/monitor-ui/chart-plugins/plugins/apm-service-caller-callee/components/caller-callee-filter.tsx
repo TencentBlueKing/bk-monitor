@@ -51,7 +51,6 @@ interface ICallerCalleeFilterProps {
 }
 interface ICallerCalleeFilterEvent {
   onReset?: () => void;
-  onChange?: () => void;
   onSearch?: () => void;
 }
 @Component({
@@ -84,7 +83,6 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
     this.filterData[this.activeKey] = data;
     return this.filterData[this.activeKey];
   }
-  @Emit('change')
   changeSelect(val, item) {
     return { val, item };
   }

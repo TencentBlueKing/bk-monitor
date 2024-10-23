@@ -59,7 +59,7 @@ export default class TabBtnGroup extends tsc<ITabBtnGroupProps, ITabBtnGroupEven
     tab: 'group-tab',
   };
   get lineHeight() {
-    return this.type === 'block' ? this.height - 2 : this.height;
+    return this.type === 'block' ? this.height - 4 : this.height;
   }
   get tabWidth() {
     return `${Number((100 / this.list.length).toFixed(2))}%`;

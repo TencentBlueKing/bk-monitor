@@ -196,10 +196,6 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     this.contrastDates = val;
   }
 
-  changeFilterData({ val, item }) {
-    console.log(val, item);
-  }
-
   changeDate(date) {
     this.dateData = date;
     this.handleTableColData();
@@ -298,7 +294,6 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
               <CallerCalleeFilter
                 activeKey={this.activeKey}
                 panel={this.panel}
-                onChange={this.changeFilterData}
                 onReset={this.resetFilterData}
                 onSearch={this.searchFilterData}
               />
