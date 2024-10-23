@@ -73,30 +73,21 @@
         <bk-table-column :class-name="`original-str${tableLineIsWarp ? ' is-wrap' : ''}`">
           <!-- eslint-disable-next-line -->
           <template slot-scope="{ row, column, $index }">
-            <div :class="['str-content', 'origin-str', { 'is-limit': getLimitState($index) }]">
-              <!-- eslint-disable-next-line vue/no-v-html -->
-              <!-- <span>{{ JSON.stringify(row) }}</span> -->
-              <original-light-height
-                :operator-config="operatorConfig"
-                :origin-json="row"
-                :visible-fields="getShowTableVisibleFields"
-                @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
-              />
-              <template v-if="!isLimitExpandView">
-                <p
-                  v-if="!cacheExpandStr.includes($index)"
-                  class="show-whole-btn"
-                  @click.stop="handleShowWhole($index)"
-                >
-                  {{ $t('展开全部') }}
-                </p>
-                <p
-                  v-else
-                  class="hide-whole-btn"
-                  @click.stop="handleHideWhole($index)"
-                >
-                  {{ $t('收起') }}
-                </p>
+            <div :class="['str-content', 'origin-str']">
+              <template v-if="formatJson">
+                <JsonFormatter
+                  :jsonValue="row"
+                  :fields="getShowTableVisibleFields"
+                  @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
+                ></JsonFormatter>
+              </template>
+              <template v-else>
+                <original-light-height
+                  :operator-config="operatorConfig"
+                  :origin-json="row"
+                  :visible-fields="getShowTableVisibleFields"
+                  @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
+                />
               </template>
             </div>
           </template>
@@ -162,12 +153,18 @@
 
 <script>
   import resultTableMixin from '../../mixins/result-table-mixin';
+  import JsonFormatter from '../../../../global/json-formatter.vue';
+  import { mapState } from 'vuex';
 
   export default {
     name: 'OriginalList',
     mixins: [resultTableMixin],
+    components: { JsonFormatter },
     inheritAttrs: false,
     computed: {
+      ...mapState({
+        formatJson: state => state.tableJsonFormat,
+      }),
       scrollContent() {
         return document.querySelector('.result-scroll-container');
       },
@@ -178,3 +175,38 @@
     },
   };
 </script>
+<style lang="scss">
+td {
+  &.original-str {
+    .cell {
+      display: flex;
+      text-overflow: unset;
+
+        .str-content {
+          &.origin-str {
+            width: 100%;
+
+            .origin-content {
+              word-break: break-all;
+              white-space: pre-line;
+            }
+          }
+        }
+      }
+    }
+
+    &.is-wrap {
+      .cell {
+        .str-content {
+          &.origin-str {
+            .origin-content {
+              display: flex;
+              flex-direction: column;
+              flex-wrap: wrap;
+            }
+          }
+        }
+      }
+    }
+}
+</style>
