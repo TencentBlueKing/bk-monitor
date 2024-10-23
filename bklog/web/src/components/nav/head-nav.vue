@@ -65,7 +65,6 @@
       class="nav-right fr"
       v-show="usernameRequested"
     >
-
       <!-- 全局设置 -->
       <bk-dropdown-menu
         v-if="isShowGlobalSetIcon"
@@ -95,14 +94,6 @@
                 @click="handleClickGlobalDialog(item.id)"
               >
                 {{ item.name }}
-              </a>
-            </li>
-            <li class="language-btn" key="key_version">
-              <a
-                href="javascript:;"
-                @click="handleVersionChanged(version)"
-              >
-              Version: {{ version }}
               </a>
             </li>
           </ul>
@@ -314,7 +305,7 @@
         isExternal: state => state.isExternal,
         isShowGlobalDialog: state => state.isShowGlobalDialog,
         globalSettingList: state => state.globalSettingList,
-        version: state => state.retrieve.activeVersion
+        version: state => state.retrieve.activeVersion,
       }),
       ...mapGetters('globals', ['globalsData']),
       platformData() {
@@ -371,10 +362,6 @@
       window.bus.$off('showGlobalDialog', this.handleGoToMyReport);
     },
     methods: {
-      handleVersionChanged(v) {
-        const nextVersion = v === 'v2' ? 'v1' : 'v2';
-        this.$store.commit('retrieve/updateActiveVersion', nextVersion);
-      },
       async getUserInfo() {
         try {
           const res = await this.$http.request('userInfo/getUsername');
@@ -862,19 +849,12 @@
             display: flex;
             align-items: center;
           }
-          .icon-language {
-            font-size: 18px;
-          }
         }
 
         .active {
           color: #3c96ff;
         }
       }
-    }
-
-    .icon-language {
-      font-size: 20px;
     }
 
     .icon-chinese::before {
