@@ -83,13 +83,13 @@
 
   export default {
     props: {
-      templateRule: {
-        type: String | Number,
-        require: true,
-      },
       configItem: {
         type: Object,
         require: true,
+      },
+      templateList: {
+        type: Array,
+        default: () => [],
       },
     },
     data() {
@@ -108,10 +108,10 @@
     computed: {
       isShowEditIcon() {
         // 是否展示编辑或删除icon
-        return this.isHoverItem && this.configItem.index !== 0;
+        return this.isHoverItem;
       },
       isShowDeleteIcon() {
-        return this.configItem.id !== this.templateRule;
+        return this.templateList.length !== 1;
       },
     },
     watch: {

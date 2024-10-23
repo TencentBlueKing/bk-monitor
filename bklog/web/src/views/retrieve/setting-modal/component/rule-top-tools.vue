@@ -65,7 +65,7 @@
           >
             <TemplateOption
               :config-item="option"
-              :template-rule="templateRule"
+              :template-list="templateList"
               @operate-change="operateChange"
             />
           </bk-option>
@@ -80,14 +80,6 @@
         </bk-select>
       </div>
       <div class="table-operate">
-        <bk-button
-          class="add-box btn-hover"
-          size="small"
-          @click="isShowAddRule = true"
-        >
-          <i class="bk-icon icon-plus push"></i>
-          {{ $t('添加') }}
-        </bk-button>
         <bk-dropdown-menu>
           <template slot="dropdown-trigger">
             <bk-button
@@ -692,7 +684,7 @@
             if (res.data.length) {
               const indexSetList = [];
               for (const item of res.data) {
-                if (item.permission?.[authorityMap.SEARCH_LOG_AUTH] && item.tags.map(item => item.tag_id).includes(9)) {
+                if (item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
                   indexSetList.push({
                     name: item.index_set_name,
                     id: item.index_set_id,
@@ -714,7 +706,6 @@
         this.indexSetData.export_type = 'replace';
       },
       operateChange(type, configItem) {
-        console.log(type, configItem);
         switch (type) {
           case 'delete':
             this.handleDeleteTemplate(configItem);

@@ -242,6 +242,7 @@
         isHandle: false, // 保存loading
         isCloseSelect: false, // 过滤规则下拉框隐藏
         defaultData: {},
+        defaultVaribles: '',
         rules: {
           clustering_fields: [
             {
@@ -301,6 +302,7 @@
             ...item,
             value: [item.value],
           }));
+          this.defaultVaribles = predefined_varibles;
           const assignObj = {
             max_dist_list,
             predefined_varibles,
@@ -370,7 +372,7 @@
         }
       },
       getIsChangeRule() {
-        return this.$refs.ruleTableRef.ruleArrToBase64() !== this.defaultData.predefined_varibles;
+        return this.$refs.ruleTableRef.ruleArrToBase64() !== this.defaultVaribles;
       },
       async handleSubmit() {
         const isRulePass = await this.$refs.filterRuleRef.handleCheckRuleValidate();
@@ -378,7 +380,7 @@
         this.$refs.validateForm.validate().then(
           () => {
             const newPredefinedVaribles = this.$refs.ruleTableRef.ruleArrToBase64();
-            if (newPredefinedVaribles !== this.defaultData.predefined_varibles) {
+            if (newPredefinedVaribles !== this.defaultVaribles) {
               this.$refs.ruleTableRef.isClickAlertIcon = true;
               this.$refs.ruleTableRef.isChangeRule = true;
               this.$refs.ruleTableRef.effectOriginal = '';
