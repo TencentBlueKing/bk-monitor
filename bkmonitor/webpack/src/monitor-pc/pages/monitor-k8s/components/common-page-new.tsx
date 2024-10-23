@@ -477,8 +477,15 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     );
   }
   /* 当前单图模式下dashboard-panel是否需要padding */
+  /* 当前单图模式下dashboard-panel是否需要padding */
   get isSingleChartNoPadding() {
-    return this.isSingleChart && this.localPanels?.[0]?.type === 'apm-relation-graph';
+    const noPaddingTypeList = ['apm-relation-graph', 'apm-service-caller-callee'];
+    return this.isSingleChart && noPaddingTypeList.includes(this.localPanels?.[0]?.type);
+    // return (
+    //   this.isSingleChart &&
+    //   (this.localPanels?.[0]?.type ===  ||
+    //     this.localPanels?.[0]?.type === 'apm-service-caller-callee')
+    // );
   }
   /** 是否含overviewPanels */
   get hasOverviewPanels() {

@@ -24,18 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-// import dayjs from 'dayjs';
-import { getFieldOptionValues } from 'monitor-api/modules/apm_metric';
+
 import { Debounce } from 'monitor-common/utils';
-import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
-import { reviewInterval } from '../../utils';
-import { VariablesService } from '../../utils/variable';
-
-import type { PanelModel } from '../../typings';
-// import { DEFAULT_FILTER } from './baseFIlterList';
 import CallerCalleeContrast from './components/caller-callee-contrast';
 import CallerCalleeFilter from './components/caller-callee-filter';
 import CallerCalleeTableChart from './components/caller-callee-table-chart';
@@ -45,6 +38,7 @@ import { SEARCH_KEY_LIST } from './SEARCH_KEY_LIST';
 import { dashboardPanels } from './testData';
 import { CALLER_CALLEE_TYPE } from './utils';
 
+import type { PanelModel } from '../../typings';
 import type { CallOptions, IFilterType } from './type';
 
 import './apm-service-caller-callee.scss';
@@ -59,15 +53,6 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   @Prop({ required: true, type: Object }) panel: PanelModel;
 
   @ProvideReactive('callOptions') callOptions: CallOptions;
-
-  // 顶层注入数据
-  // filterOption 最终需要的filter数据
-  @ProvideReactive('filterOption') filterOption: IFilterType = {
-    call_filter: [],
-    group_by_filter: [],
-    time_shift: [],
-    table_group_by: [],
-  };
   /** 过滤列表loading */
   filterLoading = false;
   variablesService = {};
@@ -77,10 +62,6 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   contrastDates = [];
   /* 已选的groupBy */
   groupBy = [];
-  filterData = {
-    caller: [],
-    callee: [],
-  };
   /** 初始化filter的列表 */
   filterTags = {
     caller: [],
@@ -135,7 +116,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     };
   }
 
-  @Watch('filterOption')
+  @Watch('callOption')
   handleRefreshData(val: IFilterType) {
     if (val) {
       this.initData();
@@ -154,16 +135,8 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     return this.sceneDataOption?.common || {};
   }
 
-  get variablesData() {
-    return this.commonOptions?.variables?.data || {};
-  }
-
-  get statisticsOption() {
-    return this.commonOptions?.statistics;
-  }
-
-  get supportedCalculationTypes() {
-    return this.sceneDataOption.supported_calculation_types || [];
+  get angleData() {
+    return this.commonOptions?.angle || {};
   }
 
   // 左侧主被调切换
@@ -186,14 +159,12 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   }
   // 筛选查询
   searchFilterData(data) {
-    this.filterOption.call_filter = JSON.parse(JSON.stringify(data));
+    this.callOptions.call_filter = JSON.parse(JSON.stringify(data));
     this.initData();
   }
   // 重置
   resetFilterData() {
-    const data = (this.filterData || []).map(item => Object.assign(item, { method: 'eq', value: [] }));
-    this.filterData[this.activeKey] = data;
-    this.filterOption.call_filter = data;
+    this.callOptions.call_filter = [];
   }
   // 获取表格数据
   handleGetTableData() {}
@@ -208,13 +179,13 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   // 关闭表格中的筛选tag, 调用查询接口
   handleCloseTag(data) {
     if (data.key !== 'time') {
-      this.filterData[this.activeKey].find(item => item.key === data.key).value = [];
+      this.callOptions.call_filter.find(item => item.key === data.key).value = [];
     }
-    this.searchFilterData(this.filterData[this.activeKey]);
+    this.searchFilterData(this.callOptions.call_filter);
   }
   // 查看详情 - 选中的字段回填到左侧筛选栏
   handleDetail({ row, key }) {
-    this.filterData[this.activeKey].find(item => item.label === key).values = [row[key]];
+    this.callOptions.call_filter.find(item => item.key === key).value = [row[key]];
   }
 
   /**
@@ -223,10 +194,6 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
    */
   handleContrastDatesChange(val: string[]) {
     this.contrastDates = val;
-  }
-
-  changeFilterData({ val, item }) {
-    console.log(val, item);
   }
 
   changeDate(date) {
@@ -252,11 +219,11 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
 
   /** 点击选中图表里的某个点 */
   handleChoosePoint(date) {
-    if (this.filterOption.call_filter.findIndex(item => item.key === 'time') !== -1) {
-      this.filterOption.call_filter.find(item => item.key === 'time').value = [date];
+    if (this.callOptions.call_filter.findIndex(item => item.key === 'time') !== -1) {
+      this.callOptions.call_filter.find(item => item.key === 'time').value = [date];
       return;
     }
-    this.filterOption.call_filter.push({
+    this.callOptions.call_filter.push({
       key: 'time',
       method: 'eq',
       value: [date],
@@ -270,94 +237,18 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
    */
   @Debounce(200)
   async getPanelData(start_time?: string, end_time?: string) {}
-  /** 获取左侧列表可选值 */
-  initFilterValList() {}
 
   /** 初始化主被调的相关数据 */
   initDefaultData() {
-    const { caller, callee } = this.sceneDataOption;
-    const createFilterData = tags =>
-      (tags || []).map(item => ({
-        key: item.value,
-        method: 'eq',
-        value: [],
-        condition: 'and',
-      }));
-    const createFilterTags = tags => (tags || []).map(item => ({ ...item, values: [] }));
-
-    // 使用通用函数生成数据
-    this.filterData = {
-      caller: createFilterData(caller?.tags),
-      callee: createFilterData(callee?.tags),
-    };
-
+    const { caller, callee } = this.angleData;
     this.filterTags = {
-      caller: createFilterTags(caller?.tags),
-      callee: createFilterTags(callee?.tags),
+      caller: caller?.tags,
+      callee: callee?.tags,
     };
   }
-  /** 单视角/多视角切换维度字段 */
-  changeViewField(group_by: string[]) {
-    this.filterOption.table_group_by = group_by;
-  }
+
   mounted() {
     this.initDefaultData();
-  }
-  /** 动态获取左侧列表的下拉值 */
-  @Debounce(300)
-  searchToggle({ isOpen, key }) {
-    if (!isOpen) {
-      return;
-    }
-    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-    const filter = (this.filterData[this.activeKey] || []).filter(item => item.value.length > 0);
-    /** 前端处理数据：
-     * 前匹配：调用后台、跳转数据检索时补成 example.*
-     * 后匹配：调用后台、跳转数据检索时补成 .*example
-     * */
-    const updatedFilter = filter.map(item => {
-      if (item.method === 'before_req' || item.method === 'after_req') {
-        const prefix = item.method === 'before_req' ? '' : '.*';
-        const suffix = item.method === 'before_req' ? '.*' : '';
-        return {
-          ...item,
-          value: item.value.map(value => `${prefix}${value}${suffix}`),
-          method: 'reg',
-        };
-      }
-      return item;
-    });
-    const { where, metrics } = this.commonOptions.angle[this.activeKey];
-    const interval = reviewInterval(this.viewOptions.interval, endTime - startTime, this.panel.collect_interval);
-    const variablesService = new VariablesService({
-      ...this.viewOptions,
-      interval,
-      ...metrics,
-    });
-    const params = {
-      start_time: startTime,
-      end_time: endTime,
-      field: key,
-    };
-    const variablesData = Object.assign(this.variablesData, { where });
-    const newParams = {
-      ...variablesService.transformVariables(variablesData, {
-        ...this.viewOptions,
-        interval,
-      }),
-      ...params,
-    };
-    newParams.where = [...newParams.where, ...updatedFilter];
-    this.filterLoading = true;
-    getFieldOptionValues(newParams)
-      .then(res => {
-        this.filterLoading = false;
-        const newFilter = this.filterTags[this.activeKey].map(item =>
-          item.value === key ? { ...item, values: res } : item
-        );
-        this.$set(this.filterTags, this.activeKey, newFilter);
-      })
-      .catch(() => (this.filterLoading = true));
   }
 
   render() {
@@ -401,13 +292,10 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
               slot='aside'
             >
               <CallerCalleeFilter
-                filterData={this.filterData[this.activeKey]}
-                isLoading={this.filterLoading}
-                searchList={this.filterTags[this.activeKey]}
-                onChange={this.changeFilterData}
+                activeKey={this.activeKey}
+                panel={this.panel}
                 onReset={this.resetFilterData}
                 onSearch={this.searchFilterData}
-                onToggle={this.searchToggle}
               />
             </div>
             <div
@@ -419,12 +307,11 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
                 onChoosePoint={this.handleChoosePoint}
               />
               <CallerCalleeTableChart
-                filterData={this.filterOption.call_filter}
+                filterData={this.callOptions.call_filter}
                 searchList={this.filterTags[this.activeKey]}
                 tableColData={this.tableColData}
                 tableListData={this.tableListData}
                 tableTabData={this.tableTabData}
-                onChange={this.changeViewField}
                 onCloseTag={this.handleCloseTag}
                 onHandleDetail={this.handleDetail}
               />

@@ -52,7 +52,6 @@ export interface IFilterType {
   call_filter: IFilterCondition[];
   group_by_filter: IDataItem[];
   time_shift: IDataItem[];
-  table_group_by: string[];
 }
 /* 头部对比/group by 切换 */
 export enum EParamsMode {
@@ -76,3 +75,8 @@ export type CallOptions = {
   // 左侧查询条件字段
   call_filter: IFilterCondition[];
 } & Record<string, string>;
+
+export type IFilterData = {
+  caller: IFilterCondition[];
+  callee: IFilterCondition[];
+};
