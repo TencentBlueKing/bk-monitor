@@ -1,4 +1,4 @@
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -36,6 +36,7 @@ import BaseEchart from '../monitor-base-echart';
 import mockData from './test';
 
 import type { PanelModel } from '../../../chart-plugins/typings';
+import type { CallOptions } from '../apm-service-caller-callee/type';
 
 import './apm-heatmap.scss';
 interface IApmHeatmapProps {
@@ -43,13 +44,21 @@ interface IApmHeatmapProps {
 }
 @Component
 class ApmHeatmap extends CommonSimpleChart {
-  @Prop() a: number;
   metrics = [];
   inited = false;
   options = {};
   empty = true;
   emptyText = window.i18n.tc('暂无数据');
   cancelTokens = [];
+
+  @InjectReactive('callOptions') readonly callOptions: CallOptions;
+
+  @Watch('callOptions', { immediate: true })
+  onCallOptionsChange() {
+    console.info(this.callOptions, '========');
+    this.getPanelData();
+  }
+
   async getPanelData() {
     if (!(await this.beforeGetPanelData())) {
       return;

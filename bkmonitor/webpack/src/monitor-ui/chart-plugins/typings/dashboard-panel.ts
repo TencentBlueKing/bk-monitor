@@ -526,6 +526,8 @@ export class PanelModel implements IPanelModel {
     Object.keys(model).forEach(key => {
       if (key === 'targets') {
         this.targets = model[key].map(item => new DataQuery(item));
+      } else if (key === 'extra_panels') {
+        this.extra_panels = model[key]?.map(item => new PanelModel(item)) || [];
       } else {
         this[key] = model[key];
       }
