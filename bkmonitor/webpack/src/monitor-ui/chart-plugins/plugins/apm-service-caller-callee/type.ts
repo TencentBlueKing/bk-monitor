@@ -44,7 +44,7 @@ export interface IDataItem {
 export interface IFilterCondition {
   key: string;
   method: string;
-  value: IDataItem[];
+  value: string[];
   condition: string;
 }
 
@@ -64,3 +64,15 @@ export enum EPreDateType {
   lastWeek = 'week',
   yesterday = 'yesterday',
 }
+
+export type CallOptions = {
+  server: string;
+  group_by: string[];
+  method: string;
+  limit: number;
+  metric_cal_type: string;
+  // 时间对比 字段
+  time_shift: string[];
+  // 左侧查询条件字段
+  call_filter: IFilterCondition[];
+} & Record<string, string>;
