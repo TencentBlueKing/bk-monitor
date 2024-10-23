@@ -164,7 +164,7 @@ const store = new Vuex.Store({
     notTextTypeFields: [],
     tableLineIsWarp: true,
     tableJsonFormat: false,
-    tableJsonFormatDeep: 1,
+    tableJsonFormatDepth: 1,
     isSetDefaultTableColumn: false,
     tookTime: 0,
     searchTotal: 0,
@@ -281,8 +281,8 @@ const store = new Vuex.Store({
   },
   // 公共 mutations
   mutations: {
-    updateTableJsonFormatDeep(state, val) {
-      state.tableJsonFormatDeep = val;
+    updatetableJsonFormatDepth(state, val) {
+      state.tableJsonFormatDepth = val;
     },
     updateTableJsonFormat(state, val) {
       state.tableJsonFormat = val;

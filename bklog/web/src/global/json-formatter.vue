@@ -26,8 +26,8 @@
     },
     filter: {
       type: Boolean,
-      default: true
-    }
+      default: true,
+    },
   });
 
   const refJsonEditor = ref<HTMLElement | null>();
@@ -37,7 +37,7 @@
   const onSegmentClick = args => {
     emit('menu-click', args);
   };
-  const { setValue } = useJsonFormatter({
+  const { setValue, setExpand } = useJsonFormatter({
     target: refJsonEditor,
     fields: props.fields,
     jsonValue: props.jsonValue,
@@ -58,7 +58,7 @@
 
   const formatValue = computed(() => {
     const stringValue = Object.keys(props.jsonValue)
-      .filter(name => props.filter ? props.fields.some((f: any) => f.field_name === name) : true)
+      .filter(name => (props.filter ? props.fields.some((f: any) => f.field_name === name) : true))
       .reduce((r, k) => Object.assign(r, { [k]: convertToObject(props.jsonValue[k]) }), {});
 
     formatCounter.value++;
@@ -67,13 +67,13 @@
     };
   });
 
-  const deep = computed(() => store.state.tableJsonFormatDeep);
+  const depth = computed(() => store.state.tableJsonFormatDepth);
 
   watch(
-    () => [formatCounter.value, deep.value],
+    () => [formatCounter.value],
     () => {
       isRendindg.value = true;
-      setValue(formatValue.value.stringValue, Number(deep.value));
+      setValue(formatValue.value.stringValue, depth.value);
       setTimeout(() => {
         isRendindg.value = false;
       });
@@ -82,14 +82,19 @@
       immediate: true,
     },
   );
+
+  watch(
+    () => [depth.value],
+    () => {
+      setExpand(depth.value);
+    },
+  );
 </script>
 <style lang="scss">
   .origin-content-json {
     font-family: var(--table-fount-family);
     font-size: var(--table-fount-size);
     color: var(--table-fount-color);
-
-
 
     .black-mark {
       margin-right: 2px;
@@ -125,7 +130,6 @@
               border-radius: 2px;
             }
 
-
             .jsoneditor-field,
             .jsoneditor-value {
               padding: 0 2px;
@@ -152,22 +156,21 @@
   }
 
   .bklog-json-formatter {
-    >.jsoneditor {
+    > .jsoneditor {
       &.jsoneditor-mode-view {
         border: none;
 
-        >.jsoneditor-outer {
-          >.jsoneditor-tree {
-            >.jsoneditor-tree-inner {
-              >table.jsoneditor-tree {
-                >tbody {
-                  >tr {
+        > .jsoneditor-outer {
+          > .jsoneditor-tree {
+            > .jsoneditor-tree-inner {
+              > table.jsoneditor-tree {
+                > tbody {
+                  > tr {
                     &:first-child {
                       &.jsoneditor-expanded {
-                          display: none;
-                        }
+                        display: none;
+                      }
                     }
-
                   }
                 }
               }

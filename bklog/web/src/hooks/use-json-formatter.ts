@@ -27,6 +27,7 @@ import { computed, onMounted, Ref } from 'vue';
 
 import JSONEditor from 'jsoneditor';
 
+import jsonEditorTask, { EditorTask } from '../global/utils/json-editor-task';
 import segmentPopInstance from '../global/utils/segment-pop-instance';
 import useSegmentPop from './use-segment-pop';
 
@@ -191,24 +192,26 @@ export default ({
 
   const setNodeValueWordSplit = (path = '') => {
     Array.from(target.value?.querySelectorAll('.jsoneditor-value') ?? []).forEach(element => {
-      if (!element.getAttribute('data-has-word-split')) {
-        const text = (element as HTMLDivElement).innerText;
-        let fieldName = element.parentElement.closest('tr').querySelector('.jsoneditor-field')?.innerHTML;
+      if (!element.classList.contains('jsoneditor-object')) {
+        if (!element.getAttribute('data-has-word-split')) {
+          const text = (element as HTMLDivElement).innerText;
+          let fieldName = element.parentElement.closest('tr').querySelector('.jsoneditor-field')?.innerHTML;
 
-        if (path.length) {
-          fieldName = path[0];
-        }
-        const field = getField(fieldName);
-        const vlaues = getSplitList(field, text);
-        element?.setAttribute('data-has-word-split', '1');
-        element?.setAttribute('data-field-name', fieldName);
-        element.innerHTML = '';
-        element.append(creatSegmentNodes(vlaues));
-        element.addEventListener('click', e => {
-          if ((e.target as HTMLElement).classList.contains('valid-text')) {
-            handleSegmentClick(e, (e.target as HTMLElement).innerHTML);
+          if (path.length) {
+            fieldName = path[0];
           }
-        });
+          const field = getField(fieldName);
+          const vlaues = getSplitList(field, text);
+          element?.setAttribute('data-has-word-split', '1');
+          element?.setAttribute('data-field-name', fieldName);
+          element.innerHTML = '';
+          element.append(creatSegmentNodes(vlaues));
+          element.addEventListener('click', e => {
+            if ((e.target as HTMLElement).classList.contains('valid-text')) {
+              handleSegmentClick(e, (e.target as HTMLElement).innerHTML);
+            }
+          });
+        }
       }
     });
   };
@@ -230,28 +233,84 @@ export default ({
     };
   });
 
+  let setValuePromise: Promise<any> = Promise.resolve(true);
+  let editorPromise: Promise<any> = Promise.resolve(true);
+  let localDepth = 1;
+
   onMounted(() => {
     if (target) {
-      editor = new JSONEditor(target?.value, computedOptions.value);
+      editorPromise = new Promise(resolve => {
+        editor = new JSONEditor(target?.value, computedOptions.value);
+        resolve(true);
+      });
     }
   });
 
-  const setValue = (val, depth = 3) => {
-    console.log(depth);
-    setTimeout(() => {
-      editor.set(val);
-      // editor.expand({
-      //   path: Object.keys(val ?? {}),
-      //   isExpand: false,
-      //   recursive: true,
-      // });
+  const getNodePath = node => {
+    if (node.parent) {
+      return [...getNodePath(node.parent), node.getName()];
+    }
 
-      setTimeout(() => {
-        setNodeValueWordSplit();
+    return [];
+  };
+
+  const expandNodeAtLevel = (node, level, currentDepth, oldDepth) => {
+    if (level < currentDepth || level < oldDepth) {
+      if (node.childs && node.childs.length > 0) {
+        const path = getNodePath(node);
+        const nextIsExpand = level < currentDepth;
+        if (nextIsExpand !== node.expanded) {
+          editor.expand({
+            path,
+            isExpand: nextIsExpand,
+            recursive: !nextIsExpand,
+          });
+        }
+
+        if (nextIsExpand) {
+          node.childs.forEach(child => {
+            expandNodeAtLevel(child, level + 1, currentDepth, oldDepth);
+          });
+        }
+      }
+    }
+  };
+
+  const setNodeExpand = ([currentDepth, oldDepth]) => {
+    const rootNode = editor.node;
+    expandNodeAtLevel(rootNode, 0, currentDepth, oldDepth);
+    setNodeValueWordSplit();
+  };
+
+  const setValue = (val, depth) => {
+    setValuePromise = new Promise((resolve, reject) => {
+      try {
+        editorPromise.then(() => {
+          editor.set(val);
+          EditorTask.clear(() => {
+            jsonEditorTask(setNodeExpand, [depth, localDepth]);
+            localDepth = depth;
+            resolve(true);
+          });
+        });
+      } catch (e) {
+        reject(e);
+      }
+    });
+
+    return setValuePromise;
+  };
+
+  const setExpand = depth => {
+    EditorTask.clear(() => {
+      setValuePromise?.then(() => {
+        jsonEditorTask(setNodeExpand, [depth, localDepth]);
+        localDepth = depth;
       });
     });
   };
   return {
     setValue,
+    setExpand,
   };
 };

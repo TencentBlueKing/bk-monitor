@@ -275,7 +275,7 @@
       handleJsonFormatDeepChange(val) {
         const value = Number(val);
         const target = value > 15 ? 15 : value < 1 ? 1 : value;
-        this.$store.commit('updateTableJsonFormatDeep', target);
+        this.$store.commit('updatetableJsonFormatDepth', target);
       },
     },
   };
