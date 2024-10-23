@@ -846,28 +846,20 @@ class EtlStorage(object):
         for field_name in match_fields:
             path_field_config_list.append(
                 {
+                    "description": "",
                     "field_name": field_name,
-                    "type": "string",
-                    "tag": "dimension",
-                    "default_value": None,
-                    "is_config_by_user": True,
-                    "description": '',
-                    "unit": '',
-                    "alias_name": '',
-                    "option": {"metadata_type": "path",
-                               "es_type": "keyword",
-                               "field_index": etl_field_index,
-                               "real_path": f"{self.path_separator_node_name}.{field_name}"
-                               },
-                    "is_disabled": False,
-                    "is_built_in": False,
-                    "is_time": False,
                     "field_type": "string",
-                    "is_analyzed": False,
-                    "is_delete": False,
-                    "is_dimension": True,
+                    "option": {
+                        "metadata_type": MetadataTypeEnum.PATH.value,
+                        "es_doc_values": True,
+                        "es_type": "keyword",
+                        "field_index": etl_field_index,
+                        "real_path": f"{self.path_separator_node_name}.{field_name}"
+                    },
+                    "tag": "dimension",
                 }
             )
+            etl_field_index += 1
         return path_field_config_list
 
     def separate_fields_config(self, field_list: List[dict]):
@@ -891,38 +883,38 @@ class EtlStorage(object):
         if not etl_path_regexp or not path_fields:
             return
         path_config = {
-                        "type": "access",
-                        "subtype": "access_obj",
-                        "label": "labeld3fa8a",
-                        "key": "filename",
-                        "result": "path_item",
-                        "default_type": "null",
-                        "default_value": "",
-                        "next": {
-                            "type": "fun",
-                            "method": "regex_extract",
-                            "label": "label533df5",
-                            "args": [
-                                {
-                                    "result": "filename_item",
-                                    "keys": [
-                                        field["alias_name"]
-                                        if field["alias_name"]
-                                        else field["field_name"]
-                                        for field in path_fields
-                                    ],
-                                    "regexp": etl_path_regexp.replace(
-                                        "(?P<", "(?<"
-                                    ),
-                                }
-                            ],
-                            "next": {
-                                "type": "assign",
-                                "subtype": "assign_obj",
-                                "label": "label04104e",
-                                "assign": [self._to_bkdata_assign(field) for field in path_fields],
-                                "next": None,
-                            },
-                        },
+            "type": "access",
+            "subtype": "access_obj",
+            "label": "labeld3fa8a",
+            "key": "filename",
+            "result": "path_item",
+            "default_type": "null",
+            "default_value": "",
+            "next": {
+                "type": "fun",
+                "method": "regex_extract",
+                "label": "label533df5",
+                "args": [
+                    {
+                        "result": "filename_item",
+                        "keys": [
+                            field["alias_name"]
+                            if field["alias_name"]
+                            else field["field_name"]
+                            for field in path_fields
+                        ],
+                        "regexp": etl_path_regexp.replace(
+                            "(?P<", "(?<"
+                        ),
                     }
+                ],
+                "next": {
+                    "type": "assign",
+                    "subtype": "assign_obj",
+                    "label": "label04104e",
+                    "assign": [self._to_bkdata_assign(field) for field in path_fields],
+                    "next": None,
+                },
+            },
+        }
         bkdata_json_config["extract"]["next"]["next"].append(path_config)

@@ -85,7 +85,6 @@ class BkLogRegexpEtlStorage(EtlStorage):
             "separator_regexp": etl_params.get("separator_regexp", ""),
             "etl_flat": etl_params.get("etl_flat", False),
             "enable_retain_content": etl_params.get("enable_retain_content", False),
-            "record_parse_failure": etl_params.get("record_parse_failure", False),
         }
 
         if built_in_config.get("option") and isinstance(built_in_config["option"], dict):
