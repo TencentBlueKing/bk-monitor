@@ -169,6 +169,7 @@
                   :date-picker-value="datePickerValue"
                   :retrieve-search-number="retrieveSearchNumber"
                   @fields-updated="handleFieldsUpdated"
+                  @select-fields-config="handleSelectFieldsConfig"
                 />
               </div>
             </div>
@@ -1492,7 +1493,7 @@
 
           if (this.isFavoriteSearch && this.activeFavorite?.is_enable_display_fields) {
             const { display_fields: favoriteDisplayFields } = this.activeFavorite;
-            const sessionShownFieldList = this.sessionShowFieldObj()?.[this.indexId] ?? [];
+            const sessionShownFieldList = this.$store.state.retrieve.catchFieldCustomConfig.displayFields;
             const displayFields = [...new Set([...sessionShownFieldList, ...favoriteDisplayFields])];
             this.handleFieldsUpdated(displayFields, undefined, false);
           }
@@ -1611,8 +1612,9 @@
           this.asyncExportUsableReason = !asyncExport.is_active ? asyncExport.extra?.usable_reason || '' : '';
           this.timeField = timeField;
           this.totalFields = fields;
-          // 请求字段时 判断当前索引集是否有更改过字段 若更改过字段则使用session缓存的字段显示
-          const sessionShownFieldList = this.sessionShowFieldObj()?.[this.indexId];
+          this.$store.commit('retrieve/updateCatchFieldCustomConfig', data.user_custom_config); // 更新用户个人配置
+          const catchDisplayFields = this.$store.state.retrieve.catchFieldCustomConfig.displayFields;
+          const sessionShownFieldList = catchDisplayFields.length ? catchDisplayFields : null;
           // 后台给的 display_fields 可能有无效字段 所以进行过滤，获得排序后的字段
           this.initVisibleFields(sessionShownFieldList ?? displayFields);
           this.sortList = sortList;
@@ -1673,11 +1675,6 @@
           this.setDefaultTableColumn();
         }
       },
-      sessionShowFieldObj() {
-        // 显示字段缓存
-        const showFieldStr = sessionStorage.getItem('showFieldSession');
-        return !showFieldStr ? {} : JSON.parse(showFieldStr);
-      },
       /**
        * @desc: 字段设置更新了
        * @param {Array} displayFieldNames 展示字段
@@ -1685,22 +1682,25 @@
        * @param {Boolean} isRequestFields 是否请求字段
        */
       async handleFieldsUpdated(displayFieldNames, showFieldAlias, isRequestFields = true) {
-        this.$store.commit('updateClearTableWidth', 1);
-        // 缓存展示字段
-        const showFieldObj = this.sessionShowFieldObj();
-        Object.assign(showFieldObj, { [this.indexId]: displayFieldNames });
-        sessionStorage.setItem('showFieldSession', JSON.stringify(showFieldObj));
         if (showFieldAlias !== undefined) {
           this.showFieldAlias = showFieldAlias;
           window.localStorage.setItem('showFieldAlias', showFieldAlias);
         }
         await this.$nextTick();
         if (!isRequestFields) {
+          this.$store.dispatch('userFieldConfigChange', {
+            displayFields: displayFieldNames,
+          });
           this.initVisibleFields(displayFieldNames);
         } else {
           this.isSetDefaultTableColumn = false;
           this.requestFields();
         }
+      },
+      handleSelectFieldsConfig() {
+        const displayFields = this.$store.state.retrieve.catchFieldCustomConfig.displayFields;
+        this.initVisibleFields(displayFields);
+        this.setDefaultTableColumn();
       },
       requestTableData() {
         if (this.requesting) return;
@@ -1800,11 +1800,7 @@
       },
       // 首次加载设置表格默认宽度自适应
       setDefaultTableColumn() {
-        // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
-        const storageKey = this.isUnionSearch ? 'TABLE_UNION_COLUMN_WIDTH' : 'table_column_width_obj';
-        const columnWidth = JSON.parse(localStorage.getItem(storageKey));
-        const indexKey = this.isUnionSearch ? this.unionIndexList.sort().join('-') : this.indexId;
-        const catchFieldsWidthObj = columnWidth?.[this.bkBizId]?.fields[indexKey];
+        const catchFieldsWidthObj = this.$store.state.retrieve.catchFieldCustomConfig.fieldsWidth;
         const tableList = this.tableData?.list ?? [];
         this.isSetDefaultTableColumn = setDefaultTableWidth(this.visibleFields, tableList, catchFieldsWidthObj);
       },

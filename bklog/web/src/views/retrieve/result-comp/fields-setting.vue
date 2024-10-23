@@ -403,7 +403,6 @@
           if (this.currentClickConfigID !== this.filedSettingConfigID) {
             await this.submitFieldsSet(this.currentClickConfigID);
           }
-          this.$store.commit('updateClearTableWidth', 1);
           this.$emit('confirm', this.shadowVisible, this.showFieldAlias);
         } catch (error) {
           console.warn(error);
@@ -621,8 +620,6 @@
           this.newConfigStr = '';
           if (this.filedSettingConfigID === configID) {
             this.currentClickConfigID = this.configTabPanels[0].id;
-            // 若删除的元素id与使用当前使用的config_id相同则直接刷新显示字段
-            this.$store.commit('updateClearTableWidth', 1);
             const { display_fields } = this.configTabPanels[0];
             this.$emit('modify-fields', display_fields, this.showFieldAlias);
           }
