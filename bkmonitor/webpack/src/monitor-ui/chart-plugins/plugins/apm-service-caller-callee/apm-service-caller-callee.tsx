@@ -97,6 +97,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     return {
       server: options.server,
       ...options?.metrics,
+      kind: this.activeKey,
     };
   }
   @Watch('panel', { immediate: true })
@@ -156,6 +157,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     this.activeKey = id;
     this.callOptions = {
       ...this.callOptions,
+      ...this.panelScopedVars,
     };
   }
 
