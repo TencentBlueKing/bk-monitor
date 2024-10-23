@@ -83,7 +83,7 @@
                 :visible-fields="getShowTableVisibleFields"
                 @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
               />
-              <template v-if="!isLimitExpandView">
+              <!-- <template v-if="!isLimitExpandView">
                 <p
                   v-if="!cacheExpandStr.includes($index)"
                   class="show-whole-btn"
@@ -98,7 +98,7 @@
                 >
                   {{ $t('收起') }}
                 </p>
-              </template>
+              </template> -->
             </div>
           </template>
         </bk-table-column>
@@ -180,3 +180,38 @@
     },
   };
 </script>
+<style lang="scss">
+td {
+  &.original-str {
+    .cell {
+      display: flex;
+      text-overflow: unset;
+
+        .str-content {
+          &.origin-str {
+            width: 100%;
+
+            .origin-content {
+              word-break: break-all;
+              white-space: pre-line;
+            }
+          }
+        }
+      }
+    }
+
+    &.is-wrap {
+      .cell {
+        .str-content {
+          &.origin-str {
+            .origin-content {
+              display: flex;
+              flex-direction: column;
+              flex-wrap: wrap;
+            }
+          }
+        }
+      }
+    }
+}
+</style>

@@ -100,10 +100,7 @@ export default class OriginalLightHeight extends tsc<IProps> {
 
   render() {
     return (
-      <span
-        class='origin-content'
-        title={this.tableLineIsWarp ? '' : this.strOriginJson}
-      >
+      <span class='origin-content'>
         {Object.entries(this.fieldMapDataObj).map(([key, value]) => {
           return (
             <span>
