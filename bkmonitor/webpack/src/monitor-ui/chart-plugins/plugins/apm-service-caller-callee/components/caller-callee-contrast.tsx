@@ -27,7 +27,7 @@
 import { Component, Prop, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { EParamsMode, type IServiceConfig } from '../type';
+import { EParamsMode, type IListItem, type IServiceConfig } from '../type';
 import ContrastView from './common-comp/contrast-view';
 import GroupByView from './common-comp/group-by-view';
 
@@ -36,6 +36,8 @@ interface ICallerCalleeContrastProps {
   searchList: IServiceConfig[];
   contrastDates?: string[];
   groupBy?: string[];
+  supportedCalculationTypes?: IListItem[];
+  supportedMethods?: IListItem[];
 }
 interface ICallerCalleeContrastEvent {
   onContrastDatesChange?: (val: string[]) => void;
@@ -48,6 +50,8 @@ interface ICallerCalleeContrastEvent {
 })
 export default class CallerCalleeContrast extends tsc<ICallerCalleeContrastProps, ICallerCalleeContrastEvent> {
   @Prop({ required: true, type: Array, default: () => [] }) searchList: IServiceConfig[];
+  @Prop({ type: Array, default: () => [] }) supportedCalculationTypes: IListItem[];
+  @Prop({ type: Array, default: () => [] }) supportedMethods: IListItem[];
   @Prop({ type: Array, default: () => [] }) contrastDates: string[];
   @Prop({ type: Array, default: () => [] }) groupBy: string[];
   active = EParamsMode.contrast;
@@ -106,6 +110,8 @@ export default class CallerCalleeContrast extends tsc<ICallerCalleeContrastProps
             <GroupByView
               groupBy={this.groupBy}
               searchList={this.searchList}
+              supportedCalculationTypes={this.supportedCalculationTypes}
+              supportedMethods={this.supportedMethods}
               onChange={this.handleGroupByChange}
               onFilter={this.groupByFilter}
             />

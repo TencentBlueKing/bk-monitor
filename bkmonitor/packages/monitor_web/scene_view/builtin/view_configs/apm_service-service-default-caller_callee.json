@@ -720,28 +720,6 @@
               "data": {
                 "app_name": "${app_name}",
                 "expression": "A",
-                "group_by_limit": {
-                  "method": "${method}",
-                  "metric_group_name": "trpc",
-                  "metric_cal_type": "${metric_cal_type}",
-                  "limit": "${limit}",
-                  "where": [
-                    {
-                      "key": "${server}",
-                      "method": "eq",
-                      "value": [
-                        "${service_name}"
-                      ],
-                      "condition": "and"
-                    }
-                  ],
-                  "options": {
-                    "trpc": {
-                      "kind": "${kind}",
-                      "temporality": "${temporality}"
-                    }
-                  }
-                },
                 "query_configs": [
                   {
                     "data_source_label": "custom",
@@ -842,28 +820,6 @@
               "data": {
                 "app_name": "${app_name}",
                 "expression": "A",
-                "group_by_limit": {
-                  "method": "${method}",
-                  "metric_group_name": "trpc",
-                  "metric_cal_type": "${metric_cal_type}",
-                  "limit": "${limit}",
-                  "where": [
-                    {
-                      "key": "${server}",
-                      "method": "eq",
-                      "value": [
-                        "${service_name}"
-                      ],
-                      "condition": "and"
-                    }
-                  ],
-                  "options": {
-                    "trpc": {
-                      "kind": "${kind}",
-                      "temporality": "${temporality}"
-                    }
-                  }
-                },
                 "query_configs": [
                   {
                     "data_source_label": "custom",
@@ -964,28 +920,6 @@
               "data": {
                 "app_name": "${app_name}",
                 "expression": "A",
-                "group_by_limit": {
-                  "method": "${method}",
-                  "metric_group_name": "trpc",
-                  "metric_cal_type": "${metric_cal_type}",
-                  "limit": "${limit}",
-                  "where": [
-                    {
-                      "key": "${server}",
-                      "method": "eq",
-                      "value": [
-                        "${service_name}"
-                      ],
-                      "condition": "and"
-                    }
-                  ],
-                  "options": {
-                    "trpc": {
-                      "kind": "${kind}",
-                      "temporality": "${temporality}"
-                    }
-                  }
-                },
                 "query_configs": [
                   {
                     "data_source_label": "custom",
@@ -1086,28 +1020,6 @@
               "data": {
                 "app_name": "${app_name}",
                 "expression": "A",
-                "group_by_limit": {
-                  "method": "${method}",
-                  "metric_group_name": "trpc",
-                  "metric_cal_type": "${metric_cal_type}",
-                  "limit": "${limit}",
-                  "where": [
-                    {
-                      "key": "${server}",
-                      "method": "eq",
-                      "value": [
-                        "${service_name}"
-                      ],
-                      "condition": "and"
-                    }
-                  ],
-                  "options": {
-                    "trpc": {
-                      "kind": "${kind}",
-                      "temporality": "${temporality}"
-                    }
-                  }
-                },
                 "query_configs": [
                   {
                     "data_source_label": "custom",
@@ -1227,28 +1139,6 @@
               "data": {
                 "app_name": "${app_name}",
                 "expression": "A",
-                "group_by_limit": {
-                  "method": "${method}",
-                  "metric_group_name": "trpc",
-                  "metric_cal_type": "${metric_cal_type}",
-                  "limit": "${limit}",
-                  "where": [
-                    {
-                      "key": "${server}",
-                      "method": "eq",
-                      "value": [
-                        "${service_name}"
-                      ],
-                      "condition": "and"
-                    }
-                  ],
-                  "options": {
-                    "trpc": {
-                      "kind": "${kind}",
-                      "temporality": "${temporality}"
-                    }
-                  }
-                },
                 "query_configs": [
                   {
                     "data_source_label": "custom",

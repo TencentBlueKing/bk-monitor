@@ -727,7 +727,7 @@ class TRPCMetricTag:
             {"value": cls.CALLER_GROUP, "text": _("主调流量组")},
             {"value": cls.CALLEE_SERVER, "text": _("被调服务")},
             {"value": cls.CALLEE_SERVICE, "text": _("被调 Service")},
-            {"value": cls.CALLEE_METHOD, "text": _("被调接口")},
+            {"value": cls.CALLEE_METHOD, "text": _("被调接口"), "default_group_by_field": True},
             {"value": cls.CALLEE_IP, "text": _("被调 IP")},
             {"value": cls.CALLEE_CONTAINER, "text": _("被调容器")},
             {"value": cls.CALLEE_CON_SETID, "text": _("被调 SetID")},

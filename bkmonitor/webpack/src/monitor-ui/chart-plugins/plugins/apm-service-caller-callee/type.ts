@@ -52,7 +52,6 @@ export interface IFilterType {
   call_filter: IFilterCondition[];
   group_by_filter: IDataItem[];
   time_shift: IDataItem[];
-  table_group_by: string[];
 }
 /* 头部对比/group by 切换 */
 export enum EParamsMode {
@@ -61,8 +60,13 @@ export enum EParamsMode {
 }
 /* 头部对比时间预设 */
 export enum EPreDateType {
-  lastWeek = 'week',
-  yesterday = 'yesterday',
+  lastWeek = '1w',
+  yesterday = '1d',
+}
+
+export interface IListItem {
+  value?: string;
+  text?: string;
 }
 
 export type CallOptions = {
@@ -76,3 +80,8 @@ export type CallOptions = {
   // 左侧查询条件字段
   call_filter: IFilterCondition[];
 } & Record<string, string>;
+
+export type IFilterData = {
+  caller: IFilterCondition[];
+  callee: IFilterCondition[];
+};
