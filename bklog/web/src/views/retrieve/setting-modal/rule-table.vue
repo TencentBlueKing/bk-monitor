@@ -120,7 +120,7 @@
                     <template #content>
                       <div>
                         <div class="popover-slot">
-                          <span>{{ $t('确定要删除当前规则？') }}?</span>
+                          <span>{{ $t('确定要删除当前规则？') }}</span>
                           <div class="popover-btn">
                             <bk-button
                               text
