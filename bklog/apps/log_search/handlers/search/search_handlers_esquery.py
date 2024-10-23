@@ -24,6 +24,7 @@ import datetime
 import hashlib
 import json
 import operator
+import time
 from typing import Any, Dict, List, Union
 
 import arrow
@@ -43,6 +44,7 @@ from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
 from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
+from apps.log_esquery import metrics
 from apps.log_esquery.esquery.esquery import EsQuery
 from apps.log_esquery.serializers import (
     EsQueryDslAttrSerializer,
@@ -658,7 +660,25 @@ class SearchHandler(object):
     @classmethod
     def direct_esquery_search(cls, params, **kwargs):
         data = custom_params_valid(EsQuerySearchAttrSerializer, params)
-        return EsQuery(data).search()
+        start_at = time.time()
+        exc = None
+        try:
+            result = EsQuery(data).search()
+        except Exception as e:
+            exc = e
+            raise
+        finally:
+            labels = {
+                "index_set_id": data.get("index_set_id") or -1,
+                "indices": data.get("indices") or "",
+                "scenario_id": data.get("scenario_id") or "",
+                "storage_cluster_id": data.get("storage_cluster_id") or -1,
+                "status": str(exc),
+                "source_app_code": settings.APP_CODE,
+            }
+            metrics.ESQUERY_SEARCH_LATENCY.labels(**labels).observe(time.time() - start_at)
+            metrics.ESQUERY_SEARCH_COUNT.labels(**labels).inc()
+        return result
 
     @classmethod
     def direct_esquery_dsl(cls, params, **kwargs):
