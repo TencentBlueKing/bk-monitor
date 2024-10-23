@@ -89,6 +89,8 @@
     font-size: var(--table-fount-size);
     color: var(--table-fount-color);
 
+
+
     .black-mark {
       margin-right: 2px;
       background: #e6e6e6;
