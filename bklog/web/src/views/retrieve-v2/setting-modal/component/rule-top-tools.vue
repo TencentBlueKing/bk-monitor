@@ -684,7 +684,7 @@
             if (res.data.length) {
               const indexSetList = [];
               for (const item of res.data) {
-                if (item.permission?.[authorityMap.SEARCH_LOG_AUTH] && item.tags.map(item => item.tag_id).includes(9)) {
+                if (item.permission?.[authorityMap.SEARCH_LOG_AUTH] && item.tags.map(item => item.tag_id).includes(8)) {
                   indexSetList.push({
                     name: item.index_set_name,
                     id: item.index_set_id,
