@@ -85,7 +85,7 @@ export default {
     '#F9D9F9',
     '#DEDAF7',
   ],
-  animation: true,
+  // animation: true,
   tool: {
     show: false,
   },
@@ -262,7 +262,7 @@ export default {
     padding: 5,
     formatter: function (params) {
       return `<div>
-        <strong>${dayjs.tz(params[0]?.data?.[0]).format('YYYY-MM-DD HH:MM:ss') ?? params[0].name}</strong>
+        <strong>${dayjs.tz(params[0]?.data?.[0]).format('YYYY-MM-DD HH:mm:ss') ?? params[0].name}</strong>
         <div style="display: flex; align-items: center;"><span style="display: inline-block; background-color:${params[0].color};margin-right: 4px;width: 6px;height: 6px; border-radius: 50%;"></span> ${params[0]?.data?.[1]} </div>
       </div>`;
     },
@@ -490,7 +490,6 @@ export default {
       zlevel: 0,
       coordinateSystem: 'cartesian2d',
       legendHoverLink: true,
-      barMinAngle: 0,
       large: false,
       largeThreshold: 400,
       progressive: 3000,

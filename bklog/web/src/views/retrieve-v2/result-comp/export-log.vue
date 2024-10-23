@@ -33,7 +33,8 @@
         v-bk-tooltips="queueStatus ? $t('导出') : undefined">
         <span class="icon bklog-icon bklog-xiazai"></span>
       </div> -->
-    <div v-if="!isUnionSearch"
+    <div
+      v-if="!isUnionSearch"
       :class="{ 'operation-icon': true, 'disabled-icon': !queueStatus }"
       data-test-id="fieldForm_div_exportData"
       @mouseenter="handleShowAlarmPopover"
@@ -173,7 +174,7 @@
 
 <script>
   import { blobDownload } from '@/common/util';
-  import { mapGetters } from 'vuex';
+  import { mapGetters, mapState } from 'vuex';
 
   import exportHistory from './export-history';
   import { axiosInstance } from '@/api';
@@ -188,18 +189,18 @@
         type: Object,
         required: true,
       },
-      totalCount: {
-        type: Number,
-        default: 0,
-      },
-      visibleFields: {
-        type: Array,
-        require: true,
-      },
-      queueStatus: {
-        type: Boolean,
-        default: true,
-      },
+      // totalCount: {
+      //   type: Number,
+      //   default: 0,
+      // },
+      // visibleFields: {
+      //   type: Array,
+      //   require: true,
+      // },
+      // queueStatus: {
+      //   type: Boolean,
+      //   default: true,
+      // },
       asyncExportUsable: {
         type: Boolean,
         default: true,
@@ -208,10 +209,10 @@
         type: String,
         default: '',
       },
-      totalFields: {
-        type: Array,
-        require: true,
-      },
+      // totalFields: {
+      //   type: Array,
+      //   require: true,
+      // },
       datePickerValue: {
         type: Array,
         require: true,
@@ -241,16 +242,27 @@
           desensitize: this.$t('脱敏'),
           // origin: this.$t('原始'),
         },
+        // queueStatus: true
       };
     },
     computed: {
+      ...mapState({
+        totalCount: state => {
+          if (state.searchTotal > 0) {
+            return state.searchTotal;
+          }
+
+          return state.retrieve.trendDataCount;
+        },
+        queueStatus: state => !state.retrieve.isTrendDataLoading,
+      }),
       ...mapGetters({
         bkBizId: 'bkBizId',
         spaceUid: 'spaceUid',
         isShowMaskingTemplate: 'isShowMaskingTemplate',
         unionIndexList: 'unionIndexList',
         isUnionSearch: 'isUnionSearch',
-      }),
+      }), // store.state.searchTotal
       getAsyncText() {
         // 异步下载按钮前的文案
         return this.totalCount > this.exportSecondComparedSize

@@ -406,8 +406,8 @@
             // 最多匹配行数
             {
               validator: val => {
-                if (val > 1000) {
-                  this.formData.params.multiline_max_lines = '1000';
+                if (val > 5000) {
+                  this.formData.params.multiline_max_lines = '5000';
                 } else if (val < 1) {
                   this.formData.params.multiline_max_lines = '1';
                 }

@@ -44,7 +44,6 @@
       ref="chartRef"
       v-show="!isFold"
       :is-fold="isFold"
-      @polling="handlePolling"
     />
   </div>
 </template>
@@ -55,27 +54,32 @@
   import { ref, watch, onMounted, computed } from 'vue';
   import useStore from '@/hooks/use-store';
 
-  const emit = defineEmits(['toggle-change']);
+  const emit = defineEmits(['toggle-change', 'change-queue-res']);
 
   const store = useStore();
   const chartKey = computed(() => store.state.retrieve.chartKey);
-  const searchTotal = computed(() => store.state.searchTotal);
-  const isResultLoading = computed(() => store.state.indexSetQueryResult.is_loading || store.state.indexFieldInfo.is_loading)
+
+  const searchTotal = computed(() => {
+    if (store.state.searchTotal > 0) {
+      return store.state.searchTotal;
+    }
+
+    return store.state.retrieve.trendDataCount;
+  });
+  const isResultLoading = computed(
+    () => store.state.indexSetQueryResult.is_loading || store.state.indexFieldInfo.is_loading,
+  );
+  const getOffsetHeight = computed(() => (chartContainer.value?.offsetHeight || 32) - (!isFold.value ? 0 : 110));
 
   const isFold = ref(false);
   const chartContainer = ref(null);
   const chartInterval = ref('auto');
-  const isLoading = ref(false);
-
-  const handlePolling = (val) => {
-    isLoading.value = val;
-  }
+  const isLoading = computed(() => store.state.retrieve.isTrendDataLoading);
 
   const toggleExpand = val => {
     isFold.value = val;
     localStorage.setItem('chartIsFold', val);
-    const offsetHeight = chartContainer.value?.offsetHeight;
-    emit('toggle-change', !isFold.value, offsetHeight);
+    emit('toggle-change', !isFold.value, getOffsetHeight.value);
   };
 
   const handleChangeInterval = v => {
@@ -86,22 +90,25 @@
 
   onMounted(() => {
     isFold.value = JSON.parse(localStorage.getItem('chartIsFold') || 'false');
-    const offsetHeight = chartContainer.value?.offsetHeight;
-    emit('toggle-change', !isFold.value, offsetHeight);
+    emit('toggle-change', !isFold.value, getOffsetHeight.value);
   });
 
-  watch(() => chartKey.value, () => {
-    if (isResultLoading.value) {
-      return;
-    }
+  watch(
+    () => chartKey.value,
+    () => {
+      if (isResultLoading.value) {
+        return;
+      }
 
-    store.commit('updateIsSetDefaultTableColumn', false);
-    store.dispatch('requestIndexSetFieldInfo').then(() => {
-      store.dispatch('requestIndexSetQuery', { formChartChange: true });
-    });
-  }, {
-    immediate: true
-  });
+      store.commit('updateIsSetDefaultTableColumn', false);
+      store.dispatch('requestIndexSetFieldInfo').then(() => {
+        store.dispatch('requestIndexSetQuery', { formChartChange: false });
+      });
+    },
+    {
+      immediate: true,
+    },
+  );
 </script>
 
 <style scoped lang="scss">

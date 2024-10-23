@@ -38,8 +38,20 @@ export default {
     filedSettingConfigID: 1,
     indexSetList: [],
     isIndexSetLoading: false,
+    isTrendDataLoading: false,
+    trendDataCount: 0,
+    catchFieldCustomConfig: {
+      fieldsWidth: {},
+      displayFields: [],
+    },
   },
   mutations: {
+    updateTrendDataLoading(state, payload) {
+      state.isTrendDataLoading = payload;
+    },
+    updateTrendDataCount(state, payload) {
+      state.trendDataCount = payload;
+    },
     updateChartKey(state, payload) {
       state.chartKey = (payload?.prefix ?? '') + random(10);
     },
@@ -59,6 +71,16 @@ export default {
     },
     updateIndexSetLoading(state, payload) {
       state.isIndexSetLoading = payload;
+    },
+    updateCatchFieldCustomConfig(state, payload) {
+      Object.assign(
+        state.catchFieldCustomConfig,
+        {
+          fieldsWidth: {},
+          displayFields: {},
+        },
+        payload ?? {},
+      );
     },
   },
   actions: {

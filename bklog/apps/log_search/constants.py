@@ -92,6 +92,7 @@ MAX_RESULT_WINDOW = 10000
 MAX_SEARCH_SIZE = 100000
 SCROLL = "1m"
 DEFAULT_TIME_FIELD = "dtEventTimeStamp"
+DEFAULT_TIME_FIELD_ALIAS_NAME = "utctime"
 BK_SUPPLIER_ACCOUNT = "0"
 BK_BCS_APP_CODE = "bk_bcs"
 
@@ -1355,7 +1356,11 @@ class TimeZoneEnum(ChoicesEnum):
         result = []
         for i in range(-12, 13, 1):
             result.append(
-                {"id": i, "name": "UTC" + ("+" if i >= 0 else "") + f"{i:02}:00", "default": True if i == 8 else False}
+                {
+                    "id": i,
+                    "name": "UTC" + ("+" if i >= 0 else "-") + f"{abs(i):02}:00",
+                    "default": True if i == 8 else False,
+                }
             )
         return result
 

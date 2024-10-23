@@ -164,7 +164,6 @@ class CacheCronJobCheck(CheckStep):
             "set",
             "module",
             "topo",
-            "host_to_service_instance_id",
         ]
         for cmdb_cache_type in cmdb_cache_types:
             key = f"{cache_key.KEY_PREFIX}.cache.cmdb.{cmdb_cache_type}"

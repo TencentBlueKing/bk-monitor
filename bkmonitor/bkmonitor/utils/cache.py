@@ -93,6 +93,7 @@ class UsingCache(object):
 
     def _cache_key(self, task_definition, args, kwargs):
         # 新增根据用户openid设置缓存key
+        lang = "en" if translation.get_language() == "en" else "zh-hans"
         if self.using_cache_type:
             return "{}:{}:{}:{},{}[{}]{}".format(
                 self.key_prefix,
@@ -101,7 +102,7 @@ class UsingCache(object):
                 count_md5(args),
                 count_md5(kwargs),
                 self._get_username(),
-                translation.get_language(),
+                lang,
             )
         return None
 

@@ -1122,7 +1122,7 @@ export default class BasicInfo extends tsc<IProps> {
               >
                 <EditableFormItem
                   formType='input'
-                  label={this.$t('应用ID')}
+                  label={this.$t('应用名')}
                   showEditable={false}
                   value={this.appInfo.app_name}
                 />
@@ -1179,7 +1179,7 @@ export default class BasicInfo extends tsc<IProps> {
               >
                 <EditableFormItem
                   formType='input'
-                  label={this.$t('应用ID')}
+                  label={this.$t('应用名')}
                   showEditable={false}
                   value={this.appInfo.app_name}
                 />
