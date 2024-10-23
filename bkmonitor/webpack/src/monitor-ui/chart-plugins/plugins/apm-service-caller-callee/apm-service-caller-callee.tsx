@@ -415,7 +415,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
               slot='main'
             >
               <ChartView
-                panelsData={this.panelsData}
+                panelsData={this.panel.extra_panels}
                 onChoosePoint={this.handleChoosePoint}
               />
               <CallerCalleeTableChart
