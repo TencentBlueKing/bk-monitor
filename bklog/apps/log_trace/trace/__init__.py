@@ -33,6 +33,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.instrumentation import dbapi
 from opentelemetry.instrumentation.celery import CeleryInstrumentor
 from opentelemetry.instrumentation.django import DjangoInstrumentor
+from opentelemetry.instrumentation.elasticsearch import ElasticsearchInstrumentor
 from opentelemetry.instrumentation.instrumentor import BaseInstrumentor
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from opentelemetry.instrumentation.redis import RedisInstrumentor
@@ -44,7 +45,6 @@ from opentelemetry.sdk.trace.sampling import ALWAYS_OFF, ALWAYS_ON, DEFAULT_OFF
 from opentelemetry.trace import Span, Status, StatusCode
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.log_trace.trace.elastic import BkElasticsearchInstrumentor
 from apps.utils import get_local_ip
 
 
@@ -136,13 +136,7 @@ class BluekingInstrumentor(BaseInstrumentor):
     SAMPLE_ALL = "sample_all"
 
     def _uninstrument(self, **kwargs):
-        DjangoInstrumentor().uninstrument()
-        RedisInstrumentor().uninstrument()
-        BkElasticsearchInstrumentor().uninstrument()
-        RequestsInstrumentor().uninstrument()
-        CeleryInstrumentor().uninstrument()
-        LoggingInstrumentor().uninstrument()
-        dbapi.unwrap_connect(MySQLdb, "connect")
+        pass
 
     def _instrument(self, **kwargs):
         """Instrument the library"""
@@ -191,7 +185,7 @@ class BluekingInstrumentor(BaseInstrumentor):
         trace.set_tracer_provider(tracer_provider)
         DjangoInstrumentor().instrument(response_hook=django_response_hook)
         RedisInstrumentor().instrument()
-        BkElasticsearchInstrumentor().instrument()
+        ElasticsearchInstrumentor().instrument()
         RequestsInstrumentor().instrument(tracer_provider=tracer_provider, span_callback=requests_callback)
         CeleryInstrumentor().instrument(tracer_provider=tracer_provider)
         LoggingInstrumentor().instrument()
