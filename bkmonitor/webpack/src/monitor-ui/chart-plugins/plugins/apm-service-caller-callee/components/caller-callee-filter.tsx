@@ -25,18 +25,29 @@
  */
 
 /** 主被调 - 左侧筛选 */
-import { Component, Prop, Emit } from 'vue-property-decorator';
+import { Component, Prop, Emit, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { getFieldOptionValues } from 'monitor-api/modules/apm_metric';
+import { Debounce } from 'monitor-common/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+
+import { reviewInterval } from '../../../utils';
+import { VariablesService } from '../../../utils/variable';
 import { SYMBOL_LIST } from '../utils';
 
-import type { IServiceConfig, IFilterCondition } from '../type';
+import type { PanelModel } from '../../../typings';
+import type { IServiceConfig, CallOptions, IFilterData } from '../type';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './caller-callee-filter.scss';
 
 interface ICallerCalleeFilterProps {
+  panel: PanelModel;
   searchList: IServiceConfig[];
   filterData: IServiceConfig[];
+  activeKey: string;
 }
 interface ICallerCalleeFilterEvent {
   onReset?: () => void;
@@ -48,35 +59,137 @@ interface ICallerCalleeFilterEvent {
   components: {},
 })
 export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, ICallerCalleeFilterEvent> {
-  @Prop({ required: true, type: Array, default: () => [] }) searchList: IServiceConfig[];
-  @Prop({ required: true, type: Array, default: () => [] }) filterData: IFilterCondition[];
-  @Prop({ required: true, type: Boolean, default: false }) isLoading: boolean;
+  @Prop({ required: true, type: Object }) panel: PanelModel;
+  @Prop({ required: true, type: String, default: '' }) activeKey: string;
+
+  @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
+  @InjectReactive('callOptions') readonly callOptions!: CallOptions;
+
   symbolList = SYMBOL_LIST;
   toggleKey = '';
+  isLoading = false;
+  filterData: IFilterData;
+  filterTags = {};
+
   @Emit('search')
   handleSearch() {
-    return this.filterData;
+    const filter = (this.filterData[this.activeKey] || []).filter(item => item.value.length > 0);
+    return this.handleRegData(filter);
   }
 
   @Emit('reset')
   handleReset() {
-    return this.filterData;
+    const data = (this.filterData[this.activeKey] || []).map(item => Object.assign(item, { method: 'eq', value: [] }));
+    this.filterData[this.activeKey] = data;
+    return this.filterData[this.activeKey];
   }
   @Emit('change')
   changeSelect(val, item) {
     return { val, item };
   }
-  @Emit('toggle')
   handleToggle(isOpen: boolean, key: string) {
+    this.searchToggle({ isOpen, key });
     this.toggleKey = key;
-    return { isOpen, key };
+  }
+  get commonOptions() {
+    return this.panel?.options?.common || {};
+  }
+  get variablesData() {
+    return this.commonOptions?.variables?.data || {};
+  }
+  get angleData() {
+    return this.commonOptions?.angle || {};
+  }
+  mounted() {
+    this.initDefaultData();
+  }
+  initDefaultData() {
+    const { caller, callee } = this.angleData;
+    const createFilterData = tags =>
+      (tags || []).map(item => ({
+        key: item.value,
+        method: 'eq',
+        value: [],
+        condition: 'and',
+      }));
+    const createFilterTags = tags => (tags || []).map(item => ({ ...item, values: [] }));
+
+    // 使用通用函数生成数据
+    this.filterData = {
+      caller: createFilterData(caller?.tags),
+      callee: createFilterData(callee?.tags),
+    };
+
+    this.filterTags = {
+      caller: createFilterTags(caller?.tags),
+      callee: createFilterTags(callee?.tags),
+    };
+  }
+
+  handleRegData(filter) {
+    /** 前端处理数据：
+     * 前匹配：调用后台、跳转数据检索时补成 example.*
+     * 后匹配：调用后台、跳转数据检索时补成 .*example
+     * */
+    const updatedFilter = filter.map(item => {
+      if (item.method === 'before_req' || item.method === 'after_req') {
+        const prefix = item.method === 'before_req' ? '' : '.*';
+        const suffix = item.method === 'before_req' ? '.*' : '';
+        return {
+          ...item,
+          value: item.value.map(value => `${prefix}${value}${suffix}`),
+          method: 'reg',
+        };
+      }
+      return item;
+    });
+    return updatedFilter;
+  }
+  /** 动态获取左侧列表的下拉值 */
+  @Debounce(300)
+  searchToggle({ isOpen, key }) {
+    if (!isOpen) {
+      return;
+    }
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const filter = (this.filterData[this.activeKey] || []).filter(item => item.value.length > 0);
+    const interval = reviewInterval(this.viewOptions.interval, endTime - startTime, this.panel.collect_interval);
+    const variablesService = new VariablesService({
+      ...this.viewOptions,
+      interval,
+      ...this.callOptions,
+    });
+    const params = {
+      start_time: startTime,
+      end_time: endTime,
+      field: key,
+    };
+    const newParams = {
+      ...variablesService.transformVariables(this.variablesData, {
+        ...this.viewOptions,
+        interval,
+      }),
+      ...params,
+    };
+    newParams.where = [...newParams.where, ...this.handleRegData(filter)];
+    this.isLoading = true;
+    getFieldOptionValues(newParams)
+      .then(res => {
+        this.isLoading = false;
+        const newFilter = this.filterTags[this.activeKey].map(item =>
+          item.value === key ? { ...item, values: res } : item
+        );
+        this.$set(this.filterTags, this.activeKey, newFilter);
+      })
+      .catch(() => (this.isLoading = true));
   }
   render() {
     return (
       <div class='caller-callee-filter'>
         <div class='search-title'>{this.$t('筛选')}</div>
         <div class='search-main'>
-          {(this.searchList || []).map((item, ind) => {
+          {(this.filterTags[this.activeKey] || []).map((item, ind) => {
             return (
               <div
                 key={item.value}
@@ -84,10 +197,10 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
               >
                 <div class='search-item-label'>
                   <span>{item.text}</span>
-                  {this.filterData[ind] && (
+                  {this.filterData[this.activeKey][ind] && (
                     <bk-select
                       class='item-label-select'
-                      v-model={this.filterData[ind].method}
+                      v-model={this.filterData[this.activeKey][ind].method}
                       clearable={false}
                       list={this.symbolList}
                       size='small'
@@ -103,9 +216,9 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
                     </bk-select>
                   )}
                 </div>
-                {this.filterData[ind] && (
+                {this.filterData[this.activeKey][ind] && (
                   <bk-select
-                    v-model={this.filterData[ind].value}
+                    v-model={this.filterData[this.activeKey][ind].value}
                     loading={item.value === this.toggleKey && this.isLoading}
                     allow-create
                     collapse-tag
