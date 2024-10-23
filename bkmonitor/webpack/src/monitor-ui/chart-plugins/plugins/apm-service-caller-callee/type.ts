@@ -60,8 +60,13 @@ export enum EParamsMode {
 }
 /* 头部对比时间预设 */
 export enum EPreDateType {
-  lastWeek = 'week',
-  yesterday = 'yesterday',
+  lastWeek = '1w',
+  yesterday = '1d',
+}
+
+export interface IListItem {
+  value?: string;
+  text?: string;
 }
 
 export type CallOptions = {

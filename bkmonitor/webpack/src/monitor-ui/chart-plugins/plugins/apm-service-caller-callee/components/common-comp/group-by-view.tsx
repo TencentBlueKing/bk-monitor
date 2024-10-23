@@ -27,14 +27,16 @@
 import { Component, Prop, Emit, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { LIMIT_TYPE_LIST } from '../../utils';
+// import { LIMIT_TYPE_LIST } from '../../utils';
 
-import type { IServiceConfig } from '../../type';
+import type { IListItem, IServiceConfig } from '../../type';
 
 import './group-by-view.scss';
 interface IGroupByViewProps {
   searchList: IServiceConfig[];
   groupBy?: string[];
+  supportedCalculationTypes?: IListItem[];
+  supportedMethods?: IListItem[];
 }
 interface IGroupByViewEvent {
   onChange?: (val: string[]) => void;
@@ -45,6 +47,8 @@ interface IGroupByViewEvent {
 })
 export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEvent> {
   @Prop({ required: true, type: Array, default: () => [] }) searchList: IServiceConfig[];
+  @Prop({ type: Array, default: () => [] }) supportedCalculationTypes: IListItem[];
+  @Prop({ type: Array, default: () => [] }) supportedMethods: IListItem[];
   @Prop({ type: Array, default: () => [] }) groupBy: string[];
 
   /* groupBy已选项tag */
@@ -56,7 +60,6 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
   /* 是否显示选择器 */
   isShowPicker = false;
 
-  limitTypeList = LIMIT_TYPE_LIST;
   limitFilter = {
     value: '10',
     position: 'top',
@@ -71,7 +74,7 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
       const groupByTags = [];
       const groupBySet = new Set(this.groupBy);
       this.groupByList = this.searchList.map(item => {
-        const checked = groupBySet.has(item.label);
+        const checked = groupBySet.has(item.value);
         if (checked) {
           groupByTags.push(item);
         }
@@ -89,7 +92,7 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
     const groupBySet = new Set(this.groupBy);
     this.groupByList = this.searchList.map(item => ({
       ...item,
-      checked: groupBySet.has(item.label),
+      checked: groupBySet.has(item.value),
     }));
   }
   @Emit('change')
@@ -102,7 +105,7 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
     const groupByTags = [];
     for (const item of this.groupByList) {
       if (item.checked) {
-        groupByKey.push(item.label);
+        groupByKey.push(item.value);
         groupByTags.push(item);
       }
     }
@@ -141,12 +144,12 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
       return (
         <div>
           {list.map(item => (
-            <bk-tag key={item.label}>{item.name}</bk-tag>
+            <bk-tag key={item.value}>{item.text}</bk-tag>
           ))}
           <bk-tag
             v-bk-tooltips={this.groupBySelectedTags
               .slice(2)
-              .map(item => item.name)
+              .map(item => item.text)
               .join('、')}
           >
             {' '}
@@ -155,7 +158,7 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
         </div>
       );
     }
-    return this.groupBySelectedTags.map(item => <bk-tag key={item.label}>{item.name}</bk-tag>);
+    return this.groupBySelectedTags.map(item => <bk-tag key={item.value}>{item.text}</bk-tag>);
   }
 
   render() {
@@ -175,9 +178,9 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
           >
             <div
               class='group-by-select'
-              title={this.groupBySelectedTags.map(item => item.name).join(',')}
+              title={this.groupBySelectedTags.map(item => item.text).join(',')}
             >
-              {this.groupBySelectedTags.map(item => item.name).join(',')}
+              {this.groupBySelectedTags.map(item => item.text).join(',')}
               <i class='icon-monitor icon-arrow-down' />
             </div>
             <div
@@ -187,11 +190,11 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
               {this.groupByList.map(option => {
                 return (
                   <div
-                    key={option.label}
+                    key={option.value}
                     class={['group-by-select-item', { active: option.checked }]}
                     onClick={() => this.chooseSelect(option)}
                   >
-                    {option.name}
+                    {option.text}
                     {option.checked && <i class='icon-monitor icon-mc-check-small' />}
                   </div>
                 );
@@ -217,11 +220,11 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
               clearable={false}
               onChange={this.handleChangeLimit}
             >
-              {this.limitTypeList.map(option => (
+              {this.supportedCalculationTypes.map(option => (
                 <bk-option
-                  id={option.id}
-                  key={option.id}
-                  name={option.name}
+                  id={option.value}
+                  key={option.value}
+                  name={option.text}
                 />
               ))}
             </bk-select>
@@ -233,16 +236,13 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
               clearable={false}
               onChange={this.handleChangeLimit}
             >
-              <bk-option
-                id={'top'}
-                key={'top'}
-                name={'top'}
-              />
-              <bk-option
-                id={'bottom'}
-                key={'bottom'}
-                name={'bottom'}
-              />
+              {this.supportedMethods.map(option => (
+                <bk-option
+                  id={option.value}
+                  key={option.value}
+                  name={option.text}
+                />
+              ))}
             </bk-select>
             <bk-input
               style='width: 150px;'
