@@ -556,6 +556,8 @@ APM_BMW_DEPLOY_BIZ_ID = 0
 # 在列表中业务，才会创建虚拟指标， [2]
 APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
 APM_BMW_TASK_QUEUES = []
+# APM V4 链路 metric data status 配置
+APM_V4_METRIC_DATA_STATUS_CONFIG = {}
 # 拓扑发现允许的最大 Span 数量(预估值)
 PER_ROUND_SPAN_MAX_SIZE = 1000
 
