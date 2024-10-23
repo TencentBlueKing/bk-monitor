@@ -305,7 +305,6 @@
         isExternal: state => state.isExternal,
         isShowGlobalDialog: state => state.isShowGlobalDialog,
         globalSettingList: state => state.globalSettingList,
-        version: state => state.retrieve.activeVersion,
       }),
       ...mapGetters('globals', ['globalsData']),
       platformData() {
