@@ -154,7 +154,6 @@ class ApmHeatmap extends CommonSimpleChart {
       this.options = {
         tooltip: {
           ...MONITOR_LINE_OPTIONS.tooltip,
-          position: 'top',
           formatter: p => {
             if (p.data?.length < 2) {
               return '';
@@ -196,6 +195,7 @@ class ApmHeatmap extends CommonSimpleChart {
           axisPointer: {
             type: 'none',
           },
+          position: this.commonChartTooltipsPosition,
         },
         grid: {
           ...MONITOR_LINE_OPTIONS.grid,
@@ -273,7 +273,6 @@ class ApmHeatmap extends CommonSimpleChart {
           },
         ],
       };
-      console.info(this.options, '=======');
       this.inited = true;
       this.empty = false;
     } else {
@@ -292,6 +291,7 @@ class ApmHeatmap extends CommonSimpleChart {
           draging={this.panel.draging}
           isInstant={this.panel.instant}
           metrics={this.metrics}
+          needMoreMenu={false}
           showAddMetric={false}
           showMore={true}
           subtitle={this.panel.subTitle || ''}
