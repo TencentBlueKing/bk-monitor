@@ -674,7 +674,7 @@ class SearchHandler(object):
                 "scenario_id": data.get("scenario_id") or "",
                 "storage_cluster_id": data.get("storage_cluster_id") or -1,
                 "status": str(exc),
-                "source_app_code": "unknown",
+                "source_app_code": settings.APP_CODE,
             }
             metrics.ESQUERY_SEARCH_LATENCY.labels(**labels).observe(time.time() - start_at)
             metrics.ESQUERY_SEARCH_COUNT.labels(**labels).inc()
