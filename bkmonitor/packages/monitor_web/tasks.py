@@ -16,6 +16,7 @@ import shutil
 import time
 import traceback
 from typing import Any, Dict
+from concurrent.futures.thread import ThreadPoolExecutor
 
 import arrow
 from celery.signals import task_postrun
@@ -1326,7 +1327,8 @@ def update_target_detail():
     """
     对启用了缓存的业务ID，更新监控目标详情缓存
     """
-    for bk_biz_id in settings.ENABLED_TARGET_CACHE_BK_BIZ_IDS:
+
+    def inner(bk_biz_id):
         strategy_ids = StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values_list("id", flat=True)
         items = ItemModel.objects.filter(strategy_id__in=strategy_ids).only("strategy_id", "target")
         resource.strategies.get_target_detail_with_cache.set_mapping({item.strategy_id: (bk_biz_id, item.target)
@@ -1336,3 +1338,8 @@ def update_target_detail():
                 resource.strategies.get_target_detail_with_cache.request.refresh({"strategy_id": item.strategy_id})
             except Exception as e:
                 logger.exception(f"Update target detail cache failed for strategy id [{item.strategy_id}]: {e}")
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+
+        for bk_biz_id in settings.ENABLED_TARGET_CACHE_BK_BIZ_IDS:
+            executor.submit(inner, bk_biz_id)
