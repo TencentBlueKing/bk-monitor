@@ -1062,9 +1062,9 @@ export const utcFormatDate = val => {
 export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null) => {
   try {
     if (tableData.length && visibleFields.length) {
-      visibleFields.forEach((field, index) => {
+      visibleFields.forEach(field => {
         if (catchFieldsWidthObj) {
-          const catchWidth = catchFieldsWidthObj[index];
+          const catchWidth = catchFieldsWidthObj[field.field_name];
           field.width = catchWidth ?? calculateTableColsWidth(field, tableData);
         } else {
           field.width = calculateTableColsWidth(field, tableData);
@@ -1169,12 +1169,6 @@ export const getCharLength = str => {
   }
 
   return bitLen;
-};
-
-export const sessionShowFieldObj = () => {
-  // 显示字段缓存
-  const showFieldStr = sessionStorage.getItem('showFieldSession');
-  return !showFieldStr ? {} : JSON.parse(showFieldStr);
 };
 
 export const getRegExp = (searchValue, flags = 'ig') => {

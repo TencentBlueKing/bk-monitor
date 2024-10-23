@@ -40,6 +40,10 @@ export default {
     isIndexSetLoading: false,
     isTrendDataLoading: false,
     trendDataCount: 0,
+    catchFieldCustomConfig: {
+      fieldsWidth: {},
+      displayFields: [],
+    },
   },
   mutations: {
     updateTrendDataLoading(state, payload) {
@@ -67,6 +71,16 @@ export default {
     },
     updateIndexSetLoading(state, payload) {
       state.isIndexSetLoading = payload;
+    },
+    updateCatchFieldCustomConfig(state, payload) {
+      Object.assign(
+        state.catchFieldCustomConfig,
+        {
+          fieldsWidth: {},
+          displayFields: {},
+        },
+        payload ?? {},
+      );
     },
   },
   actions: {

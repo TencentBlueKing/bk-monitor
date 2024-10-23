@@ -3,7 +3,6 @@
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import { sessionShowFieldObj } from '@/common/util';
 
   import FieldFilterComp from '../field-filter-comp';
   const store = useStore();
@@ -59,12 +58,10 @@
    * @param {Array} displayFieldNames 展示字段
    */
   const handleFieldsUpdated = async displayFieldNames => {
-    store.commit('updateClearTableWidth', 1);
     store.commit('updateIsSetDefaultTableColumn', false);
-    // 缓存展示字段
-    const showFieldObj = sessionShowFieldObj();
-    Object.assign(showFieldObj, { [indexId.value]: displayFieldNames });
-    sessionStorage.setItem('showFieldSession', JSON.stringify(showFieldObj));
+    store.dispatch('userFieldConfigChange', {
+      displayFields: displayFieldNames,
+    });
     await nextTick();
     store.commit('resetVisibleFields', displayFieldNames);
   };
