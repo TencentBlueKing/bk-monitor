@@ -528,7 +528,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         return <ApmServiceCallerCallee panel={this.panel} />;
       case 'alarm-event-chart':
         return <AlarmEventChart panel={this.panel} />;
-      case 'apm-heatmap':
+      case 'apm_heatmap':
         return (
           <ApmHeatmap
             panel={this.panel}
