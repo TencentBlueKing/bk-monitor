@@ -53,6 +53,7 @@ import type {
   ITimeSeriesItem,
   PanelModel,
 } from '../../../chart-plugins/typings';
+import type { CallOptions } from '../apm-service-caller-callee/type';
 import type { IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
 
 import './caller-line-chart.scss';
@@ -63,24 +64,11 @@ interface IProps {
 
 @Component
 class CallerLineChart extends CommonSimpleChart {
-  // 时间对比的偏移量
-  @InjectReactive('timeOffset') readonly timeOffset: string[];
   // 当前粒度
   @InjectReactive('downSampleRange') readonly downSampleRange: number | string;
   // yAxis是否需要展示单位
   @InjectReactive('yAxisNeedUnit') readonly yAxisNeedUnit: boolean;
-  @InjectReactive({
-    from: 'callOptions',
-    default: () => ({
-      group_by: [],
-      method: 'topk',
-      limit: '',
-      metric_cal_type: '',
-      // 时间对比 字段
-      time_shift: [],
-    }),
-  })
-  readonly callOptions: Record<string, any>;
+  @InjectReactive('callOptions') readonly callOptions: CallOptions;
 
   metrics = [];
   options = {};
@@ -103,6 +91,12 @@ class CallerLineChart extends CommonSimpleChart {
   // 同时hover显示多个tooltip
   get hoverAllTooltips() {
     return this.panel.options?.time_series?.hoverAllTooltips;
+  }
+
+  @Watch('callOptions')
+  onCallOptionsChange(v) {
+    console.log(v);
+    this.getPanelData();
   }
 
   // 数据刷新间隔
@@ -148,7 +142,7 @@ class CallerLineChart extends CommonSimpleChart {
         });
       }
       const promiseList = [];
-      const timeShiftList = ['', ...this.timeOffset];
+      const timeShiftList = ['', ...this.callOptions.time_shift.map(t => t.alias)];
       const interval = reviewInterval(
         this.viewOptions.interval,
         params.end_time - params.start_time,
@@ -161,10 +155,19 @@ class CallerLineChart extends CommonSimpleChart {
       });
       for (const time_shift of timeShiftList) {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
+        const dataFormat = data => {
+          if (!this.callOptions.group_by.length) {
+            return {
+              ...data,
+              group_by_limit: undefined,
+            };
+          }
+          return data;
+        };
         const list = this.panel.targets.map(item => {
           const newPrarams = {
             ...variablesService.transformVariables(
-              item.data,
+              dataFormat(item.data),
               {
                 ...this.viewOptions.filters,
                 ...(this.viewOptions.filters?.current_target || {}),
@@ -208,7 +211,7 @@ class CallerLineChart extends CommonSimpleChart {
                 series.push(
                   ...res.series.map(set => ({
                     ...set,
-                    name: `${this.timeOffset.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
+                    name: `${this.callOptions.time_shift.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
                       this.handleSeriesName(item, set) || set.target
                     }`,
                   }))
@@ -397,7 +400,11 @@ class CallerLineChart extends CommonSimpleChart {
   // 转换time_shift显示
   handleTransformTimeShift(val: string) {
     const timeMatch = val.match(/(-?\d+)(\w+)/);
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     const hasMatch = timeMatch && timeMatch.length > 2;
+    if (dateRegex.test(val)) {
+      return val;
+    }
     return hasMatch
       ? (dayjs() as any).add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
       : val.replace('current', window.i18n.tc('当前'));
