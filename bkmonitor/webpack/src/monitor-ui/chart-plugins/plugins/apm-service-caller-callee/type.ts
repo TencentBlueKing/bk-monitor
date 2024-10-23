@@ -76,7 +76,11 @@ export type CallOptions = {
   limit: number;
   metric_cal_type: string;
   // 时间对比 字段
-  time_shift: string[];
+  time_shift: {
+    start_time: number;
+    end_time: number;
+    alias: string;
+  }[];
   // 左侧查询条件字段
   call_filter: IFilterCondition[];
 } & Record<string, string>;
