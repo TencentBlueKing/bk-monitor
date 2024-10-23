@@ -45,7 +45,7 @@ import { SEARCH_KEY_LIST } from './SEARCH_KEY_LIST';
 import { dashboardPanels } from './testData';
 import { CALLER_CALLEE_TYPE } from './utils';
 
-import type { IFilterType } from './type';
+import type { CallOptions, IFilterType } from './type';
 
 import './apm-service-caller-callee.scss';
 interface IApmServiceCallerCalleeProps {
@@ -58,7 +58,7 @@ interface IApmServiceCallerCalleeProps {
 export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeProps> {
   @Prop({ required: true, type: Object }) panel: PanelModel;
 
-  @ProvideReactive('callOptions') callOptions: Record<string, any> = {};
+  @ProvideReactive('callOptions') callOptions: CallOptions;
 
   // 顶层注入数据
   // filterOption 最终需要的filter数据
@@ -130,6 +130,8 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       metric_cal_type: '',
       // 时间对比 字段
       time_shift: [],
+      // 左侧查询条件字段
+      call_filter: [],
     };
   }
 
