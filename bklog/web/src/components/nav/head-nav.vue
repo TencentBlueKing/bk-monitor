@@ -848,19 +848,12 @@
             display: flex;
             align-items: center;
           }
-          .icon-language {
-            font-size: 18px;
-          }
         }
 
         .active {
           color: #3c96ff;
         }
       }
-    }
-
-    .icon-language {
-      font-size: 20px;
     }
 
     .icon-chinese::before {

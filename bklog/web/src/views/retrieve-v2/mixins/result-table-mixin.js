@@ -361,6 +361,9 @@ export default {
                       displayFieldNames.push(field.field_name);
                     }
                   });
+                  this.$store.dispatch('userFieldConfigChange', {
+                    displayFields: displayFieldNames,
+                  });
                   this.$store.commit('resetVisibleFields', displayFieldNames);
                 },
               },

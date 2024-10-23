@@ -77,6 +77,7 @@
     <!-- <div class="result-text"></div> -->
     <!-- 检索日期 -->
     <div class="result-right">
+      <VersionSwitch version="v1"></VersionSwitch>
       <time-range
         :timezone="timezone"
         :value="datePickerValue"
@@ -191,12 +192,13 @@
   import StepBox from '@/components/step-box';
   import { debounce } from 'throttle-debounce';
   import { mapGetters, mapState } from 'vuex';
-
+  import VersionSwitch from '@/global/version-switch.vue';
   import TimeRange from '../../../components/time-range/time-range';
 
   export default {
     components: {
       BizMenuSelect,
+      VersionSwitch,
       TimeRange,
       StepBox,
     },
