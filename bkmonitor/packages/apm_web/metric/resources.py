@@ -155,6 +155,40 @@ class DynamicUnifyQueryResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        class GroupByLimitSerializer(serializers.Serializer):
+            class OptionsSerializer(serializers.Serializer):
+                class TrpcSerializer(serializers.Serializer):
+                    kind = serializers.ChoiceField(label="调用类型", choices=SeriesAliasType.get_choices(), required=True)
+                    temporality = serializers.ChoiceField(
+                        label="时间性", required=True, choices=MetricTemporality.choices()
+                    )
+
+                trpc = TrpcSerializer(label="tRPC 配置", required=False)
+
+            limit = serializers.IntegerField(label="查询数量", default=10, required=False)
+            filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
+            where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
+            method = serializers.ChoiceField(
+                label="计算类型",
+                required=False,
+                default=metric_group.CalculationType.TOP_N,
+                choices=[metric_group.CalculationType.TOP_N, metric_group.CalculationType.BOTTOM_N],
+            )
+            metric_group_name = serializers.ChoiceField(
+                label="指标组", required=True, choices=metric_group.GroupEnum.choices()
+            )
+            metric_cal_type = serializers.ChoiceField(
+                label="指标计算类型", required=True, choices=metric_group.CalculationType.choices()
+            )
+            options = OptionsSerializer(label="配置", required=False, default={})
+
+            def validate(self, attrs):
+                # 合并查询条件
+                attrs["filter_dict"] = q_to_dict(
+                    conditions_to_q(filter_dict_to_conditions(attrs.get("filter_dict") or {}, attrs.get("where") or []))
+                )
+                return attrs
+
         app_name = serializers.CharField(label="应用名称")
         service_name = serializers.CharField(label="服务名称", default=False)
         unify_query_param = serializers.DictField(label="unify-query参数")
@@ -170,7 +204,8 @@ class DynamicUnifyQueryResource(Resource):
             required=False,
         )
         alias_suffix = serializers.CharField(label="动态 alias 后缀", required=False)
-        extra_filter_dict = serializers.DictField(label="额外查询条件", required=False)
+        extra_filter_dict = serializers.DictField(label="额外查询条件", required=False, default={})
+        group_by_limit = GroupByLimitSerializer(label="聚合排序", required=False)
 
     def perform_request(self, validate_data):
         unify_query_params = {
@@ -190,6 +225,24 @@ class DynamicUnifyQueryResource(Resource):
                 config["interval"] = interval
 
             require_fill_series = True
+
+        if validate_data.get("group_by_limit"):
+            group_limit_filter_dict = QueryDimensionsByLimitResource().perform_request(
+                {
+                    "bk_biz_id": validate_data["bk_biz_id"],
+                    "app_name": validate_data["app_name"],
+                    "method": validate_data["group_by_limit"]["method"],
+                    "metric_group_name": validate_data["group_by_limit"]["metric_group_name"],
+                    "metric_cal_type": validate_data["group_by_limit"]["metric_cal_type"],
+                    "group_by": unify_query_params["query_configs"][0]["group_by"],
+                    "limit": validate_data["group_by_limit"]["limit"],
+                    "filter_dict": validate_data["group_by_limit"]["filter_dict"],
+                    "options": validate_data["group_by_limit"]["options"],
+                    "start_time": validate_data["start_time"],
+                    "end_time": validate_data["end_time"],
+                }
+            )["extra_filter_dict"]
+            validate_data["extra_filter_dict"].update(group_limit_filter_dict)
 
         if validate_data.get("extra_filter_dict"):
             for config in unify_query_params["query_configs"]:
@@ -2995,7 +3048,7 @@ class QueryDimensionsByLimitResource(Resource):
         filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
         where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
         group_by = serializers.ListSerializer(label="聚合字段", required=False, default=[], child=serializers.CharField())
-        cal_type = serializers.ChoiceField(
+        method = serializers.ChoiceField(
             label="计算类型",
             required=False,
             default=metric_group.CalculationType.TOP_N,
@@ -3049,7 +3102,7 @@ class QueryDimensionsByLimitResource(Resource):
             **(validated_request_data["options"].get(group_name) or {}),
         )
         records: List[Dict[str, Any]] = group.handle(
-            validated_request_data["cal_type"],
+            validated_request_data["method"],
             qs_type=validated_request_data["metric_cal_type"],
             limit=validated_request_data["limit"],
             start_time=validated_request_data.get("start_time"),
