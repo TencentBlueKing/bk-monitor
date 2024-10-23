@@ -267,6 +267,7 @@
             :property="'log_original'"
             :rules="rules.log_original"
             :label="$t('日志样例')"
+            v-bkloading="{ isLoading: logOriginalLoding }"
           >
             <div
               class="view-log-btn"
@@ -483,6 +484,7 @@
             {{ timeCheckContent }}
           </p>
           <bk-form-item
+            v-if="formData.etl_params.retain_original_text"
             ext-cls="en-bk-form"
             :icon-offset="120"
             :label="$t('保留失败日志')"
@@ -522,6 +524,7 @@
             v-if="enableMetaData"
             ext-cls="en-bk-form"
             :label="$t('路径样例')"
+            v-bkloading="{ isLoading: pathExampleLoading }"
           >
             <div class="origin-log-config">
               <bk-input
@@ -529,6 +532,10 @@
                 v-model="pathExample"
               >
               </bk-input>
+              <i
+                class="path-refresh-icon bk-icon bk-icon icon-refresh"
+                @click="pathRefreshClick"
+              ></i>
             </div>
           </bk-form-item>
           <bk-form-item
@@ -536,6 +543,7 @@
             ext-cls="en-bk-form"
             :label="$t('采集路径分割正则')"
             property="etl_params.path_regexp"
+            required
             :rules="rules.path_regexp"
           >
             <div class="origin-log-config">
@@ -558,11 +566,11 @@
             <div
               class="origin-log-config"
               style="margin-top: 10px"
-              v-if="regexpResult.length"
+              v-if="formData.etl_params.metadata_fields && formData.etl_params.metadata_fields.length"
             >
               <div
                 style="margin-bottom: 10px"
-                v-for="item in regexpResult"
+                v-for="item in formData.etl_params.metadata_fields"
                 :key="item.field_index"
               >
                 <bk-input
@@ -858,13 +866,15 @@
               style="margin-top: 8px"
               :right-icon="'bk-icon icon-search'"
               v-model="templateKeyWord"
+              @right-icon-click="handlerSearchTemplate"
+              clearable
             ></bk-input>
             <div class="template-list-wrap">
               <div
-                v-for="option in filteredTemplateList"
+                v-for="option in currentTemplateList"
                 :key="option.clean_template_id"
                 :class="{ 'template-item': true, active: option.clean_template_id === selectTemplate }"
-                @click="handleSelectTemplate(option.clean_template_id)"
+                @click="handleSelectTemplate(option.clean_template_id, option.name)"
                 :title="option.name"
               >
                 {{ option.name }}
@@ -916,6 +926,8 @@
         defaultRegex: '(?P<request_ip>[\d\.]+)[^[]+\[(?P<request_time>[^]]+)\]',
         isLoading: false,
         basicLoading: false,
+        logOriginalLoding: false,
+        pathExampleLoading: false,
         isUnmodifiable: false,
         fieldType: '',
         deletedVisible: true,
@@ -946,6 +958,7 @@
             retain_extra_json: false,
             enable_retain_content: true, // 保留失败日志
             path_regexp: '', // 采集路径分割的正则
+            metadata_fields: [],
           },
           fields: [],
           visible_type: 'current_biz', // 可见范围单选项
@@ -956,7 +969,6 @@
           time_format: '',
           time_zone: '',
         },
-        regexpResult: [],
         copyBuiltField: [],
         formatResult: true, // 验证结果是否通过
         rules: {
@@ -996,6 +1008,12 @@
               trigger: 'blur',
             },
           ],
+          path_regexp: [
+            {
+              required: true,
+              trigger: 'blur',
+            },
+          ],
         },
         isExtracting: false,
         dialogVisible: false,
@@ -1026,6 +1044,7 @@
         selectTemplate: '', // 应用模板
         saveTempName: '',
         templateList: [], // 模板列表
+        currentTemplateList: [],
         templateDialogVisible: false,
         isSaveTempDialog: false,
         cleanCollector: '', // 日志清洗选择的采集项
@@ -1176,10 +1195,6 @@
       renderFieldNameList() {
         return this.fieldNameList.filter(item => item.field_name);
       },
-      filteredTemplateList() {
-        const query = this.templateKeyWord.toLowerCase();
-        return this.templateList.filter(item => item.name.toLowerCase().includes(query));
-      },
     },
     watch: {
       'formData.fields'() {
@@ -1192,6 +1207,22 @@
       'formData.visible_type': {
         handler(val) {
           this.visibleBkBiz = val !== 'multi_biz' ? [] : JSON.parse(JSON.stringify(this.cacheVisibleList));
+        },
+      },
+      'formData.etl_params.retain_original_text': {
+        // 当不保留原始日志时，保留失败日志置为false
+        handler(val) {
+          if (!val) {
+            this.formData.etl_params.enable_retain_content = false;
+          }
+        },
+      },
+      templateKeyWord: {
+        handler(val) {
+          // 当搜索关键字为空时，显示所有模板
+          if (!val) {
+            this.currentTemplateList = this.templateList;
+          }
         },
       },
     },
@@ -1264,8 +1295,13 @@
       this.getDataLog('init');
     },
     methods: {
-      handleSelectTemplate(templateId) {
+      handlerSearchTemplate() {
+        const query = this.templateKeyWord.toLowerCase();
+        this.currentTemplateList = this.templateList.filter(item => item.name.toLowerCase().includes(query));
+      },
+      handleSelectTemplate(templateId, name) {
         this.selectTemplate = templateId;
+        this.templateKeyWord = name;
       },
       handleTableData(data) {
         this.fieldNameList = data;
@@ -1375,6 +1411,7 @@
               separator: '',
               retain_extra_json: false,
               enable_retain_content: true,
+              metadata_fields: [],
             },
             etlParams ? JSON.parse(JSON.stringify(etlParams)) : {},
           ),
@@ -1432,9 +1469,11 @@
         const updateData = { params: urlParams, data };
 
         // 先置空防止接口失败显示旧数据
-        this.regexpResult.splice(0, this.regexpResult.length);
+        this.formData.etl_params.metadata_fields &&
+          this.formData.etl_params.metadata_fields.splice(0, this.formData.etl_params.metadata_fields.length);
         this.$http.request('collect/getEtlPreview', updateData).then(res => {
-          this.regexpResult = res.data ? res.data.fields : [];
+          this.formData.etl_params.metadata_fields = res.data ? res.data.fields : [];
+          this.$set(this.formData.etl_params.metadata_fields, res.data ? res.data.fields : []);
         });
       },
       debugHandler() {
@@ -1465,7 +1504,6 @@
           delete data.etl_params['separator_regexp'];
           delete data.etl_params['separator'];
         }
-
         let requestUrl;
         const urlParams = {};
         if (this.isSetEdit) {
@@ -1832,6 +1870,7 @@
               original_text_tokenize_on_chars: '',
               enable_retain_content: true,
               path_regexp: '',
+              metadata_fields: [],
             },
             etlParams ? JSON.parse(JSON.stringify(etlParams)) : {},
           ),
@@ -1850,7 +1889,13 @@
       //  原始日志刷新
       refreshClick() {
         if (this.refresh) {
-          this.getDataLog('init');
+          this.getDataLog('logOriginRefresh');
+        }
+      },
+      //  路径样例刷新
+      pathRefreshClick() {
+        if (this.refresh) {
+          this.getDataLog('pathRefresh');
         }
       },
       viewStandard() {
@@ -2052,9 +2097,15 @@
         Object.assign(this.formData.etl_params, this.params.etl_params);
       },
       //  获取采样状态
-      getDataLog(isInit) {
+      getDataLog(type) {
         this.refresh = false;
-        this.basicLoading = true;
+        if (type === 'init') {
+          this.basicLoading = true;
+        } else if (type === 'logOriginRefresh') {
+          this.logOriginalLoding = true;
+        } else if (type === 'pathRefresh') {
+          this.pathExampleLoading = true;
+        }
         this.$http
           .request('source/dataList', {
             params: {
@@ -2085,7 +2136,13 @@
           })
           .catch(() => {})
           .finally(() => {
-            this.basicLoading = false;
+            if (type === 'init') {
+              this.basicLoading = false;
+            } else if (type === 'logOriginRefresh') {
+              this.logOriginalLoding = false;
+            } else if (type === 'pathRefresh') {
+              this.pathExampleLoading = false;
+            }
             this.refresh = true;
           });
       },
@@ -2152,6 +2209,7 @@
           .then(res => {
             if (res.data) {
               this.templateList = res.data;
+              this.currentTemplateList = res.data;
             }
           });
       },
@@ -2340,6 +2398,11 @@
             return otherValue;
           });
         }
+        etlParams.metadata_fields =
+          etlParams?.metadata_fields?.map(item => {
+            item.metadata_type = 'path';
+            return item;
+          }) ?? [];
         const payload = {
           retain_original_text: etlParams.retain_original_text,
           original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
@@ -2348,11 +2411,12 @@
           path_regexp: this.enableMetaData ? etlParams.path_regexp : null,
           enable_retain_content: etlParams.enable_retain_content,
           record_parse_failure: etlParams.enable_retain_content,
+          metadata_fields: etlParams.metadata_fields,
         };
         const data = {
           clean_type: etlConfig,
           etl_params: {
-            separator_regexp: etlParams.separator_regexp,
+            separator_regexp: etlParams.separator === 'bk_log_regexp' ? etlParams.separator_regexp : '',
             separator: etlParams.separator,
             ...payload,
           },
@@ -2514,6 +2578,12 @@
       .bk-form-control {
         display: inline-block;
       }
+    }
+
+    .path-refresh-icon {
+      margin-left: 12px;
+      font-size: 17px;
+      cursor: pointer;
     }
 
     .step-field-title {
