@@ -29,8 +29,14 @@ import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 // import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
+import { CancelToken } from 'monitor-api/index';
+import { Debounce } from 'monitor-common/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+
 import { MONITOR_LINE_OPTIONS } from '../../../chart-plugins/constants';
 import ChartHeader from '../../components/chart-title/chart-title';
+import { reviewInterval } from '../../utils/utils';
+import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
 import mockData from './test';
@@ -53,23 +59,60 @@ class ApmHeatmap extends CommonSimpleChart {
 
   @InjectReactive('callOptions') readonly callOptions: CallOptions;
 
-  @Watch('callOptions', { immediate: true })
+  @Watch('callOptions')
   onCallOptionsChange() {
-    console.info(this.callOptions, '========');
     this.getPanelData();
   }
-
+  @Debounce(100)
   async getPanelData() {
+    console.info(this.callOptions, this.panel, '========');
     if (!(await this.beforeGetPanelData())) {
       return;
     }
+    this.cancelTokens.forEach(cb => cb?.());
+    this.cancelTokens = [];
     if (this.inited) this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
-    // const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-    await new Promise(r => setTimeout(r, 2000));
-    const { data } = mockData;
-    this.metrics = data.metrics;
-    const series = data.series;
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const interval = reviewInterval(this.viewOptions.interval, startTime - endTime, this.panel.collect_interval);
+    const variablesService = new VariablesService({
+      ...this.viewOptions,
+      ...this.callOptions,
+      interval,
+    });
+    const series = [];
+    const promiseList = this.panel.targets.map(item => {
+      if (!this.panel.options?.is_support_group_by && item.data.group_by_limit) {
+        item.data.group_by_limit = undefined;
+      }
+      const transformParams = {
+        ...variablesService.transformVariables(item.data, {
+          ...this.viewOptions.filters,
+          ...(this.viewOptions.filters?.current_target || {}),
+          ...this.viewOptions,
+          ...this.viewOptions.variables,
+          ...this.callOptions,
+          interval,
+        }),
+        start_time: startTime,
+        end_time: endTime,
+      };
+      return this.$api[item.apiModule]
+        [item.apiFunc](transformParams, {
+          cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
+          needMessage: false,
+        })
+        .then(res => {
+          res.metrics && this.metrics.push(...res.metrics);
+          res.series && series.push(...res.series);
+          this.clearErrorMsg();
+          return true;
+        })
+        .catch(error => {
+          this.handleErrorMsgChange(error.msg || error.message);
+        });
+    });
+    await Promise.all(promiseList);
     if (series.length) {
       const xAxisCategory = new Set();
       const yAxisCategory = new Set();
@@ -220,7 +263,7 @@ class ApmHeatmap extends CommonSimpleChart {
       this.emptyText = window.i18n.tc('暂无数据');
       this.empty = true;
     }
-    // this.cancelTokens = [];
+    this.cancelTokens = [];
     this.handleLoadingChange(false);
   }
   render() {
