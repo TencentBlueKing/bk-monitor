@@ -26,6 +26,7 @@ from apm.models import ApmApplication, MetricDataSource, TraceDataSource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.time_tools import get_datetime_range
 from core.drf_resource import api, resource
+from core.errors.api import BKAPIError
 
 logger = logging.getLogger("apm")
 
@@ -40,7 +41,9 @@ class DaemonTaskHandler:
         try:
             # 1. 刷新配置到consul
             data_id = ConsulHandler.check_update_by_app_id(app_id)
-
+            if not data_id:
+                logger.warning(f"failed to obtain consul config of app_id: {app_id}")
+                return
             logger.info(f"push app_id: {app_id} data_id: {data_id} to consul success")
             # 2. 触发任务
 
@@ -67,6 +70,19 @@ class DaemonTaskHandler:
         logger.info(f"request reload_daemon_task api, params: \n-----\n{params}\n-----\n")
         api.bmw.reload_daemon_task(params)
         logger.info("trigger worker reload successfully")
+
+    @classmethod
+    def remove(cls, task_uni_id):
+        try:
+            params = {
+                "task_type": "daemon",
+                "task_uni_id": task_uni_id,
+            }
+            logger.info(f"request remove_task api, params: \n-----\n{params}\n-----\n")
+            response = api.bmw.remove_task(params)
+            logger.info(f"trigger worker remove successfully, response: {response}")
+        except BKAPIError as e:
+            logger.exception(f"remove task_uni_id: {task_uni_id} failed, error: {e}")
 
     @classmethod
     def get_task_info(cls):
