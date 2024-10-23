@@ -1,4 +1,3 @@
-import { Component, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,6 +23,8 @@ import { Component, InjectReactive, Prop, Watch } from 'vue-property-decorator';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Component, InjectReactive, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -34,12 +35,12 @@ import { Debounce } from 'monitor-common/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import { MONITOR_LINE_OPTIONS } from '../../../chart-plugins/constants';
+import { getValueFormat } from '../../../monitor-echarts/valueFormats';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { reviewInterval } from '../../utils/utils';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
-import mockData from './test';
 
 import type { PanelModel } from '../../../chart-plugins/typings';
 import type { CallOptions } from '../apm-service-caller-callee/type';
@@ -81,29 +82,39 @@ class ApmHeatmap extends CommonSimpleChart {
       interval,
     });
     const series = [];
+    const metrics = [];
     const promiseList = this.panel.targets.map(item => {
       if (!this.panel.options?.is_support_group_by && item.data.group_by_limit) {
         item.data.group_by_limit = undefined;
       }
-      const transformParams = {
-        ...variablesService.transformVariables(item.data, {
-          ...this.viewOptions.filters,
-          ...(this.viewOptions.filters?.current_target || {}),
-          ...this.viewOptions,
-          ...this.viewOptions.variables,
-          ...this.callOptions,
-          interval,
-        }),
-        start_time: startTime,
-        end_time: endTime,
-      };
+      const down_sample_range = this.downSampleRangeComputed('auto', [startTime, endTime], 'unifyQuery');
+      const params = variablesService.transformVariables(item.data, {
+        ...this.viewOptions.filters,
+        ...(this.viewOptions.filters?.current_target || {}),
+        ...this.viewOptions,
+        ...this.viewOptions.variables,
+        ...this.callOptions,
+        interval,
+      });
       return this.$api[item.apiModule]
-        [item.apiFunc](transformParams, {
-          cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
-          needMessage: false,
-        })
+        [item.apiFunc](
+          {
+            ...params,
+            start_time: startTime,
+            end_time: endTime,
+            down_sample_range,
+            unify_query_param: {
+              ...params?.unify_query_param,
+              down_sample_range,
+            },
+          },
+          {
+            cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
+            needMessage: false,
+          }
+        )
         .then(res => {
-          res.metrics && this.metrics.push(...res.metrics);
+          res.metrics && metrics.push(...res.metrics);
           res.series && series.push(...res.series);
           this.clearErrorMsg();
           return true;
@@ -113,8 +124,11 @@ class ApmHeatmap extends CommonSimpleChart {
         });
     });
     await Promise.all(promiseList);
+    this.metrics = metrics;
     if (series.length) {
-      const xAxisCategory = new Set();
+      const panelUnit = this.panel.options?.unit || 's';
+      const unitFormatter = getValueFormat(panelUnit);
+      const xAxisCategory = new Set<number>();
       const yAxisCategory = new Set();
       const seriesData = [];
       let seriesIndex = 0;
@@ -132,7 +146,7 @@ class ApmHeatmap extends CommonSimpleChart {
         seriesIndex += 1;
         yAxisCategory.add(item.dimensions.le);
       }
-      const xAxisData = Array.from(xAxisCategory);
+      const xAxisData: number[] = Array.from(xAxisCategory);
       const yAxisData = Array.from(yAxisCategory);
       const minX = xAxisData.at(0);
       const maxX = xAxisData.at(-1);
@@ -146,17 +160,22 @@ class ApmHeatmap extends CommonSimpleChart {
               return '';
             }
             const xValue = xAxisData[p.data[0]];
-            const xNextValue = xAxisData[p.data[0] - 1];
+            let xPreValue = xAxisData[p.data[0] - 1];
+            if (p.data[0] === 0) {
+              xPreValue = xValue - (xAxisData[p.data[0] + 1] - xValue);
+            }
             const yValue = yAxisData[p.data[1]];
-            const yNextValue = yAxisData[p.data[1] - 1];
+            const yPreValue = yAxisData[p.data[1] - 1];
             const demissionValue = p.data[2];
-            const getUnit = (v: number) => {
-              if (v >= 1) return 's';
-              return 'ms';
+            const getYValue = (v: string | undefined) => {
+              if (v === '+Inf') return v;
+              if (v === undefined) return '-Inf';
+              const { text, suffix } = unitFormatter(+v, 0);
+              return `${text}${suffix}`;
             };
             return `<div class="monitor-chart-tooltips">
             <p class="tooltips-header">
-                ${dayjs.tz(+xNextValue).format('YYYY-MM-DD HH:mm:ss')}
+                ${dayjs.tz(+xPreValue).format('YYYY-MM-DD HH:mm:ss')}
             </p>
             <p class="tooltips-header">
               ${dayjs.tz(+xValue).format('YYYY-MM-DD HH:mm:ss')}
@@ -166,7 +185,7 @@ class ApmHeatmap extends CommonSimpleChart {
                 <span class="item-series"
                   style="background-color:${p.color};">
                 </span>
-                <span class="item-name">${yNextValue}${getUnit(yNextValue)} ~ ${yValue}${getUnit(yValue)}:</span>
+                <span class="item-name">${getYValue(yPreValue as string)} ~ ${getYValue(yValue as string)}:</span>
                 <span class="item-value">
                 ${demissionValue || '--'}</span>
                </li>
@@ -212,8 +231,6 @@ class ApmHeatmap extends CommonSimpleChart {
             },
             fontSize: 12,
             color: '#979BA5',
-            showMinLabel: true,
-            showMaxLabel: true,
             align: 'left',
           },
         },
@@ -256,6 +273,7 @@ class ApmHeatmap extends CommonSimpleChart {
           },
         ],
       };
+      console.info(this.options, '=======');
       this.inited = true;
       this.empty = false;
     } else {
