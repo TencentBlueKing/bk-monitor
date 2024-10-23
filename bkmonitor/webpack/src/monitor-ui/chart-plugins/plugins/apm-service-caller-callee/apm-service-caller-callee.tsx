@@ -50,7 +50,7 @@ interface IApmServiceCallerCalleeProps {
 export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeProps> {
   @Prop({ required: true, type: Object }) panel: PanelModel;
 
-  @ProvideReactive('callOptions') callOptions: CallOptions;
+  @ProvideReactive('callOptions') callOptions: CallOptions = {} as any;
   // 顶层注入数据
   /** 过滤列表loading */
   filterLoading = false;
