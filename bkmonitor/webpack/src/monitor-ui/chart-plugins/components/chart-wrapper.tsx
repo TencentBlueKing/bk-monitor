@@ -37,9 +37,9 @@ import ApdexChart from '../plugins/apdex-chart/apdex-chart';
 import ApmHeatmap from '../plugins/apm-heatmap/apm-heatmap';
 import ApmRelationGraph from '../plugins/apm-relation-graph/apm-relation-graph';
 import ApmServiceCallerCallee from '../plugins/apm-service-caller-callee/apm-service-caller-callee';
-import ApmCallerLineChart from '../plugins/apm-service-caller-callee/chart/apm-caller-line-chart';
 import ApmTimeSeries from '../plugins/apm-time-series/apm-time-series';
 import BarEchart from '../plugins/bar-echart/bar-echart';
+import ApmCallerLineChart from '../plugins/caller-line-chart/caller-line-chart';
 import ChartRow from '../plugins/chart-row/chart-row';
 import ColumnBarEchart from '../plugins/column-bar-echart/column-bar-echart';
 import EventLogChart from '../plugins/event-log-chart/event-log-chart';
@@ -459,13 +459,6 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onLoading={this.handleChangeLoading}
           />
         );
-      case 'caller-line-chart':
-        return (
-          <ApmCallerLineChart
-            panel={this.panel}
-            onChoosePoint={this.handleCallerLineChoosePoint}
-          />
-        );
       case 'exception-guide':
         return (
           <ExceptionGuide
@@ -542,7 +535,21 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onLoading={this.handleChangeLoading}
           />
         );
-
+      case 'caller-line-chart':
+        return (
+          <ApmCallerLineChart
+            clearErrorMsg={this.handleClearErrorMsg}
+            panel={this.panel}
+            showHeaderMoreTool={this.showHeaderMoreTool}
+            onChoosePoint={this.handleCallerLineChoosePoint}
+            onCollectChart={this.handleCollectChart}
+            onDblClick={this.handleDblClick}
+            onDimensionsOfSeries={this.handleDimensionsOfSeries}
+            onErrorMsg={this.handleErrorMsgChange}
+            onFullScreen={this.handleFullScreen}
+            onLoading={this.handleChangeLoading}
+          />
+        );
       // 不需要报错显示
       // case 'graph':
       default:
