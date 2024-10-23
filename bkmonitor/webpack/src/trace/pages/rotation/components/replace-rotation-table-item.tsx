@@ -28,7 +28,7 @@ import { useI18n } from 'vue-i18n';
 
 import { Button, Input, Select } from 'bkui-vue';
 import { random } from 'lodash';
-import { isEn } from 'monitor-pc/i18n/i18n';
+import { isEn } from 'monitor-pc/i18n/lang';
 
 import MemberSelect, { type TagItemModel } from '../../../components/member-select/member-select';
 import { RotationSelectTypeEnum } from '../typings/common';
@@ -216,6 +216,7 @@ export default defineComponent({
         return [
           rotationType === RotationSelectTypeEnum.Weekly ? (
             <WeekSelect
+              key={'week-select'}
               class='mr8'
               v-model={item.workDays}
               label={val.length > 1 ? t('第 {num} 班', { num: ind + 1 }) : ''}
@@ -223,6 +224,7 @@ export default defineComponent({
             />
           ) : (
             <CalendarSelect
+              key={'calendar-select'}
               class='mr8'
               v-model={item.workDays}
               label={val.length > 1 ? t('第 {num} 班', { num: ind + 1 }) : ''}
@@ -231,6 +233,7 @@ export default defineComponent({
             />
           ),
           <TimeTagPicker
+            key={'time-tag-picker'}
             v-model={item.workTime}
             onChange={handleEmitData}
           />,
@@ -258,13 +261,20 @@ export default defineComponent({
       function renderDateTimeRangeItem(item: ReplaceRotationDateModel, ind: number) {
         return [
           <DataTimeSelect
+            key={'data-time-select'}
             label={val.length > 1 ? t('第 {num} 班', { num: ind + 1 }) : ''}
             modelValue={item.workTime[0]}
             type={rotationType === RotationSelectTypeEnum.Weekly ? 'week' : 'calendar'}
             onChange={val => dataTimeSelectChange(val, item, 'start')}
           />,
-          <span class='separator-to'>{t('至')}</span>,
+          <span
+            key={'separator-to'}
+            class='separator-to'
+          >
+            {t('至')}
+          </span>,
           <DataTimeSelect
+            key={'data-time-select'}
             modelValue={item.workTime[1]}
             type={rotationType === RotationSelectTypeEnum.Weekly ? 'week' : 'calendar'}
             onChange={val => dataTimeSelectChange(val, item, 'end')}
@@ -280,6 +290,7 @@ export default defineComponent({
 
       return [
         <FormItem
+          key={'date-type'}
           label=''
           labelWidth={labelWidth.value}
         >
@@ -299,6 +310,7 @@ export default defineComponent({
           </div>
         </FormItem>,
         <FormItem
+          key={'classes'}
           label={t('单班时间')}
           labelWidth={labelWidth.value}
         >
@@ -350,6 +362,7 @@ export default defineComponent({
 
       return [
         <FormItem
+          key='expiration-date-form-item'
           class='expiration-date-form-item'
           label={t('有效日期')}
           labelWidth={labelWidth.value}
@@ -384,6 +397,7 @@ export default defineComponent({
           )}
         </FormItem>,
         <FormItem
+          key='custom-tab-form-item'
           label=''
           labelWidth={labelWidth.value}
         >
@@ -432,6 +446,7 @@ export default defineComponent({
           </FormItem>
         ),
         <FormItem
+          key='classes-form-item'
           label={localValue.date.customTab === 'duration' ? t('有效时间') : t('单班时间')}
           labelWidth={labelWidth.value}
         >
@@ -489,7 +504,10 @@ export default defineComponent({
             >
               <div class='classes-list'>
                 {val.map((item, ind) => [
-                  <div class='classes-item'>
+                  <div
+                    key={ind}
+                    class='classes-item'
+                  >
                     <TimeTagPicker
                       key={item.key}
                       v-model={item.workTime}
@@ -580,12 +598,22 @@ export default defineComponent({
       }
       return [
         <div
+          key={1}
           style={{ 'background-color': colorList.value[getOrderIndex(index)] }}
           class='auto-group-tag-color'
         />,
-        <span class='icon-monitor icon-mc-tuozhuai' />,
-        <span class='user-name'>{data?.username}</span>,
         <span
+          key={2}
+          class='icon-monitor icon-mc-tuozhuai'
+        />,
+        <span
+          key={3}
+          class='user-name'
+        >
+          {data?.username}
+        </span>,
+        <span
+          key={4}
           class='icon-monitor icon-mc-close'
           onClick={e => handleCloseTag(e)}
         />,

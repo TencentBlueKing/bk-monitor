@@ -111,6 +111,17 @@ module.exports = async (baseConfig, { production, app }) => {
       ].filter(Boolean),
     })
   );
+  // 固定vue版本 分离vue3 和 vue2项目vue相关依赖
+  let vueAlias = {};
+  if (['apm', 'fta', 'pc', 'mobile'].includes(app)) {
+    vueAlias = {
+      vue$: 'vue/dist/vue.runtime.common.js',
+    };
+  } else if (app === 'trace') {
+    vueAlias = {
+      vue$: path.resolve(__dirname, `./src/${appDirName}/node_modules/vue/dist/vue.runtime.esm-bundler.js`),
+    };
+  }
   return {
     ...config,
     output: {
@@ -134,11 +145,7 @@ module.exports = async (baseConfig, { production, app }) => {
         '@api': path.resolve('./src/monitor-api/'),
         '@static': path.resolve('./src/monitor-static/'),
         '@common': path.resolve('./src/monitor-common/'),
-        ...(['apm', 'fta', 'pc'].includes(app)
-          ? {
-              vue$: 'vue/dist/vue.runtime.common.js',
-            }
-          : {}),
+        ...vueAlias,
       },
     },
   };
