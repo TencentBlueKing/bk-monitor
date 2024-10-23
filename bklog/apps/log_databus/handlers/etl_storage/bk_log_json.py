@@ -56,6 +56,7 @@ class BkLogJsonEtlStorage(EtlStorage):
             "enable_origin_string": True,
             # 当原始数据不符合 JSON 格式时，不对数据进行丢弃，直接强制写入到 log 字段
             "enable_retain_content": etl_params.get("enable_retain_content", True),
+            "record_parse_failure": etl_params.get("record_parse_failure", False),
         }
 
         # 保存删除的字段

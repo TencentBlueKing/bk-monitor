@@ -146,6 +146,9 @@ class DataAccessHandler(BaseAiopsHandler):
         collector_config = CollectorConfig.objects.get(collector_config_id=clustering_config.collector_config_id)
         etl_storage = EtlStorage.get_instance(etl_config=collector_config.etl_config)
 
+        # 过滤掉path的字段信息
+        fields, _ = etl_storage.separate_fields_config(fields)
+
         # 获取清洗配置
         collector_scenario = CollectorScenario.get_instance(
             collector_scenario_id=collector_config.collector_scenario_id
@@ -154,7 +157,21 @@ class DataAccessHandler(BaseAiopsHandler):
         fields_config = etl_storage.get_result_table_config(fields, etl_params, copy.deepcopy(built_in_config)).get(
             "field_list", []
         )
+
+        # 根据路径正则提取path配置
+        path_fields = []
+        etl_path_regexp = ""
+        separator_configs = etl_params.get("separator_configs", [])
+        if separator_configs:
+            etl_path_regexp = separator_configs[0].get("separator_regexp", "")
+            path_fields = etl_storage.get_path_field_configs(etl_path_regexp, fields)
+
         bkdata_json_config = etl_storage.get_bkdata_etl_config(fields, etl_params, built_in_config)
+
+        if path_fields:
+            # 加入路径清洗配置
+            etl_storage.add_path_configs(path_fields, etl_path_regexp, bkdata_json_config)
+
         # 固定有time字段
         fields_config.append({"alias_name": "time", "field_name": "time", "option": {"es_type": "long"}})
 
