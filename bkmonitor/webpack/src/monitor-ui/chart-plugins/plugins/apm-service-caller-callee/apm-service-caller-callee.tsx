@@ -28,7 +28,6 @@ import { Component, Prop, ProvideReactive, Watch } from 'vue-property-decorator'
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
-import { Debounce } from 'monitor-common/utils';
 
 import { PanelModel } from '../../typings';
 import CallerCalleeContrast from './components/caller-callee-contrast';
@@ -37,7 +36,7 @@ import CallerCalleeTableChart from './components/caller-callee-table-chart';
 import ChartView from './components/chart-view';
 import TabBtnGroup from './components/common-comp/tab-btn-group';
 import { SEARCH_KEY_LIST } from './SEARCH_KEY_LIST';
-import { EParamsMode, EPreDateType, type CallOptions, type IFilterType } from './type';
+import { EParamsMode, EPreDateType, type CallOptions } from './type';
 import { CALLER_CALLEE_TYPE } from './utils';
 
 import './apm-service-caller-callee.scss';
@@ -51,7 +50,7 @@ interface IApmServiceCallerCalleeProps {
 export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeProps> {
   @Prop({ required: true, type: Object }) panel: PanelModel;
 
-  @ProvideReactive('callOptions') callOptions: CallOptions = {};
+  @ProvideReactive('callOptions') callOptions: CallOptions;
   // 顶层注入数据
   /** 过滤列表loading */
   filterLoading = false;
@@ -119,13 +118,6 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     };
   }
 
-  @Watch('callOption')
-  handleRefreshData(val: IFilterType) {
-    if (val) {
-      this.initData();
-    }
-  }
-
   get panelOptions() {
     return this.panel.options || {};
   }
@@ -163,39 +155,24 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
 
   changeTab(id: string) {
     this.activeKey = id;
-    this.getPanelData();
-    this.handleUpdateRouteQuery({ filterType: id });
+    this.callOptions = {
+      ...this.callOptions,
+    };
   }
 
-  // 路由同步关键字
-  handleUpdateRouteQuery(data) {
-    const routerParams = {
-      name: this.$route.name,
-      query: {
-        ...this.$route.query,
-        ...data,
-      },
-    };
-    this.$router.replace(routerParams).catch(() => {});
-  }
   // 筛选查询
-  searchFilterData(data) {
-    this.callOptions.call_filter = JSON.parse(JSON.stringify(data));
-    this.initData();
+  searchFilterData(data: CallOptions['call_filter']) {
+    this.callOptions = {
+      ...this.callOptions,
+      call_filter: structuredClone(data),
+    };
   }
   // 重置
   resetFilterData() {
-    this.callOptions.call_filter = [];
-  }
-  // 获取表格数据
-  handleGetTableData() {}
-  // 获取图表数据
-  handleGetChartData() {}
-
-  initData() {
-    console.log('刷新页面');
-    this.handleGetTableData();
-    this.handleGetChartData();
+    this.callOptions = {
+      ...this.callOptions,
+      call_filter: [],
+    };
   }
   // 关闭表格中的筛选tag, 调用查询接口
   handleCloseTag(data) {
@@ -304,16 +281,6 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       condition: 'end',
     });
   }
-
-  handleSetParams() {}
-  /**
-   * @description: 获取Panel数据
-   */
-  @Debounce(200)
-  async getPanelData(start_time?: string, end_time?: string) {
-    console.log(start_time, end_time);
-  }
-
   /** 初始化主被调的相关数据 */
   initDefaultData() {
     const { caller, callee } = this.commonAngle;

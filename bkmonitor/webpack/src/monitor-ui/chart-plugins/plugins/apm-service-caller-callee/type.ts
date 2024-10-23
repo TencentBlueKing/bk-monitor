@@ -83,7 +83,8 @@ export type CallOptions = {
   }[];
   // 左侧查询条件字段
   call_filter: IFilterCondition[];
-} & Record<string, string>;
+  [key: string]: any;
+};
 
 export type IFilterData = {
   caller: IFilterCondition[];

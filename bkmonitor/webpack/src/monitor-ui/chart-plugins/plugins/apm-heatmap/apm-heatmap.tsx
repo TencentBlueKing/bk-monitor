@@ -293,7 +293,7 @@ class ApmHeatmap extends CommonSimpleChart {
           isInstant={this.panel.instant}
           metrics={this.metrics}
           showAddMetric={false}
-          showMore={false}
+          showMore={true}
           subtitle={this.panel.subTitle || ''}
           title={this.panel.title}
         />
