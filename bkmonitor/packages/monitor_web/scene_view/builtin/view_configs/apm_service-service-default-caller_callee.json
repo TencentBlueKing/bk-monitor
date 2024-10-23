@@ -1353,6 +1353,20 @@
         "show_panel_count": false,
         "enable_index_list": true,
         "common": {
+          "drawer": {
+            "total": {
+              "title": "请求量",
+              "panels": ["request_total"]
+            },
+            "rate": {
+              "title": "成功异常超时率",
+              "panels": ["success_rate", "timeout_rate"]
+            },
+            "duration": {
+              "title": "耗时",
+              "panels": ["avg_duration", "pxx_duration"]
+            }
+          },
           "angle": {},
           "statistics": {
             "api": "apm_metric.calculateByRange",

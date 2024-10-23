@@ -3039,8 +3039,9 @@ class CalculateByRangeResource(Resource):
         aliases: List[str] = list(alias_aggregated_records_map.keys())
         # 计算增长率
         self._process_growth_rates(validated_request_data["baseline"], aliases, merged_records)
-        # 计算占比
-        self._process_proportions(aliases, merged_records)
+        if validated_request_data["metric_cal_type"] == metric_group.CalculationType.REQUEST_TOTAL:
+            # 计算占比
+            self._process_proportions(aliases, merged_records)
         return merged_records
 
 
