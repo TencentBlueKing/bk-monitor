@@ -122,12 +122,9 @@
           if (res?.data) {
             const originChartData = res?.data?.aggs?.group_by_histogram?.buckets || [];
             const data = originChartData.map(item => [item.key, item.doc_count, item.key_as_string]);
-            const sumCount = data.reduce((count, current) => {
-              count = count + (current[1] ?? 0);
-              return count;
-            }, 0);
+
+            const sumCount = setChartData(data);
             store.commit('retrieve/updateTrendDataCount', sumCount);
-            setChartData(data);
           }
 
           if (!res?.result || requestInterval === 0) {

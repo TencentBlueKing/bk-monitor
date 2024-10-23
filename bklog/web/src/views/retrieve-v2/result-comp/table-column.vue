@@ -40,6 +40,7 @@
           :jsonValue="jsonValue"
           :fields="[field]"
           :menu-click="handleMenuClick"
+          :filter="false"
         ></JsonFormatter>
       </template>
       <template v-else>

@@ -1,5 +1,5 @@
 <template>
-  <span :class="['origin-content', { 'is-rending': true, 'is-rending-end': !isRendindg }]">
+  <span :class="['origin-content-json', { 'is-rending': true, 'is-rending-end': !isRendindg }]">
     <div
       ref="refJsonEditor"
       :class="['bklog-json-formatter', { 'is-wrap-line': isWrap }]"
@@ -24,6 +24,10 @@
       type: Array,
       default: () => [],
     },
+    filter: {
+      type: Boolean,
+      default: true
+    }
   });
 
   const refJsonEditor = ref<HTMLElement | null>();
@@ -39,10 +43,23 @@
     jsonValue: props.jsonValue,
     onSegmentClick,
   });
+
+  const convertToObject = val => {
+    if (typeof val === 'string' && /^\{|\[/.test(val)) {
+      try {
+        return JSON.parse(val);
+      } catch (e) {
+        return val;
+      }
+    }
+
+    return val;
+  };
+
   const formatValue = computed(() => {
     const stringValue = Object.keys(props.jsonValue)
-      .filter(name => props.fields.some((f: any) => f.field_name === name))
-      .reduce((r, k) => Object.assign(r, { [k]: props.jsonValue[k] }), {});
+      .filter(name => props.filter ? props.fields.some((f: any) => f.field_name === name) : true)
+      .reduce((r, k) => Object.assign(r, { [k]: convertToObject(props.jsonValue[k]) }), {});
 
     formatCounter.value++;
     return {
@@ -67,7 +84,7 @@
   );
 </script>
 <style lang="scss">
-  .origin-content {
+  .origin-content-json {
     font-family: var(--table-fount-family);
     font-size: var(--table-fount-size);
     color: var(--table-fount-color);
@@ -95,22 +112,27 @@
     &.jsoneditor-tree {
       tbody {
         tr {
-          display: flex;
-          align-items: flex-start;
+          // display: flex;
+          // align-items: flex-start;
 
           td {
             height: auto;
 
             .jsoneditor-field {
+              width: fit-content;
+              min-width: max-content;
               background: #e6e6e6;
               border-radius: 2px;
             }
+
 
             .jsoneditor-field,
             .jsoneditor-value {
               padding: 0 2px;
               font-size: 13px;
               line-height: 20px;
+              word-break: break-all;
+              white-space: pre-line;
               border: none;
             }
           }
@@ -130,9 +152,28 @@
   }
 
   .bklog-json-formatter {
-    .jsoneditor {
+    >.jsoneditor {
       &.jsoneditor-mode-view {
         border: none;
+
+        >.jsoneditor-outer {
+          >.jsoneditor-tree {
+            >.jsoneditor-tree-inner {
+              >table.jsoneditor-tree {
+                >tbody {
+                  >tr {
+                    &:first-child {
+                      &.jsoneditor-expanded {
+                          display: none;
+                        }
+                    }
+
+                  }
+                }
+              }
+            }
+          }
+        }
 
         .jsoneditor-tree {
           overflow: hidden;
@@ -150,25 +191,20 @@
               }
 
               &.jsoneditor-values {
-                margin-left: 0;
+                /* stylelint-disable-next-line declaration-no-important */
+                // margin-left: 0 !important;
 
                 td {
                   &.jsoneditor-tree {
                     .jsoneditor-button {
                       &.jsoneditor-invisible {
-                        display: none;
+                        // display: none;
                       }
                     }
                   }
                 }
               }
             }
-          }
-        }
-
-        .jsoneditor-expandable {
-          &.jsoneditor-expanded {
-            display: none;
           }
         }
 
@@ -179,7 +215,8 @@
             line-height: 20px;
 
             color: var(--table-fount-color);
-            white-space: normal;
+            word-break: break-all;
+            white-space: pre-line;
 
             span {
               font-family: var(--table-fount-family);
@@ -214,8 +251,8 @@
       table {
         &.jsoneditor-tree {
           tbody {
-            display: flex;
-            flex-wrap: wrap;
+            // display: flex;
+            // flex-wrap: wrap;
           }
         }
       }

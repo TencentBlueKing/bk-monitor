@@ -76,37 +76,6 @@ export default ({
     segmentPopInstance.show(e.target, getSegmentContent());
   };
 
-  const computedOptions = computed(() => {
-    return {
-      mode: 'view',
-      navigationBar: false,
-      statusBar: false,
-      mainMenuBar: false,
-      ...(options ?? {}),
-    };
-  });
-
-  // Function to format objects to JSON string if depth exceeds maxDepth
-  const formatNodes = (obj, currentDepth, maxDepth) => {
-    if (currentDepth >= maxDepth && typeof obj === 'object' && obj !== null) {
-      return JSON.stringify(obj);
-    }
-
-    if (typeof obj === 'object' && obj !== null) {
-      for (let key in obj) {
-        obj[key] = formatNodes(obj[key], currentDepth + 1, maxDepth);
-      }
-    }
-
-    return obj;
-  };
-
-  onMounted(() => {
-    if (target) {
-      editor = new JSONEditor(target?.value, computedOptions.value);
-    }
-  });
-
   /** 检索高亮分词字符串 */
   const markRegStr = '<mark>(.*?)</mark>';
   /** 默认分词字符串 */
@@ -240,15 +209,53 @@ export default ({
     });
   };
 
+  const handleExpandNode = args => {
+    if (args.isExpand) {
+      setNodeValueWordSplit();
+    }
+  };
+
+  const computedOptions = computed(() => {
+    return {
+      mode: 'view',
+      navigationBar: false,
+      statusBar: false,
+      mainMenuBar: false,
+      onExpand: handleExpandNode,
+      ...(options ?? {}),
+    };
+  });
+
+  // Function to format objects to JSON string if depth exceeds maxDepth
+  const formatNodes = (obj, currentDepth, maxDepth) => {
+    if (currentDepth >= maxDepth && typeof obj === 'object' && obj !== null) {
+      return JSON.stringify(obj);
+    }
+
+    if (typeof obj === 'object' && obj !== null) {
+      for (let key in obj) {
+        obj[key] = formatNodes(obj[key], currentDepth + 1, maxDepth);
+      }
+    }
+
+    return obj;
+  };
+
+  onMounted(() => {
+    if (target) {
+      editor = new JSONEditor(target?.value, computedOptions.value);
+    }
+  });
+
   const setValue = (val, depth = 3) => {
     setTimeout(() => {
-      const targetValue = formatNodes(val, 0, depth);
+      const targetValue = formatNodes(JSON.parse(JSON.stringify(val)), 0, depth);
       editor.set(targetValue);
-      editor.expand({
-        path: Object.keys(val ?? {}),
-        isExpand: false,
-        recursive: true,
-      });
+      // editor.expand({
+      //   path: Object.keys(val ?? {}),
+      //   isExpand: false,
+      //   recursive: true,
+      // });
 
       setTimeout(() => {
         setNodeValueWordSplit();
