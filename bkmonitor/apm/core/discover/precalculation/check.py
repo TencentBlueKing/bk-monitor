@@ -49,7 +49,9 @@ class PreCalculateCheck:
     _ITERATIONS = 1000
 
     @classmethod
-    def get_application_info_mapping(cls):
+    def get_application_info_mapping(
+        cls,
+    ):
         """
         获取未执行预计算任务的应用列表、正在运行预计算任务的应用列表
         """
@@ -58,8 +60,11 @@ class PreCalculateCheck:
         logger.info(f"[PreCalculateCheck] request_count time range: {start_time} - {end_time}")
 
         # Step1: 获取所有有效的应用
-        apps = ApmApplication.objects.filter(is_enabled=True, is_enabled_trace=True, is_enabled_metric=True)
-        logger.info(f"[PreCalculateCheck] valid apps: {len(apps)}({[f'{i.bk_biz_id}-{i.app_name}' for i in apps]})")
+        applications = ApmApplication.objects.all()
+        valid_apps = applications.filter(is_enabled=True, is_enabled_trace=True, is_enabled_metric=True)
+        logger.info(
+            f"[PreCalculateCheck] valid apps: {len(valid_apps)}({[f'{i.bk_biz_id}-{i.app_name}' for i in valid_apps]})",
+        )
 
         # Step2: 获取所有预计算任务
         daemon_tasks = [
@@ -78,7 +83,7 @@ class PreCalculateCheck:
         unopened_mapping = {}
         running_mapping = {}
 
-        for app in apps:
+        for app in valid_apps:
             trace_datasource = app.trace_datasource
             metric_datasource = app.metric_datasource
             if not trace_datasource or not metric_datasource:
@@ -105,17 +110,17 @@ class PreCalculateCheck:
                 )
 
         # Step4: 获取无效应用
-        invalid_task_uni_ids = cls._list_invalid_task_uni_ids(daemon_tasks)
+        invalid_task_uni_ids = cls._list_invalid_task_uni_ids(daemon_tasks, applications)
 
         return unopened_mapping, running_mapping, invalid_task_uni_ids
 
     @classmethod
-    def _list_invalid_task_uni_ids(cls, bmw_tasks):
+    def _list_invalid_task_uni_ids(cls, bmw_tasks, applications):
         """获取无效的任务 id 列表（应用被删除、dataId 为空）"""
         res = []
 
         data_id_app_mapping = {}
-        for i in ApmApplication.objects.all():
+        for i in applications:
             if not i.trace_datasource:
                 continue
             data_id = i.trace_datasource.bk_data_id
