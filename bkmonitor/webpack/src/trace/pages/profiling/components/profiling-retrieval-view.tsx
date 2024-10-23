@@ -122,9 +122,9 @@ export default defineComponent({
 
     function handleBrushEnd(data, type) {
       if (type === 'search') {
-        comparisonPosition[0] = data.areas[0].coordRange;
+        comparisonPosition[0] = data;
       } else {
-        comparisonPosition[1] = data.areas[0].coordRange;
+        comparisonPosition[1] = data;
       }
       handleComparisonDateChange();
     }

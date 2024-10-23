@@ -59,6 +59,7 @@ export default defineComponent({
     const baseEchart = ref(null);
     const options = ref();
     const defaultOptions = {
+      animation: false,
       xAxis: [
         {
           type: 'time',
@@ -130,7 +131,6 @@ export default defineComponent({
       },
     };
     const brushCoordRange = shallowRef<number[]>([]);
-    const isBrushing = ref(false);
     const getSeriesData = (isCustom = false) => {
       if (!props.data?.datapoints?.length) return [];
       const data = props.data.datapoints.map(item => [item[1], item[0]]);
@@ -221,9 +221,7 @@ export default defineComponent({
             silent: true,
           },
         ],
-        ...(isBrushing.value ? { tooltip: { show: false } } : {}),
       };
-      console.log(options.value);
       nextTick(() => {
         setChartBrush();
       });
@@ -245,15 +243,20 @@ export default defineComponent({
       });
     }
 
-    function handleBrushEnd(val) {
-      isBrushing.value = false;
-      brushCoordRange.value = val.areas?.[0]?.coordRange || [];
-      emit('brushEnd', val);
+    function handleBrushEnd(data) {
+      const coordRange = data.areas?.[0]?.coordRange || [];
+      if (coordRange.length) {
+        brushCoordRange.value = data.areas?.[0]?.coordRange || [];
+        emit('brushEnd', brushCoordRange.value);
+      }
     }
     function handleBrush(data) {
-      if (!brushCoordRange.value.length) return;
-      isBrushing.value = true;
-      brushCoordRange.value = data.areas?.[0]?.coordRange || [];
+      const coordRange = data.areas?.[0]?.coordRange || [];
+      if (coordRange.length) {
+        brushCoordRange.value = data.areas?.[0]?.coordRange || [];
+      } else {
+        setChartBrush();
+      }
     }
 
     return {
