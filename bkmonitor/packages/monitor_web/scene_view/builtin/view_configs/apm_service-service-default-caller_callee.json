@@ -21,7 +21,7 @@
         {
           "id": "request_total",
           "title": "请求量",
-          "type": "graph",
+          "type": "caller-line-chart",
           "gridPos": {
             "x": 0,
             "y": 1,
@@ -87,7 +87,17 @@
                     "interval_unit": "s",
                     "time_field": "time",
                     "filter_dict": {},
-                    "functions": []
+                    "functions": [
+                      {
+                        "id": "time_shift",
+                        "params": [
+                          {
+                            "id": "n",
+                            "value": "$time_shift"
+                          }
+                        ]
+                      }
+                    ]
                   }
                 ],
                 "stack": "all",
@@ -122,7 +132,17 @@
                       "interval_unit": "s",
                       "time_field": "time",
                       "filter_dict": {},
-                      "functions": []
+                      "functions": [
+                        {
+                        "id": "time_shift",
+                        "params": [
+                          {
+                            "id": "n",
+                            "value": "$time_shift"
+                          }
+                        ]
+                      }
+                      ]
                     }
                   ]
                 }
@@ -135,13 +155,14 @@
               "hoverAllTooltips": true
             },
             "unit": "number",
-            "is_support_group_by": true
+            "is_support_group_by": true,
+            "is_support_compare": true
           }
         },
         {
           "id": "success_rate",
           "title": "成功率",
-          "type": "graph",
+          "type": "caller-line-chart",
           "gridPos": {
             "x": 8,
             "y": 1,
@@ -184,7 +205,17 @@
                     "data_source_label": "custom",
                     "data_type_label": "time_series",
                     "display": false,
-                    "functions": [],
+                    "functions": [
+                                            {
+                        "id": "time_shift",
+                        "params": [
+                          {
+                            "id": "n",
+                            "value": "$time_shift"
+                          }
+                        ]
+                      }
+                    ],
                     "group_by": "${group_by}",
                     "interval": 60,
                     "interval_unit": "s",
@@ -221,7 +252,17 @@
                     "data_source_label": "custom",
                     "data_type_label": "time_series",
                     "display": false,
-                    "functions": [],
+                    "functions": [
+                                            {
+                        "id": "time_shift",
+                        "params": [
+                          {
+                            "id": "n",
+                            "value": "$time_shift"
+                          }
+                        ]
+                      }
+                    ],
                     "group_by": "${group_by}",
                     "interval": 60,
                     "interval_unit": "s",
@@ -328,13 +369,14 @@
               "hoverAllTooltips": true
             },
             "unit": "percent",
-            "is_support_group_by": true
+            "is_support_group_by": true,
+            "is_support_compare": true
           }
         },
         {
           "id": "timeout_rate",
           "title": "超时率",
-          "type": "graph",
+          "type": "caller-line-chart",
           "gridPos": {
             "x": 16,
             "y": 1,
@@ -377,7 +419,17 @@
                     "data_source_label": "custom",
                     "data_type_label": "time_series",
                     "display": false,
-                    "functions": [],
+                    "functions": [
+                                            {
+                        "id": "time_shift",
+                        "params": [
+                          {
+                            "id": "n",
+                            "value": "$time_shift"
+                          }
+                        ]
+                      }
+                    ],
                     "group_by": "${group_by}",
                     "interval": 60,
                     "interval_unit": "s",
@@ -414,7 +466,17 @@
                     "data_source_label": "custom",
                     "data_type_label": "time_series",
                     "display": false,
-                    "functions": [],
+                    "functions": [
+                                            {
+                        "id": "time_shift",
+                        "params": [
+                          {
+                            "id": "n",
+                            "value": "$time_shift"
+                          }
+                        ]
+                      }
+                    ],
                     "group_by": "${group_by}",
                     "interval": 60,
                     "interval_unit": "s",
@@ -449,7 +511,17 @@
                       "data_source_label": "custom",
                       "data_type_label": "time_series",
                       "display": false,
-                      "functions": [],
+                      "functions": [
+                                              {
+                        "id": "time_shift",
+                        "params": [
+                          {
+                            "id": "n",
+                            "value": "$time_shift"
+                          }
+                        ]
+                      }
+                      ],
                       "group_by": "${group_by}",
                       "interval": 60,
                       "interval_unit": "s",
@@ -486,7 +558,17 @@
                       "data_source_label": "custom",
                       "data_type_label": "time_series",
                       "display": false,
-                      "functions": [],
+                      "functions": [
+                                              {
+                        "id": "time_shift",
+                        "params": [
+                          {
+                            "id": "n",
+                            "value": "$time_shift"
+                          }
+                        ]
+                      }
+                      ],
                       "group_by": "${group_by}",
                       "interval": 60,
                       "interval_unit": "s",
@@ -521,13 +603,14 @@
               "hoverAllTooltips": true
             },
             "unit": "percent",
-            "is_support_group_by": true
+            "is_support_group_by": true,
+            "is_support_compare": true
           }
         },
         {
           "id": "avg_duration",
           "title": "耗时",
-          "type": "graph",
+          "type": "caller-line-chart",
           "gridPos": {
             "x": 0,
             "y": 7,
@@ -570,7 +653,17 @@
                     "data_source_label": "custom",
                     "data_type_label": "time_series",
                     "display": false,
-                    "functions": [],
+                    "functions": [
+                                            {
+                        "id": "time_shift",
+                        "params": [
+                          {
+                            "id": "n",
+                            "value": "$time_shift"
+                          }
+                        ]
+                      }
+                    ],
                     "group_by": "${group_by}",
                     "interval": 60,
                     "interval_unit": "s",
@@ -599,7 +692,17 @@
                     "data_source_label": "custom",
                     "data_type_label": "time_series",
                     "display": false,
-                    "functions": [],
+                    "functions": [
+                                            {
+                        "id": "time_shift",
+                        "params": [
+                          {
+                            "id": "n",
+                            "value": "$time_shift"
+                          }
+                        ]
+                      }
+                    ],
                     "group_by": "${group_by}",
                     "interval": 60,
                     "interval_unit": "s",
@@ -634,7 +737,17 @@
                       "data_source_label": "custom",
                       "data_type_label": "time_series",
                       "display": false,
-                      "functions": [],
+                      "functions": [
+                                              {
+                        "id": "time_shift",
+                        "params": [
+                          {
+                            "id": "n",
+                            "value": "$time_shift"
+                          }
+                        ]
+                      }
+                      ],
                       "group_by": "${group_by}",
                       "interval": 60,
                       "interval_unit": "s",
@@ -663,7 +776,17 @@
                       "data_source_label": "custom",
                       "data_type_label": "time_series",
                       "display": false,
-                      "functions": [],
+                      "functions": [
+                                              {
+                        "id": "time_shift",
+                        "params": [
+                          {
+                            "id": "n",
+                            "value": "$time_shift"
+                          }
+                        ]
+                      }
+                      ],
                       "group_by": "${group_by}",
                       "interval": 60,
                       "interval_unit": "s",
@@ -698,7 +821,8 @@
               "hoverAllTooltips": true
             },
             "unit": "s",
-            "is_support_group_by": true
+            "is_support_group_by": true,
+            "is_support_compare": true
           }
         },
         {
@@ -1118,7 +1242,8 @@
               "hoverAllTooltips": true
             },
             "unit": "s",
-            "is_support_group_by": false
+            "is_support_group_by": false,
+            "is_support_compare": false
           }
         },
         {
@@ -1144,17 +1269,7 @@
                     "data_source_label": "custom",
                     "data_type_label": "time_series",
                     "display": true,
-                    "functions": [
-                      {
-                        "id": "histogram_quantile",
-                        "params": [
-                          {
-                            "id": "scalar",
-                            "value": "0.99"
-                          }
-                        ]
-                      }
-                    ],
+                    "functions": [],
                     "group_by": [
                       "le"
                     ],
@@ -1228,7 +1343,8 @@
               "hoverAllTooltips": true
             },
             "unit": "s",
-            "is_support_group_by": false
+            "is_support_group_by": false,
+            "is_support_compare": false
           }
         }
       ],
