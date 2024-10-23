@@ -24,6 +24,10 @@
       type: Array,
       default: () => [],
     },
+    filter: {
+      type: Boolean,
+      default: true
+    }
   });
 
   const refJsonEditor = ref<HTMLElement | null>();
@@ -54,7 +58,7 @@
 
   const formatValue = computed(() => {
     const stringValue = Object.keys(props.jsonValue)
-      .filter(name => props.fields.some((f: any) => f.field_name === name))
+      .filter(name => props.filter ? props.fields.some((f: any) => f.field_name === name) : true)
       .reduce((r, k) => Object.assign(r, { [k]: convertToObject(props.jsonValue[k]) }), {});
 
     formatCounter.value++;
