@@ -27,6 +27,7 @@
 import { Component, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import dayjs from 'dayjs';
 import { Debounce } from 'monitor-common/utils';
 
 import { PanelModel } from '../../typings';
@@ -36,8 +37,7 @@ import CallerCalleeTableChart from './components/caller-callee-table-chart';
 import ChartView from './components/chart-view';
 import TabBtnGroup from './components/common-comp/tab-btn-group';
 import { CALLER_CALLEE_TYPE } from './utils';
-
-import type { CallOptions, IFilterType, IFilterData } from './type';
+import { EParamsMode, EPreDateType, type CallOptions, type IFilterType, type IFilterData } from './type';
 
 import './apm-service-caller-callee.scss';
 interface IApmServiceCallerCalleeProps {
@@ -77,6 +77,8 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   dateData = [];
   diffTypeData = [];
   tableColData = [];
+  /* 对比/groupBy */
+  paramsMode = EParamsMode.contrast;
   // panel 传递过来的一些变量
   get panelScopedVars() {
     const angel = this.panel?.options?.common?.angle || {};
@@ -95,8 +97,8 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       ...this.panelScopedVars,
       // group 字段
       group_by: [],
-      method: 'topk',
-      limit: '',
+      method: '',
+      limit: 0,
       metric_cal_type: '',
       // 时间对比 字段
       time_shift: [],
@@ -192,7 +194,32 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
    * @param val
    */
   handleContrastDatesChange(val: string[]) {
-    this.callOptions.time_shift = val;
+    const timeShift = [];
+    for (const item of val) {
+      if (item === EPreDateType.yesterday) {
+        timeShift.push({
+          alias: item,
+          start_time: dayjs().subtract(1, 'day').startOf('day').unix(),
+          end_time: dayjs().subtract(1, 'day').endOf('day').unix(),
+        });
+      } else if (item === EPreDateType.lastWeek) {
+        timeShift.push({
+          alias: item,
+          start_time: dayjs().startOf('week').subtract(1, 'week').unix(),
+          end_time: dayjs().endOf('week').subtract(1, 'week').unix(),
+        });
+      } else {
+        timeShift.push({
+          alias: item,
+          start_time: dayjs(item).startOf('day').unix(),
+          end_time: dayjs(item).endOf('day').unix(),
+        });
+      }
+    }
+    this.callOptions = {
+      ...this.callOptions,
+      time_shift: timeShift,
+    } as any;
     this.changeDate(val);
   }
 
@@ -214,8 +241,34 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
    * @param val
    */
   handleGroupChange(val: string[]) {
-    this.callOptions.group_by = val;
+    this.callOptions = {
+      ...this.callOptions,
+      group_by: val,
+    } as any;
     this.handleCheck(val);
+  }
+
+  handleParamsModeChange(val: EParamsMode) {
+    this.paramsMode = val;
+    if (val === EParamsMode.contrast) {
+      this.callOptions = {
+        ...this.callOptions,
+        group_by: [],
+        time_shift: [],
+        limit: 0,
+        metric_cal_type: '',
+        method: '',
+      } as any;
+    } else {
+      this.callOptions = {
+        ...this.callOptions,
+        group_by: [],
+        time_shift: [],
+        limit: 10,
+        metric_cal_type: this.supportedCalculationTypes?.[0]?.value || '',
+        method: this.supportedMethods?.[0]?.value || '',
+      } as any;
+    }
   }
 
   /** 点击选中图表里的某个点 */
@@ -263,14 +316,19 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
           </div>
           <div class='caller-callee-right'>
             <CallerCalleeContrast
-              contrastDates={this.callOptions.time_shift}
+              contrastDates={this.callOptions.time_shift.map(item => item.alias)}
               groupBy={this.callOptions.group_by}
+              limit={this.callOptions.limit}
+              method={this.callOptions.method}
+              metricCalType={this.callOptions.metric_cal_type}
+              paramsMode={this.paramsMode}
               searchList={this.filterTags[this.activeKey]}
               supportedCalculationTypes={this.supportedCalculationTypes}
               supportedMethods={this.supportedMethods}
               onContrastDatesChange={this.handleContrastDatesChange}
               onGroupByChange={this.handleGroupChange}
               onGroupFilter={this.handleGroupFilter}
+              onTypeChange={this.handleParamsModeChange}
             />
           </div>
         </div>
@@ -299,7 +357,13 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
               slot='main'
             >
               <ChartView
-                panelsData={this.panel.extra_panels}
+                panelsData={this.panel.extra_panels.map(item => {
+                  if (item.type === 'graph') {
+                    item.type = 'caller-line-chart';
+                    return item;
+                  }
+                  return item;
+                })}
                 onChoosePoint={this.handleChoosePoint}
               />
               <CallerCalleeTableChart

@@ -2982,7 +2982,7 @@ class CalculateByRangeResource(Resource):
     def _process_growth_rates(cls, baseline: str, aliases: List[str], records: List[Dict[str, Any]]):
         for record in records:
             for alias in aliases:
-                if not record[baseline]:
+                if not record[baseline] or record[alias] is None:
                     # 对比基准 0 or None 的情况下，无法计算增长率，直接置空
                     record.setdefault("growth_rates", {})[alias] = None
                     continue
@@ -2990,6 +2990,21 @@ class CalculateByRangeResource(Resource):
                 record.setdefault("growth_rates", {})[alias] = (
                     (record[alias] - record[baseline]) / record[baseline] * 100
                 )
+
+    @classmethod
+    def _process_proportions(cls, aliases: List[str], records: List[Dict[str, Any]]):
+        alias_total_map: Dict[str, int] = defaultdict(int)
+        for record in records:
+            for alias in aliases:
+                alias_total_map[alias] += record[alias] or 0
+
+        for record in records:
+            for alias in aliases:
+                if alias_total_map[alias] == 0 or record[alias] is None:
+                    # 总数为 0 或者 数据为空 的情况下，直接置空
+                    record.setdefault("proportions", {})[alias] = None
+                    continue
+                record.setdefault("proportions", {})[alias] = (record[alias] / alias_total_map[alias]) * 100
 
     def perform_request(self, validated_request_data):
         def _collect(_alias: str, **_kwargs):
@@ -3020,10 +3035,13 @@ class CalculateByRangeResource(Resource):
 
         # 合并数据
         merged_records: List[Dict[str, Any]] = self._merge(group_fields, alias_aggregated_records_map)
+
+        aliases: List[str] = list(alias_aggregated_records_map.keys())
         # 计算增长率
-        self._process_growth_rates(
-            validated_request_data["baseline"], list(alias_aggregated_records_map.keys()), merged_records
-        )
+        self._process_growth_rates(validated_request_data["baseline"], aliases, merged_records)
+        if validated_request_data["metric_cal_type"] == metric_group.CalculationType.REQUEST_TOTAL:
+            # 计算占比
+            self._process_proportions(aliases, merged_records)
         return merged_records
 
 
