@@ -51,7 +51,7 @@ interface IApmServiceCallerCalleeProps {
 export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeProps> {
   @Prop({ required: true, type: Object }) panel: PanelModel;
 
-  @ProvideReactive('callOptions') callOptions: CallOptions;
+  @ProvideReactive('callOptions') callOptions: CallOptions = {};
   // 顶层注入数据
   /** 过滤列表loading */
   filterLoading = false;
@@ -236,7 +236,10 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
         });
       }
     }
-    this.callOptions.time_shift = timeShift;
+    this.callOptions = {
+      ...this.callOptions,
+      time_shift: timeShift,
+    } as any;
     this.changeDate(val);
   }
 
@@ -258,7 +261,10 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
    * @param val
    */
   handleGroupChange(val: string[]) {
-    this.callOptions.group_by = val;
+    this.callOptions = {
+      ...this.callOptions,
+      group_by: val,
+    } as any;
     this.handleCheck(val);
   }
 
@@ -390,7 +396,13 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
               slot='main'
             >
               <ChartView
-                panelsData={this.panel.extra_panels}
+                panelsData={this.panel.extra_panels.map(item => {
+                  if (item.type === 'graph') {
+                    item.type = 'caller-line-chart';
+                    return item;
+                  }
+                  return item;
+                })}
                 onChoosePoint={this.handleChoosePoint}
               />
               <CallerCalleeTableChart
