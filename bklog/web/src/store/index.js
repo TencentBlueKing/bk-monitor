@@ -258,19 +258,9 @@ const store = new Vuex.Store({
         ...searchParams,
       };
     },
-    isNewRetrieveRoute: state => {
-      const isDebug = window.FEATURE_TOGGLE.bklog_search_new === 'debug';
-      if (window.FEATURE_TOGGLE.bklog_search_new === 'on') {
-        return true;
-      }
-
-      if (isDebug) {
-        const whiteList = (window.FEATURE_TOGGLE_WHITE_LIST.bklog_search_new ?? []).map(id => `${id}`);
-        const bkBizId = state.bkBizId;
-        return bkBizId && whiteList.includes(bkBizId);
-      }
-
-      return false;
+    isNewRetrieveRoute: () => {
+      const v = sessionStorage.getItem('retrieve_version') ?? 'v2';
+      return v === 'v2';
     },
     storeIsShowClusterStep: state => state.storeIsShowClusterStep,
     getApiError: state => apiName => {
