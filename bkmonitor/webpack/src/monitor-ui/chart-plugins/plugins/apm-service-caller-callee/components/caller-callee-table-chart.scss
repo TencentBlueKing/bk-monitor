@@ -1,6 +1,6 @@
 .caller-callee-tab-table-view {
   width: calc(100% - 34px);
-  height: 90%;
+  height: 100%;
   background: #fafbfd;
   border-radius: 2px;
   margin: 16px auto 10px;
@@ -32,6 +32,7 @@
       .aside-main {
         height: 100%;
         background: #fafbfd;
+        padding-bottom: 18px;
       }
       .aside-item {
         display: inline-block;

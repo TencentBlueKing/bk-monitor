@@ -101,20 +101,30 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
     this.initDefaultData();
   }
   initDefaultData() {
-    // const callFilter = this.callOptions.call_filter || [];
+    const callFilter = this.callOptions.call_filter || [];
+    if (callFilter.length > 0) {
+      callFilter.map(item => this.handleToggle(true, item.key));
+    }
     const { caller, callee } = this.angleData;
     const createFilterData = tags =>
-      (tags || []).map(item => ({
-        key: item.value,
-        method: 'eq',
-        value: [],
-        condition: 'and',
-      }));
-    const createFilterTags = tags =>
       (tags || []).map(item => {
-        // const def = callFilter.find(ele => item.value === ele.key);
-        return { ...item, values: [] };
+        const def = callFilter.find(ele => item.value === ele.key);
+        if (def?.value && def.method === 'reg') {
+          const firstValue = def.value[0];
+
+          if (firstValue.startsWith('.*') || firstValue.endsWith('.*')) {
+            def.method = firstValue.startsWith('.*') ? 'after_req' : 'before_req';
+            def.value = def.value.map(item => item.replace(/^\.\*|\.\*$/g, ''));
+          }
+        }
+        return {
+          key: item.value,
+          method: def?.method || 'eq',
+          value: def?.value || [],
+          condition: 'and',
+        };
       });
+    const createFilterTags = tags => (tags || []).map(item => ({ ...item, values: [] }));
 
     // 使用通用函数生成数据
     this.filterData = {
@@ -221,6 +231,7 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
                   <bk-select
                     v-model={this.filterData[this.activeKey][ind].value}
                     loading={item.value === this.toggleKey && this.isLoading}
+                    placeholder={item.text}
                     allow-create
                     collapse-tag
                     display-tag

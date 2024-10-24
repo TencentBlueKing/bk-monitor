@@ -83,7 +83,7 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
   @Watch('callOptions', { deep: true })
   onCallOptionsChanges(val) {
     this.tableColData = val.time_shift.map(item => item.alias);
-    this.getPageList();
+    this.viewOptions?.service_name && this.getPageList();
   }
 
   @Watch('activeKey', { immediate: true })
