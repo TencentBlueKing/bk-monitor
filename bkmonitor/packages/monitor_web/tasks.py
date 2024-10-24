@@ -1322,7 +1322,7 @@ def update_metric_json_from_ts_group():
     对开启了自动发现的插件指标进行保存
     """
 
-    def task(collector_plugin):
+    def update_metric(collector_plugin):
         plugin_data_info = PluginDataAccessor(collector_plugin.current_version, get_global_user())
         # 查询TSGroup
         group_list = api.metadata.query_time_series_group(
@@ -1347,7 +1347,7 @@ def update_metric_json_from_ts_group():
                     timeout=5 * 60
             ):
                 continue
-            executor.submit(task, collector_plugin)
+            executor.submit(update_metric, collector_plugin)
 
 
 @celery_receiver(task_postrun)
