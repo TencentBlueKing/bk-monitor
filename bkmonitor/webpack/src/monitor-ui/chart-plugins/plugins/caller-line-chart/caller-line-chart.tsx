@@ -94,8 +94,7 @@ class CallerLineChart extends CommonSimpleChart {
   }
 
   @Watch('callOptions')
-  onCallOptionsChange(v) {
-    console.log(v);
+  onCallOptionsChange() {
     this.getPanelData();
   }
 
@@ -110,6 +109,27 @@ class CallerLineChart extends CommonSimpleChart {
       this.inited && this.getPanelData();
     }, this.refleshInterval);
   }
+
+  mounted() {
+    this.empty = true;
+    setTimeout(() => {
+      this.initChart();
+      this.emptyText = window.i18n.tc('加载中...');
+      this.empty = false;
+    }, 1000);
+  }
+
+  initChart() {
+    const chartRef = this.$refs?.baseChart?.instance;
+    if (chartRef) {
+      chartRef.off('click');
+      chartRef.on('click', params => {
+        const date = dayjs(params.value[0]).format('YYYY-MM-DD HH:mm:ss');
+        this.$emit('choosePoint', date);
+      });
+    }
+  }
+
   /**
    * @description: 获取图表数据
    * @param {*}
@@ -151,6 +171,7 @@ class CallerLineChart extends CommonSimpleChart {
       const variablesService = new VariablesService({
         ...this.viewOptions,
         ...this.callOptions,
+        time_shift: this.callOptions.time_shift.map(t => t.alias),
         interval,
       });
       for (const time_shift of timeShiftList) {
@@ -862,8 +883,9 @@ class CallerLineChart extends CommonSimpleChart {
           draging={this.panel.draging}
           isInstant={this.panel.instant}
           metrics={this.metrics}
+          needMoreMenu={false}
           showAddMetric={false}
-          showMore={false}
+          showMore={true}
           subtitle={this.panel.subTitle || ''}
           title={this.panel.title}
         />
@@ -888,12 +910,12 @@ class CallerLineChart extends CommonSimpleChart {
               <div class={`chart-legend ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
                 {legend?.displayMode === 'table' ? (
                   <TableLegend
-                    legendData={this.legendData}
+                    legendData={this.legendData || []}
                     onSelectLegend={this.handleSelectLegend}
                   />
                 ) : (
                   <ListLegend
-                    legendData={this.legendData}
+                    legendData={this.legendData || []}
                     onSelectLegend={this.handleSelectLegend}
                   />
                 )}

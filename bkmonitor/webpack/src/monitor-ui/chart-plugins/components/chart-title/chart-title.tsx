@@ -374,7 +374,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                   v-bk-tooltips={{
                     content: this.$t('数据步长'),
                     delay: 200,
-                    appendTo: 'parent',
+                    appendTo: () => document.body,
                   }}
                 >
                   {this.collectIntervalDisplay
