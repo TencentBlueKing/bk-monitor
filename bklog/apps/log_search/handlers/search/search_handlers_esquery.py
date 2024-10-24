@@ -1901,6 +1901,9 @@ class SearchHandler(object):
             "require_field_match": require_field_match,
         }
 
+        if self.index_set.max_analyzed_offset != 0:
+            highlight["max_analyzed_offset"] = self.index_set.max_analyzed_offset
+
         if self.export_log:
             highlight = {}
 
