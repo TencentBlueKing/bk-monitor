@@ -565,12 +565,12 @@
             <div
               class="origin-log-config"
               style="margin-top: 10px"
-              v-if="formData.etl_params.metadata_fields && formData.etl_params.metadata_fields.length"
+              v-if="metaDataList && metaDataList.length"
             >
               <div
                 style="margin-bottom: 10px"
-                v-for="item in formData.etl_params.metadata_fields"
-                :key="item.field_index"
+                v-for="item in metaDataList"
+                :key="`${item.field_index}${item.field_name}`"
               >
                 <bk-input
                   style="width: 110px"
@@ -1109,6 +1109,7 @@
         fieldNameList: [],
         templateKeyWord: '',
         timeCheckContent: '',
+        metaDataList: [],
       };
     },
     computed: {
@@ -1221,6 +1222,11 @@
           if (!val) {
             this.currentTemplateList = this.templateList;
           }
+        },
+      },
+      'formData.etl_params.metadata_fields': {
+        handler(val) {
+          this.metaDataList = val;
         },
       },
     },
@@ -1468,9 +1474,9 @@
         // 先置空防止接口失败显示旧数据
         this.formData.etl_params.metadata_fields &&
           this.formData.etl_params.metadata_fields.splice(0, this.formData.etl_params.metadata_fields.length);
+        this.metaDataList.splice(0, this.metaDataList);
         this.$http.request('collect/getEtlPreview', updateData).then(res => {
-          this.formData.etl_params.metadata_fields = res.data ? res.data.fields : [];
-          this.$set(this.formData.etl_params.metadata_fields, res.data ? res.data.fields : []);
+          this.formData.etl_params.metadata_fields.push(...(res.data ? res.data.fields : []));
         });
       },
       debugHandler() {
@@ -1852,7 +1858,7 @@
         });
         this.isUnmodifiable = !!(table_id || storage_cluster_id);
         this.fieldType = etl_config || 'bk_log_text';
-        /* eslint-enable */
+        // /* eslint-enable */
         Object.assign(this.formData, {
           table_id,
           // storage_cluster_id,
