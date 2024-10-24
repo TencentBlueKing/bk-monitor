@@ -349,7 +349,7 @@ class SearchHandler(object):
     @property
     def index_set(self):
         if not hasattr(self, "_index_set"):
-            self._index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
+            self._index_set = LogIndexSet.objects.filter(index_set_id=self.index_set_id).first()
         return self._index_set
 
     def fields(self, scope="default"):
@@ -1903,6 +1903,8 @@ class SearchHandler(object):
             "fields": {"*": {"number_of_fragments": 0}},
             "require_field_match": require_field_match,
         }
+        if self.index_set and self.index_set.max_analyzed_offset:
+            highlight["max_analyzed_offset"] = self.index_set.max_analyzed_offset
 
         if self.export_log:
             highlight = {}
