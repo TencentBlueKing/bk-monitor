@@ -16,6 +16,7 @@ import shutil
 import time
 import traceback
 from typing import Any, Dict
+from concurrent.futures import ThreadPoolExecutor
 
 import arrow
 from celery.signals import task_postrun
@@ -1320,17 +1321,9 @@ def update_metric_json_from_ts_group():
     """
     对开启了自动发现的插件指标进行保存
     """
-    # 排除掉plugin_id为"snmp_v1"，"snmp_v2c"，"snmp_v3"]的插件数据
-    queryset = CollectorPluginMeta.objects.exclude(plugin_id__in=["snmp_v1", "snmp_v2c", "snmp_v3"])
 
-    for instance in queryset:
-        # 如果未开启黑名单或没有超过刷新周期（默认五分钟），直接返回
-        if not instance.current_version.info.enable_field_blacklist or not instance.should_refresh_metric_json(
-            timeout=5 * 60
-        ):
-            continue
-
-        plugin_data_info = PluginDataAccessor(instance.current_version, get_global_user())
+    def update_metric(collector_plugin):
+        plugin_data_info = PluginDataAccessor(collector_plugin.current_version, get_global_user())
         # 查询TSGroup
         group_list = api.metadata.query_time_series_group(
             time_series_group_name=plugin_data_info.db_name, label=plugin_data_info.label
@@ -1339,10 +1332,22 @@ def update_metric_json_from_ts_group():
         # 仅对有数据做处理
         if len(group_list) == 0:
             return
-        instance.reserved_dimension_list = [
+        collector_plugin.reserved_dimension_list = [
             field_name for field_name, _ in PLUGIN_REVERSED_DIMENSION + plugin_data_info.dms_field
         ]
-        instance.update_metric_json_from_ts_group(group_list)
+        collector_plugin.update_metric_json_from_ts_group(group_list)
+
+    # 排除掉plugin_id为"snmp_v1"，"snmp_v2c"，"snmp_v3"]的插件数据
+    queryset = CollectorPluginMeta.objects.exclude(plugin_id__in=["snmp_v1", "snmp_v2c", "snmp_v3"])
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        for collector_plugin in queryset:
+            # 如果未开启黑名单或没有超过刷新周期（默认五分钟），直接返回
+            if not collector_plugin.current_version.info.enable_field_blacklist or not collector_plugin.should_refresh_metric_json(
+                    timeout=5 * 60
+            ):
+                continue
+            executor.submit(update_metric, collector_plugin)
 
 
 @celery_receiver(task_postrun)
