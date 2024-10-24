@@ -312,7 +312,7 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
       this.$bkInfo({
         type: 'warning',
         title: this.$t('确认删除应用？'),
-        subTitle: `${this.$t('应用')}：${row.app_alias}(${row.app_name})`,
+        subTitle: `${this.$t('应用')}：${row.app_alias} (${row.app_name})`,
         maskClose: true,
         escClose: true,
         confirmFn: () => {

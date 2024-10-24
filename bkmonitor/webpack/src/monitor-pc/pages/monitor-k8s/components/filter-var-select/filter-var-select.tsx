@@ -23,15 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { deepClone, random, typeTools } from 'monitor-common/utils/utils';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
+import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 // import { getPopoverWidth } from '../../../../utils';
 import FilterVarTagInput from './filter-var-tag-input';
 
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import type { IOption } from '../../typings';
 import type { IVariableModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 import type { TranslateResult } from 'vue-i18n';
@@ -108,6 +110,9 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
 
   /* 用于初始化taginput组件 */
   tagInputKey = random(8);
+
+  // 时间间隔
+  @InjectReactive('timeRange') timeRange: TimeRangeType;
 
   /** 选中变量的可选项数据 */
   get localValueCheckedOptions() {
@@ -243,11 +248,12 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
         ...selectedVar,
       });
       let temp = variablesService.transformVariables(params);
-      if (!!temp.where) {
+      if (temp.where) {
         temp.where = temp.where.filter(item => !!item.value.length && item.value.every(val => val !== ''));
       }
       /** 合并视图相关的自定义参数 */
       temp = Object.assign(deepClone(temp), this.customParams);
+      const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       /** 更新为当前变量选中的值 */
       Object.entries(this.currentGroupValueFlat).forEach(item => {
         const [key, value] = item;
@@ -256,6 +262,8 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
       return this.$api[item.apiModule]
         [item.apiFunc]({
           ...temp,
+          start_time: startTime,
+          end_time: endTime,
         })
         .then(res => res?.data || res || []);
     });
@@ -263,7 +271,7 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
       Promise.all(promiseList)
         .then(res => {
           this.localOptions = res
-            .reduce((total, list) => (total = total.concat(list)), [])
+            .reduce((total, list) => total.concat(list), [])
             .map(item => {
               const id = this.panel.handleCreateItemId(item);
               return {
