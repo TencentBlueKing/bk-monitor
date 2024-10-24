@@ -27,7 +27,11 @@ def transform_advanced_addition(addition: dict):
     else:
         value = value if isinstance(value, list) else value.split(",")
 
-    field_list = [{"field_name": field, "op": op, "value": [v]} for v in value]
-    condition_list = [condition] * (len(value) - 1)
+    if condition == "or":
+        field_list = [{"field_name": field, "op": op, "value": value}]
+        condition_list = []
+    else:
+        field_list = [{"field_name": field, "op": op, "value": [v]} for v in value]
+        condition_list = [condition] * (len(value) - 1)
 
     return field_list, condition_list
