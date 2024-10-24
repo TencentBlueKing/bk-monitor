@@ -46,6 +46,7 @@ class AccessVMRecord(models.Model):
     bk_base_data_name = models.CharField("计算平台数据名称", max_length=64, help_text="计算平台数据名称", default="")
     vm_result_table_id = models.CharField("VM 结果表rt", max_length=64, help_text="VM 结果表rt")
     remark = models.CharField("接入备注", max_length=256, null=True, blank=True, help_text="接入备注")
+    create_time = models.DateTimeField("创建时间", auto_now_add=True)
 
     class Meta:
         verbose_name = "接入VM记录表"

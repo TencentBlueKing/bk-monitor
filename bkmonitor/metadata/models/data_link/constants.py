@@ -49,6 +49,7 @@ class DataLinkResourceStatus(Enum):
     """
 
     PENDING = "Pending"
+    CREATING = "Creating"
     RECONCILING = "Reconciling"
     TERMINATING = "Terminating"
     FAILED = "Failed"

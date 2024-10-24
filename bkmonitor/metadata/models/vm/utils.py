@@ -15,16 +15,21 @@ import random
 from typing import Dict, Optional
 
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Q
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 from core.drf_resource import api
-from core.errors.api import BKAPIError
 from metadata.models import (
     AccessVMRecord,
     BcsFederalClusterInfo,
     DataSource,
     DataSourceOption,
+)
+from metadata.models.constants import DataIdCreatedFromSystem
+from metadata.models.data_link.resource import (
+    BkStandardTimeSeriesDataLink,
+    FederalProxyClusterDataLink,
 )
 from metadata.models.space.constants import EtlConfigs
 from metadata.models.vm.bk_data import BkDataAccessor, access_vm
@@ -399,11 +404,8 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
     """
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access v2 vm", bk_biz_id, table_id, data_id)
 
-    from metadata.models import AccessVMRecord, DataSource, Space, SpaceVMInfo
-    from metadata.models.data_link.service import (
-        create_fed_vm_data_link,
-        create_vm_data_link,
-    )
+    from metadata.models import DataSource, Space, SpaceVMInfo
+    from metadata.models.data_link.service import create_data_link
 
     # 0. 确认空间信息
     # NOTE: 0 业务没有空间信息，不需要查询或者创建空间及空间关联的 vm
@@ -431,7 +433,7 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
 
     try:
         # 1.2 NOTE: 这里可能因为事务+异步的原因，导致查询时DB中的DataSource未就绪，添加重试机制
-        ds = get_data_source(data_id)
+        data_source = get_data_source(data_id)
     except DataSource.DoesNotExist:
         logger.error("create vm data link error, data_id: %s not found", data_id)
         return
@@ -442,65 +444,92 @@ def access_v2_bkdata_vm(bk_biz_id: int, table_id: str, data_id: int):
     # 3. 获取数据源对应的集群 ID
     data_type_cluster = get_data_type_cluster(data_id=data_id)
 
-    # 4. 检查是否已经接入过VM，若已经接入过VM，尝试进行联邦集群检查和创建联邦汇聚链路操作
-    if AccessVMRecord.objects.filter(result_table_id=table_id).exists():
-        logger.info("table_id: %s has already been created,now try to create fed vm data link", table_id)
+    strategy_cls = BkStandardTimeSeriesDataLink
 
-        create_fed_vm_data_link(
-            table_id=table_id,
-            data_source=ds,
-            vm_cluster_name=vm_cluster_name,
-            bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
-        )
-        return
+    bcs_cluster_id = data_type_cluster["bcs_cluster_id"]
+    # 这里强依赖于联邦拓扑事先建立
+    if BcsFederalClusterInfo.objects.filter(fed_cluster_id=bcs_cluster_id).exists():
+        strategy_cls = FederalProxyClusterDataLink
 
-    # 5. 接入 vm 链路
     try:
-        create_vm_data_link(
+        create_data_link(
             table_id=table_id,
-            data_source=ds,
-            vm_cluster_name=vm_cluster_name,
-            bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
+            data_source=data_source,
+            storage_name=vm_cluster_name,
+            strategy_cls=strategy_cls,
+            bcs_cluster_id=bcs_cluster_id,
         )
-        # 创建联邦
-        create_fed_vm_data_link(
-            table_id=table_id,
-            data_source=ds,
-            vm_cluster_name=vm_cluster_name,
-            bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
-        )
-    except BKAPIError as e:
-        logger.error("create vm data link error, table_id: %s, data_id: %s, error: %s", table_id, data_id, e)
-        return
     except Exception as e:  # pylint: disable=broad-except
-        logger.error("create vm data link error, table_id: %s, data_id: %s, error: %s", table_id, data_id, e)
+        logger.error("create data link error, table_id: %s, data_id: %s, error: %s", table_id, data_id, e)
         return
 
+    # 4. 接入链路
+    # try:
+    #     create_data_link(
+    #         table_id=table_id,
+    #         storage_name=vm_cluster_name,
+    #         strategy_cls=
 
-def check_create_fed_vm_data_link(cluster):
+    # # 4. 检查是否已经接入过VM，若已经接入过VM，尝试进行联邦集群检查和创建联邦汇聚链路操作
+    # if AccessVMRecord.objects.filter(result_table_id=table_id).exists():
+    #     logger.info("table_id: %s has already been created,now try to create fed vm data link", table_id)
+    #
+    #     create_fed_vm_data_link(
+    #         table_id=table_id,
+    #         data_source=ds,
+    #         vm_cluster_name=vm_cluster_name,
+    #         bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
+    #     )
+    #     return
+    #
+    # # 5. 接入 vm 链路
+    # try:
+    #     create_vm_data_link(
+    #         table_id=table_id,
+    #         data_source=ds,
+    #         vm_cluster_name=vm_cluster_name,
+    #         bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
+    #     )
+    #     # 创建联邦
+    #     create_fed_vm_data_link(
+    #         table_id=table_id,
+    #         data_source=ds,
+    #         vm_cluster_name=vm_cluster_name,
+    #         bcs_cluster_id=data_type_cluster["bcs_cluster_id"],
+    #     )
+    # except BKAPIError as e:
+    #     logger.error("create vm data link error, table_id: %s, data_id: %s, error: %s", table_id, data_id, e)
+    #     return
+    # except Exception as e:  # pylint: disable=broad-except
+    #     logger.error("create vm data link error, table_id: %s, data_id: %s, error: %s", table_id, data_id, e)
+    #     return
+
+
+def check_and_create_sub_to_proxy_vm_data_link(cluster):
     """
     检查该集群是否需要以及是否完成联邦集群子集群的汇聚链路创建
+    子集群->代理集群的汇聚链路，需要DATABUS、CONDITIONAL_SINK等资源
     """
     from metadata.models import DataLinkResource, DataSource, DataSourceResultTable
     from metadata.models.data_link.service import create_fed_vm_data_link
 
-    # 检查是否存在对应的联邦集群记录
+    # 1. 检查是否存在对应的联邦集群记录
     objs = BcsFederalClusterInfo.objects.filter(sub_cluster_id=cluster.cluster_id)
-    # 若该集群为联邦集群的子集群且此前未创建联邦集群的汇聚链路，尝试创建
+
+    # 2. 若该集群为联邦集群的子集群且此前未创建联邦集群的汇聚链路，尝试创建
     if objs and not DataLinkResource.objects.filter(data_bus_name__contains=f"{cluster.K8sMetricDataID}_fed").exists():
         logger.info(
             "check_create_fed_vm_data_link:cluster_id->{} is federal sub cluster and has not create fed data "
             "link,try to create".format(cluster.cluster_id)
         )
-        # 创建联邦汇聚链路
+        # 2.1 尝试创建联邦汇聚链路
         try:
             ds = DataSource.objects.get(bk_data_id=cluster.K8sMetricDataID)
             table_id = DataSourceResultTable.objects.get(bk_data_id=cluster.K8sMetricDataID).table_id
-            vm_cluster = get_vm_cluster_id_name(space_type='bkcc', space_id=str(cluster.bk_biz_id))
             create_fed_vm_data_link(
                 table_id=table_id,
-                data_name=ds.data_name,
-                vm_cluster_name=vm_cluster.get("cluster_name"),
+                data_source=ds,
+                vm_cluster_name='monitor-plat',
                 bcs_cluster_id=cluster.cluster_id,
             )
             logger.info("check_create_fed_vm_data_link:success cluster_id->{}".format(cluster.cluster_id))
@@ -508,3 +537,65 @@ def check_create_fed_vm_data_link(cluster):
             logger.error(
                 "check_create_fed_vm_data_link:error occurs cluster_id->{},error->{}".format(cluster.cluster_id, str(e))
             )
+
+
+def check_and_create_proxy_vm_data_link(cluster_id: str):
+    """
+    检查cluster_id对应的集群是否是联邦代理集群，以及是否已经创建了汇聚链路
+    联邦代理集群仅作为子集群汇聚指标数据的一个目标和查询入口，只需要ResultTable和VMStorageBinding两个资源即可
+    """
+    from metadata import models
+    from metadata.models.data_link import utils
+    from metadata.models.data_link.service import create_data_link
+
+    # 0. 检查cluster_id对应的集群是否已经就绪
+    cluster = models.BCSClusterInfo.objects.filter(cluster_id=cluster_id).first()
+    if not cluster:
+        logger.info("check_and_create_proxy_vm_data_link: cluster_id->[%s] not found or not ready", cluster_id)
+        return
+
+    # 1. 检查该集群是否是联邦集群的代理集群
+    fed_records = BcsFederalClusterInfo.objects.filter(fed_cluster_id=cluster_id)
+    if not fed_records.exists():
+        # 1.1 非联邦代理集群 or 联邦代理集群记录不存在 直接返回
+        logger.info(
+            "check_and_create_proxy_vm_data_link: cluster_id->[%s] is not a fed proxy cluster", cluster.cluster_id
+        )
+        return
+
+    # 2. 拼接进一步的资源信息(数据源、代理集群的K8S内置指标RT、链路标识符）用于检查/接入
+    data_source = DataSource.objects.get(bk_data_id=cluster.K8sMetricDataID)
+    proxy_cluster_table_id = fed_records.first().fed_builtin_metric_table_id
+    datalink_name = utils.get_bkdata_data_id_name(data_source.data_name)  # 链路标识符
+
+    # 3. 检查是否已经创建过对应的联邦代理链路
+    if models.DataLinkResource.objects.filter(data_id_name=datalink_name).exists():
+        logger.info(
+            "check_and_create_proxy_vm_data_link: cluster_id->[%s] ,datalink_name -> [%s] has already created "
+            "a proxy data link",
+            cluster.cluster_id,
+            datalink_name,
+        )
+        return
+
+    # 4. 创建联邦代理集群对应链路，代理集群存储的VM已统一为独立集群
+    create_data_link(
+        table_id=proxy_cluster_table_id,
+        data_source=data_source,
+        strategy_cls=FederalProxyClusterDataLink,
+        storage_name=settings.BCS_PROXY_CLUSTER_VM_STORAGE_CLUSTER_NAME,
+        bcs_cluster_id=cluster.cluster_id,
+    )
+
+    # 5. 联邦代理集群的链路强依赖于V4，变更DATA_ID来源为计算平台，用于指标能够正常发现
+    with transaction.atomic():
+        data_source.created_from = DataIdCreatedFromSystem.BKDATA.value
+        data_source.save()
+
+    # 6. 创建成功 打印日志
+    logger.info(
+        "check_and_create_proxy_vm_data_link: cluster_id->[%s],datalink_name -> [%s] has created a proxy "
+        "data link success",
+        cluster.cluster_id,
+        datalink_name,
+    )
