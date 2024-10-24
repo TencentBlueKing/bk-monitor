@@ -75,7 +75,6 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
   tableListData = [];
   tableTabData = [];
   tableColData: string[] = [];
-
   @Watch('viewOptions', { deep: true })
   onViewOptionsChanges() {
     this.tableColData = this.callOptions.time_shift.map(item => item.alias);
