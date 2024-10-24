@@ -75,6 +75,7 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
   tableListData = [];
   tableTabData = [];
   tableColData: string[] = [];
+
   @Watch('viewOptions', { deep: true })
   onViewOptionsChanges() {
     this.tableColData = this.callOptions.time_shift.map(item => item.alias);
@@ -83,7 +84,7 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
   @Watch('callOptions', { deep: true })
   onCallOptionsChanges(val) {
     this.tableColData = val.time_shift.map(item => item.alias);
-    this.getPageList();
+    this.viewOptions?.service_name && this.getPageList();
   }
 
   @Watch('activeKey', { immediate: true })
