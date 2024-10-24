@@ -31,7 +31,7 @@ import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
 import { GridItem, GridLayout } from 'monitor-vue-grid-layout';
 
-import { type DashboardColumnType, type IGridPos, type IPanelModel, PanelModel } from '../typings';
+import { type DashboardColumnType, type IGridPos, type IPanelModel, PanelModel, type ZrClickEvent } from '../typings';
 import ChartCollect from './chart-collect/chart-collect';
 import ChartWrapper from './chart-wrapper';
 
@@ -61,7 +61,7 @@ interface IDashbordPanelProps {
 interface IDashbordPanelEvents {
   onBackToOverview: () => void;
   onLintToDetail: ITableItem<'link'>;
-  onChoosePoint: () => void;
+  onZrClick: (e: ZrClickEvent) => void;
 }
 @Component
 export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPanelEvents> {
@@ -563,8 +563,8 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
   @Emit('backToOverview')
   handleBackToOverview() {}
 
-  @Emit('choosePoint')
-  handelChoosePoint(date) {
+  @Emit('zrClick')
+  handelZrClick(date) {
     return date;
   }
 
@@ -624,9 +624,9 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
                       needCheck={!this.isClusterOfK8s}
                       onChangeHeight={(height: number) => this.handleChangeLayoutItemH(height, index)}
                       onChartCheck={v => this.handleChartCheck(v, panel)}
-                      onChoosePoint={this.handelChoosePoint}
                       onCollapse={v => panel.type === 'row' && this.handleCollapse(v, panel)}
                       onCollectChart={() => this.handleCollectChart(panel)}
+                      onZrClick={this.handelZrClick}
                     />
                   </GridItem>
                 );

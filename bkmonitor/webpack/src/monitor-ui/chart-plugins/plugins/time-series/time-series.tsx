@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Inject, InjectReactive, Mixins, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Inject, InjectReactive, Mixins, Prop, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -75,6 +75,7 @@ import type {
   LegendActionType,
   MonitorEchartOptions,
   PanelModel,
+  ZrClickEvent,
 } from '../../typings';
 import type { CallOptions } from '../apm-service-caller-callee/type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -97,6 +98,7 @@ interface ITimeSeriesEvent {
   onSelectLegend: ILegendItem[]; // 选择图例时
   onDimensionsOfSeries?: string[]; // 图表数据包含维度是派出
   onSeriesData?: any;
+  onZrClick: ZrClickEvent;
 }
 @Component
 export class LineChart
@@ -519,6 +521,7 @@ export class LineChart
             markArea: this.createMarkArea(item, index),
             z: 1,
             traceData: item.trace_data ?? '',
+            dimensions: item.dimensions ?? {},
           })) as any
         );
         const boundarySeries = seriesResult
@@ -1339,10 +1342,9 @@ export class LineChart
       this.dataZoom(undefined, undefined);
     }
   }
-  handleZrClick(v: number, params: Record<string, any>) {
-    const date = dayjs(v).format('YYYY-MM-DD HH:mm:ss');
-    console.info(date, '===============');
-    this.$emit('choosePoint', date);
+  @Emit('zrClick')
+  handleZrClick(params: ZrClickEvent) {
+    return params;
   }
   render() {
     const { legend } = this.panel?.options || { legend: {} };
@@ -1384,6 +1386,7 @@ export class LineChart
                   height={this.height}
                   groupId={this.panel.dashboardId}
                   hoverAllTooltips={this.hoverAllTooltips}
+                  needZrClick={this.panel.options?.need_zr_click_event}
                   options={this.options}
                   showRestore={this.showRestore}
                   onDataZoom={this.dataZoom}
