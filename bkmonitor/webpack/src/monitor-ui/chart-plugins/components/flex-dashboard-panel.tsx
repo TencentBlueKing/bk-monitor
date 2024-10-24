@@ -60,7 +60,7 @@ interface IDashboardPanelProps {
 interface IDashboardPanelEvents {
   onBackToOverview: () => void;
   onLintToDetail: ITableItem<'link'>;
-  onChoosePoint: (time: string) => void;
+  onZrClick?: (event: ZrClickEvent) => void;
 }
 @Component
 export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashboardPanelEvents> {
@@ -343,7 +343,7 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
   @Emit('backToOverview')
   handleBackToOverview() {}
 
-  @Emit('choosePoint')
+  @Emit('zrClick')
   handelChoosePoint(date) {
     return date;
   }
@@ -399,9 +399,9 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
                     panel={panel}
                     onChangeHeight={(height: number) => this.handleChangeLayoutItemH(height, index)}
                     onChartCheck={v => this.handleChartCheck(v, panel)}
-                    onChoosePoint={this.handelChoosePoint}
                     onCollapse={v => panel.type === 'row' && this.handleCollapse(v, panel)}
                     onCollectChart={() => this.handleCollectChart(panel)}
+                    onZrClick={e => this.$emit('zrClick', e)}
                   />
                 </div>
               ))}

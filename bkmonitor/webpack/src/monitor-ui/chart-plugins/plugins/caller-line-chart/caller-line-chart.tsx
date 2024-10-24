@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, InjectReactive, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -51,6 +51,7 @@ import type {
   IPlotBand,
   ITimeSeriesItem,
   PanelModel,
+  ZrClickEvent,
 } from '../../../chart-plugins/typings';
 import type { CallOptions } from '../apm-service-caller-callee/type';
 import type { IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
@@ -268,6 +269,7 @@ class CallerLineChart extends CommonSimpleChart {
             markArea: this.createMarkArea(item, index),
             z: 1,
             traceData: item.trace_data ?? '',
+            dimensions: item.dimensions ?? {},
           })) as any
         );
         const boundarySeries = seriesResult
@@ -866,10 +868,9 @@ class CallerLineChart extends CommonSimpleChart {
       return total;
     }, []);
   }
-  handleZrClick(v: number, params: Record<string, any>) {
-    const date = dayjs(v).format('YYYY-MM-DD HH:mm:ss');
-    console.info(date, '===============');
-    this.$emit('choosePoint', date);
+  @Emit('zrClick')
+  handleZrClick(params: ZrClickEvent) {
+    return params;
   }
   render() {
     const { legend } = this.panel?.options || { legend: {} };
@@ -899,6 +900,7 @@ class CallerLineChart extends CommonSimpleChart {
                   height={this.height}
                   groupId={this.panel.dashboardId}
                   hoverAllTooltips={this.hoverAllTooltips}
+                  needZrClick={this.panel?.options?.need_zr_click_event}
                   options={this.options}
                   onZrClick={this.handleZrClick}
                 />
@@ -921,4 +923,9 @@ class CallerLineChart extends CommonSimpleChart {
   }
 }
 
-export default ofType<IProps>().convert(CallerLineChart);
+export default ofType<
+  IProps,
+  {
+    onZrClick?: (event: ZrClickEvent) => void;
+  }
+>().convert(CallerLineChart);

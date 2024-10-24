@@ -68,7 +68,7 @@ import LineEcharts from '../plugins/time-series/time-series';
 import TimeSeriesForecast from '../plugins/time-series-forecast/time-series-forecast';
 import TimeSeriesOutlier from '../plugins/time-series-outlier/time-series-outlier';
 
-import type { ChartTitleMenuType, PanelModel } from '../typings';
+import type { ChartTitleMenuType, PanelModel, ZrClickEvent } from '../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
 import type { IQueryOption } from 'monitor-pc/pages/performance/performance-type';
@@ -88,7 +88,7 @@ interface IChartWrapperEvent {
   onChartCheck: boolean;
   onCollapse: boolean;
   onCollectChart?: () => void;
-  onChoosePoint?: () => void;
+  onZrClick?: (event: ZrClickEvent) => void;
   onDimensionsOfSeries?: string[];
 }
 interface IChartWrapperEvent {
@@ -97,6 +97,7 @@ interface IChartWrapperEvent {
   onCollectChart?: () => void;
   onChangeHeight?: (height: number) => void;
   onDblClick?: () => void;
+  onZrClick?: (event: ZrClickEvent) => void;
 }
 @Component({
   components: {
@@ -231,9 +232,9 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   handleDblClick() {
     this.$emit('dblClick');
   }
-  @Emit('choosePoint')
-  handleCallerLineChoosePoint(date: string) {
-    return date;
+  @Emit('zrClick')
+  handleZrClick(event: ZrClickEvent) {
+    return event;
   }
   handlePanel2Chart() {
     switch (this.panel.type) {
@@ -541,13 +542,13 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             clearErrorMsg={this.handleClearErrorMsg}
             panel={this.panel}
             showHeaderMoreTool={this.showHeaderMoreTool}
-            onChoosePoint={this.handleCallerLineChoosePoint}
             onCollectChart={this.handleCollectChart}
             onDblClick={this.handleDblClick}
             onDimensionsOfSeries={this.handleDimensionsOfSeries}
             onErrorMsg={this.handleErrorMsgChange}
             onFullScreen={this.handleFullScreen}
             onLoading={this.handleChangeLoading}
+            onZrClick={this.handleZrClick}
           />
         );
       // 不需要报错显示
@@ -558,13 +559,13 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             clearErrorMsg={this.handleClearErrorMsg}
             panel={this.panel}
             showHeaderMoreTool={this.showHeaderMoreTool}
-            onChoosePoint={this.handleCallerLineChoosePoint}
             onCollectChart={this.handleCollectChart}
             onDblClick={this.handleDblClick}
             onDimensionsOfSeries={this.handleDimensionsOfSeries}
             onErrorMsg={this.handleErrorMsgChange}
             onFullScreen={this.handleFullScreen}
             onLoading={this.handleChangeLoading}
+            onZrClick={this.handleZrClick}
           />
         );
     }

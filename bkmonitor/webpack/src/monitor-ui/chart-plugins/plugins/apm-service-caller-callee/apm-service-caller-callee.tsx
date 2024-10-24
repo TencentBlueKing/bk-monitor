@@ -37,7 +37,7 @@ import TabBtnGroup from './components/common-comp/tab-btn-group';
 import { EParamsMode, EPreDateType, type CallOptions, type IFilterData } from './type';
 import { CALLER_CALLEE_TYPE, type CallerCalleeType } from './utils';
 
-import { PanelModel } from '../../typings';
+import type { PanelModel, ZrClickEvent } from '../../typings';
 
 import './apm-service-caller-callee.scss';
 interface IApmServiceCallerCalleeProps {
@@ -275,11 +275,20 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   }
 
   /** 点击选中图表里的某个点 */
-  handleChoosePoint(date) {
-    if (this.callOptions.call_filter.findIndex(item => item.key === 'time') !== -1) {
-      this.callOptions.call_filter.find(item => item.key === 'time').value = [date];
-      this.callOptions = { ...this.callOptions };
-      return;
+  handleZrClick(event: ZrClickEvent) {
+    if (!event.xAxis) return;
+    console.info(event.dimensions, '=========');
+    const date = dayjs.tz(event.xAxis).format('YYYY-MM-DD HH:mm:ss');
+    const dateItem = this.callOptions.call_filter.find(item => item.key === 'time');
+    if (dateItem) {
+      dateItem.value = [date];
+    } else {
+      this.callOptions.call_filter.unshift({
+        key: 'time',
+        method: 'eq',
+        value: [date],
+        condition: 'end',
+      });
     }
     this.callOptions.call_filter.push({
       key: 'time',
@@ -375,7 +384,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
             >
               <ChartView
                 panelsData={this.panel.extra_panels}
-                onChoosePoint={this.handleChoosePoint}
+                onZrClick={this.handleZrClick}
               />
               <CallerCalleeTableChart
                 activeKey={this.callType}

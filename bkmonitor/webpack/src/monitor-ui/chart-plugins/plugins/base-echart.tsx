@@ -26,7 +26,7 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { type MonitorEchartOptions, echarts } from '../typings/index';
+import { type MonitorEchartOptions, type ZrClickEvent, echarts } from '../typings/index';
 import { getTimeSeriesXInterval } from '../utils/axis';
 
 import './base-echart.scss';
@@ -57,7 +57,7 @@ export interface IChartEvent {
   // contextmenu 事件
   onContextmenu?: (v: any) => void;
   onUpdateAxisPointer?: (v: any) => void;
-  onZrClick: (v: number, params: Record<string, any>) => void;
+  onZrClick: (p: ZrClickEvent) => void;
 }
 const MOUSE_EVENTS = [
   'click',
@@ -198,31 +198,6 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
           this.$emit(event, params);
         }
       });
-      if (event === 'click') {
-        (this as any).instance.getZr().on(event, params => {
-          const pointInPixel = [params.offsetX, params.offsetY];
-          const pointInGrid = (this as any).instance.convertFromPixel({ seriesIndex: 0 }, pointInPixel);
-
-          if (!pointInGrid) return;
-
-          const xAxisValue = pointInGrid[0];
-
-          // // 获取最接近的 dataIndex
-          // const dataIndex = (this as any).instance
-          //   .getModel()
-          //   .getSeries()
-          //   .reduce((closestDataIndex, seriesModel, seriesIndex) => {
-          //     const data = seriesModel.getData();
-          //     const newDataIndex = data.indexOfNearest('x', xValue, 0, false);
-          //     return newDataIndex;
-          //   }, -1);
-          // console.info(dataIndex, xValue, this.options.series[]);
-          // const xAxisValue = new Date((this as any).instance.getDataFromOption('xAxis', closestSeriesIndex, 'data', 0));
-          // this.$emit(`click`, xAxisValue, params);
-
-          this.$emit(`zr${event.charAt(0).toUpperCase()}${event.slice(1)}`, xAxisValue, params);
-        });
-      }
     }
   }
   // echarts 实例销毁

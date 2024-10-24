@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
-import type { PanelModel } from '../../../typings';
+import type { PanelModel, ZrClickEvent } from '../../../typings';
 
 import './chart-view.scss';
 
@@ -37,7 +37,7 @@ interface IChartViewProps {
   panelsData: PanelModel[];
 }
 interface IChartViewEvent {
-  onChoosePoint?: (time: string) => void;
+  onZrClick?: (event: ZrClickEvent) => void;
 }
 @Component({
   name: 'ChartView',
@@ -46,9 +46,9 @@ interface IChartViewEvent {
 export default class ChartView extends tsc<IChartViewProps, IChartViewEvent> {
   @Prop({ required: true, type: Array, default: () => [] }) panelsData: PanelModel[];
 
-  @Emit('choosePoint')
-  handleChoosePoint(date) {
-    return date;
+  @Emit('zrClick')
+  handleZrClick(p: ZrClickEvent) {
+    return p;
   }
   render() {
     return (
@@ -57,7 +57,7 @@ export default class ChartView extends tsc<IChartViewProps, IChartViewEvent> {
           id={'caller-callee-chart-view'}
           column={3}
           panels={this.panelsData}
-          onChoosePoint={this.handleChoosePoint}
+          onZrClick={this.handleZrClick}
         />
       </div>
     );
