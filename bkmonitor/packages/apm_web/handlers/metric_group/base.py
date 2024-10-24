@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import abc
+import copy
 from typing import Any, Dict, List, Optional, Type
 
 from apm_web.handlers.metric_group.helper import MetricHelper
@@ -68,7 +69,7 @@ class BaseMetricGroup(metaclass=MetricGroupMeta):
         filter_dict: Optional[Dict[str, Any]] = None,
         **kwargs,
     ):
-        self.group_by: Dict[str, Any] = group_by or {}
+        self.group_by: List[str] = copy.deepcopy(group_by or [])
         self.filter_dict: Dict[str, Any] = filter_dict or {}
         self.metric_helper: MetricHelper = MetricHelper(bk_biz_id, app_name)
 

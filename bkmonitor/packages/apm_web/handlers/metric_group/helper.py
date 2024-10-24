@@ -35,14 +35,18 @@ class MetricHelper:
 
     MAX_OPTION_LIMIT: int = 9999
 
+    MAX_DATA_LIMIT: int = 24 * 60 * 30
+
     USING: Tuple[str, str] = (DataTypeLabel.TIME_SERIES, DataSourceLabel.CUSTOM)
+
+    TIME_FIELD: str = "time"
 
     def __init__(self, bk_biz_id: int, app_name: str):
         self.table_id: str = Application.get_metric_table_id(bk_biz_id, app_name)
 
     @property
     def q(self) -> QueryConfigBuilder:
-        return QueryConfigBuilder(self.USING).table(self.table_id).time_field("time")
+        return QueryConfigBuilder(self.USING).table(self.table_id).time_field(self.TIME_FIELD)
 
     def time_range_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
         start_time, end_time = self._get_time_range(start_time, end_time)

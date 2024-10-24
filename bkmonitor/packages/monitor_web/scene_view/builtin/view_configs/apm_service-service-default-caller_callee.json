@@ -1367,6 +1367,11 @@
               "panels": ["avg_duration", "pxx_duration"]
             }
           },
+          "time": {
+            "text": "时间",
+            "value": "time",
+            "interval": 60
+          },
           "angle": {},
           "statistics": {
             "api": "apm_metric.calculateByRange",

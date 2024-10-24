@@ -15,7 +15,7 @@ import logging
 import operator
 from collections import defaultdict
 from json import JSONDecodeError
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from django.core.cache import cache
 from django.db.models import Q
@@ -2906,11 +2906,6 @@ class GetFieldOptionValuesResource(Resource):
 
 class CalculateByRangeResource(Resource):
     class RequestSerializer(serializers.Serializer):
-        class TimeRangeSerializer(serializers.Serializer):
-            start_time = serializers.IntegerField(label="开始时间", required=False)
-            end_time = serializers.IntegerField(label="结束时间", required=False)
-            alias = serializers.CharField(label="别名", required=False, default="a")
-
         class OptionsSerializer(serializers.Serializer):
             class TrpcSerializer(serializers.Serializer):
                 kind = serializers.ChoiceField(
@@ -2930,26 +2925,21 @@ class CalculateByRangeResource(Resource):
         metric_cal_type = serializers.ChoiceField(
             label="指标计算类型", required=True, choices=metric_group.CalculationType.choices()
         )
-        baseline = serializers.CharField(label="对比基准", required=False, default="a")
+
+        baseline = serializers.CharField(label="对比基准", required=False, default="now")
+        time_shifts = serializers.ListSerializer(
+            label="时间偏移", required=False, default=[], child=serializers.CharField()
+        )
         filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
         where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
         group_by = serializers.ListSerializer(label="聚合字段", required=False, default=[], child=serializers.CharField())
-        time_ranges = serializers.ListSerializer(label="时间范围", required=True, child=TimeRangeSerializer())
         options = OptionsSerializer(label="配置", required=False, default={})
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
 
         def validate(self, attrs):
-            if len(attrs["time_ranges"]) > 3:
+            if len(attrs["time_shifts"]) > 2:
                 raise ValueError(_("最多支持两次时间对比"))
-
-            aliases: Set[str] = set()
-            for time_range in attrs["time_ranges"]:
-                alias: str = time_range["alias"]
-                if alias in aliases:
-                    raise ValueError(_("重复命名的时间范围 -> {alias}".format(alias=alias)))
-                aliases.add(alias)
-
-            if attrs["baseline"] not in aliases:
-                raise ValueError(_("请补充对比基准（{baseline}）相应的时间范围".format(baseline=attrs["baseline"])))
 
             # 合并查询条件
             attrs["filter_dict"] = q_to_dict(
@@ -2965,6 +2955,7 @@ class CalculateByRangeResource(Resource):
         # 多个对比时间维度数量可能存在差异，此处合并取维度数的交集
         for alias, records in alias_aggregated_records_map.items():
             for record in records:
+                record["time"] = record["_time_"] // 1000
                 group_key: Tuple = tuple((field, record.get(field)) for field in group_fields)
                 group_key_record_map.setdefault(group_key, {})[alias] = record["_result_"]
 
@@ -3007,29 +2998,36 @@ class CalculateByRangeResource(Resource):
                 record.setdefault("proportions", {})[alias] = (record[alias] / alias_total_map[alias]) * 100
 
     def perform_request(self, validated_request_data):
-        def _collect(_alias: str, **_kwargs):
-            alias_aggregated_records_map[_alias] = group.handle(validated_request_data["metric_cal_type"], **_kwargs)
+        def _collect(_alias: Optional[str], **_kwargs):
+            _group: metric_group.BaseMetricGroup = metric_group.MetricGroupRegistry.get(
+                group_name,
+                validated_request_data["bk_biz_id"],
+                validated_request_data["app_name"],
+                group_by=group_fields,
+                filter_dict=validated_request_data.get("filter_dict"),
+                time_shift=_alias,
+                **(validated_request_data["options"].get(group_name) or {}),
+            )
+            alias_aggregated_records_map[_alias or baseline] = _group.handle(
+                validated_request_data["metric_cal_type"], **_kwargs
+            )
 
+        baseline: str = validated_request_data["baseline"]
         alias_aggregated_records_map: Dict[str, List[Dict[str, Any]]] = {}
         group_name: str = validated_request_data["metric_group_name"]
         group_fields: List[str] = validated_request_data.get("group_by") or []
-        group: metric_group.BaseMetricGroup = metric_group.MetricGroupRegistry.get(
-            group_name,
-            validated_request_data["bk_biz_id"],
-            validated_request_data["app_name"],
-            group_by=group_fields,
-            filter_dict=validated_request_data.get("filter_dict"),
-            **(validated_request_data["options"].get(group_name) or {}),
-        )
 
         run_threads(
             [
                 InheritParentThread(
                     target=_collect,
-                    args=(time_range["alias"],),
-                    kwargs={"start_time": time_range.get("start_time"), "end_time": time_range.get("end_time")},
+                    args=(time_shift,),
+                    kwargs={
+                        "start_time": validated_request_data.get("start_time"),
+                        "end_time": validated_request_data.get("end_time"),
+                    },
                 )
-                for time_range in validated_request_data["time_ranges"]
+                for time_shift in validated_request_data["time_shifts"] + [None]
             ]
         )
 
@@ -3038,7 +3036,7 @@ class CalculateByRangeResource(Resource):
 
         aliases: List[str] = list(alias_aggregated_records_map.keys())
         # 计算增长率
-        self._process_growth_rates(validated_request_data["baseline"], aliases, merged_records)
+        self._process_growth_rates(baseline, aliases, merged_records)
         if validated_request_data["metric_cal_type"] == metric_group.CalculationType.REQUEST_TOTAL:
             # 计算占比
             self._process_proportions(aliases, merged_records)
