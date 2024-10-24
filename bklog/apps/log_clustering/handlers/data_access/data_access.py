@@ -34,7 +34,7 @@ from apps.api import (
 )
 from apps.log_clustering.handlers.aiops.base import BaseAiopsHandler
 from apps.log_clustering.models import ClusteringConfig
-from apps.log_databus.constants import BKDATA_ES_TYPE_MAP
+from apps.log_databus.constants import BKDATA_ES_TYPE_MAP, PARSE_FAILURE_FIELD
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.models import CollectorConfig
@@ -178,8 +178,8 @@ class DataAccessHandler(BaseAiopsHandler):
         fields_names = set()
         dedupe_fields_config = []
         for field in fields_config:
-            # 剔除__parse_failure字段
-            if field.get("field_name") == "__parse_failure":
+            # 剔除解析失败字段
+            if field.get("field_name") == PARSE_FAILURE_FIELD:
                 continue
             field_name = field.get("alias_name") if field.get("alias_name") else field.get("field_name")
             if field_name not in fields_names:

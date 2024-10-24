@@ -32,6 +32,7 @@ from apps.log_databus.constants import (
     ETL_DELIMITER_IGNORE,
     FIELD_TEMPLATE,
     EtlConfig,
+    MetadataTypeEnum,
 )
 from apps.log_databus.exceptions import EtlDelimiterParseException
 from apps.log_databus.handlers.etl_storage import EtlStorage
@@ -144,7 +145,7 @@ class BkLogDelimiterEtlStorage(EtlStorage):
                 fields.append(field_info)
 
         # 加上path字段
-        etl_field_index = super().get_max_fields_index(fields) + 1
+        etl_field_index = cls.get_max_fields_index(fields) + 1
         separator_configs = result_table_config["option"].get("separator_configs", [])
         if separator_configs:
             etl_path_regexp = separator_configs[0].get("separator_regexp", "")
@@ -160,10 +161,10 @@ class BkLogDelimiterEtlStorage(EtlStorage):
                             "description": "",
                             "is_built_in": False,
                             "option": {
-                                "metadata_type": "path",
+                                "metadata_type": MetadataTypeEnum.PATH.value,
                                 "es_type": "keyword",
                                 "field_index": etl_field_index,
-                                "real_path": f"{super().path_separator_node_name}.{field_name}",
+                                "real_path": f"{cls.path_separator_node_name}.{field_name}",
                             },
                             "field_type": "string",
                         }

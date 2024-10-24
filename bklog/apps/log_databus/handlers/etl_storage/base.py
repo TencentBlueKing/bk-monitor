@@ -37,6 +37,7 @@ from apps.log_databus.constants import (
     FIELD_TEMPLATE,
     EtlConfig,
     MetadataTypeEnum,
+    PARSE_FAILURE_FIELD,
 )
 from apps.log_databus.exceptions import (
     EtlParseTimeFieldException,
@@ -288,22 +289,22 @@ class EtlStorage(object):
         if etl_params.get("record_parse_failure"):
             field_list.append(
                 {
-                    "field_name": "__parse_failure",
+                    "field_name": PARSE_FAILURE_FIELD,
                     "field_type": "boolean",
                     "tag": "dimension",
-                    "alias_name": "__parse_failure",
+                    "alias_name": PARSE_FAILURE_FIELD,
                     "description": _("清洗失败标记"),
                     "option": {
                         "es_type": "boolean",
                         "es_doc_values": True,
                         "es_include_in_all": False,
-                        "real_path": f"{self.separator_node_name}.__parse_failure",
+                        "real_path": f"{self.separator_node_name}.{PARSE_FAILURE_FIELD}",
                     }
                     if es_version.startswith("5.")
                     else {
                         "es_type": "boolean",
                         "es_doc_values": True,
-                        "real_path": f"{self.separator_node_name}.__parse_failure",
+                        "real_path": f"{self.separator_node_name}.{PARSE_FAILURE_FIELD}",
                     },
                 },
             )
@@ -887,7 +888,7 @@ class EtlStorage(object):
             "subtype": "access_obj",
             "label": "labeld3fa8a",
             "key": "filename",
-            "result": "path_item",
+            "result": "filename",
             "default_type": "null",
             "default_value": "",
             "next": {
