@@ -171,7 +171,7 @@ class CallerLineChart extends CommonSimpleChart {
       const variablesService = new VariablesService({
         ...this.viewOptions,
         ...this.callOptions,
-        time_shift: this.callOptions.time_shift.map(t => t.alias),
+        // time_shift: this.callOptions.time_shift.map(t => t.alias),
         interval,
       });
       for (const time_shift of timeShiftList) {
@@ -195,7 +195,7 @@ class CallerLineChart extends CommonSimpleChart {
                 ...this.viewOptions,
                 ...this.viewOptions.variables,
                 ...this.callOptions,
-                time_shift,
+                time_shift: time_shift[0],
                 interval,
               },
               noTransformVariables
