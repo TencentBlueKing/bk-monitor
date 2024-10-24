@@ -49,23 +49,13 @@ interface IApmServiceCallerCalleeProps {
 export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeProps> {
   @Prop({ required: true, type: Object }) panel: PanelModel;
 
-  @ProvideReactive('callOptions') callOptions: CallOptions = {} as any;
+  @ProvideReactive('callOptions') callOptions: Partial<CallOptions> = {};
   // 同步route query
   @Inject('handleCustomRouteQueryChange') handleCustomRouteQueryChange: (
     customRouteQuery: Record<string, number | string>
   ) => void;
 
   @InjectReactive('customRouteQuery') customRouteQuery: Record<string, string>;
-  filterData = {
-    caller: [],
-    callee: [],
-  };
-  /** 初始化filter的列表 */
-  filterTags = {
-    caller: [],
-    callee: [],
-  };
-  panelsData = [];
   tableListData = [];
   tableTabData = [];
   tabList = CALLER_CALLEE_TYPE;
@@ -75,24 +65,15 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   tableColData = [];
   // panel 传递过来的一些变量
   get panelScopedVars() {
-    const angel = this.panel?.options?.common?.angle || {};
+    const angel = this.commonAngle;
     const options = this.callType === 'caller' ? angel.caller : angel.callee;
     return {
       server: options.server,
       ...options?.metrics,
     };
   }
-
-  get panelOptions() {
-    return this.panel.options || {};
-  }
-
-  get extraPanels() {
-    return this.panel.extra_panels || [];
-  }
-
   get commonOptions() {
-    return this.panelOptions?.common || {};
+    return this.panel?.options?.common || {};
   }
 
   get supportedCalculationTypes() {
@@ -134,11 +115,6 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       tool_mode: routeCallOptions.tool_mode || EParamsMode.contrast,
       kind: this.callType,
     };
-    this.panelsData = this.extraPanels.map(panel => new PanelModel(panel));
-  }
-
-  mounted() {
-    this.initDefaultData();
   }
 
   replaceRouteQuery() {
@@ -165,7 +141,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   }
 
   // 左侧主被调切换
-  changeTab(id: CallerCalleeType) {
+  changeTab(id: string) {
     this.callType = id;
     this.callOptions = {
       ...this.callOptions,
@@ -233,7 +209,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     this.callOptions = {
       ...this.callOptions,
       time_shift: timeShift,
-    } as any;
+    };
     this.changeDate(val);
     this.replaceRouteQuery();
   }
@@ -259,7 +235,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     this.callOptions = {
       ...this.callOptions,
       group_by: val,
-    } as any;
+    };
     this.handleCheck(val);
     this.replaceRouteQuery();
   }
@@ -290,57 +266,33 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   }
 
   /** 点击选中图表里的某个点 */
-  handleChoosePoint(date) {
-    if (this.callOptions.call_filter.findIndex(item => item.key === 'time') !== -1) {
-      this.callOptions.call_filter.find(item => item.key === 'time').value = [date];
-      this.callOptions = { ...this.callOptions };
-      return;
-    }
-    this.callOptions.call_filter.push({
-      key: 'time',
-      method: 'eq',
-      value: [date],
-      condition: 'end',
-    });
-    this.callOptions = { ...this.callOptions };
-  }
-  /** 初始化主被调的相关数据 */
-  initDefaultData() {
-    const { caller, callee } = this.commonAngle;
-    const createFilterData = tags =>
-      (tags || []).map(item => ({
-        key: item.value,
+  handleChoosePoint(date: string) {
+    const dateItem = this.callOptions.call_filter.find(item => item.key === 'time');
+    if (dateItem) {
+      dateItem.value = [date];
+    } else {
+      this.callOptions.call_filter.unshift({
+        key: 'time',
         method: 'eq',
-        value: [],
-        condition: 'and',
-      }));
-    // const createFilterTags = tags => (tags || []).map(item => ({ ...item, values: [] }));
-
-    // 使用通用函数生成数据
-    this.filterData = {
-      caller: createFilterData(caller?.tags),
-      callee: createFilterData(callee?.tags),
-    };
-
-    this.filterTags = {
-      caller: caller?.tags,
-      callee: callee?.tags,
-    };
+        value: [date],
+        condition: 'end',
+      });
+    }
   }
 
-  handleLimitChange(val) {
+  handleLimitChange(val: number) {
     this.callOptions = {
       ...this.callOptions,
       limit: val,
     };
   }
-  handleMethodChange(val) {
+  handleMethodChange(val: string) {
     this.callOptions = {
       ...this.callOptions,
       method: val,
     };
   }
-  handleMetricCalTypeChange(val) {
+  handleMetricCalTypeChange(val: string) {
     this.callOptions = {
       ...this.callOptions,
       metric_cal_type: val,
@@ -366,7 +318,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
               method={this.callOptions.method}
               metricCalType={this.callOptions.metric_cal_type}
               paramsMode={this.callOptions.tool_mode}
-              searchList={this.filterTags[this.callType]}
+              searchList={this.callType === 'caller' ? this.commonAngle.caller?.tags : this.commonAngle.callee?.tags}
               supportedCalculationTypes={this.supportedCalculationTypes}
               supportedMethods={this.supportedMethods}
               onContrastDatesChange={this.handleContrastDatesChange}
@@ -409,7 +361,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
               />
               <CallerCalleeTableChart
                 filterData={this.callOptions.call_filter}
-                searchList={this.filterTags[this.callType]}
+                searchList={this.callType === 'caller' ? this.commonAngle.caller?.tags : this.commonAngle.callee?.tags}
                 tableColData={this.tableColData}
                 tableListData={this.tableListData}
                 tableTabData={this.tableTabData}

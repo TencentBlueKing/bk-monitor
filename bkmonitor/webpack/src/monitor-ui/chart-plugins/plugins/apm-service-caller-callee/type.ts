@@ -91,3 +91,10 @@ export type IFilterData = {
   caller: IFilterCondition[];
   callee: IFilterCondition[];
 };
+
+export interface ITabItem {
+  label: string;
+  id: string;
+  icon?: string;
+  handle?: () => void;
+}

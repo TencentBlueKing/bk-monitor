@@ -178,7 +178,7 @@ class CallerLineChart extends CommonSimpleChart {
         const list = this.panel.targets.map(item => {
           const newPrarams = {
             ...variablesService.transformVariables(
-              dataFormat(item.data),
+              dataFormat({ ...item.data }),
               {
                 ...this.viewOptions.filters,
                 ...(this.viewOptions.filters?.current_target || {}),
@@ -385,16 +385,16 @@ class CallerLineChart extends CommonSimpleChart {
         setTimeout(() => {
           this.handleResize();
         }, 100);
-        setTimeout(() => {
-          const chartRef = this.$refs?.baseChart?.instance;
-          if (chartRef) {
-            chartRef.off('click');
-            chartRef.on('click', params => {
-              const date = dayjs(params.value[0]).format('YYYY-MM-DD HH:mm:ss');
-              this.$emit('choosePoint', date);
-            });
-          }
-        }, 1000);
+        // setTimeout(() => {
+        //   const chartRef = this.$refs?.baseChart?.instance;
+        //   if (chartRef) {
+        //     chartRef.off('click');
+        //     chartRef.on('click', params => {
+        //       const date = dayjs(params.value[0]).format('YYYY-MM-DD HH:mm:ss');
+        //       this.$emit('choosePoint', date);
+        //     });
+        //   }
+        // }, 1000);
       } else {
         this.inited = this.metrics.length > 0;
         this.emptyText = window.i18n.tc('暂无数据');
@@ -881,7 +881,11 @@ class CallerLineChart extends CommonSimpleChart {
       return total;
     }, []);
   }
-
+  handleZrClick(v: number, params: Record<string, any>) {
+    const date = dayjs(v).format('YYYY-MM-DD HH:mm:ss');
+    console.info(date, '===============');
+    this.$emit('choosePoint', date);
+  }
   render() {
     const { legend } = this.panel?.options || { legend: {} };
     return (
@@ -911,6 +915,7 @@ class CallerLineChart extends CommonSimpleChart {
                   groupId={this.panel.dashboardId}
                   hoverAllTooltips={this.hoverAllTooltips}
                   options={this.options}
+                  onZrClick={this.handleZrClick}
                 />
               )}
             </div>

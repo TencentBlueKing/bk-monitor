@@ -45,13 +45,13 @@ import './caller-callee-filter.scss';
 
 interface ICallerCalleeFilterProps {
   panel: PanelModel;
-  searchList: IServiceConfig[];
-  filterData: IServiceConfig[];
+  searchList?: IServiceConfig[];
+  filterData?: IServiceConfig[];
   activeKey: string;
 }
 interface ICallerCalleeFilterEvent {
   onReset?: () => void;
-  onSearch?: () => void;
+  onSearch?: (options: CallOptions['call_filter']) => void;
 }
 @Component({
   name: 'CallerCalleeFilter',

@@ -40,7 +40,7 @@ import type { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings
 import './dashboard-panel.scss';
 /** 接收图表当前页面跳转事件 */
 export const UPDATE_SCENES_TAB_DATA = 'UPDATE_SCENES_TAB_DATA';
-interface IDashbordPanelProps {
+interface IDashboardPanelProps {
   // 视图集合
   panels: IPanelModel[];
   // dashboard id
@@ -57,12 +57,13 @@ interface IDashbordPanelProps {
   dashboardId?: string;
   matchFields?: Record<string, any>;
 }
-interface IDashbordPanelEvents {
-  onBackToOverview: void;
+interface IDashboardPanelEvents {
+  onBackToOverview: () => void;
   onLintToDetail: ITableItem<'link'>;
+  onChoosePoint: (time: string) => void;
 }
 @Component
-export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbordPanelEvents> {
+export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashboardPanelEvents> {
   // 视图集合
   @Prop({ required: true, type: Array }) panels: IPanelModel[];
   // dashboard id

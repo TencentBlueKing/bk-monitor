@@ -26,21 +26,18 @@
 
 import { Component, Prop, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-interface ITabItem {
-  label: string;
-  id: string;
-  icon?: string;
-  handle?: () => void;
-}
+
 interface ITabBtnGroupProps {
-  type: string;
-  height: number;
+  type?: string;
+  height?: number;
   list: ITabItem[];
   activeKey: string;
 }
 interface ITabBtnGroupEvent {
-  onChange: () => void;
+  onChange: (id: string) => void;
 }
+
+import type { ITabItem } from '../../type';
 
 import './tab-btn-group.scss';
 

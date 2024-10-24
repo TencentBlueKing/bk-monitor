@@ -57,6 +57,7 @@ export interface IChartEvent {
   // contextmenu 事件
   onContextmenu?: (v: any) => void;
   onUpdateAxisPointer?: (v: any) => void;
+  onZrClick: (v: number, params: Record<string, any>) => void;
 }
 const MOUSE_EVENTS = [
   'click',
@@ -197,6 +198,31 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
           this.$emit(event, params);
         }
       });
+      if (event === 'click') {
+        (this as any).instance.getZr().on(event, params => {
+          const pointInPixel = [params.offsetX, params.offsetY];
+          const pointInGrid = (this as any).instance.convertFromPixel({ seriesIndex: 0 }, pointInPixel);
+
+          if (!pointInGrid) return;
+
+          const xAxisValue = pointInGrid[0];
+
+          // // 获取最接近的 dataIndex
+          // const dataIndex = (this as any).instance
+          //   .getModel()
+          //   .getSeries()
+          //   .reduce((closestDataIndex, seriesModel, seriesIndex) => {
+          //     const data = seriesModel.getData();
+          //     const newDataIndex = data.indexOfNearest('x', xValue, 0, false);
+          //     return newDataIndex;
+          //   }, -1);
+          // console.info(dataIndex, xValue, this.options.series[]);
+          // const xAxisValue = new Date((this as any).instance.getDataFromOption('xAxis', closestSeriesIndex, 'data', 0));
+          // this.$emit(`click`, xAxisValue, params);
+
+          this.$emit(`zr${event.charAt(0).toUpperCase()}${event.slice(1)}`, xAxisValue, params);
+        });
+      }
     }
   }
   // echarts 实例销毁
@@ -204,17 +230,6 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
     this.delegateMethod('dispose');
     (this as any).instance = null;
     this.isMouseOver = false;
-  }
-  handleDblClick(e: MouseEvent) {
-    e.preventDefault();
-    clearTimeout(this.clickTimer);
-    this.$emit('dblClick', e);
-  }
-  handleClick(e: MouseEvent) {
-    clearTimeout(this.clickTimer);
-    this.clickTimer = setTimeout(() => {
-      this.$emit('click', e);
-    }, 300);
   }
   handleMouseover() {
     this.isMouseOver = true;
@@ -238,8 +253,6 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
         ref='chartInstance'
         style={{ minHeight: `${1}px` }}
         class='chart-base'
-        onClick={this.handleClick}
-        onDblclick={this.handleDblClick}
         onMouseleave={this.handleMouseleave}
         onMouseover={this.handleMouseover}
       />
