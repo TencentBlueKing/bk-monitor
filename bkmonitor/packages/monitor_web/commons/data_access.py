@@ -20,7 +20,6 @@ from bkmonitor.utils.common_utils import safe_int
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from monitor.constants import UptimeCheckProtocol
-from monitor_web.models.uptime_check import UptimeCheckTask
 from monitor_web.plugin.constant import (
     ORIGIN_PLUGIN_EXCLUDE_DIMENSION,
     PLUGIN_REVERSED_DIMENSION,
@@ -674,7 +673,7 @@ class UptimecheckDataAccessor:
         UptimeCheckProtocol.ICMP: settings.UPTIMECHECK_ICMP_DATAID,
     }
 
-    def __init__(self, task: UptimeCheckTask) -> None:
+    def __init__(self, task) -> None:
         self.task = task
         self.bk_biz_id = task.bk_biz_id
 
@@ -686,11 +685,54 @@ class UptimecheckDataAccessor:
         if not self.use_custom_report():
             return False, self.DATAID_MAP[self.protocol.upper()]
 
+        data_id_info = api.metadata.get_data_id({"data_name": self.data_name, "with_rt_info": False})
+        return True, safe_int(data_id_info["bk_data_id"])
+
     def use_custom_report(self) -> bool:
         """
         是否使用自定义上报
         """
         return self.task.indepentent_dataid or self.task.labels
+
+    @property
+    def data_label(self) -> str:
+        return f"uptimcheck_{self.task.protocol.lower()}"
+
+    @property
+    def db_name(self) -> str:
+        """
+        获取数据库名
+        """
+        return f"uptimecheck_{self.task.protocol.lower()}_{self.bk_biz_id}"
+
+    @property
+    def data_name(self) -> str:
+        return self.db_name
+
+    def create_data_id(self) -> None:
+        """
+        创建数据ID
+        """
+        try:
+            data_id_info = api.metadata.get_data_id({"data_name": self.data_name, "with_rt_info": False})
+            return safe_int(data_id_info["bk_data_id"])
+        except BKAPIError:
+            pass
+
+        params = {
+            "data_name": self.data_name,
+            "etl_config": "bk_standard_v2_time_series",
+            "operator": "admin",
+            "data_description": self.data_name,
+            "type_label": "time_series",
+            "source_label": "bk_monitor",
+            "option": {
+                "inject_local_time": True,
+                "allow_dimensions_missing": True,
+                "is_split_measurement": True,
+            },
+        }
+        return safe_int(api.metadata.create_data_id(params)["bk_data_id"])
 
     def access(self):
         """
@@ -698,3 +740,23 @@ class UptimecheckDataAccessor:
         """
         if not self.use_custom_report():
             return
+
+        # 创建数据ID
+        data_id = self.create_data_id()
+
+        # 创建自定义上报
+        params = {
+            "operator": "admin",
+            "bk_data_id": data_id,
+            "bk_biz_id": self.bk_biz_id,
+            "time_series_group_name": self.db_name,
+            "label": "uptimecheck",
+            "is_split_measurement": True,
+            "metric_info_list": [],
+            "data_label": self.data_label,
+            "additional_options": {
+                "enable_field_black_list": True,
+                "enable_default_value": False,
+            },
+        }
+        api.metadata.create_time_series_group(params)

@@ -285,7 +285,7 @@ class UptimeCheckTask(OperateRecordModel):
     bk_biz_id = models.IntegerField("业务ID", db_index=True)
     name = models.CharField("任务名称", max_length=128, db_index=True)
     protocol = models.CharField("协议", choices=PROTOCOL_CHOICES, max_length=10)
-    labels = models.JSONField("自定义标签", default=dict)
+    labels = models.JSONField("自定义标签", default=dict, null=True, blank=True)
     indepentent_dataid = models.BooleanField("独立业务数据ID", default=False)
     check_interval = models.PositiveIntegerField("拨测周期(分钟)", default=5)
     # 地点变为可选项
