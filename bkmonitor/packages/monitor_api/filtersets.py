@@ -56,6 +56,10 @@ def get_lookups(filter_model):
         if field.is_relation:
             continue
 
+        # 跳过jsonfield
+        if field.__class__.__name__ == "JSONField":
+            continue
+
         lookups = []
         lookups.extend(IMPLICIT_LOOKUPS)
         lookups.extend(ADVANCED_LOOKUPS.get(field.__class__, []))
