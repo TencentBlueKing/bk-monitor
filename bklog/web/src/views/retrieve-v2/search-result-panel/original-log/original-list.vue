@@ -50,7 +50,7 @@
             :retrieve-params="retrieveParams"
             :total-fields="totalFields"
             :visible-fields="visibleFields"
-            @menu-click="handleMenuClick"
+            @value-click="(type, content, isLink) => handleIconClick(type, content, field, row, isLink)"
           >
           </expand-view>
         </template>

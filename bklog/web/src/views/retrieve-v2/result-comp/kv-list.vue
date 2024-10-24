@@ -47,9 +47,8 @@
         <div class="field-value">
           <text-segmentation
             :content="formatterStr(data, field)"
-            :data="data"
             :field="getFieldItem(field)"
-            :menu-click="(type, content, isLink) => handleMenuClick(type, content, field, isLink)"
+            @menu-click="handleJsonSegmentClick"
           />
           <span
             v-if="getRelationMonitorField(field)"
@@ -71,7 +70,7 @@
   import _escape from 'lodash/escape';
   import { mapState } from 'vuex';
 
-  import TextSegmentation from './text-segmentation.tsx';
+  import TextSegmentation from './text-segmentation';
 
   export default {
     components: {
@@ -205,6 +204,14 @@
         return (['is', 'not'].includes(id) && type === 'text') || type === '__virtual__' || isExist
           ? 'is-disabled'
           : '';
+      },
+      handleJsonSegmentClick({ isLink, option }) {
+        debugger;
+        // 为了兼容旧的逻辑，先这么写吧
+        // 找时间梳理下这块，写的太随意了
+        const { fieldName, operation, value } = option;
+        const operator = operation === 'not' ? 'is not' : operation;
+        this.$emit('value-click', operator, value, isLink); // type, content, field, row, isLink
       },
       handleMenuClick(operator, item, field, isLink = false) {
         let params = {};

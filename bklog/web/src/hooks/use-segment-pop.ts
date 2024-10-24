@@ -23,76 +23,109 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import Vue, { h, onMounted, ref, Ref } from 'vue';
+import Vue, { h, ref, Ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
 import TaskRunning from '../global/utils/task-pool';
 
-export default ({ onSegmentEnumClick }) => {
-  const { $t } = useLocale();
-  const className = 'bklog-segment-pop-content';
-  const wrapperClassName = 'bklog-pop-wrapper';
-  const wrapperIdName = 'bklog_pop_wrapper';
-  const refContent = ref();
+class TaskEventManager {
+  taskEventPool: WeakMap<object, any>;
+  activeKey: any;
+  constructor() {
+    this.taskEventPool = new WeakMap();
+    this.activeKey = null;
+  }
 
-  const eventBoxList = [
-    {
-      onClick: () => onSegmentEnumClick('copy'),
-      iconName: 'icon bklog-icon bklog-copy',
-      text: $t('复制'),
-    },
-    {
-      onClick: () => {
-        onSegmentEnumClick('is');
+  appendEvent(key: object, fn: (...agrs: any) => void) {
+    this.taskEventPool.set(key, fn);
+  }
+
+  setActiveKey(v) {
+    this.activeKey = v;
+  }
+
+  getActiveFn() {
+    return this.taskEventPool.get(this.activeKey);
+  }
+
+  executeFn(...args) {
+    this.getActiveFn()?.(...args);
+  }
+}
+
+const taskEventManager = new TaskEventManager();
+export default class UseSegmentProp {
+  private className = 'bklog-segment-pop-content';
+  private wrapperClassName = 'bklog-pop-wrapper';
+  private wrapperIdName = 'bklog_pop_wrapper';
+  private refContent: Ref<HTMLElement>;
+  private $t: (str: string) => string;
+  constructor({ onSegmentEnumClick, keyRef }) {
+    taskEventManager.appendEvent(keyRef, onSegmentEnumClick);
+    console.log('---taskEventManager', taskEventManager);
+    this.refContent = ref();
+    const { $t } = useLocale();
+    this.$t = $t;
+  }
+
+  createSegmentContent(refName: Ref) {
+    const eventBoxList = [
+      {
+        onClick: () => taskEventManager.executeFn('copy'),
+        iconName: 'icon bklog-icon bklog-copy',
+        text: this.$t('复制'),
       },
-      iconName: 'icon bk-icon icon-plus-circle',
-      text: $t('添加到本次检索'),
-      link: {
-        tooltip: $t('新开标签页'),
-        iconName: 'bklog-icon bklog-jump',
-        onClick: e => {
-          e.stopPropagation();
-          onSegmentEnumClick('is', true);
+      {
+        onClick: () => {
+          taskEventManager.executeFn('is');
+        },
+        iconName: 'icon bk-icon icon-plus-circle',
+        text: this.$t('添加到本次检索'),
+        link: {
+          tooltip: this.$t('新开标签页'),
+          iconName: 'bklog-icon bklog-jump',
+          onClick: e => {
+            e.stopPropagation();
+            taskEventManager.executeFn('is', true);
+          },
         },
       },
-    },
-    {
-      onClick: () => onSegmentEnumClick('not'),
-      iconName: 'icon bk-icon icon-minus-circle',
-      text: $t('从本次检索中排除'),
-      link: {
-        tooltip: $t('新开标签页'),
-        iconName: 'bklog-icon bklog-jump',
-        onClick: e => {
-          e.stopPropagation();
-          onSegmentEnumClick('not', true);
+      {
+        onClick: () => taskEventManager.executeFn('not'),
+        iconName: 'icon bk-icon icon-minus-circle',
+        text: this.$t('从本次检索中排除'),
+        link: {
+          tooltip: this.$t('新开标签页'),
+          iconName: 'bklog-icon bklog-jump',
+          onClick: e => {
+            e.stopPropagation();
+            taskEventManager.executeFn('not', true);
+          },
         },
       },
-    },
-    {
-      onClick: () => onSegmentEnumClick('new-search-page-is', true),
-      iconName: 'icon bk-icon icon-plus-circle',
-      text: $t('新建检索'),
-      link: {
-        iconName: 'bklog-icon bklog-jump',
+      {
+        onClick: () => taskEventManager.executeFn('new-search-page-is', true),
+        iconName: 'icon bk-icon icon-plus-circle',
+        text: this.$t('新建检索'),
+        link: {
+          iconName: 'bklog-icon bklog-jump',
+        },
       },
-    },
-  ];
+    ];
 
-  const createSegmentContent = (refName: Ref) =>
-    h('div', { class: 'event-icons event-tippy-content', ref: refName }, [
+    return h('div', { class: 'segment-event-icons event-tippy-content', ref: refName }, [
       eventBoxList.map(item =>
         h(
           'div',
           {
-            class: 'event-box',
+            class: 'segment-event-box',
           },
           [
             h(
               'span',
               {
-                class: 'event-btn',
+                class: 'segment-event-btn',
                 on: {
                   click: item.onClick,
                 },
@@ -104,7 +137,7 @@ export default ({ onSegmentEnumClick }) => {
                   ? h(
                       'div',
                       {
-                        class: 'new-link',
+                        class: 'segment-new-link',
                         on: { ...(item.link.onClick ? { click: item.link.onClick } : {}) },
                         directives: item.link.tooltip
                           ? [
@@ -124,20 +157,23 @@ export default ({ onSegmentEnumClick }) => {
         ),
       ),
     ]);
+  }
 
-  const mountedToBody = () => {
-    let target = document.body.querySelector(`.${wrapperClassName}`);
+  mountedToBody = () => {
+    let target = document.body.querySelector(`.${this.wrapperClassName}`);
     if (!target) {
       target = document.createElement('div');
-      target.setAttribute('id', wrapperIdName);
-      target.classList.add(wrapperClassName);
+      target.setAttribute('id', this.wrapperIdName);
+      target.classList.add(this.wrapperClassName);
       document.body.appendChild(target);
     }
 
-    if (!target.querySelector(`.${className} .event-tippy-content`)) {
+    if (!target.querySelector(`.${this.className} .event-tippy-content`)) {
       const app = new Vue({
         render: () => {
-          return h('div', { class: className, style: 'display: none;' }, [createSegmentContent(refContent)]);
+          return h('div', { class: this.className, style: 'display: none;' }, [
+            this.createSegmentContent(this.refContent),
+          ]);
         },
       });
       const tempDiv = document.createElement('div');
@@ -145,15 +181,17 @@ export default ({ onSegmentEnumClick }) => {
       target.append(app.$el);
     }
 
-    if (!refContent.value) {
-      refContent.value = target.querySelector(`.${className} .event-tippy-content`);
+    if (!this.refContent.value) {
+      this.refContent.value = target.querySelector(`.${this.className} .event-tippy-content`);
     }
   };
 
-  const getSegmentContent = () => refContent;
-  onMounted(() => {
-    TaskRunning(mountedToBody);
-  });
+  getSegmentContent(keyRef: Ref<HTMLElement | null>) {
+    taskEventManager.setActiveKey(keyRef);
+    return this.refContent;
+  }
 
-  return { getSegmentContent };
-};
+  onMountedFn() {
+    TaskRunning(this.mountedToBody);
+  }
+}

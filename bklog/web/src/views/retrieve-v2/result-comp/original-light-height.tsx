@@ -28,7 +28,7 @@ import { Component, Prop, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getFlatObjValues } from '../../../common/util';
-import TextSegmentation from './text-segmentation';
+import TextSegmentation from './text-segmentation.vue';
 // import JsonFormatter from '../../../global/json-formatter.vue';
 
 import './original-light-height.scss';
@@ -88,10 +88,8 @@ export default class OriginalLightHeight extends tsc<IProps> {
   }
 
   @Emit('menu-click')
-  handleEmitMenuClick(type, content, key, isLink) {
-    const option = { fieldName: key, operation: type === 'not' ? 'is not' : type, value: content };
-    const newMenuObj = { option, isLink };
-    return newMenuObj;
+  handleEmitMenuClick(args) {
+    return args;
   }
 
   getField(fieldName: string) {
@@ -101,7 +99,7 @@ export default class OriginalLightHeight extends tsc<IProps> {
   render() {
     return (
       <span class='origin-content'>
-        {Object.entries(this.fieldMapDataObj).map(([key, value]) => {
+        {Object.entries(this.fieldMapDataObj).map(([key, value]: any) => {
           return (
             <span>
               <span class='black-mark'>&nbsp;{key}:&nbsp;</span>
@@ -109,7 +107,7 @@ export default class OriginalLightHeight extends tsc<IProps> {
                 <TextSegmentation
                   content={value}
                   field={this.getField(key)}
-                  menu-click={(type, content, isLink) => this.handleEmitMenuClick(type, content, key, isLink)}
+                  onMenu-click={this.handleEmitMenuClick}
                 />
               </span>
             </span>

@@ -1,54 +1,70 @@
 <template>
-  <span :class="['origin-content-json', { 'is-rending': true, 'is-rending-end': !isRendindg }]">
-    <div
-      ref="refJsonEditor"
-      :class="['bklog-json-formatter', { 'is-wrap-line': isWrap }]"
-    ></div>
+  <span :class="['origin-content-json', { 'is-wrap-line': isWrap, 'is-inline': !isWrap }]">
+    <template v-for="item in rootList">
+      <template v-if="item.formatter.isJson">
+        <div
+          :ref="item.formatter.ref"
+          :key="item.name"
+          class="bklog-root-json bklog-json-formatter"
+        ></div>
+      </template>
+      <template v-else>
+        <div
+          :ref="item.formatter.ref"
+          :key="item.name"
+          class="bklog-root-field"
+        >
+          <span class="field-name black-mark">{{ item.name }}</span>
+          <span class="field-split">:</span>
+          <span class="field-value">{{ item.formatter.value }}</span>
+        </div>
+      </template>
+    </template>
   </span>
 </template>
 <script setup lang="ts">
   import { computed, ref, watch } from 'vue';
-  import useJsonFormatter from '../hooks/use-json-formatter';
+  import useJsonRoot from '../hooks/use-json-root';
   import useStore from '../hooks/use-store';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
-  const isRendindg = ref(false);
 
   const props = defineProps({
     jsonValue: {
-      type: Object,
+      type: [Object, String],
       default: () => ({}),
     },
     fields: {
-      type: Array,
+      type: [Array, Object],
       default: () => [],
-    },
-    filter: {
-      type: Boolean,
-      default: true,
     },
   });
 
-  const refJsonEditor = ref<HTMLElement | null>();
   const formatCounter = ref(0);
   const isWrap = computed(() => store.state.tableLineIsWarp);
+  const fieldList = computed(() => {
+    if (Array.isArray(props.fields)) {
+      return props.fields;
+    }
+
+    return [props.fields];
+  });
 
   const onSegmentClick = args => {
     emit('menu-click', args);
   };
-  const { setValue, setExpand } = useJsonFormatter({
-    target: refJsonEditor,
-    fields: props.fields,
-    jsonValue: props.jsonValue,
+  const { updateRootFieldOperator, setExpand } = useJsonRoot({
+    fields: fieldList.value,
     onSegmentClick,
   });
 
   const convertToObject = val => {
     if (typeof val === 'string' && /^\{|\[/.test(val)) {
       try {
-        return JSON.parse(val);
+        return JSON.parse(val.replace(/<\/?mark>/gim, ''));
       } catch (e) {
+        console.error(e);
         return val;
       }
     }
@@ -56,15 +72,41 @@
     return val;
   };
 
-  const formatValue = computed(() => {
-    const stringValue = Object.keys(props.jsonValue)
-      .filter(name => (props.filter ? props.fields.some((f: any) => f.field_name === name) : true))
-      .reduce((r, k) => Object.assign(r, { [k]: convertToObject(props.jsonValue[k]) }), {});
+  const getFieldValue = field => {
+    if (typeof props.jsonValue === 'string') {
+      return convertToObject(props.jsonValue);
+    }
 
-    formatCounter.value++;
+    return convertToObject(props.jsonValue[field.field_name]);
+  };
+
+  const getFieldFormatter = field => {
+    const objValue = getFieldValue(field);
+
+    if (typeof objValue === 'object' && objValue !== undefined) {
+      return {
+        ref: ref(),
+        isJson: true,
+        value: {
+          [field.field_name]: objValue,
+        },
+      };
+    }
+
     return {
-      stringValue,
+      ref: ref(),
+      isJson: false,
+      value: objValue,
     };
+  };
+
+  const rootList = computed(() => {
+    formatCounter.value++;
+    return fieldList.value.map((f: any) => ({
+      name: f.field_name,
+      type: f.field_type,
+      formatter: getFieldFormatter(f),
+    }));
   });
 
   const depth = computed(() => store.state.tableJsonFormatDepth);
@@ -72,11 +114,7 @@
   watch(
     () => [formatCounter.value],
     () => {
-      isRendindg.value = true;
-      setValue(formatValue.value.stringValue, depth.value);
-      setTimeout(() => {
-        isRendindg.value = false;
-      });
+      updateRootFieldOperator(rootList.value, depth.value);
     },
     {
       immediate: true,
@@ -95,6 +133,10 @@
     font-family: var(--table-fount-family);
     font-size: var(--table-fount-size);
     color: var(--table-fount-color);
+
+    &.is-inline {
+      display: flex;
+    }
 
     .black-mark {
       margin-right: 2px;
@@ -155,7 +197,9 @@
     }
   }
 
-  .bklog-json-formatter {
+  .bklog-root-json.bklog-json-formatter {
+    margin-left: -30px;
+
     > .jsoneditor {
       &.jsoneditor-mode-view {
         border: none;
@@ -165,12 +209,8 @@
             > .jsoneditor-tree-inner {
               > table.jsoneditor-tree {
                 > tbody {
-                  > tr {
-                    &:first-child {
-                      &.jsoneditor-expanded {
-                        display: none;
-                      }
-                    }
+                  > tr.jsoneditor-expanded:first-child {
+                    display: none;
                   }
                 }
               }
@@ -182,28 +222,11 @@
           overflow: hidden;
 
           .jsoneditor-tree-inner {
-            table {
-              &.jsoneditor-tree {
-                tbody {
-                  tr {
-                    td {
-                      border-bottom: none;
-                    }
-                  }
-                }
-              }
-
-              &.jsoneditor-values {
-                /* stylelint-disable-next-line declaration-no-important */
-                // margin-left: 0 !important;
-
-                td {
-                  &.jsoneditor-tree {
-                    .jsoneditor-button {
-                      &.jsoneditor-invisible {
-                        // display: none;
-                      }
-                    }
+            table.jsoneditor-tree {
+              tbody {
+                tr {
+                  td {
+                    border-bottom: none;
                   }
                 }
               }
@@ -222,6 +245,9 @@
             white-space: pre-line;
 
             span {
+
+              display: inline-block;
+              width: max-content;
               font-family: var(--table-fount-family);
               font-size: var(--table-fount-size);
               color: var(--table-fount-color);
@@ -250,100 +276,19 @@
       }
     }
 
-    &:not(.is-wrap-line) {
-      table {
-        &.jsoneditor-tree {
-          tbody {
-            // display: flex;
-            // flex-wrap: wrap;
-          }
-        }
-      }
-    }
-  }
-</style>
-<style lang="scss">
-  @import '@/scss/mixins/flex.scss';
-
-  .tippy-box {
-    &[data-theme='segment-light'] {
-      color: #26323d;
-      background-color: #fff;
-      box-shadow: 0 0 6px 0 #dcdee5;
-
-      .tippy-arrow {
-        color: #fff;
-        background-color: #fff;
-        box-shadow: rgb(220, 222, 229) 0px -12px 12px 0px;
-      }
-
-      .tippy-content {
-        padding: 0;
-
-        .event-tippy-content {
-          &.event-icons {
-            flex-direction: column;
-
-            @include flex-center();
-
-            .event-box {
-              display: flex;
-              align-items: center;
-              justify-content: flex-start;
-              min-width: 240px;
-              height: 32px;
-              padding: 0 10px;
-              font-size: 12px;
-              cursor: pointer;
-
-              &:hover {
-                background: #eaf3ff;
+    &.is-inline {
+      > div.jsoneditor {
+        &.jsoneditor-mode-view {
+          > div.jsoneditor-outer {
+            > div.jsoneditor-tree {
+              > div.jsoneditor-tree-inner {
+                > table.jsoneditor-tree {
+                  tbody {
+                    display: flex;
+                    flex-wrap: wrap;
+                  }
+                }
               }
-            }
-
-            .new-link {
-              flex: 1;
-              justify-content: right;
-              width: 24px;
-              height: 24px;
-
-              &:hover {
-                color: #3a84ff;
-              }
-            }
-
-            .event-btn {
-              flex: none;
-              flex: 1;
-              align-items: center;
-
-              &:hover {
-                color: #3a84ff;
-              }
-
-              .new-link {
-                transform: translateY(1px);
-              }
-            }
-
-            .tippy-tooltip {
-              padding: 6px 2px;
-            }
-
-            .icon {
-              display: inline-block;
-              font-size: 14px;
-              cursor: pointer;
-            }
-
-            .icon-minus-circle,
-            .icon-plus-circle {
-              margin-right: 6px;
-            }
-
-            .bklog-copy {
-              margin-left: -4px;
-              font-size: 24px;
             }
           }
         }

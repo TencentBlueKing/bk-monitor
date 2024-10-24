@@ -42,6 +42,7 @@ export class TaskPool {
     this.runningTask = debounce(() => {
       if (!this.isRunning) {
         this.isRunning = true;
+        console.log('runningTask');
         this.deepRunning();
       }
     }, 60);
@@ -82,11 +83,14 @@ export class TaskPool {
       return new Promise((resolve, reject) => {
         setTimeout(() => {
           try {
-            Reflect.apply(task[0], null, task[1]);
+            const args = task[1]?.[0];
+            const selfThis = args?.slice(-1)?.[0] ?? null;
+            Reflect.apply(task[0], selfThis, task[1]);
             this.clearingPromise?.then(() => {
               resolve(true);
             }) ?? resolve(true);
           } catch (e) {
+            console.error(e);
             reject(false);
           }
         });

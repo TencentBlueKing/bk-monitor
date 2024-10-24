@@ -51,7 +51,7 @@
         :kv-show-fields-list="kvShowFieldsList"
         :list-data="listData"
         :total-fields="totalFields"
-        @menu-click="(val, isLink) => $emit('menu-click', val, isLink)"
+        @value-click="(type, content, isLink) => $emit('value-clickx', type, content, isLink)"
       />
     </div>
     <div

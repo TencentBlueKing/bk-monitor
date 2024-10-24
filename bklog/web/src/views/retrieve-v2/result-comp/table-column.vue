@@ -37,17 +37,16 @@
     >
       <template v-if="isJsonFormat">
         <JsonFormatter
-          :jsonValue="jsonValue"
-          :fields="[field]"
-          :menu-click="handleMenuClick"
-          :filter="false"
+          :jsonValue="content"
+          :fields="field"
+          @menu-click="handleJsonSegmentClick"
         ></JsonFormatter>
       </template>
       <template v-else>
         <text-segmentation
           :content="content"
           :field="field"
-          :menu-click="handleMenuClick"
+          @menu-click="handleJsonSegmentClick"
         />
       </template>
     </span>
@@ -92,17 +91,6 @@
       isJsonFormat() {
         return this.formatJson && ['text', 'string'].includes(this.field.field_type) && /^\[|\{/.test(this.content);
       },
-      jsonValue() {
-        if (this.isJsonFormat) {
-          try {
-            return JSON.parse(this.content);
-          } catch (e) {
-            return {};
-          }
-        }
-
-        return {};
-      },
     },
     mounted() {
       setTimeout(this.registerObserver, 20);
@@ -114,9 +102,13 @@
       handleClickContent() {
         if (this.hasClickEvent) this.$emit('content-click');
       },
-      handleMenuClick(option, content, isLink = false) {
-        const operator = option === 'not' ? 'is not' : option;
-        this.$emit('icon-click', operator, content, isLink);
+      handleJsonSegmentClick({ isLink, option }) {
+        debugger;
+        // 为了兼容旧的逻辑，先这么写吧
+        // 找时间梳理下这块，写的太随意了
+        const { fieldName, operation, value } = option;
+        const operator = operation === 'not' ? 'is not' : operation;
+        this.$emit('icon-click', operator, value, isLink); // type, content, field, row, isLink
       },
       unregisterOberver() {
         if (this.intersectionObserver) {
@@ -147,10 +139,6 @@
   .td-log-container {
     position: relative;
     line-height: 20px;
-
-    &.is-wrap {
-      padding-bottom: 3px;
-    }
 
     .field-container {
       font-family: var(--table-fount-family);

@@ -23,43 +23,62 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, onMounted, Ref } from 'vue';
+import { Ref } from 'vue';
 
 import JSONEditor from 'jsoneditor';
 
 import jsonEditorTask, { EditorTask } from '../global/utils/json-editor-task';
 import segmentPopInstance from '../global/utils/segment-pop-instance';
-import useSegmentPop from './use-segment-pop';
+import UseSegmentPop from './use-segment-pop';
 
 import 'jsoneditor/dist/jsoneditor.min.css';
 
-export default ({
-  target,
-  options,
-  fields,
-  jsonValue,
-  onSegmentClick,
-}: {
+type FormatterConfig = {
   target: Ref<HTMLElement | null>;
   fields: any[];
   jsonValue: any;
   onSegmentClick: (args: any) => void;
   options?: Record<string, any>;
-}) => {
-  let editor = null;
+};
 
-  const getField = (fieldName: string) => {
-    return fields.find(item => item.field_name === fieldName);
-  };
+export default class UseJsonFormatter {
+  editor: JSONEditor;
+  config: FormatterConfig;
+  setValuePromise: Promise<any>;
+  editorPromise: Promise<any>;
+  localDepth: number;
+  getSegmentContent: (keyRef: object) => Ref<any>;
+  onMountedFn: () => void;
+  keyRef: any;
 
-  const onSegmentEnumClick = (val, isLink) => {
+  constructor(cfg: FormatterConfig) {
+    this.config = cfg;
+    this.setValuePromise = Promise.resolve(true);
+    this.editorPromise = Promise.resolve(true);
+    this.localDepth = 1;
+    this.keyRef = {};
+    const segmentPop = new UseSegmentPop({
+      onSegmentEnumClick: this.onSegmentEnumClick.bind(this),
+      keyRef: this.keyRef,
+    });
+    this.getSegmentContent = segmentPop.getSegmentContent.bind(segmentPop);
+    this.onMountedFn = segmentPop.onMountedFn.bind(segmentPop);
+  }
+
+  getField(fieldName: string) {
+    return this.config.fields.find(item => item.field_name === fieldName);
+  }
+
+  onSegmentEnumClick(val, isLink) {
     const tippyInstance = segmentPopInstance.getInstance();
     const currentValue = tippyInstance.reference.innerText;
-    const valueElement = tippyInstance.reference.closest('.jsoneditor-value') as HTMLElement;
+    const valueElement =
+      tippyInstance.reference.closest('.jsoneditor-value') ??
+      (tippyInstance.reference.closest('.field-value') as HTMLElement);
     const fieldName = valueElement?.getAttribute('data-field-name');
-    const activeField = getField(fieldName);
+    const activeField = this.getField(fieldName);
     const target = ['date', 'date_nanos'].includes(activeField?.field_type)
-      ? jsonValue?.[activeField?.field_name]
+      ? this.config.jsonValue?.[activeField?.field_name]
       : currentValue;
 
     const option = {
@@ -67,39 +86,35 @@ export default ({
       operation: val === 'not' ? 'is not' : val,
       value: (target ?? currentValue).replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
     };
-    onSegmentClick?.({ option, isLink });
+
+    this.config.onSegmentClick?.({ option, isLink });
     segmentPopInstance.hide();
-  };
-  const { getSegmentContent } = useSegmentPop({ onSegmentEnumClick });
+  }
 
-  const handleSegmentClick = (e, value) => {
+  handleSegmentClick(e, value) {
     if (!value.toString() || value === '--') return;
-    segmentPopInstance.show(e.target, getSegmentContent());
-  };
+    segmentPopInstance.show(e.target, this.getSegmentContent(this.keyRef));
+  }
 
-  /** 检索高亮分词字符串 */
-  const markRegStr = '<mark>(.*?)</mark>';
-  /** 默认分词字符串 */
-
-  const segmentRegStr = ',&*+:;?^=!$<>\'"{}()|[]\\/\\s\\r\\n\\t-';
-
-  const getCurrentFieldRegStr = (field: any) => {
+  getCurrentFieldRegStr(field: any) {
+    /** 默认分词字符串 */
+    const segmentRegStr = ',&*+:;?^=!$<>\'"{}()|[]\\/\\s\\r\\n\\t-';
     if (field.tokenize_on_chars) {
       return field.tokenize_on_chars;
     }
 
     return segmentRegStr;
-  };
+  }
 
-  const isTextField = (field: any) => {
+  isTextField(field: any) {
     return field?.field_type === 'text';
-  };
+  }
 
-  const isAnalyzed = (field: any) => {
+  isAnalyzed(field: any) {
     return field?.is_analyzed ?? false;
-  };
+  }
 
-  const splitParticipleWithStr = (str: string, delimiterPattern: string) => {
+  splitParticipleWithStr(str: string, delimiterPattern: string) {
     if (!str) return [];
     // 转义特殊字符，并构建用于分割的正则表达式
     const regexPattern = delimiterPattern
@@ -136,25 +151,27 @@ export default ({
       });
 
     return result;
-  };
+  }
 
-  const getSplitList = (field: any, content: any) => {
+  getSplitList(field: any, content: any) {
+    /** 检索高亮分词字符串 */
+    const markRegStr = '<mark>(.*?)</mark>';
     const value = `${content}`;
-    if (isAnalyzed(field)) {
+    if (this.isAnalyzed(field)) {
       // 这里进来的都是开了分词的情况
-      return splitParticipleWithStr(value, getCurrentFieldRegStr(field));
+      return this.splitParticipleWithStr(value, this.getCurrentFieldRegStr(field));
     }
 
     return [
       {
         text: value.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
-        isNotParticiple: isTextField(field),
+        isNotParticiple: this.isTextField(field),
         isMark: new RegExp(markRegStr).test(value),
       },
     ];
-  };
+  }
 
-  const getChildItem = item => {
+  getChildItem(item) {
     if (item.text === '\n') {
       const brNode = document.createElement('br');
       return brNode;
@@ -177,90 +194,105 @@ export default ({
     textNode.classList.add('others-text');
     textNode.innerText = item.text;
     return textNode;
-  };
+  }
 
-  const creatSegmentNodes = (vlaues: any[]) => {
+  creatSegmentNodes = (vlaues: any[]) => {
     const segmentNode = document.createElement('span');
     segmentNode.classList.add('segment-content');
 
     vlaues.forEach(item => {
-      segmentNode.append(getChildItem(item));
+      segmentNode.append(this.getChildItem(item));
     });
 
     return segmentNode;
   };
 
-  const setNodeValueWordSplit = (path = '') => {
-    Array.from(target.value?.querySelectorAll('.jsoneditor-value') ?? []).forEach(element => {
+  initStringAsValue() {
+    this.onMountedFn();
+    this.setNodeValueWordSplit('', '.field-value', '.field-name', '.bklog-root-field');
+  }
+
+  setNodeValueWordSplit(
+    path = '',
+    valueSelector = '.jsoneditor-value',
+    fieldSelector = '.jsoneditor-field',
+    parentCloset = 'tr',
+  ) {
+    Array.from(this.getTargetRoot()?.querySelectorAll(valueSelector) ?? []).forEach((element: HTMLElement) => {
       if (!element.classList.contains('jsoneditor-object')) {
         if (!element.getAttribute('data-has-word-split')) {
           const text = (element as HTMLDivElement).innerText;
-          let fieldName = element.parentElement.closest('tr').querySelector('.jsoneditor-field')?.innerHTML;
+          let fieldName = element.parentElement.closest(parentCloset).querySelector(fieldSelector)?.innerHTML;
 
           if (path.length) {
             fieldName = path[0];
           }
-          const field = getField(fieldName);
-          const vlaues = getSplitList(field, text);
+          const field = this.getField(fieldName);
+          const vlaues = this.getSplitList(field, text);
           element?.setAttribute('data-has-word-split', '1');
           element?.setAttribute('data-field-name', fieldName);
           element.innerHTML = '';
-          element.append(creatSegmentNodes(vlaues));
+          element.append(this.creatSegmentNodes(vlaues));
           element.addEventListener('click', e => {
             if ((e.target as HTMLElement).classList.contains('valid-text')) {
-              handleSegmentClick(e, (e.target as HTMLElement).innerHTML);
+              this.handleSegmentClick(e, (e.target as HTMLElement).innerHTML);
             }
           });
         }
       }
     });
-  };
+  }
 
-  const handleExpandNode = args => {
+  handleExpandNode(args) {
     if (args.isExpand) {
-      setNodeValueWordSplit(args.path);
+      this.setNodeValueWordSplit(args.path);
     }
-  };
+  }
 
-  const computedOptions = computed(() => {
+  get computedOptions() {
     return {
       mode: 'view',
       navigationBar: false,
       statusBar: false,
       mainMenuBar: false,
-      onExpand: handleExpandNode,
-      ...(options ?? {}),
+      onExpand: this.handleExpandNode.bind(this),
+      ...(this.config.options ?? {}),
     };
-  });
+  }
 
-  let setValuePromise: Promise<any> = Promise.resolve(true);
-  let editorPromise: Promise<any> = Promise.resolve(true);
-  let localDepth = 1;
+  getTargetRoot() {
+    if (Array.isArray(this.config.target.value)) {
+      return this.config.target.value[0];
+    }
 
-  onMounted(() => {
-    if (target) {
-      editorPromise = new Promise(resolve => {
-        editor = new JSONEditor(target?.value, computedOptions.value);
+    return this.config.target.value;
+  }
+
+  initEditor() {
+    if (this.getTargetRoot()) {
+      this.editorPromise = new Promise(resolve => {
+        this.editor = new JSONEditor(this.getTargetRoot(), this.computedOptions);
+        this.onMountedFn?.();
         resolve(true);
       });
     }
-  });
+  }
 
-  const getNodePath = node => {
+  getNodePath(node) {
     if (node.parent) {
-      return [...getNodePath(node.parent), node.getName()];
+      return [...this.getNodePath(node.parent), node.getName()];
     }
 
     return [];
-  };
+  }
 
-  const expandNodeAtLevel = (node, level, currentDepth, oldDepth) => {
+  expandNodeAtLevel = (node, level, currentDepth, oldDepth) => {
     if (level < currentDepth || level < oldDepth) {
       if (node.childs && node.childs.length > 0) {
-        const path = getNodePath(node);
+        const path = this.getNodePath(node);
         const nextIsExpand = level < currentDepth;
         if (nextIsExpand !== node.expanded) {
-          editor.expand({
+          this.editor.expand({
             path,
             isExpand: nextIsExpand,
             recursive: !nextIsExpand,
@@ -269,27 +301,27 @@ export default ({
 
         if (nextIsExpand) {
           node.childs.forEach(child => {
-            expandNodeAtLevel(child, level + 1, currentDepth, oldDepth);
+            this.expandNodeAtLevel(child, level + 1, currentDepth, oldDepth);
           });
         }
       }
     }
   };
 
-  const setNodeExpand = ([currentDepth, oldDepth]) => {
-    const rootNode = editor.node;
-    expandNodeAtLevel(rootNode, 0, currentDepth, oldDepth);
-    setNodeValueWordSplit();
-  };
+  setNodeExpand([currentDepth, oldDepth]) {
+    const rootNode = this.editor.node;
+    this.expandNodeAtLevel(rootNode, 0, currentDepth, oldDepth);
+    this.setNodeValueWordSplit();
+  }
 
-  const setValue = (val, depth) => {
-    setValuePromise = new Promise((resolve, reject) => {
+  setValue(depth) {
+    this.setValuePromise = new Promise((resolve, reject) => {
       try {
-        editorPromise.then(() => {
-          editor.set(val);
+        this.editorPromise.then(() => {
+          this.editor.set(this.config.jsonValue);
           EditorTask.clear(() => {
-            jsonEditorTask(setNodeExpand, [depth, localDepth]);
-            localDepth = depth;
+            jsonEditorTask(this.setNodeExpand, [depth, this.localDepth, this]);
+            this.localDepth = depth;
             resolve(true);
           });
         });
@@ -298,19 +330,28 @@ export default ({
       }
     });
 
-    return setValuePromise;
-  };
+    return this.setValuePromise;
+  }
 
-  const setExpand = depth => {
+  setExpand(depth) {
     EditorTask.clear(() => {
-      setValuePromise?.then(() => {
-        jsonEditorTask(setNodeExpand, [depth, localDepth]);
-        localDepth = depth;
+      this.setValuePromise?.then(() => {
+        jsonEditorTask(this.setNodeExpand, [depth, this.localDepth, this]);
+        this.localDepth = depth;
       });
     });
-  };
-  return {
-    setValue,
-    setExpand,
-  };
-};
+  }
+
+  destroy() {
+    this.editor?.destroy();
+  }
+
+  getEditor() {
+    return {
+      setValue: this.setValue.bind(this),
+      setExpand: this.setExpand.bind(this),
+      initEditor: this.initEditor.bind(this),
+      destroy: this.destroy.bind(this),
+    };
+  }
+}

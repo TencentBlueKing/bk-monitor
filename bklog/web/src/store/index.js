@@ -162,7 +162,7 @@ const store = new Vuex.Store({
     storeIsShowClusterStep: false,
     retrieveDropdownData: {},
     notTextTypeFields: [],
-    tableLineIsWarp: true,
+    tableLineIsWarp: false,
     tableJsonFormat: false,
     tableJsonFormatDepth: 1,
     isSetDefaultTableColumn: false,

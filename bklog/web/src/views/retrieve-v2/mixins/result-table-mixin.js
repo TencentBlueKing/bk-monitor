@@ -384,7 +384,8 @@ export default {
         });
     },
     handleIconClick(type, content, field, row, isLink) {
-      let value = field.field_type === 'date' ? row[field.field_name] : content;
+      debugger;
+      let value = ['date', 'date_nanos'].includes(field.field_type) ? row[field.field_name] : content;
       value = String(value)
         .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
@@ -405,6 +406,7 @@ export default {
       return this.fieldTypeMap?.[fieldType] ? this.fieldTypeMap?.[fieldType]?.color : '#EAEBF0';
     },
     handleMenuClick(option, isLink) {
+      debugger;
       switch (option.operation) {
         case 'is':
         case 'is not':
