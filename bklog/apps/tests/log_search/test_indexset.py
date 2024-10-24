@@ -90,6 +90,7 @@ CREATE_SUCCESS = {
         "sort_fields": [],
         "target_fields": [],
         "result_window": 10000,
+        "max_analyzed_offset": 0,
     },
     "code": 0,
     "message": "",
@@ -160,6 +161,7 @@ UPDATE_INDEX_SET = {
     "sort_fields": [],
     "target_fields": [],
     "result_window": 10000,
+    "max_analyzed_offset": 0,
 }
 
 NOT_EDITABLE_RETURN = {
@@ -245,6 +247,7 @@ INDEX_SET_LISTS = {
             "result_window": 10000,
             "storage_cluster_domain_name": "",
             "storage_cluster_port": 123,
+            "max_analyzed_offset": 0,
         }
     ],
 }
@@ -376,6 +379,7 @@ RETRIEVE_LIST = {
     "sort_fields": [],
     "target_fields": [],
     "result_window": 10000,
+    "max_analyzed_offset": 0,
 }
 
 
