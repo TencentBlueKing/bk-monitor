@@ -318,6 +318,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 essentials=essentials,
                 start=start,
                 end=end,
+                offset=data["offset"],
                 profile_id=data.get("profile_id"),
                 filter_labels=data.get("filter_labels"),
                 is_compared=data.get("is_compared"),
@@ -342,6 +343,10 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         else:
             extra_params = {"limit": {"offset": 0, "rows": NORMAL_SERVICE_MAX_QUERY_SIZE}}
 
+        start_time = data["filter_labels"].pop("start", "")
+        end_time = data["filter_labels"].pop("end", "")
+        if start_time and end_time:
+            start, end = self._enlarge_duration(start_time, end_time, offset=data["offset"])
         tree_converter = self.query(
             bk_biz_id=essentials["bk_biz_id"],
             app_name=essentials["app_name"],
@@ -373,7 +378,13 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         diagram_types = data["diagram_types"]
         options = {"sort": data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
+        print("options: ", options)
         if data.get("is_compared"):
+            start_time = data["diff_filter_labels"].pop("start", "")
+            end_time = data["diff_filter_labels"].pop("end", "")
+            if start_time and end_time:
+                start, end = self._enlarge_duration(start_time, end_time, offset=data["offset"])
+                print(start, end)
             diff_tree_converter = self.query(
                 bk_biz_id=essentials["bk_biz_id"],
                 app_name=essentials["app_name"],
@@ -399,7 +410,13 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             return Response(data=data)
 
         diagram_dicts = (get_diagrammer(d_type).draw(tree_converter, **options) for d_type in diagram_types)
-        data = {k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()}
+
+        for diagram_dict in diagram_dicts:
+            # print("diagram_dict: ",diagram_dict)
+            for key, value in diagram_dict.items():
+                # print(key, value)
+                data.update({key: value})
+        # data = {k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()}
         data.update(tree_converter.get_sample_type())
         data.update(tendency_result)
         return Response(data=data)
@@ -432,6 +449,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         essentials,
         start,
         end,
+        offset=None,
         profile_id=None,
         filter_labels=None,
         is_compared=False,
@@ -447,7 +465,10 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         else:
             # 向分钟取整
             dimension = "FLOOR((dtEventTimeStamp / 1000) / 60) * 60000"
-
+        start_time = filter_labels.pop("start", "")
+        end_time = filter_labels.pop("end", "")
+        if start_time and end_time:
+            start, end = self._enlarge_duration(start_time, end_time, offset=offset)
         tendency_data = self.query(
             api_type=APIType.SELECT_COUNT,
             bk_biz_id=essentials["bk_biz_id"],
@@ -468,6 +489,10 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         compare_tendency_result = {}
         if is_compared:
+            start_time = diff_filter_labels.pop("start", "")
+            end_time = diff_filter_labels.pop("end", "")
+            if start_time and end_time:
+                start, end = self._enlarge_duration(start_time, end_time, offset=offset)
             compare_tendency_data = self.query(
                 api_type=APIType.SELECT_COUNT,
                 bk_biz_id=essentials["bk_biz_id"],
