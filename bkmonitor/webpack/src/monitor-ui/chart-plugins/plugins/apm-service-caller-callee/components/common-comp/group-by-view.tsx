@@ -111,10 +111,18 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
   @Watch('searchList', { immediate: true })
   handleWatchSearchList() {
     const groupBySet = new Set(this.groupBy);
-    this.groupByList = this.searchList.map(item => ({
-      ...item,
-      checked: groupBySet.has(item.value),
-    }));
+    const groupByTags = [];
+    this.groupByList = this.searchList.map(item => {
+      const checked = groupBySet.has(item.value);
+      if (checked) {
+        groupByTags.push(item);
+      }
+      return {
+        ...item,
+        checked,
+      };
+    });
+    this.groupBySelectedTags = groupByTags;
   }
 
   @Watch('limit', { immediate: true })
@@ -151,6 +159,7 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
     this.localMethod = val;
     return val;
   }
+  @Debounce(300)
   @Emit('limitChange')
   handleChangeLimit(val) {
     this.localLimit = val;
