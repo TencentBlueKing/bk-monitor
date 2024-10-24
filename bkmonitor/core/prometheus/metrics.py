@@ -1142,4 +1142,10 @@ AIOPS_STRATEGY_CHECK = Gauge(
     ),
 )
 
+AIOPS_STRATEGY_ERROR_COUNT = Counter(
+    name="bkmonitor_aiops_strategy_error_count",
+    documentation="智能监控策略错误统计数",
+    labelnames=("exc_type",),
+)
+
 TOTAL_TAG = "__total__"

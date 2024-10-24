@@ -25,6 +25,7 @@ from rest_framework import routers
 from apps.log_clustering.views.clustering_config_views import ClusteringConfigViewSet
 from apps.log_clustering.views.clustering_monitor_views import ClusteringMonitorViewSet
 from apps.log_clustering.views.pattern_views import PatternViewSet
+from apps.log_clustering.views.regex_template_views import RegexTemplateViewSet
 from apps.log_clustering.views.report_views import ReportViewSet
 
 router = routers.DefaultRouter(trailing_slash=True)
@@ -32,6 +33,7 @@ router.register(r"pattern", PatternViewSet, basename="pattern_set")
 router.register(r"report", ReportViewSet, basename="report")
 router.register(r"clustering_config", ClusteringConfigViewSet, basename="clustering_config")
 router.register(r"clustering_monitor", ClusteringMonitorViewSet, basename="clustering_monitor")
+router.register(r"regex_template", RegexTemplateViewSet, basename="regex_template")
 
 urlpatterns = [
     url(r"^", include(router.urls)),
