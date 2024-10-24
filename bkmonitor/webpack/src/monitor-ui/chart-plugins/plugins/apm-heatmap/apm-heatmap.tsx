@@ -88,6 +88,8 @@ class ApmHeatmap extends CommonSimpleChart {
         item.data.group_by_limit = undefined;
       }
       const down_sample_range = this.downSampleRangeComputed('auto', [startTime, endTime], 'unifyQuery');
+      const [v] = down_sample_range.split('s');
+      const interval = Math.ceil((+v * 4) / 60);
       const params = variablesService.transformVariables(item.data, {
         ...this.viewOptions.filters,
         ...(this.viewOptions.filters?.current_target || {}),
@@ -106,8 +108,22 @@ class ApmHeatmap extends CommonSimpleChart {
             query_configs: params?.query_configs.map(config => {
               return {
                 ...config,
+                interval,
+                interval_unit: 'm',
                 group_by: [...(config?.group_by || []), ...(this.callOptions?.group_by || [])],
                 where: [...(config?.where || []), ...(this.callOptions?.call_filter || [])],
+                functions: config?.function?.map(func => {
+                  if (func.id === 'increase') {
+                    return {
+                      ...func,
+                      params: func.params?.map(p => ({
+                        ...p,
+                        value: p.value ? `${interval}m` : p.value,
+                      })),
+                    };
+                  }
+                  return func;
+                }),
               };
             }),
             unify_query_param: {
@@ -116,8 +132,22 @@ class ApmHeatmap extends CommonSimpleChart {
               query_configs: params?.query_configs.map(config => {
                 return {
                   ...config,
+                  interval,
+                  interval_unit: 'm',
                   group_by: [...(config?.group_by || []), ...(this.callOptions?.group_by || [])],
                   where: [...(config?.where || []), ...(this.callOptions?.call_filter || [])],
+                  functions: config?.function?.map(func => {
+                    if (func.id === 'increase') {
+                      return {
+                        ...func,
+                        params: func.params?.map(p => ({
+                          ...p,
+                          value: p.value ? `${interval}m` : p.value,
+                        })),
+                      };
+                    }
+                    return func;
+                  }),
                 };
               }),
             },
