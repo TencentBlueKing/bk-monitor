@@ -60,193 +60,125 @@
           </div>
         </template>
       </bk-alert>
-      <div
-        class="collector-select"
-        v-show="isCleanField && !isSetEdit"
+      <bk-form
+        ref="validateForm"
+        :label-width="labelWidth"
+        :model="formData"
+        data-test-id="cleaningSetting_form"
       >
-        <label>{{ $t('采集项') }}</label>
-        <bk-select
-          style="width: 520px"
-          v-model="cleanCollector"
-          :clearable="false"
-          :disabled="isEditCleanItem"
-          searchable
-          @change="handleCollectorChange"
-        >
-          <bk-option
-            v-for="option in cleanCollectorList"
-            :id="option.collector_config_id"
-            :key="option.collector_config_id"
-            :name="option.collector_config_name"
+        <!-- 清洗设置 -->
+        <div data-test-id="cleaningSetting_div_baseMessageBox">
+          <div class="step-field-title">{{ $t('清洗设置') }}</div>
+          <bk-form-item
+            v-if="isCleanField && !isSetEdit"
+            ext-cls="en-bk-form"
+            :label="$t('采集项')"
           >
-            <div
-              v-if="!(option.permission && option.permission[authorityMap.MANAGE_COLLECTION_AUTH])"
-              class="option-slot-container no-authority"
-              @click.stop
+            <bk-select
+              style="width: 520px"
+              v-model="cleanCollector"
+              :clearable="false"
+              :disabled="isEditCleanItem"
+              searchable
+              @change="handleCollectorChange"
             >
-              <span class="text">
-                <span>{{ option.collector_config_name }}</span>
-                <span style="color: #979ba5">（{{ `#${option.collector_config_id}` }}）</span>
-              </span>
-              <span
-                class="apply-text"
-                @click="applyProjectAccess(option)"
-                >{{ $t('申请权限') }}</span
+              <bk-option
+                v-for="option in cleanCollectorList"
+                :id="option.collector_config_id"
+                :key="option.collector_config_id"
+                :name="option.collector_config_name"
               >
-            </div>
-            <div
-              v-else
-              class="option-slot-container"
-              v-bk-overflow-tips
-            >
-              <span>{{ option.collector_config_name }}</span>
-              <span style="color: #979ba5">（{{ `#${option.collector_config_id}` }}）</span>
-            </div>
-          </bk-option>
-        </bk-select>
-      </div>
-      <div class="step-field-title">
-        <div>{{ $t('原始日志') }}</div>
-        <div
-          v-if="!isTempField"
-          class="text-nav"
-        >
-          <span
-            data-test-id="fieldExtractionBox_span_originalLogRefresh"
-            @click="refreshClick"
-            >{{ $t('刷新') }}</span
-          >
-          <span
-            data-test-id="fieldExtractionBox_span_viewReportingLog"
-            @click="chickFile"
-            >{{ $t('查看上报日志') }}</span
-          >
-        </div>
-      </div>
-      <template>
-        <div class="log-style">
-          <bk-input
-            :input-style="{
-              'background-color': '#313238',
-              height: '82px',
-              'line-height': '24px',
-              color: '#C4C6CC',
-              borderRadius: '2px',
-            }"
-            v-model.trim="logOriginal"
-            :rows="3"
-            :type="'textarea'"
-            data-test-id="fieldExtractionBox_input_originalLog"
-            placeholder=" "
-          >
-          </bk-input>
-        </div>
-        <bk-sideslider
-          class="locker-style"
-          :is-show.sync="defaultSettings.isShow"
-          :modal="false"
-          :quick-close="true"
-          :width="596"
-          transfer
-        >
-          <template #header>
-            <div>
-              {{ $t('上报日志详情') }}
-              <span @click="copyText(JSON.stringify(jsonText))">{{ $t('复制') }}</span>
-            </div>
-          </template>
-          <template #content>
-            <div class="p20 json-text-style">
-              <JsonFormatWrapper
-                :data="jsonText"
-                :deep="5"
-              />
-            </div>
-          </template>
-        </bk-sideslider>
-        <!-- 原始日志配置 -->
-        <div class="origin-log-config">
-          <span class="title">{{ $t('原始日志配置') }}</span>
-          <bk-radio-group v-model="formData.etl_params.retain_original_text">
-            <bk-radio :value="true">
-              <span v-bk-tooltips="$t('确认保留原始日志,会存储在log字段. 其他字段提取内容会进行追加')">{{
-                $t('保留原始日志')
-              }}</span>
-            </bk-radio>
-            <bk-radio :value="false">
-              <span
-                v-bk-tooltips="$t('不保留将丢弃原始日志，仅展示清洗后日志。请通过字段清洗，调试并输出您关心的日志。')"
-              >
-                {{ $t('不保留') }}
-              </span>
-            </bk-radio>
-          </bk-radio-group>
-          <div
-            class="flex-box select-container"
-            v-show="formData.etl_params.retain_original_text"
-          >
-            <div class="flex-box">
-              <div class="select-title">{{ $t('分词符') }}</div>
-              <bk-select
-                ext-cls="origin-select-custom"
-                v-model="originParticipleState"
-                :clearable="false"
-                :popover-min-width="160"
-                @change="handleChangeParticipleState"
-              >
-                <bk-option
-                  v-for="option in participleList"
-                  :id="option.id"
-                  :key="option.id"
-                  :name="option.name"
+                <div
+                  v-if="!(option.permission && option.permission[authorityMap.MANAGE_COLLECTION_AUTH])"
+                  class="option-slot-container no-authority"
+                  @click.stop
                 >
-                </bk-option>
-              </bk-select>
+                  <span class="text">
+                    <span>{{ option.collector_config_name }}</span>
+                    <span style="color: #979ba5">（{{ `#${option.collector_config_id}` }}）</span>
+                  </span>
+                  <span
+                    class="apply-text"
+                    @click="applyProjectAccess(option)"
+                    >{{ $t('申请权限') }}</span
+                  >
+                </div>
+                <div
+                  v-else
+                  class="option-slot-container"
+                  v-bk-overflow-tips
+                >
+                  <span>{{ option.collector_config_name }}</span>
+                  <span style="color: #979ba5">（{{ `#${option.collector_config_id}` }}）</span>
+                </div>
+              </bk-option>
+            </bk-select>
+          </bk-form-item>
+          <bk-form-item
+            ext-cls="en-bk-form"
+            :label="$t('原始日志')"
+          >
+            <div class="origin-log-config">
+              <bk-radio-group v-model="formData.etl_params.retain_original_text">
+                <bk-radio :value="true">
+                  <span v-bk-tooltips="$t('确认保留原始日志,会存储在log字段. 其他字段提取内容会进行追加')">{{
+                    $t('保留')
+                  }}</span>
+                </bk-radio>
+                <bk-radio :value="false">
+                  <span
+                    v-bk-tooltips="
+                      $t('不保留将丢弃原始日志，仅展示清洗后日志。请通过字段清洗，调试并输出您关心的日志。')
+                    "
+                  >
+                    {{ $t('丢弃') }}
+                  </span>
+                </bk-radio>
+              </bk-radio-group>
+              <div
+                class="flex-box select-container"
+                v-show="formData.etl_params.retain_original_text"
+              >
+                <div class="flex-box">
+                  <div class="select-title">{{ $t('分词符') }}</div>
+                  <bk-select
+                    ext-cls="origin-select-custom"
+                    v-model="originParticipleState"
+                    :clearable="false"
+                    :popover-min-width="160"
+                    @change="handleChangeParticipleState"
+                  >
+                    <bk-option
+                      v-for="option in participleList"
+                      :id="option.id"
+                      :key="option.id"
+                      :name="option.name"
+                    >
+                    </bk-option>
+                  </bk-select>
+                </div>
+                <bk-input
+                  v-if="originParticipleState === 'custom'"
+                  style="width: 170px; margin-left: 8px"
+                  v-model="formData.etl_params.original_text_tokenize_on_chars"
+                >
+                </bk-input>
+                <bk-checkbox
+                  style="margin-left: 24px"
+                  v-model="formData.etl_params.original_text_is_case_sensitive"
+                >
+                  <span>{{ $t('大小写敏感') }}</span>
+                </bk-checkbox>
+              </div>
             </div>
-            <bk-input
-              v-if="originParticipleState === 'custom'"
-              style="width: 170px; margin-left: 8px"
-              v-model="formData.etl_params.original_text_tokenize_on_chars"
-            >
-            </bk-input>
-            <bk-checkbox
-              style="margin-left: 24px"
-              v-model="formData.etl_params.original_text_is_case_sensitive"
-            >
-              <span>{{ $t('大小写敏感') }}</span>
-            </bk-checkbox>
-          </div>
-        </div>
-      </template>
-
-      <section class="field-method">
-        <div :class="{ 'field-method-head': true, 'field-template-head': isTempField }">
-          <h4 class="field-method-title fl field-text">{{ $t('字段清洗') }}</h4>
-          <bk-tab
-            v-if="!isTempField"
-            ext-cls="field-method-tab"
-            :active.sync="activePanel"
-            type="unborder-card"
+          </bk-form-item>
+          <bk-form-item
+            ext-cls="en-bk-form"
+            :label="$t('模式选择')"
           >
-            <bk-tab-panel
-              v-for="(panel, index) in panels"
-              v-bind="panel"
-              :key="index"
-            >
-            </bk-tab-panel>
-          </bk-tab>
-        </div>
-
-        <!-- 基础清洗 -->
-        <div v-show="activePanel === 'base'">
-          <!-- 模式选择 -->
-          <div
-            style="margin-top: 20px"
-            class="field-step field-method-step"
-          >
-            <div class="step-head">
-              <div>
-                <span class="step-text">{{ $t('模式选择') }}</span>
+            <!-- 模式选择 -->
+            <div class="field-step field-method-step">
+              <div style="display: flex">
                 <span
                   v-if="!isTempField"
                   :class="{
@@ -259,68 +191,111 @@
                   <span class="bklog-icon bklog-daoru"></span>
                   {{ $t('应用模版') }}
                 </span>
-              </div>
-              <p
-                v-if="docUrl"
-                class="documentation button-text"
-                @click="handleGotoLink('logExtract')"
-              >
-                <span>{{ $t('说明文档') }}</span> <span class="bklog-icon bklog-jump"></span>
-              </p>
-            </div>
-
-            <!-- 选择字段过滤方法 -->
-            <div class="field-button-group">
-              <div class="bk-button-group">
-                <bk-button
-                  v-for="option in globalsData.etl_config"
-                  :class="params.etl_config === option.id ? 'is-selected' : ''"
-                  :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
-                  :disabled="(isCleanField && !cleanCollector) || isSetDisabled"
-                  :key="option.id"
-                  @click="handleSelectConfig(option.id)"
-                >
-                  {{ option.name }}
-                </bk-button>
-              </div>
-
-              <template v-if="params.etl_config === 'bk_log_regexp'">
                 <span
-                  style="margin-left: 10px; color: #979ba5; cursor: pointer"
-                  class="bklog-icon bklog-info-fill fl"
-                  v-bk-tooltips="{ allowHtml: true, placement: 'right', content: '#reg-tip' }"
-                ></span>
-                <div id="reg-tip">
-                  <p>{{ $t('正则表达式(golang语法)需要匹配日志全文，如以下DEMO将从日志内容提取请求时间与内容') }}</p>
-                  <p>{{ $t(' - 日志内容：[2006-01-02 15:04:05] content') }}</p>
-                  <p>{{ $t(' - 表达式：') }}\[(?P&lt;request_time>[^]]+)\] (?P&lt;content>.+)</p>
+                  v-if="docUrl"
+                  class="template-text documentation button-text"
+                  @click="handleGotoLink('logExtract')"
+                >
+                  {{ $t('说明文档') }}<span class="bklog-icon bklog-jump"></span>
+                </span>
+              </div>
+
+              <!-- 选择字段过滤方法 -->
+              <div class="field-button-group">
+                <div class="bk-button-group">
+                  <bk-button
+                    v-for="option in globalsData.etl_config"
+                    :class="params.etl_config === option.id ? 'is-selected' : ''"
+                    :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
+                    :disabled="(isCleanField && !cleanCollector) || isSetDisabled"
+                    :key="option.id"
+                    @click="handleSelectConfig(option.id)"
+                  >
+                    {{ option.name }}
+                  </bk-button>
                 </div>
-              </template>
+                <template v-if="params.etl_config === 'bk_log_regexp'">
+                  <span
+                    style="margin-left: 10px; color: #979ba5; cursor: pointer"
+                    class="bklog-icon bklog-info-fill fl"
+                    v-bk-tooltips="{ allowHtml: true, placement: 'right', content: '#reg-tip' }"
+                  ></span>
+                  <div id="reg-tip">
+                    <p>{{ $t('正则表达式(golang语法)需要匹配日志全文，如以下DEMO将从日志内容提取请求时间与内容') }}</p>
+                    <p>{{ $t(' - 日志内容：[2006-01-02 15:04:05] content') }}</p>
+                    <p>{{ $t(' - 表达式：') }}\[(?P&lt;request_time>[^]]+)\] (?P&lt;content>.+)</p>
+                  </div>
+                </template>
+                <!-- 分隔符选择 -->
+                <bk-select
+                  v-if="params.etl_config === 'bk_log_delimiter'"
+                  style="width: 120px; margin-left: 10px"
+                  v-model="params.etl_params.separator"
+                  :clearable="false"
+                  :disabled="isExtracting"
+                  data-test-id="fieldExtractionBox_div_selectSeparator"
+                >
+                  <bk-option
+                    v-for="option in globalsData.data_delimiter"
+                    :id="option.id"
+                    :key="option.id"
+                    :name="option.name"
+                  >
+                  </bk-option>
+                </bk-select>
+
+                <bk-button
+                  class="fl debug-btn"
+                  :disabled="!logOriginal || isExtracting || !showDebugBtn || isSetDisabled"
+                  data-test-id="fieldExtractionBox_button_debugging"
+                  theme="primary"
+                  @click="debugHandler"
+                >
+                  {{ $t('调试') }}
+                </bk-button>
+                <p
+                  v-if="isJsonOrOperator && !formatResult"
+                  class="format-error ml10 fl"
+                >
+                  {{ $t('格式解析失败，可以尝试其他提取方法') }}
+                </p>
+              </div>
             </div>
-
-            <!-- 分隔符选择 -->
-            <bk-select
-              v-if="params.etl_config === 'bk_log_delimiter'"
-              style="width: 320px; margin-top: 20px"
-              v-model="params.etl_params.separator"
-              :clearable="false"
-              :disabled="isExtracting"
-              data-test-id="fieldExtractionBox_div_selectSeparator"
-            >
-              <bk-option
-                v-for="option in globalsData.data_delimiter"
-                :id="option.id"
-                :key="option.id"
-                :name="option.name"
-              >
-              </bk-option>
-            </bk-select>
-
-            <!-- 正则表达式输入框 -->
+          </bk-form-item>
+          <bk-form-item
+            ext-cls="en-bk-form"
+            :property="'log_original'"
+            :rules="rules.log_original"
+            :label="$t('日志样例')"
+          >
             <div
-              v-if="params.etl_config === 'bk_log_regexp'"
-              class="field-method-regex"
+              class="view-log-btn"
+              data-test-id="fieldExtractionBox_span_viewReportingLog"
+              @click="clickFile"
             >
+              {{ $t('查看上报日志') }}
+            </div>
+            <bk-input
+              class="log-textarea"
+              clearable
+              style="margin-top: -20px"
+              :type="'textarea'"
+              :rows="3"
+              :right-icon="'bk-icon icon-refresh'"
+              v-model="logOriginal"
+              @right-icon-click="refreshClick"
+            >
+            </bk-input>
+          </bk-form-item>
+          <bk-form-item
+            v-if="params.etl_config === 'bk_log_regexp'"
+            ext-cls="en-bk-form"
+            property="etl_params.separator_regexp"
+            :rules="rules.separator_regexp"
+            :label="$t('正则表达式')"
+          >
+            <!-- 正则表达式输入框 -->
+            <div class="field-method-regex">
               <div class="textarea-wrapper">
                 <pre class="mimic-textarea">
                 {{ params.etl_params.separator_regexp }}
@@ -341,175 +316,377 @@
                 {{ $t('格式解析失败，可以尝试其他提取方法') }}
               </p>
             </div>
-          </div>
-
-          <!-- 调试设置字段 -->
-          <div
-            class="field-step field-method-step"
-            data-test-id="fieldExtraction_div_debugSetField"
+          </bk-form-item>
+          <bk-form-item
+            ext-cls="en-bk-form"
+            :label="$t('字段列表')"
           >
-            <div class="step-head">
-              <span class="step-text">{{ $t('调试') }}</span>
-              <div class="">
-                <bk-button
-                  class="fl debug-btn"
-                  :disabled="!logOriginal || isExtracting || !showDebugBtn || isSetDisabled"
-                  data-test-id="fieldExtractionBox_button_debugging"
-                  theme="primary"
-                  @click="debugHandler"
-                >
-                  {{ $t('调试') }}
-                </bk-button>
-                <p
-                  v-if="isJsonOrOperator && !formatResult"
-                  class="format-error ml10 fl"
-                >
-                  {{ $t('格式解析失败，可以尝试其他提取方法') }}
-                </p>
-              </div>
+            <div
+              :class="{ 'view-log-btn': true, disabled: !hasFields }"
+              v-if="!isTempField"
+              @click.stop="viewStandard"
+            >
+              {{ $t('查看内置字段') }}
             </div>
-
-            <!-- 调试字段表格 -->
-            <template>
-              <div class="field-method-result">
-                <field-table
-                  ref="fieldTable"
-                  :deleted-visible="deletedVisible"
-                  :extract-method="formData.etl_config"
-                  :fields="formData.fields"
-                  :is-edit-json="isUnmodifiable"
-                  :is-extracting="isExtracting"
-                  :is-set-disabled="isSetDisabled"
-                  :is-temp-field="isTempField"
-                  :key="renderKey"
-                  :original-text-tokenize-on-chars="defaultParticipleStr"
-                  :retain-extra-json="formData.etl_params.retain_extra_json"
-                  :select-etl-config="params.etl_config"
-                  @delete-visible="visibleHandle"
-                  @handle-keep-field="handleKeepField"
-                  @reset="getDetail"
-                  @standard="dialogVisible = true"
-                >
-                </field-table>
+            <div
+              class="field-method-result"
+              :style="isClearTemplate ? { 'margin-top': '10px' } : ''"
+            >
+              <field-table
+                ref="fieldTable"
+                :deleted-visible="deletedVisible"
+                :extract-method="formData.etl_config"
+                :fields="formData.fields"
+                :is-edit-json="isUnmodifiable"
+                :is-extracting="isExtracting"
+                :is-set-disabled="isSetDisabled"
+                :is-temp-field="isTempField"
+                :key="renderKey"
+                :original-text-tokenize-on-chars="defaultParticipleStr"
+                :retain-extra-json="formData.etl_params.retain_extra_json"
+                :select-etl-config="params.etl_config"
+                @delete-visible="visibleHandle"
+                @handle-keep-field="handleKeepField"
+                @reset="getDetail"
+                @standard="dialogVisible = true"
+                @handle-table-data="handleTableData"
+              >
+              </field-table>
+              <div
+                v-if="isShowAddFields"
+                class="add-field-container"
+              >
                 <div
-                  v-if="isShowAddFields"
-                  class="add-field-container"
+                  class="text-btn"
+                  @click="addNewField"
                 >
-                  <div
-                    class="text-btn"
-                    @click="addNewField"
-                  >
-                    <i class="icon bk-icon icon-plus push"></i>
-                    <span class="text">{{ $t('新增字段') }}</span>
-                  </div>
+                  <i class="icon bk-icon icon-plus push"></i>
+                  <span class="text">{{ $t('新增字段') }}</span>
                 </div>
               </div>
-            </template>
-          </div>
-
-          <!-- 调试设置字段 -->
-          <div
-            v-if="isClearTemplate"
-            class="field-step field-method-step"
-          >
-            <div class="step-head">
-              <span class="step-text">{{ $t('可见范围') }}</span>
             </div>
+          </bk-form-item>
+        </div>
 
-            <template>
-              <div class="field-method-result visible-select">
-                <bk-radio-group v-model="formData.visible_type">
-                  <bk-radio
-                    v-for="item of visibleScopeSelectList"
-                    class="scope-radio"
-                    :key="item.id"
-                    :value="item.id"
-                  >
-                    {{ item.name }}
-                  </bk-radio>
-                </bk-radio-group>
+        <div data-test-id="acquisitionConfig_div_advanceMessageBox">
+          <div class="step-field-title">{{ $t('高级设置') }}</div>
+          <bk-form-item
+            ext-cls="en-bk-form"
+            :label="$t('指定日志时间')"
+            property="log_reporting_time"
+            :rules="rules.log_reporting_time"
+          >
+            <div class="origin-log-config">
+              <bk-radio-group v-model="formData.log_reporting_time">
+                <bk-radio :value="true">
+                  <span v-bk-tooltips="$t('平台上报日志的时间，默认选择该设置')">{{ $t('日志上报时间') }}</span>
+                </bk-radio>
+                <bk-radio :value="false">
+                  <span v-bk-tooltips="$t('你可以自行指定日志展示时间，勾选前请提前清洗日志时间')">{{
+                    $t('指定字段为日志时间')
+                  }}</span>
+                </bk-radio>
+              </bk-radio-group>
+            </div>
+          </bk-form-item>
+          <div
+            v-if="formData.log_reporting_time === false"
+            class="origin-log-config flex-box select-container"
+            style="display: flex; margin: 10px 0"
+          >
+            <bk-form-item
+              ext-cls="en-bk-form"
+              :icon-offset="120"
+              :label="''"
+              property="field_name"
+              :rules="rules.field_name"
+            >
+              <div class="flex-box">
+                <div class="select-title">{{ $t('字段') }}</div>
                 <bk-select
-                  v-model="visibleBkBiz"
-                  v-show="scopeValueType"
-                  :list="mySpaceList"
-                  :virtual-scroll-render="virtualscrollSpaceList"
-                  display-key="space_full_code_name"
-                  id-key="bk_biz_id"
-                  display-tag
-                  enable-virtual-scroll
-                  multiple
+                  ext-cls="log-time-select"
+                  v-model="formData.field_name"
+                  clearable
                   searchable
+                  :popover-min-width="160"
                 >
+                  <bk-option
+                    v-for="option in renderFieldNameList"
+                    :id="option.field_name"
+                    :key="`${option.field_index}${option.field_name}`"
+                    :name="option.field_name"
+                  >
+                  </bk-option>
                 </bk-select>
               </div>
-            </template>
+            </bk-form-item>
+            <bk-form-item
+              ext-cls="log-time-field"
+              :icon-offset="120"
+              :label="''"
+              property="time_format"
+              :rules="rules.time_format"
+              :required="true"
+            >
+              <div class="flex-box">
+                <div class="select-title">{{ $t('时间格式') }}</div>
+                <bk-select
+                  ext-cls="log-time-select"
+                  v-model="formData.time_format"
+                  clearable
+                  searchable
+                  :popover-min-width="360"
+                >
+                  <bk-option
+                    v-for="item in globalsData.field_date_format"
+                    :id="item.id"
+                    :key="item.id"
+                    :name="`${item.name} (${item.description})`"
+                  >
+                  </bk-option>
+                </bk-select>
+              </div>
+            </bk-form-item>
+            <bk-form-item
+              ext-cls="log-time-field"
+              :icon-offset="120"
+              :label="''"
+              property="time_zone"
+              :rules="rules.time_zone"
+              :required="true"
+            >
+              <div class="flex-box">
+                <div class="select-title">{{ $t('时区选择') }}</div>
+                <bk-select
+                  ext-cls="log-time-select"
+                  v-model="formData.time_zone"
+                  :popover-min-width="160"
+                  clearable
+                  searchable
+                >
+                  <bk-option
+                    v-for="item in globalsData.time_zone"
+                    :id="item.id"
+                    :key="item.id"
+                    :name="item.name"
+                  >
+                  </bk-option>
+                </bk-select>
+              </div>
+            </bk-form-item>
           </div>
+          <p
+            v-if="timeCheckContent"
+            class="format-error"
+            style="margin: 0 0 5px 125px"
+          >
+            {{ timeCheckContent }}
+          </p>
+          <bk-form-item
+            ext-cls="en-bk-form"
+            :icon-offset="120"
+            :label="$t('保留失败日志')"
+          >
+            <div class="origin-log-config">
+              <bk-radio-group v-model="formData.etl_params.enable_retain_content">
+                <bk-radio :value="true">
+                  <span
+                    v-bk-tooltips="
+                      $t(
+                        '日志存在多种格式时，可以保留不符合解析规则的日志，避免遗漏；未解析的日志可以通过 _prase.failure 进行过滤，为 true 时表示解析失败',
+                      )
+                    "
+                    >{{ $t('保留') }}</span
+                  >
+                </bk-radio>
+                <bk-radio :value="false">
+                  {{ $t('丢弃') }}
+                </bk-radio>
+              </bk-radio-group>
+            </div>
+          </bk-form-item>
+          <bk-form-item
+            ext-cls="en-bk-form"
+            :icon-offset="120"
+            :label="$t('路径元数据')"
+            :desc="'定义元数据并补充至日志中，可通过元数据进行过滤筛选'"
+          >
+            <div class="origin-log-config">
+              <bk-switcher
+                v-model="enableMetaData"
+                theme="primary"
+              ></bk-switcher>
+            </div>
+          </bk-form-item>
+          <bk-form-item
+            v-if="enableMetaData"
+            ext-cls="en-bk-form"
+            :label="$t('路径样例')"
+          >
+            <div class="origin-log-config">
+              <bk-input
+                style="width: 520px"
+                v-model="pathExample"
+              >
+              </bk-input>
+            </div>
+          </bk-form-item>
+          <bk-form-item
+            v-if="enableMetaData"
+            ext-cls="en-bk-form"
+            :label="$t('采集路径分割正则')"
+            property="etl_params.path_regexp"
+            :rules="rules.path_regexp"
+          >
+            <div class="origin-log-config">
+              <bk-input
+                style="width: 520px"
+                v-model="formData.etl_params.path_regexp"
+                :placeholder="defaultRegex"
+              >
+              </bk-input>
+              <bk-button
+                class="debug-btn"
+                :disabled="!showDebugPathRegexBtn"
+                data-test-id="fieldExtractionBox_button_debugging"
+                theme="primary"
+                @click="debuggerPathRegex"
+              >
+                {{ $t('调试') }}
+              </bk-button>
+            </div>
+            <div
+              class="origin-log-config"
+              style="margin-top: 10px"
+              v-if="regexpResult.length"
+            >
+              <div
+                style="margin-bottom: 10px"
+                v-for="item in regexpResult"
+                :key="item.field_index"
+              >
+                <bk-input
+                  style="width: 110px"
+                  disabled
+                  :placeholder="' '"
+                  v-model="item.field_name"
+                  :title="item.field_name"
+                ></bk-input>
+                <span>: </span>
+                <bk-input
+                  style="width: 400px"
+                  disabled
+                  :placeholder="' '"
+                  v-model="item.value"
+                  :title="item.value"
+                ></bk-input>
+              </div>
+            </div>
+          </bk-form-item>
         </div>
 
-        <!-- 高级清洗 -->
-        <div v-show="activePanel === 'advance'">
-          <div class="advance-clean-step-container">
-            <div class="step-item">
-              <div class="image-content">
-                <img
-                  alt=""
-                  src="../../images/clean-image1.png"
-                />
-              </div>
-              <div class="step-description">
-                <span class="step-num">1</span>
-                <span class="description-text">{{
-                  $t('高级清洗只能应用于日志平台采集的日志，会在链路上分发给计算平台进行更复杂的数据处理。')
-                }}</span>
-              </div>
+        <div
+          v-if="isClearTemplate"
+          data-test-id="acquisitionConfig_div_visiableMessageBox"
+        >
+          <div class="step-field-title">{{ $t('可见范围设置') }}</div>
+          <bk-form-item
+            ext-cls="en-bk-form"
+            :label="$t('可见范围')"
+          >
+            <div class="origin-log-config">
+              <bk-radio-group v-model="formData.visible_type">
+                <bk-radio
+                  v-for="item of visibleScopeSelectList"
+                  class="scope-radio"
+                  :key="item.id"
+                  :value="item.id"
+                >
+                  {{ item.name }}
+                </bk-radio>
+              </bk-radio-group>
+              <bk-select
+                style="width: 500px; margin-top: 10px"
+                v-model="visibleBkBiz"
+                v-show="scopeValueType"
+                :list="mySpaceList"
+                :virtual-scroll-render="virtualscrollSpaceList"
+                display-key="space_full_code_name"
+                id-key="bk_biz_id"
+                display-tag
+                enable-virtual-scroll
+                multiple
+                searchable
+              >
+              </bk-select>
             </div>
-            <span class="bk-icon icon-angle-double-right-line"></span>
-            <div class="step-item">
-              <div class="image-content">
-                <img
-                  alt=""
-                  src="../../images/clean-image2.png"
-                />
-              </div>
-              <div class="step-description">
-                <span class="step-num">2</span>
-                <span class="description-text">
-                  <i18n
-                    path="选择了高级字段提取能力后，会跳转到计算平台进行更多的字段处理，计算平台提供13种清洗算法。具体的使用方法可查看{0}"
+          </bk-form-item>
+        </div>
+      </bk-form>
+
+      <!-- 高级清洗 -->
+      <div v-show="activePanel === 'advance'">
+        <div class="advance-clean-step-container">
+          <div class="step-item">
+            <div class="image-content">
+              <img
+                alt=""
+                src="../../images/clean-image1.png"
+              />
+            </div>
+            <div class="step-description">
+              <span class="step-num">1</span>
+              <span class="description-text">{{
+                $t('高级清洗只能应用于日志平台采集的日志，会在链路上分发给计算平台进行更复杂的数据处理。')
+              }}</span>
+            </div>
+          </div>
+          <span class="bk-icon icon-angle-double-right-line"></span>
+          <div class="step-item">
+            <div class="image-content">
+              <img
+                alt=""
+                src="../../images/clean-image2.png"
+              />
+            </div>
+            <div class="step-description">
+              <span class="step-num">2</span>
+              <span class="description-text">
+                <i18n
+                  path="选择了高级字段提取能力后，会跳转到计算平台进行更多的字段处理，计算平台提供13种清洗算法。具体的使用方法可查看{0}"
+                >
+                  <a
+                    class="link"
+                    @click="handleGotoLink('bkBase')"
                   >
-                    <a
-                      class="link"
-                      @click="handleGotoLink('bkBase')"
-                    >
-                      {{ $t('计算平台文档') }}
-                      <span class="bklog-icon bklog-lianjie"></span>
-                    </a>
-                  </i18n>
-                </span>
-                <p class="remark">{{ $t('注： 同一个日志可以进行多次清洗。') }}</p>
-              </div>
+                    {{ $t('计算平台文档') }}
+                    <span class="bklog-icon bklog-lianjie"></span>
+                  </a>
+                </i18n>
+              </span>
+              <p class="remark">{{ $t('注： 同一个日志可以进行多次清洗。') }}</p>
             </div>
-            <span class="bk-icon icon-angle-double-right-line"></span>
-            <div class="step-item">
-              <div class="image-content">
-                <img
-                  alt=""
-                  src="../../images/clean-image3.png"
-                />
-              </div>
-              <div class="step-description">
-                <span class="step-num">3</span>
-                <span class="description-text">{{
-                  $t(
-                    '清洗完并且存储到ES后，日志平台会识别到对应的索引创建日志平台的索引集，后续可以直接在检索和监控中使用。',
-                  )
-                }}</span>
-                <p class="remark">{{ $t('注：如果清洗后存储成其他类型，将无法关联上。') }}</p>
-              </div>
+          </div>
+          <span class="bk-icon icon-angle-double-right-line"></span>
+          <div class="step-item">
+            <div class="image-content">
+              <img
+                alt=""
+                src="../../images/clean-image3.png"
+              />
+            </div>
+            <div class="step-description">
+              <span class="step-num">3</span>
+              <span class="description-text">{{
+                $t(
+                  '清洗完并且存储到ES后，日志平台会识别到对应的索引创建日志平台的索引集，后续可以直接在检索和监控中使用。',
+                )
+              }}</span>
+              <p class="remark">{{ $t('注：如果清洗后存储成其他类型，将无法关联上。') }}</p>
             </div>
           </div>
         </div>
-      </section>
+      </div>
 
       <div class="form-button">
         <template v-if="!isFinishCreateStep && !isCleanField">
@@ -526,7 +703,7 @@
             {{ $t('上一步') }}
           </bk-button>
           <!-- 前往高级清洗 -->
-          <log-button
+          <!-- <log-button
             v-if="activePanel === 'advance'"
             :button-text="$t('前往高级清洗')"
             :disabled="advanceDisable"
@@ -535,7 +712,7 @@
             theme="primary"
             @on-click="advanceHandler"
           >
-          </log-button>
+          </log-button> -->
           <!-- 下一步/完成 -->
           <bk-button
             v-if="activePanel === 'base' && !isTempField"
@@ -611,6 +788,31 @@
         </template>
       </div>
 
+      <!-- 查看上报日志 -->
+      <bk-sideslider
+        class="locker-style"
+        :is-show.sync="defaultSettings.isShow"
+        :modal="false"
+        :quick-close="true"
+        :width="596"
+        transfer
+      >
+        <template #header>
+          <div>
+            {{ $t('上报日志详情') }}
+            <span @click="copyText(JSON.stringify(jsonText))">{{ $t('复制') }}</span>
+          </div>
+        </template>
+        <template #content>
+          <div class="p20 json-text-style">
+            <JsonFormatWrapper
+              :data="jsonText"
+              :deep="5"
+            />
+          </div>
+        </template>
+      </bk-sideslider>
+
       <bk-dialog
         width="1200"
         v-model="dialogVisible"
@@ -650,25 +852,30 @@
               v-model="saveTempName"
             ></bk-input>
           </div>
-          <bk-select
-            v-else
-            v-model="selectTemplate"
-            data-test-id="fieldExtractionBox_select_selectTemplate"
-          >
-            <bk-option
-              v-for="option in templateList"
-              :id="option.clean_template_id"
-              :key="option.clean_template_id"
-              :name="option.name"
-            >
-            </bk-option>
-          </bk-select>
+          <div v-else>
+            <bk-input
+              data-test-id="fieldExtractionBox_select_selectTemplate"
+              style="margin-top: 8px"
+              :right-icon="'bk-icon icon-search'"
+              v-model="templateKeyWord"
+            ></bk-input>
+            <div class="template-list-wrap">
+              <div
+                v-for="option in filteredTemplateList"
+                :key="option.clean_template_id"
+                :class="{ 'template-item': true, active: option.clean_template_id === selectTemplate }"
+                @click="handleSelectTemplate(option.clean_template_id)"
+                :title="option.name"
+              >
+                {{ option.name }}
+              </div>
+            </div>
+          </div>
         </div>
       </bk-dialog>
     </div>
   </section>
 </template>
-
 <script>
   import { projectManages } from '@/common/util';
   import AuthContainerPage from '@/components/common/auth-container-page';
@@ -737,11 +944,19 @@
             separator_regexp: '',
             separator: '',
             retain_extra_json: false,
+            enable_retain_content: true, // 保留失败日志
+            path_regexp: '', // 采集路径分割的正则
           },
           fields: [],
           visible_type: 'current_biz', // 可见范围单选项
           visible_bk_biz: [], // 多个业务
+          log_original: '',
+          log_reporting_time: true, // 日志上报时间
+          field_name: '',
+          time_format: '',
+          time_zone: '',
         },
+        regexpResult: [],
         copyBuiltField: [],
         formatResult: true, // 验证结果是否通过
         rules: {
@@ -760,6 +975,24 @@
             },
             {
               regex: /^[A-Za-z0-9_]+$/,
+              trigger: 'blur',
+            },
+          ],
+          field_name: [
+            {
+              required: true,
+              trigger: 'blur',
+            },
+          ],
+          time_format: [
+            {
+              required: true,
+              trigger: 'blur',
+            },
+          ],
+          time_zone: [
+            {
+              required: true,
               trigger: 'blur',
             },
           ],
@@ -809,7 +1042,7 @@
         participleList: [
           {
             id: 'default',
-            name: this.$t('默认'),
+            name: this.$t('自然语言分词'),
           },
           {
             id: 'custom',
@@ -843,7 +1076,8 @@
           participleState: 'default',
         },
         originParticipleState: 'default',
-
+        enableMetaData: false,
+        pathExample: '',
         defaultParticipleStr: '@&()=\'",;:<>[]{}/ \\n\\t\\r\\\\',
         catchEtlConfig: '',
         catchFields: [],
@@ -854,6 +1088,10 @@
           comparedVal: {},
         },
         isUseMark: false,
+        enLabelWidth: 180,
+        fieldNameList: [],
+        templateKeyWord: '',
+        timeCheckContent: '',
       };
     },
     computed: {
@@ -883,6 +1121,9 @@
           return this.params.etl_params.separator_regexp !== '';
         }
         return true;
+      },
+      showDebugPathRegexBtn() {
+        return this.formData.etl_params.path_regexp && this.pathExample;
       },
       hasFields() {
         return this.formData.fields.length;
@@ -928,6 +1169,16 @@
       // 入口是否是清洗模板
       isClearTemplate() {
         return ['clean-template-create', 'clean-template-edit'].includes(this.$route.name);
+      },
+      labelWidth() {
+        return this.$store.state.isEnLanguage ? this.enLabelWidth : 125;
+      },
+      renderFieldNameList() {
+        return this.fieldNameList.filter(item => item.field_name);
+      },
+      filteredTemplateList() {
+        const query = this.templateKeyWord.toLowerCase();
+        return this.templateList.filter(item => item.name.toLowerCase().includes(query));
       },
     },
     watch: {
@@ -1013,6 +1264,12 @@
       this.getDataLog('init');
     },
     methods: {
+      handleSelectTemplate(templateId) {
+        this.selectTemplate = templateId;
+      },
+      handleTableData(data) {
+        this.fieldNameList = data;
+      },
       // 初始化清洗项
       initCleanItem() {
         this.basicLoading = true;
@@ -1090,10 +1347,23 @@
           separator_regexp: etlParams.separator_regexp || '',
           separator: etlParams.separator || '',
         });
+
+        const logTimeOption = {};
+        etlFields.forEach(row => {
+          if (row.is_time) {
+            Object.assign(logTimeOption, {
+              log_reporting_time: false,
+              field_name: row.field_name,
+              time_format: row.option.time_format,
+              time_zone: row.option.time_zone,
+            });
+          }
+        });
+
         this.visibleBkBiz = visibleBkBizList;
         this.cacheVisibleList = visibleBkBizList;
         this.fieldType = clean_type;
-
+        this.enableMetaData = etlParams.path_regexp ? true : false;
         Object.assign(this.formData, {
           etl_config: this.fieldType,
           etl_params: Object.assign(
@@ -1104,11 +1374,13 @@
               separator_regexp: '',
               separator: '',
               retain_extra_json: false,
+              enable_retain_content: true,
             },
             etlParams ? JSON.parse(JSON.stringify(etlParams)) : {},
           ),
           fields: etlFields,
           visible_type,
+          ...logTimeOption,
         });
       },
       // 高级清洗配置
@@ -1146,6 +1418,24 @@
             { name: 'advance', label: this.$t('高级') },
           ];
         }
+      },
+      debuggerPathRegex() {
+        const data = {
+          etl_config: 'bk_log_regexp',
+          etl_params: {
+            separator_regexp: this.formData.etl_params.path_regexp,
+          },
+          data: this.pathExample,
+        };
+        const urlParams = {};
+        urlParams.collector_config_id = this.curCollect.collector_config_id;
+        const updateData = { params: urlParams, data };
+
+        // 先置空防止接口失败显示旧数据
+        this.regexpResult.splice(0, this.regexpResult.length);
+        this.$http.request('collect/getEtlPreview', updateData).then(res => {
+          this.regexpResult = res.data ? res.data.fields : [];
+        });
       },
       debugHandler() {
         this.formData.fields.splice(0, this.formData.fields.length);
@@ -1292,6 +1582,7 @@
           },
           data,
         };
+
         this.$http
           .request('collect/fieldCollection', updateData)
           .then(res => {
@@ -1362,34 +1653,70 @@
       stepSubmitFun(callback) {
         this.finish(true, callback);
       },
+      // 对时间格式做校验逻辑
+      async requestCheckTime() {
+        const { time_format, time_zone, field_name } = this.formData;
+        let fieldsData = this.$refs.fieldTable.getData() || [];
+        const timeValueItem = fieldsData.find(item => field_name === item.field_name);
+        let result = '';
+        await this.$http
+          .request('collect/getCheckTime', {
+            params: {
+              collector_config_id: this.curCollect.collector_config_id,
+            },
+            data: {
+              time_format,
+              time_zone,
+              data: timeValueItem?.value || '',
+            },
+          })
+          .then(res => {
+            this.timeCheckContent = '';
+            result = true;
+          })
+          .catch(err => {
+            this.timeCheckContent = err;
+            result = false;
+          });
+        return result;
+      },
       // 完成按钮
       finish(isCollect = false, callback) {
-        const hideDeletedTable = this.$refs.fieldTable.hideDeletedTable.length;
-        if (!this.formData.etl_params.retain_original_text && !hideDeletedTable) {
-          this.messageError(this.$t('请完成字段清洗或者勾选“保留原始日志”, 否则接入日志内容将无法展示。'));
-          callback?.(false);
-          return;
-        }
-        // 清洗模板选择多业务时不能为空
-        if (this.formData.visible_type === 'multi_biz' && !this.visibleBkBiz.length && this.isClearTemplate) {
-          this.messageError(this.$t('可见类型为业务属性时，业务标签不能为空'));
-          callback?.(false);
-          return;
-        }
-        // const promises = [this.checkStore()];
-        const promises = [];
-        if (this.formData.etl_config !== 'bk_log_text') {
-          promises.splice(1, 0, ...this.checkFieldsTable());
-        }
-        Promise.all(promises).then(
-          () => {
-            this.checkEtlConfChnage(isCollect, callback);
-          },
-          validator => {
-            callback?.(false);
-            console.warn('保存失败', validator);
-          },
-        );
+        this.$refs.validateForm.validate().then(async res => {
+          if (res) {
+            // 当选择的是指定字段为日志时间时，对时间格式做校验
+            if (!this.formData.log_reporting_time) {
+              const isValid = await this.requestCheckTime();
+              if (!isValid) return;
+            }
+            const hideDeletedTable = this.$refs.fieldTable.hideDeletedTable.length;
+            if (!this.formData.etl_params.retain_original_text && !hideDeletedTable) {
+              this.messageError(this.$t('请完成字段清洗或者勾选“保留原始日志”, 否则接入日志内容将无法展示。'));
+              callback?.(false);
+              return;
+            }
+            // 清洗模板选择多业务时不能为空
+            if (this.formData.visible_type === 'multi_biz' && !this.visibleBkBiz.length && this.isClearTemplate) {
+              this.messageError(this.$t('可见类型为业务属性时，业务标签不能为空'));
+              callback?.(false);
+              return;
+            }
+            // const promises = [this.checkStore()];
+            const promises = [];
+            if (this.formData.etl_config !== 'bk_log_text') {
+              promises.splice(1, 0, ...this.checkFieldsTable());
+            }
+            Promise.all(promises).then(
+              () => {
+                this.checkEtlConfChnage(isCollect, callback);
+              },
+              validator => {
+                callback?.(false);
+                console.warn('保存失败', validator);
+              },
+            );
+          }
+        });
       },
       // 字段表格校验
       checkFieldsTable() {
@@ -1503,6 +1830,8 @@
               retain_extra_json: false,
               original_text_is_case_sensitive: false,
               original_text_tokenize_on_chars: '',
+              enable_retain_content: true,
+              path_regexp: '',
             },
             etlParams ? JSON.parse(JSON.stringify(etlParams)) : {},
           ),
@@ -1515,7 +1844,7 @@
           this.formatResult = true;
         }
       },
-      chickFile() {
+      clickFile() {
         this.defaultSettings.isShow = true;
       },
       //  原始日志刷新
@@ -1523,6 +1852,10 @@
         if (this.refresh) {
           this.getDataLog('init');
         }
+      },
+      viewStandard() {
+        if (!this.formData.fields.length) return;
+        this.dialogVisible = true;
       },
       copyText(data) {
         const createInput = document.createElement('input');
@@ -1733,6 +2066,7 @@
               this.copysText = Object.assign(res.data[0].etl, res.data[0].etl.items[0]) || {};
               const data = res.data[0];
               this.jsonText = data.origin || {};
+              this.pathExample = this.jsonText.filename;
               this.logOriginal = data.etl.data || '';
               if (this.logOriginal) {
                 this.requestEtlPreview(isInit);
@@ -1840,15 +2174,27 @@
               this.formData.fields.splice(0, this.formData.fields.length);
 
               this.params.etl_config = clean_type;
-              const previousStateFields = etlFields.map(item => ({
-                ...item,
-                participleState: item.tokenize_on_chars ? 'custom' : 'default',
-              }));
+              const logTimeOption = {};
+              const previousStateFields = etlFields.map(item => {
+                if (item.is_time) {
+                  Object.assign(logTimeOption, {
+                    log_reporting_time: false,
+                    field_name: item.field_name,
+                    time_format: item.option.time_format,
+                    time_zone: item.option.time_zone,
+                  });
+                }
+                return {
+                  ...item,
+                  participleState: item.tokenize_on_chars ? 'custom' : 'default',
+                };
+              });
               Object.assign(this.params.etl_params, {
                 separator_regexp: etlParams.separator_regexp || '',
                 separator: etlParams.separator || '',
               });
               this.fieldType = clean_type;
+              this.enableMetaData = etlParams.path_regexp ? true : false;
 
               Object.assign(this.formData, {
                 etl_config: this.fieldType,
@@ -1858,10 +2204,12 @@
                     separator_regexp: '',
                     separator: '',
                     retain_extra_json: false,
+                    enable_retain_content: true,
                   },
                   etlParams ? JSON.parse(JSON.stringify(etlParams)) : {},
                 ),
                 fields: previousStateFields,
+                ...logTimeOption,
               });
               if (etlParams.original_text_tokenize_on_chars) {
                 this.originParticipleState = 'custom';
@@ -1997,6 +2345,9 @@
           original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
           original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
           retain_extra_json: etlParams.retain_extra_json ?? false,
+          path_regexp: this.enableMetaData ? etlParams.path_regexp : null,
+          enable_retain_content: etlParams.enable_retain_content,
+          record_parse_failure: etlParams.enable_retain_content,
         };
         const data = {
           clean_type: etlConfig,
@@ -2022,12 +2373,33 @@
         return !deepEqual(editParams, params);
       },
       getNotParticipleFieldTableData() {
-        return (
-          this.$refs.fieldTable.getData().map(item => {
-            const { participleState, ...otherValue } = item;
-            return otherValue;
-          }) || []
-        );
+        const fieldsData = this.$refs.fieldTable.getData() || [];
+        const { field_name, time_zone, time_format } = this.formData;
+        const isReportingTime = this.formData.log_reporting_time;
+        const result = fieldsData.map(item => {
+          // 通用的删除操作
+          delete item.participleState;
+
+          if (isReportingTime) {
+            // 当指定日志时间为日志上报时间时
+            item.is_time = false;
+            if (item.option) {
+              item.option.time_zone = '';
+              item.option.time_format = '';
+            }
+          } else if (item.field_name === field_name) {
+            // 当不是日志上报时间时
+            item.is_time = true;
+            if (item.option) {
+              item.option.time_zone = time_zone;
+              item.option.time_format = time_format;
+            }
+          }
+
+          return item;
+        });
+        Object.assign(fieldsData, result);
+        return fieldsData;
       },
       /** 最后字段对比的对象 */
       getFieldComparedKeys(fields) {
@@ -2067,7 +2439,7 @@
   .step-field-container {
     min-width: 950px;
     max-height: 100%;
-    padding: 0 30px 42px;
+    padding: 0 42px 42px;
     overflow: auto;
   }
 
@@ -2115,8 +2487,9 @@
 
       .select-title {
         justify-content: center;
-        width: 52px;
+        // width: 52px;
         height: 32px;
+        padding: 0 8px;
         background: #fafbfd;
         border: 1px solid #c4c6cc;
         border-radius: 2px 0 0 2px;
@@ -2126,21 +2499,28 @@
       }
 
       .origin-select-custom {
-        width: 70px;
+        width: 110px;
+      }
+
+      .log-time-select {
+        width: 200px;
+        margin-right: 10px;
       }
 
       .bk-select-name {
         padding: 0 22px 0 10px;
       }
+
+      .bk-form-control {
+        display: inline-block;
+      }
     }
 
     .step-field-title {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
       width: 100%;
-      padding-top: 50px;
+      padding-top: 36px;
       padding-bottom: 10px;
+      margin-bottom: 20px;
       font-size: 14px;
       font-weight: 600;
       color: #63656e;
@@ -2157,6 +2537,10 @@
         margin-left: 10px;
         cursor: pointer;
       }
+    }
+
+    .bk-form-control .control-icon {
+      top: 18px;
     }
 
     .bk-switcher-small {
@@ -2200,23 +2584,6 @@
         line-height: 32px;
         color: #858790;
         text-align: right;
-      }
-    }
-
-    .field-method {
-      position: relative;
-      margin: 30px 0 0 0;
-
-      .preview-panel-left {
-        width: 621px;
-      }
-
-      .loading-block {
-        position: absolute;
-        top: calc(100% + 20px);
-        left: 0;
-        width: 100%;
-        height: 40px;
       }
     }
 
@@ -2294,48 +2661,12 @@
     }
 
     .field-step {
-      position: relative;
-      padding-bottom: 24px;
-      padding-left: 20px;
-      margin-bottom: 12px;
-
-      &::before {
-        position: absolute;
-        top: 4px;
-        left: 0;
-        width: 8px;
-        height: 8px;
-        content: '';
-        border: 2px solid #d8d8d8;
-        border-radius: 50%;
-      }
-
-      &::after {
-        position: absolute;
-        top: 18px;
-        left: 6px;
-        width: 1px;
-        height: 100%;
-        content: '';
-        background: #d8d8d8;
-      }
-
-      &:last-child::before {
-        top: 8px;
-      }
-
-      &:last-child::after {
-        top: 22px;
-        height: calc(100% - 30px);
-      }
-
       .step-text {
         font-size: 14px;
         color: #63656e;
       }
 
       .template-text {
-        margin-left: 10px;
         font-size: 12px;
         color: #3a84ff;
         cursor: pointer;
@@ -2349,30 +2680,37 @@
       .field-button-group {
         display: flex;
         align-items: center;
-        margin: 20px 0 0;
+        margin: 10px 0 0;
       }
-    }
-
-    .step-head {
-      display: flex;
-      align-items: center;
 
       .documentation {
-        font-size: 12px;
-        color: #3a84ff;
-        cursor: pointer;
-        transform: translateX(45px) translateY(2px);
+        margin-left: 15px;
       }
     }
 
-    .field-method-link {
+    .view-log-btn {
+      position: relative;
+      top: 20px;
+      left: -94px;
       font-size: 12px;
       color: #3a84ff;
       cursor: pointer;
+
+      &.disabled {
+        color: #c4c6cc;
+        cursor: not-allowed;
+      }
+    }
+
+    .log-textarea {
+      .right-icon {
+        /* stylelint-disable-next-line declaration-no-important */
+        right: 20px !important;
+      }
     }
 
     .field-method-result {
-      margin-top: 8px;
+      margin-top: -20px;
     }
 
     .add-field-container {
@@ -2403,38 +2741,6 @@
       }
     }
 
-    .visible-select {
-      width: 560px;
-
-      .scope-radio {
-        margin: 0 26px 14px 0;
-      }
-
-      .visible-scope-box {
-        position: relative;
-        display: flex;
-        min-height: 30px;
-
-        .please-select {
-          margin-left: 10px;
-          color: #c3cdd7;
-        }
-
-        .icon-angle-down {
-          position: absolute;
-          top: 4px;
-          right: 0;
-          font-size: 20px;
-          transition: all 0.3s;
-          transform: rotateZ(0deg);
-        }
-
-        .icon-rotate {
-          transform: rotateZ(180deg);
-        }
-      }
-    }
-
     .field-method-cause {
       margin-bottom: 20px;
 
@@ -2452,7 +2758,7 @@
     }
 
     .field-method-regex {
-      margin-top: 20px;
+      margin-top: 10px;
 
       .regex-btn {
         position: absolute;
@@ -2542,9 +2848,6 @@
     }
 
     .format-error {
-      position: absolute;
-      left: 280px;
-      margin-top: 8px;
       font-size: 12px;
       color: #ea3636;
     }
@@ -2619,6 +2922,16 @@
     }
   }
 
+  .log-time-field {
+    /* stylelint-disable-next-line declaration-no-important */
+    margin-top: 0px !important;
+
+    .bk-form-content {
+      /* stylelint-disable-next-line declaration-no-important */
+      margin-left: 0 !important;
+    }
+  }
+
   .standard-field-table {
     max-height: 464px;
     padding-bottom: 14px;
@@ -2660,6 +2973,31 @@
 
       &:hover .apply-text {
         display: flex;
+      }
+    }
+  }
+
+  .template-list-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: 10px;
+
+    .template-item {
+      max-width: 430px;
+      padding: 7px 15px;
+      margin: 0 10px 10px 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: pointer;
+      background-color: #f0f1f5;
+      border: 1px solid transparent;
+
+      &:hover,
+      &:focus,
+      &.active {
+        color: #3a84ff;
+        border: 1px solid #3a84ff;
       }
     }
   }

@@ -346,6 +346,7 @@ class IncidentTopologyResource(IncidentBaseResource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         auto_aggregate = serializers.BooleanField(required=False, default=False, label="是否自动聚合")
         aggregate_config = serializers.JSONField(required=False, default=dict, label="聚合配置")
+        aggregate_cluster = serializers.BooleanField(required=False, default=False, label="是否根据边聚类聚合")
         limit = serializers.IntegerField(required=False, label="拓扑图数量", default=None)
         start_time = serializers.IntegerField(required=False, label="开始时间", default=None)
         end_time = serializers.IntegerField(required=False, label="结束时间", default=None)
@@ -356,6 +357,7 @@ class IncidentTopologyResource(IncidentBaseResource):
         limit = validated_request_data.get("limit")
         start_time = validated_request_data.get("start_time")
         end_time = validated_request_data.get("end_time")
+        aggregate_cluster = validated_request_data.get("aggregate_cluster", False)
 
         if not limit and not start_time:
             incident_snapshots = [incident.snapshot]
@@ -375,10 +377,13 @@ class IncidentTopologyResource(IncidentBaseResource):
         for incident_snapshot in incident_snapshots:
             snapshot = IncidentSnapshot(incident_snapshot.content.to_dict())
             if validated_request_data["auto_aggregate"]:
-                snapshot.aggregate_graph(incident, entities_orders=entities_orders)
+                snapshot.aggregate_graph(incident, aggregate_cluster=aggregate_cluster, entities_orders=entities_orders)
             elif validated_request_data["aggregate_config"]:
                 snapshot.aggregate_graph(
-                    incident, validated_request_data["aggregate_config"], entities_orders=entities_orders
+                    incident,
+                    validated_request_data["aggregate_config"],
+                    aggregate_cluster=aggregate_cluster,
+                    entities_orders=entities_orders,
                 )
             snapshots[incident_snapshot.id] = snapshot
 

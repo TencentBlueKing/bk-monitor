@@ -1804,6 +1804,17 @@
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/alert/alert/get_experience/
+  is_hidden: false
+  label: 获取告警处理经验
+  label_en: get_experience
+  name: get_experience
+  path: /v2/monitor_v3/get_experience/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
   dest_path: /apm_api/v1/application/create_application/
   is_hidden: true

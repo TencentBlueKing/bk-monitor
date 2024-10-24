@@ -37,8 +37,8 @@ import {
   readBlobRespToJson,
   parseBigNumberList,
   setDefaultTableWidth,
-  sessionShowFieldObj,
   formatDate,
+  getStorageIndexItem,
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import axios from 'axios';
@@ -130,8 +130,7 @@ const store = new Vuex.Store({
     activeManageSubNav: {},
     // -- id, id对应数据
     collectDetail: [0, {}],
-    // 清除table表头宽度缓存
-    clearTableWidth: 0,
+    showFieldsConfigPopoverNum: 0,
     showRouterLeaveTip: false,
     // 新人指引
     userGuideData: {},
@@ -259,19 +258,9 @@ const store = new Vuex.Store({
         ...searchParams,
       };
     },
-    isNewRetrieveRoute: state => {
-      const isDebug = window.FEATURE_TOGGLE.bklog_search_new === 'debug';
-      if (window.FEATURE_TOGGLE.bklog_search_new === 'on') {
-        return true;
-      }
-
-      if (isDebug) {
-        const whiteList = (window.FEATURE_TOGGLE_WHITE_LIST.bklog_search_new ?? []).map(id => `${id}`);
-        const bkBizId = state.bkBizId;
-        return bkBizId && whiteList.includes(bkBizId);
-      }
-
-      return false;
+    isNewRetrieveRoute: () => {
+      const v = sessionStorage.getItem('retrieve_version') ?? 'v2';
+      return v === 'v2';
     },
     storeIsShowClusterStep: state => state.storeIsShowClusterStep,
     getApiError: state => apiName => {
@@ -294,7 +283,11 @@ const store = new Vuex.Store({
     updateIndexItem(state, payload) {
       ['ids', 'items', 'catchUnionBeginList'].forEach(key => {
         if (Array.isArray(state.indexItem[key]) && Array.isArray(payload?.[key] ?? false)) {
-          state.indexItem[key].splice(0, state.indexItem[key].length, ...(payload?.[key] ?? []));
+          state.indexItem[key].splice(
+            0,
+            state.indexItem[key].length,
+            ...(payload?.[key] ?? []).filter(v => v !== null && v !== undefined),
+          );
         }
       });
 
@@ -314,7 +307,11 @@ const store = new Vuex.Store({
       const defaultValue = { ...getDefaultRetrieveParams(), isUnionIndex: false, selectIsUnionSearch: false };
       ['ids', 'items', 'catchUnionBeginList'].forEach(key => {
         if (Array.isArray(state.indexItem[key])) {
-          state.indexItem[key].splice(0, state.indexItem[key].length, ...(payload?.[key] ?? []));
+          state.indexItem[key].splice(
+            0,
+            state.indexItem[key].length,
+            ...(payload?.[key] ?? []).filter(v => v !== null && v !== undefined),
+          );
         }
       });
 
@@ -443,8 +440,16 @@ const store = new Vuex.Store({
       state.indexId = indexId;
     },
     updateUnionIndexList(state, unionIndexList) {
-      state.unionIndexList.splice(0, state.unionIndexList.length, ...unionIndexList);
-      state.indexItem.ids.splice(0, state.indexItem.ids.length, ...unionIndexList);
+      state.unionIndexList.splice(
+        0,
+        state.unionIndexList.length,
+        ...unionIndexList.filter(v => v !== null && v !== undefined),
+      );
+      state.indexItem.ids.splice(
+        0,
+        state.indexItem.ids.length,
+        ...unionIndexList.filter(v => v !== null && v !== undefined),
+      );
       const unionIndexItemList = state.retrieve.indexSetList.filter(item => unionIndexList.includes(item.index_set_id));
       state.unionIndexItemList.splice(0, state.unionIndexItemList.length, ...unionIndexItemList);
     },
@@ -488,8 +493,8 @@ const store = new Vuex.Store({
     updateIframeQuery(state, iframeQuery) {
       Object.assign(state.iframeQuery, iframeQuery);
     },
-    updateClearTableWidth(state, clearTableWidth) {
-      state.clearTableWidth += clearTableWidth;
+    updateShowFieldsConfigPopoverNum(state, showFieldsConfigPopoverNum) {
+      state.showFieldsConfigPopoverNum += showFieldsConfigPopoverNum;
     },
     updateRouterLeaveTip(state, isShow) {
       state.showRouterLeaveTip = isShow;
@@ -631,10 +636,7 @@ const store = new Vuex.Store({
     updateIsSetDefaultTableColumn(state, payload) {
       // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
       if (!state.isSetDefaultTableColumn) {
-        const storageKey = state.indexItem.isUnionIndex ? 'TABLE_UNION_COLUMN_WIDTH' : 'table_column_width_obj';
-        const columnWidth = JSON.parse(localStorage.getItem(storageKey));
-        const indexKey = state.indexItem.isUnionIndex ? state.unionIndexList.sort().join('-') : state.indexId;
-        const catchFieldsWidthObj = columnWidth?.[state.bkBizId]?.fields[indexKey];
+        const catchFieldsWidthObj = store.state.retrieve.catchFieldCustomConfig.fieldsWidth;
         state.isSetDefaultTableColumn = setDefaultTableWidth(
           state.visibleFields,
           state.indexSetQueryResult.list,
@@ -644,9 +646,10 @@ const store = new Vuex.Store({
       if (typeof payload === 'boolean') state.isSetDefaultTableColumn = payload;
     },
     resetVisibleFields(state, payload) {
-      const sessionShownFieldList = sessionShowFieldObj()?.[state.indexId];
+      const catchDisplayFields = store.state.retrieve.catchFieldCustomConfig.displayFields;
+      const displayFields = catchDisplayFields.length ? catchDisplayFields : null;
       // 请求字段时 判断当前索引集是否有更改过字段 若更改过字段则使用session缓存的字段显示
-      const filterList = (payload || sessionShownFieldList) ?? state.indexFieldInfo.display_fields;
+      const filterList = (payload || displayFields) ?? state.indexFieldInfo.display_fields;
       const visibleFields =
         filterList
           .map(displayName => {
@@ -838,7 +841,7 @@ const store = new Vuex.Store({
       }
 
       if (!isUnionIndex && !ids.length && list?.length) {
-        ids.push(list[0].index_set_id);
+        ids.push(getStorageIndexItem(list));
       }
 
       if (route.query?.bizId) {
@@ -883,6 +886,7 @@ const store = new Vuex.Store({
       }
     },
 
+    /** 请求字段config信息 */
     requestIndexSetFieldInfo({ commit, dispatch, state }) {
       // @ts-ignore
       const { ids = [], start_time = '', end_time = '', isUnionIndex } = state.indexItem;
@@ -927,6 +931,7 @@ const store = new Vuex.Store({
           commit('updateNotTextTypeFields', res.data ?? {});
           commit('updateIndexSetFieldConfig', res.data ?? {});
           commit('retrieve/updateFiledSettingConfigID', res.data?.config_id ?? -1); // 当前字段配置configID
+          commit('retrieve/updateCatchFieldCustomConfig', res.data.user_custom_config); // 更新用户个人配置
           commit('resetVisibleFields');
           commit('resetIndexSetOperatorConfig');
 
@@ -949,7 +954,7 @@ const store = new Vuex.Store({
      */
     requestIndexSetQuery(
       { commit, state, getters, dispatch },
-      payload = { isPagination: false, cancelToken: null, searchCount: undefined },
+      payload = { isPagination: false, cancelToken: null, searchCount: undefined, formChartChange: true },
     ) {
       if (
         (!state.indexItem.isUnionIndex && !state.indexId) ||
@@ -969,7 +974,9 @@ const store = new Vuex.Store({
       const [start_time, end_time] = handleTransformToTimestamp(datePickerValue);
       commit('updateIndexItem', { start_time, end_time });
 
-      if (!payload?.isPagination) store.commit('retrieve/updateChartKey');
+      if (!payload?.isPagination && payload.formChartChange) {
+        store.commit('retrieve/updateChartKey');
+      }
       const searchCount = payload.searchCount ?? state.indexSetQueryResult.search_count + 1;
       commit(payload.isPagination ? 'updateIndexSetQueryResult' : 'resetIndexSetQueryResult', {
         is_loading: true,
@@ -1038,6 +1045,7 @@ const store = new Vuex.Store({
               const indexSetQueryResult = state.indexSetQueryResult;
               const logList = parseBigNumberList(rsolvedData.list);
               const originLogList = parseBigNumberList(rsolvedData.origin_log_list);
+
               rsolvedData.list = payload.isPagination ? indexSetQueryResult.list.concat(logList) : logList;
               rsolvedData.origin_log_list = payload.isPagination
                 ? indexSetQueryResult.origin_log_list.concat(originLogList)
@@ -1340,6 +1348,56 @@ const store = new Vuex.Store({
     },
     clearApiError({ commit }, apiName) {
       commit('CLEAR_API_ERROR', apiName);
+    },
+
+    handleTrendDataZoom({ commit }, payload) {
+      const { start_time, end_time, format } = payload;
+
+      const [startTimeStamp, endTimeStamp] = format
+        ? handleTransformToTimestamp([start_time, end_time])
+        : [start_time, end_time];
+
+      commit('updateIndexItem', {
+        start_time: startTimeStamp,
+        end_time: endTimeStamp,
+        datePickerValue: [start_time, end_time],
+      });
+
+      // 这里通过增加 prefix 标识当前是由图表缩放导致的更新操作
+      // 用于后续逻辑判定使用
+      commit('retrieve/updateChartKey', { prefix: 'chart_zoom_' });
+    },
+    userFieldConfigChange({ state, getters, commit }, userConfig) {
+      return new Promise(async (resolve, reject) => {
+        const indexSetConfig = {
+          ...state.retrieve.catchFieldCustomConfig,
+          ...userConfig,
+        };
+        const queryParams = {
+          index_set_id: state.indexId,
+          index_set_type: getters.isUnionSearch ? 'union' : 'single',
+          index_set_config: indexSetConfig,
+        };
+        if (getters.isUnionSearch) {
+          delete queryParams.index_set_id;
+          queryParams.index_set_ids = state.unionIndexList;
+        }
+        try {
+          const res = await http.request('retrieve/updateUserFiledTableConfig', {
+            data: queryParams,
+          });
+          if (res.code === 0) {
+            const userConfig = {
+              fieldsWidth: res.data.index_set_config.fieldsWidth,
+              displayFields: res.data.index_set_config.displayFields,
+            };
+            commit('retrieve/updateCatchFieldCustomConfig', userConfig);
+          }
+          resolve(res);
+        } catch (err) {
+          reject(err);
+        }
+      });
     },
   },
 });

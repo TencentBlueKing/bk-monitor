@@ -33,7 +33,7 @@ mistune==0.8.4
 gevent==1.2.2
 python-consul==1.1.0
 PyYAML==5.4.1
-dataclasses==0.7
+dataclasses==0.8
 typing_extensions==3.7.4.3
 Markdown==3.3
 wrapt==1.15.0
@@ -76,18 +76,18 @@ humanize==3.11.0
 
 # opentelemetry
 protobuf==3.19.5
-opentelemetry-api==1.7.1
-opentelemetry-sdk==1.7.1
-opentelemetry-exporter-otlp-proto-http==1.7.1
-opentelemetry-exporter-otlp-proto-grpc==1.7.1
-opentelemetry-semantic-conventions==0.26b1
-opentelemetry-instrumentation-django==0.26b1
-opentelemetry-instrumentation-elasticsearch==0.26b1
-opentelemetry-instrumentation-dbapi==0.26b1
-opentelemetry-instrumentation-redis==0.26b1
-opentelemetry-instrumentation-requests==0.26b1
-opentelemetry-instrumentation-celery==0.26b1
-opentelemetry-instrumentation-logging==0.26b1
+opentelemetry-api==1.11.1
+opentelemetry-sdk==1.11.1
+opentelemetry-exporter-otlp-proto-http==1.11.1
+opentelemetry-exporter-otlp-proto-grpc==1.11.1
+opentelemetry-semantic-conventions==0.30b1
+opentelemetry-instrumentation-django==0.30b1
+opentelemetry-instrumentation-elasticsearch==0.30b1
+opentelemetry-instrumentation-dbapi==0.30b1
+opentelemetry-instrumentation-redis==0.30b1
+opentelemetry-instrumentation-requests==0.30b1
+opentelemetry-instrumentation-celery==0.30b1
+opentelemetry-instrumentation-logging==0.30b1
 
 
 # kubernetes
