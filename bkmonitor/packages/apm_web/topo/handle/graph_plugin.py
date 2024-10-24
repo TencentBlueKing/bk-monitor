@@ -2015,14 +2015,17 @@ class ServiceNameFilter(Filter):
         if not filter_service_name:
             return nodes, edges
 
+        valid_nodes = set()
         new_nodes, new_edges = [], []
 
         for k, v, attrs in edges:
             if k == filter_service_name or v == filter_service_name:
                 new_edges.append((k, v, attrs))
+                valid_nodes.add(k)
+                valid_nodes.add(v)
 
         for node_id, attrs in nodes:
-            if node_id == filter_service_name:
+            if node_id in valid_nodes:
                 new_nodes.append((node_id, attrs))
 
         return new_nodes, new_edges

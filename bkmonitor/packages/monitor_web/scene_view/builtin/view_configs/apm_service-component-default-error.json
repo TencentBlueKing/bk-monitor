@@ -251,8 +251,7 @@
           "fields": {
             "endpoint": "endpoint",
             "app_name": "app_name",
-            "exception_type": "exception_type",
-            "service_name": "service_name"
+            "exception_type": "exception_type"
           }
         }
       ]
