@@ -2906,6 +2906,9 @@ class GetFieldOptionValuesResource(Resource):
 
 class CalculateByRangeResource(Resource):
     class RequestSerializer(serializers.Serializer):
+
+        ZERO_TIME_SHIFT: str = "0s"
+
         class OptionsSerializer(serializers.Serializer):
             class TrpcSerializer(serializers.Serializer):
                 kind = serializers.ChoiceField(
@@ -2926,7 +2929,7 @@ class CalculateByRangeResource(Resource):
             label="指标计算类型", required=True, choices=metric_group.CalculationType.choices()
         )
 
-        baseline = serializers.CharField(label="对比基准", required=False, default="now")
+        baseline = serializers.CharField(label="对比基准", required=False, default=ZERO_TIME_SHIFT)
         time_shifts = serializers.ListSerializer(
             label="时间偏移", required=False, default=[], child=serializers.CharField()
         )
@@ -2938,7 +2941,12 @@ class CalculateByRangeResource(Resource):
         end_time = serializers.IntegerField(label="结束时间", required=False)
 
         def validate(self, attrs):
-            if len(attrs["time_shifts"]) > 2:
+            attrs["time_shifts"] = list(set(attrs["time_shifts"]))
+            if self.ZERO_TIME_SHIFT not in attrs["time_shifts"]:
+                attrs["time_shifts"].append(self.ZERO_TIME_SHIFT)
+
+            # 当前时间不计入对比次数
+            if len(attrs["time_shifts"]) > 3:
                 raise ValueError(_("最多支持两次时间对比"))
 
             # 合并查询条件
@@ -3008,9 +3016,7 @@ class CalculateByRangeResource(Resource):
                 time_shift=_alias,
                 **(validated_request_data["options"].get(group_name) or {}),
             )
-            alias_aggregated_records_map[_alias or baseline] = _group.handle(
-                validated_request_data["metric_cal_type"], **_kwargs
-            )
+            alias_aggregated_records_map[_alias] = _group.handle(validated_request_data["metric_cal_type"], **_kwargs)
 
         baseline: str = validated_request_data["baseline"]
         alias_aggregated_records_map: Dict[str, List[Dict[str, Any]]] = {}
@@ -3027,7 +3033,7 @@ class CalculateByRangeResource(Resource):
                         "end_time": validated_request_data.get("end_time"),
                     },
                 )
-                for time_shift in validated_request_data["time_shifts"] + [None]
+                for time_shift in validated_request_data["time_shifts"]
             ]
         )
 
