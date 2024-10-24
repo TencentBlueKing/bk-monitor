@@ -166,6 +166,8 @@ class AIOpsStrategyMaintainer:
                     if strategy_info["strategy"].id not in self.checked_abnormal_strategies:
                         report_aiops_check_metrics(strategy_info["base_labels"], DataFlow.Status.Running)
                         self.error_counter["normal"] += 1
+
+                    break
                 except BaseException as e:
                     retries -= 1
                     if retries == 0:
