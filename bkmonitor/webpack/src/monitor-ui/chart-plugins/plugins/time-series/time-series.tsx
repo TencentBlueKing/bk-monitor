@@ -629,16 +629,6 @@ export class LineChart
         setTimeout(() => {
           this.handleResize();
         }, 100);
-        setTimeout(() => {
-          const chartRef = this.$refs?.baseChart?.instance;
-          if (chartRef) {
-            chartRef.off('click');
-            chartRef.on('click', params => {
-              const date = dayjs(params.value[0]).format('YYYY-MM-DD HH:mm:ss');
-              this.$emit('choosePoint', date);
-            });
-          }
-        }, 1000);
       } else {
         this.inited = this.metrics.length > 0;
         this.emptyText = window.i18n.tc('暂无数据');
@@ -1349,7 +1339,11 @@ export class LineChart
       this.dataZoom(undefined, undefined);
     }
   }
-
+  handleZrClick(v: number, params: Record<string, any>) {
+    const date = dayjs(v).format('YYYY-MM-DD HH:mm:ss');
+    console.info(date, '===============');
+    this.$emit('choosePoint', date);
+  }
   render() {
     const { legend } = this.panel?.options || { legend: {} };
     return (
@@ -1395,6 +1389,7 @@ export class LineChart
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}
                   onRestore={this.handleRestore}
+                  onZrClick={this.handleZrClick}
                 />
               )}
             </div>

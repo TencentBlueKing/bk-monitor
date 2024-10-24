@@ -37,7 +37,7 @@ import { VariablesService } from '../../../utils/variable';
 import { SYMBOL_LIST } from '../utils';
 
 import type { PanelModel } from '../../../typings';
-import type { CallOptions, IFilterData, IFilterCondition } from '../type';
+import type { CallOptions, IFilterData } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
@@ -45,11 +45,11 @@ import './caller-callee-filter.scss';
 
 interface ICallerCalleeFilterProps {
   panel: PanelModel;
-  activeKey: string;
+  activeKey?: string;
 }
 interface ICallerCalleeFilterEvent {
-  onSearch?: (val: IFilterCondition[]) => void;
   onReset?: () => void;
+  onSearch?: (options: CallOptions['call_filter']) => void;
 }
 @Component({
   name: 'CallerCalleeFilter',

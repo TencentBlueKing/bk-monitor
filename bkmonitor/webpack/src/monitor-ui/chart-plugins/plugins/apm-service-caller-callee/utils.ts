@@ -24,7 +24,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export const CALLER_CALLEE_TYPE = [
+
+import type { ITabItem } from './type';
+
+export const CALLER_CALLEE_TYPE: ITabItem[] = [
   {
     label: '主调',
     id: 'caller',
@@ -33,7 +36,7 @@ export const CALLER_CALLEE_TYPE = [
     label: '被调',
     id: 'callee',
   },
-] as const;
+];
 export type CallerCalleeType = (typeof CALLER_CALLEE_TYPE)[number]['id'];
 export const PERSPECTIVE_TYPE = [
   {

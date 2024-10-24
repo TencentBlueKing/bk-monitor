@@ -332,8 +332,6 @@ class MonitorBaseEchart extends BaseEchart {
           ref='chartInstance'
           style={{ minHeight: `${1}px` }}
           class='chart-base'
-          onClick={this.handleClick}
-          onDblclick={this.handleDblClick}
           onMouseleave={this.handleMouseleave}
           onMouseover={this.handleMouseover}
         />

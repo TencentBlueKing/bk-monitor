@@ -37,7 +37,7 @@ interface IChartViewProps {
   panelsData: PanelModel[];
 }
 interface IChartViewEvent {
-  onChoosePoint?: () => void;
+  onChoosePoint?: (time: string) => void;
 }
 @Component({
   name: 'ChartView',

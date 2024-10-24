@@ -91,3 +91,10 @@ export type IFilterData = {
   caller: IColumn[];
   callee: IColumn[];
 };
+
+export interface ITabItem {
+  label: string;
+  id: string;
+  icon?: string;
+  handle?: () => void;
+}
