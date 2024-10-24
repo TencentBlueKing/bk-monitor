@@ -76,6 +76,7 @@ import type {
   MonitorEchartOptions,
   PanelModel,
 } from '../../typings';
+import type { CallOptions } from '../apm-service-caller-callee/type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './time-series.scss';
@@ -123,6 +124,8 @@ export class LineChart
   @InjectReactive('refleshInterval') readonly refleshInterval!: number;
   // 图表特殊参数
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
+  // 主备调的参数
+  @InjectReactive('callOptions') readonly callOptions: CallOptions;
   // 立即刷新图表
   @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
   // 时区
@@ -216,12 +219,25 @@ export class LineChart
   get collectIntervalDisplay() {
     return this.panel.options?.collect_interval_display;
   }
+  // 是否允许对比
+  get isSupportCompare() {
+    return this.panel.options?.is_support_compare === undefined ? true : this.panel.options.is_support_compare;
+  }
+
+  // 是否允许自定groupBy
+  get isSupportGroupBy() {
+    return !!this.panel.options?.is_support_group_by;
+  }
 
   @Watch('viewOptions')
   // 用于配置后台图表数据的特殊设置
   handleFieldDictChange(v: IViewOptions, o: IViewOptions) {
     if (JSON.stringify(v) === JSON.stringify(o)) return;
     if (isShadowEqual(v, o)) return;
+    this.getPanelData();
+  }
+  @Watch('callOptions')
+  handleWatchCallOptions() {
     this.getPanelData();
   }
   @Watch('timeRange')
@@ -379,7 +395,14 @@ export class LineChart
         params.end_time - params.start_time,
         this.panel.collect_interval
       );
+      const callOptions = {};
+      for (const key in this.callOptions || {}) {
+        if (key !== 'time_shift') {
+          callOptions[key] = this.callOptions[key];
+        }
+      }
       const variablesService = new VariablesService({
+        ...callOptions,
         ...this.viewOptions,
         interval,
       });
@@ -390,10 +413,12 @@ export class LineChart
             ...variablesService.transformVariables(
               item.data,
               {
+                ...callOptions,
                 ...this.viewOptions.filters,
                 ...(this.viewOptions.filters?.current_target || {}),
                 ...this.viewOptions,
                 ...this.viewOptions.variables,
+                ...(this.callOptions.server ? { server: this.callOptions.server } : {}),
                 time_shift,
                 interval,
               },
@@ -412,6 +437,18 @@ export class LineChart
               ...config,
               group_by: config.group_by.filter(key => !item.ignore_group_by.includes(key)),
             }));
+          }
+          if (this.callOptions?.call_filter?.length) {
+            const callFilter = this.callOptions?.call_filter.filter(f => f.key !== 'time');
+            for (const item of newPrarams?.query_configs || []) {
+              item.where = [...(item?.where || []), ...callFilter];
+            }
+            for (const item of newPrarams?.unify_query_param?.query_configs || []) {
+              item.where = [...(item?.where || []), ...callFilter];
+            }
+            if (newPrarams?.group_by_limit?.where) {
+              newPrarams.group_by_limit.where = [...newPrarams.group_by_limit.where, ...callFilter];
+            }
           }
           const primaryKey = item?.primary_key;
           const paramsArr = [];
@@ -592,6 +629,16 @@ export class LineChart
         setTimeout(() => {
           this.handleResize();
         }, 100);
+        setTimeout(() => {
+          const chartRef = this.$refs?.baseChart?.instance;
+          if (chartRef) {
+            chartRef.off('click');
+            chartRef.on('click', params => {
+              const date = dayjs(params.value[0]).format('YYYY-MM-DD HH:mm:ss');
+              this.$emit('choosePoint', date);
+            });
+          }
+        }, 1000);
       } else {
         this.inited = this.metrics.length > 0;
         this.emptyText = window.i18n.tc('暂无数据');

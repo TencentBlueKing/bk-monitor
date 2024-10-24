@@ -293,6 +293,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   handleChoosePoint(date) {
     if (this.callOptions.call_filter.findIndex(item => item.key === 'time') !== -1) {
       this.callOptions.call_filter.find(item => item.key === 'time').value = [date];
+      this.callOptions = { ...this.callOptions };
       return;
     }
     this.callOptions.call_filter.push({
@@ -301,6 +302,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       value: [date],
       condition: 'end',
     });
+    this.callOptions = { ...this.callOptions };
   }
   /** 初始化主被调的相关数据 */
   initDefaultData() {
@@ -323,6 +325,25 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     this.filterTags = {
       caller: caller?.tags,
       callee: callee?.tags,
+    };
+  }
+
+  handleLimitChange(val) {
+    this.callOptions = {
+      ...this.callOptions,
+      limit: val,
+    };
+  }
+  handleMethodChange(val) {
+    this.callOptions = {
+      ...this.callOptions,
+      method: val,
+    };
+  }
+  handleMetricCalTypeChange(val) {
+    this.callOptions = {
+      ...this.callOptions,
+      metric_cal_type: val,
     };
   }
 
@@ -351,6 +372,9 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
               onContrastDatesChange={this.handleContrastDatesChange}
               onGroupByChange={this.handleGroupChange}
               onGroupFilter={this.handleGroupFilter}
+              onLimitChange={this.handleLimitChange}
+              onMethodChange={this.handleMethodChange}
+              onMetricCalType={this.handleMetricCalTypeChange}
               onTypeChange={this.handleParamsModeChange}
             />
           </div>

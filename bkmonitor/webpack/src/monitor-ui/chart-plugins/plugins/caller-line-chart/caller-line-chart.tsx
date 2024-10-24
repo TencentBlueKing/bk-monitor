@@ -30,7 +30,7 @@ import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/index';
-import { deepClone, random } from 'monitor-common/utils/utils';
+import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import { type ValueFormatter, getValueFormat } from '../../../monitor-echarts/valueFormats';
@@ -60,6 +60,14 @@ import './caller-line-chart.scss';
 
 interface IProps {
   panel: PanelModel;
+}
+
+function timeShiftFormat(t: string) {
+  const regex = /^\d{4}-\d{2}-\d{2}$/;
+  if (regex.test(t)) {
+    return `${dayjs().diff(dayjs(t), 'day')}d`;
+  }
+  return t;
 }
 
 @Component
@@ -93,41 +101,19 @@ class CallerLineChart extends CommonSimpleChart {
     return this.panel.options?.time_series?.hoverAllTooltips;
   }
 
+  // 是否允许对比
+  get isSupportCompare() {
+    return this.panel.options?.is_support_compare === undefined ? true : this.panel.options.is_support_compare;
+  }
+
+  // 是否允许自定groupBy
+  get isSupportGroupBy() {
+    return !!this.panel.options?.is_support_group_by;
+  }
+
   @Watch('callOptions')
   onCallOptionsChange() {
     this.getPanelData();
-  }
-
-  // 数据刷新间隔
-  @Watch('refleshInterval')
-  handleRefleshIntervalChange(v: number) {
-    if (this.refleshIntervalInstance) {
-      window.clearInterval(this.refleshIntervalInstance);
-    }
-    if (v <= 0) return;
-    this.refleshIntervalInstance = window.setInterval(() => {
-      this.inited && this.getPanelData();
-    }, this.refleshInterval);
-  }
-
-  mounted() {
-    this.empty = true;
-    setTimeout(() => {
-      this.initChart();
-      this.emptyText = window.i18n.tc('加载中...');
-      this.empty = false;
-    }, 1000);
-  }
-
-  initChart() {
-    const chartRef = this.$refs?.baseChart?.instance;
-    if (chartRef) {
-      chartRef.off('click');
-      chartRef.on('click', params => {
-        const date = dayjs(params.value[0]).format('YYYY-MM-DD HH:mm:ss');
-        this.$emit('choosePoint', date);
-      });
-    }
   }
 
   /**
@@ -135,6 +121,7 @@ class CallerLineChart extends CommonSimpleChart {
    * @param {*}
    * @return {*}
    */
+  @Debounce(100)
   async getPanelData(start_time?: string, end_time?: string) {
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
@@ -162,28 +149,31 @@ class CallerLineChart extends CommonSimpleChart {
         });
       }
       const promiseList = [];
-      const timeShiftList = ['', ...this.callOptions.time_shift.map(t => t.alias)];
+      const timeShiftList = ['', ...(this.isSupportCompare ? this.callOptions.time_shift.map(t => t.alias) : [])];
       const interval = reviewInterval(
         this.viewOptions.interval,
         params.end_time - params.start_time,
         this.panel.collect_interval
       );
+      const callOptions = {};
+      for (const key in this.callOptions) {
+        if (key !== 'time_shift') {
+          callOptions[key] = this.callOptions[key];
+        }
+      }
       const variablesService = new VariablesService({
         ...this.viewOptions,
-        ...this.callOptions,
-        // time_shift: this.callOptions.time_shift.map(t => t.alias),
+        ...callOptions,
         interval,
       });
       for (const time_shift of timeShiftList) {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
         const dataFormat = data => {
-          if (!this.callOptions.group_by.length) {
-            return {
-              ...data,
-              group_by_limit: undefined,
-            };
+          const paramsResult = data;
+          if (!this.callOptions.group_by.length || !this.isSupportGroupBy) {
+            paramsResult.group_by_limit = undefined;
           }
-          return data;
+          return paramsResult;
         };
         const list = this.panel.targets.map(item => {
           const newPrarams = {
@@ -195,7 +185,7 @@ class CallerLineChart extends CommonSimpleChart {
                 ...this.viewOptions,
                 ...this.viewOptions.variables,
                 ...this.callOptions,
-                time_shift: time_shift[0],
+                time_shift: timeShiftFormat(time_shift),
                 interval,
               },
               noTransformVariables
@@ -213,6 +203,18 @@ class CallerLineChart extends CommonSimpleChart {
               ...config,
               group_by: config.group_by.filter(key => !item.ignore_group_by.includes(key)),
             }));
+          }
+          if (this.callOptions?.call_filter?.length) {
+            const callFilter = this.callOptions?.call_filter.filter(f => f.key !== 'time');
+            for (const item of newPrarams?.query_configs || []) {
+              item.where = [...(item?.where || []), ...callFilter];
+            }
+            for (const item of newPrarams?.unify_query_param?.query_configs || []) {
+              item.where = [...(item?.where || []), ...callFilter];
+            }
+            if (newPrarams?.group_by_limit?.where) {
+              newPrarams.group_by_limit.where = [...newPrarams.group_by_limit.where, ...callFilter];
+            }
           }
           const primaryKey = item?.primary_key;
           const paramsArr = [];
@@ -383,6 +385,16 @@ class CallerLineChart extends CommonSimpleChart {
         setTimeout(() => {
           this.handleResize();
         }, 100);
+        setTimeout(() => {
+          const chartRef = this.$refs?.baseChart?.instance;
+          if (chartRef) {
+            chartRef.off('click');
+            chartRef.on('click', params => {
+              const date = dayjs(params.value[0]).format('YYYY-MM-DD HH:mm:ss');
+              this.$emit('choosePoint', date);
+            });
+          }
+        }, 1000);
       } else {
         this.inited = this.metrics.length > 0;
         this.emptyText = window.i18n.tc('暂无数据');
@@ -392,10 +404,6 @@ class CallerLineChart extends CommonSimpleChart {
       this.empty = true;
       this.emptyText = window.i18n.tc('出错了');
       console.error(e);
-    }
-    // 初始化刷新定时器
-    if (!this.refleshIntervalInstance && this.refleshInterval) {
-      this.handleRefleshIntervalChange(this.refleshInterval);
     }
     this.cancelTokens = [];
     this.handleLoadingChange(false);

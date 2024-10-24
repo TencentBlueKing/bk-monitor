@@ -342,6 +342,11 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
   @Emit('backToOverview')
   handleBackToOverview() {}
 
+  @Emit('choosePoint')
+  handelChoosePoint(date) {
+    return date;
+  }
+
   /* 根据内容高度计算panelLayout的h属性， 表格切换每页条数时会用到 */
   handleChangeLayoutItemH(height: number, index: number) {
     const panel = (this as any).localPanels[index];
@@ -393,6 +398,7 @@ export default class FlexDashboardPanel extends tsc<IDashbordPanelProps, IDashbo
                     panel={panel}
                     onChangeHeight={(height: number) => this.handleChangeLayoutItemH(height, index)}
                     onChartCheck={v => this.handleChartCheck(v, panel)}
+                    onChoosePoint={this.handelChoosePoint}
                     onCollapse={v => panel.type === 'row' && this.handleCollapse(v, panel)}
                     onCollectChart={() => this.handleCollectChart(panel)}
                   />
