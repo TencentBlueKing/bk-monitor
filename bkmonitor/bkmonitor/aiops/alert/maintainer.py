@@ -10,7 +10,8 @@ specific language governing permissions and limitations under the License.
 """
 import copy
 import logging
-from collections import defaultdict
+import time
+from collections import Counter, defaultdict
 from typing import Dict
 
 from django.conf import settings
@@ -54,6 +55,7 @@ class AIOpsStrategyMaintainer:
 
         # 检测过的有问题的策略ID，防止同一个策略ID上报多个异常埋点
         self.checked_abnormal_strategies = set()
+        self.error_counter = Counter()
 
     def prepare_strategies_in_bkbase(self):
         """准备在bkbase中所有的监控策略(基于flow名称)."""
@@ -152,27 +154,41 @@ class AIOpsStrategyMaintainer:
         self.access_enable_strategies()
 
         for strategy_info in self.monitor_strategies.values():
-            try:
-                self.check_strategy_flow_status(strategy_info)
+            retries = 3
+            while retries > 0:
+                try:
+                    self.check_strategy_flow_status(strategy_info)
 
-                self.check_strategy_data_monitor_metrics(strategy_info)
+                    self.check_strategy_data_monitor_metrics(strategy_info)
 
-                self.check_strategy_output(strategy_info)
+                    self.check_strategy_output(strategy_info)
 
-                if strategy_info["strategy"].id not in self.checked_abnormal_strategies:
-                    report_aiops_check_metrics(strategy_info["base_labels"], DataFlow.Status.Running)
-            except BaseException as e:
-                report_aiops_check_metrics(
-                    strategy_info["base_labels"],
-                    DataFlow.Status.Warning,
-                    (
-                        f"Checking dataflow for strategy({strategy_info['strategy'].id}: "
-                        f"{strategy_info['strategy'].bk_biz_id}) error: {str(e)}"
-                    ),
-                    CheckErrorType.CHECK_FAILED,
-                )
+                    if strategy_info["strategy"].id not in self.checked_abnormal_strategies:
+                        report_aiops_check_metrics(strategy_info["base_labels"], DataFlow.Status.Running)
+                        self.error_counter["normal"] += 1
+                except BaseException as e:
+                    retries -= 1
+                    if retries == 0:
+                        report_aiops_check_metrics(
+                            strategy_info["base_labels"],
+                            DataFlow.Status.Warning,
+                            (
+                                f"Checking dataflow for strategy({strategy_info['strategy'].id}: "
+                                f"{strategy_info['strategy'].bk_biz_id}) error: {str(e)}"
+                            ),
+                            CheckErrorType.CHECK_FAILED,
+                        )
+                        self.error_counter[CheckErrorType.CHECK_FAILED] += 1
+                    else:
+                        time.sleep(1)
 
         self.stop_invalid_strategies()
+
+        # 汇总统计值
+        for error_type, error_count in self.error_counter.items():
+            labels = {"exc_type": error_type}
+            metrics.AIOPS_STRATEGY_ERROR_COUNT.labels(**labels).inc(error_count)
+            metrics.report_all()
 
     def access_enable_strategies(self):
         """触发没有创建任务且已经打开的智能监控策略的接入."""
@@ -221,6 +237,7 @@ class AIOpsStrategyMaintainer:
                     error_type,
                 )
                 self.checked_abnormal_strategies.add(strategy_id)
+                self.error_counter[error_type] += 1
             except BaseException as e:  # noqa
                 logger.exception(
                     f"check strategy({strategy_id}: {strategy_info['strategy'].bk_biz_id})"
@@ -252,6 +269,7 @@ class AIOpsStrategyMaintainer:
                 CheckErrorType.NOT_RUNNING,
             )
             self.checked_abnormal_strategies.add(strategy_info["strategy"].id)
+            self.error_counter[CheckErrorType.NOT_RUNNING] += 1
             return
 
         # 检测任务的运行状态
@@ -273,6 +291,7 @@ class AIOpsStrategyMaintainer:
                 CheckErrorType.RUNNING_FAILURE,
             )
             self.checked_abnormal_strategies.add(strategy_info["strategy"].id)
+            self.error_counter[CheckErrorType.RUNNING_FAILURE] += 1
             return
 
     def check_strategy_data_monitor_metrics(self, strategy_info: Dict):
@@ -309,6 +328,7 @@ class AIOpsStrategyMaintainer:
                 CheckErrorType.NO_RUNTIME_METRICS,
             )
             self.checked_abnormal_strategies.add(strategy_info["strategy"].id)
+            self.error_counter[CheckErrorType.NO_RUNTIME_METRICS] += 1
 
     def check_strategy_output(self, strategy_info: Dict):
         """检测任务是否有输出.
@@ -344,5 +364,6 @@ class AIOpsStrategyMaintainer:
                             f"{bk_biz_id}) is disabled or deleted"
                         )
                         # api.bkdata.stop_data_flow(flow_id=bkbase_flow_id)
+                        self.error_counter[CheckErrorType.NEED_TO_STOP] += 1
                     except BaseException:  # noqa
                         logger.exception(f"stop dataflow({bkbase_flow_id}) error")
