@@ -35,7 +35,7 @@ import CallerPieChart from '../chart/caller-pie-chart';
 import { TAB_TABLE_TYPE, CHART_TYPE, LIMIT_TYPE_LIST } from '../utils';
 import TabBtnGroup from './common-comp/tab-btn-group';
 
-import type { IServiceConfig, IColumn, IDataItem } from '../type';
+import type { IServiceConfig, IColumn, IDataItem, IListItem } from '../type';
 
 import './multi-view-table.scss';
 interface IMultiViewTableProps {
@@ -54,6 +54,7 @@ interface IMultiViewTableEvent {
   components: {},
 })
 export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiViewTableEvent> {
+  @Prop({ type: Array, default: () => [] }) supportedCalculationTypes: IListItem[];
   @Prop({ required: true, type: Array }) tableColumn: IColumn[];
   @Prop({ required: true, type: Array }) tableColData: IColumn[];
   @Prop({ required: true, type: Array }) searchList: IServiceConfig[];
@@ -82,10 +83,29 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   ];
   curDimensionKey = '';
   curRowData = {};
+  request = ['request_total'];
+  timeout = ['success_rate', 'timeout_rate', 'exception_rate'];
+  consuming = ['avg_duration', 'p50_duration', 'p95_duration', 'p99_duration'];
+
+  @Watch('supportedCalculationTypes', { immediate: true })
+  handlePanelChange(val) {
+    const txtVal = {
+      avg_duration: 'AVG',
+      p95_duration: 'p95',
+      p99_duration: 'p99',
+      p50_duration: 'p50',
+    };
+    this.panels.map(item => {
+      if (item.id !== 'request') {
+        item.columns = val
+          .map(opt => Object.assign(opt, { prop: `${opt.value}_0s`, label: txtVal[opt.value] || opt.text }))
+          .filter(key => this[item.id].includes(key.value));
+      }
+    });
+    this.cachePanels = JSON.parse(JSON.stringify(this.panels));
+  }
+
   get dialogSelectList() {
-    // let list = [];
-    // this.panels.slice(0, 2).map(item => (list = [...list, ...item.columns]));
-    // return list;
     return LIMIT_TYPE_LIST;
   }
   get dialogPanel() {
@@ -99,12 +119,21 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
   changeTab(id: string) {
     this.active = id;
+    this.$emit('tabChange', this[id]);
   }
   changeChartTab(id: string) {
     this.chartActive = id;
   }
-  @Watch('tableColData')
+  /** 动态处理表格要展示的数据 */
+  @Watch('tableColData', { immediate: true })
   handleChangeCol(val) {
+    const key = {
+      '1d': '昨天',
+      '0s': '当前',
+      '1w': '上周',
+    };
+    const mapList = {};
+    val.map(item => (mapList[item] = key[item] || item));
     this.panels = JSON.parse(JSON.stringify(this.cachePanels));
     // biome-ignore lint/complexity/noForEach: <explanation>
     this.panels.forEach(item => {
@@ -112,22 +141,29 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         item.columns = item.columns.slice(1);
       }
       item.columns = item.columns.flatMap(col => {
-        const defaultCol = [
-          { label: val[0].label, prop: `${col.prop}${val[0].value}` },
-          ...(val.length === 2
-            ? [{ label: val[1].label, prop: `${col.prop}${val[1].value}` }]
-            : [{ label: this.$t('当前'), prop: `${col.prop}now` }]),
-        ];
-        return [...defaultCol, col];
+        let defaultCol = [];
+        const isRequest = item.id !== 'request';
+        const baseKey = isRequest ? col.value : 'request_total';
+        defaultCol = [{ label: this.$t('波动'), prop: `growth_rates_${baseKey}_${val[0]}` }];
+        const cache = val.length === 1 ? ['0s', ...val] : val;
+        const additionalCols = cache.map((v, ind) => ({
+          label: isRequest ? `${key[v] || v}${ind === 0 && key[v] ? col.label || '' : ''}` : `${key[v] || v}`,
+          prop: `${baseKey}_${v}`,
+        }));
+        defaultCol = isRequest ? [...additionalCols, ...defaultCol] : [...additionalCols, col, ...defaultCol];
+        return val.length > 0 ? defaultCol : col;
       });
     });
+    console.log(this.panels);
   }
 
   @Emit('showDetail')
   handleShowDetail(row, key) {
-    this.isShowDetail = true;
-    this.curRowData = row;
-    return { row, key };
+    if (row[key]) {
+      this.isShowDetail = true;
+      this.curRowData = row;
+      return { row, key };
+    }
   }
   handleFilterChange() {}
 
@@ -159,7 +195,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     const operationCol = (
       <bk-table-column
         scopedSlots={{
-          default: ({ row }) => {
+          default: () => {
             return (
               <div class='multi-view-table-link'>
                 <bk-dropdown-menu
@@ -204,18 +240,13 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     const baseCol = this.tableColumn.map(item => (
       <bk-table-column
         key={item.prop}
-        label={item.label}
-        prop={item.prop}
-        {...{ props: item.props }}
         scopedSlots={{
-          default: ({ row, $index }) => (
+          default: ({ row }) => (
             <span
-              class='multi-view-table-link'
+              class={['multi-view-table-link', { 'block-link': !row[item.prop] }]}
               v-bk-overflow-tips
             >
-              <span onClick={() => this.handleShowDetail(row, item.prop)}>
-                {row[item.prop] || `${item.prop}${$index}`}
-              </span>
+              <span onClick={() => this.handleShowDetail(row, item.prop)}>{row[item.prop] || '--'}</span>
               <i
                 class='icon-monitor icon-mc-copy tab-row-icon'
                 onClick={() => this.copyValue(row[item.prop])}
@@ -223,29 +254,60 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             </span>
           ),
         }}
+        label={item.label}
+        prop={item.prop}
       />
     ));
     return [baseCol, operationCol];
   }
+  /** 检查是否需要保留2位小数 */
+  formatToTwoDecimalPlaces(value: number) {
+    if (!value) {
+      return;
+    }
+    // 首先检查值是否为数字
+    if (typeof value !== 'number') {
+      throw new Error('Input must be a number');
+    }
+    // 将数字转换为字符串并分割为整数部分和小数部分
+    const parts = value.toString().split('.');
+
+    // 检查小数部分是否存在以及其长度是否大于2
+    if (parts.length > 1 && parts[1].length > 2) {
+      // 如果小数部分多于两位，使用 toFixed 方法保留两位小数
+      return Number.parseFloat(value.toFixed(2));
+    }
+    return value;
+  }
   // 渲染tab表格的列
   handleMultiTabColumn() {
     const curColumn = this.panels.find(item => item.id === this.active);
+    const prefix = ['growth_rates', 'proportions', 'success_rate', 'exception_rate', 'timeout_rate'];
+    /** 是否需要展示百分号 */
+    const hasPrefix = (fieldName: string) => prefix.some(pre => fieldName.startsWith(pre));
     return (curColumn.columns || []).map(item => (
       <bk-table-column
         key={item.prop}
         scopedSlots={{
-          default: ({ row, $index }) => (
-            <span
-              class='multi-view-table-txt'
-              v-bk-overflow-tips
-            >
-              <span onClick={() => this.handleShowDetail(row, item.prop)}>{row[item.prop] || `96${$index}`}</span>
-              <i
-                class='icon-monitor icon-mc-line tab-row-icon'
-                onClick={() => this.handleDimension(row, 'request')}
-              />
-            </span>
-          ),
+          default: ({ row }) => {
+            const txt = hasPrefix(item.prop)
+              ? row[item.prop]
+                ? `${this.formatToTwoDecimalPlaces(row[item.prop])}%`
+                : '--'
+              : this.formatToTwoDecimalPlaces(row[item.prop]) || '--';
+            return (
+              <span
+                class='multi-view-table-txt'
+                v-bk-overflow-tips
+              >
+                <span onClick={() => this.handleShowDetail(row, item.prop)}>{txt}</span>
+                <i
+                  class='icon-monitor icon-mc-line tab-row-icon'
+                  onClick={() => this.handleDimension(row, 'request')}
+                />
+              </span>
+            );
+          },
         }}
         label={item.label}
         prop={item.prop}
