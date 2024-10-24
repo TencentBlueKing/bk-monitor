@@ -3159,8 +3159,9 @@ class CollectorHandler(object):
         # 注入索引集标签
         tag_id = IndexSetTag.get_tag_id(data["bcs_cluster_id"])
         is_send_create_notify = False
+        enable_stdout_created = False
         for config in data["config"]:
-            if config["paths"]:
+            if config["paths"] and not is_send_create_notify:
                 # 创建路径采集项
                 path_collector_config = self.create_bcs_collector(
                     {
@@ -3190,7 +3191,7 @@ class CollectorHandler(object):
                 # 注入索引集标签
                 IndexSetHandler(path_collector_config.index_set_id).add_tag(tag_id=tag_id)
 
-            if config["enable_stdout"]:
+            if config["enable_stdout"] and not enable_stdout_created:
                 # 创建标准输出采集项
                 std_collector_config = self.create_bcs_collector(
                     {
@@ -3227,6 +3228,8 @@ class CollectorHandler(object):
                 ).first()
                 if collector_config_obj:
                     parent_container_config_id = collector_config_obj.collector_config_id
+
+                enable_stdout_created = True
 
         container_collector_config_list = []
         for config in data["config"]:
