@@ -412,6 +412,9 @@ export interface IApdexChartOption {
 export type PanelOption = {
   legend?: ILegendOption;
   unit?: string; // 单位
+  is_support_compare: boolean;
+  is_support_group_by: boolean;
+  need_zr_click_event?: boolean; // 是否需要zrender click 事件
   header?: {
     tips: string; // 提示
   };
@@ -527,7 +530,17 @@ export class PanelModel implements IPanelModel {
       if (key === 'targets') {
         this.targets = model[key].map(item => new DataQuery(item));
       } else if (key === 'extra_panels') {
-        this.extra_panels = model[key]?.map(item => new PanelModel(item)) || [];
+        this.extra_panels =
+          model[key]?.map(
+            item =>
+              new PanelModel({
+                ...item,
+                options: {
+                  ...item.options,
+                  need_zr_click_event: true,
+                },
+              })
+          ) || [];
       } else {
         this[key] = model[key];
       }
