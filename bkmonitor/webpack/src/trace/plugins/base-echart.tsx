@@ -98,7 +98,7 @@ export const BaseChartProps = {
 export default defineComponent({
   name: 'BaseEchart',
   props: BaseChartProps,
-  emits: [...MOUSE_EVENTS, 'dataZoom', 'dblClick', 'store'],
+  emits: [...MOUSE_EVENTS, 'dataZoom', 'dblClick', 'store', 'loaded'],
   setup(props, { emit }) {
     const chartRef = ref<HTMLDivElement>();
     // 当前图表配置
@@ -323,6 +323,7 @@ export default defineComponent({
         curChartOption.value = instance.value.getOption();
         props.groupId && (instance.value.group = props.groupId);
         instance.value.on('dataZoom', handleDataZoom);
+        emit('loaded');
       }
     }
     function handleDataZoom(event: { batch: [any] }) {
@@ -371,7 +372,6 @@ export default defineComponent({
     }
     // 初始化chart Action
     function initChartAction() {
-      console.info(props.toolbox, '+++++=');
       if (props.toolbox.includes(Toolbox.DataZoom)) {
         dispatchAction({
           type: 'takeGlobalCursor',

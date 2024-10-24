@@ -23,9 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref } from 'vue';
-import { computed } from 'vue';
-import { shallowRef } from 'vue';
+import { defineComponent, ref, nextTick, watch, type PropType, shallowRef, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
@@ -42,18 +40,26 @@ export default defineComponent({
       type: Object,
       default: () => null,
     },
+    comparisonDate: {
+      type: Array as PropType<number[]>,
+      default: () => [],
+    },
     title: {
       type: String,
       default: '',
     },
     colorIndex: {
       type: Number,
+      default: 0,
     },
   },
   emits: ['brushEnd'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    const baseEchart = ref(null);
+    const options = ref();
     const defaultOptions = {
+      animation: false,
       xAxis: [
         {
           type: 'time',
@@ -125,7 +131,6 @@ export default defineComponent({
       },
     };
     const brushCoordRange = shallowRef<number[]>([]);
-    const isBrushing = ref(false);
     const getSeriesData = (isCustom = false) => {
       if (!props.data?.datapoints?.length) return [];
       const data = props.data.datapoints.map(item => [item[1], item[0]]);
@@ -158,8 +163,20 @@ export default defineComponent({
       }
       return customData;
     };
-    const options = computed(() => {
-      return {
+
+    watch(
+      () => props.comparisonDate,
+      val => {
+        brushCoordRange.value = val;
+      },
+      {
+        immediate: true,
+      }
+    );
+
+    watchEffect(() => {
+      if (!props.data) return;
+      options.value = {
         ...defaultOptions,
         series: [
           {
@@ -196,28 +213,57 @@ export default defineComponent({
                 }),
               };
             },
+            tooltip: {
+              show: false,
+            },
             data: getSeriesData(true),
             z: 100000,
             silent: true,
           },
         ],
-        ...(isBrushing.value ? { tooltip: false } : {}),
       };
+      nextTick(() => {
+        setChartBrush();
+      });
     });
-    function handleBrushEnd(val) {
-      isBrushing.value = false;
-      brushCoordRange.value = val.areas?.[0]?.coordRange || [];
-      emit('brushEnd', val);
+
+    /** 设置图表框选区域 */
+    function setChartBrush() {
+      baseEchart.value?.dispatchAction({
+        type: 'brush',
+        areas: brushCoordRange.value.length
+          ? [
+              {
+                brushType: 'lineX',
+                xAxisIndex: 0,
+                coordRange: brushCoordRange.value,
+              },
+            ]
+          : [],
+      });
+    }
+
+    function handleBrushEnd(data) {
+      const coordRange = data.areas?.[0]?.coordRange || [];
+      if (coordRange.length) {
+        brushCoordRange.value = data.areas?.[0]?.coordRange || [];
+        emit('brushEnd', brushCoordRange.value);
+      }
     }
     function handleBrush(data) {
-      if (!brushCoordRange.value.length) return;
-      isBrushing.value = true;
-      brushCoordRange.value = data.areas?.[0]?.coordRange || [];
+      const coordRange = data.areas?.[0]?.coordRange || [];
+      if (coordRange.length) {
+        brushCoordRange.value = data.areas?.[0]?.coordRange || [];
+      } else {
+        setChartBrush();
+      }
     }
 
     return {
       t,
+      baseEchart,
       options,
+      setChartBrush,
       handleBrushEnd,
       handleBrush,
     };
@@ -227,11 +273,13 @@ export default defineComponent({
 
     return (
       <BaseEchart
+        ref='baseEchart'
         notMerge={false}
         options={this.options}
         toolbox={[Toolbox.Brush, Toolbox.DataZoom]}
         onBrush={this.handleBrush}
         onBrushEnd={this.handleBrushEnd}
+        onLoaded={this.setChartBrush}
       />
     );
   },

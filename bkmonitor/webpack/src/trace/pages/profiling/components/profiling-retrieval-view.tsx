@@ -64,8 +64,25 @@ export default defineComponent({
 
     const comparisonPosition = reactive([]);
     const trendChartData = ref([]);
+    /** 图表时间范围 */
+    const chartTime = reactive({
+      start: 0,
+      end: 0,
+      mid: 0,
+    });
+    /**
+     * 获取trend图表数据
+     * @param data 图表数据
+     */
     function handleChartData(data) {
       trendChartData.value = data;
+      if (data.length) {
+        const len = data[0].datapoints.length;
+        chartTime.start = data[0].datapoints[0][1];
+        chartTime.end = data[0].datapoints[len - 1][1];
+        chartTime.mid = chartTime.start + (chartTime.end - chartTime.start) / 2;
+        setDefaultDate();
+      }
     }
 
     const trendQueryParams = computed(() => {
@@ -85,16 +102,34 @@ export default defineComponent({
     watch(
       () => props.formData.dateComparison.enable,
       val => {
-        if (!val) comparisonPosition.splice(0);
+        if (!val) {
+          comparisonPosition.splice(0);
+        } else {
+          setDefaultDate();
+        }
       }
     );
 
+    /**
+     * 设置对比项默认框选时间
+     */
+    function setDefaultDate() {
+      if (!trendChartData.value.length || !props.formData.dateComparison.enable) return;
+      comparisonPosition[0] = [chartTime.start, chartTime.mid];
+      comparisonPosition[1] = [chartTime.mid, chartTime.end];
+      handleComparisonDateChange();
+    }
+
     function handleBrushEnd(data, type) {
       if (type === 'search') {
-        comparisonPosition[0] = data.areas[0].coordRange;
+        comparisonPosition[0] = data;
       } else {
-        comparisonPosition[1] = data.areas[0].coordRange;
+        comparisonPosition[1] = data;
       }
+      handleComparisonDateChange();
+    }
+
+    function handleComparisonDateChange() {
       emit('comparisonDateChange', {
         enable: props.formData.dateComparison.enable,
         start: comparisonPosition[0]?.[0],
@@ -150,6 +185,7 @@ export default defineComponent({
               <div class='chart-wrap'>
                 <ComparisonChart
                   colorIndex={0}
+                  comparisonDate={this.comparisonPosition[0]}
                   data={this.trendChartData[0]}
                   title={this.t('查询项')}
                   onBrushEnd={val => this.handleBrushEnd(val, 'search')}
@@ -161,6 +197,7 @@ export default defineComponent({
               <div class='chart-wrap'>
                 <ComparisonChart
                   colorIndex={1}
+                  comparisonDate={this.comparisonPosition[1]}
                   data={this.trendChartData[1]}
                   title={this.t('对比项')}
                   onBrushEnd={val => this.handleBrushEnd(val, 'comparison')}
