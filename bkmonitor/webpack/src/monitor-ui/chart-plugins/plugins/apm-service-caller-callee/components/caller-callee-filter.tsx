@@ -37,7 +37,7 @@ import { VariablesService } from '../../../utils/variable';
 import { SYMBOL_LIST } from '../utils';
 
 import type { PanelModel } from '../../../typings';
-import type { IServiceConfig, CallOptions, IFilterData } from '../type';
+import type { CallOptions, IFilterData } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
@@ -45,9 +45,7 @@ import './caller-callee-filter.scss';
 
 interface ICallerCalleeFilterProps {
   panel: PanelModel;
-  searchList?: IServiceConfig[];
-  filterData?: IServiceConfig[];
-  activeKey: string;
+  activeKey?: string;
 }
 interface ICallerCalleeFilterEvent {
   onReset?: () => void;
@@ -81,7 +79,6 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   handleReset() {
     const data = (this.filterData[this.activeKey] || []).map(item => Object.assign(item, { method: 'eq', value: [] }));
     this.filterData[this.activeKey] = data;
-    return this.filterData[this.activeKey];
   }
   changeSelect(val, item) {
     return { val, item };
@@ -93,6 +90,7 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   get commonOptions() {
     return this.panel?.options?.common || {};
   }
+
   get variablesData() {
     return this.commonOptions?.variables?.data || {};
   }
@@ -103,14 +101,29 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
     this.initDefaultData();
   }
   initDefaultData() {
+    const callFilter = this.callOptions.call_filter || [];
+    if (callFilter.length > 0) {
+      callFilter.map(item => this.handleToggle(true, item.key));
+    }
     const { caller, callee } = this.angleData;
     const createFilterData = tags =>
-      (tags || []).map(item => ({
-        key: item.value,
-        method: 'eq',
-        value: [],
-        condition: 'and',
-      }));
+      (tags || []).map(item => {
+        const def = callFilter.find(ele => item.value === ele.key);
+        if (def?.value && def.method === 'reg') {
+          const firstValue = def.value[0];
+
+          if (firstValue.startsWith('.*') || firstValue.endsWith('.*')) {
+            def.method = firstValue.startsWith('.*') ? 'after_req' : 'before_req';
+            def.value = def.value.map(item => item.replace(/^\.\*|\.\*$/g, ''));
+          }
+        }
+        return {
+          key: item.value,
+          method: def?.method || 'eq',
+          value: def?.value || [],
+          condition: 'and',
+        };
+      });
     const createFilterTags = tags => (tags || []).map(item => ({ ...item, values: [] }));
 
     // 使用通用函数生成数据
@@ -180,7 +193,7 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
         );
         this.$set(this.filterTags, this.activeKey, newFilter);
       })
-      .catch(() => (this.isLoading = true));
+      .catch(() => (this.isLoading = false));
   }
   render() {
     return (
@@ -218,6 +231,7 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
                   <bk-select
                     v-model={this.filterData[this.activeKey][ind].value}
                     loading={item.value === this.toggleKey && this.isLoading}
+                    placeholder={item.text}
                     allow-create
                     collapse-tag
                     display-tag

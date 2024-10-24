@@ -88,8 +88,8 @@ export type CallOptions = {
 };
 
 export type IFilterData = {
-  caller: IFilterCondition[];
-  callee: IFilterCondition[];
+  caller: IColumn[];
+  callee: IColumn[];
 };
 
 export interface ITabItem {
