@@ -602,6 +602,31 @@ export interface IVariableModel {
   /** 根据当前请求接口数据的映射规则生成id */
   handleCreateItemId: (item: object, isFilterDict?: boolean) => string;
 }
+
+class VariableDataQuery extends DataQuery {
+  /** 根据接口数据提取对应的filter_dict值 */
+  handleCreateFilterDictValue(data: object, isFilterDict = false, fieldsSort?: FieldsSortType) {
+    const localFieldsSort = fieldsSort || this.fieldsSort;
+    let isExist = true;
+    const result = localFieldsSort.reduce((total, cur) => {
+      const [itemKey, filterDictKey] = cur;
+      let value = data?.[isFilterDict ? filterDictKey : itemKey];
+      value === undefined && isExist && (isExist = false);
+      value =
+        this.isMultiple || ['pod_name_list'].includes(itemKey)
+          ? Array.isArray(value)
+            ? value
+            : [value]
+          : isObject(value)
+            ? value.value
+            : value; // 兼容对象结构的value
+      total[filterDictKey] = value;
+      return total;
+    }, {});
+    return isExist ? result : null;
+  }
+}
+
 /** 变量数据类 */
 export class VariableModel implements IVariableModel {
   checked = true;
@@ -616,7 +641,7 @@ export class VariableModel implements IVariableModel {
   constructor(model) {
     Object.keys(model || {}).forEach(key => {
       if (key === 'targets') {
-        this.targets = model[key].map(item => new DataQuery(item, model.options?.variables?.multiple ?? false));
+        this.targets = model[key].map(item => new VariableDataQuery(item, model.options?.variables?.multiple ?? true));
         const target = this.targets[0];
         this.fields = target.fields;
         this.fieldsSort = target.fieldsSort;
