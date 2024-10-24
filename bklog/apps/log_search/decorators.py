@@ -43,7 +43,6 @@ def search_history_record(func):
         history_obj = result.data.get("history_obj")
         union_search_history_obj = result.data.get("union_search_history_obj")
         if history_obj:
-            history_obj["params"]
             obj = UserIndexSetSearchHistory.objects.create(
                 index_set_id=history_obj["index_set_id"],
                 params=history_obj["params"],
