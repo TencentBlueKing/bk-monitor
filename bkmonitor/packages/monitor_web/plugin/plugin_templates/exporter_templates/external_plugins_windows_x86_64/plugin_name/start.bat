@@ -23,7 +23,7 @@ ping -n 2 127.0.0.1>nul
 echo process tried to start
 echo checking process status...
 
-wmic process where name="{{ plugin_id }}.exe" get name,executablepath,processid | find "%script_path%" > nul
+wmic process where name="{{ plugin_id }}.exe" get name,executablepath,processid | find "%script_path%">nul
 
 if %ERRORLEVEL% NEQ 0 (
   echo process exited too quickly

@@ -32,6 +32,7 @@ from rest_framework.exceptions import ValidationError
 from bkmonitor.utils import consul
 from bkmonitor.utils.k8s_metric import get_built_in_k8s_events, get_built_in_k8s_metrics
 from bkmonitor.utils.request import get_app_code_by_request, get_request
+from constants.data_source import DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import Resource, api
 from metadata import config, models
 from metadata.config import ES_ROUTE_ALLOW_URL
@@ -1804,8 +1805,8 @@ class KafkaTailResource(Resource):
         # 若Kafka集群注册自计算平台，说明使用2.4+鉴权，使用confluent_kafka库
         if mq_ins.registered_system == models.ClusterInfo.BKDATA_REGISTERED_SYSTEM:
             result = self._consume_with_confluent_kafka(mq_ins, datasource, size)
-        # 查询 ds 判断是否是v4协议接入 Todo: 临时逻辑-需要链路同学整合
-        elif datasource.created_from == 'bkdata':
+        # 查询 ds 判断是否是v4协议接入
+        elif datasource.datalink_version == DATA_LINK_V4_VERSION_NAME:
             result = self._consume_with_gse_config(datasource, size)
         else:
             result = self._consume_with_kafka_python(datasource, size)
