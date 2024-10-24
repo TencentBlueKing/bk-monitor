@@ -378,13 +378,11 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         diagram_types = data["diagram_types"]
         options = {"sort": data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
-        print("options: ", options)
         if data.get("is_compared"):
             start_time = data["diff_filter_labels"].pop("start", "")
             end_time = data["diff_filter_labels"].pop("end", "")
             if start_time and end_time:
                 start, end = self._enlarge_duration(start_time, end_time, offset=data["offset"])
-                print(start, end)
             diff_tree_converter = self.query(
                 bk_biz_id=essentials["bk_biz_id"],
                 app_name=essentials["app_name"],
@@ -410,13 +408,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             return Response(data=data)
 
         diagram_dicts = (get_diagrammer(d_type).draw(tree_converter, **options) for d_type in diagram_types)
-
-        for diagram_dict in diagram_dicts:
-            # print("diagram_dict: ",diagram_dict)
-            for key, value in diagram_dict.items():
-                # print(key, value)
-                data.update({key: value})
-        # data = {k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()}
+        data = {k: v for diagram_dict in diagram_dicts for k, v in diagram_dict.items()}
         data.update(tree_converter.get_sample_type())
         data.update(tendency_result)
         return Response(data=data)
