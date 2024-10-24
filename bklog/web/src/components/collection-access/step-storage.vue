@@ -401,7 +401,8 @@
             separator: '',
             enable_retain_content: true, // 保留失败日志
             path_regexp: '', // 采集路径分割的正则
-            // separator_field_list: ''
+            // separator_field_list: '',
+            metadata_fields: [],
           },
           fields: [],
           view_roles: [],
@@ -837,6 +838,13 @@
         } = this.formData;
         const isNeedAssessment = this.getNeedAssessmentStatus();
         const isOpenHotWarm = this.selectedStorageCluster.enable_hot_warm;
+
+        etlParams.metadata_fields =
+          etlParams?.metadata_fields?.map(item => {
+            item.metadata_type = 'path';
+            return item;
+          }) ?? [];
+
         const data = {
           etl_config,
           table_id,
@@ -851,11 +859,12 @@
             retain_extra_json: etlParams.retain_extra_json ?? false,
             original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
             original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
-            separator_regexp: etlParams.separator_regexp,
+            separator_regexp: etlParams.separator === 'bk_log_regexp' ? etlParams.separator_regexp : '',
             separator: etlParams.separator,
             enable_retain_content: etlParams.enable_retain_content,
             record_parse_failure: etlParams.enable_retain_content,
             path_regexp: etlParams.path_regexp,
+            metadata_fields: etlParams.metadata_fields,
           },
           fields,
           assessment_config: {

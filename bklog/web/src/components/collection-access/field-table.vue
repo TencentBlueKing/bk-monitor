@@ -418,7 +418,7 @@
             </bk-table-column>
             <!-- 操作 -->
             <bk-table-column
-              v-if="getOperatorDisabled"
+              v-if="getOperatorDisabled && !isPreviewMode"
               width="60"
               :label="$t('操作')"
               :render-header="$renderHeader"
@@ -448,11 +448,14 @@
     </div>
 
     <div class="preview-panel-right">
-      <div class="preview-title preview-item">{{ $t('预览（值）') }}</div>
+      <div class="preview-title preview-item">
+        {{ $t('预览（值）') }}
+      </div>
       <template v-if="deletedVisible">
         <div
           v-for="(row, index) in hideDeletedTable"
           class="preview-item"
+          :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
           :key="index"
           :title="row.value"
         >
@@ -463,6 +466,7 @@
         <div
           v-for="(row, index) in tableList"
           class="preview-item"
+          :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
           :key="index"
           :title="row.value"
         >
@@ -789,7 +793,6 @@
         this.$set(row, 'is_case_sensitive', this.currentIsCaseSensitive);
         this.$set(row, 'tokenize_on_chars', this.currentTokenizeOnChars);
         this.$set(row, 'participleState', this.currentParticipleState);
-        this.$set(row, 'isEdited', true);
       },
       handelChangeAnalyzed() {
         if (!this.currentIsAnalyzed) {
@@ -1220,7 +1223,7 @@
       border-radius: 0 2px 2px 0;
 
       .preview-item {
-        height: 51px;
+        height: 43px;
         padding: 0 10px;
         overflow: hidden;
         line-height: 43px;
