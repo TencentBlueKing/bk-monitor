@@ -63,8 +63,6 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
   @Prop({ type: Array }) filterData: IServiceConfig[];
   @Prop({ type: Array }) searchList: IServiceConfig[];
   @Prop({ type: Array }) tableColData: IColumn[];
-  // @Prop({ type: Array }) tableListData: IDataItem[];
-  // @Prop({ type: Array }) tableTabData: IDataItem[];
 
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
@@ -80,6 +78,8 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
   tableTabData = [];
   @Watch('viewOptions', { deep: true })
   onViewOptionsChanges() {
+    this.tableTabData = [];
+    this.tableListData = [];
     this.getTableDataList();
   }
 
@@ -112,6 +112,7 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
   get supportedCalculationTypes() {
     return this.statisticsData.supported_calculation_types;
   }
+
   get tagFilterList() {
     return (this.filterData || []).filter(item => item.value.length > 0);
   }
@@ -126,39 +127,47 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
       ...this.searchList,
     ];
   }
-  getTableDataList() {
+  /** 获取表格数据 */
+  getTableDataList(metric_cal_type = 'request_total') {
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const variablesService = new VariablesService({
       ...this.viewOptions,
       ...this.callOptions,
       ...{ kind: this.activeKey },
     });
+    // const timeShift = [...['0s'], ...this.callOptions.time_shift];
+    const timeShift = ['0s'];
     const newParams = {
       ...variablesService.transformVariables(this.statisticsData.data, {
         ...this.viewOptions,
       }),
       ...{
         group_by: this.chooseList,
-        time_ranges: [
-          {
-            alias: 'a',
-            start_time: startTime,
-            end_time: endTime,
-          },
-          ...this.callOptions.time_shift,
-        ],
-        metric_cal_type: 'request_total',
+        time_shifts: timeShift,
+        metric_cal_type,
+        baseline: '0s',
+        start_time: startTime,
+        end_time: endTime,
       },
     };
-    console.log(newParams, 'newParams', this.viewOptions);
     calculateByRange(newParams).then(res => {
       this.tableListData = [];
-      this.tableTabData = [];
       (res || []).map(item => {
-        this.tableListData.push(item.dimensions);
-        const growthRatesData = {};
-        Object.keys(item.growth_rates).map(key => (growthRatesData[`growth_rate_${key}`] = item.growth_rates[key]));
-        this.tableTabData.push({ ...item, ...growthRatesData });
+        const { dimensions, proportions, growth_rates } = item;
+        this.tableListData.push(dimensions);
+        const list = {};
+        timeShift.map(key => {
+          const baseKey = `${metric_cal_type}_${key}`;
+          list[baseKey] = item[key];
+          const addToListIfNotEmpty = (source, prefix) => {
+            if (Object.keys(source || {}).length > 0) {
+              list[`${prefix}_${baseKey}`] = source[key];
+            }
+          };
+          addToListIfNotEmpty(proportions, 'proportions');
+          addToListIfNotEmpty(growth_rates, 'growth_rates');
+        });
+        this.tableTabData.push(list);
       });
     });
   }
@@ -183,10 +192,11 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
       },
     ];
     this.chooseList = [item.value];
+    this.tableTabData = [];
     this.getTableDataList();
   }
   // 多视角时选择key
-  handleMultiple(val) {
+  handleMultiple() {
     this.tableColumn = [];
     this.chooseKeyList.map(item => {
       if (this.chooseList.includes(item.value)) {
@@ -197,7 +207,14 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
       }
       return item;
     });
+    this.tableTabData = [];
     this.getTableDataList();
+  }
+
+  tabChangeHandle(list: string[]) {
+    this.tableTabData = [];
+    list.map(item => this.getTableDataList(item));
+    console.log(this.tableTabData, ' this.tableTabData');
   }
   @Emit('closeTag')
   handleCloseTag(item) {
@@ -209,6 +226,7 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
   handleOperate(key: number) {
     return SYMBOL_LIST.find(item => item.value === key).label;
   }
+
   @Emit('handleDetail')
   handleShowDetail({ row, key }) {
     return { row, key };
@@ -217,7 +235,7 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
   handleDrill(option) {
     if (this.activeTabKey === 'multiple') {
       this.chooseList.push(option.value);
-      this.handleMultiple(this.chooseList);
+      this.handleMultiple();
     } else {
       this.chooseSingleField(option);
     }
@@ -300,12 +318,14 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
             <div class='layout-main-table'>
               <MultiViewTable
                 searchList={this.chooseKeyList}
+                supportedCalculationTypes={this.supportedCalculationTypes}
                 tableColData={this.tableColData}
                 tableColumn={this.tableColumn}
                 tableListData={this.tableListData}
                 tableTabData={this.tableTabData}
                 onDrill={this.handleDrill}
                 onShowDetail={this.handleShowDetail}
+                onTabChange={this.tabChangeHandle}
               />
             </div>
           </div>

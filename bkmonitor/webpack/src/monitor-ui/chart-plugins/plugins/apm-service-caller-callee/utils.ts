@@ -60,11 +60,11 @@ export const CHART_TYPE = [
 export const TAB_TABLE_REQUEST_COLUMN = [
   {
     label: '数值',
-    prop: 'a',
+    prop: 'request_total_0s',
   },
   {
     label: '占比',
-    prop: 'growth_rate_a',
+    prop: 'proportions_request_total_0s',
   },
 ];
 export const TAB_TABLE_TIMEOUT_COLUMN = [
@@ -110,12 +110,14 @@ export const TAB_TABLE_TYPE = [
   {
     label: '成功异常超时率',
     id: 'timeout',
-    columns: TAB_TABLE_TIMEOUT_COLUMN,
+    columns: [],
+    // columns: TAB_TABLE_TIMEOUT_COLUMN,
   },
   {
     label: '耗时(ms)',
     id: 'consuming',
-    columns: TAB_TABLE_CONSUMING_COLUMN,
+    columns: [],
+    // columns: TAB_TABLE_CONSUMING_COLUMN,
   },
 ];
 
