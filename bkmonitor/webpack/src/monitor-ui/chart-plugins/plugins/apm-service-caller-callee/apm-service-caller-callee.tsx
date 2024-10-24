@@ -134,7 +134,6 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       tool_mode: routeCallOptions.tool_mode || EParamsMode.contrast,
       kind: this.callType,
     };
-    this.panelsData = this.extraPanels.map(panel => new PanelModel(panel));
   }
 
   mounted() {
