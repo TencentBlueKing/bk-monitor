@@ -33,8 +33,8 @@ export const CALLER_CALLEE_TYPE = [
     label: '被调',
     id: 'callee',
   },
-];
-
+] as const;
+export type CallerCalleeType = (typeof CALLER_CALLEE_TYPE)[number]['id'];
 export const PERSPECTIVE_TYPE = [
   {
     label: '单视角',

@@ -29,15 +29,15 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 
-import { PanelModel } from '../../typings';
 import CallerCalleeContrast from './components/caller-callee-contrast';
 import CallerCalleeFilter from './components/caller-callee-filter';
 import CallerCalleeTableChart from './components/caller-callee-table-chart';
 import ChartView from './components/chart-view';
 import TabBtnGroup from './components/common-comp/tab-btn-group';
-import { SEARCH_KEY_LIST } from './SEARCH_KEY_LIST';
 import { EParamsMode, EPreDateType, type CallOptions } from './type';
-import { CALLER_CALLEE_TYPE } from './utils';
+import { CALLER_CALLEE_TYPE, type CallerCalleeType } from './utils';
+
+import type { PanelModel } from '../../typings';
 
 import './apm-service-caller-callee.scss';
 interface IApmServiceCallerCalleeProps {
@@ -56,12 +56,6 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   ) => void;
 
   @InjectReactive('customRouteQuery') customRouteQuery: Record<string, string>;
-  // 顶层注入数据
-  /** 过滤列表loading */
-  filterLoading = false;
-  variablesService = {};
-  // 筛选具体的key list
-  searchListData = SEARCH_KEY_LIST;
   filterData = {
     caller: [],
     callee: [],
@@ -72,36 +66,20 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     callee: [],
   };
   panelsData = [];
-  testData = [
-    {
-      caller_service: 'caller.collector.Unknown',
-      formal: 'formal',
-      now: 33,
-      yesterday: 23,
-    },
-    {
-      caller_service: 'caller.collector.UnknownHTTP',
-      formal: 'formal1',
-      now: 33,
-      yesterday: 23,
-    },
-  ];
-  tableListData = this.testData;
-  tableTabData = this.testData;
+  tableListData = [];
+  tableTabData = [];
   tabList = CALLER_CALLEE_TYPE;
-  activeKey = 'caller';
-  filterDataList = [];
+  callType: CallerCalleeType = 'caller';
   dateData = [];
   diffTypeData = [];
   tableColData = [];
   // panel 传递过来的一些变量
   get panelScopedVars() {
     const angel = this.panel?.options?.common?.angle || {};
-    const options = this.activeKey === 'caller' ? angel.caller : angel.callee;
+    const options = this.callType === 'caller' ? angel.caller : angel.callee;
     return {
       server: options.server,
       ...options?.metrics,
-      kind: this.activeKey,
     };
   }
 
@@ -139,7 +117,8 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
         routeCallOptions = {};
       }
     }
-    this.activeKey = routeCallOptions.kind || 'caller';
+    console.info('routeCallOptions', routeCallOptions);
+    this.callType = routeCallOptions.kind || 'caller';
     this.callOptions = {
       // panel 传递过来的一些变量
       ...this.panelScopedVars,
@@ -153,6 +132,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       // 左侧查询条件字段
       call_filter: routeCallOptions.call_filter || [],
       tool_mode: routeCallOptions.tool_mode || EParamsMode.contrast,
+      kind: this.callType,
     };
     this.panelsData = this.extraPanels.map(panel => new PanelModel(panel));
   }
@@ -163,18 +143,34 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
 
   replaceRouteQuery() {
     requestIdleCallback(() => {
+      const copyOptions: Partial<CallOptions> = {};
+      for (const [key, val] of Object.entries(this.callOptions)) {
+        if (
+          val === undefined ||
+          val === '' ||
+          val === 0 ||
+          (Array.isArray(val) && val.length < 1) ||
+          (key === 'tool_mode' && val === EParamsMode.contrast) ||
+          (key === 'kind' && val === 'caller') ||
+          key in this.panelScopedVars
+        )
+          continue;
+
+        copyOptions[key] = val;
+      }
       this.handleCustomRouteQueryChange({
-        callOptions: JSON.stringify(this.callOptions),
+        callOptions: JSON.stringify(copyOptions),
       });
     });
   }
 
   // 左侧主被调切换
-  changeTab(id: string) {
-    this.activeKey = id;
+  changeTab(id: CallerCalleeType) {
+    this.callType = id;
     this.callOptions = {
       ...this.callOptions,
       ...this.panelScopedVars,
+      call_filter: [], // todo
     };
     this.replaceRouteQuery();
   }
@@ -357,7 +353,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
         <div class='caller-callee-head'>
           <div class='caller-callee-left'>
             <TabBtnGroup
-              activeKey={this.activeKey}
+              activeKey={this.callType}
               list={this.tabList}
               onChange={this.changeTab}
             />
@@ -370,7 +366,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
               method={this.callOptions.method}
               metricCalType={this.callOptions.metric_cal_type}
               paramsMode={this.callOptions.tool_mode}
-              searchList={this.filterTags[this.activeKey]}
+              searchList={this.filterTags[this.callType]}
               supportedCalculationTypes={this.supportedCalculationTypes}
               supportedMethods={this.supportedMethods}
               onContrastDatesChange={this.handleContrastDatesChange}
@@ -397,7 +393,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
               slot='aside'
             >
               <CallerCalleeFilter
-                activeKey={this.activeKey}
+                activeKey={this.callType}
                 panel={this.panel}
                 onReset={this.resetFilterData}
                 onSearch={this.searchFilterData}
@@ -413,7 +409,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
               />
               <CallerCalleeTableChart
                 filterData={this.callOptions.call_filter}
-                searchList={this.filterTags[this.activeKey]}
+                searchList={this.filterTags[this.callType]}
                 tableColData={this.tableColData}
                 tableListData={this.tableListData}
                 tableTabData={this.tableTabData}
