@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -50,6 +50,12 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   @Prop({ required: true, type: Object }) panel: PanelModel;
 
   @ProvideReactive('callOptions') callOptions: CallOptions = {} as any;
+  // 同步route query
+  @Inject('handleCustomRouteQueryChange') handleCustomRouteQueryChange: (
+    customRouteQuery: Record<string, number | string>
+  ) => void;
+
+  @InjectReactive('customRouteQuery') customRouteQuery: Record<string, string>;
   // 顶层注入数据
   /** 过滤列表loading */
   filterLoading = false;
@@ -88,8 +94,6 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   dateData = [];
   diffTypeData = [];
   tableColData = [];
-  /* 对比/groupBy */
-  paramsMode = EParamsMode.contrast;
   // panel 传递过来的一些变量
   get panelScopedVars() {
     const angel = this.panel?.options?.common?.angle || {};
@@ -98,23 +102,6 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       server: options.server,
       ...options?.metrics,
       kind: this.activeKey,
-    };
-  }
-  @Watch('panel', { immediate: true })
-  handlePanelChange() {
-    this.panelsData = this.extraPanels.map(panel => new PanelModel(panel));
-    this.callOptions = {
-      // panel 传递过来的一些变量
-      ...this.panelScopedVars,
-      // group 字段
-      group_by: [],
-      method: '',
-      limit: 0,
-      metric_cal_type: '',
-      // 时间对比 字段
-      time_shift: [],
-      // 左侧查询条件字段
-      call_filter: [],
     };
   }
 
@@ -130,14 +117,6 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     return this.panelOptions?.common || {};
   }
 
-  get variablesData() {
-    return this.commonOptions?.variables?.data || {};
-  }
-
-  get statisticsOption() {
-    return this.commonOptions?.statistics;
-  }
-
   get supportedCalculationTypes() {
     return this.commonOptions?.group_by?.supported_calculation_types || [];
   }
@@ -150,15 +129,54 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     return this.commonOptions?.angle || {};
   }
 
-  // 左侧主被调切换
-  /*  */
+  @Watch('panel', { immediate: true })
+  handlePanelChange() {
+    let routeCallOptions: Partial<CallOptions> = {};
+    if (this.customRouteQuery?.callOptions?.length) {
+      try {
+        routeCallOptions = JSON.parse(this.customRouteQuery.callOptions);
+      } catch {
+        routeCallOptions = {};
+      }
+    }
+    this.activeKey = routeCallOptions.kind || 'caller';
+    this.callOptions = {
+      // panel 传递过来的一些变量
+      ...this.panelScopedVars,
+      // group 字段
+      group_by: routeCallOptions.group_by || [],
+      method: routeCallOptions.method || '',
+      limit: +routeCallOptions.limit || 0,
+      metric_cal_type: routeCallOptions.metric_cal_type || '',
+      // 时间对比 字段
+      time_shift: routeCallOptions.time_shift || [],
+      // 左侧查询条件字段
+      call_filter: routeCallOptions.call_filter || [],
+      tool_mode: routeCallOptions.tool_mode || EParamsMode.contrast,
+    };
+    this.panelsData = this.extraPanels.map(panel => new PanelModel(panel));
+  }
 
+  mounted() {
+    this.initDefaultData();
+  }
+
+  replaceRouteQuery() {
+    requestIdleCallback(() => {
+      this.handleCustomRouteQueryChange({
+        callOptions: JSON.stringify(this.callOptions),
+      });
+    });
+  }
+
+  // 左侧主被调切换
   changeTab(id: string) {
     this.activeKey = id;
     this.callOptions = {
       ...this.callOptions,
       ...this.panelScopedVars,
     };
+    this.replaceRouteQuery();
   }
 
   // 筛选查询
@@ -167,6 +185,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       ...this.callOptions,
       call_filter: structuredClone(data),
     };
+    this.replaceRouteQuery();
   }
   // 重置
   resetFilterData() {
@@ -174,6 +193,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       ...this.callOptions,
       call_filter: [],
     };
+    this.replaceRouteQuery();
   }
   // 关闭表格中的筛选tag, 调用查询接口
   handleCloseTag(data) {
@@ -219,6 +239,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       time_shift: timeShift,
     } as any;
     this.changeDate(val);
+    this.replaceRouteQuery();
   }
 
   changeDate(date) {
@@ -244,10 +265,10 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       group_by: val,
     } as any;
     this.handleCheck(val);
+    this.replaceRouteQuery();
   }
 
   handleParamsModeChange(val: EParamsMode) {
-    this.paramsMode = val;
     if (val === EParamsMode.contrast) {
       this.callOptions = {
         ...this.callOptions,
@@ -256,7 +277,8 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
         limit: 0,
         metric_cal_type: '',
         method: '',
-      } as any;
+        tool_mode: val,
+      };
     } else {
       this.callOptions = {
         ...this.callOptions,
@@ -265,8 +287,10 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
         limit: 10,
         metric_cal_type: this.supportedCalculationTypes?.[0]?.value || '',
         method: this.supportedMethods?.[0]?.value || '',
-      } as any;
+        tool_mode: val,
+      };
     }
+    this.replaceRouteQuery();
   }
 
   /** 点击选中图表里的某个点 */
@@ -306,10 +330,6 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     };
   }
 
-  mounted() {
-    this.initDefaultData();
-  }
-
   render() {
     return (
       <div class='apm-service-caller-callee'>
@@ -328,7 +348,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
               limit={this.callOptions.limit}
               method={this.callOptions.method}
               metricCalType={this.callOptions.metric_cal_type}
-              paramsMode={this.paramsMode}
+              paramsMode={this.callOptions.tool_mode}
               searchList={this.filterTags[this.activeKey]}
               supportedCalculationTypes={this.supportedCalculationTypes}
               supportedMethods={this.supportedMethods}
