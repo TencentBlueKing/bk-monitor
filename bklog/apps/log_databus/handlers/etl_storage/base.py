@@ -37,6 +37,7 @@ from apps.log_databus.constants import (
     FIELD_TEMPLATE,
     EtlConfig,
     MetadataTypeEnum,
+    PARSE_FAILURE_FIELD,
 )
 from apps.log_databus.exceptions import (
     EtlParseTimeFieldException,
@@ -288,22 +289,22 @@ class EtlStorage(object):
         if etl_params.get("record_parse_failure"):
             field_list.append(
                 {
-                    "field_name": "__parse_failure",
+                    "field_name": PARSE_FAILURE_FIELD,
                     "field_type": "boolean",
                     "tag": "dimension",
-                    "alias_name": "__parse_failure",
+                    "alias_name": PARSE_FAILURE_FIELD,
                     "description": _("清洗失败标记"),
                     "option": {
                         "es_type": "boolean",
                         "es_doc_values": True,
                         "es_include_in_all": False,
-                        "real_path": f"{self.separator_node_name}.__parse_failure",
+                        "real_path": f"{self.separator_node_name}.{PARSE_FAILURE_FIELD}",
                     }
                     if es_version.startswith("5.")
                     else {
                         "es_type": "boolean",
                         "es_doc_values": True,
-                        "real_path": f"{self.separator_node_name}.__parse_failure",
+                        "real_path": f"{self.separator_node_name}.{PARSE_FAILURE_FIELD}",
                     },
                 },
             )
@@ -587,6 +588,21 @@ class EtlStorage(object):
 
         return {"table_id": instance.table_id, "params": params}
 
+    @staticmethod
+    def get_max_fields_index(field_list: List[dict]):
+        """
+        得到field_list中最大的field_index
+        """
+        field_index_list = [0]
+        for item in field_list:
+            field_option = item.get("option")
+            if not field_option:
+                continue
+            field_index = field_option.get("field_index")
+            if field_index:
+                field_index_list.append(field_index)
+        return max(field_index_list)
+
     def add_metadata_path_configs(self, etl_path_regexp: str, result_table_config: dict):
         """
         往结果表中添加元数据的路径配置
@@ -594,9 +610,10 @@ class EtlStorage(object):
         :param result_table_config: 需要更新的结果表配置
         :return:
         """
-        # 加入路径的清洗配置
         if not etl_path_regexp:
             return
+
+        # 加入路径的清洗配置
         result_table_config["option"]["separator_configs"] = [
             {
                 "separator_node_name": self.path_separator_node_name,
@@ -606,13 +623,8 @@ class EtlStorage(object):
             }
         ]
 
-        # 得到field_list中最大的field_index
-        field_index_list = [0]
-        for item in result_table_config["field_list"]:
-            field_index = item["option"].get("field_index")
-            if field_index:
-                field_index_list.append(field_index)
-        etl_field_index = max(field_index_list) + 1
+        field_list = result_table_config["field_list"]
+        etl_field_index = self.get_max_fields_index(field_list) + 1
 
         pattern = re.compile(etl_path_regexp)
         match_fields = list(pattern.groupindex.keys())
@@ -689,7 +701,10 @@ class EtlStorage(object):
             # 如果有指定别名，则需要调转位置(field_name：ES入库的字段名称；alias_name：数据源的字段名称)
             field_option = field.get("option", {})
             if field_option.get("real_path"):
-                field["alias_name"] = field_option["real_path"].replace(f"{cls.separator_node_name}.", "")
+                if cls.path_separator_node_name in field_option["real_path"]:
+                    field["alias_name"] = field_option["real_path"].replace(f"{cls.path_separator_node_name}.", "")
+                else:
+                    field["alias_name"] = field_option["real_path"].replace(f"{cls.separator_node_name}.", "")
 
             if field.get("alias_name"):
                 field["field_name"], field["alias_name"] = field["alias_name"], field["field_name"]
@@ -817,3 +832,90 @@ class EtlStorage(object):
     @classmethod
     def _get_log_clustering_default_fields(cls):
         return {field["field_name"] for field in CollectorScenario.log_clustering_fields()}
+
+    def get_path_field_configs(self, etl_path_regexp: str, field_list: List[dict]):
+        """
+        获取路径清洗配置
+        """
+        if not etl_path_regexp:
+            return []
+
+        etl_field_index = self.get_max_fields_index(field_list) + 1
+        path_field_config_list = []
+        pattern = re.compile(etl_path_regexp)
+        match_fields = list(pattern.groupindex.keys())
+        for field_name in match_fields:
+            path_field_config_list.append(
+                {
+                    "description": "",
+                    "field_name": field_name,
+                    "field_type": "string",
+                    "option": {
+                        "metadata_type": MetadataTypeEnum.PATH.value,
+                        "es_doc_values": True,
+                        "es_type": "keyword",
+                        "field_index": etl_field_index,
+                        "real_path": f"{self.path_separator_node_name}.{field_name}"
+                    },
+                    "tag": "dimension",
+                }
+            )
+            etl_field_index += 1
+        return path_field_config_list
+
+    def separate_fields_config(self, field_list: List[dict]):
+        """
+        把log和path的字段配置分开
+        """
+        log_fields = []
+        path_fields = []
+        for item in field_list:
+            field_option = item.get("option") or {}
+            if self.path_separator_node_name in field_option.get("real_path", ""):
+                path_fields.append(item)
+            else:
+                log_fields.append(item)
+        return log_fields, path_fields
+
+    def add_path_configs(self, path_fields: List[dict], etl_path_regexp: str, bkdata_json_config):
+        """
+        把路径配置添加到bkdata_json_config中
+        """
+        if not etl_path_regexp or not path_fields:
+            return
+        path_config = {
+            "type": "access",
+            "subtype": "access_obj",
+            "label": "labeld3fa8a",
+            "key": "filename",
+            "result": "filename",
+            "default_type": "null",
+            "default_value": "",
+            "next": {
+                "type": "fun",
+                "method": "regex_extract",
+                "label": "label533df5",
+                "args": [
+                    {
+                        "result": "filename_item",
+                        "keys": [
+                            field["alias_name"]
+                            if field["alias_name"]
+                            else field["field_name"]
+                            for field in path_fields
+                        ],
+                        "regexp": etl_path_regexp.replace(
+                            "(?P<", "(?<"
+                        ),
+                    }
+                ],
+                "next": {
+                    "type": "assign",
+                    "subtype": "assign_obj",
+                    "label": "label04104e",
+                    "assign": [self._to_bkdata_assign(field) for field in path_fields],
+                    "next": None,
+                },
+            },
+        }
+        bkdata_json_config["extract"]["next"]["next"].append(path_config)
