@@ -187,7 +187,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   // 关闭表格中的筛选tag, 调用查询接口
   handleCloseTag(data) {
     if (data.key !== 'time') {
-      this.callOptions.call_filter.find(item => item.key === data.key).value = [];
+      this.callOptions.call_filter = this.callOptions.call_filter.filter(item => item.key !== data.key);
     }
     this.searchFilterData(this.callOptions.call_filter);
   }
@@ -241,7 +241,8 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     this.handleTableColData();
   }
   handleTableColData() {
-    this.tableColData = [...this.dateData, ...this.diffTypeData];
+    const callTimeShift = this.callOptions.time_shift.map(item => item.alias);
+    this.tableColData = callTimeShift.length === 2 ? callTimeShift : ['0s', ...callTimeShift];
   }
   handleGroupFilter() {}
   /**
@@ -390,7 +391,6 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
                 filterData={this.callOptions.call_filter}
                 panel={this.panel}
                 searchList={this.filterTags[this.callType]}
-                tableColData={this.tableColData}
                 tableListData={this.tableListData}
                 tableTabData={this.tableTabData}
                 onCloseTag={this.handleCloseTag}

@@ -101,6 +101,7 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
     this.initDefaultData();
   }
   initDefaultData() {
+    // const callFilter = this.callOptions.call_filter || [];
     const { caller, callee } = this.angleData;
     const createFilterData = tags =>
       (tags || []).map(item => ({
@@ -109,7 +110,11 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
         value: [],
         condition: 'and',
       }));
-    const createFilterTags = tags => (tags || []).map(item => ({ ...item, values: [] }));
+    const createFilterTags = tags =>
+      (tags || []).map(item => {
+        // const def = callFilter.find(ele => item.value === ele.key);
+        return { ...item, values: [] };
+      });
 
     // 使用通用函数生成数据
     this.filterData = {

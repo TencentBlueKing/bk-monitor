@@ -6,8 +6,7 @@
     margin-left: 6px;
   }
   .multi-view-left {
-    min-width: 30%;
-    max-width: 40%;
+    // max-width: 40%;
     flex: 1;
   }
   .multi-table-head,
@@ -18,7 +17,7 @@
     height: 85px !important;
   }
   .multi-view-right {
-    min-width: 650px;
+    min-width: 690px;
     max-width: 60%;
     .head-tab {
       width: 100%;

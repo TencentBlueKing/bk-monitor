@@ -43,7 +43,6 @@ import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 import './caller-callee-table-chart.scss';
 interface ICallerCalleeTableChartProps {
   tableColumn?: IColumn[];
-  tableColData?: IColumn[];
   searchList?: IServiceConfig[];
   tableListData?: IDataItem[];
   tableTabData?: IDataItem[];
@@ -60,9 +59,8 @@ interface ICallerCalleeTableChartEvent {
 export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartProps, ICallerCalleeTableChartEvent> {
   @Prop({ required: true, type: Object }) panel: PanelModel;
   @Prop({ required: true, type: String, default: '' }) activeKey: string;
-  @Prop({ type: Array }) filterData: IServiceConfig[];
+  @Prop({ type: Array }) filterData: IFilterCondition[];
   @Prop({ type: Array }) searchList: IServiceConfig[];
-  @Prop({ type: Array }) tableColData: IColumn[];
 
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
@@ -72,15 +70,20 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
   tabList = PERSPECTIVE_TYPE;
   activeTabKey = 'single';
   singleChooseField = '';
-  chooseList = [];
+  chooseList: string[] = [];
   tableColumn = [];
   tableListData = [];
   tableTabData = [];
+  tableColData: string[] = [];
   @Watch('viewOptions', { deep: true })
   onViewOptionsChanges() {
-    this.tableTabData = [];
-    this.tableListData = [];
-    this.getTableDataList();
+    this.tableColData = this.callOptions.time_shift.map(item => item.alias);
+    this.getPageList();
+  }
+  @Watch('callOptions', { deep: true })
+  onCallOptionsChanges(val) {
+    this.tableColData = val.time_shift.map(item => item.alias);
+    this.getPageList();
   }
 
   @Watch('activeKey', { immediate: true })
@@ -95,6 +98,16 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
         prop: defaultKey.value,
       },
     ];
+  }
+
+  getCallTimeShift() {
+    const callTimeShift = this.callOptions.time_shift.map(item => item.alias);
+    return callTimeShift.length === 2 ? callTimeShift : ['0s', ...callTimeShift];
+  }
+  getPageList() {
+    this.tableTabData = [];
+    this.tableListData = [];
+    this.getTableDataList();
   }
   /** 是否为单视图 */
   get isSingleView() {
@@ -135,8 +148,7 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
       ...this.callOptions,
       ...{ kind: this.activeKey },
     });
-    // const timeShift = [...['0s'], ...this.callOptions.time_shift];
-    const timeShift = ['0s'];
+    const timeShift = this.getCallTimeShift();
     const newParams = {
       ...variablesService.transformVariables(this.statisticsData.data, {
         ...this.viewOptions,
@@ -150,25 +162,30 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
         end_time: endTime,
       },
     };
+    newParams.where = [...newParams.where, ...this.callOptions.call_filter];
     calculateByRange(newParams).then(res => {
-      this.tableListData = [];
-      (res || []).map(item => {
+      const newData = (res || []).map(item => {
         const { dimensions, proportions, growth_rates } = item;
-        this.tableListData.push(dimensions);
-        const list = {};
+        const col = {};
         timeShift.map(key => {
           const baseKey = `${metric_cal_type}_${key}`;
-          list[baseKey] = item[key];
+          col[baseKey] = item[key];
           const addToListIfNotEmpty = (source, prefix) => {
             if (Object.keys(source || {}).length > 0) {
-              list[`${prefix}_${baseKey}`] = source[key];
+              col[`${prefix}_${baseKey}`] = source[key];
             }
           };
           addToListIfNotEmpty(proportions, 'proportions');
           addToListIfNotEmpty(growth_rates, 'growth_rates');
         });
-        this.tableTabData.push(list);
+        return Object.assign(item, dimensions, col);
       });
+      if (this.tableListData.length === 0) {
+        this.tableListData = newData;
+      } else {
+        this.tableListData.map((item, ind) => Object.assign(item, newData[ind]));
+      }
+      this.tableTabData = JSON.parse(JSON.stringify(this.tableListData));
     });
   }
 
@@ -212,9 +229,7 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
   }
 
   tabChangeHandle(list: string[]) {
-    this.tableTabData = [];
     list.map(item => this.getTableDataList(item));
-    console.log(this.tableTabData, ' this.tableTabData');
   }
   @Emit('closeTag')
   handleCloseTag(item) {
@@ -223,7 +238,7 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
   handleGetKey(key: string) {
     return this.chooseKeyList.find(item => item.value === key).text;
   }
-  handleOperate(key: number) {
+  handleOperate(key: string) {
     return SYMBOL_LIST.find(item => item.value === key).label;
   }
 

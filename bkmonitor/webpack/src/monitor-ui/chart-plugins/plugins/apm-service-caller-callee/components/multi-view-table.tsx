@@ -86,6 +86,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   request = ['request_total'];
   timeout = ['success_rate', 'timeout_rate', 'exception_rate'];
   consuming = ['avg_duration', 'p50_duration', 'p95_duration', 'p99_duration'];
+
   @Watch('supportedCalculationTypes', { immediate: true })
   handlePanelChange(val) {
     const txtVal = {
@@ -105,9 +106,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
 
   get dialogSelectList() {
-    // let list = [];
-    // this.panels.slice(0, 2).map(item => (list = [...list, ...item.columns]));
-    // return list;
     return LIMIT_TYPE_LIST;
   }
   get dialogPanel() {
@@ -127,7 +125,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     this.chartActive = id;
   }
   /** 动态处理表格要展示的数据 */
-  @Watch('tableColData')
+  @Watch('tableColData', { immediate: true })
   handleChangeCol(val) {
     const key = {
       '1d': '昨天',
@@ -156,6 +154,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         return val.length > 0 ? defaultCol : col;
       });
     });
+    console.log(this.panels);
   }
 
   @Emit('showDetail')
