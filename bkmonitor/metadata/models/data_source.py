@@ -25,6 +25,7 @@ from django.db.transaction import atomic
 from django.utils.translation import ugettext as _
 
 from bkmonitor.utils import consul
+from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata import config
@@ -34,8 +35,6 @@ from metadata.utils.basic import get_biz_id_by_space_uid
 
 from .common import Label, OptionBase
 from .constants import (
-    DATA_LINK_V3_VERSION_NAME,
-    DATA_LINK_V4_VERSION_NAME,
     IGNORED_CONSUL_SYNC_DATA_IDS,
     IGNORED_STORAGE_CLUSTER_TYPES,
     DataIdCreatedFromSystem,
