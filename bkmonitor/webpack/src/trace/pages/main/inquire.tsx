@@ -55,8 +55,8 @@ import {
   traceOptions,
 } from 'monitor-api/modules/apm_trace';
 import { createQueryHistory, destroyQueryHistory, listQueryHistory } from 'monitor-api/modules/model';
+import { skipToDocsLink } from 'monitor-common/utils/docs';
 import { deepClone, random } from 'monitor-common/utils/utils';
-import { handleGotoLink } from 'monitor-pc/common/constant';
 import { debounce } from 'throttle-debounce';
 
 import Condition from '../../components/condition/condition';
@@ -1194,7 +1194,7 @@ export default defineComponent({
           {t('可输入SQL语句进行快速查询')}
           <span
             class='link'
-            onClick={() => handleGotoLink('bkLogQueryString')}
+            onClick={() => skipToDocsLink('bkLogQueryString')}
           >
             {t('查看语法')}
             <i class='icon-monitor icon-mc-link' />
