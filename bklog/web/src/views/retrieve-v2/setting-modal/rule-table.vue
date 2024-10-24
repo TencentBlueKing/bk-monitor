@@ -25,146 +25,144 @@
 -->
 <template>
   <div class="cluster-table">
-    <!-- 聚类规则 -->
-    <div class="container-item table-container">
-      <p style="height: 32px">{{ $t('聚类规则') }}</p>
-      <div class="table-operate">
-        <bk-button
-          class="add-box"
-          :class="globalEditable ? 'btn-hover' : ''"
-          :disabled="!globalEditable"
-          size="small"
-          @click="isShowAddRule = true"
-        >
-          <i class="bk-icon icon-plus push"></i>
-          {{ $t('添加') }}
-        </bk-button>
-        <bk-button
-          style="min-width: 48px"
-          :class="globalEditable ? 'btn-hover' : ''"
-          :disabled="!globalEditable"
-          data-test-id="LogCluster_button_addNewRules"
-          size="small"
-          @click="handleFastAddRule"
-        >
-          {{ $t('导入') }}
-        </bk-button>
-        <bk-button
-          style="min-width: 48px"
-          :class="globalEditable ? 'btn-hover' : ''"
-          :disabled="!globalEditable"
-          size="small"
-          @click="() => handleExportRule()"
-        >
-          {{ $t('导出') }}
-        </bk-button>
-        <bk-button
-          style="min-width: 72px"
-          :class="globalEditable ? 'btn-hover' : ''"
-          :disabled="!globalEditable"
-          data-test-id="LogCluster_button_reductionRules"
-          size="small"
-          @click="reductionRule"
-        >
-          {{ $t('恢复默认') }}
-        </bk-button>
+    <rule-top-tools
+      ref="ruleTopToolsRef"
+      v-model="rulesList"
+      @show-table-loading="showTableLoading()"
+    />
+    <div
+      class="cluster-table"
+      data-test-id="LogCluster_div_rulesTable"
+    >
+      <div class="table-row flbc">
+        <div class="row-left">
+          <div class="row-left-index">{{ $t('序号') }}</div>
+          <div class="row-left-regular">{{ $t('正则表达式') }}</div>
+        </div>
+        <div class="row-right flbc">
+          <div>{{ $t('占位符') }}</div>
+          <div>{{ $t('操作') }}</div>
+        </div>
       </div>
 
       <div
-        class="cluster-table"
-        data-test-id="LogCluster_div_rulesTable"
+        v-if="rulesList.length > 0"
+        v-bkloading="{ isLoading: tableLoading }"
       >
-        <div class="table-row flbc">
-          <div class="row-left">
-            <div class="row-left-index">{{ $t('序号') }}</div>
-            <div class="row-left-regular">{{ $t('正则表达式') }}</div>
-          </div>
-          <div class="row-right flbc">
-            <div>{{ $t('占位符') }}</div>
-            <div>{{ $t('操作') }}</div>
-          </div>
-        </div>
-
-        <div
-          v-if="rulesList.length > 0"
-          v-bkloading="{ isLoading: tableLoading }"
+        <vue-draggable
+          v-bind="dragOptions"
+          v-model="rulesList"
         >
-          <vue-draggable
-            v-bind="dragOptions"
-            v-model="rulesList"
-          >
-            <transition-group>
-              <li
-                v-for="(item, index) in rulesList"
-                class="table-row table-row-li flbc"
-                :key="item.__Index__"
-              >
-                <div class="row-left">
-                  <div class="row-left-index">
-                    <span class="icon bklog-icon bklog-drag-dots"></span><span>{{ index }}</span>
-                  </div>
-                  <div class="regular-container">
-                    <register-column
-                      :context="Object.values(item)[0]"
-                      :root-margin="'-180px 0px 0px 0px'"
-                    >
-                      <cluster-event-popover
-                        :is-cluster="false"
-                        :placement="'top'"
-                        @event-click="operation => handleMenuClick(operation, item)"
-                      >
-                        <span class="row-left-regular"> {{ Object.values(item)[0] }}</span>
-                      </cluster-event-popover>
-                    </register-column>
-                  </div>
+          <transition-group>
+            <li
+              v-for="(item, index) in rulesList"
+              class="table-row table-row-li flbc"
+              :key="item.__Index__"
+            >
+              <div class="row-left">
+                <div class="row-left-index">
+                  <span class="icon bklog-icon bklog-drag-dots"></span><span>{{ index }}</span>
                 </div>
-                <div class="row-right flbc">
-                  <div>
-                    <span
-                      class="row-right-item"
-                      :ref="`placeholder-${index}`"
-                      >{{ Object.keys(item)[0] }}</span
+                <div class="regular-container">
+                  <register-column
+                    :context="Object.values(item)[0]"
+                    :root-margin="'-180px 0px 0px 0px'"
+                  >
+                    <cluster-event-popover
+                      :is-cluster="false"
+                      :placement="'top'"
+                      @event-click="() => handleMenuClick(item)"
                     >
-                  </div>
-                  <div class="rule-btn">
+                      <span class="row-left-regular"> {{ Object.values(item)[0] }}</span>
+                    </cluster-event-popover>
+                  </register-column>
+                </div>
+              </div>
+              <div class="row-right flbc">
+                <div>
+                  <span
+                    class="row-right-item"
+                    :ref="`placeholder-${index}`"
+                    >{{ Object.keys(item)[0] }}</span
+                  >
+                </div>
+                <div class="rule-btn">
+                  <bk-button
+                    style="margin-right: 10px"
+                    :disabled="!globalEditable"
+                    theme="primary"
+                    text
+                    @click="clusterAddRule(index)"
+                  >
+                    {{ $t('添加') }}
+                  </bk-button>
+                  <bk-button
+                    style="margin-right: 10px"
+                    :disabled="!globalEditable"
+                    theme="primary"
+                    text
+                    @click="clusterEdit(index)"
+                  >
+                    {{ $t('编辑') }}
+                  </bk-button>
+                  <bk-popover
+                    ref="deletePopoverRef"
+                    ext-cls="config-item"
+                    :tippy-options="tippyOptions"
+                  >
                     <bk-button
-                      style="margin-right: 10px"
                       :disabled="!globalEditable"
                       theme="primary"
                       text
-                      @click="clusterEdit(index)"
-                    >
-                      {{ $t('编辑') }}
-                    </bk-button>
-                    <bk-button
-                      :disabled="!globalEditable"
-                      theme="primary"
-                      text
-                      @click="clusterRemove(index)"
                     >
                       {{ $t('删除') }}
                     </bk-button>
-                  </div>
+                    <template #content>
+                      <div>
+                        <div class="popover-slot">
+                          <span>{{ $t('确定要删除当前规则？') }}</span>
+                          <div class="popover-btn">
+                            <bk-button
+                              text
+                              @click="clusterRemove(index)"
+                            >
+                              {{ $t('确定') }}
+                            </bk-button>
+                            <bk-button
+                              theme="danger"
+                              text
+                              @click="handleCancelDelete(index)"
+                            >
+                              {{ $t('取消') }}
+                            </bk-button>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                  </bk-popover>
                 </div>
-              </li>
-            </transition-group>
-          </vue-draggable>
-        </div>
-        <div
-          v-else
-          class="no-cluster-rule"
+              </div>
+            </li>
+          </transition-group>
+        </vue-draggable>
+      </div>
+      <div
+        v-else
+        class="no-cluster-rule"
+      >
+        <empty-status
+          :show-text="false"
+          empty-type="empty"
         >
-          <empty-status
-            :show-text="false"
-            empty-type="empty"
-          >
-            <div>{{ $t('暂无聚类规则') }}</div>
-          </empty-status>
-        </div>
+          <div>{{ $t('暂无聚类规则') }}</div>
+        </empty-status>
       </div>
     </div>
     <!-- 原始日志 -->
-    <div :class="{ 'debug-container': true, 'is-hidden': !isClickAlertIcon }">
+    <div
+      :class="{ 'debug-container': true, 'is-hidden': !isClickAlertIcon }"
+      v-bk-clickoutside="handleClickOutSide"
+    >
       <div
         class="debug-tool"
         @click="handleClickDebugButton"
@@ -174,12 +172,17 @@
       </div>
 
       <div class="debug-input-box">
+        <bk-alert
+          v-if="isChangeRule"
+          type="warning"
+          :title="$t('当前聚类规则有更变，请调试后进行保存')"
+        ></bk-alert>
         <div class="fl-jfsb mt18">
           <p style="height: 32px">{{ $t('原始日志') }}</p>
           <bk-button
             style="min-width: 48px"
-            :class="logOriginal !== '' && rulesList.length !== 0 ? 'btn-hover' : ''"
-            :disabled="!globalEditable || logOriginal === '' || rulesList.length === 0"
+            :class="logOriginal !== '' && !!rulesList.length ? 'btn-hover' : ''"
+            :disabled="!globalEditable || !logOriginal || !rulesList.length"
             :loading="debugRequest"
             size="small"
             @click="debugging"
@@ -213,7 +216,7 @@
             v-bkloading="{ isLoading: debugRequest, size: 'mini' }"
           >
             <text-highlight
-              style="word-break: break-all;"
+              style="word-break: break-all"
               class="monospace-text"
               :queries="getHeightLightList(effectOriginal)"
             >
@@ -221,94 +224,38 @@
             </text-highlight>
           </div>
         </div>
-      </div>
-    </div>
-    <!-- 添加规则dialog -->
-    <bk-dialog
-      width="640"
-      ext-cls="add-rule"
-      v-model="isShowAddRule"
-      :mask-close="false"
-      :title="isEditRules ? $t('编辑规则') : $t('添加规则')"
-      header-position="left"
-      @after-leave="cancelAddRuleContent"
-    >
-      <bk-form
-        ref="addRulesRef"
-        :label-width="200"
-        :model="addRulesData"
-        form-type="vertical"
-      >
-        <bk-form-item
-          :label="$t('正则表达式')"
-          :property="'regular'"
-          :rules="rules.regular"
-          required
+        <div
+          class="fl-jfsb"
+          style="margin-top: 10px"
         >
-          <bk-input
-            style="width: 560px"
-            v-model="addRulesData.regular"
-          ></bk-input>
-          <p>{{ $t('样例') }}：\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}</p>
-        </bk-form-item>
-        <bk-form-item
-          :label="$t('占位符')"
-          :property="'placeholder'"
-          :rules="rules.placeholder"
-          required
-        >
-          <bk-input
-            style="width: 560px"
-            v-model="addRulesData.placeholder"
-          ></bk-input>
-          <p>{{ $t('样例') }}：IP</p>
-        </bk-form-item>
-      </bk-form>
-      <template #footer>
-        <div class="flbc">
-          <div class="inspection-status">
-            <div
-              v-if="isClickSubmit"
-              class="inspection-status"
-            >
-              <div>
-                <bk-spin
-                  v-if="isDetection"
-                  class="spin"
-                  size="mini"
-                ></bk-spin>
-                <span
-                  v-else
-                  :style="`color:${isRuleCorrect ? '#45E35F' : '#FE5376'}`"
-                  :class="['bk-icon spin', isRuleCorrect ? 'icon-check-circle-shape' : 'icon-close-circle-shape']"
-                ></span>
-              </div>
-              <span style="margin-left: 24px">{{ detectionStr }}</span>
-            </div>
-          </div>
-
-          <div>
+          <span></span>
+          <div v-if="isChangeRule">
             <bk-button
-              :disabled="isDetection"
-              theme="primary"
-              @click="handleRuleSubmit"
+              :theme="'primary'"
+              :class="logOriginal !== '' && !!rulesList.length ? 'btn-hover' : ''"
+              :disabled="!globalEditable || !logOriginal || !rulesList.length || !effectOriginal"
+              :loading="submitLading"
+              @click="submitRuleChange"
             >
-              {{ isRuleCorrect ? $t('保存') : $t('检测语法') }}</bk-button
-            >
-            <bk-button @click="isShowAddRule = false">{{ $t('取消') }}</bk-button>
+              {{ $t('保存') }}
+            </bk-button>
+            <bk-button @click="() => (isClickAlertIcon = false)">
+              {{ $t('取消') }}
+            </bk-button>
           </div>
         </div>
-      </template>
-    </bk-dialog>
+      </div>
+    </div>
   </div>
 </template>
 <script>
-  import { copyMessage, base64Encode, base64Decode } from '@/common/util';
+  import { copyMessage, base64Encode } from '@/common/util';
   import EmptyStatus from '@/components/empty-status';
   import RegisterColumn from '@/views/retrieve/result-comp/register-column';
   import ClusterEventPopover from '@/views/retrieve/result-table-panel/log-clustering/components/cluster-event-popover';
   import TextHighlight from 'vue-text-highlight';
   import VueDraggable from 'vuedraggable';
+  import RuleTopTools from './component/rule-top-tools.vue';
 
   export default {
     components: {
@@ -317,15 +264,12 @@
       RegisterColumn,
       EmptyStatus,
       TextHighlight,
+      RuleTopTools,
     },
     props: {
       globalEditable: {
         type: Boolean,
         default: true,
-      },
-      defaultData: {
-        type: Object,
-        require: true,
       },
       tableStr: {
         type: String,
@@ -335,6 +279,10 @@
         type: Object,
         require: true,
       },
+      submitLading: {
+        type: Boolean,
+        default: true,
+      },
     },
     data() {
       return {
@@ -343,34 +291,11 @@
         logOriginal: '', // 日志源
         effectOriginal: '',
         isShowAddRule: false, // 是否展开添加规则弹窗
-        isRuleCorrect: false, // 检测语法是否通过
-        isEditRules: false, // 编辑聚类规则
         editRulesIndex: 0, // 当前编辑的index
-        isClickSubmit: false, // 是否点击添加
         isDetection: false, // 是否在检测
         debugRequest: false, // 调试中
-        detectionStr: '',
         isClickAlertIcon: false,
-        addRulesData: {
-          regular: '', // 添加聚类规则正则
-          placeholder: '', // 添加聚类规则占位符
-        },
-        rules: {
-          regular: [
-            {
-              validator: this.checkRegular,
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-          placeholder: [
-            {
-              regex: /^(?!.*:)\S+/,
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-        },
+        isChangeRule: false,
         logOriginalRequest: false, // 原始日志是否正在请求
         isFirstInitLogOrigin: false, // 是否第一次点击调试工具按钮
         dragOptions: {
@@ -379,124 +304,40 @@
           handle: '.bklog-drag-dots',
           'ghost-class': 'sortable-ghost-class',
         },
-        /** 快速导入的dom */
-        inputDocument: null,
+        tippyOptions: {
+          placement: 'bottom',
+          trigger: 'click',
+          theme: 'light',
+          interactive: true,
+        },
       };
     },
     watch: {
       tableStr: {
         handler(val) {
-          this.rulesList = this.base64ToRuleArr(val);
-        },
-      },
-      addRulesData: {
-        deep: true,
-        handler() {
-          this.resetDetection();
+          this.rulesList = this.$refs.ruleTopToolsRef.base64ToRuleArr(val);
         },
       },
       debugRequest(val) {
         this.$emit('debug-request-change', val);
       },
     },
-    mounted() {
-      this.initInputType();
-    },
-    beforeUnmount() {
+    beforeDestroy() {
       this.$emit('debug-request-change', false);
-      this.inputDocument.removeEventListener('change', this.inputFileEvent);
-      this.inputDocument = null;
     },
     methods: {
-      reductionRule() {
-        const ruleArr = this.base64ToRuleArr(this.tableStr);
-        if (ruleArr.length > 0) {
-          this.rulesList = ruleArr;
-          this.showTableLoading();
-        }
-      },
       clusterEdit(index) {
-        const [key, val] = Object.entries(this.rulesList[index])[0];
-        Object.assign(this.addRulesData, { regular: val, placeholder: key });
-        this.editRulesIndex = index;
-        this.isEditRules = true;
-        this.isShowAddRule = true;
+        this.$refs.ruleTopToolsRef.clusterEdit(index);
+      },
+      clusterAddRule(index) {
+        this.$refs.ruleTopToolsRef.clusterAddRule(index);
+      },
+      handleCancelDelete(index) {
+        this.$refs.deletePopoverRef[index].hideHandler();
       },
       clusterRemove(index) {
-        this.$bkInfo({
-          title: this.$t('是否删除该条规则？'),
-          confirmFn: () => {
-            this.rulesList.splice(index, 1);
-            this.showTableLoading();
-          },
-        });
-      },
-      /**
-       * @desc: 添加规则dialog
-       */
-      handleRuleSubmit() {
-        if (this.isRuleCorrect) {
-          this.showTableLoading();
-          const newRuleObj = {};
-          const { regular, placeholder } = this.addRulesData;
-          newRuleObj[placeholder] = regular;
-          // 添加渲染列表时不重复的key值
-          newRuleObj.__Index__ = new Date().getTime();
-          if (this.isEditRules) {
-            // 编辑规则替换编辑对象
-            this.rulesList.splice(this.editRulesIndex, 1, newRuleObj);
-          } else {
-            // 检测正则和占位符是否都重复 重复则不添加
-            const isRepeat = this.isRulesRepeat(newRuleObj);
-            !isRepeat && this.rulesList.push(newRuleObj);
-          }
-          this.isShowAddRule = false;
-        } else {
-          // 第一次点击检查时显示文案变化
-          this.isDetection = true;
-          this.isClickSubmit = true;
-          this.detectionStr = this.$t('检验中');
-          setTimeout(() => {
-            this.isDetection = false;
-            this.$refs.addRulesRef.validate().then(
-              () => {
-                this.isRuleCorrect = true;
-                this.detectionStr = this.$t('检验成功');
-              },
-              () => {
-                this.isRuleCorrect = false;
-                this.detectionStr = this.$t('检测失败');
-              },
-            );
-          }, 1000);
-        }
-      },
-      /**
-       * @desc: 关闭添加规则弹窗重置参数
-       */
-      cancelAddRuleContent() {
-        this.isRuleCorrect = false;
-        this.isEditRules = false;
-        this.isClickSubmit = false;
-        Object.assign(this.addRulesData, { regular: '', placeholder: '' });
-        this.$refs.addRulesRef.clearError();
-      },
-      base64ToRuleArr(str) {
-        try {
-          const ruleList = JSON.parse(base64Decode(str));
-          const ruleNewList = ruleList.reduce((pre, cur, index) => {
-            const itemObj = {};
-            const matchVal = cur.match(/:(.*)/);
-            const key = cur.substring(0, matchVal.index);
-            itemObj[key] = matchVal[1];
-            itemObj.__Index__ = index;
-            pre.push(itemObj);
-            return pre;
-          }, []);
-          return ruleNewList;
-        } catch (e) {
-          return [];
-        }
+        this.rulesList.splice(index, 1);
+        this.showTableLoading();
       },
       ruleArrToBase64(arr = []) {
         arr.length === 0 && (arr = this.rulesList);
@@ -517,11 +358,6 @@
       debugging() {
         this.debugRequest = true;
         this.effectOriginal = '';
-        // const inputData = {
-        //   dtEventTimeStamp: Date.parse(new Date()) / 1000,
-        //   log: this.logOriginal,
-        //   uuid: this.generationUUID(),
-        // };
         const predefinedVariables = this.ruleArrToBase64(this.rulesList);
         const query = {
           input_data: this.logOriginal,
@@ -535,18 +371,6 @@
           .finally(() => {
             this.debugRequest = false;
           });
-      },
-      /**
-       * @desc: 检测规则和占位符是否重复
-       * @param { Object } newRules 检测对象
-       * @returns { Boolean }
-       */
-      isRulesRepeat(newRules = {}) {
-        return this.rulesList.some(listItem => {
-          const [regexKey, regexVal] = Object.entries(newRules)[0];
-          const [listKey, listVal] = Object.entries(listItem)[0];
-          return regexKey === listKey && regexVal === listVal;
-        });
       },
       handleClickDebugButton() {
         this.isClickAlertIcon = !this.isClickAlertIcon;
@@ -582,30 +406,8 @@
             this.logOriginalRequest = false;
           });
       },
-      async checkRegular(val) {
-        const result = await this.checkRegularRequest(val);
-        return result;
-      },
-      // 检测数据名是否可用
-      async checkRegularRequest(val) {
-        try {
-          const res = await this.$http.request('logClustering/checkRegexp', {
-            data: { regexp: val },
-          });
-          if (res.data) {
-            return res.data;
-          }
-        } catch (error) {
-          return false;
-        }
-      },
-      handleMenuClick(option, item) {
+      handleMenuClick(item) {
         copyMessage(Object.values(item)[0]);
-      },
-      resetDetection() {
-        this.isDetection = false;
-        this.isClickSubmit = false;
-        this.isRuleCorrect = false;
       },
       showTableLoading() {
         this.tableLoading = true;
@@ -613,81 +415,23 @@
           this.tableLoading = false;
         }, 500);
       },
-      /** 导出规则 */
-      handleExportRule(filename = '') {
-        if (!this.rulesList.length) {
-          this.$bkMessage({
-            theme: 'error',
-            message: this.$t('聚类规则为空，无法导出规则'),
-          });
-          return;
-        }
-        const eleLink = document.createElement('a');
-
-        const date = new Date();
-        const Y = `${date.getFullYear()}`;
-        const M = `${date.getMonth() + 1 < 10 ? `0${date.getMonth() + 1}` : date.getMonth() + 1}`;
-        const D = `${date.getDate()}`;
-        const h = `${date.getHours()}`;
-        const m = `${date.getMinutes()}`;
-        const s = date.getSeconds();
-        const time = `${Y}${M}${D}${h}${m}${s}`;
-        eleLink.download = filename || `bk_log_search_download_${time}.json`;
-        eleLink.style.display = 'none';
-        const jsonStr = this.rulesList.reduce((pre, cur, index) => {
-          const entriesArr = Object.entries(cur);
-          pre[index] = {
-            placeholder: entriesArr[0][0],
-            rule: entriesArr[0][1],
-          };
-          return pre;
-        }, {});
-        // 字符内容转变成blob地址
-        const blob = new Blob([JSON.stringify(jsonStr, null, 4)]);
-        eleLink.href = URL.createObjectURL(blob);
-        // 触发点击
-        document.body.appendChild(eleLink);
-        eleLink.click();
-        document.body.removeChild(eleLink);
-      },
-      /** 快速添加规则 */
-      handleFastAddRule() {
-        this.inputDocument.click(); // 本地文件回填
-      },
-      initInputType() {
-        const inputDocument = document.createElement('input');
-        inputDocument.type = 'file';
-        inputDocument.style.display = 'none';
-        inputDocument.addEventListener('change', this.inputFileEvent);
-        this.inputDocument = inputDocument;
-      },
       getHeightLightList(str) {
         return str.match(/#.*?#/g) || [];
       },
-      inputFileEvent() {
-        // 检查文件是否选择:
-        if (!this.inputDocument.value) return;
-        const file = this.inputDocument.files[0];
-        // 读取文件:
-        const reader = new FileReader();
-        reader.onload = e => {
-          try {
-            this.rulesList = Object.values(JSON.parse(e.target.result)).map((item, index) => {
-              if (!item.placeholder || !String(item.rule)) throw new Error('无效的json');
-              return {
-                [item.placeholder]: String([item.rule]),
-                __Index__: index,
-              };
-            });
-          } catch (err) {
-            this.$bkMessage({
-              theme: 'error',
-              message: this.$t('不是有效的json文件'),
-            });
-          }
-        };
-        // 以Text的形式读取文件:
-        reader.readAsText(file);
+      submitRuleChange() {
+        this.$emit('submit-rule');
+      },
+      handleClickOutSide() {
+        this.isClickAlertIcon = false;
+      },
+      getRuleType() {
+        return this.$refs.ruleTopToolsRef.ruleType;
+      },
+      getTemplateID() {
+        return this.$refs.ruleTopToolsRef.templateRule;
+      },
+      initSelect(v) {
+        this.$refs.ruleTopToolsRef.initTemplateSelect(v);
       },
     },
   };
@@ -696,30 +440,6 @@
   @import '@/scss/mixins/flex.scss';
 
   .cluster-table {
-    /* stylelint-disable no-descending-specificity */
-    .container-item {
-      margin-bottom: 40px;
-
-      .add-box {
-        min-width: 48px;
-
-        .bk-icon {
-          left: -3px;
-          width: 10px;
-        }
-      }
-
-      &.table-container {
-        position: relative;
-      }
-
-      .cluster-table {
-        border: 1px solid #dcdee5;
-        border-bottom: none;
-        border-radius: 2px;
-      }
-    }
-
     .debug-container {
       position: fixed;
       bottom: 0;
@@ -727,7 +447,7 @@
       z-index: 999;
       width: 100%;
       min-width: 1460px;
-      height: 414px;
+      height: 460px;
       background: #fff;
       transition: bottom 0.3s;
 
@@ -757,7 +477,7 @@
 
       .debug-input-box {
         max-width: 1020px;
-        padding: 25px 40px;
+        padding: 15px 40px;
         margin: 0 auto;
 
         .debug-alert {
@@ -768,6 +488,7 @@
       .effect-container {
         height: 100px;
         padding: 5px 10px;
+        overflow-y: auto;
         font-size: 12px;
         line-height: 24px;
         color: #000;
@@ -777,7 +498,7 @@
       }
 
       &.is-hidden {
-        bottom: -374px;
+        bottom: -418px;
       }
     }
 
@@ -846,7 +567,7 @@
       }
 
       .row-right > div {
-        width: 100px;
+        width: 120px;
 
         .row-right-item {
           display: inline-block;
@@ -855,24 +576,6 @@
 
         .bk-button-text {
           font-size: 12px;
-        }
-      }
-    }
-
-    .table-operate {
-      position: absolute;
-      top: 0;
-      right: 0;
-
-      .bk-button {
-        margin-left: 2px;
-        border-radius: 3px;
-      }
-
-      .btn-hover {
-        &:hover {
-          color: #3a84ff;
-          border: 1px solid #3a84ff;
         }
       }
     }
@@ -911,17 +614,6 @@
       }
     }
 
-    .add-rule {
-      .bk-form {
-        width: 560px;
-        margin-left: 15px;
-
-        :deep(.bk-label) {
-          text-align: left;
-        }
-      }
-    }
-
     .fl-jfsb {
       @include flex-justify(space-between);
     }
@@ -931,24 +623,20 @@
     }
   }
 
+  .config-item {
+    .popover-slot {
+      padding: 8px 8px 4px;
+
+      .popover-btn {
+        margin-top: 6px;
+        text-align: right;
+      }
+    }
+  }
+
   .flbc {
     display: flex;
     align-items: center;
     justify-content: space-between;
-  }
-
-  .inspection-status {
-    position: relative;
-    display: flex;
-    font-size: 14px;
-
-    .bk-icon {
-      font-size: 18px;
-    }
-
-    .spin {
-      position: absolute;
-      top: 2px;
-    }
   }
 </style>

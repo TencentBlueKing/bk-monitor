@@ -123,6 +123,7 @@
           >
             <component
               v-if="isShowPage"
+              ref="clusterRef"
               :clean-config="cleanConfig"
               :config-data="configData"
               :date-picker-value="datePickerValue"
@@ -353,7 +354,16 @@
         return true;
       },
       closeSetting() {
-        this.isOpenPage = false;
+        if (this.isSubmit || !this.$refs.clusterRef.getIsChangeRule()) {
+          this.isOpenPage = false;
+          return;
+        }
+        this.$bkInfo({
+          title: this.$t('当前聚类规则有更改，退出无法保存，是否要要退出？'),
+          confirmFn: () => {
+            this.isOpenPage = false;
+          },
+        });
       },
       /**
        * @desc: 若nav的switch为关闭状态离开当前页面时判断是否发送保存请求，没有则关闭可编辑状态
@@ -518,7 +528,7 @@
 
         .operation-container {
           min-height: 770px;
-          padding: 24px 20px 50px;
+          padding: 24px 20px 10px;
           margin-top: 20px;
 
           @include container-shadow;

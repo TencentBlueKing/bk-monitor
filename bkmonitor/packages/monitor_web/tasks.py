@@ -16,6 +16,7 @@ import shutil
 import time
 import traceback
 from typing import Any, Dict
+from concurrent.futures import ThreadPoolExecutor
 
 import arrow
 from celery.signals import task_postrun
@@ -46,13 +47,13 @@ from bkmonitor.dataflow.task.intelligent_detect import (
     MultivariateAnomalyIntelligentModelDetectTask,
     StrategyIntelligentModelDetectTask,
 )
-from bkmonitor.models import ActionConfig, AlgorithmModel, StrategyModel, ItemModel
+from bkmonitor.models import ActionConfig, AlgorithmModel, ItemModel, StrategyModel
 from bkmonitor.models.external_iam import ExternalPermissionApplyRecord
 from bkmonitor.strategy.new_strategy import QueryConfig, get_metric_id
 from bkmonitor.strategy.serializers import MultivariateAnomalyDetectionSerializer
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from bkmonitor.utils.sql import sql_format_params
-from bkmonitor.utils.user import set_local_username, get_global_user
+from bkmonitor.utils.user import get_global_user, set_local_username
 from constants.aiops import SCENE_NAME_MAPPING
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.dataflow import ConsumingMode
@@ -74,8 +75,8 @@ from monitor_web.export_import.constant import ImportDetailStatus, ImportHistory
 from monitor_web.extend_account.models import UserAccessRecord
 from monitor_web.models.custom_report import CustomEventGroup, CustomTSTable
 from monitor_web.models.plugin import CollectorPluginMeta
-from monitor_web.strategies.built_in import run_build_in
 from monitor_web.plugin.constant import PLUGIN_REVERSED_DIMENSION
+from monitor_web.strategies.built_in import run_build_in
 from utils import business, count_md5
 
 logger = logging.getLogger("monitor_web")
@@ -249,7 +250,7 @@ def update_metric_list():
 
     # 记录有容器集群的cmdb业务列表
     k8s_biz_set = set()
-    for biz in businesses[offset * biz_num: (offset + 1) * biz_num]:
+    for biz in businesses[offset * biz_num : (offset + 1) * biz_num]:
         biz_count += 1
         for source_type in source_type_use_biz + source_type_add_biz_0:
             # 非容器平台项目，不需要缓存容器指标：
@@ -1320,16 +1321,9 @@ def update_metric_json_from_ts_group():
     """
     对开启了自动发现的插件指标进行保存
     """
-    # 排除掉plugin_id为"snmp_v1"，"snmp_v2c"，"snmp_v3"]的插件数据
-    queryset = CollectorPluginMeta.objects.exclude(plugin_id__in=["snmp_v1", "snmp_v2c", "snmp_v3"])
 
-    for instance in queryset:
-        # 如果未开启黑名单或没有超过刷新周期（默认五分钟），直接返回
-        if not instance.current_version.info.enable_field_blacklist or not instance.should_refresh_metric_json(
-                timeout=5 * 60):
-            continue
-
-        plugin_data_info = PluginDataAccessor(instance.current_version, get_global_user())
+    def update_metric(collector_plugin):
+        plugin_data_info = PluginDataAccessor(collector_plugin.current_version, get_global_user())
         # 查询TSGroup
         group_list = api.metadata.query_time_series_group(
             time_series_group_name=plugin_data_info.db_name, label=plugin_data_info.label
@@ -1338,10 +1332,22 @@ def update_metric_json_from_ts_group():
         # 仅对有数据做处理
         if len(group_list) == 0:
             return
-        instance.reserved_dimension_list = [
+        collector_plugin.reserved_dimension_list = [
             field_name for field_name, _ in PLUGIN_REVERSED_DIMENSION + plugin_data_info.dms_field
         ]
-        instance.update_metric_json_from_ts_group(group_list)
+        collector_plugin.update_metric_json_from_ts_group(group_list)
+
+    # 排除掉plugin_id为"snmp_v1"，"snmp_v2c"，"snmp_v3"]的插件数据
+    queryset = CollectorPluginMeta.objects.exclude(plugin_id__in=["snmp_v1", "snmp_v2c", "snmp_v3"])
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        for collector_plugin in queryset:
+            # 如果未开启黑名单或没有超过刷新周期（默认五分钟），直接返回
+            if not collector_plugin.current_version.info.enable_field_blacklist or not collector_plugin.should_refresh_metric_json(
+                    timeout=5 * 60
+            ):
+                continue
+            executor.submit(update_metric, collector_plugin)
 
 
 @celery_receiver(task_postrun)
@@ -1353,17 +1359,25 @@ def task_postrun_handler(sender=None, headers=None, body=None, **kwargs):
 
 
 @task(ignore_result=True)
-def update_target_detail():
+def update_target_detail(bk_biz_id=None):
     """
     对启用了缓存的业务ID，更新监控目标详情缓存
     """
-    for bk_biz_id in settings.ENABLED_TARGET_CACHE_BK_BIZ_IDS:
-        strategy_ids = StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values_list("id", flat=True)
-        items = ItemModel.objects.filter(strategy_id__in=strategy_ids).only("strategy_id", "target")
-        resource.strategies.get_target_detail_with_cache.set_mapping({item.strategy_id: (bk_biz_id, item.target)
-                                                                      for item in items})
-        for item in items:
-            try:
-                resource.strategies.get_target_detail_with_cache.request.refresh({"strategy_id": item.strategy_id})
-            except Exception as e:
-                logger.exception(f"Update target detail cache failed for strategy id [{item.strategy_id}]: {e}")
+    if bk_biz_id is None:
+        # 总任务，定时任务发起
+        for bk_biz_id in settings.ENABLED_TARGET_CACHE_BK_BIZ_IDS:
+            update_target_detail.delay(bk_biz_id=bk_biz_id)
+        return
+
+    # 参数指定bk_biz_id
+    strategy_ids = StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values_list("id", flat=True)
+    items = ItemModel.objects.filter(strategy_id__in=strategy_ids).only("strategy_id", "target")
+    resource.strategies.get_target_detail_with_cache.set_mapping(
+        {item.strategy_id: (bk_biz_id, item.target) for item in items}
+    )
+    for item in items:
+        try:
+            resource.strategies.get_target_detail_with_cache.request.refresh({"strategy_id": item.strategy_id})
+        except Exception as e:
+            logger.exception(f"[update_target_detail] failed for strategy({item.strategy_id}): {e}")
+        logger.info(f"[update_target_detail] strategy({item.strategy_id}) done")
