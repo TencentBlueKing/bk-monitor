@@ -123,7 +123,7 @@ class ImportConfigResource(Resource):
                 config_stats_info[config_type] += 1
 
         event_name = "导入导出审计"
-        event_content = "导入" + ",".join([f"{count}条{key}" for key, count in config_stats_info])
+        event_content = "导入" + ",".join([f"{count}条{key}" for key, count in config_stats_info.items()])
         timestamp = int(time.time() * 1000)
         dimensions = {
             "resource": f"{Path(inspect.getabsfile(self.__class__)).parent.name}.{self.__class__.__name__}",
@@ -569,7 +569,7 @@ class ExportConfigFileResource(ExportConfigResource):
     def send_frontend_report_event(self, bk_biz_id, config_stats_info):
         """发送审计上班的代码"""
         event_name = "导入导出审计"
-        event_content = "导出" + ",".join([f"{count}条{config_type}" for config_type, count in config_stats_info])
+        event_content = "导出" + ",".join([f"{count}条{config_type}" for config_type, count in config_stats_info.items()])
         timestamp = int(time.time() * 1000)
         dimensions = {
             "resource": f"{Path(inspect.getabsfile(self.__class__)).parent.name}.{self.__class__.__name__}",
