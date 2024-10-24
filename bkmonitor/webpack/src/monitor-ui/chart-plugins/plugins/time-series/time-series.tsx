@@ -629,16 +629,6 @@ export class LineChart
         setTimeout(() => {
           this.handleResize();
         }, 100);
-        setTimeout(() => {
-          const chartRef = this.$refs?.baseChart?.instance;
-          if (chartRef) {
-            chartRef.off('click');
-            chartRef.on('click', params => {
-              const date = dayjs(params.value[0]).format('YYYY-MM-DD HH:mm:ss');
-              this.$emit('choosePoint', date);
-            });
-          }
-        }, 1000);
       } else {
         this.inited = this.metrics.length > 0;
         this.emptyText = window.i18n.tc('暂无数据');

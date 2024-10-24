@@ -558,6 +558,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             clearErrorMsg={this.handleClearErrorMsg}
             panel={this.panel}
             showHeaderMoreTool={this.showHeaderMoreTool}
+            onChoosePoint={this.handleCallerLineChoosePoint}
             onCollectChart={this.handleCollectChart}
             onDblClick={this.handleDblClick}
             onDimensionsOfSeries={this.handleDimensionsOfSeries}

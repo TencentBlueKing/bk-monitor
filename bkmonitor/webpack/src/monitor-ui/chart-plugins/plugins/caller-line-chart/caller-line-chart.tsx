@@ -35,7 +35,6 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 
 import { type ValueFormatter, getValueFormat } from '../../../monitor-echarts/valueFormats';
 import ListLegend from '../../components/chart-legend/common-legend';
-import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
 import { reviewInterval } from '../../utils';
@@ -123,15 +122,11 @@ class CallerLineChart extends CommonSimpleChart {
    */
   @Debounce(100)
   async getPanelData(start_time?: string, end_time?: string) {
-    this.cancelTokens.forEach(cb => cb?.());
-    this.cancelTokens = [];
-    if (!this.isInViewPort()) {
-      if (this.intersectionObserver) {
-        this.unregisterOberver();
-      }
-      this.registerObserver(start_time, end_time);
+    if (!(await this.beforeGetPanelData())) {
       return;
     }
+    this.cancelTokens.forEach(cb => cb?.());
+    this.cancelTokens = [];
     if (this.inited) this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     try {
@@ -385,16 +380,6 @@ class CallerLineChart extends CommonSimpleChart {
         setTimeout(() => {
           this.handleResize();
         }, 100);
-        setTimeout(() => {
-          const chartRef = this.$refs?.baseChart?.instance;
-          if (chartRef) {
-            chartRef.off('click');
-            chartRef.on('click', params => {
-              const date = dayjs(params.value[0]).format('YYYY-MM-DD HH:mm:ss');
-              this.$emit('choosePoint', date);
-            });
-          }
-        }, 1000);
       } else {
         this.inited = this.metrics.length > 0;
         this.emptyText = window.i18n.tc('暂无数据');
@@ -916,17 +901,10 @@ class CallerLineChart extends CommonSimpleChart {
             </div>
             {legend?.displayMode !== 'hidden' && (
               <div class={`chart-legend ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
-                {legend?.displayMode === 'table' ? (
-                  <TableLegend
-                    legendData={this.legendData || []}
-                    onSelectLegend={this.handleSelectLegend}
-                  />
-                ) : (
-                  <ListLegend
-                    legendData={this.legendData || []}
-                    onSelectLegend={this.handleSelectLegend}
-                  />
-                )}
+                <ListLegend
+                  legendData={this.legendData || []}
+                  onSelectLegend={this.handleSelectLegend}
+                />
               </div>
             )}
           </div>
