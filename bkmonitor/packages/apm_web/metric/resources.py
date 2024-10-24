@@ -187,6 +187,7 @@ class DynamicUnifyQueryResource(Resource):
 
         if not validate_data.get("service_name"):
             return self.fill_unit_and_series(
+                unify_query_params,
                 resource.grafana.graph_unify_query(unify_query_params),
                 validate_data,
                 require_fill_series,
@@ -200,6 +201,7 @@ class DynamicUnifyQueryResource(Resource):
         )
         if not node:
             return self.fill_unit_and_series(
+                unify_query_params,
                 resource.grafana.graph_unify_query(unify_query_params),
                 validate_data,
                 require_fill_series,
@@ -264,6 +266,7 @@ class DynamicUnifyQueryResource(Resource):
             )
 
         return self.fill_unit_and_series(
+            unify_query_params,
             resource.grafana.graph_unify_query(unify_query_params),
             validate_data,
             require_fill_series,
@@ -271,7 +274,7 @@ class DynamicUnifyQueryResource(Resource):
         )
 
     @classmethod
-    def fill_unit_and_series(cls, response, validate_data, require_fill_series=False, node=None):
+    def fill_unit_and_series(cls, query_params, response, validate_data, require_fill_series=False, node=None):
         """补充单位、时间点、展示名称"""
         unit = validate_data.get("unit")
         start_time = validate_data["start_time"]
@@ -304,6 +307,8 @@ class DynamicUnifyQueryResource(Resource):
             for i in response.get("series", []):
                 i["target"] = prefix + _(f"{suffix}")
 
+        # 添加处理后的 unifyQuery 参数 用于给前端实现跳转到指标检索
+        response["query_config"] = query_params
         return response
 
 
