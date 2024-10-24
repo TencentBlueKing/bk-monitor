@@ -460,38 +460,43 @@ class TimeSeriesGroup(CustomGroupBase):
 
         default_resp = []
         try:
-            vm_rt = AccessVMRecord.objects.get(result_table_id=self.table_id).vm_result_table_id
+            vm_rt_list = AccessVMRecord.objects.filter(result_table_id=self.table_id)
         except AccessVMRecord.DoesNotExist:
             return default_resp
         # 获取指标
-        data = (
-            api.bkdata.query_metric_and_dimension(
-                storage=config.VM_STORAGE_TYPE,
-                result_table_id=vm_rt,
-                values=BCSClusterInfo.DEFAULT_SERVICE_MONITOR_DIMENSION_TERM,
+
+        vm_metrics = []
+
+        for vm_rt in vm_rt_list:
+            data = (
+                api.bkdata.query_metric_and_dimension(
+                    storage=config.VM_STORAGE_TYPE,
+                    result_table_id=vm_rt.vm_result_table_id,
+                    values=BCSClusterInfo.DEFAULT_SERVICE_MONITOR_DIMENSION_TERM,
+                )
+                or []
             )
-            or []
-        )
-        if not data:
-            return default_resp
+            if not data or not data.get("metrics", None):
+                continue
+            vm_metrics.append(data["metrics"])
         # 组装数据
-        metric_dimension = data["metrics"]
-        if not metric_dimension:
-            return default_resp
         ret_data = []
-        for md in metric_dimension:
-            tag_value_list = {}
-            for d in md["dimensions"]:
-                tag_value_list[d["name"]] = {
-                    "last_update_time": d["update_time"],
-                    "values": [v["value"] for v in d["values"]],
+        for metric in vm_metrics:
+            ret = []
+            for md in metric:  
+                tag_value_list = {}
+                for d in md["dimensions"]:
+                    tag_value_list[d["name"]] = {
+                        "last_update_time": d["update_time"],
+                        "values": [v["value"] for v in d["values"]],
+                    }
+                item = {
+                    "field_name": md["name"],
+                    "last_modify_time": md["update_time"] // 1000,
+                    "tag_value_list": tag_value_list,
                 }
-            item = {
-                "field_name": md["name"],
-                "last_modify_time": md["update_time"] // 1000,
-                "tag_value_list": tag_value_list,
-            }
-            ret_data.append(item)
+                ret.append(item)
+            ret_data.append(ret)
         return ret_data
 
     def get_metrics_from_redis(self, expired_time: Optional[int] = settings.TIME_SERIES_METRIC_EXPIRED_SECONDS):
