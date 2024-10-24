@@ -890,14 +890,16 @@ class SearchHandler(object):
     def _save_history(self, result, search_type):
         # 避免回显尴尬, 检索历史存原始未增强的query_string
         params = {"keyword": self.origin_query_string, "ip_chooser": self.ip_chooser, "addition": self.addition}
-        self._cache_history(
-            username=self.request_username,
-            index_set_id=self.index_set_id,
-            params=params,
-            search_type=search_type,
-            search_mode=self.search_mode,
-            result=result,
-        )
+        # 全局查询不记录
+        if self.origin_query_string and self.origin_query_string != "*":
+            self._cache_history(
+                username=self.request_username,
+                index_set_id=self.index_set_id,
+                params=params,
+                search_type=search_type,
+                search_mode=self.search_mode,
+                result=result,
+            )
 
     @cache_five_minute("search_history_{username}_{index_set_id}_{search_type}_{params}_{search_mode}", need_md5=True)
     def _cache_history(self, *, username, index_set_id, params, search_type, search_mode, result):  # noqa
