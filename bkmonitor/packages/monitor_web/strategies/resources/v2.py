@@ -53,18 +53,18 @@ from bkmonitor.strategy.new_strategy import (
     get_metric_id,
     parse_metric_id,
 )
+from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.request import get_source_app
 from bkmonitor.utils.time_format import duration_string, parse_duration
 from bkmonitor.utils.user import get_global_user
-from bkmonitor.utils.cache import CacheType
 from constants.alert import EventStatus
 from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.common import SourceApp
 from constants.data_source import DATA_CATEGORY, DataSourceLabel, DataTypeLabel
 from constants.strategy import SPLIT_DIMENSIONS, DataTarget, TargetFieldType
 from core.drf_resource import api, resource
-from core.drf_resource.contrib.cache import CacheResource
 from core.drf_resource.base import Resource
+from core.drf_resource.contrib.cache import CacheResource
 from core.errors.bkmonitor.data_source import CmdbLevelValidateError
 from core.errors.strategy import StrategyNameExist
 from monitor.models import ApplicationConfig
@@ -1909,6 +1909,21 @@ class VerifyStrategyNameResource(Resource):
         return "ok"
 
 
+class BulkSwitchStrategyResource(Resource):
+    """
+    批量启停策略
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True)
+        labels = serializers.ListField(required=True)
+        action = serializers.ChoiceField(required=True, label="操作类型", choices=("on", "off"))
+        force = serializers.BooleanField(required=True, label="是否强制操作")
+
+    def perform_request(self, params):
+        pass
+
+
 class SaveStrategyV2Resource(Resource):
     """
     保存策略
@@ -2365,6 +2380,7 @@ class GetPlainStrategyListV2Resource(Resource):
 
 class GetTargetDetailWithCache(CacheResource):
     """获取监控目标详情，具有缓存功能"""
+
     backend_cache_type = CacheType.CC_CACHE_ALWAYS
     cache_user_related = False
 
