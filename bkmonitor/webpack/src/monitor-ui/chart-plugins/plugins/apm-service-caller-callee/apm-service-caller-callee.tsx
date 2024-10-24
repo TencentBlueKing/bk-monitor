@@ -29,7 +29,6 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 
-import { PanelModel } from '../../typings';
 import CallerCalleeContrast from './components/caller-callee-contrast';
 import CallerCalleeFilter from './components/caller-callee-filter';
 import CallerCalleeTableChart from './components/caller-callee-table-chart';
@@ -37,6 +36,8 @@ import ChartView from './components/chart-view';
 import TabBtnGroup from './components/common-comp/tab-btn-group';
 import { EParamsMode, EPreDateType, type CallOptions } from './type';
 import { CALLER_CALLEE_TYPE, type CallerCalleeType } from './utils';
+
+import type { PanelModel } from '../../typings';
 
 import './apm-service-caller-callee.scss';
 interface IApmServiceCallerCalleeProps {
