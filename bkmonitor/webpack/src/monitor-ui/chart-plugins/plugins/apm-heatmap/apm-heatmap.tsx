@@ -66,7 +66,7 @@ class ApmHeatmap extends CommonSimpleChart {
   }
   @Debounce(100)
   async getPanelData() {
-    console.info(this.callOptions, this.panel, '========');
+    // console.info(this.callOptions, this.panel, '========');
     if (!(await this.beforeGetPanelData())) {
       return;
     }
@@ -103,9 +103,23 @@ class ApmHeatmap extends CommonSimpleChart {
             start_time: startTime,
             end_time: endTime,
             down_sample_range,
+            query_configs: params?.query_configs.map(config => {
+              return {
+                ...config,
+                group_by: [...(config?.group_by || []), ...(this.callOptions?.group_by || [])],
+                where: [...(config?.where || []), ...(this.callOptions?.call_filter || [])],
+              };
+            }),
             unify_query_param: {
               ...params?.unify_query_param,
               down_sample_range,
+              query_configs: params?.query_configs.map(config => {
+                return {
+                  ...config,
+                  group_by: [...(config?.group_by || []), ...(this.callOptions?.group_by || [])],
+                  where: [...(config?.where || []), ...(this.callOptions?.call_filter || [])],
+                };
+              }),
             },
           },
           {
@@ -154,7 +168,6 @@ class ApmHeatmap extends CommonSimpleChart {
       this.options = {
         tooltip: {
           ...MONITOR_LINE_OPTIONS.tooltip,
-          position: 'top',
           formatter: p => {
             if (p.data?.length < 2) {
               return '';
@@ -196,6 +209,7 @@ class ApmHeatmap extends CommonSimpleChart {
           axisPointer: {
             type: 'none',
           },
+          position: this.commonChartTooltipsPosition,
         },
         grid: {
           ...MONITOR_LINE_OPTIONS.grid,
@@ -273,7 +287,6 @@ class ApmHeatmap extends CommonSimpleChart {
           },
         ],
       };
-      console.info(this.options, '=======');
       this.inited = true;
       this.empty = false;
     } else {
@@ -292,8 +305,9 @@ class ApmHeatmap extends CommonSimpleChart {
           draging={this.panel.draging}
           isInstant={this.panel.instant}
           metrics={this.metrics}
+          needMoreMenu={false}
           showAddMetric={false}
-          showMore={false}
+          showMore={true}
           subtitle={this.panel.subTitle || ''}
           title={this.panel.title}
         />

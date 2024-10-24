@@ -24,20 +24,20 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
-import { Debounce } from 'monitor-common/utils';
 
-import { PanelModel } from '../../typings';
 import CallerCalleeContrast from './components/caller-callee-contrast';
 import CallerCalleeFilter from './components/caller-callee-filter';
 import CallerCalleeTableChart from './components/caller-callee-table-chart';
 import ChartView from './components/chart-view';
 import TabBtnGroup from './components/common-comp/tab-btn-group';
-import { CALLER_CALLEE_TYPE } from './utils';
-import { EParamsMode, EPreDateType, type CallOptions, type IFilterType, type IFilterData } from './type';
+import { EParamsMode, EPreDateType, type CallOptions, type IFilterData } from './type';
+import { CALLER_CALLEE_TYPE, type CallerCalleeType } from './utils';
+
+import { PanelModel } from '../../typings';
 
 import './apm-service-caller-callee.scss';
 interface IApmServiceCallerCalleeProps {
@@ -45,73 +45,38 @@ interface IApmServiceCallerCalleeProps {
 }
 @Component({
   name: 'ApmServiceCallerCallee',
-  components: {},
 })
 export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeProps> {
   @Prop({ required: true, type: Object }) panel: PanelModel;
 
-  @ProvideReactive('callOptions') callOptions: CallOptions;
+  @ProvideReactive('callOptions') callOptions: CallOptions = {} as any;
   @ProvideReactive('filterTags') filterTags: IFilterData;
+  // 同步route query
+  @Inject('handleCustomRouteQueryChange') handleCustomRouteQueryChange: (
+    customRouteQuery: Record<string, number | string>
+  ) => void;
 
-  variablesService = {};
+  @InjectReactive('customRouteQuery') customRouteQuery: Record<string, string>;
+  filterData = {
+    caller: [],
+    callee: [],
+  };
   panelsData = [];
-  testData = [
-    {
-      caller_service: 'caller.collector.Unknown',
-      formal: 'formal',
-      now: 33,
-      yesterday: 23,
-    },
-    {
-      caller_service: 'caller.collector.UnknownHTTP',
-      formal: 'formal1',
-      now: 33,
-      yesterday: 23,
-    },
-  ];
-  tableListData = this.testData;
-  tableTabData = this.testData;
+  tableListData = [];
+  tableTabData = [];
   tabList = CALLER_CALLEE_TYPE;
-  activeKey = 'caller';
-  filterDataList = [];
+  callType: CallerCalleeType = 'caller';
   dateData = [];
   diffTypeData = [];
   tableColData = [];
-  /* 对比/groupBy */
-  paramsMode = EParamsMode.contrast;
   // panel 传递过来的一些变量
   get panelScopedVars() {
     const angel = this.panel?.options?.common?.angle || {};
-    const options = this.activeKey === 'caller' ? angel.caller : angel.callee;
+    const options = this.callType === 'caller' ? angel.caller : angel.callee;
     return {
       server: options.server,
       ...options?.metrics,
     };
-  }
-  @Watch('panel', { immediate: true })
-  handlePanelChange() {
-    this.initDefaultData();
-    this.panelsData = this.extraPanels.map(panel => new PanelModel(panel));
-    this.callOptions = {
-      // panel 传递过来的一些变量
-      ...this.panelScopedVars,
-      // group 字段
-      group_by: [],
-      method: '',
-      limit: 0,
-      metric_cal_type: '',
-      // 时间对比 字段
-      time_shift: [],
-      // 左侧查询条件字段
-      call_filter: [],
-    };
-  }
-
-  @Watch('callOptions')
-  handleRefreshData(val: IFilterType) {
-    if (val) {
-      this.initData();
-    }
   }
 
   get panelOptions() {
@@ -138,44 +103,86 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     return this.commonOptions?.angle || {};
   }
 
-  // 左侧主被调切换
-  /*  */
-
-  changeTab(id: string) {
-    this.activeKey = id;
-    this.getPanelData();
-    this.handleUpdateRouteQuery({ filterType: id });
-  }
-
-  // 路由同步关键字
-  handleUpdateRouteQuery(data) {
-    const routerParams = {
-      name: this.$route.name,
-      query: {
-        ...this.$route.query,
-        ...data,
-      },
+  @Watch('panel', { immediate: true })
+  handlePanelChange() {
+    this.initDefaultData();
+    let routeCallOptions: Partial<CallOptions> = {};
+    if (this.customRouteQuery?.callOptions?.length) {
+      try {
+        routeCallOptions = JSON.parse(this.customRouteQuery.callOptions);
+      } catch {
+        routeCallOptions = {};
+      }
+    }
+    console.info('routeCallOptions', routeCallOptions);
+    this.callType = routeCallOptions.kind || 'caller';
+    this.callOptions = {
+      // panel 传递过来的一些变量
+      ...this.panelScopedVars,
+      // group 字段
+      group_by: routeCallOptions.group_by || [],
+      method: routeCallOptions.method || '',
+      limit: +routeCallOptions.limit || 0,
+      metric_cal_type: routeCallOptions.metric_cal_type || '',
+      // 时间对比 字段
+      time_shift: routeCallOptions.time_shift || [],
+      // 左侧查询条件字段
+      call_filter: routeCallOptions.call_filter || [],
+      tool_mode: routeCallOptions.tool_mode || EParamsMode.contrast,
+      kind: this.callType,
     };
-    this.$router.replace(routerParams).catch(() => {});
+    this.panelsData = this.extraPanels.map(panel => new PanelModel(panel));
   }
+
+  replaceRouteQuery() {
+    requestIdleCallback(() => {
+      const copyOptions: Partial<CallOptions> = {};
+      for (const [key, val] of Object.entries(this.callOptions)) {
+        if (
+          val === undefined ||
+          val === '' ||
+          val === 0 ||
+          (Array.isArray(val) && val.length < 1) ||
+          (key === 'tool_mode' && val === EParamsMode.contrast) ||
+          (key === 'kind' && val === 'caller') ||
+          key in this.panelScopedVars
+        )
+          continue;
+
+        copyOptions[key] = val;
+      }
+      this.handleCustomRouteQueryChange({
+        callOptions: JSON.stringify(copyOptions),
+      });
+    });
+  }
+
+  // 左侧主被调切换
+  changeTab(id: CallerCalleeType) {
+    this.callType = id;
+    this.callOptions = {
+      ...this.callOptions,
+      ...this.panelScopedVars,
+      call_filter: [], // todo
+    };
+    this.replaceRouteQuery();
+  }
+
   // 筛选查询
-  searchFilterData(data) {
-    this.callOptions.call_filter = JSON.parse(JSON.stringify(data));
-    this.initData();
+  searchFilterData(data: CallOptions['call_filter']) {
+    this.callOptions = {
+      ...this.callOptions,
+      call_filter: structuredClone(data),
+    };
+    this.replaceRouteQuery();
   }
   // 重置
   resetFilterData() {
-    this.callOptions.call_filter = [];
-  }
-  // 获取表格数据
-  handleGetTableData() {}
-  // 获取图表数据
-  handleGetChartData() {}
-
-  initData() {
-    console.log('刷新页面');
-    this.handleGetTableData();
-    this.handleGetChartData();
+    this.callOptions = {
+      ...this.callOptions,
+      call_filter: [],
+    };
+    this.replaceRouteQuery();
   }
   // 关闭表格中的筛选tag, 调用查询接口
   handleCloseTag(data) {
@@ -221,6 +228,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       time_shift: timeShift,
     } as any;
     this.changeDate(val);
+    this.replaceRouteQuery();
   }
 
   changeDate(date) {
@@ -246,10 +254,10 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       group_by: val,
     } as any;
     this.handleCheck(val);
+    this.replaceRouteQuery();
   }
 
   handleParamsModeChange(val: EParamsMode) {
-    this.paramsMode = val;
     if (val === EParamsMode.contrast) {
       this.callOptions = {
         ...this.callOptions,
@@ -258,7 +266,8 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
         limit: 0,
         metric_cal_type: '',
         method: '',
-      } as any;
+        tool_mode: val,
+      };
     } else {
       this.callOptions = {
         ...this.callOptions,
@@ -267,14 +276,17 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
         limit: 10,
         metric_cal_type: this.supportedCalculationTypes?.[0]?.value || '',
         method: this.supportedMethods?.[0]?.value || '',
-      } as any;
+        tool_mode: val,
+      };
     }
+    this.replaceRouteQuery();
   }
 
   /** 点击选中图表里的某个点 */
   handleChoosePoint(date) {
     if (this.callOptions.call_filter.findIndex(item => item.key === 'time') !== -1) {
       this.callOptions.call_filter.find(item => item.key === 'time').value = [date];
+      this.callOptions = { ...this.callOptions };
       return;
     }
     this.callOptions.call_filter.push({
@@ -283,17 +295,8 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       value: [date],
       condition: 'end',
     });
+    this.callOptions = { ...this.callOptions };
   }
-
-  handleSetParams() {}
-  /**
-   * @description: 获取Panel数据
-   */
-  @Debounce(200)
-  async getPanelData(start_time?: string, end_time?: string) {
-    console.log(start_time, end_time);
-  }
-
   /** 初始化主被调的相关数据 */
   initDefaultData() {
     const { caller, callee } = this.commonAngle;
@@ -303,13 +306,32 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     };
   }
 
+  handleLimitChange(val) {
+    this.callOptions = {
+      ...this.callOptions,
+      limit: val,
+    };
+  }
+  handleMethodChange(val) {
+    this.callOptions = {
+      ...this.callOptions,
+      method: val,
+    };
+  }
+  handleMetricCalTypeChange(val) {
+    this.callOptions = {
+      ...this.callOptions,
+      metric_cal_type: val,
+    };
+  }
+
   render() {
     return (
       <div class='apm-service-caller-callee'>
         <div class='caller-callee-head'>
           <div class='caller-callee-left'>
             <TabBtnGroup
-              activeKey={this.activeKey}
+              activeKey={this.callType}
               list={this.tabList}
               onChange={this.changeTab}
             />
@@ -321,13 +343,16 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
               limit={this.callOptions.limit}
               method={this.callOptions.method}
               metricCalType={this.callOptions.metric_cal_type}
-              paramsMode={this.paramsMode}
-              searchList={this.filterTags[this.activeKey]}
+              paramsMode={this.callOptions.tool_mode}
+              searchList={this.filterTags[this.callType]}
               supportedCalculationTypes={this.supportedCalculationTypes}
               supportedMethods={this.supportedMethods}
               onContrastDatesChange={this.handleContrastDatesChange}
               onGroupByChange={this.handleGroupChange}
               onGroupFilter={this.handleGroupFilter}
+              onLimitChange={this.handleLimitChange}
+              onMethodChange={this.handleMethodChange}
+              onMetricCalType={this.handleMetricCalTypeChange}
               onTypeChange={this.handleParamsModeChange}
             />
           </div>
@@ -346,7 +371,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
               slot='aside'
             >
               <CallerCalleeFilter
-                activeKey={this.activeKey}
+                activeKey={this.callType}
                 panel={this.panel}
                 onReset={this.resetFilterData}
                 onSearch={this.searchFilterData}
@@ -357,20 +382,14 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
               slot='main'
             >
               <ChartView
-                panelsData={this.panel.extra_panels.map(item => {
-                  if (item.type === 'graph') {
-                    item.type = 'caller-line-chart';
-                    return item;
-                  }
-                  return item;
-                })}
+                panelsData={this.panel.extra_panels}
                 onChoosePoint={this.handleChoosePoint}
               />
               <CallerCalleeTableChart
-                activeKey={this.activeKey}
+                activeKey={this.callType}
                 filterData={this.callOptions.call_filter}
                 panel={this.panel}
-                searchList={this.filterTags[this.activeKey]}
+                searchList={this.filterTags[this.callType]}
                 tableColData={this.tableColData}
                 tableListData={this.tableListData}
                 tableTabData={this.tableTabData}

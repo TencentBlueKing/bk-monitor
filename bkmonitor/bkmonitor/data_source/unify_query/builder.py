@@ -245,6 +245,8 @@ class UnifyQueryCompiler(SQLCompiler):
                 "nested_paths": query_config_obj.nested_paths,
                 "order_by": query_config_obj.order_by,
             }
+            if query_config_obj.interval:
+                query_config["interval"] = query_config_obj.interval
             query_configs.append(query_config)
 
         return "unifyquery", {

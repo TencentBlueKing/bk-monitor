@@ -66,6 +66,8 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         },
     }
 
+    DEFAULT_INTERVAL = 60
+
     def __init__(
         self,
         bk_biz_id: int,
@@ -77,6 +79,12 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         super().__init__(bk_biz_id, app_name, group_by, filter_dict, **kwargs)
         self.kind: str = kwargs.get("kind") or SeriesAliasType.CALLER.value
         self.temporality: str = kwargs.get("temporality") or MetricTemporality.CUMULATIVE
+        self.time_shift: Optional[str] = kwargs.get("time_shift")
+
+        self.instant: bool = True
+        if self.metric_helper.TIME_FIELD in self.group_by:
+            self.group_by.remove(self.metric_helper.TIME_FIELD)
+            self.instant: bool = False
 
     def handle(self, calculation_type: str, **kwargs) -> List[Dict[str, Any]]:
         return self.get_calculation_method(calculation_type)(**kwargs)
@@ -102,13 +110,27 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         return support_calculation_methods[calculation_type]
 
     def q(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> QueryConfigBuilder:
-        interval: int = self.metric_helper.get_interval(start_time, end_time)
         q: QueryConfigBuilder = (
-            self.metric_helper.q.interval(interval).group_by(*self.group_by).filter(dict_to_q(self.filter_dict) or Q())
+            self.metric_helper.q.group_by(*self.group_by)
+            # 如果是求瞬时量，那么整个时间范围是作为一个区间
+            .interval(
+                (self.DEFAULT_INTERVAL, self.metric_helper.get_interval(start_time, end_time))[self.instant]
+            ).filter(dict_to_q(self.filter_dict) or Q())
         )
+
+        if self.time_shift:
+            q = q.func(_id="time_shift", params=[{"id": "n", "value": self.time_shift}])
+
         if self.temporality == MetricTemporality.CUMULATIVE:
-            q = q.func(_id="increase", params=[{"id": "window", "value": f"{interval}s"}])
+            q = q.func(_id="increase", params=[{"id": "window", "value": f"{self.DEFAULT_INTERVAL}s"}])
+
         return q
+
+    def qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None):
+        qs: UnifyQuerySet = self.metric_helper.time_range_qs(start_time, end_time)
+        if self.instant:
+            return qs.instant()
+        return qs.limit(self.metric_helper.MAX_DATA_LIMIT)
 
     def _request_total_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
         q: QueryConfigBuilder = (
@@ -116,7 +138,7 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             .alias("a")
             .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_total"], method="SUM", alias="a")
         )
-        return self.metric_helper.time_range_qs(start_time, end_time).add_query(q).expression("a").instant()
+        return self.qs(start_time, end_time).add_query(q).expression("a")
 
     def _request_total(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
         return list(self._request_total_qs(start_time, end_time))
@@ -132,13 +154,7 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             .alias("b")
             .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_count"], method="SUM", alias="b")
         )
-        return (
-            self.metric_helper.time_range_qs(start_time, end_time)
-            .add_query(sum_q)
-            .add_query(count_q)
-            .expression("(a / b) * 1000")
-            .instant()
-        )
+        return self.qs(start_time, end_time).add_query(sum_q).add_query(count_q).expression("(a / b) * 1000")
 
     def _avg_duration(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
         return list(self._avg_duration_qs(start_time, end_time))
@@ -152,10 +168,7 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_bucket"], method="SUM", alias="a")
             .func(_id="histogram_quantile", params=[{"id": "scalar", "value": scalar}])
         )
-        qs: UnifyQuerySet = (
-            self.metric_helper.time_range_qs(start_time, end_time).add_query(q).expression("a * 1000").instant()
-        )
-        return list(qs)
+        return list(self.qs(start_time, end_time).add_query(q).expression("a * 1000"))
 
     def _request_code_rate_qs(
         self, code_type: str, start_time: Optional[int] = None, end_time: Optional[int] = None
@@ -179,13 +192,7 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             .alias("b")
             .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_total"], method="SUM", alias="b")
         )
-        return (
-            self.metric_helper.time_range_qs(start_time, end_time)
-            .add_query(code_q)
-            .add_query(total_q)
-            .expression(expression)
-            .instant()
-        )
+        return self.qs(start_time, end_time).add_query(code_q).add_query(total_q).expression(expression)
 
     def _request_code_rate(
         self, code_type: str, start_time: Optional[int] = None, end_time: Optional[int] = None

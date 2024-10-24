@@ -32,7 +32,6 @@ import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel'
 
 import CallerBarChart from '../chart/caller-bar-chart';
 import CallerPieChart from '../chart/caller-pie-chart';
-import { dashboardPanelList, dialogPanelList } from '../testData';
 import { TAB_TABLE_TYPE, CHART_TYPE, LIMIT_TYPE_LIST } from '../utils';
 import TabBtnGroup from './common-comp/tab-btn-group';
 
@@ -69,7 +68,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   chartPanels = CHART_TYPE;
   chartActive = 'caller-pie-chart';
   dimensionValue = 1;
-  dashboardPanels = dashboardPanelList;
+  dashboardPanels = [];
   drillValue = '';
   column = [
     {
@@ -112,7 +111,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     return LIMIT_TYPE_LIST;
   }
   get dialogPanel() {
-    return dialogPanelList.find(item => item.type === this.chartActive) || {};
+    return {};
   }
   mounted() {
     TAB_TABLE_TYPE.find(item => item.id === 'request').handle = this.handleGetDistribution;

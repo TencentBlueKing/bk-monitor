@@ -70,7 +70,6 @@ export interface IListItem {
 }
 
 export type CallOptions = {
-  server: string;
   group_by: string[];
   method: string;
   limit: number;
@@ -83,7 +82,10 @@ export type CallOptions = {
   }[];
   // 左侧查询条件字段
   call_filter: IFilterCondition[];
-} & Record<string, string>;
+  // 对比 还是 group by
+  tool_mode: EParamsMode;
+  [key: string]: any;
+};
 
 export type IFilterData = {
   caller: IColumn[];

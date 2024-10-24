@@ -24,10 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Emit, Watch } from 'vue-property-decorator';
+import { Component, Prop, Emit, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 // import { LIMIT_TYPE_LIST } from '../../utils';
+
+import { Debounce } from 'monitor-common/utils';
 
 import type { IListItem, IServiceConfig } from '../../type';
 
@@ -60,10 +62,13 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
   @Prop({ type: Number, default: 0 }) limit: number;
   @Prop({ type: String, default: '' }) metricCalType: string;
 
+  @Ref('dimension-select') dimensionSelectRef: any;
+
   /* groupBy已选项tag */
   groupBySelectedTags: IServiceConfig[] = [];
   /* groupBy已选项key */
   groupBySelectedKey = [];
+  oldGroupBySelectedKey = [];
   /* groupBy可选项  */
   groupByList: IServiceConfig[] = [];
   /* 是否显示选择器 */
@@ -71,6 +76,17 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
   localLimit = 0;
   localMethod = '';
   localMetricCalType = '';
+
+  groupBySearch = '';
+
+  get groupByListFilter() {
+    return this.groupByList.filter(item => {
+      if (this.groupBySearch) {
+        return item.text.toLowerCase().includes(this.groupBySearch.toLowerCase());
+      }
+      return true;
+    });
+  }
 
   @Watch('groupBy', { immediate: true })
   handleWatchGroupBy() {
@@ -95,10 +111,18 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
   @Watch('searchList', { immediate: true })
   handleWatchSearchList() {
     const groupBySet = new Set(this.groupBy);
-    this.groupByList = this.searchList.map(item => ({
-      ...item,
-      checked: groupBySet.has(item.value),
-    }));
+    const groupByTags = [];
+    this.groupByList = this.searchList.map(item => {
+      const checked = groupBySet.has(item.value);
+      if (checked) {
+        groupByTags.push(item);
+      }
+      return {
+        ...item,
+        checked,
+      };
+    });
+    this.groupBySelectedTags = groupByTags;
   }
 
   @Watch('limit', { immediate: true })
@@ -135,6 +159,7 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
     this.localMethod = val;
     return val;
   }
+  @Debounce(300)
   @Emit('limitChange')
   handleChangeLimit(val) {
     this.localLimit = val;
@@ -159,6 +184,9 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
    */
   handleAdd() {
     this.isShowPicker = true;
+    this.$nextTick(() => {
+      this.dimensionSelectRef?.showHandler?.();
+    });
   }
   /**
    * @description 选中
@@ -171,7 +199,20 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
   /* 收起groupBy选择 */
   handleHide() {
     this.isShowPicker = false;
-    this.emitChange();
+    const isDiff =
+      JSON.stringify(JSON.parse(JSON.stringify(this.groupBySelectedKey)).sort()) !==
+      JSON.stringify(this.oldGroupBySelectedKey);
+    if (isDiff) {
+      this.emitChange();
+    }
+  }
+  handleShow() {
+    this.oldGroupBySelectedKey = JSON.parse(JSON.stringify(this.groupBySelectedKey)).sort();
+  }
+
+  @Debounce(300)
+  handleGroupBySearch(val: string) {
+    this.groupBySearch = val;
   }
 
   renderTagView() {
@@ -206,36 +247,59 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
         </div>
         {this.isShowPicker ? (
           <bk-popover
+            ref='dimension-select'
             ext-cls='apm-service-caller-callee-group-by-selector'
             arrow={false}
             placement='bottom'
             theme='light'
+            transfer={true}
             trigger='click'
             onHide={this.handleHide}
+            onShow={this.handleShow}
           >
             <div
               class='group-by-select'
               title={this.groupBySelectedTags.map(item => item.text).join(',')}
             >
-              {this.groupBySelectedTags.map(item => item.text).join(',')}
+              {this.groupBySelectedTags.length ? (
+                this.groupBySelectedTags.map(item => item.text).join(',')
+              ) : (
+                <span class='placeholder'>{this.$t('请选择维度')}</span>
+              )}
+
               <i class='icon-monitor icon-arrow-down' />
             </div>
             <div
-              class='group-by-select-list'
+              class='group-by-select-list-wrap'
               slot='content'
             >
-              {this.groupByList.map(option => {
-                return (
-                  <div
-                    key={option.value}
-                    class={['group-by-select-item', { active: option.checked }]}
-                    onClick={() => this.chooseSelect(option)}
-                  >
-                    {option.text}
-                    {option.checked && <i class='icon-monitor icon-mc-check-small' />}
-                  </div>
-                );
-              })}
+              <div class='search-header'>
+                <bk-input
+                  behavior='simplicity'
+                  placeholder={this.$t('请输入关键字搜索')}
+                  value={this.groupBySearch}
+                  onChange={this.handleGroupBySearch}
+                />
+              </div>
+              <div class='group-by-select-list'>
+                {this.groupByListFilter.length ? (
+                  this.groupByListFilter.map(option => {
+                    return (
+                      <div
+                        key={option.value}
+                        class={['group-by-select-item', { active: option.checked }]}
+                        title={option.value}
+                        onClick={() => this.chooseSelect(option)}
+                      >
+                        {option.text}
+                        {option.checked && <i class='icon-monitor icon-mc-check-small' />}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div class='no-data'>{this.$t('暂无数据')}</div>
+                )}
+              </div>
             </div>
           </bk-popover>
         ) : (
