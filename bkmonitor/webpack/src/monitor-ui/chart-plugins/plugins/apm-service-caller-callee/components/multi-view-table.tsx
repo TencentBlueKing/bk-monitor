@@ -49,6 +49,8 @@ interface IMultiViewTableProps {
   sidePanelCommonOptions: Partial<CallOptions>;
   isLoading?: boolean;
   supportedCalculationTypes?: IListItem[];
+  tableTotal?: number;
+  totalList?: IDataItem[];
 }
 interface IMultiViewTableEvent {
   onShowDetail?: () => void;
@@ -68,7 +70,8 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @Prop({ required: true, type: Boolean }) isLoading: boolean;
   @Prop({ required: true, type: Object }) panel: PanelModel;
   @Prop({ required: true, type: Object }) sidePanelCommonOptions: Partial<CallOptions>;
-
+  @Prop({ required: true, type: Number }) tableTotal: number;
+  @Prop({ required: true, type: Array }) totalList: IDataItem[];
   @ProvideReactive('callOptions') callOptions: Partial<CallOptions> = {};
 
   active = 'request';
@@ -98,6 +101,12 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   consuming = ['avg_duration', 'p50_duration', 'p95_duration', 'p99_duration'];
   // 侧滑面板 维度id
   filterDimensionValue = -1;
+  pagination = {
+    current: 1,
+    count: 0,
+    limit: 10,
+    limitList: [10, 20, 50],
+  };
   @Watch('sidePanelCommonOptions', { immediate: true })
   handleRawCallOptionsChange() {
     const selectItem = this.dimensionOptions.find(item => item.id === this.filterDimensionValue);
@@ -117,7 +126,10 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       call_filter: [...this.sidePanelCommonOptions.call_filter, ...list],
     };
   }
-
+  @Watch('tableTotal')
+  handleTableTotal(val) {
+    this.pagination.count = val;
+  }
   @Watch('supportedCalculationTypes', { immediate: true })
   handlePanelChange(val) {
     const txtVal = {
@@ -129,7 +141,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     this.panels.map(item => {
       if (item.id !== 'request') {
         item.columns = val
-          .map(opt => Object.assign(opt, { prop: `${opt.value}_0s`, label: txtVal[opt.value] || opt.text }))
+          .map(opt => Object.assign(opt, { prop: `${opt.value}`, label: txtVal[opt.value] || opt.text }))
           .filter(key => this[item.id].includes(key.value));
       }
     });
@@ -156,6 +168,24 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     return options;
   }
 
+  get showTableList() {
+    const groupByList = this.dimensionList.filter(item => item.active);
+    const { limit, current } = this.pagination;
+    if (this.totalList.length > 0) {
+      Object.assign(this.totalList[0], {
+        isTotal: true,
+        [groupByList[0].value]: '汇总',
+      });
+    }
+    const list = (this.tableListData || []).slice((current - 1) * limit, current * limit);
+    return [...list, ...this.totalList];
+  }
+  get showTabTableList() {
+    const { limit, current } = this.pagination;
+    const list = (this.tableTabData || []).slice((current - 1) * limit, current * limit);
+    return [...list, ...this.totalList];
+  }
+
   mounted() {
     TAB_TABLE_TYPE.find(item => item.id === 'request').handle = this.handleGetDistribution;
   }
@@ -170,7 +200,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     this.chartActive = id;
   }
   /** 动态处理表格要展示的数据 */
-  @Watch('tableColData', { immediate: true })
+  @Watch('tableColData')
   handleChangeCol(val) {
     const key = {
       '1d': '昨天',
@@ -188,7 +218,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       item.columns = item.columns.flatMap(col => {
         let defaultCol = [];
         const isRequest = item.id !== 'request';
-        const baseKey = isRequest ? col.label : 'request_total';
+        const baseKey = isRequest ? col.prop : 'request_total';
         defaultCol = [{ label: this.$t('波动'), prop: `growth_rates_${baseKey}_${val[0]}` }];
         const cache = val.length === 1 ? ['0s', ...val] : val;
         const additionalCols = cache.map((v, ind) => ({
@@ -203,7 +233,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
 
   @Emit('showDetail')
   handleShowDetail(row, key, { $index }) {
-    if (key !== 'time' && row[key]) {
+    if (!row?.isTotal && key !== 'time' && row[key]) {
       this.isShowDetail = true;
       this.filterDimensionValue = $index;
       this.handleRawCallOptionsChange();
@@ -220,11 +250,17 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     this.isShowDimension = true;
     this.curDimensionKey = key;
   }
+  pageChange(page) {
+    this.pagination.current = page;
+  }
+  limitChange(limit) {
+    this.pageChange(1);
+    this.pagination.limit = limit;
+  }
   // 下钻选择key值之后的处理
   @Emit('drill')
   chooseSelect(option: IListItem, row: IDataItem) {
     this.drillValue = option.value;
-    console.log(row, 'row');
     return { option, row };
   }
   copyValue(text) {
@@ -246,6 +282,9 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       <bk-table-column
         scopedSlots={{
           default: ({ row }) => {
+            if (row?.isTotal) {
+              return;
+            }
             return (
               <div class='multi-view-table-link'>
                 <bk-dropdown-menu
@@ -295,9 +334,14 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           scopedSlots={{
             default: a => {
               const timeTxt = a.row.time ? dayjs.tz(a.row.time * 1000).format('YYYY-MM-DD HH:mm:ss') : '--';
-              const txt = item.value === 'time' ? timeTxt : a.row[item.value];
+              const txt = item.value === 'time' && !a.row?.isTotal ? timeTxt : a.row[item.value];
               return (
-                <span class={['multi-view-table-link', { 'block-link': item.value === 'time' || !a.row[item.value] }]}>
+                <span
+                  class={[
+                    'multi-view-table-link',
+                    { 'block-link': a.row?.isTotal || item.value === 'time' || !a.row[item.value] },
+                  ]}
+                >
                   <span
                     class='item-txt'
                     v-bk-overflow-tips
@@ -305,10 +349,12 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                   >
                     {txt || '--'}
                   </span>
-                  <i
-                    class='icon-monitor icon-mc-copy tab-row-icon'
-                    onClick={() => this.copyValue(a.row[item.value])}
-                  />
+                  {!a.row?.isTotal && a.row[item.value] && (
+                    <i
+                      class='icon-monitor icon-mc-copy tab-row-icon'
+                      onClick={() => this.copyValue(a.row[item.value])}
+                    />
+                  )}
                 </span>
               );
             },
@@ -402,42 +448,59 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   render() {
     return (
       <div class='multi-view-table-main'>
-        <div class='multi-view-left'>
-          {this.dimensionList && (
-            <bk-table
-              ext-cls='multi-view-table'
-              data={this.tableListData}
-              header-border={false}
-              header-cell-class-name={() => 'multi-table-head'}
-              outer-border={false}
-            >
-              {this.handleMultiColumn()}
-            </bk-table>
-          )}
-        </div>
-        <div class='multi-view-right'>
-          <div class='head-tab'>
-            <TabBtnGroup
-              height={42}
-              activeKey={this.active}
-              list={this.panels}
-              type='tab'
-              onChange={this.changeTab}
-            />
+        <div class='multi-view-table-view'>
+          <div class='multi-view-left'>
+            {this.dimensionList && (
+              <bk-table
+                ext-cls='multi-view-table'
+                data={this.showTableList}
+                header-border={false}
+                header-cell-class-name={() => 'multi-table-head'}
+                max-height={600}
+                outer-border={false}
+                virtual-render={this.pagination.limit > 20}
+              >
+                {this.handleMultiColumn()}
+              </bk-table>
+            )}
           </div>
-          <div>
-            <bk-table
-              ext-cls='multi-view-tab-table'
-              v-bkloading={{ isLoading: this.isLoading }}
-              data={this.tableTabData}
-              header-border={false}
-              header-cell-class-name={() => 'multi-table-tab-head'}
-              outer-border={false}
-            >
-              {this.handleMultiTabColumn()}
-            </bk-table>
+          <div class='multi-view-right'>
+            <div class='head-tab'>
+              <TabBtnGroup
+                height={42}
+                activeKey={this.active}
+                list={this.panels}
+                type='tab'
+                onChange={this.changeTab}
+              />
+            </div>
+            <div>
+              <bk-table
+                ext-cls='multi-view-tab-table'
+                v-bkloading={{ isLoading: this.isLoading }}
+                data={this.showTabTableList}
+                header-border={false}
+                header-cell-class-name={() => 'multi-table-tab-head'}
+                max-height={600}
+                outer-border={false}
+                virtual-render={this.pagination.limit > 20}
+              >
+                {this.handleMultiTabColumn()}
+              </bk-table>
+            </div>
           </div>
         </div>
+        <bk-pagination
+          class='mt-8'
+          count={this.pagination.count}
+          current={this.pagination.current}
+          limit={this.pagination.limit}
+          limit-list={this.pagination.limitList}
+          size='small'
+          show-total-count
+          onChange={this.pageChange}
+          onLimitChange={this.limitChange}
+        />
         {/* 维度趋势图侧栏 */}
         <bk-sideslider
           width={640}

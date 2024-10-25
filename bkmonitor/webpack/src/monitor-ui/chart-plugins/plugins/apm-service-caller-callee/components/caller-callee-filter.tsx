@@ -37,7 +37,7 @@ import { VariablesService } from '../../../utils/variable';
 import { SYMBOL_LIST } from '../utils';
 
 import type { PanelModel } from '../../../typings';
-import type { CallOptions, IFilterData } from '../type';
+import type { CallOptions, IFilterData, IListItem } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
@@ -51,6 +51,10 @@ interface ICallerCalleeFilterEvent {
   onReset?: () => void;
   onSearch?: (options: CallOptions['call_filter']) => void;
 }
+const filterOption: IListItem = {
+  text: '- 空 -',
+  value: '',
+};
 @Component({
   name: 'CallerCalleeFilter',
   components: {},
@@ -196,9 +200,10 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
       .then(res => {
         this.isLoading = false;
         const newFilter = this.filterTags[this.activeKey].map(item =>
-          item.value === key ? { ...item, values: res } : item
+          item.value === key ? { ...item, values: [...[filterOption], ...res] } : item
         );
         this.$set(this.filterTags, this.activeKey, newFilter);
+        console.log(this.filterTags, 'this.filterTags', filterOption);
       })
       .catch(() => (this.isLoading = false));
   }
@@ -249,7 +254,7 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
                       <bk-option
                         id={opt.value}
                         key={opt.value}
-                        name={opt.value}
+                        name={opt.text}
                       />
                     ))}
                   </bk-select>

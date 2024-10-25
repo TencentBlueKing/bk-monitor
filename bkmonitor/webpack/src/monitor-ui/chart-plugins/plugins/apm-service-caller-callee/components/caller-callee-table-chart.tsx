@@ -89,7 +89,10 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   drillWhere: IFilterCondition[] = [];
   pointTime: IPointTime = {};
   dimensionList: DimensionItem[] = [];
-
+  diffTableList = {};
+  tableTotal = 0;
+  totalList = {};
+  totalListData = [];
   get panelCommonOptions() {
     return this.panel.options.common;
   }
@@ -103,16 +106,10 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   created() {
     this.handlePanelChange();
   }
-
-  @Watch('viewOptions', { deep: true })
-  onViewOptionsChanges() {
-    this.tableColData = this.callOptions.time_shift.map(item => item.alias);
-    this.getPageList();
-  }
   @Watch('callOptions', { deep: true })
   onCallOptionsChanges(val) {
-    this.tableColData = val.time_shift.map(item => item.alias);
-    this.viewOptions?.service_name && this.getPageList();
+    // this.tableColData = val.time_shift.map(item => item.alias);
+    this.viewOptions?.service_name && this.getPanelData();
   }
   /** 点击选择图表中点 */
   @Watch('chartPointOption', { deep: true })
@@ -184,9 +181,9 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     return callTimeShift.length === 2 ? callTimeShift : ['0s', ...callTimeShift];
   }
   getPageList() {
-    this.tableTabData = [];
-    this.tableListData = [];
+    // this.tableTabData = [];
     this.getTableDataList();
+    this.getTableDataList(true);
   }
   @Debounce(100)
   async getPanelData() {
@@ -196,7 +193,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     this.getPageList();
   }
   /** 获取表格数据 */
-  getTableDataList(metric_cal_type = 'request_total') {
+  getTableDataList(isTotal = false, metric_cal_type = 'request_total') {
     const variablesService = new VariablesService({
       ...this.viewOptions,
       ...this.callOptions,
@@ -209,7 +206,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
         ...this.viewOptions,
       }),
       ...{
-        group_by: this.dimensionList.filter(item => item.active).map(item => item.value),
+        group_by: isTotal ? [] : this.dimensionList.filter(item => item.active).map(item => item.value),
         time_shifts: timeShift,
         metric_cal_type,
         baseline: '0s',
@@ -238,12 +235,21 @@ class CallerCalleeTableChart extends CommonSimpleChart {
           });
           return Object.assign(item, dimensions, col);
         });
-        if (this.tableListData.length === 0) {
+        if (!isTotal) {
           this.tableListData = newData;
-        } else {
-          this.tableListData.map((item, ind) => Object.assign(item, newData[ind]));
+          if (metric_cal_type !== 'request_total') {
+            this.diffTableList[metric_cal_type] = newData;
+          } else {
+            this.tableTabData = newData;
+          }
+          this.tableTotal = res?.total || 0;
+          return;
         }
-        this.tableTabData = JSON.parse(JSON.stringify(this.tableListData));
+        if (metric_cal_type !== 'request_total') {
+          this.totalList[metric_cal_type] = newData;
+        } else {
+          this.totalListData = newData;
+        }
       })
       .catch(() => {
         this.tableLoading = false;
@@ -255,11 +261,28 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     const activeList = this.dimensionList.filter(item => item.active).map(item => item.value);
     this.handleSelectDimension(this.isSingleView ? activeList.slice(0, 1) : activeList);
   }
-
+  handleDataFormat(keyList: string, data: string, field: string[]) {
+    this[data] = [...(this[keyList][field[0]] || [])];
+    // biome-ignore lint/complexity/noForEach: <explanation>
+    field.slice(1).forEach(val => {
+      this[data] = this[data].map((item, index) => ({
+        ...item,
+        ...this[keyList][val]?.[index],
+      }));
+    });
+  }
+  @Debounce(10)
   tabChangeHandle(list: string[]) {
-    console.log(list, 'list');
-    this.tableLoading = true;
-    list.map(item => this.getTableDataList(item));
+    list.map(item => {
+      this.getTableDataList(false, item);
+      this.getTableDataList(true, item);
+    });
+    if (list.length > 1) {
+      setTimeout(() => {
+        this.handleDataFormat('diffTableList', 'tableTabData', list);
+        this.handleDataFormat('totalList', 'totalListData', list);
+      }, 500);
+    }
   }
   @Emit('closeTag')
   handleCloseTag(item) {
@@ -314,7 +337,6 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       };
     });
     this.tableColumn = tableColumn;
-    this.tableTabData = [];
     this.getTableDataList();
   }
   renderDimensionList() {
@@ -428,6 +450,8 @@ class CallerCalleeTableChart extends CommonSimpleChart {
                 tableColData={this.tableColData}
                 tableListData={this.tableListData}
                 tableTabData={this.tableTabData}
+                tableTotal={this.tableTotal}
+                totalList={this.totalListData}
                 onDrill={this.handleDrill}
                 onShowDetail={this.handleShowDetail}
                 onTabChange={this.tabChangeHandle}

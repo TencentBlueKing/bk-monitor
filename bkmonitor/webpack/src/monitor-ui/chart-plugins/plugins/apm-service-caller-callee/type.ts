@@ -67,6 +67,7 @@ export enum EPreDateType {
 export interface IListItem {
   value?: string;
   text?: string;
+  label?: string;
 }
 
 export type CallOptions = {
