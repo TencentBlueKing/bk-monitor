@@ -154,7 +154,7 @@
             "time_series": {
               "hoverAllTooltips": true
             },
-            "unit": "number",
+            "unit": "",
             "is_support_group_by": true,
             "is_support_compare": true
           }

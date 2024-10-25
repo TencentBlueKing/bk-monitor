@@ -3020,6 +3020,14 @@ class CalculateByRangeResource(Resource):
                     continue
                 record.setdefault("proportions", {})[alias] = (record[alias] / alias_total_map[alias]) * 100
 
+    @classmethod
+    def _process_sorted(cls, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        if not records:
+            return []
+        if "time" in records[0].get("dimensions"):
+            return sorted(records, key=lambda _d: -_d.get("dimensions", {}).get("time", 0))
+        return records
+
     def perform_request(self, validated_request_data):
         def _collect(_alias: Optional[str], **_kwargs):
             _group: metric_group.BaseMetricGroup = metric_group.MetricGroupRegistry.get(
@@ -3062,7 +3070,7 @@ class CalculateByRangeResource(Resource):
             # 计算占比
             self._process_proportions(aliases, merged_records)
 
-        return {"total": len(merged_records), "data": merged_records}
+        return {"total": len(merged_records), "data": self._process_sorted(merged_records)}
 
 
 class QueryDimensionsByLimitResource(Resource):
