@@ -42,7 +42,7 @@ class TestGetKubernetesPod:
                 },
             },
             {'key': 'bk_cluster_name', 'name': '集群名称', 'type': 'string', 'value': '蓝鲸社区版7.0'},
-            {'key': 'namespace', 'name': '名字空间', 'type': 'string', 'value': 'bcs-system'},
+            {'key': 'namespace', 'name': 'NameSpace', 'type': 'string', 'value': 'bcs-system'},
             {
                 'key': 'total_container_count',
                 'name': '容器数量',
@@ -174,7 +174,7 @@ class TestGetKubernetesPod:
                 },
             },
             {'key': 'bk_cluster_name', 'name': '集群名称', 'type': 'string', 'value': '蓝鲸社区版7.0'},
-            {'key': 'namespace', 'name': '名字空间', 'type': 'string', 'value': 'namespace_a'},
+            {'key': 'namespace', 'name': 'NameSpace', 'type': 'string', 'value': 'namespace_a'},
             {
                 'key': 'total_container_count',
                 'name': '容器数量',

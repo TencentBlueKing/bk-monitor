@@ -1728,7 +1728,7 @@ class StorageStatusResource(Resource):
                         if telemetry_handler_registry(data_type.value, app=app).storage_status
                         else StorageStatus.ERROR
                     )
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-except
                     status_mapping[data_type.value] = StorageStatus.ERROR
                     logger.warning(_("获取{type}存储状态失败,详情: {detail}").format(type=data_type.value, detail=e))
         except Application.DoesNotExist:
@@ -1759,7 +1759,7 @@ class DataStatusResource(Resource):
                         if telemetry_handler_registry(data_type.value, app=app).get_data_count(start_time, end_time)
                         else DataStatus.NO_DATA
                     )
-                except ValueError as e:
+                except Exception as e:  # pylint: disable=broad-except
                     status_mapping[data_type.value] = getattr(
                         app, f"{data_type.datasource_type}_data_status", DataStatus.NO_DATA
                     )
