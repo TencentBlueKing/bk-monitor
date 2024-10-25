@@ -20,18 +20,20 @@ class DataLinkKind(Enum):
     VMSTORAGEBINDING = "VmStorageBinding"
     DATABUS = "Databus"
     CONDITIONALSINK = "ConditionalSink"
+    SINK = "Sink"
 
-    _choices_labels = (
+    choices_labels = (
         (DATAID, "dataids"),
         (RESULTTABLE, "resulttables"),
         (VMSTORAGEBINDING, "vmstoragebindings"),
         (DATABUS, "databuses"),
         (CONDITIONALSINK, "conditionalsinks"),
+        (SINK, "sinks"),
     )
 
     @classmethod
     def get_choice_value(cls, key: str) -> str:
-        for item in DataLinkKind._choices_labels.value:
+        for item in DataLinkKind.choices_labels.value:
             if key == item[0]:
                 return item[1]
 
