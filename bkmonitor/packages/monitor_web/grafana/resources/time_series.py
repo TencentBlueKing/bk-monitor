@@ -54,16 +54,16 @@ KUBERNETES_VARIABLE_FIELDS = {
     ],
     "namespace": [
         {"bk_property_id": "bcs_cluster_id", "bk_property_name": _("集群ID")},
-        {"bk_property_id": "namespace", "bk_property_name": _("名字空间")},
+        {"bk_property_id": "namespace", "bk_property_name": "NameSpace"},
     ],
     "pod": [
         {"bk_property_id": "bcs_cluster_id", "bk_property_name": _("集群ID")},
-        {"bk_property_id": "namespace", "bk_property_name": _("名字空间")},
+        {"bk_property_id": "namespace", "bk_property_name": "NameSpace"},
         {"bk_property_id": "name", "bk_property_name": _("Pod名称")},
     ],
     "container": [
         {"bk_property_id": "bcs_cluster_id", "bk_property_name": _("集群ID")},
-        {"bk_property_id": "namespace", "bk_property_name": _("名字空间")},
+        {"bk_property_id": "namespace", "bk_property_name": "NameSpace"},
         {"bk_property_id": "pod_name", "bk_property_name": _("Pod名称")},
         {"bk_property_id": "name", "bk_property_name": _("容器名称")},
     ],
@@ -74,7 +74,7 @@ KUBERNETES_VARIABLE_FIELDS = {
     ],
     "service": [
         {"bk_property_id": "bcs_cluster_id", "bk_property_name": _("集群ID")},
-        {"bk_property_id": "namespace", "bk_property_name": _("名字空间")},
+        {"bk_property_id": "namespace", "bk_property_name": "NameSpace"},
         {"bk_property_id": "name", "bk_property_name": _("服务名称")},
     ],
 }
