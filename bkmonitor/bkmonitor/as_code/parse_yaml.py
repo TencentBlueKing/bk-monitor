@@ -547,7 +547,10 @@ class StrategyConfigParser(BaseConfigParser):
             elif target["field"] == "dynamic_group":
                 target_type = "dynamic_group"
                 for value in target["value"]:
-                    nodes.append(self.reverse_dynamic_groups.get(value, value))
+                    dynamic_group_id = value["dynamic_group_id"]
+                    if dynamic_group_id not in self.reverse_dynamic_groups:
+                        continue
+                    nodes.append(self.reverse_dynamic_groups[dynamic_group_id])
 
             if nodes:
                 query["target"] = {"type": target_type, "nodes": nodes}
