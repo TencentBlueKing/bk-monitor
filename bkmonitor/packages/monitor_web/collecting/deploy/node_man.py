@@ -327,10 +327,6 @@ class NodeManInstaller(BaseInstaller):
         diff_node = self._deploy(new_version)
 
         # 更新采集配置
-        if install_config.get("name"):
-            self.collect_config.name = install_config["name"]
-        if "label" in install_config:
-            self.collect_config.labels = install_config["label"]
         self.collect_config.operation_result = OperationResult.PREPARING
 
         # 如果有指定操作类型，则更新为指定操作类型
