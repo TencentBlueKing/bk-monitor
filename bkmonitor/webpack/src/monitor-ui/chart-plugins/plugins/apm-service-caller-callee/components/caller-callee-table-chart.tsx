@@ -36,13 +36,12 @@ import TabBtnGroup from './common-comp/tab-btn-group';
 import MultiViewTable from './multi-view-table';
 
 import type { PanelModel } from '../../../typings';
-import type { IServiceConfig, IColumn, IDataItem, CallOptions, IFilterCondition, IFilterData } from '../type';
+import type { IServiceConfig, IDataItem, CallOptions, IFilterCondition, IFilterData, DimensionItem } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './caller-callee-table-chart.scss';
 interface ICallerCalleeTableChartProps {
-  tableColumn?: IColumn[];
   searchList?: IServiceConfig[];
   tableListData?: IDataItem[];
   tableTabData?: IDataItem[];
@@ -52,13 +51,18 @@ interface ICallerCalleeTableChartEvent {
   onCloseTag?: (val: IFilterCondition[]) => void;
   onHandleDetail?: () => void;
 }
+
+const TimeDimension: DimensionItem = {
+  value: 'time',
+  text: '时间',
+  active: false,
+};
 @Component({
   name: 'CallerCalleeTableChart',
-  components: {},
 })
 export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartProps, ICallerCalleeTableChartEvent> {
   @Prop({ required: true, type: Object }) panel: PanelModel;
-  @Prop({ required: true, type: String, default: '' }) activeKey: string;
+  @Prop({ required: true, type: String, default: '' }) activeKey: 'callee' | 'caller';
   @Prop({ type: Array }) filterData: IFilterCondition[];
   @Prop({ type: Array }) searchList: IServiceConfig[];
 
@@ -69,12 +73,27 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
 
   tabList = PERSPECTIVE_TYPE;
   activeTabKey = 'single';
-  singleChooseField = '';
-  chooseList: string[] = [];
   tableColumn = [];
   tableListData = [];
   tableTabData = [];
   tableColData: string[] = [];
+
+  dimensionList: DimensionItem[] = [];
+
+  get panelCommonOptions() {
+    return this.panel.options.common;
+  }
+
+  get callTags() {
+    if (this.activeKey === 'callee') {
+      return this.panelCommonOptions?.angle?.callee?.tags || [];
+    }
+    return this.panelCommonOptions?.angle?.caller?.tags || [];
+  }
+  created() {
+    this.handlePanelChange();
+  }
+
   @Watch('viewOptions', { deep: true })
   onViewOptionsChanges() {
     this.tableColData = this.callOptions.time_shift.map(item => item.alias);
@@ -86,29 +105,15 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
     this.viewOptions?.service_name && this.getPageList();
   }
 
-  @Watch('activeKey', { immediate: true })
-  handlePanelChange(val) {
-    const defaultKey = this.filterTags[val].find(item => item.default_group_by_field);
-    this.singleChooseField = defaultKey.value;
-    this.chooseList = [this.singleChooseField];
+  @Watch('activeKey')
+  handlePanelChange() {
     this.activeTabKey = 'single';
-    this.tableColumn = [
-      {
-        label: defaultKey.text,
-        prop: defaultKey.value,
-      },
+    this.dimensionList = [
+      { ...TimeDimension },
+      ...this.callTags.map(item => ({ value: item.value, text: item.text, active: !!item.default_group_by_field })),
     ];
   }
 
-  getCallTimeShift() {
-    const callTimeShift = this.callOptions.time_shift.map(item => item.alias);
-    return callTimeShift.length === 2 ? callTimeShift : ['0s', ...callTimeShift];
-  }
-  getPageList() {
-    this.tableTabData = [];
-    this.tableListData = [];
-    this.getTableDataList();
-  }
   /** 是否为单视图 */
   get isSingleView() {
     return this.activeTabKey === 'single';
@@ -129,16 +134,25 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
   get tagFilterList() {
     return (this.filterData || []).filter(item => item.value.length > 0);
   }
-  get chooseKeyList() {
-    return [
-      ...[
-        {
-          value: 'time',
-          text: '时间',
-        },
-      ],
-      ...this.searchList,
-    ];
+
+  get sidePanelCommonOptions(): Partial<CallOptions> {
+    const angel = this.commonOptions?.angle || {};
+    const options = this.activeKey === 'caller' ? angel.caller : angel.callee;
+    return {
+      server: options.server,
+      ...options?.metrics,
+      call_filter: [...this.callOptions.call_filter],
+    };
+  }
+
+  getCallTimeShift() {
+    const callTimeShift = this.callOptions.time_shift.map(item => item.alias);
+    return callTimeShift.length === 2 ? callTimeShift : ['0s', ...callTimeShift];
+  }
+  getPageList() {
+    this.tableTabData = [];
+    this.tableListData = [];
+    this.getTableDataList();
   }
   /** 获取表格数据 */
   getTableDataList(metric_cal_type = 'request_total') {
@@ -154,7 +168,7 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
         ...this.viewOptions,
       }),
       ...{
-        group_by: this.chooseList,
+        group_by: this.dimensionList.filter(item => item.active).map(item => item.value),
         time_shifts: timeShift,
         metric_cal_type,
         baseline: '0s',
@@ -164,7 +178,7 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
     };
     newParams.where = [...newParams.where, ...this.callOptions.call_filter];
     calculateByRange(newParams).then(res => {
-      const newData = (res || []).map(item => {
+      const newData = (res?.data || []).map(item => {
         const { dimensions, proportions, growth_rates } = item;
         const col = {};
         timeShift.map(key => {
@@ -191,41 +205,8 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
 
   changeTab(id: string) {
     this.activeTabKey = id;
-    if (id === 'multiple') {
-      this.chooseList = [this.singleChooseField];
-      this.tableColumn.map(item => this.chooseList.push(item.value));
-    } else {
-      const option = this.chooseKeyList.find(item => item.value === this.chooseList[0]);
-      this.chooseSingleField(option);
-    }
-  }
-  // 单视角时选择key
-  chooseSingleField(item) {
-    this.singleChooseField = item.value;
-    this.tableColumn = [
-      {
-        label: item.text,
-        prop: item.value,
-      },
-    ];
-    this.chooseList = [item.value];
-    this.tableTabData = [];
-    this.getTableDataList();
-  }
-  // 多视角时选择key
-  handleMultiple() {
-    this.tableColumn = [];
-    this.chooseKeyList.map(item => {
-      if (this.chooseList.includes(item.value)) {
-        this.tableColumn.push({
-          label: item.text,
-          prop: item.value,
-        });
-      }
-      return item;
-    });
-    this.tableTabData = [];
-    this.getTableDataList();
+    const activeList = this.dimensionList.filter(item => item.active).map(item => item.value);
+    this.handleSelectDimension(this.isSingleView ? activeList.slice(0, 1) : activeList);
   }
 
   tabChangeHandle(list: string[]) {
@@ -236,7 +217,7 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
     return item;
   }
   handleGetKey(key: string) {
-    return this.chooseKeyList.find(item => item.value === key).text;
+    return this.dimensionList.find(item => item.value === key).text;
   }
   handleOperate(key: string) {
     return SYMBOL_LIST.find(item => item.value === key).label;
@@ -247,22 +228,42 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
     return { row, key };
   }
   // 下钻handle
-  handleDrill(option) {
+  handleDrill(option: DimensionItem) {
     if (this.activeTabKey === 'multiple') {
-      this.chooseList.push(option.value);
-      this.handleMultiple();
+      const activeList = this.dimensionList.filter(item => item.active).map(item => item.value);
+      activeList.push(option.value);
+      this.handleSelectDimension(activeList);
     } else {
-      this.chooseSingleField(option);
+      this.handleSelectDimension([option.value]);
     }
   }
-
-  renderMainList() {
+  handleSelectDimension(selectedList: string[]) {
+    const tableColumn = [];
+    this.dimensionList = this.dimensionList.map(item => {
+      const active = selectedList.includes(item.value);
+      if (active) {
+        tableColumn.push({
+          label: item.text,
+          prop: item.value,
+        });
+      }
+      return {
+        ...item,
+        active,
+      };
+    });
+    this.tableColumn = tableColumn;
+    this.tableTabData = [];
+    this.getTableDataList();
+  }
+  renderDimensionList() {
+    const activeList = this.dimensionList.filter(item => item.active).map(item => item.value);
     if (this.isSingleView) {
-      return this.chooseKeyList.map(item => (
+      return this.dimensionList.map(item => (
         <span
           key={item.value}
-          class={['aside-item', { active: this.singleChooseField === item.value }]}
-          onClick={() => this.chooseSingleField(item)}
+          class={['aside-item', { active: item.active }]}
+          onClick={() => item.value !== activeList[0] && this.handleSelectDimension([item.value])}
         >
           {item.text}
         </span>
@@ -270,14 +271,14 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
     }
     return (
       <bk-checkbox-group
-        v-model={this.chooseList}
-        onChange={this.handleMultiple}
+        value={activeList}
+        onChange={this.handleSelectDimension}
       >
-        {this.chooseKeyList.map(item => (
+        {this.dimensionList.map(item => (
           <bk-checkbox
             key={item.value}
             class='aside-item'
-            disabled={this.chooseList.length === 1 && this.chooseList.includes(item.value)}
+            disabled={activeList.length === 1 && item.active}
             value={item.value}
           >
             {item.text}
@@ -311,7 +312,7 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
                 onChange={this.changeTab}
               />
             </div>
-            <div class='aside-main'>{this.renderMainList()}</div>
+            <div class='aside-main'>{this.renderDimensionList()}</div>
           </div>
           <div
             class='layout-main'
@@ -332,10 +333,11 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
             </div>
             <div class='layout-main-table'>
               <MultiViewTable
-                searchList={this.chooseKeyList}
+                dimensionList={this.dimensionList}
+                panel={this.panel}
+                sidePanelCommonOptions={this.sidePanelCommonOptions}
                 supportedCalculationTypes={this.supportedCalculationTypes}
                 tableColData={this.tableColData}
-                tableColumn={this.tableColumn}
                 tableListData={this.tableListData}
                 tableTabData={this.tableTabData}
                 onDrill={this.handleDrill}

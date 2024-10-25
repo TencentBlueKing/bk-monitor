@@ -1,29 +1,36 @@
 .multi-view-table-main {
+  display: flex;
   width: 100%;
   height: 100%;
-  display: flex;
+
   .ml-6 {
     margin-left: 6px;
   }
+
   .multi-view-left {
     // max-width: 40%;
     flex: 1;
   }
+
   .multi-table-head,
   .multi-table-tab-head {
     background: #f0f1f5;
   }
+
   .multi-table-head {
     height: 85px !important;
   }
+
   .multi-view-right {
     min-width: 690px;
     max-width: 60%;
+
     .head-tab {
       width: 100%;
       height: 42px;
     }
   }
+
   .multi-view-table,
   .multi-view-tab-table {
     .hover-row {
@@ -33,156 +40,199 @@
         cursor: pointer;
       }
     }
+
     .multi-view-table-txt {
       color: #63656e;
+
       .tab-row-icon {
         display: none;
       }
+
       .icon-mc-line {
-        color: #63656e;
-        font-size: 14px;
         margin-left: 6px;
+        font-size: 14px;
+        color: #63656e;
         cursor: pointer;
       }
     }
+
     .multi-view-table-link {
       color: #3a84ff;
       cursor: pointer;
+
       .tab-row-icon {
         display: none;
       }
+
       .icon-mc-copy {
-        color: #63656e;
-        font-size: 14px;
         margin-left: 6px;
+        font-size: 14px;
+        color: #63656e;
       }
     }
+
     .block-link {
       color: #313238;
     }
+
     .drill-down-btn {
       .icon-arrow-down {
         font-size: 16px;
         vertical-align: bottom;
       }
     }
+
     .drill-down-select {
-      width: 100px;
       display: inline-block;
+      width: 100px;
     }
   }
 }
+
 .multi-detail-slider {
-  height: 100%;
   width: 100%;
+  height: 100%;
+
   .multi-slider-filter {
+    display: flex;
+    align-items: center;
     width: 640px;
     height: 48px;
     padding-left: 24px;
-    display: flex;
-    align-items: center;
     background: #ffffff;
     box-shadow: 0px 1px 1px 2px rgba(0, 0, 0, 0.05);
+
     .filter-title {
-      font-size: 12px;
-      color: #313238;
-      font-weight: 700;
       margin-right: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #313238;
     }
-    .filter-item {
+
+    .filter-select {
       display: flex;
+      flex: 1;
       align-items: center;
       margin-right: 24px;
-      .filter-item-title {
-        color: #63656e;
-        font-size: 12px;
-        margin-right: 6px;
+
+      .bk-select-dropdown {
+        width: 100%;
       }
     }
   }
+
   .multi-slider-chart {
     width: 100%;
-    margin-top: 3px;
     height: calc(100vh - 104px);
-    background: #f5f7fa;
+    margin-top: 3px;
     overflow: auto;
+    background: #f5f7fa;
   }
 }
+
 .multi-detail-dialog {
   .header-on-left div,
   .header-on-left p {
     font-size: 12px !important;
   }
+
   .multi-dialog-header {
-    width: 100%;
-    height: 32px;
     display: flex;
     align-items: center;
+    width: 100%;
+    height: 32px;
+
     .head-title {
+      margin-right: 24px;
       font-size: 20px;
       color: #313238;
-      margin-right: 24px;
     }
+
     .multi-dialog-tab {
       width: 120px;
     }
+
     .multi-dialog-select {
       width: 110px;
     }
   }
+
   .ml10 {
     margin-left: 10px;
   }
+
   .bk-dialog-body {
     padding: 3px 0 24px;
   }
+
   .multi-dialog-content {
     width: 100%;
     height: 300px;
+
     .dashboard-panel .vue-grid-layout {
       background: #fff;
+
       .chart-wrapper.hover-style {
         box-shadow: none;
       }
     }
+
     .chart-base {
       height: 300px;
     }
+
     .tips {
       padding-left: 24px;
+      margin-bottom: 8px;
       font-size: 12px;
       color: #979ba5;
-      margin-bottom: 8px;
     }
   }
+
   .mt10 {
     margin-top: 10px;
   }
 }
+
 .drill-down-popover {
   .tippy-tooltip {
     padding: 3px 0 !important;
   }
+
   .drill-down-list {
-    background: #fff;
     min-width: 80px;
     height: 140px;
     overflow: auto;
+    background: #fff;
+
     .drill-down-item {
-      cursor: pointer;
-      height: 30px;
-      line-height: 30px;
-      padding: 0 8px 0 12px;
       position: relative;
+      height: 30px;
+      padding: 0 8px 0 12px;
+      line-height: 30px;
       color: #63656e;
+      cursor: pointer;
+
       &:hover {
-        background: #e1ecff;
         color: #3a84ff;
+        background: #e1ecff;
       }
+
       &.active {
         color: #3a84ff;
         background: #f4f6fa;
       }
     }
+  }
+}
+
+.options-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+
+  &-item {
+    margin-right: 6px;
   }
 }

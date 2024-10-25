@@ -98,3 +98,9 @@ export interface ITabItem {
   icon?: string;
   handle?: () => void;
 }
+
+export type DimensionItem = {
+  value: string;
+  text: string;
+  active: boolean;
+};

@@ -144,7 +144,12 @@ class CallerLineChart extends CommonSimpleChart {
         });
       }
       const promiseList = [];
-      const timeShiftList = ['', ...(this.isSupportCompare ? this.callOptions.time_shift.map(t => t.alias) : [])];
+      const timeShiftList = [
+        '',
+        ...(this.isSupportCompare && this.callOptions.time_shift?.length
+          ? this.callOptions.time_shift.map(t => t.alias)
+          : []),
+      ];
       const down_sample_range = this.downSampleRangeComputed(
         'auto',
         [params.start_time, params.end_time],
@@ -167,7 +172,7 @@ class CallerLineChart extends CommonSimpleChart {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
         const dataFormat = data => {
           const paramsResult = data;
-          if (!this.callOptions.group_by.length || !this.isSupportGroupBy) {
+          if (!this.callOptions.group_by?.length || !this.isSupportGroupBy) {
             paramsResult.group_by_limit = undefined;
           }
           return paramsResult;
@@ -219,7 +224,7 @@ class CallerLineChart extends CommonSimpleChart {
                 series.push(
                   ...res.series.map(set => ({
                     ...set,
-                    name: `${this.callOptions.time_shift.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
+                    name: `${this.callOptions.time_shift?.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
                       this.handleSeriesName(item, set) || set.target
                     }`,
                   }))
@@ -359,6 +364,7 @@ class CallerLineChart extends CommonSimpleChart {
         this.empty = true;
       }
     } catch (e) {
+      console.error(e);
       this.empty = true;
       this.emptyText = window.i18n.tc('出错了');
       console.error(e);
