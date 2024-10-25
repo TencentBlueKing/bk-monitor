@@ -334,7 +334,7 @@ class ExportPackageResource(Resource):
 
         dimensions = {
             "resource": f"{Path(inspect.getabsfile(self.__class__)).parent.name}.{self.__class__.__name__}",
-            "user_name": get_local_username(),
+            "user_name": get_local_username() or "",
         }
 
         event_name = "导入导出审计"

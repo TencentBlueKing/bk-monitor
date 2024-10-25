@@ -130,7 +130,7 @@ class ImportConfigResource(Resource):
         timestamp = int(time.time() * 1000)
         dimensions = {
             "resource": f"{Path(inspect.getabsfile(self.__class__)).parent.name}.{self.__class__.__name__}",
-            "user_name": get_request().user.username,
+            "user_name": get_request().user.username if get_request(peaceful=True) else "system",
         }
 
         # 发送审计上报的请求
@@ -579,7 +579,7 @@ class ExportConfigFileResource(ExportConfigResource):
         timestamp = int(time.time() * 1000)
         dimensions = {
             "resource": f"{Path(inspect.getabsfile(self.__class__)).parent.name}.{self.__class__.__name__}",
-            "user_name": get_request().user.username,
+            "user_name": get_request().user.username if get_request(peaceful=True) else "system",
         }
         # 发送审计上报的请求
         FrontendReportEventResource().request(
