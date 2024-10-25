@@ -173,18 +173,10 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     def _request_code_rate_qs(
         self, code_type: str, start_time: Optional[int] = None, end_time: Optional[int] = None
     ) -> UnifyQuerySet:
-        if code_type == CodeType.SUCCESS:
-            q: Q = Q(code_type__eq=code_type)
-            expression: str = "(a / b) * 100"
-        else:
-            # 先计算出对立面的概率，尽可能规避等值查询 0 值会有 series 缺失的情况
-            q: Q = Q(code_type__neq=code_type)
-            expression: str = "(1 - a / b) * 100"
-
         code_q: QueryConfigBuilder = (
             self.q(start_time, end_time)
             .alias("a")
-            .filter(q)
+            .filter(code_type__eq=code_type)
             .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_total"], method="SUM", alias="a")
         )
         total_q: QueryConfigBuilder = (
@@ -192,7 +184,12 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             .alias("b")
             .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_total"], method="SUM", alias="b")
         )
-        return self.qs(start_time, end_time).add_query(code_q).add_query(total_q).expression(expression)
+        return (
+            self.qs(start_time, end_time)
+            .add_query(code_q)
+            .add_query(total_q)
+            .expression("(a or b < bool 0) /  b * 100")
+        )
 
     def _request_code_rate(
         self, code_type: str, start_time: Optional[int] = None, end_time: Optional[int] = None

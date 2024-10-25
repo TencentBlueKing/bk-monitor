@@ -84,24 +84,71 @@ def is_build_in_process_data_source(table_id: str):
     return table_id in ["process.perf", "process.port"]
 
 
-def q_to_dict(q: tree.Node, depth=1, width=1):
+def q_to_dict(q: tree.Node):
+    _inner_or, _inner_and = "__q_to_dict_or", "__q_to_dict_and"
+
     if not q.children:
         return {}
 
-    filter_dict: Dict[str, Any] = {}
+    sub_dicts: List[Dict[str, Any]] = []
     for idx, child in enumerate(q.children):
         if isinstance(child, tree.Node):
-            sub_dict: Dict[str, Any] = q_to_dict(child, depth + 1, idx)
-            if q.connector == Q.AND:
-                filter_dict.update(sub_dict)
-            elif q.connector == Q.OR:
-                filter_dict.setdefault("or", []).append(sub_dict)
+            sub_dicts.append(q_to_dict(child))
         else:
-            key, value = child
-            if q.connector == Q.AND:
-                filter_dict[key] = value
-            elif q.connector == Q.OR:
-                filter_dict.setdefault(f"or_{width}_{depth}", []).append({key: value})
+            sub_dicts.append({child[0]: child[1]})
+
+    filter_dict: Dict[str, Any] = {}
+    for idx, sub_dict in enumerate(sub_dicts):
+        if q.connector == Q.AND:
+            for k, v in sub_dict.items():
+                if k in filter_dict:
+                    if filter_dict[k] == v:
+                        continue
+                    # 找到一个坑，填进去
+                    cursor = 0
+                    while True:
+                        sub = filter_dict.get(f"{_inner_and}_{cursor}", {})
+                        if k not in sub:
+                            break
+                        if sub[k] == v:
+                            cursor = -1
+                            break
+                        cursor += 1
+
+                    if cursor != -1:
+                        filter_dict.setdefault(f"{_inner_and}_{cursor}", {})[k] = v
+                else:
+                    filter_dict[k] = v
+        else:
+            filter_dict.setdefault(_inner_or, []).append(sub_dict)
+
+    cursor = 0
+    k_count_map: Dict[str, int] = defaultdict(int)
+    while True:
+        and_k: str = f"{_inner_and}_{cursor}"
+        sub: Optional[Dict[str, Any]] = filter_dict.get(and_k)
+        if sub is None:
+            break
+
+        if isinstance(sub, dict) and list(sub.keys()) == [_inner_or]:
+            # {"and_xx": {or: []}} -> {"or_xx": []}
+            filter_dict[f"{_inner_or}_{cursor}"] = filter_dict.pop(and_k)[_inner_or]
+
+        if isinstance(sub, dict):
+            keys: List[str] = list(sub.keys())
+            for k in keys:
+                if k.startswith(_inner_or) or k.startswith(_inner_and):
+                    continue
+                k_count_map[k] += 1
+
+                if k_count_map[k] > 1:
+                    del sub[k]
+
+        if not sub:
+            filter_dict.pop(and_k, None)
+
+        cursor += 1
+
     return filter_dict
 
 
