@@ -3109,7 +3109,9 @@ class QueryDimensionsByLimitResource(Resource):
     def _get_extra_filter_dict(cls, records: List[Dict[str, Any]]) -> Dict[str, Any]:
         q: Q = Q()
         for record in records:
-            q = q | Q(**{k: v for k, v in record["dimensions"].items() if v is not None})
+            kv: Dict[str, Any] = {k: v for k, v in record["dimensions"].items() if v is not None}
+            if kv:
+                q = q | Q(**kv)
         return q_to_dict(q)
 
     def perform_request(self, validated_request_data):

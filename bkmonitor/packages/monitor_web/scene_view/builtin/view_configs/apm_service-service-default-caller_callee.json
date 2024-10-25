@@ -2,7 +2,7 @@
   "id": "caller_callee",
   "type": "overview",
   "mode": "custom",
-  "name": "主被调",
+  "name": "调用分析",
   "variables": [],
   "panels": [],
   "overview_panels": [
@@ -151,7 +151,6 @@
           ],
           "options": {
             "time_series": {
-              "type": "bar",
               "hoverAllTooltips": true
             },
             "unit": "number",
@@ -177,7 +176,7 @@
               "alias": "成功率",
               "data": {
                 "app_name": "${app_name}",
-                "expression": "(a / b) * 100",
+                "expression": "(a or b < bool  0) /  b * 100",
                 "group_by_limit": {
                   "method": "${method}",
                   "metric_group_name": "trpc",
@@ -291,7 +290,7 @@
                 "stack": "all",
                 "extra_filter_dict": {},
                 "unify_query_param": {
-                  "expression": "(a / b) * 100",
+                  "expression": "(a or b < bool  0) /  b * 100",
                   "query_configs": [
                     {
                       "data_source_label": "custom",
@@ -391,7 +390,7 @@
               "alias": "超时率",
               "data": {
                 "app_name": "${app_name}",
-                "expression": "((a / b) * 100) or vector(0)",
+                "expression": "(a or b < bool  0) /  b * 100",
                 "group_by_limit": {
                   "method": "${method}",
                   "metric_group_name": "trpc",
@@ -505,7 +504,7 @@
                 "stack": "all",
                 "extra_filter_dict": {},
                 "unify_query_param": {
-                  "expression": "((a / b) * 100) or vector(0)",
+                  "expression": "(a or b < bool  0) /  b * 100",
                   "query_configs": [
                     {
                       "data_source_label": "custom",
@@ -828,7 +827,7 @@
         {
           "id": "pxx_duration",
           "title": "耗时分布",
-          "type": "graph",
+          "type": "caller-line-chart",
           "gridPos": {
             "x": 8,
             "y": 7,
