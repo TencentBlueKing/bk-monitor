@@ -34,8 +34,8 @@ import CallerCalleeFilter from './components/caller-callee-filter';
 import CallerCalleeTableChart from './components/caller-callee-table-chart';
 import ChartView from './components/chart-view';
 import TabBtnGroup from './components/common-comp/tab-btn-group';
-import { EParamsMode, EPreDateType, type CallOptions, type IFilterData } from './type';
-import { CALLER_CALLEE_TYPE, type CallerCalleeType } from './utils';
+import { EKind, EParamsMode, EPreDateType, type CallOptions, type IFilterData } from './type';
+import { CALLER_CALLEE_TYPE } from './utils';
 
 import type { PanelModel, ZrClickEvent } from '../../typings';
 
@@ -66,14 +66,14 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   tableListData = [];
   tableTabData = [];
   tabList = CALLER_CALLEE_TYPE;
-  callType: CallerCalleeType = 'caller';
+  callType = EKind.callee;
   dateData = [];
   diffTypeData = [];
   tableColData = [];
   // panel 传递过来的一些变量
   get panelScopedVars() {
     const angel = this.commonAngle;
-    const options = this.callType === 'caller' ? angel.caller : angel.callee;
+    const options = this.callType === EKind.caller ? angel.caller : angel.callee;
     return {
       server: options.server,
       ...options?.metrics,
@@ -150,16 +150,9 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   }
 
   // 左侧主被调切换
-  changeTab(id: string) {
+  changeTab(id: EKind) {
     this.callType = id;
-    const groupBy = this.groupByKindReset(id, this.callOptions.group_by);
-    this.callOptions = {
-      ...this.callOptions,
-      ...this.panelScopedVars,
-      call_filter: [], // todo
-      group_by: groupBy,
-      kind: id,
-    };
+    this.resetCallOptions(id);
     this.replaceRouteQuery();
   }
 
@@ -187,7 +180,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     this.searchFilterData(this.callOptions.call_filter);
   }
   // 查看详情 - 选中的字段回填到左侧筛选栏
-  handleDetail({ row, key }) {
+  handleDetail({ _row, _key }) {
     // this.callOptions.call_filter.find(item => item.key === key).value = [row[key]];
   }
 
@@ -332,7 +325,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
 
   // 根据主调背调切换需重置group_by, 剔除不属于此分类的维度
   groupByKindReset(kind: string, groupBy: string[]) {
-    const list = (kind === 'caller' ? this.commonAngle.caller?.tags : this.commonAngle.callee?.tags) || [];
+    const list = (kind === EKind.caller ? this.commonAngle.caller?.tags : this.commonAngle.callee?.tags) || [];
     const sets = new Set();
     const result = [];
     for (const item of list) {
@@ -344,6 +337,20 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       }
     }
     return result;
+  }
+
+  resetCallOptions(kind: EKind) {
+    this.callOptions = {
+      ...this.callOptions,
+      kind: kind,
+      group_by: [],
+      method: this.supportedMethods?.[0]?.value || '',
+      limit: 10,
+      metric_cal_type: this.supportedCalculationTypes?.[0]?.value || '',
+      call_filter: [],
+      tool_mode: EParamsMode.contrast,
+      time_shift: [],
+    };
   }
 
   render() {
@@ -359,13 +366,15 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
           </div>
           <div class='caller-callee-right'>
             <CallerCalleeContrast
+              searchList={
+                this.callType === EKind.caller ? this.commonAngle.caller?.tags : this.commonAngle.callee?.tags
+              }
               contrastDates={this.callOptions.time_shift.map(item => item.alias)}
               groupBy={this.callOptions.group_by}
               limit={this.callOptions.limit}
               method={this.callOptions.method}
               metricCalType={this.callOptions.metric_cal_type}
               paramsMode={this.callOptions.tool_mode}
-              searchList={this.callType === 'caller' ? this.commonAngle.caller?.tags : this.commonAngle.callee?.tags}
               supportedCalculationTypes={this.supportedCalculationTypes}
               supportedMethods={this.supportedMethods}
               onContrastDatesChange={this.handleContrastDatesChange}
