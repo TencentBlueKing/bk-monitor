@@ -124,6 +124,7 @@ export default class FieldInfo extends tsc<IProps> {
         params: {
           index_set_id: (this.collectorData as any).index_set_id,
         },
+        query: { is_realtime: 'True' },
       });
       this.timeField = res.data.time_field;
       this.tableList = res.data.fields.map(item => {

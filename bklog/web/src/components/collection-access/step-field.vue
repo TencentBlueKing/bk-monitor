@@ -1473,8 +1473,8 @@
         const updateData = { params: urlParams, data };
         // 先置空防止接口失败显示旧数据
         this.formData.etl_params.metadata_fields &&
-          this.formData.etl_params.metadata_fields.splice(0, this.formData.etl_params.metadata_fields.length);
-        this.metaDataList.splice(0, this.metaDataList);
+          this.formData.etl_params.metadata_fields?.splice(0, this.formData.etl_params.metadata_fields.length);
+        this.metaDataList?.splice?.(0, this.metaDataList.length);
         this.$http.request('collect/getEtlPreview', updateData).then(res => {
           this.formData.etl_params.metadata_fields.push(...(res.data ? res.data.fields : []));
         });
