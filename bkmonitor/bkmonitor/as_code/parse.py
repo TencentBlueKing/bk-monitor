@@ -241,6 +241,10 @@ def convert_rules(
         set_template["name"]: {"bk_obj_id": "SET_TEMPLATE", "bk_inst_id": set_template["id"]}
         for set_template in api.cmdb.get_dynamic_query(bk_biz_id=bk_biz_id, dynamic_type="SET_TEMPLATE")["children"]
     }
+    dynamic_groups: Dict[str, Dict] = {
+        dynamic_group["name"]: {"dynamic_group_id": dynamic_group["id"]}
+        for dynamic_group in api.cmdb.search_dynamic_group(bk_biz_id=bk_biz_id, bk_obj_id="host")
+    }
     parser = StrategyConfigParser(
         bk_biz_id=bk_biz_id,
         notice_group_ids=notice_group_ids,
@@ -248,6 +252,7 @@ def convert_rules(
         topo_nodes=topo_nodes,
         service_templates=service_templates,
         set_templates=set_templates,
+        dynamic_groups=dynamic_groups,
     )
 
     records = []
