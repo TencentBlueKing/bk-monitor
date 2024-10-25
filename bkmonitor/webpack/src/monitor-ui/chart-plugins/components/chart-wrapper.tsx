@@ -534,6 +534,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
           <ApmHeatmap
             panel={this.panel}
             onLoading={this.handleChangeLoading}
+            onZrClick={this.handleZrClick}
           />
         );
       case 'caller-line-chart':

@@ -34,7 +34,14 @@ import CallerCalleeFilter from './components/caller-callee-filter';
 import CallerCalleeTableChart from './components/caller-callee-table-chart';
 import ChartView from './components/chart-view';
 import TabBtnGroup from './components/common-comp/tab-btn-group';
-import { EParamsMode, EPreDateType, type CallOptions, type IFilterData } from './type';
+import {
+  EParamsMode,
+  EPreDateType,
+  type CallOptions,
+  type IFilterData,
+  type IChartOption,
+  type IFilterCondition,
+} from './type';
 import { CALLER_CALLEE_TYPE, type CallerCalleeType } from './utils';
 
 import type { PanelModel, ZrClickEvent } from '../../typings';
@@ -51,25 +58,20 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
 
   @ProvideReactive('callOptions') callOptions: Partial<CallOptions> = {};
   @ProvideReactive('filterTags') filterTags: IFilterData;
-
   // 同步route query
   @Inject('handleCustomRouteQueryChange') handleCustomRouteQueryChange: (
     customRouteQuery: Record<string, number | string>
   ) => void;
 
   @InjectReactive('customRouteQuery') customRouteQuery: Record<string, string>;
-  filterData = {
-    caller: [],
-    callee: [],
-  };
+
   panelsData = [];
-  tableListData = [];
-  tableTabData = [];
   tabList = CALLER_CALLEE_TYPE;
   callType: CallerCalleeType = 'caller';
   dateData = [];
   diffTypeData = [];
   tableColData = [];
+  chartPointOption: IChartOption = {};
   // panel 传递过来的一些变量
   get panelScopedVars() {
     const angel = this.commonAngle;
@@ -108,11 +110,12 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     }
     console.info('routeCallOptions', routeCallOptions);
     this.callType = routeCallOptions.kind || 'caller';
+    const groupBy = this.groupByKindReset(this.callType, routeCallOptions.group_by || []);
     this.callOptions = {
       // panel 传递过来的一些变量
       ...this.panelScopedVars,
       // group 字段
-      group_by: routeCallOptions.group_by || [],
+      group_by: groupBy,
       method: routeCallOptions.method || '',
       limit: +routeCallOptions.limit || 0,
       metric_cal_type: routeCallOptions.metric_cal_type || '',
@@ -151,10 +154,13 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   // 左侧主被调切换
   changeTab(id: string) {
     this.callType = id;
+    const groupBy = this.groupByKindReset(id, this.callOptions.group_by);
     this.callOptions = {
       ...this.callOptions,
       ...this.panelScopedVars,
       call_filter: [], // todo
+      group_by: groupBy,
+      kind: id,
     };
     this.replaceRouteQuery();
   }
@@ -165,6 +171,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       ...this.callOptions,
       call_filter: structuredClone(data),
     };
+    this.chartPointOption = {};
     this.replaceRouteQuery();
   }
   // 重置
@@ -173,7 +180,20 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       ...this.callOptions,
       call_filter: [],
     };
+    this.chartPointOption = {};
     this.replaceRouteQuery();
+  }
+  /** 表格下钻 */
+  handleTableDrill(data: IFilterCondition[]) {
+    const { call_filter } = this.callOptions;
+    data.map(item => {
+      if (call_filter.findIndex(call => call.key === item.key) === -1) {
+        call_filter.push(item);
+      } else {
+        call_filter.find(call => call.key === item.key).value = item.value;
+      }
+    });
+    this.searchFilterData(call_filter);
   }
   // 关闭表格中的筛选tag, 调用查询接口
   handleCloseTag(data) {
@@ -277,26 +297,16 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   /** 点击选中图表里的某个点 */
   handleZrClick(event: ZrClickEvent) {
     if (!event.xAxis) return;
-    console.info(event.dimensions, '=========');
+    console.info(event, '=================');
     const date = dayjs.tz(event.xAxis).format('YYYY-MM-DD HH:mm:ss');
-    const dateItem = this.callOptions.call_filter.find(item => item.key === 'time');
-    if (dateItem) {
-      dateItem.value = [date];
-    } else {
-      this.callOptions.call_filter.unshift({
-        key: 'time',
-        method: 'eq',
-        value: [date],
-        condition: 'end',
-      });
-    }
-    this.callOptions.call_filter.push({
-      key: 'time',
-      method: 'eq',
-      value: [date],
-      condition: 'end',
-    });
-    this.callOptions = { ...this.callOptions };
+    this.chartPointOption = {
+      dimensions: event.dimensions,
+      time: date,
+    };
+    console.info(event.dimensions, '=========', this.chartPointOption);
+  }
+  closeChartPoint() {
+    this.chartPointOption = {};
   }
   /** 初始化主被调的相关数据 */
   initDefaultData() {
@@ -324,6 +334,22 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       ...this.callOptions,
       metric_cal_type: val,
     };
+  }
+
+  // 根据主调背调切换需重置group_by, 剔除不属于此分类的维度
+  groupByKindReset(kind: string, groupBy: string[]) {
+    const list = (kind === 'caller' ? this.commonAngle.caller?.tags : this.commonAngle.callee?.tags) || [];
+    const sets = new Set();
+    const result = [];
+    for (const item of list) {
+      sets.add(item.value);
+    }
+    for (const item of groupBy) {
+      if (sets.has(item)) {
+        result.push(item);
+      }
+    }
+    return result;
   }
 
   render() {
@@ -388,13 +414,13 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
               />
               <CallerCalleeTableChart
                 activeKey={this.callType}
+                chartPointOption={this.chartPointOption}
                 filterData={this.callOptions.call_filter}
                 panel={this.panel}
                 searchList={this.callType === 'caller' ? this.commonAngle.caller?.tags : this.commonAngle.callee?.tags}
-                tableColData={this.tableColData}
-                tableListData={this.tableListData}
-                tableTabData={this.tableTabData}
+                onCloseChartPoint={this.closeChartPoint}
                 onCloseTag={this.handleCloseTag}
+                onDrill={this.handleTableDrill}
                 onHandleDetail={this.handleDetail}
               />
             </div>

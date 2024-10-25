@@ -37,7 +37,6 @@ import { type ValueFormatter, getValueFormat } from '../../../monitor-echarts/va
 import ListLegend from '../../components/chart-legend/common-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
-import { reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
@@ -67,6 +66,13 @@ function timeShiftFormat(t: string) {
     return `${dayjs().diff(dayjs(t), 'day')}d`;
   }
   return t;
+}
+
+function removeTrailingZeros(num) {
+  if (num && num !== '0') {
+    return Number.parseFloat(num.toString().replace(/\.?0+$/, ''));
+  }
+  return num;
 }
 
 @Component
@@ -102,7 +108,7 @@ class CallerLineChart extends CommonSimpleChart {
 
   // 是否允许对比
   get isSupportCompare() {
-    return this.panel.options?.is_support_compare === undefined ? true : this.panel.options.is_support_compare;
+    return typeof this.panel.options?.is_support_compare !== 'boolean' ? true : this.panel.options.is_support_compare;
   }
 
   // 是否允许自定groupBy
@@ -160,7 +166,7 @@ class CallerLineChart extends CommonSimpleChart {
       this.collectIntervalDisplay = `${interval}m`;
       const callOptions = {};
       for (const key in this.callOptions) {
-        if (key !== 'time_shift') {
+        if (key !== 'time_shift' && (key === 'group_by' ? this.isSupportGroupBy : true)) {
           callOptions[key] = this.callOptions[key];
         }
       }
@@ -186,8 +192,10 @@ class CallerLineChart extends CommonSimpleChart {
                 ...(this.viewOptions.filters?.current_target || {}),
                 ...this.viewOptions,
                 ...this.viewOptions.variables,
-                ...this.callOptions,
+                ...(this.callOptions || {}),
                 time_shift: timeShiftFormat(time_shift),
+                group_by: this.isSupportGroupBy ? this.callOptions.group_by : [],
+                interval,
               },
               noTransformVariables
             ),
@@ -322,7 +330,7 @@ class CallerLineChart extends CommonSimpleChart {
                   ? (v: any) => {
                       if (seriesList[0].unit !== 'none') {
                         const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
-                        return obj.text + (this.yAxisNeedUnitGetter ? obj.suffix : '');
+                        return removeTrailingZeros(obj.text) + (this.yAxisNeedUnitGetter ? obj.suffix : '');
                       }
                       return v;
                     }

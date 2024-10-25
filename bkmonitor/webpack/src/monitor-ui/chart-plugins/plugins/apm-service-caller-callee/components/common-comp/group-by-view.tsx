@@ -160,10 +160,12 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
     return val;
   }
   @Debounce(300)
-  @Emit('limitChange')
   handleChangeLimit(val) {
-    this.localLimit = val;
-    return val;
+    console.log(val);
+    if (val && val >= 1 && val <= 30) {
+      this.localLimit = val;
+      this.$emit('limitChange', val);
+    }
   }
 
   handleChange() {
@@ -350,7 +352,9 @@ export default class GroupByView extends tsc<IGroupByViewProps, IGroupByViewEven
               class='ml-8'
               v-model={this.localLimit}
               behavior='simplicity'
+              max={30}
               min={1}
+              placeholder={this.$t('请输入1~30的数字')}
               type='number'
               onChange={this.handleChangeLimit}
             />
