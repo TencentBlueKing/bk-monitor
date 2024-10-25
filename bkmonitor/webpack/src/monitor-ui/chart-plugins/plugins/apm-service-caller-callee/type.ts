@@ -54,6 +54,11 @@ export interface IFilterType {
   group_by_filter: IDataItem[];
   time_shift: IDataItem[];
 }
+/* 主调/被调 */
+export enum EKind {
+  callee = 'callee',
+  caller = 'caller',
+}
 /* 头部对比/group by 切换 */
 export enum EParamsMode {
   contrast = 'contrast',

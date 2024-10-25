@@ -198,6 +198,7 @@ class DynamicUnifyQueryResource(Resource):
         component_instance_id = ComponentInstanceIdDynamicField(required=False, label="组件实例id(组件页面下有效)")
         unit = serializers.CharField(label="图表单位(多指标计算时手动返回)", default=False)
         fill_bar = serializers.BooleanField(label="是否需要补充柱子(用于特殊配置的场景 仅影响 interval)", required=False)
+        fill_empty_dimensions = serializers.BooleanField(label="是否需要不存在的维度(用于需要展示/下钻空维度的场景)", required=False)
         alias_prefix = serializers.ChoiceField(
             label="动态主被调当前值",
             choices=SeriesAliasType.get_choices(),
@@ -366,6 +367,20 @@ class DynamicUnifyQueryResource(Resource):
                 prefix = SeriesAliasType.get_choice_label(prefix)
             for i in response.get("series", []):
                 i["target"] = prefix + _(f"{suffix}")
+
+        if validate_data.get("fill_empty_dimensions"):
+            try:
+                dimension_fields: List[str] = validate_data["unify_query_param"]["query_configs"][0]["group_by"]
+            except (IndexError, KeyError):
+                # 找不到 group by，就不做填充了
+                return response
+
+            for i in response.get("series", []):
+                if "dimensions" not in i:
+                    continue
+                for dimension in dimension_fields:
+                    if dimension not in i["dimensions"]:
+                        i["dimensions"][dimension] = ""
 
         return response
 
@@ -2964,7 +2979,7 @@ class CalculateByRangeResource(Resource):
         for alias, records in alias_aggregated_records_map.items():
             for record in records:
                 record["time"] = record["_time_"] // 1000
-                group_key: Tuple = tuple((field, record.get(field)) for field in group_fields)
+                group_key: Tuple = tuple((field, record.get(field) or "") for field in group_fields)
                 group_key_record_map.setdefault(group_key, {})[alias] = record["_result_"]
 
         merged_records: List[Dict[str, Any]] = []
@@ -3110,7 +3125,8 @@ class QueryDimensionsByLimitResource(Resource):
     def _get_extra_filter_dict(cls, records: List[Dict[str, Any]]) -> Dict[str, Any]:
         q: Q = Q()
         for record in records:
-            kv: Dict[str, Any] = {k: v for k, v in record["dimensions"].items() if v is not None}
+            # 处理维度值为 None 的情况，改写为 xx=“”，避免忽略掉这条线
+            kv: Dict[str, Any] = {k: v or "" for k, v in record["dimensions"].items()}
             if kv:
                 q = q | Q(**kv)
         return q_to_dict(q)
