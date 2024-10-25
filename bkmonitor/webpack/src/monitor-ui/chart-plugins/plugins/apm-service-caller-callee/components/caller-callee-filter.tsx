@@ -25,7 +25,7 @@
  */
 
 /** 主被调 - 左侧筛选 */
-import { Component, Prop, Emit, InjectReactive } from 'vue-property-decorator';
+import { Component, Prop, Emit, InjectReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getFieldOptionValues } from 'monitor-api/modules/apm_metric';
@@ -68,7 +68,14 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   isLoading = false;
   filterData: IFilterData;
   filterTags = {};
-
+  @Watch('activeKey')
+  handlePanelChange() {
+    this.handleSearch();
+  }
+  @Watch('callOptions', { immediate: true })
+  handleCallOptionsChange() {
+    this.initDefaultData();
+  }
   @Emit('search')
   handleSearch() {
     const filter = (this.filterData[this.activeKey] || []).filter(item => item.value.length > 0);
@@ -98,7 +105,7 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
     return this.commonOptions?.angle || {};
   }
   mounted() {
-    this.initDefaultData();
+    // this.initDefaultData();
   }
   initDefaultData() {
     const callFilter = this.callOptions.call_filter || [];

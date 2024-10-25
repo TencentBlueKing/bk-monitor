@@ -108,7 +108,7 @@ export const TAB_TABLE_TYPE = [
     label: '请求量',
     id: 'request',
     columns: TAB_TABLE_REQUEST_COLUMN,
-    icon: 'icon-bingtu',
+    // icon: 'icon-bingtu',
   },
   {
     label: '成功异常超时率',
