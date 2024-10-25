@@ -60,8 +60,7 @@ class DataLink(models.Model):
         if self.data_link_strategy == "bk_standard_v2_time_series":
             return self.compose_standard_time_series_configs(*args, **kwargs)
 
-    @classmethod
-    def compose_standard_time_series_configs(cls, data_source, table_id, vm_cluster_name):
+    def compose_standard_time_series_configs(self, data_source, table_id, vm_cluster_name):
         """
         生成标准单指标单表时序数据链路配置
         @param data_source: 数据源
@@ -71,7 +70,7 @@ class DataLink(models.Model):
         logger.info(
             "compose_configs: data_link_name->[%s] ,bk_data_id->[%s],table_id->[%s],vm_cluster_name->[%s] "
             "start to compose configs",
-            cls.data_link_name,
+            self.data_link_name,
             data_source.bk_data_id,
             table_id,
             vm_cluster_name,
@@ -81,7 +80,7 @@ class DataLink(models.Model):
         logger.info(
             "compose_configs: data_link_name->[%s] start to use bkbase_data_name->[%s] bkbase_vmrt_name->[%s]to "
             "compose configs",
-            cls.data_link_name,
+            self.data_link_name,
             bkbase_data_name,
             bkbase_vmrt_name,
         )
@@ -89,13 +88,13 @@ class DataLink(models.Model):
             with transaction.atomic():
                 # 渲染所需的资源配置
                 vm_table_id_ins, _ = VMResultTableConfig.objects.get_or_create(
-                    name=bkbase_vmrt_name, data_link_name=cls.data_link_name, namespace=cls.namespace
+                    name=bkbase_vmrt_name, data_link_name=self.data_link_name, namespace=self.namespace
                 )
                 vm_storage_ins, _ = VMStorageBindingConfig.objects.get_or_create(
                     name=bkbase_vmrt_name,
                     vm_cluster_name=vm_cluster_name,
-                    data_link_name=cls.data_link_name,
-                    namespace=cls.namespace,
+                    data_link_name=self.data_link_name,
+                    namespace=self.namespace,
                 )
                 sinks = [
                     {
@@ -104,14 +103,14 @@ class DataLink(models.Model):
                         "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
                     }
                 ]
-                data_bus_ins, _ = DataBusConfig(
+                data_bus_ins, _ = DataBusConfig.objects.get_or_create(
                     name=bkbase_vmrt_name,
                     data_id_name=bkbase_data_name,
-                    data_link_name=cls.data_link_name,
-                    namespace=cls.namespace,
+                    data_link_name=self.data_link_name,
+                    namespace=self.namespace,
                 )
         except Exception as e:
-            logger.error("compose_configs: data_link_name->[%s] error->[%s],rollback!", cls.data_link_name, e)
+            logger.error("compose_configs: data_link_name->[%s] error->[%s],rollback!", self.data_link_name, e)
 
         configs = [
             vm_table_id_ins.compose_config(),
