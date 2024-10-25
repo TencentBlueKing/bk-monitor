@@ -26,6 +26,7 @@ from django.utils.translation import ugettext as _
 
 from bkmonitor.utils.db.fields import JsonField
 from core.drf_resource import api
+from core.drf_resource.exceptions import CustomException
 from metadata import config
 from metadata.models.constants import (
     BULK_CREATE_BATCH_SIZE,
@@ -468,14 +469,18 @@ class TimeSeriesGroup(CustomGroupBase):
         vm_metrics = []
 
         for vm_rt in vm_rt_list:
-            data = (
-                api.bkdata.query_metric_and_dimension(
-                    storage=config.VM_STORAGE_TYPE,
-                    result_table_id=vm_rt.vm_result_table_id,
-                    values=BCSClusterInfo.DEFAULT_SERVICE_MONITOR_DIMENSION_TERM,
+            try:
+                data = (
+                    api.bkdata.query_metric_and_dimension(
+                        storage=config.VM_STORAGE_TYPE,
+                        result_table_id=vm_rt.vm_result_table_id,
+                        values=BCSClusterInfo.DEFAULT_SERVICE_MONITOR_DIMENSION_TERM,
+                    )
+                    or []
                 )
-                or []
-            )
+            except CustomException as e:
+                logger.error("{} has no vm_result_table_id".format(vm_rt.result_table_id))
+                continue
             if not data or not data.get("metrics", None):
                 continue
             vm_metrics.append(data["metrics"])
