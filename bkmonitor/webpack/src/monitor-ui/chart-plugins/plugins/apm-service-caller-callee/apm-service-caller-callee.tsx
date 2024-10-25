@@ -34,7 +34,7 @@ import CallerCalleeFilter from './components/caller-callee-filter';
 import CallerCalleeTableChart from './components/caller-callee-table-chart';
 import ChartView from './components/chart-view';
 import TabBtnGroup from './components/common-comp/tab-btn-group';
-import { EParamsMode, EPreDateType, type CallOptions, type IFilterData } from './type';
+import { EParamsMode, EPreDateType, type CallOptions, type IFilterData, type IChartOption } from './type';
 import { CALLER_CALLEE_TYPE, type CallerCalleeType } from './utils';
 
 import type { PanelModel, ZrClickEvent } from '../../typings';
@@ -51,20 +51,15 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
 
   @ProvideReactive('callOptions') callOptions: Partial<CallOptions> = {};
   @ProvideReactive('filterTags') filterTags: IFilterData;
-
+  @ProvideReactive('chartPointOption') chartPointOption: IChartOption;
   // 同步route query
   @Inject('handleCustomRouteQueryChange') handleCustomRouteQueryChange: (
     customRouteQuery: Record<string, number | string>
   ) => void;
 
   @InjectReactive('customRouteQuery') customRouteQuery: Record<string, string>;
-  filterData = {
-    caller: [],
-    callee: [],
-  };
+
   panelsData = [];
-  tableListData = [];
-  tableTabData = [];
   tabList = CALLER_CALLEE_TYPE;
   callType: CallerCalleeType = 'caller';
   dateData = [];
@@ -392,8 +387,6 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
                 panel={this.panel}
                 searchList={this.callType === 'caller' ? this.commonAngle.caller?.tags : this.commonAngle.callee?.tags}
                 tableColData={this.tableColData}
-                tableListData={this.tableListData}
-                tableTabData={this.tableTabData}
                 onCloseTag={this.handleCloseTag}
                 onHandleDetail={this.handleDetail}
               />

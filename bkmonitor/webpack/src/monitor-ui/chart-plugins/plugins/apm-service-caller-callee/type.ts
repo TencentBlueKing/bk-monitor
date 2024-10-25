@@ -86,6 +86,10 @@ export type CallOptions = {
   tool_mode: EParamsMode;
   [key: string]: any;
 };
+export type IChartOption = {
+  date: string;
+  [key: string]: any;
+};
 
 export type IFilterData = {
   caller: IColumn[];

@@ -60,6 +60,8 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @Prop({ required: true, type: Array }) searchList: IServiceConfig[];
   @Prop({ required: true, type: Array }) tableListData: IDataItem[];
   @Prop({ required: true, type: Array }) tableTabData: IDataItem[];
+  @Prop({ required: true, type: Boolean }) isLoading: boolean;
+
   active = 'request';
   cachePanels = TAB_TABLE_TYPE;
   panels = TAB_TABLE_TYPE;
@@ -216,14 +218,14 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                     slot='dropdown-content'
                   >
                     {this.searchList.map(option => {
-                      const isActive = this.drillValue === option.label;
+                      const isActive = this.drillValue === option.value;
                       return (
                         <li
-                          key={option.label}
+                          key={option.value}
                           class={['drill-down-item', { active: isActive }]}
                           onClick={() => this.chooseSelect(option)}
                         >
-                          {option.name}
+                          {option.text}
                         </li>
                       );
                     })}
@@ -247,10 +249,12 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
               v-bk-overflow-tips
             >
               <span onClick={() => this.handleShowDetail(row, item.prop)}>{row[item.prop] || '--'}</span>
-              <i
-                class='icon-monitor icon-mc-copy tab-row-icon'
-                onClick={() => this.copyValue(row[item.prop])}
-              />
+              {row[item.prop] && (
+                <i
+                  class='icon-monitor icon-mc-copy tab-row-icon'
+                  onClick={() => this.copyValue(row[item.prop])}
+                />
+              )}
             </span>
           ),
         }}
@@ -301,10 +305,10 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                 v-bk-overflow-tips
               >
                 <span onClick={() => this.handleShowDetail(row, item.prop)}>{txt}</span>
-                <i
+                {/* <i
                   class='icon-monitor icon-mc-line tab-row-icon'
                   onClick={() => this.handleDimension(row, 'request')}
-                />
+                /> */}
               </span>
             );
           },
@@ -344,6 +348,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           <div>
             <bk-table
               ext-cls='multi-view-tab-table'
+              v-bkloading={{ isLoading: this.isLoading }}
               data={this.tableTabData}
               header-border={false}
               header-cell-class-name={() => 'multi-table-tab-head'}

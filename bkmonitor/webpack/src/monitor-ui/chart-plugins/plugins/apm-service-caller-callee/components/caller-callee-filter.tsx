@@ -68,7 +68,7 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   isLoading = false;
   filterData: IFilterData;
   filterTags = {};
-  @Watch('activeKey', { immediate: true })
+  @Watch('activeKey')
   handlePanelChange() {
     this.handleSearch();
   }

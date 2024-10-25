@@ -31,41 +31,35 @@ import { calculateByRange } from 'monitor-api/modules/apm_metric';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import { VariablesService } from '../../../utils/variable';
+import { CommonSimpleChart } from '../../common-simple-chart';
 import { PERSPECTIVE_TYPE, SYMBOL_LIST } from '../utils';
 import TabBtnGroup from './common-comp/tab-btn-group';
 import MultiViewTable from './multi-view-table';
 
-import type { PanelModel } from '../../../typings';
-import type { IServiceConfig, IColumn, IDataItem, CallOptions, IFilterCondition, IFilterData } from '../type';
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import type { IServiceConfig, CallOptions, IFilterCondition, IFilterData, IChartOption } from '../type';
 
 import './caller-callee-table-chart.scss';
-interface ICallerCalleeTableChartProps {
-  tableColumn?: IColumn[];
-  searchList?: IServiceConfig[];
-  tableListData?: IDataItem[];
-  tableTabData?: IDataItem[];
-  panel: PanelModel;
-}
-interface ICallerCalleeTableChartEvent {
-  onCloseTag?: (val: IFilterCondition[]) => void;
-  onHandleDetail?: () => void;
-}
+// interface ICallerCalleeTableChartProps {
+//   tableColumn?: IColumn[];
+//   searchList?: IServiceConfig[];
+//   panel: PanelModel;
+// }
+// interface ICallerCalleeTableChartEvent {
+//   onCloseTag?: (val: IFilterCondition[]) => void;
+//   onHandleDetail?: () => void;
+// }
 @Component({
   name: 'CallerCalleeTableChart',
   components: {},
 })
-export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartProps, ICallerCalleeTableChartEvent> {
-  @Prop({ required: true, type: Object }) panel: PanelModel;
+export default class CallerCalleeTableChart extends CommonSimpleChart {
   @Prop({ required: true, type: String, default: '' }) activeKey: string;
   @Prop({ type: Array }) filterData: IFilterCondition[];
   @Prop({ type: Array }) searchList: IServiceConfig[];
 
-  @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
-  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   @InjectReactive('callOptions') readonly callOptions!: CallOptions;
   @InjectReactive('filterTags') filterTags: IFilterData;
+  @InjectReactive('chartPointOption') chartPointOption: IChartOption;
 
   tabList = PERSPECTIVE_TYPE;
   activeTabKey = 'single';
@@ -75,11 +69,8 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
   tableListData = [];
   tableTabData = [];
   tableColData: string[] = [];
-  @Watch('viewOptions', { deep: true })
-  onViewOptionsChanges() {
-    this.tableColData = this.callOptions.time_shift.map(item => item.alias);
-    this.getPageList();
-  }
+  tableLoading = false;
+
   @Watch('callOptions', { deep: true })
   onCallOptionsChanges(val) {
     this.tableColData = val.time_shift.map(item => item.alias);
@@ -115,6 +106,7 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
   }
 
   get commonOptions() {
+    console.log(this.panel?.options, 'this.panel?.options');
     return this.panel?.options?.common || {};
   }
 
@@ -137,8 +129,14 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
           text: '时间',
         },
       ],
-      ...this.searchList,
+      ...this.filterTags[this.activeKey],
     ];
+  }
+  async getPanelData() {
+    console.log('getPanelData');
+    this.tableLoading = true;
+    this.tableColData = this.callOptions.time_shift.map(item => item.alias);
+    this.getPageList();
   }
   /** 获取表格数据 */
   getTableDataList(metric_cal_type = 'request_total') {
@@ -163,30 +161,35 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
       },
     };
     newParams.where = [...newParams.where, ...this.callOptions.call_filter];
-    calculateByRange(newParams).then(res => {
-      const newData = (res || []).map(item => {
-        const { dimensions, proportions, growth_rates } = item;
-        const col = {};
-        timeShift.map(key => {
-          const baseKey = `${metric_cal_type}_${key}`;
-          col[baseKey] = item[key];
-          const addToListIfNotEmpty = (source, prefix) => {
-            if (Object.keys(source || {}).length > 0) {
-              col[`${prefix}_${baseKey}`] = source[key];
-            }
-          };
-          addToListIfNotEmpty(proportions, 'proportions');
-          addToListIfNotEmpty(growth_rates, 'growth_rates');
+    calculateByRange(newParams)
+      .then(res => {
+        this.tableLoading = false;
+        const newData = (res || []).map(item => {
+          const { dimensions, proportions, growth_rates } = item;
+          const col = {};
+          timeShift.map(key => {
+            const baseKey = `${metric_cal_type}_${key}`;
+            col[baseKey] = item[key];
+            const addToListIfNotEmpty = (source, prefix) => {
+              if (Object.keys(source || {}).length > 0) {
+                col[`${prefix}_${baseKey}`] = source[key];
+              }
+            };
+            addToListIfNotEmpty(proportions, 'proportions');
+            addToListIfNotEmpty(growth_rates, 'growth_rates');
+          });
+          return Object.assign(item, dimensions, col);
         });
-        return Object.assign(item, dimensions, col);
+        if (this.tableListData.length === 0) {
+          this.tableListData = newData;
+        } else {
+          this.tableListData.map((item, ind) => Object.assign(item, newData[ind]));
+        }
+        this.tableTabData = JSON.parse(JSON.stringify(this.tableListData));
+      })
+      .catch(() => {
+        this.tableLoading = false;
       });
-      if (this.tableListData.length === 0) {
-        this.tableListData = newData;
-      } else {
-        this.tableListData.map((item, ind) => Object.assign(item, newData[ind]));
-      }
-      this.tableTabData = JSON.parse(JSON.stringify(this.tableListData));
-    });
   }
 
   changeTab(id: string) {
@@ -229,6 +232,8 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
   }
 
   tabChangeHandle(list: string[]) {
+    console.log(list, 'list');
+    this.tableLoading = true;
     list.map(item => this.getTableDataList(item));
   }
   @Emit('closeTag')
@@ -318,6 +323,15 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
             slot='main'
           >
             <div class='layout-main-head'>
+              {/* {Object.keys(this.chartPointOption || {}).length > 0 && (
+                <bk-tag
+                  // key={item.key}
+                  closable
+                  // onClose={() => this.handleCloseTag(item)}
+                >
+                  {Object.keys(this.chartPointOption || {}).map(key => key)}
+                </bk-tag>
+              )} */}
               {this.tagFilterList.map(item => (
                 <bk-tag
                   key={item.key}
@@ -332,6 +346,7 @@ export default class CallerCalleeTableChart extends tsc<ICallerCalleeTableChartP
             </div>
             <div class='layout-main-table'>
               <MultiViewTable
+                isLoading={this.tableLoading}
                 searchList={this.chooseKeyList}
                 supportedCalculationTypes={this.supportedCalculationTypes}
                 tableColData={this.tableColData}
