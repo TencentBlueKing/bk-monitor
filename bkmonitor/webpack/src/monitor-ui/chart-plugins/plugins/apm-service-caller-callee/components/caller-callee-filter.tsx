@@ -72,6 +72,10 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   handlePanelChange() {
     this.handleSearch();
   }
+  @Watch('callOptions', { immediate: true })
+  handleCallOptionsChange() {
+    this.initDefaultData();
+  }
   @Emit('search')
   handleSearch() {
     const filter = (this.filterData[this.activeKey] || []).filter(item => item.value.length > 0);
@@ -101,7 +105,7 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
     return this.commonOptions?.angle || {};
   }
   mounted() {
-    this.initDefaultData();
+    // this.initDefaultData();
   }
   initDefaultData() {
     const callFilter = this.callOptions.call_filter || [];

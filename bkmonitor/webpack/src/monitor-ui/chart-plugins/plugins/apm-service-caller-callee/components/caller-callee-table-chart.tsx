@@ -25,9 +25,10 @@
  */
 
 import { Component, Prop, Emit, InjectReactive, Watch } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { ofType } from 'vue-tsx-support';
 
 import { calculateByRange } from 'monitor-api/modules/apm_metric';
+import { Debounce } from 'monitor-common/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import { VariablesService } from '../../../utils/variable';
@@ -36,30 +37,40 @@ import { PERSPECTIVE_TYPE, SYMBOL_LIST } from '../utils';
 import TabBtnGroup from './common-comp/tab-btn-group';
 import MultiViewTable from './multi-view-table';
 
-import type { IServiceConfig, CallOptions, IFilterCondition, IFilterData, IChartOption } from '../type';
+import type { PanelModel } from '../../../typings';
+import type {
+  IServiceConfig,
+  CallOptions,
+  IFilterCondition,
+  IFilterData,
+  IChartOption,
+  IPointTime,
+  IDataItem,
+} from '../type';
 
 import './caller-callee-table-chart.scss';
-// interface ICallerCalleeTableChartProps {
-//   tableColumn?: IColumn[];
-//   searchList?: IServiceConfig[];
-//   panel: PanelModel;
-// }
-// interface ICallerCalleeTableChartEvent {
-//   onCloseTag?: (val: IFilterCondition[]) => void;
-//   onHandleDetail?: () => void;
-// }
-@Component({
-  name: 'CallerCalleeTableChart',
-  components: {},
-})
-export default class CallerCalleeTableChart extends CommonSimpleChart {
+interface ICallerCalleeTableChartProps {
+  activeKey: string;
+  chartPointOption: IChartOption;
+  filterData?: IFilterCondition[];
+  searchList?: IServiceConfig[];
+  panel: PanelModel;
+}
+interface ICallerCalleeTableChartEvent {
+  onCloseTag?: (val: IFilterCondition[]) => void;
+  onHandleDetail?: (val: IDataItem) => void;
+  onCloseChartPoint?: () => void;
+  onDrill?: (val: IFilterCondition) => void;
+}
+@Component
+class CallerCalleeTableChart extends CommonSimpleChart {
   @Prop({ required: true, type: String, default: '' }) activeKey: string;
+  @Prop({ type: Object, default: () => {} }) chartPointOption: IChartOption;
   @Prop({ type: Array }) filterData: IFilterCondition[];
   @Prop({ type: Array }) searchList: IServiceConfig[];
 
   @InjectReactive('callOptions') readonly callOptions!: CallOptions;
   @InjectReactive('filterTags') filterTags: IFilterData;
-  @InjectReactive('chartPointOption') chartPointOption: IChartOption;
 
   tabList = PERSPECTIVE_TYPE;
   activeTabKey = 'single';
@@ -70,11 +81,38 @@ export default class CallerCalleeTableChart extends CommonSimpleChart {
   tableTabData = [];
   tableColData: string[] = [];
   tableLoading = false;
+  pointWhere: IFilterCondition[] = [];
+  drillWhere: IFilterCondition[] = [];
+  pointTime: IPointTime = {};
 
   @Watch('callOptions', { deep: true })
   onCallOptionsChanges(val) {
     this.tableColData = val.time_shift.map(item => item.alias);
     this.viewOptions?.service_name && this.getPageList();
+  }
+  /** 点击选择图表中点 */
+  @Watch('chartPointOption', { deep: true })
+  onChartPointOptionChanges(val) {
+    if (val) {
+      this.pointWhere = [];
+      this.pointTime = {};
+      const { dimensions, time } = val;
+      Object.keys(dimensions || {}).map(key =>
+        this.pointWhere.push({
+          key: key,
+          method: 'eq',
+          value: [dimensions[key]],
+          condition: 'and',
+        })
+      );
+      if (time) {
+        const endTime = new Date(time).getTime() / 1000;
+        const interval = this.commonOptions?.time?.interval || 60;
+        const startTime = endTime - interval;
+        this.pointTime = { endTime, startTime };
+      }
+      this.getTableDataList();
+    }
   }
 
   @Watch('activeKey', { immediate: true })
@@ -106,7 +144,6 @@ export default class CallerCalleeTableChart extends CommonSimpleChart {
   }
 
   get commonOptions() {
-    console.log(this.panel?.options, 'this.panel?.options');
     return this.panel?.options?.common || {};
   }
 
@@ -119,7 +156,7 @@ export default class CallerCalleeTableChart extends CommonSimpleChart {
   }
 
   get tagFilterList() {
-    return (this.filterData || []).filter(item => item.value.length > 0);
+    return (this.filterData || []).filter(item => item.value.length > 0) || [];
   }
   get chooseKeyList() {
     return [
@@ -132,20 +169,21 @@ export default class CallerCalleeTableChart extends CommonSimpleChart {
       ...this.filterTags[this.activeKey],
     ];
   }
+  @Debounce(100)
   async getPanelData() {
-    console.log('getPanelData');
+    console.log('getPanelData', this.chartPointOption);
     this.tableLoading = true;
     this.tableColData = this.callOptions.time_shift.map(item => item.alias);
     this.getPageList();
   }
   /** 获取表格数据 */
   getTableDataList(metric_cal_type = 'request_total') {
-    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const variablesService = new VariablesService({
       ...this.viewOptions,
       ...this.callOptions,
       ...{ kind: this.activeKey },
     });
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const timeShift = this.getCallTimeShift();
     const newParams = {
       ...variablesService.transformVariables(this.statisticsData.data, {
@@ -156,20 +194,21 @@ export default class CallerCalleeTableChart extends CommonSimpleChart {
         time_shifts: timeShift,
         metric_cal_type,
         baseline: '0s',
-        start_time: startTime,
-        end_time: endTime,
+        start_time: this.pointTime?.startTime || startTime,
+        end_time: this.pointTime?.endTime || endTime,
       },
     };
-    newParams.where = [...newParams.where, ...this.callOptions.call_filter];
+    newParams.where = [...newParams.where, ...this.callOptions.call_filter, ...this.pointWhere, ...this.drillWhere];
     calculateByRange(newParams)
       .then(res => {
         this.tableLoading = false;
-        const newData = (res || []).map(item => {
+        const newData = (res?.data || []).map(item => {
           const { dimensions, proportions, growth_rates } = item;
           const col = {};
           timeShift.map(key => {
             const baseKey = `${metric_cal_type}_${key}`;
             col[baseKey] = item[key];
+
             const addToListIfNotEmpty = (source, prefix) => {
               if (Object.keys(source || {}).length > 0) {
                 col[`${prefix}_${baseKey}`] = source[key];
@@ -203,7 +242,7 @@ export default class CallerCalleeTableChart extends CommonSimpleChart {
     }
   }
   // 单视角时选择key
-  chooseSingleField(item) {
+  setChooseKey(item) {
     this.singleChooseField = item.value;
     this.tableColumn = [
       {
@@ -212,6 +251,9 @@ export default class CallerCalleeTableChart extends CommonSimpleChart {
       },
     ];
     this.chooseList = [item.value];
+  }
+  chooseSingleField(item) {
+    this.setChooseKey(item);
     this.tableTabData = [];
     this.getTableDataList();
   }
@@ -252,13 +294,25 @@ export default class CallerCalleeTableChart extends CommonSimpleChart {
     return { row, key };
   }
   // 下钻handle
-  handleDrill(option) {
+  handleDrill({ option, row }) {
+    const filter = [];
+    Object.keys(row?.dimensions || {}).map(key => {
+      row.dimensions[key] &&
+        filter.push({
+          key,
+          method: 'eq',
+          value: [row.dimensions[key]],
+          condition: 'and',
+        });
+    });
+    this.drillWhere = filter;
     if (this.activeTabKey === 'multiple') {
       this.chooseList.push(option.value);
       this.handleMultiple();
     } else {
-      this.chooseSingleField(option);
+      this.setChooseKey(option);
     }
+    this.$emit('drill', filter);
   }
 
   renderMainList() {
@@ -290,6 +344,20 @@ export default class CallerCalleeTableChart extends CommonSimpleChart {
         ))}
       </bk-checkbox-group>
     );
+  }
+  getChartPointDimensionsTxt() {
+    const { dimensions } = this.chartPointOption;
+    return Object.keys(dimensions || {}).map(key => (
+      <span key={key}>
+        {this.handleGetKey(key)}
+        <span class='tag-symbol'>{this.handleOperate('eq')}</span>
+        {dimensions[key]}
+      </span>
+    ));
+  }
+  /** 关闭图表点的数据 */
+  closeChartPoint() {
+    this.$emit('closeChartPoint');
   }
 
   render() {
@@ -323,26 +391,29 @@ export default class CallerCalleeTableChart extends CommonSimpleChart {
             slot='main'
           >
             <div class='layout-main-head'>
-              {/* {Object.keys(this.chartPointOption || {}).length > 0 && (
+              {Object.keys(this.chartPointOption || {}).length > 0 && (
                 <bk-tag
-                  // key={item.key}
                   closable
-                  // onClose={() => this.handleCloseTag(item)}
+                  onClose={this.closeChartPoint}
                 >
-                  {Object.keys(this.chartPointOption || {}).map(key => key)}
+                  {this.handleGetKey('time')}
+                  <span class='tag-symbol'>{this.handleOperate('eq')}</span>
+                  {`${this.chartPointOption?.time} `}
+                  {this.getChartPointDimensionsTxt()}
                 </bk-tag>
-              )} */}
-              {this.tagFilterList.map(item => (
-                <bk-tag
-                  key={item.key}
-                  closable
-                  onClose={() => this.handleCloseTag(item)}
-                >
-                  {this.handleGetKey(item.key)}
-                  <span class='tag-symbol'>{this.handleOperate(item.method)}</span>
-                  {item.value.join('、')}
-                </bk-tag>
-              ))}
+              )}
+              {this.tagFilterList.length > 0 &&
+                (this.tagFilterList || []).map(item => (
+                  <bk-tag
+                    key={item.key}
+                    closable
+                    onClose={() => this.handleCloseTag(item)}
+                  >
+                    {this.handleGetKey(item.key)}
+                    <span class='tag-symbol'>{this.handleOperate(item.method)}</span>
+                    {item?.value && (item?.value || []).join('、')}
+                  </bk-tag>
+                ))}
             </div>
             <div class='layout-main-table'>
               <MultiViewTable
@@ -364,3 +435,4 @@ export default class CallerCalleeTableChart extends CommonSimpleChart {
     );
   }
 }
+export default ofType<ICallerCalleeTableChartProps, ICallerCalleeTableChartEvent>().convert(CallerCalleeTableChart);

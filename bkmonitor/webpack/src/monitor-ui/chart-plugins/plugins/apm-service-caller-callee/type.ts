@@ -87,8 +87,8 @@ export type CallOptions = {
   [key: string]: any;
 };
 export type IChartOption = {
-  date: string;
-  [key: string]: any;
+  time?: string;
+  dimensions?: IDataItem;
 };
 
 export type IFilterData = {
@@ -102,3 +102,8 @@ export interface ITabItem {
   icon?: string;
   handle?: () => void;
 }
+
+export type IPointTime = {
+  endTime?: number;
+  startTime?: number;
+};
