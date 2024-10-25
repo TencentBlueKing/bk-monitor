@@ -91,6 +91,10 @@ export type CallOptions = {
   tool_mode: EParamsMode;
   [key: string]: any;
 };
+export type IChartOption = {
+  time?: string;
+  dimensions?: IDataItem;
+};
 
 export type IFilterData = {
   caller: IColumn[];
@@ -104,6 +108,10 @@ export interface ITabItem {
   handle?: () => void;
 }
 
+export type IPointTime = {
+  endTime?: number;
+  startTime?: number;
+};
 export type DimensionItem = {
   value: string;
   text: string;
