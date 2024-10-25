@@ -326,7 +326,6 @@ class ApmHeatmap extends CommonSimpleChart {
     this.handleLoadingChange(false);
   }
   handleClickItem(item) {
-    console.info(item, '===========');
     this.$emit('zrClick', {
       xAxis: +item.name,
       interval: +this.collectIntervalDisplay.replace('m', '') * 60,
