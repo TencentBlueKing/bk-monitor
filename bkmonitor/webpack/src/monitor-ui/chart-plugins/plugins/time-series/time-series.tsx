@@ -223,7 +223,7 @@ export class LineChart
   }
   // 是否允许对比
   get isSupportCompare() {
-    return this.panel.options?.is_support_compare === undefined ? true : this.panel.options.is_support_compare;
+    return typeof this.panel.options?.is_support_compare !== 'boolean' ? true : this.panel.options.is_support_compare;
   }
 
   // 是否允许自定groupBy
@@ -398,8 +398,8 @@ export class LineChart
         this.panel.collect_interval
       );
       const callOptions = {};
-      for (const key in this.callOptions || {}) {
-        if (key !== 'time_shift') {
+      for (const key in this.callOptions) {
+        if (key !== 'time_shift' && (key === 'group_by' ? this.isSupportGroupBy : true)) {
           callOptions[key] = this.callOptions[key];
         }
       }
