@@ -157,6 +157,7 @@ export default defineComponent({
     const resourceGraphRef = ref<InstanceType<typeof ResourceGraph>>();
     let topoRawData: ITopoData = null;
     const autoAggregate = ref<boolean>(true);
+    const aggregateCluster = ref(true);
     const aggregateConfig = ref({});
     // const shouldUpdateNode = ref(null);
     const showLegend = ref<boolean>(localStorage.getItem('showLegend') === 'true');
@@ -520,7 +521,7 @@ export default defineComponent({
           group.addShape('text', {
             zIndex: 12,
             attrs: {
-              opacity: 0,
+              opacity: 1,
               x: 0,
               y: 14,
               cursor: 'default',
@@ -535,15 +536,15 @@ export default defineComponent({
           });
           return rect;
         },
-        setState(name, value, item) {
-          if (name === 'hover') {
-            const group = item.getContainer();
-            const label = group.find(e => e.get('name') === 'service-label');
-            label.attr({
-              opacity: value ? 1 : 0,
-            });
-          }
-        },
+        // setState(name, value, item) {
+        //   if (name === 'hover') {
+        //     const group = item.getContainer();
+        //     const label = group.find(e => e.get('name') === 'service-label');
+        //     label.attr({
+        //       opacity: value ? 1 : 0,
+        //     });
+        //   }
+        // },
       });
     };
     /** 画布自定义边 */
@@ -1106,6 +1107,7 @@ export default defineComponent({
       const renderData = await incidentTopology({
         id: incidentId.value,
         auto_aggregate: autoAggregate.value,
+        aggregate_cluster: aggregateCluster.value ?? false,
         aggregate_config: aggregateConfig.value,
         only_diff: true,
         start_time: isAutoRefresh
@@ -1381,7 +1383,7 @@ export default defineComponent({
                 },
                 labelCfg: {
                   style: {
-                    opacity: 0,
+                    opacity: 1,
                   },
                 },
               }
@@ -1403,25 +1405,25 @@ export default defineComponent({
         setTimeout(toFrontAnomalyEdge, 500);
       });
       /** serverCombo 移动展示name */
-      graph.on('combo:mouseenter', e => {
-        const { item } = e;
-        if (!item.getModel().parentId) return;
-        graph.setItemState(item, 'hover', true);
-        const label = item.getContainer().find(element => element.get('type') === 'text');
-        if (label) {
-          label.attr('opacity', 1); // 悬停时显示标签
-        }
-      });
+      // graph.on('combo:mouseenter', e => {
+      //   const { item } = e;
+      //   if (!item.getModel().parentId) return;
+      //   graph.setItemState(item, 'hover', true);
+      //   const label = item.getContainer().find(element => element.get('type') === 'text');
+      //   if (label) {
+      //     label.attr('opacity', 1); // 悬停时显示标签
+      //   }
+      // });
       /** serverCombo 移出隐藏name */
-      graph.on('combo:mouseleave', e => {
-        const { item } = e;
-        if (!item.getModel().parentId) return;
-        graph.setItemState(item, 'hover', false);
-        const label = item.getContainer().find(element => element.get('type') === 'text');
-        if (label) {
-          label.attr('opacity', 0); // 悬停时显示标签
-        }
-      });
+      // graph.on('combo:mouseleave', e => {
+      //   const { item } = e;
+      //   if (!item.getModel().parentId) return;
+      //   graph.setItemState(item, 'hover', false);
+      //   const label = item.getContainer().find(element => element.get('type') === 'text');
+      //   if (label) {
+      //     label.attr('opacity', 0); // 悬停时显示标签
+      //   }
+      // });
 
       graph.on('node:mouseenter', e => {
         const { item } = e;
@@ -1431,10 +1433,10 @@ export default defineComponent({
         if (model.subComboId) {
           const combo = graph.findById(model.subComboId);
           if (!combo) return;
-          const label = combo.getContainer().find(element => element.get('type') === 'text');
-          if (label) {
-            label.attr('opacity', 1); // 悬停时显示标签
-          }
+          // const label = combo.getContainer().find(element => element.get('type') === 'text');
+          // if (label) {
+          //   label.attr('opacity', 1); // 悬停时显示标签
+          // }
           combo && graph.setItemState(combo, 'hover', true);
         }
         return;
@@ -1453,10 +1455,10 @@ export default defineComponent({
         if (model.subComboId) {
           const combo = graph.findById(model.subComboId);
           if (!combo) return;
-          const label = combo.getContainer().find(element => element.get('type') === 'text');
-          if (label) {
-            label.attr('opacity', 0);
-          }
+          // const label = combo.getContainer().find(element => element.get('type') === 'text');
+          // if (label) {
+          //   label.attr('opacity', 0);
+          // }
         }
         graph.setItemState(nodeItem, 'hover', false);
       });
@@ -1593,6 +1595,7 @@ export default defineComponent({
     const handleUpdateAggregateConfig = async config => {
       aggregateConfig.value = config.aggregate_config;
       autoAggregate.value = config.auto_aggregate;
+      aggregateCluster.value = config.aggregate_cluster;
       await getGraphData();
       renderGraph();
     };

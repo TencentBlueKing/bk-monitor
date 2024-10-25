@@ -517,15 +517,15 @@ class MetricBackendHandler(TelemetryBackendHandler):
             }
 
             try:
-                series = resource.grafana.graph_unify_query(request_params)["series"]
-            except Exception as e:
+                datapoints = resource.grafana.graph_unify_query(request_params)["series"][0]["datapoints"]
+            except Exception as e:  # pylint: disable=broad-except
                 logger.error(f"get data view error: {e}")
-                series = [{}]
+                datapoints = []
             resp = [
                 {
                     "series": [
                         {"output_count": datapoint[0], "time": int(datapoint[1] / 1000)}
-                        for datapoint in series[0].get("datapoints", [])
+                        for datapoint in datapoints
                         if len(datapoint) >= 2
                     ]
                 }
