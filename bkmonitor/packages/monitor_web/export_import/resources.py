@@ -320,7 +320,10 @@ class ExportPackageResource(Resource):
         # 五分钟后删除文件夹
         remove_file.apply_async(args=(self.package_path,), countdown=300)
 
-        self.send_frontend_report_event()
+        try:
+            self.send_frontend_report_event()
+        except Exception as e:
+            logger.exception(f"send frontend report event error: {e}")
 
         return {"download_path": download_path, "download_name": download_name}
 
@@ -1033,9 +1036,12 @@ class ImportConfigResource(Resource):
             view_config_list.update(import_status=ImportDetailStatus.IMPORTING)
 
         # 发送审计上报
-        self.send_frontend_report_event(
-            bk_biz_id, username, len(collect_config_list), len(strategy_config_list), len(view_config_list)
-        )
+        try:
+            self.send_frontend_report_event(
+                bk_biz_id, username, len(collect_config_list), len(strategy_config_list), len(view_config_list)
+            )
+        except Exception as e:
+            logger.exception(f"send frontend report event error: {e}")
 
         return {"import_history_id": self.import_history_instance.id}
 

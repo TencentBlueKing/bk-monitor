@@ -92,7 +92,10 @@ class ImportConfigResource(Resource):
             incremental=params["incremental"],
         )
 
-        self.send_frontend_report_event(params["bk_biz_id"], params["configs"])
+        try:
+            self.send_frontend_report_event(params["bk_biz_id"], params["configs"])
+        except Exception as e:
+            logger.exception(f"send frontend report event failed: {e}")
 
         if errors:
             return {"result": False, "data": None, "errors": errors, "message": f"{len(errors)} configs import failed"}
@@ -562,7 +565,10 @@ class ExportConfigFileResource(ExportConfigResource):
         if not download_url.startswith("http"):
             download_url = urljoin(settings.BK_MONITOR_HOST, download_url)
 
-        self.send_frontend_report_event(bk_biz_id, config_stats_info)
+        try:
+            self.send_frontend_report_event(bk_biz_id, config_stats_info)
+        except Exception as e:
+            logger.exception(f"send frontend report event failed: {e}")
 
         return {"download_url": download_url}
 
