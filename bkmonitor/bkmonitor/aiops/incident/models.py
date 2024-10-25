@@ -567,15 +567,64 @@ class IncidentSnapshot(object):
                 if from_edge.edge_cluster_id not in group_by_entities:
                     group_by_entities[from_edge.edge_cluster_id] = set()
 
-                if from_key[0] != to_key[0]:
+                if from_key[0] != to_key[0] and not self.is_merge_conflict(from_key[0], to_key[0]):
                     group_by_entities[from_edge.edge_cluster_id].add(from_key[0])
                     group_by_entities[from_edge.edge_cluster_id].add(to_key[0])
 
-                if from_key[1] != to_key[1]:
+                if from_key[1] != to_key[1] and not self.is_merge_conflict(from_key[1], to_key[1]):
                     group_by_entities[from_edge.edge_cluster_id].add(from_key[1])
                     group_by_entities[from_edge.edge_cluster_id].add(to_key[1])
 
-        return group_by_entities
+        # 防止同一集合的节点，因为有多个关联的调用关系，且相似度都一样，会被聚合两次
+        unique_node_sets = {}
+        for edge_cluster_id, node_set in group_by_entities.items():
+            frozen_node_set = frozenset(node_set)
+
+            if frozen_node_set not in unique_node_sets:
+                unique_node_sets[frozen_node_set] = edge_cluster_id
+
+        return {edge_cluster_id: set(frozen_node_set) for frozen_node_set, edge_cluster_id in unique_node_sets.items()}
+
+    def is_merge_conflict(self, entity_id1: str, entity_id2: str) -> bool:
+        """检测两个即将通过调用关系相似度聚类结果进行聚合的实体，是否有其他边存在冲突
+
+        :param entity_id1: 实体1的ID
+        :param entity_id2: 实体2的ID
+        :return: 是否有合并冲突
+        """
+        for entity_id in self.incident_graph_entities.keys():
+            if entity_id == entity_id1 or entity_id == entity_id2:
+                continue
+
+            # 检查第三个节点作为判断中的两个节点作为出边终点的情况
+            if (
+                entity_id in self.entity_targets[entity_id1][IncidentGraphEdgeType.EBPF_CALL]
+                and entity_id in self.entity_targets[entity_id2][IncidentGraphEdgeType.EBPF_CALL]
+            ):
+                edge1 = self.incident_graph_edges[(entity_id1, entity_id)]
+                edge2 = self.incident_graph_edges[(entity_id2, entity_id)]
+                if (
+                    not edge1.edge_cluster_id
+                    or not edge2.edge_cluster_id
+                    or edge1.edge_cluster_id != edge2.edge_cluster_id
+                ):
+                    return True
+
+            # 检查第三个节点作为判断中的两个节点作为入边起点的情况
+            if (
+                entity_id in self.entity_sources[entity_id1][IncidentGraphEdgeType.EBPF_CALL]
+                and entity_id in self.entity_sources[entity_id2][IncidentGraphEdgeType.EBPF_CALL]
+            ):
+                edge1 = self.incident_graph_edges[(entity_id, entity_id1)]
+                edge2 = self.incident_graph_edges[(entity_id, entity_id2)]
+                if (
+                    not edge1.edge_cluster_id
+                    or not edge2.edge_cluster_id
+                    or edge1.edge_cluster_id != edge2.edge_cluster_id
+                ):
+                    return True
+
+        return False
 
     def aggregate_by_groups(self, groups_by_entities: Dict[Tuple, set], entities_orders: Dict = None):
         """按照分组合并节点和边.
@@ -685,7 +734,6 @@ class IncidentSnapshot(object):
             self.incident_graph_edges[_to].anomaly_score = max(
                 self.incident_graph_edges[_to].anomaly_score, self.incident_graph_edges[_from].anomaly_score
             )
-            self.incident_graph_edges[_to].events.extend(self.incident_graph_edges[_from].events)
             self.incident_graph_edges[_to].aggregated_edges.append(self.incident_graph_edges[_from])
             if self.incident_graph_edges[_to].edge_cluster_id != self.incident_graph_edges[_from].edge_cluster_id:
                 self.incident_graph_edges[_to].edge_cluster_id = None
