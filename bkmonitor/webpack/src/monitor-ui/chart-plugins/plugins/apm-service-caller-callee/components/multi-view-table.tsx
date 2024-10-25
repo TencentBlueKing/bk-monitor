@@ -203,7 +203,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
 
   @Emit('showDetail')
   handleShowDetail(row, key, { $index }) {
-    if (row[key]) {
+    if (key !== 'time' && row[key]) {
       this.isShowDetail = true;
       this.filterDimensionValue = $index;
       this.handleRawCallOptionsChange();
@@ -266,7 +266,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                     slot='dropdown-content'
                   >
                     {this.dimensionList.map(option => {
-                      if (!option.active) return;
                       const isActive = this.drillValue === option.value;
                       return (
                         <li
@@ -296,13 +295,16 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           scopedSlots={{
             default: a => {
               const timeTxt = a.row.time ? dayjs.tz(a.row.time * 1000).format('YYYY-MM-DD HH:mm:ss') : '--';
-              const txt = item.prop === 'time' ? timeTxt : a.row[item.prop];
+              const txt = item.value === 'time' ? timeTxt : a.row[item.value];
               return (
-                <span
-                  class={['multi-view-table-link', { 'block-link': !a.row[item.value] }]}
-                  v-bk-overflow-tips
-                >
-                  <span onClick={() => this.handleShowDetail(a.row, item.value, a)}>{txt || '--'}</span>
+                <span class={['multi-view-table-link', { 'block-link': item.value === 'time' || !a.row[item.value] }]}>
+                  <span
+                    class='item-txt'
+                    v-bk-overflow-tips
+                    onClick={() => this.handleShowDetail(a.row, item.value, a)}
+                  >
+                    {txt || '--'}
+                  </span>
                   <i
                     class='icon-monitor icon-mc-copy tab-row-icon'
                     onClick={() => this.copyValue(a.row[item.value])}
@@ -312,6 +314,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             },
           }}
           label={item.text}
+          min-width={120}
           prop={item.value}
         />
       ));
@@ -357,7 +360,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                 <span
                   class='item-txt'
                   v-bk-overflow-tips
-                  onClick={() => this.handleShowDetail(row, item.prop)}
                 >
                   {txt}
                 </span>
