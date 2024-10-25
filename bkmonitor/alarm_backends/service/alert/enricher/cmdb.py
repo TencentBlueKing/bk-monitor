@@ -139,12 +139,12 @@ class CMDBEnricher(BaseEventEnricher):
                 logger.warning("[enrich_host] biz is empty for host target(%s)", event.target)
                 event.drop()
                 return event
-            else:
-                # 主机不在告警业务中，丢弃
-                if event.bk_biz_id != host.bk_biz_id:
-                    logger.warning("[enrich_host] ip(%s) not in biz(%s)", ip, event.bk_biz_id)
-                    event.drop()
-                    return event
+        else:
+            # 主机不在告警业务中，先打日志记录
+            if event.bk_biz_id != host.bk_biz_id:
+                logger.warning("[enrich_host] ip(%s) not in biz(%s)", ip, event.bk_biz_id)
+                # event.drop()
+                # return event
 
             event.set("ip", ip)
             event.set("bk_cloud_id", bk_cloud_id)
@@ -183,8 +183,8 @@ class CMDBEnricher(BaseEventEnricher):
                 logger.warning(
                     "[enrich_service] instance(%s) not in biz(%s)", instance.service_instance_id, event.bk_biz_id
                 )
-                event.drop()
-                return event
+                # event.drop()
+                # return event
         event.set("target", instance.service_instance_id)
         event.set("bk_service_instance_id", instance.service_instance_id)
         event.set("bk_host_id", instance.bk_host_id)
