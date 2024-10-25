@@ -43,6 +43,7 @@ class DataLinkResourceConfigBase(models.Model):
     last_modify_time = models.DateTimeField("最后更新时间", auto_now=True)
     status = models.CharField(verbose_name="状态", max_length=64)
     data_link_name = models.CharField(verbose_name="数据链路名称", max_length=64)
+    bk_biz_id = models.BigIntegerField(verbose_name="业务ID", default=settings.DEFAULT_BKDATA_BIZ_ID)
 
     class Meta:
         abstract = True
@@ -58,14 +59,13 @@ class DataIdConfig(DataLinkResourceConfigBase):
     """
 
     kind = DataLinkKind.DATAID.value
-    name = models.CharField(verbose_name="数据源名称", max_length=64)
+    name = models.CharField(verbose_name="数据源名称", max_length=64, db_index=True, unique=True)
 
     class Meta:
         verbose_name = "数据源配置"
         verbose_name_plural = verbose_name
 
-    @classmethod
-    def compose_config(cls) -> Dict:
+    def compose_config(self) -> Dict:
         """
         数据源下发计算平台的资源配置
         """
@@ -88,9 +88,9 @@ class DataIdConfig(DataLinkResourceConfigBase):
         return utils.compose_config(
             tpl=tpl,
             render_params={
-                "name": cls.name,
-                "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-                "bk_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,
+                "name": self.name,
+                "namespace": self.namespace,
+                "bk_biz_id": self.bk_biz_id,
                 "maintainers": json.dumps(maintainer),
             },
             err_msg_prefix="compose data_id config",
@@ -103,15 +103,14 @@ class VMResultTableConfig(DataLinkResourceConfigBase):
     """
 
     kind = DataLinkKind.RESULTTABLE.value
-    name = models.CharField(verbose_name="结果表名称", max_length=64)
+    name = models.CharField(verbose_name="结果表名称", max_length=64, db_index=True, unique=True)
     data_type = models.CharField(verbose_name="结果表类型", max_length=64, default="metric")
 
     class Meta:
         verbose_name = "VM结果表配置"
         verbose_name_plural = verbose_name
 
-    @classmethod
-    def compose_config(cls) -> Dict:
+    def compose_config(self) -> Dict:
         """
         组装数据源结果表配置
         """
@@ -135,10 +134,10 @@ class VMResultTableConfig(DataLinkResourceConfigBase):
         return utils.compose_config(
             tpl=tpl,
             render_params={
-                "name": cls.name,
-                "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-                "bk_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,
-                "data_type": cls.data_type,
+                "name": self.name,
+                "namespace": self.namespace,
+                "bk_biz_id": self.bk_biz_id,
+                "data_type": self.data_type,
                 "maintainers": json.dumps(maintainer),
             },
             err_msg_prefix="compose bkdata table_id config",
@@ -151,16 +150,15 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
     """
 
     kind = DataLinkKind.VMSTORAGEBINDING.value
-    name = models.CharField(verbose_name="存储配置名称", max_length=64)
+    name = models.CharField(verbose_name="存储配置名称", max_length=64, db_index=True, unique=True)
     vm_cluster_name = models.CharField(verbose_name="VM集群名称", max_length=64)
 
     class Meta:
         verbose_name = "VM存储配置"
         verbose_name_plural = verbose_name
 
-    @classmethod
     def compose_config(
-        cls,
+        self,
     ) -> Dict:
         """
         组装VM存储配置，与结果表相关联
@@ -191,10 +189,10 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
         return utils.compose_config(
             tpl=tpl,
             render_params={
-                "name": cls.name,
-                "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-                "rt_name": cls.name,
-                "vm_name": cls.vm_cluster_name,
+                "name": self.name,
+                "namespace": self.namespace,
+                "rt_name": self.name,
+                "vm_name": self.vm_cluster_name,
                 "maintainers": json.dumps(maintainer),
             },
             err_msg_prefix="compose vm storage binding config",
@@ -207,16 +205,15 @@ class DataBusConfig(DataLinkResourceConfigBase):
     """
 
     kind = DataLinkKind.DATABUS.value
-    name = models.CharField(verbose_name="清洗任务名称", max_length=64)
+    name = models.CharField(verbose_name="清洗任务名称", max_length=64, db_index=True, unique=True)
     data_id_name = models.CharField(verbose_name="关联消费数据源名称", max_length=64)
 
     class Meta:
         verbose_name = "清洗任务配置"
         verbose_name_plural = verbose_name
 
-    @classmethod
     def compose_config(
-        cls,
+        self,
         sinks: List,
         transform_kind: Optional[str] = constants.DEFAULT_METRIC_TRANSFORMER_KIND,
         transform_name: Optional[str] = constants.DEFAULT_METRIC_TRANSFORMER,
@@ -262,11 +259,11 @@ class DataBusConfig(DataLinkResourceConfigBase):
         return utils.compose_config(
             tpl=tpl,
             render_params={
-                "name": cls.name,
-                "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+                "name": self.name,
+                "namespace": self.namespace,
                 "sinks": json.dumps(sinks),
-                "sink_name": cls.name,
-                "data_id_name": cls.data_id_name,
+                "sink_name": self.name,
+                "data_id_name": self.data_id_name,
                 "transform_kind": transform_kind,
                 "transform_name": transform_name,
                 "transform_format": transform_format,
@@ -282,7 +279,7 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
     """
 
     kind = DataLinkKind.CONDITIONALSINK.value
-    name = models.CharField(verbose_name="条件处理配置名称", max_length=64)
+    name = models.CharField(verbose_name="条件处理配置名称", max_length=64, db_index=True, unique=True)
 
     class Meta:
         verbose_name = "条件处理配置"

@@ -55,6 +55,8 @@ class DataLinkResourceStatus(Enum):
     TERMINATING = "Terminating"
     FAILED = "Failed"
     OK = "Ok"
+    CREATING = "Creating"
+    INITIALIZING = "Initializing"
 
 
 # 默认转换器及对应的处理格式

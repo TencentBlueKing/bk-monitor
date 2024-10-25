@@ -11,22 +11,37 @@ specific language governing permissions and limitations under the License.
 
 from django.db import models
 
+from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.storage import ClusterInfo
 
 
 class BkBaseResultTable(models.Model):
     """
     计算平台结果表
+    data_link_name作为唯一主键，
+    Note：新接入的链路，data_link_name和bkbase_data_name相同，都是根据数据源的data_name拼接而成，V3->V4迁移场景下不同
+    除bkbase_table_id外，其余均为声明式字段
     """
 
-    data_link_name = models.CharField(verbose_name="链路名称", max_length=255)
+    STATUS_CHOICES = (
+        (DataLinkResourceStatus.INITIALIZING.value, "初始化中"),
+        (DataLinkResourceStatus.PENDING.value, "等待中"),
+        (DataLinkResourceStatus.OK.value, "已就绪"),
+    )
+
+    data_link_name = models.CharField(verbose_name="链路名称", max_length=255, primary_key=True, db_index=True, unique=True)
     bkbase_data_name = models.CharField(verbose_name="计算平台数据源名称", max_length=128)
     bkbase_table_id = models.IntegerField(verbose_name="计算平台结果表ID", null=True, blank=True)
     storage_type = models.CharField(
         "存储类型", max_length=32, choices=ClusterInfo.CLUSTER_TYPE_CHOICES, default=ClusterInfo.TYPE_VM
     )
-    storage_cluster_id = models.CharField("存储集群ID", max_length=32)
+    storage_cluster_id = models.IntegerField("存储集群ID")
     monitor_table_id = models.CharField("监控平台结果表ID", max_length=128)
+    create_time = models.DateTimeField("创建时间", auto_now_add=True)
+    last_modify_time = models.DateTimeField("最后更新时间", auto_now=True)
+    status = models.CharField(
+        verbose_name="状态", max_length=64, choices=STATUS_CHOICES, default=DataLinkResourceStatus.INITIALIZING.value
+    )
 
     class Meta:
         verbose_name = "接入计算平台记录表"

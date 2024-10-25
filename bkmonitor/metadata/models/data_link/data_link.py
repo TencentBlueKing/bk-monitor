@@ -15,9 +15,8 @@ from django.conf import settings
 from django.db import models, transaction
 
 from core.drf_resource import api
-from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.data_link import utils
-from metadata.models.data_link.constants import DataLinkKind
+from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
 from metadata.models.data_link.data_link_configs import (
     DataBusConfig,
     VMResultTableConfig,
@@ -30,6 +29,7 @@ logger = logging.getLogger("metadata")
 class DataLink(models.Model):
     """
     一条完整的链路资源
+    涵盖资源配置按需组装 -> 下发配置申请链路 ->同步元数据 全流程
     """
 
     BK_STANDARD_V2_TIME_SERIES = "bk_standard_v2_time_series"
@@ -43,6 +43,7 @@ class DataLink(models.Model):
     )
 
     data_link_name = models.CharField(max_length=255, verbose_name="链路名称", primary_key=True)
+    namespace = models.CharField(max_length=255, verbose_name="命名空间", default=settings.DEFAULT_VM_DATA_LINK_NAMESPACE)
     data_link_strategy = models.CharField(max_length=255, verbose_name="链路策略", choices=DATA_LINK_STRATEGY_CHOICES)
     create_time = models.DateTimeField("创建时间", auto_now_add=True)
     last_modify_time = models.DateTimeField("最后更新时间", auto_now=True)
@@ -87,11 +88,14 @@ class DataLink(models.Model):
         try:
             with transaction.atomic():
                 # 渲染所需的资源配置
-                vm_table_id_ins = VMResultTableConfig.objects.get_or_create(
-                    name=bkbase_vmrt_name, data_link_name=cls.data_link_name
+                vm_table_id_ins, _ = VMResultTableConfig.objects.get_or_create(
+                    name=bkbase_vmrt_name, data_link_name=cls.data_link_name, namespace=cls.namespace
                 )
-                vm_storage_ins = VMStorageBindingConfig.objects.get_or_create(
-                    name=bkbase_vmrt_name, vm_cluster_name=vm_cluster_name, data_link_name=cls.data_link_name
+                vm_storage_ins, _ = VMStorageBindingConfig.objects.get_or_create(
+                    name=bkbase_vmrt_name,
+                    vm_cluster_name=vm_cluster_name,
+                    data_link_name=cls.data_link_name,
+                    namespace=cls.namespace,
                 )
                 sinks = [
                     {
@@ -100,11 +104,14 @@ class DataLink(models.Model):
                         "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
                     }
                 ]
-                data_bus_ins = DataBusConfig(
-                    name=bkbase_vmrt_name, data_id_name=bkbase_data_name, data_link_name=cls.data_link_name
+                data_bus_ins, _ = DataBusConfig(
+                    name=bkbase_vmrt_name,
+                    data_id_name=bkbase_data_name,
+                    data_link_name=cls.data_link_name,
+                    namespace=cls.namespace,
                 )
         except Exception as e:
-            logger.error("compose_configs: data_link_name->[%s] error->[%s]", cls.data_link_name, e)
+            logger.error("compose_configs: data_link_name->[%s] error->[%s],rollback!", cls.data_link_name, e)
 
         configs = [
             vm_table_id_ins.compose_config(),
@@ -115,6 +122,27 @@ class DataLink(models.Model):
 
     @classmethod
     def apply_data_link(cls, *args, **kwargs):
+        """
+        组装配置并下发数据链路
+        声明BkBaseResultTable -> 组装链路资源配置 -> 调用API申请
+        """
+        from metadata.models.bkdata.result_table import BkBaseResultTable
+
+        try:
+            with transaction.atomic():
+                # NOTE:新链路下，data_link_name和bkbase_data_name一致
+                BkBaseResultTable.objects.get_or_create(
+                    data_link_name=cls.data_link_name,
+                    bkbase_data_name=cls.data_link_name,
+                    defaults={
+                        "status": DataLinkResourceStatus.INITIALIZING.value,
+                    },
+                )
+        except Exception as e:
+            logger.error(
+                "apply_data_link: data_link_name->[%s] create BkBaseResultTable error->[%s]", cls.data_link_name, e
+            )
+
         configs = cls.compose_configs(*args, **kwargs)
         logger.info(
             "apply_data_link: data_link_name->[%s],strategy->[%s] try to use configs->[%s] to apply",
@@ -134,7 +162,10 @@ class DataLink(models.Model):
     def sync_metadata(cls, data_source, table_id, storage_cluster_name):
         """
         同步元数据
+        同步此前的计算平台链路记录，设置状态为OK
         """
+        from metadata.models.bkdata.result_table import BkBaseResultTable
+
         bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
         bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id)
 
@@ -144,8 +175,11 @@ class DataLink(models.Model):
                     data_link_name=cls.data_link_name,
                     bkbase_data_name=bkbase_data_name,
                     bkbase_vmrt_name=bkbase_vmrt_name,
+                    bkbase_table_id=f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}",
                     monitor_table_id=table_id,
                     defaults={"storage_type": cls.storage_type, "storage_id": storage_cluster_name},
                 )
         except Exception as e:
-            logger.error("sync_metadata: data_link_name->[%s],sync_metadata failed,error->{%s]", cls.data_link_name, e)
+            logger.error(
+                "sync_metadata: data_link_name->[%s],sync_metadata failed,error->{%s],rollback!", cls.data_link_name, e
+            )
