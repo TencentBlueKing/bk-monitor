@@ -351,7 +351,10 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   getChartPointDimensionsTxt() {
     const { dimensions } = this.chartPointOption;
     return Object.keys(dimensions || {}).map(key => (
-      <span key={key}>
+      <span
+        key={key}
+        style='display: inline-flex; margin-left: 4px'
+      >
         {this.handleGetKey(key)}
         <span class='tag-symbol'>{this.handleOperate('eq')}</span>
         {dimensions[key]}

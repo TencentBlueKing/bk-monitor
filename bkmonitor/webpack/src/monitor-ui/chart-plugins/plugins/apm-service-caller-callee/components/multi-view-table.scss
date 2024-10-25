@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 .multi-view-table-main {
   display: flex;
   width: 100%;
@@ -122,11 +123,12 @@
     .filter-select {
       display: flex;
       flex: 1;
+      flex: 0 0 538px;
       align-items: center;
       margin-right: 24px;
 
       .bk-select-dropdown {
-        width: 100%;
+        width: 538px;
       }
     }
   }

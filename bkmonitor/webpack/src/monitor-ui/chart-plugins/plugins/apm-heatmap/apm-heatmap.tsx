@@ -112,7 +112,7 @@ class ApmHeatmap extends CommonSimpleChart {
                 interval,
                 interval_unit: 'm',
                 where: [...(config?.where || []), ...(this.callOptions?.call_filter || [])],
-                functions: config?.function?.map(func => {
+                functions: config?.functions?.map(func => {
                   if (func.id === 'increase') {
                     return {
                       ...func,
@@ -134,7 +134,7 @@ class ApmHeatmap extends CommonSimpleChart {
                   interval,
                   interval_unit: 'm',
                   where: [...(config?.where || []), ...(this.callOptions?.call_filter || [])],
-                  functions: config?.function?.map(func => {
+                  functions: config?.functions?.map(func => {
                     if (func.id === 'increase') {
                       return {
                         ...func,
