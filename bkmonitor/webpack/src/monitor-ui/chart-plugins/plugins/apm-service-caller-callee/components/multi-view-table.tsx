@@ -147,6 +147,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       const dimensions = item.dimensions;
       let name = '';
       for (const [key, val] of Object.entries(dimensions)) {
+        if (key === 'time') continue;
         const tag = this.dimensionList.find(item => item.value === key);
         name += ` ${tag.text}:${val || '--'} `;
       }
@@ -383,19 +384,22 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   createOption(dimensions: Record<string, string>) {
     return (
       <div class='options-wrapper'>
-        {Object.entries(dimensions).map(([key, value]) => {
-          const tag = this.dimensionList.find(item => item.value === key);
-          return (
-            <div
-              key={key}
-              class='options-wrapper-item'
-            >
-              <span>
-                {tag.text}:{value || '--'}
-              </span>
-            </div>
-          );
-        })}
+        {Object.entries(dimensions)
+          .map(([key, value]) => {
+            if (key === 'time') return undefined;
+            const tag = this.dimensionList.find(item => item.value === key);
+            return (
+              <div
+                key={key}
+                class='options-wrapper-item'
+              >
+                <span>
+                  {tag.text}:{value || '--'}
+                </span>
+              </div>
+            );
+          })
+          .filter(Boolean)}
       </div>
     );
   }
