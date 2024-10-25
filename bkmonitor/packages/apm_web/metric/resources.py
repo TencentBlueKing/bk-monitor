@@ -3046,7 +3046,8 @@ class CalculateByRangeResource(Resource):
         if validated_request_data["metric_cal_type"] == metric_group.CalculationType.REQUEST_TOTAL:
             # 计算占比
             self._process_proportions(aliases, merged_records)
-        return merged_records
+
+        return {"total": len(merged_records), "data": merged_records}
 
 
 class QueryDimensionsByLimitResource(Resource):
