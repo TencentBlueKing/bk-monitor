@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch, Emit, InjectReactive, ProvideReactive } from 'vue-property-decorator';
+import { Component, Prop, Watch, Emit, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import dayjs from 'dayjs';
 import { copyText } from 'monitor-common/utils/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
@@ -46,10 +47,13 @@ interface IMultiViewTableProps {
   tableTabData: IDataItem[];
   panel: PanelModel;
   sidePanelCommonOptions: Partial<CallOptions>;
+  isLoading?: boolean;
+  supportedCalculationTypes?: IListItem[];
 }
 interface IMultiViewTableEvent {
   onShowDetail?: () => void;
   onDrill?: () => void;
+  onTabChange?: () => void;
 }
 @Component({
   name: 'MultiViewTable',
@@ -61,6 +65,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @Prop({ required: true, type: Array }) tableColData: IColumn[];
   @Prop({ required: true, type: Array }) tableListData: IDataItem[];
   @Prop({ required: true, type: Array }) tableTabData: IDataItem[];
+  @Prop({ required: true, type: Boolean }) isLoading: boolean;
   @Prop({ required: true, type: Object }) panel: PanelModel;
   @Prop({ required: true, type: Object }) sidePanelCommonOptions: Partial<CallOptions>;
 
@@ -183,7 +188,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       item.columns = item.columns.flatMap(col => {
         let defaultCol = [];
         const isRequest = item.id !== 'request';
-        const baseKey = isRequest ? col.value : 'request_total';
+        const baseKey = isRequest ? col.label : 'request_total';
         defaultCol = [{ label: this.$t('波动'), prop: `growth_rates_${baseKey}_${val[0]}` }];
         const cache = val.length === 1 ? ['0s', ...val] : val;
         const additionalCols = cache.map((v, ind) => ({
@@ -194,12 +199,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         return val.length > 0 ? defaultCol : col;
       });
     });
-    console.log(this.panels);
   }
 
   @Emit('showDetail')
   handleShowDetail(row, key, { $index }) {
-    if (row[key]) {
+    if (key !== 'time' && row[key]) {
       this.isShowDetail = true;
       this.filterDimensionValue = $index;
       this.handleRawCallOptionsChange();
@@ -218,9 +222,10 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
   // 下钻选择key值之后的处理
   @Emit('drill')
-  chooseSelect(option) {
-    this.drillValue = option.label;
-    return option;
+  chooseSelect(option: IListItem, row: IDataItem) {
+    this.drillValue = option.value;
+    console.log(row, 'row');
+    return { option, row };
   }
   copyValue(text) {
     copyText(text, msg => {
@@ -240,7 +245,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     const operationCol = (
       <bk-table-column
         scopedSlots={{
-          default: () => {
+          default: ({ row }) => {
             return (
               <div class='multi-view-table-link'>
                 <bk-dropdown-menu
@@ -261,13 +266,12 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                     slot='dropdown-content'
                   >
                     {this.dimensionList.map(option => {
-                      if (!option.active) return;
                       const isActive = this.drillValue === option.value;
                       return (
                         <li
                           key={option.text}
                           class={['drill-down-item', { active: isActive }]}
-                          onClick={() => this.chooseSelect(option)}
+                          onClick={() => this.chooseSelect(option, row)}
                         >
                           {option.text}
                         </li>
@@ -289,20 +293,28 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         <bk-table-column
           key={item.value}
           scopedSlots={{
-            default: a => (
-              <span
-                class={['multi-view-table-link', { 'block-link': !a.row[item.value] }]}
-                v-bk-overflow-tips
-              >
-                <span onClick={() => this.handleShowDetail(a.row, item.value, a)}>{a.row[item.value] || '--'}</span>
-                <i
-                  class='icon-monitor icon-mc-copy tab-row-icon'
-                  onClick={() => this.copyValue(a.row[item.value])}
-                />
-              </span>
-            ),
+            default: a => {
+              const timeTxt = a.row.time ? dayjs.tz(a.row.time * 1000).format('YYYY-MM-DD HH:mm:ss') : '--';
+              const txt = item.value === 'time' ? timeTxt : a.row[item.value];
+              return (
+                <span class={['multi-view-table-link', { 'block-link': item.value === 'time' || !a.row[item.value] }]}>
+                  <span
+                    class='item-txt'
+                    v-bk-overflow-tips
+                    onClick={() => this.handleShowDetail(a.row, item.value, a)}
+                  >
+                    {txt || '--'}
+                  </span>
+                  <i
+                    class='icon-monitor icon-mc-copy tab-row-icon'
+                    onClick={() => this.copyValue(a.row[item.value])}
+                  />
+                </span>
+              );
+            },
           }}
           label={item.text}
+          min-width={120}
           prop={item.value}
         />
       ));
@@ -344,20 +356,25 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                 : '--'
               : this.formatToTwoDecimalPlaces(row[item.prop]) || '--';
             return (
-              <span
-                class='multi-view-table-txt'
-                v-bk-overflow-tips
-              >
-                <span onClick={() => this.handleShowDetail(row, item.prop)}>{txt}</span>
-                <i
-                  class='icon-monitor icon-mc-line tab-row-icon'
-                  onClick={() => this.handleDimension(row, 'request')}
-                />
+              <span class='multi-view-table-txt'>
+                <span
+                  class='item-txt'
+                  v-bk-overflow-tips
+                >
+                  {txt}
+                </span>
+                {/* {!row[item.prop] && (
+                  <i
+                    class='icon-monitor icon-mc-line tab-row-icon'
+                    onClick={() => this.handleDimension(row, 'request')}
+                  />
+                )} */}
               </span>
             );
           },
         }}
         label={item.label}
+        min-width={120}
         prop={item.prop}
         sortable
       />
@@ -411,6 +428,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           <div>
             <bk-table
               ext-cls='multi-view-tab-table'
+              v-bkloading={{ isLoading: this.isLoading }}
               data={this.tableTabData}
               header-border={false}
               header-cell-class-name={() => 'multi-table-tab-head'}
