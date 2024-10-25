@@ -109,8 +109,9 @@ class DataLink(models.Model):
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                 )
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.error("compose_configs: data_link_name->[%s] error->[%s],rollback!", self.data_link_name, e)
+            raise e
 
         configs = [
             vm_table_id_ins.compose_config(),
@@ -137,19 +138,29 @@ class DataLink(models.Model):
                         "status": DataLinkResourceStatus.INITIALIZING.value,
                     },
                 )
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.error(
                 "apply_data_link: data_link_name->[%s] create BkBaseResultTable error->[%s]", cls.data_link_name, e
             )
+            raise e
 
-        configs = cls.compose_configs(*args, **kwargs)
+        try:
+            configs = cls.compose_configs(*args, **kwargs)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("apply_data_link: data_link_name->[%s] compose config error->[%s]", cls.data_link_name, e)
+            raise e
         logger.info(
             "apply_data_link: data_link_name->[%s],strategy->[%s] try to use configs->[%s] to apply",
             cls.data_link_name,
             cls.data_link_strategy,
             configs,
         )
-        response = api.bkdata.apply_data_link(configs)
+        try:
+            response = api.bkdata.apply_data_link(configs)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("apply_data_link: data_link_name->[%s] apply error->[%s]", cls.data_link_name, e)
+            raise e
+
         logger.info(
             "apply_data_link: data_link_name->[%s],strategy->[%s] response->[%s]",
             cls.data_link_name,
@@ -178,7 +189,7 @@ class DataLink(models.Model):
                     monitor_table_id=table_id,
                     defaults={"storage_type": cls.storage_type, "storage_id": storage_cluster_name},
                 )
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.error(
                 "sync_metadata: data_link_name->[%s],sync_metadata failed,error->{%s],rollback!", cls.data_link_name, e
             )
