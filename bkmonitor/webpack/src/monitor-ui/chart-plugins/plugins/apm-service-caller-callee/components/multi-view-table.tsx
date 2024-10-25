@@ -24,26 +24,28 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch, Emit } from 'vue-property-decorator';
+import { Component, Prop, Watch, Emit, InjectReactive, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils/utils';
-import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
+import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
 import CallerBarChart from '../chart/caller-bar-chart';
 import CallerPieChart from '../chart/caller-pie-chart';
 import { TAB_TABLE_TYPE, CHART_TYPE, LIMIT_TYPE_LIST } from '../utils';
 import TabBtnGroup from './common-comp/tab-btn-group';
 
-import type { IServiceConfig, IColumn, IDataItem, IListItem } from '../type';
+import type { PanelModel } from '../../../typings';
+import type { IColumn, IDataItem, IListItem, DimensionItem, CallOptions } from '../type';
 
 import './multi-view-table.scss';
 interface IMultiViewTableProps {
-  tableColumn: IColumn[];
+  dimensionList: DimensionItem[];
   tableColData: IColumn[];
-  searchList: IServiceConfig[];
   tableListData: IDataItem[];
   tableTabData: IDataItem[];
+  panel: PanelModel;
+  sidePanelCommonOptions: Partial<CallOptions>;
 }
 interface IMultiViewTableEvent {
   onShowDetail?: () => void;
@@ -55,11 +57,15 @@ interface IMultiViewTableEvent {
 })
 export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiViewTableEvent> {
   @Prop({ type: Array, default: () => [] }) supportedCalculationTypes: IListItem[];
-  @Prop({ required: true, type: Array }) tableColumn: IColumn[];
+  @Prop({ required: true, type: Array }) dimensionList: DimensionItem[];
   @Prop({ required: true, type: Array }) tableColData: IColumn[];
-  @Prop({ required: true, type: Array }) searchList: IServiceConfig[];
   @Prop({ required: true, type: Array }) tableListData: IDataItem[];
   @Prop({ required: true, type: Array }) tableTabData: IDataItem[];
+  @Prop({ required: true, type: Object }) panel: PanelModel;
+  @Prop({ required: true, type: Object }) sidePanelCommonOptions: Partial<CallOptions>;
+
+  @ProvideReactive('callOptions') callOptions: Partial<CallOptions> = {};
+
   active = 'request';
   cachePanels = TAB_TABLE_TYPE;
   panels = TAB_TABLE_TYPE;
@@ -68,7 +74,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   chartPanels = CHART_TYPE;
   chartActive = 'caller-pie-chart';
   dimensionValue = 1;
-  dashboardPanels = [];
   drillValue = '';
   column = [
     {
@@ -86,6 +91,27 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   request = ['request_total'];
   timeout = ['success_rate', 'timeout_rate', 'exception_rate'];
   consuming = ['avg_duration', 'p50_duration', 'p95_duration', 'p99_duration'];
+  // 侧滑面板 维度id
+  filterDimensionValue = -1;
+  @Watch('sidePanelCommonOptions', { immediate: true })
+  handleRawCallOptionsChange() {
+    const selectItem = this.dimensionOptions.find(item => item.id === this.filterDimensionValue);
+    const list = [];
+    for (const [key, val] of Object.entries(selectItem?.dimensions || {})) {
+      if (val !== null) {
+        list.push({
+          key,
+          value: [val],
+          method: 'eq',
+          condition: 'and',
+        });
+      }
+    }
+    this.callOptions = {
+      ...this.sidePanelCommonOptions,
+      call_filter: [...this.sidePanelCommonOptions.call_filter, ...list],
+    };
+  }
 
   @Watch('supportedCalculationTypes', { immediate: true })
   handlePanelChange(val) {
@@ -108,9 +134,23 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   get dialogSelectList() {
     return LIMIT_TYPE_LIST;
   }
-  get dialogPanel() {
-    return {};
+  get dimensionOptions() {
+    if (!this.tableListData?.length) return [];
+    const options = [];
+    let index = 0;
+    for (const item of this.tableListData) {
+      const dimensions = item.dimensions;
+      let name = '';
+      for (const [key, val] of Object.entries(dimensions)) {
+        const tag = this.dimensionList.find(item => item.value === key);
+        name += ` ${tag.text}:${val || '--'} `;
+      }
+      options.push({ name, id: index, dimensions });
+      index++;
+    }
+    return options;
   }
+
   mounted() {
     TAB_TABLE_TYPE.find(item => item.id === 'request').handle = this.handleGetDistribution;
   }
@@ -158,14 +198,19 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
 
   @Emit('showDetail')
-  handleShowDetail(row, key) {
+  handleShowDetail(row, key, { $index }) {
     if (row[key]) {
       this.isShowDetail = true;
+      this.filterDimensionValue = $index;
+      this.handleRawCallOptionsChange();
       this.curRowData = row;
       return { row, key };
     }
   }
-  handleFilterChange() {}
+  handleFilterChange(id: number) {
+    this.filterDimensionValue = id;
+    this.handleRawCallOptionsChange();
+  }
 
   handleDimension(row, key) {
     this.isShowDimension = true;
@@ -215,15 +260,16 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                     class='drill-down-list'
                     slot='dropdown-content'
                   >
-                    {this.searchList.map(option => {
-                      const isActive = this.drillValue === option.label;
+                    {this.dimensionList.map(option => {
+                      if (!option.active) return;
+                      const isActive = this.drillValue === option.value;
                       return (
                         <li
-                          key={option.label}
+                          key={option.text}
                           class={['drill-down-item', { active: isActive }]}
                           onClick={() => this.chooseSelect(option)}
                         >
-                          {option.name}
+                          {option.text}
                         </li>
                       );
                     })}
@@ -237,27 +283,29 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         min-width='100'
       />
     );
-    const baseCol = this.tableColumn.map(item => (
-      <bk-table-column
-        key={item.prop}
-        scopedSlots={{
-          default: ({ row }) => (
-            <span
-              class={['multi-view-table-link', { 'block-link': !row[item.prop] }]}
-              v-bk-overflow-tips
-            >
-              <span onClick={() => this.handleShowDetail(row, item.prop)}>{row[item.prop] || '--'}</span>
-              <i
-                class='icon-monitor icon-mc-copy tab-row-icon'
-                onClick={() => this.copyValue(row[item.prop])}
-              />
-            </span>
-          ),
-        }}
-        label={item.label}
-        prop={item.prop}
-      />
-    ));
+    const baseCol = this.dimensionList
+      .filter(item => item.active)
+      .map(item => (
+        <bk-table-column
+          key={item.value}
+          scopedSlots={{
+            default: a => (
+              <span
+                class={['multi-view-table-link', { 'block-link': !a.row[item.value] }]}
+                v-bk-overflow-tips
+              >
+                <span onClick={() => this.handleShowDetail(a.row, item.value, a)}>{a.row[item.value] || '--'}</span>
+                <i
+                  class='icon-monitor icon-mc-copy tab-row-icon'
+                  onClick={() => this.copyValue(a.row[item.value])}
+                />
+              </span>
+            ),
+          }}
+          label={item.text}
+          prop={item.value}
+        />
+      ));
     return [baseCol, operationCol];
   }
   /** 检查是否需要保留2位小数 */
@@ -315,11 +363,30 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       />
     ));
   }
+  createOption(dimensions: Record<string, string>) {
+    return (
+      <div class='options-wrapper'>
+        {Object.entries(dimensions).map(([key, value]) => {
+          const tag = this.dimensionList.find(item => item.value === key);
+          return (
+            <div
+              key={key}
+              class='options-wrapper-item'
+            >
+              <span>
+                {tag.text}:{value || '--'}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
   render() {
     return (
       <div class='multi-view-table-main'>
         <div class='multi-view-left'>
-          {this.tableColumn && (
+          {this.dimensionList && (
             <bk-table
               ext-cls='multi-view-table'
               data={this.tableListData}
@@ -363,87 +430,82 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           transfer={true}
           {...{ on: { 'update:isShow': v => (this.isShowDetail = v) } }}
         >
-          <div
-            class='content-wrap'
-            slot='content'
-          >
-            <div class='multi-slider-filter'>
-              <span class='filter-title'>{this.$t('维度')} ：</span>
-              {this.column.map(item => (
-                <div
-                  key={item.prop}
-                  class='filter-item'
+          {this.isShowDetail && (
+            <div
+              class='content-wrap'
+              slot='content'
+            >
+              <div class='multi-slider-filter'>
+                <span class='filter-title'>{this.$t('维度')} ：</span>
+                <bk-select
+                  class='filter-select'
+                  behavior='simplicity'
+                  clearable={false}
+                  value={this.filterDimensionValue}
+                  onChange={this.handleFilterChange}
                 >
-                  <span class='filter-item-title'>{item.label}</span>
-                  <bk-select
-                    style='width: 140px;'
-                    v-model={this.curRowData[item.prop]}
-                    behavior='simplicity'
-                    clearable={false}
-                    onChange={() => this.handleFilterChange()}
-                  >
-                    {this.tableListData.map(option => (
-                      <bk-option
-                        id={option[item.prop]}
-                        key={option[item.prop]}
-                        name={option[item.prop]}
-                      />
-                    ))}
-                  </bk-select>
-                </div>
-              ))}
+                  {this.dimensionOptions.map(option => (
+                    <bk-option
+                      id={option.id}
+                      key={option.id}
+                      name={option.name}
+                    >
+                      {this.createOption(option.dimensions)}
+                    </bk-option>
+                  ))}
+                </bk-select>
+              </div>
+              <div class='multi-slider-chart'>
+                <DashboardPanel
+                  id={'apm-table-extra_panels'}
+                  column={1}
+                  panels={this.panel.extra_panels}
+                />
+              </div>
             </div>
-            <div class='multi-slider-chart'>
-              <DashboardPanel
-                id={'multi-view-table'}
-                panels={this.dashboardPanels}
-              />
-            </div>
-          </div>
+          )}
         </bk-sideslider>
         {/* 维度值分布弹窗 */}
-        <bk-dialog
-          width={640}
-          ext-cls='multi-detail-dialog'
-          v-model={this.isShowDimension}
-          header-position={'left'}
-          show-footer={false}
-          theme='primary'
-        >
-          <div
-            class='multi-dialog-header'
-            slot='header'
+        {false && (
+          <bk-dialog
+            width={640}
+            ext-cls='multi-detail-dialog'
+            v-model={this.isShowDimension}
+            header-position={'left'}
+            show-footer={false}
+            theme='primary'
           >
-            <span class='head-title'>{this.$t('维度值分布')}</span>
-            <TabBtnGroup
-              class='multi-dialog-tab'
-              activeKey={this.chartActive}
-              list={this.chartPanels}
-              onChange={this.changeChartTab}
-            />
-            <bk-select
-              class='multi-dialog-select ml10'
-              v-model={this.dimensionValue}
+            <div
+              class='multi-dialog-header'
+              slot='header'
             >
-              {this.dialogSelectList.map(option => (
-                <bk-option
-                  id={option.id}
-                  key={option.id}
-                  name={option.name}
-                />
-              ))}
-            </bk-select>
-          </div>
-          <div class='multi-dialog-content'>
-            <span class='tips'>{this.$t('仅展示前 30 条数据')}</span>
-            {this.isShowDimension &&
-              (this.chartActive === 'caller-pie-chart' ? (
-                <CallerPieChart panel={this.dialogPanel} />
-              ) : (
-                <CallerBarChart panel={this.dialogPanel} />
-              ))}
-          </div>
-        </bk-dialog>
+              <span class='head-title'>{this.$t('维度值分布')}</span>
+              <TabBtnGroup
+                class='multi-dialog-tab'
+                activeKey={this.chartActive}
+                list={this.chartPanels}
+                onChange={this.changeChartTab}
+              />
+              <bk-select
+                class='multi-dialog-select ml10'
+                v-model={this.dimensionValue}
+              >
+                {this.dialogSelectList.map(option => (
+                  <bk-option
+                    id={option.id}
+                    key={option.id}
+                    name={option.name}
+                  />
+                ))}
+              </bk-select>
+            </div>
+            <div class='multi-dialog-content'>
+              <span class='tips'>{this.$t('仅展示前 30 条数据')}</span>
+              {this.isShowDimension &&
+                (this.chartActive === 'caller-pie-chart' ? <CallerPieChart /> : <CallerBarChart />)}
+            </div>
+          </bk-dialog>
+        )}
       </div>
     );
   }

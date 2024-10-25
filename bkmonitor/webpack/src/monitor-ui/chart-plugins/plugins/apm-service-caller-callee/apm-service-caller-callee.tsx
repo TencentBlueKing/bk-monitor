@@ -184,7 +184,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   }
   // 查看详情 - 选中的字段回填到左侧筛选栏
   handleDetail({ row, key }) {
-    this.callOptions.call_filter.find(item => item.key === key).value = [row[key]];
+    // this.callOptions.call_filter.find(item => item.key === key).value = [row[key]];
   }
 
   /**
