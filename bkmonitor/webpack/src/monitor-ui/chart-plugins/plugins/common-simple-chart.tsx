@@ -45,7 +45,7 @@ export class CommonSimpleChart
   implements ICommonCharts
 {
   // 时序视图panel实例
-  @Prop({ required: true }) readonly panel: PanelModel;
+  @Prop({ required: false }) readonly panel: PanelModel;
   // 高度
   height = 100;
   // 宽度度
@@ -92,7 +92,7 @@ export class CommonSimpleChart
   }
   @Watch('refleshInterval')
   // 数据刷新间隔
-  handleRefleshIntervalChange(v: number) {
+  handleRefreshIntervalChange(v: number) {
     if (this.refleshIntervalInstance) {
       window.clearInterval(this.refleshIntervalInstance);
     }
@@ -103,7 +103,7 @@ export class CommonSimpleChart
   }
   @Watch('refleshImmediate')
   // 立刻刷新
-  handleRefleshImmediateChange(v: string) {
+  handleRefreshImmediateChange(v: string) {
     if (v) this.getPanelData();
   }
   @Watch('timezone')
@@ -131,4 +131,4 @@ export class CommonSimpleChart
   }
 }
 
-export default ofType<{ panel: PanelModel }>().convert(CommonSimpleChart);
+export default ofType<{ panel?: PanelModel }>().convert(CommonSimpleChart);

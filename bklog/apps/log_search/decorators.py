@@ -38,6 +38,7 @@ def search_history_record(func):
         time_consume = round(end_time - start_time, 3) * 1000
 
         # 更新查询耗时和记录history
+        result.data["raw_took"] = result.data.get("took")
         result.data["took"] = time_consume
         history_obj = result.data.get("history_obj")
         union_search_history_obj = result.data.get("union_search_history_obj")
@@ -46,6 +47,7 @@ def search_history_record(func):
                 index_set_id=history_obj["index_set_id"],
                 params=history_obj["params"],
                 search_type=history_obj["search_type"],
+                search_mode=history_obj["search_mode"],
                 from_favorite_id=history_obj["from_favorite_id"],
                 duration=time_consume,
             )

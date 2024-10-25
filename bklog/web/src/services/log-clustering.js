@@ -37,13 +37,8 @@ const getDefaultConfig = {
   method: 'get',
 };
 
-const changeConfig = {
-  url: '/clustering_config/:index_set_id/create_or_update/',
-  method: 'post',
-};
-
-const preview = {
-  url: '/clustering_config/preview/',
+const debug = {
+  url: '/clustering_config/debug/',
   method: 'post',
 };
 
@@ -113,11 +108,34 @@ const updateInitGroup = {
   method: 'post',
 };
 
+// 模板列表
+const ruleTemplate = {
+  url: '/regex_template/?space_uid=:space_uid',
+  method: 'get',
+};
+
+// 创建模板
+const createTemplate = {
+  url: '/regex_template/',
+  method: 'post',
+};
+
+// 更新模板（名称）
+const updateTemplateName = {
+  url: '/regex_template/:regex_template_id/',
+  method: 'patch',
+};
+
+// 删除模板
+const deleteTemplate = {
+  url: '/regex_template/:regex_template_id/',
+  method: 'delete',
+};
+
 export {
   getConfig,
   getDefaultConfig,
-  changeConfig,
-  preview,
+  debug,
   clusterSearch,
   closeClean,
   updateStrategies,
@@ -130,4 +148,8 @@ export {
   deleteRemark,
   getOwnerList,
   updateInitGroup,
+  ruleTemplate,
+  createTemplate,
+  updateTemplateName,
+  deleteTemplate,
 };

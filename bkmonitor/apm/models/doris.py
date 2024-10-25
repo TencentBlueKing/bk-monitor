@@ -7,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import datetime
 import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar, Optional
@@ -16,7 +17,7 @@ from django.conf import settings
 from core.drf_resource import api
 
 if TYPE_CHECKING:
-    from .datasource import ApmDataSourceConfigBase, ProfileDataSource
+    from .datasource import ApmDataSourceConfigBase, ProfileDataSource  # noqa
 
 logger = logging.getLogger("apm")
 
@@ -59,6 +60,8 @@ class BkDataDorisProvider:
     config: DorisStorageConfig = field(default_factory=DorisStorageConfig.read)
     _obj: Optional["ApmDataSourceConfigBase"] = None
 
+    BKBASE_MAX_LENGTH = 50
+
     @classmethod
     def from_datasource_instance(
         cls, obj: "ProfileDataSource", maintainer: str, operator: str, name_stuffix: str = None
@@ -75,7 +78,7 @@ class BkDataDorisProvider:
             else f"{obj.app_name}{name_stuffix}".replace('-', '_'),
         )
 
-    def provider(self, **options) -> dict:
+    def provider(self) -> dict:
         """提供数据源配置"""
 
         params = self.assemble_params()
@@ -107,7 +110,15 @@ class BkDataDorisProvider:
 
     def get_result_table_name(self) -> str:
         """获取结果表名"""
-        return f"{self._obj.DATASOURCE_TYPE}_{self.pure_app_name}"
+
+        prefix = f"{self._obj.DATASOURCE_TYPE}_"
+        suffix = self.pure_app_name
+        if len(prefix) + len(suffix) > self.BKBASE_MAX_LENGTH:
+            # 如果超过长度，则截断并添加当前秒数防止重复
+            suffix = suffix[len(prefix) + len(suffix) - self.BKBASE_MAX_LENGTH + 2 :]
+            suffix = datetime.datetime.now().strftime("%S") + suffix
+
+        return f"{prefix}{suffix}"
 
     def get_clean_params(self) -> list:
         """清洗配置"""

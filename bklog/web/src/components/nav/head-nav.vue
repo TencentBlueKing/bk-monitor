@@ -39,6 +39,8 @@
         />
         <span class="logo-text">{{ platformData.name }}</span>
       </div>
+      <div class="nav-separator">|</div>
+      <BizMenuSelect class="head-navi-left"></BizMenuSelect>
     </div>
     <div
       class="nav-center fl"
@@ -67,7 +69,6 @@
       <bk-dropdown-menu
         v-if="isShowGlobalSetIcon"
         align="center"
-        trigger="click"
         @hide="dropdownGlobalHide"
         @show="dropdownGlobalShow"
       >
@@ -75,7 +76,7 @@
           <div class="icon-language-container">
             <span
               :class="{
-                'setting bk-icon icon-cog-shape': true,
+                'setting bk-icon icon-cog-shape icon-language-container': true,
                 active: isShowGlobalDialog || isShowGlobalDropdown,
               }"
             ></span>
@@ -101,19 +102,20 @@
       <!-- 语言 -->
       <bk-dropdown-menu
         align="center"
-        trigger="click"
         @hide="dropdownLanguageHide"
         @show="dropdownLanguageShow"
       >
         <template #dropdown-trigger>
-          <div
-            class="icon-language-container"
-            :class="isShowLanguageDropdown && 'active'"
-          >
+          <div class="icon-language-container">
             <div class="icon-circle-container">
-              <img
-                class="icon-language"
-                :src="language === 'en' ? require('@/images/icons/en.svg') : require('@/images/icons/zh.svg')"
+              <div
+                :class="[
+                  'icon-language',
+                  {
+                    active: isShowLanguageDropdown,
+                  },
+                  language === 'en' ? 'bk-icon icon-english' : 'bk-icon icon-chinese',
+                ]"
               />
             </div>
           </div>
@@ -130,10 +132,7 @@
                 href="javascript:;"
                 @click="changeLanguage(item.id)"
               >
-                <img
-                  class="icon-language"
-                  :src="item.id === 'en' ? require('@/images/icons/en.svg') : require('@/images/icons/zh.svg')"
-                />
+                <span :class="['icon-language', getLanguageClass(item.id)]" />
                 {{ item.name }}
               </a>
             </li>
@@ -144,7 +143,6 @@
       <bk-dropdown-menu
         ref="dropdownHelp"
         align="center"
-        trigger="click"
         @hide="dropdownHelpHide"
         @show="dropdownHelpShow"
       >
@@ -155,7 +153,7 @@
           >
             <div class="icon-circle-container">
               <span
-                class="icon log-icon icon-help"
+                class="icon bklog-icon bklog-help"
                 slot="dropdown-trigger"
               ></span>
             </div>
@@ -190,7 +188,6 @@
       <log-version :dialog-show.sync="showLogVersion" />
       <bk-dropdown-menu
         align="center"
-        trigger="click"
         @hide="dropdownLogoutHide"
         @show="dropdownLogoutShow"
       >
@@ -202,7 +199,8 @@
             <span
               v-if="username"
               class="username"
-              >{{ username }}
+            >
+              {{ username }}
               <i class="bk-icon icon-down-shape"></i>
             </span>
           </div>
@@ -261,12 +259,14 @@
 
   import { menuArr } from './complete-menu';
   import LogVersion from './log-version';
+  import BizMenuSelect from '@/components/biz-menu';
 
   export default {
     name: 'HeaderNav',
     components: {
       LogVersion,
       GlobalDialog,
+      BizMenuSelect,
     },
     mixins: [navMenuMixin],
     props: {
@@ -341,7 +341,7 @@
       },
       isShowGlobalSetIcon() {
         return !this.welcomeData && !this.isExternal;
-      }
+      },
     },
     watch: {
       $route() {
@@ -353,6 +353,7 @@
       this.language = jsCookie.get('blueking_language') || 'zh-cn';
       this.$store.commit('updateMenuList', menuArr);
       setTimeout(() => this.requestMySpaceList(), 10);
+      this.getGlobalsData();
       this.getUserInfo();
       window.bus.$on('showGlobalDialog', this.handleGoToMyReport);
     },
@@ -375,6 +376,18 @@
         } finally {
           this.usernameRequested = true;
         }
+      },
+      // 获取全局数据和 判断是否可以保存 已有的日志聚类
+      getGlobalsData() {
+        if (Object.keys(this.globalsData).length) return;
+        this.$http
+          .request('collect/globals')
+          .then(res => {
+            this.$store.commit('globals/setGlobalsData', res.data);
+          })
+          .catch(e => {
+            console.warn(e);
+          });
       },
       jumpToHome() {
         this.$store.commit('updateIsShowGlobalDialog', false);
@@ -603,6 +616,9 @@
         this.$store.commit('updateGlobalActiveLabel', id);
         this.$store.commit('updateIsShowGlobalDialog', true);
       },
+      getLanguageClass(language) {
+        return language === 'en' ? 'bk-icon icon-english' : 'bk-icon icon-chinese';
+      },
     },
   };
 </script>
@@ -622,9 +638,11 @@
     .nav-left {
       display: flex;
       align-items: center;
-      width: 278px;
+      min-width: max-content;
+      max-width: 180px;
       height: 100%;
       padding-left: 16px;
+      margin-right: 315px;
       font-size: 18px;
 
       .log-logo-container {
@@ -644,6 +662,25 @@
           width: 40px;
           height: 40px;
           margin-right: 10px;
+        }
+      }
+
+      .nav-separator {
+        margin: 0px 2px 0 18px;
+        font-size: 20px;
+        color: #5f616b;
+      }
+
+      .head-navi-left {
+        &.biz-menu-select {
+          .menu-select {
+            background-color: #182132;
+          }
+
+          .menu-select-list {
+            top: 52px;
+            left: 138px;
+          }
         }
       }
     }
@@ -705,31 +742,28 @@
 
       .setting {
         position: relative;
-        margin-right: 10px;
         font-size: 15px;
         cursor: pointer;
 
         &::before {
           position: relative;
-          top: 1px;
           z-index: 999;
         }
 
         &.active,
         &:hover {
-          color: #fff;
+          color: #d3d9e4;
         }
 
         &.active::after,
         &:hover::after {
           position: absolute;
-          bottom: -8px;
           left: 50%;
           z-index: 99;
           width: 30px;
           height: 30px;
           content: '';
-          background: #424e5a;
+          background: linear-gradient(270deg, #253047, #263247);
           border-radius: 50%;
           transform: translateX(-50%);
         }
@@ -748,6 +782,24 @@
 
         @include flex-center;
 
+        .username {
+          margin: 0 28px 0 6px;
+          font-size: 12px;
+          line-height: 20px;
+          color: #63656e;
+
+          &:hover {
+            color: #d3d9e4;
+            cursor: pointer;
+          }
+        }
+
+        &.active {
+          .username {
+            color: #d3d9e4;
+          }
+        }
+
         .icon-circle-container {
           width: 32px;
           height: 32px;
@@ -756,13 +808,18 @@
 
           @include flex-center;
 
+          .icon-language {
+            font-size: 18px;
+
+            &.active,
+            &:hover {
+              color: #d3d9e4;
+            }
+          }
+
           .log-icon {
             font-size: 16px;
             transition: all 0.2s;
-          }
-
-          .icon-language {
-            width: 20px;
           }
         }
 
@@ -772,7 +829,7 @@
             background: linear-gradient(270deg, #253047, #263247);
             transition: all 0.2s;
 
-            .log-icon {
+            .bklog-icon {
               color: #d3d9e4;
               transition: all 0.2s;
             }
@@ -785,28 +842,11 @@
         cursor: pointer;
       }
 
-      .username {
-        margin: 0 28px 0 6px;
-        font-size: 12px;
-        line-height: 20px;
-        color: #63656e;
-
-        &:hover {
-          color: #3a84ff;
-          cursor: pointer;
-        }
-      }
-
       .bk-dropdown-list {
         .language-btn {
           a {
             display: flex;
             align-items: center;
-          }
-
-          .icon-language {
-            width: 20px;
-            margin-right: 2px;
           }
         }
 
@@ -814,6 +854,14 @@
           color: #3c96ff;
         }
       }
+    }
+
+    .icon-chinese::before {
+      content: '\e206';
+    }
+
+    .icon-english::before {
+      content: '\e207';
     }
   }
 

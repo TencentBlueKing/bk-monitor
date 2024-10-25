@@ -34,6 +34,7 @@ import { toPerformanceDetail } from '../../../common/go-link';
 import { getOperatorDisabled } from '../utils';
 
 import type { IDetail } from './type';
+import EventDetail from '../../../store/modules/event-detail';
 
 import './basic-info.scss';
 
@@ -52,7 +53,8 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   @InjectReactive('readonly') readonly readonly: boolean;
   cloudIdMap = ['bk_target_cloud_id', 'bk_cloud_id'];
   ipMap = ['bk_target_ip', 'ip', 'bk_host_id'];
-
+  operateDesc = null;
+  showReason = false;
   get bizList() {
     return this.$store.getters.bizList;
   }
@@ -394,6 +396,15 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       </div>
     );
   }
+  getEventLog() {
+    return EventDetail.getlistEventLog({
+      bk_biz_id: this.basicInfo.bk_biz_id,
+      id: this.basicInfo.id,
+      offset: 0,
+      limit: 20,
+      operate: ['CLOSE'],
+    });
+  }
   // 右侧状态操作区域
   getRightStatusComponent(eventStatus: string, isAck: boolean, isShielded: boolean) {
     const { shield_left_time } = this.basicInfo;
@@ -478,6 +489,10 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       iconColor = '#dcdee5';
       iconText = `${this.$t('已失效')}`;
       operateDom = null;
+      this.getEventLog().then(res => {
+        this.operateDesc = res[0]?.contents && res[0]?.contents[0] ? res[0].contents[0] : this.$t('告警已失效');
+        this.showReason = true;
+      });
     }
     return (
       <div class='right-status'>
@@ -486,7 +501,15 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
             style={{ color: iconColor }}
             class={['icon-monitor', iconName]}
           />
-          <div class='status-text'>{iconText}</div>
+          <div class='status-text'>
+            {iconText}
+            {this.showReason ? (
+              <span
+                class={['right-icon', 'icon-monitor', 'icon-tishi']}
+                v-bk-tooltips={{ content: this.operateDesc, placement: 'bottom' }}
+              ></span>
+            ) : undefined}
+          </div>
         </div>
         {!this.followerDisabled ? operateDom || undefined : undefined}
       </div>

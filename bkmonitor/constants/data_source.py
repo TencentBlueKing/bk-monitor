@@ -22,6 +22,7 @@ class LabelType(object):
 class DataSourceLabel(object):
     BK_MONITOR_COLLECTOR = "bk_monitor"
     BK_DATA = "bk_data"
+    BKDATA = "bkdata"
     CUSTOM = "custom"
     BK_LOG_SEARCH = "bk_log_search"
     BK_FTA = "bk_fta"
@@ -212,3 +213,8 @@ UnifyQueryDataSources = [
 GrayUnifyQueryDataSources = [
     (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
 ]
+
+# V3链路版本
+DATA_LINK_V3_VERSION_NAME = 'V3'
+# V4链路版本
+DATA_LINK_V4_VERSION_NAME = 'V4'

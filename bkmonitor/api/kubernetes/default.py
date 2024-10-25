@@ -2030,7 +2030,7 @@ class FetchKubernetesConsistencyCheckResource(Resource, abc.ABC):
             clusters = GetClusterInfoFromBcsSpaceResource()({"bk_biz_id": bk_biz_id})
             if bcs_cluster_id not in clusters:
                 return None
-            # 如果是共享集群，获得有权限的名字空间
+            # 如果是共享集群，获得有权限的NameSpace
             cluster_info = clusters.get(bcs_cluster_id, {})
             if cluster_info.get("cluster_type") == BcsClusterType.SHARED:
                 self.shared_namespace_set = set(cluster_info.get("namespace_list"))
@@ -2829,7 +2829,8 @@ class FetchK8sEventLogResource(CacheResource):
     @classmethod
     def search_event_log(cls, params, data_source):
         limit = params["limit"]
-        limit = 0 if limit <= 0 else limit
+        # TODO(crayon) 这个接口没有 limit > 0 的引用，理论上原始日志 / 聚合数据需要分别通过 query_log / query_dimensions 获取
+        limit = None if limit <= 0 else limit
         start_time = params["start_time"]
         end_time = params["end_time"]
         offset = params["offset"]
@@ -2847,9 +2848,9 @@ class FetchK8sEventLogResource(CacheResource):
             start_time=start_time,
             end_time=end_time,
         )
-        if limit == 0:
-            # 0 表示聚合查詢
-            q.query.set_limits(1, 1)
+        if limit is None:
+            # limit=None 不需要返回原始日志，通过 dsl_group_hits=-1 禁用
+            q = q.dsl_group_hits(-1)
 
         data = q.original_data
         return data

@@ -92,6 +92,7 @@ MAX_RESULT_WINDOW = 10000
 MAX_SEARCH_SIZE = 100000
 SCROLL = "1m"
 DEFAULT_TIME_FIELD = "dtEventTimeStamp"
+DEFAULT_TIME_FIELD_ALIAS_NAME = "utctime"
 BK_SUPPLIER_ACCOUNT = "0"
 BK_BCS_APP_CODE = "bk_bcs"
 
@@ -1289,6 +1290,7 @@ RT_RESERVED_WORD_EXAC = [
     "iterationIndex",
     "__ext",
     "__ext_json",
+    "__parse_failure",
     "log",
     "dtEventTimeStamp",
     "datetime",
@@ -1354,7 +1356,11 @@ class TimeZoneEnum(ChoicesEnum):
         result = []
         for i in range(-12, 13, 1):
             result.append(
-                {"id": i, "name": "UTC" + ("+" if i >= 0 else "") + f"{i:02}:00", "default": True if i == 8 else False}
+                {
+                    "id": i,
+                    "name": "UTC" + ("+" if i >= 0 else "-") + f"{abs(i):02}:00",
+                    "default": True if i == 8 else False,
+                }
             )
         return result
 
@@ -1403,6 +1409,17 @@ class IndexSetType(ChoicesEnum):
     UNION = "union"
 
     _choices_labels = ((SINGLE, _("单索引集")), (UNION, _("联合索引集")))
+
+
+class SearchMode(ChoicesEnum):
+    """
+    检索模式
+    """
+
+    UI = "ui"
+    SQL = "sql"
+
+    _choices_labels = ((UI, _("UI模式")), (SQL, _("SQL模式")))
 
 
 # 索引集无数据检查缓存前缀
@@ -1569,7 +1586,7 @@ OPERATORS = {
         OperatorEnum.EXISTS,
         OperatorEnum.NOT_EXISTS,
     ],
-    "bool": [OperatorEnum.IS_TRUE, OperatorEnum.IS_FALSE, OperatorEnum.EXISTS, OperatorEnum.NOT_EXISTS],
+    "boolean": [OperatorEnum.IS_TRUE, OperatorEnum.IS_FALSE, OperatorEnum.EXISTS, OperatorEnum.NOT_EXISTS],
     "conflict": [
         OperatorEnum.EQ,
         OperatorEnum.NE,
@@ -1591,4 +1608,4 @@ DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME = _("默认")
 COMPRESS_INDICES_CACHE_KEY_LENGTH = 256
 
 # 检索选项历史记录API返回数据数量大小
-SEARCH_OPTION_HISTORY_NUM = 10
+SEARCH_OPTION_HISTORY_NUM = 20

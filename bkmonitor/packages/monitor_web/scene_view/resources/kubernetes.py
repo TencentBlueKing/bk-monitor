@@ -60,6 +60,7 @@ from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.event import EventTypeNormal, EventTypeWarning
 from core.drf_resource import Resource, api, resource
+from core.unit import load_unit
 from monitor_web.constants import (
     GRAPH_COLUMN_BAR,
     GRAPH_NUMBER_CHART,
@@ -1994,22 +1995,22 @@ class GetKubernetesObjectCount(ApiAuthResource):
             "label": _("集群"),
         },
         "namespace": {
-            "label": _("命名空间"),
+            "label": "Namespace",
         },
         "node": {
-            "label": _("节点(Node)"),
+            "label": "Node",
         },
         "pod": {
             "label": "Pod",
         },
         "master_node": {
-            "label": _("Master节点"),
+            "label": "Master Node",
         },
         "work_node": {
-            "label": _("Worker节点"),
+            "label": "Worker Node",
         },
         "container": {
-            "label": _("容器"),
+            "label": "Container",
         },
     }
 
@@ -3844,6 +3845,7 @@ class GetKubernetesMemoryAnalysis(GetKubernetesMetricQueryRecords):
         sorted_data = sorted(data.items(), key=lambda d: d[1] if d[1] else 0, reverse=True)[:top_n]
         graph_data = []
         for namespace, value in sorted_data:
+            # 不知道哪里调用这块， value 和 total 共用G 单位， 暂不改
             graph_data.append(
                 {
                     "name": namespace,
@@ -3870,9 +3872,9 @@ class GetKubernetesMemoryAnalysis(GetKubernetesMetricQueryRecords):
                 value = 0
             data[key_name] = value
 
-        allocatable_memory = round(data.get("allocatable_memory_bytes", 0) / 1024 / 1024 / 1024, 2)
-        requests_memory = round(data.get("requests_memory_bytes", 0) / 1024 / 1024 / 1024, 2)
-        limits_memory = round(data.get("limits_memory_bytes", 0) / 1024 / 1024 / 1024, 2)
+        allocatable_memory = data.get("allocatable_memory_bytes", 0)
+        requests_memory = data.get("requests_memory_bytes", 0)
+        limits_memory = data.get("limits_memory_bytes", 0)
 
         pre_allocatable_usage_ratio = round(data.get('pre_allocatable_usage_ratio', 0), 2)
         if pre_allocatable_usage_ratio > 80:
@@ -3884,11 +3886,11 @@ class GetKubernetesMemoryAnalysis(GetKubernetesMetricQueryRecords):
                 graph_data = [
                     {
                         "name": _("内存 request 量"),
-                        "value": f"{requests_memory}G",
+                        "value": "%s %s" % load_unit("bytes").auto_convert(requests_memory, decimal=2),
                     },
                     {
                         "name": _("内存 limit 量"),
-                        "value": f"{limits_memory}G",
+                        "value": "%s %s" % load_unit("bytes").auto_convert(limits_memory, decimal=2),
                     },
                 ]
                 return graph_data
@@ -3896,15 +3898,15 @@ class GetKubernetesMemoryAnalysis(GetKubernetesMetricQueryRecords):
         graph_data = [
             {
                 "name": _("内存总量"),
-                "value": f"{allocatable_memory}G",
+                "value": "%s %s" % load_unit("bytes").auto_convert(allocatable_memory, decimal=2),
             },
             {
                 "name": _("内存 request 量"),
-                "value": f"{requests_memory}G",
+                "value": "%s %s" % load_unit("bytes").auto_convert(requests_memory, decimal=2),
             },
             {
                 "name": _("内存 limit 量"),
-                "value": f"{limits_memory}G",
+                "value": "%s %s" % load_unit("bytes").auto_convert(limits_memory, decimal=2),
             },
             {
                 "name": _("内存预分配率"),
@@ -4036,8 +4038,8 @@ class GetKubernetesDiskAnalysis(GetKubernetesMetricQueryRecords):
 
     @staticmethod
     def to_graph(validated_request_data: Dict, performance_data: List) -> List:
-        system_disk_total = round(performance_data.get("system_disk_total", 0) / 1024 / 1024 / 1024, 2)
-        system_disk_used = round(performance_data.get("system_disk_used", 0) / 1024 / 1024 / 1024, 2)
+        system_disk_total = performance_data.get("system_disk_total", 0)
+        system_disk_used = performance_data.get("system_disk_used", 0)
 
         disk_usage_ratio = round(performance_data.get('disk_usage_ratio', 0), 2)
         if disk_usage_ratio > 80:
@@ -4047,11 +4049,11 @@ class GetKubernetesDiskAnalysis(GetKubernetesMetricQueryRecords):
         graph_data = [
             {
                 "name": _("磁盘总量"),
-                "value": f"{system_disk_total}G",
+                "value": "%s %s" % load_unit("bytes").auto_convert(system_disk_total, decimal=2),
             },
             {
                 "name": _("磁盘已使用量"),
-                "value": f"{system_disk_used}G",
+                "value": "%s %s" % load_unit("bytes").auto_convert(system_disk_used, decimal=2),
             },
             {
                 "name": _("磁盘使用率"),

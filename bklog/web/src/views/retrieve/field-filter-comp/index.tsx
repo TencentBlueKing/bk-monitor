@@ -24,12 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch, Ref } from 'vue-property-decorator';
+import { Component, Prop, Watch, Ref, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import VueDraggable from 'vuedraggable';
 
+import FieldSelectConfig from '../../retrieve-v2/field-filter-comp/components/field-select-config.vue';
 import FieldFilterPopover from './field-filter-popover';
 import FieldItem from './field-item';
 import $http from '@/api';
@@ -59,7 +60,7 @@ export default class FieldFilterComp extends tsc<object> {
   dragOptions = {
     animation: 150,
     tag: 'ul',
-    handle: '.icon-drag-dots',
+    handle: '.bklog-drag-dots',
     'ghost-class': 'sortable-ghost-class',
   };
   dragVisibleFields = [];
@@ -228,6 +229,11 @@ export default class FieldFilterComp extends tsc<object> {
     this.dragVisibleFields = this.visibleFields.map(item => item.field_name);
   }
 
+  @Emit('select-fields-config')
+  selectFieldsConfig(v) {
+    return v;
+  }
+
   mounted() {
     document.getElementById('app').addEventListener('click', this.closePopoverIfOpened);
   }
@@ -339,7 +345,7 @@ export default class FieldFilterComp extends tsc<object> {
             placeholder={this.$t('搜索字段名')}
             right-icon='icon-search'
             clearable
-            onChange={() => this.handleSearch}
+            onChange={this.filterListByCondition}
           ></bk-input>
           <bk-popover
             ref='filterPopover'
@@ -375,14 +381,17 @@ export default class FieldFilterComp extends tsc<object> {
 
         {!!this.totalFields.length && (
           <div class='fields-container is-selected'>
-            <div class='title'>{this.$t('已添加字段')}</div>
+            <div class='title'>
+              <span>{this.$t('已添加字段')}</span>
+              <FieldSelectConfig on-select-fields-config={this.selectFieldsConfig} />
+            </div>
             {!!this.visibleFields.length ? (
               <VueDraggable
                 class='filed-list'
                 v-model={this.dragVisibleFields}
                 v-bind={this.dragOptions}
                 animation='150'
-                handle='.icon-drag-dots'
+                handle='.bklog-drag-dots'
                 on-end={this.handleVisibleMoveEnd}
               >
                 <transition-group>
@@ -393,7 +402,6 @@ export default class FieldFilterComp extends tsc<object> {
                       date-picker-value={this.datePickerValue}
                       field-alias-map={this.fieldAliasMap}
                       field-item={item}
-                      filed-count-array={this.filedCountArray}
                       is-front-statistics={this.isFrontStatistics}
                       retrieve-params={this.retrieveParams}
                       retrieve-search-number={this.retrieveSearchNumber}
@@ -422,7 +430,6 @@ export default class FieldFilterComp extends tsc<object> {
                   date-picker-value={this.datePickerValue}
                   field-alias-map={this.fieldAliasMap}
                   field-item={item}
-                  filed-count-array={this.filedCountArray}
                   is-front-statistics={this.isFrontStatistics}
                   retrieve-params={this.retrieveParams}
                   retrieve-search-number={this.retrieveSearchNumber}
@@ -454,7 +461,6 @@ export default class FieldFilterComp extends tsc<object> {
                   date-picker-value={this.datePickerValue}
                   field-alias-map={this.fieldAliasMap}
                   field-item={item}
-                  filed-count-array={this.filedCountArray}
                   is-front-statistics={this.isFrontStatistics}
                   retrieve-params={this.retrieveParams}
                   retrieve-search-number={this.retrieveSearchNumber}

@@ -34,7 +34,7 @@ from apps.api import (
 )
 from apps.log_clustering.handlers.aiops.base import BaseAiopsHandler
 from apps.log_clustering.models import ClusteringConfig
-from apps.log_databus.constants import BKDATA_ES_TYPE_MAP
+from apps.log_databus.constants import BKDATA_ES_TYPE_MAP, PARSE_FAILURE_FIELD
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.models import CollectorConfig
@@ -146,6 +146,9 @@ class DataAccessHandler(BaseAiopsHandler):
         collector_config = CollectorConfig.objects.get(collector_config_id=clustering_config.collector_config_id)
         etl_storage = EtlStorage.get_instance(etl_config=collector_config.etl_config)
 
+        # 把path的字段信息从fields中分离
+        fields, path_fields = etl_storage.separate_fields_config(fields)
+
         # 获取清洗配置
         collector_scenario = CollectorScenario.get_instance(
             collector_scenario_id=collector_config.collector_scenario_id
@@ -154,20 +157,30 @@ class DataAccessHandler(BaseAiopsHandler):
         fields_config = etl_storage.get_result_table_config(fields, etl_params, copy.deepcopy(built_in_config)).get(
             "field_list", []
         )
+
         bkdata_json_config = etl_storage.get_bkdata_etl_config(fields, etl_params, built_in_config)
+
+        # 根据路径正则,加入路径清洗配置
+        separator_configs = etl_params.get("separator_configs", [])
+        if separator_configs:
+            etl_path_regexp = separator_configs[0].get("separator_regexp", "")
+            path_fields_config = etl_storage.get_path_field_configs(etl_path_regexp, fields_config)
+            fields_config.extend(path_fields_config)
+            etl_storage.add_path_configs(path_fields, etl_path_regexp, bkdata_json_config)
+
         # 固定有time字段
         fields_config.append({"alias_name": "time", "field_name": "time", "option": {"es_type": "long"}})
 
-        if collector_config.collector_config_name_en[0].isdigit():
-            # 日志平台的RT允许为数字开头，而计算平台RT限制只能以英文开头，所以遇到开头为数字的情况就补一个前缀
-            result_table_name = f"bklog_{collector_config.collector_config_name_en}"
-        else:
-            result_table_name = collector_config.collector_config_name_en
+        # 结果表统一添加 bklog 前缀，避免同名冲突
+        result_table_name = f"bklog_{collector_config.collector_config_name_en}"
 
         # 当用户使用了自定义字段作为时间字段，则会产生同名字段，需要去重
         fields_names = set()
         dedupe_fields_config = []
         for field in fields_config:
+            # 剔除解析失败字段
+            if field.get("field_name") == PARSE_FAILURE_FIELD:
+                continue
             field_name = field.get("alias_name") if field.get("alias_name") else field.get("field_name")
             if field_name not in fields_names:
                 dedupe_fields_config.append(field)
@@ -184,7 +197,7 @@ class DataAccessHandler(BaseAiopsHandler):
             "result_table_name": result_table_name,
             "result_table_name_alias": collector_config.collector_config_name_en,
             "clean_config_name": collector_config.collector_config_name,
-            "description": collector_config.description,
+            "description": collector_config.description or collector_config.collector_config_name,
             "bk_biz_id": bk_biz_id,
             "fields": [
                 {
@@ -207,8 +220,8 @@ class DataAccessHandler(BaseAiopsHandler):
             clustering_config.bkdata_etl_processing_id = result["processing_id"]
             clustering_config.bkdata_etl_result_table_id = result["result_table_id"]
             clustering_config.save()
-            # 新建rt后需要启动清洗任务
-            self.start_bkdata_clean(result["result_table_id"])
+            # 新建rt后需要启动清洗任务，并且从尾部开始消费
+            self.start_bkdata_clean(result["result_table_id"], from_tail=True)
             return
 
         params.update({"processing_id": clustering_config.bkdata_etl_processing_id})
@@ -227,16 +240,17 @@ class DataAccessHandler(BaseAiopsHandler):
             }
         )
 
-    def start_bkdata_clean(self, bkdata_result_table_id):
-        return BkDataDatabusApi.post_tasks(
-            params={
-                "result_table_id": bkdata_result_table_id,
-                "storages": ["kafka"],
-                "bk_username": self.conf.get("bk_username"),
-                "operator": self.conf.get("bk_username"),
-                "no_request": True,
-            }
-        )
+    def start_bkdata_clean(self, bkdata_result_table_id, from_tail=False):
+        params = {
+            "result_table_id": bkdata_result_table_id,
+            "storages": ["kafka"],
+            "bk_username": self.conf.get("bk_username"),
+            "operator": self.conf.get("bk_username"),
+            "no_request": True,
+        }
+        if from_tail:
+            params["consume_position"] = "tail"
+        return BkDataDatabusApi.post_tasks(params=params)
 
     def add_cluster_group(self, result_table_id):
         storage_config = BkDataMetaApi.result_tables.storages({"result_table_id": result_table_id})

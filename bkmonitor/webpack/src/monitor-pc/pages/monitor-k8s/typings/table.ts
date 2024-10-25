@@ -50,6 +50,7 @@ export interface ILinkItem {
   key?: string;
   target?: LinkItemTarget;
   syncTime?: boolean; // 同步时间跳转
+  disabledClick?: boolean; // 禁用点击且不为蓝色
 }
 // self 为内部框架跳转  blank为新开窗口跳转 event 触发本地事件
 export type LinkItemTarget = 'blank' | 'event' | 'null_event' | 'self';
@@ -86,6 +87,8 @@ export type TableRow = Record<string, ITableItem<TableColumnType>>;
 // 字段数据类型
 export type TableColumnType =
   | 'collect'
+  | 'data_status'
+  | 'datapoints'
   | 'id'
   | 'kv'
   | 'link'
@@ -142,15 +145,26 @@ export interface ITableItemMap {
   // 操作 （点击弹出选择项 格式和多个链接一样）
   more_operate: ILinkItem[];
   permission?: IPermission;
+  // data_status
+  data_status: {
+    icon: string;
+  };
+  // datapoints
+  datapoints: {
+    datapoints: [number, number][];
+    unit: string;
+    unitDecimal?: number;
+    valueTitle?: string;
+  };
 }
 /** 正常 | 异常 | 成功状态 | 失败状态 | 禁用状态 | 等待*/
 export type ITableItemStatus =
-  | 'NODATA'
-  | 'SUCCESS'
   | 'disabled'
   | 'failed'
+  | 'NODATA'
   | 'normal'
   | 'stoped'
+  | 'SUCCESS'
   | 'success'
   | 'waiting'
   | 'warning';
@@ -204,7 +218,7 @@ export interface ITableColumn {
   // 头部icon
   header_pre_icon?: string;
   // renderHeader
-  renderHeader?: Function;
+  renderHeader?: () => any;
   // 是否需要异步加载
   asyncable?: boolean;
 }

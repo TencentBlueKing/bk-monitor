@@ -27,11 +27,13 @@ from apps.log_clustering.constants import (
     DEFULT_FILTER_NOT_CLUSTERING_OPERATOR,
     OwnerConfigEnum,
     PatternEnum,
+    RegexRuleTypeEnum,
     RemarkConfigEnum,
     StrategiesAlarmLevelEnum,
     StrategiesType,
 )
 from apps.utils.drf import DateTimeFieldWithEpoch
+from bkm_space.serializers import SpaceUIDField
 
 
 class PatternSearchSerlaizer(serializers.Serializer):
@@ -73,32 +75,25 @@ class FilerRuleSerializer(serializers.Serializer):
 
 
 class ClusteringConfigSerializer(serializers.Serializer):
-    collector_config_id = serializers.IntegerField(required=False, allow_null=True, default=0)
-    collector_config_name_en = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-    index_set_id = serializers.IntegerField()
-    min_members = serializers.IntegerField(required=False, default=1, allow_null=True)
-    predefined_varibles = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-    delimeter = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-    max_log_length = serializers.IntegerField(required=False, allow_null=True, default=100)
-    is_case_sensitive = serializers.IntegerField(required=False, allow_null=True, default=1)
-    clustering_fields = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     bk_biz_id = serializers.IntegerField()
-    filter_rules = serializers.ListField(child=FilerRuleSerializer(), required=False, default=[])
-    signature_enable = serializers.BooleanField(default=False)
+    clustering_fields = serializers.CharField()
+    filter_rules = serializers.ListField(child=FilerRuleSerializer(), required=False)
+    min_members = serializers.IntegerField(required=False)
+    predefined_varibles = serializers.CharField(required=False, allow_blank=True)
+    delimeter = serializers.CharField(required=False, allow_blank=True)
+    max_log_length = serializers.IntegerField(required=False)
+    is_case_sensitive = serializers.IntegerField(required=False)
+    new_cls_strategy_enable = serializers.BooleanField(default=False)
+    normal_strategy_enable = serializers.BooleanField(default=False)
+    regex_rule_type = serializers.ChoiceField(
+        choices=RegexRuleTypeEnum.get_choices(), default=RegexRuleTypeEnum.CUSTOMIZE.value
+    )
+    regex_template_id = serializers.IntegerField(default=0)
 
 
-class InputDataSerializer(serializers.Serializer):
-    dtEventTimeStamp = serializers.IntegerField()
-    log = serializers.CharField()
-
-
-class ClusteringPreviewSerializer(serializers.Serializer):
-    input_data = serializers.ListField(child=InputDataSerializer())
-    min_members = serializers.IntegerField()
+class ClusteringDebugSerializer(serializers.Serializer):
+    input_data = serializers.CharField()
     predefined_varibles = serializers.CharField()
-    delimeter = serializers.CharField()
-    max_log_length = serializers.IntegerField()
-    is_case_sensitive = serializers.IntegerField()
 
 
 class SetRemarkSerializer(serializers.Serializer):
@@ -243,3 +238,12 @@ class SendReportSerializer(serializers.Serializer):
     end_time = serializers.IntegerField(label="结束时间", required=False, default=None, allow_null=True)
     is_manager_created = serializers.BooleanField(required=False, default=False)
     is_enabled = serializers.BooleanField(required=False, default=True)
+
+
+class CreateRegexTemplateSerializer(serializers.Serializer):
+    space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
+    template_name = serializers.CharField(required=True)
+
+
+class UpdateRegexTemplateSerializer(serializers.Serializer):
+    template_name = serializers.CharField(required=True)

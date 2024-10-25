@@ -189,7 +189,26 @@ const deleteClusteringInfo = {
   url: '/clustering_monitor/:index_set_id/',
   method: 'delete',
 };
-
+/** 新建聚类接入*/
+const createClusteringConfig = {
+  url: '/clustering_config/:index_set_id/access/create/',
+  method: 'post',
+};
+/** 更新聚类接入*/
+const updateClusteringConfig = {
+  url: '/clustering_config/:index_set_id/access/update/',
+  method: 'post',
+};
+/** 查询聚类接入状态*/
+const getClusteringConfigStatus = {
+  url: '/clustering_config/:index_set_id/access/status/',
+  method: 'get',
+};
+/** 查询聚类接入状态*/
+const updateUserFiledTableConfig = {
+  url: '/search/index_set/user_custom_config/',
+  method: 'post',
+};
 export {
   getIndexSetList,
   getLogTableHead,
@@ -229,4 +248,8 @@ export {
   newClsStrategy,
   getClusteringInfo,
   deleteClusteringInfo,
+  createClusteringConfig,
+  updateClusteringConfig,
+  getClusteringConfigStatus,
+  updateUserFiledTableConfig,
 };

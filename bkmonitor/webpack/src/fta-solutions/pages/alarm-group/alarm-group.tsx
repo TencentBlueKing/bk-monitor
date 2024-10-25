@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Provide } from 'vue-property-decorator';
+import { Component, Mixins } from 'vue-property-decorator';
 
 import AlarmGroupList from 'monitor-pc/pages/alarm-group/alarm-group-common/alarm-group';
 import * as authorityMap from 'monitor-pc/pages/alarm-group/authority-map';
@@ -35,10 +35,6 @@ import type { VNode } from 'vue';
   name: 'AlarmGroupListFta',
 })
 export default class AlarmGroupFta extends Mixins(authorityMixinCreate(authorityMap)) {
-  @Provide('authority') authority;
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
-  @Provide('authorityMap') authorityMap;
-
   render(): VNode {
     return <AlarmGroupList type='fta' />;
   }

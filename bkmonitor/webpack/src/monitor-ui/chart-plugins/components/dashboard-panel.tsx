@@ -55,15 +55,19 @@ interface IDashbordPanelProps {
   needOverviewBtn?: boolean;
   backToType?: SceneType;
   dashboardId?: string;
+  singleChartNoPadding?: boolean;
+  layoutMargin?: [number, number];
 }
 interface IDashbordPanelEvents {
-  onBackToOverview: void;
+  onBackToOverview: () => void;
   onLintToDetail: ITableItem<'link'>;
 }
 @Component
 export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPanelEvents> {
   // 视图集合
   @Prop({ required: true, type: Array }) panels: IPanelModel[];
+  // 视图间距
+  @Prop({ type: Array, default: () => [16, 8] }) layoutMargin: [number, number];
   // dashboard id
   @Prop({ required: true, type: String }) id: string;
   // 自动展示初始化列数
@@ -74,6 +78,8 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
   isSplitPanel: boolean;
   // 是否为单图模式
   @Prop({ default: false, type: Boolean }) isSingleChart: boolean;
+  // 单图模式下是否需要padding
+  @Prop({ default: false, type: Boolean }) singleChartNoPadding: boolean;
   // 是否需要返回概览按钮 isSingleChart: true生效
   @Prop({ type: Boolean, default: false }) needOverviewBtn: boolean;
   // 返回概览 或者 详情页面
@@ -105,6 +111,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
 
   @Watch('panels', { immediate: true })
   handlePanelsChange() {
+    if (this.panels?.length < 1) return;
     if (this.column !== 'custom') {
       this.handleInitPanelsGridpos(this.panels);
     }
@@ -268,6 +275,8 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
           } else if (w > 24 - preW) {
             x = 0;
             y = preY + preH;
+          } else if (x === preX && w <= 24 - preW) {
+            x = preX + preW;
           } else {
             y = preY + preH;
           }
@@ -561,7 +570,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
         class='dashboard-panel'
       >
         {this.isSingleChart ? (
-          <div class='single-chart-content'>
+          <div class={['single-chart-content', { 'no-padding': this.singleChartNoPadding }]}>
             <div class={['single-chart-main', { 'has-btn': !!this.backToType }]}>
               <div class='single-chart-wrap'>
                 <ChartWrapper panel={this.singleChartPanel} />
@@ -571,6 +580,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
         ) : (
           [
             <GridLayout
+              key={'1'}
               draggableOptions={{
                 autoScroll: {
                   container: '#dashboard-panel',
@@ -581,7 +591,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
               isDraggable={true}
               isResizable={true}
               layout={this.layout}
-              margin={[16, 8]}
+              margin={this.layoutMargin}
               responsive={false}
               rowHeight={30}
               useCssTransforms={false}
@@ -617,6 +627,7 @@ export default class DashboardPanel extends tsc<IDashbordPanelProps, IDashbordPa
             </GridLayout>,
             !this.readonly && this.localPanels.length ? (
               <ChartCollect
+                key={'2'}
                 isCollectSingle={this.isCollectSingle}
                 localPanels={this.localPanels}
                 showCollect={this.showCollect}

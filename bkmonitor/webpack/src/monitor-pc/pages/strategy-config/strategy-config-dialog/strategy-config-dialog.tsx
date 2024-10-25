@@ -258,6 +258,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
 
   cachInitData = {};
 
+  type = '';
   get curItem() {
     return TYPE_MAP[this.setType] || {};
   }
@@ -280,7 +281,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
           await this.getDefenseList();
         }
       }
-      if ((this.setType === 14 || this.setType === 20) && !this.alarmGroupList.length) {
+      if (this.setType === 14 || this.setType === 20) {
         await this.getAlarmGroupList();
       }
       if (this.setType === 17) {
@@ -365,6 +366,12 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
     }
   }
 
+  // 批量追加/替换参数
+  handleClick(type: string) {
+    this.type = type;
+    this.handleConfirm();
+  }
+
   // 提交参数
   async generationParam() {
     const setTypeMap = {
@@ -401,7 +408,30 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
       6: () => ({ is_enabled: this.data.enAbled }),
       7: () => ({ isDel: true }),
       /* 修改标签 */
-      10: () => (this.validateLabelsList() ? false : { labels: this.data.labels }),
+      10: () => {
+        if (this.validateLabelsList()) {
+          return false;
+        }
+        // 构建类型映射的配置
+        const buildTypeMap = () => {
+          const labels = this.data.labels.map(path => path.replace(/^\/|\/$/g, ''));
+          return {
+            replace: {
+              labels: {
+                labels,
+              },
+            },
+            append: {
+              labels: {
+                labels,
+                append_keys: ['labels'],
+              },
+            },
+          };
+        };
+        // 返回相应的配置
+        return buildTypeMap()[this.type] ?? {};
+      },
       /* 修改生效时间段 */
       12: () => {
         return {
@@ -435,14 +465,32 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
       },
       /* 修改告警组 */
       14: () => {
-        if (this.data.userGroups.length) {
+        // 判断 userGroups 是否存在且非空
+        if (!this.data.userGroups.length) {
+          this.data.userGroupsErr = true;
+          return {};
+        }
+
+        // 构建类型映射的配置
+        const buildTypeMap = () => {
+          const userGroups = this.data.userGroups;
           return {
-            notice: {
-              user_groups: this.data.userGroups,
+            replace: {
+              notice: {
+                user_groups: userGroups,
+              },
+            },
+            append: {
+              notice: {
+                user_groups: userGroups,
+                append_keys: ['user_groups'],
+              },
             },
           };
-        }
-        this.data.userGroupsErr = true;
+        };
+
+        // 返回相应的配置
+        return buildTypeMap()[this.type] ?? {};
       },
       /* 修改告警场景 */
       15: () => ({ notice: { signal: this.data.signal } }),
@@ -481,7 +529,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
           return {
             algorithms: this.data.detectionConfig.data,
           };
-        } catch (error) {
+        } catch {
           return false;
         }
       },
@@ -798,7 +846,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
       case 14 /* 修改告警组 */:
         return (
           <div class='alarm-groups'>
-            <span class='title'>{this.$t('替换为')}：</span>
+            <span class='title'>{this.$t('告警组')}：</span>
             <AlarmGroup
               class='alarm-group'
               isSimple={true}
@@ -1064,6 +1112,55 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
     }
   }
 
+  // 底部组件
+  getFooterComponent() {
+    switch (this.setType) {
+      case 6:
+      case 7:
+        return (
+          <bk-button
+            theme='primary'
+            onClick={this.handleConfirm}
+          >
+            {this.$t('确认')}
+          </bk-button>
+        );
+      case 10:
+      case 14:
+        return [
+          <bk-button
+            key='append'
+            disabled={this.loading}
+            theme='primary'
+            onClick={() => this.handleClick('append')}
+          >
+            {' '}
+            {this.$t('批量追加')}{' '}
+          </bk-button>,
+          <bk-button
+            key='replace'
+            disabled={this.loading}
+            theme='primary'
+            onClick={() => this.handleClick('replace')}
+          >
+            {' '}
+            {this.$t('批量替换')}{' '}
+          </bk-button>,
+        ];
+      default:
+        return (
+          <bk-button
+            disabled={this.loading}
+            theme='primary'
+            onClick={this.handleConfirm}
+          >
+            {' '}
+            {this.$t('保存')}{' '}
+          </bk-button>
+        );
+    }
+  }
+
   render() {
     return (
       <bk-dialog
@@ -1084,23 +1181,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
           {this.getAllTypeComponent()}
         </div>
         <div slot='footer'>
-          {this.setType === 6 || this.setType === 7 ? (
-            <bk-button
-              theme='primary'
-              onClick={this.handleConfirm}
-            >
-              {this.$t('确认')}
-            </bk-button>
-          ) : (
-            <bk-button
-              disabled={this.loading}
-              theme='primary'
-              onClick={this.handleConfirm}
-            >
-              {' '}
-              {this.$t('保存')}{' '}
-            </bk-button>
-          )}
+          {this.getFooterComponent()}
           <bk-button onClick={this.handleCancel}> {this.$t('取消')} </bk-button>
         </div>
       </bk-dialog>

@@ -128,7 +128,7 @@ export default defineComponent({
     const edgeInterval = [];
     let playTime = null;
     /** g6 默认缩放级别 数值 / 10 为真实结果值  */
-    const MIN_ZOOM = 0.8;
+    const MIN_ZOOM = 0.2;
     const { t } = useI18n();
     const incidentDetail = inject<Ref<IncidentDetailData>>('incidentDetail');
     const incidentDetailData: Ref<IncidentDetailData> = computed(() => {
@@ -157,6 +157,7 @@ export default defineComponent({
     const resourceGraphRef = ref<InstanceType<typeof ResourceGraph>>();
     let topoRawData: ITopoData = null;
     const autoAggregate = ref<boolean>(true);
+    const aggregateCluster = ref(true);
     const aggregateConfig = ref({});
     // const shouldUpdateNode = ref(null);
     const showLegend = ref<boolean>(localStorage.getItem('showLegend') === 'true');
@@ -194,8 +195,8 @@ export default defineComponent({
       registerNode('topo-node', {
         afterDraw(cfg, group) {
           const nodeAttrs = getNodeAttrs(cfg as ITopoNode);
-          const { entity } = cfg as ITopoNode;
-          if (entity.is_root || (cfg as ITopoNode).is_feedback_root) {
+          const { entity, alert_all_recorved, is_feedback_root } = cfg as ITopoNode;
+          if (entity.is_root || is_feedback_root) {
             group.addShape('circle', {
               attrs: {
                 lineDash: [3],
@@ -234,7 +235,7 @@ export default defineComponent({
               name: 'topo-node-text',
             });
           }
-          if (entity.is_on_alert || entity.alert_all_recorved) {
+          if (entity.is_on_alert || alert_all_recorved) {
             group.addShape('circle', {
               attrs: {
                 x: 15,
@@ -370,7 +371,10 @@ export default defineComponent({
                 textAlign: 'center',
                 cursor: 'cursor',
                 textBaseline: 'middle',
-                text: entity.is_root || is_feedback_root ? truncateText(t('根因'), 28, 11, 'PingFangSC-Medium') : aggregated_nodes.length + 1,
+                text:
+                  entity.is_root || is_feedback_root
+                    ? truncateText(t('根因'), 28, 11, 'PingFangSC-Medium')
+                    : aggregated_nodes.length + 1,
                 fontSize: 11,
                 fill: '#fff',
                 ...nodeAttrs.textAttrs,
@@ -517,7 +521,7 @@ export default defineComponent({
           group.addShape('text', {
             zIndex: 12,
             attrs: {
-              opacity: 0,
+              opacity: 1,
               x: 0,
               y: 14,
               cursor: 'default',
@@ -532,15 +536,15 @@ export default defineComponent({
           });
           return rect;
         },
-        setState(name, value, item) {
-          if (name === 'hover') {
-            const group = item.getContainer();
-            const label = group.find(e => e.get('name') === 'service-label');
-            label.attr({
-              opacity: value ? 1 : 0,
-            });
-          }
-        },
+        // setState(name, value, item) {
+        //   if (name === 'hover') {
+        //     const group = item.getContainer();
+        //     const label = group.find(e => e.get('name') === 'service-label');
+        //     label.attr({
+        //       opacity: value ? 1 : 0,
+        //     });
+        //   }
+        // },
       });
     };
     /** 画布自定义边 */
@@ -1103,6 +1107,7 @@ export default defineComponent({
       const renderData = await incidentTopology({
         id: incidentId.value,
         auto_aggregate: autoAggregate.value,
+        aggregate_cluster: aggregateCluster.value ?? false,
         aggregate_config: aggregateConfig.value,
         only_diff: true,
         start_time: isAutoRefresh
@@ -1378,7 +1383,7 @@ export default defineComponent({
                 },
                 labelCfg: {
                   style: {
-                    opacity: 0,
+                    opacity: 1,
                   },
                 },
               }
@@ -1400,25 +1405,25 @@ export default defineComponent({
         setTimeout(toFrontAnomalyEdge, 500);
       });
       /** serverCombo 移动展示name */
-      graph.on('combo:mouseenter', e => {
-        const { item } = e;
-        if (!item.getModel().parentId) return;
-        graph.setItemState(item, 'hover', true);
-        const label = item.getContainer().find(element => element.get('type') === 'text');
-        if (label) {
-          label.attr('opacity', 1); // 悬停时显示标签
-        }
-      });
+      // graph.on('combo:mouseenter', e => {
+      //   const { item } = e;
+      //   if (!item.getModel().parentId) return;
+      //   graph.setItemState(item, 'hover', true);
+      //   const label = item.getContainer().find(element => element.get('type') === 'text');
+      //   if (label) {
+      //     label.attr('opacity', 1); // 悬停时显示标签
+      //   }
+      // });
       /** serverCombo 移出隐藏name */
-      graph.on('combo:mouseleave', e => {
-        const { item } = e;
-        if (!item.getModel().parentId) return;
-        graph.setItemState(item, 'hover', false);
-        const label = item.getContainer().find(element => element.get('type') === 'text');
-        if (label) {
-          label.attr('opacity', 0); // 悬停时显示标签
-        }
-      });
+      // graph.on('combo:mouseleave', e => {
+      //   const { item } = e;
+      //   if (!item.getModel().parentId) return;
+      //   graph.setItemState(item, 'hover', false);
+      //   const label = item.getContainer().find(element => element.get('type') === 'text');
+      //   if (label) {
+      //     label.attr('opacity', 0); // 悬停时显示标签
+      //   }
+      // });
 
       graph.on('node:mouseenter', e => {
         const { item } = e;
@@ -1428,10 +1433,10 @@ export default defineComponent({
         if (model.subComboId) {
           const combo = graph.findById(model.subComboId);
           if (!combo) return;
-          const label = combo.getContainer().find(element => element.get('type') === 'text');
-          if (label) {
-            label.attr('opacity', 1); // 悬停时显示标签
-          }
+          // const label = combo.getContainer().find(element => element.get('type') === 'text');
+          // if (label) {
+          //   label.attr('opacity', 1); // 悬停时显示标签
+          // }
           combo && graph.setItemState(combo, 'hover', true);
         }
         return;
@@ -1450,10 +1455,10 @@ export default defineComponent({
         if (model.subComboId) {
           const combo = graph.findById(model.subComboId);
           if (!combo) return;
-          const label = combo.getContainer().find(element => element.get('type') === 'text');
-          if (label) {
-            label.attr('opacity', 0);
-          }
+          // const label = combo.getContainer().find(element => element.get('type') === 'text');
+          // if (label) {
+          //   label.attr('opacity', 0);
+          // }
         }
         graph.setItemState(nodeItem, 'hover', false);
       });
@@ -1590,6 +1595,7 @@ export default defineComponent({
     const handleUpdateAggregateConfig = async config => {
       aggregateConfig.value = config.aggregate_config;
       autoAggregate.value = config.auto_aggregate;
+      aggregateCluster.value = config.aggregate_cluster;
       await getGraphData();
       renderGraph();
     };
@@ -1775,6 +1781,7 @@ export default defineComponent({
       if (graph?.zoomTo) {
         graph.zoomTo(value / 10);
         localStorage.setItem('failure-topo-zoom', String(value));
+        zoomValue.value = value;
       }
     };
     const handleUpdateZoom = val => {
@@ -1958,7 +1965,7 @@ export default defineComponent({
                           <li class='node-type-title'>{this.$t('节点图例')}</li>
                           {NODE_TYPE.map(node => {
                             return (
-                              <li>
+                              <li key={node.status}>
                                 <span class='circle-wrap'>
                                   <span class={['circle', node.status]}>
                                     {'error' === node.status && <i class='icon-monitor icon-mc-pod' />}
@@ -1974,7 +1981,7 @@ export default defineComponent({
                           <li class='node-type-title'>{this.$t('标签图例')}</li>
                           {TAG_TYPE.map(node => {
                             return (
-                              <li>
+                              <li key={node.status}>
                                 <span class='circle-wrap'>
                                   <span class={['circle', node.status]}>
                                     {['notRestored', 'restored'].includes(node.status) && (
@@ -2044,7 +2051,7 @@ export default defineComponent({
                     v-model={this.zoomValue}
                     disable={this.isPlay}
                     maxValue={20}
-                    minValue={8}
+                    minValue={2}
                     onChange={this.handleZoomChange}
                     onUpdate:modelValue={this.handleZoomChange}
                   />

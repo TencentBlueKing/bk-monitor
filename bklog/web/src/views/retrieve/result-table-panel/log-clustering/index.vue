@@ -31,42 +31,49 @@
       class="log-cluster-table-container"
     >
       <div
-        v-if="exhibitAll"
+        v-if="isShowTopNav"
         class="cluster-nav"
         data-test-id="cluster_div_fingerOperate"
       >
-        <div class="left-container">
-          <div class="bk-button-group">
-            <bk-button
-              v-for="item of clusterNavList"
-              :class="active === item.id ? 'is-selected' : ''"
-              :key="item.id"
-              size="small"
-              @click="handleClickNav(item.id)"
+        <strategy
+          v-if="!isExternal"
+          :cluster-switch="clusterSwitch"
+          :strategy-submit-status="watchStrategySubmitStatus"
+        />
+        <div v-else>
+          <div v-if="isShowGroupTag">
+            <bk-tag v-if="getDimensionStr">
+              {{ getDimensionStr }}
+            </bk-tag>
+            <bk-tag
+              v-if="getGroupStr"
+              closable
+              @close="handleCloseGroupTag"
             >
-              {{ item.name }}
-            </bk-button>
+              {{ getGroupStr }}
+            </bk-tag>
+            <bk-tag
+              v-if="getYearStr"
+              closable
+              @close="handleCloseYearTag"
+            >
+              {{ getYearStr }}
+            </bk-tag>
           </div>
-          <strategy
-            style="margin-left: 20px"
-            :signature-switch="signatureSwitch"
-            :strategy-submit-status="watchStrategySubmitStatus"
-          />
         </div>
 
         <finger-operate
-          v-if="isFingerNav"
-          ref="fingerRef"
           :finger-operate-data="fingerOperateData"
           :request-data="requestData"
           :total-fields="totalFields"
+          :cluster-switch="clusterSwitch"
           :strategy-have-submit="strategyHaveSubmit"
           @handle-finger-operate="handleFingerOperate"
         />
       </div>
 
       <div
-        v-if="isShowGroupTag"
+        v-if="isShowGroupTag && !isExternal"
         style="margin: 0 0 16px -6px"
       >
         <bk-tag v-if="getDimensionStr">
@@ -89,7 +96,7 @@
       </div>
 
       <bk-alert
-        v-if="isFingerNav && signatureSwitch && !exhibitAll"
+        v-if="clusterSwitch && !exhibitAll"
         :title="$t('日志聚类必需至少有一个text类型的字段，当前无该字段类型，请前往日志清洗进行设置。')"
         type="info"
         closable
@@ -102,35 +109,36 @@
           :width-list="smallLoaderWidthList"
           is-loading
         />
-        <div v-else>
-          <ignore-table
-            v-if="active === 'ignoreNumbers' || active === 'ignoreSymbol'"
-            v-bind="$attrs"
-            v-on="$listeners"
-            :active="active"
-            :clustering-field="clusteringField"
-            :origin-table-list="originTableList"
-            :retrieve-params="retrieveParams"
-            :total-fields="totalFields"
-          />
-          <data-fingerprint
-            v-if="isFingerNav"
-            v-bind="$attrs"
-            ref="fingerTableRef"
-            v-on="$listeners"
-            :all-finger-list="allFingerList"
-            :cluster-switch="clusterSwitch"
-            :config-data="configData"
-            :finger-list="fingerList"
-            :is-page-over="isPageOver"
-            :loader-width-list="smallLoaderWidthList"
-            :request-data="requestData"
-            @handle-finger-operate="handleFingerOperate"
-            @handle-scroll-is-show="handleScrollIsShow"
-            @pagination-options="paginationOptions"
-            @update-request="requestFinger"
-          />
-        </div>
+        <quick-cluster-step
+          v-else-if="isShowClusterStep"
+          style="min-height: calc(100vh - 410px)"
+          ref="stepRef"
+          :cluster-step-data="clusterStepData"
+        />
+        <quick-open-cluster
+          v-else-if="!clusterSwitch"
+          style="min-height: calc(100vh - 410px)"
+          :retrieve-params="retrieveParams"
+          :total-fields="totalFields"
+          :date-picker-value="datePickerValue"
+          @cluster-created="handleClusterCreated"
+        />
+        <data-fingerprint
+          v-else
+          v-bind="$attrs"
+          ref="fingerTableRef"
+          v-on="$listeners"
+          :all-finger-list="allFingerList"
+          :config-data="configData"
+          :finger-list="fingerList"
+          :is-page-over="isPageOver"
+          :loader-width-list="smallLoaderWidthList"
+          :request-data="requestData"
+          @handle-finger-operate="handleFingerOperate"
+          @handle-scroll-is-show="handleScrollIsShow"
+          @pagination-options="paginationOptions"
+          @update-request="requestFinger"
+        />
       </div>
 
       <bk-table
@@ -191,17 +199,19 @@
 
   import FingerOperate from './components/finger-operate';
   import DataFingerprint from './data-fingerprint';
-  import IgnoreTable from './ignore-table';
+  import QuickOpenCluster from './components/quick-open-cluster-step/quick-open-cluster';
+  import QuickClusterStep from './components/quick-open-cluster-step/quick-cluster-step';
   import Strategy from './components/strategy';
 
   export default {
     components: {
       DataFingerprint,
-      IgnoreTable,
       ClusteringLoader,
       FingerOperate,
       EmptyStatus,
       Strategy,
+      QuickOpenCluster,
+      QuickClusterStep,
     },
     inheritAttrs: false,
     props: {
@@ -241,34 +251,22 @@
         type: Boolean,
         required: true,
       },
+      datePickerValue: {
+        // 过滤条件字段可选值关系表
+        type: Array,
+        required: true,
+      },
     },
     data() {
       return {
-        active: 'ignoreNumbers',
-        isClickFingerNav: false, // 是否点击过数据指纹nav
         tableLoading: false, // 详情loading
         isShowCustomize: true, // 是否显示自定义
-        clusterNavList: [
-          {
-            id: 'ignoreNumbers',
-            name: this.$t('忽略数字'),
-          },
-          {
-            id: 'ignoreSymbol',
-            name: this.$t('忽略符号'),
-          },
-          {
-            id: 'dataFingerprint',
-            name: this.$t('button-数据指纹').replace('button-', ''),
-          },
-        ],
         fingerOperateData: {
           patternSize: 0, // slider当前值
           sliderMaxVal: 0, // pattern最大值
           comparedList: [], // 同比List
           patternList: [], // pattern敏感度List
           isShowCustomize: true, // 是否显示自定义
-          signatureSwitch: false, // 数据指纹开关
           dimensionList: [], // 维度字段列表
           selectGroupList: [], // 选中的字段分组列表
           yearSwitch: false, // 同比开关
@@ -293,19 +291,21 @@
         loadingWidthList: {
           // loading表头宽度列表
           global: [''],
-          ignore: [60, 90, 90, ''],
           notCompared: [150, 90, 90, ''],
           compared: [150, 90, 90, 100, 100, ''],
         },
         fingerList: [],
         allFingerList: [], // 所有数据指纹List
         showScrollTop: false, // 是否展示返回顶部icon
-        /** 索引集是否切换 */
-        isIndexSetChange: false,
         isInitPage: true, // 是否是第一次进入数据指纹
         scrollEl: null,
         /** 是否创建过策略 */
         strategyHaveSubmit: false,
+        isShowClusterStep: false,
+        clusterStepDataLoading: false,
+        clusterStepData: {},
+        isFieldInit: false,
+        statusTimer: null,
       };
     },
     computed: {
@@ -313,29 +313,17 @@
         globalsData: 'globals/globalsData',
       }),
       smallLoaderWidthList() {
-        if (!this.isFingerNav) return this.loadingWidthList.ignore;
         return this.requestData.year_on_year_hour > 0
           ? this.loadingWidthList.compared
           : this.loadingWidthList.notCompared;
       },
       exhibitText() {
-        return this.configID
+        return this.collectorConfigId
           ? this.$t('当前无可用字段，请前往日志清洗进行设置')
           : this.$t('当前索引集不支持日志聚类设置');
       },
       exhibitOperate() {
-        return this.configID ? this.$t('跳转到日志清洗') : '';
-      },
-      clusteringField() {
-        // 如果有聚类字段则使用设置的
-        if (this.configData?.extra?.clustering_field) return this.configData.extra.clustering_field;
-        // 如果有log字段则使用log类型字段
-        const logFieldItem = this.totalFields.find(item => item.field_name === 'log');
-        if (logFieldItem) return logFieldItem.field_name;
-        // 如果没有设置聚类字段和log字段则使用text列表里的第一项值
-        const textTypeFieldList = this.totalFields.filter(item => item.is_analyzed) || [];
-        if (textTypeFieldList.length) return textTypeFieldList[0].field_name;
-        return '';
+        return this.collectorConfigId ? this.$t('跳转到日志清洗') : '';
       },
       bkBizId() {
         return this.$store.state.bkBizId;
@@ -343,19 +331,12 @@
       isHaveAnalyzed() {
         return this.totalFields.some(item => item.is_analyzed);
       },
-      signatureSwitch() {
-        // 数据指纹开关
-        return this.configData.extra?.signature_switch;
-      },
-      configID() {
+      collectorConfigId() {
         return this.cleanConfig.extra?.collector_config_id;
       },
       /** 日志聚类开关 */
       clusterSwitch() {
         return this.configData?.is_active;
-      },
-      isFingerNav() {
-        return this.active === 'dataFingerprint';
       },
       exhibitAll() {
         /**
@@ -367,7 +348,7 @@
       },
       globalLoading() {
         // 判断是否可以字段提取的全局loading
-        return this.isThollteField;
+        return this.isThollteField || this.isFieldInit;
       },
       routerIndexSet() {
         return this.$route.params.indexId;
@@ -386,62 +367,51 @@
         return this.requestData.year_on_year_hour ? `${this.$t('同比')} : ${this.requestData.year_on_year_hour}h` : '';
       },
       isShowGroupTag() {
-        return this.active === 'dataFingerprint' && (this.getGroupStr || this.getDimensionStr || this.getYearStr);
+        return this.clusterSwitch && (this.getGroupStr || this.getDimensionStr || this.getYearStr);
+      },
+      isShowTopNav() {
+        return this.exhibitAll && this.clusterSwitch && !this.isShowClusterStep;
+      },
+      isExternal() {
+        return this.$store.state.isExternal;
       },
     },
     watch: {
-      configData: {
-        deep: true,
-        immediate: true,
-        handler() {
-          this.isClickFingerNav = false;
-          // 数据指纹开关赋值
-          this.fingerOperateData.signatureSwitch = this.signatureSwitch;
-          // 当前nav为数据指纹且数据指纹开启点击指纹nav则不再重复请求
-          if (this.isFingerNav) {
-            this.fingerList = [];
-            this.allFingerList = [];
-          }
-        },
-      },
       totalFields: {
         deep: true,
         immediate: true,
-        handler(newList) {
+        async handler(newList) {
+          // 当前nav为数据指纹且数据指纹开启点击指纹nav则不再重复请求
+          this.fingerList = [];
+          this.allFingerList = [];
+          this.isShowClusterStep = false;
+          /**
+           *  无字段提取或者聚类开关没开时直接不显示聚类nav和table
+           *  来源如果是数据平台并且日志聚类大开关有打开则进入text判断
+           *  有text则提示去开启日志聚类 无则显示跳转计算平台
+           */
           if (newList.length) {
-            /**
-             *  无字段提取或者聚类开关没开时直接不显示聚类nav和table
-             *  来源如果是数据平台并且日志聚类大开关有打开则进入text判断
-             *  有text则提示去开启日志聚类 无则显示跳转计算平台
-             */
-            // 初始化分组下拉列表
-            this.initTable();
-            this.filterGroupList();
+            this.isFieldInit = true;
+            // 确认是否需要展示step步骤
+            // 立即执行一次
+            this.startPolling();
+            await this.clusterPolling();
+            this.isFieldInit = false;
           }
         },
       },
-      fingerSearchState: {
-        handler() {
-          if (this.exhibitAll) this.requestFinger();
-          // isIndexSetChange 为true时, 证明是切换过索引集或者是第一次请求数据指纹 则要判断是否保存过分组状态 不根据检索来请求数据指纹;
-          this.isIndexSetChange = false;
-        },
+      fingerSearchState() {
+        if (this.exhibitAll) this.requestFinger();
+      },
+      isShowClusterStep(v) {
+        this.$store.commit('updateStoreIsShowClusterStep', v);
       },
     },
     methods: {
-      handleClickNav(id) {
-        this.active = id;
-        // 切换聚类的nav 缓存聚类params
-        this.$emit('back-fill-cluster-route-params', 'clustering', {
-          ...this.clusterRouteParams,
-          activeNav: this.active,
-        });
-      },
       /**
        * @desc: 初始化table所需的一些参数
        */
-      async initTable() {
-        this.isIndexSetChange = true;
+      async initTableOperator() {
         const { log_clustering_level_year_on_year: yearOnYearList, log_clustering_level: clusterLevel } =
           this.globalsData;
         let patternLevel;
@@ -464,11 +434,6 @@
         };
         // url是否有缓存的值
         const isNoRouteValue = JSON.stringify(this.clusterRouteParams) === '{}';
-        // 初始化nav如果是数据指纹 且打开数据指纹 则初始化时请求一次数据指纹
-        if (this.isInitPage && this.signatureSwitch && isNoRouteValue) {
-          this.active = 'dataFingerprint';
-          this.isClickFingerNav = true;
-        }
         // 通过路由返回的值 初始化数据指纹的操作参数
         if (this.isInitPage && !isNoRouteValue) {
           this.active = this.clusterRouteParams.activeNav;
@@ -502,9 +467,7 @@
           });
         }
         Object.assign(this.requestData, queryRequestData);
-        this.isIndexSetChange = false;
         this.isInitPage = false;
-        this.requestFinger();
         this.$nextTick(() => {
           this.scrollEl = document.querySelector('.result-scroll-container');
         });
@@ -515,9 +478,9 @@
        */
       async getInitGroupFields() {
         try {
-          if (this.signatureSwitch) {
+          if (this.clusterSwitch) {
             const params = { index_set_id: this.routerIndexSet };
-            const data = { collector_config_id: this.configID };
+            const data = { collector_config_id: this.collectorConfigId };
             const res = await this.$http.request('/logClustering/getConfig', { params, data });
             return res.data.group_fields;
           }
@@ -565,10 +528,10 @@
           return;
         }
         // 无清洗 去清洗
-        if (!!this.configID) {
+        if (!!this.collectorConfigId) {
           this.$router.push({
             name: 'clean-edit',
-            params: { collectorId: this.configID },
+            params: { collectorId: this.collectorConfigId },
             query: {
               spaceUid: this.$store.state.spaceUid,
               backRoute: this.$route.name,
@@ -581,7 +544,7 @@
        */
       requestFinger() {
         // loading中，或者没有开启数据指纹功能，或当前页面初始化或者切换索引集时不允许起请求
-        if (this.tableLoading || !this.signatureSwitch || this.isIndexSetChange) return;
+        if (this.tableLoading || !this.clusterSwitch) return;
 
         this.tableLoading = true;
         this.$http
@@ -608,7 +571,6 @@
           })
           .finally(() => {
             this.tableLoading = false;
-            this.isClickFingerNav = true;
           });
       },
       /**
@@ -656,6 +618,72 @@
       watchStrategySubmitStatus(v) {
         this.strategyHaveSubmit = v;
       },
+      handleClusterCreated() {
+        this.startPolling();
+        this.clusterPolling();
+      },
+      async clusterPolling() {
+        const isActiveCluster = await this.confirmClusterStepStatus();
+        if (isActiveCluster) {
+          this.filterGroupList();
+          await this.initTableOperator(); // 初始化分组下拉列表
+          this.requestFinger();
+          this.stopPolling();
+        }
+      },
+      startPolling(pollingTime = 10000) {
+        this.stopPolling();
+        this.statusTimer = setInterval(this.clusterPolling, pollingTime);
+      },
+      async confirmClusterStepStatus() {
+        try {
+          this.clusterStepDataLoading = true;
+          const res = await this.getClusterConfigStatus();
+          if (res.code === 0) {
+            // 未完成，展示step步骤
+            if (!res.data.access_finished) this.clusterStepData = res.data;
+            this.isShowClusterStep = !res.data.access_finished;
+            return res.data.access_finished;
+          }
+        } catch (error) {
+          // 报错就证明没开日志聚类
+          this.isShowClusterStep = false;
+          this.stopPolling();
+          return false;
+        } finally {
+          // 如果有报错信息，也直接停止轮询
+          this.$nextTick(() => {
+            if (this.$refs?.stepRef?.errorMessage) this.stopPolling();
+          });
+          this.clusterStepDataLoading = false;
+        }
+      },
+      getClusterConfigStatus() {
+        return this.$http.request(
+          'retrieve/getClusteringConfigStatus',
+          {
+            params: {
+              index_set_id: this.$route.params.indexId,
+            },
+          },
+          {
+            catchIsShowMessage: false,
+          },
+        );
+      },
+      stopPolling() {
+        // 清除定时器
+        if (this.statusTimer) {
+          clearInterval(this.statusTimer);
+          this.statusTimer = null;
+        }
+      },
+    },
+    deactivated() {
+      this.stopPolling(); // 停止状态轮询
+    },
+    beforeDestroy() {
+      this.stopPolling(); // 停止状态轮询
     },
   };
 </script>
@@ -673,17 +701,7 @@
       height: 32px;
       margin-bottom: 12px;
       color: #63656e;
-
       @include flex-justify(space-between);
-
-      .left-container {
-        flex-wrap: nowrap;
-        @include flex-justify(space-between);
-      }
-    }
-
-    .bk-button-group {
-      flex-shrink: 0;
     }
 
     .bk-alert {

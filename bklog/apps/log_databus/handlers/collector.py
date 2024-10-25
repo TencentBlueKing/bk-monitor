@@ -32,6 +32,7 @@ import yaml
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils.translation import ugettext as _
+from kubernetes import client
 from rest_framework.exceptions import ErrorDetail, ValidationError
 
 from apps.api import BcsApi, BkDataAccessApi, CCApi, NodeApi, TransferApi
@@ -63,7 +64,6 @@ from apps.log_databus.constants import (
     CACHE_KEY_CLUSTER_INFO,
     CHECK_TASK_READY_NOTE_FOUND_EXCEPTION_CODE,
     CONTAINER_CONFIGS_TO_YAML_EXCLUDE_FIELDS,
-    DEFAULT_COLLECTOR_LENGTH,
     DEFAULT_RETENTION,
     INTERNAL_TOPO_INDEX,
     META_DATA_ENCODING,
@@ -2499,6 +2499,7 @@ class CollectorHandler(object):
             "is_display": is_display,
         }
 
+        _collector_config_name = self.data.collector_config_name
         bk_data_name = build_bk_data_name(
             bk_biz_id=self.data.get_bk_biz_id(), collector_config_name_en=self.data.collector_config_name_en
         )
@@ -2520,7 +2521,7 @@ class CollectorHandler(object):
             raise CollectorConfigNameDuplicateException()
 
         # collector_config_name更改后更新索引集名称
-        if collector_config_name != self.data.collector_config_name and self.data.index_set_id:
+        if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
             index_set_name = _("[采集项]") + self.data.collector_config_name
             LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).update(index_set_name=index_set_name)
 
@@ -2684,6 +2685,7 @@ class CollectorHandler(object):
             "environment": Environment.CONTAINER,
             "bcs_cluster_id": data["bcs_cluster_id"],
             "add_pod_label": data["add_pod_label"],
+            "add_pod_annotation": data["add_pod_annotation"],
             "extra_labels": data["extra_labels"],
             "yaml_config_enabled": data["yaml_config_enabled"],
             "yaml_config": data["yaml_config"],
@@ -2766,6 +2768,7 @@ class CollectorHandler(object):
                     container_name_exclude=config["container"]["container_name_exclude"],
                     match_labels=config["label_selector"]["match_labels"],
                     match_expressions=config["label_selector"]["match_expressions"],
+                    match_annotations=config["annotation_selector"]["match_annotations"],
                     all_container=not any(
                         [
                             config["container"]["workload_type"],
@@ -2774,6 +2777,7 @@ class CollectorHandler(object):
                             config["container"]["container_name_exclude"],
                             config["label_selector"]["match_labels"],
                             config["label_selector"]["match_expressions"],
+                            config["annotation_selector"]["match_annotations"],
                         ]
                     ),
                     # yaml 原始配置，如果启用了yaml，则把解析后的原始配置保存下来用于下发
@@ -2834,6 +2838,7 @@ class CollectorHandler(object):
             "collector_scenario_id": data["collector_scenario_id"],
             "bcs_cluster_id": data["bcs_cluster_id"],
             "add_pod_label": data["add_pod_label"],
+            "add_pod_annotation": data["add_pod_annotation"],
             "extra_labels": data["extra_labels"],
             "yaml_config_enabled": data["yaml_config_enabled"],
             "yaml_config": data["yaml_config"],
@@ -2858,6 +2863,7 @@ class CollectorHandler(object):
                     namespace_list=config["namespaces"],
                 )
 
+        _collector_config_name = self.data.collector_config_name
         for key, value in collector_config_update.items():
             setattr(self.data, key, value)
 
@@ -2868,7 +2874,7 @@ class CollectorHandler(object):
             raise CollectorConfigNameDuplicateException()
 
         # collector_config_name更改后更新索引集名称
-        if data["collector_config_name"] != self.data.collector_config_name and self.data.index_set_id:
+        if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
             index_set_name = _("[采集项]") + self.data.collector_config_name
             LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).update(index_set_name=index_set_name)
 
@@ -2968,6 +2974,9 @@ class CollectorHandler(object):
                         "match_labels": container_config.match_labels,
                         "match_expressions": container_config.match_expressions,
                     },
+                    "annotation_selector": {
+                        "match_annotations": container_config.match_annotations,
+                    },
                     "all_container": container_config.all_container,
                     "status": container_config.status,
                     "status_detail": container_config.status_detail,
@@ -3018,6 +3027,7 @@ class CollectorHandler(object):
             path_container_config_dict[path_container_config.collector_config_id].append(path_container_config)
         for std_container_config in std_container_config_list:
             std_container_config_dict[std_container_config.parent_container_config_id].append(std_container_config)
+            std_container_config_dict[std_container_config.collector_config_id].append(std_container_config)
 
         result = []
         for rule_id, collector in rule_dict.items():
@@ -3042,6 +3052,10 @@ class CollectorHandler(object):
             else:
                 collector_config_name = ""
 
+            is_collector_deleted = not bool(
+                collector["std_collector_config"].index_set_id or collector["path_collector_config"].index_set_id
+            )
+
             rule = {
                 "rule_id": rule_id,
                 "collector_config_name": collector_config_name,
@@ -3056,12 +3070,15 @@ class CollectorHandler(object):
                 "rule_std_index_set_id": collector["std_collector_config"].index_set_id,
                 "file_index_set_id": collector["path_collector_config"].index_set_id,  # TODO: 兼容代码4.8需删除
                 "std_index_set_id": collector["std_collector_config"].index_set_id,  # TODO: 兼容代码4.8需删除
-                "is_std_deleted": False if collector["std_collector_config"].index_set_id else True,
-                "is_file_deleted": False if collector["path_collector_config"].index_set_id else True,
+                "is_std_deleted": is_collector_deleted,
+                "is_file_deleted": is_collector_deleted,
                 "container_config": [],
             }
 
-            collector_config_id = collector["path_collector_config"].collector_config_id
+            collector_config_id = (
+                collector["path_collector_config"].collector_config_id
+                or collector["std_collector_config"].collector_config_id
+            )
             container_configs = path_container_config_dict.get(collector_config_id) or std_container_config_dict.get(
                 collector_config_id
             )
@@ -3087,6 +3104,9 @@ class CollectorHandler(object):
                         "label_selector": {
                             "match_labels": container_config.match_labels,
                             "match_expressions": container_config.match_expressions,
+                        },
+                        "annotation_selector": {
+                            "match_annotations": container_config.match_annotations,
                         },
                         "all_container": container_config.all_container,
                         "status": container_config.status,
@@ -3132,49 +3152,82 @@ class CollectorHandler(object):
             collector_config_name_en=data["collector_config_name_en"],
         )
         bcs_rule = BcsRule.objects.create(rule_name=data["collector_config_name"], bcs_project_id=data["project_id"])
-        # 创建路径采集项
-        path_collector_config = self.create_bcs_collector(
-            {
-                "bk_biz_id": data["bk_biz_id"],
-                "collector_config_name": bcs_collector_config_name["bcs_path_collector"]["collector_config_name"],
-                "collector_config_name_en": bcs_collector_config_name["bcs_path_collector"]["collector_config_name_en"],
-                "collector_scenario_id": CollectorScenarioEnum.ROW.value,
-                "custom_type": data["custom_type"],
-                "category_id": data["category_id"],
-                "description": data["description"],
-                "data_link_id": int(conf["data_link_id"]),
-                "bk_app_code": bk_app_code,
-                "environment": Environment.CONTAINER,
-                "bcs_cluster_id": data["bcs_cluster_id"],
-                "add_pod_label": data["add_pod_label"],
-                "extra_labels": data["extra_labels"],
-                "rule_id": bcs_rule.id,
-            },
-            conf=conf,
-            async_bkdata=False,
-        )
 
-        # 创建标准输出采集项
-        std_collector_config = self.create_bcs_collector(
-            {
-                "bk_biz_id": data["bk_biz_id"],
-                "collector_config_name": bcs_collector_config_name["bcs_std_collector"]["collector_config_name"],
-                "collector_config_name_en": bcs_collector_config_name["bcs_std_collector"]["collector_config_name_en"],
-                "collector_scenario_id": CollectorScenarioEnum.ROW.value,
-                "custom_type": data["custom_type"],
-                "category_id": data["category_id"],
-                "description": data["description"],
-                "data_link_id": int(conf["data_link_id"]),
-                "bk_app_code": bk_app_code,
-                "environment": Environment.CONTAINER,
-                "bcs_cluster_id": data["bcs_cluster_id"],
-                "add_pod_label": data["add_pod_label"],
-                "extra_labels": data["extra_labels"],
-                "rule_id": bcs_rule.id,
-            },
-            conf=conf,
-            async_bkdata=False,
-        )
+        # 默认设置为空,做为一个标识
+        path_collector_config = std_collector_config = ""
+        parent_container_config_id = 0
+        # 注入索引集标签
+        tag_id = IndexSetTag.get_tag_id(data["bcs_cluster_id"])
+        is_send_create_notify = False
+        for config in data["config"]:
+            if config["paths"]:
+                # 创建路径采集项
+                path_collector_config = self.create_bcs_collector(
+                    {
+                        "bk_biz_id": data["bk_biz_id"],
+                        "collector_config_name": bcs_collector_config_name["bcs_path_collector"][
+                            "collector_config_name"
+                        ],
+                        "collector_config_name_en": bcs_collector_config_name["bcs_path_collector"][
+                            "collector_config_name_en"
+                        ],
+                        "collector_scenario_id": CollectorScenarioEnum.ROW.value,
+                        "custom_type": data["custom_type"],
+                        "category_id": data["category_id"],
+                        "description": data["description"],
+                        "data_link_id": int(conf["data_link_id"]),
+                        "bk_app_code": bk_app_code,
+                        "environment": Environment.CONTAINER,
+                        "bcs_cluster_id": data["bcs_cluster_id"],
+                        "add_pod_label": data["add_pod_label"],
+                        "extra_labels": data["extra_labels"],
+                        "rule_id": bcs_rule.id,
+                    },
+                    conf=conf,
+                    async_bkdata=False,
+                )
+                is_send_create_notify = True
+                # 注入索引集标签
+                IndexSetHandler(path_collector_config.index_set_id).add_tag(tag_id=tag_id)
+
+            if config["enable_stdout"]:
+                # 创建标准输出采集项
+                std_collector_config = self.create_bcs_collector(
+                    {
+                        "bk_biz_id": data["bk_biz_id"],
+                        "collector_config_name": bcs_collector_config_name["bcs_std_collector"][
+                            "collector_config_name"
+                        ],
+                        "collector_config_name_en": bcs_collector_config_name["bcs_std_collector"][
+                            "collector_config_name_en"
+                        ],
+                        "collector_scenario_id": CollectorScenarioEnum.ROW.value,
+                        "custom_type": data["custom_type"],
+                        "category_id": data["category_id"],
+                        "description": data["description"],
+                        "data_link_id": int(conf["data_link_id"]),
+                        "bk_app_code": bk_app_code,
+                        "environment": Environment.CONTAINER,
+                        "bcs_cluster_id": data["bcs_cluster_id"],
+                        "add_pod_label": data["add_pod_label"],
+                        "extra_labels": data["extra_labels"],
+                        "rule_id": bcs_rule.id,
+                    },
+                    conf=conf,
+                    async_bkdata=False,
+                )
+                # 注入索引集标签
+                IndexSetHandler(std_collector_config.index_set_id).add_tag(tag_id=tag_id)
+                # 获取父配置id
+                collector_config_obj = CollectorConfig.objects.filter(
+                    rule_id=bcs_rule.id,
+                    collector_config_name_en=bcs_collector_config_name["bcs_path_collector"][
+                        "collector_config_name_en"
+                    ],
+                ).first()
+                if collector_config_obj:
+                    parent_container_config_id = collector_config_obj.collector_config_id
+
         container_collector_config_list = []
         for config in data["config"]:
             workload_type = config["container"].get("workload_type", "")
@@ -3182,8 +3235,11 @@ class CollectorHandler(object):
             container_name = config["container"].get("container_name", "")
             match_labels = config["label_selector"].get("match_labels", [])
             match_expressions = config["label_selector"].get("match_expressions", [])
+            match_annotations = config["annotation_selector"].get("match_annotations", [])
 
-            is_all_container = not any([workload_type, workload_name, container_name, match_labels, match_expressions])
+            is_all_container = not any(
+                [workload_type, workload_name, container_name, match_labels, match_expressions, match_annotations]
+            )
 
             if config["paths"]:
                 # 配置了文件路径才需要下发路径采集
@@ -3206,6 +3262,7 @@ class CollectorHandler(object):
                         container_name=container_name,
                         match_labels=match_labels,
                         match_expressions=match_expressions,
+                        match_annotations=match_annotations,
                         all_container=is_all_container,
                         rule_id=bcs_rule.id,
                     )
@@ -3231,31 +3288,28 @@ class CollectorHandler(object):
                         container_name=container_name,
                         match_labels=match_labels,
                         match_expressions=match_expressions,
+                        match_annotations=match_annotations,
                         all_container=is_all_container,
                         rule_id=bcs_rule.id,
-                        parent_container_config_id=path_collector_config.collector_config_id,
+                        parent_container_config_id=parent_container_config_id,
                     )
                 )
 
         ContainerCollectorConfig.objects.bulk_create(container_collector_config_list)
 
-        # 注入索引集标签
-        tag_id = IndexSetTag.get_tag_id(data["bcs_cluster_id"])
-        IndexSetHandler(path_collector_config.index_set_id).add_tag(tag_id=tag_id)
-        IndexSetHandler(std_collector_config.index_set_id).add_tag(tag_id=tag_id)
-
-        self.send_create_notify(path_collector_config)
+        if is_send_create_notify:
+            self.send_create_notify(path_collector_config)
 
         return {
             "rule_id": bcs_rule.id,
-            "rule_file_index_set_id": path_collector_config.index_set_id,
-            "rule_file_collector_config_id": path_collector_config.collector_config_id,
-            "rule_std_index_set_id": std_collector_config.index_set_id,
-            "rule_std_collector_config_id": std_collector_config.collector_config_id,
-            "file_index_set_id": path_collector_config.index_set_id,  # TODO: 兼容代码4.8需删除
-            "std_index_set_id": std_collector_config.index_set_id,  # TODO: 兼容代码4.8需删除
-            "bk_data_id": path_collector_config.bk_data_id,
-            "stdout_conf": {"bk_data_id": std_collector_config.bk_data_id},
+            "rule_file_index_set_id": path_collector_config.index_set_id if path_collector_config else 0,
+            "rule_file_collector_config_id": path_collector_config.collector_config_id if path_collector_config else 0,
+            "rule_std_index_set_id": std_collector_config.index_set_id if std_collector_config else 0,
+            "rule_std_collector_config_id": std_collector_config.collector_config_id if std_collector_config else 0,
+            "file_index_set_id": path_collector_config.index_set_id if path_collector_config else 0,  # TODO: 兼容代码4.8需删除
+            "std_index_set_id": std_collector_config.index_set_id if std_collector_config else 0,  # TODO: 兼容代码4.8需删除
+            "bk_data_id": path_collector_config.bk_data_id if path_collector_config else 0,
+            "stdout_conf": {"bk_data_id": std_collector_config.bk_data_id if std_collector_config else 0},
         }
 
     def sync_bcs_container_task(self, data: Dict[str, Any]):
@@ -3267,6 +3321,8 @@ class CollectorHandler(object):
         file_collector_config_id = data["rule_file_collector_config_id"]
         std_collector_config_id = data["rule_std_collector_config_id"]
         for collector_config_id in [file_collector_config_id, std_collector_config_id]:
+            if not collector_config_id:
+                continue
             collector_config = CollectorConfig.objects.filter(
                 collector_config_id=collector_config_id,
             ).first()
@@ -3297,11 +3353,11 @@ class CollectorHandler(object):
         lower_cluster_id = convert_lower_cluster_id(bcs_cluster_id)
         return {
             "bcs_path_collector": {
-                "collector_config_name": f"{bcs_cluster_id}_{collector_config_name}_path",
+                "collector_config_name": f"{collector_config_name}_path",
                 "collector_config_name_en": f"{lower_cluster_id}_{collector_config_name_en}_path",
             },
             "bcs_std_collector": {
-                "collector_config_name": f"{bcs_cluster_id}_{collector_config_name}_std",
+                "collector_config_name": f"{collector_config_name}_std",
                 "collector_config_name_en": f"{lower_cluster_id}_{collector_config_name_en}_std",
             },
         }
@@ -3396,9 +3452,103 @@ class CollectorHandler(object):
             )
 
     @transaction.atomic
-    def update_bcs_container_config(self, data, rule_id):
+    def update_bcs_container_config(self, data, rule_id, bk_app_code="bk_bcs"):
+        conf = self.get_bcs_config(
+            bk_biz_id=data["bk_biz_id"],
+            bcs_cluster_id=data["bcs_cluster_id"],
+            storage_cluster_id=data.get("storage_cluster_id"),
+        )
+        bcs_collector_config_name = self.generate_collector_config_name(
+            bcs_cluster_id=data["bcs_cluster_id"],
+            collector_config_name=data["collector_config_name"],
+            collector_config_name_en=data["collector_config_name_en"],
+        )
+        bcs_path_collector_config_name_en = bcs_collector_config_name["bcs_path_collector"]["collector_config_name_en"]
+        bcs_std_collector_config_name_en = bcs_collector_config_name["bcs_std_collector"]["collector_config_name_en"]
+
+        # 默认设置为空,做为一个标识
+        path_collector = std_collector = None
+        path_collector_config = std_collector_config = None
+        # 注入索引集标签
+        tag_id = IndexSetTag.get_tag_id(data["bcs_cluster_id"])
+        is_send_path_create_notify = is_send_std_create_notify = False
+        # 容器配置是否创建标识
+        is_exist_bcs_path = False
+        is_exist_bcs_std = False
+        for config in data["config"]:
+            collector_config_name_en_list = CollectorConfig.objects.filter(
+                rule_id=rule_id,
+                collector_config_name_en__in=[bcs_path_collector_config_name_en, bcs_std_collector_config_name_en],
+            ).values_list("collector_config_name_en", flat=True)
+
+            for collector_config_name_en in collector_config_name_en_list:
+                if collector_config_name_en.endswith("_path"):
+                    is_exist_bcs_path = True
+                elif collector_config_name_en.endswith("_std"):
+                    is_exist_bcs_std = True
+
+            # 如果还没有创建容器配置，那么当config["paths"]或config["enable_stdout"]存在时需要创建容器配置
+            if config["paths"] and not is_exist_bcs_path:
+                # 创建路径采集项
+                path_collector_config = self.create_bcs_collector(
+                    {
+                        "bk_biz_id": data["bk_biz_id"],
+                        "collector_config_name": bcs_collector_config_name["bcs_path_collector"][
+                            "collector_config_name"
+                        ],
+                        "collector_config_name_en": bcs_collector_config_name["bcs_path_collector"][
+                            "collector_config_name_en"
+                        ],
+                        "collector_scenario_id": CollectorScenarioEnum.ROW.value,
+                        "custom_type": data["custom_type"],
+                        "category_id": data["category_id"],
+                        "description": data["description"],
+                        "data_link_id": int(conf["data_link_id"]),
+                        "bk_app_code": bk_app_code,
+                        "environment": Environment.CONTAINER,
+                        "bcs_cluster_id": data["bcs_cluster_id"],
+                        "add_pod_label": data["add_pod_label"],
+                        "extra_labels": data["extra_labels"],
+                        "rule_id": rule_id,
+                    },
+                    conf=conf,
+                    async_bkdata=False,
+                )
+                is_send_path_create_notify = True
+                # 注入索引集标签
+                IndexSetHandler(path_collector_config.index_set_id).add_tag(tag_id=tag_id)
+            if config["enable_stdout"] and not is_exist_bcs_std:
+                # 创建标准输出采集项
+                std_collector_config = self.create_bcs_collector(
+                    {
+                        "bk_biz_id": data["bk_biz_id"],
+                        "collector_config_name": bcs_collector_config_name["bcs_std_collector"][
+                            "collector_config_name"
+                        ],
+                        "collector_config_name_en": bcs_collector_config_name["bcs_std_collector"][
+                            "collector_config_name_en"
+                        ],
+                        "collector_scenario_id": CollectorScenarioEnum.ROW.value,
+                        "custom_type": data["custom_type"],
+                        "category_id": data["category_id"],
+                        "description": data["description"],
+                        "data_link_id": int(conf["data_link_id"]),
+                        "bk_app_code": bk_app_code,
+                        "environment": Environment.CONTAINER,
+                        "bcs_cluster_id": data["bcs_cluster_id"],
+                        "add_pod_label": data["add_pod_label"],
+                        "extra_labels": data["extra_labels"],
+                        "rule_id": rule_id,
+                    },
+                    conf=conf,
+                    async_bkdata=False,
+                )
+                # 注入索引集标签
+                is_send_std_create_notify = True
+                IndexSetHandler(std_collector_config.index_set_id).add_tag(tag_id=tag_id)
+
         collectors = CollectorConfig.objects.filter(rule_id=rule_id)
-        if len(collectors) != DEFAULT_COLLECTOR_LENGTH:
+        if not collectors:
             raise RuleCollectorException(RuleCollectorException.MESSAGE.format(rule_id=rule_id))
         for collector in collectors:
             if collector.collector_config_name_en.endswith("_path"):
@@ -3419,27 +3569,35 @@ class CollectorHandler(object):
         path_container_config, std_container_config = self.get_container_configs(
             data["config"], path_collector=path_collector, rule_id=rule_id
         )
-        self.deal_self_call(
-            collector_config_id=path_collector.collector_config_id,
-            collector=path_collector,
-            func=self.compare_config,
-            **{"data": {"configs": path_container_config}},
-        )
-        self.deal_self_call(
-            collector_config_id=std_collector.collector_config_id,
-            collector=std_collector,
-            func=self.compare_config,
-            **{"data": {"configs": std_container_config}},
-        )
+        if path_collector:
+            self.deal_self_call(
+                collector_config_id=path_collector.collector_config_id,
+                collector=path_collector,
+                func=self.compare_config,
+                **{"data": {"configs": path_container_config}},
+            )
+        if std_collector:
+            self.deal_self_call(
+                collector_config_id=std_collector.collector_config_id,
+                collector=std_collector,
+                func=self.compare_config,
+                **{"data": {"configs": std_container_config}},
+            )
+
+        if is_send_path_create_notify:
+            self.send_create_notify(path_collector_config)
+
+        if is_send_std_create_notify:
+            self.send_create_notify(std_collector_config)
 
         return {
             "rule_id": rule_id,
-            "rule_file_index_set_id": path_collector.index_set_id,
-            "rule_std_index_set_id": std_collector.index_set_id,
-            "file_index_set_id": path_collector.index_set_id,  # TODO: 兼容代码4.8需删除
-            "std_index_set_id": std_collector.index_set_id,  # TODO: 兼容代码4.8需删除
-            "bk_data_id": path_collector.bk_data_id,
-            "stdout_conf": {"bk_data_id": std_collector.bk_data_id},
+            "rule_file_index_set_id": path_collector.index_set_id if path_collector else 0,
+            "rule_std_index_set_id": std_collector.index_set_id if std_collector else 0,
+            "file_index_set_id": path_collector.index_set_id if path_collector else 0,  # TODO: 兼容代码4.8需删除
+            "std_index_set_id": std_collector.index_set_id if std_collector else 0,  # TODO: 兼容代码4.8需删除
+            "bk_data_id": path_collector.bk_data_id if path_collector else 0,
+            "stdout_conf": {"bk_data_id": std_collector.bk_data_id if std_collector else 0},
         }
 
     def deal_self_call(self, **kwargs):
@@ -3480,6 +3638,9 @@ class CollectorHandler(object):
                             "match_labels": conf["label_selector"].get("match_labels", []),
                             "match_expressions": conf["label_selector"].get("match_expressions", []),
                         },
+                        "annotation_selector": {
+                            "match_annotations": conf["annotation_selector"].get("match_annotations", []),
+                        },
                         "rule_id": rule_id,
                         "parent_container_config_id": 0,
                         "collector_type": ContainerCollectorType.CONTAINER,
@@ -3510,8 +3671,11 @@ class CollectorHandler(object):
                             "match_labels": conf["label_selector"].get("match_labels", []),
                             "match_expressions": conf["label_selector"].get("match_expressions", []),
                         },
+                        "annotation_selector": {
+                            "match_annotations": conf["annotation_selector"].get("match_annotations", []),
+                        },
                         "rule_id": rule_id,
-                        "parent_container_config_id": path_collector.collector_config_id,
+                        "parent_container_config_id": path_collector.collector_config_id if path_collector else 0,
                         "collector_type": ContainerCollectorType.STDOUT,
                     }
                 )
@@ -3597,6 +3761,7 @@ class CollectorHandler(object):
                     data["configs"][x]["container"]["container_name_exclude"],
                     data["configs"][x]["label_selector"]["match_labels"],
                     data["configs"][x]["label_selector"]["match_expressions"],
+                    data["configs"][x]["annotation_selector"]["match_annotations"],
                 ]
             )
             if x < len(container_configs):
@@ -3620,6 +3785,7 @@ class CollectorHandler(object):
                 container_configs[x].container_name_exclude = data["configs"][x]["container"]["container_name_exclude"]
                 container_configs[x].match_labels = data["configs"][x]["label_selector"]["match_labels"]
                 container_configs[x].match_expressions = data["configs"][x]["label_selector"]["match_expressions"]
+                container_configs[x].match_annotations = data["configs"][x]["annotation_selector"]["match_annotations"]
                 container_configs[x].collector_type = data["configs"][x]["collector_type"]
                 container_configs[x].all_container = is_all_container
                 container_configs[x].raw_config = data["configs"][x].get("raw_config")
@@ -3648,6 +3814,7 @@ class CollectorHandler(object):
                     container_name_exclude=data["configs"][x]["container"]["container_name_exclude"],
                     match_labels=data["configs"][x]["label_selector"]["match_labels"],
                     match_expressions=data["configs"][x]["label_selector"]["match_expressions"],
+                    match_annotations=data["configs"][x]["annotation_selector"]["match_annotations"],
                     collector_type=data["configs"][x]["collector_type"],
                     all_container=is_all_container,
                     raw_config=data["configs"][x].get("raw_config"),
@@ -3938,31 +4105,8 @@ class CollectorHandler(object):
 
         return [(pod.metadata.namespace, pod.metadata.name) for pod in filtered_pods]
 
-    def preview_containers(
-        self,
-        topo_type,
-        bk_biz_id,
-        bcs_cluster_id,
-        namespaces=None,
-        namespaces_exclude=None,
-        label_selector=None,
-        container=None,
-    ):
-        """
-        预览匹配到的 nodes 或 pods
-        """
-        container = container or {}
-        namespaces = namespaces or []
-        namespaces_exclude = namespaces_exclude or []
-        label_selector = label_selector or {}
-
-        # 将标签匹配条件转换为表达式
-        match_expressions = label_selector.get("match_expressions", [])
-
-        # match_labels 本质上是个字典，需要去重
-        match_labels = {label["key"]: label["value"] for label in label_selector.get("match_labels", [])}
-        match_labels_list = ["{} = {}".format(label[0], label[1]) for label in match_labels.items()]
-
+    def get_expr_list(self, match_expressions):
+        expr_list = []
         for expression in match_expressions:
             if expression["operator"] == LabelSelectorOperator.IN:
                 expr = "{} in {}".format(expression["key"], expression["value"])
@@ -3974,17 +4118,90 @@ class CollectorHandler(object):
                 expr = "!{}".format(expression["key"])
             else:
                 expr = "{} = {}".format(expression["key"], expression["value"])
-            match_labels_list.append(expr)
-        selector_expression = ", ".join(match_labels_list)
+            expr_list.append(expr)
+        return expr_list
+
+    @staticmethod
+    def filter_pods_by_annotations(pods, match_annotations):
+        """
+        通过annotation过滤pod信息
+        """
+        # 用于存储符合条件的 pods
+        filtered_pods = []
+        # 遍历 pods，检查每个 pod 的 annotations
+        for pod in pods.items:
+            annotations = pod.metadata.annotations
+            if not annotations:
+                continue
+
+            is_matched = True
+            # 遍历match_annotations条件,如果不满足条件,is_matched设置为False
+            for _match in match_annotations:
+                key = _match["key"]
+                op = _match["operator"]
+                value = _match["value"].strip("()").split(",")
+                if op == LabelSelectorOperator.IN and not (key in annotations and annotations[key] in value):
+                    is_matched = False
+                elif op == LabelSelectorOperator.NOT_IN and not (key in annotations and annotations[key] not in value):
+                    is_matched = False
+                elif op == LabelSelectorOperator.EXISTS and key not in annotations:
+                    is_matched = False
+                elif op == LabelSelectorOperator.DOES_NOT_EXIST and key in annotations:
+                    is_matched = False
+
+            if is_matched:
+                # 满足匹配条件时,加入到结果列表中
+                filtered_pods.append(pod)
+
+        # 把返回的数据重新构建为V1PodList类型
+        return client.models.V1PodList(
+            api_version=pods.api_version,
+            kind=pods.kind,
+            items=filtered_pods,
+            metadata=pods.metadata,
+        )
+
+    def preview_containers(
+        self,
+        topo_type,
+        bk_biz_id,
+        bcs_cluster_id,
+        namespaces=None,
+        namespaces_exclude=None,
+        label_selector=None,
+        annotation_selector=None,
+        container=None,
+    ):
+        """
+        预览匹配到的 nodes 或 pods
+        """
+        container = container or {}
+        namespaces = namespaces or []
+        namespaces_exclude = namespaces_exclude or []
+        label_selector = label_selector or {}
+        annotation_selector = annotation_selector or {}
+
+        # 将标签匹配条件转换为表达式
+        match_expressions = label_selector.get("match_expressions", [])
+
+        # match_labels 本质上是个字典，需要去重
+        match_labels = {label["key"]: label["value"] for label in label_selector.get("match_labels", [])}
+        match_labels_list = ["{} = {}".format(label[0], label[1]) for label in match_labels.items()]
+
+        match_labels_list.extend(self.get_expr_list(match_expressions))
+        label_expression = ", ".join(match_labels_list)
+
+        # annotation selector expr解析
+        match_annotations = annotation_selector.get("match_annotations", [])
 
         api_instance = Bcs(cluster_id=bcs_cluster_id).api_instance_core_v1
         previews = []
 
         # Node 预览
         if topo_type == TopoType.NODE.value:
-            if selector_expression:
+            if label_expression:
                 # 如果有多条表达式，需要拆分为多个去请求，以获取每个表达式实际匹配的数量
-                nodes = api_instance.list_node(label_selector=selector_expression)
+                nodes = api_instance.list_node(label_selector=label_expression)
             else:
                 nodes = api_instance.list_node()
             previews.append(
@@ -3995,16 +4212,20 @@ class CollectorHandler(object):
         # Pod 预览
         # 当存在标签表达式时，以标签表达式维度展示
         # 当不存在标签表达式时，以namespace维度展示
-        if selector_expression:
+        if label_expression:
             if not namespaces or len(namespaces) > 1 or namespaces_exclude:
-                pods = api_instance.list_pod_for_all_namespaces(label_selector=selector_expression)
+                pods = api_instance.list_pod_for_all_namespaces(label_selector=label_expression)
             else:
-                pods = api_instance.list_namespaced_pod(label_selector=selector_expression, namespace=namespaces[0])
+                pods = api_instance.list_namespaced_pod(label_selector=label_expression, namespace=namespaces[0])
         else:
             if not namespaces or len(namespaces) > 1 or namespaces_exclude:
                 pods = api_instance.list_pod_for_all_namespaces()
             else:
                 pods = api_instance.list_namespaced_pod(namespace=namespaces[0])
+
+        if match_annotations:
+            # 根据annotation过滤
+            pods = self.filter_pods_by_annotations(pods, match_annotations)
 
         is_shared_cluster = False
         shared_cluster_namespace = list()
@@ -4154,6 +4375,7 @@ class CollectorHandler(object):
             }
 
         add_pod_label = False
+        add_pod_annotation = False
         extra_labels = {}
         container_configs = []
 
@@ -4192,11 +4414,17 @@ class CollectorHandler(object):
                 }
 
             add_pod_label = config["addPodLabel"]
+            add_pod_annotation = config["addPodAnnotation"]
             extra_labels = config.get("extMeta", {})
             conditions = convert_filters_to_collector_condition(config.get("filters", []), config.get("delimiter", ""))
 
             match_expressions = config.get("labelSelector", {}).get("matchExpressions", [])
             for expr in match_expressions:
+                # 转换为字符串
+                expr["value"] = ",".join(expr.get("values") or [])
+
+            match_annotations = config.get("annotationSelector", {}).get("matchExpressions", [])
+            for expr in match_annotations:
                 # 转换为字符串
                 expr["value"] = ",".join(expr.get("values") or [])
 
@@ -4221,6 +4449,9 @@ class CollectorHandler(object):
                         ],
                         "match_expressions": match_expressions,
                     },
+                    "annotation_selector": {
+                        "match_annotations": match_annotations,
+                    },
                     "params": {
                         "paths": config.get("path", []),
                         "exclude_files": config.get("exclude_files", []),
@@ -4242,6 +4473,7 @@ class CollectorHandler(object):
                 "environment": Environment.CONTAINER,
                 "extra_labels": [{"key": key, "value": value} for key, value in extra_labels.items()],
                 "add_pod_label": add_pod_label,
+                "add_pod_annotation": add_pod_annotation,
                 "configs": container_configs,
             },
         }
@@ -4419,6 +4651,7 @@ class CollectorHandler(object):
                 "dataId": collector_config.bk_data_id,
                 "extMeta": {label["key"]: label["value"] for label in collector_config.extra_labels},
                 "addPodLabel": collector_config.add_pod_label,
+                "addPodAnnotation": collector_config.add_pod_annotation,
             }
         )
         return raw_config
@@ -4463,6 +4696,18 @@ class CollectorHandler(object):
                 if container_config.match_expressions
                 else [],
             },
+            "annotationSelector": {
+                "matchExpressions": [
+                    {
+                        "key": expression["key"],
+                        "operator": expression["operator"],
+                        "values": [v.strip() for v in expression.get("value", "").split(",") if v.strip()],
+                    }
+                    for expression in container_config.match_annotations
+                ]
+                if container_config.match_annotations
+                else [],
+            },
             "multiline": {
                 "pattern": container_config.params.get("multiline_pattern"),
                 "maxLines": container_config.params.get("multiline_max_lines"),
@@ -4484,12 +4729,13 @@ class CollectorHandler(object):
 
     @classmethod
     def container_dict_configs_to_yaml(
-        cls, container_configs: List[Dict], add_pod_label: bool, extra_labels: List
+        cls, container_configs: List[Dict], add_pod_label: bool, add_pod_annotation: bool, extra_labels: List
     ) -> str:
         """
         将字典格式的容器采集配置转为yaml
         @param container_configs: 容器采集配置实例
         @param add_pod_label: 上报时是否把标签带上
+        @param add_pod_annotation: 上报时是否把注解带上
         @param extra_labels: 额外标签
         @return: 将多个配置转为yaml结果
         """
@@ -4513,6 +4759,7 @@ class CollectorHandler(object):
                         container_config["container_name_exclude"],
                         container_config["match_labels"],
                         container_config["match_expressions"],
+                        container_config.get("match_annotations", []),
                     ]
                 ),
                 "any_namespace": not any([container_config["namespaces"], container_config["namespaces_exclude"]]),
@@ -4525,6 +4772,7 @@ class CollectorHandler(object):
                 {
                     "extMeta": {label["key"]: label["value"] for label in extra_labels if label},
                     "addPodLabel": add_pod_label,
+                    "addPodAnnotation": add_pod_annotation,
                 }
             )
             result.append(container_raw_config)

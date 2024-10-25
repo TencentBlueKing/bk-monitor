@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import datetime
 import json
 
@@ -289,6 +288,7 @@ class BaseModelWithTime(models.Model):
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updater = models.CharField("更新者", max_length=64)
     updated_at = models.DateTimeField("更新时间", auto_now=True)
+    STORAGE_TYPE = "victoria_metrics"
 
     class Meta:
         abstract = True

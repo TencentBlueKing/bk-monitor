@@ -39,8 +39,7 @@ import type { IExtendMetricData, IViewOptions, PanelModel } from '../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 function removeUndefined(obj) {
-  Object.keys(obj).forEach(key => {
-    const value = obj[key];
+  for (const [key, value] of Object.entries(obj)) {
     if (isObject(value)) {
       // 如果属性值为对象或数组，则递归调用该函数
       removeUndefined(value);
@@ -55,7 +54,7 @@ function removeUndefined(obj) {
         delete obj[key];
       }
     }
-  });
+  }
   return obj; // 返回处理后的对象
 }
 
@@ -92,7 +91,9 @@ export default class ToolsMixin extends Vue {
           expression: '',
           query_configs: [],
         };
+        // biome-ignore lint/complexity/noForEach: <explanation>
         targets.forEach(target => {
+          // biome-ignore lint/complexity/noForEach: <explanation>
           target.data?.query_configs?.forEach(queryConfig => {
             const resultMetrics = result.query_configs.map(item => item.metrics[0].field);
             if (!resultMetrics.includes(queryConfig.metrics[0].field)) {
@@ -103,7 +104,9 @@ export default class ToolsMixin extends Vue {
           });
         });
       } else {
+        // biome-ignore lint/complexity/noForEach: <explanation>
         targets.forEach(target => {
+          // biome-ignore lint/complexity/noForEach: <explanation>
           target.data?.query_configs?.forEach(queryConfig => {
             if (queryConfig.metrics.map(item => item.field).includes(metric.metric_field) && !result) {
               let config = deepClone(queryConfig);
@@ -188,12 +191,12 @@ export default class ToolsMixin extends Vue {
       });
       return;
     }
-    targets.forEach(target => {
+    for (const target of targets) {
       target.data.query_configs =
         target?.data?.query_configs.map(queryConfig =>
           queryConfigTransform(variablesService.transformVariables(queryConfig), scopedVars)
         ) || [];
-    });
+    }
     /** 判断跳转日志检索 */
     const isLog = targets.some(item =>
       item.data.query_configs.some(set => set.data_source_label === 'bk_log_search' && set.data_type_label === 'log')

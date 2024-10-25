@@ -37,6 +37,7 @@
         :retrieve-params="retrieveParams"
         :show-retrieve-condition="showRetrieveCondition"
         :timezone="timezone"
+        :clustering-data="clusteringData"
         @close-retrieve-condition="closeRetrieveCondition"
         @date-picker-change="retrieveWhenDateChange"
         @open="openRetrieveCondition"
@@ -168,6 +169,7 @@
                   :date-picker-value="datePickerValue"
                   :retrieve-search-number="retrieveSearchNumber"
                   @fields-updated="handleFieldsUpdated"
+                  @select-fields-config="handleSelectFieldsConfig"
                 />
               </div>
             </div>
@@ -261,15 +263,14 @@
     />
     <!-- 聚类设置全屏弹窗 -->
     <setting-modal
+      v-model="isShowSettingModal"
       :clean-config="cleanConfig"
       :config-data="clusteringData"
       :date-picker-value="datePickerValue"
       :index-set-item="indexSetItem"
-      :is-show-dialog="isShowSettingModal"
       :retrieve-params="retrieveParams"
       :select-choice="clickSettingChoice"
       :total-fields="totalFields"
-      @close-setting="isShowSettingModal = false"
       @update-log-fields="requestFields"
     />
     <!-- 收藏更新弹窗 -->
@@ -287,7 +288,13 @@
 </template>
 
 <script>
-  import { readBlobRespToJson, parseBigNumberList, setDefaultTableWidth } from '@/common/util';
+  import {
+    readBlobRespToJson,
+    parseBigNumberList,
+    setDefaultTableWidth,
+    getHaveValueIndexItem,
+    getStorageIndexItem,
+  } from '@/common/util';
   import AuthContainerPage from '@/components/common/auth-container-page';
   import LogIpSelector from '@/components/log-ip-selector/log-ip-selector';
   import indexSetSearchMixin from '@/mixins/indexSet-search-mixin';
@@ -302,7 +309,6 @@
   import { updateTimezone } from '../../language/dayjs';
   import AddCollectDialog from './collect/add-collect-dialog';
   import CollectIndex from './collect/collect-index';
-  // import IpSelectorDialog from '@/components/collection-access/ip-selector-dialog';
   import SelectIndexSet from './condition-comp/select-index-set.tsx';
   import NoIndexSet from './result-comp/no-index-set';
   import ResultHeader from './result-comp/result-header';
@@ -406,7 +412,7 @@
         clusteringData: {
           // 日志聚类参数
           name: '',
-          is_active: true,
+          is_active: false,
           extra: {
             collector_config_id: null,
             signature_switch: false,
@@ -497,7 +503,7 @@
         isExternal: state => state.isExternal,
         externalMenu: state => state.externalMenu,
       }),
-      ...mapGetters(['asIframe', 'iframeQuery']),
+      ...mapGetters(['asIframe', 'iframeQuery', 'isNewRetrieveRoute']),
       ...mapGetters({
         authMainPageInfo: 'globals/authContainerInfo',
         unionIndexList: 'unionIndexList',
@@ -539,10 +545,26 @@
       },
       spaceUid: {
         async handler() {
+          // 当前改变目标是新版首页
+          if (this.isNewRetrieveRoute) {
+            this.$router.replace({
+              params: {
+                indexId: undefined,
+              },
+              query: {
+                spaceUid: this.spaceUid,
+                bizId: this.bkBizId,
+              },
+            });
+
+            return;
+          }
+
           this.indexId = '';
           this.indexSetList.splice(0);
           this.totalFields.splice(0);
           this.retrieveParams.bk_biz_id = this.bkBizId;
+
           // 外部版 无检索权限跳转后不更新页面数据
           if (!this.isExternal || (this.isExternal && this.externalMenu.includes('retrieve'))) {
             this.fetchPageData();
@@ -574,9 +596,6 @@
         },
       },
     },
-    created() {
-      this.getGlobalsData();
-    },
     mounted() {
       window.bus.$on('retrieveWhenChartChange', this.retrieveWhenChartChange);
     },
@@ -587,7 +606,6 @@
 
     // },
     beforeDestroy() {
-      console.log('--beforeDestroy');
       this.isInDestroy = true;
       updateTimezone();
       this.$store.commit('updateUnionIndexList', []);
@@ -707,7 +725,7 @@
       },
       // 初始化索引集
       requestIndexSetList() {
-        const spaceUid = this.$route.query.spaceUid && this.isFirstLoad ? this.$route.query.spaceUid : this.spaceUid;
+        const spaceUid = this.spaceUid;
         this.basicLoading = true;
         this.$http
           .request('retrieve/getIndexSetList', {
@@ -745,7 +763,7 @@
               // 如果都没有权限或者路由带过来的索引集无权限则显示索引集无权限
 
               if (!indexSetList[0]?.permission?.[authorityMap.SEARCH_LOG_AUTH] || isRouteIndex) {
-                const authIndexID = indexId || indexSetList[0].index_set_id;
+                const authIndexID = indexId || getHaveValueIndexItem(indexSetList);
                 this.$store
                   .dispatch('getApplyData', {
                     action_ids: [authorityMap.SEARCH_LOG_AUTH],
@@ -781,7 +799,7 @@
               if (indexId) {
                 // 1、初始进入页面带ID；2、检索ID时切换业务；
                 const indexItem = indexSetList.find(item => item.index_set_id === indexId);
-                this.indexId = indexItem ? indexItem.index_set_id : indexSetList[0].index_set_id;
+                this.indexId = indexItem ? indexItem.index_set_id : getHaveValueIndexItem(indexSetList);
                 this.retrieveLog();
               } else if (this.isInitPage && this.checkIsUnionSearch()) {
                 // 初始化联合查询
@@ -790,7 +808,7 @@
                 // 直接进入检索页
                 this.indexId = indexSetList.some(item => item.index_set_id === this.storedIndexID)
                   ? this.storedIndexID
-                  : indexSetList[0].index_set_id;
+                  : getStorageIndexItem(indexSetList);
                 if (this.isAsIframe) {
                   // 监控 iframe
                   if (this.localIframeQuery.indexId) {
@@ -804,9 +822,9 @@
                     spaceUid: this.$store.state.spaceUid,
                     bizId: this.$store.state.bkBizId,
                   };
-                  if (this.$route.query.from) {
-                    queryObj.from = this.$route.query.from;
-                  }
+                  // if (this.$route.query.from) {
+                  //   queryObj.from = this.$route.query.from;
+                  // }
                   this.setRouteParams(
                     'retrieve',
                     {
@@ -825,9 +843,9 @@
                 spaceUid: this.$store.state.spaceUid,
                 bizId: this.$store.state.bkBizId,
               };
-              if (this.$route.query.from) {
-                queryObj.from = this.$route.query.from;
-              }
+              // if (this.$route.query.from) {
+              //   queryObj.from = this.$route.query.from;
+              // }
               this.setRouteParams(
                 'retrieve',
                 {
@@ -1413,16 +1431,6 @@
           queryObj,
         );
 
-        // this.$router.push({
-        //   name: 'retrieve',
-        //   // 联合查询不需要路由索引集ID
-        //   params: this.isUnionSearch
-        //     ? undefined
-        //     : {
-        //         indexId: this.indexId,
-        //       },
-        //   query: queryObj,
-        // });
         // 接口请求
         try {
           this.tableLoading = true;
@@ -1485,7 +1493,7 @@
 
           if (this.isFavoriteSearch && this.activeFavorite?.is_enable_display_fields) {
             const { display_fields: favoriteDisplayFields } = this.activeFavorite;
-            const sessionShownFieldList = this.sessionShowFieldObj()?.[this.indexId] ?? [];
+            const sessionShownFieldList = this.$store.state.retrieve.catchFieldCustomConfig.displayFields;
             const displayFields = [...new Set([...sessionShownFieldList, ...favoriteDisplayFields])];
             this.handleFieldsUpdated(displayFields, undefined, false);
           }
@@ -1505,7 +1513,6 @@
       },
       // 更新路由参数
       setRouteParams(name = 'retrieve', params, query) {
-        console.log('--setRouteParams', this.isInDestroy);
         if (this.isInDestroy) {
           return;
         }
@@ -1605,8 +1612,9 @@
           this.asyncExportUsableReason = !asyncExport.is_active ? asyncExport.extra?.usable_reason || '' : '';
           this.timeField = timeField;
           this.totalFields = fields;
-          // 请求字段时 判断当前索引集是否有更改过字段 若更改过字段则使用session缓存的字段显示
-          const sessionShownFieldList = this.sessionShowFieldObj()?.[this.indexId];
+          this.$store.commit('retrieve/updateCatchFieldCustomConfig', data.user_custom_config); // 更新用户个人配置
+          const catchDisplayFields = this.$store.state.retrieve.catchFieldCustomConfig.displayFields;
+          const sessionShownFieldList = catchDisplayFields.length ? catchDisplayFields : null;
           // 后台给的 display_fields 可能有无效字段 所以进行过滤，获得排序后的字段
           this.initVisibleFields(sessionShownFieldList ?? displayFields);
           this.sortList = sortList;
@@ -1667,11 +1675,6 @@
           this.setDefaultTableColumn();
         }
       },
-      sessionShowFieldObj() {
-        // 显示字段缓存
-        const showFieldStr = sessionStorage.getItem('showFieldSession');
-        return !showFieldStr ? {} : JSON.parse(showFieldStr);
-      },
       /**
        * @desc: 字段设置更新了
        * @param {Array} displayFieldNames 展示字段
@@ -1679,22 +1682,25 @@
        * @param {Boolean} isRequestFields 是否请求字段
        */
       async handleFieldsUpdated(displayFieldNames, showFieldAlias, isRequestFields = true) {
-        this.$store.commit('updateClearTableWidth', 1);
-        // 缓存展示字段
-        const showFieldObj = this.sessionShowFieldObj();
-        Object.assign(showFieldObj, { [this.indexId]: displayFieldNames });
-        sessionStorage.setItem('showFieldSession', JSON.stringify(showFieldObj));
         if (showFieldAlias !== undefined) {
           this.showFieldAlias = showFieldAlias;
           window.localStorage.setItem('showFieldAlias', showFieldAlias);
         }
         await this.$nextTick();
         if (!isRequestFields) {
+          this.$store.dispatch('userFieldConfigChange', {
+            displayFields: displayFieldNames,
+          });
           this.initVisibleFields(displayFieldNames);
         } else {
           this.isSetDefaultTableColumn = false;
           this.requestFields();
         }
+      },
+      handleSelectFieldsConfig() {
+        const displayFields = this.$store.state.retrieve.catchFieldCustomConfig.displayFields;
+        this.initVisibleFields(displayFields);
+        this.setDefaultTableColumn();
       },
       requestTableData() {
         if (this.requesting) return;
@@ -1794,11 +1800,7 @@
       },
       // 首次加载设置表格默认宽度自适应
       setDefaultTableColumn() {
-        // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
-        const storageKey = this.isUnionSearch ? 'TABLE_UNION_COLUMN_WIDTH' : 'table_column_width_obj';
-        const columnWidth = JSON.parse(localStorage.getItem(storageKey));
-        const indexKey = this.isUnionSearch ? this.unionIndexList.sort().join('-') : this.indexId;
-        const catchFieldsWidthObj = columnWidth?.[this.bkBizId]?.fields[indexKey];
+        const catchFieldsWidthObj = this.$store.state.retrieve.catchFieldCustomConfig.fieldsWidth;
         const tableList = this.tableData?.list ?? [];
         this.isSetDefaultTableColumn = setDefaultTableWidth(this.visibleFields, tableList, catchFieldsWidthObj);
       },
@@ -1956,18 +1958,6 @@
           this.isSqlSearchType = true;
         }
       },
-      // 获取全局数据和 判断是否可以保存 已有的日志聚类
-      getGlobalsData() {
-        if (Object.keys(this.globalsData).length) return;
-        this.$http
-          .request('collect/globals')
-          .then(res => {
-            this.$store.commit('globals/setGlobalsData', res.data);
-          })
-          .catch(e => {
-            console.warn(e);
-          });
-      },
       initToolTipsMessage(config) {
         const { contextAndRealtime, bcsWebConsole } = config;
         return {
@@ -2119,11 +2109,6 @@
         }
 
         this.setRouteParams('retrieve', params, newQuery);
-        // this.$router.push({
-        //   name: 'retrieve',
-        //   params,
-        //   query: newQuery,
-        // });
       },
     },
   };

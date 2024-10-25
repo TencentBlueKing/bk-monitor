@@ -266,7 +266,7 @@ class BaseSender(object):
             if succeed_count:
                 metrics.ACTION_NOTICE_API_CALL_COUNT.labels(
                     notice_way=notice_way, status=metrics.StatusEnum.SUCCESS
-                ).inc(failed_count)
+                ).inc(succeed_count)
 
         return notice_results
 
@@ -404,7 +404,7 @@ class Sender(BaseSender):
         except Exception as e:
             result = False
             message = str(e)
-            logger.error("send.voice failed, {}".format(e))
+            logger.exception("send.voice failed, {}".format(e))
 
         notice_result[notice_receivers] = {"message": message, "result": result}
         return notice_result
@@ -545,7 +545,7 @@ class Sender(BaseSender):
             except Exception as e:
                 result = False
                 message = str(e)
-                logger.error("send.wxwork_group failed, {}".format(e))
+                logger.exception("send.wxwork_group failed, {}".format(e))
 
             if action_plugin == ActionPluginType.NOTICE and settings.WXWORK_BOT_SEND_IMAGE:
                 # 只有告警通知才发送图片，执行不做图片发送
@@ -563,7 +563,7 @@ class Sender(BaseSender):
                             )
                         )
                 except Exception as e:
-                    logger.error("send.wxwork_group image failed, {}".format(e))
+                    logger.exception("send.wxwork_group image failed, {}".format(e))
 
         for notice_receiver in notice_receivers:
             notice_result[notice_receiver] = {"message": message, "result": result}

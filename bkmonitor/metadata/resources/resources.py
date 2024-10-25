@@ -12,10 +12,14 @@ specific language governing permissions and limitations under the License.
 import base64
 import json
 import logging
+import uuid
 from itertools import chain
 from typing import Dict, List
 
 import yaml
+from confluent_kafka import Consumer as ConfluentConsumer
+from confluent_kafka import KafkaError, KafkaException
+from confluent_kafka import TopicPartition as ConfluentTopicPartition
 from django.conf import settings
 from django.db.models import Q
 from django.db.models.query import QuerySet
@@ -28,7 +32,8 @@ from rest_framework.exceptions import ValidationError
 from bkmonitor.utils import consul
 from bkmonitor.utils.k8s_metric import get_built_in_k8s_events, get_built_in_k8s_metrics
 from bkmonitor.utils.request import get_app_code_by_request, get_request
-from core.drf_resource import Resource
+from constants.data_source import DATA_LINK_V4_VERSION_NAME
+from core.drf_resource import Resource, api
 from metadata import config, models
 from metadata.config import ES_ROUTE_ALLOW_URL
 from metadata.models.bcs import (
@@ -96,8 +101,8 @@ class CreateDataIDResource(Resource):
             except ValueError:
                 raise ValueError(_("空间唯一标识{}错误").format(space_uid))
 
-        request = get_request()
-        bk_app_code = get_app_code_by_request(request)
+        request = get_request(peaceful=True)
+        bk_app_code = get_app_code_by_request(request) if request else None
         # 当请求的 app_code 为空时，记录请求，用于后续优化处理
         if not bk_app_code:
             logger.error(
@@ -1777,6 +1782,12 @@ class EsRouteResource(Resource):
 
 
 class KafkaTailResource(Resource):
+    """
+    根据table_id消费kafka数据
+    Note: 由于存在第三方Kafka的场景（如计算平台Kafka），接口中使用了confluent_kafka和kafka_python两个SDK，使用时需要注意Confluent和kafka的函数调用
+    如Consumer和ConfluentConsumer，其中confluent_kafka相关主要针对2.4+版本的Kafka鉴权，如SCRAM-SHA-512
+    """
+
     class RequestSerializer(serializers.Serializer):
         table_id = serializers.CharField(required=True, label="结果表ID")
         size = serializers.IntegerField(required=False, label="拉取条数", default=10)
@@ -1786,7 +1797,99 @@ class KafkaTailResource(Resource):
             result_table = models.ResultTable.objects.get(table_id=validated_request_data["table_id"])
         except models.ResultTable.DoesNotExist:
             raise ValidationError(_("结果表不存在"))
+
         datasource = result_table.data_source
+        size = validated_request_data["size"]
+        mq_ins = models.ClusterInfo.objects.get(cluster_id=datasource.mq_cluster_id)
+
+        # 若Kafka集群注册自计算平台，说明使用2.4+鉴权，使用confluent_kafka库
+        if mq_ins.registered_system == models.ClusterInfo.BKDATA_REGISTERED_SYSTEM:
+            result = self._consume_with_confluent_kafka(mq_ins, datasource, size)
+        # 查询 ds 判断是否是v4协议接入
+        elif datasource.datalink_version == DATA_LINK_V4_VERSION_NAME:
+            result = self._consume_with_gse_config(datasource, size)
+        else:
+            result = self._consume_with_kafka_python(datasource, size)
+
+        result.reverse()
+        return result
+
+    def _consume_with_confluent_kafka(self, mq_ins, datasource, size):
+        """
+        使用confluent_kafka库消费kafka数据，针对2.4+鉴权认证的集群，如SCRAM-SHA-512
+        """
+        consumer_config = {
+            'bootstrap.servers': f"{datasource.mq_cluster.domain_name}:{datasource.mq_cluster.port}",
+            'group.id': f'bkmonitor-{uuid.uuid4()}',
+            'session.timeout.ms': 6000,
+            'auto.offset.reset': 'latest',
+            'security.protocol': mq_ins.schema,
+            'sasl.mechanisms': mq_ins.ssl_verification_mode,
+            'sasl.username': datasource.mq_cluster.username,
+            'sasl.password': datasource.mq_cluster.password,
+        }
+
+        consumer = ConfluentConsumer(consumer_config)
+        topic = datasource.mq_config.topic
+
+        # 获取该主题的所有分区
+        metadata = consumer.list_topics(topic)
+        partitions = metadata.topics[topic].partitions.keys()
+        topic_partitions = [ConfluentTopicPartition(topic, partition) for partition in partitions]
+
+        # 分配指定的分区
+        consumer.assign(topic_partitions)
+
+        # 在 assign 之后调用一次 poll 使 consumer 进入正确的状态
+        consumer.poll(0.5)
+
+        result = []
+        errors = []
+
+        for tp in topic_partitions:
+            # 获取该分区最大偏移量
+            low, high = consumer.get_watermark_offsets(tp)
+            end_offset = high
+            if not end_offset:
+                continue
+
+            # 设置消息消费偏移量
+            if end_offset >= size:
+                consumer.seek(ConfluentTopicPartition(topic, tp.partition, end_offset - size))
+            else:
+                consumer.seek(ConfluentTopicPartition(topic, tp.partition, 0))
+
+            while len(result) < size:
+                messages = consumer.consume(num_messages=size - len(result), timeout=1.0)
+                if not messages:
+                    break
+
+                for msg in messages:
+                    if msg.error():
+                        if msg.error().code() == KafkaError._PARTITION_EOF:
+                            break
+                        else:
+                            errors.append(msg.error())  # 记录错误信息
+                    else:
+                        try:
+                            result.append(json.loads(msg.value().decode()))
+                        except Exception:  # pylint: disable=broad-except
+                            pass
+                    if msg.offset() == end_offset - 1:
+                        break
+
+        consumer.close()
+
+        # 检查是否有错误并且没有成功读取到数据
+        if not result and errors:
+            raise KafkaException(errors)
+
+        return result
+
+    def _consume_with_kafka_python(self, datasource, size):
+        """
+        使用kafka-python库消费kafka数据，针对PLAIN认证的集群
+        """
         param = {
             "bootstrap_servers": f"{datasource.mq_cluster.domain_name}:{datasource.mq_cluster.port}",
             "request_timeout_ms": 1000,
@@ -1798,7 +1901,6 @@ class KafkaTailResource(Resource):
             param["security_protocol"] = "SASL_PLAINTEXT"
             param["sasl_mechanism"] = "PLAIN"
         consumer = KafkaConsumer(datasource.mq_config.topic, **param)
-        size = validated_request_data["size"]
         consumer.poll(size)
         topic_partitions = consumer.partitions_for_topic(datasource.mq_config.topic)
         if not topic_partitions:
@@ -1826,7 +1928,88 @@ class KafkaTailResource(Resource):
                 if msg.offset == end_offset - 1:
                     break
 
-        return result.reverse()
+        return result
+
+    def _consume_with_gse_config(self, datasource, size):
+        """
+        从gse获取V4链路的kafka集群信息
+        """
+        route_params = {
+            "condition": {"channel_id": datasource.bk_data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
+            "operation": {"operator_name": settings.COMMON_USERNAME},
+        }
+
+        route_info_list = api.gse.query_route(**route_params)
+        stream_to_id = None
+        topic = None
+        for route_list in route_info_list:
+            # Todo: 当前只有1条route
+            if route_list:
+                route = route_list["route"][0]
+                stream_to = route.get("stream_to", {}) if isinstance(route, dict) else {}
+                stream_to_id = stream_to.get("stream_to_id")
+                topic = stream_to.get("kafka", {}).get("topic_name")
+                if stream_to_id and topic:
+                    break
+
+        if not (stream_to_id and topic):
+            return []
+
+        kafka_params = {
+            "condition": {
+                "stream_to_id": stream_to_id,
+                "plat_name": config.DEFAULT_GSE_API_PLAT_NAME,
+            },
+            "operation": {"operator_name": settings.COMMON_USERNAME},
+        }
+
+        kafka_config_list = api.gse.query_stream_to(**kafka_params)
+
+        # Todo: 当前只有1条kafka_addr
+        kafka_addr = None
+        for kafka_config in kafka_config_list:
+            kafka_addr_list = kafka_config.get("kafka", {}).get("storage_address", [])
+            if kafka_addr_list:
+                kafka_addr = kafka_addr_list[0]
+                break
+        if not (isinstance(kafka_addr, dict) and kafka_addr.get("ip") and kafka_addr.get("port")):
+            return []
+
+        consumer_config = {
+            'bootstrap_servers': f"{kafka_addr['ip']}:{kafka_addr['port']}",
+            "request_timeout_ms": 1000,
+            "consumer_timeout_ms": 1000,
+        }
+
+        consumer = KafkaConsumer(topic, **consumer_config)
+        consumer.poll(size)
+        topic_partitions = consumer.partitions_for_topic(topic)
+        if not topic_partitions:
+            raise ValueError(_("partition获取失败"))
+        result = []
+        for partition in topic_partitions:
+            # 获取该分区最大偏移量
+            tp = TopicPartition(topic=topic, partition=partition)
+            end_offset = consumer.end_offsets([tp])[tp]
+            if not end_offset:
+                continue
+
+            # 设置消息消费偏移量
+            if end_offset >= size:
+                consumer.seek(tp, end_offset - size)
+            else:
+                consumer.seek_to_beginning()
+            for msg in consumer:
+                try:
+                    result.append(json.loads(msg.value.decode()))
+                except Exception:  # pylint: disable=broad-except
+                    pass
+                if len(result) >= size:
+                    return result
+                if msg.offset == end_offset - 1:
+                    break
+
+        return result
 
 
 class QueryResultTableStorageDetailResource(Resource):

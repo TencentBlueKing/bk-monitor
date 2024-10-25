@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from furl import furl
+
 from monitor_web.plugin.constant import ParamMode
 from monitor_web.plugin.manager.base import PluginManager
 from monitor_web.plugin.serializers import PushgatewaySerializer
@@ -23,7 +24,7 @@ class PushgatewayPluginManager(PluginManager):
     templates_dirname = "pushgateway_templates"
     serializer_class = PushgatewaySerializer
 
-    def get_debug_config_context(self, config_version, info_version, param, target_nodes):
+    def _get_debug_config_context(self, config_version, info_version, param, target_nodes):
         specific_version = self.plugin.get_version(config_version, info_version)
         config_json = specific_version.config.config_json
 
@@ -87,12 +88,12 @@ class PushgatewayPluginManager(PluginManager):
         diff_metrics = plugin_version.config.diff_fields
         collector_params["diff_metrics"] = diff_metrics.split(",") if diff_metrics else []
         deploy_steps = [
-            self.get_bkmonitorbeat_deploy_step("bkmonitorbeat_prometheus.conf", {"context": collector_params})
+            self._get_bkmonitorbeat_deploy_step("bkmonitorbeat_prometheus.conf", {"context": collector_params})
         ]
         return deploy_steps
 
-    def get_remote_stage(self, meta_dict):
+    def _get_remote_stage(self, meta_dict):
         return True
 
-    def get_collector_json(self, plugin_params):
+    def _get_collector_json(self, plugin_params):
         return {}

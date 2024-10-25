@@ -94,6 +94,7 @@ export default defineComponent({
     const treeData = shallowRef([]);
     const checkedIds = ref([]);
     const autoAggregate = ref(true);
+    const aggregateCluster = ref(true);
     let autoAggregateIdText = '';
     const isFullscreen = ref(false);
     const { t } = useI18n();
@@ -207,6 +208,11 @@ export default defineComponent({
       setTreeDataChecked();
       updateAggregationConfig();
     };
+    /** 更新调用关系聚合 */
+    const handleUpdateAggregateCluster = (v: boolean) => {
+      aggregateCluster.value = v;
+      updateAggregationConfig();
+    };
     /** 播放 */
     const handlePlay = value => {
       emit('play', value);
@@ -214,10 +220,12 @@ export default defineComponent({
     const getAggregationConfigValue = () => {
       if (autoAggregate.value || !checkedIds.value.length) {
         return {
+          aggregate_cluster: aggregateCluster.value,
           auto_aggregate: autoAggregate.value,
         };
       }
       return {
+        aggregate_cluster: aggregateCluster.value,
         auto_aggregate: false,
         aggregate_config: aggregateConfig.value,
       };
@@ -254,6 +262,7 @@ export default defineComponent({
       handleChangeTimeLine,
       handleUpdateAutoAggregate,
       handleUpdateCheckedIds,
+      handleUpdateAggregateCluster,
       handleChangeRefleshTime,
       handleTimelineChange,
       handlePlay,
@@ -267,6 +276,7 @@ export default defineComponent({
           autoAggregate={this.autoAggregate}
           checkedIds={this.checkedIds}
           treeData={this.treeData}
+          onUpdate:aggregateCluster={this.handleUpdateAggregateCluster}
           onUpdate:autoAggregate={this.handleUpdateAutoAggregate}
           onUpdate:checkedIds={this.handleUpdateCheckedIds}
         />

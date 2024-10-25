@@ -217,6 +217,9 @@ CACHE_KEY_CLUSTER_INFO = "bulk_cluster_info_{}"
 
 DEFAULT_COLLECTOR_LENGTH = 2
 
+# 解析失败字段名
+PARSE_FAILURE_FIELD = "__parse_failure"
+
 
 class AsyncStatus(object):
     RUNNING = "RUNNING"
@@ -339,6 +342,14 @@ class EtlConfig(object):
     CUSTOM = "custom"
 
 
+class MetadataTypeEnum(ChoicesEnum):
+    PATH = "path"
+
+    _choices_labels = (
+        (PATH, _("路径元数据")),
+    )
+
+
 class EtlConfigChoices(ChoicesEnum):
     _choices_labels = (
         (EtlConfig.BK_LOG_TEXT, _("直接入库")),
@@ -440,7 +451,7 @@ class LabelSelectorOperator(object):
 
 
 # 容器采集配置项转yaml时需要排除的字段
-CONTAINER_CONFIGS_TO_YAML_EXCLUDE_FIELDS = ("container", "label_selector")
+CONTAINER_CONFIGS_TO_YAML_EXCLUDE_FIELDS = ("container", "label_selector", "annotation_selector")
 
 
 class CheckStatusEnum(ChoicesEnum):

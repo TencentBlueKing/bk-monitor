@@ -124,18 +124,20 @@ export default class QueryStatement extends tsc<object> {
   tabPanels = [
     {
       name: 'history',
-      icon: 'log-icon icon-lishijilu',
+      icon: 'bklog-icon bklog-lishijilu',
       label: window.mainComponent.$t('历史记录'),
     },
     {
       name: 'favorite',
-      icon: 'log-icon icon-star-shape',
+      icon: 'bklog-icon bklog-lc-star-shape',
       label: window.mainComponent.$t('收藏'),
     },
   ];
 
   /** 当前活跃的采样日志下标 */
   activeTab: ActiveType = 'history';
+
+  namePopoverInstance = null;
 
   verifyData = {
     favoriteName: '',
@@ -401,6 +403,14 @@ export default class QueryStatement extends tsc<object> {
         } else {
           this.indexSearchType = 'single';
         }
+      }
+
+      if (this.isAloneType) {
+        const catchIndexSetStr = localStorage.getItem('CATCH_INDEX_SET_ID_LIST');
+        const catchIndexSet = catchIndexSetStr ?? '{}';
+        const catchIndexSetList = JSON.parse(catchIndexSet);
+        catchIndexSetList[this.spaceUid] = this.selectAloneVal[0];
+        localStorage.setItem('CATCH_INDEX_SET_ID_LIST', JSON.stringify(catchIndexSetList));
       }
 
       this.aloneHistory = [];
@@ -740,6 +750,32 @@ export default class QueryStatement extends tsc<object> {
     return `${item.indexName}${item.lightenName}${item.tagSearchName ?? ''}`;
   }
 
+  handleHoverIndexName(e, item) {
+    const isOverflowing = e.target.scrollWidth > e.target.clientWidth;
+    const str = isOverflowing ? `${item.indexName} <br/> ${item.lightenName}` : item.lightenName;
+    this.destroyPopoverInstance();
+
+    if (!this.namePopoverInstance) {
+      this.namePopoverInstance = this.$bkPopover(e.target, {
+        content: `<span style='font-size: 12px;'>${str}</span>`,
+        arrow: true,
+        boundary: 'viewport',
+        placement: 'top-start',
+        zIndex: 9999,
+        onHidden: () => {
+          this.destroyPopoverInstance();
+        },
+      });
+      this.namePopoverInstance.show();
+    }
+  }
+
+  destroyPopoverInstance() {
+    this.namePopoverInstance?.hide();
+    this.namePopoverInstance?.destroy();
+    this.namePopoverInstance = null;
+  }
+
   render() {
     const labelFilter = () => {
       return (
@@ -838,7 +874,7 @@ export default class QueryStatement extends tsc<object> {
                 class='clear-btn'
                 onClick={e => this.handleDeleteHistory(null, e, true)}
               >
-                <i class='log-icon icon-brush'></i>
+                <i class='bklog-icon bklog-brush'></i>
                 <span>{this.$t('清空')}</span>
               </span>
             </div>
@@ -966,7 +1002,9 @@ export default class QueryStatement extends tsc<object> {
           >
             <span class='favorite-btn'>
               <i
-                class={[!!this.multipleFavoriteSelectID ? 'log-icon icon-star-shape' : 'log-icon bk-icon icon-star']}
+                class={[
+                  !!this.multipleFavoriteSelectID ? 'bklog-icon bklog-lc-star-shape' : 'log-icon bk-icon icon-star',
+                ]}
               ></i>
               <span>{this.$t('收藏该组合')}</span>
             </span>
@@ -1036,7 +1074,7 @@ export default class QueryStatement extends tsc<object> {
     const indexHandDom = item => {
       return this.isAloneType ? (
         <span
-          class={[item.is_favorite ? 'log-icon icon-star-shape' : 'log-icon bk-icon icon-star']}
+          class={[item.is_favorite ? 'bklog-icon bklog-lc-star-shape' : 'log-icon bk-icon icon-star']}
           onClick={e => this.handleCollection(item, e)}
         ></span>
       ) : (
@@ -1086,15 +1124,9 @@ export default class QueryStatement extends tsc<object> {
                         {item.isNotVal && <i class='not-val'></i>}
                         <span
                           class='index-name'
-                          v-bk-overflow-tips
+                          onMouseenter={e => this.handleHoverIndexName(e, item)}
                         >
                           {item.indexName}
-                        </span>
-                        <span
-                          class='lighten-name'
-                          v-bk-overflow-tips
-                        >
-                          {item.lightenName}
                         </span>
                       </span>
                       <div class='index-tags'>{getLabelDom(item.tags)}</div>

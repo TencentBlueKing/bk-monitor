@@ -76,7 +76,7 @@
         >
           <span
             style="font-size: 16px"
-            class="icon log-icon icon-set-icon"
+            class="icon bklog-icon bklog-set-icon"
           ></span>
         </div>
         <fields-config
@@ -91,7 +91,7 @@
           class="control-icon"
           @click="toggleScreenFull"
         >
-          <span class="icon log-icon icon-full-screen-log"></span>
+          <span class="icon bklog-icon bklog-full-screen-log"></span>
         </div>
       </div>
     </div>
@@ -120,8 +120,8 @@
 
     <p class="handle-tips">{{ $t('快捷键  Esc:退出; PageUp: 向上翻页; PageDn: 向下翻页') }}</p>
     <!--        <div class="scroll-bar">-->
-    <!--            <span class="icon log-icon icon-up" @click.stop="scrollPage('up')"></span>-->
-    <!--            <span class="icon log-icon icon-down" @click.stop="scrollPage('down')"></span>-->
+    <!--            <span class="icon bklog-icon bklog-up" @click.stop="scrollPage('up')"></span>-->
+    <!--            <span class="icon bklog-icon bklog-down" @click.stop="scrollPage('down')"></span>-->
     <!--        </div>-->
   </section>
 </template>
@@ -287,7 +287,7 @@
       async requestContentLog(direction) {
         const data = Object.assign(
           {
-            size: 500,
+            size: 50,
             zero: this.zero,
           },
           this.params,
@@ -437,7 +437,7 @@
                 this.$refs.contextLog.scrollTo({ top: newScrollHeight - scrollHeight });
               });
             });
-          } else if (scrollHeight - scrollTop - offsetHeight === 0) {
+          } else if (scrollHeight - scrollTop - offsetHeight < 1) {
             // 滚动到底部
             this.requestContentLog('down');
           }

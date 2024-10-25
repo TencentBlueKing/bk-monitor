@@ -21,8 +21,6 @@ from django.conf import settings
 from opentelemetry.semconv.resource import ResourceAttributes
 
 from apm import constants
-from apm.core.discover.precalculation.processor import PrecalculateProcessor
-from apm.core.discover.precalculation.storage import PrecalculateStorage
 from apm.models import ApmApplication, ApmTopoDiscoverRule, TraceDataSource
 from apm.utils.base import divide_biscuit
 from apm.utils.es_search import limits
@@ -32,15 +30,29 @@ from constants.apm import OtlpKey, SpanKind
 logger = logging.getLogger("apm")
 
 
-def get_topo_instance_key(keys: List[Tuple[str, str]], kind: str, category: str, item, skip_component_prefix=False):
+def get_topo_instance_key(
+    keys: List[Tuple[str, str]],
+    kind: str,
+    category: str,
+    item,
+    simple_component_instance=True,
+    component_predicate_key=None,
+):
+    """
+    simple_component_instance / component_predicate_key
+    对于组件类型 topo
+    如果simple_component_instance为 True 则只会返回 predicate.value 的值 需要在外部进行额外处理(拼接服务名称)
+    """
     if item is None:
         return OtlpKey.UNKNOWN_SERVICE
+
     instance_keys = []
-    if (
-        kind in [ApmTopoDiscoverRule.TOPO_COMPONENT, ApmTopoDiscoverRule.TOPO_REMOTE_SERVICE]
-        and not skip_component_prefix
-    ):
+    if kind == ApmTopoDiscoverRule.TOPO_COMPONENT:
+        if simple_component_instance and component_predicate_key:
+            return item.get(component_predicate_key[0], item).get(component_predicate_key[1], OtlpKey.UNKNOWN_COMPONENT)
+    elif kind == ApmTopoDiscoverRule.TOPO_REMOTE_SERVICE:
         instance_keys = [category]
+
     for first_key, second_key in keys:
         key = item.get(first_key, item).get(second_key, "")
         instance_keys.append(str(key))
@@ -339,7 +351,6 @@ class TopoHandler:
         """application spans discover"""
 
         start = datetime.datetime.now()
-        pre_calculate_storage = PrecalculateStorage(self.bk_biz_id, self.app_name)
         trace_id_count = 0
         span_count = 0
         max_result_count, per_trace_size, index_name = self._get_trace_task_splits()
@@ -371,24 +382,6 @@ class TopoHandler:
 
             # 拓扑发现任务
             topo_params = [(c, topo_spans, "topo") for c in DiscoverBase.DISCOVER_CLS]
-
-            # 预计算任务
-            if pre_calculate_storage.is_valid:
-                # 灰度应用不参与定时任务中的预计算功能
-                from apm.core.discover.precalculation.daemon import (
-                    PrecalculateGrayRelease,
-                )
-
-                if not PrecalculateGrayRelease.exist(self.application.id):
-                    pre_calculate_params = [
-                        (
-                            PrecalculateProcessor(pre_calculate_storage, self.bk_biz_id, self.app_name),
-                            all_spans,
-                            "pre_calculate",
-                        )
-                    ]
-                    topo_params += pre_calculate_params
-
             pool.map_ignore_exception(self._discover_handle, topo_params)
 
         logger.info(

@@ -44,7 +44,7 @@ export default class Strategy extends tsc<object> {
   /** 策略状态更新函数 */
   @Prop({ type: Function }) strategySubmitStatus: (v: boolean) => boolean;
   /** 日志聚类总开关 */
-  @Prop({ type: Boolean, default: false }) signatureSwitch: boolean;
+  @Prop({ type: Boolean, default: false }) clusterSwitch: boolean;
 
   isShowDialog = false;
   formLoading = false;
@@ -321,6 +321,9 @@ export default class Strategy extends tsc<object> {
       '_blank',
     );
   }
+  handleCreateUserGroups() {
+    window.open(`${window.MONITOR_URL}/?bizId=${this.bkBizId}#/alarm-group/add`, '_blank');
+  }
   render() {
     const strategyDialog = () => (
       <bk-dialog
@@ -338,7 +341,7 @@ export default class Strategy extends tsc<object> {
         <div slot='title'>
           <i18n path='当前页面提供快速配置，如需完整配置，请前往{0}'>
             <span class='info-btn'>
-              {$i18n.t('新建完整策略')} <i class='log-icon icon-jump'></i>
+              {$i18n.t('新建完整策略')} <i class='bklog-icon bklog-jump'></i>
             </span>
           </i18n>
         </div>
@@ -372,6 +375,8 @@ export default class Strategy extends tsc<object> {
         >
           <bk-form-item
             v-show={this.isAlarmType}
+            desc={$i18n.t('表示近一段时间内新增日志模式。可自定义新类判定的时间区间。如：近30天内新增')}
+            desc-type={'icon'}
             label={$i18n.t('新类告警间隔（天）')}
             property='interval'
             required
@@ -385,6 +390,8 @@ export default class Strategy extends tsc<object> {
           </bk-form-item>
           <bk-form-item
             v-show={this.isAlarmType}
+            desc={$i18n.t('表示某日志模式数量突然异常增长，可能某些模块突发风险')}
+            desc-type={'icon'}
             label={$i18n.t('新类告警阈值')}
             property='threshold'
             required
@@ -447,6 +454,7 @@ export default class Strategy extends tsc<object> {
           >
             <bk-select
               v-model={this.formData.user_groups}
+              ext-popover-cls='strategy-create-groups'
               display-tag
               multiple
               searchable
@@ -457,6 +465,14 @@ export default class Strategy extends tsc<object> {
                   name={item.name}
                 ></bk-option>
               ))}
+              <div
+                class='groups-btn'
+                slot='extension'
+                onClick={() => this.handleCreateUserGroups()}
+              >
+                <i class='bk-icon icon-plus-circle'></i>
+                {$i18n.t('新增告警组')}
+              </div>
             </bk-select>
           </bk-form-item>
         </bk-form>
@@ -465,12 +481,15 @@ export default class Strategy extends tsc<object> {
     const popoverSlot = (type: FormType = 'alarm') => (
       <bk-popover
         ext-cls='strategy-popover'
-        disabled={!this.signatureSwitch}
+        disabled={!this.clusterSwitch}
         placement='top'
         theme='light'
       >
-        <div class={['edit-strategy-box', type]}>
-          <i class={['bk-icon log-icon', type === 'alarm' ? 'icon-new-alarm' : 'icon-sudden-increase']}></i>
+        <div
+          class={['edit-strategy-box', type]}
+          onClick={() => this.editStrategy(type)}
+        >
+          <i class={['bklog-icon log-icon', type === 'alarm' ? 'bklog-new-alarm' : 'bklog-sudden-increase']}></i>
           {/* <span class='num'>1</span> */}
         </div>
         <div slot='content'>
@@ -496,12 +515,12 @@ export default class Strategy extends tsc<object> {
         <div class='new-built-container'>
           <div
             v-bk-tooltips={{
-              content: this.$t('请先删除策略'),
+              content: this.$t('聚类告警已开启，请点击右侧入口编辑策略'),
               disabled: !this.addBtnIsDisabled,
             }}
           >
             <bk-button
-              disabled={this.addBtnIsDisabled || !this.signatureSwitch}
+              disabled={this.addBtnIsDisabled || !this.clusterSwitch}
               icon='plus'
               size='small'
               onClick={this.handleAddNewStrategy}
@@ -521,7 +540,7 @@ export default class Strategy extends tsc<object> {
             <span>{$i18n.t('查看策略')}</span>
             <i
               style={{ 'margin-left': '4px' }}
-              class='log-icon icon-jump'
+              class='bklog-icon bklog-jump'
             ></i>
           </bk-button>
         )}

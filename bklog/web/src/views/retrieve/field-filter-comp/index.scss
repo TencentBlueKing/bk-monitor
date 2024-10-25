@@ -1,3 +1,5 @@
+@import '@/scss/mixins/flex.scss';
+
 .field-filter-container {
   font-size: 12px;
   line-height: 20px;
@@ -64,6 +66,10 @@
 
   .fields-container {
     margin-top: 20px;
+
+    .title {
+      @include flex-align();
+    }
 
     .all-field-item {
       display: inline-block;

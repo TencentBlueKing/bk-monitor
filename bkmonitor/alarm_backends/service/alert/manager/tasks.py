@@ -68,6 +68,7 @@ def check_blocked_alert():
     current_time = int(time.time())
     end_time = current_time - CONST_ONE_HOUR
     start_time = current_time - CONST_ONE_DAY
+    logger.info("[check_blocked_alert] begin %s - %s", start_time, end_time)
     search = (
         AlertDocument.search(start_time=start_time, end_time=end_time)
         .filter(Q("term", status=EventStatus.ABNORMAL) & Q('term', is_blocked=True))
@@ -78,23 +79,26 @@ def check_blocked_alert():
     cluster_bk_biz_ids = set(get_cluster_bk_biz_ids())
 
     alerts = []
+    total = 0
     # 这里用 scan 迭代的查询方式，目的是为了突破 ES 查询条数 1w 的限制
-    for hit in search.params(size=5000).scan():
+    for hit in search.params(size=BATCH_SIZE).scan():
         if not getattr(hit, "id", None) or not getattr(hit, "event", None) or not getattr(hit.event, "bk_biz_id", None):
             continue
         # 只处理集群内的告警
         if hit.event.bk_biz_id not in cluster_bk_biz_ids:
             continue
         alerts.append({"id": hit.id, "strategy_id": getattr(hit, "strategy_id", None)})
+        total += 1
+        if total % BATCH_SIZE == 0:
+            alert_keys = [AlertKey(alert_id=alert["id"], strategy_id=alert.get("strategy_id")) for alert in alerts]
+            check_blocked_alert_finished(alert_keys)
+            logger.info("[check_blocked_alert]  blocked alert processed (%s)", len(alert_keys))
+            alerts = []
 
-    for index in range(0, len(alerts), BATCH_SIZE):
-        alert_keys = [
-            AlertKey(alert_id=alert["id"], strategy_id=alert.get("strategy_id"))
-            for alert in alerts[index : index + BATCH_SIZE]
-        ]
-        check_blocked_alert_finished(alert_keys)
-
-    logger.info("[check_blocked_alert]  blocked alert total count(%s)", len(alerts))
+    alert_keys = [AlertKey(alert_id=alert["id"], strategy_id=alert.get("strategy_id")) for alert in alerts]
+    check_blocked_alert_finished(alert_keys)
+    total += len(alerts)
+    logger.info("[check_blocked_alert]  blocked alert total count(%s)", total)
 
 
 def check_blocked_alert_finished(alert_keys):

@@ -1,0 +1,489 @@
+/* stylelint-disable declaration-no-important */
+@import '../../../theme';
+
+.service-base-info-wrap {
+  position: static !important;
+  padding: 24px;
+  margin: 8px;
+  line-height: 20px;
+  background: white;
+
+  .info-wrap {
+    padding-left: 0;
+
+    .config-form-item {
+      float: left;
+      width: 250px;
+    }
+  }
+
+  .config-form-item {
+    margin-bottom: 16px;
+
+    @include flex-align;
+
+    .label {
+      width: 92px;
+      margin-right: 24px;
+      color: #979ba5;
+      text-align: right;
+    }
+
+    .content {
+      color: #313238;
+      white-space: nowrap;
+
+      @include flex-align;
+    }
+
+    .category-icon {
+      width: 14px;
+      height: 14px;
+      margin-right: 4px;
+    }
+
+    .relation-info-tag:first-child {
+      margin-left: 0;
+    }
+
+    .relation-info-tag {
+      .tag-label {
+        margin-right: 4px;
+      }
+
+      .category-tag {
+        @include flex-align;
+      }
+
+      .icon {
+        width: 14px;
+        height: 14px;
+        margin-right: 4px;
+      }
+    }
+
+    .form-error-tip {
+      position: absolute;
+    }
+
+    .bk-form-content {
+      margin-left: 0 !important;
+      line-height: 28px;
+    }
+  }
+
+  .form-item-tips {
+    position: relative;
+    bottom: -4px;
+    padding-left: 118px;
+    margin: 0;
+    font-size: 12px;
+    color: #979ba5;
+  }
+
+  .panel-intro {
+    position: absolute;
+    margin-bottom: 16px;
+    // padding-left: 68px;
+    // margin: 4px 0px;
+    line-height: 20px;
+    color: #979ba5;
+
+    .indentation-text {
+      padding-left: 20px;
+    }
+  }
+
+  .edit-form-item {
+    @include flex-align;
+
+    .bk-select {
+      width: 190px;
+      min-width: 190px;
+      margin-right: 8px;
+    }
+
+    .input {
+      width: 290px;
+      min-width: 290px;
+    }
+  }
+
+  .app-form-item {
+    .tooltips-icon {
+      right: 32px !important;
+    }
+  }
+
+  .apdex-form-item {
+    .tooltips-icon {
+      right: 40px !important;
+    }
+  }
+
+  .relation-log-form-item {
+    .tooltips-icon {
+      right: 32px !important;
+    }
+  }
+
+  .right-unit {
+    width: 32px;
+    height: 30px;
+    font-size: 12px;
+    line-height: 30px;
+    text-align: center;
+    background-color: #f0f1f5;
+  }
+
+  .uri-input {
+    width: 326px;
+  }
+
+  .uri-info {
+    .icon-mc-tuozhuai {
+      margin-right: 8px;
+      font-size: 14px;
+      color: #979ba5;
+      cursor: grab;
+    }
+
+    .uri-item {
+      padding-left: 66px;
+
+      .label {
+        width: auto;
+        text-align: left;
+      }
+    }
+  }
+
+  .uri-set-label {
+    display: inline-block;
+    margin: 0 0 12px 66px;
+  }
+
+  .empty-uri-info {
+    padding-bottom: 8px;
+    margin-left: 60px;
+    background: #f0f1f5;
+    border-radius: 0 0 2px 2px;
+
+    .part-text {
+      font-size: 12px;
+    }
+  }
+
+  .edit-uri-row {
+    @include flex-align;
+
+    .icon-monitor {
+      margin-left: 16px;
+      font-size: 16px;
+      color: #c4c6cc;
+      cursor: pointer;
+    }
+
+    .icon-mc-minus-plus {
+      margin-left: 12px;
+
+      &.disabled {
+        color: #eaebf0;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  .uri-panel {
+    .item-header {
+      justify-content: flex-start;
+
+      .debugge-btn {
+        margin-left: 24px;
+      }
+    }
+  }
+
+  .submit-handle {
+    padding-bottom: 38px;
+  }
+
+  .is-editing {
+    .label {
+      color: #63656e;
+    }
+  }
+
+  .relation-log-select {
+    display: flex;
+    align-items: center;
+
+    .bk-form-item {
+      margin: 0;
+    }
+  }
+
+  .uri-source-content {
+    padding-left: 66px;
+    margin-bottom: 24px;
+
+    .header-tool {
+      margin-bottom: 4px;
+      @include flex-justify(space-between);
+
+      label {
+        font-size: 12px;
+      }
+
+      .right-btn-wrap {
+        font-size: 12px;
+        font-weight: initial;
+        color: #3a84ff;
+        cursor: pointer;
+
+        .icon-shuaxin {
+          margin-right: 5px;
+          font-size: 14px;
+        }
+      }
+    }
+
+    .source-box {
+      height: 80px;
+
+      .bk-form-textarea {
+        height: 80px;
+        color: #c4c6cc;
+        word-break: break-all;
+        background-color: #313238;
+        border-radius: 2px;
+      }
+
+      .bk-form-textarea:focus {
+        background-color: #313238 !important;
+        border-radius: 2px;
+      }
+
+      .bk-form-textarea[disabled] {
+        background-color: #313238 !important;
+        border-radius: 2px;
+      }
+
+      .bk-textarea-wrapper {
+        border: none;
+      }
+    }
+  }
+
+  .debugging-content {
+    padding-left: 66px;
+
+    .debugge-tool {
+      @include flex-align;
+
+      .status-wrap {
+        margin-left: 18px;
+        font-size: 12px;
+
+        @include flex-align;
+
+        .icon-monitor {
+          margin-right: 6px;
+          font-size: 16px;
+          color: #2dcb56;
+        }
+
+        .icon-mc-close-fill {
+          color: #ea3636;
+        }
+      }
+    }
+
+    .result-box {
+      height: 142px;
+      padding: 12px 24px;
+      margin-top: 16px;
+      overflow: auto;
+      font-size: 12px;
+      color: #63656e;
+      word-break: break-all;
+      background: #f0f1f5;
+      border-radius: 0 0 2px 2px;
+
+      .bk-exception-text {
+        font-size: 12px;
+      }
+    }
+  }
+
+  // 新设计稿
+  .tips-panel-item {
+    .item-header {
+      margin-bottom: 8px;
+    }
+
+    .display-item {
+      height: 20px;
+      margin-bottom: 12px;
+      line-height: 20px;
+
+      &:nth-last-of-type(-n + 2) {
+        margin-bottom: 0px;
+      }
+    }
+
+    .sampling-rules-item {
+      height: auto !important;
+
+      .sampling-rules {
+        .sampling-rule-brackets {
+          height: calc(100% - 16px);
+        }
+
+        .rule-item {
+          margin-bottom: 8px;
+
+          &:last-child {
+            margin-bottom: 0px;
+          }
+        }
+      }
+    }
+  }
+
+  .relation-info {
+    .config-form-item {
+      margin-bottom: 0px;
+    }
+
+    .config-form-item + .config-form-item {
+      margin-top: 24px;
+      margin-bottom: 0px;
+    }
+  }
+
+  .form-content {
+    padding-bottom: 24px !important;
+  }
+
+  .edit-config-form {
+    .bk-label-text {
+      font-size: 12px;
+    }
+
+    .code-line-row {
+      .bk-form-content {
+        display: flex;
+        align-items: center;
+      }
+    }
+
+    .storehouse-tips {
+      margin: 4px 0px 0px 0px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #979ba5;
+    }
+  }
+
+  .custom-text {
+    display: flex;
+    align-items: center;
+
+    img {
+      width: 16px;
+      height: 16px;
+      margin-right: 4px;
+    }
+  }
+
+  .item-content {
+    .item-row {
+      &:last-child {
+        .editable-form-item {
+          margin-bottom: 0px;
+        }
+      }
+    }
+  }
+
+  .form-content-pl-22 {
+    padding-left: 22px;
+  }
+
+  .editable-form-item {
+    width: 250px;
+    height: 20px;
+
+    .value-content {
+      width: 100%;
+
+      .text-content {
+        display: block;
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-wrap: nowrap;
+      }
+    }
+  }
+
+  .form-content-row-m12 {
+    .editable-form-item {
+      margin-bottom: 12px;
+    }
+  }
+
+  .form-content-row-m14 {
+    .editable-form-item {
+      margin-bottom: 14px;
+    }
+  }
+
+  .form-content-row-m16 {
+    .editable-form-item {
+      margin-bottom: 16px;
+    }
+  }
+
+  .form-data-reporting {
+    .item-row {
+      height: 20px;
+      margin-bottom: 16px;
+    }
+  }
+
+  .relation-log-form-item {
+    .bk-form-item {
+      margin-top: 0px !important;
+    }
+  }
+
+  .form-content-edit {
+    .editable-form-item {
+      margin-bottom: 24px;
+    }
+
+    .bk-form-item + .bk-form-item {
+      margin-top: 24px;
+    }
+  }
+  // todo 这里后续需要根据平台左侧菜单是否打开调整下宽度和位置
+  .submit-handle {
+    // padding-bottom: 38px;
+    position: absolute;
+    bottom: 0px;
+    left: 0px;
+    z-index: 998;
+    width: 100vw;
+    height: 48px;
+    padding-left: 24px;
+    line-height: 48px;
+    background: #fafbfd;
+    box-shadow: 0 -2px 6px 0 #00000014;
+
+    button {
+      width: 88px;
+    }
+  }
+}

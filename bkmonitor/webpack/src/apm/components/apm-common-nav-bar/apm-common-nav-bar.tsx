@@ -109,10 +109,22 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
   // goto page by name
   handleGotoPage(item: INavItem) {
     if (this.readonly || item.notLink) return;
-    const targetRoute = this.$router.resolve({ name: item.id, query: item.query || {} });
+    const targetRoute = this.$router.resolve({
+      name: item.id,
+      query: {
+        ...item.query,
+        dashboardId: this.$route.query.dashboardId,
+      },
+    });
     /** 防止出现跳转当前地址导致报错 */
     if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
-      this.$router.push({ name: item.id, query: item.query || {} });
+      this.$router.push({
+        name: item.id,
+        query: {
+          ...item.query,
+          dashboardId: this.$route.query.dashboardId,
+        },
+      });
     }
   }
   handleBackGotoPage() {
@@ -177,27 +189,31 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
               {index > 0 ? <span class='item-split'>/</span> : undefined}
               {!item.selectOption?.loading ? (
                 [
-                  <span
-                    class={{
-                      'item-name': true,
-                      'parent-nav': !!item.id && index < len - 1 && !item.notLink,
-                      'only-title': len === 1,
-                      [item.class]: !!item.class,
-                    }}
-                    onClick={() => item.id && index < len - 1 && this.handleGotoPage(item)}
-                  >
-                    <span class='item-name-text'>{item.name}</span>
-                    {!!item.subName && (
-                      <span class='item-sub-name'>
-                        {item.name ? '-' : ''}&nbsp;{item.subName}
-                      </span>
-                    )}
-                  </span>,
+                  (!item.selectOption || (index < len - 1 && !item.notLink)) && (
+                    <span
+                      key='1'
+                      class={{
+                        'item-name': true,
+                        'parent-nav': !!item.id && index < len - 1 && !item.notLink,
+                        'only-title': len === 1,
+                        [item.class]: !!item.class,
+                      }}
+                      onClick={() => item.id && index < len - 1 && this.handleGotoPage(item)}
+                    >
+                      <span class='item-name-text'>{item.name}</span>
+                      {!!item.subName && (
+                        <span class='item-sub-name'>
+                          {item.name ? '-' : ''}&nbsp;{item.subName}
+                        </span>
+                      )}
+                    </span>
+                  ),
                   item.selectOption && (
                     <bk-select
                       popover-options={{
                         placement: 'bottom',
                       }}
+                      allow-enter={false}
                       ext-popover-cls='nav-bar-select-popover'
                       popover-width={240}
                       value={item.selectOption.value}
@@ -206,15 +222,33 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
                       onToggle={() => this.handleNavSelectShow(item)}
                     >
                       <div
-                        class={{ 'arrow-wrap': true, active: this.navSelectShow[item.id] }}
+                        class={{ 'select-trigger': true, active: this.navSelectShow[item.id] }}
                         slot='trigger'
                       >
-                        <i class='icon-monitor icon-mc-arrow-down' />
+                        {(index === len - 1 || item.notLink) && (
+                          <span
+                            class={{
+                              'item-name': true,
+                              [item.class]: !!item.class,
+                            }}
+                          >
+                            <span class='item-name-text'>{item.name}</span>
+                            {!!item.subName && (
+                              <span class='item-sub-name'>
+                                {item.name ? '-' : ''}&nbsp;{item.subName}
+                              </span>
+                            )}
+                          </span>
+                        )}
+                        <div class='arrow-wrap'>
+                          <i class='icon-monitor icon-mc-arrow-down' />
+                        </div>
                       </div>
-                      {this.sortSelectList(item.selectOption).map(selectItem => (
+
+                      {this.sortSelectList(item.selectOption).map((selectItem, index) => (
                         <bk-option
                           id={selectItem.id}
-                          key={selectItem.id}
+                          key={`${selectItem.id}_${index}`}
                           class={{ item: true, active: selectItem.id === item.selectOption.value }}
                           name={selectItem.name}
                         >

@@ -95,6 +95,7 @@ from constants.strategy import (
     HOST_SCENARIO,
     SERVICE_SCENARIO,
     SYSTEM_EVENT_RT_TABLE_ID,
+    SYSTEM_PROC_PORT_METRIC_ID,
     AdvanceConditionMethod,
     DataTarget,
     TargetFieldType,
@@ -152,6 +153,9 @@ def get_metric_id(
             DataTypeLabel.TIME_SERIES: f"{data_source_label}.{result_table_id}.{metric_field}",
         },
     }
+    # 特殊事件: 进程端口
+    if kwargs.get("metric_id") == SYSTEM_PROC_PORT_METRIC_ID:
+        return SYSTEM_PROC_PORT_METRIC_ID
     return metric_id_map.get(data_source_label, {}).get(data_type_label, "")
 
 
@@ -209,8 +213,8 @@ def parse_metric_id(metric_id: str) -> Dict:
             info.update(
                 {
                     "data_type_label": DataTypeLabel.TIME_SERIES,
-                    "result_table_id": ".".join(split_field_list[1:3]),
-                    "metric_field": split_field_list[3],
+                    "result_table_id": ".".join(split_field_list[1:-1]),
+                    "metric_field": split_field_list[-1],
                 }
             )
     elif data_source_label == DataSourceLabel.BK_LOG_SEARCH:
@@ -262,6 +266,20 @@ def parse_metric_id(metric_id: str) -> Dict:
     return info
 
 
+def has_instance_attr(obj, attr):
+    """检查是否有指定的实例变量，并排除方法和@property"""
+    if attr in obj.__dict__:
+        return True
+
+    if hasattr(obj.__class__, attr):
+        attr_value = getattr(obj.__class__, attr)
+        if isinstance(attr_value, property):
+            return False
+        if callable(attr_value):
+            return False
+    return False
+
+
 class AbstractConfig(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def to_dict(self, *args, **kwargs) -> Dict:
@@ -307,6 +325,12 @@ class AbstractConfig(metaclass=abc.ABCMeta):
     def save(self):
         raise NotImplementedError
 
+    def __setattr__(self, key, value):
+        super().__setattr__(key, value)
+        if getattr(self, "instance", None):
+            if has_instance_attr(self.instance, key):
+                setattr(self.instance, key, value)
+
 
 class Action(AbstractConfig):
     """
@@ -328,6 +352,7 @@ class Action(AbstractConfig):
         notice_group_ids: List[int] = None,
         notice_template: Dict = None,
         id: int = 0,
+        instance: ActionModel = None,
         **kwargs,
     ):
         self.id = id
@@ -336,6 +361,7 @@ class Action(AbstractConfig):
         self.config: Dict = config
         self.notice_group_ids: List[int] = notice_group_ids or []
         self.notice_template = notice_template or {"anomaly_template": "", "recovery_template": ""}
+        self.instance = instance
 
     def to_dict(self) -> Dict:
         return {
@@ -437,6 +463,7 @@ class Action(AbstractConfig):
                     "anomaly_template": notice_templates[action.id].anomaly_template,
                     "recovery_template": notice_templates[action.id].recovery_template,
                 },
+                instance=action,
             )
             for action in actions
         ]
@@ -492,6 +519,7 @@ class BaseActionRelation(AbstractConfig):
         id: int = None,
         options: dict = None,
         config: dict = None,
+        instance: RelationModel = None,
         **kwargs,
     ):
         self.id = id
@@ -502,6 +530,7 @@ class BaseActionRelation(AbstractConfig):
         self.signal = list(signal or [])
         self.options: dict = options or {}
         self.config: dict = config or {}
+        self.instance = instance
 
     def to_dict(self) -> Dict:
         return {
@@ -624,6 +653,7 @@ class BaseActionRelation(AbstractConfig):
                     config_id=relation.config_id,
                     config=config,
                     options=relation.options,
+                    instance=relation,
                 )
             )
 
@@ -757,6 +787,7 @@ class NoticeRelation(BaseActionRelation):
                     config_id=relation.config_id,
                     config=config,
                     options=relation.options,
+                    instance=relation,
                 )
             )
 
@@ -842,6 +873,7 @@ class Algorithm(AbstractConfig):
         level: int,
         unit_prefix: str = "",
         id: int = 0,
+        instance: AlgorithmModel = None,
         **kwargs,
     ):
         self.id = id
@@ -851,6 +883,7 @@ class Algorithm(AbstractConfig):
         self.unit_prefix = unit_prefix
         self.strategy_id = strategy_id
         self.item_id = item_id
+        self.instance = instance
 
     def to_dict(self):
         return {
@@ -904,6 +937,7 @@ class Algorithm(AbstractConfig):
                 config=algorithm.config,
                 level=algorithm.level,
                 unit_prefix=algorithm.unit_prefix,
+                instance=algorithm,
             )
             for algorithm in algorithms
         ]
@@ -961,6 +995,7 @@ class Detect(AbstractConfig):
         expression: str = "",
         connector: str = "and",
         id: int = 0,
+        instance: DetectModel = None,
         **kwargs,
     ):
         self.id = id
@@ -970,6 +1005,7 @@ class Detect(AbstractConfig):
         self.trigger_config = trigger_config
         self.recovery_config = recovery_config
         self.connector = connector or "and"
+        self.instance = instance
 
     def to_dict(self) -> Dict:
         return {
@@ -1023,6 +1059,7 @@ class Detect(AbstractConfig):
                 trigger_config=detect.trigger_config,
                 recovery_config=detect.recovery_config,
                 connector=detect.connector,
+                instance=detect,
             )
             for detect in detects
         ]
@@ -1075,6 +1112,7 @@ class QueryConfig(AbstractConfig):
         alias: str,
         id: int = 0,
         metric_id: str = "",
+        instance: QueryConfigModel = None,
         **kwargs,
     ):
         self.strategy_id = strategy_id
@@ -1084,6 +1122,7 @@ class QueryConfig(AbstractConfig):
         self.alias = alias
         self.id = id
         self.metric_id = metric_id or ""
+        self.instance = instance
         serializer_class = self.get_serializer_class(data_source_label, data_type_label)
         serializer = serializer_class(data=kwargs)
         serializer.is_valid(raise_exception=True)
@@ -1194,6 +1233,7 @@ class QueryConfig(AbstractConfig):
                 data_source_label=query_config.data_source_label,
                 data_type_label=query_config.data_type_label,
                 metric_id=query_config.metric_id,
+                instance=query_config,
                 **query_config.config,
             )
 
@@ -1277,6 +1317,7 @@ class Item(AbstractConfig):
         query_configs: List[Dict] = None,
         algorithms: List[Dict] = None,
         metric_type: str = "",
+        instance: ItemModel = None,
         **kwargs,
     ):
         self.functions = functions or []
@@ -1289,6 +1330,7 @@ class Item(AbstractConfig):
         self.algorithms: List[Algorithm] = [Algorithm(strategy_id, id, **c) for c in algorithms or []]
         self.strategy_id = strategy_id
         self.id = id
+        self.instance = instance
 
         if metric_type:
             self.metric_type = metric_type
@@ -1402,6 +1444,28 @@ class Item(AbstractConfig):
         self.id = item.id
         return item
 
+    def save_algorithms(self):
+        self.reuse_exists_records(
+            AlgorithmModel,
+            AlgorithmModel.objects.filter(strategy_id=self.strategy_id, item_id=self.id).only("id"),
+            self.algorithms,
+            Algorithm,
+        )
+
+        for algo in self.algorithms:
+            algo.save()
+
+    def save_query_configs(self):
+        self.reuse_exists_records(
+            QueryConfigModel,
+            QueryConfigModel.objects.filter(strategy_id=self.strategy_id, item_id=self.id).only("id"),
+            self.query_configs,
+            QueryConfig,
+        )
+
+        for query_config in self.query_configs:
+            query_config.save()
+
     def save(self):
         try:
             if self.id > 0:
@@ -1420,18 +1484,8 @@ class Item(AbstractConfig):
             item = self._create()
 
         # 复用旧的记录
-        model_configs = [
-            (QueryConfigModel, QueryConfig, self.query_configs),
-            (AlgorithmModel, Algorithm, self.algorithms),
-        ]
-
-        for model, config_cls, configs in model_configs:
-            objs = model.objects.filter(strategy_id=self.strategy_id, item_id=self.id).only("id")
-            self.reuse_exists_records(model, objs, configs, config_cls)
-
-        # 保存子配置
-        for obj in chain(self.algorithms, self.query_configs):
-            obj.save()
+        self.save_algorithms()
+        self.save_query_configs()
 
         item.save()
 
@@ -1457,6 +1511,7 @@ class Item(AbstractConfig):
                 no_data_config=item.no_data_config,
                 target=item.target,
                 metric_type=item.metric_type,
+                instance=item,
             )
             record.algorithms = Algorithm.from_models(algorithms[item.id])
             record.query_configs = QueryConfig.from_models(query_configs[item.id])
@@ -1534,6 +1589,7 @@ class Strategy(AbstractConfig):
         priority: int = None,
         priority_group_key: str = None,
         metric_type: str = "",
+        instance: StrategyModel = None,
         **kwargs,
     ):
         """
@@ -1564,6 +1620,7 @@ class Strategy(AbstractConfig):
         self.path = path or ""
         self.priority = priority
         self.priority_group_key = priority_group_key or ""
+        self.instance = instance
 
         if isinstance(self.update_time, (int, str)):
             self.update_time = arrow.get(update_time).datetime
@@ -2067,6 +2124,33 @@ class Strategy(AbstractConfig):
         )
 
     @transaction.atomic
+    def save_actions(self):
+        """保存actions配置."""
+        self.reuse_exists_records(
+            RelationModel,
+            RelationModel.objects.filter(strategy_id=self.id, relate_type=RelationModel.RelateType.ACTION).only("id"),
+            self.actions,
+            ActionRelation,
+        )
+
+        # 保存子配置
+        for action in self.actions:
+            action.save()
+
+    @transaction.atomic
+    def save_notice(self, rollback=False):
+        """保存actions配置."""
+        self.reuse_exists_records(
+            RelationModel,
+            RelationModel.objects.filter(strategy_id=self.id, relate_type=RelationModel.RelateType.NOTICE).only("id"),
+            [self.notice],
+            NoticeRelation,
+        )
+
+        # 保存子配置
+        self.notice.save()
+
+    @transaction.atomic
     def save(self, rollback=False):
         """
         保存策略配置
@@ -2122,27 +2206,13 @@ class Strategy(AbstractConfig):
                 objs = model.objects.filter(strategy_id=self.id).only("id")
                 self.reuse_exists_records(model, objs, configs, config_cls)
 
-            self.reuse_exists_records(
-                RelationModel,
-                RelationModel.objects.filter(strategy_id=self.id, relate_type=RelationModel.RelateType.ACTION).only(
-                    "id"
-                ),
-                self.actions,
-                ActionRelation,
-            )
-
-            self.reuse_exists_records(
-                RelationModel,
-                RelationModel.objects.filter(strategy_id=self.id, relate_type=RelationModel.RelateType.NOTICE).only(
-                    "id"
-                ),
-                [self.notice],
-                NoticeRelation,
-            )
-
             # 保存子配置
-            for obj in chain(self.items, self.actions, self.detects, [self.notice]):
+            for obj in chain(self.items, self.detects):
                 obj.save()
+
+            # 复用旧ID地保存actions和notice
+            self.save_actions()
+            self.save_notice()
 
             # 保存策略标签
             self.save_labels()
@@ -2194,10 +2264,6 @@ class Strategy(AbstractConfig):
             1. 直接走dataflow，根据策略配置的查询sql，创建好实时计算节点，在节点后配置好智能检测节点
         """
         from bkmonitor.models import AlgorithmModel
-        from monitor_web.tasks import (
-            access_aiops_by_strategy_id,
-            access_host_anomaly_detect_by_strategy_id,
-        )
 
         # 1. 未开启计算平台接入，则直接返回
         if not settings.IS_ACCESS_BK_DATA:
@@ -2216,51 +2282,58 @@ class Strategy(AbstractConfig):
 
         # 4. 遍历每个监控项的查询配置，以判断数据来源并执行相应处理逻辑
         for query_config in chain(*(item.query_configs for item in self.items)):
-            # 4.1 如果数据类型不是时序数据，则跳过不处理
-            if query_config.data_type_label != DataTypeLabel.TIME_SERIES:
-                continue
+            self.check_and_access_aiops_query_config(query_config, intelligent_algorithm)
 
-            # 4.2 标记是否需要接入智能检测算法，默认False表示不接入
-            need_access = False
-            # 4.2.1 如果数据来源是监控采集器，且查询条件中不存在特殊的方法，则标记需要接入智能检测算法
-            if query_config.data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR:
-                for condition in query_config.agg_condition:
-                    if condition["method"] in AdvanceConditionMethod:
-                        raise Exception(_("智能检测算法不支持这些查询条件({})".format(AdvanceConditionMethod)))
-                need_access = True
-            # 4.2.2 如果数据来源是计算平台，则需要先进行授权给监控项目，再标记需要接入智能检测算法
-            elif query_config.data_source_label == DataSourceLabel.BK_DATA:
-                # 授权给监控项目(以创建或更新策略的用户来请求一次授权)
-                if intelligent_algorithm in AlgorithmModel.AIOPS_ALGORITHMS:
-                    # 主机异常检测使用业务主机观测场景的flow，因此不需要授权
-                    # todo AlgorithmModel.AIOPS_ALGORITHMS包含主机异常检测算法，实际这种情况也授权了
-                    from bkmonitor.dataflow import auth
+    def check_and_access_aiops_query_config(self, query_config: QueryConfig, algorithm: str):
+        from monitor_web.tasks import get_aiops_access_func
 
-                    auth.ensure_has_permission_with_rt_id(
-                        bk_username=get_global_user() or settings.BK_DATA_PROJECT_MAINTAINER,
-                        rt_id=query_config.result_table_id,
-                        project_id=settings.BK_DATA_PROJECT_ID,
-                    )
-                need_access = True
+        # 4.1 如果数据类型不是时序数据，则跳过不处理
+        if query_config.data_type_label != DataTypeLabel.TIME_SERIES:
+            return
 
-            # 4.3 接入智能检测算法
-            if need_access:
-                # 4.3.1 标记当前查询配置需要接入智能检测算法，并保存算法接入状态为等待中，及重试接入次数为0
-                intelligent_detect = getattr(query_config, "intelligent_detect", {})
-                intelligent_detect["status"] = AccessStatus.PENDING
-                intelligent_detect["retries"] = 0
-                intelligent_detect["message"] = ""
-                query_config.intelligent_detect = intelligent_detect
-                query_config.save()
+        # 4.2 目前result_table_id为空的指标，不在计算平台或者无法接入计算平台
+        if not query_config.result_table_id:
+            raise Exception(_("当前指标暂不支持智能监控策略"))
 
-                # 4.3.2 仅在web运行模式下，异步接入智能检测算法
-                if settings.ROLE == "web":
-                    if intelligent_algorithm == AlgorithmModel.AlgorithmChoices.HostAnomalyDetection:
-                        # 根据策略ID，异步接入主机异常检测算法
-                        access_host_anomaly_detect_by_strategy_id.delay(self.id)
-                    else:
-                        # 根据策略ID，异步接入其他智能检测算法
-                        access_aiops_by_strategy_id.delay(self.id)
+        # 4.3 标记是否需要接入智能检测算法，默认False表示不接入
+        need_access = False
+        # 4.3.1 如果数据来源是监控采集器或者计算平台的结果表，则不支持一些特殊过滤条件
+        if query_config.data_source_label in (DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.BK_DATA):
+            for condition in query_config.agg_condition:
+                if condition["method"] in AdvanceConditionMethod:
+                    raise Exception(_("智能检测算法不支持这些查询条件({})".format(AdvanceConditionMethod)))
+            need_access = True
+
+        # 4.3.2 如果数据来源是计算平台，则需要先进行授权给监控项目，再标记需要接入智能检测算法
+        if query_config.data_source_label == DataSourceLabel.BK_DATA:
+            # 授权给监控项目(以创建或更新策略的用户来请求一次授权)
+            if algorithm in (set(AlgorithmModel.AIOPS_ALGORITHMS) - set(AlgorithmModel.AUTHORIZED_SOURCE_ALGORITHMS)):
+                # 主机异常检测使用业务主机观测场景的flow，因此不需要授权
+                from bkmonitor.dataflow import auth
+
+                auth.ensure_has_permission_with_rt_id(
+                    bk_username=get_global_user() or settings.BK_DATA_PROJECT_MAINTAINER,
+                    rt_id=query_config.result_table_id,
+                    project_id=settings.BK_DATA_PROJECT_ID,
+                )
+
+        # 4.4 接入智能检测算法
+        if need_access:
+            # 4.3.1 标记当前查询配置需要接入智能检测算法，并保存算法接入状态为等待中，及重试接入次数为0
+            intelligent_detect = getattr(query_config, "intelligent_detect", {})
+            intelligent_detect["status"] = AccessStatus.PENDING
+            intelligent_detect["retries"] = 0
+            intelligent_detect["message"] = ""
+            intelligent_detect["task_id"] = None
+
+            # 4.3.2 仅在web运行模式下，异步接入智能检测算法
+            if settings.ROLE == "web":
+                access_func = get_aiops_access_func(algorithm)
+                task = access_func.delay(self.id)
+                intelligent_detect["task_id"] = task.id
+
+            query_config.intelligent_detect = intelligent_detect
+            query_config.save()
 
     @classmethod
     def get_priority_group_key(cls, bk_biz_id: int, items: List[Item]):
@@ -2388,10 +2461,14 @@ class Strategy(AbstractConfig):
     def from_models(cls, strategies: Union[List[StrategyModel], QuerySet]) -> List["Strategy"]:
         """
         数据模型转换为策略对象
+
+        :param strategies: 策略模型列表或QuerySet，包含要转换为策略对象的数据模型。
+        :return: List["Strategy"]策略对象列表
         """
+        # 提取所有策略的ID
         strategy_ids = [s.id for s in strategies]
 
-        # 当策略数量非常大时，直接全量查询避免
+        # 当接收到大量策略模型时，为了避免查询数据库时带来的巨大开销，采用全量查询的方式。
         if len(strategy_ids) > 500:
             item_query = ItemModel.objects.all()
             detect_query = DetectModel.objects.all()
@@ -2407,6 +2484,8 @@ class Strategy(AbstractConfig):
             label_query = StrategyLabel.objects.filter(strategy_id__in=strategy_ids)
             related_query = RelationModel.objects.filter(strategy_id__in=strategy_ids)
 
+        # 将查询结果整理为字典，便于后续根据策略ID快速查找
+        # {strategy_id: [strategy_model]}
         items: Dict[int, List[ItemModel]] = defaultdict(list)
         for item in item_query:
             items[item.strategy_id].append(item)
@@ -2448,6 +2527,7 @@ class Strategy(AbstractConfig):
         for action_config in action_query:
             action_configs[action_config.id] = action_config
 
+        # 根据查询和处理结果，创建策略对象
         records = []
         for strategy in strategies:
             record = Strategy(
@@ -2469,8 +2549,10 @@ class Strategy(AbstractConfig):
                 path=strategy.path,
                 priority=strategy.priority,
                 priority_group_key=strategy.priority_group_key,
+                instance=strategy,
             )
 
+            # 为策略对象的items、actions、detects和notice属性赋值
             record.items = Item.from_models(items[strategy.id], algorithms, query_configs)
             record.actions = ActionRelation.from_models(actions[strategy.id], action_configs)
             record.detects = Detect.from_models(detects[strategy.id])

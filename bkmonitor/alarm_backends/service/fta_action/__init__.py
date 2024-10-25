@@ -240,7 +240,6 @@ class BaseActionProcessor(object):
             self.approve_callback(**approve_result)
 
     def approve_callback(self, **kwargs):
-
         if self.action.status != ActionStatus.WAITING:
             logger.info("current status %s is forbidden to run", self.action.status)
             return
@@ -543,7 +542,6 @@ class BaseActionProcessor(object):
             self.action = locked_action
 
     def notify(self, notify_step, need_update_context=False):
-
         """
         根据当前的状态发送不同的通知
         """
@@ -560,6 +558,8 @@ class BaseActionProcessor(object):
 
         # TODO 企业微信机器人通知@用户功能
         wxbot_mention_users = notify_info.pop("wxbot_mention_users", [])
+        if wxbot_mention_users:
+            wxbot_mention_users = wxbot_mention_users[0]
         for notice_way, notice_receivers in notify_info.items():
             try:
                 channel, notice_way = notice_way.split("|")

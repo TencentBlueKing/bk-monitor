@@ -13,7 +13,7 @@ from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
 from constants.alert import EventSeverity
-from constants.apm import OtlpKey, SpanKindKey
+from constants.apm import OtlpKey, SpanKindKey, TelemetryDataType
 
 GLOBAL_CONFIG_BK_BIZ_ID = 0
 DEFAULT_EMPTY_NUMBER = 0
@@ -22,19 +22,32 @@ DEFAULT_NO_DATA_PERIOD = 10  # minute
 DEFAULT_DIMENSION_DATA_PERIOD = 5  # minute
 NODATA_ERROR_STRATEGY_CONFIG_KEY = "nodata_error_strategy_id"
 
+nodata_error_strategy_config_mapping = {
+    TelemetryDataType.TRACE.value: "nodata_error_strategy_id",
+    TelemetryDataType.METRIC.value: "nodata_error_metric_strategy_id",
+    TelemetryDataType.LOG.value: "nodata_error_log_strategy_id",
+    TelemetryDataType.PROFILING.value: "nodata_error_profiling_strategy_id",
+}
+
 DEFAULT_APM_APP_QPS = 500
 
-APDEX_VIEW_ITEM_LEN = 24
 OTLP_JAEGER_SPAN_KIND = {2: "server", 3: "client", 4: "producer", 5: "consumer", 1: "internal", 0: "unset"}
 IDENTIFY_KEYS = ["db.system", "http.target", "messaging.system", "rpc.system"]
 
 DEFAULT_DIFF_TRACE_MAX_NUM = 5
 
-# 随组件类型变化的where条件 用于指标值查询
+# 随组件类型变化的where条件 用于指标值查询 (如果 where 里面有 or 连接符的话不能使用这个因为不能设置优先级)
 component_where_mapping = {
     "db": {"key": "db_system", "method": "eq", "value": ["{predicate_value}"], "condition": "and"},
     "messaging": {"key": "messaging_system", "method": "eq", "value": ["{predicate_value}"], "condition": "and"},
 }
+
+# 随组件类型变化的where条件 用于指标值查询
+component_filter_mapping = {
+    "db": {"db_system": "{predicate_value}"},
+    "messaging": {"messaging_system": "{predicate_value}"},
+}
+
 
 COLUMN_KEY_PROFILING_DATA_COUNT = "profiling_data_count"
 COLUMN_KEY_PROFILING_DATA_STATUS = "profiling_data_status"
@@ -142,7 +155,7 @@ class CategoryEnum:
             {
                 "id": cls.DB,
                 "name": cls.get_label_by_key(cls.DB),
-                "icon": "icon-DB",
+                "icon": "icon-shujuku",
             },
             {
                 "id": cls.MESSAGING,
@@ -157,7 +170,7 @@ class CategoryEnum:
             {
                 "id": cls.OTHER,
                 "name": cls.get_label_by_key(cls.OTHER),
-                "icon": "icon-zidingyi",
+                "icon": "icon-mc-service-unknown",
             },
         ]
 
@@ -174,6 +187,25 @@ class CategoryEnum:
             return cls.MESSAGING
         return cls.OTHER
 
+    @classmethod
+    def list_span_keys(cls):
+        """获取所有分类字段"""
+        return [
+            SpanAttributes.DB_SYSTEM,
+            SpanAttributes.MESSAGING_SYSTEM,
+            SpanAttributes.RPC_SYSTEM,
+            SpanAttributes.HTTP_METHOD,
+            SpanAttributes.MESSAGING_DESTINATION,
+        ]
+
+    @classmethod
+    def list_component_generate_keys(cls):
+        """获取 APM 手动处理(手动生成服务节点)的字段"""
+        return [
+            SpanAttributes.DB_SYSTEM,
+            SpanAttributes.MESSAGING_SYSTEM,
+        ]
+
 
 class CalculationMethod:
     # 错误率
@@ -188,6 +220,15 @@ class CalculationMethod:
     INSTANCE_COUNT = "instance_count"
     # 健康度
     APDEX = "apdex"
+    # 耗时 Bucket
+    DURATION_BUCKET = "duration_bucket"
+
+    # 服务间调用错误率
+    SERVICE_FLOW_ERROR_RATE = "service_flow_error_rate"
+    # 服务间请求数
+    SERVICE_FLOW_COUNT = "service_flow_request_count"
+    # 服务间耗时
+    SERVICE_FLOW_DURATION = "service_flow_duration"
 
 
 class ApdexColor:
@@ -241,7 +282,6 @@ class Status:
 class DataStatus:
     NORMAL = "normal"
     NO_DATA = "no_data"
-    STOP = "stop"
     DISABLED = "disabled"
 
     @classmethod
@@ -249,7 +289,6 @@ class DataStatus:
         return {
             cls.NORMAL: _("正常"),
             cls.NO_DATA: _("无数据"),
-            cls.STOP: _("已停止"),
             cls.DISABLED: _("未开启"),
         }.get(key, key)
 
@@ -258,8 +297,21 @@ class DataStatus:
         return {
             cls.NORMAL: {"type": Status.SUCCESS, "text": cls.get_label_by_key(key)},
             cls.NO_DATA: {"type": Status.FAILED, "text": cls.get_label_by_key(key)},
-            cls.STOP: {"type": Status.DISABLED, "text": cls.get_label_by_key(key)},
         }.get(key, {"type": Status.FAILED, "text": cls.get_label_by_key(key)})
+
+
+class StorageStatus:
+    NORMAL = "normal"
+    ERROR = "error"
+    DISABLED = "disabled"
+
+    @classmethod
+    def get_label_by_key(cls, key: str):
+        return {
+            cls.NORMAL: _("正常"),
+            cls.ERROR: _("异常"),
+            cls.DISABLED: _("未开启"),
+        }.get(key, key)
 
 
 class ServiceStatus(EventSeverity):
@@ -331,6 +383,14 @@ class AlertLevel:
     WARN = 2
     # 提醒
     INFO = 3
+
+    @classmethod
+    def get_label(cls, key):
+        return {
+            cls.ERROR: "error",
+            cls.WARN: "warn",
+            cls.INFO: "info",
+        }.get(key, key)
 
 
 class AlertStatus:
@@ -583,6 +643,31 @@ class TopoNodeKind:
     COMPONENT = "component"
     REMOTE_SERVICE = "remote_service"
 
+    # 虚拟服务 (Flow 指标处)
+    VIRTUAL_SERVICE = "virtualService"
+
+    @classmethod
+    def get_label_by_key(cls, key: str):
+        return {
+            cls.SERVICE: _("服务"),
+            cls.COMPONENT: _("服务组件"),
+            cls.REMOTE_SERVICE: _("自定义服务"),
+            cls.VIRTUAL_SERVICE: _("虚拟服务"),
+        }.get(key, key)
+
+
+class TopoVirtualServiceKind:
+    """虚拟服务中的分类"""
+
+    # 虚拟主调服务
+    CALLER = "bk_vServiceCaller"
+    # 虚拟被调服务
+    CALLEE = "bk_vServiceCallee"
+
+    @classmethod
+    def all_kinds(cls):
+        return [cls.CALLER, cls.CALLEE]
+
 
 class TraceFilterField:
     """trace检索表头支持获取候选值的字段"""
@@ -832,3 +917,26 @@ OPERATOR_MAP = {"=": "equal", "!=": "not_equal", "exists": "exists", "does not e
 DEFAULT_MAX_VALUE = 10000
 
 DEFAULT_SPLIT_SYMBOL = "--"
+
+
+class ApmCacheKey:
+    """一些 APM 的缓存 Key"""
+
+    # 存放应用下服务的数据状态
+    APP_SERVICE_STATUS_KEY = "apm:application:{application_id}:service_data_status"
+
+
+class LogIndexSource:
+    """服务日志的数据关联来源"""
+
+    HOST = "host"
+    RELATION = "relation"
+    CUSTOM_REPORT = "custom_report"
+
+    @classmethod
+    def get_source_label(cls, key):
+        return {
+            cls.HOST: "主机关联",
+            cls.RELATION: "关联配置",
+            cls.CUSTOM_REPORT: "自定义上报",
+        }.get(key, key)

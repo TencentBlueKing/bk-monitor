@@ -18,7 +18,6 @@ from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext_lazy as _
 from elasticsearch_dsl import Q
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
@@ -45,17 +44,28 @@ from .doris import BkDataDorisProvider
 
 
 class ApmDataSourceConfigBase(models.Model):
+    LOG_DATASOURCE = "log"
     TRACE_DATASOURCE = "trace"
     METRIC_DATASOURCE = "metric"
     PROFILE_DATASOURCE = "profile"
 
     TABLE_SPACE_PREFIX = "space"
 
-    DATASOURCE_CHOICE = ((TRACE_DATASOURCE, "Trace"), (METRIC_DATASOURCE, _("指标")))
+    DATASOURCE_CHOICE = (
+        (TRACE_DATASOURCE, "Log"),
+        (TRACE_DATASOURCE, "Trace"),
+        (METRIC_DATASOURCE, "Metric"),
+        (PROFILE_DATASOURCE, "Profile"),
+    )
 
     DATA_NAME_PREFIX = "bkapm"
 
-    DATASOURCE_TYPE_MAP = {METRIC_DATASOURCE: "metric", TRACE_DATASOURCE: "trace"}
+    DATASOURCE_TYPE_MAP = {
+        METRIC_DATASOURCE: "metric",
+        LOG_DATASOURCE: "log",
+        TRACE_DATASOURCE: "trace",
+        PROFILE_DATASOURCE: "profile",
+    }
 
     # target字段配置
     DATA_ID_PARAM = None
@@ -83,6 +93,10 @@ class ApmDataSourceConfigBase(models.Model):
 
     @property
     def table_id(self) -> str:
+        raise NotImplementedError
+
+    @classmethod
+    def get_table_id(cls, bk_biz_id: int, app_name: str, **kwargs) -> str:
         raise NotImplementedError
 
     @classmethod
@@ -136,14 +150,19 @@ class ApmDataSourceConfigBase(models.Model):
 
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
-    def apply_datasource(cls, bk_biz_id, app_name, **option):
+    def apply_datasource(cls, bk_biz_id, app_name, **options):
         obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not obj:
             obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
         # 创建data_id
         obj.create_data_id()
         # 创建结果表
-        obj.create_or_update_result_table(**option)
+        obj.create_or_update_result_table(**options)
+
+        option = options["option"]
+        if not option:
+            # 关闭
+            obj.stop(bk_biz_id, app_name)
 
 
 class MetricDataSource(ApmDataSourceConfigBase):
@@ -178,16 +197,16 @@ class MetricDataSource(ApmDataSourceConfigBase):
     @property
     def table_id(self) -> str:
         bk_biz_id = int(self.bk_biz_id)
+        return self.get_table_id(bk_biz_id, self.app_name)
 
+    @classmethod
+    def get_table_id(cls, bk_biz_id: int, app_name: str, **kwargs) -> str:
         if bk_biz_id > 0:
-            return (
-                f"{bk_biz_id}_{self.DATA_NAME_PREFIX}_"
-                f"{self.DATASOURCE_TYPE}_{self.app_name}.{self.DEFAULT_MEASUREMENT}"
-            )
+            return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}_" f"{cls.DATASOURCE_TYPE}_{app_name}.{cls.DEFAULT_MEASUREMENT}"
         else:
             return (
-                f"{self.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{self.DATA_NAME_PREFIX}_"
-                f"{self.DATASOURCE_TYPE}_{self.app_name}.{self.DEFAULT_MEASUREMENT}"
+                f"{cls.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{cls.DATA_NAME_PREFIX}_"
+                f"{cls.DATASOURCE_TYPE}_{app_name}.{cls.DEFAULT_MEASUREMENT}"
             )
 
     def create_or_update_result_table(self, **option):
@@ -240,6 +259,109 @@ class MetricDataSource(ApmDataSourceConfigBase):
                 "operator": get_global_user(),
             }
         )
+
+
+class LogDataSource(ApmDataSourceConfigBase):
+    DATASOURCE_TYPE = ApmDataSourceConfigBase.LOG_DATASOURCE
+
+    DATA_NAME_PREFIX = "bklog"
+
+    collector_config_id = models.IntegerField("索引集id", null=True)
+    index_set_id = models.IntegerField("索引集id", null=True)
+
+    def to_json(self):
+        return {
+            "bk_data_id": self.bk_data_id,
+            "result_table_id": self.result_table_id,
+            "collector_config_id": self.collector_config_id,
+            "index_set_id": self.index_set_id,
+        }
+
+    @property
+    def table_id(self) -> str:
+        return self.get_table_id(int(self.bk_biz_id), self.app_name)
+
+    @classmethod
+    def get_table_id(cls, bk_biz_id: int, app_name: str, **kwargs) -> str:
+        valid_app_name = cls.app_name_to_log_config_name(app_name)
+        if bk_biz_id > 0:
+            return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}.{valid_app_name}"
+        else:
+            return f"{cls.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{cls.DATA_NAME_PREFIX}.{valid_app_name}"
+
+    @classmethod
+    def app_name_to_log_config_name(cls, app_name: str):
+        """
+        LOG 和 APM 的英文名不同规则：APM 允许中划线(-)，LOG 不允许，所以这里替换为下划线(_)
+        """
+        return app_name.replace("-", "_")
+
+    @classmethod
+    @atomic(using=DATABASE_CONNECTION_NAME)
+    def apply_datasource(cls, bk_biz_id, app_name, **options):
+        option = options["option"]
+        obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+
+        if not obj:
+            if not option:
+                # 如果没有 logDatasource 并且没有开启 直接返回
+                return
+            obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
+
+        storage_params = {
+            "storage_cluster_id": options["es_storage_cluster"],
+            "retention": options.get("es_retention", settings.APM_APP_DEFAULT_ES_RETENTION),
+            "storage_replies": options.get("es_number_of_replicas", settings.APM_APP_DEFAULT_ES_REPLICAS),
+            "es_shards": options.get("es_shards", settings.APM_APP_DEFAULT_ES_SHARDS),
+        }
+
+        if obj.bk_data_id == -1:
+            # 指定了存储集群会有默认的清洗规则所以这里不需要配置规则
+            try:
+                valid_log_config_name = cls.app_name_to_log_config_name(app_name)
+                response = api.log_search.create_custom_report(
+                    **{
+                        "bk_biz_id": bk_biz_id,
+                        "collector_config_name_en": valid_log_config_name,
+                        "collector_config_name": valid_log_config_name,
+                        "custom_type": "otlp_log",
+                        "category_id": "application_check",
+                        # 兼容集群不支持冷热配置
+                        "allocation_min_days": 0,
+                        "description": f"APM({app_name})",
+                        **storage_params,
+                    }
+                )
+            except BKAPIError as e:
+                raise BKAPIError(f"创建日志自定义上报失败：{e}")
+
+            obj.result_table_id = cls.get_table_id(bk_biz_id, app_name)
+            obj.collector_config_id = response["collector_config_id"]
+            obj.bk_data_id = response["bk_data_id"]
+            obj.index_set_id = response["index_set_id"]
+            obj.save()
+        else:
+            # 更新
+            try:
+                api.log_search.update_custom_report(
+                    collector_config_id=obj.collector_config_id,
+                    category_id="application_check",
+                    collector_config_name=cls.app_name_to_log_config_name(app_name),
+                    allocation_min_days=0,
+                    **storage_params,
+                )
+            except BKAPIError as e:
+                raise BKAPIError(f"更新日志自定义上报失败：{e}")
+
+    @classmethod
+    def start(cls, bk_biz_id, app_name):
+        instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        api.log_search.start_collectors(collector_config_id=instance.collector_config_id)
+
+    @classmethod
+    def stop(cls, bk_biz_id, app_name):
+        instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        api.log_search.stop_collectors(collector_config_id=instance.collector_config_id)
 
 
 class TraceDataSource(ApmDataSourceConfigBase):
@@ -558,15 +680,14 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     @property
     def table_id(self) -> str:
-        bk_biz_id = int(self.bk_biz_id)
+        return self.get_table_id(int(self.bk_biz_id), self.app_name)
 
+    @classmethod
+    def get_table_id(cls, bk_biz_id: int, app_name: str, **kwargs) -> str:
         if bk_biz_id > 0:
-            return f"{bk_biz_id}_{self.DATA_NAME_PREFIX}.{self.DATASOURCE_TYPE}_{self.app_name}"
+            return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{app_name}"
         else:
-            return (
-                f"{self.TABLE_SPACE_PREFIX}_"
-                f"{-bk_biz_id}_{self.DATA_NAME_PREFIX}.{self.DATASOURCE_TYPE}_{self.app_name}"
-            )
+            return f"{cls.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{app_name}"
 
     def create_or_update_result_table(self, **option):
         table_id = self.table_id
@@ -725,7 +846,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
                 index_names=[i["index"] for i in routes if i.get("index")],
             )
             if not index_names:
-                raise ValueError(f"[IndexName] valid indexName not found!")
+                raise ValueError("[IndexName] valid indexName not found!")
             return ",".join(index_names)
         except Exception as e:  # noqa
             res = f"{self.result_table_id.replace('.', '_')}_*"
@@ -893,6 +1014,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
             "avg_duration": {"avg": {"field": OtlpKey.ELAPSED_TIME}},
             "max_duration": {"max": {"field": OtlpKey.ELAPSED_TIME}},
             "min_duration": {"min": {"field": OtlpKey.ELAPSED_TIME}},
+            "sum_duration": {"sum": {"field": OtlpKey.ELAPSED_TIME}},
         }
         return metric_aggs
 
@@ -1020,27 +1142,42 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     BUILTIN_APP_NAME = "builtin_profile_app"
     _CACHE_BUILTIN_DATASOURCE: Optional['ProfileDataSource'] = None
 
-    profile_bk_biz_id = models.IntegerField("Profile数据源创建在 bkbase 的业务 id(非业务下创建会与 bk_biz_id 不一致)")
+    profile_bk_biz_id = models.IntegerField(
+        "Profile数据源创建在 bkbase 的业务 id(非业务下创建会与 bk_biz_id 不一致)",
+        null=True,
+    )
     retention = models.IntegerField("过期时间", null=True)
     created = models.DateTimeField("创建时间", auto_now_add=True)
     updated = models.DateTimeField("更新时间", auto_now=True)
 
     @property
     def table_id(self) -> str:
-        bk_biz_id = int(self.bk_biz_id)
-        return f"{bk_biz_id}_{self.DATA_NAME_PREFIX}.{self.DATASOURCE_TYPE}_{self.app_name}"
+        return self.get_table_id(int(self.bk_biz_id), self.app_name)
+
+    @classmethod
+    def get_table_id(cls, bk_biz_id: int, app_name: str, **kwargs) -> str:
+        return f"{bk_biz_id}_{cls.DATA_NAME_PREFIX}.{cls.DATASOURCE_TYPE}_{app_name}"
 
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
-    def apply_datasource(cls, bk_biz_id, app_name, **option):
+    def apply_datasource(cls, bk_biz_id, app_name, **options):
+        option = options["option"]
         profile_bk_biz_id = bk_biz_id
         if bk_biz_id < 0:
             # 非业务创建 profile 将创建在公共业务下
             profile_bk_biz_id = settings.BK_DATA_BK_BIZ_ID
 
         obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+
         if not obj:
+            if not option:
+                # 如果没有 profileDatasource 并且没有开启 直接返回
+                return
             obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name, profile_bk_biz_id=profile_bk_biz_id)
+        elif obj.bk_data_id != -1:
+            # 如果有 dataId 证明创建过了 profile 因为都是内置配置所以不支持更新 直接返回
+            return
+
         # 创建接入
         apm_maintainers = ",".join(settings.APM_APP_BKDATA_MAINTAINER)
         essentials = BkDataDorisProvider.from_datasource_instance(
@@ -1048,12 +1185,12 @@ class ProfileDataSource(ApmDataSourceConfigBase):
             maintainer=get_global_user() if not apm_maintainers else f"{get_global_user()},{apm_maintainers}",
             operator=get_global_user(),
             name_stuffix=bk_biz_id,
-        ).provider(**option)
-
+        ).provider()
         obj.bk_data_id = essentials["bk_data_id"]
         obj.result_table_id = essentials["result_table_id"]
         obj.retention = essentials["retention"]
-        obj.save(update_fields=["bk_data_id", "result_table_id", "updated", "retention"])
+        obj.save()
+
         return
 
     @classmethod
@@ -1074,6 +1211,16 @@ class ProfileDataSource(ApmDataSourceConfigBase):
             return cls.objects.get(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
         except cls.DoesNotExist:
             return None
+
+    @classmethod
+    def start(cls, bk_biz_id, app_name):
+        instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        api.bkdata.start_databus_cleans(result_table_id=instance.result_table_id)
+
+    @classmethod
+    def stop(cls, bk_biz_id, app_name):
+        instance = cls.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        api.bkdata.stop_databus_cleans(result_table_id=instance.result_table_id)
 
 
 class DataLink(models.Model):
@@ -1114,6 +1261,11 @@ class DataLink(models.Model):
     @classmethod
     def create_global(cls, **kwargs):
         return cls.objects.create(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID, **kwargs)
+
+    def to_json(self):
+        return {
+            "elasticsearch_cluster_id": self.elasticsearch_cluster_id,
+        }
 
 
 class BkdataFlowConfig(models.Model):

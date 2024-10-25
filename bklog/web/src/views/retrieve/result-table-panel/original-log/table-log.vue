@@ -390,11 +390,11 @@
         }
 
         .cell {
-          padding: 10px 14px 0 14px;
+          padding: 10px 14px 0 2px;
         }
 
         &.is-wrap .cell {
-          padding: 10px 14px 8px;
+          padding: 10px 14px 8px 2px;
         }
       }
 
@@ -449,10 +449,22 @@
       display: inline;
 
       .field-type-icon {
-        width: 12px;
-        margin: 0 4px 0 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 16px;
+        height: 16px;
+        margin: 0 5px 0 0;
         font-size: 12px;
-        color: #979ba5;
+        color: #63656e;
+        background: #dcdee5;
+        border-radius: 2px;
+      }
+
+      .bklog-ext {
+        min-width: 22px;
+        height: 22px;
+        transform: translateX(-3px) scale(0.7);
       }
 
       .toggle-display {

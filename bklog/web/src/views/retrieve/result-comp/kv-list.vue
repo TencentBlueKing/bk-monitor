@@ -69,7 +69,7 @@
             @click="handleViewMonitor(field)"
           >
             <span>{{ getRelationMonitorField(field) }}</span>
-            <i class="log-icon icon-jump"></i>
+            <i class="bklog-icon bklog-jump"></i>
           </span>
         </div>
       </div>
@@ -135,8 +135,8 @@
           { id: 'is', icon: 'bk-icon icon-enlarge-line search' },
           { id: 'not', icon: 'bk-icon icon-narrow-line search' },
           { id: 'display', icon: 'bk-icon icon-arrows-up-circle' },
-          // { id: 'chart', icon: 'log-icon icon-chart' },
-          { id: 'copy', icon: 'log-icon icon-copy' },
+          // { id: 'chart', icon: 'bklog-icon bklog-chart' },
+          { id: 'copy', icon: 'bklog-icon bklog-copy' },
         ],
         toolMenuTips: {
           is: this.$t('添加 {n} 过滤项', { n: '=' }),
@@ -202,7 +202,7 @@
       },
       getFieldIcon(field) {
         const fieldType = this.getFieldType(field);
-        return this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].icon : 'log-icon icon-unkown';
+        return this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].icon : 'bklog-icon bklog-unkown';
       },
       fieldTypePopover(field) {
         const target = this.fieldList.find(item => item.field_name === field);
@@ -284,11 +284,12 @@
        * @param { string } field
        */
       handleViewMonitor(field) {
+        const key = field.toLowerCase();
         let path = '';
-        switch (field) {
+        switch (key) {
           // trace检索
           case 'trace_id':
-          case 'traceID':
+          case 'traceid':
             if (this.apmRelation.is_active) {
               const { app_name: appName, bk_biz_id: bkBizId } = this.apmRelation.extra;
               path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${this.data[field]}`;
@@ -300,7 +301,7 @@
             }
             break;
           // 主机监控
-          case 'serverIp':
+          case 'serverip':
           case 'ip':
           case 'bk_host_id':
             {
@@ -452,7 +453,7 @@
           margin: 0 0 0 6px;
         }
 
-        .icon-copy {
+        .bklog-copy {
           font-size: 24px;
           cursor: pointer;
           transform: rotate(0);
@@ -478,3 +479,4 @@
     }
   }
 </style>
+./text-segmentation.jsx

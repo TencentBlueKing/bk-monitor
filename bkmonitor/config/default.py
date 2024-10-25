@@ -236,7 +236,7 @@ BKM_SPACE_INJECT_REQUEST_ENABLED = False
 # 返回参数是否需要注入空间属性
 BKM_SPACE_INJECT_RESPONSE_ENABLED = False
 # 项目空间API类模块路径
-BKM_SPACE_API_CLASS = "monitor_web.commons.biz.space_api.InjectSpaceApi"
+BKM_SPACE_API_CLASS = "bkmonitor.space.space_api.InjectSpaceApi"
 
 #
 # Database
@@ -497,8 +497,12 @@ IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER = True
 
 # 监控内置可观测数据上报Redis Key TODO：联调时赋予默认值，后续更改
 BUILTIN_DATA_RT_REDIS_KEY = os.getenv(
-    "BKAPP_BUILTIN_DATA_RT_REDIS_KEY", "bkmonitorv3:spaces:build_in_result_table_detail"
+    "BKAPP_BUILTIN_DATA_RT_REDIS_KEY", "bkmonitorv3:spaces:built_in_result_table_detail"
 )
+
+# eco system
+ECOSYSTEM_REPOSITORY_URL = ""
+ECOSYSTEM_CODE_ROOT_URL = ""
 
 # APM config
 APM_ACCESS_URL = ""
@@ -522,7 +526,7 @@ APM_IS_ADD_PLATFORM_METRIC_DIMENSION_CONFIG = (
 
 APM_APP_DEFAULT_ES_STORAGE_CLUSTER = -1
 APM_APP_DEFAULT_ES_RETENTION = 7
-APM_APP_DEFAULT_ES_SLICE_LIMIT = 500
+APM_APP_DEFAULT_ES_SLICE_LIMIT = 100
 APM_APP_DEFAULT_ES_REPLICAS = 0
 APM_APP_QUERY_TRACE_MAX_COUNT = 1000
 APM_APP_DEFAULT_ES_SHARDS = 3
@@ -551,6 +555,9 @@ APM_TRPC_ENABLED = False
 APM_BMW_DEPLOY_BIZ_ID = 0
 # 在列表中业务，才会创建虚拟指标， [2]
 APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
+APM_BMW_TASK_QUEUES = []
+# APM V4 链路 metric data status 配置
+APM_V4_METRIC_DATA_STATUS_CONFIG = {}
 # 拓扑发现允许的最大 Span 数量(预估值)
 PER_ROUND_SPAN_MAX_SIZE = 1000
 
@@ -931,7 +938,7 @@ CACHE_HOST_TIMEOUT = 60 * 2
 CACHE_DATA_TIMEOUT = 60 * 2
 CACHE_OVERVIEW_TIMEOUT = 60 * 2
 CACHE_HOME_TIMEOUT = 60 * 10
-CACHE_USER_TIMEOUT = 60 * 10
+CACHE_USER_TIMEOUT = 60 * 60
 
 # SaaS访问读写权限
 ROLE_WRITE_PERMISSION = "w"
@@ -1065,10 +1072,14 @@ BK_IAM_SAAS_HOST = os.getenv("BK_IAM_SITE_URL") or get_service_url(BK_IAM_APP_CO
 
 # 文档中心地址
 BK_DOCS_SITE_URL = os.getenv("BK_DOCS_SITE_URL") or get_service_url("bk_docs_center", bk_paas_host=BK_PAAS_HOST)
+if not BK_DOCS_SITE_URL.endswith("/"):
+    BK_DOCS_SITE_URL += "/"
+
+# 文档中心地址
 DOC_HOST = "https://bk.tencent.com/docs/"
 
 # 版本差异变量
-if PLATFORM == "community":
+if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
     BK_DOCS_SITE_URL = DOC_HOST
 
 # monitor api base url:
@@ -1084,6 +1095,7 @@ BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
 DEVOPS_API_BASE_URL = os.getenv("BKAPP_DEVOPS_API_BASE_URL", "")
 MONITOR_WORKER_API_BASE_URL = os.getenv("BKAPP_MONITOR_WORKER_API_BASE_URL", "")
 APIGATEWAY_API_BASE_URL = os.getenv("BKAPP_APIGATEWAY_API_BASE_URL", "")
+IAM_API_BASE_URL = os.getenv("BKAPP_IAM_API_BASE_URL", "")
 
 # 以下是bkchat的apigw
 BKCHAT_API_BASE_URL = os.getenv("BKAPP_BKCHAT_API_BASE_URL", "")
@@ -1376,6 +1388,9 @@ ENABLE_V2_BKDATA_GSE_RESOURCE = False
 ENABLE_V2_VM_DATA_LINK = False
 ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST = []
 
+ES_INDEX_ROTATION_SLEEP_INTERVAL = 30
+ES_INDEX_ROTATION_STEP = 50
+
 # 创建 vm 链路资源所属的命名空间
 DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
 # grafana和策略导出是否支持data_label转换
@@ -1410,3 +1425,39 @@ BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")
 
 # 监控平台apigw代码
 BK_APIGW_NAME = os.getenv("BK_APIGW_NAME", "bk-monitor")
+
+# 集群内operator服务默认名称
+K8S_OPERATOR_SERVICE_NAME = "bkmonitor-operator-stack-operator"
+
+# 默认K8S插件采集集群ID
+K8S_PLUGIN_COLLECT_CLUSTER_ID = ""
+
+# 腾讯云指标插件配置
+# {
+#     "label": "",
+#     "plugin_display_name": "",
+#     "description_md": "",
+#     "logo": "",
+#     "collect_json": {
+#         "values": {
+#             "limits": {
+#                 "cpu": "100m",
+#                 "memory": "100Mi"
+#             },
+#             "requests": {
+#                 "cpu": "10m",
+#                 "memory": "15Mi"
+#             }
+#         },
+#         "template": ""
+#     },
+#     "config_json": []
+# }
+TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {}
+TENCENT_CLOUD_METRIC_PLUGIN_ID = "qcloud_exporter"
+
+# 启用监控目标缓存的业务ID列表
+ENABLED_TARGET_CACHE_BK_BIZ_IDS = []
+
+# 文档中心对应文档版本
+BK_DOC_VERSION = "3.9"

@@ -51,6 +51,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("WEBHOOK_TIMEOUT", slz.IntegerField(label="Webhook超时时间", default=3)),
         ("ENABLE_DEFAULT_STRATEGY", slz.BooleanField(label="是否开启默认策略", default=True)),
         ("IS_ENABLE_VIEW_CMDB_LEVEL", slz.BooleanField(label="是否开启前端视图部分的CMDB预聚合", default=False)),
+        (
+            "K8S_OPERATOR_SERVICE_NAME",
+            slz.CharField(label="集群内operator服务默认名称", default="bkmonitor-operator-stack-operator"),
+        ),
         # === BKDATA & AIOPS 相关配置 开始 ===
         ("AIOPS_BIZ_WHITE_LIST", slz.ListField(label="开启智能异常算法的业务白名单", default=[])),
         ("AIOPS_INCIDENT_BIZ_WHITE_LIST", slz.ListField(label="开启根因故障定位的业务白名单", default=[])),
@@ -149,7 +153,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("NO_DATA_ALERT_EXPIRED_TIMEDELTA", slz.IntegerField(label="无数据告警过期时间窗口(s)", default=24 * 60 * 60)),
         ("APM_APP_DEFAULT_ES_STORAGE_CLUSTER", slz.IntegerField(label="APM应用默认集群ID", default=-1)),
         ("APM_APP_DEFAULT_ES_RETENTION", slz.IntegerField(label="APM应用默认过期时间", default=7)),
-        ("APM_APP_DEFAULT_ES_SLICE_LIMIT", slz.IntegerField(label="APM应用ES索引集默认切分大小", default=500)),
+        ("APM_APP_DEFAULT_ES_SLICE_LIMIT", slz.IntegerField(label="APM应用ES索引集默认切分大小", default=100)),
         ("APM_APP_DEFAULT_ES_REPLICAS", slz.IntegerField(label="APM应用默认副本数", default=0)),
         ("APM_APP_DEFAULT_ES_SHARDS", slz.IntegerField(label="APM应用默认索引分片数", default=3)),
         ("APM_APP_BKDATA_OPERATOR", slz.CharField(label="APM应用操作数据平台所用到的用户名", default="admin")),
@@ -173,6 +177,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("IS_FTA_MIGRATED", slz.BooleanField(label="是否已经迁移自愈", default=False)),
         ("FTA_MIGRATE_BIZS", slz.ListField(label="已经迁移的业务名单", default=[])),
         ("APM_APP_QUERY_TRACE_MAX_COUNT", slz.IntegerField(label="APM单次查询TraceID最大的数量", default=10)),
+        ("APM_V4_METRIC_DATA_STATUS_CONFIG", slz.DictField(label="APMv4链路metric数据状态配置", default={})),
         ("SPECIFY_AES_KEY", slz.CharField(label="特别指定的AES使用密钥", default="")),
         ("ENTERPRISE_CODE", slz.CharField(label="企业代号", default="")),
         ("LINUX_GSE_AGENT_PATH", slz.CharField(label="Linux Agent 安装路径", default="/usr/local/gse/")),
@@ -305,6 +310,11 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ENABLE_UPTIMECHECK_TEST", slz.BooleanField(label="是否开启拨测联通性测试", default=True)),
         ("CHECK_RESULT_TTL_HOURS", slz.CharField(label="检测结果缓存 TTL(小时)", default=1)),
         ("ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST", slz.ListField(label="启用新链路的集群ID列表", default=[])),
+        ("K8S_PLUGIN_COLLECT_CLUSTER_ID", slz.CharField(label="默认K8S插件采集集群ID", default="")),
+        ("TENCENT_CLOUD_METRIC_PLUGIN_CONFIG", slz.JSONField(label="腾讯云监控插件配置", default={})),
+        ("ENABLED_TARGET_CACHE_BK_BIZ_IDS", slz.ListField(label="启用监控目标缓存的业务ID列表", default=[])),
+        ("ES_INDEX_ROTATION_SLEEP_INTERVAL", slz.IntegerField(label="ES索引轮转等待间隔", default=30)),
+        ("ES_INDEX_ROTATION_STEP", slz.IntegerField(label="ES索引轮转并发个数", default=50)),
     ]
 )
 
@@ -377,6 +387,9 @@ STANDARD_CONFIGS = OrderedDict(
         ("DEMO_BIZ_ID", slz.IntegerField(label=_("Demo业务ID"), default=0)),
         ("DEMO_BIZ_WRITE_PERMISSION", slz.BooleanField(label=_("Demo业务写权限"), default=False)),
         ("DEMO_BIZ_APPLY", slz.CharField(label=_("业务接入链接"), default="", allow_blank=True)),
+        ("ECOSYSTEM_REPOSITORY_URL", slz.CharField(label=_("接入样例代码仓库"), default="", allow_blank=True)),
+        # 区别于 ECOSYSTEM_REPOSITORY_URL，每个 Git 对代码路径定义不同，同时可以控制展示分支
+        ("ECOSYSTEM_CODE_ROOT_URL", slz.CharField(label=_("接入样例代码根 URL"), default="", allow_blank=True)),
         ("APM_ACCESS_URL", slz.CharField(label=_("APM接入链接"), default="", allow_blank=True)),
         ("APM_BEST_PRACTICE_URL", slz.CharField(label=_("APM最佳实践链接"), default="", allow_blank=True)),
         ("APM_METRIC_DESCRIPTION_URL", slz.CharField(label=_("APM指标说明"), default="", allow_blank=True)),
@@ -392,6 +405,7 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_TRPC_ENABLED", slz.BooleanField(label=_("APM 是否针对TRPC有特殊配置"), default=False)),
         ("APM_BMW_DEPLOY_BIZ_ID", slz.IntegerField(label=_("APM BMW 模块部署集群所属的业务 ID(用来查询指标)"), default=0)),
         ("APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID", slz.ListField(label=_("APM 创建虚拟指标业务列表"), default=[])),
+        ("APM_BMW_TASK_QUEUES", slz.ListField(label=_("APM BMW 任务能够使用的队列名称"), default=[])),
         ("PER_ROUND_SPAN_MAX_SIZE", slz.IntegerField(label=_("拓扑发现允许的最大 Span 数量"), default=1000)),
         ("WXWORK_BOT_NAME", slz.CharField(label=_("蓝鲸监控机器人名称"), default="BK-Monitor", allow_blank=True)),
         ("WXWORK_BOT_SEND_IMAGE", slz.BooleanField(label=_("蓝鲸监控机器人发送图片"), default=True)),

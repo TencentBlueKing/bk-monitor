@@ -32,7 +32,7 @@ import { Dialog, Tag, Input, Switcher, Table, TableColumn, Button, Popover, Side
 import VueDraggable from 'vuedraggable';
 
 import $http from '../../api';
-import { formatDate, getFlatObjValues } from '../../common/util';
+import { getFlatObjValues } from '../../common/util';
 import { fieldTypeMap } from '../../store/constant';
 import EmptyStatus from '../empty-status/index.vue';
 import { deepClone } from '../monitor-echarts/utils';
@@ -343,7 +343,7 @@ export default class MaskingField extends tsc<IProps> {
   }
 
   getFieldIcon(fieldType) {
-    return fieldTypeMap[fieldType] ? fieldTypeMap[fieldType].icon : 'log-icon icon-unkown';
+    return fieldTypeMap[fieldType] ? fieldTypeMap[fieldType].icon : 'bklog-icon bklog-unkown';
   }
   /** 获取字段列表样式 */
   getFieldItemStyle(fieldItem: IFieldItem) {
@@ -744,7 +744,7 @@ export default class MaskingField extends tsc<IProps> {
       [
         h('span', this.$t('脱敏规则')),
         h('span', {
-          class: 'log-icon icon-brush',
+          class: 'bklog-icon bklog-brush',
           directives: [
             {
               name: 'bk-tooltips',
@@ -755,7 +755,7 @@ export default class MaskingField extends tsc<IProps> {
             click: this.handleClearRule,
           },
         }),
-        h('span', { class: ['log-icon icon-double-arrow', { 'is-show-sync': this.isShowSyncBtn }] }),
+        h('span', { class: ['bklog-icon bklog-double-arrow', { 'is-show-sync': this.isShowSyncBtn }] }),
         h(
           'span',
           {
@@ -779,7 +779,7 @@ export default class MaskingField extends tsc<IProps> {
       [
         h('span', this.$t('脱敏预览')),
         h('span', {
-          class: 'log-icon icon-info-fill',
+          class: 'bklog-icon bklog-info-fill',
           directives: [
             {
               name: 'bk-tooltips',
@@ -824,8 +824,8 @@ export default class MaskingField extends tsc<IProps> {
   async getFieldType() {
     try {
       const currentTime = Date.now();
-      const startTime = formatDate(currentTime - 15 * 60 * 1000);
-      const endTime = formatDate(currentTime);
+      const startTime = Math.floor((currentTime - 15 * 60 * 1000) / 1000);
+      const endTime = Math.floor(currentTime / 1000);
       const res = await $http.request('retrieve/getLogTableHead', {
         params: { index_set_id: this.collectData?.index_set_id },
         query: {
@@ -1269,7 +1269,7 @@ export default class MaskingField extends tsc<IProps> {
                 onMouseleave={() => this.handleLeaveRow()}
               >
                 <i
-                  class={['field-type-icon', this.getFieldIcon(item.field_type) || 'log-icon icon-unkown']}
+                  class={['field-type-icon', this.getFieldIcon(item.field_type) || 'bklog-icon bklog-unkown']}
                   v-bk-tooltips={{
                     content: fieldTypeMap[item.field_type]?.name,
                     disabled: !fieldTypeMap[item.field_type],

@@ -34,15 +34,17 @@ import './field-details.scss';
 
 interface FieldDetailsProps {
   detailData: DetailData;
+  loading: boolean;
 }
 
 @Component
 export default class FieldDetails extends tsc<FieldDetailsProps> {
   @Prop({ type: Object, required: true }) detailData: DetailData;
+  @Prop({ type: Boolean, default: false }) loading: boolean;
 
   metricList = [];
 
-  @Watch('detailData')
+  @Watch('detailData', { immediate: true })
   handleDetailDataChange(val: DetailData) {
     if (val) {
       this.metricList = val.metric_list.map(item => ({ ...item, collapse: true }));
@@ -60,9 +62,17 @@ export default class FieldDetails extends tsc<FieldDetailsProps> {
     return (
       <div class='field-details-component'>
         <div class='metric-dimension'>
-          <div class='table-wrap'>
+          <div
+            class='table-wrap'
+            v-bkloading={{
+              isLoading: this.loading,
+            }}
+          >
             {this.metricList.map((item, index) => (
-              <div class='table-item'>
+              <div
+                key={index}
+                class='table-item'
+              >
                 <div
                   class={{ 'table-item-title': true, 'is-collapse': item.collapse }}
                   onClick={() => (item.collapse = !item.collapse)}

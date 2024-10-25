@@ -40,6 +40,22 @@ import store from '@/store';
 
 Vue.use(VueRouter);
 
+// 解决编程式路由往同一地址跳转时会报错的情况
+const originalPush = VueRouter.prototype.push;
+const originalReplace = VueRouter.prototype.replace;
+
+// push
+VueRouter.prototype.push = function push(location, onResolve, onReject) {
+  if (onResolve || onReject) return originalPush.call(this, location, onResolve, onReject);
+  return originalPush.call(this, location).catch(err => err);
+};
+
+// replace
+VueRouter.prototype.replace = function push(location, onResolve, onReject) {
+  if (onResolve || onReject) return originalReplace.call(this, location, onResolve, onReject);
+  return originalReplace.call(this, location).catch(err => err);
+};
+
 const LogCollectionView = {
   name: 'LogCollection',
   template: '<router-view></router-view>',
@@ -72,9 +88,11 @@ const DashboardTempView = {
   name: 'DashboardTempView',
   template: '<router-view></router-view>',
 };
+const retrieve = () => import(/* webpackChunkName: 'logRetrieve' */ '@/views/retrieve-hub');
+// const retrieve = () => import(/* webpackChunkName: 'logRetrieve' */ '@/views/retrieve-hub');
 
-const retrieve = () => import(/* webpackChunkName: 'logRetrieve' */ '@/views/retrieve');
 const dashboard = () => import(/* webpackChunkName: 'dashboard' */ '@/views/dashboard');
+const playground = () => import('@/views/playground');
 
 // 管理端
 const Manage = () => import(/* webpackChunkName: 'manage' */ '@/views/manage');
@@ -1014,6 +1032,11 @@ const routes = [
     },
   },
   {
+    path: '/playground',
+    name: 'playground',
+    component: playground,
+  },
+  {
     path: '*',
     name: 'exception',
     component: exception,
@@ -1036,6 +1059,18 @@ const cancelRequest = async () => {
 
 router.beforeEach(async (to, from, next) => {
   await cancelRequest();
+  if (to.name === 'retrieve') {
+    window.parent.postMessage(
+      {
+        _MONITOR_URL_PARAMS_: to.params,
+        _MONITOR_URL_QUERY_: to.query,
+        _LOG_TO_MONITOR_: true,
+        _MONITOR_URL_: window.MONITOR_URL,
+      },
+      '*',
+      // window.MONITOR_URL,
+    );
+  }
   if (
     window.IS_EXTERNAL &&
     JSON.parse(window.IS_EXTERNAL) &&

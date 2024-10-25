@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Inject, Prop } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -35,6 +35,7 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import { getValueFormat } from '../../../monitor-echarts/valueFormats';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST_BAR, MONITOR_BAR_OPTIONS } from '../../constants';
+import { createMenuList } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
 import { LineChart } from '../time-series/time-series';
@@ -57,16 +58,33 @@ interface IApdexChartProps {
   splitNumber?: number;
 }
 interface IApdexChartEvent {
-  onDataZoom: void;
-  onDblClick: void;
+  onDataZoom: () => void;
+  onDblClick: () => void;
 }
 @Component
 export class ApdexChart extends LineChart {
   @Prop({ type: Number, default: 0 }) splitNumber: number;
 
+  @Inject('handlePageTabChange') handlePageTabChange: (
+    id: string,
+    customRouterQuery: Record<string, number | string>
+  ) => void;
+
+  contextmenuInfo = {
+    options: [{ id: 'topo', name: window.i18n.tc('查看拓扑') }],
+    sliceStartTime: 0, // 当前切片起始时间
+    sliceEndTime: 0,
+  };
+
+  /* 是否开启全局的右键菜单 */
+  get enableContextmenu() {
+    return !!this.panel.options?.apdex_chart?.enableContextmenu;
+  }
+
   empty = true; // 是否为空
   emptyText = ''; // 空文案
   isFetchingData = false; // 是否正在获取数据
+  showMouseTips = false;
   async getPanelData(start_time?: string, end_time?: string) {
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
@@ -93,7 +111,7 @@ export class ApdexChart extends LineChart {
       const promiseList = [];
       const timeShiftList = ['', ...this.timeOffset];
       const variablesService = new VariablesService(this.viewOptions);
-      timeShiftList.forEach(time_shift => {
+      for (const time_shift of timeShiftList) {
         const list = this.panel.targets.map(item =>
           (this as any).$api[item.apiModule]
             [item.apiFunc](
@@ -130,13 +148,14 @@ export class ApdexChart extends LineChart {
             })
         );
         promiseList.push(...list);
-      });
+      }
       await Promise.all(promiseList).catch(() => false);
       if (series.length) {
         const seriesList = this.handleTransformSeries(
           series.map(item => ({
             name: item.target,
             cursor: 'auto',
+            // biome-ignore lint/style/noCommaOperator: <explanation>
             data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
             stack: item.stack || random(10),
             unit: item.unit,
@@ -145,6 +164,8 @@ export class ApdexChart extends LineChart {
         );
         const formatterFunc = this.handleSetFormatterFunc(seriesList[0].data, !!this.splitNumber);
         const echartOptions: any = MONITOR_BAR_OPTIONS;
+        let splitNumber = seriesList[0].data?.length || 0;
+        splitNumber = splitNumber >= 7 ? 7 : splitNumber;
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: true,
@@ -161,7 +182,7 @@ export class ApdexChart extends LineChart {
                 formatter: formatterFunc || '{value}',
               },
               // splitNumber: this.splitNumber || 0
-              splitNumber: this.splitNumber ? seriesList[0].data?.length || 2 : 0,
+              splitNumber: this.splitNumber ? this.splitNumber : splitNumber || 2,
             },
             series: seriesList,
           })
@@ -185,7 +206,6 @@ export class ApdexChart extends LineChart {
     this.cancelTokens = [];
     this.handleLoadingChange(false);
   }
-
   handleTransformSeries(series: ITimeSeriesItem[]): any {
     const legendData: ILegendItem[] = [];
     this.renderThresholds = false;
@@ -281,12 +301,60 @@ export class ApdexChart extends LineChart {
         tips,
         color: '#FFB848',
       };
+
+    if (v[0] === 3)
+      return {
+        name: '提醒',
+        tips,
+        color: '#699DF4',
+      };
     return {
       name: '无告警',
       tips,
       color: '#2DCB56',
     };
   }
+  /* 整个图的右键菜单 */
+  handleChartContextmenu(event: MouseEvent) {
+    if (this.enableContextmenu) {
+      const { pageX, pageY } = event;
+      createMenuList(this.contextmenuInfo.options, { x: pageX, y: pageY }, (id: string) => {
+        const startTime = (this.$refs.baseChart as any)?.curPoint?.xAxis || 0;
+        let endTime = 0;
+        let i = 0;
+        const datas = this.options?.series?.[0]?.data || [];
+        for (const item of datas) {
+          i += 1;
+          if (item?.value?.[0] === startTime || item?.[0] === startTime) {
+            const nextItem = datas[i];
+            endTime = nextItem?.value?.[0] || nextItem?.[0] || 0;
+            break;
+          }
+        }
+        this.contextmenuInfo = {
+          ...this.contextmenuInfo,
+          sliceStartTime: startTime,
+          sliceEndTime: endTime || startTime + 1000 * 60,
+        };
+        this.handleClickMenuItem(id);
+      });
+    }
+  }
+
+  /**
+   * @description: 处理右键菜单点击事件
+   * @param id
+   */
+  handleClickMenuItem(id: string) {
+    if (id === 'topo') {
+      const { sliceStartTime, sliceEndTime } = this.contextmenuInfo;
+      this.handlePageTabChange('topo', {
+        sliceStartTime,
+        sliceEndTime,
+      });
+    }
+  }
+
   render() {
     const { legend } = this.panel?.options || {};
     return (
@@ -303,13 +371,23 @@ export class ApdexChart extends LineChart {
             subtitle={this.panel.subTitle || ''}
             title={this.panel.title}
             onUpdateDragging={() => this.panel.updateDraging(false)}
-          />
+          >
+            {this.enableContextmenu && this.showMouseTips && (
+              <div class='context-menu-info'>
+                <i class='icon-monitor icon-mc-mouse mouse-icon' />
+                {this.$t('右键更多操作')}
+              </div>
+            )}
+          </ChartHeader>
         )}
         {!this.empty ? (
           <div class={`apdex-chart-content ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
             <div
               ref='chart'
               class='chart-instance'
+              onContextmenu={this.handleChartContextmenu}
+              onMouseenter={() => (this.showMouseTips = true)}
+              onMouseleave={() => (this.showMouseTips = false)}
             >
               {this.inited && (
                 <BaseEchart
@@ -317,6 +395,8 @@ export class ApdexChart extends LineChart {
                   width={this.width}
                   height={this.height}
                   groupId={this.panel.dashboardId}
+                  hoverAllTooltips={this.hoverAllTooltips}
+                  isContextmenuPreventDefault={this.enableContextmenu}
                   options={this.options}
                   onDataZoom={this.dataZoom}
                   onDblClick={this.handleDblClick}

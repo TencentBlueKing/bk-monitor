@@ -54,16 +54,16 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     let { series } = data || {};
     series = deepMerge([], series);
     const hasSeries = series && series.length > 0;
-    const formatterFunc = hasSeries && series[0].data?.length ? this.handleSetFormatterFunc(series[0].data) : null;
+    // const formatterFunc = hasSeries && series[0].data?.length ? this.handleSetFormatterFunc(series[0].data) : null;
 
     const { maxThreshold, minThreshold } = this.handleGetMaxAndMinThreholds(series);
 
     const legendData: any = [];
     const options = {
       xAxis: {
-        axisLabel: {
-          formatter: hasSeries && formatterFunc ? formatterFunc : '{value}',
-        },
+        // axisLabel: {
+        //   formatter: hasSeries && formatterFunc ? formatterFunc : '{value}',
+        // },
       },
       yAxis: {
         max: (v: { min: number; max: number }) => Math.max(v.max, maxThreshold),

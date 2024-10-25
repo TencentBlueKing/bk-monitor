@@ -470,7 +470,7 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
 }
 
 /**
- * 返回日期格式 2020-04-13 09:15:14
+ * 返回日期格式 2020-04-13 09:15:14.123
  * @param {Number | String | Date} val
  * @return {String}
  */
@@ -483,7 +483,15 @@ export function formatDate(val, isTimzone = true) {
   }
 
   if (isTimzone) {
-    return dayjs.tz(Number(val)).format('YYYY-MM-DD HH:mm:ss');
+    // 将时间戳转换为毫秒级别，如果是10位时间戳则乘以1000
+    if (val.toString().length === 10) val *= 1000;
+    // 获取毫秒部分的最后三位
+    const milliseconds = val % 1000;
+    // 创建 dayjs 对象
+    const date = dayjs.tz(Number(val));
+    // 如果毫秒部分不为 000，展示毫秒精度的时间
+    const formatStr = milliseconds !== 0 ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD HH:mm:ss';
+    return date.format(formatStr);
   }
 
   const yyyy = date.getFullYear();
@@ -491,14 +499,6 @@ export function formatDate(val, isTimzone = true) {
   const dd = `0${date.getDate()}`.slice(-2);
   const time = date.toTimeString().slice(0, 8);
   return `${yyyy}-${mm}-${dd} ${time}`;
-}
-/**
- * @desc: days时间格式化
- * @param {String} val
- * @returns {String}
- */
-export function daysFormatDate(val) {
-  return dayjs(val).format('YYYY-MM-DD HH:mm:ss');
 }
 
 /**
@@ -510,9 +510,12 @@ export function formatDateNanos(val) {
 
   // 使用dayjs解析字符串到毫秒 包含时区处理
   const dateTimeToMilliseconds = dayjs(val).tz(window.timezone).format('YYYY-MM-DD HH:mm:ss.SSS');
+  // 获取微秒并且判断是否是000，也就是纳秒部分的最后三位
+  const microseconds = nanoseconds % 1000;
+  const newNanoseconds = microseconds !== 0 ? nanoseconds : nanoseconds.slice(0, 3);
 
   // 组合dayjs格式化的日期时间到毫秒和独立处理的纳秒部分
-  const formattedDateTimeWithNanoseconds = `${dateTimeToMilliseconds}${nanoseconds}`;
+  const formattedDateTimeWithNanoseconds = `${dateTimeToMilliseconds}${newNanoseconds}`;
 
   return formattedDateTimeWithNanoseconds;
 }
@@ -830,6 +833,19 @@ export const Debounce =
     return descriptor;
   };
 
+export const formatDateTimeField = (data, fieldType) => {
+  if (fieldType === 'date') {
+    return formatDate(Number(data)) || data || emptyCharacter;
+  }
+
+  // 处理纳秒精度的UTC时间格式
+  if (fieldType === 'date_nanos') {
+    return formatDateNanos(data) || emptyCharacter;
+  }
+
+  return data;
+};
+
 /**
  * 获取 row[key] 内容
  * @example return row.a.b || row['a.b']
@@ -1036,7 +1052,7 @@ export const utcFormatDate = val => {
 
   if (isNaN(date.getTime())) {
     console.warn('无效的时间');
-    return '';
+    return val;
   }
 
   return formatDate(date.getTime());
@@ -1046,9 +1062,9 @@ export const utcFormatDate = val => {
 export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null) => {
   try {
     if (tableData.length && visibleFields.length) {
-      visibleFields.forEach((field, index) => {
+      visibleFields.forEach(field => {
         if (catchFieldsWidthObj) {
-          const catchWidth = catchFieldsWidthObj[index];
+          const catchWidth = catchFieldsWidthObj[field.field_name];
           field.width = catchWidth ?? calculateTableColsWidth(field, tableData);
         } else {
           field.width = calculateTableColsWidth(field, tableData);
@@ -1133,3 +1149,48 @@ export const contextHighlightColor = [
     light: '#E1FCFD',
   },
 ];
+
+export const getOperatorKey = operator => `operator:${operator}`;
+
+/**
+ * 获取字符长度，汉字两个字节
+ * @param str 需要计算长度的字符
+ * @returns 字符长度
+ */
+export const getCharLength = str => {
+  const len = str.length;
+  let bitLen = 0;
+
+  for (let i = 0; i < len; i++) {
+    if ((str.charCodeAt(i) & 0xff00) !== 0) {
+      bitLen += 1;
+    }
+    bitLen += 1;
+  }
+
+  return bitLen;
+};
+
+export const getRegExp = (searchValue, flags = 'ig') => {
+  return new RegExp(`${searchValue}`.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), flags);
+};
+
+/** url中没有索引集indexID时候，拿浏览器存储的最后一次选中的索引集进行初始化 */
+export const getStorageIndexItem = indexList => {
+  const catchIndexSetStr = localStorage.getItem('CATCH_INDEX_SET_ID_LIST');
+  if (catchIndexSetStr) {
+    const catchIndexSetList = JSON.parse(catchIndexSetStr);
+    const spaceUid = store.state.spaceUid;
+    if (catchIndexSetList[spaceUid] && indexList.some(item => item.index_set_id === catchIndexSetList[spaceUid])) {
+      return catchIndexSetList[spaceUid];
+    }
+  }
+  return getHaveValueIndexItem(indexList);
+};
+
+/** 获取非无数据的索引集 */
+export const getHaveValueIndexItem = indexList => {
+  return (
+    indexList.find(item => !item.tags.map(item => item.tag_id).includes(4))?.index_set_id || indexList[0].index_set_id
+  );
+};

@@ -26,12 +26,13 @@
 <template>
   <div class="fingerprint-setting fl-sb">
     <div
+      v-if="!isExternal"
       class="is-near24"
       v-bk-tooltips="{ content: $t('请先新建新类告警策略'), disabled: strategyHaveSubmit }"
     >
       <bk-checkbox
         v-model="isNear24"
-        :disabled="!fingerOperateData.signatureSwitch || !strategyHaveSubmit"
+        :disabled="!clusterSwitch || !strategyHaveSubmit"
         :false-value="false"
         :true-value="true"
         data-test-id="fingerTable_checkBox_selectCustomSize"
@@ -51,7 +52,6 @@
         <bk-slider
           class="pattern-slider"
           v-model="patternSize"
-          :disable="!fingerOperateData.signatureSwitch"
           :max-value="fingerOperateData.sliderMaxVal"
           :show-tip="false"
           data-test-id="fingerTable_slider_patterSize"
@@ -61,7 +61,10 @@
       </div>
     </div> -->
 
-    <div class="fl-sb">
+    <div
+      class="fl-sb"
+      v-if="!isExternal"
+    >
       <bk-dropdown-menu
         ref="refOfSubscriptionDropdown"
         align="right"
@@ -114,25 +117,28 @@
       ref="groupPopover"
       width="400"
       ext-cls="popover-content"
-      :disabled="!fingerOperateData.signatureSwitch"
+      :disabled="!clusterSwitch"
       :on-show="handleShowMorePopover"
       :tippy-options="tippyOptions"
       placement="bottom-start"
     >
       <div
         v-bk-tooltips="$t('更多')"
-        :class="{ 'operation-icon': true, 'disabled-icon': !fingerOperateData.signatureSwitch }"
+        :class="{ 'operation-icon': true, 'disabled-icon': !clusterSwitch }"
         @click="handleClickGroupPopover"
       >
         <span class="bk-icon icon-more"></span>
       </div>
       <template #content>
         <div class="group-popover">
-          <div class="piece">
+          <div
+            v-if="!isExternal"
+            class="piece"
+          >
             <span>
               <span class="title">{{ $t('维度') }}</span>
               <i
-                class="notice log-icon icon-help"
+                class="notice bklog-icon bklog-help"
                 v-bk-tooltips.top="$t('修改字段会影响当前聚类结果，请勿随意修改')"
               ></i>
             </span>
@@ -233,7 +239,7 @@
                           class="top-end"
                           v-bk-tooltips="$t('自定义输入格式: 如 1h 代表一小时 h小时')"
                         >
-                          <i class="log-icon icon-help"></i>
+                          <i class="bklog-icon bklog-help"></i>
                         </span>
                       </div>
                     </div>
@@ -286,6 +292,10 @@
         type: Array,
         require: true,
       },
+      clusterSwitch: {
+        type: Boolean,
+        default: false,
+      },
       strategyHaveSubmit: {
         type: Boolean,
         default: false,
@@ -326,6 +336,9 @@
       groupList() {
         return this.fingerOperateData.groupList.filter(item => !this.dimension.includes(item.id));
       },
+      isExternal() {
+        return this.$store.state.isExternal;
+      },
     },
     watch: {
       group: {
@@ -343,7 +356,7 @@
     },
     mounted() {
       this.handleShowMorePopover();
-      this.checkReportIsExistedDebounce();
+      !this.isExternal && this.checkReportIsExistedDebounce();
     },
     beforeUnmount() {
       this.popoverInstance = null;
@@ -402,7 +415,7 @@
           const dimensionSortStr = this.dimension.sort().join(',');
           const catchDimensionSortStr = this.catchDimension.sort().join(',');
           const isShowInfo = dimensionSortStr !== catchDimensionSortStr;
-          if (isShowInfo) {
+          if (isShowInfo && !this.isExternal) { // 外部版不能改维度
             this.$bkInfo({
               type: 'warning',
               title: this.$t('修改维度字段会影响已有备注、告警配置，如无必要，请勿随意变动。请确定是否修改？'),
@@ -652,7 +665,7 @@
     border-color: #dcdee5;
 
     &:hover,
-    .log-icon {
+    .bklog-icon {
       color: #c4c6cc;
       border-color: #dcdee5;
     }
@@ -713,3 +726,4 @@
     }
   }
 </style>
+./quick-create-subscription-drawer/quick-create-subscription.jsx

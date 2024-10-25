@@ -39,13 +39,17 @@
           v-model="bizList.value"
           :clearable="false"
           :disabled="isPublicPlugin || data.isEdit || ccBizId !== 0"
+          :list="bizList.list"
+          display-key="text"
+          id-key="id"
+          enable-virtual-scroll
         >
-          <bk-option
+          <!-- <bk-option
             v-for="(biz, index) in bizList.list"
             :id="biz.id"
             :key="index"
             :name="biz.text"
-          />
+          /> -->
         </bk-select>
         <div class="plugin-logo">
           <logo :logo.sync="pluginBasicInfo.logo" />
@@ -1573,6 +1577,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       this.pluginData.status = this.pluginBasicInfo.status || '';
       this.pluginData.isEdit = this.data.isEdit;
       this.pluginData.type = this.data.type;
+      this.pluginData.enable_field_blacklist = data.enable_field_blacklist;
       this.pluginData.update = false; // 默认false
       this.pluginData.from = 'bkmonitor.models.fta.plugin';
       this.pluginData.systemList = [];

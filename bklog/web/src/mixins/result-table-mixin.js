@@ -26,7 +26,14 @@
 
 import TextHighlight from 'vue-text-highlight';
 
-import { formatDate, random, copyMessage, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
+import {
+  formatDate,
+  random,
+  copyMessage,
+  setDefaultTableWidth,
+  TABLE_LOG_FIELDS_SORT_REGULAR,
+  formatDateNanos,
+} from '@/common/util';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import RetrieveLoader from '@/skeleton/retrieve-loader';
 import OriginalLightHeight from '@/views/retrieve/result-comp/original-light-height.tsx';
@@ -130,7 +137,7 @@ export default {
   },
   computed: {
     ...mapState('globals', ['fieldTypeMap']),
-    ...mapState(['isNotVisibleFieldsShow', 'clearTableWidth']),
+    ...mapState(['isNotVisibleFieldsShow']),
     ...mapGetters({
       isUnionSearch: 'isUnionSearch',
       unionIndexList: 'unionIndexList',
@@ -177,6 +184,15 @@ export default {
     isShowSourceField() {
       return this.operatorConfig?.isShowSourceField ?? false;
     },
+    timeFieldType() {
+      return this.totalFields.find(item => item.field_name === this.timeField)?.field_type;
+    },
+    originFieldWidth() {
+      return this.timeFieldType === 'date_nanos' ? 210 : 174;
+    },
+    userSettingConfig() {
+      return this.$store.state.retrieve.catchFieldCustomConfig;
+    },
   },
   watch: {
     retrieveParams: {
@@ -190,36 +206,6 @@ export default {
       // 切换索引集重置状态
       this.cacheExpandStr = [];
       this.cacheOverFlowCol = [];
-    },
-    clearTableWidth() {
-      const storageStr = this.isUnionSearch ? 'TABLE_UNION_COLUMN_WIDTH' : 'table_column_width_obj';
-      const columnObj = JSON.parse(localStorage.getItem(storageStr));
-      const {
-        params: { indexId: routerIndexID },
-        query: { bizId },
-      } = this.$route;
-      if (columnObj === null || JSON.stringify(columnObj) === '{}') {
-        return;
-      }
-      const isHaveBizId = Object.keys(columnObj).some(el => el === bizId);
-      const indexKey = this.isUnionSearch ? this.unionIndexList.sort().join('-') : routerIndexID;
-      if (!isHaveBizId || columnObj[bizId].fields[indexKey] === undefined) {
-        return;
-      }
-
-      for (const bizKey in columnObj) {
-        if (bizKey === bizId) {
-          for (const fieldKey in columnObj[bizKey].fields) {
-            if (fieldKey === indexKey) {
-              delete columnObj[bizId].fields[indexKey];
-              columnObj[bizId].indexsetIds.splice(columnObj[bizId].indexsetIds.indexOf(indexKey, 1));
-              columnObj[bizId].indexsetIds.length === 0 && delete columnObj[bizId];
-            }
-          }
-        }
-      }
-
-      localStorage.setItem(storageStr, JSON.stringify(columnObj));
     },
   },
   methods: {
@@ -262,39 +248,14 @@ export default {
       const ele = this.$refs.resultTable;
       ele.toggleRowExpansion(row);
     },
-    handleHeaderDragend(newWidth, oldWidth, { index }) {
-      const storageStr = this.isUnionSearch ? 'TABLE_UNION_COLUMN_WIDTH' : 'table_column_width_obj';
-      const {
-        params: { indexId: routerIndexID },
-        query: { bizId },
-      } = this.$route;
-      if (index === undefined || bizId === undefined || (routerIndexID === undefined && !this.isUnionSearch)) {
-        return;
-      }
-      const indexKey = this.isUnionSearch ? this.unionIndexList.sort().join('-') : routerIndexID;
-      // 缓存其余的宽度
-      const widthObj = {};
-      widthObj[index] = Math.ceil(newWidth);
-
-      let columnObj = JSON.parse(localStorage.getItem(storageStr));
-      if (columnObj === null) {
-        columnObj = {};
-        columnObj[bizId] = this.initSubsetObj(bizId, indexKey);
-      }
-      const isIncludebizId = Object.keys(columnObj).some(el => el === bizId);
-      isIncludebizId === false && (columnObj[bizId] = this.initSubsetObj(bizId, indexKey));
-
-      for (const key in columnObj) {
-        if (key === bizId) {
-          if (columnObj[bizId].fields[indexKey] === undefined) {
-            columnObj[bizId].fields[indexKey] = {};
-            columnObj[bizId].indexsetIds.push(indexKey);
-          }
-          columnObj[bizId].fields[indexKey] = Object.assign(columnObj[bizId].fields[indexKey], widthObj);
-        }
-      }
-
-      localStorage.setItem(storageStr, JSON.stringify(columnObj));
+    handleHeaderDragend(newWidth, oldWidth, { columnKey }) {
+      const { fieldsWidth } = this.userSettingConfig;
+      const newFieldsWidthObj = Object.assign(fieldsWidth, {
+        [columnKey]: Math.ceil(newWidth),
+      });
+      this.$store.dispatch('userFieldConfigChange', {
+        fieldsWidth: newFieldsWidthObj,
+      });
     },
     initSubsetObj(bizId, indexKey) {
       const subsetObj = {};
@@ -406,7 +367,7 @@ export default {
       }
     },
     getFieldIcon(fieldType) {
-      return this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].icon : 'log-icon icon-unkown';
+      return this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].icon : 'bklog-icon bklog-unkown';
     },
     handleMenuClick(option, isLink) {
       switch (option.operation) {
@@ -450,6 +411,18 @@ export default {
     getLimitState(index) {
       if (this.isLimitExpandView) return false;
       return !this.cacheExpandStr.includes(index);
+    },
+    getOriginTimeShow(data) {
+      if (this.timeFieldType === 'date') {
+        return formatDate(Number(data)) || data;
+      }
+
+      // 处理纳秒精度的UTC时间格式
+      if (this.timeFieldType === 'date_nanos') {
+        return formatDateNanos(data);
+      }
+
+      return data;
     },
   },
 };

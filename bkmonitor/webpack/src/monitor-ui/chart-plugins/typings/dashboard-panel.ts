@@ -207,13 +207,14 @@ export class DataQuery implements IDataQuery {
   alias?: string;
   // 数据api
   api?: string;
+  chart_type: 'bar' | 'line' = undefined;
   /** 目标对比的字段映射 */
   compareFieldsSort?: FieldsSortType = [];
   // 查询图表配置
   data: any;
+  datasource?: null | string;
   // 数据类型 table time_series ...
   dataType?: string;
-  datasource?: null | string;
   field?: Record<string, string> = {};
   // 变量的映射关系
   fields?: Record<string, string> = {};
@@ -224,6 +225,9 @@ export class DataQuery implements IDataQuery {
   ignore_group_by?: string[];
   isMultiple?: boolean;
   options?: DataQueryOptions;
+  // 主键参数
+  primary_key?: string;
+  yAxisIndex?: number;
   constructor(model: IDataQuery, isMultiple = false) {
     this.isMultiple = isMultiple;
     Object.keys(model || {}).forEach(key => {
@@ -276,7 +280,7 @@ export class DataQuery implements IDataQuery {
   handleCreateFieldsKey(fieldsSort) {
     return fieldsSort.reduce((total, cur, index) => {
       const joiner = !index ? '' : '-';
-      return (total = `${total}${joiner}${cur[1]}`);
+      return `${total}${joiner}${cur[1]}`;
     }, '');
   }
   /** 对象生成有序的二维数组 */
@@ -372,6 +376,35 @@ export interface IResourceChartOption {
 export interface IRelatedLogChartoption {
   related_log_chart?: {
     defaultKeyword: string;
+    isSimpleChart?: boolean; // 是否为精简模式
+  };
+}
+
+export interface IApmTimeSeriesOption {
+  apm_time_series?: {
+    unit?: string; // 详情单位
+    metric?: string;
+    app_name?: string;
+    service_name?: string;
+    enableSeriesContextmenu?: boolean; // 是否开启series的右键菜单
+    enableContextmenu?: boolean; // 是否开启全局的右键菜单
+    xAxisSplitNumber?: number;
+    disableZoom?: boolean;
+    sceneType?: string;
+  };
+}
+
+export interface IApmRelationGraphOption {
+  apm_relation_graph?: {
+    app_name?: string;
+    service_name?: string;
+  };
+}
+
+export interface IApdexChartOption {
+  apdex_chart?: {
+    enableContextmenu?: boolean; // 是否开启全局的右键菜单
+    sceneType?: string;
   };
 }
 
@@ -382,6 +415,7 @@ export type PanelOption = {
   header?: {
     tips: string; // 提示
   };
+  collect_interval_display?: string; // 数据步长（步长过大情况时需要，正常情况无此字段）
 } & ISelectorList &
   IDashboardCommon &
   IVariablesOption &
@@ -394,7 +428,10 @@ export type PanelOption = {
   IRatioRingChartOption &
   IPercentageBarOption &
   IResourceChartOption &
-  IRelatedLogChartoption;
+  IRelatedLogChartoption &
+  IApmTimeSeriesOption &
+  IApmRelationGraphOption &
+  IApdexChartOption;
 
 export interface IPanelModel {
   id: number | string;
@@ -483,8 +520,9 @@ export class PanelModel implements IPanelModel {
   // 图表类型 如 line-chart bar-chart status-chart group
   type!: string;
 
-  constructor(model: IPanelModel & { panelIds?: (number | string)[] }) {
+  constructor(model: Partial<IPanelModel> & { panelIds?: (number | string)[] }) {
     this.id = model.id || random(10);
+    // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(model).forEach(key => {
       if (key === 'targets') {
         this.targets = model[key].map(item => new DataQuery(item));

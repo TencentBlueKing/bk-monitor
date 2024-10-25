@@ -348,9 +348,9 @@
 
       .line-num {
         display: inline-block;
-        min-width: 32px;
+        min-width: 38px;
         padding-right: 12px;
-        margin-left: -37px;
+        margin-left: -36px;
         line-height: 24px;
         color: #979ba5;
         text-align: right;

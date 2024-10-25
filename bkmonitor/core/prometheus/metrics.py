@@ -28,12 +28,37 @@ from core.prometheus.tools import get_metric_agg_gateway_url, udp_handler
 logger = logging.getLogger(__name__)
 
 
+class Empty:
+    pass
+
+
+DeploymentNotSet = Empty()
+DEPLOYMENT = DeploymentNotSet
+
+
+def refresh_deployment():
+    try:
+        with open('/etc/hostname', 'r') as f:
+            hostname = f.read().strip()
+        if hostname.count("-") < 2:
+            return ""
+        return hostname.rsplit("-", 2)[0]
+    except FileNotFoundError:
+        return ""
+
+
 def report_all(job: str = settings.DEFAULT_METRIC_PUSH_JOB, registry: BkCollectorRegistry = REGISTRY):
     """
     批量上报指标
     """
+    global DEPLOYMENT
+    if registry.is_empty():
+        return
+    if DEPLOYMENT is DeploymentNotSet:
+        DEPLOYMENT = refresh_deployment()
     if not get_metric_agg_gateway_url():
         return
+    METRIC_PUSH_COUNT.labels(deployment=DEPLOYMENT).inc()
     try:
         # 发送消息
         push_to_gateway(gateway="", job=job, registry=registry, handler=udp_handler)
@@ -69,6 +94,12 @@ class StatusEnum:
     def from_exc(cls, expr):
         return cls.FAILED if expr else cls.SUCCESS
 
+
+METRIC_PUSH_COUNT = Counter(
+    name="bkmonitor_metric_push_count",
+    documentation="metric 推送次数",
+    labelnames=("deployment",),
+)
 
 CRON_TASK_EXECUTE_TIME = Histogram(
     name="bkmonitor_cron_task_execute_time",
@@ -268,6 +299,24 @@ ALERT_PROCESS_PUSH_DATA_COUNT = Counter(
     labelnames=("bk_data_id", "topic", "strategy_id", "is_saved"),
 )
 
+PROCESS_BIG_LATENCY = Histogram(
+    name="bkmonitor_big_process_latency",
+    documentation="处理延迟过大",
+    labelnames=(
+        "strategy_id",
+        "module",
+        "bk_biz_id",
+        "strategy_name",
+    ),
+    buckets=(60, 90, 120, 180, 300, 450, 600, 900, 1200, 1800, INF),
+)
+
+PROCESS_OVER_FLOW = Counter(
+    name="bkmonitor_process_overflow",
+    documentation="模块处理量级过大",
+    labelnames=("module", "strategy_id", "bk_biz_id", "strategy_name"),
+)
+
 DETECT_PROCESS_LATENCY = Histogram(
     name="bkmonitor_detect_process_latency",
     documentation="告警从 access 到 detect 模块的整体处理延迟",
@@ -302,7 +351,7 @@ ALERT_MANAGE_PUSH_DATA_COUNT = Counter(
     labelnames=("strategy_id", "signal"),
 )
 
-Alert_QOS_COUNT = Counter(
+ALERT_QOS_COUNT = Counter(
     name="bkmonitor_alert_qos_count",
     documentation="composite 模块动作推送条数",
     labelnames=("strategy_id", "is_blocked"),
@@ -1052,10 +1101,51 @@ DB_KEYS_EXPIRING = Gauge(
     labelnames=("node", "role", "db", "host", "port", "cluster_name"),
 )
 
-API_FAILED_REQUESTS_TOTAL = Gauge(
+API_FAILED_REQUESTS_TOTAL = Counter(
     name="bkmonitor_api_failed_requests_total",
     documentation="API调用失败计数",
     labelnames=("action", "module", "code", "role", "exception", "user_name"),
+)
+
+AIOPS_ACCESS_TASK_COUNT = Gauge(
+    name="bkmonitor_aiops_access_task_count",
+    documentation="智能监控接入任务执行",
+    labelnames=(
+        "bk_biz_id",
+        "strategy_id",
+        "algorithm",
+        "data_source_label",
+        "data_type_label",
+        "metric_id",
+        "task_id",
+        "result",
+        "retries",
+        "exception",
+        "exc_type",
+    ),
+)
+
+AIOPS_STRATEGY_CHECK = Gauge(
+    name="bkmonitor_aiops_strategy_check",
+    documentation="智能监控策略巡检",
+    labelnames=(
+        "bk_biz_id",
+        "strategy_id",
+        "algorithm",
+        "data_source_label",
+        "data_type_label",
+        "metric_id",
+        "flow_id",
+        "status",
+        "exception",
+        "exc_type",
+    ),
+)
+
+AIOPS_STRATEGY_ERROR_COUNT = Counter(
+    name="bkmonitor_aiops_strategy_error_count",
+    documentation="智能监控策略错误统计数",
+    labelnames=("exc_type",),
 )
 
 TOTAL_TAG = "__total__"

@@ -120,7 +120,7 @@
           >
             <slot name="trigger">
               <div class="operation-icon">
-                <span class="icon log-icon icon-set-icon"></span>
+                <span class="icon bklog-icon bklog-set-icon"></span>
               </div>
             </slot>
             <template #content>
@@ -185,11 +185,17 @@
         type: Boolean,
         default: false,
       },
+      isThollteField: {
+        type: Boolean,
+        default: false,
+      },
     },
     data() {
       return {
         contentType: 'table',
         isWrap: true,
+        /** 是否是第一次加载字段列表 用于初始化原始日志，否则会导致操作列表失效 */
+        isFirstInitFiled: false,
         showFieldsSetting: false,
         showAsyncExport: false, // 异步下载弹窗
         exportLoading: false,
@@ -222,6 +228,9 @@
       routeIndexSet() {
         return this.$route.params.indexId;
       },
+      showFieldsConfigPopoverNum() {
+        return this.$store.state.showFieldsConfigPopoverNum;
+      },
     },
     watch: {
       watchQueryIndexValue: {
@@ -231,9 +240,17 @@
           }
         },
       },
+      isThollteField(v) {
+        if (!v && !this.isFirstInitFiled) {
+          this.isFirstInitFiled = true;
+          this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
+        }
+      },
+      showFieldsConfigPopoverNum() {
+        this.handleAddNewConfig();
+      },
     },
     created() {
-      this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
       const expandStr = localStorage.getItem('EXPAND_SEARCH_VIEW');
       this.expandTextView = expandStr ? JSON.parse(expandStr) : false;
       this.handleChangeExpandView(this.expandTextView);
@@ -377,7 +394,7 @@
           transition: boder-color 0.2s;
         }
 
-        .log-icon {
+        .bklog-icon {
           width: 16px;
           font-size: 16px;
           color: #979ba5;
@@ -390,7 +407,7 @@
         border-color: #dcdee5;
 
         &:hover,
-        .log-icon {
+        .bklog-icon {
           color: #c4c6cc;
           border-color: #dcdee5;
         }

@@ -35,6 +35,7 @@ CONDITION_CLASS_MAP = {
     "nreg": conditions.NotRegularCondition,
     "include": conditions.IncludeCondition,
     "exclude": conditions.ExcludeCondition,
+    "issuperset": conditions.IsSuperSetCondition,
 }
 
 DEFAULT_DIMENSION_FIELD_CLASS = fields.DimensionField

@@ -206,7 +206,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
     if (typeof value === 'string') {
       if (!value) return;
 
-      if (isNaN(Number(value))) {
+      if (Number.isNaN(Number(value))) {
         this.data[this.filed] = 1;
         (this.$refs.priorityInput as any).curValue = 1;
       } else {
@@ -226,7 +226,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
         }
       }
     } else {
-      if (isNaN(value)) {
+      if (Number.isNaN(value)) {
         this.data[this.filed] = 1;
         (this.$refs.priorityInput as any).curValue = 1;
       } else {
@@ -511,7 +511,7 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
               clearable={false}
               has-delete-icon={true}
               placeholder={this.$t('填写标签，格式key:value')}
-              tooltip-key='name'
+              tooltip-key='__null__' // 这里有xss注入问题 改成一个不可能字符串字段
               onChange={this.handleAdditionalTagsChange}
             />
           </VerifyItem>
@@ -525,7 +525,10 @@ export default class AlarmBatchEdit extends tsc<IAlarmBatchEditProps, IEvent> {
             v-model={this.data[this.filed]}
           >
             {LEVELLIST.map(item => (
-              <bk-radio value={item.value}>
+              <bk-radio
+                key={item.value}
+                value={item.value}
+              >
                 {item.icon && (
                   <i
                     style={{ color: item.color }}

@@ -236,21 +236,41 @@ class DataFlowHandler(BaseAiopsHandler):
         if fields_name_list:
             if all_fields_dict.get(clustering_field) and all_fields_dict.get(clustering_field) in fields_name_list:
                 fields_name_list.remove(all_fields_dict.get(clustering_field))
-            is_not_null_rules = OPERATOR_AND.join([f" `{field}` is not null " for field in fields_name_list])
+            is_not_null_rules = OPERATOR_AND.join([f" `{field}` is not null " for field in fields_name_list if field])
 
         for index, filter_rule in enumerate(filter_rules):
-            if not all_fields_dict.get(filter_rule.get("fields_name")):
+            # 切割嵌套字段
+            field_name_parts = filter_rule.get("fields_name", "").split(".", 1)
+
+            if len(field_name_parts) == 1:
+                field_name = field_name_parts[0]
+                nested_field_name = ""
+            else:
+                field_name = field_name_parts[0]
+                nested_field_name = field_name_parts[1]
+            if not all_fields_dict.get(field_name):
                 continue
             if index > 0:
                 # 如果不是第一个条件，则把运算符加进去
                 rules.append(filter_rule.get("logic_operator"))
-            rules.extend(
-                [
-                    f"`{all_fields_dict.get(filter_rule.get('fields_name'))}`",
-                    cls.change_op(filter_rule.get("op")),
-                    "'{}'".format(filter_rule.get("value")),
-                ]
-            )
+
+            if nested_field_name:
+                # 如果有嵌套字段，则用JSON提取的方式
+                rules.extend(
+                    [
+                        f"JSON_VALUE(`{all_fields_dict[field_name]}`, '$.{nested_field_name}')",
+                        cls.change_op(filter_rule.get("op")),
+                        "'{}'".format(filter_rule.get("value")),
+                    ]
+                )
+            else:
+                rules.extend(
+                    [
+                        f"`{all_fields_dict[field_name]}`",
+                        cls.change_op(filter_rule.get("op")),
+                        "'{}'".format(filter_rule.get("value")),
+                    ]
+                )
 
         if rules and is_not_null_rules != "":
             rules_str = " ".join([OPERATOR_AND, "(", is_not_null_rules, ")", OPERATOR_AND, "(", *rules, ")"])
@@ -581,7 +601,7 @@ class DataFlowHandler(BaseAiopsHandler):
             es_storage = self.get_es_storage_fields(clustering_config.bkdata_etl_result_table_id)
             if not es_storage:
                 raise BkdataStorageNotExistException(
-                    BkdataStorageNotExistException.MESSAGE.formate(index_set_id=clustering_config.index_set_id)
+                    BkdataStorageNotExistException.MESSAGE.format(index_set_id=clustering_config.index_set_id)
                 )
 
             after_treat_flow.es_cluster = clustering_config.es_storage
@@ -615,7 +635,7 @@ class DataFlowHandler(BaseAiopsHandler):
                         "data_field_name": field["field_name"],
                         "roles": ["passthrough"],
                         "field_name": field["field_name"],
-                        "field_type": field["field_type"],
+                        "field_type": field["field_type"] if field["field_type"] != "text" else "string",
                         "properties": {"roles": [], "role_changeable": True},
                         "field_alias": field["field_alias"],
                     }
@@ -638,7 +658,7 @@ class DataFlowHandler(BaseAiopsHandler):
                         "data_field_name": field["field_name"],
                         "roles": ["passthrough"],
                         "field_name": field["field_name"],
-                        "field_type": field["field_type"],
+                        "field_type": field["field_type"] if field["field_type"] != "text" else "string",
                         "properties": {"roles": [], "role_changeable": True, "passthrough": True},
                         "field_alias": field["field_alias"],
                     }
@@ -800,7 +820,20 @@ class DataFlowHandler(BaseAiopsHandler):
         @return:
         """
         return BkDataDataFlowApi.get_latest_deploy_data(
-            params={"flow_id": flow_id, "bk_username": self.conf.get("bk_username")},
+            params={"flow_id": flow_id, "bk_username": self.conf.get("bk_username"), "no_request": True},
+            data_api_retry_cls=DataApiRetryClass.create_retry_obj(
+                fail_check_functions=[check_result_is_true], stop_max_attempt_number=MAX_FAILED_REQUEST_RETRY
+            ),
+        )
+
+    def get_dataflow_info(self, flow_id):
+        """
+        get_dataflow_info
+        @param flow_id:
+        @return:
+        """
+        return BkDataDataFlowApi.get_dataflow(
+            params={"flow_id": flow_id, "bk_username": self.conf.get("bk_username"), "no_request": True},
             data_api_retry_cls=DataApiRetryClass.create_retry_obj(
                 fail_check_functions=[check_result_is_true], stop_max_attempt_number=MAX_FAILED_REQUEST_RETRY
             ),
@@ -931,6 +964,12 @@ class DataFlowHandler(BaseAiopsHandler):
 
     def update_predict_node(self, index_set_id):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+
+        st_list = OnlineTaskTrainingArgs.ST_LIST
+        if clustering_config.max_dist_list == OnlineTaskTrainingArgs.MAX_DIST_LIST_OLD:
+            # 旧版参数兼容
+            st_list = OnlineTaskTrainingArgs.ST_LIST_OLD
+
         predict_change_args = {
             "min_members": clustering_config.min_members,
             # 单词不一致 注意
@@ -938,7 +977,7 @@ class DataFlowHandler(BaseAiopsHandler):
             "delimeter": clustering_config.delimeter,
             "max_log_length": clustering_config.max_log_length,
             "is_case_sensitive": clustering_config.is_case_sensitive,
-            "st_list": OnlineTaskTrainingArgs.ST_LIST,
+            "st_list": st_list,
             "max_dist_list": clustering_config.max_dist_list,
         }
 
@@ -956,6 +995,10 @@ class DataFlowHandler(BaseAiopsHandler):
         更新预测节点 更新在线训练任务
         """
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+
+        if not clustering_config.predict_flow_id:
+            logger.info(f"index_set({index_set_id}) has no predict_flow_id, skip update predict node")
+            return
 
         # 更新模型训练节点 (预测节点)
         self.update_predict_node(index_set_id=index_set_id)
@@ -1035,11 +1078,7 @@ class DataFlowHandler(BaseAiopsHandler):
         @return:
         """
         for node in nodes:
-            table_name = node["node_config"].get("table_name")
-            if not table_name:
-                continue
-            # 预测节点
-            if table_name.endswith(RealTimePredictFlowNode.PREDICT_NODE):
+            if node["node_type"] == NodeType.MODEL:
                 return node
 
     def deal_update_filter_predict_flow_node(self, target_nodes, filter_rule, not_clustering_rule, flow_id):
@@ -1395,6 +1434,12 @@ class DataFlowHandler(BaseAiopsHandler):
         """在线任务请求参数"""
 
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+
+        st_list = OnlineTaskTrainingArgs.ST_LIST
+        if clustering_config.max_dist_list == OnlineTaskTrainingArgs.MAX_DIST_LIST_OLD:
+            # 旧版参数兼容
+            st_list = OnlineTaskTrainingArgs.ST_LIST_OLD
+
         pipeline_params = {
             # data_set_id  聚类预测结果 output_name
             "data_set_id": clustering_config.predict_flow['clustering_predict']['result_table_id'],
@@ -1403,8 +1448,8 @@ class DataFlowHandler(BaseAiopsHandler):
             "sampling_conditions": [{"field_name": "is_new", "value": OnlineTaskTrainingArgs.IS_NEW}],
             "training_args": [
                 {"field_name": "min_members", "value": clustering_config.min_members},
-                {"field_name": "max_dist_list", "value": OnlineTaskTrainingArgs.MAX_DIST_LIST},
-                {"field_name": "st_list", "value": OnlineTaskTrainingArgs.ST_LIST},
+                {"field_name": "max_dist_list", "value": clustering_config.max_dist_list},
+                {"field_name": "st_list", "value": st_list},
                 {
                     "field_name": "predefined_variables",
                     "value": clustering_config.predefined_varibles,  # 单词错误 predefined_variables
@@ -1562,13 +1607,13 @@ class DataFlowHandler(BaseAiopsHandler):
             es_storage = self.conf.get("collector_clustering_es_storage", {})
             if not es_storage:
                 raise CollectorStorageNotExistException(
-                    CollectorStorageNotExistException.MESSAGE.formate(index_set_id=clustering_config.index_set_id)
+                    CollectorStorageNotExistException.MESSAGE.format(index_set_id=clustering_config.index_set_id)
                 )
             # es_storage["expires"] =
             log_index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
             fields = log_index_set.get_fields()
             if not fields:
-                raise QueryFieldsException(QueryFieldsException.MESSAGE.formate(index_set_id=index_set_id))
+                raise QueryFieldsException(QueryFieldsException.MESSAGE.format(index_set_id=index_set_id))
             es_storage["doc_values_fields"] = [
                 i["field_name"] or i["field_alias"] for i in fields["fields"] if i["es_doc_values"]
             ]
@@ -1578,6 +1623,13 @@ class DataFlowHandler(BaseAiopsHandler):
             es_storage["json_fields"] = [
                 i["field_name"] or i["field_alias"] for i in fields["fields"] if i["field_type"] == "object"
             ]
+            # 这个时候 object 字段很有可能已经被打平，所以要做特殊判断
+            es_storage["json_fields"].extend(
+                [f["field_name"].split(".")[0] for f in fields["fields"] if "." in f["field_name"]]
+            )
+            # 去重
+            es_storage["json_fields"] = list(set(es_storage["json_fields"]))
+
             # 获取storage 中的retention
             collector_config = CollectorConfig.objects.filter(
                 collector_config_id=clustering_config.collector_config_id
@@ -1591,7 +1643,7 @@ class DataFlowHandler(BaseAiopsHandler):
             es_storage = self.get_es_storage_fields(clustering_config.bkdata_etl_result_table_id)
             if not es_storage:
                 raise BkdataStorageNotExistException(
-                    BkdataStorageNotExistException.MESSAGE.formate(index_set_id=clustering_config.index_set_id)
+                    BkdataStorageNotExistException.MESSAGE.format(index_set_id=clustering_config.index_set_id)
                 )
         predict_flow.es_cluster = clustering_config.es_storage
         predict_flow.es.expires = es_storage["expires"]
@@ -1608,6 +1660,10 @@ class DataFlowHandler(BaseAiopsHandler):
 
     def create_predict_flow(self, index_set_id: int):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
+
+        # 检查清洗任务是否已经正常启动，若未启动，则启动之
+        self.check_and_start_clean_task(clustering_config.bkdata_etl_result_table_id)
+
         all_fields_dict = self.get_fields_dict(clustering_config=clustering_config)
         predict_flow_dict = asdict(
             self._init_predict_flow(

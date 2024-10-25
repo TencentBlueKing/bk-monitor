@@ -262,7 +262,8 @@ export default {
   进程关键字: 'Process Keyword',
   进程排除正则: 'Process exclusion regular expression',
   PID的绝对路径: 'Absolute Path of PID',
-  'Shift + Enter换行，Enter查询': 'Shift + Enter for line break, Enter for query',
+  '请输入 PromQL 查询语句，Shift + Enter换行，Enter查询':
+    'Please enter the PromQL query statement,Shift + Enter for line break, Enter for query',
   '留空默认以二进制名称，可以手动指定或者取值':
     'Leave it blank to use the binary name by default, or specify or retrieve it manually.',
   指标映射规则文件格式为yaml: 'The metric mapping rule file format is yaml',
@@ -292,6 +293,11 @@ export default {
   选择方案: 'Select Plan',
   选择服务: 'Select Service',
   选择应用: 'Select Application',
-  '搜索 故障处理人': 'Search Fault Handler',
+  搜索服务名称: 'Search Service Name',
+  '搜索 故障处理人': 'Search Incident Handler',
   '搜索 流转记录': 'Search Flow Record',
+  请输入自定义标签: 'Please enter custom tags',
+  '1-50字符，由小写字母、数字、下划线(_)、中划线(-)组成':
+    '1-50 characters, consisting of lowercase letters, numbers, underscores (_), and hyphens (-)',
+  '最大为{n}天': 'Up to {n} days',
 };

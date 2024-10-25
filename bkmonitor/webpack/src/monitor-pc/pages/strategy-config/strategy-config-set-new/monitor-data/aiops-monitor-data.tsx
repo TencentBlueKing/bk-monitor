@@ -30,12 +30,13 @@ import { multivariateAnomalyScenes } from 'monitor-api/modules/strategies';
 import { listIntelligentModels } from 'monitor-api/modules/strategies';
 import { random, transformDataKey } from 'monitor-common/utils/utils';
 
+import { LETTERS } from '../../../../common/constant';
 import { transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
 import metricTipsContentMixin from '../../../../mixins/metricTipsContentMixin';
 import { handleSetTargetDesc as getTargetDesc } from '../../common';
 import StrategyTargetTable from '../../strategy-config-detail/strategy-config-detail-table.vue';
 import StrategyIpv6 from '../../strategy-ipv6/strategy-ipv6';
-import { type IScenarioItem, type ISceneConfig, type MetricDetail, MetricType } from '../typings';
+import { type IScenarioItem, type ISceneConfig, MetricDetail, MetricType } from '../typings';
 import AiopsMonitorMetricSelect from './aiops-monitor-metric-select';
 
 import type { IIpV6Value, INodeType, TargetObjectType } from '../../../../components/monitor-ip-selector/typing';
@@ -197,6 +198,7 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
     const metricsSet = new Set(this.metrics);
     this.allMetrics.forEach(item => {
       if (metricsSet.has(item.metric_id)) {
+        item.alias = LETTERS[metrics.length];
         metrics.push(item);
       }
     });
@@ -256,11 +258,14 @@ class AiopsMonitorData extends Mixins(metricTipsContentMixin) {
     this.formModel.scene = value;
     this.scene = this.scenes.find(item => item.scene_id === this.formModel.scene);
     this.allMetrics =
-      this.scene?.metrics?.map(item => ({
-        ...item.metric,
-        ...item,
-        metric: undefined,
-      })) || [];
+      this.scene?.metrics?.map(
+        item =>
+          new MetricDetail({
+            ...item.metric,
+            ...item,
+            metric: undefined,
+          })
+      ) || [];
     if (isInitMetrics) {
       this.metrics = this.scene?.metrics?.map(item => item.metric_id) || [];
     }

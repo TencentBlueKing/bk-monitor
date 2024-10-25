@@ -57,7 +57,7 @@ class TestScriptManager(object):
                 os.path.join(settings.BASE_DIR, "tests/web/plugin/test_data/test_plugin.bat"),
             ],
         )
-        assert update_plugin_manager.get_collector_json(plugin_params) == {
+        assert update_plugin_manager._get_collector_json(plugin_params) == {
             "windows": {
                 "filename": "test_plugin.bat",
                 "script_content_base64": "QGVjaG8gb2ZmDQplY2hvIGhvc3QgMTE=",
@@ -73,7 +73,7 @@ class TestScriptManager(object):
         get_version_mock = mocker.patch.object(
             CollectorPluginMeta, "get_version", return_value=update_plugin_manager.version
         )
-        assert update_plugin_manager.get_debug_config_context(1, 1, params) == {
+        assert update_plugin_manager._get_debug_config_context(1, 1, params) == {
             "bkmonitorbeat_debug.yaml": {"period": "10"},
             "env.yaml": {"cmd_args": "param_pos_cmd 11 params_opt_cmd 33 ", "params_env": "22"},
         }

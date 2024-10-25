@@ -217,11 +217,13 @@ class BCSCluster(BCSBase):
         api_clusters = api.kubernetes.fetch_k8s_cluster_list(request_params)
         clusters = []
         # 获得启用了BCS的蓝盾空间
-        all_space_list = SpaceApi.list_spaces()
+        all_space_list = SpaceApi.list_spaces_dict()
         bk_ci_spaces_list = (
-            space for space in all_space_list if space.space_type_id == SpaceTypeEnum.BKCI.value and space.space_code
+            space
+            for space in all_space_list
+            if space["space_type_id"] == SpaceTypeEnum.BKCI.value and space["space_code"]
         )
-        project_id_to_space_uid = {space.space_code: space.space_uid for space in bk_ci_spaces_list}
+        project_id_to_space_uid = {space["space_code"]: space["space_uid"] for space in bk_ci_spaces_list}
         for c in api_clusters:
             # 将project_id转换为space_uid
             project_id = c["project_id"]

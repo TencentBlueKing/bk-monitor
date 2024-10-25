@@ -39,6 +39,7 @@ from bkmonitor.models.metric_list_cache import MetricListCache
 from bkmonitor.utils import get_metric_category
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.k8s_metric import get_built_in_k8s_metrics
+from common.context_processors import Platform
 from constants.alert import IGNORED_TAGS, EventTargetType
 from constants.apm import ApmMetrics
 from constants.data_source import (
@@ -684,7 +685,9 @@ class BkdataMetricCacheManager(BaseMetricCacheManager):
             if field["field_type"] in TIME_SERIES_FIELD_TYPE:
                 field_dict["metric_field"] = field["field_name"]
                 field_dict["metric_field_name"] = (
-                    f'{field["field_alias"]}({field["field_name"]})' if field["field_alias"] else field["field_name"],
+                    f'{field["field_alias"]}({field["field_name"]})'
+                    if field["field_alias"] and field["field_alias"] != field["field_name"]
+                    else field["field_name"]
                 )
                 field_dict["unit"] = field.get("unit", "") or self.unit_metric_mapping.get(field["field_name"], "")
                 field_dict["unit_conversion"] = field.get("unit_conversion", 1.0)
@@ -790,7 +793,7 @@ class BkLogSearchCacheManager(BaseMetricCacheManager):
                 field_description = fields_msg["description"]
 
             # 限制维度数量不能太多
-            if fields_msg.get("field_type") != "date" and len(dimension_list) < 200:
+            if fields_msg.get("field_type") != "date" and len(dimension_list) < 1000:
                 temp = {"id": field_id, "name": field_description, "is_dimension": bool(fields_msg["es_doc_values"])}
                 dimension_list.append(temp)
 
@@ -1168,6 +1171,9 @@ class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
     def get_metrics_by_table(self, table):
         result_table_label = "os"
         metric_list = BaseAlarm.objects.filter(is_enable=True)
+        if Platform.te:
+            # te平台不展示ping不可达告警， 同时也不内置
+            metric_list = metric_list.exclude(title="ping-gse")
         base_dict = {
             "bk_biz_id": 0,
             "result_table_id": SYSTEM_EVENT_RT_TABLE_ID,

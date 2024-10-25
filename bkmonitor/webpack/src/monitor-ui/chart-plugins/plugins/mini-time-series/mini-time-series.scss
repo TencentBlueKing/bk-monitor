@@ -1,0 +1,55 @@
+/* stylelint-disable declaration-no-important */
+.mini-time-series-chart-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 50px;
+
+  .mini-time-series-chart {
+    position: relative;
+    flex: 1;
+    height: 100%;
+
+    & > div {
+      cursor: crosshair !important;
+    }
+  
+    &.is-hover-point {
+      & > div {
+        cursor: pointer !important;
+      }
+    }
+  }
+
+  .last-value {
+    margin-left: 6px;
+    color: #63656E;
+    white-space: nowrap;
+  }
+
+  .last-value-overflow {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.mini-time-series-chart-tooltip {
+  height: 54px !important;
+  font-size: 12px !important;
+  line-height: 21px !important;
+  color: #fff !important;
+  background: #000000cc !important;
+  border-radius: 2px !important;
+
+  .left-compare-type {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    border-top-left-radius: 2px;
+    border-bottom-left-radius: 2px;
+  }
+}

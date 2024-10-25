@@ -16,7 +16,6 @@ import traceback
 
 import pytz
 from django.conf import settings
-from django.db import models as db_models
 from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
@@ -31,12 +30,14 @@ from apm.core.handlers.query.proxy import QueryProxy
 from apm.models import (
     ApdexConfig,
     ApmApplication,
+    ApmDataSourceConfigBase,
     ApmInstanceDiscover,
     ApmMetricDimension,
     ApmTopoDiscoverRule,
     AppConfigBase,
     BkdataFlowConfig,
     CustomServiceConfig,
+    DataLink,
     Endpoint,
     HostInstance,
     LicenseConfig,
@@ -64,6 +65,7 @@ from constants.apm import (
     DataSamplingLogTypeChoices,
     FlowType,
     TailSamplingSupportMethod,
+    TelemetryDataType,
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
 )
@@ -97,19 +99,31 @@ class CreateApplicationResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称", max_length=50)
         app_alias = serializers.CharField(label="应用别名", max_length=255)
-        # enable profiling as default for debugging
-        enabled_profiling = serializers.BooleanField(label="是否开启性能分析", required=False, default=False)
         description = serializers.CharField(label="描述", required=False, max_length=255, default="", allow_blank=True)
-        es_storage_config = DatasourceConfigRequestSerializer(label="数据库配置")
+        es_storage_config = DatasourceConfigRequestSerializer(label="数据库配置", required=False, allow_null=True)
+        # ↓ 四个 Module 开关
+        enabled_profiling = serializers.BooleanField(label="是否开启 Profiling 功能", required=True)
+        enabled_trace = serializers.BooleanField(label="是否开启 Trace 功能", required=True)
+        enabled_metric = serializers.BooleanField(label="是否开启 Metric 功能", required=True)
+        enabled_log = serializers.BooleanField(label="是否开启 Log 功能", required=True)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_data):
+        datasource_options = validated_data.get("es_storage_config")
+        if not datasource_options:
+            datasource_options = ApplicationHelper.get_default_storage_config(validated_data["bk_biz_id"])
+
         return ApmApplication.create_application(
-            bk_biz_id=validated_request_data["bk_biz_id"],
-            app_name=validated_request_data["app_name"],
-            app_alias=validated_request_data["app_alias"],
-            description=validated_request_data["description"],
-            es_storage_config=validated_request_data["es_storage_config"],
-            options={"enabled_profiling": validated_request_data.get("enabled_profiling", False)},
+            bk_biz_id=validated_data["bk_biz_id"],
+            app_name=validated_data["app_name"],
+            app_alias=validated_data["app_alias"],
+            description=validated_data["description"],
+            es_storage_config=datasource_options,
+            options={
+                "is_enabled_profiling": validated_data.get("enabled_profiling", False),
+                "is_enabled_trace": validated_data.get("enabled_trace", False),
+                "is_enabled_metric": validated_data.get("enabled_metric", False),
+                "is_enabled_log": validated_data.get("enabled_log", False),
+            },
         )
 
 
@@ -119,11 +133,6 @@ class CreateApplicationSimpleResource(Resource):
     DEFAULT_PLUGIN_ID = Opentelemetry.id
     DEFAULT_DEPLOYMENT_IDS = [DeploymentEnum.CENTOS.id]
     DEFAULT_LANGUAGE_IDS = [LanguageEnum.PYTHON.id]
-    DEFAULT_ES_STORAGE_CLUSTER = settings.APM_APP_DEFAULT_ES_STORAGE_CLUSTER
-    DEFAULT_ES_RETENTION = settings.APM_APP_DEFAULT_ES_RETENTION
-    DEFAULT_ES_NUMBER_OF_REPLICAS = settings.APM_APP_DEFAULT_ES_REPLICAS
-    DEFAULT_ES_SHARDS = settings.APM_APP_DEFAULT_ES_SHARDS
-    DEFAULT_ES_SLICE_SIZE = settings.APM_APP_DEFAULT_ES_SLICE_LIMIT
 
     DEFAULT_CLUSTER = "_default"
     CLUSTER_TYPE = "elasticsearch"
@@ -137,6 +146,10 @@ class CreateApplicationSimpleResource(Resource):
         deployment_ids = serializers.ListField(label="环境", child=serializers.CharField(max_length=255), required=False)
         language_ids = serializers.ListField(label="语言", child=serializers.CharField(max_length=255), required=False)
         space_uid = serializers.CharField(label="空间唯一标识", required=False, default="")
+        enabled_profiling = serializers.BooleanField(label="是否开启 Profiling 功能", required=False, default=False)
+        enabled_trace = serializers.BooleanField(label="是否开启 Trace 功能", required=False, default=True)
+        enabled_metric = serializers.BooleanField(label="是否开启 Metric 功能", required=False, default=True)
+        enabled_log = serializers.BooleanField(label="是否开启 Log 功能", required=False, default=False)
 
     def fill_default(self, validate_data):
         if not validate_data.get("bk_biz_id"):
@@ -154,21 +167,7 @@ class CreateApplicationSimpleResource(Resource):
         if not validate_data.get("language_ids"):
             validate_data["language_ids"] = self.DEFAULT_LANGUAGE_IDS
 
-        es_storage_cluster = self.DEFAULT_ES_STORAGE_CLUSTER
-        if not es_storage_cluster or es_storage_cluster == -1:
-            # 默认集群从集群列表中选择
-            default_cluster_id = ApplicationHelper.get_default_cluster_id(validate_data["bk_biz_id"])
-            if default_cluster_id:
-                es_storage_cluster = default_cluster_id
-
-        # 填充默认存储集群
-        validate_data["datasource_option"] = {
-            "es_storage_cluster": es_storage_cluster,
-            "es_retention": self.DEFAULT_ES_RETENTION,
-            "es_number_of_replicas": self.DEFAULT_ES_NUMBER_OF_REPLICAS,
-            "es_shards": self.DEFAULT_ES_SHARDS,
-            "es_slice_size": self.DEFAULT_ES_SLICE_SIZE,
-        }
+        validate_data["datasource_option"] = ApplicationHelper.get_default_storage_config(validate_data["bk_biz_id"])
 
     def perform_request(self, validated_request_data):
         """api侧创建应用 需要保持和saas侧创建应用接口逻辑一致"""
@@ -180,12 +179,16 @@ class CreateApplicationSimpleResource(Resource):
 
         self.fill_default(validated_request_data)
         app = CreateApplicationResource()(**validated_request_data)
-        return ApplicationInfoResource()(application_id=app["application_id"])["bk_data_token"]
+        return ApplicationInfoResource()(application_id=app["application_id"])["token"]
 
 
 class ApplyDatasourceResource(Resource):
-    class RequestSerializer(DatasourceConfigRequestSerializer):
+    """更改数据源配置"""
+
+    class RequestSerializer(serializers.Serializer):
         application_id = serializers.IntegerField(label="应用id")
+        trace_datasource_option = DatasourceConfigRequestSerializer(required=False, label="trace 存储配置")
+        log_datasource_option = DatasourceConfigRequestSerializer(required=False, label="log 存储配置")
 
     def perform_request(self, validated_request_data):
         try:
@@ -193,31 +196,15 @@ class ApplyDatasourceResource(Resource):
         except ApmApplication.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        storage_config = {
-            "es_storage_cluster": validated_request_data["es_storage_cluster"],
-            "es_retention": validated_request_data.get("es_retention", 15),
-            "es_number_of_replicas": validated_request_data.get("es_number_of_replicas", 1),
-            "es_shards": validated_request_data.get("es_shards", 3),
-            "es_slice_size": validated_request_data.get("es_slice_size", 500),
-        }
-
-        return ApmApplication.apply_datasource(
-            bk_biz_id=application.bk_biz_id, app_name=application.app_name, es_storage_config=storage_config
+        return application.apply_datasource(
+            trace_storage_config=validated_request_data.get("trace_datasource_option"),
+            log_storage_config=validated_request_data.get("log_datasource_option"),
         )
 
 
 class OperateApplicationSerializer(serializers.Serializer):
-    class OperateType(db_models.TextChoices):
-        TRACING = "tracing", "tracing"
-        PROFILING = "profiling", "profiling"
-
     application_id = serializers.IntegerField(label="应用id")
-    type = serializers.ChoiceField(
-        label="开启/暂停类型",
-        choices=OperateType.choices,
-        required=False,
-        default=OperateType.TRACING.value,
-    )
+    type = serializers.ChoiceField(label="开启/暂停类型", choices=TelemetryDataType.choices(), required=True)
 
 
 class StartApplicationResource(Resource):
@@ -229,11 +216,17 @@ class StartApplicationResource(Resource):
         except ApmApplication.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        if validated_request_data["type"] == "tracing":
-            return application.start()
+        if validated_request_data["type"] == TelemetryDataType.TRACE.value:
+            return application.start_trace()
 
-        if validated_request_data["type"] == "profiling":
+        if validated_request_data["type"] == TelemetryDataType.PROFILING.value:
             return application.start_profiling()
+
+        if validated_request_data["type"] == TelemetryDataType.METRIC.value:
+            return application.start_metric()
+
+        if validated_request_data["type"] == TelemetryDataType.LOG.value:
+            return application.start_log()
 
         raise ValueError(_(f"操作类型不支持: {validated_request_data['type']}"))
 
@@ -247,11 +240,17 @@ class StopApplicationResource(Resource):
         except ApmApplication.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        if validated_request_data["type"] == "tracing":
-            return application.stop()
+        if validated_request_data["type"] == TelemetryDataType.TRACE.value:
+            return application.stop_trace()
 
-        if validated_request_data["type"] == "profiling":
+        if validated_request_data["type"] == TelemetryDataType.PROFILING.value:
             return application.stop_profiling()
+
+        if validated_request_data["type"] == TelemetryDataType.METRIC.value:
+            return application.stop_metric()
+
+        if validated_request_data["type"] == TelemetryDataType.LOG.value:
+            return application.stop_log()
 
         raise ValueError(_(f"操作类型不支持: {validated_request_data['type']}"))
 
@@ -292,13 +291,15 @@ class ApplicationInfoResource(Resource):
 
         def to_representation(self, instance):
             data = super(ApplicationInfoResource.ResponseSerializer, self).to_representation(instance)
-            data["bk_data_token"] = instance.get_bk_data_token()
+            data["token"] = instance.get_bk_data_token()
             if instance.metric_datasource:
                 data["metric_config"] = instance.metric_datasource.to_json()
             if instance.trace_datasource:
                 data["trace_config"] = instance.trace_datasource.to_json()
             if instance.profile_datasource:
                 data["profiling_config"] = instance.profile_datasource.to_json()
+            if instance.log_datasource:
+                data["log_config"] = instance.log_datasource.to_json()
             return data
 
     def perform_request(self, validated_request_data):
@@ -599,7 +600,7 @@ class QueryTopoNodeResource(Resource):
     class ResponseSerializer(serializers.ModelSerializer):
         class Meta:
             model = TopoNode
-            fields = ("extra_data", "topo_key")
+            fields = ("extra_data", "topo_key", "created_at", "updated_at")
 
         def to_representation(self, instance):
             data = super(QueryTopoNodeResource.ResponseSerializer, self).to_representation(instance)
@@ -851,6 +852,7 @@ class QueryEndpointResource(Resource):
         category_kind_value = serializers.CharField(required=False, label="类型具体值", default="")
         service_name = serializers.CharField(required=False, label="服务名称", allow_blank=True, default="")
         bk_instance_id = serializers.CharField(required=False, label="实例id", allow_blank=True, default="")
+        filters = serializers.DictField(label="查询条件", required=False)
 
     def perform_request(self, data):
         filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
@@ -869,6 +871,9 @@ class QueryEndpointResource(Resource):
                 app_name=data["app_name"],
             ).first()
             endpoints = endpoints.filter(service_name=instance.topo_node_key)
+        if data.get("filters"):
+            endpoints = endpoints.filter(**data["filters"])
+
         return [
             {
                 "endpoint_name": endpoint.endpoint_name,
@@ -975,6 +980,12 @@ class QueryOptionValuesSerializer(serializers.Serializer):
     start_time = serializers.IntegerField(required=True, label="数据开始时间")
     end_time = serializers.IntegerField(required=True, label="数据开始时间")
     fields = serializers.ListField(child=serializers.CharField(), label="查询字段")
+    datasource_type = serializers.ChoiceField(
+        required=False,
+        label="数据源类型",
+        default=ApmDataSourceConfigBase.TRACE_DATASOURCE,
+        choices=(ApmDataSourceConfigBase.METRIC_DATASOURCE, ApmDataSourceConfigBase.TRACE_DATASOURCE),
+    )
 
 
 class QueryTraceOptionValues(Resource):
@@ -984,7 +995,11 @@ class QueryTraceOptionValues(Resource):
 
     def perform_request(self, validated_data):
         return QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"]).query_option_values(
-            QueryMode.TRACE, validated_data["start_time"], validated_data["end_time"], validated_data["fields"]
+            QueryMode.TRACE,
+            validated_data["datasource_type"],
+            validated_data["start_time"],
+            validated_data["end_time"],
+            validated_data["fields"],
         )
 
 
@@ -995,7 +1010,11 @@ class QuerySpanOptionValues(Resource):
 
     def perform_request(self, validated_data):
         return QueryProxy(validated_data["bk_biz_id"], validated_data["app_name"]).query_option_values(
-            QueryMode.SPAN, validated_data["start_time"], validated_data["end_time"], validated_data["fields"]
+            QueryMode.SPAN,
+            validated_data["datasource_type"],
+            validated_data["start_time"],
+            validated_data["end_time"],
+            validated_data["fields"],
         )
 
 
@@ -1172,7 +1191,10 @@ class ListEsClusterInfoResource(Resource):
 
             except ValueError:
                 continue
-        return result
+
+        # 获取 Datalink 信息
+        datalink = DataLink.get_data_link(bk_biz_id)
+        return {"clusters": result, "datalink": datalink.to_json()}
 
 
 class QueryAppByHostInstanceResource(Resource):

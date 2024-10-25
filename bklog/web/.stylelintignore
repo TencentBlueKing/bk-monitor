@@ -4,3 +4,5 @@
 *.jpg
 *.woff
 
+static/style.css
+

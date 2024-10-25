@@ -1,0 +1,52 @@
+.monitor-echarts-container {
+  position: relative;
+  height: 136px;
+  overflow: hidden;
+  background-color: #fff;
+
+  &.is-fold {
+    height: 26px;
+  }
+
+  :deep(.echart-legend) {
+    display: flex;
+    justify-content: center;
+  }
+
+  .chart-empty {
+    position: absolute;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: #fff;
+
+    .icon-chart {
+      width: 38px;
+      height: 38px;
+      fill: #dcdee6;
+    }
+
+    .text {
+      font-size: 14px;
+      color: #979ba5;
+    }
+  }
+
+  .monitor-echart-wrap {
+    height: 126px;
+    padding-top: 0;
+    padding-bottom: 0;
+
+    .chart-wrapper {
+      /* stylelint-disable-next-line declaration-no-important */
+      min-height: 126px !important;
+
+      /* stylelint-disable-next-line declaration-no-important */
+      max-height: 126px !important;
+    }
+  }
+}

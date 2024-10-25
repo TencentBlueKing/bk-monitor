@@ -28,8 +28,8 @@
     :style="{ 'background-image': backgroundUrl }"
     class="monitor-echart-wrap"
     v-bkloading="{ isLoading: loading, zIndex: 2000 }"
-    @mouseenter="showTitleTool = true"
-    @mouseleave="showTitleTool = false"
+    @mouseenter="isHover = true"
+    @mouseleave="isHover = false"
   >
     <div
       v-if="chartTitle || $slots.title"
@@ -234,7 +234,6 @@
   </div>
 </template>
 <script lang="ts">
-import type { CreateElement } from 'vue';
 import { Component, Inject, InjectReactive, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import { type ResizeCallback, addListener, removeListener } from '@blueking/fork-resize-detector';
@@ -256,6 +255,10 @@ import TextChart from './components/text-chart.vue';
 import './map/china';
 import { colorList } from './options/constant';
 import EchartOptions from './options/echart-options';
+import { type MonitorEchartOptions, type MonitorEchartSeries, echarts } from './types/monitor-echarts';
+import watermarkMaker from './utils/watermarkMaker';
+import { getValueFormat } from './valueFormats';
+
 import type {
   ChartType,
   IAnnotation,
@@ -267,9 +270,7 @@ import type {
   ITextChartOption,
   ITextSeries,
 } from './options/type-interface';
-import { type MonitorEchartOptions, type MonitorEchartSeries, echarts } from './types/monitor-echarts';
-import watermarkMaker from './utils/watermarkMaker';
-import { getValueFormat } from './valueFormats';
+import type { CreateElement } from 'vue';
 
 interface ICurValue {
   xAxis: number | string;
@@ -370,11 +371,14 @@ export default class MonitorEcharts extends Vue {
   @Prop({ type: Boolean, default: false }) hasResize: boolean;
   /** 是否需要图表表格功能 */
   @Prop({ type: Boolean, default: false }) hasTable: boolean;
-  @InjectReactive('readonly') readonly readonly: boolean;
+  @InjectReactive({ from: 'readonly', default: false }) readonly readonly: boolean;
   // 框选事件范围后需应用到所有图表(包含三个数据 框选方法 是否展示复位  复位方法)
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
   @Inject({ from: 'enableSelectionRestoreAll', default: false }) readonly enableSelectionRestoreAll: boolean;
-  @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: string[]) => void;
+  @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (
+    value: string[],
+    immediateQuery?: boolean
+  ) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
   // chart: Echarts.ECharts = null
   resizeHandler: ResizeCallback<HTMLDivElement>;
@@ -405,7 +409,7 @@ export default class MonitorEcharts extends Vue {
   chart = null;
   localChartHeight = 0; //
   clickTimer = null;
-  showTitleTool = false;
+  showTitleTool = true;
   extendMetricData: any = null;
   alarmStatus: IAlarmStatus = { status: 0, alert_number: 0, strategy_number: 0 };
   // tooltips大小 [width, height]
@@ -438,6 +442,8 @@ export default class MonitorEcharts extends Vue {
     // 是否处于移动中
     moving: false,
   };
+  isHover = false; // 是否处于hover状态
+  isIntersecting = false; // 是否处于可视区域
   // 监控图表默认配置
   get defaultOptions(): MonitorEchartOptions {
     if (this.chartType === 'bar' || this.chartType === 'line') {
@@ -694,7 +700,8 @@ export default class MonitorEcharts extends Vue {
   // 注册Intersection监听
   registerObserver(): void {
     this.intersectionObserver = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
+      for(const entry of entries) {
+        this.isIntersecting = entry.isIntersecting;
         if (this.needObserver) {
           if (entry.intersectionRatio > 0) {
             this.handleSeriesData();
@@ -707,7 +714,7 @@ export default class MonitorEcharts extends Vue {
             isVisiable && this.handleSeriesData();
           }
         }
-      });
+      }
     });
   }
   // 获取seriesData
@@ -716,8 +723,8 @@ export default class MonitorEcharts extends Vue {
     if (this.chartType === 'line' && !this.enableSelectionRestoreAll) {
       this.showRestore = !!startTime;
     }
-    this.intersectionObserver?.unobserve?.(this.$el);
-    this.intersectionObserver?.disconnect?.();
+    // this.intersectionObserver?.unobserve?.(this.$el);
+    // this.intersectionObserver?.disconnect?.();
     this.needObserver = false;
     try {
       const isRange = startTime && startTime.length > 0 && endTime && endTime.length > 0;
@@ -861,7 +868,7 @@ export default class MonitorEcharts extends Vue {
                         type: 'restore',
                       });
                       if (this.enableSelectionRestoreAll) {
-                        this.handleChartDataZoom(JSON.parse(JSON.stringify(this.timeRange)));
+                        this.handleChartDataZoom(JSON.parse(JSON.stringify(this.timeRange)), true);
                       } else {
                         await this.handleSeriesData(timeFrom, timeTo);
                       }
@@ -933,7 +940,10 @@ export default class MonitorEcharts extends Vue {
   }
   // 设置tooltip
   handleSetTooltip(params) {
-    if (!this.showTitleTool) return undefined;
+    if(!this.isIntersecting) {
+      return undefined;
+    }
+    // if (!this.isHover) return undefined;
     if (!params || params.length < 1 || params.every(item => item.value[1] === null)) {
       this.chartType === 'line' &&
         (this.curValue = {
@@ -1418,6 +1428,8 @@ export default class MonitorEcharts extends Vue {
     }
     this.delegateMethod('dispose');
     this.chart = null;
+    this.intersectionObserver?.unobserve?.(this.$el);
+    this.intersectionObserver?.disconnect?.();
   }
 
   handleScatterTipOutside() {

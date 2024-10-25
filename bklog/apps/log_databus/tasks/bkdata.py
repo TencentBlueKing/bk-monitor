@@ -27,6 +27,7 @@ from celery.task import periodic_task
 from apps.api import CCApi
 from apps.api.modules.bkdata_access import BkDataAccessApi
 from apps.api.modules.utils import get_non_bkcc_space_related_bkcc_biz_id
+from apps.exceptions import ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import FEATURE_BKDATA_DATAID, SCENARIO_BKDATA
 from apps.log_clustering.exceptions import CreateBkdataDataIdException
@@ -64,6 +65,22 @@ def create_bkdata_data_id(collector_config: CollectorConfig, platform_username: 
     if not collector_config.bk_data_id or collector_config.bkdata_data_id:
         return
 
+    try:
+        BkDataAccessApi.get_deploy_summary({"raw_data_id": collector_config.bk_data_id})
+        # 如果获取 data_id 没有报错，说明已经在计算平台注册过，直接赋值保存即可
+        collector_config.bkdata_data_id = collector_config.bk_data_id
+        collector_config.save(update_fields=["bkdata_data_id"])
+
+        logger.info(
+            "data_id:{data_id} was existed in bkdata, sync skipped, collector_config_id: {collector_config_id}".format(
+                data_id=collector_config.bkdata_data_id, collector_config_id=collector_config.collector_config_id
+            )
+        )
+        return
+    except ApiResultError:
+        # data_id 获取失败，说明在计算平台中没创建过，需要创建
+        pass
+
     # 检验非CC业务的空间是否关联了CC业务, 如果不关联, 则跳过同步
     bk_biz_id = collector_config.get_bk_biz_id()
     if bk_biz_id < 0:
@@ -90,6 +107,10 @@ def create_bkdata_data_id(collector_config: CollectorConfig, platform_username: 
     with ignored(Exception):
         _, table_id = collector_config.table_id.split(".")
 
+    # 数据名称统一添加 bklog 前缀，避免冲突
+    raw_data_name = collector_config.collector_config_name_en or table_id
+    raw_data_name = "bklog_" + raw_data_name
+
     # 这里可能遇到的exception有:
     # - 权限不足, 无法创建, 可以看下计算平台的权限与CC的业务运维权限人员是否能对应
     # - 解析关联的channel_id失败，[1500004] 对象不存在：databus_channel[name=xxx], 链路新增了kafka集群, 需要联系计算平台同步
@@ -104,7 +125,7 @@ def create_bkdata_data_id(collector_config: CollectorConfig, platform_username: 
                 "description": collector_config.description,
                 "access_raw_data": {
                     "tags": BKDATA_TAGS,
-                    "raw_data_name": collector_config.collector_config_name_en or table_id,
+                    "raw_data_name": raw_data_name,
                     "maintainer": ",".join(maintainers),
                     "raw_data_alias": collector_config.collector_config_name,
                     "data_source_tags": BKDATA_DATA_SOURCE_TAGS,

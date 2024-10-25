@@ -21,7 +21,6 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.instrumentation import dbapi
 from opentelemetry.instrumentation.celery import CeleryInstrumentor
 from opentelemetry.instrumentation.django import DjangoInstrumentor, _DjangoMiddleware
-from opentelemetry.instrumentation.elasticsearch import ElasticsearchInstrumentor
 from opentelemetry.instrumentation.instrumentor import BaseInstrumentor
 from opentelemetry.instrumentation.kafka import KafkaInstrumentor
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
@@ -35,6 +34,7 @@ from opentelemetry.sdk.trace.sampling import DEFAULT_OFF, DEFAULT_ON
 from bkmonitor.trace.django import get_span_name
 from bkmonitor.trace.django import request_hook as django_request_hook
 from bkmonitor.trace.django import response_hook as django_response_hook
+from bkmonitor.trace.elastic import BkElasticsearchInstrumentor
 from bkmonitor.trace.logging import BkResourceLoggingInstrument
 from bkmonitor.trace.requests import requests_span_callback
 from bkmonitor.trace.threading import ThreadingInstrumentor
@@ -73,7 +73,7 @@ class BluekingInstrumentor(BaseInstrumentor):
     def _uninstrument(self, **kwargs):
         DjangoInstrumentor().uninstrument()
         RedisInstrumentor().uninstrument()
-        ElasticsearchInstrumentor().uninstrument()
+        BkElasticsearchInstrumentor().uninstrument()
         RequestsInstrumentor().uninstrument()
         CeleryInstrumentor().uninstrument()
         LoggingInstrumentor().uninstrument()
@@ -98,21 +98,16 @@ class BluekingInstrumentor(BaseInstrumentor):
             "service.version": settings.VERSION,
             "bk.data.token": os.getenv("BKAPP_OTLP_BK_DATA_TOKEN", ""),
             "service.environment": settings.ENVIRONMENT,
+            "net.host.ip": get_local_ip(),
+            "net.host.name": socket.gethostname(),
         }
-        if os.getenv("BKAPP_OTLP_BCS_CLUSTER_ID"):
+        if settings.IS_CONTAINER_MODE and os.getenv("BKAPP_OTLP_BCS_CLUSTER_ID"):
             resource_info.update(
                 {
                     "k8s.bcs.cluster.id": os.getenv("BKAPP_OTLP_BCS_CLUSTER_ID", ""),
                     "k8s.namespace.name": os.getenv("BKAPP_OTLP_BCS_CLUSTER_NAMESPACE", ""),
                     "k8s.pod.ip": get_local_ip(),
                     "k8s.pod.name": socket.gethostname(),
-                }
-            )
-        else:
-            resource_info.update(
-                {
-                    "net.host.ip": get_local_ip(),
-                    "net.host.name": socket.gethostname(),
                 }
             )
         tracer_provider = TracerProvider(resource=Resource.create(resource_info), sampler=sampler)
@@ -122,7 +117,7 @@ class BluekingInstrumentor(BaseInstrumentor):
         _DjangoMiddleware._get_span_name = get_span_name  # pylint: disable=protected-access
         DjangoInstrumentor().instrument(request_hook=django_request_hook, response_hook=django_response_hook)
         RedisInstrumentor().instrument()
-        ElasticsearchInstrumentor().instrument()
+        BkElasticsearchInstrumentor().instrument()
         RequestsInstrumentor().instrument(span_callback=requests_span_callback)
         CeleryInstrumentor().instrument()
         BkResourceLoggingInstrument().instrument()

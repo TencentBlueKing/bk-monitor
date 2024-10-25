@@ -1,13 +1,10 @@
-/* stylelint-disable comment-empty-line-before */
 /* stylelint-disable declaration-no-important */
-/* stylelint-disable indentation */
 @font-face {
   font-family: 'icon-monitor'; /* Project id 1185924 */
   src:
-    url('monitor-icons.woff2?t=1719478024705') format('woff2'),
-    url('monitor-icons.woff?t=1719478024705') format('woff'),
-    url('monitor-icons.ttf?t=1719478024705') format('truetype');
-  font-display: swap;
+    url('monitor-icons.woff2?t=1728643762023') format('woff2'),
+    url('monitor-icons.woff?t=1728643762023') format('woff'),
+    url('monitor-icons.ttf?t=1728643762023') format('truetype');
 }
 
 .icon-monitor {
@@ -16,6 +13,62 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-mokuai:before {
+  content: '\e7b3';
+}
+
+.icon-mc-apm-topo:before {
+  content: '\e7b2';
+}
+
+.icon-mc-goto:before {
+  content: '\e7b1';
+}
+
+.icon-zhibiao:before {
+  content: '\e7a9';
+}
+
+.icon-mc-global:before {
+  content: '\e600';
+}
+
+.icon-mc-service-all:before {
+  content: '\e700';
+}
+
+.icon-mc-service-unknown:before {
+  content: '\e7a8';
+}
+
+.icon-mc-service_instance:before {
+  content: '\e7ad';
+}
+
+.icon-mc-idc_unit:before {
+  content: '\e7ae';
+}
+
+.icon-mc-system:before {
+  content: '\e7af';
+}
+
+.icon-mc-idc:before {
+  content: '\e7b0';
+}
+
+.icon-ziyuan:before {
+  content: '\e7ac';
+}
+
+.icon-xinzeng:before {
+  content: '\e7aa';
+}
+
+.icon-tuzeng:before {
+  content: '\e7ab';
 }
 
 .icon-paixu:before {
@@ -712,10 +765,6 @@
 
 .icon-yuanchengfuwu:before {
   content: '\e707';
-}
-
-.icon-gailan:before {
-  content: '\e700';
 }
 
 .icon-fx:before {

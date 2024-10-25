@@ -58,25 +58,26 @@
             :class="['result-icon-box', { 'light-icon': !showRetrieveCondition }]"
             @click="handleClickResultIcon('search')"
           >
-            <span class="bk-icon log-icon icon-jiansuo"></span>
+            <span class="bk-icon bklog-icon bklog-jiansuo"></span>
           </div>
           <template #content>
             <div>{{ iconSearchStr }}</div>
           </template>
         </bk-popover>
       </div>
-      <div
+      <!-- <div
         v-if="!isAsIframe"
         id="bizSelectorGuide"
         class="biz-menu-box"
       >
         <biz-menu-select theme="light"></biz-menu-select>
-      </div>
+      </div> -->
     </div>
     <!-- 检索结果 -->
     <!-- <div class="result-text"></div> -->
     <!-- 检索日期 -->
     <div class="result-right">
+      <VersionSwitch version="v1"></VersionSwitch>
       <time-range
         :timezone="timezone"
         :value="datePickerValue"
@@ -98,7 +99,7 @@
         <slot name="trigger">
           <div class="auto-refresh-trigger">
             <span
-              :class="['log-icon', isAutoRefresh ? 'icon-auto-refresh' : 'icon-no-refresh']"
+              :class="['bklog-icon', isAutoRefresh ? 'icon-auto-refresh' : 'icon-no-refresh']"
               data-test-id="retrieve_span_periodicRefresh"
               @click.stop="handleRefreshDebounce"
             ></span>
@@ -136,8 +137,11 @@
         trigger="click"
       >
         <slot name="trigger">
-          <div class="more-operation">
-            <i class="bk-icon log-icon icon-ellipsis-more"></i>
+          <div
+            class="more-operation"
+            id="more-operator"
+          >
+            <i class="bklog-icon bklog-ellipsis-more"></i>
           </div>
         </slot>
         <template #content>
@@ -188,12 +192,13 @@
   import StepBox from '@/components/step-box';
   import { debounce } from 'throttle-debounce';
   import { mapGetters, mapState } from 'vuex';
-
+  import VersionSwitch from '@/global/version-switch.vue';
   import TimeRange from '../../../components/time-range/time-range';
 
   export default {
     components: {
       BizMenuSelect,
+      VersionSwitch,
       TimeRange,
       StepBox,
     },
@@ -219,7 +224,7 @@
         required: true,
       },
       isAsIframe: {
-        type: Boolean,
+        type: Boolean | String,
         required: true,
       },
       isShowCollect: {
@@ -228,6 +233,10 @@
       },
       timezone: {
         type: String,
+        required: true,
+      },
+      clusteringData: {
+        type: Object,
         required: true,
       },
     },
@@ -312,6 +321,7 @@
         detailJumpRouteKey: 'log', // 路由key log采集列表 custom自定义上报 es、bkdata、setIndex 第三方ED or 计算平台 or 索引集
         isFirstCloseCollect: false,
         showSettingMenuList: [],
+        catchSettingMenuList: [],
         showCollectIntroGuide: false,
       };
     },
@@ -320,6 +330,7 @@
         bkBizId: state => state.bkBizId,
         userGuideData: state => state.userGuideData,
         isExternal: state => state.isExternal,
+        storeIsShowClusterStep: state => state.storeIsShowClusterStep,
       }),
       ...mapGetters({
         isShowMaskingTemplate: 'isShowMaskingTemplate',
@@ -349,6 +360,10 @@
             return aiopsBizList ? aiopsBizList.some(item => item.toString() === this.bkBizId) : false;
         }
       },
+      /** 日志聚类开关 */
+      clusterSwitch() {
+        return this.clusteringData?.is_active;
+      },
       iconFavoriteStr() {
         return this.$t('点击{n}收藏', {
           n: !this.isShowCollect
@@ -370,6 +385,15 @@
         handler(val) {
           this.setShowLiList(val);
         },
+      },
+      clusteringData: {
+        immediate: true,
+        handler() {
+          this.handleShowSettingMenuListChange();
+        },
+      },
+      storeIsShowClusterStep() {
+        this.handleShowSettingMenuListChange();
       },
     },
     created() {
@@ -463,6 +487,12 @@
         });
         window.open(href, '_blank');
       },
+      handleShowSettingMenuListChange() {
+        const isShowClusterSet = this.clusteringData?.is_active || this.storeIsShowClusterStep;
+        this.showSettingMenuList = this.catchSettingMenuList.filter(item => {
+          return item.id === 'clustering' ? isShowClusterSet : true;
+        });
+      },
       setShowLiList(setItem) {
         if (JSON.stringify(setItem) === '{}') return;
         if (setItem.scenario_id === 'log') {
@@ -486,7 +516,7 @@
        */
       initJumpRouteList(detailStr, isFilterExtract = false) {
         if (!['log', 'es', 'bkdata', 'custom', 'setIndex'].includes(detailStr)) {
-          this.showSettingMenuList = this.isAiopsToggle ? this.settingMenuList : [];
+          this.catchSettingMenuList = this.isAiopsToggle ? this.settingMenuList : [];
           return;
         }
         // 赋值详情路由的key
@@ -505,7 +535,7 @@
           this.isShowMaskingTemplate ? true : item.id !== 'logMasking',
         );
         // 合并其他
-        this.showSettingMenuList = filterMenuList.concat(accessList);
+        this.catchSettingMenuList = filterMenuList.concat(accessList);
       },
       handleClickResultIcon(type) {
         if (type === 'collect') {
@@ -578,15 +608,15 @@
           margin-right: 2px;
         }
 
-        &::after {
-          position: absolute;
-          top: 6px;
-          right: -25px;
-          width: 1px;
-          height: 14px;
-          content: '';
-          background-color: #dcdee5;
-        }
+        // &::after {
+        //   position: absolute;
+        //   top: 6px;
+        //   right: -25px;
+        //   width: 1px;
+        //   height: 14px;
+        //   content: '';
+        //   background-color: #dcdee5;
+        // }
 
         .result-icon-box {
           width: 32px;
@@ -677,7 +707,7 @@
       white-space: nowrap;
       cursor: pointer;
 
-      .log-icon {
+      .bklog-icon {
         padding: 0 5px 0 17px;
         font-size: 14px;
         color: #63656e;
@@ -723,7 +753,7 @@
       white-space: nowrap;
       cursor: pointer;
 
-      .icon-ellipsis-more {
+      .bklog-ellipsis-more {
         display: flex;
         align-items: center;
         justify-content: center;

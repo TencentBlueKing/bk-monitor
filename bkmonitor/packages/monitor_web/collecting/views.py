@@ -52,28 +52,26 @@ class CollectingConfigViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.collecting.upgrade_collect_plugin, endpoint="upgrade"),
         # 采集配置回滚
         ResourceRoute("POST", resource.collecting.rollback_deployment_config, endpoint="rollback"),
-        # 获取采集对象和状态
+        # 获取采集对象和状态（采集视图侧边栏）
         ResourceRoute("POST", resource.collecting.frontend_target_status_topo, endpoint="target_status_topo"),
         # 获取采集配置详情信息(前端接口)
         ResourceRoute("GET", resource.collecting.frontend_collect_config_detail, endpoint="frontend_config_detail"),
-        # 配置执行详情列表接口
+        # 获取采集目标信息(前端接口)
+        ResourceRoute("GET", resource.collecting.frontend_collect_config_target_info, endpoint="frontend_target_info"),
+        # 配置执行详情列表接口（被datalink模块使用，对数据进行二次加工，用于策略详情展示）
         ResourceRoute("GET", resource.collecting.collect_instance_status, endpoint="collect_instance_status"),
-        # 获取采集下发状态
+        # 获取采集下发状态（状态轮询）
         ResourceRoute("GET", resource.collecting.collect_target_status, endpoint="status"),
-        # 获取拓扑采集目标下发状态
-        ResourceRoute("GET", resource.collecting.collect_node_status, endpoint="node_status"),
         # 获取对应插件版本的指标参数
         ResourceRoute("GET", resource.collecting.get_metrics, endpoint="metrics"),
         # 采集配置名称修改
         ResourceRoute("POST", resource.collecting.rename_collect_config, endpoint="rename"),
         # 获取采集配置的部署配置差异
         ResourceRoute("GET", resource.collecting.deployment_config_diff, endpoint="deployment_diff"),
-        # 获取采集配置主机的运行状态
+        # 获取采集配置主机的运行状态（启停前预览）
         ResourceRoute("GET", resource.collecting.collect_running_status, endpoint="running_status"),
         # 获取采集下发详细日志
         ResourceRoute("GET", resource.collecting.get_collect_log_detail, endpoint="get_collect_log_detail"),
-        # 测试接口，更新采集配置的主机数目/异常数目
-        ResourceRoute("GET", resource.collecting.update_config_instance_count, endpoint="update_config_instance_count"),
         # 获取采集配置变量列表
         ResourceRoute("GET", resource.collecting.get_collect_variables, endpoint="get_collect_variables"),
         # 执行详情页批量重试

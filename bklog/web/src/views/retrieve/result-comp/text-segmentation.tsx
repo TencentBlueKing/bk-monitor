@@ -236,7 +236,7 @@ export default class QueryStatement extends tsc<IProps> {
                 class='event-btn'
                 onClick={() => this.handleMenuClick('copy')}
               >
-                <i class='icon log-icon icon-copy'></i>
+                <i class='icon bklog-icon bklog-copy'></i>
                 <span>{this.$t('复制')}</span>
               </span>
             </div>
@@ -256,7 +256,7 @@ export default class QueryStatement extends tsc<IProps> {
                   this.handleMenuClick('is', true);
                 }}
               >
-                <i class='log-icon icon-jump'></i>
+                <i class='bklog-icon bklog-jump'></i>
               </div>
             </div>
             <div class='event-box'>
@@ -275,7 +275,7 @@ export default class QueryStatement extends tsc<IProps> {
                   this.handleMenuClick('not', true);
                 }}
               >
-                <i class='log-icon icon-jump'></i>
+                <i class='bklog-icon bklog-jump'></i>
               </div>
             </div>
           </div>

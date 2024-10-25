@@ -13,7 +13,7 @@
 
   .tag-card {
     display: inline-block;
-    max-width: 100px;
+    max-width: 120px;
     height: 22px;
     padding: 0 9px;
     margin-left: 6px;
@@ -67,11 +67,11 @@
       flex-shrink: 0;
     }
 
-    .log-icon {
+    .bklog-icon {
       width: 16px;
     }
 
-    .icon-star-shape {
+    .bklog-lc-star-shape {
       color: #fe9c00;
     }
 
@@ -80,6 +80,7 @@
     }
 
     .index-name {
+      display: block;
       margin-left: 4px;
 
       @include ellipsis();
@@ -99,7 +100,7 @@
   min-height: 400px;
 
   .not-val {
-    width: 8px;
+    min-width: 8px;
     height: 8px;
     margin-left: 4px;
     background: #ffe6e6;
@@ -316,7 +317,7 @@
     border-radius: 0 2px 2px 0;
     box-shadow: 5px 4px 8px 0 #0000001a;
 
-    .log-icon {
+    .bklog-icon {
       margin-right: 6px;
     }
 
@@ -324,7 +325,7 @@
       @include flex-center();
     }
 
-    .top-label .icon-star-shape {
+    .top-label .bklog-lc-star-shape {
       color: #ffb848;
     }
   }
@@ -512,11 +513,11 @@
       }
     }
 
-    .log-icon {
+    .bklog-icon {
       margin-right: 4px;
     }
 
-    .icon-star-shape {
+    .bklog-lc-star-shape {
       color: #ffb848;
     }
 
@@ -596,11 +597,6 @@
     top: 220px;
     width: 100%;
     text-align: center;
-  }
-
-  .icon-star-shape:before {
-    /* stylelint-disable-next-line declaration-no-important */
-    content: '\e165' !important;
   }
 
   .new-favorite-popover {

@@ -28,7 +28,7 @@
   <!-- 检索-设置 -->
   <bk-dialog
     width="100%"
-    v-model="isDialogVisiable"
+    v-model="isOpenPage"
     :position="{
       top: 50,
       left: 0,
@@ -38,11 +38,9 @@
     :scrollable="true"
     :show-footer="false"
     :show-mask="false"
-    @after-leave="closePage"
-    @value-change="openPage"
   >
     <div
-      v-if="isDialogVisiable"
+      v-if="isOpenPage"
       class="setting-container"
       data-test-id="clusterSetting_div_settingContainer"
     >
@@ -55,7 +53,7 @@
       </div>
 
       <div class="setting-main">
-        <div class="setting-left">
+        <!-- <div class="setting-left">
           <div
             v-for="item of showCurrentList"
             :class="['setting-option', currentChoice === item.id ? 'current-color' : '']"
@@ -64,7 +62,7 @@
             @click="handleNavClick(item)"
           >
             <div>
-              <span class="log-icon icon-block-shape"></span>
+              <span class="bklog-icon bklog-block-shape"></span>
               <span>{{ item.name }}</span>
             </div>
             <div @click.stop="stopChangeSwitch(item)">
@@ -77,7 +75,7 @@
               </bk-switcher>
             </div>
           </div>
-        </div>
+        </div> -->
 
         <div class="setting-right">
           <div class="more-details">
@@ -116,7 +114,7 @@
               @click="handleClickDetail"
             >
               {{ $t('更多详情') }}
-              <span class="log-icon icon-lianjie"></span>
+              <span class="bklog-icon bklog-lianjie"></span>
             </div>
           </div>
           <div
@@ -125,6 +123,7 @@
           >
             <component
               v-if="isShowPage"
+              ref="clusterRef"
               :clean-config="cleanConfig"
               :config-data="configData"
               :date-picker-value="datePickerValue"
@@ -134,7 +133,6 @@
               :retrieve-params="retrieveParams"
               :total-fields="totalFields"
               @debug-request-change="debugRequestChange"
-              @reset-page="resetPage"
               @update-log-fields="updateLogFields"
             />
           </div>
@@ -155,8 +153,12 @@
       // FieldExtraction,
       LogCluster,
     },
+    model: {
+      prop: 'value', // 对应 props msg
+      event: 'change',
+    },
     props: {
-      isShowDialog: {
+      value: {
         type: Boolean,
         default: false,
       },
@@ -191,10 +193,9 @@
     },
     data() {
       return {
-        isOpenPage: true,
         isShowPage: true,
         currentChoice: '', // 当前nav选中
-        showComponent: '', // 当前显示的组件
+        showComponent: 'LogCluster', // 当前显示的组件
         isSubmit: false, // 在当前设置页是否保存成功
         isDebugRequest: false,
         currentList: [
@@ -224,11 +225,9 @@
       };
     },
     computed: {
-      isDialogVisiable() {
-        return this.isShowDialog;
-      },
       globalEditable() {
-        return this.showCurrentList.find(el => el.id === this.currentChoice)?.isEditable;
+        return true;
+        // return this.showCurrentList.find(el => el.id === this.currentChoice)?.isEditable;
       },
       isCollector() {
         // 字段提取的索引集来源是否为采集项
@@ -249,9 +248,17 @@
       showResultTableID() {
         return this.indexSetItem?.indices[0]?.result_table_id || '';
       },
+      isOpenPage: {
+        get() {
+          return this.value;
+        },
+        set(v) {
+          this.$emit('change', v);
+        },
+      },
     },
     watch: {
-      isDialogVisiable(val) {
+      value(val) {
         val && this.handleMenuStatus();
       },
       'indexSetItem.scenario_id': {
@@ -293,13 +300,6 @@
             this.showComponent = item.componentsName;
           },
         });
-      },
-      openPage() {
-        if (this.isOpenPage) {
-          this.currentChoice = this.selectChoice;
-          this.showComponent = this.showCurrentList.find(el => el.id === this.selectChoice)?.componentsName;
-          this.isOpenPage = false;
-        }
       },
       /**
        * @desc: 离开当前页并点击nav开关
@@ -352,12 +352,16 @@
         return true;
       },
       closeSetting() {
-        this.$emit('close-setting');
-      },
-      closePage() {
-        this.isOpenPage = true;
-        this.currentChoice = '';
-        this.showComponent = '';
+        if (this.isSubmit || !this.$refs.clusterRef.getIsChangeRule()) {
+          this.isOpenPage = false;
+          return;
+        }
+        this.$bkInfo({
+          title: this.$t('当前聚类规则有更改，退出无法保存，是否要要退出？'),
+          confirmFn: () => {
+            this.isOpenPage = false;
+          },
+        });
       },
       /**
        * @desc: 若nav的switch为关闭状态离开当前页面时判断是否发送保存请求，没有则关闭可编辑状态
@@ -397,12 +401,6 @@
       },
       setIsShowExtract(state) {
         this.showCurrentList = this.currentList.filter(item => (state ? true : item.id !== 'extract'));
-      },
-      resetPage() {
-        this.isShowPage = false;
-        this.$nextTick(() => {
-          this.isShowPage = true;
-        });
       },
     },
   };
@@ -475,7 +473,7 @@
           cursor: pointer;
           transition: all 0.3s;
 
-          .log-icon {
+          .bklog-icon {
             margin-right: 20px;
           }
 
@@ -487,7 +485,6 @@
 
       .setting-right {
         max-width: 1020px;
-        margin-left: 20px;
 
         .more-details {
           display: flex;
@@ -529,7 +526,7 @@
 
         .operation-container {
           min-height: 770px;
-          padding: 24px 20px 100px;
+          padding: 24px 20px 10px;
           margin-top: 20px;
 
           @include container-shadow;
