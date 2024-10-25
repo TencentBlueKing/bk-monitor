@@ -367,6 +367,12 @@ CELERYBEAT_SCHEDULE = {
         "schedule": crontab(),
         "enabled": True,
     },
+    "monitor_web.tasks.clean_bkrepo_temp_file": {
+        "task": "monitor_web.tasks.update_statistics_data",
+        "schedule": crontab(hour="*/4"),
+        "enabled": True,
+        "options": {"queue": "celery_resource"},
+    },
 }
 
 *_, BROKER_URL = get_rabbitmq_settings(APP_CODE)

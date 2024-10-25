@@ -1319,6 +1319,7 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
     rt_query_config.save()
 
 
+@task(ignore_result=True, queue="celery_resource")
 def clean_bkrepo_temp_file():
     """
     清理bkrepo临时文件
