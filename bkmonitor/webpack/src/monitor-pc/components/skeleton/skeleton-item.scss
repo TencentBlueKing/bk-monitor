@@ -1,0 +1,10 @@
+.skeleton-item {
+  position: relative;
+  height: 22px;
+  padding-right: 50px;
+
+  & > div {
+    min-width: 19px;
+    height: 100%;
+  }
+}

@@ -219,18 +219,21 @@
           min-width="120"
         >
           <template #default="{ row }">
-            <div
-              v-if="statusMap[row.status]"
-              class="status-col"
-            >
-              <span :class="'status-' + statusMap[row.status].status" />
-              <span
-                class="status-name"
-                @mouseenter="handleTipsMouseenter($event, row, 'Host')"
-                >{{ statusMap[row.status].name }}</span
+            <skeleton-item v-if="instanceLoading" />
+            <template v-else>
+              <div
+                v-if="statusMap[row.status]"
+                class="status-col"
               >
-            </div>
-            <span v-else>--</span>
+                <span :class="'status-' + statusMap[row.status].status" />
+                <span
+                  class="status-name"
+                  @mouseenter="handleTipsMouseenter($event, row, 'Host')"
+                  >{{ statusMap[row.status].name }}</span
+                >
+              </div>
+              <span v-else>--</span>
+            </template>
           </template>
         </bk-table-column>
         <bk-table-column
@@ -332,7 +335,9 @@
           sortable="custom"
         >
           <template #default="{ row }">
+            <skeleton-item v-if="instanceLoading" />
             <span
+              v-else
               :style="{
                 backgroundColor: getStatusLabelBgColor(row.alarm_count),
               }"
@@ -370,7 +375,8 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div>
+            <skeleton-item v-if="instanceLoading" />
+            <div v-else>
               <div class="rate-name">
                 {{ row.cpu_usage | emptyNumberFilter }}
               </div>
@@ -391,7 +397,8 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div>
+            <skeleton-item v-if="instanceLoading" />
+            <div v-else>
               <div class="rate-name">
                 {{ row.disk_in_use | emptyNumberFilter }}
               </div>
@@ -412,7 +419,8 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div>
+            <skeleton-item v-if="instanceLoading" />
+            <div v-else>
               <div class="rate-name">
                 {{ row.io_util | emptyNumberFilter }}
               </div>
@@ -433,7 +441,8 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div>
+            <skeleton-item v-if="instanceLoading" />
+            <div v-else>
               <div class="rate-name">
                 {{ row.mem_usage | emptyNumberFilter }}
               </div>
@@ -454,7 +463,8 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <div>
+            <skeleton-item v-if="instanceLoading" />
+            <div v-else>
               <div class="rate-name">
                 {{ row.psc_mem_usage | emptyNumberFilter }}
               </div>
@@ -484,7 +494,11 @@
           min-width="310"
         >
           <template #default="{ row, $index }">
-            <div class="process-module">
+            <skeleton-item v-if="instanceLoading" />
+            <div
+              v-else
+              class="process-module"
+            >
               <div
                 v-if="row.component?.length"
                 class="process-module-wrap"
@@ -592,6 +606,7 @@ import { AlarmStatus } from '../types';
 import UnresolveList from '../unresolve-list/unresolve-list.vue';
 import IpStatusTips, { handleIpStatusData } from './ip-status-tips';
 import { countElementsNotInFirstRow } from '../../strategy-config/util';
+import SkeletonItem from '../../../components/skeleton/skeleton-item.tsx';
 
 /** 告警类型对应的颜色 */
 const alarmColorMap: { [key in AlarmStatus]: string } = {
@@ -606,6 +621,7 @@ const alarmColorMap: { [key in AlarmStatus]: string } = {
     TipsTpl,
     IpStatusTips,
     EmptyStatus,
+    SkeletonItem,
   },
   filters: {
     progressColors(v) {
@@ -650,6 +666,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
   @Prop({ default: () => [], type: Array }) readonly excludeDataIds: string[];
   @Prop({ default: 0, type: Number }) readonly selectionsCount: number;
   @Prop() readonly emptyStatusType: EmptyStatusType;
+  @Prop({ default: false, type: Boolean }) readonly instanceLoading;
 
   @Ref('table') readonly tableRef!: any;
   @Ref('tipsTpl') readonly tipsTplTef: any;
