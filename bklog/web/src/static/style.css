@@ -9,7 +9,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 
 .bklog-icon {
-  /* stylelint-disable-next-line declaration-no-important*/
+  /* use !important to prevent issues with browser extensions that change fonts */
+
+  /* stylelint-disable-next-line declaration-no-important */
   font-family: 'bklog' !important;
   font-style: normal;
   font-weight: normal;
@@ -470,4 +472,8 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 
 .bklog-jincheng:before {
 	content: "\e1a0";
+}
+
+.bklog-qiehuanbanben:before {
+	content: "\e1a1";
 }

@@ -189,11 +189,8 @@
           v-if="checkcFields('label')"
           width="200"
           :label="$t('标签')"
-          :render-header="$renderHeader"
-          :filters="checkcFields('label') ? filterLabelList : []"
-          :filter-multiple="false"
+          :render-header="renderTagsHeader"
           class-name="filter-column"
-          column-key="tags"
           prop="tags"
           min-width="200"
         >
@@ -590,6 +587,7 @@
     clearTableFilter,
     getDefaultSettingSelectFiled,
     setDefaultSettingSelectFiled,
+    deepClone,
   } from '@/common/util';
   import collectedItemsMixin from '@/mixins/collected-items-mixin';
   import { mapGetters } from 'vuex';
@@ -598,6 +596,7 @@
   import EmptyStatus from '../../../../../components/empty-status';
   import IndexSetLabelSelect from '../../../../../components/index-set-label-select';
   import CollectionReportView from '../../components/collection-report-view';
+  import ClusterFilter from '../../../../retrieve-v2/search-result-panel/log-clustering/components/finger-tools/cluster-filter.tsx';
 
   export default {
     name: 'CollectionItem',
@@ -741,6 +740,16 @@
         settingCacheKey: 'clusterList',
         selectLabelList: [],
         filterLabelList: [],
+        tagSelect: ['all'],
+        tagsData: {
+          tags: [],
+        },
+        tagBaseList: [
+          {
+            id: 'all',
+            name: this.$t('全部'),
+          },
+        ],
         filterStorageLabelList: [],
       };
     },
@@ -945,7 +954,7 @@
       handleFilterChange(data) {
         this.changePagination({ current: 1 });
         Object.keys(data).forEach(item => {
-          this.filterParams[item] = data[item].join('');
+          this.filterParams[item] = item !== 'tags' ? data[item].join('') : data[item];
         });
       },
       handleSettingChange({ fields }) {
@@ -1117,12 +1126,14 @@
         try {
           const res = await this.$http.request('unionSearch/unionLabelList');
           this.selectLabelList = res.data;
-          this.filterLabelList = res.data
+          const cloneTagBase = deepClone(this.tagBaseList);
+          const notBuiltInList = res.data
             .filter(item => !item.is_built_in)
             .map(item => ({
-              value: item.name,
-              text: item.name,
+              id: item.name,
+              name: item.name,
             }));
+          this.filterLabelList = cloneTagBase.concat(notBuiltInList);
         } catch (error) {
           this.selectLabelList = [];
           this.filterLabelList = [];
@@ -1172,8 +1183,44 @@
         return false;
       },
       compareFilter(compare, fCompare, key) {
-        if (key === 'tags') return compare.some(item => item.name === fCompare);
+        if (key === 'tags') return compare.some(item => fCompare.includes(item.name));
         return compare === fCompare;
+      },
+      handleTagSelectChange(v) {
+        if (!v.length) {
+          this.tagSelect = ['all'];
+          return;
+        }
+        const lastSelect = v[v.length - 1];
+        if (lastSelect === 'all') {
+          this.tagSelect = [lastSelect];
+        } else {
+          this.tagSelect = v.filter(item => !(item === 'all'));
+        }
+      },
+      handleTagSubmit(v) {
+        this.tagsData.tags = !v.includes('all') ? v : [];
+        this.handleFilterChange(this.tagsData);
+      },
+      handleToggleTagSelect() {
+        this.tagSelect = !!this.tagsData.tags.length ? deepClone(this.tagsData.tags) : ['all'];
+      },
+      renderTagsHeader(h, { column }) {
+        const isActive = !!this.filterLabelList.length && !this.tagSelect.includes('all');
+        return h(ClusterFilter, {
+          props: {
+            title: column.label,
+            disabled: false,
+            select: this.tagSelect,
+            selectList: this.filterLabelList,
+            toggle: this.handleToggleTagSelect,
+            isActive,
+          },
+          on: {
+            selected: this.handleTagSelectChange,
+            submit: this.handleTagSubmit,
+          },
+        });
       },
     },
   };

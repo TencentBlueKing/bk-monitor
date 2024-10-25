@@ -202,7 +202,7 @@ class BCSWorkload(BCSBase, BCSBaseResources):
             [
                 {
                     "id": "namespace",
-                    "name": _("名字空间"),
+                    "name": "NameSpace",
                     "type": "string",
                     "disabled": False,
                     "checked": True,

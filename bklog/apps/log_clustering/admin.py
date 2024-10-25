@@ -28,6 +28,7 @@ from apps.log_clustering.models import (
     ClusteringConfig,
     ClusteringSubscription,
     NoticeGroup,
+    RegexTemplate,
     SampleSet,
     SignatureStrategySettings,
 )
@@ -69,6 +70,8 @@ class ClusteringConfigAdmin(AppModelAdmin):
         "min_members",
         "max_dist_list",
         "predefined_varibles",
+        "regex_rule_type",
+        "regex_template_id",
         "delimeter",
         "max_log_length",
         "is_case_sensitive",
@@ -136,3 +139,9 @@ class NoticeGroupAdmin(AppModelAdmin):
 class ClusteringSubscriptionAdmin(AppModelAdmin):
     list_display = ["subscription_type", "index_set_id", "title", "receivers", "is_enabled", "last_run_at"]
     search_fields = ["subscription_type", "index_set_id", "title"]
+
+
+@admin.register(RegexTemplate)
+class RegexTemplateAdmin(AppModelAdmin):
+    list_display = ["space_uid", "template_name", "predefined_varibles"]
+    search_fields = ["space_uid"]

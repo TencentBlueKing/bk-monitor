@@ -213,3 +213,8 @@ UnifyQueryDataSources = [
 GrayUnifyQueryDataSources = [
     (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
 ]
+
+# V3链路版本
+DATA_LINK_V3_VERSION_NAME = 'V3'
+# V4链路版本
+DATA_LINK_V4_VERSION_NAME = 'V4'

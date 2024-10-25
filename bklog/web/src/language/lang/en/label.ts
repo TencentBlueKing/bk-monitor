@@ -709,4 +709,6 @@ export default {
   秒: 'Second',
   '已耗时{0}秒': '{0} seconds have passed',
   '正在下发...': 'Issuing...',
+  回到旧版: 'Old Version',
+  切换新版: 'New Version',
 };

@@ -218,9 +218,8 @@ class PreCalculateCheck:
         if not distribute_mapping:
             return
         logger.info(f"[PreCalculateCheck] result: \n{json.dumps(distribute_mapping)}")
-        for queue, app_ids in distribute_mapping.items():
-            for app_id in app_ids:
-                DaemonTaskHandler.execute(app_id, queue)
+        for app_id, queue in distribute_mapping.items():
+            DaemonTaskHandler.execute(app_id, queue)
 
         logger.info(f"[PreCalculateCheck] distribute finished")
 
