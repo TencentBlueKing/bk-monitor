@@ -77,6 +77,7 @@ export interface IChartTitleProps {
   customArea?: boolean;
   // 数据步长（步长过大情况时需要）
   collectIntervalDisplay?: string;
+  rawInterval?: string;
   // 是否展示更多菜单
   needMoreMenu?: boolean;
 }
