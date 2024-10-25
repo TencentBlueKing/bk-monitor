@@ -108,11 +108,12 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     }
     console.info('routeCallOptions', routeCallOptions);
     this.callType = routeCallOptions.kind || 'caller';
+    const groupBy = this.groupByKindReset(this.callType, routeCallOptions.group_by || []);
     this.callOptions = {
       // panel 传递过来的一些变量
       ...this.panelScopedVars,
       // group 字段
-      group_by: routeCallOptions.group_by || [],
+      group_by: groupBy,
       method: routeCallOptions.method || '',
       limit: +routeCallOptions.limit || 0,
       metric_cal_type: routeCallOptions.metric_cal_type || '',
@@ -151,10 +152,13 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   // 左侧主被调切换
   changeTab(id: string) {
     this.callType = id;
+    const groupBy = this.groupByKindReset(id, this.callOptions.group_by);
     this.callOptions = {
       ...this.callOptions,
       ...this.panelScopedVars,
       call_filter: [], // todo
+      group_by: groupBy,
+      kind: id,
     };
     this.replaceRouteQuery();
   }
@@ -324,6 +328,22 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       ...this.callOptions,
       metric_cal_type: val,
     };
+  }
+
+  // 根据主调背调切换需重置group_by, 剔除不属于此分类的维度
+  groupByKindReset(kind: string, groupBy: string[]) {
+    const list = (kind === 'caller' ? this.commonAngle.caller?.tags : this.commonAngle.callee?.tags) || [];
+    const sets = new Set();
+    const result = [];
+    for (const item of list) {
+      sets.add(item.value);
+    }
+    for (const item of groupBy) {
+      if (sets.has(item)) {
+        result.push(item);
+      }
+    }
+    return result;
   }
 
   render() {
