@@ -286,6 +286,8 @@ class QueryProfileBarGraphResource(Resource):
                     "trace_data": trace_data,
                 }
             ]
+            if trace_data
+            else []
         }
 
     @classmethod

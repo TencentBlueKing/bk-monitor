@@ -212,6 +212,7 @@ class AlertViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.alert.multi_anomaly_detect_graph, endpoint="alert/multi_anomaly_detect_graph"),
         # 业务统计相关接口
         ResourceRoute("GET", resource.alert.get_fta_strategy, endpoint="alert/get_fta_strategy"),
+        ResourceRoute("GET", resource.alert.get_tmp_data, endpoint="alert/get_tmp_data"),
     ]
 
 

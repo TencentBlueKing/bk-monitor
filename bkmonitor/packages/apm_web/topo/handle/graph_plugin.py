@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Type, Union
 
 from django.utils.translation import ugettext_lazy as _
+from elasticsearch_dsl import A, Q
 
 from apm_web.constants import AlertLevel, Apdex, TopoNodeKind, TopoVirtualServiceKind
 from apm_web.handlers.service_handler import ServiceHandler
@@ -66,6 +67,14 @@ class PrePlugin(Plugin):
 
     def install(self) -> Dict[Tuple[Union[str, Tuple]], Dict]:
         raise NotImplementedError
+
+    @property
+    def metric_params(self):
+        return {
+            "application": self._runtime["application"],
+            "start_time": self._runtime["start_time"],
+            "end_time": self._runtime["end_time"],
+        }
 
     @classmethod
     def diff(cls, attrs, other_attrs):
@@ -690,7 +699,7 @@ class NodeErrorRateFull(PrePlugin, ValuesPluginMixin):
 
     def get_total_error_count_mapping(self):
         values_mapping = self.metric(
-            **self._runtime,
+            **self.metric_params,
             **{
                 "group_by": ["from_apm_service_name", "to_apm_service_name", "from_span_error", "to_span_error"],
                 "where": [
@@ -757,7 +766,7 @@ class ErrorCountStatusCodeMixin(PrePlugin, ValuesPluginMixin):
 
         # Step1: 查询总错误数
         values_mapping = self.metric(
-            **self._runtime,
+            **self.metric_params,
             **{"group_by": [group_key], "where": [{"key": where_key, "method": "eq", "value": ["true"]}]},
         ).get_instance_values_mapping()
         for k, attrs in values_mapping.items():
@@ -773,7 +782,7 @@ class ErrorCountStatusCodeMixin(PrePlugin, ValuesPluginMixin):
     def get_status_code_mapping(self, group_specific_key, group_key, where_key, metric_key):
         res = defaultdict(lambda: defaultdict(int))
         values_mapping = self.metric(
-            **self._runtime,
+            **self.metric_params,
             **{
                 "group_by": [group_key, group_specific_key],
                 "where": [
@@ -956,36 +965,32 @@ class NodeAlert(PrePlugin):
 
     def _query_normal_metric_alerts(self, handler, severity):
         query = handler.get_search_object(self._runtime["start_time"], self._runtime["end_time"])
+        query = query.query(
+            Q(
+                "bool",
+                must=[
+                    Q("term", severity=severity),
+                    Q(
+                        "nested",
+                        path="event.tags",
+                        query=Q(
+                            "bool",
+                            should=[
+                                Q("term", **{"event.tags.key": "service_name"}),
+                                Q("term", **{"event.tags.key": "db_system"}),
+                                Q("term", **{"event.tags.key": "messaging_system"}),
+                                Q("term", **{"event.tags.key": "peer_service"}),
+                            ],
+                        ),
+                    ),
+                    Q("terms", **{"event.metric": [f"custom.{self.table_id}.{i}" for i in self._NORMAL_METRICS]}),
+                ],
+            )
+        )
+        query = query.extra(size=self._ALERT_MAX_SIZE, _source=["event.tags"])
+        response = query.execute()
+
         res = defaultdict(int)
-        response = query.update_from_dict(
-            {
-                "query": {
-                    "bool": {
-                        "must": [
-                            {"term": {"severity": severity}},
-                            {
-                                "nested": {
-                                    "path": "event.tags",
-                                    "query": {
-                                        "bool": {
-                                            "should": [
-                                                {"term": {"event.tags.key": "service_name"}},
-                                                {"term": {"event.tags.key": "db_system"}},
-                                                {"term": {"event.tags.key": "messaging_system"}},
-                                                {"term": {"event.tags.key": "peer_service"}},
-                                            ]
-                                        }
-                                    },
-                                }
-                            },
-                            {"terms": {"event.metric": [f"custom.{self.table_id}.{i}" for i in self._NORMAL_METRICS]}},
-                        ]
-                    }
-                },
-                "size": self._ALERT_MAX_SIZE,
-                "_source": ["event.tags"],
-            }
-        ).execute()
         for i in response.hits:
             data = i.to_dict()
             tags = data.get("event", {}).get("tags")
@@ -1013,52 +1018,28 @@ class NodeAlert(PrePlugin):
 
     def _query_flow_metric_alerts(self, handler, severity):
         query = handler.get_search_object(self._runtime["start_time"], self._runtime["end_time"])
-        res = {}
-        response = query.update_from_dict(
-            {
-                "query": {
-                    "bool": {
-                        "must": [
-                            {"term": {"severity": severity}},
-                            {
-                                "nested": {
-                                    "path": "event.tags",
-                                    "query": {
-                                        "bool": {
-                                            "filter": [
-                                                {
-                                                    "terms": {
-                                                        "event.tags.key": [
-                                                            "from_apm_service_name",
-                                                            "to_apm_service_name",
-                                                        ]
-                                                    }
-                                                }
-                                            ]
-                                        }
-                                    },
-                                }
-                            },
-                            {"terms": {"event.metric": [f"custom.{self.table_id}.{i}" for i in self.flow_metrics]}},
-                        ]
-                    }
-                },
-                "aggs": {
-                    "nested_tags": {
-                        "nested": {"path": "event.tags"},
-                        "aggs": {
-                            "values": {
-                                "terms": {
-                                    "field": "event.tags.value.raw",
-                                    "size": self._ALERT_MAX_SIZE,
-                                }
-                            }
-                        },
-                    }
-                },
-            }
-        ).execute()
-
+        query = query.query(
+            Q(
+                "bool",
+                must=[
+                    Q("term", severity=severity),
+                    Q(
+                        "nested",
+                        path="event.tags",
+                        query=Q(
+                            "bool",
+                            filter=[Q("terms", **{"event.tags.key": ["from_apm_service_name", "to_apm_service_name"]})],
+                        ),
+                    ),
+                    Q("terms", **{"event.metric": [f"custom.{self.table_id}.{i}" for i in self.flow_metrics]}),
+                ],
+            )
+        )
+        tags_agg = A("nested", path="event.tags")
+        tags_agg.bucket("values", A("terms", field="event.tags.value.raw", size=self._ALERT_MAX_SIZE))
+        query.aggs.bucket("nested_tags", tags_agg)
+        response = query.execute()
+        res = defaultdict(int)
         for i in response.aggregations.nested_tags.values.buckets:
             data = i.to_dict()
             node = data.get("key")
@@ -1102,7 +1083,7 @@ class NodeApdex(PrePlugin):
 
         # Step1: 计算服务节点的 Apdex
         response = self.metric(
-            **self._runtime,
+            **self.metric_params,
             **{
                 "group_by": [
                     OtlpKey.get_metric_dimension_key("resource.service.name"),
@@ -1115,7 +1096,7 @@ class NodeApdex(PrePlugin):
 
         # Step2: 计算组件节点的 Apdex
         component_response = self.metric(
-            **self._runtime,
+            **self.metric_params,
             **{
                 "group_by": [
                     OtlpKey.get_metric_dimension_key("resource.service.name"),
@@ -1140,7 +1121,7 @@ class NodeApdex(PrePlugin):
 
         # Step3: 计算自定义服务节点的 Apdex
         custom_service_response = self.metric(
-            **self._runtime, **{"group_by": [OtlpKey.get_metric_dimension_key("attributes.peer.service")]}
+            **self.metric_params, **{"group_by": [OtlpKey.get_metric_dimension_key("attributes.peer.service")]}
         ).get_instance_calculate_values_mapping(
             ignore_keys=[OtlpKey.get_metric_dimension_key(OtlpKey.STATUS_CODE), Apdex.DIMENSION_KEY]
         )

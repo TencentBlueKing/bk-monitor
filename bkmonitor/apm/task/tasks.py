@@ -24,6 +24,7 @@ from alarm_backends.service.scheduler.app import app
 from apm.core.application_config import ApplicationConfig
 from apm.core.cluster_config import BkCollectorInstaller
 from apm.core.discover.base import TopoHandler
+from apm.core.discover.precalculation.check import PreCalculateCheck
 from apm.core.discover.precalculation.consul_handler import ConsulHandler
 from apm.core.discover.precalculation.storage import PrecalculateStorage
 from apm.core.discover.profile.base import DiscoverHandler as ProfileDiscoverHandler
@@ -36,6 +37,7 @@ from apm.models import (
     MetricDataSource,
     ProfileDataSource,
 )
+from apm.utils.report_event import EventReportHelper
 from core.errors.alarm_backends import LockError
 
 logger = logging.getLogger("apm")
@@ -187,3 +189,21 @@ def create_application_async(application_id, storage_config, options):
 
     application = ApmApplication.objects.get(id=application_id)
     application.apply_datasource(storage_config, storage_config, options)
+
+    # 异步分派预计算任务
+    bmw_task_cron.delay(countdown=60)
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def bmw_task_cron():
+    """
+    定时检测所有应用的 BMW 预计算任务是否正常运行
+    """
+    unopened_mapping, running_mapping, removed_tasks = PreCalculateCheck.get_application_info_mapping()
+    distribution = PreCalculateCheck.calculate_distribution(running_mapping, unopened_mapping)
+    PreCalculateCheck.distribute(distribution)
+    if len(removed_tasks) > 5:
+        # 删除大量任务时 进行告警&人工处理
+        EventReportHelper.report(f"[预计算定时任务] 出现 {len(removed_tasks)} 个删除任务，请检查数据是否正确。{removed_tasks}")
+    else:
+        PreCalculateCheck.batch_remove(removed_tasks)

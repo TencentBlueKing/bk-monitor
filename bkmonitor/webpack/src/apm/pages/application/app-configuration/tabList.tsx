@@ -32,7 +32,8 @@ interface ITab {
   name: string;
   label: string;
   status: 'disabled' | 'no_data' | 'normal';
-  tips?: string;
+  disabledTips?: string;
+  noDataTips?: string;
 }
 
 interface IProps {
@@ -60,6 +61,17 @@ export default class TabList extends tsc<IProps, IEvent> {
     this.active = item.name;
     this.$emit('change', item.name);
   }
+
+  tipContentFn(item) {
+    if (item.status === 'no_data') {
+      return item.noDataTips;
+    }
+    if (item.status === 'disabled') {
+      return item.disabledTips;
+    }
+    return '';
+  }
+
   render() {
     return (
       <div class='tab-list-wrap-app-config'>
@@ -70,8 +82,8 @@ export default class TabList extends tsc<IProps, IEvent> {
                 key={item.name}
                 class={[{ active: this.active === item.name }, `status-${item.status || 'disabled'}`]}
                 v-bk-tooltips={{
-                  content: item.tips,
-                  disabled: item.status !== 'disabled' || !item.tips,
+                  content: this.tipContentFn(item),
+                  disabled: !['no_data', 'disabled'].includes(item.status),
                 }}
                 onClick={() => this.handleActiveChange(item)}
               >

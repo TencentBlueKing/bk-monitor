@@ -44,7 +44,7 @@ class TestGetKubernetesContainer:
                 },
             },
             {'key': 'bk_cluster_name', 'name': '集群名称', 'type': 'string', 'value': ''},
-            {'key': 'namespace', 'name': '名字空间', 'type': 'string', 'value': 'bcs-system'},
+            {'key': 'namespace', 'name': 'NameSpace', 'type': 'string', 'value': 'bcs-system'},
             {'key': 'status', 'name': '运行状态', 'type': 'string', 'value': 'running'},
             {'key': 'monitor_status', 'name': '采集状态', 'type': 'status', 'value': {'text': '正常', 'type': 'success'}},
             {
@@ -158,7 +158,7 @@ class TestGetKubernetesContainer:
                 },
             },
             {'key': 'bk_cluster_name', 'name': '集群名称', 'type': 'string', 'value': ''},
-            {'key': 'namespace', 'name': '名字空间', 'type': 'string', 'value': 'bcs-system'},
+            {'key': 'namespace', 'name': 'NameSpace', 'type': 'string', 'value': 'bcs-system'},
             {'key': 'status', 'name': '运行状态', 'type': 'string', 'value': 'running'},
             {'key': 'monitor_status', 'name': '采集状态', 'type': 'status', 'value': {'text': '正常', 'type': 'success'}},
             {
@@ -260,7 +260,7 @@ class TestGetKubernetesContainer:
                 },
             },
             {'key': 'bk_cluster_name', 'name': '集群名称', 'type': 'string', 'value': ''},
-            {'key': 'namespace', 'name': '名字空间', 'type': 'string', 'value': 'namespace_a'},
+            {'key': 'namespace', 'name': 'NameSpace', 'type': 'string', 'value': 'namespace_a'},
             {'key': 'status', 'name': '运行状态', 'type': 'string', 'value': 'running'},
             {'key': 'monitor_status', 'name': '采集状态', 'type': 'status', 'value': {'text': '无数据', 'type': 'disabled'}},
             {

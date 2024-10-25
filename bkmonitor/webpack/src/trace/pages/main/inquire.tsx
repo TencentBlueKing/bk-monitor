@@ -310,7 +310,7 @@ export default defineComponent({
       localStorage.setItem('bk_monitor_auto_query_enable', `${val}`);
       state.autoQuery = val;
     };
-    async function handleAppSelectChange(val: string) {
+    async function handleAppSelectChange(val: string, isClickQueryBtn = false) {
       state.app = val;
       traceListPagination.offset = 0;
       traceColumnFilters.value = {};
@@ -318,13 +318,12 @@ export default defineComponent({
         if (!Object.keys(scopeSelects.value).length) {
           await getQueryOptions();
         }
-        if (state.searchType === 'scope' && (state.autoQuery || !state.isAlreadyScopeQuery)) {
-          if (state.isAlreadyScopeQuery) reGetFieldOptionValues();
-          handleQueryScopeDebounce();
-        }
-
         // 获取图表配置列表
         searchStore.getPanelList(state.app);
+        if (state.searchType === 'scope' && (state.autoQuery || !state.isAlreadyScopeQuery || isClickQueryBtn)) {
+          if (state.isAlreadyScopeQuery) reGetFieldOptionValues();
+          handleQueryScopeDebounce(true);
+        }
       }
     }
     /** 获取范围查询条件 */
@@ -780,10 +779,10 @@ export default defineComponent({
     };
     const handleQueryScopeDebounce = debounce(300, handleQueryScope);
     /* 范围查询动态参数更新 */
-    function handleScopeQueryChange() {
+    function handleScopeQueryChange(isClickQueryBtn = false) {
       traceListPagination.offset = 0;
       curTimestamp.value = handleTransformToTimestamp(timeRange.value);
-      handleQueryScopeDebounce();
+      handleQueryScopeDebounce(isClickQueryBtn);
     }
     /** 更新耗时过滤条件 */
     function handleDurationChange(range: number[]) {
@@ -798,7 +797,7 @@ export default defineComponent({
           state.isAlreadyScopeQuery = true;
         }
         traceKind.value = 'all';
-        handleScopeQueryChange();
+        handleScopeQueryChange(true);
         // 点击 范围查询 在这里做一些准备请求
         // 以免出现重复默认项
         conditionList.length = 0;
@@ -891,6 +890,8 @@ export default defineComponent({
       queryString.value = componentData.queryString;
       traceListPagination.offset = 0;
       curTimestamp.value = handleTransformToTimestamp(timeRange.value);
+      // 获取图表配置列表
+      searchStore.getPanelList(state.app);
       handleQueryScope();
     }
     /* 收藏列表 */
@@ -1068,9 +1069,9 @@ export default defineComponent({
     }
     /** 更多操作 */
     function handleMenuSelectChange() {
-      const appId = appList.value?.find(app => app.app_name === state.app)?.application_id || '';
-      if (appId) {
-        const url = location.href.replace(location.hash, `#/apm/application/config/${appId}`);
+      const appName = appList.value?.find(app => app.app_name === state.app)?.app_name || '';
+      if (appName) {
+        const url = location.href.replace(location.hash, `#/apm/application/config/${appName}`);
         window.open(url, '_blank');
       }
     }
@@ -1647,7 +1648,7 @@ export default defineComponent({
                 appList={appList.value}
                 showBottom={state.searchType === 'scope'}
                 onAddCondition={handleAddCondition}
-                onAppChange={handleAppSelectChange}
+                onAppChange={val => handleAppSelectChange(val, true)}
                 onSearchTypeChange={handleSearchTypeChange}
               />
             </div>

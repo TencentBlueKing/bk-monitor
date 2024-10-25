@@ -16,6 +16,7 @@ import shutil
 import time
 import traceback
 from typing import Any, Dict
+from concurrent.futures import ThreadPoolExecutor
 
 import arrow
 from celery.signals import task_postrun
@@ -46,13 +47,13 @@ from bkmonitor.dataflow.task.intelligent_detect import (
     MultivariateAnomalyIntelligentModelDetectTask,
     StrategyIntelligentModelDetectTask,
 )
-from bkmonitor.models import ActionConfig, AlgorithmModel
+from bkmonitor.models import ActionConfig, AlgorithmModel, ItemModel, StrategyModel
 from bkmonitor.models.external_iam import ExternalPermissionApplyRecord
 from bkmonitor.strategy.new_strategy import QueryConfig, get_metric_id
 from bkmonitor.strategy.serializers import MultivariateAnomalyDetectionSerializer
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from bkmonitor.utils.sql import sql_format_params
-from bkmonitor.utils.user import set_local_username
+from bkmonitor.utils.user import get_global_user, set_local_username
 from constants.aiops import SCENE_NAME_MAPPING
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.dataflow import ConsumingMode
@@ -62,6 +63,7 @@ from core.errors.bkmonitor.dataflow import DataFlowNotExists
 from core.prometheus import metrics
 from fta_web.tasks import run_init_builtin_action_config
 from monitor_web.commons.cc.utils import CmdbUtil
+from monitor_web.commons.data_access import PluginDataAccessor
 from monitor_web.constants import (
     AIOPS_ACCESS_MAX_RETRIES,
     AIOPS_ACCESS_RETRY_INTERVAL,
@@ -73,6 +75,7 @@ from monitor_web.export_import.constant import ImportDetailStatus, ImportHistory
 from monitor_web.extend_account.models import UserAccessRecord
 from monitor_web.models.custom_report import CustomEventGroup, CustomTSTable
 from monitor_web.models.plugin import CollectorPluginMeta
+from monitor_web.plugin.constant import PLUGIN_REVERSED_DIMENSION
 from monitor_web.strategies.built_in import run_build_in
 from utils import business, count_md5
 
@@ -1313,9 +1316,68 @@ def access_host_anomaly_detect_by_strategy_id(strategy_id):
     rt_query_config.save()
 
 
+@task(ignore_result=True)
+def update_metric_json_from_ts_group():
+    """
+    对开启了自动发现的插件指标进行保存
+    """
+
+    def update_metric(collector_plugin):
+        plugin_data_info = PluginDataAccessor(collector_plugin.current_version, get_global_user())
+        # 查询TSGroup
+        group_list = api.metadata.query_time_series_group(
+            time_series_group_name=plugin_data_info.db_name, label=plugin_data_info.label
+        )
+
+        # 仅对有数据做处理
+        if len(group_list) == 0:
+            return
+        collector_plugin.reserved_dimension_list = [
+            field_name for field_name, _ in PLUGIN_REVERSED_DIMENSION + plugin_data_info.dms_field
+        ]
+        collector_plugin.update_metric_json_from_ts_group(group_list)
+
+    # 排除掉plugin_id为"snmp_v1"，"snmp_v2c"，"snmp_v3"]的插件数据
+    queryset = CollectorPluginMeta.objects.exclude(plugin_id__in=["snmp_v1", "snmp_v2c", "snmp_v3"])
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        for collector_plugin in queryset:
+            # 如果未开启黑名单或没有超过刷新周期（默认五分钟），直接返回
+            if not collector_plugin.current_version.info.enable_field_blacklist or not collector_plugin.should_refresh_metric_json(
+                    timeout=5 * 60
+            ):
+                continue
+            executor.submit(update_metric, collector_plugin)
+
+
 @celery_receiver(task_postrun)
 def task_postrun_handler(sender=None, headers=None, body=None, **kwargs):
     # 清理celery任务的线程变量
     from bkmonitor.utils.local import local
 
     local.clear()
+
+
+@task(ignore_result=True)
+def update_target_detail(bk_biz_id=None):
+    """
+    对启用了缓存的业务ID，更新监控目标详情缓存
+    """
+    if bk_biz_id is None:
+        # 总任务，定时任务发起
+        for bk_biz_id in settings.ENABLED_TARGET_CACHE_BK_BIZ_IDS:
+            update_target_detail.delay(bk_biz_id=bk_biz_id)
+        return
+
+    # 参数指定bk_biz_id
+    strategy_ids = StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values_list("id", flat=True)
+    items = ItemModel.objects.filter(strategy_id__in=strategy_ids).only("strategy_id", "target")
+    resource.strategies.get_target_detail_with_cache.set_mapping(
+        {item.strategy_id: (bk_biz_id, item.target) for item in items}
+    )
+    for item in items:
+        try:
+            resource.strategies.get_target_detail_with_cache.request.refresh({"strategy_id": item.strategy_id})
+        except Exception as e:
+            logger.exception(f"[update_target_detail] failed for strategy({item.strategy_id}): {e}")
+        logger.info(f"[update_target_detail] strategy({item.strategy_id}) done")

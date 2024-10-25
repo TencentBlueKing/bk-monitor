@@ -821,7 +821,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
     /** 获取筛选面板用户配置 */
     this.handleGetUserConfig<{ fields: string[]; order: string[] }>(FILTER_PANEL_FIELD, { reject403: true }).then(
       res => {
-        if (!res) {
+        if (!res?.order?.length) {
           this.handleSetUserConfig(
             FILTER_PANEL_FIELD,
             JSON.stringify({

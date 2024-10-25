@@ -26,6 +26,7 @@
 import { Component, Ref, Prop, Watch, Emit, Provide } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import axios from 'axios';
 import { serviceList, serviceListAsync } from 'monitor-api/modules/apm_metric';
 import { commonPageSizeSet, commonPageSizeGet } from 'monitor-common/utils';
 import { Debounce } from 'monitor-common/utils/utils';
@@ -70,7 +71,7 @@ export default class ApmServiceList extends tsc<
   })
   appName: string;
   @Prop() timeRange: TimeRangeType;
-  @Prop({ type: Boolean, default: false }) authority: boolean;
+  @Prop({ type: Boolean }) authority: boolean;
   @Prop({ type: String }) authorityDetail: string;
   @Ref() mainResize: InstanceType<typeof ApmHomeResizeLayout>;
 
@@ -85,6 +86,8 @@ export default class ApmServiceList extends tsc<
 
   /** 初次请求 */
   firstRequest = true;
+
+  cancelTokenSource = null;
 
   /** 服务表格数据 */
   tableData: IAPMService[] = [];
@@ -104,6 +107,10 @@ export default class ApmServiceList extends tsc<
   defaultActiveName = ['category', 'language', 'apply_module', 'have_data'];
   filterShow = true;
   filterLoading = true;
+
+  get isConnecting() {
+    return !this.appData.metric_result_table_id && !this.appData.trace_result_table_id;
+  }
 
   @Provide('handleShowAuthorityDetail')
   handleShowAuthorityDetail(actionIds: string | string[]) {
@@ -264,7 +271,9 @@ export default class ApmServiceList extends tsc<
       condition_list: [],
       view_mode: 'page_home',
     };
-    const { columns, data, total, filter } = await serviceList(params)
+    this.cancelTokenSource?.cancel?.();
+    this.cancelTokenSource = axios.CancelToken.source();
+    const { columns, data, total, filter } = await serviceList(params, { cancelToken: this.cancelTokenSource.token })
       .catch(() => {
         return {
           columns: [],
@@ -307,13 +316,16 @@ export default class ApmServiceList extends tsc<
       name: item.name,
     }));
     for (const field of fields) {
-      serviceListAsync({
-        app_name: this.appName,
-        start_time: startTime,
-        end_time: endTime,
-        column: field,
-        service_names: services,
-      }).then(serviceData => {
+      serviceListAsync(
+        {
+          app_name: this.appName,
+          start_time: startTime,
+          end_time: endTime,
+          column: field,
+          service_names: services,
+        },
+        { cancelToken: this.cancelTokenSource.token }
+      ).then(serviceData => {
         this.mapAsyncData(serviceData, field, valueTitleList);
       });
     }
@@ -457,6 +469,8 @@ export default class ApmServiceList extends tsc<
    */
   handleClearSearch() {
     this.searchKeyWord = '';
+    this.checkedFilter = [];
+    this.filterCondition = [];
     this.pagination.current = 1;
     this.getServiceList();
   }
@@ -471,31 +485,60 @@ export default class ApmServiceList extends tsc<
             />
           ) : (
             <div class='header-left'>
-              <span>{this.appData.app_alias}</span>
+              <span>{this.appData?.app_alias}</span>
               {this.appName ? <span>({this.appName})</span> : null}
             </div>
           )}
-          <div class='header-right'>
-            <bk-button
-              class={['mr-8', { disabled: !this.authority }]}
-              v-authority={{ active: !this.authority }}
-              theme='primary'
-              onClick={() =>
-                this.authority ? this.handleGotoAppOverview() : this.handleShowAuthorityDetail(this.authorityDetail)
-              }
-            >
-              {this.$t('应用详情')}
-            </bk-button>
-            <bk-button
-              class={[{ disabled: !this.authority }]}
-              v-authority={{ active: !this.authority }}
-              onClick={() =>
-                this.authority ? this.handleGoToAppConfig() : this.handleShowAuthorityDetail(this.authorityDetail)
-              }
-            >
-              {this.$t('应用配置')}
-            </bk-button>
-          </div>
+          {this.filterLoading || !this.appData ? (
+            <div style='display: flex;'>
+              <div
+                style='height: 32px; width: 88px'
+                class='skeleton-element mr-8'
+              />
+              <div
+                style='height: 32px; width: 88px'
+                class='skeleton-element'
+              />
+            </div>
+          ) : (
+            <div class='header-right'>
+              <div
+                v-bk-tooltips={{
+                  content: this.$t('接入中'),
+                  disabled: !this.isConnecting,
+                }}
+              >
+                <bk-button
+                  class={['mr-8', { disabled: !this.authority }]}
+                  v-authority={{ active: !this.authority }}
+                  disabled={this.isConnecting}
+                  theme='primary'
+                  onClick={() =>
+                    this.authority ? this.handleGotoAppOverview() : this.handleShowAuthorityDetail(this.authorityDetail)
+                  }
+                >
+                  {this.$t('应用详情')}
+                </bk-button>
+              </div>
+              <div
+                v-bk-tooltips={{
+                  content: this.$t('接入中'),
+                  disabled: !this.isConnecting,
+                }}
+              >
+                <bk-button
+                  class={[{ disabled: !this.authority }]}
+                  v-authority={{ active: !this.authority }}
+                  disabled={this.isConnecting}
+                  onClick={() =>
+                    this.authority ? this.handleGoToAppConfig() : this.handleShowAuthorityDetail(this.authorityDetail)
+                  }
+                >
+                  {this.$t('应用配置')}
+                </bk-button>
+              </div>
+            </div>
+          )}
         </div>
         <div class='main'>
           <ApmHomeResizeLayout
@@ -537,29 +580,37 @@ export default class ApmServiceList extends tsc<
             <div class='main-left-table'>
               <div class='app-list-content'>
                 <div class='app-list-content-top'>
-                  <div class='app-list-btns'>
-                    <i
-                      class='icon-monitor icon-double-up'
-                      v-show={!this.showFilterPanel}
-                      onClick={this.handleHidePanel}
+                  {this.filterLoading || !this.appData ? (
+                    <div
+                      style='height: 32px; width: 88px'
+                      class='skeleton-element'
                     />
-                    <bk-button
-                      class={[{ disabled: !this.authority }]}
-                      v-authority={{ active: !this.authority }}
-                      theme='primary'
-                      outline
-                      onClick={() =>
-                        this.authority
-                          ? this.handleGotoServiceApply()
-                          : this.handleShowAuthorityDetail(this.authorityDetail)
-                      }
-                    >
-                      <span class='app-add-btn'>
-                        <i class='icon-monitor icon-mc-add app-add-icon' />
-                        <span>{this.$t('接入服务')}</span>
-                      </span>
-                    </bk-button>
-                  </div>
+                  ) : (
+                    <div class='app-list-bts'>
+                      <i
+                        class='icon-monitor icon-double-up'
+                        v-show={!this.showFilterPanel}
+                        onClick={this.handleHidePanel}
+                      />
+                      <bk-button
+                        class={[{ disabled: !this.authority }]}
+                        v-authority={{ active: !this.authority }}
+                        theme='primary'
+                        outline
+                        onClick={() =>
+                          this.authority
+                            ? this.handleGotoServiceApply()
+                            : this.handleShowAuthorityDetail(this.authorityDetail)
+                        }
+                      >
+                        <span class='app-add-btn'>
+                          <i class='icon-monitor icon-mc-add app-add-icon' />
+                          <span>{this.$t('接入服务')}</span>
+                        </span>
+                      </bk-button>
+                    </div>
+                  )}
+
                   <div class='app-list-search'>
                     <bk-input
                       v-model={this.searchKeyWord}
@@ -600,14 +651,14 @@ export default class ApmServiceList extends tsc<
                                 textMap={{
                                   empty: this.$t('暂无数据'),
                                 }}
-                                type={this.searchKeyWord?.length ? 'search-empty' : 'empty'}
+                                type={this.searchKeyWord || this.filterCondition?.length ? 'search-empty' : 'empty'}
                                 onOperation={() => this.handleClearSearch()}
                               />
                             </CommonTable>
                           ) : (
                             <TableSkeleton
                               class='table-skeleton'
-                              type={2}
+                              type={5}
                             />
                           )}
                         </div>

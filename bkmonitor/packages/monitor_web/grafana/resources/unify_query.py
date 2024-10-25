@@ -1467,6 +1467,9 @@ class DimensionUnifyQuery(Resource):
                 "interval": 600,
                 "field": request_params["dimension_field"],
                 "metric_field": query_config["metrics"][0]["field"],
+                "index_set_id": query_config.get("index_set_id", None),
+                "query_string": query_config.get("query_string", ""),
+                "filter_dict": query_config.get("filter_dict", {}),
             },
         }
         return resource.grafana.get_variable_value(params)

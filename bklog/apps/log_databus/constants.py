@@ -217,6 +217,9 @@ CACHE_KEY_CLUSTER_INFO = "bulk_cluster_info_{}"
 
 DEFAULT_COLLECTOR_LENGTH = 2
 
+# 解析失败字段名
+PARSE_FAILURE_FIELD = "__parse_failure"
+
 
 class AsyncStatus(object):
     RUNNING = "RUNNING"
@@ -337,6 +340,14 @@ class EtlConfig(object):
     BK_LOG_DELIMITER = "bk_log_delimiter"
     BK_LOG_REGEXP = "bk_log_regexp"
     CUSTOM = "custom"
+
+
+class MetadataTypeEnum(ChoicesEnum):
+    PATH = "path"
+
+    _choices_labels = (
+        (PATH, _("路径元数据")),
+    )
 
 
 class EtlConfigChoices(ChoicesEnum):

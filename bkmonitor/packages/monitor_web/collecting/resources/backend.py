@@ -87,6 +87,7 @@ class CollectConfigListResource(Resource):
         """
 
         subscription_id_config_map, statistics_data = fetch_sub_statistics(config_data_list)
+        updated_configs = []
 
         # 节点管理返回的状态数量
         for subscription_status in statistics_data:
@@ -127,7 +128,7 @@ class CollectConfigListResource(Resource):
             if config.cache_data != cache_data or config.operation_result != operation_result:
                 config.cache_data = cache_data
                 config.operation_result = operation_result
-                config.save(not_update_user=True, update_fields=["cache_data", "operation_result"])
+                updated_configs.append(config)
 
         # 更新k8s插件采集配置的状态
         for collect_config in config_data_list:
@@ -167,7 +168,9 @@ class CollectConfigListResource(Resource):
             if collect_config.cache_data != cache_data or collect_config.operation_result != operation_result:
                 collect_config.cache_data = cache_data
                 collect_config.operation_result = operation_result
-                collect_config.save(not_update_user=True, update_fields=["cache_data", "operation_result"])
+                updated_configs.append(collect_config)
+
+        CollectConfigMeta.objects.bulk_update(updated_configs, ["cache_data", "operation_result"])
 
     def update_cache_data(self, config):
         # 更新采集配置的缓存数据（总数、异常数）

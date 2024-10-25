@@ -25,6 +25,7 @@ from django.db.transaction import atomic
 from django.utils.translation import ugettext as _
 
 from bkmonitor.utils import consul
+from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata import config
@@ -142,6 +143,13 @@ class DataSource(models.Model):
             self._mq_cluster = ClusterInfo.objects.get(cluster_id=self.mq_cluster_id)
 
         return self._mq_cluster
+
+    @property
+    def datalink_version(self):
+        """数据源对应的数据链路版本"""
+        if self.created_from == DataIdCreatedFromSystem.BKDATA.value:
+            return DATA_LINK_V4_VERSION_NAME
+        return DATA_LINK_V3_VERSION_NAME
 
     @property
     def consul_config_path(self):

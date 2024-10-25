@@ -236,7 +236,7 @@ class DataFlowHandler(BaseAiopsHandler):
         if fields_name_list:
             if all_fields_dict.get(clustering_field) and all_fields_dict.get(clustering_field) in fields_name_list:
                 fields_name_list.remove(all_fields_dict.get(clustering_field))
-            is_not_null_rules = OPERATOR_AND.join([f" `{field}` is not null " for field in fields_name_list])
+            is_not_null_rules = OPERATOR_AND.join([f" `{field}` is not null " for field in fields_name_list if field])
 
         for index, filter_rule in enumerate(filter_rules):
             # 切割嵌套字段

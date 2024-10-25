@@ -555,6 +555,9 @@ APM_TRPC_ENABLED = False
 APM_BMW_DEPLOY_BIZ_ID = 0
 # 在列表中业务，才会创建虚拟指标， [2]
 APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
+APM_BMW_TASK_QUEUES = []
+# APM V4 链路 metric data status 配置
+APM_V4_METRIC_DATA_STATUS_CONFIG = {}
 # 拓扑发现允许的最大 Span 数量(预估值)
 PER_ROUND_SPAN_MAX_SIZE = 1000
 
@@ -1385,6 +1388,9 @@ ENABLE_V2_BKDATA_GSE_RESOURCE = False
 ENABLE_V2_VM_DATA_LINK = False
 ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST = []
 
+ES_INDEX_ROTATION_SLEEP_INTERVAL = 30
+ES_INDEX_ROTATION_STEP = 50
+
 # 创建 vm 链路资源所属的命名空间
 DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
 # grafana和策略导出是否支持data_label转换
@@ -1420,6 +1426,9 @@ BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")
 # 监控平台apigw代码
 BK_APIGW_NAME = os.getenv("BK_APIGW_NAME", "bk-monitor")
 
+# 集群内operator服务默认名称
+K8S_OPERATOR_SERVICE_NAME = "bkmonitor-operator-stack-operator"
+
 # 默认K8S插件采集集群ID
 K8S_PLUGIN_COLLECT_CLUSTER_ID = ""
 
@@ -1446,6 +1455,9 @@ K8S_PLUGIN_COLLECT_CLUSTER_ID = ""
 # }
 TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {}
 TENCENT_CLOUD_METRIC_PLUGIN_ID = "qcloud_exporter"
+
+# 启用监控目标缓存的业务ID列表
+ENABLED_TARGET_CACHE_BK_BIZ_IDS = []
 
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"

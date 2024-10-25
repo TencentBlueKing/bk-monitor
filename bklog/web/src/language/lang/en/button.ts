@@ -195,4 +195,12 @@ export default {
   查询语法: 'Query Syntax',
   接入日志聚类: 'Access Log Cluster',
   按annotation选择: 'According To Annotation',
+  单独授权: 'Separate authorization',
+  批量授权: 'Batch authorization',
+  新增告警组: 'Add New Alarm Group',
+  配置导入: 'Configuration Import',
+  管理配置: 'Management Configuration',
+  模板: 'Template',
+  补齐: 'Make up for',
+  新建模板: 'Create template',
 };

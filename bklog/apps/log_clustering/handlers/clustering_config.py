@@ -32,10 +32,12 @@ from apps.log_clustering.constants import (
     CLUSTERING_CONFIG_DEFAULT,
     CLUSTERING_CONFIG_EXCLUDE,
     DEFAULT_CLUSTERING_FIELDS,
+    RegexRuleTypeEnum,
 )
 from apps.log_clustering.exceptions import (
     BkdataFieldsException,
     BkdataRegexException,
+    ClusteringAccessNotSupportedException,
     ClusteringConfigHasExistException,
     ClusteringConfigNotExistException,
     ClusteringDebugException,
@@ -48,7 +50,8 @@ from apps.log_clustering.handlers.aiops.aiops_model.aiops_model_handler import (
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.handlers.pipline_service.constants import OperatorServiceEnum
-from apps.log_clustering.models import ClusteringConfig
+from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
+from apps.log_clustering.models import ClusteringConfig, RegexTemplate
 from apps.log_clustering.tasks.msg import access_clustering
 from apps.log_clustering.utils import pattern
 from apps.log_databus.constants import EtlConfig
@@ -56,7 +59,7 @@ from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
-from apps.log_search.models import LogIndexSet
+from apps.log_search.models import LogIndexSet, Scenario
 from apps.models import model_to_dict
 from apps.utils.function import map_if
 from apps.utils.local import activate_request
@@ -108,13 +111,20 @@ class ClusteringConfigHandler(object):
     def create(self, index_set_id, params):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id, raise_exception=False)
 
-        if clustering_config and clustering_config.task_records:
+        if clustering_config:
             # 已接入过聚类的，不允许再创建
             raise ClusteringConfigHasExistException(
                 ClusteringConfigHasExistException.MESSAGE.format(index_set_id=index_set_id)
             )
 
         log_index_set = LogIndexSet.objects.get(index_set_id=index_set_id)
+
+        if not log_index_set.scenario_id == Scenario.BKDATA and not (
+            log_index_set.scenario_id == Scenario.LOG and log_index_set.collector_config_id
+        ):
+            # 以下类型允许接入聚类: 1. 计算平台索引，2. 采集项索引
+            raise ClusteringAccessNotSupportedException()
+
         collector_config_id = log_index_set.collector_config_id
         log_index_set_data, *_ = log_index_set.indexes
 
@@ -155,7 +165,7 @@ class ClusteringConfigHandler(object):
 
         # 创建流程
         # 聚类配置优先级：参数传入 -> 数据库默认配置 -> 代码默认配置
-        clustering_config = ClusteringConfig.objects.update_or_create(
+        clustering_config, created = ClusteringConfig.objects.update_or_create(
             index_set_id=index_set_id,
             defaults=dict(
                 model_id=conf.get("model_id", ""),  # 模型id 需要判断是否为预测 flow流程
@@ -190,6 +200,12 @@ class ClusteringConfigHandler(object):
                 access_finished=False,
             ),
         )
+        # 空间是否存在模板
+        regex_template = RegexTemplateHandler().list_templates(space_uid=log_index_set.space_uid)[0]
+        clustering_config.regex_template_id = regex_template["id"]
+        clustering_config.predefined_varibles = regex_template["predefined_varibles"]
+        clustering_config.regex_rule_type = RegexRuleTypeEnum.TEMPLATE.value
+        clustering_config.save()
 
         access_clustering.delay(index_set_id=index_set_id)
         return model_to_dict(clustering_config, exclude=CLUSTERING_CONFIG_EXCLUDE)
@@ -223,6 +239,27 @@ class ClusteringConfigHandler(object):
         )
         self.data.save(update_fields=["task_records"])
         return pipeline.id
+
+    def synchronous_update(self, params):
+        pipeline_id = self.update(params)
+        # 类型:自定义
+        if params["regex_rule_type"] == RegexRuleTypeEnum.CUSTOMIZE.value:
+            return [pipeline_id]
+        instance = RegexTemplate.objects.get(id=params["regex_template_id"])
+        # 模板无变化
+        if instance.predefined_varibles == params["predefined_varibles"]:
+            return [pipeline_id]
+        instance.predefined_varibles = params["predefined_varibles"]
+        instance.save()
+
+        pipeline_ids = [pipeline_id]
+        configs = ClusteringConfig.objects.exclude(index_set_id=self.index_set_id).filter(
+            regex_template_id=params["regex_template_id"], signature_enable=True
+        )
+        update_params = {"predefined_varibles": params["predefined_varibles"]}
+        for c in configs:
+            pipeline_ids.append(ClusteringConfigHandler(index_set_id=c.index_set_id).update(update_params))
+        return pipeline_ids
 
     def get_access_status(self, task_id=None, include_update=False):
         """
