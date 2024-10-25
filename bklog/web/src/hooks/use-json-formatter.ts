@@ -29,7 +29,7 @@ import JSONEditor from 'jsoneditor';
 
 import jsonEditorTask, { EditorTask } from '../global/utils/json-editor-task';
 import segmentPopInstance from '../global/utils/segment-pop-instance';
-import UseSegmentPop from './use-segment-pop';
+import UseSegmentPropInstance from './use-segment-pop';
 
 import 'jsoneditor/dist/jsoneditor.min.css';
 
@@ -47,8 +47,8 @@ export default class UseJsonFormatter {
   setValuePromise: Promise<any>;
   editorPromise: Promise<any>;
   localDepth: number;
-  getSegmentContent: (keyRef: object) => Ref<any>;
-  onMountedFn: () => void;
+  getSegmentContent: (keyRef: object, fn: (...args) => void) => Ref<any>;
+  // onMountedFn: () => void;
   keyRef: any;
 
   constructor(cfg: FormatterConfig) {
@@ -57,12 +57,8 @@ export default class UseJsonFormatter {
     this.editorPromise = Promise.resolve(true);
     this.localDepth = 1;
     this.keyRef = {};
-    const segmentPop = new UseSegmentPop({
-      onSegmentEnumClick: this.onSegmentEnumClick.bind(this),
-      keyRef: this.keyRef,
-    });
-    this.getSegmentContent = segmentPop.getSegmentContent.bind(segmentPop);
-    this.onMountedFn = segmentPop.onMountedFn.bind(segmentPop);
+    this.getSegmentContent = UseSegmentPropInstance.getSegmentContent.bind(UseSegmentPropInstance);
+    // this.onMountedFn = UseSegmentPropInstance.onMountedFn.bind(UseSegmentPropInstance);
   }
 
   getField(fieldName: string) {
@@ -93,7 +89,7 @@ export default class UseJsonFormatter {
 
   handleSegmentClick(e, value) {
     if (!value.toString() || value === '--') return;
-    segmentPopInstance.show(e.target, this.getSegmentContent(this.keyRef));
+    segmentPopInstance.show(e.target, this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this)));
   }
 
   getCurrentFieldRegStr(field: any) {
@@ -208,7 +204,7 @@ export default class UseJsonFormatter {
   };
 
   initStringAsValue() {
-    this.onMountedFn();
+    // this.onMountedFn();
     this.setNodeValueWordSplit('', '.field-value', '.field-name', '.bklog-root-field');
   }
 
@@ -272,7 +268,7 @@ export default class UseJsonFormatter {
     if (this.getTargetRoot()) {
       this.editorPromise = new Promise(resolve => {
         this.editor = new JSONEditor(this.getTargetRoot(), this.computedOptions);
-        this.onMountedFn?.();
+        // this.onMountedFn?.();
         resolve(true);
       });
     }

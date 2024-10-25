@@ -43,16 +43,18 @@
         type="expand"
       >
         <template #default="{ $index }">
-          <expand-view
-            :kv-show-fields-list="kvShowFieldsList"
-            :data="originTableList[$index]"
-            :list-data="tableList[$index]"
-            :retrieve-params="retrieveParams"
-            :total-fields="totalFields"
-            :visible-fields="visibleFields"
-            @value-click="(type, content, isLink) => handleIconClick(type, content, field, row, isLink)"
-          >
-          </expand-view>
+          <LazyRender>
+            <expand-view
+              :kv-show-fields-list="kvShowFieldsList"
+              :data="originTableList[$index]"
+              :list-data="tableList[$index]"
+              :retrieve-params="retrieveParams"
+              :total-fields="totalFields"
+              :visible-fields="visibleFields"
+              @value-click="(type, content, isLink) => handleIconClick(type, content, field, row, isLink)"
+            >
+            </expand-view>
+          </LazyRender>
         </template>
       </bk-table-column>
       <!-- 显示字段 -->
@@ -62,34 +64,38 @@
           class-name="original-time"
         >
           <template #default="{ row }">
-            <span
-              class="time-field"
-              :title="isWrap ? '' : getOriginTimeShow(row[timeField])"
-            >
-              {{ getOriginTimeShow(row[timeField]) }}
-            </span>
+            <LazyRender>
+              <span
+                class="time-field"
+                :title="isWrap ? '' : getOriginTimeShow(row[timeField])"
+              >
+                {{ getOriginTimeShow(row[timeField]) }}
+              </span>
+            </LazyRender>
           </template>
         </bk-table-column>
         <bk-table-column :class-name="`original-str${tableLineIsWarp ? ' is-wrap' : ''}`">
           <!-- eslint-disable-next-line -->
           <template slot-scope="{ row, column, $index }">
-            <div :class="['str-content', 'origin-str']">
-              <template v-if="formatJson">
-                <JsonFormatter
-                  :jsonValue="row"
-                  :fields="getShowTableVisibleFields"
-                  @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
-                ></JsonFormatter>
-              </template>
-              <template v-else>
-                <original-light-height
-                  :operator-config="operatorConfig"
-                  :origin-json="row"
-                  :visible-fields="getShowTableVisibleFields"
-                  @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
-                />
-              </template>
-            </div>
+            <LazyRender>
+              <div :class="['str-content', 'origin-str']">
+                <template v-if="formatJson">
+                  <JsonFormatter
+                    :jsonValue="row"
+                    :fields="getShowTableVisibleFields"
+                    @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
+                  ></JsonFormatter>
+                </template>
+                <template v-else>
+                  <original-light-height
+                    :operator-config="operatorConfig"
+                    :origin-json="row"
+                    :visible-fields="getShowTableVisibleFields"
+                    @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
+                  />
+                </template>
+              </div>
+            </LazyRender>
           </template>
         </bk-table-column>
       </template>
@@ -104,13 +110,15 @@
       >
         <!-- eslint-disable-next-line -->
         <template slot-scope="{ row, column, $index }">
-          <operator-tools
-            :handle-click="event => handleClickTools(event, row, operatorConfig)"
-            :index="$index"
-            :operator-config="operatorConfig"
-            :row-data="row"
-            log-type="origin"
-          />
+          <LazyRender>
+            <operator-tools
+              :handle-click="event => handleClickTools(event, row, operatorConfig)"
+              :index="$index"
+              :operator-config="operatorConfig"
+              :row-data="row"
+              log-type="origin"
+            />
+          </LazyRender>
         </template>
       </bk-table-column>
       <!-- 初次加载骨架屏loading -->
@@ -176,11 +184,11 @@
   };
 </script>
 <style lang="scss">
-td {
-  &.original-str {
-    .cell {
-      display: flex;
-      text-overflow: unset;
+  td {
+    &.original-str {
+      .cell {
+        display: flex;
+        text-overflow: unset;
 
         .str-content {
           &.origin-str {
@@ -208,5 +216,5 @@ td {
         }
       }
     }
-}
+  }
 </style>

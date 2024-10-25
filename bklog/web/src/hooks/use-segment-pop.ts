@@ -55,18 +55,19 @@ class TaskEventManager {
 }
 
 const taskEventManager = new TaskEventManager();
-export default class UseSegmentProp {
+class UseSegmentProp {
   private className = 'bklog-segment-pop-content';
   private wrapperClassName = 'bklog-pop-wrapper';
   private wrapperIdName = 'bklog_pop_wrapper';
   private refContent: Ref<HTMLElement>;
   private $t: (str: string) => string;
-  constructor({ onSegmentEnumClick, keyRef }) {
-    taskEventManager.appendEvent(keyRef, onSegmentEnumClick);
-    console.log('---taskEventManager', taskEventManager);
-    this.refContent = ref();
+  constructor() {
     const { $t } = useLocale();
     this.$t = $t;
+    this.refContent = ref();
+    setTimeout(() => {
+      this.onMountedFn();
+    });
   }
 
   createSegmentContent(refName: Ref) {
@@ -186,12 +187,16 @@ export default class UseSegmentProp {
     }
   };
 
-  getSegmentContent(keyRef: Ref<HTMLElement | null>) {
+  getSegmentContent(keyRef: Ref<HTMLElement | null>, onSegmentEnumClick: (...args) => void) {
+    taskEventManager.appendEvent(keyRef, onSegmentEnumClick);
     taskEventManager.setActiveKey(keyRef);
     return this.refContent;
   }
 
   onMountedFn() {
-    TaskRunning(this.mountedToBody);
+    TaskRunning(this.mountedToBody.bind(this));
   }
 }
+
+const UseSegmentPropInstance = new UseSegmentProp();
+export default UseSegmentPropInstance;

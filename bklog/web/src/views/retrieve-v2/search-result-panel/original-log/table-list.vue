@@ -43,16 +43,18 @@
       type="expand"
     >
       <template #default="{ $index }">
-        <expand-view
-          :kv-show-fields-list="kvShowFieldsList"
-          :data="originTableList[$index]"
-          :list-data="tableList[$index]"
-          :retrieve-params="retrieveParams"
-          :total-fields="totalFields"
-          :visible-fields="visibleFields"
-          @value-click="(type, content, isLink) => handleIconClick(type, content, field, row, isLink)"
-        >
-        </expand-view>
+        <LazyRender>
+          <expand-view
+            :kv-show-fields-list="kvShowFieldsList"
+            :data="originTableList[$index]"
+            :list-data="tableList[$index]"
+            :retrieve-params="retrieveParams"
+            :total-fields="totalFields"
+            :visible-fields="visibleFields"
+            @value-click="(type, content, isLink) => handleIconClick(type, content, field, row, isLink)"
+          >
+          </expand-view>
+        </LazyRender>
       </template>
     </bk-table-column>
     <!-- 显示字段 -->
@@ -71,7 +73,7 @@
       >
         <!-- eslint-disable-next-line -->
         <template slot-scope="{ row, column, $index }">
-          <keep-alive>
+          <LazyRender>
             <div :class="['str-content']">
               <table-column
                 :content="getTableColumnContent(row, field)"
@@ -81,7 +83,7 @@
                 @icon-click="(type, content, isLink) => handleIconClick(type, content, field, row, isLink)"
               />
             </div>
-          </keep-alive>
+          </LazyRender>
         </template>
       </bk-table-column>
     </template>
@@ -95,12 +97,14 @@
     >
       <!-- eslint-disable-next-line -->
       <template slot-scope="{ row, column, $index }">
-        <operator-tools
-          :handle-click="event => handleClickTools(event, row, operatorConfig)"
-          :index="$index"
-          :operator-config="operatorConfig"
-          :row-data="row"
-        />
+        <LazyRender>
+          <operator-tools
+            :handle-click="event => handleClickTools(event, row, operatorConfig)"
+            :index="$index"
+            :operator-config="operatorConfig"
+            :row-data="row"
+          />
+        </LazyRender>
       </template>
     </bk-table-column>
     <!-- 初次加载骨架屏loading -->

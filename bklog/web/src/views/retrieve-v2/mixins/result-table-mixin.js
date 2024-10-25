@@ -34,6 +34,7 @@ import {
   TABLE_LOG_FIELDS_SORT_REGULAR,
   formatDateNanos,
 } from '@/common/util';
+import LazyRender from '@/global/lazy-render.vue';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import RetrieveLoader from '@/skeleton/retrieve-loader';
 import { mapState, mapGetters } from 'vuex';
@@ -56,6 +57,7 @@ export default {
     EmptyView,
     TimeFormatterSwitcher,
     OriginalLightHeight,
+    LazyRender,
   },
   mixins: [tableRowDeepViewMixin],
   props: {
