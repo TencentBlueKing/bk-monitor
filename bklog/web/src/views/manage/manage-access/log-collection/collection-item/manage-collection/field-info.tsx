@@ -76,6 +76,10 @@ export default class FieldInfo extends tsc<IProps> {
     return this.$store.getters.isShowMaskingTemplate;
   }
 
+  get globalsData() {
+    return this.$store.getters['globals/globalsData'];
+  }
+
   operatorMap = {
     mask_shield: window.mainComponent.$t('掩码'),
     text_replace: window.mainComponent.$t('替换'),
@@ -120,6 +124,7 @@ export default class FieldInfo extends tsc<IProps> {
         params: {
           index_set_id: (this.collectorData as any).index_set_id,
         },
+        query: { is_realtime: 'True' },
       });
       this.timeField = res.data.time_field;
       this.tableList = res.data.fields.map(item => {
@@ -336,6 +341,11 @@ export default class FieldInfo extends tsc<IProps> {
     });
   }
 
+  getTimeZoneName(timeZone: string) {
+    const foundItem = this.globalsData.time_zone.find(item => item.id === timeZone);
+    return foundItem ? foundItem.name : '';
+  }
+
   render() {
     const nickNameSlot = {
       default: ({ row }) => <span>{row.field_alias || '--'}</span>,
@@ -351,7 +361,18 @@ export default class FieldInfo extends tsc<IProps> {
                 radius='6px'
                 theme='info'
               >
-                元数据
+                {this.$t('元数据')}
+              </bk-tag>
+            ) : (
+              ''
+            )}
+            {row.field_time_format ? (
+              <bk-tag
+                v-bk-tooltips={this.getTimeZoneName(row.field_time_zone)}
+                radius='6px'
+                theme='success'
+              >
+                {this.$t('指定日志时间')}
               </bk-tag>
             ) : (
               ''
