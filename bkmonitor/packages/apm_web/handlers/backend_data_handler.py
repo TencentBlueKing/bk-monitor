@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import copy
 import json
+import logging
 from datetime import datetime
 
 import pytz
@@ -17,19 +18,15 @@ from django.conf import settings
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 
-from api.bkdata.default import (
-    GetDataBusSamplingData,
-    GetRawDataStoragesInfo,
-    GetStorageMetricsDataCount,
-)
-from api.log_search.default import (
-    DataBusCollectorsIndicesResource,
-    DataBusCollectorsResource,
-    LogSearchIndexSetResource,
-)
 from constants.apm import TelemetryDataType
-from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.data_source import (
+    DATA_LINK_V4_VERSION_NAME,
+    DataSourceLabel,
+    DataTypeLabel,
+)
 from core.drf_resource import api, resource
+
+logger = logging.getLogger("apm")
 
 
 def handler_name(handler_cls: type):
@@ -216,7 +213,7 @@ class TraceBackendHandler(TelemetryBackendHandler):
 
     def get_data_view_config(self, **kwargs):
         view_params = {
-            "data_type_label": "time_series",
+            "data_type_label": DataTypeLabel.TIME_SERIES,
             "data_source_label": DataSourceLabel.CUSTOM,
             "table_name": self.metric_result_table_id,
             "metric_field": "bk_apm_count",
@@ -277,7 +274,7 @@ class LogBackendHandler(TelemetryBackendHandler):
         return self.app.fetch_datasource_info(self.telemetry.datasource_type, attr_name="index_set_id")
 
     def storage_info(self):
-        resp = DataBusCollectorsResource().request(collector_config_id=self.collector_config_id)
+        resp = api.log_search.data_bus_collectors_resource(collector_config_id=self.collector_config_id)
         return {
             "es_number_of_replicas": resp["storage_replies"],
             "es_retention": resp["retention"],
@@ -290,7 +287,7 @@ class LogBackendHandler(TelemetryBackendHandler):
         }
 
     def storage_field_info(self):
-        res_data = LogSearchIndexSetResource().request(index_set_id=self.index_set_id)
+        res_data = api.log_search.log_search_index_set_resource(index_set_id=self.index_set_id)
         fields = []
         for field in res_data.get("fields"):
             fields.append(
@@ -310,7 +307,7 @@ class LogBackendHandler(TelemetryBackendHandler):
         return all([idx.get("health") == "green" for idx in indices])
 
     def indices_info(self):
-        data = DataBusCollectorsIndicesResource().request(collector_config_id=self.collector_config_id)
+        data = api.log_search.data_bus_collectors_indices_resource(collector_config_id=self.collector_config_id)
         result = []
         for item in data:
             result.append({key.replace(".", "_"): value for key, value in item.items()})
@@ -322,7 +319,7 @@ class LogBackendHandler(TelemetryBackendHandler):
 
     def get_data_view_config(self, **kwargs):
         view_params = {
-            "data_type_label": "time_series",
+            "data_type_label": DataTypeLabel.TIME_SERIES,
             "data_source_label": DataSourceLabel.BK_LOG_SEARCH,
             "table_name": self.result_table_id,
             "metric_field": "_index",
@@ -385,6 +382,17 @@ class MetricBackendHandler(TelemetryBackendHandler):
             ret["data_id"] = vm_record.bk_base_data_id
             ret["vm_result_table_id"] = vm_record.vm_result_table_id
         return ret
+
+    @cached_property
+    def datalink_version(self):
+        from metadata import models
+
+        result_table = models.ResultTable.objects.filter(table_id=self.result_table_id).first()
+        return result_table.data_source.datalink_version if result_table else DATA_LINK_V4_VERSION_NAME
+
+    @cached_property
+    def data_status_config(self):
+        return settings.APM_V4_METRIC_DATA_STATUS_CONFIG or {}
 
     @property
     def bk_base_data_id(self):
@@ -454,13 +462,8 @@ class MetricBackendHandler(TelemetryBackendHandler):
 
     def get_data_view_config(self, **kwargs):
         view_params = {
-            "data_type_label": DataTypeLabel.TIME_SERIES,
-            "data_source_label": DataSourceLabel.PROMETHEUS,
-            "bk_biz_id": self.app.bk_biz_id,
-            "query_config_kwargs": {
-                "table": self.result_table_id,
-                "promql": f'count({{__name__=~"custom:{self.result_table_id}:.*",__name__!~"^(apm|bk_apm).*"}})',
-            },
+            "application_id": self.app.application_id,
+            "telemetry_data_type": self.telemetry.value,
         }
         kwargs.update(view_params)
         return self.build_data_count_query(
@@ -468,63 +471,120 @@ class MetricBackendHandler(TelemetryBackendHandler):
         )
 
     @classmethod
-    def build_data_count_query(cls, **kwargs):
-        # TODO replace in 10 days
-        template = copy.deepcopy(cls.CALL_BACK_PARAMS_FRAME)
-        template["id"] = 0
-        template["title"] = _("分钟数据量")
-        template["gridPos"]["x"] = 0
-        template["gridPos"]["y"] = 0
-        template["gridPos"]["w"] = 24
-        template["gridPos"]["h"] = 6
-        template["options"]["collect_interval_display"] = "1m"
-
-        kwargs["grain"] = "1m"
-        target = cls.build_call_back_target(**kwargs)
-
-        template["targets"] = [target]
-        return [template]
-
-    @classmethod
-    def build_call_back_target(cls, data_type_label, data_source_label, **kwargs) -> dict:
+    def build_call_back_target(cls, application_id, telemetry_data_type, **kwargs) -> dict:
         grain = kwargs.pop("grain", "1m")
-        query_config_kwargs = kwargs.pop("query_config_kwargs", {})
         target = {
-            "data_type": "time_series",
-            "datasource": "time_series",
-            "api": "grafana.graphUnifyQuery",
+            "data_type": "data_type_label",
+            "datasource": "data_source_label",
+            "api": "apm_meta.dataHistogram",
+            "primary_key": application_id,
             "data": {
-                "expression": "A",
-                "query_configs": [
-                    {
-                        "data_source_label": data_source_label,
-                        "data_type_label": data_type_label,
-                        "table": "",
-                        "promql": "",
-                        "interval": cls.GRAIN_MAPPING[grain],
-                        "agg_interval": 60,
-                        "alias": "a",
-                    }
-                ],
+                "telemetry_data_type": telemetry_data_type,
+                "data_view_config": {"grain": grain},
             },
         }
-        if query_config_kwargs:
-            for query_config in target["data"]["query_configs"]:
-                query_config.update(query_config_kwargs)
-        target["data"].update(kwargs)
+        if kwargs:
+            data_view_config = target["data"]["data_view_config"]
+            data_view_config.update(kwargs)
         return target
 
+    def _get_data_view(self, start_time: int, end_time: int, **kwargs):
+        if self.datalink_version == DATA_LINK_V4_VERSION_NAME:
+            namespace = self.data_status_config.get("namespace", "bkmonitor-vm")
+            metric_biz_id = self.data_status_config.get("metric_biz_id")
+            if not metric_biz_id:
+                return []
+
+            component_id = f"{namespace}_{self.bk_vm_result_table_id}"
+            grain = kwargs.get("time_grain", "1m")
+            promql = f"sum(sum_over_time(bkmonitor:record_count{{component_id=~\"^{component_id}-\"}}[{grain}]))"
+            request_params = {
+                "bk_biz_id": metric_biz_id,
+                "query_configs": [
+                    {
+                        "data_source_label": DataSourceLabel.PROMETHEUS,
+                        "data_type_label": DataTypeLabel.TIME_SERIES,
+                        "promql": promql,
+                        "interval": self.GRAIN_MAPPING[grain],
+                        "alias": "a",
+                        "filter_dict": {},
+                    }
+                ],
+                "expression": "",
+                "alias": "a",
+                "start_time": start_time,
+                "end_time": end_time,
+            }
+
+            try:
+                series = resource.grafana.graph_unify_query(request_params)["series"]
+            except Exception as e:
+                logger.error(f"get data view error: {e}")
+                series = [{}]
+            resp = [
+                {
+                    "series": [
+                        {"output_count": datapoint[0], "time": int(datapoint[1] / 1000)}
+                        for datapoint in series[0].get("datapoints", [])
+                        if len(datapoint) >= 2
+                    ]
+                }
+            ]
+        else:
+            storages = self.storage_info()
+            storage_result_table_id = None
+            for storage in storages:
+                if storage["storage_type"] == "vm":
+                    storage_result_table_id = storage["result_table_id"]
+                    break
+            resp = (
+                api.bkdata.get_storage_metrics_data_count(
+                    data_set_ids=[storage_result_table_id],
+                    storages=["vm"],
+                    start_time=start_time,
+                    end_time=end_time,
+                    **kwargs,
+                )
+                if storage_result_table_id
+                else []
+            )
+        return resp
+
     def get_data_count(self, start_time: int, end_time: int, **kwargs):
-        view_config = self.get_data_view_config(
-            start_time=start_time, end_time=end_time, bk_biz_id=self.app.bk_biz_id, **kwargs
-        )
-        data = resource.grafana.graph_unify_query(view_config[0]["targets"][0]["data"])
+        resp = self._get_data_view(start_time, end_time, **kwargs)
         count = 0
-        for line in data["series"]:
-            for point in line["datapoints"]:
-                point_count = point[0] if isinstance(point[0], int) else 0
-                count += point_count
+        for data in resp:
+            for point in data["series"]:
+                if point.get("output_count"):
+                    point_count = point["output_count"] if isinstance(point["output_count"], int) else 0
+                    count += point_count
         return count
+
+    def get_data_histogram(self, start_time, end_time, grain="1d"):
+        resp = self._get_data_view(start_time, end_time, time_grain=grain)
+        datapoints = (
+            [[view_series["output_count"], view_series["time"] * 1000] for view_series in resp[0]["series"]]
+            if resp
+            else []
+        )
+        histograms = {
+            "metrics": [],
+            "series": [
+                {
+                    "target": "COUNT(rawdata)",
+                    "metric_field": "_result",
+                    "alias": "_result_",
+                    "type": "bar",
+                    "unit": "",
+                    "dimensions": {},
+                    "dimensions_translation": {},
+                    "datapoints": datapoints,
+                }
+            ]
+            if datapoints
+            else [],
+        }
+        return histograms
 
     def get_no_data_strategy_config(self, **kwargs):
         promql = f'count({{__name__=~"custom:{self.result_table_id}:.*",__name__!~"^(apm|bk_apm).*"}}) or vector(0)'
@@ -554,7 +614,7 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
     """
 
     def storage_info(self):
-        return GetRawDataStoragesInfo().request(raw_data_id=self.bk_data_id) if self.bk_data_id else []
+        return api.bkdata.get_raw_data_storages_info(raw_data_id=self.bk_data_id) if self.bk_data_id else []
 
     @property
     def storage_status(self):
@@ -564,7 +624,7 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
     def data_sampling(self, **kwargs):
         resp_data = []
         if self.bk_data_id:
-            resp = GetDataBusSamplingData().request(data_id=self.bk_data_id)
+            resp = api.bkdata.get_data_bus_sampling_data(data_id=self.bk_data_id)
             for log in resp:
                 log_content = json.loads(log["value"])
                 resp_data.append({"raw_log": log_content, "sampling_time": ""})
@@ -606,7 +666,7 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
                 storage_result_table_id = storage["result_table_id"]
                 break
         return (
-            GetStorageMetricsDataCount().request(
+            api.bkdata.get_storage_metrics_data_count(
                 data_set_ids=[storage_result_table_id],
                 storages=["doris"],
                 start_time=start_time,
