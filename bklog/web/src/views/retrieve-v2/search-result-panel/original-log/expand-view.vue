@@ -45,7 +45,6 @@
       v-show="activeExpandView === 'kv'"
     >
       <kv-list
-        v-bind="$attrs"
         :data="data"
         :field-list="totalFields"
         :kv-show-fields-list="kvShowFieldsList"

@@ -68,7 +68,7 @@
   import { getTextPxWidth, TABLE_FOUNT_FAMILY } from '@/common/util';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
   import _escape from 'lodash/escape';
-  import { mapState } from 'vuex';
+  import { mapGetters, mapState } from 'vuex';
 
   import TextSegmentation from './text-segmentation';
 
@@ -99,18 +99,18 @@
         type: Array,
         require: true,
       },
-      apmRelation: {
-        type: Object,
-        default: () => {},
-      },
+      // apmRelation: {
+      //   type: Object,
+      //   default: () => {},
+      // },
       sortList: {
         type: Array,
         require: true,
       },
-      retrieveParams: {
-        type: Object,
-        require: true,
-      },
+      // retrieveParams: {
+      //   type: Object,
+      //   require: true,
+      // },
       listData: {
         type: Object,
         default: () => {},
@@ -143,6 +143,12 @@
     },
     computed: {
       ...mapState('globals', ['fieldTypeMap']),
+      ...mapGetters({
+        retrieveParams: 'retrieveParams'
+      }),
+      apmRelation() {
+        return this.$store.state.indexSetFieldConfig.apm_relation;
+      },
       bkBizId() {
         return this.$store.state.bkBizId;
       },
