@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, InjectReactive, Watch } from 'vue-property-decorator';
+import { Component, Emit, Inject, InjectReactive, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -83,6 +83,12 @@ class CallerLineChart extends CommonSimpleChart {
   @InjectReactive('yAxisNeedUnit') readonly yAxisNeedUnit: boolean;
   @InjectReactive('callOptions') readonly callOptions: CallOptions;
 
+  // 框选事件范围后需应用到所有图表(包含三个数据 框选方法 是否展示复位  复位方法)
+  @Inject({ from: 'enableSelectionRestoreAll', default: false }) readonly enableSelectionRestoreAll: boolean;
+  @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
+  @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
+  @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
+
   metrics = [];
   options = {};
   empty = true;
@@ -97,6 +103,9 @@ class CallerLineChart extends CommonSimpleChart {
   drillDownOptions: IMenuChildItem[] = [];
   hasSetEvent = false;
   collectIntervalDisplay = '1m';
+
+  // 是否展示复位按钮
+  showRestore = false;
 
   get yAxisNeedUnitGetter() {
     return this.yAxisNeedUnit ?? true;
@@ -114,6 +123,11 @@ class CallerLineChart extends CommonSimpleChart {
   // 是否允许自定groupBy
   get isSupportGroupBy() {
     return !!this.panel.options?.is_support_group_by;
+  }
+
+  @Watch('showRestoreInject')
+  handleShowRestoreInject(v: boolean) {
+    this.showRestore = v;
   }
 
   @Watch('callOptions')
@@ -220,6 +234,7 @@ class CallerLineChart extends CommonSimpleChart {
             paramsArr.push(primaryKey);
           }
           paramsArr.push(newParams);
+          console.log(newParams, this.panel.title);
           return (this as any).$api[item.apiModule]
             [item.apiFunc](...paramsArr, {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
@@ -338,6 +353,13 @@ class CallerLineChart extends CommonSimpleChart {
               },
               splitNumber: this.height < 120 ? 2 : 4,
               minInterval: 1,
+              max: v => v.max,
+              min: v => {
+                let min = v.min;
+                // 柱状图y轴不能以最小值作为起始点
+                if (isBar) min = min <= 10 ? 0 : min - 10;
+                return min;
+              },
             },
             xAxis: {
               axisLabel: {
@@ -649,6 +671,21 @@ class CallerLineChart extends CommonSimpleChart {
   handleZrClick(params: ZrClickEvent) {
     return params;
   }
+
+  dataZoom(startTime: string, endTime: string) {
+    if (this.enableSelectionRestoreAll) {
+      this.handleChartDataZoom([startTime, endTime]);
+    } else {
+      this.getPanelData(startTime, endTime);
+    }
+  }
+  handleRestore() {
+    if (this.enableSelectionRestoreAll) {
+      this.handleRestoreEvent();
+    } else {
+      this.dataZoom(undefined, undefined);
+    }
+  }
   render() {
     return (
       <div class='apm-caller-line-chart'>
@@ -679,6 +716,9 @@ class CallerLineChart extends CommonSimpleChart {
                   hoverAllTooltips={this.hoverAllTooltips}
                   needZrClick={this.panel?.options?.need_zr_click_event}
                   options={this.options}
+                  showRestore={this.showRestore}
+                  onDataZoom={this.dataZoom}
+                  onRestore={this.handleRestore}
                   onZrClick={this.handleZrClick}
                 />
               )}
