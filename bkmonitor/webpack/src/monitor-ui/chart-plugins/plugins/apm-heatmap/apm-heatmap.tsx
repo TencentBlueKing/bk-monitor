@@ -57,6 +57,7 @@ class ApmHeatmap extends CommonSimpleChart {
   empty = true;
   emptyText = window.i18n.tc('暂无数据');
   cancelTokens = [];
+  collectIntervalDisplay = '1m';
 
   @InjectReactive('callOptions') readonly callOptions: CallOptions;
 
@@ -90,6 +91,7 @@ class ApmHeatmap extends CommonSimpleChart {
       const down_sample_range = this.downSampleRangeComputed('auto', [startTime, endTime], 'unifyQuery');
       const [v] = down_sample_range.split('s');
       const interval = Math.ceil((+v * 4) / 60);
+      this.collectIntervalDisplay = `${interval}m`;
       const params = variablesService.transformVariables(item.data, {
         ...this.viewOptions.filters,
         ...(this.viewOptions.filters?.current_target || {}),
@@ -104,7 +106,6 @@ class ApmHeatmap extends CommonSimpleChart {
             ...params,
             start_time: startTime,
             end_time: endTime,
-            down_sample_range,
             query_configs: params?.query_configs.map(config => {
               return {
                 ...config,
@@ -128,7 +129,6 @@ class ApmHeatmap extends CommonSimpleChart {
             }),
             unify_query_param: {
               ...params?.unify_query_param,
-              down_sample_range,
               query_configs: params?.query_configs.map(config => {
                 return {
                   ...config,
@@ -331,6 +331,7 @@ class ApmHeatmap extends CommonSimpleChart {
     return (
       <div class='apm-heatmap'>
         <ChartHeader
+          collectIntervalDisplay={this.collectIntervalDisplay}
           descrition={this.panel.descrition}
           draging={this.panel.draging}
           isInstant={this.panel.instant}

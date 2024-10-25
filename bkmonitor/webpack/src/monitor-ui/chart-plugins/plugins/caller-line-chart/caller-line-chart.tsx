@@ -48,7 +48,6 @@ import type {
   IExtendMetricData,
   ILegendItem,
   IMenuChildItem,
-  IPlotBand,
   ITimeSeriesItem,
   PanelModel,
   ZrClickEvent,
@@ -91,7 +90,7 @@ class CallerLineChart extends CommonSimpleChart {
   seriesList = null;
   drillDownOptions: IMenuChildItem[] = [];
   hasSetEvent = false;
-  renderThresholds = false;
+  collectIntervalDisplay = '1m';
 
   get yAxisNeedUnitGetter() {
     return this.yAxisNeedUnit ?? true;
@@ -146,11 +145,14 @@ class CallerLineChart extends CommonSimpleChart {
       }
       const promiseList = [];
       const timeShiftList = ['', ...(this.isSupportCompare ? this.callOptions.time_shift.map(t => t.alias) : [])];
-      const interval = reviewInterval(
-        this.viewOptions.interval,
-        params.end_time - params.start_time,
-        this.panel.collect_interval
+      const down_sample_range = this.downSampleRangeComputed(
+        'auto',
+        [params.start_time, params.end_time],
+        'unifyQuery'
       );
+      const [v] = down_sample_range.split('s');
+      const interval = Math.ceil(+v / 60);
+      this.collectIntervalDisplay = `${interval}m`;
       const callOptions = {};
       for (const key in this.callOptions) {
         if (key !== 'time_shift') {
@@ -160,7 +162,6 @@ class CallerLineChart extends CommonSimpleChart {
       const variablesService = new VariablesService({
         ...this.viewOptions,
         ...callOptions,
-        interval,
       });
       for (const time_shift of timeShiftList) {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
@@ -172,7 +173,7 @@ class CallerLineChart extends CommonSimpleChart {
           return paramsResult;
         };
         const list = this.panel.targets.map(item => {
-          const newPrarams = {
+          const newParams = {
             ...variablesService.transformVariables(
               dataFormat({ ...item.data }),
               {
@@ -182,34 +183,22 @@ class CallerLineChart extends CommonSimpleChart {
                 ...this.viewOptions.variables,
                 ...this.callOptions,
                 time_shift: timeShiftFormat(time_shift),
-                interval,
               },
               noTransformVariables
             ),
             ...params,
-            down_sample_range: this.downSampleRangeComputed(
-              this.downSampleRange as string,
-              [params.start_time, params.end_time],
-              item.apiFunc
-            ),
+            down_sample_range,
           };
-          // 主机监控ipv6特殊逻辑 用于去除不必要的group_by字段
-          if (item.ignore_group_by?.length && newPrarams.query_configs.some(set => set.group_by?.length)) {
-            newPrarams.query_configs = newPrarams.query_configs.map(config => ({
-              ...config,
-              group_by: config.group_by.filter(key => !item.ignore_group_by.includes(key)),
-            }));
-          }
           if (this.callOptions?.call_filter?.length) {
             const callFilter = this.callOptions?.call_filter.filter(f => f.key !== 'time');
-            for (const item of newPrarams?.query_configs || []) {
+            for (const item of newParams?.query_configs || []) {
               item.where = [...(item?.where || []), ...callFilter];
             }
-            for (const item of newPrarams?.unify_query_param?.query_configs || []) {
+            for (const item of newParams?.unify_query_param?.query_configs || []) {
               item.where = [...(item?.where || []), ...callFilter];
             }
-            if (newPrarams?.group_by_limit?.where) {
-              newPrarams.group_by_limit.where = [...newPrarams.group_by_limit.where, ...callFilter];
+            if (newParams?.group_by_limit?.where) {
+              newParams.group_by_limit.where = [...newParams.group_by_limit.where, ...callFilter];
             }
           }
           const primaryKey = item?.primary_key;
@@ -217,7 +206,7 @@ class CallerLineChart extends CommonSimpleChart {
           if (primaryKey) {
             paramsArr.push(primaryKey);
           }
-          paramsArr.push(newPrarams);
+          paramsArr.push(newParams);
           return (this as any).$api[item.apiModule]
             [item.apiFunc](...paramsArr, {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
@@ -257,27 +246,18 @@ class CallerLineChart extends CommonSimpleChart {
             datapoints: item.datapoints.map(point => [JSON.parse(point[0])?.anomaly_score ?? point[0], point[1]]),
           }));
         let seriesList = this.handleTransformSeries(
-          seriesResult.map((item, index) => ({
+          seriesResult.map(item => ({
             name: item.name,
             cursor: 'auto',
             // biome-ignore lint/style/noCommaOperator: <explanation>
             data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
             stack: item.stack || random(10),
             unit: this.panel.options?.unit || item.unit,
-            markPoint: this.createMarkPointData(item, series),
-            markLine: this.createMarkLine(index),
-            markArea: this.createMarkArea(item, index),
             z: 1,
             traceData: item.trace_data ?? '',
             dimensions: item.dimensions ?? {},
           })) as any
         );
-        const boundarySeries = seriesResult
-          .map(item => this.handleBoundaryList(item, series))
-          .flat(Number.POSITIVE_INFINITY);
-        if (boundarySeries) {
-          seriesList = [...seriesList.map((item: any) => ({ ...item, z: 6 })), ...boundarySeries];
-        }
         seriesList = seriesList.map((item: any) => ({
           ...item,
           minBase: this.minBase,
@@ -317,7 +297,6 @@ class CallerLineChart extends CommonSimpleChart {
         }
         const formatData = seriesList.find(item => item.data?.length > 0)?.data || [];
         const formatterFunc = this.handleSetFormatterFunc(formatData);
-        const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds();
 
         const chartBaseOptions = MONITOR_LINE_OPTIONS;
         const echartOptions = deepmerge(
@@ -346,14 +325,6 @@ class CallerLineChart extends CommonSimpleChart {
               },
               splitNumber: this.height < 120 ? 2 : 4,
               minInterval: 1,
-              scale: this.height < 120 ? false : canScale,
-              max: v => Math.max(v.max, +maxThreshold),
-              min: v => {
-                let min = Math.min(v.min, +minThreshold);
-                // 柱状图y轴不能以最小值作为起始点
-                if (isBar) min = min <= 10 ? 0 : min - 10;
-                return min;
-              },
             },
             xAxis: {
               axisLabel: {
@@ -396,23 +367,6 @@ class CallerLineChart extends CommonSimpleChart {
     this.handleLoadingChange(false);
   }
 
-  /* 粒度计算 */
-  downSampleRangeComputed(downSampleRange: string, timeRange: number[], api: string) {
-    if (downSampleRange === 'raw' || !['unifyQuery', 'graphUnifyQuery'].includes(api)) {
-      return undefined;
-    }
-    if (downSampleRange === 'auto') {
-      let width = 1;
-      if (this.$refs.chart) {
-        width = (this.$refs.chart as Element).clientWidth;
-      } else {
-        width = this.$el.clientWidth - (this.panel.options?.legend?.placement === 'right' ? 320 : 0);
-      }
-      const size = (timeRange[1] - timeRange[0]) / width;
-      return size > 0 ? `${Math.ceil(size)}s` : undefined;
-    }
-    return downSampleRange;
-  }
   // 转换time_shift显示
   handleTransformTimeShift(val: string) {
     const timeMatch = val.match(/(-?\d+)(\w+)/);
@@ -462,7 +416,6 @@ class CallerLineChart extends CommonSimpleChart {
    */
   handleTransformSeries(series: ITimeSeriesItem[], colors?: string[]) {
     const legendData: ILegendItem[] = [];
-    this.renderThresholds = false;
     const tranformSeries = series.map((item, index) => {
       const colorList = this.panel.options?.time_series?.type === 'bar' ? COLOR_LIST_BAR : COLOR_LIST;
       const color = item.color || (colors || colorList)[index % colorList.length];
@@ -560,153 +513,6 @@ class CallerLineChart extends CommonSimpleChart {
     return tranformSeries;
   }
 
-  /** 获取告警点数据 */
-  createMarkPointData(item, series) {
-    let data = [];
-    /** 获取is_anomaly的告警点数据 */
-    const currentDataPoints = item.datapoints;
-    const currentDataPointsMap = new Map();
-    const currentDimensions = item.dimensions || [];
-    const getDimStr = dim => `${dim.bk_target_ip}-${dim.bk_target_cloud_id}`;
-    const currentDimStr = getDimStr(currentDimensions);
-    const currentIsAanomalyData = series.find(
-      item => item.alias === 'is_anomaly' && currentDimStr === getDimStr(item.dimensions)
-    );
-    let markPointData = [];
-    if (currentIsAanomalyData) {
-      currentDataPoints.forEach(item => currentDataPointsMap.set(item[0], item[1]));
-      const currentIsAanomalyPoints = currentIsAanomalyData.datapoints;
-      markPointData = currentIsAanomalyPoints.reduce((total, cur) => {
-        const key = cur[1];
-        const val = currentDataPointsMap.get(key);
-        const isExit = currentDataPointsMap.has(key) && cur[0];
-        /** 测试条件 */
-        // const isExit = currentDataPointsMap.has(key) && val > 31.51;
-        isExit && total.push([key, val]);
-        return total;
-      }, []);
-    }
-    /** 红色告警点 */
-    data = markPointData.map(item => ({
-      itemStyle: {
-        color: '#EA3636',
-      },
-      xAxis: item[0],
-      yAxis: item[1],
-    }));
-
-    item.markPoints?.length &&
-      data.push(
-        ...item.markPoints.map(item => ({
-          xAxis: item[1],
-          yAxis: item[0],
-          symbolSize: 12,
-        }))
-      );
-    /** 事件中心告警开始点 */
-    const markPoint = {
-      data,
-      zlevel: 0,
-      symbol: 'circle',
-      symbolSize: 6,
-      z: 10,
-      label: {
-        show: false,
-      },
-    };
-    return markPoint;
-  }
-
-  /** 阈值线 */
-  createMarkLine(index: number) {
-    if (index) return {};
-    return this.panel.options?.time_series?.markLine || {};
-  }
-
-  /** 处理图表上下边界的数据 */
-  handleBoundaryList(item, series) {
-    const currentDimensions = item.dimensions || [];
-    const getDimStr = dim => `${dim.bk_target_ip}-${dim.bk_target_cloud_id}`;
-    const currentDimStr = getDimStr(currentDimensions);
-    const lowerBound = series.find(ser => ser.alias === 'lower_bound' && getDimStr(ser.dimensions) === currentDimStr);
-    const upperBound = series.find(ser => ser.alias === 'upper_bound' && getDimStr(ser.dimensions) === currentDimStr);
-    if (!lowerBound || !upperBound) return [];
-    const boundaryList = [];
-    const level = 1;
-    const algorithm2Level = {
-      1: 5,
-      2: 4,
-      3: 3,
-    };
-    boundaryList.push({
-      upBoundary: upperBound.datapoints,
-      lowBoundary: lowerBound.datapoints,
-      color: '#e6e6e6',
-      type: 'line',
-      stack: `boundary-${level}`,
-      z: algorithm2Level[level],
-    });
-    // 上下边界处理
-    if (boundaryList?.length) {
-      for (const item of boundaryList) {
-        const base = -item.lowBoundary.reduce(
-          (min: number, val: any) => (val[1] !== null ? Math.floor(Math.min(min, val[1])) : min),
-          Number.POSITIVE_INFINITY
-        );
-        this.minBase = Math.max(base, this.minBase);
-      }
-      const boundarySeries = boundaryList.map((item: any) => this.createBoundarySeries(item, this.minBase));
-      return boundarySeries;
-    }
-  }
-
-  /** 区域标记 */
-  createMarkArea(item, index) {
-    /** 阈值区域 */
-    const thresholdsMarkArea = index ? {} : this.panel.options?.time_series?.markArea || {};
-    let alertMarkArea = {};
-    /** 告警区域 */
-    if (item.markTimeRange?.length) {
-      alertMarkArea = this.handleSetThresholdBand(item.markTimeRange.slice());
-    }
-    return deepmerge(alertMarkArea, thresholdsMarkArea);
-  }
-
-  /** 设置事件中心告警区域 */
-  handleSetThresholdBand(plotBands: IPlotBand[]) {
-    return {
-      silent: true,
-      show: true,
-      data: plotBands.map(item => [
-        {
-          xAxis: item.from,
-          y: 'max',
-          itemStyle: {
-            color: item.color || '#FFF5EC',
-            borderWidth: 1,
-            borderColor: item.borderColor || '#FFE9D5',
-            shadowColor: item.shadowColor || '#FFF5EC',
-            borderType: item.borderType || 'solid',
-            shadowBlur: 0,
-          },
-        },
-        {
-          xAxis: item.to || 'max',
-          y: '0%',
-          itemStyle: {
-            color: item.color || '#FFF5EC',
-            borderWidth: 1,
-            borderColor: item.borderColor || '#FFE9D5',
-            shadowColor: item.shadowColor || '#FFF5EC',
-            borderType: item.borderType || 'solid',
-            shadowBlur: 0,
-          },
-        },
-      ]),
-      opacity: 0.1,
-    };
-  }
-
   // 设置x轴label formatter方法
   public handleSetFormatterFunc(seriesData: any, onlyBeginEnd = false) {
     let formatterFunc = null;
@@ -768,16 +574,6 @@ class CallerLineChart extends CommonSimpleChart {
     }
     return (num / si[i].value).toFixed(3).replace(rx, '$1') + si[i].symbol;
   }
-  handleSetThreholds() {
-    const { markLine } = this.panel?.options?.time_series || {};
-    const thresholdList = markLine?.data?.map?.(item => item.yAxis) || [];
-    const max = Math.max(...thresholdList);
-    return {
-      canScale: thresholdList.length > 0 && thresholdList.every((set: number) => set > 0),
-      minThreshold: Math.min(...thresholdList),
-      maxThreshold: max + max * 0.1, // 防止阈值最大值过大时title显示不全
-    };
-  }
 
   /**
    * @description: 设置精确度
@@ -819,39 +615,6 @@ class CallerLineChart extends CommonSimpleChart {
     return precision;
   }
 
-  createBoundarySeries(item: any, base: number) {
-    return [
-      {
-        name: `lower-${item.stack}-no-tips`,
-        type: 'line',
-        data: item.lowBoundary.map((item: any) => [item[1], item[0] === null ? null : item[0] + base]),
-        lineStyle: {
-          opacity: 0,
-        },
-        stack: item.stack,
-        symbol: 'none',
-        z: item.z || 4,
-      },
-      {
-        name: `upper-${item.stack}-no-tips`,
-        type: 'line',
-        data: item.upBoundary.map((set: any, index: number) => [
-          set[1],
-          set[0] === null ? null : set[0] - item.lowBoundary[index][0],
-        ]),
-        lineStyle: {
-          opacity: 0,
-        },
-        areaStyle: {
-          color: item.color || '#e6e6e6',
-        },
-        stack: item.stack,
-        symbol: 'none',
-        z: item.z || 4,
-      },
-    ];
-  }
-
   /**
    * 生成可下钻的类型 主机 、实例
    * @param queryConfigs 图表查询数据
@@ -873,10 +636,10 @@ class CallerLineChart extends CommonSimpleChart {
     return params;
   }
   render() {
-    const { legend } = this.panel?.options || { legend: {} };
     return (
       <div class='apm-caller-line-chart'>
         <ChartHeader
+          collectIntervalDisplay={this.collectIntervalDisplay}
           descrition={this.panel.descrition}
           draging={this.panel.draging}
           isInstant={this.panel.instant}
@@ -906,14 +669,12 @@ class CallerLineChart extends CommonSimpleChart {
                 />
               )}
             </div>
-            {legend?.displayMode !== 'hidden' && (
-              <div class={`chart-legend ${legend?.placement === 'right' ? 'right-legend' : ''}`}>
-                <ListLegend
-                  legendData={this.legendData || []}
-                  onSelectLegend={this.handleSelectLegend}
-                />
-              </div>
-            )}
+            <div class={'chart-legend'}>
+              <ListLegend
+                legendData={this.legendData || []}
+                onSelectLegend={this.handleSelectLegend}
+              />
+            </div>
           </div>
         ) : (
           <div class='empty-chart'>{this.emptyText}</div>
