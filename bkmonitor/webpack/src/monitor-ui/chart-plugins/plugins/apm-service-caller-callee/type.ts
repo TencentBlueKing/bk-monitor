@@ -107,3 +107,8 @@ export type IPointTime = {
   endTime?: number;
   startTime?: number;
 };
+export type DimensionItem = {
+  value: string;
+  text: string;
+  active: boolean;
+};
