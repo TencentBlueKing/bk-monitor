@@ -371,6 +371,12 @@ CELERYBEAT_SCHEDULE = {
         "schedule": crontab(),
         "enabled": True,
     },
+    "monitor_web.tasks.clean_bkrepo_temp_file": {
+        "task": "monitor_web.tasks.update_statistics_data",
+        "schedule": crontab(hour="*/4"),
+        "enabled": True,
+        "options": {"queue": "celery_resource"},
+    },
     "monitor_web.tasks.update_metric_json_from_ts_group": {
         "task": "monitor_web.tasks.update_metric_json_from_ts_group",
         "schedule": crontab(minute="*/50"),
