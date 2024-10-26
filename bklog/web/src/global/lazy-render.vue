@@ -108,7 +108,7 @@
     box-sizing: border-box;
     display: flex;
     align-items: center;
-    min-height: 42px;
+    min-height: 40px;
 
     /* overflow: hidden; */
   }
