@@ -42,7 +42,7 @@
         align="center"
         type="expand"
       >
-        <template #default="{ $index }">
+        <template #default="{ $index, row }">
           <LazyRender>
             <expand-view
               :kv-show-fields-list="kvShowFieldsList"
@@ -51,7 +51,7 @@
               :retrieve-params="retrieveParams"
               :total-fields="totalFields"
               :visible-fields="visibleFields"
-              @value-click="(type, content, isLink) => handleIconClick(type, content, field, row, isLink)"
+              @value-click="(type, content, isLink, field) => handleIconClick(type, content, field, row, isLink)"
             >
             </expand-view>
           </LazyRender>
@@ -78,22 +78,13 @@
           <!-- eslint-disable-next-line -->
           <template slot-scope="{ row, column, $index }">
             <LazyRender>
-              <div :class="['str-content', 'origin-str']">
-                <template v-if="formatJson">
-                  <JsonFormatter
-                    :jsonValue="row"
-                    :fields="getShowTableVisibleFields"
-                    @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
-                  ></JsonFormatter>
-                </template>
-                <template v-else>
-                  <original-light-height
-                    :operator-config="operatorConfig"
-                    :origin-json="row"
-                    :visible-fields="getShowTableVisibleFields"
-                    @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
-                  />
-                </template>
+              <div :class="['str-content', 'origin-str', { 'is-wrap': tableLineIsWarp }]">
+                <JsonFormatter
+                  :jsonValue="row"
+                  :fields="getShowTableVisibleFields"
+                  :formatJson="formatJson"
+                  @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
+                ></JsonFormatter>
               </div>
             </LazyRender>
           </template>
@@ -195,22 +186,27 @@
             width: 100%;
 
             .origin-content {
+              display: flex;
               word-break: break-all;
               white-space: pre-line;
-            }
-          }
-        }
-      }
-    }
 
-    &.is-wrap {
-      .cell {
-        .str-content {
-          &.origin-str {
-            .origin-content {
-              display: flex;
-              flex-direction: column;
-              flex-wrap: wrap;
+              span {
+                display: flex;
+              }
+            }
+
+            &.is-wrap {
+              .origin-content {
+                display: flex;
+                flex-direction: column;
+                flex-wrap: wrap;
+
+                span {
+                  &:not(:first-child) {
+                    margin-top: 1px;
+                  }
+                }
+              }
             }
           }
         }

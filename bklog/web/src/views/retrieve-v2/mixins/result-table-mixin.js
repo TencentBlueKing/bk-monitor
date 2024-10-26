@@ -484,7 +484,4 @@ export default {
       }, 200);
     },
   },
-  mounted() {
-    console.log('-------------------table mounted', new Date().getTime());
-  },
 };

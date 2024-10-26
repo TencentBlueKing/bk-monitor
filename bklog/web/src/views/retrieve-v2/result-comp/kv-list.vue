@@ -48,7 +48,7 @@
           <text-segmentation
             :content="formatterStr(data, field)"
             :field="getFieldItem(field)"
-            @menu-click="handleJsonSegmentClick"
+            @menu-click="(agrs) => handleJsonSegmentClick(agrs, field)"
           />
           <span
             v-if="getRelationMonitorField(field)"
@@ -211,13 +211,13 @@
           ? 'is-disabled'
           : '';
       },
-      handleJsonSegmentClick({ isLink, option }) {
-        debugger;
+      handleJsonSegmentClick({ isLink, option }, fieldName) {
         // 为了兼容旧的逻辑，先这么写吧
         // 找时间梳理下这块，写的太随意了
-        const { fieldName, operation, value } = option;
+        const { operation, value } = option;
         const operator = operation === 'not' ? 'is not' : operation;
-        this.$emit('value-click', operator, value, isLink); // type, content, field, row, isLink
+        const field = this.totalFields.find(f => f.field_name === fieldName);
+        this.$emit('value-click', operator, value, isLink, field); // type, content, field, row, isLink
       },
       handleMenuClick(operator, item, field, isLink = false) {
         let params = {};
@@ -408,6 +408,7 @@
       }
 
       .field-value {
+        display: flex;
         font-family: var(--table-fount-family);
         font-size: var(--table-fount-size);
         color: var(--table-fount-color);

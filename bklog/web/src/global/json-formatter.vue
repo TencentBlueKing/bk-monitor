@@ -1,5 +1,5 @@
 <template>
-  <span :class="['origin-content-json', { 'is-wrap-line': isWrap, 'is-inline': !isWrap }]">
+  <span :class="['bklog-json-formatter-root', { 'is-wrap-line': isWrap, 'is-inline': !isWrap }]">
     <template v-for="item in rootList">
       <template v-if="item.formatter.isJson">
         <div
@@ -39,6 +39,10 @@
       type: [Array, Object],
       default: () => [],
     },
+    formatJson: {
+      type: Boolean,
+      default: true,
+    },
   });
 
   const formatCounter = ref(0);
@@ -60,12 +64,15 @@
   });
 
   const convertToObject = val => {
-    if (typeof val === 'string' && /^\{|\[/.test(val)) {
-      try {
-        return JSON.parse(val.replace(/<\/?mark>/gim, ''));
-      } catch (e) {
-        console.error(e);
-        return val;
+    if (typeof val === 'string' && props.formatJson) {
+      const originValue = val.replace(/<\/?mark>/gim, '');
+      if (/^(\{|\[)/.test(originValue)) {
+        try {
+          return JSON.parse(originValue);
+        } catch (e) {
+          console.error(e);
+          return val;
+        }
       }
     }
 
@@ -129,7 +136,7 @@
   );
 </script>
 <style lang="scss">
-  .origin-content-json {
+  .bklog-json-formatter-root {
     font-family: var(--table-fount-family);
     font-size: var(--table-fount-size);
     color: var(--table-fount-color);
@@ -138,15 +145,63 @@
       display: flex;
     }
 
-    .black-mark {
+    .bklog-root-field {
+      display: flex;
       margin-right: 2px;
-      background: #e6e6e6;
-      border-radius: 2px;
+
+      &:not(:first-child) {
+        margin-top: 1px;
+      }
+
+      .field-name.black-mark {
+        padding: 0 2px;
+        background: #e6e6e6;
+        border-radius: 2px;
+      }
+
+      .valid-text {
+        :hover {
+          color: #3a84ff;
+          cursor: pointer;
+        }
+      }
     }
 
-    .origin-value {
-      margin: 0 4px 0 2px;
+    .segment-content {
+      font-family: var(--table-fount-family);
+      font-size: var(--table-fount-size);
+      line-height: 20px;
+
+      color: var(--table-fount-color);
       word-break: break-all;
+      white-space: pre-line;
+
+      span {
+        display: inline-block;
+        width: max-content;
+        font-family: var(--table-fount-family);
+        font-size: var(--table-fount-size);
+        color: var(--table-fount-color);
+      }
+
+      .menu-list {
+        position: absolute;
+        display: none;
+      }
+
+      .valid-text {
+        cursor: pointer;
+
+        &.focus-text,
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+
+      .null-item {
+        display: inline-block;
+        min-width: 6px;
+      }
     }
 
     mark {
@@ -231,46 +286,6 @@
                 }
               }
             }
-          }
-        }
-
-        .jsoneditor-value {
-          .segment-content {
-            font-family: var(--table-fount-family);
-            font-size: var(--table-fount-size);
-            line-height: 20px;
-
-            color: var(--table-fount-color);
-            word-break: break-all;
-            white-space: pre-line;
-
-            span {
-
-              display: inline-block;
-              width: max-content;
-              font-family: var(--table-fount-family);
-              font-size: var(--table-fount-size);
-              color: var(--table-fount-color);
-            }
-          }
-
-          .menu-list {
-            position: absolute;
-            display: none;
-          }
-
-          .valid-text {
-            cursor: pointer;
-
-            &.focus-text,
-            &:hover {
-              color: #3a84ff;
-            }
-          }
-
-          .null-item {
-            display: inline-block;
-            min-width: 6px;
           }
         }
       }

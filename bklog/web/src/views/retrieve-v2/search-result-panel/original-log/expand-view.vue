@@ -50,7 +50,8 @@
         :kv-show-fields-list="kvShowFieldsList"
         :list-data="listData"
         :total-fields="totalFields"
-        @value-click="(type, content, isLink) => $emit('value-clickx', type, content, isLink)"
+        :visible-fields="visibleFields"
+        @value-click="(type, content, isLink, field) => $emit('value-click', type, content, isLink, field)"
       />
     </div>
     <div
@@ -82,10 +83,6 @@
         type: Object,
         default: () => {},
       },
-      totalFields: {
-        type: Array,
-        required: true,
-      },
       listData: {
         type: Object,
         default: () => {},
@@ -101,6 +98,12 @@
       };
     },
     computed: {
+      visibleFields() {
+        return this.$store.state.visibleFields ?? [];
+      },
+      totalFields() {
+        return this.$store.state.indexFieldInfo.fields ?? [];
+      },
       kvListData() {
         return this.totalFields
           .filter(item => this.kvShowFieldsList.includes(item.field_name))

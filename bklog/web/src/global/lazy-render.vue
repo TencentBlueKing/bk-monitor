@@ -106,6 +106,8 @@
   .bklog-lazy-render-cell {
     /* position: relative; */
     box-sizing: border-box;
+    display: flex;
+    align-items: center;
     min-height: 42px;
 
     /* overflow: hidden; */

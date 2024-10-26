@@ -8,7 +8,7 @@
   const props = defineProps({
     field: { type: Object, required: true },
     data: { type: Object },
-    content: { type: [String, Number], required: true },
+    content: { type: [String, Number, Boolean], required: true },
   });
 
   const refContent = ref();

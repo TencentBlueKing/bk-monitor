@@ -439,7 +439,7 @@
       }
 
       .original-time {
-        padding-top: 12px;
+        // padding-top: 12px;
 
         .cell {
           padding-left: 2px;
@@ -458,11 +458,11 @@
         }
 
         .cell {
-          padding: 10px 14px 0 2px;
+          // padding: 10px 14px 0 2px;
         }
 
         &.is-wrap .cell {
-          padding: 10px 14px 8px 2px;
+          // padding: 10px 14px 8px 2px;
         }
       }
 
@@ -486,18 +486,18 @@
           }
         }
 
-        .cell {
-          .bklog-lazy-render-cell {
-            padding: 12px 14px 0 14px;
-          }
-        }
+        // .cell {
+        //   .bklog-lazy-render-cell {
+        //     padding: 12px 14px 0 14px;
+        //   }
+        // }
 
-        &.is-wrap .cell {
-          .bklog-lazy-render-cell {
-            padding: 12px 14px 8px;
+        // &.is-wrap .cell {
+        //   .bklog-lazy-render-cell {
+        //     padding: 12px 14px 8px;
 
-          }
-        }
+        //   }
+        // }
 
         .show-whole-btn {
           top: 84px;

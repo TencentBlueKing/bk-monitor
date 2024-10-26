@@ -42,7 +42,7 @@
       align="center"
       type="expand"
     >
-      <template #default="{ $index }">
+      <template #default="{ $index, row }">
         <LazyRender>
           <expand-view
             :kv-show-fields-list="kvShowFieldsList"
@@ -51,7 +51,7 @@
             :retrieve-params="retrieveParams"
             :total-fields="totalFields"
             :visible-fields="visibleFields"
-            @value-click="(type, content, isLink) => handleIconClick(type, content, field, row, isLink)"
+            @value-click="(type, content, isLink, field) => handleIconClick(type, content, field, row, isLink)"
           >
           </expand-view>
         </LazyRender>
