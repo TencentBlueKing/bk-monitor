@@ -950,4 +950,5 @@ export default {
     'The current clustering rules have been changed and cannot be saved after exiting. Do you want to exit?',
   '当前模板在下列索引集中占用，取消占用后才能删除模板：{n}':
     'The current template is occupied in the following index set, and the template can be deleted only after the occupation is cancelled: {n}',
+  采集下发失败: 'Collection and delivery failed',
 };

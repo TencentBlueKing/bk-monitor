@@ -4,6 +4,7 @@
       class="issued-btn-wrap"
       :style="hasFailed ? 'border: 1px solid #ea3939' : ''"
       @click.stop="viewDetail()"
+      v-bk-overflow-tips="hasFailed ? { content: $t('采集下发失败') } : ''"
     >
       <div
         v-if="hasFailed"
@@ -92,7 +93,7 @@
                     ></div>
                     <i
                       v-else-if="tabItem.type === 'running'"
-                      style=" margin: 4px 4px 0 0;color: #3a84ff"
+                      style="margin: 4px 4px 0 0; color: #3a84ff"
                       class="bk-icon icon-refresh"
                     >
                     </i>

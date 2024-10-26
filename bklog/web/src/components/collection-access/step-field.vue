@@ -1224,11 +1224,6 @@
           }
         },
       },
-      'formData.etl_params.metadata_fields': {
-        handler(val) {
-          this.metaDataList = val;
-        },
-      },
     },
     created() {
       if (this.unAuthBkdata) {
@@ -1472,11 +1467,9 @@
         urlParams.collector_config_id = this.curCollect.collector_config_id;
         const updateData = { params: urlParams, data };
         // 先置空防止接口失败显示旧数据
-        this.formData.etl_params.metadata_fields &&
-          this.formData.etl_params.metadata_fields?.splice(0, this.formData.etl_params.metadata_fields.length);
         this.metaDataList?.splice?.(0, this.metaDataList.length);
         this.$http.request('collect/getEtlPreview', updateData).then(res => {
-          this.formData.etl_params.metadata_fields.push(...(res.data ? res.data.fields : []));
+          this.metaDataList?.push(...(res.data ? res.data.fields : []));
         });
       },
       debugHandler() {
@@ -1880,6 +1873,7 @@
           ),
           fields: copyFields.filter(item => !item.is_built_in),
         });
+        this.metaDataList = etlParams?.metadata_fields ?? [];
         if (!this.copyBuiltField.length) {
           this.copyBuiltField = copyFields.filter(item => item.is_built_in);
         }
@@ -2256,6 +2250,7 @@
               });
               this.fieldType = clean_type;
               this.enableMetaData = etlParams.path_regexp ? true : false;
+              this.metaDataList = etlParams.metadata_fields ?? [];
 
               Object.assign(this.formData, {
                 etl_config: this.fieldType,
@@ -2402,7 +2397,7 @@
           });
         }
         etlParams.metadata_fields =
-          etlParams?.metadata_fields?.map(item => {
+          this.metaDataList?.map(item => {
             item.metadata_type = 'path';
             return item;
           }) ?? [];
