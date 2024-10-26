@@ -1399,6 +1399,8 @@
         this.cacheVisibleList = visibleBkBizList;
         this.fieldType = clean_type;
         this.enableMetaData = etlParams.path_regexp ? true : false;
+        this.metaDataList = etlParams?.metadata_fields || [];
+
         Object.assign(this.formData, {
           etl_config: this.fieldType,
           etl_params: Object.assign(

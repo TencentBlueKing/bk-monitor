@@ -713,5 +713,5 @@ export default {
   切换新版: 'New Version',
   存储配置: 'Storage Configuration',
   索引配置: 'Index Configuration',
-  // 日志保存天数: 'Number of days to keep logs',
+  日志保存天数: 'Number of days to keep logs',
 };
