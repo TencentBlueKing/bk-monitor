@@ -32,11 +32,9 @@
       data-test-id="retrieve_from_fieldForm"
       @scroll.passive="handleOriginScroll"
     >
-      <keep-alive>
-        <component
-          v-on="$listeners"
+      <template v-if="showOriginal">
+        <OriginalList
           :handle-click-tools="handleClickTools"
-          :is="`${showOriginal ? 'OriginalList' : 'TableList'}`"
           :is-page-over="isPageOver"
           :operator-config="indexSetOperatorConfig"
           :origin-table-list="originLogList"
@@ -47,8 +45,23 @@
           :time-field="timeField"
           :total-fields="totalFields"
           :visible-fields="visibleFields"
-        ></component>
-      </keep-alive>
+        ></OriginalList>
+      </template>
+      <template v-else>
+        <TableList
+          :handle-click-tools="handleClickTools"
+          :is-page-over="isPageOver"
+          :operator-config="indexSetOperatorConfig"
+          :origin-table-list="originLogList"
+          :retrieve-params="retrieveParams"
+          :show-field-alias="showFieldAlias"
+          :table-list="tableList"
+          :table-loading="isContentLoading"
+          :time-field="timeField"
+          :total-fields="totalFields"
+          :visible-fields="visibleFields"
+        ></TableList>
+      </template>
 
       <!-- 表格底部内容 -->
       <p
@@ -474,11 +487,16 @@
         }
 
         .cell {
-          padding: 12px 14px 0 14px;
+          .bklog-lazy-render-cell {
+            padding: 12px 14px 0 14px;
+          }
         }
 
         &.is-wrap .cell {
-          padding: 12px 14px 8px;
+          .bklog-lazy-render-cell {
+            padding: 12px 14px 8px;
+
+          }
         }
 
         .show-whole-btn {

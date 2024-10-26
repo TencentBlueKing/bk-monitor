@@ -5,10 +5,10 @@
     :class="{ 'bklog-lazy-loading': !isVisible }"
     :style="cellStyle"
   >
-    <div v-if="isVisible">
+    <template v-if="isVisible">
       <!-- 实际内容 -->
       <slot></slot>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -18,7 +18,7 @@
   const props = defineProps({
     delay: {
       type: Number,
-      default: 60,
+      default: 0,
     },
     visibleOnly: {
       type: Boolean,
@@ -40,27 +40,41 @@
     }
   };
 
-  const cellStyle = computed(() => ({
-    width: cellWidth.value,
-    height: cellHeight.value,
-  }));
+  const cellStyle = computed(() => {
+    if (props.visibleOnly) {
+      return {
+        width: cellWidth.value,
+        height: cellHeight.value,
+      };
+    }
+
+    return {};
+  });
+
+  const destroyObserver = () => {
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
+  };
 
   const createObserver = () => {
     observer = new IntersectionObserver(
       entries => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
-            visibilityTimeout = setTimeout(() => {
+            visibilityTimeout = requestAnimationFrame(() => {
               isVisible.value = true;
-            }, props.delay);
+            });
           } else {
             if (props.visibleOnly) {
               if (visibilityTimeout) {
-                clearTimeout(visibilityTimeout);
+                cancelAnimationFrame(visibilityTimeout);
                 visibilityTimeout = null;
               }
               setCellDimensions();
               isVisible.value = false;
+              return;
             }
           }
         });
@@ -73,13 +87,6 @@
 
     if (lazyRenderCell.value) {
       observer.observe(lazyRenderCell.value);
-    }
-  };
-
-  const destroyObserver = () => {
-    if (observer) {
-      observer.disconnect();
-      observer = null;
     }
   };
 
@@ -97,24 +104,28 @@
 
 <style>
   .bklog-lazy-render-cell {
-    position: relative;
+    /* position: relative; */
     box-sizing: border-box;
-    min-height: 62px;
-    overflow: hidden;
+    min-height: 42px;
+
+    /* overflow: hidden; */
   }
 
   .bklog-lazy-render-cell.bklog-lazy-loading::before {
     position: absolute;
+    top: 50%;
     left: 42px;
     box-sizing: border-box;
     display: block;
     width: 12px;
     height: 12px;
-    margin: 15px auto;
+
+    /* margin: 15px auto; */
     color: #ddd;
     content: '';
     border-radius: 50%;
-    animation: lazyanimloader 2s linear infinite;
+    transform: translateY(-50%);
+    animation: lazyanimloader 4s linear infinite;
   }
 
   @keyframes lazyanimloader {

@@ -1078,7 +1078,6 @@ const store = new Vuex.Store({
               commit('updateIndexSetQueryResult', rsolvedData);
               commit('updateIsSetDefaultTableColumn');
               if (!payload?.isPagination) dispatch('requestSearchTotal');
-
               return {
                 data,
                 message,
