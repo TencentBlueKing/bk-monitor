@@ -74,7 +74,7 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
     data: '',
   };
 
-  @Watch('show')
+  @Watch('show', { immediate: true })
   handleShowChange(val) {
     if (val) {
       if (this.collectId) this.init();
