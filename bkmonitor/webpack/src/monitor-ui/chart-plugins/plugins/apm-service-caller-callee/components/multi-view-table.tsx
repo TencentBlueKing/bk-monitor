@@ -51,6 +51,7 @@ interface IMultiViewTableProps {
   supportedCalculationTypes?: IListItem[];
   tableTotal?: number;
   totalList?: IDataItem[];
+  activeTabKey?: string;
 }
 interface IMultiViewTableEvent {
   onShowDetail?: () => void;
@@ -72,6 +73,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @Prop({ required: true, type: Object }) sidePanelCommonOptions: Partial<CallOptions>;
   @Prop({ required: true, type: Number }) tableTotal: number;
   @Prop({ required: true, type: Array }) totalList: IDataItem[];
+  @Prop({ type: String }) activeTabKey: string;
   @ProvideReactive('callOptions') callOptions: Partial<CallOptions> = {};
 
   active = 'request';
@@ -132,6 +134,10 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   handleTableTotal(val) {
     this.pagination.count = val;
   }
+  @Watch('activeTabKey')
+  handleTableData() {
+    this.pagination.current = 1;
+  }
   @Watch('supportedCalculationTypes', { immediate: true })
   handlePanelChange(val) {
     const txtVal = {
@@ -170,9 +176,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     const groupByList = this.dimensionList.filter(item => item.active);
     const { limit, current } = this.pagination;
     if (this.totalList.length > 0) {
-      Object.assign(this.totalList[0], {
-        isTotal: true,
-        [groupByList[0].value]: '汇总',
+      groupByList.map((item, ind) => {
+        Object.assign(this.totalList[0], {
+          isTotal: true,
+          [item.value]: ind === 0 ? '汇总' : '  ',
+        });
       });
     }
     const list = (this.tableListData || []).slice((current - 1) * limit, current * limit);
@@ -189,12 +197,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
   handleGetDistribution() {
     this.isShowDimension = true;
-    // mounted() {
-    //   TAB_TABLE_TYPE.find(item => item.id === 'request').handle = this.handleGetDistribution;
-    // }
-    // handleGetDistribution() {
-    //   this.isShowDimension = true;
-    // }
   }
   getDimensionId(dimensions: Record<string, string>) {
     let name = '';
@@ -358,7 +360,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                   <span
                     class='item-txt'
                     v-bk-overflow-tips
-                    onClick={() => this.handleShowDetail(a.row, item.value, a)}
+                    onClick={() => this.handleShowDetail(a.row, item.value)}
                   >
                     {txt || '--'}
                   </span>
@@ -514,8 +516,9 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           limit-list={this.pagination.limitList}
           size='small'
           show-total-count
-          onChange={this.pageChange}
-          onLimitChange={this.limitChange}
+          on-change={this.pageChange}
+          on-limit-change={this.limitChange}
+          {...{ on: { 'update:current': v => (this.pagination.current = v) } }}
         />
         {/* 维度趋势图侧栏 */}
         <bk-sideslider

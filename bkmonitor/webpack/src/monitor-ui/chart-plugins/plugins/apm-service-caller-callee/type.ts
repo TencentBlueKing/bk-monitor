@@ -39,7 +39,7 @@ export interface IColumn {
 }
 
 export interface IDataItem {
-  dimensions: Record<string, any>;
+  dimensions?: Record<string, any>;
   [key: string]: any;
 }
 export interface IFilterCondition {

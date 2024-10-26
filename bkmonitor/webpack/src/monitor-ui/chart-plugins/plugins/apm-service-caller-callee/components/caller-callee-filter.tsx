@@ -79,14 +79,9 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   handlePanelChange() {
     this.handleSearch();
   }
-  @Watch('callOptions', { immediate: true })
-  handleCallOptionsChange() {
-    this.initDefaultData();
-  }
   @Emit('search')
   handleSearch() {
     const filter = (this.filterData[this.activeKey] || []).filter(item => item.value.length > 0);
-    console.log(this.activeKey, filter, 'this.filterData');
     return this.handleRegData(filter);
   }
 
@@ -98,8 +93,8 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   changeSelect(val, item) {
     return { val, item };
   }
-  handleToggle(isOpen: boolean, key: string) {
-    this.searchToggle({ isOpen, key });
+  handleToggle(isOpen: boolean, key: string, isInit = false) {
+    this.searchToggle({ isOpen, key }, isInit);
     this.toggleKey = key;
   }
   get commonOptions() {
@@ -112,30 +107,41 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   get angleData() {
     return this.commonOptions?.angle || {};
   }
-  // mounted() {
-  //   this.initDefaultData();
-  // }
+  mounted() {
+    this.initDefaultData();
+    /** 回填默认值 */
+
+    this.$nextTick(() => {
+      const callFilter = this.callOptions.call_filter || [];
+      if (callFilter.length === 0) {
+        return;
+      }
+      callFilter.map(item => {
+        if (item.method === 'reg') {
+          item.value.map(val => {
+            if (val.startsWith('.*') || val.endsWith('.*')) {
+              item.method = val.startsWith('.*') ? 'after_req' : 'before_req';
+              item.value = item.value.map(item => item.replace(/^\.\*|\.\*$/g, ''));
+            }
+          });
+        }
+        Object.assign(
+          this.filterData[this.activeKey].find(call => item.key === call.key),
+          item
+        );
+      });
+      callFilter.map(item => setTimeout(() => this.handleToggle(true, item.key, true), 100));
+    });
+  }
+
   initDefaultData() {
-    const callFilter = this.callOptions.call_filter || [];
-    if (callFilter.length > 0) {
-      callFilter.map(item => this.handleToggle(true, item.key));
-    }
     const { caller, callee } = this.angleData;
     const createFilterData = tags =>
       (tags || []).map(item => {
-        const def = callFilter.find(ele => item.value === ele.key);
-        if (def?.value && def.method === 'reg') {
-          const firstValue = def.value[0];
-
-          if (firstValue.startsWith('.*') || firstValue.endsWith('.*')) {
-            def.method = firstValue.startsWith('.*') ? 'after_req' : 'before_req';
-            def.value = def.value.map(item => item.replace(/^\.\*|\.\*$/g, ''));
-          }
-        }
         return {
           key: item.value,
-          method: def?.method || 'eq',
-          value: def?.value || [],
+          method: 'eq',
+          value: [],
           condition: 'and',
         };
       });
@@ -172,8 +178,8 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
     return updatedFilter;
   }
   /** 动态获取左侧列表的下拉值 */
-  @Debounce(100)
-  searchToggle({ isOpen, key }) {
+  // @Debounce(10)
+  searchToggle({ isOpen, key }, isInit = false) {
     if (!isOpen) {
       return;
     }
@@ -181,6 +187,7 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
     const filter = (this.filterData[this.activeKey] || []).filter(
       item => this.toggleKey !== item.key && item.value.length > 0
     );
+
     const interval = reviewInterval(this.viewOptions.interval, endTime - startTime, this.panel.collect_interval);
     const variablesService = new VariablesService({
       ...this.viewOptions,
@@ -199,7 +206,9 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
       }),
       ...params,
     };
-    newParams.where = [...newParams.where, ...this.handleRegData(filter)];
+    if (!isInit) {
+      newParams.where = [...newParams.where, ...this.handleRegData(filter)];
+    }
     this.isLoading = true;
     getFieldOptionValues(newParams)
       .then(res => {
@@ -208,7 +217,6 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
           item.value === key ? { ...item, values: [...[filterOption], ...res] } : item
         );
         this.$set(this.filterTags, this.activeKey, newFilter);
-        console.log(this.filterTags, 'this.filterTags', filterOption);
       })
       .catch(() => (this.isLoading = false));
   }
@@ -256,7 +264,7 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
                     multiple
                     onToggle={(val: boolean) => this.handleToggle(val, item.value)}
                   >
-                    {item.values.length > 0 ? (
+                    {!this.isLoading && item.values.length > 0 ? (
                       (item.values || []).map(opt => (
                         <bk-option
                           id={opt.value}

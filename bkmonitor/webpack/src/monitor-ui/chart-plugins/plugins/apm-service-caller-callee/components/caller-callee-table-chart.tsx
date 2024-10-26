@@ -260,6 +260,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     this.activeTabKey = id;
     const activeList = this.dimensionList.filter(item => item.active).map(item => item.value);
     this.handleSelectDimension(this.isSingleView ? activeList.slice(0, 1) : activeList);
+    this.getPanelData();
   }
   handleDataFormat(keyList: string, data: string, field: string[]) {
     this[data] = [...(this[keyList][field[0]] || [])];
@@ -443,6 +444,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
             </div>
             <div class='layout-main-table'>
               <MultiViewTable
+                activeTabKey={this.activeTabKey}
                 dimensionList={this.dimensionList}
                 isLoading={this.tableLoading}
                 panel={this.panel}

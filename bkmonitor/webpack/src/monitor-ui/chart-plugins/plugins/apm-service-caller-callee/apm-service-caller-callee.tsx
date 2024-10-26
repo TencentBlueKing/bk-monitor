@@ -294,10 +294,10 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     console.info(event, '=================');
     const date = dayjs.tz(event.xAxis).format('YYYY-MM-DD HH:mm:ss');
     this.chartPointOption = {
-      dimensions: event.dimensions,
+      dimensions: event?.dimensions || {},
       time: date,
+      interval: event?.interval,
     };
-    console.info(event.dimensions, '=========', this.chartPointOption);
   }
   closeChartPoint() {
     this.chartPointOption = {};
