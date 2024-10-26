@@ -100,18 +100,20 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   timeout = ['success_rate', 'timeout_rate', 'exception_rate'];
   consuming = ['avg_duration', 'p50_duration', 'p95_duration', 'p99_duration'];
   // 侧滑面板 维度id
-  filterDimensionValue = -1;
+  filterDimensionValue = '';
   pagination = {
     current: 1,
     count: 0,
     limit: 10,
     limitList: [10, 20, 50],
   };
+
   @Watch('sidePanelCommonOptions', { immediate: true })
   handleRawCallOptionsChange() {
     const selectItem = this.dimensionOptions.find(item => item.id === this.filterDimensionValue);
     const list = [];
     for (const [key, val] of Object.entries(selectItem?.dimensions || {})) {
+      if (key === 'time') continue;
       if (val !== null) {
         list.push({
           key,
@@ -153,19 +155,15 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
   get dimensionOptions() {
     if (!this.tableListData?.length) return [];
-    const options = [];
-    let index = 0;
+    const options = new Map();
     for (const item of this.tableListData) {
       const dimensions = item.dimensions;
-      let name = '';
-      for (const [key, val] of Object.entries(dimensions)) {
-        const tag = this.dimensionList.find(item => item.value === key);
-        name += ` ${tag.text}:${val || '--'} `;
+      const name = this.getDimensionId(dimensions);
+      if (!options.has(name)) {
+        options.set(name, { name, id: name, dimensions });
       }
-      options.push({ name, id: index, dimensions });
-      index++;
     }
-    return options;
+    return Array.from(options.values());
   }
 
   get showTableList() {
@@ -191,6 +189,21 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
   handleGetDistribution() {
     this.isShowDimension = true;
+    // mounted() {
+    //   TAB_TABLE_TYPE.find(item => item.id === 'request').handle = this.handleGetDistribution;
+    // }
+    // handleGetDistribution() {
+    //   this.isShowDimension = true;
+    // }
+  }
+  getDimensionId(dimensions: Record<string, string>) {
+    let name = '';
+    for (const [key, val] of Object.entries(dimensions)) {
+      if (key === 'time') continue;
+      const tag = this.dimensionList.find(item => item.value === key);
+      name += ` ${tag.text}:${val || '--'} `;
+    }
+    return name;
   }
   changeTab(id: string) {
     this.active = id;
@@ -232,16 +245,16 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
 
   @Emit('showDetail')
-  handleShowDetail(row, key, { $index }) {
+  handleShowDetail(row, key) {
     if (!row?.isTotal && key !== 'time' && row[key]) {
       this.isShowDetail = true;
-      this.filterDimensionValue = $index;
+      this.filterDimensionValue = this.getDimensionId(row.dimensions);
       this.handleRawCallOptionsChange();
       this.curRowData = row;
       return { row, key };
     }
   }
-  handleFilterChange(id: number) {
+  handleFilterChange(id: string) {
     this.filterDimensionValue = id;
     this.handleRawCallOptionsChange();
   }
@@ -429,19 +442,22 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   createOption(dimensions: Record<string, string>) {
     return (
       <div class='options-wrapper'>
-        {Object.entries(dimensions).map(([key, value]) => {
-          const tag = this.dimensionList.find(item => item.value === key);
-          return (
-            <div
-              key={key}
-              class='options-wrapper-item'
-            >
-              <span>
-                {tag.text}:{value || '--'}
-              </span>
-            </div>
-          );
-        })}
+        {Object.entries(dimensions)
+          .map(([key, value]) => {
+            if (key === 'time') return undefined;
+            const tag = this.dimensionList.find(item => item.value === key);
+            return (
+              <div
+                key={key}
+                class='options-wrapper-item'
+              >
+                <span>
+                  {tag.text}:{value || '--'}
+                </span>
+              </div>
+            );
+          })
+          .filter(Boolean)}
       </div>
     );
   }

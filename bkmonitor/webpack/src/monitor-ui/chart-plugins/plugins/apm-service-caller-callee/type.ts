@@ -39,7 +39,8 @@ export interface IColumn {
 }
 
 export interface IDataItem {
-  [key: string]: string;
+  dimensions: Record<string, any>;
+  [key: string]: any;
 }
 export interface IFilterCondition {
   key: string;
@@ -52,6 +53,11 @@ export interface IFilterType {
   call_filter: IFilterCondition[];
   group_by_filter: IDataItem[];
   time_shift: IDataItem[];
+}
+/* 主调/被调 */
+export enum EKind {
+  callee = 'callee',
+  caller = 'caller',
 }
 /* 头部对比/group by 切换 */
 export enum EParamsMode {

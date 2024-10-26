@@ -42,7 +42,7 @@ import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
 
-import type { PanelModel } from '../../../chart-plugins/typings';
+import type { PanelModel, ZrClickEvent } from '../../../chart-plugins/typings';
 import type { CallOptions } from '../apm-service-caller-callee/type';
 
 import './apm-heatmap.scss';
@@ -111,9 +111,8 @@ class ApmHeatmap extends CommonSimpleChart {
                 ...config,
                 interval,
                 interval_unit: 'm',
-                group_by: [...(config?.group_by || []), ...(this.callOptions?.group_by || [])],
                 where: [...(config?.where || []), ...(this.callOptions?.call_filter || [])],
-                functions: config?.function?.map(func => {
+                functions: config?.functions?.map(func => {
                   if (func.id === 'increase') {
                     return {
                       ...func,
@@ -134,9 +133,8 @@ class ApmHeatmap extends CommonSimpleChart {
                   ...config,
                   interval,
                   interval_unit: 'm',
-                  group_by: [...(config?.group_by || []), ...(this.callOptions?.group_by || [])],
                   where: [...(config?.where || []), ...(this.callOptions?.call_filter || [])],
-                  functions: config?.function?.map(func => {
+                  functions: config?.functions?.map(func => {
                     if (func.id === 'increase') {
                       return {
                         ...func,
@@ -327,6 +325,12 @@ class ApmHeatmap extends CommonSimpleChart {
     this.cancelTokens = [];
     this.handleLoadingChange(false);
   }
+  handleClickItem(item) {
+    this.$emit('zrClick', {
+      xAxis: +item.name,
+      interval: +this.collectIntervalDisplay.replace('m', '') * 60,
+    });
+  }
   render() {
     return (
       <div class='apm-heatmap'>
@@ -354,6 +358,7 @@ class ApmHeatmap extends CommonSimpleChart {
                   width={this.width}
                   height={this.height}
                   options={this.options}
+                  onClick={this.handleClickItem}
                 />
               )}
             </div>
@@ -366,4 +371,9 @@ class ApmHeatmap extends CommonSimpleChart {
   }
 }
 
-export default ofType<IApmHeatmapProps>().convert(ApmHeatmap);
+export default ofType<
+  IApmHeatmapProps,
+  {
+    onZrClick?: (event: ZrClickEvent) => void;
+  }
+>().convert(ApmHeatmap);

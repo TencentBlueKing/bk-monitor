@@ -25,16 +25,16 @@
  * IN THE SOFTWARE.
  */
 
-import type { ITabItem } from './type';
+import { EKind, type ITabItem } from './type';
 
 export const CALLER_CALLEE_TYPE: ITabItem[] = [
   {
     label: '主调',
-    id: 'caller',
+    id: EKind.caller,
   },
   {
     label: '被调',
-    id: 'callee',
+    id: EKind.callee,
   },
 ];
 export type CallerCalleeType = (typeof CALLER_CALLEE_TYPE)[number]['id'];

@@ -75,12 +75,10 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
     callee: [],
   };
   filterTags = {};
-
   @Watch('activeKey')
   handlePanelChange() {
     this.handleSearch();
   }
-
   @Watch('callOptions', { immediate: true })
   handleCallOptionsChange() {
     this.initDefaultData();
