@@ -70,12 +70,17 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   symbolList = SYMBOL_LIST;
   toggleKey = '';
   isLoading = false;
-  filterData: IFilterData;
+  filterData: IFilterData = {
+    caller: [],
+    callee: [],
+  };
   filterTags = {};
+
   @Watch('activeKey')
   handlePanelChange() {
     this.handleSearch();
   }
+
   @Watch('callOptions', { immediate: true })
   handleCallOptionsChange() {
     this.initDefaultData();
@@ -83,6 +88,7 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   @Emit('search')
   handleSearch() {
     const filter = (this.filterData[this.activeKey] || []).filter(item => item.value.length > 0);
+    console.log(this.activeKey, filter, 'this.filterData');
     return this.handleRegData(filter);
   }
 
@@ -108,9 +114,9 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   get angleData() {
     return this.commonOptions?.angle || {};
   }
-  mounted() {
-    // this.initDefaultData();
-  }
+  // mounted() {
+  //   this.initDefaultData();
+  // }
   initDefaultData() {
     const callFilter = this.callOptions.call_filter || [];
     if (callFilter.length > 0) {
@@ -142,7 +148,6 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
       caller: createFilterData(caller?.tags),
       callee: createFilterData(callee?.tags),
     };
-
     this.filterTags = {
       caller: createFilterTags(caller?.tags),
       callee: createFilterTags(callee?.tags),
@@ -169,13 +174,15 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
     return updatedFilter;
   }
   /** 动态获取左侧列表的下拉值 */
-  @Debounce(300)
+  @Debounce(100)
   searchToggle({ isOpen, key }) {
     if (!isOpen) {
       return;
     }
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-    const filter = (this.filterData[this.activeKey] || []).filter(item => item.value.length > 0);
+    const filter = (this.filterData[this.activeKey] || []).filter(
+      item => this.toggleKey !== item.key && item.value.length > 0
+    );
     const interval = reviewInterval(this.viewOptions.interval, endTime - startTime, this.panel.collect_interval);
     const variablesService = new VariablesService({
       ...this.viewOptions,
@@ -244,19 +251,24 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
                     v-model={this.filterData[this.activeKey][ind].value}
                     loading={item.value === this.toggleKey && this.isLoading}
                     placeholder={item.text}
+                    showEmpty={false}
                     allow-create
                     collapse-tag
                     display-tag
                     multiple
                     onToggle={(val: boolean) => this.handleToggle(val, item.value)}
                   >
-                    {(item.values || []).map(opt => (
-                      <bk-option
-                        id={opt.value}
-                        key={opt.value}
-                        name={opt.text}
-                      />
-                    ))}
+                    {item.values.length > 0 ? (
+                      (item.values || []).map(opt => (
+                        <bk-option
+                          id={opt.value}
+                          key={opt.value}
+                          name={opt.text}
+                        />
+                      ))
+                    ) : (
+                      <span class='select-loading'>{this.$t('正在加载中...')}</span>
+                    )}
                   </bk-select>
                 )}
               </div>

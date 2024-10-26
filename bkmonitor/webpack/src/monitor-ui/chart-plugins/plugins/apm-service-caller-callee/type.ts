@@ -90,6 +90,7 @@ export type CallOptions = {
 export type IChartOption = {
   time?: string;
   dimensions?: IDataItem;
+  interval?: number;
 };
 
 export type IFilterData = {

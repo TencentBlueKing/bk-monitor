@@ -117,7 +117,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     if (val) {
       this.pointWhere = [];
       this.pointTime = {};
-      const { dimensions, time } = val;
+      const { dimensions, time, interval } = val;
       Object.keys(dimensions || {}).map(key =>
         this.pointWhere.push({
           key: key,
@@ -128,8 +128,8 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       );
       if (time) {
         const endTime = new Date(time).getTime() / 1000;
-        const interval = this.commonOptions?.time?.interval || 60;
-        const startTime = endTime - interval;
+        const intervalNum = interval || this.commonOptions?.time?.interval || 60;
+        const startTime = endTime - intervalNum;
         this.pointTime = { endTime, startTime };
       }
       this.getTableDataList();
@@ -303,7 +303,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   handleDrill({ option, row }) {
     const filter = [];
     Object.keys(row?.dimensions || {}).map(key => {
-      row.dimensions[key] &&
+      row.dimensions[key] !== 'null' &&
         filter.push({
           key,
           method: 'eq',
@@ -374,9 +374,9 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     const { dimensions } = this.chartPointOption;
     return Object.keys(dimensions || {}).map(key => (
       <span key={key}>
-        {this.handleGetKey(key)}
+        {` ${this.handleGetKey(key)}`}
         <span class='tag-symbol'>{this.handleOperate('eq')}</span>
-        {dimensions[key]}
+        {dimensions[key] === '' ? this.$t('- 空 -') : dimensions[key]}
       </span>
     ));
   }
@@ -436,7 +436,8 @@ class CallerCalleeTableChart extends CommonSimpleChart {
                   >
                     {this.handleGetKey(item.key)}
                     <span class='tag-symbol'>{this.handleOperate(item.method)}</span>
-                    {item?.value && (item?.value || []).join('、')}
+                    {item?.value &&
+                      (item?.value || []).map(item => (item === '' ? this.$t('- 空 -') : item)).join('、')}
                   </bk-tag>
                 ))}
             </div>
