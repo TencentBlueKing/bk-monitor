@@ -10,8 +10,8 @@ specific language governing permissions and limitations under the License.
 """
 
 import abc
-import concurrent
 import logging
+import multiprocessing
 from urllib.parse import urljoin
 
 import six
@@ -66,30 +66,31 @@ class BcsKubeClient:
         """
         带超时时间的请求
         """
-
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            try:
-                response = executor.submit(client_api, **kwargs)
-                return response.result(self._REQUEST_TIMEOUT)
-            except concurrent.futures.TimeoutError:
+        try:
+            default_params = {
+                "async_req": True,
+                "_request_timeout": self._REQUEST_TIMEOUT,
+            }
+            default_params.update(kwargs)
+            t = client_api(**default_params)
+            return t.get(self._REQUEST_TIMEOUT)
+        except multiprocessing.TimeoutError:
+            logger.warning(
+                f"[BcsKubeClient] {client_api.__name__} of cluster_id: {self.cluster_id}(params: {kwargs}) timeout"
+            )
+        except client.ApiException as e:
+            status = getattr(e, "status")
+            if status == 404:
+                logger.warning(
+                    f"[BcsKubeClient] {client_api.__name__} of cluster_id: {self.cluster_id}(params: {kwargs}) 404"
+                )
+            elif status == 403:
                 logger.warning(
                     f"[BcsKubeClient] "
-                    f"{client_api.__name__} of cluster_id: {self.cluster_id}(params: {kwargs}) timeout"
+                    f"{client_api.__name__} of cluster_id: {self.cluster_id}(params: {kwargs}) forbidden"
                 )
-            except client.ApiException as e:
-                status = getattr(e, "status")
-                if status == 404:
-                    logger.warning(
-                        f"[BcsKubeClient] "
-                        f"{client_api.__name__} of cluster_id: {self.cluster_id}(params: {kwargs}) 404"
-                    )
-                elif status == 403:
-                    logger.warning(
-                        f"[BcsKubeClient] "
-                        f"{client_api.__name__} of cluster_id: {self.cluster_id}(params: {kwargs}) forbidden"
-                    )
-                else:
-                    logger.error(
-                        f"[BcsKubeClient] failed to {client_api.__name__} "
-                        f"of cluster_id: {self.cluster_id}(params: {kwargs}), error: {e}"
-                    )
+            else:
+                logger.error(
+                    f"[BcsKubeClient] failed to {client_api.__name__} "
+                    f"of cluster_id: {self.cluster_id}(params: {kwargs}), error: {e}"
+                )
