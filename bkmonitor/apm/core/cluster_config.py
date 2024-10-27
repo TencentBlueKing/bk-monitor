@@ -12,6 +12,8 @@ import base64
 import functools
 import logging
 
+from django.conf import settings
+
 from alarm_backends.core.storage.redis import Cache
 from bkmonitor.utils.bcs import BcsKubeClient
 from constants.apm import BkCollectorComp
@@ -33,7 +35,7 @@ class BkCollectorInstaller:
         deploy = self.bcs_client.client_request(
             self.bcs_client.api.read_namespaced_deployment,
             name=BkCollectorComp.DEPLOYMENT_NAME,
-            namespace=BkCollectorComp.NAMESPACE,
+            namespace=ClusterConfig.bk_collector_namespace(self.cluster_id),
         )
         if deploy:
             # 将集群添加进缓存中 由 apm.tasks 中定时任务来继续执行
@@ -73,11 +75,16 @@ class ClusterConfig:
         return res
 
     @classmethod
+    def bk_collector_namespace(cls, cluster_id):
+        cluster_namespace = settings.K8S_OPERATOR_DEPLOY_NAMESPACE or {}
+        return cluster_namespace.get(cluster_id, BkCollectorComp.NAMESPACE)
+
+    @classmethod
     def platform_config_tpl(cls, cluster_id):
         bcs_client = BcsKubeClient(cluster_id)
         config_maps = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_config_map,
-            namespace=BkCollectorComp.NAMESPACE,
+            namespace=cls.bk_collector_namespace(cluster_id),
             label_selector="component=bk-collector,template=true,type=platform",
         )
         if len(config_maps.items) == 0:
@@ -94,7 +101,7 @@ class ClusterConfig:
         bcs_client = BcsKubeClient(cluster_id)
         config_maps = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_config_map,
-            namespace=BkCollectorComp.NAMESPACE,
+            namespace=cls.bk_collector_namespace(cluster_id),
             label_selector="component=bk-collector,template=true,type=subconfig",
         )
         if len(config_maps.items) == 0:

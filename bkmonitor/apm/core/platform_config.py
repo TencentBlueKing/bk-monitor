@@ -295,7 +295,7 @@ class PlatformConfig(BkCollectorConfig):
         bcs_client = BcsKubeClient(bcs_cluster_id)
         svc = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_service,
-            namespace=BkCollectorComp.NAMESPACE,
+            namespace=ClusterConfig.bk_collector_namespace(bcs_cluster_id),
             label_selector="app.kubernetes.io/bk-component=bkmonitor-operator",
         )
         count = len(svc.items)
@@ -425,9 +425,10 @@ class PlatformConfig(BkCollectorConfig):
         b64_content = base64.b64encode(gzip_content)
 
         bcs_client = BcsKubeClient(cluster_id)
+        namespace = ClusterConfig.bk_collector_namespace(cluster_id)
         secrets = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_secret,
-            namespace=BkCollectorComp.NAMESPACE,
+            namespace=namespace,
             label_selector="component={},template=false,type={}".format(
                 BkCollectorComp.LABEL_COMPONENT_VALUE,
                 BkCollectorComp.LABEL_TYPE_PLATFORM_CONFIG,
@@ -452,7 +453,7 @@ class PlatformConfig(BkCollectorConfig):
                 bcs_client.client_request(
                     bcs_client.core_api.patch_namespaced_secret,
                     name=BkCollectorComp.SECRET_PLATFORM_NAME,
-                    namespace=BkCollectorComp.NAMESPACE,
+                    namespace=namespace,
                     body=sec,
                 )
                 logger.info(f"{cluster_id} apm platform config update successful.")
@@ -463,7 +464,7 @@ class PlatformConfig(BkCollectorConfig):
                 type="Opaque",
                 metadata=client.V1ObjectMeta(
                     name=BkCollectorComp.SECRET_PLATFORM_NAME,
-                    namespace=BkCollectorComp.NAMESPACE,
+                    namespace=namespace,
                     labels={
                         "component": BkCollectorComp.LABEL_COMPONENT_VALUE,
                         "type": BkCollectorComp.LABEL_TYPE_PLATFORM_CONFIG,
@@ -475,7 +476,7 @@ class PlatformConfig(BkCollectorConfig):
 
             bcs_client.client_request(
                 bcs_client.core_api.create_namespaced_secret,
-                namespace=BkCollectorComp.NAMESPACE,
+                namespace=namespace,
                 body=sec,
             )
             logger.info(f"{cluster_id} apm platform config create successful.")

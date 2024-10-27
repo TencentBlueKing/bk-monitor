@@ -1426,8 +1426,12 @@ BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")
 # 监控平台apigw代码
 BK_APIGW_NAME = os.getenv("BK_APIGW_NAME", "bk-monitor")
 
-# 集群内operator服务默认名称
-K8S_OPERATOR_SERVICE_NAME = "bkmonitor-operator-stack-operator"
+# 集群内 bkmonitor-operator 特殊部署命名空间信息，针对一个集群部署多套 operator 时需要配置这个
+# 格式: {
+#     "BCS-K8S-00000": "bkmonitor-operator-bkte",
+#     "BCS-K8S-00001": "bkmonitor-operator",
+# }
+K8S_OPERATOR_DEPLOY_NAMESPACE = {}
 
 # 默认K8S插件采集集群ID
 K8S_PLUGIN_COLLECT_CLUSTER_ID = ""
