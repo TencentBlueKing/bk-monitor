@@ -53,6 +53,7 @@ interface IMultiViewTableProps {
   tableTotal?: number;
   totalList?: IDataItem[];
   activeTabKey?: string;
+  resizeStatus?: boolean;
 }
 interface IMultiViewTableEvent {
   onShowDetail?: () => void;
@@ -76,6 +77,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @Prop({ required: true, type: Array }) totalList: IDataItem[];
   @Prop({ type: String }) activeTabKey: string;
   @ProvideReactive('callOptions') callOptions: Partial<CallOptions> = {};
+  @Prop({ required: true, type: Boolean }) resizeStatus: boolean;
 
   active = 'request';
   cachePanels = TAB_TABLE_TYPE;
@@ -110,12 +112,16 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     limit: 10,
     limitList: [10, 20, 50],
   };
+  tableAppendWidth = 0;
   prefix = ['growth_rates', 'proportions', 'success_rate', 'exception_rate', 'timeout_rate'];
   /** 是否需要展示百分号 */
   hasPrefix(fieldName: string) {
     return this.prefix.some(pre => fieldName.startsWith(pre));
   }
-
+  @Watch('resizeStatus')
+  handleResizeStatus() {
+    this.tableAppendWidth = this.$refs.tableAppendRef?.offsetParent?.children[0]?.offsetWidth || 0;
+  }
   @Watch('sidePanelCommonOptions', { immediate: true })
   handleRawCallOptionsChange() {
     const selectItem = this.dimensionOptions.find(item => item.id === this.filterDimensionValue);
@@ -190,6 +196,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         });
       });
     }
+    this.tableAppendWidth = this.$refs.tableAppendRef?.offsetParent?.children[0]?.offsetWidth || 0;
     const list = (this.tableListData || []).slice((current - 1) * limit, current * limit);
     return list;
   }
@@ -483,14 +490,16 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       : this.formatToTwoDecimalPlaces(val) || '--';
     return txt;
   }
+  get appendTabWidth() {
+    const current = this.panels.find(item => item.id === this.active);
+    return this.tableAppendWidth / current.columns.length;
+  }
   /** 渲染表格的汇总 */
   renderTableAppend() {
     if (this.totalList.length === 0) {
       return;
     }
     const current = this.panels.find(item => item.id === this.active);
-    const parentWidth = this.$refs.tableAppendRef?.offsetWidth;
-    const width = parentWidth / current.columns.length;
 
     return current.columns.map(item => {
       const val = this.totalList[0][item.prop];
@@ -498,7 +507,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       return (
         <span
           key={item.prop}
-          style={{ width: `${width}px` }}
+          style={{ width: `${this.appendTabWidth}px` }}
           class={[
             'span-append pl-15',
             { 'red-txt': item.prop.startsWith('growth_rates') && val > 0 },

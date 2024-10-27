@@ -95,6 +95,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   totalList = {};
   totalListData = [];
   tableTabList: string[] = ['request_total'];
+  resizeStatus = false;
   get panelCommonOptions() {
     return this.panel.options.common;
   }
@@ -451,6 +452,9 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   closeChartPoint() {
     this.$emit('closeChartPoint');
   }
+  handleResizeTab(status: boolean) {
+    this.resizeStatus = status;
+  }
 
   render() {
     return (
@@ -462,6 +466,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
           min={160}
           placement='left'
           collapsible
+          on-collapse-change={this.handleResizeTab}
         >
           <div
             class='layout-aside'
@@ -513,6 +518,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
             </div>
             <div class='layout-main-table'>
               <MultiViewTable
+                resizeStatus={this.resizeStatus}
                 activeTabKey={this.activeTabKey}
                 dimensionList={this.dimensionList}
                 isLoading={this.tableLoading}
