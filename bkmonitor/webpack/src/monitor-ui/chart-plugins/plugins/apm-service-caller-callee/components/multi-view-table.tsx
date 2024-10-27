@@ -418,7 +418,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
               ? row[item.prop]
                 ? `${this.formatToTwoDecimalPlaces(row[item.prop])}%`
                 : row[item.prop] === 0
-                  ? row[item.prop]
+                  ? `${row[item.prop]}%`
                   : '--'
               : this.formatToTwoDecimalPlaces(row[item.prop]) || '--';
             return (

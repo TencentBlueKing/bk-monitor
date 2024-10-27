@@ -229,7 +229,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       ...newParams.where,
       ...this.callOptions.call_filter.filter(item => item.key !== 'time'),
       ...this.pointWhere,
-      ...this.drillWhere,
+      // ...this.drillWhere,
     ];
     calculateByRange(newParams)
       .then(res => {
@@ -237,7 +237,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
         const newData = (res?.data || []).map(item => {
           const { dimensions, proportions, growth_rates } = item;
           const col = {};
-          timeShift.map(key => {
+          [...timeShift, ...['0s']].map(key => {
             const baseKey = `${metric_cal_type}_${key}`;
             col[baseKey] = item[key];
 
@@ -404,7 +404,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     });
     this.tableColumn = tableColumn;
     this.handleClearData();
-    // this.getPageList();
+    this.getPageList();
   }
   renderDimensionList() {
     const activeList = this.dimensionList.filter(item => item.active).map(item => item.value);
