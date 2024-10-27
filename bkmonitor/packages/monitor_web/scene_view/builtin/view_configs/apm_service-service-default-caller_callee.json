@@ -631,7 +631,7 @@
         },
         {
           "id": "avg_duration",
-          "title": "耗时",
+          "title": "平均耗时",
           "type": "caller-line-chart",
           "gridPos": {
             "x": 0,
@@ -644,7 +644,7 @@
               "data_type": "time_series",
               "api": "apm_metric.dynamicUnifyQuery",
               "datasource": "time_series",
-              "alias": "耗时",
+              "alias": "平均耗时",
               "fill_empty_dimensions": true,
               "data": {
                 "app_name": "${app_name}",
