@@ -299,7 +299,7 @@ class PlatformConfig(BkCollectorConfig):
             label_selector="app.kubernetes.io/bk-component=bkmonitor-operator",
         )
         count = len(svc.items)
-        if count > 1:
+        if count != 1:
             logger.warning(f"The cluster({bcs_cluster_id}) has {count} bkmonitor-operator, it's ambiguous")
             return {}
         operator_service_name = svc.items[0].metadata.name
