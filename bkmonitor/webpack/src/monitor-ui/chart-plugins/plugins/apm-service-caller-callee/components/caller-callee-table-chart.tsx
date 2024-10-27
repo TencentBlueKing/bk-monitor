@@ -381,13 +381,13 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     if (this.activeTabKey === 'multiple') {
       const activeList = this.dimensionList.filter(item => item.active).map(item => item.value);
       activeList.push(option.value);
-      this.handleSelectDimension(activeList);
+      this.handleSelectDimension(activeList, true);
     } else {
-      this.handleSelectDimension([option.value]);
+      this.handleSelectDimension([option.value], true);
     }
     this.$emit('drill', filter);
   }
-  handleSelectDimension(selectedList: string[]) {
+  handleSelectDimension(selectedList: string[], isDrill = false) {
     const tableColumn = [];
     this.dimensionList = this.dimensionList.map(item => {
       const active = selectedList.includes(item.value);
@@ -404,7 +404,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     });
     this.tableColumn = tableColumn;
     this.handleClearData();
-    this.getPageList();
+    !isDrill && this.getPageList();
   }
   renderDimensionList() {
     const activeList = this.dimensionList.filter(item => item.active).map(item => item.value);
