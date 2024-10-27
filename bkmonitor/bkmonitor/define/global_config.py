@@ -51,10 +51,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("WEBHOOK_TIMEOUT", slz.IntegerField(label="Webhook超时时间", default=3)),
         ("ENABLE_DEFAULT_STRATEGY", slz.BooleanField(label="是否开启默认策略", default=True)),
         ("IS_ENABLE_VIEW_CMDB_LEVEL", slz.BooleanField(label="是否开启前端视图部分的CMDB预聚合", default=False)),
-        (
-            "K8S_OPERATOR_SERVICE_NAME",
-            slz.CharField(label="集群内operator服务默认名称", default="bkmonitor-operator-stack-operator"),
-        ),
+        ("K8S_OPERATOR_DEPLOY_NAMESPACE", slz.JSONField(label="bkmonitor-operator 特殊集群部署命名空间信息", default={})),
         # === BKDATA & AIOPS 相关配置 开始 ===
         ("AIOPS_BIZ_WHITE_LIST", slz.ListField(label="开启智能异常算法的业务白名单", default=[])),
         ("AIOPS_INCIDENT_BIZ_WHITE_LIST", slz.ListField(label="开启根因故障定位的业务白名单", default=[])),
