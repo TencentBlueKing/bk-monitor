@@ -61,6 +61,25 @@
         cursor: pointer;
       }
     }
+    .pl-15 {
+      padding-left: 15px;
+    }
+    .bor-bt {
+      border-bottom: 1px solid #dfe0e5;
+    }
+    .multi-view-tab-table-append {
+      height: 43px;
+      line-height: 43px;
+      color: #63656e;
+      display: flex;
+      .span-append {
+        display: inline-block;
+        height: 100%;
+        line-height: 43px;
+        min-width: 130px;
+        border-bottom: 1px solid #dfe0e5;
+      }
+    }
 
     .multi-view-table-txt {
       color: #63656e;
@@ -75,12 +94,12 @@
         color: #63656e;
         cursor: pointer;
       }
-      &.red-txt {
-        color: #ff5656;
-      }
-      &.green-txt {
-        color: #2dcb56;
-      }
+    }
+    .red-txt {
+      color: #ff5656;
+    }
+    .green-txt {
+      color: #2dcb56;
     }
 
     .multi-view-table-link {

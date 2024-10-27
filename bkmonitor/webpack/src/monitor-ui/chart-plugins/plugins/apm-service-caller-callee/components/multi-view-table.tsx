@@ -110,6 +110,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     limit: 10,
     limitList: [10, 20, 50],
   };
+  prefix = ['growth_rates', 'proportions', 'success_rate', 'exception_rate', 'timeout_rate'];
+  /** 是否需要展示百分号 */
+  hasPrefix(fieldName: string) {
+    return this.prefix.some(pre => fieldName.startsWith(pre));
+  }
 
   @Watch('sidePanelCommonOptions', { immediate: true })
   handleRawCallOptionsChange() {
@@ -175,8 +180,8 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   }
 
   get showTableList() {
-    const groupByList = this.dimensionList.filter(item => item.active);
     const { limit, current } = this.pagination;
+    const groupByList = this.dimensionList.filter(item => item.active);
     if (this.totalList.length > 0) {
       groupByList.map((item, ind) => {
         Object.assign(this.totalList[0], {
@@ -186,13 +191,13 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       });
     }
     const list = (this.tableListData || []).slice((current - 1) * limit, current * limit);
-    return [...list, ...this.totalList];
+    return list;
   }
-  get showTabTableList() {
-    const { limit, current } = this.pagination;
-    const list = (this.tableTabData || []).slice((current - 1) * limit, current * limit);
-    return [...list, ...this.totalList];
-  }
+  // get showTabTableList() {
+  //   const { limit, current } = this.pagination;
+  //   const list = (this.tableTabData || []).slice((current - 1) * limit, current * limit);
+  //   return [...list, ...this.totalList];
+  // }
 
   mounted() {
     TAB_TABLE_TYPE.find(item => item.id === 'request').handle = this.handleGetDistribution;
@@ -225,6 +230,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       '1w': '上周',
     };
     const mapList = {};
+    // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
     val.map(item => (mapList[item] = key[item] || item));
     this.panels = JSON.parse(JSON.stringify(this.cachePanels));
     // biome-ignore lint/complexity/noForEach: <explanation>
@@ -246,7 +252,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         return val.length > 0 ? defaultCol : col;
       });
     });
-    console.log(this.panels, 'this.panels');
+    // console.log(this.panels, 'this.panels');
   }
 
   @Emit('showDetail')
@@ -403,24 +409,16 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     }
     return value;
   }
+
   // 渲染tab表格的列
   handleMultiTabColumn() {
     const curColumn = this.panels.find(item => item.id === this.active);
-    const prefix = ['growth_rates', 'proportions', 'success_rate', 'exception_rate', 'timeout_rate'];
-    /** 是否需要展示百分号 */
-    const hasPrefix = (fieldName: string) => prefix.some(pre => fieldName.startsWith(pre));
     return (curColumn.columns || []).map(item => (
       <bk-table-column
         key={item.prop}
         scopedSlots={{
           default: ({ row }) => {
-            const txt = hasPrefix(item.prop)
-              ? row[item.prop]
-                ? `${this.formatToTwoDecimalPlaces(row[item.prop])}%`
-                : row[item.prop] === 0
-                  ? `${row[item.prop]}%`
-                  : '--'
-              : this.formatToTwoDecimalPlaces(row[item.prop]) || '--';
+            const txt = this.formatTableValShow(row[item.prop], item.prop);
             return (
               <span
                 class={[
@@ -474,6 +472,44 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       </div>
     );
   }
+  /** 格式化表格里要展示内容 */
+  formatTableValShow(val: number, key: string) {
+    const txt = this.hasPrefix(key)
+      ? val
+        ? `${this.formatToTwoDecimalPlaces(val)}%`
+        : val === 0
+          ? `${val}%`
+          : '--'
+      : this.formatToTwoDecimalPlaces(val) || '--';
+    return txt;
+  }
+  /** 渲染表格的汇总 */
+  renderTableAppend() {
+    if (this.totalList.length === 0) {
+      return;
+    }
+    const current = this.panels.find(item => item.id === this.active);
+    const parentWidth = this.$refs.tableAppendRef?.offsetWidth;
+    const width = parentWidth / current.columns.length;
+
+    return current.columns.map(item => {
+      const val = this.totalList[0][item.prop];
+      const txt = this.formatTableValShow(val, item.prop);
+      return (
+        <span
+          key={item.prop}
+          style={{ width: `${width}px` }}
+          class={[
+            'span-append pl-15',
+            { 'red-txt': item.prop.startsWith('growth_rates') && val > 0 },
+            { 'green-txt': item.prop.startsWith('growth_rates') && val < 0 },
+          ]}
+        >
+          {item.prop.startsWith('growth_rates') && val > 0 ? `+${txt}` : txt}
+        </span>
+      );
+    });
+  }
   render() {
     return (
       <div class='multi-view-table-main'>
@@ -491,6 +527,12 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
               >
                 {this.handleMultiColumn()}
                 <div slot='empty' />
+                <div
+                  class='multi-view-tab-table-append pl-15 bor-bt'
+                  slot='append'
+                >
+                  {this.$t('汇总')}
+                </div>
               </bk-table>
             )}
           </div>
@@ -506,6 +548,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             </div>
             <div>
               <bk-table
+                ref='tabTableRef'
                 ext-cls='multi-view-tab-table'
                 data={this.showTableList}
                 header-border={false}
@@ -516,6 +559,13 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
               >
                 {this.handleMultiTabColumn()}
                 <div slot='empty' />
+                <div
+                  ref='tableAppendRef'
+                  class='multi-view-tab-table-append'
+                  slot='append'
+                >
+                  {this.renderTableAppend()}
+                </div>
               </bk-table>
             </div>
           </div>
