@@ -92,7 +92,7 @@ class PlatformConfig(BkCollectorConfig):
                     # default_application = ApplicationHelper.create_default_application(bk_biz_id)
 
                     # Step2: 往集群的 bk-collector 下发配置
-                    platform_config_context = PlatformConfig.get_platform_config()
+                    platform_config_context = PlatformConfig.get_platform_config(cluster_id)
                     tpl = jinja2.Template(platform_config_tpl)
                     platform_config = tpl.render(platform_config_context)
                     PlatformConfig.deploy_to_k8s(cluster_id, platform_config)
@@ -106,18 +106,24 @@ class PlatformConfig(BkCollectorConfig):
                     logger.error(f"refresh platform config to cluster: {cluster_id} failed, error: {e}")
 
     @classmethod
-    def get_platform_config(cls):
-        return {
+    def get_platform_config(cls, bcs_cluster_id=None):
+        plat_config = {
             "apdex_config": cls.get_apdex_config(),
             "sampler_config": cls.get_sampler_config(),
             "token_checker_config": cls.get_token_checker_config(),
             "resource_filter_config": cls.get_resource_filter_config(),
-            "resource_fill_dimensions_config": cls.get_resource_fill_dimensions_config(),
             "qps_config": cls.get_qps_config(),
             "metric_configs": cls.list_metric_config(),
             "license_config": cls.get_license_config(),
             "attribute_config": cls.get_attribute_config(),
         }
+
+        if bcs_cluster_id:
+            resource_fill_dimensions_config = cls.get_resource_fill_dimensions_config(bcs_cluster_id)
+            if resource_fill_dimensions_config:
+                plat_config["resource_fill_dimensions_config"] = resource_fill_dimensions_config
+
+        return plat_config
 
     @classmethod
     def get_attribute_config(cls):
@@ -277,12 +283,27 @@ class PlatformConfig(BkCollectorConfig):
         }
 
     @classmethod
-    def get_resource_fill_dimensions_config(cls):
+    def get_resource_fill_dimensions_config(cls, bcs_cluster_id=None):
         """
         维度补充配置（目前先固定返回，暂不支持可配置）
         第一层，先根据上报的客户端IP，填充 resource 下的 net.host.ip 字段（如果不存在则赋值）
         第二层，根据 net.host.ip 字段，继续补充 k8s 下的 pod 相关信息
         """
+        if bcs_cluster_id is None:
+            return {}
+
+        bcs_client = BcsKubeClient(bcs_cluster_id)
+        svc = bcs_client.client_request(
+            bcs_client.core_api.list_namespaced_service,
+            namespace=BkCollectorComp.NAMESPACE,
+            label_selector="app.kubernetes.io/bk-component=bkmonitor-operator",
+        )
+        count = len(svc.items)
+        if count != 1:
+            logger.warning(f"The cluster({bcs_cluster_id}) has {count} bkmonitor-operator, it's ambiguous")
+            return {}
+        operator_service_name = svc.items[0].metadata.name
+
         return {
             "name": "resource_filter/fill_dimensions",
             "from_record": [
@@ -294,7 +315,7 @@ class PlatformConfig(BkCollectorConfig):
             "from_cache": {
                 "key": "resource.net.host.ip",
                 "dimensions": ["k8s.namespace.name", "k8s.pod.name", "k8s.pod.ip", "k8s.bcs.cluster.id"],
-                "cache": {"key": "k8s.pod.ip", "url": f"http://{settings.K8S_OPERATOR_SERVICE_NAME}:8080/pods"},
+                "cache": {"key": "k8s.pod.ip", "url": f"http://{operator_service_name}:8080/pods"},
             },
         }
 
