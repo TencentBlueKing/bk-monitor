@@ -29,8 +29,9 @@ import { Component, Prop, Emit, InjectReactive, Watch } from 'vue-property-decor
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getFieldOptionValues } from 'monitor-api/modules/apm_metric';
-import { Debounce } from 'monitor-common/utils';
+// import { Debounce } from 'monitor-common/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { throttle } from 'throttle-debounce';
 
 import { reviewInterval } from '../../../utils';
 import { VariablesService } from '../../../utils/variable';
@@ -75,6 +76,9 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
     callee: [],
   };
   filterTags = {};
+  selectsRefs = {};
+  throttledScroll: (() => void) | throttle<(e: any) => Promise<void> | void> = () => {};
+
   @Watch('activeKey')
   handlePanelChange() {
     this.handleSearch();
@@ -83,6 +87,10 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   handleSearch() {
     const filter = (this.filterData[this.activeKey] || []).filter(item => item.value.length > 0);
     return this.handleRegData(filter);
+  }
+  @Watch('callOptions', { deep: true })
+  onCallOptionsChanges() {
+    this.handleDefaultValue();
   }
 
   @Emit('reset')
@@ -107,31 +115,46 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   get angleData() {
     return this.commonOptions?.angle || {};
   }
+
+  beforeDestroy() {
+    const targetEl: HTMLDivElement = document.querySelector('.search-main');
+    targetEl.removeEventListener('scroll', this.throttledScroll as any);
+  }
   mounted() {
+    this.throttledScroll = throttle(300, this.handleScroll);
+    const targetEl: HTMLDivElement = document.querySelector('.search-main');
+    targetEl.addEventListener('scroll', this.throttledScroll as any);
     this.initDefaultData();
     /** 回填默认值 */
-
     this.$nextTick(() => {
-      const callFilter = this.callOptions.call_filter || [];
-      if (callFilter.length === 0) {
-        return;
-      }
-      callFilter.map(item => {
-        if (item.method === 'reg') {
-          item.value.map(val => {
-            if (val.startsWith('.*') || val.endsWith('.*')) {
-              item.method = val.startsWith('.*') ? 'after_req' : 'before_req';
-              item.value = item.value.map(item => item.replace(/^\.\*|\.\*$/g, ''));
-            }
-          });
-        }
-        Object.assign(
-          this.filterData[this.activeKey].find(call => item.key === call.key),
-          item
-        );
-      });
-      callFilter.map(item => setTimeout(() => this.handleToggle(true, item.key, true), 100));
+      this.handleDefaultValue();
     });
+  }
+
+  handleDefaultValue() {
+    const callFilter = (this.callOptions.call_filter || []).filter(item => item.key !== 'time');
+    if (callFilter.length === 0) {
+      return;
+    }
+    Object.keys(this.selectsRefs).map(item => this.selectsRefs[item]?.reset());
+    callFilter.map(item => {
+      if (item.method === 'reg') {
+        item.value.map(val => {
+          if (val.startsWith('.*') || val.endsWith('.*')) {
+            item.method = val.startsWith('.*') ? 'after_req' : 'before_req';
+            item.value = item.value.map(item => item.replace(/^\.\*|\.\*$/g, ''));
+          }
+        });
+      }
+      Object.assign(
+        this.filterData[this.activeKey].find(call => item.key === call.key),
+        item
+      );
+    });
+    callFilter.map(item => setTimeout(() => this.handleToggle(true, item.key, true), 50));
+  }
+  async handleScroll() {
+    Object.keys(this.selectsRefs).map(item => this.selectsRefs[item]?.$refs?.selectDropdown?.hideHandler());
   }
 
   initDefaultData() {
@@ -226,6 +249,11 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
         <div class='search-title'>{this.$t('筛选')}</div>
         <div class='search-main'>
           {(this.filterTags[this.activeKey] || []).map((item, ind) => {
+            const setItemRef = (el, key) => {
+              if (el) {
+                this.selectsRefs[key] = el;
+              }
+            };
             return (
               <div
                 key={item.value}
@@ -254,6 +282,7 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
                 </div>
                 {this.filterData[this.activeKey][ind] && (
                   <bk-select
+                    ref={el => setItemRef(el, `select${ind}`)}
                     v-model={this.filterData[this.activeKey][ind].value}
                     loading={item.value === this.toggleKey && this.isLoading}
                     placeholder={item.text}
@@ -262,6 +291,7 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
                     collapse-tag
                     display-tag
                     multiple
+                    searchable
                     onToggle={(val: boolean) => this.handleToggle(val, item.value)}
                   >
                     {!this.isLoading && item.values.length > 0 ? (

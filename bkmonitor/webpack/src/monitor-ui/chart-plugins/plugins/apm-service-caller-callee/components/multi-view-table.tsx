@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { copyText } from 'monitor-common/utils/utils';
+import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
 import CallerBarChart from '../chart/caller-bar-chart';
@@ -133,6 +134,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @Watch('tableTotal')
   handleTableTotal(val) {
     this.pagination.count = val;
+    this.pagination.current = 1;
   }
   @Watch('activeTabKey')
   handleTableData() {
@@ -141,15 +143,15 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @Watch('supportedCalculationTypes', { immediate: true })
   handlePanelChange(val) {
     const txtVal = {
-      avg_duration: 'AVG',
-      p95_duration: 'p95',
-      p99_duration: 'p99',
-      p50_duration: 'p50',
+      avg_duration: '平均耗时',
+      p95_duration: 'P95',
+      p99_duration: 'P99',
+      p50_duration: 'P50',
     };
     this.panels.map(item => {
       if (item.id !== 'request') {
         item.columns = val
-          .map(opt => Object.assign(opt, { prop: `${opt.value}`, label: txtVal[opt.value] || opt.text }))
+          .map(opt => Object.assign(opt, { prop: `${opt.value}_0s`, label: txtVal[opt.value] || opt.text }))
           .filter(key => this[item.id].includes(key.value));
       }
     });
@@ -233,7 +235,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       item.columns = item.columns.flatMap(col => {
         let defaultCol = [];
         const isRequest = item.id !== 'request';
-        const baseKey = isRequest ? col.prop : 'request_total';
+        const baseKey = isRequest ? (val.length === 0 ? col.prop : col.prop.slice(0, -3)) : 'request_total';
         defaultCol = [{ label: this.$t('波动'), prop: `growth_rates_${baseKey}_${val[0]}` }];
         const cache = val.length === 1 ? ['0s', ...val] : val;
         const additionalCols = cache.map((v, ind) => ({
@@ -244,6 +246,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         return val.length > 0 ? defaultCol : col;
       });
     });
+    console.log(this.panels, 'this.panels');
   }
 
   @Emit('showDetail')
@@ -414,15 +417,23 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             const txt = hasPrefix(item.prop)
               ? row[item.prop]
                 ? `${this.formatToTwoDecimalPlaces(row[item.prop])}%`
-                : '--'
+                : row[item.prop] === 0
+                  ? row[item.prop]
+                  : '--'
               : this.formatToTwoDecimalPlaces(row[item.prop]) || '--';
             return (
-              <span class='multi-view-table-txt'>
+              <span
+                class={[
+                  'multi-view-table-txt',
+                  { 'red-txt': item.prop.startsWith('growth_rates') && row[item.prop] > 0 },
+                  { 'green-txt': item.prop.startsWith('growth_rates') && row[item.prop] < 0 },
+                ]}
+              >
                 <span
                   class='item-txt'
                   v-bk-overflow-tips
                 >
-                  {txt}
+                  {item.prop.startsWith('growth_rates') && row[item.prop] > 0 ? `+${txt}` : txt}
                 </span>
                 {/* {!row[item.prop] && (
                   <i
@@ -435,7 +446,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           },
         }}
         label={item.label}
-        min-width={120}
+        min-width={130}
         prop={item.prop}
         sortable
       />
@@ -479,6 +490,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                 virtual-render={this.pagination.limit > 20}
               >
                 {this.handleMultiColumn()}
+                <div slot='empty' />
               </bk-table>
             )}
           </div>
@@ -495,31 +507,52 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
             <div>
               <bk-table
                 ext-cls='multi-view-tab-table'
-                v-bkloading={{ isLoading: this.isLoading }}
-                data={this.showTabTableList}
+                data={this.showTableList}
                 header-border={false}
                 header-cell-class-name={() => 'multi-table-tab-head'}
                 max-height={600}
                 outer-border={false}
-                virtual-render={this.pagination.limit > 20}
+                virtual-render={this.pagination.limit > 10}
               >
                 {this.handleMultiTabColumn()}
+                <div slot='empty' />
               </bk-table>
             </div>
           </div>
+          {this.isLoading ? (
+            <TableSkeleton
+              class='view-empty-block pt-8'
+              type={1}
+            />
+          ) : (
+            this.showTableList.length < 1 && (
+              <div class='view-empty-block'>
+                <bk-exception
+                  scene='part'
+                  type='empty'
+                >
+                  {this.$t('查无数据')}
+                </bk-exception>
+              </div>
+            )
+          )}
         </div>
-        <bk-pagination
-          class='mt-8'
-          count={this.pagination.count}
-          current={this.pagination.current}
-          limit={this.pagination.limit}
-          limit-list={this.pagination.limitList}
-          size='small'
-          show-total-count
-          on-change={this.pageChange}
-          on-limit-change={this.limitChange}
-          {...{ on: { 'update:current': v => (this.pagination.current = v) } }}
-        />
+        {!this.isLoading && this.showTableList.length > 1 && (
+          <bk-pagination
+            class='mt-8'
+            align='right'
+            count={this.pagination.count}
+            current={this.pagination.current}
+            limit={this.pagination.limit}
+            limit-list={this.pagination.limitList}
+            show-limit={false}
+            size='small'
+            show-total-count
+            on-change={this.pageChange}
+            on-limit-change={this.limitChange}
+            {...{ on: { 'update:current': v => (this.pagination.current = v) } }}
+          />
+        )}
         {/* 维度趋势图侧栏 */}
         <bk-sideslider
           width={640}

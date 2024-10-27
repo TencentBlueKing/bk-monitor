@@ -234,7 +234,7 @@ class CallerLineChart extends CommonSimpleChart {
             paramsArr.push(primaryKey);
           }
           paramsArr.push(newParams);
-          console.log(newParams, this.panel.title);
+          // console.log(newParams, this.panel.title);
           return (this as any).$api[item.apiModule]
             [item.apiFunc](...paramsArr, {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),

@@ -27,6 +27,7 @@
 import { Component, Prop, Emit, InjectReactive, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
+import dayjs from 'dayjs';
 import { calculateByRange } from 'monitor-api/modules/apm_metric';
 import { Debounce } from 'monitor-common/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
@@ -93,6 +94,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   tableTotal = 0;
   totalList = {};
   totalListData = [];
+  tableTabList: string[] = ['request_total'];
   get panelCommonOptions() {
     return this.panel.options.common;
   }
@@ -107,14 +109,13 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     this.handlePanelChange();
   }
   @Watch('callOptions', { deep: true })
-  onCallOptionsChanges(val) {
-    // this.tableColData = val.time_shift.map(item => item.alias);
+  onCallOptionsChanges() {
     this.viewOptions?.service_name && this.getPanelData();
   }
   /** 点击选择图表中点 */
   @Watch('chartPointOption', { deep: true })
-  onChartPointOptionChanges(val) {
-    if (val) {
+  onChartPointOptionChanges(val, oldVal) {
+    if (val && val?.time !== oldVal?.time) {
       this.pointWhere = [];
       this.pointTime = {};
       const { dimensions, time, interval } = val;
@@ -132,7 +133,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
         const startTime = endTime - intervalNum;
         this.pointTime = { endTime, startTime };
       }
-      this.getTableDataList();
+      this.getPageList();
     }
   }
 
@@ -181,14 +182,14 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     return callTimeShift.length === 2 ? callTimeShift : ['0s', ...callTimeShift];
   }
   getPageList() {
-    // this.tableTabData = [];
-    this.getTableDataList();
-    this.getTableDataList(true);
+    this.tableLoading = true;
+    this.tableTabList.map(item => {
+      this.getTableDataList(false, item);
+      this.getTableDataList(true, item);
+    });
   }
   @Debounce(100)
   async getPanelData() {
-    console.log('getPanelData', this.chartPointOption);
-    this.tableLoading = true;
     this.tableColData = this.callOptions.time_shift.map(item => item.alias);
     this.getPageList();
   }
@@ -199,7 +200,17 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       ...this.callOptions,
       ...{ kind: this.activeKey },
     });
+    let filterEndTime = null;
+    let filterStartTime = null;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const timeFilter = this.callOptions.call_filter.filter(item => item.key === 'time');
+    /** 如果call_filter中存在time值的话，则startTime|endTime取time里的值  */
+    if (timeFilter.length > 0) {
+      const timeObj = timeFilter[0];
+      filterEndTime = new Date(timeObj.value[0]).getTime();
+      const intervalNum = this.commonOptions?.time?.interval || 60;
+      filterStartTime = filterEndTime - intervalNum;
+    }
     const timeShift = this.getCallTimeShift();
     const newParams = {
       ...variablesService.transformVariables(this.statisticsData.data, {
@@ -210,11 +221,16 @@ class CallerCalleeTableChart extends CommonSimpleChart {
         time_shifts: timeShift,
         metric_cal_type,
         baseline: '0s',
-        start_time: this.pointTime?.startTime || startTime,
-        end_time: this.pointTime?.endTime || endTime,
+        start_time: filterStartTime || this.pointTime?.startTime || startTime,
+        end_time: filterEndTime || this.pointTime?.endTime || endTime,
       },
     };
-    newParams.where = [...newParams.where, ...this.callOptions.call_filter, ...this.pointWhere, ...this.drillWhere];
+    newParams.where = [
+      ...newParams.where,
+      ...this.callOptions.call_filter.filter(item => item.key !== 'time'),
+      ...this.pointWhere,
+      ...this.drillWhere,
+    ];
     calculateByRange(newParams)
       .then(res => {
         this.tableLoading = false;
@@ -238,7 +254,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
         if (!isTotal) {
           this.tableListData = newData;
           if (metric_cal_type !== 'request_total') {
-            this.diffTableList[metric_cal_type] = newData;
+            this.$set(this.diffTableList, metric_cal_type, newData);
           } else {
             this.tableTabData = newData;
           }
@@ -246,7 +262,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
           return;
         }
         if (metric_cal_type !== 'request_total') {
-          this.totalList[metric_cal_type] = newData;
+          this.$set(this.totalList, metric_cal_type, newData);
         } else {
           this.totalListData = newData;
         }
@@ -256,10 +272,17 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       });
   }
 
+  handleClearData() {
+    this.tableListData = [];
+    this.tableTabData = [];
+    this.totalListData = [];
+  }
+
   changeTab(id: string) {
     this.activeTabKey = id;
     const activeList = this.dimensionList.filter(item => item.active).map(item => item.value);
     this.handleSelectDimension(this.isSingleView ? activeList.slice(0, 1) : activeList);
+    this.handleClearData();
     this.getPanelData();
   }
   handleDataFormat(keyList: string, data: string, field: string[]) {
@@ -272,18 +295,60 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       }));
     });
   }
+  // 合并数组
+  mergeArrays(data) {
+    const keys = Object.keys(data);
+    const result = [];
+
+    // 假定每个数组的长度相同
+    const length = data[keys[0]]?.length || 0;
+
+    for (let i = 0; i < length; i++) {
+      const mergedObject: IDataItem = {};
+
+      for (const key of keys) {
+        const currentObject = data[key][i] || {};
+        for (const [prop, value] of Object.entries(currentObject)) {
+          if (!['dimensions', 'growth_rates', 'proportions'].includes(prop)) {
+            // 以第一个对象的 dimensions 为准
+            if (value !== 'undefined' && value !== null && value !== '') {
+              mergedObject[prop] = value;
+            }
+          } else if (!mergedObject.dimensions) {
+            mergedObject.dimensions = value;
+          }
+        }
+      }
+
+      result.push(mergedObject);
+    }
+
+    return result;
+  }
+  @Watch('diffTableList', { deep: true })
+  handleDiffTableListData(val) {
+    if (this.tableTabList.length > 1) {
+      const data = {};
+      // biome-ignore lint/complexity/noForEach: <explanation>
+      this.tableTabList.forEach(key => {
+        data[key] = val[key] || [];
+      });
+      const mergedData = this.mergeArrays(data);
+      this.tableListData = mergedData;
+    }
+  }
+  @Watch('totalList', { deep: true })
+  handleTotalListData(val) {
+    const mergedData = this.mergeArrays(val);
+    this.totalListData = mergedData;
+  }
   @Debounce(10)
   tabChangeHandle(list: string[]) {
+    this.tableTabList = list;
     list.map(item => {
       this.getTableDataList(false, item);
       this.getTableDataList(true, item);
     });
-    if (list.length > 1) {
-      setTimeout(() => {
-        this.handleDataFormat('diffTableList', 'tableTabData', list);
-        this.handleDataFormat('totalList', 'totalListData', list);
-      }, 500);
-    }
   }
   @Emit('closeTag')
   handleCloseTag(item) {
@@ -338,7 +403,8 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       };
     });
     this.tableColumn = tableColumn;
-    this.getTableDataList();
+    this.handleClearData();
+    // this.getPageList();
   }
   renderDimensionList() {
     const activeList = this.dimensionList.filter(item => item.active).map(item => item.value);
@@ -419,13 +485,14 @@ class CallerCalleeTableChart extends CommonSimpleChart {
             <div class='layout-main-head'>
               {Object.keys(this.chartPointOption || {}).length > 0 && (
                 <bk-tag
+                  class='chart-point-tag'
                   closable
                   onClose={this.closeChartPoint}
                 >
                   {this.handleGetKey('time')}
                   <span class='tag-symbol'>{this.handleOperate('eq')}</span>
                   {`${this.chartPointOption?.time} `}
-                  {this.getChartPointDimensionsTxt()}
+                  <span class='tag-symbol-txt'>{this.getChartPointDimensionsTxt()}</span>
                 </bk-tag>
               )}
               {this.tagFilterList.length > 0 &&
@@ -438,7 +505,9 @@ class CallerCalleeTableChart extends CommonSimpleChart {
                     {this.handleGetKey(item.key)}
                     <span class='tag-symbol'>{this.handleOperate(item.method)}</span>
                     {item?.value &&
-                      (item?.value || []).map(item => (item === '' ? this.$t('- 空 -') : item)).join('、')}
+                      (item.key === 'time'
+                        ? (item.value || []).map(val => dayjs.tz(Number(val) * 1000).format('YYYY-MM-DD HH:mm:ss'))
+                        : (item?.value || []).map(item => (item === '' ? this.$t('- 空 -') : item)).join('、'))}
                   </bk-tag>
                 ))}
             </div>

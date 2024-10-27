@@ -179,6 +179,9 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   }
   /** 表格下钻 */
   handleTableDrill(data: IFilterCondition[]) {
+    if (data[0]?.key === 'time') {
+      this.chartPointOption = {};
+    }
     const { call_filter } = this.callOptions;
     data.map(item => {
       if (call_filter.findIndex(call => call.key === item.key) === -1) {
@@ -191,9 +194,10 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   }
   // 关闭表格中的筛选tag, 调用查询接口
   handleCloseTag(data) {
-    if (data.key !== 'time') {
-      this.callOptions.call_filter = this.callOptions.call_filter.filter(item => item.key !== data.key);
-    }
+    // if (data.key !== 'time') {
+    const list = this.callOptions.call_filter.filter(item => item.key !== data.key);
+    // }
+    this.$set(this.callOptions, 'call_filter', list);
     this.searchFilterData(this.callOptions.call_filter);
   }
   // 查看详情 - 选中的字段回填到左侧筛选栏
