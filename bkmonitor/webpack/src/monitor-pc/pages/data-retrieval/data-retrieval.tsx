@@ -489,9 +489,15 @@ export default class DataRetrieval extends tsc<object> {
     return JSON.stringify(favParams) !== JSON.stringify(localParams);
   }
 
+  /** 是否填写了表达式 */
+  get useExpression() {
+    return this.localValue.some(item => !item.isMetric && (item.value || item.functions.length));
+  }
+
   /* 当前是否允许转为promql */
   get canToPromql() {
     if (this.editMode === 'UI') {
+      if (this.useExpression) return false;
       return this.localValue
         .filter(item => item.metric_id)
         .every(item => ['custom', 'bk_monitor', 'bk_data'].includes(item.data_source_label));
@@ -3149,9 +3155,11 @@ export default class DataRetrieval extends tsc<object> {
               <span
                 class={['edit-mode-btn', { 'mode-disable': !this.canToPromql }]}
                 v-bk-tooltips={{
-                  content: this.$t('目前仅支持{0}切换PromQL', [
-                    `${this.$t('监控采集指标')}、${this.$t('自定义指标')}、${this.$t('计算平台指标')}`,
-                  ]),
+                  content: this.useExpression
+                    ? this.$t('使用了表达式后无法切换PromQL')
+                    : this.$t('目前仅支持{0}切换PromQL', [
+                        `${this.$t('监控采集指标')}、${this.$t('自定义指标')}、${this.$t('计算平台指标')}`,
+                      ]),
                   disabled: this.canToPromql,
                 }}
                 onClick={this.handleEditModeChange}
