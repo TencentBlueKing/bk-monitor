@@ -25,7 +25,8 @@
  */
 import { Ref } from 'vue';
 
-import JSONEditor from 'jsoneditor';
+// import JSONEditor from 'jsoneditor';
+import JsonView from '../global/json-view';
 
 import jsonEditorTask, { EditorTask } from '../global/utils/json-editor-task';
 import segmentPopInstance from '../global/utils/segment-pop-instance';
@@ -42,7 +43,7 @@ type FormatterConfig = {
 };
 
 export default class UseJsonFormatter {
-  editor: JSONEditor;
+  editor: JsonView;
   config: FormatterConfig;
   setValuePromise: Promise<any>;
   editorPromise: Promise<any>;
@@ -267,7 +268,7 @@ export default class UseJsonFormatter {
   initEditor() {
     if (this.getTargetRoot()) {
       this.editorPromise = new Promise(resolve => {
-        this.editor = new JSONEditor(this.getTargetRoot(), this.computedOptions);
+        this.editor = new JsonView(this.getTargetRoot(), { onNodeExpand: () => {}});
         // this.onMountedFn?.();
         resolve(true);
       });
@@ -305,16 +306,16 @@ export default class UseJsonFormatter {
   };
 
   setNodeExpand([currentDepth, oldDepth]) {
-    const rootNode = this.editor.node;
-    this.expandNodeAtLevel(rootNode, 0, currentDepth, oldDepth);
-    this.setNodeValueWordSplit();
+    // const rootNode = this.editor.node;
+    // this.expandNodeAtLevel(rootNode, 0, currentDepth, oldDepth);
+    // this.setNodeValueWordSplit();
   }
 
   setValue(depth) {
     this.setValuePromise = new Promise((resolve, reject) => {
       try {
         this.editorPromise.then(() => {
-          this.editor.set(this.config.jsonValue);
+          this.editor.setValue(this.config.jsonValue);
           EditorTask.clear(() => {
             jsonEditorTask(this.setNodeExpand, [depth, this.localDepth, this]);
             this.localDepth = depth;

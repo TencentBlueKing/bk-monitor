@@ -26,47 +26,34 @@
 
 export type JsonViewConfig = {
   onNodeExpand: (args: { isExpanded: boolean; node: any }) => void;
-  jsonValue: any;
-  depth: number;
+  jsonValue?: any;
+  depth?: number;
 };
 export default class JsonView {
   options: JsonViewConfig;
   targetEl: HTMLElement;
-  jsonNodeMap: WeakMap<HTMLElement, { target: any; isExpand: boolean }>;
+  jsonNodeMap: WeakMap<HTMLElement, { target?: any; isExpand?: boolean }>;
   constructor(target: HTMLElement, options: JsonViewConfig) {
-    this.options = Object.assign({}, { depth: 1 }, options);
+    this.options = Object.assign({}, { depth: 1, isExpand: false }, options);
     this.targetEl = target;
     this.jsonNodeMap = new WeakMap();
   }
 
-  setValue(val: any) {
-    this.options.jsonValue = val;
-  }
-
-  formatJsonValueToArray() {
-    const targetValue = [];
-    if (Array.isArray(this.options.jsonValue)) {
-      return targetValue;
-    }
-
-    return [this.options.jsonValue];
-  }
-
-  createJsonField(name: number | string) {
+  private createJsonField(name: number | string) {
     const fieldEl = document.createElement('span');
     fieldEl.classList.add('bklog-json-view-field');
     fieldEl.innerText = `${name}`;
     return fieldEl;
   }
 
-  createJsonSymbol() {
+  private createJsonSymbol() {
     const fieldEl = document.createElement('span');
     fieldEl.classList.add('bklog-json-view-symbol');
     fieldEl.innerText = ':';
     return fieldEl;
   }
 
-  createObjectChildNode(target, depth) {
+  private createObjectChildNode(target, depth) {
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-child bklog-json-view-object');
     if (Array.isArray(target)) {
@@ -96,7 +83,7 @@ export default class JsonView {
     return node;
   }
 
-  createObjectNode(target, depth) {
+  private createObjectNode(target, depth) {
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-object');
     const iconExpand = document.createElement('span');
@@ -122,7 +109,7 @@ export default class JsonView {
     return [node, nodeIconText, ...child];
   }
 
-  createJsonNodeElment(target: any, depth = 1) {
+  private createJsonNodeElment(target: any, depth = 1) {
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-node');
     node.setAttribute('data-depth', `${depth}`);
@@ -137,21 +124,43 @@ export default class JsonView {
     return node;
   }
 
-  initClickEvent() {
+  private setJsonViewSchema(value: any) {
+    this.targetEl.innerHTML = '';
+    this.targetEl.append(this.createJsonNodeElment(value));
+  }
+
+  public setValue(val: any) {
+    this.options.jsonValue = val;
+    this.setJsonViewSchema(val);
+  }
+
+  public initClickEvent() {
     this.targetEl.addEventListener('click', e => {
       if ((e.target as HTMLElement).classList.contains('bklog-json-view-icon-expand')) {
         const storeNode = (e.target as HTMLElement).closest('.bklog-json-view-object') as HTMLElement;
 
         const { isExpand, target } = this.jsonNodeMap.get(storeNode);
-        const childNode = storeNode.querySelector('.bklog-json-view-child');
-        if (!childNode) {
-          storeNode.append(this.createObjectChildNode(target, 1));
+        let childNode = storeNode.querySelector('.bklog-json-view-child');
+        if (!isExpand) {
+          if (!childNode) {
+            const leafNode = storeNode.closest('.bklog-json-view-node');
+            const depth = Number(leafNode.getAttribute('data-depth') ?? 1);
+            childNode = this.createObjectChildNode(target, depth + 1);
+            storeNode.append(childNode);
+          }
         }
+
+        this.jsonNodeMap.get(storeNode).isExpand = !isExpand;
+        const targetClassName = !isExpand ? 'is-collapse' : 'is-expand';
+        const oldClassName = isExpand ? 'is-collapse' : 'is-expand';
+
+        childNode.classList.remove(oldClassName);
+        childNode.classList.add(targetClassName);
       }
     });
   }
 
-  setJsonViewSchema(value: any) {
-    this.targetEl.append(this.createJsonNodeElment(value));
-  }
+  public expand(...args) {}
+
+  public destroy() {}
 }
