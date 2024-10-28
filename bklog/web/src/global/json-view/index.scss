@@ -1,0 +1,45 @@
+.bklog-json-view-node {
+  .bklog-json-view-child {
+    margin-left: 24px;
+    margin-top: 2px;
+
+    &.is-collapse {
+      display: none;
+      transition: 150ms;
+    }
+
+    .bklog-json-view-row {
+      display: flex;
+      margin-bottom: 2px;
+
+      .bklog-json-view-field {
+        .bklog-json-view-text {
+          padding: 0 2px;
+          background: #e6e6e6;
+          border-radius: 2px;
+          width: max-content;
+        }
+      }
+    }
+  }
+
+  .bklog-json-view-object {
+    .bklog-json-view-icon-text,
+    .bklog-json-view-icon-expand {
+      padding: 2px;
+      cursor: pointer;
+    }
+    .bklog-json-view-icon-expand {
+      display: inline-block;
+      line-height: 1.1em;
+      font-size: 0.75em;
+      color: rgb(139, 78, 43);
+
+      &.is-expand {
+        transition: 150ms;
+        transform: rotateZ(90deg);
+        transform-origin: 45% 50%;
+      }
+    }
+  }
+}

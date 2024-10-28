@@ -29,7 +29,7 @@
   <div>
     <bk-table
       ref="resultTable"
-      :class="['king-table original-table', { 'is-wrap': tableLineIsWarp }]"
+      :class="['king-table original-table']"
       :data="tableList"
       :outer-border="false"
       :show-header="false"
@@ -74,12 +74,11 @@
             </LazyRender>
           </template>
         </bk-table-column>
-        <bk-table-column :class-name="`original-str${tableLineIsWarp ? ' is-wrap' : ''}`">
+        <bk-table-column class-name="original-str">
           <!-- eslint-disable-next-line -->
           <template slot-scope="{ row, column, $index }">
             <LazyRender>
               <JsonFormatter
-                :class="{ 'is-wrap': tableLineIsWarp }"
                 :jsonValue="row"
                 :fields="getShowTableVisibleFields"
                 :formatJson="formatJson"

@@ -26,7 +26,7 @@
 
 <template>
   <div
-    :class="['td-log-container', { 'is-wrap': tableLineIsWarp }]"
+    :class="['td-log-container', { 'is-wrap': tableLineIsWrap }]"
     @click.stop
   >
     <!-- eslint-disable vue/no-v-html -->
@@ -85,7 +85,7 @@
     computed: {
       ...mapState({
         formatJson: state => state.tableJsonFormat,
-        tableLineIsWarp: state => state.tableLineIsWarp,
+        tableLineIsWrap: state => state.tableLineIsWrap,
       }),
 
       isJsonFormat() {

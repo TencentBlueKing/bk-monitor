@@ -25,7 +25,7 @@
  */
 
 export type JsonViewConfig = {
-  onNodeExpand: (args: { isExpanded: boolean; node: any }) => void;
+  onNodeExpand: (args: { isExpand: boolean; node: any; targetElement: HTMLElement; rootElement: HTMLElement }) => void;
   jsonValue?: any;
   depth?: number;
 };
@@ -42,7 +42,12 @@ export default class JsonView {
   private createJsonField(name: number | string) {
     const fieldEl = document.createElement('span');
     fieldEl.classList.add('bklog-json-view-field');
-    fieldEl.innerText = `${name}`;
+
+    const fieldText = document.createElement('span');
+    fieldText.classList.add('bklog-json-view-text');
+    fieldText.innerText = `${name}`;
+
+    fieldEl.append(fieldText);
     return fieldEl;
   }
 
@@ -55,7 +60,8 @@ export default class JsonView {
 
   private createObjectChildNode(target, depth) {
     const node = document.createElement('div');
-    node.classList.add('bklog-json-view-child bklog-json-view-object');
+    node.classList.add('bklog-json-view-child');
+    node.classList.add('bklog-json-view-object');
     if (Array.isArray(target)) {
       target.forEach((item, index) => {
         const row = document.createElement('div');
@@ -73,9 +79,10 @@ export default class JsonView {
     Object.keys(target).forEach(key => {
       const row = document.createElement('div');
       row.classList.add('bklog-json-view-row');
+      row.setAttribute('data-field-name', key);
       row.append(this.createJsonField(key));
       row.append(this.createJsonSymbol());
-      row.append(this.createJsonNodeElment(target[key]));
+      row.append(this.createJsonNodeElment(target[key], depth));
 
       node.append(row);
     });
@@ -87,13 +94,19 @@ export default class JsonView {
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-object');
     const iconExpand = document.createElement('span');
-    iconExpand.classList.add('bklog-json-view-icon-expand');
 
     const isExpand = depth <= this.options.depth;
+
+    iconExpand.classList.add('bklog-json-view-icon-expand');
+    iconExpand.classList.add(isExpand ? 'is-expand' : 'is-collapse');
+    iconExpand.innerText = '▶';
+
     this.jsonNodeMap.set(node, {
       isExpand,
       target,
     });
+
+    node.append(iconExpand);
 
     const nodeIconText = document.createElement('span');
     nodeIconText.classList.add('bklog-json-view-icon-text');
@@ -102,23 +115,26 @@ export default class JsonView {
 
     const child: HTMLElement[] = [];
 
-    if (depth <= this.options.depth) {
+    if (isExpand) {
       child.push(this.createObjectChildNode(target, depth + 1));
     }
 
-    return [node, nodeIconText, ...child];
+    node.append(...[nodeIconText, ...child]);
+    return [node];
   }
 
   private createJsonNodeElment(target: any, depth = 1) {
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-node');
+    node.classList.add(`bklog-data-depth-${depth}`);
     node.setAttribute('data-depth', `${depth}`);
     const nodeType = typeof target;
 
     if (nodeType === 'object') {
-      node.append(...this.createObjectNode(target, depth + 1));
+      node.append(...this.createObjectNode(target, depth));
     } else {
       node.append(target);
+      node.classList.add('bklog-json-field-value');
     }
 
     return node;
@@ -126,7 +142,50 @@ export default class JsonView {
 
   private setJsonViewSchema(value: any) {
     this.targetEl.innerHTML = '';
-    this.targetEl.append(this.createJsonNodeElment(value));
+    this.targetEl.append(this.createJsonNodeElment(value, 1));
+  }
+
+  private setNodeExpand = (jsonNode: HTMLElement, isExpand: boolean, target: any) => {
+    let childNode = jsonNode.querySelector('.bklog-json-view-child');
+    if (isExpand) {
+      if (!childNode) {
+        const leafNode = jsonNode.closest('.bklog-json-view-node');
+        const depth = Number(leafNode.getAttribute('data-depth') ?? 1);
+        childNode = this.createObjectChildNode(target, depth + 1);
+        jsonNode.append(childNode);
+      }
+    }
+
+    const collapseClassName = isExpand ? 'is-collapse' : 'is-expand';
+    const expandClassName = !isExpand ? 'is-collapse' : 'is-expand';
+
+    childNode.classList.remove(collapseClassName);
+    childNode.classList.add(expandClassName);
+
+    const targetNode = jsonNode.querySelector('.bklog-json-view-icon-expand');
+    targetNode.classList.remove(collapseClassName);
+    targetNode.classList.add(expandClassName);
+  };
+
+  private handleTargetElementClick(e) {
+    const targetNode = e.target as HTMLElement;
+    if (
+      targetNode.classList.contains('bklog-json-view-icon-expand') ||
+      targetNode.classList.contains('bklog-json-view-icon-text')
+    ) {
+      const storeNode = targetNode.closest('.bklog-json-view-object') as HTMLElement;
+      if (this.jsonNodeMap.get(storeNode)) {
+        const { isExpand, target } = this.jsonNodeMap.get(storeNode) ?? {};
+        this.jsonNodeMap.get(storeNode).isExpand = !isExpand;
+        this.setNodeExpand(storeNode, !isExpand, target);
+        this.options.onNodeExpand?.({
+          isExpand: !isExpand,
+          node: target,
+          targetElement: storeNode,
+          rootElement: this.targetEl,
+        });
+      }
+    }
   }
 
   public setValue(val: any) {
@@ -135,32 +194,30 @@ export default class JsonView {
   }
 
   public initClickEvent() {
-    this.targetEl.addEventListener('click', e => {
-      if ((e.target as HTMLElement).classList.contains('bklog-json-view-icon-expand')) {
-        const storeNode = (e.target as HTMLElement).closest('.bklog-json-view-object') as HTMLElement;
+    this.targetEl.addEventListener('click', this.handleTargetElementClick.bind(this));
+  }
 
-        const { isExpand, target } = this.jsonNodeMap.get(storeNode);
-        let childNode = storeNode.querySelector('.bklog-json-view-child');
-        if (!isExpand) {
-          if (!childNode) {
-            const leafNode = storeNode.closest('.bklog-json-view-node');
-            const depth = Number(leafNode.getAttribute('data-depth') ?? 1);
-            childNode = this.createObjectChildNode(target, depth + 1);
-            storeNode.append(childNode);
-          }
+  public expand(depth: number) {
+    this.targetEl.querySelectorAll('[data-depth]').forEach(element => {
+      const elementDepth = element.getAttribute('data-depth');
+      const objectElement = element.children[0] as HTMLElement;
+
+      if (objectElement?.classList.contains('bklog-json-view-object')) {
+        const { target, isExpand } = this.jsonNodeMap.get(objectElement);
+        const isNextExpand = depth >= Number(elementDepth);
+
+        if (isNextExpand !== isExpand) {
+          this.setNodeExpand(objectElement, isNextExpand, target);
+          this.jsonNodeMap.get(objectElement).isExpand = isNextExpand;
         }
-
-        this.jsonNodeMap.get(storeNode).isExpand = !isExpand;
-        const targetClassName = !isExpand ? 'is-collapse' : 'is-expand';
-        const oldClassName = isExpand ? 'is-collapse' : 'is-expand';
-
-        childNode.classList.remove(oldClassName);
-        childNode.classList.add(targetClassName);
       }
     });
   }
 
-  public expand(...args) {}
-
-  public destroy() {}
+  public destroy() {
+    if (this.targetEl.querySelector('.bklog-json-view-node')) {
+      this.targetEl.innerHTML = '';
+      this.targetEl.removeEventListener('click', this.handleTargetElementClick.bind(this));
+    }
+  }
 }

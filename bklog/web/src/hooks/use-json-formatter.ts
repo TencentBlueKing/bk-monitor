@@ -46,20 +46,20 @@ export default class UseJsonFormatter {
   editor: JsonView;
   config: FormatterConfig;
   setValuePromise: Promise<any>;
-  editorPromise: Promise<any>;
   localDepth: number;
   getSegmentContent: (keyRef: object, fn: (...args) => void) => Ref<any>;
-  // onMountedFn: () => void;
   keyRef: any;
 
   constructor(cfg: FormatterConfig) {
     this.config = cfg;
     this.setValuePromise = Promise.resolve(true);
-    this.editorPromise = Promise.resolve(true);
     this.localDepth = 1;
     this.keyRef = {};
     this.getSegmentContent = UseSegmentPropInstance.getSegmentContent.bind(UseSegmentPropInstance);
-    // this.onMountedFn = UseSegmentPropInstance.onMountedFn.bind(UseSegmentPropInstance);
+  }
+
+  update(cfg) {
+    this.config = cfg;
   }
 
   getField(fieldName: string) {
@@ -72,6 +72,7 @@ export default class UseJsonFormatter {
     const valueElement =
       tippyInstance.reference.closest('.jsoneditor-value') ??
       (tippyInstance.reference.closest('.field-value') as HTMLElement);
+
     const fieldName = valueElement?.getAttribute('data-field-name');
     const activeField = this.getField(fieldName);
     const target = ['date', 'date_nanos'].includes(activeField?.field_type)
@@ -176,14 +177,14 @@ export default class UseJsonFormatter {
 
     if (item.isMark) {
       const mrkNode = document.createElement('mark');
-      mrkNode.innerText = item.text.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
+      mrkNode.innerHTML = item.text.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
       return mrkNode;
     }
 
     if (!item.isNotParticiple) {
       const validTextNode = document.createElement('span');
       validTextNode.classList.add('valid-text');
-      validTextNode.innerText = item.text;
+      validTextNode.innerHTML = item.text;
       return validTextNode;
     }
 
@@ -205,44 +206,42 @@ export default class UseJsonFormatter {
   };
 
   initStringAsValue() {
-    // this.onMountedFn();
-    this.setNodeValueWordSplit('', '.field-value', '.field-name', '.bklog-root-field');
+    let root = this.getTargetRoot() as HTMLElement;
+    if (root.classList.contains('field-value')) {
+      root = root.parentElement;
+    }
+
+    const fieldName = (root.querySelector('.field-name .black-mark') as HTMLElement)?.getAttribute('data-field-name');
+    this.setNodeValueWordSplit(root, fieldName, '.field-value');
   }
 
-  setNodeValueWordSplit(
-    path = '',
-    valueSelector = '.jsoneditor-value',
-    fieldSelector = '.jsoneditor-field',
-    parentCloset = 'tr',
-  ) {
-    Array.from(this.getTargetRoot()?.querySelectorAll(valueSelector) ?? []).forEach((element: HTMLElement) => {
-      if (!element.classList.contains('jsoneditor-object')) {
-        if (!element.getAttribute('data-has-word-split')) {
-          const text = (element as HTMLDivElement).innerText;
-          let fieldName = element.parentElement.closest(parentCloset).querySelector(fieldSelector)?.innerHTML;
-
-          if (path.length) {
-            fieldName = path[0];
+  setNodeValueWordSplit(target: HTMLElement, fieldName, valueSelector = '.bklog-json-field-value') {
+    // const fieldName = name.replace(/(^\s*)|(\s*$)/g, '');
+    target.querySelectorAll(valueSelector).forEach(element => {
+      if (!element.getAttribute('data-has-word-split')) {
+        const text = (element as HTMLDivElement).innerText;
+        const field = this.getField(fieldName);
+        const vlaues = this.getSplitList(field, text);
+        element?.setAttribute('data-has-word-split', '1');
+        element?.setAttribute('data-field-name', fieldName);
+        element.innerHTML = '';
+        element.append(this.creatSegmentNodes(vlaues));
+        element.addEventListener('click', e => {
+          if ((e.target as HTMLElement).classList.contains('valid-text')) {
+            this.handleSegmentClick(e, (e.target as HTMLElement).innerText);
           }
-          const field = this.getField(fieldName);
-          const vlaues = this.getSplitList(field, text);
-          element?.setAttribute('data-has-word-split', '1');
-          element?.setAttribute('data-field-name', fieldName);
-          element.innerHTML = '';
-          element.append(this.creatSegmentNodes(vlaues));
-          element.addEventListener('click', e => {
-            if ((e.target as HTMLElement).classList.contains('valid-text')) {
-              this.handleSegmentClick(e, (e.target as HTMLElement).innerHTML);
-            }
-          });
-        }
+        });
       }
     });
   }
 
   handleExpandNode(args) {
     if (args.isExpand) {
-      this.setNodeValueWordSplit(args.path);
+      const target = args.targetElement as HTMLElement;
+      const rootElement = args.rootElement as HTMLElement;
+
+      const fieldName = (rootElement.parentNode.querySelector('.field-name .black-mark') as HTMLElement)?.innerText;
+      this.setNodeValueWordSplit(target, fieldName, '.bklog-json-field-value');
     }
   }
 
@@ -267,60 +266,26 @@ export default class UseJsonFormatter {
 
   initEditor() {
     if (this.getTargetRoot()) {
-      this.editorPromise = new Promise(resolve => {
-        this.editor = new JsonView(this.getTargetRoot(), { onNodeExpand: () => {}});
-        // this.onMountedFn?.();
-        resolve(true);
-      });
+      this.editor = new JsonView(this.getTargetRoot(), { onNodeExpand: this.handleExpandNode.bind(this) });
+      this.editor.initClickEvent();
     }
   }
-
-  getNodePath(node) {
-    if (node.parent) {
-      return [...this.getNodePath(node.parent), node.getName()];
-    }
-
-    return [];
-  }
-
-  expandNodeAtLevel = (node, level, currentDepth, oldDepth) => {
-    if (level < currentDepth || level < oldDepth) {
-      if (node.childs && node.childs.length > 0) {
-        const path = this.getNodePath(node);
-        const nextIsExpand = level < currentDepth;
-        if (nextIsExpand !== node.expanded) {
-          this.editor.expand({
-            path,
-            isExpand: nextIsExpand,
-            recursive: !nextIsExpand,
-          });
-        }
-
-        if (nextIsExpand) {
-          node.childs.forEach(child => {
-            this.expandNodeAtLevel(child, level + 1, currentDepth, oldDepth);
-          });
-        }
-      }
-    }
-  };
 
   setNodeExpand([currentDepth, oldDepth]) {
-    // const rootNode = this.editor.node;
-    // this.expandNodeAtLevel(rootNode, 0, currentDepth, oldDepth);
-    // this.setNodeValueWordSplit();
+    this.editor.expand(currentDepth);
+    const root = this.getTargetRoot();
+    const fieldName = (root.querySelector('.field-name .black-mark') as HTMLElement)?.innerText;
+    this.setNodeValueWordSplit(root, fieldName);
   }
 
   setValue(depth) {
     this.setValuePromise = new Promise((resolve, reject) => {
       try {
-        this.editorPromise.then(() => {
-          this.editor.setValue(this.config.jsonValue);
-          EditorTask.clear(() => {
-            jsonEditorTask(this.setNodeExpand, [depth, this.localDepth, this]);
-            this.localDepth = depth;
-            resolve(true);
-          });
+        this.editor.setValue(this.config.jsonValue);
+        EditorTask.clear(() => {
+          jsonEditorTask(this.setNodeExpand, [depth, this.localDepth, this]);
+          this.localDepth = depth;
+          resolve(true);
         });
       } catch (e) {
         reject(e);

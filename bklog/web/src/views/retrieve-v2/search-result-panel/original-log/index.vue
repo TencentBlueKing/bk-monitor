@@ -60,7 +60,7 @@
         <div>
           <span class="switch-label">{{ $t('换行') }}</span>
           <bk-switcher
-            v-model="isWrap"
+            :value="isWrap"
             theme="primary"
             @change="handleChangeIsWarp"
           ></bk-switcher>
@@ -171,7 +171,6 @@
     data() {
       return {
         contentType: 'table',
-        isWrap: true,
         showFieldsSetting: false,
         showAsyncExport: false, // 异步下载弹窗
         exportLoading: false,
@@ -203,6 +202,7 @@
         indexSetList: state => state.retrieve?.indexSetList ?? [],
         indexSetQueryResult: 'indexSetQueryResult',
         indexFieldInfo: 'indexFieldInfo',
+        isWrap: 'tableLineIsWrap'
       }),
 
       routeIndexSet() {
@@ -267,7 +267,7 @@
         this.$store.commit('updateIsLimitExpandView', val);
       },
       handleChangeIsWarp(val) {
-        this.$store.commit('updateTableLineIsWarp', val);
+        this.$store.commit('updateTableLineIsWrap', val);
       },
       handleJsonFormat(val) {
         this.$store.commit('updateTableJsonFormat', val);

@@ -13,7 +13,7 @@
 
   const refContent = ref();
   const store = UseStore();
-  const isWrap = computed(() => store.state.tableLineIsWarp);
+  const isWrap = computed(() => store.state.tableLineIsWrap);
   const handleMenuClick = event => {
     emit('menu-click', event);
   };
@@ -43,11 +43,17 @@
     :class="['bklog-text-segment', 'bklog-root-field', { 'is-wrap-line': isWrap, 'is-inline': !isWrap }]"
   >
     <span
-      class="field-name black-mark"
+      class="field-name"
       style="display: none"
-      >{{ field.field_name }}</span
+      ><span class="black-mark" :data-field-name="field.field_name">
+        {{ field.field_name }}
+      </span></span
     >
-    <span class="field-value">{{ content }}</span>
+    <span
+      class="field-value"
+      :data-field-name="field.field_name"
+      >{{ content }}</span
+    >
   </div>
 </template>
 <style lang="scss">

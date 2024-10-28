@@ -83,8 +83,8 @@ export default class OriginalLightHeight extends tsc<IProps> {
     return sortObject;
   }
 
-  get tableLineIsWarp() {
-    return this.$store.state.tableLineIsWarp;
+  get tableLineIsWrap() {
+    return this.$store.state.tableLineIsWrap;
   }
 
   @Emit('menu-click')

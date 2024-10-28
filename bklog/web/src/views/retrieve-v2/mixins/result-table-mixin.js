@@ -136,7 +136,7 @@ export default {
     ...mapState([
       'isNotVisibleFieldsShow',
       'indexSetQueryResult',
-      'tableLineIsWarp',
+      'tableLineIsWrap',
       'indexSetOperatorConfig',
       'indexFieldInfo',
       'indexItem',

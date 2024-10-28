@@ -162,7 +162,7 @@ const store = new Vuex.Store({
     storeIsShowClusterStep: false,
     retrieveDropdownData: {},
     notTextTypeFields: [],
-    tableLineIsWarp: false,
+    tableLineIsWrap: false,
     tableJsonFormat: false,
     tableJsonFormatDepth: 1,
     isSetDefaultTableColumn: false,
@@ -633,8 +633,8 @@ const store = new Vuex.Store({
         ...(payload.fields ?? []).filter(field => field.field_type !== 'text').map(item => item.field_name),
       );
     },
-    updateTableLineIsWarp(state, payload) {
-      state.tableLineIsWarp = payload;
+    updateTableLineIsWrap(state, payload) {
+      state.tableLineIsWrap = payload;
     },
     updateShowFieldAlias(state, payload) {
       window.localStorage.setItem('showFieldAlias', payload);

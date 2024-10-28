@@ -1,24 +1,21 @@
 <template>
   <div :class="['bklog-json-formatter-root', { 'is-wrap-line': isWrap, 'is-inline': !isWrap }]">
     <template v-for="item in rootList">
-      <template v-if="item.formatter.isJson">
-        <div
-          :ref="item.formatter.ref"
-          :key="item.name"
-          class="bklog-root-json bklog-json-formatter"
-        ></div>
-      </template>
-      <template v-else>
-        <div
-          :ref="item.formatter.ref"
-          :key="item.name"
-          class="bklog-root-field"
+      <div
+        :key="item.name"
+        class="bklog-root-field"
+      >
+        <span class="field-name"
+          ><span class="black-mark" :data-field-name="item.name">{{ item.name }}</span></span
         >
-          <span class="field-name black-mark">{{ item.name }}</span>
-          <span class="field-split">:</span>
-          <span class="field-value">{{ item.formatter.value }}</span>
-        </div>
-      </template>
+        <span class="field-split">:</span>
+        <span
+          class="field-value"
+          :data-field-name="item.name"
+          :ref="item.formatter.ref"
+          >{{ item.formatter.isJson ? '' : item.formatter.value }}</span
+        >
+      </div>
     </template>
   </div>
 </template>
@@ -46,7 +43,7 @@
   });
 
   const formatCounter = ref(0);
-  const isWrap = computed(() => store.state.tableLineIsWarp);
+  const isWrap = computed(() => store.state.tableLineIsWrap);
   const fieldList = computed(() => {
     if (Array.isArray(props.fields)) {
       return props.fields;
@@ -80,29 +77,25 @@
   };
 
   const getFieldValue = field => {
-    if (typeof props.jsonValue === 'string') {
-      return convertToObject(props.jsonValue);
+    if (props.formatJson) {
+      if (typeof props.jsonValue === 'string') {
+        return convertToObject(props.jsonValue);
+      }
+
+      return convertToObject(props.jsonValue[field.field_name]);
     }
 
-    return convertToObject(props.jsonValue[field.field_name]);
+    return typeof props.jsonValue === 'object'
+      ? props.jsonValue[field.field_name]
+      : props.jsonValue;
   };
 
   const getFieldFormatter = field => {
     const objValue = getFieldValue(field);
 
-    if (typeof objValue === 'object' && objValue !== undefined) {
-      return {
-        ref: ref(),
-        isJson: true,
-        value: {
-          [field.field_name]: objValue,
-        },
-      };
-    }
-
     return {
       ref: ref(),
-      isJson: false,
+      isJson: typeof objValue === 'object' && objValue !== undefined,
       value: objValue,
     };
   };
@@ -136,6 +129,7 @@
   );
 </script>
 <style lang="scss">
+  @import '../global/json-view/index.scss';
   .bklog-json-formatter-root {
     font-family: var(--table-fount-family);
     font-size: var(--table-fount-size);
@@ -152,6 +146,11 @@
       }
     }
 
+    &.is-wrap-line {
+      display: flex;
+      flex-direction: column;
+    }
+
     .bklog-root-field {
       display: flex;
       margin-right: 2px;
@@ -161,11 +160,13 @@
         margin-top: 1px;
       }
 
-      .field-name.black-mark {
-        padding: 0 2px;
-        background: #e6e6e6;
-        border-radius: 2px;
-        width: max-content;
+      .field-name {
+        .black-mark {
+          padding: 0 2px;
+          background: #e6e6e6;
+          border-radius: 2px;
+          width: max-content;
+        }
       }
 
       .valid-text {
@@ -180,10 +181,6 @@
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);
       line-height: 20px;
-
-      // color: var(--table-fount-color);
-      // word-break: break-all;
-      // white-space: pre-line;
 
       span {
         display: inline-block;
@@ -220,38 +217,6 @@
     }
   }
 
-  table {
-    &.jsoneditor-tree {
-      tbody {
-        tr {
-          // display: flex;
-          // align-items: flex-start;
-
-          td {
-            height: auto;
-
-            .jsoneditor-field {
-              width: fit-content;
-              min-width: max-content;
-              background: #e6e6e6;
-              border-radius: 2px;
-            }
-
-            .jsoneditor-field,
-            .jsoneditor-value {
-              padding: 0 2px;
-              font-size: 13px;
-              line-height: 20px;
-              word-break: break-all;
-              white-space: pre-line;
-              border: none;
-            }
-          }
-        }
-      }
-    }
-  }
-
   .bk-table-row {
     &.hover-row {
       tbody,
@@ -262,62 +227,21 @@
     }
   }
 
-  .bklog-root-json.bklog-json-formatter {
-    margin-left: -30px;
+  .bklog-text-segment {
+    .segment-content {
+      font-family: var(--table-fount-family);
+      font-size: var(--table-fount-size);
+      line-height: 20px;
 
-    > .jsoneditor {
-      &.jsoneditor-mode-view {
-        border: none;
+      .valid-text {
+        cursor: pointer;
 
-        > .jsoneditor-outer {
-          > .jsoneditor-tree {
-            > .jsoneditor-tree-inner {
-              > table.jsoneditor-tree {
-                > tbody {
-                  > tr.jsoneditor-expanded:first-child {
-                    display: none;
-                  }
-                }
-              }
-            }
-          }
-        }
-
-        .jsoneditor-tree {
-          overflow: hidden;
-
-          .jsoneditor-tree-inner {
-            table.jsoneditor-tree {
-              tbody {
-                tr {
-                  td {
-                    border-bottom: none;
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    &.is-inline {
-      > div.jsoneditor {
-        &.jsoneditor-mode-view {
-          > div.jsoneditor-outer {
-            > div.jsoneditor-tree {
-              > div.jsoneditor-tree-inner {
-                > table.jsoneditor-tree {
-                  tbody {
-                    display: flex;
-                    flex-wrap: wrap;
-                  }
-                }
-              }
-            }
-          }
+        &.focus-text,
+        &:hover {
+          color: #3a84ff;
         }
       }
     }
   }
+
 </style>
