@@ -30,6 +30,7 @@ from django.utils.translation import ugettext_lazy as _
 from apps.log_clustering.constants import (
     LogColShowTypeEnum,
     PatternEnum,
+    RegexRuleTypeEnum,
     StrategiesType,
     SubscriptionTypeEnum,
     YearOnYearChangeEnum,
@@ -159,6 +160,14 @@ class ClusteringConfig(SoftDeleteModel):
     normal_strategy_enable = models.BooleanField(_("是否开启数量突增告警"), default=False)
     normal_strategy_output = models.CharField(_("日志数量告警输出结果表"), max_length=255, default="", null=True, blank=True)
     access_finished = models.BooleanField(_("是否接入完成"), default=True)
+
+    regex_rule_type = models.CharField(
+        _("规则类型"),
+        max_length=64,
+        choices=RegexRuleTypeEnum.get_choices(),
+        default=RegexRuleTypeEnum.CUSTOMIZE.value,
+    )
+    regex_template_id = models.IntegerField(_("模板ID"), default=0)
 
     @classmethod
     def get_by_index_set_id(cls, index_set_id: int, raise_exception: bool = True) -> "ClusteringConfig":
@@ -302,3 +311,13 @@ class ClusteringSubscription(SoftDeleteModel):
     class Meta:
         verbose_name = _("日志聚类订阅")
         verbose_name_plural = _("日志聚类订阅")
+
+
+class RegexTemplate(models.Model):
+    space_uid = models.CharField(_("空间唯一标识"), db_index=True, max_length=256)
+    template_name = models.CharField(_("模板名称"), db_index=True, max_length=256)
+    predefined_varibles = models.TextField(_("模板的正则表达式"))
+
+    class Meta:
+        verbose_name = _("聚类正则模板")
+        verbose_name_plural = _("聚类正则模板")

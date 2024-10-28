@@ -58,15 +58,23 @@
 
   const store = useStore();
   const chartKey = computed(() => store.state.retrieve.chartKey);
-  const searchTotal = computed(() => store.state.searchTotal);
-  const isResultLoading = computed(() => store.state.indexSetQueryResult.is_loading || store.state.indexFieldInfo.is_loading);
+
+  const searchTotal = computed(() => {
+    if (store.state.searchTotal > 0) {
+      return store.state.searchTotal;
+    }
+
+    return store.state.retrieve.trendDataCount;
+  });
+  const isResultLoading = computed(
+    () => store.state.indexSetQueryResult.is_loading || store.state.indexFieldInfo.is_loading,
+  );
   const getOffsetHeight = computed(() => (chartContainer.value?.offsetHeight || 32) - (!isFold.value ? 0 : 110));
 
   const isFold = ref(false);
   const chartContainer = ref(null);
   const chartInterval = ref('auto');
-  const isLoading = computed(() => store.state.retrieve.isTrendDataLoading)
-
+  const isLoading = computed(() => store.state.retrieve.isTrendDataLoading);
 
   const toggleExpand = val => {
     isFold.value = val;
@@ -85,18 +93,22 @@
     emit('toggle-change', !isFold.value, getOffsetHeight.value);
   });
 
-  watch(() => chartKey.value, () => {
-    if (isResultLoading.value) {
-      return;
-    }
+  watch(
+    () => chartKey.value,
+    () => {
+      if (isResultLoading.value) {
+        return;
+      }
 
-    store.commit('updateIsSetDefaultTableColumn', false);
-    store.dispatch('requestIndexSetFieldInfo').then(() => {
-      store.dispatch('requestIndexSetQuery', { formChartChange: false });
-    });
-  }, {
-    immediate: true
-  });
+      store.commit('updateIsSetDefaultTableColumn', false);
+      store.dispatch('requestIndexSetFieldInfo').then(() => {
+        store.dispatch('requestIndexSetQuery', { formChartChange: false });
+      });
+    },
+    {
+      immediate: true,
+    },
+  );
 </script>
 
 <style scoped lang="scss">

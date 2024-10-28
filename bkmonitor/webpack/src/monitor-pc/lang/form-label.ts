@@ -1514,6 +1514,7 @@ export default {
   应用名或ID: 'Application name or ID',
   请输入服务搜索: 'Please enter a service search',
   接入中: 'Connecting',
+  '确认删除应用？': 'Are you sure to delete the app?',
 
   // 指标图表类
   告警趋势: 'Alarm Trend',

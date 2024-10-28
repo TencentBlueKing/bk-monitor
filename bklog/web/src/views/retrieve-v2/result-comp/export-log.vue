@@ -33,7 +33,8 @@
         v-bk-tooltips="queueStatus ? $t('导出') : undefined">
         <span class="icon bklog-icon bklog-xiazai"></span>
       </div> -->
-    <div v-if="!isUnionSearch"
+    <div
+      v-if="!isUnionSearch"
       :class="{ 'operation-icon': true, 'disabled-icon': !queueStatus }"
       data-test-id="fieldForm_div_exportData"
       @mouseenter="handleShowAlarmPopover"
@@ -192,10 +193,10 @@
       //   type: Number,
       //   default: 0,
       // },
-      visibleFields: {
-        type: Array,
-        require: true,
-      },
+      // visibleFields: {
+      //   type: Array,
+      //   require: true,
+      // },
       // queueStatus: {
       //   type: Boolean,
       //   default: true,
@@ -208,10 +209,10 @@
         type: String,
         default: '',
       },
-      totalFields: {
-        type: Array,
-        require: true,
-      },
+      // totalFields: {
+      //   type: Array,
+      //   require: true,
+      // },
       datePickerValue: {
         type: Array,
         require: true,
@@ -246,8 +247,16 @@
     },
     computed: {
       ...mapState({
-        totalCount: state => state.searchTotal,
-        queueStatus: state => !state.retrieve.isTrendDataLoading
+        totalCount: state => {
+          if (state.searchTotal > 0) {
+            return state.searchTotal;
+          }
+
+          return state.retrieve.trendDataCount;
+        },
+        queueStatus: state => !state.retrieve.isTrendDataLoading,
+        totalFields: state => state.indexFieldInfo.fields ?? [],
+        visibleFields: state => state.visibleFields ?? [],
       }),
       ...mapGetters({
         bkBizId: 'bkBizId',

@@ -202,6 +202,12 @@ export default ({ target }: TrandChartOption) => {
 
     updateChartData();
     updateChart();
+
+    const totalCount = optionData.values().reduce((count, item) => {
+      count = count + (item[0] ?? 0);
+      return count;
+    }, 0);
+    return totalCount;
   };
 
   const clearChartData = () => {
@@ -220,7 +226,6 @@ export default ({ target }: TrandChartOption) => {
     options.xAxis[0].minInterval = getIntervalValue(runningInterval);
     // options.xAxis[0].min = getMinValue(chartData, runningInterval);
     // options.xAxis[0].max = getMaxValue(chartData, runningInterval);
-
 
     chartInstance.setOption(options);
     nextTick(() => {

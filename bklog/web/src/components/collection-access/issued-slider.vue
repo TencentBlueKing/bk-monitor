@@ -1,281 +1,255 @@
-<!--
-* Tencent is pleased to support the open source community by making
-* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
-*
-* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
-*
-* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
-*
-* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
-*
-* ---------------------------------------------------
-* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
-* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-*
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
-* the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
-* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-* IN THE SOFTWARE.
--->
-
 <template>
-  <div
-    class="step-issued-wrapper"
-    v-bkloading="{ isLoading: loading | (hasRunning && !tableList.length) }"
-    data-test-id="addNewCollectionItem_div_collectionDistribution"
-  >
-    <!-- 容器日志显示状态页信息 -->
-    <template v-if="isContainer">
-      <container-status :is-loading.sync="loading" />
-    </template>
-    <!-- 物理环境显示下发页信息 -->
-    <template v-else>
+  <div>
+    <div
+      class="issued-btn-wrap"
+      :style="hasFailed ? 'border: 1px solid #ea3939' : ''"
+      @click.stop="viewDetail()"
+    >
       <div
-        v-if="!curCollect.table_id"
-        class="step-issued-notice notice-primary"
-      >
-        <i class="bk-icon icon-info-circle-shape notice-icon"></i>
-        <span class="notice-text">{{ $t('采集完成后24小时内，没有配置第4步“存储”，任务会被强制停用。') }}</span>
-      </div>
-      <template v-if="!isShowStepInfo">
-        <div class="step-issued-header">
-          <div class="tab-only-compact fl">
-            <template>
-              <li
-                v-for="tabItem in tabList"
-                :class="['tab-item', { 'cur-tab': tabItem.type === curTab }]"
-                :key="tabItem.type"
-              >
-                <a
-                  class="tab-button"
-                  href="javascript:void(0);"
-                  @click="tabHandler(tabItem)"
-                >
-                  {{ `${tabItem.name}(${tabItem.num})` }}
-                </a>
-              </li>
-            </template>
-          </div>
-          <bk-button
-            v-if="hasFailed"
-            class="fr"
-            :disabled="hasRunning"
-            :title="$t('失败批量重试')"
-            data-test-id="collectionDistribution_button_refresh"
-            icon="refresh"
-            @click="issuedRetry"
-            >{{ $t('失败批量重试') }}
-          </bk-button>
-        </div>
-        <section
-          v-if="tableList.length"
-          class="cluster-collaspse"
-        >
-          <template v-for="cluster in tableList">
-            <right-panel
-              v-if="cluster.child.length"
-              :class="['cluster-menu', { 'has-title-sign': cluster.is_label && isEdit }]"
-              :collapse.sync="cluster.collapse"
-              :collapse-color="'#313238'"
-              :key="cluster.id"
-              :need-border="true"
-              :title="getRightPanelTitle(cluster)"
-              :title-bg-color="'#F0F1F5'"
-              @change="cluster.collapse = !cluster.collapse"
-            >
-              <template #pre-panel>
-                <div
-                  v-if="cluster.is_label && isEdit"
-                  :class="`heder-title-sign sign-${cluster.label_name}`"
-                >
-                  {{
-                    cluster.label_name === 'add'
-                      ? $t('新增')
-                      : cluster.label_name === 'modify'
-                        ? $t('修改')
-                        : $t('删除')
-                  }}
-                </div>
-              </template>
-              <template #title>
-                <div class="header-info">
-                  <div class="header-title fl">{{ cluster.node_path }}</div>
-                  <!-- eslint-disable-next-line vue/no-v-html -->
-                  <p
-                    class="fl"
-                    v-html="collaspseHeadInfo(cluster)"
-                  ></p>
-                  <!-- <span class="success">{{ cluster.success }}</span> 个成功
-                <span v-if="cluster.failed" class="failed">，{{ cluster.failed }}</span> 个失败 -->
-                </div>
-              </template>
-              <template #default>
-                <div class="cluster-table-wrapper">
-                  <bk-table
-                    class="cluster-table"
-                    v-bkloading="{ isLoading: loading }"
-                    :data="cluster.child"
-                    :empty-text="$t('暂无内容')"
-                    :pagination="pagination"
-                    :resizable="true"
-                    :size="size"
-                  >
-                    <bk-table-column
-                      width="180"
-                      :label="$t('目标')"
-                    >
-                      <template #default="props">
-                        <span>{{ getShowIp(props.row) }}</span>
-                      </template>
-                    </bk-table-column>
-                    <bk-table-column
-                      width="140"
-                      :label="$t('运行状态')"
-                    >
-                      <template #default="props">
-                        <span :class="['status', 'status-' + props.row.status]">
-                          <i
-                            v-if="props.row.status !== 'success' && props.row.status !== 'failed'"
-                            style="display: inline-block; animation: button-icon-loading 1s linear infinite"
-                            class="bk-icon icon-refresh"
-                          >
-                          </i>
-                          {{
-                            props.row.status === 'success'
-                              ? $t('成功')
-                              : props.row.status === 'failed'
-                                ? $t('失败')
-                                : $t('执行中')
-                          }}
-                        </span>
-                      </template>
-                    </bk-table-column>
-                    <bk-table-column
-                      :class-name="'row-detail'"
-                      :label="$t('详情')"
-                    >
-                      <template #default="props">
-                        <p>
-                          <span
-                            class="overflow-tips"
-                            v-bk-overflow-tips
-                            >{{ props.row.log }}</span
-                          >
-                          <a
-                            class="more"
-                            href="javascript: ;"
-                            @click.stop="viewDetail(props.row)"
-                          >
-                            {{ $t('更多') }}
-                          </a>
-                        </p>
-                      </template>
-                    </bk-table-column>
-                    <bk-table-column width="80">
-                      <template #default="props">
-                        <a
-                          v-if="props.row.status === 'failed'"
-                          class="retry"
-                          href="javascript: ;"
-                          @click.stop="issuedRetry(props.row, cluster)"
-                        >
-                          {{ $t('重试') }}
-                        </a>
-                      </template>
-                    </bk-table-column>
-                  </bk-table>
-                </div>
-              </template>
-            </right-panel>
-          </template>
-        </section>
-      </template>
-      <template v-else>
-        <div class="empty-view">
-          <i class="bk-icon icon-info-circle-shape"></i>
-          <div class="hint-text">{{ $t('采集目标未变更，无需下发') }}</div>
-        </div>
-      </template>
-    </template>
-    <div class="step-issued-footer">
-      <bk-button
-        v-if="isSwitch"
-        :disabled="hasRunning"
-        :loading="isHandle"
-        theme="primary"
-        @click="nextHandler"
-      >
-        {{ getNextPageStr }}
-      </bk-button>
-      <template v-else>
-        <template v-if="!isFinishCreateStep">
-          <bk-button
-            data-test-id="collectionDistribution_button_previous"
-            @click="prevHandler"
-          >
-            {{ $t('上一步') }}
-          </bk-button>
-          <bk-button
-            data-test-id="collectionDistribution_button_nextStep"
-            theme="primary"
-            @click="nextHandler"
-          >
-            {{ $t('下一步') }}
-          </bk-button>
-        </template>
-      </template>
-      <bk-button
-        data-test-id="collectionDistribution_button_cancel"
-        @click="cancel"
-      >
-        {{ $t('返回列表') }}
-      </bk-button>
+        v-if="hasFailed"
+        class="issued-btn-dot"
+      ></div>
+      <i class="issued-icon bklog-icon bklog-jincheng"> </i>
     </div>
+
     <bk-sideslider
       :ext-cls="'issued-detail'"
       :is-show.sync="detail.isShow"
       :quick-close="true"
       :width="800"
       transfer
+      :title="$t('采集下发')"
       @animation-end="closeSlider"
     >
-      <template #header>
-        <div class="header">
-          <span>{{ detail.title }}</span>
-          <bk-button
-            class="header-refresh"
-            :loading="detail.loading"
-            theme="primary"
-            @click="handleRefreshDetail"
-          >
-            {{ $t('刷新') }}
-          </bk-button>
-        </div>
-      </template>
       <template #content>
         <div
-          class="p20 detail-content"
-          v-bkloading="{ isLoading: detail.loading }"
-          v-html="detail.content"
-        ></div>
+          class="step-issued-wrapper"
+          v-bkloading="{ isLoading: loading | (hasRunning && !tableList.length) }"
+          data-test-id="addNewCollectionItem_div_collectionDistribution"
+        >
+          <!-- 容器日志显示状态页信息 -->
+          <template v-if="isContainer">
+            <container-status :is-loading.sync="loading" />
+          </template>
+          <!-- 物理环境显示下发页信息 -->
+          <template v-else>
+            <div
+              v-if="!curCollect.table_id"
+              class="step-issued-notice notice-primary"
+            >
+              <div
+                v-if="hasRunning"
+                style="display: flex"
+              >
+                <i
+                  style="
+                    display: inline-block;
+                    line-height: 16px;
+                    color: #3a84ff;
+                    animation: button-icon-loading 1s linear infinite;
+                  "
+                  class="bk-icon icon-refresh"
+                ></i>
+                <span class="notice-text">{{ $t('正在下发...') }}</span>
+                <i18n
+                  class="notice-time"
+                  path="已耗时{0}秒"
+                >
+                  <span>{{ displaySeconds }}</span>
+                </i18n>
+              </div>
+              <div v-else>
+                <i class="bk-icon icon-info-circle-shape notice-icon"></i>
+                <span class="notice-text"
+                  ><span style="color: #34d97b">{{ $t('执行成功') }}{{ tabList[1].num }}/{{ tabList[0].num }};</span>
+                  <span
+                    style="color: #ff5656"
+                    v-if="tabList[2].num"
+                    >{{ $t('执行失败') }}{{ tabList[2].num }}/{{ tabList[0].num }}</span
+                  ></span
+                >
+              </div>
+            </div>
+            <template v-if="!isShowStepInfo">
+              <div class="nav-section">
+                <div class="nav-btn-box">
+                  <div
+                    v-for="tabItem in tabList"
+                    :class="`nav-btn ${tabItem.type === curTab ? 'active' : ''}`"
+                    :key="tabItem.type"
+                    @click="tabHandler(tabItem)"
+                    href="javascript:void(0);"
+                  >
+                    <div
+                      v-if="tabItem.type === 'failed'"
+                      class="ip-status-cicle"
+                      style="margin-top: 6px"
+                    ></div>
+                    <div
+                      v-else-if="tabItem.type === 'success'"
+                      class="ip-status-cicle"
+                      style="margin-top: 6px; border: 1px solid #34d97b"
+                    ></div>
+                    <i
+                      v-else-if="tabItem.type === 'running'"
+                      style=" margin: 4px 4px 0 0;color: #3a84ff"
+                      class="bk-icon icon-refresh"
+                    >
+                    </i>
+                    <div>{{ `${tabItem.name}(${tabItem.num})` }}</div>
+                  </div>
+                </div>
+                <bk-button
+                  v-if="hasFailed"
+                  class="fr"
+                  :disabled="hasRunning"
+                  :title="$t('失败批量重试')"
+                  data-test-id="collectionDistribution_button_refresh"
+                  icon="refresh"
+                  @click="issuedRetry"
+                  >{{ $t('失败批量重试') }}
+                </bk-button>
+              </div>
+              <div class="step-issued-content">
+                <section
+                  v-if="tableList.length"
+                  class="cluster-collaspse"
+                >
+                  <template v-for="cluster in tableList">
+                    <right-panel
+                      v-if="cluster.child.length"
+                      :class="['cluster-menu', { 'has-title-sign': cluster.is_label && isEdit }]"
+                      :collapse.sync="cluster.collapse"
+                      :collapse-color="'#313238'"
+                      :key="cluster.id"
+                      :need-border="true"
+                      :title="getRightPanelTitle(cluster)"
+                      :title-bg-color="'#F0F1F5'"
+                      @change="cluster.collapse = !cluster.collapse"
+                    >
+                      <template #pre-panel>
+                        <div
+                          v-if="cluster.is_label && isEdit"
+                          :class="`heder-title-sign sign-${cluster.label_name}`"
+                        >
+                          {{
+                            cluster.label_name === 'add'
+                              ? $t('新增')
+                              : cluster.label_name === 'modify'
+                                ? $t('修改')
+                                : $t('删除')
+                          }}
+                        </div>
+                      </template>
+                      <template #title>
+                        <div class="header-info">
+                          <div class="header-title fl">{{ cluster.node_path }}</div>
+                          <!-- eslint-disable-next-line vue/no-v-html -->
+                          <p
+                            class="fl"
+                            v-html="collaspseHeadInfo(cluster)"
+                          ></p>
+                        </div>
+                      </template>
+                      <template #default>
+                        <div class="cluster-table-wrapper">
+                          <bk-table
+                            class="cluster-table"
+                            v-bkloading="{ isLoading: loading }"
+                            :data="cluster.child"
+                            :empty-text="$t('暂无内容')"
+                            :pagination="pagination"
+                            :resizable="true"
+                            :size="size"
+                            :show-header="false"
+                            :cell-class-name="tableRowClassName"
+                          >
+                            <bk-table-column>
+                              <template #default="props">
+                                <div
+                                  style="display: flex"
+                                  @click="requestDetail(props.row)"
+                                >
+                                  <div
+                                    class="ip-status-cicle"
+                                    v-if="props.row.status === 'failed'"
+                                  ></div>
+                                  <div
+                                    class="ip-status-cicle"
+                                    style="border: 1px solid #34d97b"
+                                    v-if="props.row.status === 'success'"
+                                  ></div>
+                                  <i
+                                    v-if="props.row.status !== 'success' && props.row.status !== 'failed'"
+                                    style="
+                                      display: inline-block;
+                                      margin: 4px 5px 0 0;
+                                      color: #3a84ff;
+                                      animation: button-icon-loading 1s linear infinite;
+                                    "
+                                    class="bk-icon icon-refresh"
+                                  >
+                                  </i>
+                                  <div style="width: 100px">{{ getShowIp(props.row) }}</div>
+                                  <a
+                                    v-if="props.row.status === 'failed'"
+                                    class="retry"
+                                    href="javascript: ;"
+                                    @click.stop="issuedRetry(props.row, cluster)"
+                                  >
+                                    {{ $t('重试') }}
+                                  </a>
+                                </div>
+                              </template>
+                            </bk-table-column>
+                          </bk-table>
+                        </div>
+                      </template>
+                    </right-panel>
+                  </template>
+                </section>
+                <div
+                  v-if="tableList.length"
+                  class="detail-wrap"
+                  v-bkloading="{ isLoading: detail.loading }"
+                >
+                  <div class="detail-header">
+                    <div class="detail-title">{{ $t('采集详情') }}</div>
+                    <bk-button
+                      class="header-refresh"
+                      :loading="detail.loading"
+                      @click="handleRefreshDetail"
+                      size="small"
+                    >
+                      {{ $t('刷新') }}
+                    </bk-button>
+                  </div>
+                  <div
+                    class="detail-content"
+                    v-html="detail.content"
+                  ></div>
+                </div>
+              </div>
+            </template>
+            <template v-else>
+              <div class="empty-view">
+                <i class="bk-icon icon-info-circle-shape"></i>
+                <div class="hint-text">{{ $t('采集目标未变更，无需下发') }}</div>
+              </div>
+            </template>
+          </template>
+        </div>
       </template>
     </bk-sideslider>
   </div>
 </template>
-
 <script>
   import rightPanel from '@/components/ip-select/right-panel';
   import containerStatus from '@/views/manage/manage-access/log-collection/collection-item/manage-collection/components/container-status';
   import { mapGetters } from 'vuex';
 
   export default {
-    name: 'StepIssued',
+    name: 'issuedSlider',
     components: {
       rightPanel,
       containerStatus,
@@ -338,6 +312,9 @@
         isLeavePage: false,
         isShowStepInfo: false,
         isHandle: false,
+        currentActiveRow: '',
+        elapsedSeconds: 0,
+        displaySeconds: 0,
         // operateInfo: {}
       };
     },
@@ -395,6 +372,9 @@
       this.stopStatusPolling();
     },
     methods: {
+      tableRowClassName({ row }) {
+        return row.ip === this.currentActiveRow ? 'selected-row' : '';
+      },
       getRightPanelTitle(cluster) {
         return {
           type: cluster.bk_obj_name,
@@ -478,10 +458,12 @@
           },
         });
       },
-      viewDetail(row) {
+      viewDetail() {
         this.detail.isShow = true;
-        this.currentRow = row;
-        this.requestDetail(row);
+        if (this.tableList?.length && this.tableList[0].child?.length) {
+          this.currentRow = this.tableList[0].child[0];
+        }
+        this.requestDetail(this.currentRow);
       },
       handleRefreshDetail() {
         this.requestDetail(this.currentRow);
@@ -523,7 +505,7 @@
           //     running++
           // }
         });
-        return `<span class="success">${success}</span> ${this.$t('个成功')}，<span class="failed">${failed}</span> ${this.$t('个失败')}`;
+        return `<span style="color: #34d97b" class="success-status">${success}</span> ${this.$t('个成功')}，<span style="color: #ff5656">${failed}</span> ${this.$t('个失败')}`;
       },
       startStatusPolling() {
         this.timerNum += 1;
@@ -532,6 +514,10 @@
           if (this.isLeavePage) {
             this.stopStatusPolling();
             return;
+          }
+          this.elapsedSeconds += 0.5;
+          if (this.elapsedSeconds % 1 !== 0.5) {
+            this.displaySeconds = this.elapsedSeconds.toFixed(0);
           }
           this.requestIssuedClusterList('polling');
         }, 500);
@@ -683,6 +669,8 @@
       },
       requestDetail(row) {
         this.detail.loading = true;
+        this.currentActiveRow = row.ip;
+        this.currentRow = row;
         this.$http
           .request('collect/executDetails', {
             params: {
@@ -721,12 +709,13 @@
   @import '@/scss/mixins/clearfix';
   @import '@/scss/conf';
   @import '@/scss/mixins/overflow-tips.scss';
+  @import '@/scss/mixins/flex.scss';
 
   /* stylelint-disable no-descending-specificity */
   .step-issued-wrapper {
     position: relative;
     max-height: 100%;
-    padding: 30px 60px;
+    padding: 20px;
     overflow-x: hidden;
     overflow-y: auto;
 
@@ -743,6 +732,12 @@
         margin-left: 10px;
       }
 
+      .notice-time {
+        position: absolute;
+        right: 40px;
+        color: #a6acb8;
+      }
+
       .notice-icon {
         font-size: 14px;
         vertical-align: text-bottom;
@@ -750,7 +745,6 @@
 
       &.notice-primary {
         background: #f0f8ff;
-        border: 1px solid #a3c5fd;
 
         .notice-icon {
           color: #3a84ff;
@@ -769,11 +763,13 @@
     }
 
     .cluster-collaspse {
-      max-width: 100%;
+      width: 40%;
+      height: calc(100vh - 204px);
+      overflow: scroll;
+      border: 1px solid #e5e7ec;
     }
 
     .cluster-menu {
-      max-width: 100%;
       margin-bottom: 10px;
 
       &.has-title-sign .right-panel-title {
@@ -826,14 +822,6 @@
     .header-info {
       font-size: 12px;
       color: #979ba5;
-
-      .success {
-        color: $successColor;
-      }
-
-      .failed {
-        color: $failColor;
-      }
     }
 
     .cluster-table {
@@ -843,6 +831,10 @@
 
       &::before {
         display: none;
+      }
+
+      :deep(.bk-table-row) {
+        cursor: pointer;
       }
 
       tr:last-child td {
@@ -897,24 +889,59 @@
       }
     }
 
-    .tab-only-compact {
-      overflow: visible;
+    .nav-section {
+      margin-bottom: 20px;
+      @include flex-justify(space-between);
 
-      @include clearfix;
+      .nav-btn-box {
+        align-items: center;
+        min-width: 327px;
+        height: 36px;
+        padding: 5px 4px;
+        font-size: 14px;
+        background: #f0f1f5;
+        border-radius: 4px;
 
-      .tab-item {
-        .tab-button {
-          height: 32px;
-          line-height: 30px;
-        }
+        @include flex-justify(space-between);
 
-        &.cur-tab {
-          .tab-button {
-            color: #fff;
-            background: #3a84ff;
+        .nav-btn {
+          position: relative;
+          display: flex;
+          padding: 4px 15px;
+          color: #63656e;
+          border-radius: 4px;
+
+          &:not(:last-child)::after {
+            position: absolute;
+            top: 3px;
+            right: -8px;
+            color: #dcdee5;
+            content: '|';
+          }
+
+          &:not(:first-child) {
+            margin-left: 12px;
+          }
+
+          &:hover {
+            cursor: pointer;
+            background: #fff;
+          }
+
+          &.active {
+            color: #3a84ff;
+            background: #fff;
           }
         }
       }
+    }
+
+    .ip-status-cicle {
+      width: 10px;
+      height: 10px;
+      margin: 4px 5px 0 0;
+      border: 1px solid $failColor;
+      border-radius: 50%;
     }
 
     .step-issued-footer {
@@ -961,13 +988,42 @@
     }
   }
 
+  .issued-btn-wrap {
+    position: fixed;
+    right: 45px;
+    bottom: 35px;
+    z-index: 10;
+    width: 47px;
+    height: 47px;
+    padding: 12px;
+    color: #666871;
+    cursor: pointer;
+    background-color: rgb(250, 251, 253);
+    border: 1px solid #dde4eb;
+    border-radius: 4px;
+
+    .issued-btn-dot {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      width: 8px;
+      height: 8px;
+      background-color: #ea3939;
+      border-radius: 50%;
+    }
+
+    .issued-icon {
+      font-size: 25px;
+    }
+
+    &:hover {
+      color: #699df4;
+      box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.3);
+    }
+  }
+
   :deep(.bk-sideslider-wrapper) {
     padding-bottom: 0;
-
-    .bk-sideslider-content {
-      color: #c4c6cc;
-      background-color: #313238;
-    }
 
     .header {
       display: flex;
@@ -979,14 +1035,45 @@
       margin-right: 8px;
     }
 
-    .detail-content {
-      min-height: calc(100vh - 60px);
-      font-size: 12px;
-      white-space: pre-wrap;
+    .step-issued-content {
+      display: flex;
 
-      a {
-        color: #3a84ff;
+      .detail-wrap {
+        width: 60%;
+        height: calc(100vh - 200px);
+        padding: 20px;
+        overflow: scroll;
+        font-size: 12px;
+        color: #c4c6cc;
+        white-space: pre-wrap;
+        background-color: #313238;
+
+        .detail-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+
+          .detail-title {
+            font-size: 14px;
+            color: #888c95;
+          }
+        }
+
+        .detail-content {
+          width: 100%;
+          padding: 20px;
+          background-color: #2a2b2f;
+        }
+
+        a {
+          color: #3a84ff;
+        }
       }
     }
+  }
+
+  :deep(.bk-table-body .selected-row) {
+    /* stylelint-disable-next-line declaration-no-important */
+    border: 1px #3a84ff solid !important;
   }
 </style>

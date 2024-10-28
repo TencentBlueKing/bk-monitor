@@ -29,7 +29,7 @@ export type VirtaulNode = {
   subComboId?: string;
   comboId?: string;
   isCombo?: boolean;
-  children?: (VirtaulNode | undefined)[];
+  children?: (undefined | VirtaulNode)[];
   parentVid?: string;
   x?: number;
   y?: number;
@@ -70,7 +70,7 @@ export default ({ combos, nodes, edges, maxGroupSize = 5 }: NodeArgs) => {
     Object.assign(node, { width: nodeWidth * length, height: nodeHeight });
   };
 
-  const setVirtualNode = (id: string, node: VirtaulNode | undefined) => {
+  const setVirtualNode = (id: string, node: undefined | VirtaulNode) => {
     if (virtualNodeMap.has(id)) {
       Object.assign(virtualNodeMap.get(id), node ?? {});
       return;
@@ -79,7 +79,7 @@ export default ({ combos, nodes, edges, maxGroupSize = 5 }: NodeArgs) => {
     virtualNodeMap.set(id, Object.assign(node ?? {}, { id, isVirtual: true }));
   };
 
-  const setVirtualNodeChildren = (id: string, children: (VirtaulNode | undefined)[], parentVid?: string) => {
+  const setVirtualNodeChildren = (id: string, children: (undefined | VirtaulNode)[], parentVid?: string) => {
     children?.forEach(child => {
       Object.assign(child, { parentVid: parentVid ?? id });
     });
@@ -158,7 +158,11 @@ export default ({ combos, nodes, edges, maxGroupSize = 5 }: NodeArgs) => {
       }
     });
 
-    newEdges.push({ source: getVirtualNodeId(rootCombos[0].id), target: getVirtualNodeId(rootCombos[1].id) });
+    rootCombos.forEach((combo, index) => {
+      if (rootCombos[index + 1]) {
+        newEdges.push({ source: getVirtualNodeId(combo.id), target: getVirtualNodeId(rootCombos[index + 1].id) });
+      }
+    });
 
     /**
      * 更新节点为虚拟节点子节点

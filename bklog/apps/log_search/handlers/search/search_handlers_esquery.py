@@ -24,6 +24,7 @@ import datetime
 import hashlib
 import json
 import operator
+import time
 from typing import Any, Dict, List, Union
 
 import arrow
@@ -43,6 +44,7 @@ from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
 from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
+from apps.log_esquery import metrics
 from apps.log_esquery.esquery.esquery import EsQuery
 from apps.log_esquery.serializers import (
     EsQueryDslAttrSerializer,
@@ -347,7 +349,7 @@ class SearchHandler(object):
     @property
     def index_set(self):
         if not hasattr(self, "_index_set"):
-            self._index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
+            self._index_set = LogIndexSet.objects.filter(index_set_id=self.index_set_id).first()
         return self._index_set
 
     def fields(self, scope="default"):
@@ -658,7 +660,25 @@ class SearchHandler(object):
     @classmethod
     def direct_esquery_search(cls, params, **kwargs):
         data = custom_params_valid(EsQuerySearchAttrSerializer, params)
-        return EsQuery(data).search()
+        start_at = time.time()
+        exc = None
+        try:
+            result = EsQuery(data).search()
+        except Exception as e:
+            exc = e
+            raise
+        finally:
+            labels = {
+                "index_set_id": data.get("index_set_id") or -1,
+                "indices": data.get("indices") or "",
+                "scenario_id": data.get("scenario_id") or "",
+                "storage_cluster_id": data.get("storage_cluster_id") or -1,
+                "status": str(exc),
+                "source_app_code": settings.APP_CODE,
+            }
+            metrics.ESQUERY_SEARCH_LATENCY.labels(**labels).observe(time.time() - start_at)
+            metrics.ESQUERY_SEARCH_COUNT.labels(**labels).inc()
+        return result
 
     @classmethod
     def direct_esquery_dsl(cls, params, **kwargs):
@@ -870,6 +890,9 @@ class SearchHandler(object):
     def _save_history(self, result, search_type):
         # 避免回显尴尬, 检索历史存原始未增强的query_string
         params = {"keyword": self.origin_query_string, "ip_chooser": self.ip_chooser, "addition": self.addition}
+        # 全局查询不记录
+        if (not self.origin_query_string or self.origin_query_string == "*") and not self.addition:
+            return
         self._cache_history(
             username=self.request_username,
             index_set_id=self.index_set_id,
@@ -1880,6 +1903,8 @@ class SearchHandler(object):
             "fields": {"*": {"number_of_fragments": 0}},
             "require_field_match": require_field_match,
         }
+        if self.index_set and self.index_set.max_analyzed_offset:
+            highlight["max_analyzed_offset"] = self.index_set.max_analyzed_offset
 
         if self.export_log:
             highlight = {}

@@ -444,11 +444,6 @@ DB_DUPLICATE_ID = 1062
 # ES别名延迟过期时间
 ES_ALIAS_EXPIRED_DELAY_DAYS = 1
 
-# V3链路版本
-DATA_LINK_V3_VERSION_NAME = 'V3'
-# V4链路版本
-DATA_LINK_V4_VERSION_NAME = 'V4'
-
 
 class ESScopeTypes(Enum):
     """可见范围类型"""

@@ -9,7 +9,8 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 
 .bklog-icon {
-/* stylelint-disable-next-line declaration-no-important */
+  /* use !important to prevent issues with browser extensions that change fonts */
+  /* stylelint-disable-next-line declaration-no-important */
   font-family: 'bklog' !important;
   speak: none;
   font-style: normal;
@@ -352,4 +353,13 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .bklog-setting:before {
 	content: "\e196";
+}
+.bklog-saoba:before {
+	content: "\e19f";
+}
+.bklog-jincheng:before {
+	content: "\e1a0";
+}
+.bklog-qiehuanbanben:before {
+	content: "\e1a1";
 }

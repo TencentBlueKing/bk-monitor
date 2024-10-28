@@ -24,12 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch, Ref } from 'vue-property-decorator';
+import { Component, Prop, Watch, Ref, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import VueDraggable from 'vuedraggable';
 
+import FieldSelectConfig from '../../retrieve-v2/field-filter-comp/components/field-select-config.vue';
 import FieldFilterPopover from './field-filter-popover';
 import FieldItem from './field-item';
 import $http from '@/api';
@@ -228,6 +229,11 @@ export default class FieldFilterComp extends tsc<object> {
     this.dragVisibleFields = this.visibleFields.map(item => item.field_name);
   }
 
+  @Emit('select-fields-config')
+  selectFieldsConfig(v) {
+    return v;
+  }
+
   mounted() {
     document.getElementById('app').addEventListener('click', this.closePopoverIfOpened);
   }
@@ -375,7 +381,10 @@ export default class FieldFilterComp extends tsc<object> {
 
         {!!this.totalFields.length && (
           <div class='fields-container is-selected'>
-            <div class='title'>{this.$t('已添加字段')}</div>
+            <div class='title'>
+              <span>{this.$t('已添加字段')}</span>
+              <FieldSelectConfig on-select-fields-config={this.selectFieldsConfig} />
+            </div>
             {!!this.visibleFields.length ? (
               <VueDraggable
                 class='filed-list'

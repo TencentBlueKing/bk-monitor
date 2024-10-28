@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('log_databus', '0040_auto_20240419_0954'),
     ]
@@ -23,6 +22,11 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='archiveconfig',
             name='instance_type',
-            field=models.CharField(choices=[('collector_config', '采集项'), ('collector_plugin', '采集插件'), ('index_set', '索引集')], default='collector_config', max_length=64, verbose_name='实例类型'),
+            field=models.CharField(
+                choices=[('collector_config', '采集项'), ('collector_plugin', '采集插件'), ('index_set', '索引集')],
+                default='collector_config',
+                max_length=64,
+                verbose_name='实例类型',
+            ),
         ),
     ]

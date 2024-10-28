@@ -88,7 +88,7 @@ class TestGetKubernetesServiceMonitorList:
                     'filterable': True,
                     'id': 'namespace',
                     'min_width': 120,
-                    'name': '名字空间',
+                    'name': 'NameSpace',
                     'type': 'string',
                 },
                 {
@@ -201,7 +201,7 @@ class TestGetKubernetesServiceMonitorList:
                     'filterable': True,
                     'id': 'namespace',
                     'min_width': 120,
-                    'name': '名字空间',
+                    'name': 'NameSpace',
                     'type': 'string',
                 },
                 {
