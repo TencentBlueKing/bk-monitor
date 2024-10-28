@@ -69,6 +69,15 @@ const TimeDimension: DimensionItem = {
   text: '时间',
   active: false,
 };
+
+function timeShiftFormat(t: string) {
+  const regex = /^\d{4}-\d{2}-\d{2}$/;
+  if (regex.test(t)) {
+    return `${dayjs().diff(dayjs(t), 'day')}d`;
+  }
+  return t;
+}
+
 @Component
 class CallerCalleeTableChart extends CommonSimpleChart {
   @Prop({ required: true, type: String, default: '' }) activeKey: string;
@@ -219,7 +228,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       }),
       ...{
         group_by: isTotal ? [] : this.dimensionList.filter(item => item.active).map(item => item.value),
-        time_shifts: timeShift,
+        time_shifts: timeShift.map(t => timeShiftFormat(t)),
         metric_cal_type,
         baseline: '0s',
         start_time: filterStartTime || this.pointTime?.startTime || startTime,

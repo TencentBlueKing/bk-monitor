@@ -109,7 +109,6 @@ class DbCategoryEnum:
 class CategoryEnum:
     HTTP = "http"
     RPC = "rpc"
-    TRPC = "trpc"
     DB = "db"
     MESSAGING = "messaging"
     ASYNC_BACKEND = "async_backend"

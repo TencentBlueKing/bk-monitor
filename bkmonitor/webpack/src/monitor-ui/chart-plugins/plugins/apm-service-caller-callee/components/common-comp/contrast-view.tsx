@@ -27,6 +27,8 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import dayjs from 'dayjs';
+
 import { EPreDateType } from '../../type';
 
 import './contrast-view.scss';
@@ -127,7 +129,21 @@ export default class ContrastView extends tsc<IProps> {
   }
   /** 设置日历组件禁用时间 */
   setDisabledDate(date) {
-    return date && date.valueOf() > Date.now();
+    const preDateStr = this.typeList.map(item => item.value);
+    const preSelects = [];
+    for (const item of this.localValue) {
+      if (preDateStr.includes(item)) {
+        preSelects.push(item);
+      }
+    }
+    const dayDate = dayjs(date);
+    let diffDay = `${dayjs().diff(dayDate, 'day')}d`;
+    diffDay = diffDay === '7d' ? EPreDateType.lastWeek : diffDay;
+    return (
+      (date && date.valueOf() > Date.now()) ||
+      this.localValue.includes(diffDay) ||
+      this.localValue.includes(dayDate.format('YYYY-MM-DD'))
+    );
   }
 
   disabledCheck(key) {
@@ -149,12 +165,22 @@ export default class ContrastView extends tsc<IProps> {
   /* 日期选择器选择 */
   changePicker(date) {
     this.isShowPicker = false;
-    date && this.dateTime.push(date);
+    let dayDiff = `${dayjs().diff(dayjs(date), 'day')}d`;
+    dayDiff = dayDiff === '7d' ? EPreDateType.lastWeek : dayDiff;
+    const preDateStr = this.typeList.map(item => item.value);
+    if (preDateStr.includes(dayDiff as any)) {
+      if (!this.checkboxGroupValue.includes(dayDiff)) {
+        this.checkboxGroupValue.push(dayDiff);
+      }
+    } else {
+      date && this.dateTime.push(date);
+    }
     this.handleChange();
   }
 
   /* 选择预设日期 */
   handleCheckboxChange() {
+    this.isShowPicker = false;
     this.handleChange();
   }
   /**

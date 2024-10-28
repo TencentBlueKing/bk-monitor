@@ -72,9 +72,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         "service-default-db",
         "service-default-caller_callee",
     ]
-
-    REQUIRE_CONFIG_VIEW_IDS = ["service-default-caller_callee"]
-
     APM_TRACE_PREFIX = "apm_trace"
 
     @classmethod
@@ -173,9 +170,9 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 return view_config
 
             # 补充查询
-            service_temporality = params.get("service_temporality")
-            if service_temporality not in [MetricTemporality.CUMULATIVE, MetricTemporality.DELTA]:
-                service_temporality = group.get_server_config(server=params["service_name"]).get("temporality")
+            service_temporality: Optional[str] = group.get_server_config(server=params["service_name"]).get(
+                "temporality"
+            )
 
             if service_temporality == MetricTemporality.CUMULATIVE:
                 # 添加 increase 函数
@@ -421,8 +418,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         return {
             "app_name": params.get("apm_app_name"),
             "service_name": params.get("apm_service_name"),
-            "service_temporality": params.get("apm_service_temporality"),
-            "category": params.get("apm_category"),
         }
 
     @classmethod
@@ -523,12 +518,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 params.update(
                     {
                         "apm_service_name": "${service_name}",
-                    }
-                )
-            if list_config_item["id"] in cls.REQUIRE_CONFIG_VIEW_IDS:
-                params.update(
-                    {
-                        "apm_service_temporality": "${service_temporality}",
                     }
                 )
 
