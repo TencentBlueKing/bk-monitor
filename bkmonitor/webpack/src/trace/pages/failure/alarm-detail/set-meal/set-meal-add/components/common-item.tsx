@@ -23,32 +23,32 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { defineComponent, type PropType } from 'vue';
 
 import './common-item.scss';
 
-interface ICommonItemProps {
-  title?: string;
-  required?: boolean;
-}
-
-@Component({
+export default defineComponent({
   name: 'CommonItem',
-})
-export default class CommonItem extends tsc<ICommonItemProps> {
-  @Prop({ type: String, default: '' }) title: string;
-  @Prop({ type: Boolean, default: false }) required: boolean;
-  render() {
-    return (
+  props: {
+    title: {
+      type: String as PropType<string>,
+      default: '',
+    },
+    required: {
+      type: Boolean as PropType<boolean>,
+      default: false,
+    },
+  },
+  setup(props, { slots }) {
+    return () => (
       <div class='common-item-component'>
         <div class='title'>
-          <span>{this.title}</span>
-          {this.required && <span class='red-point'>*</span>}
-          {this.$slots.titleRight}
+          <span>{props.title}</span>
+          {props.required && <span class='red-point'>*</span>}
+          {slots?.titleRight?.()}
         </div>
-        <div class='content'>{this.$slots.default}</div>
+        <div class='content'>{slots?.default?.()}</div>
       </div>
     );
-  }
-}
+  },
+});

@@ -95,11 +95,24 @@ class ServiceLogHandler:
         return res
 
     @classmethod
-    def get_datasource_index_set_id(cls, bk_biz_id, app_name):
-        """获取 LogDatasource 的 IndexSetId"""
+    def get_and_check_datasource_index_set_id(cls, bk_biz_id, app_name, full_indexes=None):
+        """获取并校验 LogDatasource 的 IndexSetId"""
+
         ds = cls.get_log_datasource(bk_biz_id, app_name)
-        if ds:
-            return ds["index_set_id"]
+        if not ds:
+            return None
+        index_set_id = ds["index_set_id"]
+        if not full_indexes:
+            full_indexes = api.log_search.search_index_set(bk_biz_id=bk_biz_id)
+
+        index_set_info = next(
+            (i for i in full_indexes if str(i.get("index_set_id", "")) == str(index_set_id)),
+            None,
+        )
+        if index_set_info:
+            return index_set_id
+
+        # 如果不在接口返回的索引集中 说明此自定义上报在日志平台中已经停止
         return None
 
     @classmethod

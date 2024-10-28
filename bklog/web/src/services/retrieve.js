@@ -204,6 +204,11 @@ const getClusteringConfigStatus = {
   url: '/clustering_config/:index_set_id/access/status/',
   method: 'get',
 };
+/** 查询聚类接入状态*/
+const updateUserFiledTableConfig = {
+  url: '/search/index_set/user_custom_config/',
+  method: 'post',
+};
 export {
   getIndexSetList,
   getLogTableHead,
@@ -246,4 +251,5 @@ export {
   createClusteringConfig,
   updateClusteringConfig,
   getClusteringConfigStatus,
+  updateUserFiledTableConfig,
 };

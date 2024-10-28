@@ -15,6 +15,8 @@ from django.conf import settings
 from rest_framework import serializers
 
 from core.drf_resource import Resource, api
+from core.drf_resource.exceptions import CustomException
+from core.errors.api import BKAPIError
 
 
 class FrontendReportEventResource(Resource):
@@ -51,7 +53,10 @@ class FrontendReportEventResource(Resource):
         params["dimensions"]["app_code"] = "bkmonitor"
         # 丰富用户组织架构信息
         username = params["dimensions"]["user_name"]
-        departments = self.get_user_dept(username)
+        try:
+            departments = self.get_user_dept(username)
+        except (CustomException, BKAPIError):
+            departments = []
         for index, dept in enumerate(departments):
             params["dimensions"][f"department_{index}"] = dept
         params["target"] = settings.ENVIRONMENT_CODE
@@ -72,10 +77,12 @@ class FrontendReportEventResource(Resource):
         return r.json()
 
     def get_user_dept(self, username):
+        departments = []
+        if not username:
+            return departments
         info = api.bk_login.list_profile_departments(id=username)
         dept = info[0]
         family = dept["family"]
-        departments = []
         for f in family:
             departments.append(f["name"])
         departments.append(dept["name"])

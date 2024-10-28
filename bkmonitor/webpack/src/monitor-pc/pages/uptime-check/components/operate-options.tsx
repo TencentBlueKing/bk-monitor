@@ -69,6 +69,7 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
 
   @Emit('optionClick')
   handleOptionClick(id: string) {
+    this.isMouseOverShow && this.handleHidden();
     return id;
   }
 
@@ -85,13 +86,17 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
         maxWidth: 520,
         duration: [200, 0],
         onHidden: () => {
-          document.querySelector('#directive-ele')?.remove();
-          this.popoverInstance.destroy();
-          this.popoverInstance = null;
+          this.handleHidden();
         },
       });
     }
     this.popoverInstance?.show(100);
+  }
+
+  handleHidden() {
+    document.querySelector('#directive-ele')?.remove();
+    this.popoverInstance.destroy();
+    this.popoverInstance = null;
   }
 
   render() {

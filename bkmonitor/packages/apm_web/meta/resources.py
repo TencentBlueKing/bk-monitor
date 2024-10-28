@@ -110,7 +110,11 @@ from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.ip import is_v6
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
-from bkmonitor.utils.user import get_global_user, get_request_username
+from bkmonitor.utils.user import (
+    get_backend_username,
+    get_global_user,
+    get_request_username,
+)
 from common.log import logger
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE, EventSeverity
 from constants.apm import (
@@ -1649,7 +1653,16 @@ class DataSamplingResource(Resource):
 
     @classmethod
     def combine_data(cls, telemetry_data_type: str, app: Application, **kwargs):
-        resp = telemetry_handler_registry(telemetry_data_type, app=app).data_sampling(**kwargs)
+        try:
+            resp = telemetry_handler_registry(telemetry_data_type, app=app).data_sampling(**kwargs)
+        except Exception as e:  # pylint: disable=broad-except
+            # APM 应用详情数据状态采样示例接口, 采样为空无需暴露底层具体错误信息给用户, 日志后台记录即可
+            logger.warning(
+                _("获取app: {app_id} {data_type} 采样数据失败, 详情: {detail}").format(
+                    app_id=app.application_id, data_type=telemetry_data_type, detail=e
+                )
+            )
+            return []
         return resp if resp else []
 
     def perform_request(self, validated_request_data):
@@ -1715,7 +1728,7 @@ class StorageStatusResource(Resource):
                         if telemetry_handler_registry(data_type.value, app=app).storage_status
                         else StorageStatus.ERROR
                     )
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-except
                     status_mapping[data_type.value] = StorageStatus.ERROR
                     logger.warning(_("获取{type}存储状态失败,详情: {detail}").format(type=data_type.value, detail=e))
         except Application.DoesNotExist:
@@ -1746,7 +1759,7 @@ class DataStatusResource(Resource):
                         if telemetry_handler_registry(data_type.value, app=app).get_data_count(start_time, end_time)
                         else DataStatus.NO_DATA
                     )
-                except ValueError as e:
+                except Exception as e:  # pylint: disable=broad-except
                     status_mapping[data_type.value] = getattr(
                         app, f"{data_type.datasource_type}_data_status", DataStatus.NO_DATA
                     )
@@ -1769,11 +1782,6 @@ class NoDataStrategyInfoResource(Resource):
 
     def get_strategy(self, bk_biz_id: int, app: Application, telemetry_data_type: str):
         """检测策略存在与否，不存在则创建"""
-        # 不分页获取所有已注册的策略
-        strategies = resource.strategies.get_strategy_list_v2(bk_biz_id=bk_biz_id, page=0, page_size=0).get(
-            "strategy_config_list", []
-        )
-        strategy_map = {strategy["id"]: strategy for strategy in strategies}
         # 获取数据库存储的策略
         strategy_config, is_created = ApmMetaConfig.objects.get_or_create(
             config_level=ApmMetaConfig.APPLICATION_LEVEL,
@@ -1782,9 +1790,15 @@ class NoDataStrategyInfoResource(Resource):
             defaults={"config_value": {"id": -1, "notice_group_id": -1}},
         )
         strategy_id = strategy_config.config_value["id"]
-        # 匹配则返回
-        if strategy_id in strategy_map.keys():
-            return strategy_map[strategy_id]
+        # 获取已注册的策略
+        if strategy_id > 0:
+            conditions = [{"key": "id", "value": [strategy_id]}]
+            strategies = resource.strategies.get_strategy_list_v2(
+                bk_biz_id=bk_biz_id, conditions=conditions, page=0, page_size=0
+            ).get("strategy_config_list", [])
+            # 匹配则返回
+            if strategies:
+                return strategies[0]
         # 不匹配则创建新策略
         return self.registry_strategy(bk_biz_id, app, strategy_config, telemetry_data_type)
 
@@ -1967,16 +1981,18 @@ class NoDataStrategyStatusResource(Resource):
         except ApmMetaConfig.DoesNotExist:
             raise ValueError(_("配置信息不存在"))
         strategy_id = config.config_value["id"]
+        conditions = [{"key": "id", "value": [strategy_id]}]
         # 已注册的策略
-        strategies = resource.strategies.get_strategy_list_v2(bk_biz_id=app.bk_biz_id).get("strategy_config_list", [])
-        strategy_ids = [strategy["id"] for strategy in strategies]
+        strategies = resource.strategies.get_strategy_list_v2(bk_biz_id=app.bk_biz_id, conditions=conditions).get(
+            "strategy_config_list", []
+        )
         # 检测策略存在情况，不存在则创建
-        if strategy_id not in strategy_ids:
+        if not strategies:
             new_strategy = NoDataStrategyInfoResource.registry_strategy(app.bk_biz_id, app, config, telemetry_data_type)
             if new_strategy:
                 strategy_id = new_strategy["id"]
         # 更新策略状态
-        if strategy_id:
+        if strategy_id and self.is_enabled is not None:
             resource.strategies.update_partial_strategy_v2(
                 bk_biz_id=app.bk_biz_id,
                 ids=[strategy_id],
@@ -2922,14 +2938,17 @@ class CustomServiceMatchListResource(Resource):
                     k, v = str(i).split("=")
                     url_param_paris[k] = v
 
+                param_filter = True
                 for param in param_rules:
                     val = url_param_paris.get(param["name"])
                     if not val:
-                        continue
+                        param_filter = False
+                        break
                     if not Matcher.operator_match(val, param["value"], param["operator"]):
-                        continue
-
-                res.add(f"{item}")
+                        param_filter = False
+                        break
+                if param_filter:
+                    res.add(f"{item}")
 
         return list(res)
 
@@ -3008,7 +3027,11 @@ class ListEsClusterGroupsResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务id")
 
     def perform_request(self, data):
-        cluster_groups = api.log_search.bk_log_search_cluster_groups(bk_biz_id=data["bk_biz_id"])
+        # 在 APM 处获取集群信息 使用后台用户权限获取 避免当前用户无权限报错
+        cluster_groups = api.log_search.bk_log_search_cluster_groups(
+            bk_biz_id=data["bk_biz_id"],
+            bk_username=get_backend_username(),
+        )
         return cluster_groups
 
 

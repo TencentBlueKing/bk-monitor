@@ -44,15 +44,24 @@ gevent_active = "time" in saved
 IP = get_local_ip()
 
 
+RING_NODE_REFRESHED = False
+
+
 def active_biz_ids():
+    global RING_NODE_REFRESHED
     biz_ids = StrategyModel.objects.all().values("bk_biz_id").distinct()
     biz_count = len(biz_ids)
-    if biz_count > 100:
-        global HR, RING_NODES
-        RING_NODES *= len(str((biz_count + 1) // 10))
-        HR = HashRing(dict.fromkeys(list(range(RING_NODES)), 1))
-        logger.info(f"[api cache] hash ring nodes: {RING_NODES}")
+    if biz_count > 100 and not RING_NODE_REFRESHED:
+        refresh_ring_nodes(biz_count)
+        RING_NODE_REFRESHED = True
     return biz_ids
+
+
+def refresh_ring_nodes(count):
+    global HR, RING_NODES
+    RING_NODES *= len(str((count + 1) // 10))
+    HR = HashRing(dict.fromkeys(list(range(RING_NODES)), 1))
+    logger.info(f"[api cache] hash ring nodes: {RING_NODES}")
 
 
 @share_lock()

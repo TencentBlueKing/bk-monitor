@@ -195,6 +195,7 @@ class ServiceScenario(BaseScenario):
     scenarios_type = SERVICE_SCENARIO
 
     def get_target_instances(self):
+        mem_cache.clear()
         if not list(itertools.chain(*self.item.target)):
             return []
         target_data = self.item.target[0][0]
