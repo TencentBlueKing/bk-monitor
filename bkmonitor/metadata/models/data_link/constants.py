@@ -50,13 +50,13 @@ class DataLinkResourceStatus(Enum):
     Ok: The resource has been schedualed and is ready for use
     """
 
-    PENDING = "Pending"
-    RECONCILING = "Reconciling"
-    TERMINATING = "Terminating"
-    FAILED = "Failed"
-    OK = "Ok"
-    CREATING = "Creating"
     INITIALIZING = "Initializing"
+    CREATING = "Creating"
+    OK = "Ok"
+    FAILED = "Failed"
+    PENDING = "Pending"
+    TERMINATING = "Terminating"
+    RECONCILING = "Reconciling"
 
 
 # 默认转换器及对应的处理格式

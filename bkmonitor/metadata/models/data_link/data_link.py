@@ -13,6 +13,7 @@ import logging
 
 from django.conf import settings
 from django.db import models, transaction
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from core.drf_resource import api
 from metadata.models.data_link import utils
@@ -47,7 +48,6 @@ class DataLink(models.Model):
     data_link_strategy = models.CharField(max_length=255, verbose_name="链路策略", choices=DATA_LINK_STRATEGY_CHOICES)
     create_time = models.DateTimeField("创建时间", auto_now_add=True)
     last_modify_time = models.DateTimeField("最后更新时间", auto_now=True)
-    storage_type = models.CharField(max_length=255, verbose_name="存储类型")
 
     class Meta:
         verbose_name = "数据链路"
@@ -57,8 +57,13 @@ class DataLink(models.Model):
         """
         生成对应套餐的链路完整配置
         """
-        if self.data_link_strategy == "bk_standard_v2_time_series":
-            return self.compose_standard_time_series_configs(*args, **kwargs)
+
+        # 类似switch的形式，选择对应的组装方式
+        switcher = {DataLink.BK_STANDARD_V2_TIME_SERIES: self.compose_standard_time_series_configs}
+        compose_method = switcher.get(
+            self.data_link_strategy,
+        )
+        return compose_method(*args, **kwargs)
 
     def compose_standard_time_series_configs(self, data_source, table_id, vm_cluster_name):
         """
@@ -120,8 +125,7 @@ class DataLink(models.Model):
         ]
         return configs
 
-    @classmethod
-    def apply_data_link(cls, *args, **kwargs):
+    def apply_data_link(self, *args, **kwargs):
         """
         组装配置并下发数据链路
         声明BkBaseResultTable -> 组装链路资源配置 -> 调用API申请
@@ -129,67 +133,91 @@ class DataLink(models.Model):
         from metadata.models.bkdata.result_table import BkBaseResultTable
 
         try:
-            with transaction.atomic():
-                # NOTE:新链路下，data_link_name和bkbase_data_name一致
-                BkBaseResultTable.objects.get_or_create(
-                    data_link_name=cls.data_link_name,
-                    bkbase_data_name=cls.data_link_name,
-                    defaults={
-                        "status": DataLinkResourceStatus.INITIALIZING.value,
-                    },
-                )
+            # NOTE:新链路下，data_link_name和bkbase_data_name一致
+            BkBaseResultTable.objects.get_or_create(
+                data_link_name=self.data_link_name,
+                bkbase_data_name=self.data_link_name,
+                defaults={
+                    "status": DataLinkResourceStatus.INITIALIZING.value,
+                },
+            )
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
-                "apply_data_link: data_link_name->[%s] create BkBaseResultTable error->[%s]", cls.data_link_name, e
+                "apply_data_link: data_link_name->[%s] create BkBaseResultTable error->[%s]", self.data_link_name, e
             )
             raise e
 
         try:
-            configs = cls.compose_configs(*args, **kwargs)
+            configs = self.compose_configs(*args, **kwargs)
         except Exception as e:  # pylint: disable=broad-except
-            logger.error("apply_data_link: data_link_name->[%s] compose config error->[%s]", cls.data_link_name, e)
+            logger.error("apply_data_link: data_link_name->[%s] compose config error->[%s]", self.data_link_name, e)
             raise e
         logger.info(
             "apply_data_link: data_link_name->[%s],strategy->[%s] try to use configs->[%s] to apply",
-            cls.data_link_name,
-            cls.data_link_strategy,
+            self.data_link_name,
+            self.data_link_strategy,
             configs,
         )
         try:
-            response = api.bkdata.apply_data_link(configs)
+            response = self.apply_data_link_with_retry(configs)
         except Exception as e:  # pylint: disable=broad-except
-            logger.error("apply_data_link: data_link_name->[%s] apply error->[%s]", cls.data_link_name, e)
+            logger.error("apply_data_link: data_link_name->[%s] apply error->[%s]", self.data_link_name, e)
             raise e
 
         logger.info(
             "apply_data_link: data_link_name->[%s],strategy->[%s] response->[%s]",
-            cls.data_link_name,
-            cls.data_link_strategy,
+            self.data_link_name,
+            self.data_link_strategy,
             response,
         )
 
-    @classmethod
-    def sync_metadata(cls, data_source, table_id, storage_cluster_name):
+    @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
+    def apply_data_link_with_retry(self, configs):
+        """
+        根据指定配置，申请数据链路，具备重试机制，最多重试四次，最高等待10秒
+        @param configs: 链路资源配置
+        """
+        try:
+            response = api.bkdata.apply_data_link(configs)
+            return response
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                "apply_data_link: data_link_name->[%s] apply error->[%s],configs->[%s]", self.data_link_name, e, configs
+            )
+            raise e
+
+    def sync_metadata(self, data_source, table_id, storage_cluster_name):
         """
         同步元数据
         同步此前的计算平台链路记录，设置状态为OK
         """
+        from metadata.models import ClusterInfo
         from metadata.models.bkdata.result_table import BkBaseResultTable
 
         bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name)
         bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id)
 
+        storage_type = ClusterInfo.TYPE_VM
+        if self.data_link_strategy == DataLink.BK_STANDARD_V2_TIME_SERIES:
+            storage_type = ClusterInfo.TYPE_VM
+
+        try:
+            storage_cluster_id = ClusterInfo.objects.get(cluster_name=storage_cluster_name).cluster_id
+        except ClusterInfo.DoesNotExist:
+            logger.error("sync_metadata: storage_cluster_name->[%s] not exist!", storage_cluster_name)
+            return
+
         try:
             with transaction.atomic():
                 BkBaseResultTable.objects.update_or_create(
-                    data_link_name=cls.data_link_name,
+                    data_link_name=self.data_link_name,
                     bkbase_data_name=bkbase_data_name,
                     bkbase_vmrt_name=bkbase_vmrt_name,
                     bkbase_table_id=f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}",
                     monitor_table_id=table_id,
-                    defaults={"storage_type": cls.storage_type, "storage_id": storage_cluster_name},
+                    defaults={"storage_type": storage_type, "storage_id": storage_cluster_id},
                 )
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
-                "sync_metadata: data_link_name->[%s],sync_metadata failed,error->{%s],rollback!", cls.data_link_name, e
+                "sync_metadata: data_link_name->[%s],sync_metadata failed,error->{%s],rollback!", self.data_link_name, e
             )

@@ -20,7 +20,7 @@ class BkBaseResultTable(models.Model):
     计算平台结果表
     data_link_name作为唯一主键，
     Note：新接入的链路，data_link_name和bkbase_data_name相同，都是根据数据源的data_name拼接而成，V3->V4迁移场景下不同
-    除bkbase_table_id外，其余均为声明式字段
+    除bkbase_table_id外，其余均为声明式字段，bkbase_table_id相当于链路status的一部分
     """
 
     STATUS_CHOICES = (
@@ -29,19 +29,26 @@ class BkBaseResultTable(models.Model):
         (DataLinkResourceStatus.OK.value, "已就绪"),
     )
 
+    # 在V3->V4迁移场景中，data_link_name和bkbase_data_name不一定相同，故需设计为分别全局唯一
     data_link_name = models.CharField(verbose_name="链路名称", max_length=255, primary_key=True, db_index=True, unique=True)
-    bkbase_data_name = models.CharField(verbose_name="计算平台数据源名称", max_length=128)
-    bkbase_table_id = models.IntegerField(verbose_name="计算平台结果表ID", null=True, blank=True)
+    bkbase_data_name = models.CharField(verbose_name="计算平台数据源名称", max_length=128, unique=True, null=True, blank=True)
+
+    # 存储相关配置，关联ClusterInfo中的存储集群，用于推送路由至查询侧
     storage_type = models.CharField(
         "存储类型", max_length=32, choices=ClusterInfo.CLUSTER_TYPE_CHOICES, default=ClusterInfo.TYPE_VM
     )
-    storage_cluster_id = models.IntegerField("存储集群ID")
-    monitor_table_id = models.CharField("监控平台结果表ID", max_length=128)
-    create_time = models.DateTimeField("创建时间", auto_now_add=True)
-    last_modify_time = models.DateTimeField("最后更新时间", auto_now=True)
+    storage_cluster_id = models.IntegerField(verbose_name="存储集群ID", null=True, blank=True)
+
+    # 监控平台自身的结果表
+    monitor_table_id = models.CharField(verbose_name="监控平台结果表ID", max_length=128, null=True, blank=True)
+    create_time = models.DateTimeField(verbose_name="创建时间", auto_now_add=True)
+    last_modify_time = models.DateTimeField(verbose_name="最后更新时间", auto_now=True)
     status = models.CharField(
         verbose_name="状态", max_length=64, choices=STATUS_CHOICES, default=DataLinkResourceStatus.INITIALIZING.value
     )
+
+    # 计算平台结果表ID，只有在实际创建后才进行赋值
+    bkbase_table_id = models.IntegerField(verbose_name="计算平台结果表ID", null=True, blank=True)
 
     class Meta:
         verbose_name = "接入计算平台记录表"
