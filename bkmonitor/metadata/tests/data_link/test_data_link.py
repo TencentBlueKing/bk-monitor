@@ -20,7 +20,7 @@ from core.errors.api import BKAPIError
 from metadata import models
 from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.data_link import DataLink, utils
-from metadata.models.data_link.constants import DataLinkKind
+from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
 from metadata.models.data_link.data_link_configs import (
     DataBusConfig,
     VMResultTableConfig,
@@ -199,6 +199,12 @@ def test_Standard_V2_Time_Series_apply_data_link(create_or_delete_records):
         mock_apply_with_retry.assert_called_once()
 
     assert BkBaseResultTable.objects.filter(data_link_name=bkbase_data_name).exists()
+    assert BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).monitor_table_id == rt.table_id
+    assert BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).storage_type == models.ClusterInfo.TYPE_VM
+    assert (
+        BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).status
+        == DataLinkResourceStatus.INITIALIZING.value
+    )
 
 
 @pytest.mark.django_db(databases=["default", "monitor_api"])
@@ -231,6 +237,12 @@ def test_Standard_V2_Time_Series_apply_data_link_with_failure(create_or_delete_r
 
     mock_compose_configs.assert_called_once()
     assert BkBaseResultTable.objects.filter(data_link_name=bkbase_data_name).exists()
+    assert BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).monitor_table_id == rt.table_id
+    assert BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).storage_type == models.ClusterInfo.TYPE_VM
+    assert (
+        BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).status
+        == DataLinkResourceStatus.INITIALIZING.value
+    )
 
     # 验证重试装饰器是否正常工作，重试四次 间隔 1->2->4->8秒
     with pytest.raises(RetryError):

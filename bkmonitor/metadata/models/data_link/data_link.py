@@ -23,6 +23,7 @@ from metadata.models.data_link.data_link_configs import (
     VMResultTableConfig,
     VMStorageBindingConfig,
 )
+from metadata.models.storage import ClusterInfo
 
 logger = logging.getLogger("metadata")
 
@@ -42,6 +43,12 @@ class DataLink(models.Model):
         (BCS_FEDERAL_PROXY_TIME_SERIES, "联邦代理时序数据链路"),
         (BCS_FEDERAL_SUBSET_TIME_SERIES, "联邦子集时序数据链路"),
     )
+
+    STORAGE_TYPE_MAP = {
+        BK_STANDARD_V2_TIME_SERIES: ClusterInfo.TYPE_VM,
+        BCS_FEDERAL_PROXY_TIME_SERIES: ClusterInfo.TYPE_VM,
+        BCS_FEDERAL_SUBSET_TIME_SERIES: ClusterInfo.TYPE_VM,
+    }
 
     data_link_name = models.CharField(max_length=255, verbose_name="链路名称", primary_key=True)
     namespace = models.CharField(max_length=255, verbose_name="命名空间", default=settings.DEFAULT_VM_DATA_LINK_NAMESPACE)
@@ -136,7 +143,9 @@ class DataLink(models.Model):
             # NOTE:新链路下，data_link_name和bkbase_data_name一致
             BkBaseResultTable.objects.get_or_create(
                 data_link_name=self.data_link_name,
+                monitor_table_id=kwargs.get("table_id"),
                 bkbase_data_name=self.data_link_name,
+                storage_type=self.STORAGE_TYPE_MAP[self.data_link_strategy],
                 defaults={
                     "status": DataLinkResourceStatus.INITIALIZING.value,
                 },

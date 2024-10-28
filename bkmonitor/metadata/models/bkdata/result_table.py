@@ -32,15 +32,13 @@ class BkBaseResultTable(models.Model):
     # 在V3->V4迁移场景中，data_link_name和bkbase_data_name不一定相同，故需设计为分别全局唯一
     data_link_name = models.CharField(verbose_name="链路名称", max_length=255, primary_key=True, db_index=True, unique=True)
     bkbase_data_name = models.CharField(verbose_name="计算平台数据源名称", max_length=128, unique=True, null=True, blank=True)
-
-    # 存储相关配置，关联ClusterInfo中的存储集群，用于推送路由至查询侧
     storage_type = models.CharField(
         "存储类型", max_length=32, choices=ClusterInfo.CLUSTER_TYPE_CHOICES, default=ClusterInfo.TYPE_VM
-    )
-    storage_cluster_id = models.IntegerField(verbose_name="存储集群ID", null=True, blank=True)
-
-    # 监控平台自身的结果表
+    )  # 存储类型
     monitor_table_id = models.CharField(verbose_name="监控平台结果表ID", max_length=128, null=True, blank=True)
+
+    # 回填信息
+    storage_cluster_id = models.IntegerField(verbose_name="存储集群ID", null=True, blank=True)
     create_time = models.DateTimeField(verbose_name="创建时间", auto_now_add=True)
     last_modify_time = models.DateTimeField(verbose_name="最后更新时间", auto_now=True)
     status = models.CharField(
