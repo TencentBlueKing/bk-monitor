@@ -22,6 +22,16 @@
           margin: 0 4px;
           color: #ff9c01;
         }
+        .chart-point-tag {
+          .tag-symbol-txt {
+            display: inline-block;
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            vertical-align: top;
+          }
+        }
       }
 
       .layout-main-table {
@@ -41,6 +51,7 @@
         height: 100%;
         padding-bottom: 30px;
         background: #fafbfd;
+        padding-bottom: 30px;
       }
 
       .aside-item {

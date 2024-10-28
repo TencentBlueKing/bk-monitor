@@ -39,7 +39,7 @@ export interface IColumn {
 }
 
 export interface IDataItem {
-  dimensions: Record<string, any>;
+  dimensions?: Record<string, any>;
   [key: string]: any;
 }
 export interface IFilterCondition {
@@ -73,6 +73,7 @@ export enum EPreDateType {
 export interface IListItem {
   value?: string;
   text?: string;
+  label?: string;
 }
 
 export type CallOptions = {
@@ -95,6 +96,7 @@ export type CallOptions = {
 export type IChartOption = {
   time?: string;
   dimensions?: IDataItem;
+  interval?: number;
 };
 
 export type IFilterData = {
