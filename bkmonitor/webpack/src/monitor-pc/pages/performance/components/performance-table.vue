@@ -219,7 +219,7 @@
           min-width="120"
         >
           <template #default="{ row }">
-            <skeleton-item v-if="instanceLoading" />
+            <div v-html='skeletonItem' v-if="instanceLoading" />
             <template v-else>
               <div
                 v-if="statusMap[row.status]"
@@ -335,7 +335,7 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <skeleton-item v-if="instanceLoading" />
+            <div v-html='skeletonItem' v-if="instanceLoading" />
             <span
               v-else
               :style="{
@@ -375,7 +375,7 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <skeleton-item v-if="instanceLoading" />
+            <div v-html='skeletonItem' v-if="instanceLoading" />
             <div v-else>
               <div class="rate-name">
                 {{ row.cpu_usage | emptyNumberFilter }}
@@ -397,7 +397,7 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <skeleton-item v-if="instanceLoading" />
+            <div v-html='skeletonItem' v-if="instanceLoading" />
             <div v-else>
               <div class="rate-name">
                 {{ row.disk_in_use | emptyNumberFilter }}
@@ -419,7 +419,7 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <skeleton-item v-if="instanceLoading" />
+            <div v-html='skeletonItem' v-if="instanceLoading" />
             <div v-else>
               <div class="rate-name">
                 {{ row.io_util | emptyNumberFilter }}
@@ -441,7 +441,7 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <skeleton-item v-if="instanceLoading" />
+            <div v-html='skeletonItem' v-if="instanceLoading" />
             <div v-else>
               <div class="rate-name">
                 {{ row.mem_usage | emptyNumberFilter }}
@@ -463,7 +463,7 @@
           sortable="custom"
         >
           <template #default="{ row }">
-            <skeleton-item v-if="instanceLoading" />
+            <div v-html='skeletonItem' v-if="instanceLoading" />
             <div v-else>
               <div class="rate-name">
                 {{ row.psc_mem_usage | emptyNumberFilter }}
@@ -494,7 +494,7 @@
           min-width="310"
         >
           <template #default="{ row, $index }">
-            <skeleton-item v-if="instanceLoading" />
+            <div v-html='skeletonItem' v-if="instanceLoading" />
             <div
               v-else
               class="process-module"
@@ -606,7 +606,6 @@ import { AlarmStatus } from '../types';
 import UnresolveList from '../unresolve-list/unresolve-list.vue';
 import IpStatusTips, { handleIpStatusData } from './ip-status-tips';
 import { countElementsNotInFirstRow } from '../../strategy-config/util';
-import SkeletonItem from '../../../components/skeleton/skeleton-item.tsx';
 
 /** 告警类型对应的颜色 */
 const alarmColorMap: { [key in AlarmStatus]: string } = {
@@ -621,7 +620,6 @@ const alarmColorMap: { [key in AlarmStatus]: string } = {
     TipsTpl,
     IpStatusTips,
     EmptyStatus,
-    SkeletonItem,
   },
   filters: {
     progressColors(v) {
@@ -712,6 +710,15 @@ export default class PerformanceTable extends Vue<MonitorVue> {
       url: `${this.$store.getters.bkNodemanHost}#/plugin-manager/list`,
     },
   };
+
+  // 生成一段 骨架屏 字符串
+  get skeletonItem(): string {
+    return `
+      <div class='skeleton-item'>
+        <div class='skeleton-element' />
+      </div>
+    `;
+  }
 
   selectList = [
     {
@@ -1345,6 +1352,18 @@ $processColors: #ea3636 #c4c6cc #63656e;
     &-pagination {
       flex: 1;
     }
+  }
+}
+
+// 二级骨架屏样式
+.skeleton-item {
+  position: relative;
+  height: 22px;
+  padding-right: 50px;
+
+  & > div {
+    min-width: 19px;
+    height: 100%;
   }
 }
 </style>
