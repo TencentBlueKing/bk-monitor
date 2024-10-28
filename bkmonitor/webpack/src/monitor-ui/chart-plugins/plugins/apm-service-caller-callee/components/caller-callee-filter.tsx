@@ -29,15 +29,16 @@ import { Component, Prop, Emit, InjectReactive, Watch } from 'vue-property-decor
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getFieldOptionValues } from 'monitor-api/modules/apm_metric';
-import { Debounce } from 'monitor-common/utils';
+// import { Debounce } from 'monitor-common/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { throttle } from 'throttle-debounce';
 
 import { reviewInterval } from '../../../utils';
 import { VariablesService } from '../../../utils/variable';
 import { SYMBOL_LIST } from '../utils';
 
 import type { PanelModel } from '../../../typings';
-import type { CallOptions, IFilterData } from '../type';
+import type { CallOptions, IFilterData, IListItem } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
@@ -51,6 +52,10 @@ interface ICallerCalleeFilterEvent {
   onReset?: () => void;
   onSearch?: (options: CallOptions['call_filter']) => void;
 }
+const filterOption: IListItem = {
+  text: '- 空 -',
+  value: '',
+};
 @Component({
   name: 'CallerCalleeFilter',
   components: {},
@@ -66,20 +71,26 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   symbolList = SYMBOL_LIST;
   toggleKey = '';
   isLoading = false;
-  filterData: IFilterData;
+  filterData: IFilterData = {
+    caller: [],
+    callee: [],
+  };
   filterTags = {};
+  selectsRefs = {};
+  throttledScroll: (() => void) | throttle<(e: any) => Promise<void> | void> = () => {};
+
   @Watch('activeKey')
   handlePanelChange() {
     this.handleSearch();
-  }
-  @Watch('callOptions', { immediate: true })
-  handleCallOptionsChange() {
-    this.initDefaultData();
   }
   @Emit('search')
   handleSearch() {
     const filter = (this.filterData[this.activeKey] || []).filter(item => item.value.length > 0);
     return this.handleRegData(filter);
+  }
+  @Watch('callOptions', { deep: true })
+  onCallOptionsChanges() {
+    this.handleDefaultValue();
   }
 
   @Emit('reset')
@@ -90,8 +101,8 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   changeSelect(val, item) {
     return { val, item };
   }
-  handleToggle(isOpen: boolean, key: string) {
-    this.searchToggle({ isOpen, key });
+  handleToggle(isOpen: boolean, key: string, isInit = false) {
+    this.searchToggle({ isOpen, key }, isInit);
     this.toggleKey = key;
   }
   get commonOptions() {
@@ -104,30 +115,56 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   get angleData() {
     return this.commonOptions?.angle || {};
   }
-  mounted() {
-    // this.initDefaultData();
+
+  beforeDestroy() {
+    const targetEl: HTMLDivElement = document.querySelector('.search-main');
+    targetEl.removeEventListener('scroll', this.throttledScroll as any);
   }
-  initDefaultData() {
-    const callFilter = this.callOptions.call_filter || [];
-    if (callFilter.length > 0) {
-      callFilter.map(item => this.handleToggle(true, item.key));
+  mounted() {
+    this.throttledScroll = throttle(300, this.handleScroll);
+    const targetEl: HTMLDivElement = document.querySelector('.search-main');
+    targetEl.addEventListener('scroll', this.throttledScroll as any);
+    this.initDefaultData();
+    /** 回填默认值 */
+    this.$nextTick(() => {
+      this.handleDefaultValue();
+    });
+  }
+
+  handleDefaultValue() {
+    const callFilter = (this.callOptions.call_filter || []).filter(item => item.key !== 'time');
+    if (callFilter.length === 0) {
+      return;
     }
+    Object.keys(this.selectsRefs).map(item => this.selectsRefs[item]?.reset());
+    callFilter.map(item => {
+      if (item.method === 'reg') {
+        item.value.map(val => {
+          if (val.startsWith('.*') || val.endsWith('.*')) {
+            item.method = val.startsWith('.*') ? 'after_req' : 'before_req';
+            item.value = item.value.map(item => item.replace(/^\.\*|\.\*$/g, ''));
+          }
+        });
+      }
+      Object.assign(
+        this.filterData[this.activeKey].find(call => item.key === call.key),
+        item
+      );
+    });
+    callFilter.map(item => setTimeout(() => this.handleToggle(true, item.key, true), 50));
+  }
+  async handleScroll() {
+    Object.keys(this.selectsRefs).map(item => this.selectsRefs[item]?.$refs?.selectDropdown?.hideHandler());
+  }
+
+  initDefaultData() {
     const { caller, callee } = this.angleData;
     const createFilterData = tags =>
       (tags || []).map(item => {
-        const def = callFilter.find(ele => item.value === ele.key);
-        if (def?.value && def.method === 'reg') {
-          const firstValue = def.value[0];
-
-          if (firstValue.startsWith('.*') || firstValue.endsWith('.*')) {
-            def.method = firstValue.startsWith('.*') ? 'after_req' : 'before_req';
-            def.value = def.value.map(item => item.replace(/^\.\*|\.\*$/g, ''));
-          }
-        }
         return {
           key: item.value,
-          method: def?.method || 'eq',
-          value: def?.value || [],
+          method: 'eq',
+          value: [],
           condition: 'and',
         };
       });
@@ -138,7 +175,6 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
       caller: createFilterData(caller?.tags),
       callee: createFilterData(callee?.tags),
     };
-
     this.filterTags = {
       caller: createFilterTags(caller?.tags),
       callee: createFilterTags(callee?.tags),
@@ -165,13 +201,16 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
     return updatedFilter;
   }
   /** 动态获取左侧列表的下拉值 */
-  @Debounce(300)
-  searchToggle({ isOpen, key }) {
+  // @Debounce(10)
+  searchToggle({ isOpen, key }, isInit = false) {
     if (!isOpen) {
       return;
     }
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-    const filter = (this.filterData[this.activeKey] || []).filter(item => item.value.length > 0);
+    const filter = (this.filterData[this.activeKey] || []).filter(
+      item => this.toggleKey !== item.key && item.value.length > 0
+    );
+
     const interval = reviewInterval(this.viewOptions.interval, endTime - startTime, this.panel.collect_interval);
     const variablesService = new VariablesService({
       ...this.viewOptions,
@@ -190,13 +229,15 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
       }),
       ...params,
     };
-    newParams.where = [...newParams.where, ...this.handleRegData(filter)];
+    if (!isInit) {
+      newParams.where = [...newParams.where, ...this.handleRegData(filter)];
+    }
     this.isLoading = true;
     getFieldOptionValues(newParams)
       .then(res => {
         this.isLoading = false;
         const newFilter = this.filterTags[this.activeKey].map(item =>
-          item.value === key ? { ...item, values: res } : item
+          item.value === key ? { ...item, values: [...[filterOption], ...res] } : item
         );
         this.$set(this.filterTags, this.activeKey, newFilter);
       })
@@ -208,6 +249,11 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
         <div class='search-title'>{this.$t('筛选')}</div>
         <div class='search-main'>
           {(this.filterTags[this.activeKey] || []).map((item, ind) => {
+            const setItemRef = (el, key) => {
+              if (el) {
+                this.selectsRefs[key] = el;
+              }
+            };
             return (
               <div
                 key={item.value}
@@ -236,22 +282,29 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
                 </div>
                 {this.filterData[this.activeKey][ind] && (
                   <bk-select
+                    ref={el => setItemRef(el, `select${ind}`)}
                     v-model={this.filterData[this.activeKey][ind].value}
                     loading={item.value === this.toggleKey && this.isLoading}
                     placeholder={item.text}
+                    showEmpty={false}
                     allow-create
                     collapse-tag
                     display-tag
                     multiple
+                    searchable
                     onToggle={(val: boolean) => this.handleToggle(val, item.value)}
                   >
-                    {(item.values || []).map(opt => (
-                      <bk-option
-                        id={opt.value}
-                        key={opt.value}
-                        name={opt.value}
-                      />
-                    ))}
+                    {!this.isLoading && item.values.length > 0 ? (
+                      (item.values || []).map(opt => (
+                        <bk-option
+                          id={opt.value}
+                          key={opt.value}
+                          name={opt.text}
+                        />
+                      ))
+                    ) : (
+                      <span class='select-loading'>{this.$t('正在加载中...')}</span>
+                    )}
                   </bk-select>
                 )}
               </div>

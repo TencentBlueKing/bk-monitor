@@ -70,7 +70,7 @@ function timeShiftFormat(t: string) {
 
 function removeTrailingZeros(num) {
   if (num && num !== '0') {
-    return Number.parseFloat(num.toString().replace(/\.?0+$/, ''));
+    return Number.parseFloat(num.toString().replace(/\.0+$/, ''));
   }
   return num;
 }
@@ -234,7 +234,7 @@ class CallerLineChart extends CommonSimpleChart {
             paramsArr.push(primaryKey);
           }
           paramsArr.push(newParams);
-          console.log(newParams, this.panel.title);
+          // console.log(newParams, this.panel.title);
           return (this as any).$api[item.apiModule]
             [item.apiFunc](...paramsArr, {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
@@ -354,12 +354,8 @@ class CallerLineChart extends CommonSimpleChart {
               splitNumber: this.height < 120 ? 2 : 4,
               minInterval: 1,
               max: 'dataMax',
-              min: v => {
-                let min = v.min;
-                // 柱状图y轴不能以最小值作为起始点
-                if (isBar) min = min <= 10 ? 0 : min - 10;
-                return min;
-              },
+              min: 0,
+              scale: false,
             },
             xAxis: {
               axisLabel: {

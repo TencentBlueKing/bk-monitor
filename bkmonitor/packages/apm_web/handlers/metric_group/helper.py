@@ -115,6 +115,10 @@ class MetricHelper:
 
         # 开始时间不能小于 earliest_start_time
         start_time = max(earliest_start_time, start_time or default_start_time)
+
+        if end_time:
+            end_time = end_time // 60 * 60
+
         # 结束时间不能大于 now
         end_time = min(now, end_time or now)
 

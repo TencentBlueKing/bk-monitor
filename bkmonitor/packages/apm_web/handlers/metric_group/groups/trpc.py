@@ -110,19 +110,17 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         return support_calculation_methods[calculation_type]
 
     def q(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> QueryConfigBuilder:
+        # 如果是求瞬时量，那么整个时间范围是作为一个区间
+        interval: int = (self.DEFAULT_INTERVAL, self.metric_helper.get_interval(start_time, end_time))[self.instant]
         q: QueryConfigBuilder = (
-            self.metric_helper.q.group_by(*self.group_by)
-            # 如果是求瞬时量，那么整个时间范围是作为一个区间
-            .interval(
-                (self.DEFAULT_INTERVAL, self.metric_helper.get_interval(start_time, end_time))[self.instant]
-            ).filter(dict_to_q(self.filter_dict) or Q())
+            self.metric_helper.q.group_by(*self.group_by).interval(interval).filter(dict_to_q(self.filter_dict) or Q())
         )
 
         if self.time_shift:
             q = q.func(_id="time_shift", params=[{"id": "n", "value": self.time_shift}])
 
         if self.temporality == MetricTemporality.CUMULATIVE:
-            q = q.func(_id="increase", params=[{"id": "window", "value": f"{self.DEFAULT_INTERVAL}s"}])
+            q = q.func(_id="increase", params=[{"id": "window", "value": f"{interval}s"}])
 
         return q
 
@@ -188,6 +186,10 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             self.qs(start_time, end_time)
             .add_query(code_q)
             .add_query(total_q)
+            # 单个错误码的占比为 100% or 0% 时，对时间序列来说，是某段时间内不出现这条线，即无数据。
+            # 上述情况会导致比率计算缺少这部分数据点，即使通过 1-a / b 的模式，也只能做到 0% 或 100% 有数据，无法两边都满足。
+            # 这会导致 group by 场景下，计算不出错误率为 0% 、错误率 100% 的线。
+            # 可以借助 b 一定存在的情况，将 b 的维度对齐到 a，确保按字段聚合时，能 group by 出所有错误率 100% 或 0% 的数据。
             .expression("(a or b < bool 0) /  b * 100")
         )
 

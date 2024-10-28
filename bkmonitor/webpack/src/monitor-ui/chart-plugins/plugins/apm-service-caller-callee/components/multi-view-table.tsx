@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { copyText } from 'monitor-common/utils/utils';
+import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
 import CallerBarChart from '../chart/caller-bar-chart';
@@ -49,6 +50,10 @@ interface IMultiViewTableProps {
   sidePanelCommonOptions: Partial<CallOptions>;
   isLoading?: boolean;
   supportedCalculationTypes?: IListItem[];
+  tableTotal?: number;
+  totalList?: IDataItem[];
+  activeTabKey?: string;
+  resizeStatus?: boolean;
 }
 interface IMultiViewTableEvent {
   onShowDetail?: () => void;
@@ -68,8 +73,11 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   @Prop({ required: true, type: Boolean }) isLoading: boolean;
   @Prop({ required: true, type: Object }) panel: PanelModel;
   @Prop({ required: true, type: Object }) sidePanelCommonOptions: Partial<CallOptions>;
-
+  @Prop({ required: true, type: Number }) tableTotal: number;
+  @Prop({ required: true, type: Array }) totalList: IDataItem[];
+  @Prop({ type: String }) activeTabKey: string;
   @ProvideReactive('callOptions') callOptions: Partial<CallOptions> = {};
+  @Prop({ required: true, type: Boolean }) resizeStatus: boolean;
 
   active = 'request';
   cachePanels = TAB_TABLE_TYPE;
@@ -98,6 +106,22 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   consuming = ['avg_duration', 'p50_duration', 'p95_duration', 'p99_duration'];
   // 侧滑面板 维度id
   filterDimensionValue = '';
+  pagination = {
+    current: 1,
+    count: 0,
+    limit: 10,
+    limitList: [10, 20, 50],
+  };
+  tableAppendWidth = 0;
+  prefix = ['growth_rates', 'proportions', 'success_rate', 'exception_rate', 'timeout_rate'];
+  /** 是否需要展示百分号 */
+  hasPrefix(fieldName: string) {
+    return this.prefix.some(pre => fieldName.startsWith(pre));
+  }
+  @Watch('resizeStatus')
+  handleResizeStatus() {
+    this.tableAppendWidth = this.$refs.tableAppendRef?.offsetParent?.children[0]?.offsetWidth || 0;
+  }
   @Watch('sidePanelCommonOptions', { immediate: true })
   handleRawCallOptionsChange() {
     const selectItem = this.dimensionOptions.find(item => item.id === this.filterDimensionValue);
@@ -118,14 +142,22 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       call_filter: [...this.sidePanelCommonOptions.call_filter, ...list],
     };
   }
-
+  @Watch('tableTotal')
+  handleTableTotal(val) {
+    this.pagination.count = val;
+    this.pagination.current = 1;
+  }
+  @Watch('activeTabKey')
+  handleTableData() {
+    this.pagination.current = 1;
+  }
   @Watch('supportedCalculationTypes', { immediate: true })
   handlePanelChange(val) {
     const txtVal = {
-      avg_duration: 'AVG',
-      p95_duration: 'p95',
-      p99_duration: 'p99',
-      p50_duration: 'p50',
+      avg_duration: '平均耗时',
+      p95_duration: 'P95',
+      p99_duration: 'P99',
+      p50_duration: 'P50',
     };
     this.panels.map(item => {
       if (item.id !== 'request') {
@@ -152,12 +184,34 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     }
     return Array.from(options.values());
   }
-  // mounted() {
-  //   TAB_TABLE_TYPE.find(item => item.id === 'request').handle = this.handleGetDistribution;
+
+  get showTableList() {
+    const { limit, current } = this.pagination;
+    const groupByList = this.dimensionList.filter(item => item.active);
+    if (this.totalList.length > 0) {
+      groupByList.map((item, ind) => {
+        Object.assign(this.totalList[0], {
+          isTotal: true,
+          [item.value]: ind === 0 ? '汇总' : '  ',
+        });
+      });
+    }
+    this.tableAppendWidth = this.$refs.tableAppendRef?.offsetParent?.children[0]?.offsetWidth || 0;
+    const list = (this.tableListData || []).slice((current - 1) * limit, current * limit);
+    return list;
+  }
+  // get showTabTableList() {
+  //   const { limit, current } = this.pagination;
+  //   const list = (this.tableTabData || []).slice((current - 1) * limit, current * limit);
+  //   return [...list, ...this.totalList];
   // }
-  // handleGetDistribution() {
-  //   this.isShowDimension = true;
-  // }
+
+  mounted() {
+    TAB_TABLE_TYPE.find(item => item.id === 'request').handle = this.handleGetDistribution;
+  }
+  handleGetDistribution() {
+    this.isShowDimension = true;
+  }
   getDimensionId(dimensions: Record<string, string>) {
     let name = '';
     for (const [key, val] of Object.entries(dimensions)) {
@@ -175,7 +229,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     this.chartActive = id;
   }
   /** 动态处理表格要展示的数据 */
-  @Watch('tableColData', { immediate: true })
+  @Watch('tableColData')
   handleChangeCol(val) {
     const key = {
       '1d': '昨天',
@@ -183,6 +237,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       '1w': '上周',
     };
     const mapList = {};
+    // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
     val.map(item => (mapList[item] = key[item] || item));
     this.panels = JSON.parse(JSON.stringify(this.cachePanels));
     // biome-ignore lint/complexity/noForEach: <explanation>
@@ -193,7 +248,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       item.columns = item.columns.flatMap(col => {
         let defaultCol = [];
         const isRequest = item.id !== 'request';
-        const baseKey = isRequest ? col.label : 'request_total';
+        const baseKey = isRequest ? (val.length === 0 ? col.prop : col.prop.slice(0, -3)) : 'request_total';
         defaultCol = [{ label: this.$t('波动'), prop: `growth_rates_${baseKey}_${val[0]}` }];
         const cache = val.length === 1 ? ['0s', ...val] : val;
         const additionalCols = cache.map((v, ind) => ({
@@ -204,11 +259,12 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         return val.length > 0 ? defaultCol : col;
       });
     });
+    // console.log(this.panels, 'this.panels');
   }
 
   @Emit('showDetail')
   handleShowDetail(row, key) {
-    if (key !== 'time' && row[key]) {
+    if (!row?.isTotal && key !== 'time' && row[key]) {
       this.isShowDetail = true;
       this.filterDimensionValue = this.getDimensionId(row.dimensions);
       this.handleRawCallOptionsChange();
@@ -225,11 +281,17 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     this.isShowDimension = true;
     this.curDimensionKey = key;
   }
+  pageChange(page) {
+    this.pagination.current = page;
+  }
+  limitChange(limit) {
+    this.pageChange(1);
+    this.pagination.limit = limit;
+  }
   // 下钻选择key值之后的处理
   @Emit('drill')
   chooseSelect(option: IListItem, row: IDataItem) {
     this.drillValue = option.value;
-    console.log(row, 'row');
     return { option, row };
   }
   copyValue(text) {
@@ -251,6 +313,9 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       <bk-table-column
         scopedSlots={{
           default: ({ row }) => {
+            if (row?.isTotal) {
+              return;
+            }
             return (
               <div class='multi-view-table-link'>
                 <bk-dropdown-menu
@@ -300,20 +365,27 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           scopedSlots={{
             default: a => {
               const timeTxt = a.row.time ? dayjs.tz(a.row.time * 1000).format('YYYY-MM-DD HH:mm:ss') : '--';
-              const txt = item.value === 'time' ? timeTxt : a.row[item.value];
+              const txt = item.value === 'time' && !a.row?.isTotal ? timeTxt : a.row[item.value];
               return (
-                <span class={['multi-view-table-link', { 'block-link': item.value === 'time' || !a.row[item.value] }]}>
+                <span
+                  class={[
+                    'multi-view-table-link',
+                    { 'block-link': a.row?.isTotal || item.value === 'time' || !a.row[item.value] },
+                  ]}
+                >
                   <span
                     class='item-txt'
                     v-bk-overflow-tips
-                    onClick={() => this.handleShowDetail(a.row, item.value, a)}
+                    onClick={() => this.handleShowDetail(a.row, item.value)}
                   >
                     {txt || '--'}
                   </span>
-                  <i
-                    class='icon-monitor icon-mc-copy tab-row-icon'
-                    onClick={() => this.copyValue(a.row[item.value])}
-                  />
+                  {!a.row?.isTotal && a.row[item.value] && (
+                    <i
+                      class='icon-monitor icon-mc-copy tab-row-icon'
+                      onClick={() => this.copyValue(a.row[item.value])}
+                    />
+                  )}
                 </span>
               );
             },
@@ -344,29 +416,29 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
     }
     return value;
   }
+
   // 渲染tab表格的列
   handleMultiTabColumn() {
     const curColumn = this.panels.find(item => item.id === this.active);
-    const prefix = ['growth_rates', 'proportions', 'success_rate', 'exception_rate', 'timeout_rate'];
-    /** 是否需要展示百分号 */
-    const hasPrefix = (fieldName: string) => prefix.some(pre => fieldName.startsWith(pre));
     return (curColumn.columns || []).map(item => (
       <bk-table-column
         key={item.prop}
         scopedSlots={{
           default: ({ row }) => {
-            const txt = hasPrefix(item.prop)
-              ? row[item.prop]
-                ? `${this.formatToTwoDecimalPlaces(row[item.prop])}%`
-                : '--'
-              : this.formatToTwoDecimalPlaces(row[item.prop]) || '--';
+            const txt = this.formatTableValShow(row[item.prop], item.prop);
             return (
-              <span class='multi-view-table-txt'>
+              <span
+                class={[
+                  'multi-view-table-txt',
+                  { 'red-txt': item.prop.startsWith('growth_rates') && row[item.prop] > 0 },
+                  { 'green-txt': item.prop.startsWith('growth_rates') && row[item.prop] < 0 },
+                ]}
+              >
                 <span
                   class='item-txt'
                   v-bk-overflow-tips
                 >
-                  {txt}
+                  {item.prop.startsWith('growth_rates') && row[item.prop] > 0 ? `+${txt}` : txt}
                 </span>
                 {/* {!row[item.prop] && (
                   <i
@@ -379,7 +451,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
           },
         }}
         label={item.label}
-        min-width={120}
+        min-width={130}
         prop={item.prop}
         sortable
       />
@@ -407,45 +479,139 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       </div>
     );
   }
+  /** 格式化表格里要展示内容 */
+  formatTableValShow(val: number, key: string) {
+    const txt = this.hasPrefix(key)
+      ? val
+        ? `${this.formatToTwoDecimalPlaces(val)}%`
+        : val === 0
+          ? `${val}%`
+          : '--'
+      : this.formatToTwoDecimalPlaces(val) || '--';
+    return txt;
+  }
+  get appendTabWidth() {
+    const current = this.panels.find(item => item.id === this.active);
+    return this.tableAppendWidth / current.columns.length;
+  }
+  /** 渲染表格的汇总 */
+  renderTableAppend() {
+    if (this.totalList.length === 0) {
+      return;
+    }
+    const current = this.panels.find(item => item.id === this.active);
+
+    return current.columns.map(item => {
+      const val = this.totalList[0][item.prop];
+      const txt = this.formatTableValShow(val, item.prop);
+      return (
+        <span
+          key={item.prop}
+          style={{ width: `${this.appendTabWidth}px` }}
+          class={[
+            'span-append pl-15',
+            { 'red-txt': item.prop.startsWith('growth_rates') && val > 0 },
+            { 'green-txt': item.prop.startsWith('growth_rates') && val < 0 },
+          ]}
+        >
+          {item.prop.startsWith('growth_rates') && val > 0 ? `+${txt}` : txt}
+        </span>
+      );
+    });
+  }
   render() {
     return (
       <div class='multi-view-table-main'>
-        <div class='multi-view-left'>
-          {this.dimensionList && (
-            <bk-table
-              ext-cls='multi-view-table'
-              data={this.tableListData}
-              header-border={false}
-              header-cell-class-name={() => 'multi-table-head'}
-              outer-border={false}
-            >
-              {this.handleMultiColumn()}
-            </bk-table>
+        <div class='multi-view-table-view'>
+          <div class='multi-view-left'>
+            {this.dimensionList && (
+              <bk-table
+                ext-cls='multi-view-table'
+                data={this.showTableList}
+                header-border={false}
+                header-cell-class-name={() => 'multi-table-head'}
+                max-height={600}
+                outer-border={false}
+                virtual-render={this.pagination.limit > 20}
+              >
+                {this.handleMultiColumn()}
+                <div slot='empty' />
+                <div
+                  class='multi-view-tab-table-append pl-15 bor-bt'
+                  slot='append'
+                >
+                  {this.$t('汇总')}
+                </div>
+              </bk-table>
+            )}
+          </div>
+          <div class='multi-view-right'>
+            <div class='head-tab'>
+              <TabBtnGroup
+                height={42}
+                activeKey={this.active}
+                list={this.panels}
+                type='tab'
+                onChange={this.changeTab}
+              />
+            </div>
+            <div>
+              <bk-table
+                ref='tabTableRef'
+                ext-cls='multi-view-tab-table'
+                data={this.showTableList}
+                header-border={false}
+                header-cell-class-name={() => 'multi-table-tab-head'}
+                max-height={600}
+                outer-border={false}
+                virtual-render={this.pagination.limit > 10}
+              >
+                {this.handleMultiTabColumn()}
+                <div slot='empty' />
+                <div
+                  ref='tableAppendRef'
+                  class='multi-view-tab-table-append'
+                  slot='append'
+                >
+                  {this.renderTableAppend()}
+                </div>
+              </bk-table>
+            </div>
+          </div>
+          {this.isLoading ? (
+            <TableSkeleton
+              class='view-empty-block pt-8'
+              type={1}
+            />
+          ) : (
+            this.showTableList.length < 1 && (
+              <div class='view-empty-block'>
+                <bk-exception
+                  scene='part'
+                  type='empty'
+                >
+                  {this.$t('查无数据')}
+                </bk-exception>
+              </div>
+            )
           )}
         </div>
-        <div class='multi-view-right'>
-          <div class='head-tab'>
-            <TabBtnGroup
-              height={42}
-              activeKey={this.active}
-              list={this.panels}
-              type='tab'
-              onChange={this.changeTab}
-            />
-          </div>
-          <div>
-            <bk-table
-              ext-cls='multi-view-tab-table'
-              v-bkloading={{ isLoading: this.isLoading }}
-              data={this.tableTabData}
-              header-border={false}
-              header-cell-class-name={() => 'multi-table-tab-head'}
-              outer-border={false}
-            >
-              {this.handleMultiTabColumn()}
-            </bk-table>
-          </div>
-        </div>
+        {!this.isLoading && this.showTableList.length > 1 && (
+          <bk-pagination
+            class='mt-8'
+            align='right'
+            count={this.pagination.count}
+            current={this.pagination.current}
+            limit={this.pagination.limit}
+            limit-list={this.pagination.limitList}
+            show-limit={false}
+            size='small'
+            show-total-count
+            on-change={this.pageChange}
+            on-limit-change={this.limitChange}
+            {...{ on: { 'update:current': v => (this.pagination.current = v) } }}
+          />
+        )}
         {/* 维度趋势图侧栏 */}
         <bk-sideslider
           width={640}
@@ -468,6 +634,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                   behavior='simplicity'
                   clearable={false}
                   value={this.filterDimensionValue}
+                  searchable
                   onChange={this.handleFilterChange}
                 >
                   {this.dimensionOptions.map(option => (
