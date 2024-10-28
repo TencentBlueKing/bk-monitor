@@ -1001,12 +1001,20 @@ const store = new Vuex.Store({
         ? `/search/index_set/${state.indexId}/search/`
         : '/search/index_set/union_search/';
 
+      const addition = state.indexItem.addition
+        .filter(item => !item.disabled && item.field !== '_ip-select_')
+        .map(item => {
+          const instance = new ConditionOperator(item);
+          return instance.getRequestParam();
+        });
+
       const baseData = {
         bk_biz_id: state.bkBizId,
         size,
         ...otherPrams,
         start_time,
         end_time,
+        addition,
       };
 
       // 更新联合查询的begin
