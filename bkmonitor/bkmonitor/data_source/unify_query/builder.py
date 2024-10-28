@@ -42,8 +42,6 @@ logger = logging.getLogger(__name__)
 - 在切换到 UnifyQuery 的背景下，后台查询模块也需要和前端一样，拼接通用查询参数，查询 ES or UnifyQuery
 - 在过程中发现每个场景的查询都在进行相似的数据结构拼装，过于重复冗长，基于 unify[query_configs] 场景进行类 ORM 的封装
 - 后台逻辑实现从 dict 构造转为基于查询条件编写 ORM 语句，提升可维护和可读性
-
-不稳定阶段先放到 apm 下踩坑完善，验证完成后可以考虑往 datasource 下沉，供其他模块使用
 """
 
 

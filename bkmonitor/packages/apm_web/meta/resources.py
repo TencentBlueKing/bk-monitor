@@ -3052,8 +3052,6 @@ class SimpleServiceList(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称")
-        start_time = serializers.IntegerField(label="开始时间", required=False)
-        end_time = serializers.IntegerField(label="结束时间", required=False)
 
     def perform_request(self, validate_data):
         app = Application.objects.filter(
@@ -3062,7 +3060,7 @@ class SimpleServiceList(Resource):
         if not app:
             raise ValueError(_("应用{}不存在").format(validate_data["app_name"]))
 
-        services = ServiceHandler.list_services(app, validate_data.get("start_time"), validate_data.get("end_time"))
+        services = ServiceHandler.list_services(app)
 
         return [
             {

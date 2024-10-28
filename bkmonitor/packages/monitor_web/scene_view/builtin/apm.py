@@ -162,16 +162,19 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             return cls._get_non_host_view_config(builtin_view, params)
 
         if builtin_view == "apm_service-service-default-caller_callee":
-            # if params.get("category") != CategoryEnum.TRPC:
-            #     view_config["hidden"] = True
-            #     return view_config
+            group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
+                metric_group.GroupEnum.TRPC, bk_biz_id, app_name
+            )
+
+            # 探测服务，存在再展示页面
+            server_list: List[str] = group.fetch_server_list()
+            if params["service_name"] not in server_list:
+                view_config["hidden"] = True
+                return view_config
 
             # 补充查询
             service_temporality = params.get("service_temporality")
             if service_temporality not in [MetricTemporality.CUMULATIVE, MetricTemporality.DELTA]:
-                group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
-                    metric_group.GroupEnum.TRPC, bk_biz_id, app_name
-                )
                 service_temporality = group.get_server_config(server=params["service_name"]).get("temporality")
 
             if service_temporality == MetricTemporality.CUMULATIVE:

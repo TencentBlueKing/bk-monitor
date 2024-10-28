@@ -124,7 +124,6 @@ class CategoryEnum:
         return {
             cls.HTTP: _("网页"),
             cls.RPC: _("远程调用"),
-            cls.TRPC: _("tRPC"),
             cls.DB: _("数据库"),
             cls.MESSAGING: _("消息队列"),
             cls.ASYNC_BACKEND: _("后台任务"),
@@ -152,11 +151,6 @@ class CategoryEnum:
             {
                 "id": cls.RPC,
                 "name": cls.get_label_by_key(cls.RPC),
-                "icon": "icon-yuanchengfuwu",
-            },
-            {
-                "id": cls.TRPC,
-                "name": cls.get_label_by_key(cls.TRPC),
                 "icon": "icon-yuanchengfuwu",
             },
             {

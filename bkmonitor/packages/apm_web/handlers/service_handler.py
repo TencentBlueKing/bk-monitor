@@ -12,7 +12,6 @@ import copy
 import logging
 import operator
 from collections import defaultdict
-from typing import Optional
 
 from django.conf import settings
 from django.core.cache import cache
@@ -31,7 +30,6 @@ from apm_web.constants import (
     DataStatus,
     TopoNodeKind,
 )
-from apm_web.handlers import metric_group
 from apm_web.handlers.log_handler import ServiceLogHandler
 from apm_web.metric_handler import RequestCountInstance, ServiceFlowCount
 from apm_web.metrics import APPLICATION_LIST
@@ -87,7 +85,7 @@ class ServiceHandler:
         return service_map
 
     @classmethod
-    def list_services(cls, application, start_time: Optional[int] = None, end_time: Optional[int] = None):
+    def list_services(cls, application):
         """
         获取应用的服务列表 =
             已发现的服务(service, remote_service)
@@ -105,23 +103,10 @@ class ServiceHandler:
             is_enabled_profiling = application.is_enabled_profiling
 
         trace_services = cls.list_nodes(bk_biz_id, app_name)
-        # step0：获取所有的 trpc 服务
-        group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
-            metric_group.GroupEnum.TRPC, bk_biz_id, app_name
-        )
-        trpc_server_list = group.fetch_server_list(start_time, end_time)
 
-        found_service_names = []
-        for service in trace_services:
-            if service["extra_data"]["kind"] == "remote_service":
-                # step1: 获取已发现的服务
-                found_service_names.append(service["topo_key"])
-                continue
-
-            if service["topo_key"] in trpc_server_list:
-                service["extra_data"]["category"] = CategoryEnum.TRPC
-
-        # step3: 额外补充手动配置的自定义服务
+        # step1: 获取已发现的服务
+        found_service_names = [i["topo_key"] for i in trace_services if i["extra_data"]["kind"] == "remote_service"]
+        # step2: 额外补充手动配置的自定义服务
         custom_services = ApplicationCustomService.objects.filter(
             bk_biz_id=bk_biz_id, app_name=app_name, match_type=CustomServiceMatchType.MANUAL
         )
@@ -143,16 +128,16 @@ class ServiceHandler:
                 }
             )
 
-        # step4: 计算服务下组件
+        # step3: 计算服务下组件
 
-        # step5: 获取 Profile 服务
+        # step4: 获取 Profile 服务
         profile_services = []
         if is_enabled_profiling:
             profile_services = api.apm_api.query_profile_services_detail(
                 **{"bk_biz_id": bk_biz_id, "app_name": app_name}
             )
 
-        # step6: 将 Profile 服务和 Trace 服务重名的结合
+        # step5: 将 Profile 服务和 Trace 服务重名的结合
         return cls._combine_profile_trace_service(trace_services, profile_services)
 
     @classmethod
