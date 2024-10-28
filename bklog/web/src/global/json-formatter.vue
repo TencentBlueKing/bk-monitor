@@ -1,5 +1,5 @@
 <template>
-  <span :class="['bklog-json-formatter-root', { 'is-wrap-line': isWrap, 'is-inline': !isWrap }]">
+  <div :class="['bklog-json-formatter-root', { 'is-wrap-line': isWrap, 'is-inline': !isWrap }]">
     <template v-for="item in rootList">
       <template v-if="item.formatter.isJson">
         <div
@@ -20,7 +20,7 @@
         </div>
       </template>
     </template>
-  </span>
+  </div>
 </template>
 <script setup lang="ts">
   import { computed, ref, watch } from 'vue';
@@ -143,11 +143,19 @@
 
     &.is-inline {
       display: flex;
+      .bklog-root-field {
+        display: inline-flex;
+
+        .segment-content {
+          display: inline-flex;
+        }
+      }
     }
 
     .bklog-root-field {
       display: flex;
       margin-right: 2px;
+      width: max-content;
 
       &:not(:first-child) {
         margin-top: 1px;
@@ -157,6 +165,7 @@
         padding: 0 2px;
         background: #e6e6e6;
         border-radius: 2px;
+        width: max-content;
       }
 
       .valid-text {
@@ -172,9 +181,9 @@
       font-size: var(--table-fount-size);
       line-height: 20px;
 
-      color: var(--table-fount-color);
-      word-break: break-all;
-      white-space: pre-line;
+      // color: var(--table-fount-color);
+      // word-break: break-all;
+      // white-space: pre-line;
 
       span {
         display: inline-block;
@@ -182,6 +191,7 @@
         font-family: var(--table-fount-family);
         font-size: var(--table-fount-size);
         color: var(--table-fount-color);
+        min-width: 4px;
       }
 
       .menu-list {

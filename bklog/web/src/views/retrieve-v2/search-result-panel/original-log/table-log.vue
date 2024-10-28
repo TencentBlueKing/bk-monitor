@@ -439,8 +439,6 @@
       }
 
       .original-time {
-        // padding-top: 12px;
-
         .cell {
           padding-left: 2px;
         }
@@ -455,14 +453,6 @@
       .original-str {
         .hide-whole-btn {
           margin-top: 4px;
-        }
-
-        .cell {
-          // padding: 10px 14px 0 2px;
-        }
-
-        &.is-wrap .cell {
-          // padding: 10px 14px 8px 2px;
         }
       }
 
@@ -485,19 +475,6 @@
             max-height: 106px;
           }
         }
-
-        // .cell {
-        //   .bklog-lazy-render-cell {
-        //     padding: 12px 14px 0 14px;
-        //   }
-        // }
-
-        // &.is-wrap .cell {
-        //   .bklog-lazy-render-cell {
-        //     padding: 12px 14px 8px;
-
-        //   }
-        // }
 
         .show-whole-btn {
           top: 84px;

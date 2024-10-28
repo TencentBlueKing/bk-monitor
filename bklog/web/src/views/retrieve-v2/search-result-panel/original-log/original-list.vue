@@ -78,14 +78,13 @@
           <!-- eslint-disable-next-line -->
           <template slot-scope="{ row, column, $index }">
             <LazyRender>
-              <div :class="['str-content', 'origin-str', { 'is-wrap': tableLineIsWarp }]">
-                <JsonFormatter
-                  :jsonValue="row"
-                  :fields="getShowTableVisibleFields"
-                  :formatJson="formatJson"
-                  @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
-                ></JsonFormatter>
-              </div>
+              <JsonFormatter
+                :class="{ 'is-wrap': tableLineIsWarp }"
+                :jsonValue="row"
+                :fields="getShowTableVisibleFields"
+                :formatJson="formatJson"
+                @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
+              ></JsonFormatter>
             </LazyRender>
           </template>
         </bk-table-column>

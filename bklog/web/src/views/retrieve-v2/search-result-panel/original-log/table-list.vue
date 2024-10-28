@@ -74,15 +74,13 @@
         <!-- eslint-disable-next-line -->
         <template slot-scope="{ row, column, $index }">
           <LazyRender>
-            <div :class="['str-content']">
-              <table-column
+            <table-column
                 :content="getTableColumnContent(row, field)"
                 :field="field"
                 :is-wrap="tableLineIsWarp"
                 @computed-height="handleOverColumn(field.field_name)"
                 @icon-click="(type, content, isLink) => handleIconClick(type, content, field, row, isLink)"
               />
-            </div>
           </LazyRender>
         </template>
       </bk-table-column>
