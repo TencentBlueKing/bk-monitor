@@ -70,7 +70,7 @@ function timeShiftFormat(t: string) {
 
 function removeTrailingZeros(num) {
   if (num && num !== '0') {
-    return Number.parseFloat(num.toString().replace(/\.?0+$/, ''));
+    return Number.parseFloat(num.toString().replace(/\.0+$/, ''));
   }
   return num;
 }
@@ -354,12 +354,8 @@ class CallerLineChart extends CommonSimpleChart {
               splitNumber: this.height < 120 ? 2 : 4,
               minInterval: 1,
               max: 'dataMax',
-              min: v => {
-                let min = v.min;
-                // 柱状图y轴不能以最小值作为起始点
-                if (isBar) min = min <= 10 ? 0 : min - 10;
-                return min;
-              },
+              min: 0,
+              scale: false,
             },
             xAxis: {
               axisLabel: {
@@ -456,15 +452,37 @@ class CallerLineChart extends CommonSimpleChart {
       const colorList = this.panel.options?.time_series?.type === 'bar' ? COLOR_LIST_BAR : COLOR_LIST;
       const color = item.color || (colors || colorList)[index % colorList.length];
       let showSymbol = false;
+      const legendItem: ILegendItem = {
+        name: String(item.name),
+        max: 0,
+        min: '',
+        avg: 0,
+        total: 0,
+        color,
+        show: true,
+        minSource: 0,
+        maxSource: 0,
+        avgSource: 0,
+        totalSource: 0,
+        metricField: item.metricField,
+        dimensions: item.dimensions,
+      };
       // 动态单位转换
       const unitFormatter = !['', 'none', undefined, null].includes(item.unit)
         ? getValueFormat(this.yAxisNeedUnitGetter ? item.unit || '' : '')
         : (v: any) => ({ text: v });
+      let hasValueLength = 0;
       const data = item.data.map((seriesItem: any, seriesIndex: number) => {
         if (seriesItem?.length && typeof seriesItem[1] === 'number') {
           // 当前点数据
           const pre = item.data[seriesIndex - 1] as [number, number];
           const next = item.data[seriesIndex + 1] as [number, number];
+          const y = +seriesItem[1];
+          hasValueLength += 1;
+          // 设置图例数据
+          legendItem.max = Math.max(+legendItem.max, y);
+          legendItem.min = legendItem.min === '' ? y : Math.min(+legendItem.min, y);
+          legendItem.total = +legendItem.total + y;
           // 是否为孤立的点
           const hasNoBrother =
             (!pre && !next) || (pre && next && pre.length && next.length && pre[1] === null && next[1] === null);
@@ -487,12 +505,26 @@ class CallerLineChart extends CommonSimpleChart {
         }
         return seriesItem;
       });
+
+      legendItem.avg = +(+legendItem.total / (hasValueLength || 1)).toFixed(2);
+      legendItem.total = Number(legendItem.total).toFixed(2);
       // 获取y轴上可设置的最小的精确度
       const precision = this.handleGetMinPrecision(
         item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
         getValueFormat(this.yAxisNeedUnitGetter ? item.unit || '' : ''),
         item.unit
       );
+      if (item.name) {
+        for (const key in legendItem) {
+          if (['min', 'max', 'avg', 'total'].includes(key)) {
+            const val = legendItem[key];
+            legendItem[`${key}Source`] = val;
+            const set: any = unitFormatter(val, item.unit !== 'none' && precision < 1 ? 2 : precision);
+            legendItem[key] = set.text + (set.suffix || '');
+          }
+        }
+        legendData.push(legendItem);
+      }
       return {
         ...item,
         color,

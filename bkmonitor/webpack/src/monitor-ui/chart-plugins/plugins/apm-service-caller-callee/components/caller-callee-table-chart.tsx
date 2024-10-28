@@ -441,8 +441,11 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   getChartPointDimensionsTxt() {
     const { dimensions } = this.chartPointOption;
     return Object.keys(dimensions || {}).map(key => (
-      <span key={key}>
-        {` ${this.handleGetKey(key)}`}
+      <span
+        key={key}
+        style='display: inline-flex; margin-left: 4px'
+      >
+        {this.handleGetKey(key)}
         <span class='tag-symbol'>{this.handleOperate('eq')}</span>
         {dimensions[key] === '' ? this.$t('- 空 -') : dimensions[key]}
       </span>
@@ -518,11 +521,11 @@ class CallerCalleeTableChart extends CommonSimpleChart {
             </div>
             <div class='layout-main-table'>
               <MultiViewTable
-                resizeStatus={this.resizeStatus}
                 activeTabKey={this.activeTabKey}
                 dimensionList={this.dimensionList}
                 isLoading={this.tableLoading}
                 panel={this.panel}
+                resizeStatus={this.resizeStatus}
                 sidePanelCommonOptions={this.sidePanelCommonOptions}
                 supportedCalculationTypes={this.supportedCalculationTypes}
                 tableColData={this.tableColData}

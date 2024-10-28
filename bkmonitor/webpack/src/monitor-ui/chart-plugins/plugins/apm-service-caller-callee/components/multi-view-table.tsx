@@ -634,6 +634,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                   behavior='simplicity'
                   clearable={false}
                   value={this.filterDimensionValue}
+                  searchable
                   onChange={this.handleFilterChange}
                 >
                   {this.dimensionOptions.map(option => (
