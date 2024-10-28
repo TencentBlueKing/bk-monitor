@@ -29,14 +29,22 @@ import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
+import { toPng } from 'html-to-image';
 import { CancelToken } from 'monitor-api/index';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import {
+  downCsvFile,
+  transformSrcData,
+  transformTableDataToCsvStr,
+  type IUnifyQuerySeriesItem,
+} from 'monitor-pc/pages/view-detail/utils';
 
 import { type ValueFormatter, getValueFormat } from '../../../monitor-echarts/valueFormats';
 import ListLegend from '../../components/chart-legend/common-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
+import { downFile, handleRelateAlert, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
@@ -47,12 +55,14 @@ import type {
   IExtendMetricData,
   ILegendItem,
   IMenuChildItem,
+  IMenuItem,
+  IPanelModel,
   ITimeSeriesItem,
   PanelModel,
   ZrClickEvent,
 } from '../../../chart-plugins/typings';
+import type { IChartTitleMenuEvents } from '../../components/chart-title/chart-title-menu';
 import type { CallOptions } from '../apm-service-caller-callee/type';
-import type { IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
 
 import './caller-line-chart.scss';
 
@@ -70,7 +80,10 @@ function timeShiftFormat(t: string) {
 
 function removeTrailingZeros(num) {
   if (num && num !== '0') {
-    return Number.parseFloat(num.toString().replace(/\.0+$/, ''));
+    return num
+      .toString()
+      .replace(/(\.\d*?)0+$/, '$1')
+      .replace(/\.$/, '');
   }
   return num;
 }
@@ -123,6 +136,10 @@ class CallerLineChart extends CommonSimpleChart {
   // 是否允许自定groupBy
   get isSupportGroupBy() {
     return !!this.panel.options?.is_support_group_by;
+  }
+
+  get menuList() {
+    return ['save', 'more', 'fullscreen', 'explore', 'area', 'drill-down', 'relate-alert'];
   }
 
   @Watch('showRestoreInject')
@@ -682,6 +699,169 @@ class CallerLineChart extends CommonSimpleChart {
       this.dataZoom(undefined, undefined);
     }
   }
+
+  /**
+   * @description: 图表头部工具栏事件
+   * @param {IMenuItem} menuItem
+   * @return {*}
+   */
+  handleMenuToolsSelect(menuItem: IMenuItem) {
+    const callOptions = {};
+    for (const key in this.callOptions) {
+      if (key !== 'time_shift' && (key === 'group_by' ? this.isSupportGroupBy : true)) {
+        callOptions[key] = this.callOptions[key];
+      }
+    }
+    const variablesService = new VariablesService({
+      ...this.viewOptions,
+      ...callOptions,
+    });
+    switch (menuItem.id) {
+      case 'save': // 保存到仪表盘
+        this.handleCollectChart();
+        break;
+      case 'screenshot': // 保存到本地
+        setTimeout(() => {
+          this.handleStoreImage(this.panel.title || '测试');
+        }, 300);
+        break;
+      case 'fullscreen': {
+        // 大图检索
+        let copyPanel: IPanelModel = JSON.parse(JSON.stringify(this.panel));
+        const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+
+        const variablesService = new VariablesService({
+          ...this.viewOptions.filters,
+          ...(this.viewOptions.filters?.current_target || {}),
+          ...this.viewOptions,
+          ...this.viewOptions.variables,
+          ...(this.callOptions || {}),
+          group_by: this.isSupportGroupBy ? this.callOptions.group_by : [],
+          interval: reviewInterval(
+            this.viewOptions.interval,
+            dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
+            this.panel.collect_interval
+          ),
+        });
+        copyPanel = variablesService.transformVariables(copyPanel);
+        copyPanel.targets.forEach((t, tIndex) => {
+          const queryConfigs = this.panel.targets[tIndex].data.query_configs;
+          t.data.query_configs.forEach((q, qIndex) => {
+            q.functions = JSON.parse(JSON.stringify(queryConfigs[qIndex].functions));
+          });
+          this.queryConfigsSetCallOptions(this.panel?.targets?.[tIndex]?.data);
+        });
+        this.handleFullScreen(copyPanel as any);
+        break;
+      }
+
+      case 'area': // 面积图
+        (this.$refs.baseChart as any)?.handleTransformArea(menuItem.checked);
+        break;
+      case 'set': // 转换Y轴大小
+        (this.$refs.baseChart as any)?.handleSetYAxisSetScale(!menuItem.checked);
+        break;
+      case 'explore': {
+        // 跳转数据检索
+        const copyPanel: IPanelModel = JSON.parse(JSON.stringify(this.panel));
+        for (const t of copyPanel.targets) {
+          this.queryConfigsSetCallOptions(t?.data);
+        }
+        this.handleExplore(copyPanel as any, {
+          ...this.viewOptions.filters,
+          ...(this.viewOptions.filters?.current_target || {}),
+          ...this.viewOptions,
+          ...this.viewOptions.variables,
+          ...(this.callOptions || {}),
+        });
+        break;
+      }
+      case 'strategy': // 新增策略
+        this.handleAddStrategy(this.panel, null, this.viewOptions, true);
+        break;
+      case 'relate-alert':
+        for (const target of this.panel?.targets || []) {
+          if (target.data?.query_configs?.length) {
+            let queryConfig = deepClone(target.data.query_configs);
+            queryConfig = variablesService.transformVariables(queryConfig);
+            target.data.query_configs = queryConfig;
+          }
+        }
+        handleRelateAlert(this.panel, this.timeRange);
+        break;
+      default:
+        break;
+    }
+  }
+
+  /**
+   * 点击更多菜单的子菜单
+   * @param data 菜单数据
+   */
+  handleSelectChildMenu(data: IChartTitleMenuEvents['onSelectChild']) {
+    switch (data.menu.id) {
+      case 'more' /** 更多操作 */:
+        if (data.child.id === 'screenshot') {
+          /** 截图 */
+          setTimeout(() => {
+            this.handleStoreImage(this.panel.title);
+          }, 300);
+        } else if (data.child.id === 'export-csv') {
+          /** 导出csv */
+          this.handleExportCsv();
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  queryConfigsSetCallOptions(targetData) {
+    if (!this.callOptions.group_by?.length || !this.isSupportGroupBy) {
+      targetData.group_by_limit = undefined;
+    } else {
+    }
+    if (this.callOptions?.call_filter?.length) {
+      const callFilter = this.callOptions?.call_filter.filter(f => f.key !== 'time');
+      for (const item of targetData?.query_configs || []) {
+        item.where = [...(item?.where || []), ...callFilter];
+      }
+      for (const item of targetData?.unify_query_param?.query_configs || []) {
+        item.where = [...(item?.where || []), ...callFilter];
+      }
+      if (targetData?.group_by_limit?.where) {
+        targetData.group_by_limit.where = [...targetData.group_by_limit.where, ...callFilter];
+      }
+    }
+  }
+
+  /**
+   * @description: 下载图表为png图片
+   * @param {string} title 图片标题
+   * @param {HTMLElement} targetEl 截图目标元素 默认组件$el
+   * @param {*} customSave 自定义保存图片
+   */
+  handleStoreImage(title: string, targetEl?: HTMLElement, customSave = false) {
+    const el = targetEl || (this.$el as HTMLElement);
+    return toPng(el)
+      .then(dataUrl => {
+        if (customSave) return dataUrl;
+        downFile(dataUrl, `${title}.png`);
+      })
+      .catch(() => {});
+  }
+
+  /**
+   * 根据图表接口响应数据下载csv文件
+   */
+  handleExportCsv() {
+    if (this.series?.length) {
+      const { tableThArr, tableTdArr } = transformSrcData(this.series);
+      const csvString = transformTableDataToCsvStr(tableThArr, tableTdArr);
+      downCsvFile(csvString, this.panel.title);
+    }
+  }
+
   render() {
     return (
       <div class='apm-caller-line-chart'>
@@ -690,12 +870,15 @@ class CallerLineChart extends CommonSimpleChart {
           descrition={this.panel.descrition}
           draging={this.panel.draging}
           isInstant={this.panel.instant}
+          menuList={this.menuList as any}
           metrics={this.metrics}
-          needMoreMenu={false}
+          needMoreMenu={true}
           showAddMetric={false}
           showMore={true}
           subtitle={this.panel.subTitle || ''}
           title={this.panel.title}
+          onMenuClick={this.handleMenuToolsSelect}
+          onSelectChild={this.handleSelectChildMenu}
         />
         {!this.empty ? (
           <div class={'time-series-content'}>
