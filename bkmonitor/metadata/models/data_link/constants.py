@@ -20,18 +20,20 @@ class DataLinkKind(Enum):
     VMSTORAGEBINDING = "VmStorageBinding"
     DATABUS = "Databus"
     CONDITIONALSINK = "ConditionalSink"
+    SINK = "Sink"
 
-    _choices_labels = (
+    choices_labels = (
         (DATAID, "dataids"),
         (RESULTTABLE, "resulttables"),
         (VMSTORAGEBINDING, "vmstoragebindings"),
         (DATABUS, "databuses"),
         (CONDITIONALSINK, "conditionalsinks"),
+        (SINK, "sinks"),
     )
 
     @classmethod
     def get_choice_value(cls, key: str) -> str:
-        for item in DataLinkKind._choices_labels.value:
+        for item in DataLinkKind.choices_labels.value:
             if key == item[0]:
                 return item[1]
 
@@ -40,19 +42,24 @@ class DataLinkKind(Enum):
 
 class DataLinkResourceStatus(Enum):
     """数据链路资源状态
-
-    Pending: The resource has been created but has not been scheduled yet
-    Reconciling: The resource is in a reconciliation loop
-    Terminating: The resource is terminating
-    Failed: The resource has failed
-    Ok: The resource has been schedualed and is ready for use
+    INITIALIZING: The resource is being initialized 自定义状态
+    CREATING: The resource is being created 自定义状态
+    Pending: The resource has been created but has not been scheduled yet 计算平台状态
+    Reconciling: The resource is in a reconciliation loop   计算平台状态
+    Terminating: The resource is terminating    计算平台状态
+    Failed: The resource has failed 计算平台状态
+    Ok: The resource has been scheduled and is ready for use 计算平台状态
     """
 
+    # INITIALIZING -> CREATING -> PENDING -> OK
+    INITIALIZING = "Initializing"
+    CREATING = "Creating"
     PENDING = "Pending"
-    RECONCILING = "Reconciling"
-    TERMINATING = "Terminating"
     FAILED = "Failed"
     OK = "Ok"
+    TERMINATING = "Terminating"
+
+    RECONCILING = "Reconciling"
 
 
 # 默认转换器及对应的处理格式
