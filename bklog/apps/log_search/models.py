@@ -77,6 +77,7 @@ from apps.log_search.exceptions import (
     ScenarioNotSupportedException,
     SourceDuplicateException,
 )
+from apps.log_search.utils import fetch_request_username
 from apps.models import (
     JsonField,
     MultiStrSplitByCommaField,
@@ -86,7 +87,7 @@ from apps.models import (
 )
 from apps.utils.base_crypt import BaseCrypt
 from apps.utils.db import array_group, array_hash
-from apps.utils.local import get_request_app_code, get_request_username
+from apps.utils.local import get_request_app_code
 from apps.utils.time_handler import (
     datetime_to_timestamp,
     timestamp_to_datetime,
@@ -376,6 +377,8 @@ class LogIndexSet(SoftDeleteModel):
 
     result_window = models.IntegerField(default=10000, verbose_name=_("单次导出的日志条数"))
 
+    max_analyzed_offset = models.IntegerField(default=0, verbose_name=_("日志长文本高亮长度限制"))
+
     def get_name(self):
         return self.index_set_name
 
@@ -525,7 +528,7 @@ class LogIndexSet(SoftDeleteModel):
                 # 这里只要近似值，只要取到其中一个即可，没有必要将全部索引的时间都查出来
                 break
 
-        mark_index_set_ids = set(IndexSetUserFavorite.batch_get_mark_index_set(index_set_ids, get_request_username()))
+        mark_index_set_ids = set(IndexSetUserFavorite.batch_get_mark_index_set(index_set_ids, fetch_request_username()))
 
         index_set_data = array_group(
             list(
@@ -1408,6 +1411,7 @@ class StorageClusterRecord(SoftDeleteModel):
 
 class UserIndexSetCustomConfig(models.Model):
     """用户索引集自定义配置"""
+
     username = models.CharField(_("用户name"), max_length=256)
     index_set_id = models.IntegerField(_("索引集ID"), null=True)
     index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)

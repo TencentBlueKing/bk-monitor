@@ -25,7 +25,7 @@
  */
 
 // @ts-ignore
-import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import { handleTransformToTimestamp, intTimestampStr } from '@/components/time-range/utils';
 
 import { ConditionOperator } from './condition-operator';
 
@@ -116,16 +116,28 @@ class RouteUrlResolver {
     return this.objectResolver(str);
   }
 
+  private getTimeSecVal(val: number) {
+    const diff = `${val}`.length - 10;
+    let temp = 1;
+    for (let i = 0; i < diff; i++) {
+      temp = temp * 10;
+    }
+
+    return val / temp;
+  }
+
   /**
    * datepicker时间范围格式化为标准时间格式
    * @param timeRange [start_time, end_time]
    */
   private dateTimeRangeResolver(timeRange: string[]) {
-    const regExp = /^\d+$/;
-    const result = timeRange.map(t => decodeURIComponent(t)).every(t => regExp.test(`${t}`))
-      ? timeRange
-      : handleTransformToTimestamp(timeRange);
-    return { start_time: result[0], end_time: result[1] };
+    const decodeValue = timeRange.map(t => {
+      const r = decodeURIComponent(t);
+      return intTimestampStr(r);
+    });
+
+    const result: number[] = handleTransformToTimestamp(decodeValue);
+    return { start_time: this.getTimeSecVal(result[0]), end_time: this.getTimeSecVal(result[1]) };
   }
 
   private additionResolver(str) {
@@ -134,6 +146,13 @@ class RouteUrlResolver {
         const instance = new ConditionOperator(val);
         return instance.formatApiOperatorToFront();
       });
+    });
+  }
+
+  private datePickerValueResolver() {
+    return this.commonResolver(this.query.start_time, value => {
+      const endTime = this.commonResolver(this.query.end_time) ?? value;
+      return [intTimestampStr(value), intTimestampStr(endTime)];
     });
   }
 
@@ -146,12 +165,7 @@ class RouteUrlResolver {
     this.resolver.set('timeRange', this.dateTimeRangeResolver.bind(this));
 
     // datePicker默认直接获取URL中的 start_time, end_time
-    this.resolver.set('datePickerValue', () => {
-      return this.commonResolver(this.query.start_time, value => {
-        const endTime = this.commonResolver(this.query.end_time) ?? value;
-        return [value, endTime];
-      });
-    });
+    this.resolver.set('datePickerValue', this.datePickerValueResolver.bind(this));
 
     this.resolver.set('start_time', val => {
       return this.commonResolver(val, value => {

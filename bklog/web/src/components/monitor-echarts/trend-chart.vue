@@ -12,7 +12,6 @@
   const emit = defineEmits(['polling']);
 
   const CancelToken = axios.CancelToken;
-
   const isUnionSearch = computed(() => store.getters.isUnionSearch);
   const unionIndexList = computed(() => store.getters.unionIndexList);
   const retrieveParams = computed(() => store.getters.retrieveParams);
@@ -63,6 +62,7 @@
 
       isStart.value = true;
       store.commit('retrieve/updateTrendDataLoading', true);
+      store.commit('retrieve/updateTrendDataCount', 0);
       const { interval } = initChartData(startTimeStamp, endTimeStamp);
       runningInterval = interval;
     } else {
@@ -121,8 +121,10 @@
         .then(res => {
           if (res?.data) {
             const originChartData = res?.data?.aggs?.group_by_histogram?.buckets || [];
-            const data =  originChartData.map(item => [item.key, item.doc_count, item.key_as_string]);
-            setChartData(data);
+            const data = originChartData.map(item => [item.key, item.doc_count, item.key_as_string]);
+
+            const sumCount = setChartData(data);
+            store.commit('retrieve/updateTrendDataCount', sumCount);
           }
 
           if (!res?.result || requestInterval === 0) {

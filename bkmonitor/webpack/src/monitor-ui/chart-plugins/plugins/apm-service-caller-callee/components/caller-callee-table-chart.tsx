@@ -114,7 +114,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     this.viewOptions?.service_name && this.getPanelData();
   }
   /** 点击选择图表中点 */
-  @Watch('chartPointOption', { deep: true })
+  @Watch('chartPointOption')
   onChartPointOptionChanges(val, oldVal) {
     if (val && val?.time !== oldVal?.time) {
       this.pointWhere = [];
@@ -232,6 +232,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       ...this.pointWhere,
       // ...this.drillWhere,
     ];
+    debugger;
     calculateByRange(newParams)
       .then(res => {
         this.tableLoading = false;
@@ -423,7 +424,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     return (
       <bk-checkbox-group
         value={activeList}
-        onChange={this.handleSelectDimension}
+        onChange={v => this.handleSelectDimension(v)}
       >
         {this.dimensionList.map(item => (
           <bk-checkbox

@@ -1991,7 +1991,7 @@ class UpdatePartialStrategyV2Resource(Resource):
         class ConfigSerializer(serializers.Serializer):
             is_enabled = serializers.BooleanField(required=False)
             notice_group_list = serializers.ListField(required=False, child=serializers.IntegerField())
-            labels = serializers.ListField(required=False, child=serializers.CharField(), allow_empty=True)
+            labels = serializers.DictField(required=False)
             trigger_config = serializers.DictField(required=False)
             recovery_config = serializers.DictField(required=False)
             alarm_interval = serializers.IntegerField(required=False)
@@ -2033,11 +2033,45 @@ class UpdatePartialStrategyV2Resource(Resource):
         return src
 
     @staticmethod
-    def update_labels(strategy: Strategy, labels: List[str]):
+    def update_labels(strategy: Strategy, labels: Dict):
         """
-        更新策略标签
+        更新策略标签，追加或者替换标签
+        :param strategy: 需要更新标签的策略对象
+        :param labels: 包含更新标签所需信息的字典
+                        -如果字典中包含 "append_keys" 键，并且其值是一个包含 "labels" 的列表，则新的标签会被追加到现有标签中
+                            例如：
+                            labels = {
+                                "labels": ["label2", "label3"],
+                                "append_keys": ["labels"]
+                            }
+                            此时，新标签 "label2", "label3" 会被追加到现有标签中
+                        -如果未传递 "append_keys" 或 "append_keys" 中不包含 "labels"，则现有标签将被新的标签完全替换
+                            例如：
+                                labels = {
+                                    "labels": ["label2", "label3"]
+                                }
+                                或者
+                                labels = {
+                                    "labels": ["label2", "label3"],
+                                    "append_keys": ["other_key"]
+                                }
+                                此时，现有标签将被新标签 "label2", "label3" 完全替换
         """
-        strategy.labels = labels
+        old_labels: List = strategy.labels
+        # 1、如果有传append_keys，则表示要将新的标签追加到原有策略的标签中
+        if labels.get("append_keys"):
+            if "labels" in labels["append_keys"]:
+                # 将新的标签追加到旧标签中
+                updated_labels = list(set(old_labels) | set(labels.get("labels", [])))
+            else:
+                # labels["append_keys"] 追加逻辑的字段列表里没有 labels 字段则替换
+                updated_labels = labels.get("labels", [])
+        else:
+            # 2、如果没有传append_keys，则表示将原有策略的旧标签全部替换为新的标签
+            updated_labels = labels.get("labels", [])
+
+        # 3、保存策略标签
+        strategy.labels = updated_labels
         strategy.save_labels()
 
         return None, [], []

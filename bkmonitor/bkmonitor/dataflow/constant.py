@@ -97,6 +97,9 @@ class CheckErrorType:
     # 任务没有埋点
     NO_RUNTIME_METRICS = "no_runtime_metrics"
 
+    # 任务应该停止
+    NEED_TO_STOP = "need_to_stop"
+
 
 class RTAccessBkDataStatus:
     # 等待中
