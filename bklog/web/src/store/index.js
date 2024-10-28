@@ -889,7 +889,12 @@ const store = new Vuex.Store({
     /** 请求字段config信息 */
     requestIndexSetFieldInfo({ commit, dispatch, state }) {
       // @ts-ignore
-      const { ids = [], start_time = '', end_time = '', isUnionIndex } = state.indexItem;
+      const { ids = [], isUnionIndex } = state.indexItem;
+      const currentTime = Date.now();
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      const start_time = Math.floor((currentTime - 15 * 60 * 1000) / 1000);
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      const end_time = Math.floor(currentTime / 1000);
 
       commit('resetIndexFieldInfo');
       commit('updataOperatorDictionary', {});
