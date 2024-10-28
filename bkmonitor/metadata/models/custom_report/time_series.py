@@ -479,7 +479,7 @@ class TimeSeriesGroup(CustomGroupBase):
                     or []
                 )
             except CustomException as e:
-                logger.error("[%s] -> has no vm_result_table_id", vm_rt.result_table_id)
+                logger.error("time_series:get_metric_from_bkdata -> [%s] -> has no vm_result_table_id", vm_rt.result_table_id)
                 continue
             if not data or not data.get("metrics", None):
                 continue
