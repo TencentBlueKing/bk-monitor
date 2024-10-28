@@ -144,7 +144,7 @@ class K8sPodDetail(ResourceDetail):
         _("运行状态"),
         _("集群ID"),
         _("集群名称"),
-        _("名字空间"),
+        "NameSpace",
         _("Pod IP"),
         _("节点IP"),
         _("节点名称"),
@@ -199,7 +199,7 @@ class K8sServiceDetail(ResourceDetail):
     _service_info_columns = [
         _("集群ID"),
         _("集群名称"),
-        _("名字空间"),
+        "NameSpace",
         _("类型"),
         _("Pod数量"),
     ]

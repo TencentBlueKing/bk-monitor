@@ -234,7 +234,7 @@
         type="submit"
         @click="confirmModifyFields"
       >
-        {{ $t('应用') }}
+        {{ $t('保存') }}
       </bk-button>
       <bk-button
         :theme="'default'"
@@ -728,7 +728,6 @@
           }
 
           .panel-name {
-            max-width: 100px;
             padding-left: 20px;
             overflow: hidden;
             text-overflow: ellipsis;

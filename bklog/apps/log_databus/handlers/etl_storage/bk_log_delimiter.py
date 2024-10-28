@@ -21,6 +21,7 @@ the project delivered to anyone in the future.
 """
 import copy
 import json
+import re
 
 from django.utils.translation import ugettext_lazy as _
 
@@ -31,6 +32,7 @@ from apps.log_databus.constants import (
     ETL_DELIMITER_IGNORE,
     FIELD_TEMPLATE,
     EtlConfig,
+    MetadataTypeEnum,
 )
 from apps.log_databus.exceptions import EtlDelimiterParseException
 from apps.log_databus.handlers.etl_storage import EtlStorage
@@ -141,6 +143,33 @@ class BkLogDelimiterEtlStorage(EtlStorage):
                 field_info = copy.deepcopy(FIELD_TEMPLATE)
                 field_info["field_index"] = index + 1
                 fields.append(field_info)
+
+        # 加上path字段
+        etl_field_index = cls.get_max_fields_index(fields) + 1
+        separator_configs = result_table_config["option"].get("separator_configs", [])
+        if separator_configs:
+            etl_path_regexp = separator_configs[0].get("separator_regexp", "")
+            if etl_path_regexp:
+                pattern = re.compile(etl_path_regexp)
+                match_fields = list(pattern.groupindex.keys())
+                for field_name in match_fields:
+                    fields.append(
+                        {
+                            "field_name": field_name,
+                            "type": "string",
+                            "tag": "dimension",
+                            "description": "",
+                            "is_built_in": False,
+                            "option": {
+                                "metadata_type": MetadataTypeEnum.PATH.value,
+                                "es_type": "keyword",
+                                "field_index": etl_field_index,
+                                "real_path": f"{cls.path_separator_node_name}.{field_name}",
+                            },
+                            "field_type": "string",
+                        }
+                    )
+                    etl_field_index += 1
 
         # 加上内置字段
         fields += [field for field in collector_config["fields"] if field["is_built_in"]]

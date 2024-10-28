@@ -155,7 +155,7 @@ class TestGetKubernetesPodList:
                     'filterable': True,
                     'id': 'namespace',
                     'min_width': 120,
-                    'name': '名字空间',
+                    'name': 'NameSpace',
                     'type': 'string',
                 },
                 {
@@ -531,7 +531,7 @@ class TestGetKubernetesPodList:
                     'filterable': True,
                     'id': 'namespace',
                     'min_width': 120,
-                    'name': '名字空间',
+                    'name': 'NameSpace',
                     'type': 'string',
                 },
                 {
@@ -900,7 +900,7 @@ class TestGetKubernetesPodList:
                     'filterable': True,
                     'id': 'namespace',
                     'min_width': 120,
-                    'name': '名字空间',
+                    'name': 'NameSpace',
                     'type': 'string',
                 },
                 {
@@ -1266,7 +1266,7 @@ class TestGetKubernetesPodList:
                     'filterable': True,
                     'id': 'namespace',
                     'min_width': 120,
-                    'name': '名字空间',
+                    'name': 'NameSpace',
                     'type': 'string',
                 },
                 {
@@ -1631,7 +1631,7 @@ class TestGetKubernetesPodList:
                     'filterable': True,
                     'id': 'namespace',
                     'min_width': 120,
-                    'name': '名字空间',
+                    'name': 'NameSpace',
                     'type': 'string',
                 },
                 {
@@ -2023,7 +2023,7 @@ class TestGetKubernetesPodList:
                     'filterable': True,
                     'id': 'namespace',
                     'min_width': 120,
-                    'name': '名字空间',
+                    'name': 'NameSpace',
                     'type': 'string',
                 },
                 {
@@ -2361,7 +2361,7 @@ class TestGetKubernetesPodList:
                     'filterable': True,
                     'id': 'namespace',
                     'min_width': 120,
-                    'name': '名字空间',
+                    'name': 'NameSpace',
                     'type': 'string',
                 },
                 {

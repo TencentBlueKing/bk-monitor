@@ -44,8 +44,12 @@ export default {
       fieldsWidth: {},
       displayFields: [],
     },
+    activeVersion: 'v2'
   },
   mutations: {
+    updateActiveVersion(state, version) {
+      state.activeVersion = version ?? 'v2';
+    },
     updateTrendDataLoading(state, payload) {
       state.isTrendDataLoading = payload;
     },

@@ -218,6 +218,13 @@ class HostShielder(BaseShielder):
         self.detail = extended_json.dumps({"message": _("当前主机屏蔽未开启")})
 
     def is_matched(self):
+        try:
+            return self._is_matched()
+        except Exception as e:
+            logger.exception(f"[HostShielder] error: {e}")
+            return False
+
+    def _is_matched(self):
         if getattr(self.alert.event, "target_type", None) == "HOST":
             using_api = False
             ip = self.alert.event.ip

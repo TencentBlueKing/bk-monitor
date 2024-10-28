@@ -1653,7 +1653,16 @@ class DataSamplingResource(Resource):
 
     @classmethod
     def combine_data(cls, telemetry_data_type: str, app: Application, **kwargs):
-        resp = telemetry_handler_registry(telemetry_data_type, app=app).data_sampling(**kwargs)
+        try:
+            resp = telemetry_handler_registry(telemetry_data_type, app=app).data_sampling(**kwargs)
+        except Exception as e:  # pylint: disable=broad-except
+            # APM 应用详情数据状态采样示例接口, 采样为空无需暴露底层具体错误信息给用户, 日志后台记录即可
+            logger.warning(
+                _("获取app: {app_id} {data_type} 采样数据失败, 详情: {detail}").format(
+                    app_id=app.application_id, data_type=telemetry_data_type, detail=e
+                )
+            )
+            return []
         return resp if resp else []
 
     def perform_request(self, validated_request_data):
@@ -1719,7 +1728,7 @@ class StorageStatusResource(Resource):
                         if telemetry_handler_registry(data_type.value, app=app).storage_status
                         else StorageStatus.ERROR
                     )
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-except
                     status_mapping[data_type.value] = StorageStatus.ERROR
                     logger.warning(_("获取{type}存储状态失败,详情: {detail}").format(type=data_type.value, detail=e))
         except Application.DoesNotExist:
@@ -1750,7 +1759,7 @@ class DataStatusResource(Resource):
                         if telemetry_handler_registry(data_type.value, app=app).get_data_count(start_time, end_time)
                         else DataStatus.NO_DATA
                     )
-                except ValueError as e:
+                except Exception as e:  # pylint: disable=broad-except
                     status_mapping[data_type.value] = getattr(
                         app, f"{data_type.datasource_type}_data_status", DataStatus.NO_DATA
                     )

@@ -170,9 +170,7 @@ def k8s_bk_collector_discover_cron():
     from apm_ebpf.models import ClusterRelation
 
     cluster_mapping = ClusterRelation.all_cluster_ids()
-    logger.info(
-        f"[bk_collector_discover_cron] start to discover deepflow and bk-collector in {len(cluster_mapping)} clusters"
-    )
+    logger.info(f"[bk_collector_discover_cron] start to discover bk-collector in {len(cluster_mapping)} clusters")
 
     collector_checker = BkCollectorInstaller.generator()
     for cluster_id, related_bk_biz_ids in cluster_mapping.items():

@@ -1851,7 +1851,6 @@
           "fields": {
             "endpoint_name": "endpoint_name",
             "app_name": "app_name",
-            "service_name": "service",
             "extra_filter_dict": "extra_filter_dict"
           }
         }

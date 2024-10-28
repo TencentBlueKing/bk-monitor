@@ -28,9 +28,9 @@ from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 from apps.log_unifyquery.constants import (
     BASE_OP_MAP,
     FLOATING_NUMERIC_FIELD_TYPES,
-    OP_TRANSFORMER,
     REFERENCE_ALIAS,
 )
+from apps.log_unifyquery.utils import transform_advanced_addition
 from apps.utils.ipchooser import IPChooser
 from apps.utils.local import get_local_param
 from apps.utils.log import logger
@@ -320,6 +320,8 @@ class UnifyQueryHandler(object):
         condition_list = []
         new_addition = self._combine_addition_ip_chooser(index_info=index_info)
         for addition in new_addition:
+            if len(field_list) != 0:
+                condition_list.append("and")
             # 全文检索key & 存量query_string转换
             if addition["field"] in ["*", "__query_string__"]:
                 value_list = addition["value"] if isinstance(addition["value"], list) else addition["value"].split(",")
@@ -343,12 +345,9 @@ class UnifyQueryHandler(object):
                     }
                 )
             else:
-                transformer = OP_TRANSFORMER[addition["operator"]]
-                new_field_list, new_condition_list = transformer(addition)
+                new_field_list, new_condition_list = transform_advanced_addition(addition)
                 field_list.extend(new_field_list)
                 condition_list.extend(new_condition_list)
-            if len(field_list) > 1:
-                condition_list.append("and")
         return {"field_list": field_list, "condition_list": condition_list}
 
     @staticmethod

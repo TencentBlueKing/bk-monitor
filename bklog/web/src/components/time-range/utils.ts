@@ -79,12 +79,12 @@ export const handleTransformToTimestamp = (value: TimeRangeType): TimestampsType
 };
 
 /* 秒转换为字符串时间 */
-export function timestampTransformStr(value: number[]): TimeRangeType {
+export function timestampTransformStr(value: number[], format = 'YYYY-MM-DD HH:mm:ss'): TimeRangeType {
   return value.map(v => {
     if (String(v).length > 10) {
-      return dayjs(Number(v)).format('YYYY-MM-DD HH:mm:ss');
+      return dayjs(Number(v)).format(format);
     }
-    return dayjs(Number(v) * 1000).format('YYYY-MM-DD HH:mm:ss');
+    return dayjs(Number(v) * 1000).format(format);
   }) as TimeRangeType;
 }
 

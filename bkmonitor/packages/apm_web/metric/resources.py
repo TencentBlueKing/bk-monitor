@@ -187,6 +187,7 @@ class DynamicUnifyQueryResource(Resource):
 
         if not validate_data.get("service_name"):
             return self.fill_unit_and_series(
+                unify_query_params,
                 resource.grafana.graph_unify_query(unify_query_params),
                 validate_data,
                 require_fill_series,
@@ -200,6 +201,7 @@ class DynamicUnifyQueryResource(Resource):
         )
         if not node:
             return self.fill_unit_and_series(
+                unify_query_params,
                 resource.grafana.graph_unify_query(unify_query_params),
                 validate_data,
                 require_fill_series,
@@ -264,6 +266,7 @@ class DynamicUnifyQueryResource(Resource):
             )
 
         return self.fill_unit_and_series(
+            unify_query_params,
             resource.grafana.graph_unify_query(unify_query_params),
             validate_data,
             require_fill_series,
@@ -271,7 +274,7 @@ class DynamicUnifyQueryResource(Resource):
         )
 
     @classmethod
-    def fill_unit_and_series(cls, response, validate_data, require_fill_series=False, node=None):
+    def fill_unit_and_series(cls, query_params, response, validate_data, require_fill_series=False, node=None):
         """补充单位、时间点、展示名称"""
         unit = validate_data.get("unit")
         start_time = validate_data["start_time"]
@@ -304,6 +307,8 @@ class DynamicUnifyQueryResource(Resource):
             for i in response.get("series", []):
                 i["target"] = prefix + _(f"{suffix}")
 
+        # 添加处理后的 unifyQuery 参数 用于给前端实现跳转到指标检索
+        response["query_config"] = query_params
         return response
 
 
@@ -1074,18 +1079,18 @@ class InstanceListResource(Resource):
         service_name = serializers.CharField(label="服务名称", required=False, allow_blank=True)
         keyword = serializers.CharField(label="关键字", required=False, allow_blank=True)
         category = serializers.CharField(label="分类", required=False)
+        start_time = serializers.IntegerField(label="开始时间")
+        end_time = serializers.IntegerField(label="结束时间")
 
     def perform_request(self, validated_data):
-        # 获取存储周期
-        app = Application.objects.get(bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"])
-        start_time, end_time = get_datetime_range(period="day", distance=app.es_retention, rounding=False)
 
         instances = RelationMetricHandler.list_instances(
             validated_data["bk_biz_id"],
             validated_data["app_name"],
-            int(start_time.timestamp()),
-            int(end_time.timestamp()),
+            validated_data["start_time"],
+            validated_data["end_time"],
             service_name=validated_data.get("service_name"),
+            filter_component=True,
         )
         return self.convert_to_response(validated_data["app_name"], validated_data.get("keyword"), instances)
 
