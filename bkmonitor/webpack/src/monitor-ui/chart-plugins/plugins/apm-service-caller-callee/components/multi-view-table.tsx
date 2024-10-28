@@ -43,7 +43,7 @@ import type { IColumn, IDataItem, IListItem, DimensionItem, CallOptions } from '
 import './multi-view-table.scss';
 interface IMultiViewTableProps {
   dimensionList: DimensionItem[];
-  tableColData: IColumn[];
+  tableColData: IListItem[];
   tableListData: IDataItem[];
   tableTabData: IDataItem[];
   panel: PanelModel;
@@ -114,6 +114,8 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   };
   tableAppendWidth = 0;
   prefix = ['growth_rates', 'proportions', 'success_rate', 'exception_rate', 'timeout_rate'];
+  sortProp: null | string = null;
+  sortOrder: 'ascending' | 'descending' | null = null;
   /** 是否需要展示百分号 */
   hasPrefix(fieldName: string) {
     return this.prefix.some(pre => fieldName.startsWith(pre));
@@ -197,15 +199,17 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       });
     }
     this.tableAppendWidth = this.$refs.tableAppendRef?.offsetParent?.children[0]?.offsetWidth || 0;
-    const list = (this.tableListData || []).slice((current - 1) * limit, current * limit);
-    return list;
+    let list = this.tableListData || [];
+    if (this.sortProp && this.sortOrder && list.length) {
+      list = list.toSorted((a, b) => {
+        if (this.sortOrder === 'ascending') {
+          return a[this.sortProp] > b[this.sortProp] ? 1 : -1;
+        }
+        return a[this.sortProp] < b[this.sortProp] ? 1 : -1;
+      });
+    }
+    return list.slice((current - 1) * limit, current * limit);
   }
-  // get showTabTableList() {
-  //   const { limit, current } = this.pagination;
-  //   const list = (this.tableTabData || []).slice((current - 1) * limit, current * limit);
-  //   return [...list, ...this.totalList];
-  // }
-
   mounted() {
     TAB_TABLE_TYPE.find(item => item.id === 'request').handle = this.handleGetDistribution;
   }
@@ -228,37 +232,127 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   changeChartTab(id: string) {
     this.chartActive = id;
   }
+
   /** 动态处理表格要展示的数据 */
   @Watch('tableColData')
-  handleChangeCol(val) {
+  handleChangeCol(val: IListItem[]) {
     const key = {
       '1d': '昨天',
       '0s': '当前',
       '1w': '上周',
     };
-    const mapList = {};
-    // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
-    val.map(item => (mapList[item] = key[item] || item));
-    this.panels = JSON.parse(JSON.stringify(this.cachePanels));
-    // biome-ignore lint/complexity/noForEach: <explanation>
-    this.panels.forEach(item => {
-      if (item.id === 'request' && val.length > 0) {
-        item.columns = item.columns.slice(1);
+    for (const { value, text } of val) {
+      const name = key[value];
+      if (name) {
+        key[value] = name;
+        continue;
       }
-      item.columns = item.columns.flatMap(col => {
-        let defaultCol = [];
-        const isRequest = item.id !== 'request';
-        const baseKey = isRequest ? (val.length === 0 ? col.prop : col.prop.slice(0, -3)) : 'request_total';
-        defaultCol = [{ label: this.$t('波动'), prop: `growth_rates_${baseKey}_${val[0]}` }];
-        const cache = val.length === 1 ? ['0s', ...val] : val;
-        const additionalCols = cache.map((v, ind) => ({
-          label: isRequest ? `${key[v] || v}${ind === 0 && key[v] ? col.label || '' : ''}` : `${key[v] || v}`,
-          prop: `${baseKey}_${v}`,
-        }));
-        defaultCol = isRequest ? [...additionalCols, ...defaultCol] : [...additionalCols, col, ...defaultCol];
-        return val.length > 0 ? defaultCol : col;
+      key[value] = text;
+    }
+    this.panels = JSON.parse(JSON.stringify(this.cachePanels));
+    const panelList = [];
+    const keyList = ['0s', ...val.map(item => item.value)];
+    const hastCompare = val.length > 0;
+    for (const panel of this.panels) {
+      const columns = [];
+      if (panel.id === 'request') {
+        columns.push(
+          ...[
+            {
+              label: this.$t('当前'),
+              prop: 'request_total_0s',
+            },
+            {
+              label: hastCompare ? this.$t('占比(当前)') : this.$t('占比'),
+              prop: 'proportions_request_total_0s',
+            },
+          ]
+        );
+        for (const { value } of val) {
+          columns.push(
+            ...[
+              {
+                label: key[value],
+                prop: `request_total_${value}`,
+              },
+              {
+                label: this.$t('波动'),
+                prop: `growth_rates_request_total_${value}`,
+              },
+            ]
+          );
+        }
+      } else if (panel.id === 'timeout') {
+        const colList = ['success_rate', 'timeout_rate', 'exception_rate'].filter(Boolean);
+        const nameMap = {
+          success_rate: this.$t('成功率'),
+          timeout_rate: this.$t('超时率'),
+          exception_rate: this.$t('异常率'),
+        };
+        for (const col of colList) {
+          for (const name of keyList) {
+            columns.push({
+              label: (hastCompare ? key[name] : '') + nameMap[col],
+              prop: `${col}_${name}`,
+            });
+            if (name !== '0s') {
+              columns.push({
+                label: this.$t('波动'),
+                prop: `growth_rates_${col}_${name}`,
+              });
+            }
+          }
+        }
+      } else if (panel.id === 'consuming') {
+        const colList = ['avg_duration', 'p50_duration', 'p95_duration', 'p99_duration'].filter(Boolean);
+        const nameMap = {
+          avg_duration: this.$t('平均耗时'),
+          p50_duration: this.$t('P50平均耗时'),
+          p95_duration: this.$t('P95平均耗时'),
+          p99_duration: this.$t('P99平均耗时'),
+        };
+        for (const col of colList) {
+          for (const name of keyList) {
+            columns.push({
+              label: (hastCompare ? key[name] : '') + nameMap[col],
+              prop: `${col}_${name}`,
+            });
+            if (name !== '0s') {
+              columns.push({
+                label: this.$t('波动'),
+                prop: `growth_rates_${col}_${name}`,
+              });
+            }
+          }
+        }
+      }
+      panelList.push({
+        ...panel,
+        columns,
       });
-    });
+    }
+    this.panels = panelList;
+    // biome-ignore lint/complexity/noForEach: <explanation>
+    // this.panels.forEach(item => {
+    //   if (item.id === 'request' && val.length > 0) {
+    //     item.columns = item.columns.slice(1);
+    //   }
+    //   item.columns = item.columns.flatMap(col => {
+    //     let defaultCol = [];
+    //     const isRequest = item.id !== 'request';
+    //     const baseKey = isRequest ? (val.length === 0 ? col.prop : col.prop.slice(0, -3)) : 'request_total';
+    //     defaultCol = [{ label: this.$t('波动'), prop: `growth_rates_${baseKey}_${val[0].value}` }];
+    //     const cache = ['0s', ...val.map(item => item.value)];
+    //     const additionalCols = cache.map((v, ind) => {
+    //       return {
+    //         label: isRequest ? `${key[v] || v}${ind === 0 && key[v] ? col.label || '' : ''}` : `${key[v] || v}`,
+    //         prop: `${baseKey}_${v}`,
+    //       };
+    //     });
+    //     defaultCol = isRequest ? [...additionalCols, ...defaultCol] : [...additionalCols, col, ...defaultCol];
+    //     return val.length > 0 ? defaultCol : col;
+    //   });
+    // });
     // console.log(this.panels, 'this.panels');
   }
 
@@ -306,6 +400,10 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       message: this.$t('复制成功'),
       theme: 'success',
     });
+  }
+  handleSort({ prop, order }) {
+    this.sortProp = prop;
+    this.sortOrder = order;
   }
   // 渲染左侧表格的列
   handleMultiColumn() {
@@ -420,6 +518,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   // 渲染tab表格的列
   handleMultiTabColumn() {
     const curColumn = this.panels.find(item => item.id === this.active);
+    console.log(curColumn, 'curColumn');
     return (curColumn.columns || []).map(item => (
       <bk-table-column
         key={item.prop}
@@ -565,6 +664,7 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
                 max-height={600}
                 outer-border={false}
                 virtual-render={this.pagination.limit > 10}
+                on-sort-change={this.handleSort}
               >
                 {this.handleMultiTabColumn()}
                 <div slot='empty' />

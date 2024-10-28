@@ -300,7 +300,6 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   /** 点击选中图表里的某个点 */
   handleZrClick(event: ZrClickEvent) {
     if (!event.xAxis) return;
-    console.info(event, '=================');
     const date = dayjs.tz(event.xAxis).format('YYYY-MM-DD HH:mm:ss');
     this.chartPointOption = {
       dimensions: event?.dimensions || {},

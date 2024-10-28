@@ -48,6 +48,7 @@ import type {
   IPointTime,
   IDataItem,
   DimensionItem,
+  IListItem,
 } from '../type';
 
 import './caller-callee-table-chart.scss';
@@ -93,7 +94,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   tableColumn = [];
   tableListData = [];
   tableTabData = [];
-  tableColData: string[] = [];
+  tableColData: IListItem[] = [];
   tableLoading = false;
   pointWhere: IFilterCondition[] = [];
   drillWhere: IFilterCondition[] = [];
@@ -200,7 +201,10 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   }
   @Debounce(100)
   async getPanelData() {
-    this.tableColData = this.callOptions.time_shift.map(item => item.alias);
+    this.tableColData = this.callOptions.time_shift.map(item => ({
+      value: timeShiftFormat(item.alias),
+      text: item.alias,
+    }));
     this.getPageList();
   }
   /** 获取表格数据 */
@@ -221,14 +225,14 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       const intervalNum = this.commonOptions?.time?.interval || 60;
       filterStartTime = filterEndTime - intervalNum;
     }
-    const timeShift = this.getCallTimeShift();
+    const timeShift = this.getCallTimeShift()?.map(t => timeShiftFormat(t));
     const newParams = {
       ...variablesService.transformVariables(this.statisticsData.data, {
         ...this.viewOptions,
       }),
       ...{
         group_by: isTotal ? [] : this.dimensionList.filter(item => item.active).map(item => item.value),
-        time_shifts: timeShift.map(t => timeShiftFormat(t)),
+        time_shifts: timeShift,
         metric_cal_type,
         baseline: '0s',
         start_time: filterStartTime || this.pointTime?.startTime || startTime,
