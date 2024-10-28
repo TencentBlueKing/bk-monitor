@@ -27,7 +27,7 @@ class MetricHelper:
 
     TIME_FIELD_ACCURACY = 1000
 
-    # 默认查询近 1h 的跑数据
+    # 默认查询近 1h 的数据
     DEFAULT_TIME_DURATION: datetime.timedelta = datetime.timedelta(hours=1)
 
     # 最多查询近 30d 的数据
@@ -116,11 +116,10 @@ class MetricHelper:
         # 开始时间不能小于 earliest_start_time
         start_time = max(earliest_start_time, start_time or default_start_time)
 
-        if end_time:
-            end_time = end_time // 60 * 60
-
         # 结束时间不能大于 now
         end_time = min(now, end_time or now)
+        # 省略最后未完成的一分钟，避免数据不准确引起误解
+        end_time = end_time // 60 * 60
 
         return start_time * cls.TIME_FIELD_ACCURACY, end_time * cls.TIME_FIELD_ACCURACY
 

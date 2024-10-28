@@ -3001,7 +3001,11 @@ class CalculateByRangeResource(Resource):
     def _process_growth_rates(cls, baseline: str, aliases: List[str], records: List[Dict[str, Any]]):
         for record in records:
             for alias in aliases:
-                if not record[baseline] or record[alias] is None:
+                if record[baseline] == 0 and record[alias] == 0:
+                    # 两个数据都为 0 时，设定增长率为 0%
+                    record.setdefault("growth_rates", {})[alias] = 0
+                    continue
+                elif not record[baseline] or record[alias] is None:
                     # 对比基准 0 or None 的情况下，无法计算增长率，直接置空
                     record.setdefault("growth_rates", {})[alias] = None
                     continue
@@ -3029,7 +3033,7 @@ class CalculateByRangeResource(Resource):
     def _process_sorted(cls, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         if not records:
             return []
-        if "time" in records[0].get("dimensions"):
+        if "time" in records[0].get("dimensions") or {}:
             return sorted(records, key=lambda _d: -_d.get("dimensions", {}).get("time", 0))
         return records
 
