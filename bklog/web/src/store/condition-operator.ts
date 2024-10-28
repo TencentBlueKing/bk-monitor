@@ -106,7 +106,10 @@ class ConditionOperator {
     }
 
     // 在前端的逻辑中，只有Text String类型的字段才支持配置是否启用通配符
-    if (this.containOperatorList.includes(this.item.operator) && ['text', 'string'].includes(this.item.field_type)) {
+    if (
+      this.containOperatorList.includes(this.item.operator) &&
+      (['text', 'string'].includes(this.item.field_type) || /^and$/i.test(this.operatorRelationVlaue))
+    ) {
       let value = '';
       // 首先判断是且还是或 如果是且则先加一个and
       value = this.operatorRelationVlaue === 'AND' ? 'and ' : '';
