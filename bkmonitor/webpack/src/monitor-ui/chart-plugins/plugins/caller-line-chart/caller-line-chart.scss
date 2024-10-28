@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 .apm-caller-line-chart {
   display: flex;
   flex: 1;
@@ -30,6 +31,12 @@
       display: flex;
       flex: 1;
       flex-grow: 2;
+
+      .chart-base {
+        & > div {
+          cursor: pointer !important;
+        }
+      }
 
       &.is-table-legend {
         width: calc(100% - 320px);
