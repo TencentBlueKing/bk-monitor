@@ -3005,14 +3005,12 @@ class CalculateByRangeResource(Resource):
                     # 两个数据都为 0 时，设定增长率为 0%
                     record.setdefault("growth_rates", {})[alias] = 0
                     continue
-                elif not record[baseline] or record[alias] is None:
-                    # 对比基准 0 or None 的情况下，无法计算增长率，直接置空
+                elif not record[alias] or record[baseline] is None:
+                    # 分母  0 or None 的情况下，无法计算增长率，直接置空
                     record.setdefault("growth_rates", {})[alias] = None
                     continue
 
-                record.setdefault("growth_rates", {})[alias] = (
-                    (record[alias] - record[baseline]) / record[baseline] * 100
-                )
+                record.setdefault("growth_rates", {})[alias] = (record[baseline] - record[alias]) / record[alias] * 100
 
     @classmethod
     def _process_proportions(cls, aliases: List[str], records: List[Dict[str, Any]]):
