@@ -259,12 +259,12 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
         columns.push(
           ...[
             {
-              label: this.$t('当前'),
-              prop: 'request_total_0s',
+              label: this.$t('占比'),
+              prop: 'proportions_request_total_0s',
             },
             {
-              label: hastCompare ? this.$t('占比(当前)') : this.$t('占比'),
-              prop: 'proportions_request_total_0s',
+              label: this.$t('当前'),
+              prop: 'request_total_0s',
             },
           ]
         );
@@ -332,28 +332,6 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
       });
     }
     this.panels = panelList;
-    // biome-ignore lint/complexity/noForEach: <explanation>
-    // this.panels.forEach(item => {
-    //   if (item.id === 'request' && val.length > 0) {
-    //     item.columns = item.columns.slice(1);
-    //   }
-    //   item.columns = item.columns.flatMap(col => {
-    //     let defaultCol = [];
-    //     const isRequest = item.id !== 'request';
-    //     const baseKey = isRequest ? (val.length === 0 ? col.prop : col.prop.slice(0, -3)) : 'request_total';
-    //     defaultCol = [{ label: this.$t('波动'), prop: `growth_rates_${baseKey}_${val[0].value}` }];
-    //     const cache = ['0s', ...val.map(item => item.value)];
-    //     const additionalCols = cache.map((v, ind) => {
-    //       return {
-    //         label: isRequest ? `${key[v] || v}${ind === 0 && key[v] ? col.label || '' : ''}` : `${key[v] || v}`,
-    //         prop: `${baseKey}_${v}`,
-    //       };
-    //     });
-    //     defaultCol = isRequest ? [...additionalCols, ...defaultCol] : [...additionalCols, col, ...defaultCol];
-    //     return val.length > 0 ? defaultCol : col;
-    //   });
-    // });
-    // console.log(this.panels, 'this.panels');
   }
 
   @Emit('showDetail')
@@ -518,10 +496,13 @@ export default class MultiViewTable extends tsc<IMultiViewTableProps, IMultiView
   // 渲染tab表格的列
   handleMultiTabColumn() {
     const curColumn = this.panels.find(item => item.id === this.active);
-    console.log(curColumn, 'curColumn');
-    return (curColumn.columns || []).map(item => (
+    console.log(
+      curColumn.columns.slice().map(item => item.label),
+      'curColumn'
+    );
+    return (curColumn.columns || []).map((item, index) => (
       <bk-table-column
-        key={item.prop}
+        key={index}
         scopedSlots={{
           default: ({ row }) => {
             const txt = this.formatTableValShow(row[item.prop], item.prop);
