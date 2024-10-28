@@ -1,0 +1,61 @@
+.failure-props-collapse {
+    .bk-date-picker-dropdown {
+      z-index: 99999;
+    }
+  
+    .failure-props-collapse-header {
+      z-index: 99998;
+      display: flex;
+      height: 40px;
+      font-size: 12px;
+      line-height: 40px;
+      color: #c4c6cc;
+      cursor: pointer;
+      background: #454547;
+      border-top: 1px solid #454547;
+  
+      .text-title {
+        margin-right: 2px;
+      }
+    }
+  
+    .failure-props-collapse-header .bkvision-icon {
+      font-size: 18px;
+      color: rgb(99 101 110);
+      transition: all 200ms ease-in;
+    }
+  
+    .failure-props-collapse-header .collapsed {
+      transform: rotate(90deg);
+    }
+  
+    .failure-props-collapse-header {
+        padding: 0 16px;
+
+        .collapsed-icon {
+            font-size: 20px;
+        }
+    }
+    // .failure-props-collapse-content {
+    //   padding: 0 24px;
+    // }
+  
+    .failure-props-collapse-content-wrap {
+        min-width: 240px;
+      }
+
+    .failure-props-collapse-dark .failure-props-collapse-header {
+      background: #222325;
+      border-top: 1px solid #63656e;
+    }
+  
+    .failure-props-collapse-dark .failure-props-collapse-header,
+    .failure-props-collapse-dark .failure-props-collapse-content {
+      padding: 0 20px;
+    }
+  
+    .failure-props-collapse .bk-date-picker-dropdown {
+      z-index: 99999;
+    }
+  }
+  

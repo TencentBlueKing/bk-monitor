@@ -276,9 +276,18 @@ export default class FieldAnalysis extends Vue {
         }
         this.height = LINE_CHART_BASE_HEIGHT;
         const series = [];
-        seriesData.forEach(el => {
+        const echarts = require('echarts');
+        seriesData.forEach((el, index) => {
           series.push({
             ...timeSeriesBase,
+            smooth: true,
+            areaStyle: {
+              // 透明度 80是0.5  00是0
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: `${lineColor[index]}80` }, // 顶部颜色
+                { offset: 1, color: `${lineColor[index]}00` }, // 底部颜色
+              ]),
+            },
             name: el.group_values[0],
             data: el.values,
             z: 999,

@@ -217,6 +217,9 @@ CACHE_KEY_CLUSTER_INFO = "bulk_cluster_info_{}"
 
 DEFAULT_COLLECTOR_LENGTH = 2
 
+# 解析失败字段名
+PARSE_FAILURE_FIELD = "__parse_failure"
+
 
 class AsyncStatus(object):
     RUNNING = "RUNNING"

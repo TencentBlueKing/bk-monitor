@@ -34,7 +34,7 @@ from apps.api import (
 )
 from apps.log_clustering.handlers.aiops.base import BaseAiopsHandler
 from apps.log_clustering.models import ClusteringConfig
-from apps.log_databus.constants import BKDATA_ES_TYPE_MAP
+from apps.log_databus.constants import BKDATA_ES_TYPE_MAP, PARSE_FAILURE_FIELD
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.models import CollectorConfig
@@ -146,6 +146,9 @@ class DataAccessHandler(BaseAiopsHandler):
         collector_config = CollectorConfig.objects.get(collector_config_id=clustering_config.collector_config_id)
         etl_storage = EtlStorage.get_instance(etl_config=collector_config.etl_config)
 
+        # 把path的字段信息从fields中分离
+        fields, path_fields = etl_storage.separate_fields_config(fields)
+
         # 获取清洗配置
         collector_scenario = CollectorScenario.get_instance(
             collector_scenario_id=collector_config.collector_scenario_id
@@ -154,7 +157,17 @@ class DataAccessHandler(BaseAiopsHandler):
         fields_config = etl_storage.get_result_table_config(fields, etl_params, copy.deepcopy(built_in_config)).get(
             "field_list", []
         )
+
         bkdata_json_config = etl_storage.get_bkdata_etl_config(fields, etl_params, built_in_config)
+
+        # 根据路径正则,加入路径清洗配置
+        separator_configs = etl_params.get("separator_configs", [])
+        if separator_configs:
+            etl_path_regexp = separator_configs[0].get("separator_regexp", "")
+            path_fields_config = etl_storage.get_path_field_configs(etl_path_regexp, fields_config)
+            fields_config.extend(path_fields_config)
+            etl_storage.add_path_configs(path_fields, etl_path_regexp, bkdata_json_config)
+
         # 固定有time字段
         fields_config.append({"alias_name": "time", "field_name": "time", "option": {"es_type": "long"}})
 
@@ -165,6 +178,9 @@ class DataAccessHandler(BaseAiopsHandler):
         fields_names = set()
         dedupe_fields_config = []
         for field in fields_config:
+            # 剔除解析失败字段
+            if field.get("field_name") == PARSE_FAILURE_FIELD:
+                continue
             field_name = field.get("alias_name") if field.get("alias_name") else field.get("field_name")
             if field_name not in fields_names:
                 dedupe_fields_config.append(field)

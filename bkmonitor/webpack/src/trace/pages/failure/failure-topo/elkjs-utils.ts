@@ -141,7 +141,7 @@ const getFixedRect = node => {
  */
 const updatePositionFromLayouted = (layouted, data, parent?, index?) => {
   const { x, y, isCombo, id, children, comboId, subComboId = null } = layouted;
-  const queryId = isCombo ? subComboId ?? comboId : id;
+  const queryId = isCombo ? (subComboId ?? comboId) : id;
   const { combos, nodes } = data;
   const target = (isCombo ? combos : nodes).find(n => n.id === queryId);
 
@@ -386,14 +386,20 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
   const leftPdding = Math.max(...usefullNodes.filter(node => node.x === globalMinX).map(node => node.width));
   const rightPadding = Math.max(...usefullNodes.filter(node => node.x === globalMaxX).map(node => node.width));
   const globalWidth = globalMaxX - globalMinX + leftPdding + rightPadding;
-  Object.assign(data.combos[0], {
-    width: globalWidth,
-    fixSize: [globalWidth, data.combos[0].height],
+  data.combos.forEach(combo => {
+    Object.assign(combo, {
+      width: globalWidth,
+      fixSize: [globalWidth, combo.height],
+    });
   });
-  Object.assign(data.combos[1], {
-    width: globalWidth,
-    fixSize: [globalWidth, data.combos[1].height],
-  });
+  // Object.assign(data.combos[0], {
+  //   width: globalWidth,
+  //   fixSize: [globalWidth, data.combos[0].height],
+  // });
+  // Object.assign(data.combos[1], {
+  //   width: globalWidth,
+  //   fixSize: [globalWidth, data.combos[1].height],
+  // });
 
   const paddingLeft = globalMinX < 0 ? -globalMinX : 0;
 
@@ -403,7 +409,7 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
 
   globalNodes.forEach(node => {
     const { x, y, isCombo, id, comboId, subComboId } = node;
-    const queryId = isCombo ? subComboId ?? comboId : id;
+    const queryId = isCombo ? (subComboId ?? comboId) : id;
     const { combos, nodes } = data;
     const target = (isCombo ? combos : nodes).find(n => n.id === queryId);
     if (target) {

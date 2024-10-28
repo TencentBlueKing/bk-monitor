@@ -57,3 +57,12 @@ class ListTaskResource(MonitorWorkerAPIGWResource):
 
     action = "/task/"
     method = "GET"
+
+
+class RemoveTaskResource(MonitorWorkerAPIGWResource):
+    """
+    删除任务
+    """
+
+    action = "/task/"
+    method = "DELETE"

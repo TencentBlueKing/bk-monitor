@@ -31,8 +31,8 @@ import { TABLE_LOG_FIELDS_SORT_REGULAR, Debounce } from '@/common/util';
 import VueDraggable from 'vuedraggable';
 
 import EmptyStatus from '../../../components/empty-status/index.vue';
+import FieldSelectConfig from './components/field-select-config.vue';
 import FieldItem from './field-item';
-import $http from '@/api';
 
 import './index.scss';
 
@@ -291,22 +291,6 @@ export default class FieldFilterComp extends tsc<object> {
       displayFieldNames.push(fieldItem.field_name);
     }
     this.$emit('fields-updated', displayFieldNames);
-    if (!displayFieldNames.length) return; // 可以设置为全部隐藏，但是不请求接口
-    $http
-      .request('retrieve/postFieldsConfig', {
-        params: { index_set_id: this.$route.params.indexId },
-        data: {
-          display_fields: displayFieldNames,
-          sort_list: this.sortList,
-          config_id: this.filedSettingConfigID,
-          index_set_id: this.$route.params.indexId,
-          index_set_ids: this.unionIndexList,
-          index_set_type: this.isUnionSearch ? 'union' : 'single',
-        },
-      })
-      .catch(e => {
-        console.warn(e);
-      });
   }
   /**
    * @desc: 字段命排序
@@ -384,7 +368,10 @@ export default class FieldFilterComp extends tsc<object> {
           )}
           {!!this.totalFields.length && (
             <div class='fields-container is-selected'>
-              <div class='title'>{this.$t('显示字段')}</div>
+              <div class='title'>
+                <span>{this.$t('显示字段')}</span>
+                <FieldSelectConfig />
+              </div>
               {!!this.visibleFields.length ? (
                 <VueDraggable
                   class='filed-list'
