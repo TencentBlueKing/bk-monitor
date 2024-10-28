@@ -25,6 +25,7 @@ class BkBaseResultTable(models.Model):
 
     STATUS_CHOICES = (
         (DataLinkResourceStatus.INITIALIZING.value, "初始化中"),
+        (DataLinkResourceStatus.CREATING.value, "创建中"),
         (DataLinkResourceStatus.PENDING.value, "等待中"),
         (DataLinkResourceStatus.OK.value, "已就绪"),
     )
@@ -35,7 +36,7 @@ class BkBaseResultTable(models.Model):
     storage_type = models.CharField(
         "存储类型", max_length=32, choices=ClusterInfo.CLUSTER_TYPE_CHOICES, default=ClusterInfo.TYPE_VM
     )  # 存储类型
-    monitor_table_id = models.CharField(verbose_name="监控平台结果表ID", max_length=128, null=True, blank=True)
+    monitor_table_id = models.CharField(verbose_name="监控平台结果表ID", max_length=128)
 
     # 回填信息
     storage_cluster_id = models.IntegerField(verbose_name="存储集群ID", null=True, blank=True)
