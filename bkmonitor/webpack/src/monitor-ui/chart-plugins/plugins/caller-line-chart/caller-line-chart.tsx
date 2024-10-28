@@ -554,7 +554,7 @@ class CallerLineChart extends CommonSimpleChart {
         unitFormatter,
         precision,
         lineStyle: {
-          width: 1,
+          width: 2,
         },
       };
     });

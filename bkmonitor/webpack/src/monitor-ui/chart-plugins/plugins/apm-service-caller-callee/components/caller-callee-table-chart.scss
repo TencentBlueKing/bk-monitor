@@ -1,6 +1,6 @@
 .caller-callee-tab-table-view {
   width: calc(100% - 34px);
-  height: 100%;
+  height: fit-content;
   margin: 16px auto 10px;
   background: #fafbfd;
   border-radius: 2px;
@@ -8,15 +8,16 @@
 
   .tab-table-view-layout {
     width: 100%;
-    height: 100%;
+    height: fit-content;
     border: none;
 
     .layout-main {
-      height: 100%;
+      height: fit-content;
       background: #fff;
 
       .layout-main-head {
         width: 100%;
+        height: fit-content;
 
         .tag-symbol {
           margin: 0 4px;
@@ -49,9 +50,7 @@
       }
 
       .aside-main {
-        height: 100%;
-        padding-bottom: 30px;
-        padding-bottom: 30px;
+        height: fit-content;
         background: #fafbfd;
       }
 
