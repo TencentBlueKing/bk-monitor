@@ -484,6 +484,12 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
                 scalableRange: -0.92,
               },
               {
+                type: 'tooltip',
+                formatText: model => {
+                  return `请求量: ${String(model.request_count || 0)}`; // 节点hover展示
+                },
+              },
+              {
                 type: 'edge-tooltip',
                 formatText: model => {
                   return `${this.$t(this.edgeType === 'request_count' ? '请求量' : '耗时')}: ${model.label}`; // 自定义提示文本
