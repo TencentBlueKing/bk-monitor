@@ -77,6 +77,9 @@ class QueryField:
         return value
 
 
+query_cache = {}
+
+
 class BaseQueryTransformer(BaseTreeTransformer):
     """
     Elasticsearch 自定义 query_string 到 标准化 query_string 转换器
@@ -130,12 +133,17 @@ class BaseQueryTransformer(BaseTreeTransformer):
 
     @classmethod
     def transform_query_string(cls, query_string: str):
+        global query_cache
         if not query_string:
             return ""
-        try:
-            query_tree = parser.parse(query_string, lexer=lexer)
-        except ParseError as e:
-            raise QueryStringParseError({"msg": e})
+        if query_string in query_cache:
+            query_tree = query_cache[query_string]
+        else:
+            try:
+                query_tree = parser.parse(query_string, lexer=lexer)
+                query_cache[query_string] = query_tree
+            except ParseError as e:
+                raise QueryStringParseError({"msg": e})
 
         transformer = cls()
         query_tree = transformer.visit(query_tree)
@@ -413,7 +421,7 @@ class BaseQueryHandler:
 
         if actual_field.startswith("tags."):
             # tags 标签需要做嵌套查询
-            tag_key = actual_field[len("tags."):]
+            tag_key = actual_field[len("tags.") :]
 
             # 进行桶聚合
             new_search_object = (
