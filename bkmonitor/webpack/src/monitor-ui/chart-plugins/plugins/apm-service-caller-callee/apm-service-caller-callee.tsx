@@ -165,7 +165,6 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       ...this.callOptions,
       call_filter: structuredClone(data),
     };
-    this.chartPointOption = {};
     this.replaceRouteQuery();
   }
   // 重置
@@ -179,17 +178,23 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   }
   /** 表格下钻 */
   handleTableDrill(data: IFilterCondition[]) {
-    if (data[0]?.key === 'time') {
-      this.chartPointOption = {};
-    }
-    const { call_filter } = this.callOptions;
-    data.map(item => {
-      if (call_filter.findIndex(call => call.key === item.key) === -1) {
-        call_filter.push(item);
-      } else {
-        call_filter.find(call => call.key === item.key).value = item.value;
+    const call_filter = this.callOptions.call_filter.slice(0);
+    for (const item of data) {
+      if (item.key === 'time') {
+        this.chartPointOption = {
+          time: item.value[0] ? dayjs(+item.value[0] * 1000).format('YYYY-MM-DD HH:mm:ss') : '',
+          interval: 0,
+          dimensions: {},
+        };
+        continue;
       }
-    });
+      const callerItem = call_filter.find(call => call.key === item.key);
+      if (!callerItem) {
+        call_filter.push(item);
+        continue;
+      }
+      callerItem.value = item.value;
+    }
     this.searchFilterData(call_filter);
   }
   // 关闭表格中的筛选tag, 调用查询接口
