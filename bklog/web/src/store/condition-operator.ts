@@ -84,7 +84,7 @@ class ConditionOperator {
    * 是否启用通配符
    */
   get isWildcardMatch() {
-    if (typeof this.item.isInclude) {
+    if (typeof this.item.isInclude === 'boolean') {
       return this.item.isInclude;
     }
 

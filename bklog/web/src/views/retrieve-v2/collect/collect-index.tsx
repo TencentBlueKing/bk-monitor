@@ -408,10 +408,7 @@ export default class CollectIndex extends tsc<IProps> {
           const params = { indexId: value.index_set_id };
           const resolver = new RetrieveUrlResolver({
             ...value.params,
-            addition: (value.params.addition ?? []).map(val => {
-              const instance = new ConditionOperator(val);
-              return instance.formatApiOperatorToFront();
-            }),
+            addition: value.params.addition,
             search_mode: value.search_mode,
             spaceUid: value.space_uid,
             unionList: value.index_set_ids.map((item: number) => String(item)),
