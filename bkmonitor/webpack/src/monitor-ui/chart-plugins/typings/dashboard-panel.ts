@@ -25,6 +25,8 @@
  */
 import { isObject, random, typeTools } from 'monitor-common/utils/utils';
 
+import { filterDictConvertedToWhere } from '../utils/utils';
+
 import type { MonitorEchartOptions } from './index';
 import type { TimeSeriesType } from './time-series';
 
@@ -513,6 +515,7 @@ export class PanelModel implements IPanelModel {
 
   // 是否显示百分比
   percent?: boolean;
+  rawTargetQueryMap = new WeakMap<Record<string, any>>();
   realHeight = 0;
   // 是否显示
   show?: boolean = true;
@@ -567,7 +570,52 @@ export class PanelModel implements IPanelModel {
     return false;
   }
   get canSetGrafana() {
-    return ['graph', 'performance-chart', 'apm-timeseries-chart'].includes(this.type);
+    return ['graph', 'performance-chart', 'caller-line-chart', 'apm-timeseries-chart'].includes(this.type);
+  }
+  setRawQueryConfigs(target: Record<string, any>, data: Record<string, any>) {
+    this.rawTargetQueryMap.set(target, data);
+  }
+  public toDashboardPanels() {
+    const queries = this.targets
+      .map(set => {
+        if (this.rawTargetQueryMap.has(set)) {
+          console.info('toDashboardPanels', this.rawTargetQueryMap.get(set), '========');
+          const config = structuredClone(this.rawTargetQueryMap.get(set) || {});
+          return {
+            alias: set.alias || '',
+            expression: set.expression || 'A',
+            ...config,
+            query_configs: filterDictConvertedToWhere(config.query_configs),
+          };
+        }
+        return undefined;
+      })
+      .filter(Boolean);
+    if (!queries.length) return undefined;
+    return {
+      name: this.title,
+      fill: this.fill,
+      min_y_zero: this.min_y_zero,
+      queries,
+    };
+  }
+  public toDataRetrieval() {
+    const targets = this.targets
+      .map(set => {
+        if (this.rawTargetQueryMap.has(set)) {
+          const config = structuredClone(this.rawTargetQueryMap.get(set) || {});
+          return {
+            data: {
+              ...config,
+              query_configs: filterDictConvertedToWhere(config.query_configs),
+            },
+          };
+        }
+        return undefined;
+      })
+      .filter(Boolean);
+    if (!targets.length) return undefined;
+    return targets;
   }
   public updateChecked(v: boolean) {
     this.checked = v;

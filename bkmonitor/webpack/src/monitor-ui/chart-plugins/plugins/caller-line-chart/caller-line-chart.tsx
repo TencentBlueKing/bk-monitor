@@ -46,6 +46,7 @@ import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
 import { downFile, handleRelateAlert, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
+import { replaceRegexWhere } from '../../utils/method';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
@@ -62,7 +63,7 @@ import type {
   ZrClickEvent,
 } from '../../../chart-plugins/typings';
 import type { IChartTitleMenuEvents } from '../../components/chart-title/chart-title-menu';
-import type { CallOptions } from '../apm-service-caller-callee/type';
+import type { CallOptions, IFilterCondition } from '../apm-service-caller-callee/type';
 
 import './caller-line-chart.scss';
 
@@ -239,7 +240,7 @@ class CallerLineChart extends CommonSimpleChart {
           return paramsResult;
         };
         const list = this.panel.targets.map(item => {
-          const newParams = {
+          const newParams = structuredClone({
             ...variablesService.transformVariables(
               dataFormat({ ...item.data }),
               {
@@ -256,17 +257,17 @@ class CallerLineChart extends CommonSimpleChart {
             ),
             ...params,
             down_sample_range,
-          };
+          });
           if (this.callOptions?.call_filter?.length) {
-            const callFilter = this.callOptions?.call_filter.filter(f => f.key !== 'time');
+            const callFilter: IFilterCondition[] = this.callOptions?.call_filter.filter(f => f.key !== 'time');
             for (const item of newParams?.query_configs || []) {
-              item.where = [...(item?.where || []), ...callFilter];
+              item.where = [...(item?.where || []), ...replaceRegexWhere(callFilter)];
             }
             for (const item of newParams?.unify_query_param?.query_configs || []) {
-              item.where = [...(item?.where || []), ...callFilter];
+              item.where = [...(item?.where || []), ...replaceRegexWhere(callFilter)];
             }
             if (newParams?.group_by_limit?.where) {
-              newParams.group_by_limit.where = [...newParams.group_by_limit.where, ...callFilter];
+              newParams.group_by_limit.where = [...newParams.group_by_limit.where, ...replaceRegexWhere(callFilter)];
             }
           }
           const primaryKey = item?.primary_key;
@@ -306,6 +307,10 @@ class CallerLineChart extends CommonSimpleChart {
                     };
                   })
                 );
+              // 用于获取原始query_config
+              if (res.query_config) {
+                this.panel.setRawQueryConfigs(item, res.query_config);
+              }
               this.clearErrorMsg();
               return true;
             })
