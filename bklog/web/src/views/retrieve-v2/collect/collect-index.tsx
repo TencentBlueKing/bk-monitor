@@ -266,7 +266,11 @@ export default class CollectIndex extends tsc<IProps> {
     this.$store.commit('updateIsSetDefaultTableColumn', false);
     const isUnionIndex = cloneValue.index_set_ids.length > 0;
     const keyword = cloneValue.params.keyword;
-    const addition = cloneValue.params.addition;
+    const addition = (cloneValue.params.addition ?? []).map(val => {
+      const instance = new ConditionOperator(val);
+      return instance.formatApiOperatorToFront();
+    });
+
     const ip_chooser = Object.assign({}, cloneValue.params.ip_chooser ?? {});
     if (isUnionIndex) {
       this.$store.commit(
