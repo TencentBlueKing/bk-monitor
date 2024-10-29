@@ -58,6 +58,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -140,6 +141,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -517,6 +519,7 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "unit": "ns",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -621,6 +624,7 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "unit": "ns",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -725,6 +729,7 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "unit": "ns",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -882,6 +887,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -964,6 +970,7 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1351,6 +1358,7 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "unit": "ns",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1457,6 +1465,7 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "unit": "ns",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
@@ -1563,6 +1572,7 @@
             "app_name": "${app_name}",
             "service_name": "${service_name}",
             "unit": "ns",
+            "expression": "A",
             "query_configs": [
               {
                 "data_source_label": "custom",
