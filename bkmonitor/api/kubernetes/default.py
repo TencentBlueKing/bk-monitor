@@ -2030,7 +2030,7 @@ class FetchKubernetesConsistencyCheckResource(Resource, abc.ABC):
             clusters = GetClusterInfoFromBcsSpaceResource()({"bk_biz_id": bk_biz_id})
             if bcs_cluster_id not in clusters:
                 return None
-            # 如果是共享集群，获得有权限的名字空间
+            # 如果是共享集群，获得有权限的NameSpace
             cluster_info = clusters.get(bcs_cluster_id, {})
             if cluster_info.get("cluster_type") == BcsClusterType.SHARED:
                 self.shared_namespace_set = set(cluster_info.get("namespace_list"))

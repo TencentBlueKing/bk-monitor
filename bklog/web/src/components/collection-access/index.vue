@@ -82,6 +82,12 @@
           @step-change="stepChange"
         ></component>
       </section>
+      <!-- <issuedSlider
+        v-if="getCurrentComponent !== 'stepResult' && getCurrentComponent !== 'stepAdd'"
+        :is-finish-create-step="isFinishCreateStep"
+        :is-switch="isSwitch"
+        :operate-type="operateType"
+      ></issuedSlider> -->
     </div>
     <advance-clean-land
       v-else-if="!basicLoading && isCleaning"
@@ -98,10 +104,12 @@
   import * as authorityMap from '../../common/authority-map';
   import stepAdd from './step-add';
   import stepField from './step-field';
-  import stepIssued from './step-issued';
   import stepMasking from './step-masking.tsx';
   import stepResult from './step-result';
   import stepStorage from './step-storage.vue';
+  // import issuedSlider from './issued-slider.vue';
+  import stepIssued from './step-issued.vue';
+
   /** 左侧侧边栏一个步骤元素的高度 */
   const ONE_STEP_HEIGHT = 76;
 
@@ -110,12 +118,13 @@
     components: {
       AuthContainerPage,
       stepAdd,
-      stepIssued,
       stepField,
       stepStorage,
       stepResult,
       stepMasking,
       advanceCleanLand,
+      stepIssued,
+      // issuedSlider,
     },
     data() {
       return {

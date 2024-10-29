@@ -100,10 +100,10 @@
         type: Array,
         require: true,
       },
-      apmRelation: {
-        type: Object,
-        default: () => {},
-      },
+      // apmRelation: {
+      //   type: Object,
+      //   default: () => {},
+      // },
       sortList: {
         type: Array,
         require: true,
@@ -144,6 +144,9 @@
     },
     computed: {
       ...mapState('globals', ['fieldTypeMap']),
+      apmRelation() {
+        return this.$store.state.indexSetFieldConfig?.apm_relation ?? {};
+      },
       bkBizId() {
         return this.$store.state.bkBizId;
       },

@@ -23,6 +23,11 @@ import functools
 import operator
 from typing import Any, Dict, List
 
+from apps.utils.local import (
+    get_request_external_username,
+    get_request_username,
+)
+
 
 def sort_func(data: List[Dict[str, Any]], sort_list: List[List[str]], key_func=lambda x: x) -> List[Dict[str, Any]]:
     """
@@ -127,3 +132,16 @@ def create_context_should_query(order, body_should_data, sort_fields, sort_field
                 }
             )
         term_fields.append({"range_field": range_field, "range_field_value": range_field_value})
+
+
+def fetch_request_username():
+    """
+    1.如果存在外部用户,则优先取外部用户名.
+    2.如果是外部用户,则加上external_前缀,避免外部用户名和内部用户名相同引起问题
+    """
+    request_username = get_request_external_username()
+    if request_username:
+        request_username = f"external_{request_username}"
+    else:
+        request_username = get_request_username()
+    return request_username

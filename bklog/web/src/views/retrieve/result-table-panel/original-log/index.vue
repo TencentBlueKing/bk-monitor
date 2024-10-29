@@ -228,6 +228,9 @@
       routeIndexSet() {
         return this.$route.params.indexId;
       },
+      showFieldsConfigPopoverNum() {
+        return this.$store.state.showFieldsConfigPopoverNum;
+      },
     },
     watch: {
       watchQueryIndexValue: {
@@ -242,6 +245,9 @@
           this.isFirstInitFiled = true;
           this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
         }
+      },
+      showFieldsConfigPopoverNum() {
+        this.handleAddNewConfig();
       },
     },
     created() {

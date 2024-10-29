@@ -229,7 +229,7 @@ export default class AddAppForm extends tsc<IProps> {
           <bk-input
             class='input input-width'
             v-model={this.formData.appName}
-            placeholder={this.$t('1-50字符')}
+            placeholder={this.$t('1-50字符，由小写字母、数字、下划线(_)、中划线(-)组成')}
             onBlur={() => this.handleBlur('appName')}
             onFocus={() => this.clearErrorMsg()}
           />,

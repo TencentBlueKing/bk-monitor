@@ -130,7 +130,7 @@ export default defineComponent({
     bkTooltips,
   },
   props: TimeSeriesProps,
-  emits: ['loading', 'errorMsg'],
+  emits: ['loading', 'errorMsg', 'chartData'],
   setup(props, { emit }) {
     const timeSeriesRef = ref<HTMLDivElement>();
     const chartWrapperRef = ref<HTMLDivElement>();
@@ -745,6 +745,7 @@ export default defineComponent({
           emptyText.value = t('查无数据');
           empty.value = true;
         }
+        emit('chartData', series);
       } catch (e) {
         empty.value = true;
         emptyText.value = t('出错了');
@@ -861,6 +862,10 @@ export default defineComponent({
       return '';
     }
 
+    function setOptions(newOptions) {
+      options.value = newOptions;
+    }
+
     return {
       ...unWathChartData,
       ...useLegendRet,
@@ -912,6 +917,7 @@ export default defineComponent({
       isChartLoading,
       hoverAllTooltips,
       tooltipsContentLastItem,
+      setOptions,
     };
   },
   render() {

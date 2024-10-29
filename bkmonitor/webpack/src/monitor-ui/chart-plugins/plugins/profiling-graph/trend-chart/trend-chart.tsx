@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { random } from 'monitor-common/utils/utils';
@@ -49,11 +49,19 @@ const DEFAULT_PANEL_CONFIG = {
 
 interface ITrendChartProps {
   queryParams: IQueryParams;
+  diffDate: number[][];
+}
+
+interface ITrendChartEvents {
+  onSeriesData(series: any[]): void;
+  onOptionsLoaded(): void;
 }
 
 @Component
-export default class TrendChart extends tsc<ITrendChartProps> {
+export default class TrendChart extends tsc<ITrendChartProps, ITrendChartEvents> {
   @Prop({ default: () => ({}), type: Object }) queryParams: IQueryParams;
+  @Prop({ default: () => [], type: Array }) diffDate: number[][];
+  @Ref() chartRef;
 
   loading = false;
   chartType = 'all';
@@ -100,21 +108,67 @@ export default class TrendChart extends tsc<ITrendChartProps> {
     });
   }
 
+  @Watch('diffDate')
+  handleDiffDateChange() {
+    this.handleSetMarkArea();
+  }
+
+  handleSetMarkArea() {
+    if (!this.chartRef.options) return;
+    const { series, ...params } = this.chartRef.options;
+    this.chartRef.setOptions({
+      ...params,
+      series: series.map((item, ind) => ({
+        ...item,
+        markArea: {
+          show: !!this.diffDate[ind]?.length,
+          itemStyle: {
+            color: ['rgba(58, 132, 255, 0.1)', 'rgba(255, 86, 86, 0.1)'][ind],
+          },
+          data: [
+            [
+              {
+                xAxis: this.diffDate[ind]?.[0] || 0,
+              },
+              {
+                xAxis: this.diffDate[ind]?.[1] || 0,
+              },
+            ],
+          ],
+        },
+      })),
+    });
+  }
+
+  @Emit('optionsLoaded')
+  handleOptionsLoaded() {}
+
+  @Emit('seriesData')
+  handleSeriesData(data) {
+    return data.series || [];
+  }
+
   render() {
     const chartHtml =
       this.chartType === 'all' ? (
         <TimeSeries
+          ref='chartRef'
           panel={this.panel}
           showChartHeader={false}
           showHeaderMoreTool={false}
           onLoading={val => (this.loading = val)}
+          onOptionsLoaded={this.handleOptionsLoaded}
+          onSeriesData={this.handleSeriesData}
         />
       ) : (
         <TraceChart
+          ref='chartRef'
           panel={this.panel}
           showChartHeader={false}
           showHeaderMoreTool={false}
           onLoading={val => (this.loading = val)}
+          onOptionsLoaded={this.handleOptionsLoaded}
+          onSeriesData={this.handleSeriesData}
         />
       );
 

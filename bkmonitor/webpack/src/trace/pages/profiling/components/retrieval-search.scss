@@ -73,6 +73,15 @@
             margin-top: 0;
             margin-left: 16px;
           }
+
+          .comparison-item {
+            display: flex;
+            align-items: center;
+
+            & + .comparison-item {
+              margin-left: 53px;
+            }
+          }
         }
       }
 
