@@ -736,7 +736,7 @@ class UptimecheckDataAccessor:
 
     def access(self):
         """
-        TODO: 接入数据链路
+        接入数据链路
         """
         if not self.use_custom_report():
             return
