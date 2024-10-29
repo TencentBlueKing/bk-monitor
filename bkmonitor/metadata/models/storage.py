@@ -2073,7 +2073,9 @@ class ESStorage(models.Model, StorageResultTable):
 
     @property
     def now(self):
-        return arrow.utcnow().replace(hours=self.time_zone).datetime
+        return arrow.utcnow().replace(hours=self.time_zone).datetime + datetime.timedelta(
+            hours=settings.ES_STORAGE_OFFSET_HOURS
+        )
 
     def is_red(self):
         """判断 es 集群是否 red"""
@@ -2413,6 +2415,7 @@ class ESStorage(models.Model, StorageResultTable):
                     # 不存在数据的，则删除并重新创建
                     else:
                         self.es_client.indices.delete(max_index_name)
+
                         logger.warning(
                             "index->[{}] is differ from database config, "
                             "will be delete and recreated.".format(max_index_name)
@@ -2951,8 +2954,10 @@ class ESStorage(models.Model, StorageResultTable):
         if not self.can_delete():
             return
         # 获取所有的写入别名
-
         alias_list = self.es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
+
+        # 获取当前日期的字符串
+        now_datetime_str = self.now.strftime(self.date_format)
 
         filter_result = self.group_expired_alias(alias_list, self.retention)
 
@@ -2960,17 +2965,27 @@ class ESStorage(models.Model, StorageResultTable):
             # 回溯的索引不经过正常删除的逻辑删除
             if index_name.startswith(self.restore_index_prefix):
                 continue
+            # 如果index_name中包含now_datetime_str，说明是新索引，跳过
+            if now_datetime_str in index_name:
+                logger.info(
+                    "clean_index_v2:table_id->[%s] index->[%s] contains now_datetime_str->[%s] ,skip",
+                    self.table_id,
+                    index_name,
+                    now_datetime_str,
+                )
+                continue
+
             if alias_info["not_expired_alias"]:
                 if alias_info["expired_alias"]:
                     # 如果存在已过期的别名，则将别名删除
                     logger.info(
-                        "table_id->[%s] delete_alias_list->[%s] is not empty will delete the alias.",
+                        "clean_index_v2::table_id->[%s] delete_alias_list->[%s] is not empty will delete the alias.",
                         self.table_id,
                         alias_info["expired_alias"],
                     )
                     self.es_client.indices.delete_alias(index=index_name, name=",".join(alias_info["expired_alias"]))
                     logger.warning(
-                        "table_id->[%s] delete_alias_list->[%s] is deleted.",
+                        "clean_index_v2::table_id->[%s] delete_alias_list->[%s] is deleted.",
                         self.table_id,
                         alias_info["expired_alias"],
                     )
@@ -2978,7 +2993,7 @@ class ESStorage(models.Model, StorageResultTable):
             # 如果已经不存在未过期的别名，则将索引删除
             # 等待所有别名过期删除索引，防止删除别名快照时，丢失数据
             logger.info(
-                "table_id->[%s] has not alias need to keep, will delete the index->[%s].",
+                "clean_index_v2:table_id->[%s] has not alias need to keep, will delete the index->[%s].",
                 self.table_id,
                 index_name,
             )
@@ -2990,7 +3005,9 @@ class ESStorage(models.Model, StorageResultTable):
                 elasticsearch6.ElasticsearchException,
             ):
                 logger.warning(
-                    "table_id->[%s] index->[%s] delete failed, index maybe doing snapshot", self.table_id, index_name
+                    "clean_index_v2::table_id->[%s] index->[%s] delete failed, index maybe doing snapshot",
+                    self.table_id,
+                    index_name,
                 )
                 continue
             logger.warning("table_id->[%s] index->[%s] is deleted now.", self.table_id, index_name)
