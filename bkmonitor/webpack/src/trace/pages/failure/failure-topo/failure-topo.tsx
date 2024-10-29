@@ -62,7 +62,7 @@ import FeedbackCauseDialog from './feedback-cause-dialog';
 import formatTopoData from './format-topo-data';
 import { NODE_TYPE_SVG } from './node-type-svg';
 import TopoTools from './topo-tools';
-import { getNodeAttrs, truncateText } from './utils';
+import { getNodeAttrs, truncateText, getApmServiceType } from './utils';
 
 import type { IEdge, IEntity, ITopoData, ITopoNode, IncidentDetailData } from './types';
 
@@ -300,7 +300,7 @@ export default defineComponent({
               width: 24,
               height: 24,
               cursor: 'pointer', // 手势类型
-              img: NODE_TYPE_SVG[entity.entity_type],
+              img: NODE_TYPE_SVG[getApmServiceType(entity)],
             },
             draggable: true,
             name: 'topo-node-img',
@@ -554,9 +554,9 @@ export default defineComponent({
         {
           afterDraw(cfg, group) {
             const shape = group.get('children')[0];
-            const { is_anomaly, anomaly_score, events } = cfg;
+            const { is_anomaly, anomaly_score, events, edge_type } = cfg;
             const lineDash = anomaly_score === 0 ? [6] : [10];
-            if (is_anomaly) {
+            if (is_anomaly && events[0] && edge_type === 'ebpf_call') {
               const { direction } = events[0];
               let index = 0;
               // 这里改为定时器执行，自带的动画流动速度控制不了
@@ -1103,6 +1103,7 @@ export default defineComponent({
     /** 获取数据 */
     const getGraphData = async (isAutoRefresh = false) => {
       loading.value = !isAutoRefresh;
+      if (!wrapRef.value) return;
       clearTimeout(refreshTimeout);
       const renderData = await incidentTopology({
         id: incidentId.value,
