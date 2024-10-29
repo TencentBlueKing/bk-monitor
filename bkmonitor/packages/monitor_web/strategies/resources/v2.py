@@ -2323,6 +2323,7 @@ class CloneStrategyV2Resource(Resource):
             strategy.id = 0
             strategy.name += "_copy"
             strategy.app = ""
+            strategy.source = settings.APP_CODE
 
             while StrategyModel.objects.filter(bk_biz_id=params["bk_biz_id"], name=strategy.name).exists():
                 strategy.name += "_copy"
