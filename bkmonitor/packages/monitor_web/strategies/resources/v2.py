@@ -1919,7 +1919,7 @@ class BulkSwitchStrategyResource(Resource):
         bk_biz_id = serializers.IntegerField(required=True)
         labels = serializers.ListField(required=True, child=serializers.CharField())
         action = serializers.ChoiceField(required=True, label="操作类型", choices=("on", "off"))
-        force = serializers.BooleanField(required=True, label="是否强制操作", default=False)
+        force = serializers.BooleanField(label="是否强制操作", default=False)
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
