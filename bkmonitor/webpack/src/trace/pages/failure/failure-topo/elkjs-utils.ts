@@ -387,6 +387,7 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
   const rightPadding = Math.max(...usefullNodes.filter(node => node.x === globalMaxX).map(node => node.width));
   const globalWidth = globalMaxX - globalMinX + leftPdding + rightPadding;
   data.combos.forEach(combo => {
+    if (combo.parentId) return;
     Object.assign(combo, {
       width: globalWidth,
       fixSize: [globalWidth, combo.height],
