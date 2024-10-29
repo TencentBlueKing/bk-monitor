@@ -162,3 +162,14 @@ export const SYMBOL_LIST = [
     label: '正则',
   },
 ];
+const CALL_INTERVAL_LIST = [1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60, 120, 180, 240, 300, 600];
+/**
+ *
+ * @param rawInterval 原始周期
+ * @description 修正周期 (只能从上面的周期列表中向上取值) api仅支持 单位 m
+ */
+export const intervalLowBound = (rawInterval: number) => {
+  const list = CALL_INTERVAL_LIST.map(v => v - rawInterval);
+  const index = list.findIndex(v => v > 0);
+  return CALL_INTERVAL_LIST.at(index) || CALL_INTERVAL_LIST.at(-1);
+};

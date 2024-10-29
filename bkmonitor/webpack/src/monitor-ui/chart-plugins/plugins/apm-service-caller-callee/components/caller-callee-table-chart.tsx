@@ -139,7 +139,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
         })
       );
       if (time) {
-        const endTime = new Date(time).getTime() / 1000;
+        const endTime = new Date(time).getTime() / 1000 + 60;
         const intervalNum = interval || this.commonOptions?.time?.interval || 60;
         const startTime = endTime - intervalNum;
         this.pointTime = { endTime, startTime };
@@ -214,17 +214,7 @@ class CallerCalleeTableChart extends CommonSimpleChart {
       ...this.callOptions,
       ...{ kind: this.activeKey },
     });
-    let filterEndTime = null;
-    let filterStartTime = null;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-    const timeFilter = this.callOptions.call_filter.filter(item => item.key === 'time');
-    /** 如果call_filter中存在time值的话，则startTime|endTime取time里的值  */
-    if (timeFilter.length > 0) {
-      const timeObj = timeFilter[0];
-      filterEndTime = new Date(timeObj.value[0]).getTime();
-      const intervalNum = this.commonOptions?.time?.interval || 60;
-      filterStartTime = filterEndTime - intervalNum;
-    }
     const timeShift = this.getCallTimeShift()?.map(t => timeShiftFormat(t));
     const newParams = {
       ...variablesService.transformVariables(this.statisticsData.data, {
@@ -235,8 +225,8 @@ class CallerCalleeTableChart extends CommonSimpleChart {
         time_shifts: timeShift,
         metric_cal_type,
         baseline: '0s',
-        start_time: filterStartTime || this.pointTime?.startTime || startTime,
-        end_time: filterEndTime || this.pointTime?.endTime || endTime,
+        start_time: this.pointTime?.startTime || startTime,
+        end_time: this.pointTime?.endTime || endTime,
       },
     };
     newParams.where = [
