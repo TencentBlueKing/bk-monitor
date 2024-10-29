@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import arrow
 import pytz
 from django.conf import settings
-from django.db.models import Count, Q, QuerySet
+from django.db.models import Count, ExpressionWrapper, F, Q, QuerySet, fields
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -40,6 +40,7 @@ from bkmonitor.models import (
     MetricListCache,
     QueryConfigModel,
     StrategyActionConfigRelation,
+    StrategyHistoryModel,
     StrategyLabel,
     StrategyModel,
     UserGroup,
@@ -1916,12 +1917,34 @@ class BulkSwitchStrategyResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)
-        labels = serializers.ListField(required=True)
+        labels = serializers.ListField(required=True, child=serializers.CharField())
         action = serializers.ChoiceField(required=True, label="操作类型", choices=("on", "off"))
-        force = serializers.BooleanField(required=True, label="是否强制操作")
+        force = serializers.BooleanField(required=True, label="是否强制操作", default=False)
 
     def perform_request(self, params):
-        pass
+        bk_biz_id = params["bk_biz_id"]
+        # get_strategy_list_v2
+        query_set = StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
+        # 是否强制覆盖已更新过的策略
+        if not params["force"]:
+            query_set = query_set.annotate(
+                time_difference=ExpressionWrapper(
+                    F('update_time') - F('create_time'), output_field=fields.DurationField()
+                )
+            ).filter(time_difference__lte=datetime.timedelta(seconds=1))
+        target_ids = set(query_set.values_list("id", flat=True).distinct())
+        filter_dict = {"label": params["labels"]}
+        # filter by label
+        resource.strategies.get_strategy_list_v2.filter_strategy_ids_by_label(filter_dict, target_ids, bk_biz_id)
+        if not target_ids:
+            return []
+        # update_partial_strategy
+        update_params = {
+            "ids": target_ids,
+            "edit_data": {"is_enabled": params["action"] == "on"},
+            "bk_biz_id": bk_biz_id,
+        }
+        return resource.strategies.update_partial_strategy_v2(**update_params)
 
 
 class SaveStrategyV2Resource(Resource):
@@ -2275,12 +2298,14 @@ class UpdatePartialStrategyV2Resource(Resource):
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
         config: Dict = params["edit_data"]
-
+        username = get_global_user()
         strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, id__in=params["ids"])
 
         updates_data = defaultdict(lambda: {"cls": None, "keys": [], "objs": []})
         updates_data["update_time"]["cls"] = StrategyModel
         updates_data["update_time"]["keys"] = ["update_time", "update_user"]
+        update_time = datetime.datetime.now(tz=pytz.timezone(settings.TIME_ZONE))
+        history = []
         for strategy in Strategy.from_models(strategies):
             for key, value in config.items():
                 update_method: Callable[[Strategy, Any], None] = getattr(self, f"update_{key}", None)
@@ -2292,12 +2317,22 @@ class UpdatePartialStrategyV2Resource(Resource):
                     updates_data[key]["keys"] = update_keys
                     updates_data[key]["objs"].extend(update_objs)
 
-            strategy.instance.update_time = datetime.datetime.now(tz=pytz.timezone(settings.TIME_ZONE))
-            strategy.instance.update_user = get_global_user()
+            strategy.instance.update_time = update_time
+            strategy.instance.update_user = username
             updates_data["update_time"]["objs"].append(strategy.instance)
+            history.append(
+                StrategyHistoryModel(
+                    create_user=username,
+                    strategy_id=strategy.id,
+                    operate="update",
+                    content=strategy.to_dict(),
+                )
+            )
 
         for update_data in updates_data.values():
             update_data["cls"].objects.bulk_update(update_data["objs"], update_data["keys"])
+
+        StrategyHistoryModel.objects.bulk_create(history)
 
         # 编辑后需要重置AsCode相关配置
         strategies.update(hash="", snippet="")
