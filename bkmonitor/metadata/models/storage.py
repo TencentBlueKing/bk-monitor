@@ -2967,7 +2967,9 @@ class ESStorage(models.Model, StorageResultTable):
                 continue
             # 如果index_name中包含now_datetime_str，说明是新索引，跳过
             if now_datetime_str in index_name:
-                logger.info("table_id->[%s] index->[%s] is expired, will delete.", self.table_id, index_name)
+                logger.info(
+                    "table_id->[%s] index->[%s] contains now_time_datetime_str ,skip", self.table_id, index_name
+                )
                 continue
 
             if alias_info["not_expired_alias"]:

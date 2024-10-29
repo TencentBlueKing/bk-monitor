@@ -300,7 +300,7 @@ def refresh_es_storage():
             for s in range(start, count, step):
                 try:
                     manage_es_storage.delay(cluster_storages[s : s + step])
-                    time.sleep(settings.ES_INDEX_ROTATION_SLEEP_INTERVAL)  # 等待一段时间，降低master负载
+                    time.sleep(settings.ES_INDEX_ROTATION_SLEEP_INTERVAL_SECONDS)  # 等待一段时间，降低master负载
                 except Exception as e:  # pylint: disable=broad-except
                     logger.error("refresh_es_storage:refresh cluster_id->[%s] failed for->[%s]", cluster_id, e)
         except Exception as e:  # pylint: disable=broad-except
@@ -379,18 +379,39 @@ def process_es_storages_by_cluster_id(es_storages):
     处理单个ES集群的存储项，串行执行,不再使用delay的方式，降低风险
     @param es_storages: 待处理的采集项列表
     """
+    if not es_storages:
+        logger.info("process_es_storages_by_cluster_id:es_storages is empty,return")
+        return
+
+    es_cluster_id = es_storages[0].storage_cluster_id
+
     logger.info(
         "process_cluster_storages: start processing cluster_id->[%s]，need to rotate->[%s]",
+        es_cluster_id,
         len(es_storages),
     )
+
     for es_storage in es_storages:
         try:
-            logger.info("process_cluster_storages: start processing storage->[%s]", es_storage.table_id)
+            logger.info(
+                "process_cluster_storages: start processing es_cluster_id->[%s],table_id->[%s]",
+                es_cluster_id,
+                es_storage.table_id,
+            )
             _manage_es_storage(es_storage)  # 不再使用delay，直接串行
-            time.sleep(settings.ES_INDEX_ROTATION_SLEEP_INTERVAL)  # 等待一段时间，降低负载
-            logger.info("process_cluster_storages: end processing storage->[%s]", es_storage.table_id)
+            time.sleep(settings.ES_INDEX_ROTATION_SLEEP_INTERVAL_SECONDS)  # 等待一段时间，降低负载
+            logger.info(
+                "process_cluster_storages: end processing es_cluster_id->[%s],table_id->[%s]",
+                es_cluster_id,
+                es_storage.table_id,
+            )
         except Exception as e:  # pylint: disable=broad-except
-            logger.error("process_cluster_storages:failed processing storage->[%s] error->[%s]", es_storage.table_id, e)
+            logger.error(
+                "process_cluster_storages:failed processing es_cluster_id->[%s],table_id->[%s] error->[%s]",
+                es_cluster_id,
+                es_storage.table_id,
+                e,
+            )
 
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshBCSInfo")
