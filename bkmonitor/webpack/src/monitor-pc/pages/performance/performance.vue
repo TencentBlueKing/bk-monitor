@@ -334,9 +334,6 @@ export default class Performance extends Vue {
       this.tableInstance.loading = true;
       const hostData = await PerformanceModule.getHostPerformanceMetric();
       resolve(hostData);
-      for (let i = 0 ; i < 100000; i++) {
-        console.log('流水线');
-      }
       this.tableInstance.updateData(hostData.hosts, {
         stickyValue: this.sticky.value,
         panelKey: this.panelKey,
