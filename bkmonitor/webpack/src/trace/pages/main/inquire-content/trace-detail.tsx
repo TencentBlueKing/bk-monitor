@@ -172,7 +172,7 @@ export default defineComponent({
     const isbaseMessageWrap = ref<boolean>(false);
     const isSticky = ref<boolean>(false); // 工具栏是否吸顶
     const showSpanDetails = ref(false); // span 详情弹窗
-    const spanDetails = ref<Span | null>(null);
+    const spanDetails = ref<null | Span>(null);
     const viewTool = ref(null);
     const traceGraphResize = ref(null);
     const compareSelect = ref(null);
@@ -278,7 +278,7 @@ export default defineComponent({
         state.searchKeywords.splice(0, state.searchKeywords.length);
         state.searchKeywords = [];
         state.selectClassifyFilters = {};
-        await (searchBarElem.value as any).handleChange([]);
+        await (searchBarElem.value as any)?.handleChange([]);
         clearSearch();
         return;
       }
@@ -354,7 +354,7 @@ export default defineComponent({
         state.selectClassifyFilters.app_name = classify.app_name;
       }
       state.isClassifyFilter = true;
-      await (searchBarElem.value as any).handleChange([keyword]);
+      await (searchBarElem.value as any)?.handleChange([keyword]);
 
       if (state.activePanel === 'statistics') {
         // 统计过滤参数
@@ -747,7 +747,7 @@ export default defineComponent({
      * @param _keys
      */
     async function handleServiceTopoClickItem(_keys) {
-      await (searchBarElem.value as any).handleChange([]);
+      await (searchBarElem.value as any)?.handleChange([]);
       clearSearch();
     }
     async function handleChangeEnableTimeALignment(v: boolean) {
