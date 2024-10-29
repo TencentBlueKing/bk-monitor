@@ -60,9 +60,9 @@
   .bklog-text-segment {
     &.is-inline {
       display: flex;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      // overflow: hidden;
+      // text-overflow: ellipsis;
+      // white-space: nowrap;
     }
   }
 </style>

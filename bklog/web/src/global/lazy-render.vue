@@ -109,7 +109,8 @@
     display: flex;
     align-items: center;
     min-height: 40px;
-    content-visibility: auto;
+
+    /* content-visibility: auto; */
 
     /* overflow: hidden; */
   }

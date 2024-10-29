@@ -6,7 +6,11 @@
         class="bklog-root-field"
       >
         <span class="field-name"
-          ><span class="black-mark" :data-field-name="item.name">{{ item.name }}</span></span
+          ><span
+            class="black-mark"
+            :data-field-name="item.name"
+            >{{ item.name }}</span
+          ></span
         >
         <span class="field-split">:</span>
         <span
@@ -85,9 +89,7 @@
       return convertToObject(props.jsonValue[field.field_name]);
     }
 
-    return typeof props.jsonValue === 'object'
-      ? props.jsonValue[field.field_name]
-      : props.jsonValue;
+    return typeof props.jsonValue === 'object' ? props.jsonValue[field.field_name] : props.jsonValue;
   };
 
   const getFieldFormatter = field => {
@@ -130,31 +132,17 @@
 </script>
 <style lang="scss">
   @import '../global/json-view/index.scss';
+
   .bklog-json-formatter-root {
+    padding: 12px 0;
     font-family: var(--table-fount-family);
     font-size: var(--table-fount-size);
     color: var(--table-fount-color);
 
-    &.is-inline {
-      display: flex;
-      .bklog-root-field {
-        display: inline-flex;
-
-        .segment-content {
-          display: inline-flex;
-        }
-      }
-    }
-
-    &.is-wrap-line {
-      display: flex;
-      flex-direction: column;
-    }
-
     .bklog-root-field {
       display: flex;
-      margin-right: 2px;
       width: max-content;
+      margin-right: 2px;
 
       &:not(:first-child) {
         margin-top: 1px;
@@ -162,10 +150,10 @@
 
       .field-name {
         .black-mark {
+          width: max-content;
           padding: 0 2px;
           background: #e6e6e6;
           border-radius: 2px;
-          width: max-content;
         }
       }
 
@@ -185,10 +173,10 @@
       span {
         display: inline-block;
         width: max-content;
+        min-width: 4px;
         font-family: var(--table-fount-family);
         font-size: var(--table-fount-size);
         color: var(--table-fount-color);
-        min-width: 4px;
       }
 
       .menu-list {
@@ -211,12 +199,28 @@
       }
     }
 
+    &.is-inline {
+      .bklog-root-field {
+        display: inline-flex;
+
+        .segment-content {
+          display: inline-flex;
+        }
+      }
+    }
+
+    &.is-wrap-line {
+      display: flex;
+      flex-direction: column;
+    }
+
     mark {
       padding: 0 2px;
       border-radius: 2px;
     }
   }
-
+</style>
+<style lang="scss">
   .bk-table-row {
     &.hover-row {
       tbody,
@@ -243,5 +247,4 @@
       }
     }
   }
-
 </style>
