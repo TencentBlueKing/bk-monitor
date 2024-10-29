@@ -231,10 +231,11 @@ const store = new Vuex.Store({
 
       const filterAddition = addition
         .filter(item => !item.disabled && item.field !== '_ip-select_')
-        .map(item => {
-          const instance = new ConditionOperator(item);
-          return instance.getRequestParam();
-        });
+        .map(({ field, operator, value }) => ({
+          field,
+          operator,
+          value,
+        }));
 
       const searchParams =
         search_mode === 'sql' ? { keyword, addition: [] } : { addition: filterAddition, keyword: '*' };
@@ -317,7 +318,27 @@ const store = new Vuex.Store({
 
       state.indexItem.isUnionIndex = false;
       state.unionIndexList.splice(0, state.unionIndexList.length);
-      Object.assign(state.indexItem, defaultValue, payload ?? {});
+
+      if (payload?.addition?.length >= 0) {
+        state.indexItem.addition.splice(
+          0,
+          state.indexItem.addition.length,
+          ...payload?.addition.map(item => {
+            const instance = new ConditionOperator(item);
+            return { ...item, ...instance.getRequestParam() };
+          }),
+        );
+      }
+
+      const copyValue = Object.keys(payload ?? {}).reduce((result, key) => {
+        if (!['ids', 'items', 'catchUnionBeginList', 'addition'].includes(key)) {
+          Object.assign(result, { [key]: payload[key] });
+        }
+
+        return result;
+      }, {});
+
+      Object.assign(state.indexItem, defaultValue, copyValue);
     },
 
     updateIndexSetFieldConfig(state, payload) {
@@ -340,10 +361,25 @@ const store = new Vuex.Store({
 
     updateIndexItemParams(state, payload) {
       if (payload?.addition?.length >= 0) {
-        state.indexItem.addition.splice(0, state.indexItem.addition.length, ...payload?.addition);
+        state.indexItem.addition.splice(
+          0,
+          state.indexItem.addition.length,
+          ...payload?.addition.map(item => {
+            const instance = new ConditionOperator(item);
+            return { ...item, ...instance.getRequestParam() };
+          }),
+        );
       }
 
-      Object.assign(state.indexItem, payload ?? {});
+      const copyValue = Object.keys(payload ?? {}).reduce((result, key) => {
+        if (!['addition'].includes(key)) {
+          Object.assign(result, { [key]: payload[key] });
+        }
+
+        return result;
+      }, {});
+
+      Object.assign(state.indexItem, copyValue ?? {});
     },
 
     updateIndexSetFieldConfigList() {
@@ -360,7 +396,7 @@ const store = new Vuex.Store({
     updateAddition(state) {
       state.indexItem.addition.forEach(item => {
         const instance = new ConditionOperator(item);
-        Object.assign(item, instance.formatApiOperatorToFront());
+        Object.assign(item, instance.getRequestParam());
       });
     },
 
@@ -1001,12 +1037,7 @@ const store = new Vuex.Store({
         ? `/search/index_set/${state.indexId}/search/`
         : '/search/index_set/union_search/';
 
-      const addition = state.indexItem.addition
-        .filter(item => !item.disabled && item.field !== '_ip-select_')
-        .map(item => {
-          const instance = new ConditionOperator(item);
-          return instance.getRequestParam();
-        });
+      // const addition = state.indexItem.addition.filter(item => !item.disabled && item.field !== '_ip-select_');
 
       const baseData = {
         bk_biz_id: state.bkBizId,
@@ -1014,7 +1045,7 @@ const store = new Vuex.Store({
         ...otherPrams,
         start_time,
         end_time,
-        addition,
+        // addition,
       };
 
       // 更新联合查询的begin
