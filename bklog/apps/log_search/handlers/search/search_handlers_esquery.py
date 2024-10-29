@@ -574,26 +574,11 @@ class SearchHandler(object):
         if new_sort_list:
             self.sort_list = new_sort_list
 
-        result = self._multi_search(once_size=once_size)
-
-        # 该行为是下载日志，size采用MAX_RESULT_WINDOW，即10000
+        # 下载操作
         if is_export:
-            result = self._multi_search(once_size=MAX_RESULT_WINDOW)
-            result["hits"]["total"] = len(result["hits"]["hits"])
-            # 如果总数大于等于MAX_RESULT_WINDOW，则继续查询数据
-            if result["hits"]["total"] >= MAX_RESULT_WINDOW:
-                while True:
-                    self.start += MAX_RESULT_WINDOW
-                    one_search_data = self._multi_search(once_size=MAX_RESULT_WINDOW)
-                    result["took"] += one_search_data["took"]
-                    result["hits"]["hits"].extend(one_search_data["hits"]["hits"])
-
-                    # 更新总数
-                    result["hits"]["total"] += len(one_search_data["hits"]["hits"])
-
-                    # 如果没有更多数据了，退出循环
-                    if len(one_search_data["hits"]["hits"]) < MAX_RESULT_WINDOW:
-                        break
+            once_size = MAX_RESULT_WINDOW
+            self.size = MAX_RESULT_WINDOW
+        result = self._multi_search(once_size=once_size)
 
         # 需要scroll滚动查询：is_scroll为True，size超出单次最大查询限制，total大于MAX_RESULT_WINDOW
         # @TODO bkdata暂不支持scroll查询
