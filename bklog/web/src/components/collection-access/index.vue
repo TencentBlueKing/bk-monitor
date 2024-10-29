@@ -82,12 +82,12 @@
           @step-change="stepChange"
         ></component>
       </section>
-      <issuedSlider
+      <!-- <issuedSlider
         v-if="getCurrentComponent !== 'stepResult' && getCurrentComponent !== 'stepAdd'"
         :is-finish-create-step="isFinishCreateStep"
         :is-switch="isSwitch"
         :operate-type="operateType"
-      ></issuedSlider>
+      ></issuedSlider> -->
     </div>
     <advance-clean-land
       v-else-if="!basicLoading && isCleaning"
@@ -107,7 +107,8 @@
   import stepMasking from './step-masking.tsx';
   import stepResult from './step-result';
   import stepStorage from './step-storage.vue';
-  import issuedSlider from './issued-slider.vue';
+  // import issuedSlider from './issued-slider.vue';
+  import stepIssued from './step-issued.vue';
 
   /** 左侧侧边栏一个步骤元素的高度 */
   const ONE_STEP_HEIGHT = 76;
@@ -122,7 +123,8 @@
       stepResult,
       stepMasking,
       advanceCleanLand,
-      issuedSlider,
+      stepIssued,
+      // issuedSlider,
     },
     data() {
       return {
@@ -160,10 +162,11 @@
         /** 侧边栏所有的步骤 */
         stepsConf: [
           { title: this.$t('采集配置'), icon: 1, stepStr: 'stepAdd' },
-          { title: this.$t('字段清洗'), icon: 2, stepStr: 'stepField' },
-          { title: this.$t('存储'), icon: 3, stepStr: 'stepStorage' },
-          { title: this.$t('日志脱敏'), icon: 4, stepStr: 'stepMasking' },
-          { title: this.$t('完成'), icon: 5, stepStr: 'stepResult' },
+          { title: this.$t('采集下发'), icon: 2, stepStr: 'stepIssued' },
+          { title: this.$t('字段清洗'), icon: 3, stepStr: 'stepField' },
+          { title: this.$t('存储'), icon: 4, stepStr: 'stepStorage' },
+          { title: this.$t('日志脱敏'), icon: 5, stepStr: 'stepMasking' },
+          { title: this.$t('完成'), icon: 6, stepStr: 'stepResult' },
         ],
       };
     },
@@ -182,17 +185,21 @@
       /** 左侧展示的步骤 */
       showStepsConf() {
         let finishShowConf = this.stepsConf;
-        // 启停情况下只有完成步骤
+        // 启停情况下只有采集下发和完成两个步骤
         if (this.isSwitch) {
-          finishShowConf = finishShowConf.filter(item => ['stepResult'].includes(item.stepStr));
+          finishShowConf = finishShowConf.filter(item => ['stepIssued', 'stepResult'].includes(item.stepStr));
+        }
+        // 容器日志没有下发步骤
+        if (this.isContainerStep) {
+          finishShowConf = finishShowConf.filter(item => item.stepStr !== 'stepIssued');
         }
         // 判断当前业务是否展示脱敏 若不展示 隐藏脱敏步骤
         if (!this.isShowMaskingTemplate) {
           finishShowConf = finishShowConf.filter(item => item.stepStr !== 'stepMasking');
         }
-        // 判断是否以及完成过一次步骤 有table_id的情况视为完成过一次完整的步骤  隐藏完成步骤
+        // 判断是否以及完成过一次步骤 有table_id的情况视为完成过一次完整的步骤  隐藏下发和完成两个步骤
         if (this.isFinishCreateStep && !this.isSwitch) {
-          finishShowConf = finishShowConf.filter(item => !['stepResult'].includes(item.stepStr));
+          finishShowConf = finishShowConf.filter(item => !['stepIssued', 'stepResult'].includes(item.stepStr));
         }
         return finishShowConf;
       },

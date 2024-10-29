@@ -27,9 +27,15 @@
 import Alert from '../../../static/img/failure/icon-alert.svg';
 import NodeHost from '../../../static/img/failure/icon-BCSNode.svg';
 import BcsService from '../../../static/img/failure/icon-BCSService.svg';
+import Http from '../../../static/img/failure/icon-http.svg';
+import Other from '../../../static/img/failure/icon-mc-service-unknown.svg';
 import IdcSvg from '../../../static/img/failure/icon-mc-target-cloud.svg';
 import PodSvg from '../../../static/img/failure/icon-Pod.svg';
 import RackSvg from '../../../static/img/failure/icon-Rack.svg';
+import AsyncBackend from '../../../static/img/failure/icon-renwu.svg';
+import Db from '../../../static/img/failure/icon-shujuku.svg';
+import Messaging from '../../../static/img/failure/icon-xiaoxizhongjianjian.svg';
+import Rpc from '../../../static/img/failure/icon-yuanchengfuwu.svg';
 
 export const NODE_TYPE_SVG = {
   Idc: IdcSvg,
@@ -41,6 +47,12 @@ export const NODE_TYPE_SVG = {
   BcsNode: NodeHost,
   BcsPod: PodSvg,
   Alert: Alert,
+  http: Http,
+  rpc: Rpc,
+  db: Db,
+  async_backend: AsyncBackend,
+  messaging: Messaging,
+  other: Other,
 };
 
 export const NODE_TYPE_ICON = {
@@ -52,4 +64,10 @@ export const NODE_TYPE_ICON = {
   BcsPod: 'icon-mc-pod',
   BcsService: 'icon-mc-bcs-service',
   Unknown: 'icon-mc-bcs-service',
+  http: 'icon-wangye',
+  rpc: 'icon-yuanchengfuwu',
+  db: 'icon-shujuku',
+  messaging: 'icon-xiaoxizhongjianjian',
+  async_backend: 'icon-renwu',
+  other: 'icon-mc-service-unknown',
 };

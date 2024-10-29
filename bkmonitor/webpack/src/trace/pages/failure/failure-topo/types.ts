@@ -44,6 +44,7 @@ export interface IEntity {
   is_root: boolean;
   is_on_alert: boolean;
   rank: IRank;
+  dimensions: Record<string, any>;
   tags?: {
     BcsService?: IEntityTag;
     BcsWorkload?: IEntityTag;

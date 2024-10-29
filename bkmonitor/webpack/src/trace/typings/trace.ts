@@ -347,9 +347,10 @@ export interface ISpanDetail {
 export interface IQueryParams {
   bk_biz_id?: number;
   app_name?: string;
-  start?: number;
-  end?: number;
+  start: number;
+  end: number;
   data_type?: string;
+  global_query: boolean;
   profile_id?: string;
   diff_profile_id?: string;
   offset?: number;

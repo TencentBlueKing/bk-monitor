@@ -51,6 +51,16 @@ class IncidentStatus(CustomEnum):
         }
         return incident_status_map[self.value]
 
+    @property
+    def order(self) -> str:
+        incident_status_order_map = {
+            "abnormal": 0,
+            "recovered": 2,
+            "recovering": 1,
+            "closed": 3,
+        }
+        return incident_status_order_map[self.value]
+
 
 class IncidentLevel(CustomEnum):
     """故障级别枚举"""

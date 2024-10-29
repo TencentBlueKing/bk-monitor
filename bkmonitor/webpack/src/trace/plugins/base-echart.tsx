@@ -40,9 +40,22 @@ import dayjs from 'dayjs';
 import { getTimeSeriesXInterval } from 'monitor-ui/chart-plugins/utils/axis';
 import { type MonitorEchartOptions, echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
+import { Toolbox } from './typings/toolbox';
+
 import './base-echart.scss';
 
-const MOUSE_EVENTS = ['click', 'dblclick', 'mouseover', 'mouseout', 'mousedown', 'mouseup', 'globalout'];
+const MOUSE_EVENTS = [
+  'click',
+  'dblclick',
+  'mouseover',
+  'mouseout',
+  'mousedown',
+  'mouseup',
+  'globalout',
+  'brushEnd',
+  'brush',
+  'brushselected',
+];
 export const BaseChartProps = {
   // 视图高度
   height: {
@@ -73,11 +86,19 @@ export const BaseChartProps = {
     type: Function as PropType<(params: any) => string>,
     default: null,
   },
+  toolbox: {
+    type: Array,
+    default: () => [Toolbox.DataZoom],
+  },
+  notMerge: {
+    type: Boolean,
+    default: true,
+  },
 };
 export default defineComponent({
   name: 'BaseEchart',
   props: BaseChartProps,
-  emits: [...MOUSE_EVENTS, 'dataZoom', 'dblClick', 'store'],
+  emits: [...MOUSE_EVENTS, 'dataZoom', 'dblClick', 'store', 'loaded'],
   setup(props, { emit }) {
     const chartRef = ref<HTMLDivElement>();
     // 当前图表配置
@@ -186,7 +207,6 @@ export default defineComponent({
         });
       }
     );
-
     onMounted(initChart);
     onActivated(resize);
     onBeforeUnmount(destroy);
@@ -303,6 +323,7 @@ export default defineComponent({
         curChartOption.value = instance.value.getOption();
         props.groupId && (instance.value.group = props.groupId);
         instance.value.on('dataZoom', handleDataZoom);
+        emit('loaded');
       }
     }
     function handleDataZoom(event: { batch: [any] }) {
@@ -340,7 +361,7 @@ export default defineComponent({
                   ...(props.options || {}),
                 } as any,
               },
-              { notMerge: true, lazyUpdate: false, silent: true }
+              { notMerge: props.notMerge, lazyUpdate: false, silent: true }
             );
             curChartOption.value = instance.value.getOption();
           }
@@ -351,14 +372,26 @@ export default defineComponent({
     }
     // 初始化chart Action
     function initChartAction() {
-      dispatchAction({
-        type: 'takeGlobalCursor',
-        key: 'dataZoomSelect',
-        dataZoomSelectActive: true,
-      });
+      if (props.toolbox.includes(Toolbox.DataZoom)) {
+        dispatchAction({
+          type: 'takeGlobalCursor',
+          key: 'dataZoomSelect',
+          dataZoomSelectActive: true,
+        });
+      }
+      if (props.toolbox.includes(Toolbox.Brush)) {
+        dispatchAction({
+          type: 'takeGlobalCursor',
+          key: 'brush',
+          brushOption: {
+            brushType: 'lineX', // 指定选框类型
+          },
+        });
+      }
     }
     // 初始化chart 事件
     function initChartEvent() {
+      // biome-ignore lint/complexity/noForEach: <explanation>
       MOUSE_EVENTS.forEach(event => {
         instance.value?.on(event, (params: any) => {
           emit(event, params);

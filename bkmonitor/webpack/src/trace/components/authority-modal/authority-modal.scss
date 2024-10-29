@@ -1,8 +1,4 @@
 /* stylelint-disable declaration-no-important */
-.bk-modal-header {
-  height: 30px;
-}
-
 .bk-modal-content {
   // 组件库无法自适应高度 暂时固定内容区域超出可滚动
   max-height: unset !important;

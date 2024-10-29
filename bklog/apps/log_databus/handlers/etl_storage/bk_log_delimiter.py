@@ -160,6 +160,7 @@ class BkLogDelimiterEtlStorage(EtlStorage):
                             "tag": "dimension",
                             "description": "",
                             "is_built_in": False,
+                            "alias_name": "",
                             "option": {
                                 "metadata_type": MetadataTypeEnum.PATH.value,
                                 "es_type": "keyword",
