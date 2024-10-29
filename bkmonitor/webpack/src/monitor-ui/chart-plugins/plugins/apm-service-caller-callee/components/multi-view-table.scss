@@ -275,7 +275,8 @@
 
   .drill-down-list {
     min-width: 80px;
-    height: 140px;
+    min-height: 140px;
+    max-height: 300px;
     overflow: auto;
     background: #fff;
 

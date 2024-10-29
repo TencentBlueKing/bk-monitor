@@ -88,6 +88,26 @@ function removeTrailingZeros(num) {
   return num;
 }
 
+function getNumberAndUnit(str) {
+  const match = str.match(/^(\d+)([a-zA-Z])$/);
+  return match ? { number: Number.parseInt(match[1], 10), unit: match[2] } : null;
+}
+
+function timeToDayNum(t) {
+  const regex = /^\d{4}-\d{2}-\d{2}$/;
+  if (regex.test(t)) {
+    return dayjs().diff(dayjs(t), 'day');
+  }
+  const timeInfo = getNumberAndUnit(t);
+  if (timeInfo?.unit === 'd') {
+    return timeInfo.number;
+  }
+  if (timeInfo?.unit === 'w') {
+    return timeInfo.number * 7;
+  }
+  return 0;
+}
+
 @Component
 class CallerLineChart extends CommonSimpleChart {
   // 当前粒度
@@ -119,6 +139,9 @@ class CallerLineChart extends CommonSimpleChart {
 
   // 是否展示复位按钮
   showRestore = false;
+
+  // 图例排序
+  legendSorts: { name: string; timeShift: string }[] = [];
 
   get yAxisNeedUnitGetter() {
     return this.yAxisNeedUnit ?? true;
@@ -170,6 +193,7 @@ class CallerLineChart extends CommonSimpleChart {
       this.unregisterOberver();
       const series = [];
       const metrics = [];
+      this.legendSorts = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       let params = {
         start_time: start_time ? dayjs(start_time).unix() : startTime,
@@ -262,12 +286,19 @@ class CallerLineChart extends CommonSimpleChart {
               res.metrics && metrics.push(...res.metrics);
               res.series &&
                 series.push(
-                  ...res.series.map(set => ({
-                    ...set,
-                    name: `${this.callOptions.time_shift?.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
+                  ...res.series.map(set => {
+                    const name = `${this.callOptions.time_shift?.length ? `${this.handleTransformTimeShift(time_shift || 'current')}-` : ''}${
                       this.handleSeriesName(item, set) || set.target
-                    }`,
-                  }))
+                    }`;
+                    this.legendSorts.push({
+                      name,
+                      timeShift: time_shift,
+                    });
+                    return {
+                      ...set,
+                      name,
+                    };
+                  })
                 );
               this.clearErrorMsg();
               return true;
@@ -424,6 +455,12 @@ class CallerLineChart extends CommonSimpleChart {
     if (dateRegex.test(val)) {
       return val;
     }
+    if (val === '1d') {
+      return this.$t('昨天');
+    }
+    if (val === '1w') {
+      return this.$t('上周');
+    }
     return hasMatch
       ? (dayjs() as any).add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
       : val.replace('current', window.i18n.tc('当前'));
@@ -526,11 +563,12 @@ class CallerLineChart extends CommonSimpleChart {
       legendItem.avg = +(+legendItem.total / (hasValueLength || 1)).toFixed(2);
       legendItem.total = Number(legendItem.total).toFixed(2);
       // 获取y轴上可设置的最小的精确度
-      const precision = this.handleGetMinPrecision(
+      let precision = this.handleGetMinPrecision(
         item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
         getValueFormat(this.yAxisNeedUnitGetter ? item.unit || '' : ''),
         item.unit
       );
+      precision = precision > 2 ? 2 : precision;
       if (item.name) {
         for (const key in legendItem) {
           if (['min', 'max', 'avg', 'total'].includes(key)) {
@@ -558,7 +596,17 @@ class CallerLineChart extends CommonSimpleChart {
         },
       };
     });
-    this.legendData = legendData;
+    this.legendSorts.sort((a, b) => {
+      return timeToDayNum(a.timeShift) - timeToDayNum(b.timeShift);
+    });
+    const result = [];
+    for (const item of this.legendSorts) {
+      const lItem = legendData.find(l => l.name === item.name);
+      if (lItem) {
+        result.push(lItem);
+      }
+    }
+    this.legendData = result;
     return tranformSeries;
   }
 
@@ -712,10 +760,6 @@ class CallerLineChart extends CommonSimpleChart {
         callOptions[key] = this.callOptions[key];
       }
     }
-    const variablesService = new VariablesService({
-      ...this.viewOptions,
-      ...callOptions,
-    });
     switch (menuItem.id) {
       case 'save': // 保存到仪表盘
         this.handleCollectChart();
@@ -727,30 +771,7 @@ class CallerLineChart extends CommonSimpleChart {
         break;
       case 'fullscreen': {
         // 大图检索
-        let copyPanel: IPanelModel = JSON.parse(JSON.stringify(this.panel));
-        const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-
-        const variablesService = new VariablesService({
-          ...this.viewOptions.filters,
-          ...(this.viewOptions.filters?.current_target || {}),
-          ...this.viewOptions,
-          ...this.viewOptions.variables,
-          ...(this.callOptions || {}),
-          group_by: this.isSupportGroupBy ? this.callOptions.group_by : [],
-          interval: reviewInterval(
-            this.viewOptions.interval,
-            dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
-            this.panel.collect_interval
-          ),
-        });
-        copyPanel = variablesService.transformVariables(copyPanel);
-        copyPanel.targets.forEach((t, tIndex) => {
-          const queryConfigs = this.panel.targets[tIndex].data.query_configs;
-          t.data.query_configs.forEach((q, qIndex) => {
-            q.functions = JSON.parse(JSON.stringify(queryConfigs[qIndex].functions));
-          });
-          this.queryConfigsSetCallOptions(this.panel?.targets?.[tIndex]?.data);
-        });
+        const copyPanel = this.getCopyPanel();
         this.handleFullScreen(copyPanel as any);
         break;
       }
@@ -763,32 +784,23 @@ class CallerLineChart extends CommonSimpleChart {
         break;
       case 'explore': {
         // 跳转数据检索
-        const copyPanel: IPanelModel = JSON.parse(JSON.stringify(this.panel));
-        for (const t of copyPanel.targets) {
-          this.queryConfigsSetCallOptions(t?.data);
-        }
-        this.handleExplore(copyPanel as any, {
-          ...this.viewOptions.filters,
-          ...(this.viewOptions.filters?.current_target || {}),
-          ...this.viewOptions,
-          ...this.viewOptions.variables,
-          ...(this.callOptions || {}),
-        });
+        const copyPanel = this.getCopyPanel();
+        this.handleExplore(copyPanel as any, {});
         break;
       }
-      case 'strategy': // 新增策略
-        this.handleAddStrategy(this.panel, null, this.viewOptions, true);
+      case 'strategy': {
+        // 新增策略
+        const copyPanel = this.getCopyPanel();
+        console.log(copyPanel);
+        this.handleAddStrategy(copyPanel as any, null, {}, true);
         break;
-      case 'relate-alert':
-        for (const target of this.panel?.targets || []) {
-          if (target.data?.query_configs?.length) {
-            let queryConfig = deepClone(target.data.query_configs);
-            queryConfig = variablesService.transformVariables(queryConfig);
-            target.data.query_configs = queryConfig;
-          }
-        }
-        handleRelateAlert(this.panel, this.timeRange);
+      }
+      case 'relate-alert': {
+        // 大图检索
+        const copyPanel = this.getCopyPanel();
+        handleRelateAlert(copyPanel as any, this.timeRange);
         break;
+      }
       default:
         break;
     }
@@ -862,6 +874,49 @@ class CallerLineChart extends CommonSimpleChart {
     }
   }
 
+  /**
+   * @description: 点击所有指标
+   * @param {*}
+   * @return {*}
+   */
+  handleAllMetricClick() {
+    const copyPanel = this.getCopyPanel();
+    this.handleAddStrategy(copyPanel as any, null, {}, true);
+  }
+
+  getCopyPanel() {
+    const callOptions = {};
+    for (const key in this.callOptions) {
+      if (key !== 'time_shift' && (key === 'group_by' ? this.isSupportGroupBy : true)) {
+        callOptions[key] = this.callOptions[key];
+      }
+    }
+    let copyPanel: IPanelModel = JSON.parse(JSON.stringify(this.panel));
+    copyPanel.dashboardId = random(8);
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const variablesService = new VariablesService({
+      ...this.viewOptions.filters,
+      ...(this.viewOptions.filters?.current_target || {}),
+      ...this.viewOptions,
+      ...this.viewOptions.variables,
+      ...callOptions,
+      group_by: this.isSupportGroupBy ? this.callOptions.group_by : [],
+      interval: reviewInterval(
+        this.viewOptions.interval,
+        dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
+        this.panel.collect_interval
+      ),
+    });
+    copyPanel = variablesService.transformVariables(copyPanel);
+    for (const t of copyPanel.targets) {
+      for (const q of t?.data?.query_configs || []) {
+        q.functions = (q.functions || []).filter(f => f.id !== 'time_shift');
+      }
+      this.queryConfigsSetCallOptions(t?.data);
+    }
+    return copyPanel;
+  }
+
   render() {
     return (
       <div class='apm-caller-line-chart'>
@@ -873,10 +928,10 @@ class CallerLineChart extends CommonSimpleChart {
           menuList={this.menuList as any}
           metrics={this.metrics}
           needMoreMenu={true}
-          showAddMetric={false}
           showMore={true}
           subtitle={this.panel.subTitle || ''}
           title={this.panel.title}
+          onAllMetricClick={this.handleAllMetricClick}
           onMenuClick={this.handleMenuToolsSelect}
           onSelectChild={this.handleSelectChildMenu}
         />

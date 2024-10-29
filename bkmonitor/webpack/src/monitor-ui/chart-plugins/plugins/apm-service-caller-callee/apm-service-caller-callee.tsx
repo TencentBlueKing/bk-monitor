@@ -202,8 +202,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     // if (data.key !== 'time') {
     const list = this.callOptions.call_filter.filter(item => item.key !== data.key);
     // }
-    this.$set(this.callOptions, 'call_filter', list);
-    this.searchFilterData(this.callOptions.call_filter);
+    this.searchFilterData(list);
   }
   // 查看详情 - 选中的字段回填到左侧筛选栏
   handleDetail({ _row, _key }) {
