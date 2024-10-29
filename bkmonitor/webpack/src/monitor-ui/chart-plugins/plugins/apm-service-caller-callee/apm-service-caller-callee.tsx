@@ -198,7 +198,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     this.searchFilterData(call_filter);
   }
   // 关闭表格中的筛选tag, 调用查询接口
-  handleCloseTag(data) {
+  handleCloseTag(data: IFilterCondition) {
     const list = this.callOptions.call_filter.filter(item => item.key !== data.key);
     this.searchFilterData(list);
   }

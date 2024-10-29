@@ -60,10 +60,10 @@ interface ICallerCalleeTableChartProps {
   panel: PanelModel;
 }
 interface ICallerCalleeTableChartEvent {
-  onCloseTag?: (val: IFilterCondition[]) => void;
+  onCloseTag?: (val: IFilterCondition) => void;
   onHandleDetail?: (val: IDataItem) => void;
   onCloseChartPoint?: () => void;
-  onDrill?: (val: IFilterCondition) => void;
+  onDrill?: (val: IFilterCondition[]) => void;
 }
 const TimeDimension: DimensionItem = {
   value: 'time',

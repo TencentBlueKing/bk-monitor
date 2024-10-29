@@ -110,9 +110,6 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
     for (const item of tags) {
       const defaultItem =
         this.callType === callType ? this.callOptions?.call_filter?.find(opt => opt.key === item.value) : undefined;
-      if (defaultItem) {
-        debugger;
-      }
       const value = defaultItem?.value || [];
       let method = 'eq';
       if (defaultItem?.method === 'reg') {
@@ -135,7 +132,7 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
         method,
         value,
         condition: 'and',
-        options: [],
+        options: this.callFilter.find(c => c.key === item.value)?.options || [],
         loading: false,
       });
       callNameMap[item.value] = item.text;
