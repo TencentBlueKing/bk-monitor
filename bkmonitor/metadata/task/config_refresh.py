@@ -256,7 +256,7 @@ def refresh_es_storage():
     logger.info("refresh_es_storage:start to refresh es_storage")
     start_time = time.time()  # 记录开始时间
 
-    # 1. 获取设置中的黑名单和白名单以及启用开关
+    # 1. 获取设置中的黑名单和启用V2索引轮转的白名单
     es_blacklist = getattr(settings, "ES_CLUSTER_BLACKLIST", [])
     enable_v2_rotation_es_cluster_ids = getattr(settings, "ENABLE_V2_ROTATION_ES_CLUSTER_IDS", [])
     # es_cluster_wl = getattr(settings, "ES_SERIAL_CLUSTER_LIST", [])
