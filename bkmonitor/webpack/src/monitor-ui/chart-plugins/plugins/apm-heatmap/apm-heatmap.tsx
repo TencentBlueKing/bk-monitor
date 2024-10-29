@@ -194,6 +194,7 @@ class ApmHeatmap extends CommonSimpleChart {
       const minX = xAxisData.at(0);
       const maxX = xAxisData.at(-1);
       const duration = Math.abs(dayjs.tz(+maxX).diff(dayjs.tz(+minX), 'second'));
+      const secondFormatter = getValueFormat('s');
       this.options = {
         tooltip: {
           ...MONITOR_LINE_OPTIONS.tooltip,
@@ -285,6 +286,11 @@ class ApmHeatmap extends CommonSimpleChart {
           },
           axisLabel: {
             color: '#979BA5',
+            formatter: (v: string) => {
+              if (v === '+Inf') return v;
+              const { text, suffix } = secondFormatter(+v);
+              return `${text.replace(/\.0+$/, '')}${suffix}`;
+            },
           },
           axisTick: {
             show: false,

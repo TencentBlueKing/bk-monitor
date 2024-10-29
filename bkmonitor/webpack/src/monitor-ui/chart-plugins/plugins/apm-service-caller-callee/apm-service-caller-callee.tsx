@@ -198,10 +198,8 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     this.searchFilterData(call_filter);
   }
   // 关闭表格中的筛选tag, 调用查询接口
-  handleCloseTag(data) {
-    // if (data.key !== 'time') {
+  handleCloseTag(data: IFilterCondition) {
     const list = this.callOptions.call_filter.filter(item => item.key !== data.key);
-    // }
     this.searchFilterData(list);
   }
   // 查看详情 - 选中的字段回填到左侧筛选栏
@@ -415,7 +413,8 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
               slot='aside'
             >
               <CallerCalleeFilter
-                activeKey={this.callType}
+                callOptions={this.callOptions}
+                callType={this.callType}
                 panel={this.panel}
                 onReset={this.resetFilterData}
                 onSearch={this.searchFilterData}
