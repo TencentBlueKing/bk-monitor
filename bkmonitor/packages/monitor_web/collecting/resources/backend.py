@@ -957,7 +957,10 @@ class SaveCollectConfigResource(Resource):
         self.update_metric_cache(collector_plugin)
 
         # 采集配置完成
-        DatalinkDefaultAlarmStrategyLoader(collect_config=collect_config, user_id=get_global_user()).run()
+        try:
+            DatalinkDefaultAlarmStrategyLoader(collect_config=collect_config, user_id=get_global_user()).run()
+        except Exception as error:
+            logger.error(f"自动创建默认告警策略 DatalinkDefaultAlarmStrategyLoader error {str(error)}")
 
         return result
 
@@ -984,7 +987,7 @@ class SaveCollectConfigResource(Resource):
                 data["params"][param_mode][param_name] = actual_password
 
     @staticmethod
-    def get_collector_plugin(data):
+    def get_collector_plugin(data) -> CollectorPluginMeta:
         plugin_id = data["plugin_id"]
         # 虚拟日志采集器
         if data["collect_type"] == CollectConfigMeta.CollectType.LOG:
@@ -1056,7 +1059,7 @@ class SaveCollectConfigResource(Resource):
             plugin_manager.delete_result_table(collector_plugin.release_version)
 
     @staticmethod
-    def update_metric_cache(collector_plugin):
+    def update_metric_cache(collector_plugin: CollectorPluginMeta):
         plugin_type = collector_plugin.plugin_type
         if plugin_type not in collector_plugin.VIRTUAL_PLUGIN_TYPE:
             version = collector_plugin.current_version
