@@ -260,7 +260,6 @@ def refresh_es_storage():
     # 1. 获取设置中的黑名单和白名单以及启用开关
     es_blacklist = getattr(settings, "ES_CLUSTER_BLACKLIST", [])
     enable_v2_rotation_es_cluster_ids = getattr(settings, "ENABLE_V2_ROTATION_ES_CLUSTER_IDS", [])
-    enable_v2_rotation = getattr(settings, "ENABLE_V2_ES_STORAGE_ROTATION", False)
     # es_cluster_wl = getattr(settings, "ES_SERIAL_CLUSTER_LIST", [])
 
     # # 处理白名单中的集群，串行处理
@@ -282,9 +281,8 @@ def refresh_es_storage():
 
     es_storages = es_storages.filter(table_id__in=table_id_list)
 
-    # 3.1 如果开启了新版索引轮转，那么剔除掉在新版白名单中的采集项
-    if enable_v2_rotation:
-        es_storages = es_storages.exclude(storage_cluster_id__in=enable_v2_rotation_es_cluster_ids)
+    # 3.1 剔除掉在新版白名单中的采集项
+    es_storages = es_storages.exclude(storage_cluster_id__in=enable_v2_rotation_es_cluster_ids)
 
     # 4. 设置每个任务处理的记录数
     start, step = 0, settings.ES_INDEX_ROTATION_STEP
@@ -319,16 +317,14 @@ def refresh_es_storage_v2():
     新版ES索引轮转，按照ES集群ID分组，每个线程负责一个集群，每个线程中均为串行
     """
 
-    enable_v2_rotation = getattr(settings, "ENABLE_V2_ES_STORAGE_ROTATION", False)
-    if not enable_v2_rotation:
-        logger.info("refresh_es_storage_v2: v2 rotation is not enabled,return")
+    # 1. 获取启用新版索引轮转的ES集群ID列表
+    enable_v2_rotation_es_cluster_ids = getattr(settings, "ENABLE_V2_ROTATION_ES_CLUSTER_IDS", [])
+    if not enable_v2_rotation_es_cluster_ids:
+        logger.info("refresh_es_storage_v2: v2 rotation is not enabled for any cluster,return")
         return
 
     start_time = time.time()  # 记录开始时间
     logger.info("refresh_es_storage_v2:start to refresh es_storage")
-
-    # 1. 获取启用新版索引轮转的ES集群ID列表
-    enable_v2_rotation_es_cluster_ids = getattr(settings, "ENABLE_V2_ROTATION_ES_CLUSTER_IDS", [])
 
     # 2. 筛选出使用新版ES索引轮转的采集项
     es_storages = models.ESStorage.objects.filter(
@@ -352,7 +348,12 @@ def refresh_es_storage_v2():
             cluster_id = cluster['storage_cluster_id']
             filtered_storages = es_storages.filter(storage_cluster_id=cluster_id)
             try:
-                futures = {executor.submit(process_cluster_storages, cluster_id, filtered_storages): cluster}
+                logger.info(
+                    "refresh_es_storage_v2:refresh cluster_id->[%s] es_storages count->[%s]",
+                    cluster_id,
+                    filtered_storages.count(),
+                )
+                futures = {executor.submit(process_es_storages_by_cluster_id, filtered_storages): cluster}
             except Exception as e:  # pylint: disable=broad-except
                 logger.error("refresh_es_storage_v2: Error processing cluster_id->[%s]: %s", cluster_id, e)
                 continue
@@ -373,27 +374,23 @@ def refresh_es_storage_v2():
     )
 
 
-def process_cluster_storages(cluster_id, cluster_storages):
+def process_es_storages_by_cluster_id(es_storages):
     """
     处理单个ES集群的存储项，串行执行,不再使用delay的方式，降低风险
-    @param cluster_id:  ES集群ID
-    @param cluster_storages: 待处理的采集项列表
+    @param es_storages: 待处理的采集项列表
     """
     logger.info(
         "process_cluster_storages: start processing cluster_id->[%s]，need to rotate->[%s]",
-        cluster_id,
-        len(cluster_storages),
+        len(es_storages),
     )
-    for storage in cluster_storages:
+    for es_storage in es_storages:
         try:
-            logger.info("process_cluster_storages: start processing storage->[%s]", storage.table_id)
-            _manage_es_storage(storage)  # 不再使用delay，直接串行
+            logger.info("process_cluster_storages: start processing storage->[%s]", es_storage.table_id)
+            _manage_es_storage(es_storage)  # 不再使用delay，直接串行
             time.sleep(settings.ES_INDEX_ROTATION_SLEEP_INTERVAL)  # 等待一段时间，降低负载
-            logger.info("process_cluster_storages: end processing storage->[%s]", storage.table_id)
+            logger.info("process_cluster_storages: end processing storage->[%s]", es_storage.table_id)
         except Exception as e:  # pylint: disable=broad-except
-            logger.error(
-                "process_cluster_storages:failed processing storage in cluster_id->[%s] for->[%s]", cluster_id, e
-            )
+            logger.error("process_cluster_storages:failed processing storage->[%s] error->[%s]", es_storage.table_id, e)
 
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshBCSInfo")

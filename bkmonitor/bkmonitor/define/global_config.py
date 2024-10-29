@@ -314,7 +314,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ES_INDEX_ROTATION_SLEEP_INTERVAL", slz.IntegerField(label="ES索引轮转等待间隔", default=30)),
         ("ES_INDEX_ROTATION_STEP", slz.IntegerField(label="ES索引轮转并发个数", default=50)),
         ("ES_STORAGE_OFFSET_HOURS", slz.IntegerField(label="ES采集项整体时间偏移量", default=8)),
-        ("ENABLE_V2_ES_STORAGE_ROTATION", slz.BooleanField(label="是否启用新版的ES轮转", default=False)),
     ]
 )
 
