@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import time
@@ -255,8 +256,9 @@ def refresh_es_storage():
     logger.info("refresh_es_storage:start to refresh es_storage")
     start_time = time.time()  # 记录开始时间
 
-    # 1. 获取设置中的黑名单和白名单
+    # 1. 获取设置中的黑名单和启用V2索引轮转的白名单
     es_blacklist = getattr(settings, "ES_CLUSTER_BLACKLIST", [])
+    enable_v2_rotation_es_cluster_ids = getattr(settings, "ENABLE_V2_ROTATION_ES_CLUSTER_IDS", [])
     # es_cluster_wl = getattr(settings, "ES_SERIAL_CLUSTER_LIST", [])
 
     # # 处理白名单中的集群，串行处理
@@ -271,7 +273,6 @@ def refresh_es_storage():
     es_storages = models.ESStorage.objects.filter(source_type=EsSourceType.LOG.value, need_create_index=True).exclude(
         storage_cluster_id__in=es_blacklist
     )
-
     # 3. 过滤掉无效的表，进一步减少轮转的索引数据量
     table_id_list = models.ResultTable.objects.filter(
         table_id__in=es_storages.values_list("table_id", flat=True), is_enable=True, is_deleted=False
@@ -291,13 +292,20 @@ def refresh_es_storage():
             cluster_storages = es_storages.filter(storage_cluster_id=cluster_id)
             count = cluster_storages.count()
             logger.info("refresh_es_storage:refresh cluster_id->[%s] es_storages count->[%s]", cluster_id, count)
-            # 5.1 为每个集群创建批量任务
-            for s in range(start, count, step):
-                try:
-                    manage_es_storage.delay(cluster_storages[s : s + step])
-                    time.sleep(settings.ES_INDEX_ROTATION_SLEEP_INTERVAL)  # 等待一段时间，降低master负载
-                except Exception as e:  # pylint: disable=broad-except
-                    logger.error("refresh_es_storage:refresh cluster_id->[%s] failed for->[%s]", cluster_id, e)
+
+            if cluster_id in enable_v2_rotation_es_cluster_ids:
+                # 此处由于是新的白名单方式，所以可以考虑将所有的索引传入到任务中，在任务中进行串行处理
+                logger.info(
+                    "refresh_es_storage:refresh cluster_id->[%s] is enable v2 rotation,count->[%s]", cluster_id, count
+                )
+                manage_es_storage.delay(cluster_id, cluster_storages)
+            else:
+                # 5.1 为每个集群创建批量任务
+                for s in range(start, count, step):
+                    try:
+                        manage_es_storage.delay(cluster_id, cluster_storages[s : s + step])
+                    except Exception as e:  # pylint: disable=broad-except
+                        logger.error("refresh_es_storage:refresh cluster_id->[%s] failed for->[%s]", cluster_id, e)
         except Exception as e:  # pylint: disable=broad-except
             logger.error("refresh_es_storage:refresh cluster_id->[%s] failed for->[%s]", cluster.cluster_id, e)
             continue

@@ -126,6 +126,30 @@ class ConditionOperator {
     return this.item.operator;
   }
 
+  /** 前端展示转换 */
+  getShowCondition() {
+    // allContainsStrList 列表中包含的操作关系说明是 string | text 字段类型
+    // 这些类型需要反向解析 FormatOpetatorFrontToApi 方法生成的语法
+    if (!this.isFulltextField && this.allContainsStrList.includes(this.item.operator)) {
+      const value = this.allContainsStrList.find(value => value === this.item.operator);
+
+      // this.containOperatorList 列表中所包含的操作关系说明是 OR 操作
+      // OR 操作才支持这些查询
+      const relation = this.containOperatorList.includes(value) ? 'OR' : 'AND';
+
+      // 包含和不包含操作符只有这两种，其他逻辑不走这个分支
+      const operator = this.containsStrList.includes(value) ? 'contains match phrase' : 'not contains match phrase';
+
+      return {
+        operator,
+        relation,
+        field: this.item.field,
+        isInclude: this.isWildcardMatch,
+        value: this.item.value,
+      };
+    }
+  }
+
   /**
    * 格式化接口拿到的查询关系解析成组件可以适配的数据结构
    * @returns
@@ -139,6 +163,17 @@ class ConditionOperator {
       // this.containOperatorList 列表中所包含的操作关系说明是 OR 操作
       // OR 操作才支持这些查询
       const relation = this.containOperatorList.includes(value) ? 'OR' : 'AND';
+
+      // 如果是通配符这里不做转换
+      if (this.wildcardList.includes(value)) {
+        return {
+          operator: value,
+          relation,
+          field: this.item.field,
+          isInclude: this.isWildcardMatch,
+          value: this.item.value,
+        };
+      }
 
       // 包含和不包含操作符只有这两种，其他逻辑不走这个分支
       const operator = this.containsStrList.includes(value) ? 'contains match phrase' : 'not contains match phrase';

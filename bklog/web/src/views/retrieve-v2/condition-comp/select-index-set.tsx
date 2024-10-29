@@ -1223,6 +1223,7 @@ export default class QueryStatement extends tsc<object> {
     return (
       <Select
         ref='selectInput'
+        style='max-width: 600px;'
         class={[
           'retrieve-index-select',
           { 'is-default-trigger': !this.selectedItemList.length && !this.selectedItem.index_set_name },
