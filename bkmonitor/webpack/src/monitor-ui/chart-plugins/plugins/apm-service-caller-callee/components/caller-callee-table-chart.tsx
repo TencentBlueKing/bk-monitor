@@ -201,6 +201,10 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   }
   @Debounce(100)
   async getPanelData() {
+    if (!(await this.beforeGetPanelData())) {
+      return;
+    }
+    this.unregisterOberver();
     this.tableColData = this.callOptions.time_shift.map(item => ({
       value: timeShiftFormat(item.alias),
       text: item.alias,

@@ -331,6 +331,7 @@ class ApmHeatmap extends CommonSimpleChart {
     }
     this.cancelTokens = [];
     this.handleLoadingChange(false);
+    this.unregisterOberver();
   }
   handleClickItem(item) {
     this.$emit('zrClick', {
