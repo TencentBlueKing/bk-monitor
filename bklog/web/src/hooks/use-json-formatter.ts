@@ -25,14 +25,10 @@
  */
 import { Ref } from 'vue';
 
-// import JSONEditor from 'jsoneditor';
 import JsonView from '../global/json-view';
-
 import jsonEditorTask, { EditorTask } from '../global/utils/json-editor-task';
 import segmentPopInstance from '../global/utils/segment-pop-instance';
 import UseSegmentPropInstance from './use-segment-pop';
-
-import 'jsoneditor/dist/jsoneditor.min.css';
 
 type FormatterConfig = {
   target: Ref<HTMLElement | null>;
@@ -266,12 +262,12 @@ export default class UseJsonFormatter {
 
   initEditor() {
     if (this.getTargetRoot()) {
-      this.editor = new JsonView(this.getTargetRoot(), { onNodeExpand: this.handleExpandNode.bind(this) });
+      this.editor = new JsonView(this.getTargetRoot(), { onNodeExpand: this.handleExpandNode.bind(this), depth: 0 });
       this.editor.initClickEvent();
     }
   }
 
-  setNodeExpand([currentDepth, oldDepth]) {
+  setNodeExpand([currentDepth]) {
     this.editor.expand(currentDepth);
     const root = this.getTargetRoot();
     const fieldName = (root.querySelector('.field-name .black-mark') as HTMLElement)?.innerText;
@@ -306,6 +302,20 @@ export default class UseJsonFormatter {
 
   destroy() {
     this.editor?.destroy();
+    const root = this.getTargetRoot() as HTMLElement;
+    if (root) {
+      let target = root;
+      if (!root.classList.contains('field-value')) {
+        target = root.querySelector('.field-value');
+      }
+
+      if (target?.hasAttribute('data-has-word-split')) {
+        target.removeAttribute('data-has-word-split');
+        if (typeof this.config.jsonValue === 'string') {
+          target.innerText = this.config.jsonValue;
+        }
+      }
+    }
   }
 
   getEditor() {

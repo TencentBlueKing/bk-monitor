@@ -1,7 +1,7 @@
 <template>
-  <div :class="['bklog-json-formatter-root', { 'is-wrap-line': isWrap, 'is-inline': !isWrap }]">
+  <div :class="['bklog-json-formatter-root', { 'is-wrap-line': isWrap, 'is-inline': !isWrap, 'is-json': formatJson }]">
     <template v-for="item in rootList">
-      <div
+      <span
         :key="item.name"
         class="bklog-root-field"
       >
@@ -19,7 +19,7 @@
           :ref="item.formatter.ref"
           >{{ item.formatter.isJson ? '' : item.formatter.value }}</span
         >
-      </div>
+      </span>
     </template>
   </div>
 </template>
@@ -116,7 +116,7 @@
   watch(
     () => [formatCounter.value],
     () => {
-      updateRootFieldOperator(rootList.value, depth.value);
+      updateRootFieldOperator(rootList.value, depth.value - 1);
     },
     {
       immediate: true,
@@ -126,7 +126,7 @@
   watch(
     () => [depth.value],
     () => {
-      setExpand(depth.value);
+      setExpand(depth.value - 1);
     },
   );
 </script>
@@ -140,8 +140,6 @@
     color: var(--table-fount-color);
 
     .bklog-root-field {
-      display: flex;
-      width: max-content;
       margin-right: 2px;
 
       &:not(:first-child) {
@@ -149,6 +147,8 @@
       }
 
       .field-name {
+        min-width: max-content;
+
         .black-mark {
           width: max-content;
           padding: 0 2px;
@@ -171,7 +171,6 @@
       line-height: 20px;
 
       span {
-        display: inline-block;
         width: max-content;
         min-width: 4px;
         font-family: var(--table-fount-family);
@@ -201,17 +200,28 @@
 
     &.is-inline {
       .bklog-root-field {
-        display: inline-flex;
+        word-break: break-all;
 
         .segment-content {
-          display: inline-flex;
+          word-break: break-all;
         }
+      }
+    }
+
+    &.is-json {
+      .bklog-root-field {
+        display: inline-flex;
       }
     }
 
     &.is-wrap-line {
       display: flex;
       flex-direction: column;
+
+      .bklog-root-field {
+        display: flex;
+        width: max-content;
+      }
     }
 
     mark {
@@ -221,16 +231,6 @@
   }
 </style>
 <style lang="scss">
-  .bk-table-row {
-    &.hover-row {
-      tbody,
-      tr,
-      td {
-        background-color: #f5f7fa;
-      }
-    }
-  }
-
   .bklog-text-segment {
     .segment-content {
       font-family: var(--table-fount-family);

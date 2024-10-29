@@ -1,7 +1,8 @@
 <script setup>
-  import { ref, watch, computed } from 'vue';
+  import { ref, watch, computed, nextTick, onMounted, onUnmounted } from 'vue';
   import UseJsonFormatter from '@/hooks/use-json-formatter';
   import UseStore from '@/hooks/use-store';
+  import useTruncateText from '../../../hooks/use-truncate-text';
 
   const emit = defineEmits(['menu-click']);
 
@@ -14,6 +15,10 @@
   const refContent = ref();
   const store = UseStore();
   const isWrap = computed(() => store.state.tableLineIsWrap);
+  const isLimitExpandView = computed(() => store.state.isLimitExpandView);
+  const showAll = ref(false);
+  const maxWidth = ref(0);
+
   const handleMenuClick = event => {
     emit('menu-click', event);
   };
@@ -25,17 +30,50 @@
     onSegmentClick: handleMenuClick,
   });
 
+  const textTruncateOption = computed(() => ({
+    fontSize: 12,
+    text: props.content,
+    maxWidth: maxWidth.value,
+    font: '12px Arial, Helvetica, sans-serif',
+    showAll: isLimitExpandView.value || showAll.value,
+  }));
+
+  const { truncatedText, showMore } = useTruncateText(textTruncateOption);
+
   watch(
     () => [props.content],
     () => {
-      setTimeout(() => {
-        instance.initStringAsValue();
-      });
+      textTruncateOption.value.text = props.content;
     },
     {
       immediate: true,
     },
   );
+
+  watch(
+    () => [truncatedText.value],
+    () => {
+      nextTick(() => {
+        instance.config.jsonValue = truncatedText.value;
+        instance.destroy?.();
+        instance.initStringAsValue();
+      });
+    },
+  );
+
+  const handleClickMore = () => {
+    showAll.value = true;
+  };
+
+  onMounted(() => {
+    const cellElement = refContent.value.parentElement.closest('.bklog-lazy-render-cell');
+    const elementMaxWidth = cellElement.offsetWidth * 2.6;
+    maxWidth.value = elementMaxWidth;
+  });
+
+  onUnmounted(() => {
+    instance?.destroy?.();
+  });
 </script>
 <template>
   <div
@@ -45,24 +83,46 @@
     <span
       class="field-name"
       style="display: none"
-      ><span class="black-mark" :data-field-name="field.field_name">
+      ><span
+        class="black-mark"
+        :data-field-name="field.field_name"
+      >
         {{ field.field_name }}
       </span></span
     >
     <span
       class="field-value"
       :data-field-name="field.field_name"
-      >{{ content }}</span
+      >{{ truncatedText }}</span
     >
+    <template v-if="showMore">
+      <span
+        class="btn-more-action"
+        @click="handleClickMore"
+        >更多</span
+      >
+    </template>
   </div>
 </template>
 <style lang="scss">
   .bklog-text-segment {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    white-space: pre-line;
+
+    .btn-more-action {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      cursor: pointer;
+
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+
     &.is-inline {
       display: flex;
-      // overflow: hidden;
-      // text-overflow: ellipsis;
-      // white-space: nowrap;
     }
   }
 </style>

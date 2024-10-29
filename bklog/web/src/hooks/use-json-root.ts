@@ -49,7 +49,7 @@ export default ({ fields, onSegmentClick }) => {
 
   const initRootOperator = () => {
     initEditPromise = new Promise(resolve => {
-      requestAnimationFrame(() => {
+      setTimeout(() => {
         rootFieldOperator.values().forEach(value => {
           if (!value.editor) {
             value.editor = new UseJsonFormatter({

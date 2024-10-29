@@ -63,7 +63,7 @@
       entries => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
-            visibilityTimeout = requestAnimationFrame(() => {
+            visibilityTimeout = setTimeout(() => {
               isVisible.value = true;
             });
           } else {

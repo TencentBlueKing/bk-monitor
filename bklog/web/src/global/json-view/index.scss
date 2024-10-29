@@ -12,6 +12,10 @@
       display: flex;
       line-height: 20px;
 
+      .bklog-json-view-field {
+        min-width: max-content;
+      }
+
       .bklog-json-view-field,
       .bklog-json-view-symbol {
         color: #048a8c;
@@ -38,6 +42,15 @@
           .segment-content {
             span {
               color: #934c04;
+
+              &.valid-text {
+                cursor: pointer;
+
+                &.focus-text,
+                &:hover {
+                  color: #3a84ff;
+                }
+              }
             }
           }
         }
