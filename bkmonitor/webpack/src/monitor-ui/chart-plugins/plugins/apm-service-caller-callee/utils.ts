@@ -111,7 +111,7 @@ export const TAB_TABLE_TYPE = [
     // icon: 'icon-bingtu',
   },
   {
-    label: '成功异常超时率',
+    label: '成功/异常/超时率',
     id: 'timeout',
     columns: [],
     // columns: TAB_TABLE_TIMEOUT_COLUMN,

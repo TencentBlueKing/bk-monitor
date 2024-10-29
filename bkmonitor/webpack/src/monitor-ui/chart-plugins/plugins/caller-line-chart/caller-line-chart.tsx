@@ -451,6 +451,7 @@ class CallerLineChart extends CommonSimpleChart {
     }
     this.cancelTokens = [];
     this.handleLoadingChange(false);
+    this.unregisterOberver();
   }
 
   // 转换time_shift显示
