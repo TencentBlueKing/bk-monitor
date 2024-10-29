@@ -306,7 +306,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        start, end = self._enlarge_duration(data["start"], data["end"], offset=data["offset"])
+        start, end = self._enlarge_duration(data["start"], data["end"], offset=data.get("offset", 0))
         essentials = self._get_essentials(data)
         logger.info(f"[Samples] query essentials: {essentials}")
 
@@ -342,12 +342,18 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         else:
             extra_params = {"limit": {"offset": 0, "rows": NORMAL_SERVICE_MAX_QUERY_SIZE}}
 
+        query_start_time = data["filter_labels"].pop("start", "")
+        query_end_time = data["filter_labels"].pop("end", "")
+        if query_start_time and query_end_time:
+            query_start_time, query_end_time = self._enlarge_duration(
+                query_start_time, query_end_time, offset=data.get("offset", 0)
+            )
         tree_converter = self.query(
             bk_biz_id=essentials["bk_biz_id"],
             app_name=essentials["app_name"],
             service_name=essentials["service_name"],
-            start=start,
-            end=end,
+            start=query_start_time or start,
+            end=query_end_time or end,
             profile_id=data.get("profile_id"),
             filter_labels=data.get("filter_labels"),
             result_table_id=essentials["result_table_id"],
@@ -374,12 +380,18 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         diagram_types = data["diagram_types"]
         options = {"sort": data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
         if data.get("is_compared"):
+            diff_start_time = data["diff_filter_labels"].pop("start", "")
+            diff_end_time = data["diff_filter_labels"].pop("end", "")
+            if diff_start_time and diff_end_time:
+                diff_start_time, diff_end_time = self._enlarge_duration(
+                    diff_start_time, diff_end_time, offset=data.get("offset", 0)
+                )
             diff_tree_converter = self.query(
                 bk_biz_id=essentials["bk_biz_id"],
                 app_name=essentials["app_name"],
                 service_name=essentials["service_name"],
-                start=start,
-                end=end,
+                start=diff_start_time or start,
+                end=diff_end_time or end,
                 profile_id=data.get("diff_profile_id"),
                 filter_labels=data.get("diff_filter_labels"),
                 result_table_id=essentials["result_table_id"],

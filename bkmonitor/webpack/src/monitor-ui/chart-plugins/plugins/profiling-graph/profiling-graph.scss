@@ -21,30 +21,54 @@
       height: 50px;
       padding: 16px 8px;
       margin-bottom: 4px;
-  
+
       .data-type {
         display: flex;
         align-items: center;
-    
+
         &-list {
           margin-left: 16px;
         }
       }
-  
+
       .link-tips {
         .icon-monitor {
           margin-right: 4px;
           font-size: 14px;
           color: #979ba5;
         }
-  
+
         .link-text {
-          color: #3A84FF;
+          color: #3a84ff;
           cursor: pointer;
         }
       }
     }
-  
+
+    .diff-chart-view {
+      display: flex;
+      margin-bottom: 16px;
+
+      .diff-chart-card {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        height: 120px;
+        background: #fff;
+        border-radius: 2px;
+        box-shadow: 0 2px 4px 0 rgba(25, 25, 41, 0.0509803922);
+
+        & + .diff-chart-card {
+          margin-left: 16px;
+        }
+
+        .chart-title {
+          margin-left: 16px;
+          line-height: 31px;
+        }
+      }
+    }
+
     .profiling-graph {
       position: relative;
       display: flex;
@@ -54,14 +78,14 @@
       height: 100%;
       overflow: hidden;
       background-color: white;
-    
+
       &-content {
         display: flex;
         flex: 1;
         margin: 0 16px;
         overflow: auto;
         background-color: #f5f7fa;
-    
+
         .bk-resize-layout-border {
           flex: 1;
           overflow-x: hidden;
@@ -69,7 +93,7 @@
         }
       }
     }
-    
+
     .empty-chart {
       display: flex;
       flex: 1;
