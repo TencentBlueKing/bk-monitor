@@ -332,7 +332,7 @@ class UnifyQueryHandler(object):
                 if new_value_list:
                     self.query_string = " OR ".join(new_value_list)
                 continue
-            if len(field_list) != 0:
+            if field_list:
                 condition_list.append("and")
             if addition["operator"] in BASE_OP_MAP:
                 field_list.append(
