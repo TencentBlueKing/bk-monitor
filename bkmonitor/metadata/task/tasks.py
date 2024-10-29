@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional
@@ -160,10 +161,29 @@ def update_time_series_metrics(time_series_metrics):
 
 # todo: es 索引管理，迁移至BMW
 @app.task(ignore_result=True, queue="celery_long_task_cron")
-def manage_es_storage(es_storages):
+def manage_es_storage(es_storages, cluster_id=None):
     """并发管理 ES 存储。"""
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        executor.map(_manage_es_storage, es_storages)
+
+    # 优先判断集群是否存在于白名单中，如果是，则按照串行的方式实施索引管理
+    if cluster_id in getattr(settings, "ENABLE_V2_ROTATION_ES_CLUSTER_IDS", []):
+        for es_storage in es_storages:
+            logger.info(
+                "manage_es_storage:cluster_id->[%s] in v2_white_list,table_id->[%s],start to rotate index",
+                cluster_id,
+                es_storage.table_id,
+            )
+            _manage_es_storage(es_storage)
+            time.sleep(settings.ES_INDEX_ROTATION_SLEEP_INTERVAL_SECONDS)  # 等待一段时间，降低负载
+            logger.info(
+                "manage_es_storage:cluster_id->[%s] in v2_white_list,table_id->[%s],rotate index finished",
+                cluster_id,
+                es_storage.table_id,
+            )
+    # 否则，创建线程池，并发实施索引管理
+    else:
+        logger.info("manage_es_storage:cluster_id->[%s] not in v2_white_list,start to rotate index", cluster_id)
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            executor.map(_manage_es_storage, es_storages)
 
 
 def _manage_es_storage(es_storage):
