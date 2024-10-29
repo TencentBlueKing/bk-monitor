@@ -281,6 +281,9 @@ export default defineComponent({
         // viewHeight.value = window.innerHeight - state.htmlTopOffset;
         // scrollTop.value = window.scrollY;
         const elem = document.querySelector('.trace-detail-wrapper');
+        if (!elem) {
+          return;
+        }
         const rect = elem?.getBoundingClientRect();
         scrollTop.value = elem?.scrollTop as number;
         viewHeight.value = rect?.height as number;
@@ -329,7 +332,7 @@ export default defineComponent({
       const known = knownHeights.value.get(key);
       // known !== known iff known is NaN
 
-      if (known != null && known === known) {
+      if (known != null) {
         return known;
       }
       // return props.itemHeightGetter?.(i, key as string);
@@ -543,8 +546,8 @@ export default defineComponent({
     const { dataLength, viewBuffer, viewBufferMin } = this.$props;
     const heightGetter = this.getHeight;
     const items = [];
-    let start;
-    let end;
+    let start: number;
+    let end: number;
 
     this.yPositions.profileData(dataLength);
 
@@ -613,7 +616,7 @@ export default defineComponent({
               margin: 0,
               padding: 0,
             }}
-            class={this.$props.itemsWrapperClassName}
+            class={this.itemsWrapperClassName}
           >
             {items}
           </div>
