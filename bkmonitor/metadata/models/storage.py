@@ -2954,9 +2954,10 @@ class ESStorage(models.Model, StorageResultTable):
         if not self.can_delete():
             return
         # 获取所有的写入别名
-        now_datetime_str = self.now.strftime(self.date_format)
-
         alias_list = self.es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
+
+        # 获取当前日期的字符串
+        now_datetime_str = self.now.strftime(self.date_format)
 
         filter_result = self.group_expired_alias(alias_list, self.retention)
 
