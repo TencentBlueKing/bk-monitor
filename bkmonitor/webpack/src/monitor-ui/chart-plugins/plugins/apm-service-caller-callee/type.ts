@@ -48,7 +48,10 @@ export interface IFilterCondition {
   value: string[];
   condition: string;
 }
-
+export interface IFilterOption extends IFilterCondition {
+  options: { value: string; text: string }[];
+  loading: boolean;
+}
 export interface IFilterType {
   call_filter: IFilterCondition[];
   group_by_filter: IDataItem[];
