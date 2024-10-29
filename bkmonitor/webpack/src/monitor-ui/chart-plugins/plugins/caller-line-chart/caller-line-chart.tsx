@@ -791,7 +791,6 @@ class CallerLineChart extends CommonSimpleChart {
       case 'strategy': {
         // 新增策略
         const copyPanel = this.getCopyPanel();
-        console.log(copyPanel);
         this.handleAddStrategy(copyPanel as any, null, {}, true);
         break;
       }
