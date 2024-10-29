@@ -98,6 +98,7 @@ interface ITimeSeriesEvent {
   onDimensionsOfSeries?: string[]; // 图表数据包含维度是派出
   onSeriesData?: any;
   onZrClick: ZrClickEvent;
+  onOptionsLoaded(): void;
 }
 @Component
 export class LineChart
@@ -609,6 +610,7 @@ export class LineChart
         this.emptyText = window.i18n.tc('暂无数据');
         this.empty = true;
       }
+      this.$emit('optionsLoaded');
     } catch (e) {
       this.empty = true;
       this.emptyText = window.i18n.tc('出错了');
@@ -1314,6 +1316,12 @@ export class LineChart
       this.dataZoom(undefined, undefined);
     }
   }
+
+  setOptions(option) {
+    if (!option) return;
+    this.options = Object.freeze(option);
+  }
+
   @Emit('zrClick')
   handleZrClick(params: ZrClickEvent) {
     return params;

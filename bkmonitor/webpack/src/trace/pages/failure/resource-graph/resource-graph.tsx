@@ -45,7 +45,7 @@ import { debounce } from 'throttle-debounce';
 import FailureTopoTooltips from '../failure-topo/failure-topo-tooltips';
 import { NODE_TYPE_SVG } from '../failure-topo/node-type-svg';
 import TopoTooltip from '../failure-topo/topo-tppltip-plugin';
-import { getNodeAttrs } from '../failure-topo/utils';
+import { getNodeAttrs, getApmServiceType } from '../failure-topo/utils';
 import { useIncidentInject } from '../utils';
 import { createGraphData } from './resource-data';
 
@@ -342,7 +342,7 @@ export default defineComponent({
               width: 24,
               height: 24,
               cursor: 'pointer', // 手势类型
-              img: NODE_TYPE_SVG[entity.entity_type],
+              img: NODE_TYPE_SVG[getApmServiceType(entity)],
             },
             name: 'resource-node-img',
           });

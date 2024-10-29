@@ -162,6 +162,7 @@ class MonitorBaseEchart extends BaseEchart {
           });
         }
       }, 100);
+      this.$emit('loaded');
     }
   }
   handleDataZoom(event) {
@@ -213,7 +214,7 @@ class MonitorBaseEchart extends BaseEchart {
       () => {
         this.initChart();
         (this as any).instance.setOption(this.getMonitorEchartOptions(), {
-          notMerge: true,
+          notMerge: this.notMerge,
           lazyUpdate: false,
           silent: true,
         });

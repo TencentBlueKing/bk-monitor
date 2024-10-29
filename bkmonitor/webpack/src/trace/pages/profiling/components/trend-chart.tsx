@@ -43,7 +43,8 @@ import {
 import { PanelModel } from '../../../plugins/typings';
 import { SearchType, type ToolsFormData } from '../typings';
 
-import type { IQueryParams, IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import type { IQueryParams } from '../../../typings/trace';
+import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './trend-chart.scss';
 import 'monitor-ui/chart-plugins/plugins/profiling-graph/trace-chart/trace-chart.scss';
@@ -67,14 +68,20 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    comparisonDate: {
+      type: Array as PropType<[number, number][]>,
+      default: () => [],
+    },
     queryParams: {
       type: Object as PropType<IQueryParams>,
       default: () => ({}),
     },
   },
-  setup(props) {
+  emits: ['chartData'],
+  setup(props, { emit }) {
     const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
     const searchType = inject<Ref<SearchType>>('profilingSearchType');
+    const timeSeriesChartRef = ref();
 
     const timezone = ref<string>(getDefaultTimezone());
     const refleshImmediate = ref<number | string>('');
@@ -84,6 +91,7 @@ export default defineComponent({
     const chartType = ref('all');
     const loading = ref(false);
     const chartRef = ref<Element>();
+    const chartData = ref([]);
 
     const timeRange = computed(() => toolsFormData.value.timeRange);
     const refreshInterval = computed(() => toolsFormData.value.refreshInterval);
@@ -103,11 +111,12 @@ export default defineComponent({
 
     watch(
       () => [props.queryParams, chartType.value],
-      () => {
+      (newVal, oldVal) => {
         const { start, end, ...rest } = props.queryParams as IQueryParams;
         const allTrend = chartType.value === 'all'; // 根据类型构造图表配置
         const type = allTrend ? 'line' : 'bar';
         const targetApi = allTrend ? 'apm_profile.query' : 'apm_profile.queryProfileBarGraph';
+        if (JSON.stringify(newVal) === JSON.stringify(oldVal)) return;
         const targetData = {
           ...rest,
           ...(allTrend ? { diagram_types: ['tendency'] } : {}),
@@ -141,17 +150,55 @@ export default defineComponent({
       }
     );
 
+    watch(props.comparisonDate, () => {
+      handleSetMarkArea();
+    });
+
     function handleCollapseChange(v) {
       collapse.value = v;
     }
+
+    function handleSetMarkArea() {
+      const { series, ...params } = timeSeriesChartRef.value.options;
+      timeSeriesChartRef.value.setOptions({
+        ...params,
+        series: series.map((item, ind) => ({
+          ...item,
+          markArea: {
+            show: !!props.comparisonDate[ind]?.length,
+            itemStyle: {
+              color: ['rgba(58, 132, 255, 0.1)', 'rgba(255, 86, 86, 0.1)'][ind],
+            },
+            data: [
+              [
+                {
+                  xAxis: props.comparisonDate[ind]?.[0] || 0,
+                },
+                {
+                  xAxis: props.comparisonDate[ind]?.[1] || 0,
+                },
+              ],
+            ],
+          },
+        })),
+      });
+    }
+
+    function handleChartData(data) {
+      chartData.value = data;
+      emit('chartData', data);
+    }
+
     return {
       chartRef,
+      timeSeriesChartRef,
       chartType,
       panel,
       collapse,
       handleCollapseChange,
       loading,
       chartCustomTooltip,
+      handleChartData,
     };
   },
   render() {
@@ -167,10 +214,12 @@ export default defineComponent({
                 {this.collapse && this.panel && (
                   <TimeSeries
                     key={this.chartType}
+                    ref='timeSeriesChartRef'
                     customTooltip={this.chartCustomTooltip}
                     panel={this.panel}
                     showChartHeader={false}
                     showHeaderMoreTool={false}
+                    onChartData={this.handleChartData}
                     onLoading={val => (this.loading = val)}
                   />
                 )}
