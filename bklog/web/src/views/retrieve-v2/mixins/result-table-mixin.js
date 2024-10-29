@@ -34,6 +34,7 @@ import {
   TABLE_LOG_FIELDS_SORT_REGULAR,
   formatDateNanos,
 } from '@/common/util';
+import LazyRender from '@/global/lazy-render.vue';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import RetrieveLoader from '@/skeleton/retrieve-loader';
 import { mapState, mapGetters } from 'vuex';
@@ -56,6 +57,7 @@ export default {
     EmptyView,
     TimeFormatterSwitcher,
     OriginalLightHeight,
+    LazyRender,
   },
   mixins: [tableRowDeepViewMixin],
   props: {
@@ -134,7 +136,7 @@ export default {
     ...mapState([
       'isNotVisibleFieldsShow',
       'indexSetQueryResult',
-      'tableLineIsWarp',
+      'tableLineIsWrap',
       'indexSetOperatorConfig',
       'indexFieldInfo',
       'indexItem',
@@ -257,7 +259,7 @@ export default {
     },
     // 展开表格行JSON
     tableRowClick(row, option, column) {
-      if (column.className?.includes('original-str')) return;
+      if (column?.className?.includes('original-str') ?? true) return;
       const ele = this.$refs.resultTable;
       ele.toggleRowExpansion(row);
     },
@@ -387,7 +389,8 @@ export default {
         });
     },
     handleIconClick(type, content, field, row, isLink) {
-      let value = field.field_type === 'date' ? row[field.field_name] : content;
+      debugger;
+      let value = ['date', 'date_nanos'].includes(field.field_type) ? row[field.field_name] : content;
       value = String(value)
         .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
@@ -408,6 +411,7 @@ export default {
       return this.fieldTypeMap?.[fieldType] ? this.fieldTypeMap?.[fieldType]?.color : '#EAEBF0';
     },
     handleMenuClick(option, isLink) {
+      debugger;
       switch (option.operation) {
         case 'is':
         case 'is not':

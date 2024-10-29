@@ -47,9 +47,8 @@
         <div class="field-value">
           <text-segmentation
             :content="formatterStr(data, field)"
-            :data="data"
             :field="getFieldItem(field)"
-            :menu-click="(type, content, isLink) => handleMenuClick(type, content, field, isLink)"
+            @menu-click="(agrs) => handleJsonSegmentClick(agrs, field)"
           />
           <span
             v-if="getRelationMonitorField(field)"
@@ -69,9 +68,9 @@
   import { getTextPxWidth, TABLE_FOUNT_FAMILY } from '@/common/util';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
   import _escape from 'lodash/escape';
-  import { mapState } from 'vuex';
+  import { mapGetters, mapState } from 'vuex';
 
-  import TextSegmentation from './text-segmentation.tsx';
+  import TextSegmentation from './text-segmentation';
 
   export default {
     components: {
@@ -108,10 +107,10 @@
         type: Array,
         require: true,
       },
-      retrieveParams: {
-        type: Object,
-        require: true,
-      },
+      // retrieveParams: {
+      //   type: Object,
+      //   require: true,
+      // },
       listData: {
         type: Object,
         default: () => {},
@@ -144,8 +143,11 @@
     },
     computed: {
       ...mapState('globals', ['fieldTypeMap']),
+      ...mapGetters({
+        retrieveParams: 'retrieveParams'
+      }),
       apmRelation() {
-        return this.$store.state.indexSetFieldConfig?.apm_relation ?? {};
+        return this.$store.state.indexSetFieldConfig.apm_relation;
       },
       bkBizId() {
         return this.$store.state.bkBizId;
@@ -208,6 +210,14 @@
         return (['is', 'not'].includes(id) && type === 'text') || type === '__virtual__' || isExist
           ? 'is-disabled'
           : '';
+      },
+      handleJsonSegmentClick({ isLink, option }, fieldName) {
+        // 为了兼容旧的逻辑，先这么写吧
+        // 找时间梳理下这块，写的太随意了
+        const { operation, value } = option;
+        const operator = operation === 'not' ? 'is not' : operation;
+        const field = this.totalFields.find(f => f.field_name === fieldName);
+        this.$emit('value-click', operator, value, isLink, field); // type, content, field, row, isLink
       },
       handleMenuClick(operator, item, field, isLink = false) {
         let params = {};
@@ -398,6 +408,7 @@
       }
 
       .field-value {
+        display: flex;
         font-family: var(--table-fount-family);
         font-size: var(--table-fount-size);
         color: var(--table-fount-color);

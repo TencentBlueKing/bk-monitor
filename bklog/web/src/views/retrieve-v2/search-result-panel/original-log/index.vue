@@ -60,10 +60,31 @@
         <div>
           <span class="switch-label">{{ $t('换行') }}</span>
           <bk-switcher
-            v-model="isWrap"
+            :value="isWrap"
             theme="primary"
             @change="handleChangeIsWarp"
           ></bk-switcher>
+        </div>
+        <div style="display: flex; align-items: center; margin-left: 12px">
+          <span class="switch-label">{{ $t('JSON解析') }}</span>
+          <bk-switcher
+            v-model="isJsonFormat"
+            theme="primary"
+            @change="handleJsonFormat"
+          ></bk-switcher>
+          <span
+            style="padding: 0 15px"
+            v-if="isJsonFormat"
+          >
+            <bk-input
+              style="width: 60px"
+              type="number"
+              v-model="jsonFormatDeep"
+              :min="1"
+              :max="15"
+              @change="handleJsonFormatDeepChange"
+            ></bk-input>
+          </span>
         </div>
         <div class="operation-icons">
           <export-log
@@ -150,12 +171,13 @@
     data() {
       return {
         contentType: 'table',
-        isWrap: true,
         showFieldsSetting: false,
         showAsyncExport: false, // 异步下载弹窗
         exportLoading: false,
         expandTextView: false,
         isInitActiveTab: false,
+        isJsonFormat: false,
+        jsonFormatDeep: 1,
       };
     },
     computed: {
@@ -180,6 +202,7 @@
         indexSetList: state => state.retrieve?.indexSetList ?? [],
         indexSetQueryResult: 'indexSetQueryResult',
         indexFieldInfo: 'indexFieldInfo',
+        isWrap: 'tableLineIsWrap'
       }),
 
       routeIndexSet() {
@@ -244,7 +267,15 @@
         this.$store.commit('updateIsLimitExpandView', val);
       },
       handleChangeIsWarp(val) {
-        this.$store.commit('updateTableLineIsWarp', val);
+        this.$store.commit('updateTableLineIsWrap', val);
+      },
+      handleJsonFormat(val) {
+        this.$store.commit('updateTableJsonFormat', val);
+      },
+      handleJsonFormatDeepChange(val) {
+        const value = Number(val);
+        const target = value > 15 ? 15 : value < 1 ? 1 : value;
+        this.$store.commit('updatetableJsonFormatDepth', target);
       },
     },
   };

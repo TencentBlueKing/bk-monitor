@@ -162,7 +162,9 @@ const store = new Vuex.Store({
     storeIsShowClusterStep: false,
     retrieveDropdownData: {},
     notTextTypeFields: [],
-    tableLineIsWarp: true,
+    tableLineIsWrap: false,
+    tableJsonFormat: false,
+    tableJsonFormatDepth: 1,
     isSetDefaultTableColumn: false,
     tookTime: 0,
     searchTotal: 0,
@@ -270,6 +272,12 @@ const store = new Vuex.Store({
   },
   // 公共 mutations
   mutations: {
+    updatetableJsonFormatDepth(state, val) {
+      state.tableJsonFormatDepth = val;
+    },
+    updateTableJsonFormat(state, val) {
+      state.tableJsonFormat = val;
+    },
     updateApiError(state, { apiName, errorMessage }) {
       Vue.set(state.apiErrorInfo, apiName, errorMessage);
     },
@@ -661,8 +669,8 @@ const store = new Vuex.Store({
         ...(payload.fields ?? []).filter(field => field.field_type !== 'text').map(item => item.field_name),
       );
     },
-    updateTableLineIsWarp(state, payload) {
-      state.tableLineIsWarp = payload;
+    updateTableLineIsWrap(state, payload) {
+      state.tableLineIsWrap = payload;
     },
     updateShowFieldAlias(state, payload) {
       window.localStorage.setItem('showFieldAlias', payload);
@@ -1107,7 +1115,6 @@ const store = new Vuex.Store({
               commit('updateIndexSetQueryResult', rsolvedData);
               commit('updateIsSetDefaultTableColumn');
               if (!payload?.isPagination) dispatch('requestSearchTotal');
-
               return {
                 data,
                 message,

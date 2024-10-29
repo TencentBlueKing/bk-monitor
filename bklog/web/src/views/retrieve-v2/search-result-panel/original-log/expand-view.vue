@@ -45,13 +45,13 @@
       v-show="activeExpandView === 'kv'"
     >
       <kv-list
-        v-bind="$attrs"
         :data="data"
         :field-list="totalFields"
         :kv-show-fields-list="kvShowFieldsList"
         :list-data="listData"
         :total-fields="totalFields"
-        @menu-click="(val, isLink) => $emit('menu-click', val, isLink)"
+        :visible-fields="visibleFields"
+        @value-click="(type, content, isLink, field) => $emit('value-click', type, content, isLink, field)"
       />
     </div>
     <div
@@ -83,10 +83,6 @@
         type: Object,
         default: () => {},
       },
-      totalFields: {
-        type: Array,
-        required: true,
-      },
       listData: {
         type: Object,
         default: () => {},
@@ -102,6 +98,12 @@
       };
     },
     computed: {
+      visibleFields() {
+        return this.$store.state.visibleFields ?? [];
+      },
+      totalFields() {
+        return this.$store.state.indexFieldInfo.fields ?? [];
+      },
       kvListData() {
         return this.totalFields
           .filter(item => this.kvShowFieldsList.includes(item.field_name))
