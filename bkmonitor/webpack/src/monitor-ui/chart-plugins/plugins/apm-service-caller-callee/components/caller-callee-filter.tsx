@@ -134,9 +134,15 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   handleDefaultValue() {
     const callFilter = (this.callOptions.call_filter || []).filter(item => item.key !== 'time');
     if (callFilter.length === 0) {
+      this.filterData[this.activeKey] = this.filterData[this.activeKey].map(item => ({
+        ...item,
+        value: [],
+      }));
       return;
     }
-    Object.keys(this.selectsRefs).map(item => this.selectsRefs[item]?.reset());
+    for (const key in this.selectsRefs) {
+      this.selectsRefs[key]?.reset();
+    }
     callFilter.map(item => {
       if (item.method === 'reg') {
         item.value.map(val => {
@@ -146,10 +152,12 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
           }
         });
       }
-      Object.assign(
-        this.filterData[this.activeKey].find(call => item.key === call.key),
-        item
-      );
+      for (const call of this.filterData[this.activeKey]) {
+        if (call.key === item.key) {
+          Object.assign(call, item);
+          break;
+        }
+      }
     });
     callFilter.map(item => setTimeout(() => this.handleToggle(true, item.key, true), 50));
   }
