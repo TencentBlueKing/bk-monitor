@@ -884,36 +884,41 @@ class CallerLineChart extends CommonSimpleChart {
   }
 
   getCopyPanel() {
-    const callOptions = {};
-    for (const key in this.callOptions) {
-      if (key !== 'time_shift' && (key === 'group_by' ? this.isSupportGroupBy : true)) {
-        callOptions[key] = this.callOptions[key];
+    try {
+      const callOptions = {};
+      for (const key in this.callOptions) {
+        if (key !== 'time_shift' && (key === 'group_by' ? this.isSupportGroupBy : true)) {
+          callOptions[key] = this.callOptions[key];
+        }
       }
-    }
-    let copyPanel: IPanelModel = JSON.parse(JSON.stringify(this.panel));
-    copyPanel.dashboardId = random(8);
-    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-    const variablesService = new VariablesService({
-      ...this.viewOptions.filters,
-      ...(this.viewOptions.filters?.current_target || {}),
-      ...this.viewOptions,
-      ...this.viewOptions.variables,
-      ...callOptions,
-      group_by: this.isSupportGroupBy ? this.callOptions.group_by : [],
-      interval: reviewInterval(
-        this.viewOptions.interval,
-        dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
-        this.panel.collect_interval
-      ),
-    });
-    copyPanel = variablesService.transformVariables(copyPanel);
-    for (const t of copyPanel.targets) {
-      for (const q of t?.data?.query_configs || []) {
-        q.functions = (q.functions || []).filter(f => f.id !== 'time_shift');
+      let copyPanel: IPanelModel = JSON.parse(JSON.stringify(this.panel));
+      copyPanel.dashboardId = random(8);
+      const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+      const variablesService = new VariablesService({
+        ...this.viewOptions.filters,
+        ...(this.viewOptions.filters?.current_target || {}),
+        ...this.viewOptions,
+        ...this.viewOptions.variables,
+        ...callOptions,
+        group_by: this.isSupportGroupBy ? this.callOptions.group_by : [],
+        interval: reviewInterval(
+          this.viewOptions.interval,
+          dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
+          this.panel.collect_interval
+        ),
+      });
+      copyPanel = variablesService.transformVariables(copyPanel);
+      for (const t of copyPanel.targets) {
+        for (const q of t?.data?.query_configs || []) {
+          q.functions = (q.functions || []).filter(f => f.id !== 'time_shift');
+        }
+        this.queryConfigsSetCallOptions(t?.data);
       }
-      this.queryConfigsSetCallOptions(t?.data);
+      return copyPanel;
+    } catch (error) {
+      console.log(error);
+      return JSON.parse(JSON.stringify(this.panel));
     }
-    return copyPanel;
   }
 
   /**
