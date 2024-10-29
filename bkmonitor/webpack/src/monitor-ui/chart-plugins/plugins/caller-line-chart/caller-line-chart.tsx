@@ -916,6 +916,16 @@ class CallerLineChart extends CommonSimpleChart {
     return copyPanel;
   }
 
+  /**
+   * @description: 点击单个指标
+   * @param {IExtendMetricData} metric
+   * @return {*}
+   */
+  handleMetricClick(metric: IExtendMetricData) {
+    const copyPanel = this.getCopyPanel();
+    this.handleAddStrategy(copyPanel as any, metric, {});
+  }
+
   render() {
     return (
       <div class='apm-caller-line-chart'>
@@ -932,6 +942,7 @@ class CallerLineChart extends CommonSimpleChart {
           title={this.panel.title}
           onAllMetricClick={this.handleAllMetricClick}
           onMenuClick={this.handleMenuToolsSelect}
+          onMetricClick={this.handleMetricClick}
           onSelectChild={this.handleSelectChildMenu}
         />
         {!this.empty ? (
