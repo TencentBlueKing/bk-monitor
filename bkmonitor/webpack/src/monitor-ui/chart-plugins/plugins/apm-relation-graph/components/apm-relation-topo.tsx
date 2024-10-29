@@ -668,7 +668,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       this.updateMenuPosition();
     });
     graph.on('afterchangedata', () => {
-      console.log('afterchangedata');
+      this.handleHighlightNode();
       graph.getNodes().forEach(node => node.toFront());
     });
     graph.on('afterrender', () => {
