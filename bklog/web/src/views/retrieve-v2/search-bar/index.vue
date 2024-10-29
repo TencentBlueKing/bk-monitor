@@ -60,7 +60,6 @@
   watch(
     addition,
     () => {
-      console.log('00000000000000000000000000000000000000')
       uiQueryValue.value.splice(0);
       uiQueryValue.value.push(
         ...addition.value.map(v => {
