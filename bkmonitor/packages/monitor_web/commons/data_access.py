@@ -683,7 +683,7 @@ class UptimecheckDataAccessor:
         :return: 是否是自定义上报，数据链路ID
         """
         if not self.use_custom_report():
-            return False, self.DATAID_MAP[self.protocol.upper()]
+            return False, self.DATAID_MAP[self.task.protocol.upper()]
 
         data_id_info = api.metadata.get_data_id({"data_name": self.data_name, "with_rt_info": False})
         return True, safe_int(data_id_info["bk_data_id"])
@@ -692,7 +692,7 @@ class UptimecheckDataAccessor:
         """
         是否使用自定义上报
         """
-        return self.task.indepentent_dataid or self.task.labels
+        return bool(self.task.indepentent_dataid or self.task.labels)
 
     @property
     def data_label(self) -> str:
