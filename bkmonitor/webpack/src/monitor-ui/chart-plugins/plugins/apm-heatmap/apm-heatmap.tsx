@@ -37,6 +37,7 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import { MONITOR_LINE_OPTIONS } from '../../../chart-plugins/constants';
 import { getValueFormat } from '../../../monitor-echarts/valueFormats';
 import ChartHeader from '../../components/chart-title/chart-title';
+import { replaceRegexWhere } from '../../utils/method';
 import { reviewInterval } from '../../utils/utils';
 import { VariablesService } from '../../utils/variable';
 import { intervalLowBound } from '../apm-service-caller-callee/utils';
@@ -112,7 +113,7 @@ class ApmHeatmap extends CommonSimpleChart {
                 ...config,
                 interval,
                 interval_unit: 'm',
-                where: [...(config?.where || []), ...(this.callOptions?.call_filter || [])],
+                where: [...(config?.where || []), ...replaceRegexWhere(this.callOptions?.call_filter || [])],
                 functions: config?.functions?.map(func => {
                   if (func.id === 'increase') {
                     return {
@@ -134,7 +135,7 @@ class ApmHeatmap extends CommonSimpleChart {
                   ...config,
                   interval,
                   interval_unit: 'm',
-                  where: [...(config?.where || []), ...(this.callOptions?.call_filter || [])],
+                  where: [...(config?.where || []), ...replaceRegexWhere(this.callOptions?.call_filter || [])],
                   functions: config?.functions?.map(func => {
                     if (func.id === 'increase') {
                       return {

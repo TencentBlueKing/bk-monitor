@@ -110,23 +110,24 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
     for (const item of tags) {
       const defaultItem =
         this.callType === callType ? this.callOptions?.call_filter?.find(opt => opt.key === item.value) : undefined;
-      const value = defaultItem?.value || [];
-      let method = 'eq';
-      if (defaultItem?.method === 'reg') {
-        for (const v of defaultItem.value || []) {
-          if (v.startsWith('.*')) {
-            method = 'after_req';
-            value.push(v);
-            continue;
-          }
-          if (v.endsWith('.*')) {
-            method = 'before_req';
-            value.push(v);
-            continue;
-          }
-          value.push(v);
-        }
-      }
+      const value = defaultItem?.value?.slice() || [];
+      const method = defaultItem?.method || 'eq';
+      // if (defaultItem?.method === 'reg') {
+      //   value = [];
+      //   for (const v of defaultItem.value || []) {
+      //     if (v.startsWith('.*')) {
+      //       method = 'after_req';
+      //       value.push(v.replace(/^\.\*/, ''));
+      //       continue;
+      //     }
+      //     if (v.endsWith('.*')) {
+      //       method = 'before_req';
+      //       value.push(v.replace(/\.\*$/, ''));
+      //       continue;
+      //     }
+      //     value.push(v);
+      //   }
+      // }
       callList.push({
         key: item.value,
         method,
@@ -155,11 +156,23 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   @Watch('callOptions.call_filter')
   handleCallFilterChange() {
     this.initCallFilter(this.callType);
+    this.$nextTick(() => {
+      this.initFilterOptions();
+    });
   }
 
   @Emit('search')
   handleSearch() {
-    return this.handleRegexData(this.callFilter.filter(item => item.value.length > 0));
+    return this.callFilter
+      .filter(item => item.value.length > 0)
+      .map(({ key, method, condition, value }) => {
+        return {
+          key,
+          method,
+          condition,
+          value,
+        };
+      });
   }
 
   @Emit('reset')
@@ -179,10 +192,17 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
     if (!filter?.length) return [];
     return filter.map(({ method, value, condition, key }) => {
       if (method === 'before_req' || method === 'after_req') {
-        const prefix = method === 'before_req' ? '' : '.*';
-        const suffix = method === 'before_req' ? '.*' : '';
+        const list = value.map(value => {
+          if (method === 'before_req' && !value.endsWith('.*')) {
+            return `${value}.*`;
+          }
+          if (method === 'after_req' && !value.startsWith('.*')) {
+            return `.*${value}`;
+          }
+          return value;
+        });
         return {
-          value: value.map(value => `${prefix}${value}${suffix}`),
+          value: list,
           method: 'reg',
           condition,
           key,
@@ -217,7 +237,42 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
       ],
     }).catch(() => false);
     curOption.loading = false;
-    curOption.options = data?.length ? [{ ...filterOption }, ...data] : [];
+    const options = data?.length ? [{ ...filterOption }, ...data] : [];
+    if (curOption.value?.length) {
+      // let value = curOption.value;
+      // if(curOption.method === 'reg') {
+      //   value= this.resetBeforeOrAfterReg(value).value;
+      // }
+      for (const val of curOption.value) {
+        const opt = options.find(opt => opt.value === val);
+        if (!opt) {
+          options.push({ text: val, value: val });
+        }
+      }
+    }
+    curOption.options = options;
+  }
+  resetBeforeOrAfterReg(values: string[]) {
+    let method: 'after_req' | 'before_req' = 'before_req';
+    const valueList = [];
+    for (const val of values) {
+      if (val.startsWith('.*')) {
+        method = 'after_req';
+        valueList.push(val.replace(/^\.\*/, ''));
+        continue;
+      }
+      if (val.endsWith('.*')) {
+        method = 'before_req';
+        valueList.push(val.replace(/\.\*$/, ''));
+        continue;
+      }
+      valueList.push(val);
+    }
+    return { method, value: valueList };
+  }
+  handleValueChange(value: string[], item: IFilterOption) {
+    console.info(value, item, '===========');
+    item.value = value;
   }
   render() {
     return (
@@ -249,17 +304,19 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
                   </bk-select>
                 </div>
                 <bk-select
-                  key={`${item.key}__${item.options.length}`}
-                  v-model={item.value}
+                  key={item.key}
+                  ref={item.key}
+                  display-tag={true}
                   loading={item.loading}
                   placeholder={this.callFilterMap[item.key]}
                   showEmpty={!item.loading && !item.options.length}
+                  value={item.value}
                   allow-create
                   collapse-tag
-                  display-tag
                   multiple
                   searchable
-                  onToggle={(open: boolean) => this.handleToggle(item.key, open)}
+                  onChange={v => this.handleValueChange(v, item)}
+                  onToggle={open => open && this.getOptionListByKey(item.key)}
                 >
                   {!item.loading ? (
                     (item.options || []).map(opt => (

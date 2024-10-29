@@ -32,6 +32,7 @@ import { calculateByRange } from 'monitor-api/modules/apm_metric';
 import { Debounce } from 'monitor-common/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
+import { replaceRegexWhere } from '../../../utils/method';
 import { VariablesService } from '../../../utils/variable';
 import { CommonSimpleChart } from '../../common-simple-chart';
 import { PERSPECTIVE_TYPE, SYMBOL_LIST } from '../utils';
@@ -233,12 +234,12 @@ class CallerCalleeTableChart extends CommonSimpleChart {
         end_time: this.pointTime?.endTime || endTime,
       },
     };
-    newParams.where = [
+    newParams.where = replaceRegexWhere([
       ...newParams.where,
       ...this.callOptions.call_filter.filter(item => item.key !== 'time'),
       ...this.pointWhere,
       // ...this.drillWhere,
-    ];
+    ]);
     calculateByRange(newParams)
       .then(res => {
         this.tableLoading = false;
