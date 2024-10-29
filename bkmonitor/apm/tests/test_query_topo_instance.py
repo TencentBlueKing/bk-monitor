@@ -9,14 +9,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import django
 import mock
 import pytest
+from django.test import TestCase
+
 from apm.models import TopoInstance
 from apm.resources import QueryTopoInstanceResource
 
 pytestmark = pytest.mark.django_db
-
 
 BK_BIZ_ID = 2
 APP_NAME = "test_demo"
@@ -25,14 +25,13 @@ DESCRIPTION = "this is demo"
 
 
 @pytest.mark.django_db
-class TestTopoInstance(django.test.TestCase):
+class TestTopoInstance(TestCase):
     databases = {
         'default',
         'monitor_api',
     }
 
     def setUp(self):
-
         need_create_instances = {
             ("demo", "mysql:::3306", "component", "db", "mysql", "opentelemetry", "1.11.1", "python"),
             ("demo01", "es:::", "component", "db", "es", "opentelemetry", "1.11.1", "python"),
@@ -102,7 +101,7 @@ class TestTopoInstance(django.test.TestCase):
 
         res = obj.perform_request(request_data)
 
-        len(res["data"]) == 4
+        assert len(res["data"]) == 4
 
     def test_query_topo_instance_page(self):
         """

@@ -9,9 +9,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
-import django
+
 import mock
 import pytest
+from django.test import TestCase
+
 from apm.constants import ConfigTypes
 from apm.models import ApmApplication, LicenseConfig, NormalTypeValueConfig, ProbeConfig
 from apm.resources import ReleaseAppConfigResource
@@ -25,7 +27,7 @@ DESCRIPTION = "this is demo"
 
 
 @pytest.mark.django_db
-class TestReleaseAppConfig(django.test.TestCase):
+class TestReleaseAppConfig(TestCase):
     databases = {
         'default',
         'monitor_api',
