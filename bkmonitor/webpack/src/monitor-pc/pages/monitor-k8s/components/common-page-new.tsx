@@ -790,6 +790,10 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
    */
   async handleTabChange(id: string, needLoading = true) {
     needLoading && (this.loading = true);
+    // variables 内的变量是当前tab页的筛选变量所以在tab切换后应该清空
+    if (this.dashboardId !== id) {
+      this.variables = {};
+    }
     this.dashboardId = id;
     this.handleGetPanelData(id, needLoading);
   }
@@ -1241,7 +1245,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
           this.filters?.[key] ||
           this.viewOptions?.filters?.[key] ||
           this.$route.query[`filter-${key}`] ||
-          this.$route.query[`var-${key}`] ||
           this.defaultViewOptions?.filters?.[key];
       }
       this.filters = filters;
@@ -1488,7 +1491,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         this.queryData.search = [];
       }
     }
-    this.dashboardId = item.id as string;
     this.handleTabChange(item.id as any);
     if (item.show_panel_count) {
       this.isSceneDataError = false;

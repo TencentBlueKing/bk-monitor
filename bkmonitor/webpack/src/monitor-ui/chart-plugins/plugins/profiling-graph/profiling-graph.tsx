@@ -49,6 +49,7 @@ import {
 } from '../../typings';
 import { CommonSimpleChart } from '../common-simple-chart';
 import ChartTitle from './chart-title/chart-title';
+import DiffChart from './diff-chart/diff-chart';
 import FilterSelect from './filter-select/filter-select';
 import FrameGraph from './flame-graph/flame-graph';
 import TableGraph from './table-graph/table-graph';
@@ -87,7 +88,13 @@ class ProfilingChart extends CommonSimpleChart {
   topoSrc = '';
   dataTypeList: DataTypeItem[] = [];
   dataType = '';
+  /** trend图表数据 */
+  trendSeriesData = [];
   queryParams: IQueryParams = {};
+  /** 是否开启时间对比 */
+  enableDateDiff = false;
+  /** 对比时间 */
+  diffDate: number[][] = [];
   /** 服务详情侧边栏展开 / 收起 */
   collapseInfo = false;
   /** 是否展示服务详情侧边栏 */
@@ -131,9 +138,28 @@ class ProfilingChart extends CommonSimpleChart {
   getParams(args: Record<string, any> = {}, start_time = '', end_time = '') {
     const { app_name, service_name } = this.viewOptions.filters as any;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const { diff_filter_labels = {}, filter_labels = {}, ...queryParams } = this.queryParams;
     const params = {
       ...args,
-      ...this.queryParams,
+      ...queryParams,
+      filter_labels: {
+        ...filter_labels,
+        ...(this.enableDateDiff && this.diffDate.length
+          ? {
+              start: Math.floor(this.diffDate[0][0] / 1000) * 1000000,
+              end: Math.floor(this.diffDate[0][1] / 1000) * 1000000,
+            }
+          : {}),
+      },
+      diff_filter_labels: {
+        ...diff_filter_labels,
+        ...(this.enableDateDiff && this.diffDate.length
+          ? {
+              start: Math.floor(this.diffDate[1][0] / 1000) * 1000000,
+              end: Math.floor(this.diffDate[1][1] / 1000) * 1000000,
+            }
+          : {}),
+      },
       app_name,
       service_name,
       start: (start_time ? dayjs.tz(start_time).unix() : startTime) * 10 ** 6,
@@ -368,6 +394,40 @@ class ProfilingChart extends CommonSimpleChart {
     };
     this.getPanelData();
   }
+  handleDateDiffChange(enable) {
+    this.enableDateDiff = enable;
+    this.setDiffDefaultDate();
+  }
+  handleTrendSeriesData(data) {
+    this.trendSeriesData = data;
+  }
+  setDiffDefaultDate() {
+    if (this.enableDateDiff && this.trendSeriesData.length) {
+      const { datapoints } = this.trendSeriesData[0];
+      const len = datapoints.length;
+      const start = datapoints[0][1];
+      const end = datapoints[len - 1][1];
+      const mid = start + (end - start) / 2;
+      this.diffDate = [
+        [start, mid],
+        [mid, end],
+      ];
+    } else {
+      this.diffDate = [];
+    }
+    this.handleQuery();
+  }
+
+  handleBrushEnd(data, type) {
+    if (type === 'search') {
+      this.diffDate[0] = data;
+    } else {
+      this.diffDate[1] = data;
+    }
+    this.diffDate = [...this.diffDate];
+    this.handleQuery();
+  }
+
   handleDetailShowChange(show: boolean) {
     this.collapseInfo = !show;
   }
@@ -394,6 +454,7 @@ class ProfilingChart extends CommonSimpleChart {
       behavior: 'instant',
     });
   }
+
   render() {
     return (
       <div class='profiling-retrieval-chart'>
@@ -406,6 +467,7 @@ class ProfilingChart extends CommonSimpleChart {
               <FilterSelect
                 appName={this.queryParams.app_name}
                 serviceName={this.queryParams.service_name}
+                onDateDiffChange={this.handleDateDiffChange}
                 onDiffChange={val => this.handleFiltersChange(val, 'diff')}
                 onDiffModeChange={this.handleDiffModeChange}
                 onFilterChange={val => this.handleFiltersChange(val, 'filter')}
@@ -443,7 +505,40 @@ class ProfilingChart extends CommonSimpleChart {
                   </i18n>
                 </div>
               </div>
-              <TrendChart queryParams={this.queryParams} />
+              <TrendChart
+                diffDate={this.diffDate}
+                queryParams={this.queryParams}
+                onOptionsLoaded={this.setDiffDefaultDate}
+                onSeriesData={this.handleTrendSeriesData}
+              />
+              {this.enableDateDiff && (
+                <div
+                  key='diffChartView'
+                  class='diff-chart-view'
+                >
+                  <div class='diff-chart-card'>
+                    <div class='chart-title'>{this.$t('查询项')}</div>
+                    <DiffChart
+                      brushRect={this.diffDate[0]}
+                      colorIndex={0}
+                      data={this.trendSeriesData[0]}
+                      title={this.$tc('查询项')}
+                      onBrushEnd={val => this.handleBrushEnd(val, 'search')}
+                    />
+                  </div>
+                  <div class='diff-chart-card'>
+                    <div class='chart-title'>{this.$t('对比项')}</div>
+                    <DiffChart
+                      brushRect={this.diffDate[1]}
+                      colorIndex={1}
+                      data={this.trendSeriesData[1]}
+                      title={this.$tc('对比项')}
+                      onBrushEnd={val => this.handleBrushEnd(val, 'diff')}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div
                 class='profiling-graph'
                 v-bkloading={{ isLoading: this.isGraphLoading }}

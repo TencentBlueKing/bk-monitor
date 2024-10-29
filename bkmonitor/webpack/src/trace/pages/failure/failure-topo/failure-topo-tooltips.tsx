@@ -33,7 +33,7 @@ import { copyText } from 'monitor-common/utils/utils';
 import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
 import { NODE_TYPE_ICON } from './node-type-svg';
-import { getNodeAttrs, truncateText } from './utils';
+import { getNodeAttrs, truncateText, getApmServiceType } from './utils';
 
 import type { IEdge, ITopoNode } from './types';
 
@@ -280,6 +280,14 @@ export default defineComponent({
           'filter-bk_target_ip': node.entity?.dimensions?.inner_ip ?? '',
         }),
       },
+      APMService: {
+        path: () => '/apm/service/',
+        beforeJumpVerify: node => !!node.entity?.dimensions?.apm_service_name,
+        query: node => ({
+          'filter-app_name': node.entity?.dimensions?.apm_application_name ?? '',
+          'filter-service_name': node.entity?.dimensions?.apm_service_name ?? '',
+        }),
+      },
     };
 
     /** 根据类型判断是否可以跳转 */
@@ -373,7 +381,7 @@ export default defineComponent({
                     'item-source mr0',
                     'icon-monitor',
                     'edge-item-source',
-                    NODE_TYPE_ICON[node?.entity?.entity_type],
+                    NODE_TYPE_ICON[getApmServiceType(node?.entity)],
                     node?.entity?.is_anomaly && 'item-anomaly',
                   ]}
                 />
@@ -399,7 +407,14 @@ export default defineComponent({
      * 调用 区分左右两侧在不同的方向
      * 线根据direction 渲染不同的流动方向
      */
-    const createEdgeNodeLink = (text = '', direction = 'forward', showLink = true, index = 0, edgeEvent?: IEdge) => {
+    const createEdgeNodeLink = (
+      text = '',
+      direction = 'forward',
+      showLink = true,
+      index = 0,
+      edgeEvent?: IEdge,
+      exitTimeSeries?: boolean
+    ) => {
       const { is_anomaly, edge_type, events } = this.activeEdge;
       const ebpfCall = edge_type === 'ebpf_call';
       const directionReverse = (direction || events[0]?.direction) === 'reverse';
@@ -413,11 +428,11 @@ export default defineComponent({
             <div class='link-svg'>
               <svg
                 width='2'
-                height='200'
+                height={exitTimeSeries ? 200 : 80}
                 xmlns='http://www.w3.org/2000/svg'
               >
                 <line
-                  class='flowing-dash'
+                  class={{ 'flowing-dash': ebpfCall }}
                   stroke='#f55555'
                   stroke-dasharray='5,5'
                   stroke-width='2'
@@ -444,7 +459,7 @@ export default defineComponent({
           <div class='node-link-text'>
             <span>{text ? '' : eventText}</span>
           </div>
-          {showLink && is_anomaly && events.length > 0 && (
+          {showLink && is_anomaly && events.length > 0 && events[index]?.time_series?.length > 0 && (
             <div class='edge-chart-wrap'>
               <div class='edge-chart-title'>
                 <div>
@@ -466,9 +481,14 @@ export default defineComponent({
       const linkMap: { direction_0?: IEdge; direction_1?: IEdge } = {};
       /** 最多展示2个，分别在线的左右两侧 */
       const { events } = this.activeEdge;
+      /** 是否存在 time_series */
+      let exitTimeSeries = false;
       events.forEach((event: IEdge, index) => {
         if (index < 2) {
           linkMap[`direction_${index}`] = event;
+          if (!exitTimeSeries) {
+            exitTimeSeries = event.time_series.length > 0;
+          }
         }
       });
       return [
@@ -482,7 +502,7 @@ export default defineComponent({
           ]}
         >
           {createEdgeNodeItem(nodes[0])}
-          {createEdgeNodeLink('', '', this.activeEdge.edge_type !== 'ebpf_call', 1, this.activeEdge)}
+          {createEdgeNodeLink('', '', this.activeEdge.edge_type !== 'ebpf_call', 1, this.activeEdge, exitTimeSeries)}
 
           <div class='link-wrap'>
             {/* 左边的线和图 */}
@@ -493,7 +513,8 @@ export default defineComponent({
                   linkMap.direction_0.direction,
                   true,
                   0,
-                  linkMap.direction_0
+                  linkMap.direction_0,
+                  exitTimeSeries
                 )}
               </div>
             )}
@@ -505,7 +526,8 @@ export default defineComponent({
                   linkMap.direction_1.direction,
                   true,
                   1,
-                  linkMap.direction_1
+                  linkMap.direction_1,
+                  exitTimeSeries
                 )}
               </div>
             )}
@@ -601,7 +623,7 @@ export default defineComponent({
                               }}
                               class={[
                                 'icon-monitor',
-                                NODE_TYPE_ICON[node?.entity?.entity_type],
+                                NODE_TYPE_ICON[getApmServiceType(node?.entity)],
                                 isShowRootText && 'item-anomaly',
                                 node?.entity?.is_on_alert && 'item-alert',
                               ]}
@@ -673,7 +695,7 @@ export default defineComponent({
                 }}
                 class={[
                   'icon-monitor',
-                  NODE_TYPE_ICON[node?.entity?.entity_type],
+                  NODE_TYPE_ICON[getApmServiceType(node?.entity)],
                   (isShowRootText || node?.entity?.is_anomaly) && 'item-anomaly',
                 ]}
               />

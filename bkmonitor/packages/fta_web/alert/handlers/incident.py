@@ -72,6 +72,7 @@ class IncidentQueryTransformer(BaseQueryTransformer):
         QueryField("incident_reason", _lazy("故障原因")),
         QueryField("bk_biz_id", _lazy("业务ID")),
         QueryField("status", _lazy("故障状态")),
+        QueryField("status_order", _lazy("故障状态排序字段")),
         QueryField("level", _lazy("故障级别")),
         QueryField("assignees", _lazy("负责人")),
         QueryField("handlers", _lazy("处理人")),
@@ -103,7 +104,7 @@ class IncidentQueryHandler(BaseBizQueryHandler):
         self.status = [status] if isinstance(status, str) else status
         if not self.ordering:
             # 默认排序
-            self.ordering = ["status", "-create_time"]
+            self.ordering = ["status_order", "-create_time"]
 
     def get_search_object(self, start_time: int = None, end_time: int = None):
         """

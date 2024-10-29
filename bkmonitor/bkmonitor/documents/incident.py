@@ -125,6 +125,7 @@ class IncidentDocument(IncidentBaseDocument):
     incident_name = field.Keyword(required=True)  # 故障名称
     incident_reason = field.Text()  # 故障原因
     status = field.Keyword()  # 故障状态
+    status_order = field.Keyword()  # 故障状态排序字段
     level = field.Keyword()  # 故障级别
     bk_biz_id = field.Keyword()  # 故障业务ID
     assignees = field.Keyword(multi=True)  # 故障负责人

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { ITopoNode } from './types';
+import type { ITopoNode, IEntity } from './types';
 
 /** 根因节点样式 */
 const rootNodeAttrs = {
@@ -152,4 +152,12 @@ export const truncateText = (text, maxWidth, fontSize, fontFamily) => {
   }
 
   return truncated;
+};
+
+/** 获取apm类型节点 */
+export const getApmServiceType = (entity: IEntity) => {
+  if (entity.entity_type === 'APMService') {
+    return entity.dimensions?.apm_service_category ?? '';
+  }
+  return entity.entity_type;
 };
