@@ -8,10 +8,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from confluent_kafka import TopicCollection
 from confluent_kafka.admin import AdminClient
@@ -27,7 +29,7 @@ from metadata.config import (
     PERIODIC_TASK_DEFAULT_TTL,
 )
 from metadata.models.constants import EsSourceType
-from metadata.task.tasks import manage_es_storage
+from metadata.task.tasks import _manage_es_storage, manage_es_storage
 from metadata.utils import consul_tools
 
 logger = logging.getLogger("metadata")
@@ -255,8 +257,10 @@ def refresh_es_storage():
     logger.info("refresh_es_storage:start to refresh es_storage")
     start_time = time.time()  # 记录开始时间
 
-    # 1. 获取设置中的黑名单和白名单
+    # 1. 获取设置中的黑名单和白名单以及启用开关
     es_blacklist = getattr(settings, "ES_CLUSTER_BLACKLIST", [])
+    enable_v2_rotation_es_cluster_ids = getattr(settings, "ENABLE_V2_ROTATION_ES_CLUSTER_IDS", [])
+    enable_v2_rotation = getattr(settings, "ENABLE_V2_ES_STORAGE_ROTATION", False)
     # es_cluster_wl = getattr(settings, "ES_SERIAL_CLUSTER_LIST", [])
 
     # # 处理白名单中的集群，串行处理
@@ -271,13 +275,16 @@ def refresh_es_storage():
     es_storages = models.ESStorage.objects.filter(source_type=EsSourceType.LOG.value, need_create_index=True).exclude(
         storage_cluster_id__in=es_blacklist
     )
-
     # 3. 过滤掉无效的表，进一步减少轮转的索引数据量
     table_id_list = models.ResultTable.objects.filter(
         table_id__in=es_storages.values_list("table_id", flat=True), is_enable=True, is_deleted=False
     ).values_list("table_id", flat=True)
 
     es_storages = es_storages.filter(table_id__in=table_id_list)
+
+    # 3.1 如果开启了新版索引轮转，那么剔除掉在新版白名单中的采集项
+    if enable_v2_rotation:
+        es_storages = es_storages.exclude(storage_cluster_id__in=enable_v2_rotation_es_cluster_ids)
 
     # 4. 设置每个任务处理的记录数
     start, step = 0, settings.ES_INDEX_ROTATION_STEP
@@ -304,6 +311,89 @@ def refresh_es_storage():
 
     end_time = time.time()  # 记录结束时间
     logger.info("refresh_es_storage:es_storage cron task started successfully,use %.2f seconds.", end_time - start_time)
+
+
+@share_lock(identify="metadata_refreshESStorageV2", ttl=7200)
+def refresh_es_storage_v2():
+    """
+    新版ES索引轮转，按照ES集群ID分组，每个线程负责一个集群，每个线程中均为串行
+    """
+
+    enable_v2_rotation = getattr(settings, "ENABLE_V2_ES_STORAGE_ROTATION", False)
+    if not enable_v2_rotation:
+        logger.info("refresh_es_storage_v2: v2 rotation is not enabled,return")
+        return
+
+    start_time = time.time()  # 记录开始时间
+    logger.info("refresh_es_storage_v2:start to refresh es_storage")
+
+    # 1. 获取启用新版索引轮转的ES集群ID列表
+    enable_v2_rotation_es_cluster_ids = getattr(settings, "ENABLE_V2_ROTATION_ES_CLUSTER_IDS", [])
+
+    # 2. 筛选出使用新版ES索引轮转的采集项
+    es_storages = models.ESStorage.objects.filter(
+        source_type=EsSourceType.LOG.value,
+        need_create_index=True,
+        storage_cluster_id__in=enable_v2_rotation_es_cluster_ids,
+    )
+
+    # 3. 过滤掉无效的表，进一步减少轮转的索引数据量
+    table_id_list = models.ResultTable.objects.filter(
+        table_id__in=es_storages.values_list("table_id", flat=True), is_enable=True, is_deleted=False
+    ).values_list("table_id", flat=True)
+
+    es_storages = es_storages.filter(table_id__in=table_id_list)
+
+    es_storages_by_cluster = es_storages.values('storage_cluster_id').distinct()
+
+    # 4. 使用线程池来管理线程
+    with ThreadPoolExecutor(max_workers=len(es_storages_by_cluster)) as executor:
+        for cluster in es_storages_by_cluster:
+            cluster_id = cluster['storage_cluster_id']
+            filtered_storages = es_storages.filter(storage_cluster_id=cluster_id)
+            try:
+                futures = {executor.submit(process_cluster_storages, cluster_id, filtered_storages): cluster}
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error("refresh_es_storage_v2: Error processing cluster_id->[%s]: %s", cluster_id, e)
+                continue
+        # 5. 等待所有线程完成
+        for future in as_completed(futures):
+            cluster = futures[future]
+            try:
+                future.result()
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(
+                    "refresh_es_storage_v2: Error processing cluster_id->[%s]: %s", cluster['storage_cluster_id'], e
+                )
+
+    # 6. 完成本轮次索引轮转，记录日志
+    end_time = time.time()  # 记录结束时间
+    logger.info(
+        "refresh_es_storage_v2:es_storage cron task finished successfully,use %.2f seconds.", end_time - start_time
+    )
+
+
+def process_cluster_storages(cluster_id, cluster_storages):
+    """
+    处理单个ES集群的存储项，串行执行,不再使用delay的方式，降低风险
+    @param cluster_id:  ES集群ID
+    @param cluster_storages: 待处理的采集项列表
+    """
+    logger.info(
+        "process_cluster_storages: start processing cluster_id->[%s]，need to rotate->[%s]",
+        cluster_id,
+        len(cluster_storages),
+    )
+    for storage in cluster_storages:
+        try:
+            logger.info("process_cluster_storages: start processing storage->[%s]", storage.table_id)
+            _manage_es_storage(storage)  # 不再使用delay，直接串行
+            time.sleep(settings.ES_INDEX_ROTATION_SLEEP_INTERVAL)  # 等待一段时间，降低负载
+            logger.info("process_cluster_storages: end processing storage->[%s]", storage.table_id)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                "process_cluster_storages:failed processing storage in cluster_id->[%s] for->[%s]", cluster_id, e
+            )
 
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshBCSInfo")

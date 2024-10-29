@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import hashlib
 import logging
 from functools import reduce
 from typing import Any, Dict, List, Union
@@ -56,3 +57,19 @@ def get_biz_id_by_space_uid(space_uid):
         return int(bk_biz_id)
     except Exception:  # pylint: disable=broad-except
         return None
+
+
+def get_hour_off_set_by_table_id(table_id: str, max_hours: int = 16):
+    """
+    根据table_id，计算对应的时间偏移量，用以在索引轮转周期任务时将其分散到不同的时间段中进行创建
+    @param table_id: 结果表ID
+    @param max_hours: 最大偏移量
+    @return: 时间偏移量
+    """
+    # 计算标识符的哈希值
+    hash_object = hashlib.md5(table_id.encode())
+    hash_digest = hash_object.hexdigest()
+
+    # 计算偏移量
+    offset = int(hash_digest, 16) % max_hours
+    return offset

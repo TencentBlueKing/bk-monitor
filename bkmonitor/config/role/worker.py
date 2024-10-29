@@ -282,6 +282,8 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.custom_report.check_custom_event_group_sleep", "0 4 * * *", "global"),
     # ES 周期性任务 从report_cron 队列迁回 LONG_TASK_CRONTAB (周期调整 10-> 15min)
     ("metadata.task.config_refresh.refresh_es_storage", "*/15 * * * *", "global"),
+    # 新版ES索引轮转周期任务 15min一次
+    ("metadata.task.config_refresh.refresh_es_storage_v2", "*/15 * * * *", "global"),
 ]
 
 # Timeout for image exporter service, default set to 10 seconds
